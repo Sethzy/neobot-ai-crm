@@ -1,6 +1,6 @@
 /**
  * Landing page button component with solid/outline variants.
- * Supports both button and link modes via TanStack Router.
+ * Supports both button and link modes via Next.js Link.
  */
 import Link from "next/link";
 import { cn } from '@/lib/utils'

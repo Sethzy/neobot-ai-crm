@@ -47,7 +47,13 @@ export default function CasesPage() {
       </div>
 
       <div className="mt-6">
-        {isLoading ? null : cases.length === 0 ? (
+        {isLoading ? (
+          <div className="animate-pulse space-y-3">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <div key={idx} className="h-14 rounded-lg bg-muted/30" />
+            ))}
+          </div>
+        ) : cases.length === 0 ? (
           <div className="rounded-xl border border-border/40 bg-card p-20 text-center shadow-sm">
             <Briefcase className="mx-auto h-12 w-12 text-muted-foreground/40" />
             <p className="mt-6 text-muted-foreground">

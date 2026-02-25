@@ -4,6 +4,7 @@
  * @module components/analyst/chat-message
  */
 import { memo, useState } from 'react';
+import Image from "next/image";
 import type { UIMessage } from '@/hooks/use-analyst-chat';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import { cn } from '@/lib/utils';
@@ -105,10 +106,13 @@ export const ChatMessage = memo(function ChatMessage({ message }: ChatMessagePro
 
             case 'image':
               return (
-                <img
+                <Image
                   key={key}
                   src={`data:${part.mediaType};base64,${part.data}`}
                   alt="Attached image"
+                  width={200}
+                  height={200}
+                  unoptimized
                   className="max-w-[200px] max-h-[200px] rounded-lg object-contain"
                 />
               );

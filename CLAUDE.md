@@ -29,8 +29,8 @@ The SaaS app enables users to upload scattered documents, automatically classify
 
 ## Routing and Navigation
 
-- Use TanStack Router. Use file based routing. Only where it's appropriate, apply URL as state (filters, pagination, sorting).
-- Prefetch data in route loaders. Zero loading states on navigation. If you see "Loading..." flash after clicking a link, you forgot to prefetch.
+- Use Next.js App Router with file-based routing under `app/**`.
+- Prefer Server Components where possible, and use client-side navigation/state only when necessary.
 
 ## Backend and Database
 
@@ -44,10 +44,10 @@ The SaaS app enables users to upload scattered documents, automatically classify
 - Use Tailwind CSS for styling.
 - Implement consistent design and responsive patterns across the app.
 - Tables: Always ask the user if they want to use TanStack Table.
-- Forms: Always ask the user if they want to use TanStack Form + Zod.
+- Forms: Use Zod validation and lightweight controlled/uncontrolled React form patterns.
 
 ## Testing and Documentation
 
-- Where required, write unit tests for components using Jest and React Testing Library.
+- Where required, write unit tests for components using Vitest and React Testing Library.
 - All code **must** be thoroughly documented using JSDoc-style comments. Assume a junior developer audience. Over-explain complex or non-obvious logic. Optimize comments for IDE IntelliSense.
 - Always add a concise line of file-level JSDoc docs at the top of each file when a file represents a clear module or feature.

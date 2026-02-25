@@ -4,10 +4,15 @@
  * Skills architecture section — showcases the modular skills (briefs, intelligence, automation)
  * that power the agent. Animation is rendered once for both mobile and desktop layouts.
  */
+import dynamic from 'next/dynamic'
 import { cn } from '@/lib/utils'
 import { Container } from '@/components/landing/Container'
-import { DocumentProcessingAnimation } from '@/components/landing/DocumentProcessingAnimation'
 import { useMediaQuery } from '@/hooks/use-media-query'
+
+const DocumentProcessingAnimation = dynamic(
+  () => import('@/components/landing/DocumentProcessingAnimation').then(m => ({ default: m.DocumentProcessingAnimation })),
+  { ssr: false }
+)
 import { useScrollReveal, useStaggeredReveal } from '@/hooks/useScrollReveal'
 import { Contact, Sparkles, Link, type LucideProps } from 'lucide-react'
 

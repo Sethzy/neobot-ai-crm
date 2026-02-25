@@ -4,6 +4,7 @@
  * @module components/analyst/file-download
  */
 import { useState, type ComponentType } from 'react';
+import Image from "next/image";
 import { Download } from 'lucide-react';
 import { FaFileExcel, FaFilePdf, FaFileWord, FaFilePowerpoint, FaFileCsv, FaFile } from 'react-icons/fa';
 import type { IconBaseProps } from 'react-icons';
@@ -93,6 +94,7 @@ export function FileDownload({ url, mediaType, filename }: FileDownloadProps) {
   const [imageError, setImageError] = useState(false);
   const displayName = filename ?? 'download';
   const config = getFileTypeConfig(displayName);
+  const isSupabaseHostedImage = url.startsWith("https://xtewwwycvapskgvfnliq.supabase.co/");
 
   // Show download card if image fails to load or if not an image
   if (!mediaType.startsWith('image/') || imageError) {
@@ -121,6 +123,20 @@ export function FileDownload({ url, mediaType, filename }: FileDownloadProps) {
         {/* Download indicator */}
         <Download className="h-4 w-4 shrink-0 text-zinc-400" />
       </a>
+    );
+  }
+
+  if (isSupabaseHostedImage) {
+    return (
+      <Image
+        src={url}
+        alt={displayName}
+        width={1024}
+        height={1024}
+        sizes="(max-width: 768px) 100vw, 448px"
+        onError={() => setImageError(true)}
+        className="max-w-md rounded-lg h-auto"
+      />
     );
   }
 

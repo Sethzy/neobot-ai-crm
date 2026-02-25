@@ -21,7 +21,7 @@ describe("DuplicateIndicator", () => {
 
   it("renders none status icon with correct aria-label", () => {
     render(<DuplicateIndicator status="none" />);
-    expect(screen.getByLabelText("No duplicates detected")).toBeInTheDocument();
+    expect(screen.getByLabelText("No duplicates found")).toBeInTheDocument();
   });
 
   it("renders detected status icon with correct aria-label", () => {
@@ -31,14 +31,14 @@ describe("DuplicateIndicator", () => {
 
   it("renders none status with green color class", () => {
     render(<DuplicateIndicator status="none" />);
-    const icon = screen.getByLabelText("No duplicates detected");
+    const icon = screen.getByLabelText("No duplicates found");
     expect(icon).toHaveClass("text-green-500");
   });
 
   it("renders detected status with amber color class", () => {
     render(<DuplicateIndicator status="detected" />);
     const icon = screen.getByLabelText("Review required");
-    expect(icon).toHaveClass("text-amber-500");
+    expect(icon).toHaveClass("text-warning/80");
   });
 
   it("shows page-specific duplicate info in tooltip when pageRanges provided", () => {

@@ -7,10 +7,19 @@ import { useDocumentsWithStatus } from "@/hooks/use-documents";
 import type { UpdateCaseInput } from "@/types/cases";
 import { CaseHeader } from "@/components/cases/case-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import dynamic from "next/dynamic";
+import { Suspense } from "react";
 import { DocumentsSection } from "@/components/documents/documents-section";
-import { ValidationRulesSection } from "@/components/cases/validation-rules-section";
-import { AnalystSection } from "@/components/analyst/analyst-section";
-import { LibrarySection } from "@/components/library";
+
+/** Non-default tabs — lazy-loaded so initial compile only includes Files tab */
+const ValidationRulesSection = dynamic(() => import("@/components/cases/validation-rules-section").then(m => ({ default: m.ValidationRulesSection })));
+const AnalystSection = dynamic(() => import("@/components/analyst/analyst-section").then(m => ({ default: m.AnalystSection })));
+const LibrarySection = dynamic(() => import("@/components/library").then(m => ({ default: m.LibrarySection })));
+
+const preloadValidationRules = () => void import("@/components/cases/validation-rules-section");
+const preloadAnalyst = () => void import("@/components/analyst/analyst-section");
+const preloadLibrary = () => void import("@/components/library");
+
 import { useReportHistory } from "@/hooks/use-docgen";
 import { Sparkle } from "lucide-react";
 
@@ -41,7 +50,24 @@ export default function CaseDetailPage() {
   }
 
   if (!caseData) {
-    return <div />;
+    return (
+      <div className="flex h-full animate-pulse flex-col bg-muted/5">
+        <div className="z-10 flex flex-col bg-background">
+          <div className="px-6 pb-1 pt-3">
+            <div className="mb-1 h-3 w-32 rounded bg-muted/40" />
+            <div className="mt-2 h-6 w-64 rounded bg-muted" />
+          </div>
+          <div className="border-b border-border/40 px-6 py-4" />
+        </div>
+        <div className="min-h-0 flex-1 p-6">
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div key={idx} className="h-16 rounded-lg bg-muted/30" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const handleSave = (data: UpdateCaseInput) => {
@@ -90,12 +116,16 @@ export default function CaseDetailPage() {
               </TabsTrigger>
               <TabsTrigger
                 value="rules"
+                onMouseEnter={preloadValidationRules}
+                onFocus={preloadValidationRules}
                 className="group px-1 py-2 text-foreground/60 data-[state=active]:font-semibold hover:text-foreground"
               >
                 Rules
               </TabsTrigger>
               <TabsTrigger
                 value="analyst"
+                onMouseEnter={preloadAnalyst}
+                onFocus={preloadAnalyst}
                 className="group px-1 py-2 text-foreground/60 data-[state=active]:font-semibold hover:text-foreground"
               >
                 AI Analyst
@@ -103,6 +133,8 @@ export default function CaseDetailPage() {
               </TabsTrigger>
               <TabsTrigger
                 value="library"
+                onMouseEnter={preloadLibrary}
+                onFocus={preloadLibrary}
                 className="group px-1 py-2 text-foreground/60 data-[state=active]:font-semibold hover:text-foreground"
               >
                 Reports
@@ -128,7 +160,15 @@ export default function CaseDetailPage() {
             className="mt-0 h-full data-[state=inactive]:hidden"
             forceMount
           >
-            <AnalystSection key={caseId} caseId={caseId} />
+            <Suspense
+              fallback={
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                  Loading analyst...
+                </div>
+              }
+            >
+              <AnalystSection key={caseId} caseId={caseId} />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="library" className="mt-0 h-full">

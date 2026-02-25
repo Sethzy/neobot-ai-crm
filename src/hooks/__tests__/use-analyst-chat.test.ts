@@ -26,6 +26,13 @@ Object.defineProperty(window, "localStorage", { value: localStorageMock });
 // Mock supabase
 vi.mock("@/lib/supabase", () => ({
   supabase: {
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          gt: vi.fn().mockResolvedValue({ count: 0 }),
+        })),
+      })),
+    })),
     auth: {
       getSession: vi.fn().mockResolvedValue({
         data: { session: { access_token: "test-token" } },
@@ -61,6 +68,7 @@ describe("useAnalystChat", () => {
     it("loads existing messages from localStorage on mount", async () => {
       const existingSession = {
         caseId: "case-123",
+        startedAt: new Date().toISOString(),
         messages: [
           { id: "msg-1", role: "user", parts: [{ type: "text", text: "Hello" }] },
           { id: "msg-2", role: "assistant", parts: [{ type: "text", text: "Hi" }] },
@@ -86,6 +94,7 @@ describe("useAnalystChat", () => {
     it("detects stale data when dataVersion differs", async () => {
       const existingSession = {
         caseId: "case-123",
+        startedAt: new Date().toISOString(),
         messages: [
           { id: "msg-1", role: "user", parts: [{ type: "text", text: "Hello" }] },
         ],
@@ -110,6 +119,7 @@ describe("useAnalystChat", () => {
     it("clears session on startFresh", async () => {
       const existingSession = {
         caseId: "case-123",
+        startedAt: new Date().toISOString(),
         messages: [
           { id: "msg-1", role: "user", parts: [{ type: "text", text: "Hello" }] },
         ],
@@ -233,6 +243,7 @@ describe("useAnalystChat", () => {
       // Set up existing session with containerId
       localStorageStore["analyst-chat-case-follow"] = JSON.stringify({
         caseId: "case-follow",
+        startedAt: new Date().toISOString(),
         messages: [
           { id: "msg-1", role: "user", parts: [{ type: "text", text: "First" }] },
           {

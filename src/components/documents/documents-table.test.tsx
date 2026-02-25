@@ -3,7 +3,7 @@
  * @module components/documents/documents-table.test
  */
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { DocumentsTable } from "./documents-table";
 import type { Document } from "@/types/documents";
 
@@ -170,8 +170,9 @@ describe("DocumentsTable", () => {
       />
     );
 
-    const viewButtons = screen.getAllByLabelText("View document");
-    fireEvent.click(viewButtons[0]);
+    const row = screen.getByText("15_03_2024_medical_receipt.pdf").closest("tr");
+    expect(row).not.toBeNull();
+    fireEvent.click(within(row!).getByLabelText("View document"));
 
     expect(onView).toHaveBeenCalledWith(mockDocuments[0]);
   });
@@ -187,8 +188,9 @@ describe("DocumentsTable", () => {
       />
     );
 
-    const downloadButtons = screen.getAllByLabelText("Download document");
-    fireEvent.click(downloadButtons[0]);
+    const row = screen.getByText("15_03_2024_medical_receipt.pdf").closest("tr");
+    expect(row).not.toBeNull();
+    fireEvent.click(within(row!).getByLabelText("Download document"));
 
     expect(onDownload).toHaveBeenCalledWith(mockDocuments[0]);
   });
@@ -204,8 +206,9 @@ describe("DocumentsTable", () => {
       />
     );
 
-    const deleteButtons = screen.getAllByLabelText("Delete document");
-    fireEvent.click(deleteButtons[0]);
+    const row = screen.getByText("15_03_2024_medical_receipt.pdf").closest("tr");
+    expect(row).not.toBeNull();
+    fireEvent.click(within(row!).getByLabelText("Delete document"));
 
     expect(onDelete).toHaveBeenCalledWith(mockDocuments[0]);
   });

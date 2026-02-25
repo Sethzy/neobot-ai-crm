@@ -40,9 +40,7 @@ describe("EditableField", () => {
   it("renders date input for date type", () => {
     render(<EditableField {...defaultProps} fieldType="date" value="2024-01-15" />);
 
-    const input = screen.getByDisplayValue("2024-01-15");
-    expect(input).toBeInTheDocument();
-    expect(input).toHaveAttribute("type", "date");
+    expect(screen.getByRole("button", { name: /15 jan 2024/i })).toBeInTheDocument();
   });
 
   it("renders checkbox for boolean type", () => {

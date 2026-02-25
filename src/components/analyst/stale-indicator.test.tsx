@@ -16,13 +16,13 @@ describe('StaleIndicator', () => {
   it('shows icon when data is stale', () => {
     render(<StaleIndicator isStale={true} />);
 
-    expect(screen.getByLabelText(/new documents available/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/new uploads detected/i)).toBeInTheDocument();
   });
 
   it('renders warning icon with amber color', () => {
     render(<StaleIndicator isStale={true} />);
 
-    const icon = screen.getByLabelText(/new documents available/i).querySelector('svg');
+    const icon = screen.getByLabelText(/new uploads detected/i).querySelector('svg');
     expect(icon).toHaveClass('text-amber-500');
   });
 });

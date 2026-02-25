@@ -36,9 +36,6 @@
     "demo-video",
     "tests",
     "**/*.test.ts",
-    "**/*.test.tsx",
-    "src/routes/**",
-    "src/main.tsx",
-    "src/routeTree.gen.ts"
+    "**/*.test.tsx"
   ]
 }

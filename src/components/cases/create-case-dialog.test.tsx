@@ -6,16 +6,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  RouterProvider,
-  createMemoryHistory,
-  createRootRoute,
-  createRouter,
-} from "@tanstack/react-router";
 import { CreateCaseDialog } from "./create-case-dialog";
 
 const mockMutate = vi.fn();
-const mockNavigate = vi.fn();
+const mockPush = vi.fn();
 
 vi.mock("@/hooks/use-cases", () => ({
   useCreateCase: vi.fn(() => ({
@@ -26,37 +20,21 @@ vi.mock("@/hooks/use-cases", () => ({
   })),
 }));
 
-vi.mock("@tanstack/react-router", async () => {
-  const actual = await vi.importActual("@tanstack/react-router");
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  };
-});
-
-const createTestRouter = (dialogOpen: boolean, onOpenChange: (open: boolean) => void) => {
-  const rootRoute = createRootRoute({
-    component: () => (
-      <CreateCaseDialog open={dialogOpen} onOpenChange={onOpenChange} />
-    ),
-  });
-  const routeTree = rootRoute;
-  return createRouter({
-    routeTree,
-    history: createMemoryHistory({ initialEntries: ["/"] }),
-  });
-};
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+}));
 
 const renderWithProviders = (open = true, onOpenChange = vi.fn()) => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  const router = createTestRouter(open, onOpenChange);
 
   return {
     ...render(
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <CreateCaseDialog open={open} onOpenChange={onOpenChange} />
       </QueryClientProvider>
     ),
     onOpenChange,
@@ -70,17 +48,16 @@ describe("CreateCaseDialog", () => {
 
   it("renders dialog title when open", async () => {
     renderWithProviders(true);
-    expect(await screen.findByText("Create new case")).toBeInTheDocument();
+    expect(await screen.findByText("Create new")).toBeInTheDocument();
   });
 
   it("renders all form fields", async () => {
     renderWithProviders(true);
-    expect(await screen.findByLabelText(/case name/i)).toBeInTheDocument();
-    expect(await screen.findByLabelText(/case reference/i)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/name/i)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/reference/i)).toBeInTheDocument();
     expect(await screen.findByLabelText(/description/i)).toBeInTheDocument();
-    // Date fields use Calendar popover instead of input, check by text
-    expect(await screen.findByText(/case opened at/i)).toBeInTheDocument();
-    expect(await screen.findByText(/case event date/i)).toBeInTheDocument();
+    expect(await screen.findByText(/created at/i)).toBeInTheDocument();
+    expect(await screen.findByText(/event date/i)).toBeInTheDocument();
   });
 
   it("shows validation errors for empty required fields", async () => {
@@ -88,7 +65,7 @@ describe("CreateCaseDialog", () => {
     renderWithProviders(true);
 
     const submitButton = await screen.findByRole("button", {
-      name: /create case/i,
+      name: /^create$/i,
     });
     await user.click(submitButton);
 
@@ -101,11 +78,11 @@ describe("CreateCaseDialog", () => {
     const user = userEvent.setup();
     renderWithProviders(true);
 
-    await user.type(await screen.findByLabelText(/case name/i), "Test Case");
-    await user.type(await screen.findByLabelText(/case reference/i), "REF-001");
+    await user.type(await screen.findByLabelText(/name/i), "Test Case");
+    await user.type(await screen.findByLabelText(/reference/i), "REF-001");
 
     const submitButton = await screen.findByRole("button", {
-      name: /create case/i,
+      name: /^create$/i,
     });
     await user.click(submitButton);
 

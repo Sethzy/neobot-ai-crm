@@ -1,8 +1,9 @@
 'use client';
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter, useParams } from "next/navigation";
-import { useState, useCallback, lazy, Suspense, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SplitResultsPane } from "@/components/documents/split-results-pane";
@@ -22,10 +23,22 @@ import { useSetHighlights } from "@/contexts/highlight-context";
 
 type ViewMode = "extraction" | "split";
 
-const PdfViewerPane = lazy(() =>
-  import("@/components/documents/pdf-viewer-pane").then((m) => ({
-    default: m.PdfViewerPane,
-  }))
+const PdfViewerPane = dynamic(
+  () =>
+    import("@/components/documents/pdf-viewer-pane").then((m) => ({
+      default: m.PdfViewerPane,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full flex-col bg-neutral-50/50">
+        <div className="h-10 border-b border-[#d1d1d1] bg-[#eeeeee]" />
+        <div className="flex flex-1 items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    ),
+  }
 );
 
 export default function DocumentDetailPage() {
@@ -99,7 +112,24 @@ export default function DocumentDetailPage() {
   }, [isReviewed, markReviewedMutation, unmarkReviewedMutation, docId, caseId]);
 
   if (!caseId || !docId || isLoading || !document || !pdfUrl) {
-    return null;
+    return (
+      <div className="flex h-screen animate-pulse flex-col bg-background">
+        <div className="flex items-center gap-4 border-b border-border/40 px-5 py-3">
+          <div className="h-8 w-8 rounded bg-muted/40" />
+          <div className="h-4 w-48 rounded bg-muted" />
+        </div>
+        <div className="flex min-h-0 flex-1">
+          <div className="flex w-1/2 items-center justify-center border-r border-[#E5E5E5]">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+          </div>
+          <div className="w-1/2 space-y-4 p-6">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div key={idx} className="h-24 rounded-lg bg-muted/30" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const displayFilename = document.renamed_filename || document.original_filename;
@@ -138,18 +168,7 @@ export default function DocumentDetailPage() {
 
       <div className="flex min-h-0 flex-1">
         <div className="w-1/2 border-r border-[#E5E5E5]">
-          <Suspense
-            fallback={
-              <div className="flex h-full flex-col bg-neutral-50/50">
-                <div className="h-10 border-b border-[#d1d1d1] bg-[#eeeeee]" />
-                <div className="flex flex-1 items-center justify-center">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              </div>
-            }
-          >
-            <PdfViewerPane pdfUrl={pdfUrl} fileType={document.file_type} />
-          </Suspense>
+          <PdfViewerPane pdfUrl={pdfUrl} fileType={document.file_type} />
         </div>
 
         <div className="w-1/2 bg-muted/10">

@@ -12,8 +12,8 @@ describe('QuickActionCards', () => {
     render(<QuickActionCards onSelectAction={vi.fn()} />);
 
     expect(screen.getByText('Reconcile')).toBeInTheDocument();
-    expect(screen.getByText('Analyze patterns')).toBeInTheDocument();
-    expect(screen.getByText('Find issues')).toBeInTheDocument();
+    expect(screen.getByText('Analyze')).toBeInTheDocument();
+    expect(screen.getByText('Audit')).toBeInTheDocument();
   });
 
   it('calls onSelectAction with reconcile prompt when clicked', async () => {
@@ -33,7 +33,7 @@ describe('QuickActionCards', () => {
     const onSelectAction = vi.fn();
     render(<QuickActionCards onSelectAction={onSelectAction} />);
 
-    await user.click(screen.getByText('Analyze patterns'));
+    await user.click(screen.getByText('Analyze'));
 
     expect(onSelectAction).toHaveBeenCalledWith(
       expect.stringContaining('Analyze patterns in this data')
@@ -45,7 +45,7 @@ describe('QuickActionCards', () => {
     const onSelectAction = vi.fn();
     render(<QuickActionCards onSelectAction={onSelectAction} />);
 
-    await user.click(screen.getByText('Find issues'));
+    await user.click(screen.getByText('Audit'));
 
     expect(onSelectAction).toHaveBeenCalledWith(
       expect.stringContaining('Audit these documents for issues')

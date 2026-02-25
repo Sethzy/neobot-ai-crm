@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import { Header } from "@/components/landing/Header";
 import { Hero } from "@/components/landing/Hero";
-import { PrimaryFeatures } from "@/components/landing/PrimaryFeatures";
-import { UseCases } from "@/components/landing/UseCases";
-import { SecondaryFeatures } from "@/components/landing/SecondaryFeatures";
-import { Differentiator } from "@/components/landing/Differentiator";
-import { ProductShowcase } from "@/components/landing/ProductShowcase";
-import { CallToAction } from "@/components/landing/CallToAction";
-import { Testimonials } from "@/components/landing/Testimonials";
-import { Pricing } from "@/components/landing/Pricing";
-import { Faqs } from "@/components/landing/Faqs";
-import { Footer } from "@/components/landing/Footer";
+
+/** Below-fold sections — lazy-loaded to cut initial module count */
+const UseCases = dynamic(() => import("@/components/landing/UseCases").then(m => ({ default: m.UseCases })));
+const PrimaryFeatures = dynamic(() => import("@/components/landing/PrimaryFeatures").then(m => ({ default: m.PrimaryFeatures })));
+const SecondaryFeatures = dynamic(() => import("@/components/landing/SecondaryFeatures").then(m => ({ default: m.SecondaryFeatures })));
+const ProductShowcase = dynamic(() => import("@/components/landing/ProductShowcase").then(m => ({ default: m.ProductShowcase })));
+const Differentiator = dynamic(() => import("@/components/landing/Differentiator").then(m => ({ default: m.Differentiator })));
+const CallToAction = dynamic(() => import("@/components/landing/CallToAction").then(m => ({ default: m.CallToAction })));
+const Testimonials = dynamic(() => import("@/components/landing/Testimonials").then(m => ({ default: m.Testimonials })));
+const Pricing = dynamic(() => import("@/components/landing/Pricing").then(m => ({ default: m.Pricing })));
+const Faqs = dynamic(() => import("@/components/landing/Faqs").then(m => ({ default: m.Faqs })));
+const Footer = dynamic(() => import("@/components/landing/Footer").then(m => ({ default: m.Footer })));
 
 export const metadata: Metadata = {
   title: "NeoBot - WhatsApp Your AI Assistant. Get Answers. Get Things Done.",

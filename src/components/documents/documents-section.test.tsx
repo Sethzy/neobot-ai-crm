@@ -5,17 +5,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, act, cleanup } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  RouterProvider,
-  createMemoryHistory,
-  createRootRoute,
-  createRouter,
-} from "@tanstack/react-router";
 import { DocumentsSection } from "./documents-section";
 import { UploadProvider } from "@/contexts/upload-context";
 import type { Document } from "@/types/documents";
 
-const mockNavigate = vi.fn();
+const mockPush = vi.fn();
 
 // Mock useDocuments hook
 vi.mock("@/hooks/use-documents", () => ({
@@ -41,36 +35,24 @@ vi.mock("@/lib/supabase", () => ({
   },
 }));
 
-// Mock useNavigate
-vi.mock("@tanstack/react-router", async () => {
-  const actual = await vi.importActual("@tanstack/react-router");
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  };
-});
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+}));
 
 const renderWithProviders = async (caseId = "case-123") => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
-  });
-  const rootRoute = createRootRoute({
-    component: () => (
-      <UploadProvider>
-        <DocumentsSection caseId={caseId} />
-      </UploadProvider>
-    ),
-  });
-  const router = createRouter({
-    routeTree: rootRoute,
-    history: createMemoryHistory({ initialEntries: ["/"] }),
   });
 
   let result;
   await act(async () => {
     result = render(
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <UploadProvider>
+          <DocumentsSection caseId={caseId} />
+        </UploadProvider>
       </QueryClientProvider>
     );
   });

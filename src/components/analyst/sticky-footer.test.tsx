@@ -37,13 +37,13 @@ describe('StickyFooter', () => {
   it('hides stale indicator when not stale', () => {
     render(<StickyFooter {...defaultProps} isStale={false} />);
 
-    expect(screen.queryByLabelText(/new documents available/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/new uploads detected/i)).not.toBeInTheDocument();
   });
 
   it('shows stale indicator when stale', () => {
     render(<StickyFooter {...defaultProps} isStale={true} />);
 
-    expect(screen.getByLabelText(/new documents available/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/new uploads detected/i)).toBeInTheDocument();
   });
 
   it('calls onNewChat when New Chat clicked', async () => {

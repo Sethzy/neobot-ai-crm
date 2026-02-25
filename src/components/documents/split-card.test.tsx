@@ -27,8 +27,9 @@ describe("SplitCard", () => {
   it("renders identifier when present", () => {
     render(<SplitCard split={mockSplit} onPageClick={() => {}} />);
 
-    expect(screen.getByText(/Identifier:/)).toBeInTheDocument();
-    expect(screen.getByText("INV-12345")).toBeInTheDocument();
+    const identifier = screen.getByText(/Identifier:/);
+    expect(identifier).toBeInTheDocument();
+    expect(identifier).toHaveTextContent("INV-12345");
   });
 
   it("hides identifier when null", () => {
@@ -41,8 +42,9 @@ describe("SplitCard", () => {
   it("renders formatted date when present", () => {
     render(<SplitCard split={mockSplit} onPageClick={() => {}} />);
 
-    expect(screen.getByText(/Date:/)).toBeInTheDocument();
-    expect(screen.getByText("19 Sept 2023")).toBeInTheDocument();
+    const date = screen.getByText(/Date:/);
+    expect(date).toBeInTheDocument();
+    expect(date).toHaveTextContent("19 Sept 2023");
   });
 
   it("renders OCR warning when potential_duplicate present", () => {
@@ -76,11 +78,10 @@ describe("SplitCard", () => {
     expect(handleClick).toHaveBeenCalledWith(1);
   });
 
-  it("renders badge with blue color scheme", () => {
+  it("renders type label with current neutral typography", () => {
     render(<SplitCard split={mockSplit} onPageClick={() => {}} />);
 
-    const badge = screen.getByText("Invoices");
-    expect(badge).toHaveClass("bg-[#F0F6FF]");
-    expect(badge).toHaveClass("text-[#4084F6]");
+    const label = screen.getByText("Invoices");
+    expect(label).toHaveClass("text-sm", "font-semibold");
   });
 });

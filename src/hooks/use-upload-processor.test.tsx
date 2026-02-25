@@ -133,7 +133,7 @@ describe("useUploadProcessor", () => {
 
     await waitFor(() => {
       expect(result.current.queue[0].status).toBe("failed");
-      expect(result.current.queue[0].error).toContain("Invalid file type");
+      expect(result.current.queue[0].error).toContain("Unsupported file type");
     });
   });
 

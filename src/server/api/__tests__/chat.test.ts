@@ -4,6 +4,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
+process.env.SUPABASE_URL = process.env.SUPABASE_URL ?? "https://example.supabase.co";
+process.env.SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ?? "test-anon-key";
+
 // Mock dependencies
 vi.mock("@supabase/supabase-js", () => ({
   createClient: vi.fn(() => mockSupabase),
@@ -44,12 +47,45 @@ const mockSupabase = {
   }),
 };
 
+const mockFilesUpload = vi.fn().mockResolvedValue({ id: "file_123" });
+const mockFilesRetrieveMetadata = vi
+  .fn()
+  .mockResolvedValue({ filename: "data.json" });
+
+const createMockStream = () => {
+  const events = [
+    { type: "message_start", message: { container: { id: "container_abc" } } },
+    { type: "content_block_start", content_block: { type: "text" } },
+    { type: "content_block_delta", delta: { type: "text_delta", text: "Hello" } },
+    { type: "message_stop" },
+  ];
+
+  return {
+    async *[Symbol.asyncIterator]() {
+      for (const event of events) {
+        yield event;
+      }
+    },
+    finalMessage: vi.fn().mockResolvedValue({
+      container: { id: "container_abc" },
+      model: "claude-test",
+      stop_reason: "end_turn",
+      usage: { input_tokens: 1, output_tokens: 1 },
+      content: [{ type: "text", text: "Hello" }],
+    }),
+  };
+};
+
+const mockMessagesStream = vi.fn().mockImplementation(() => createMockStream());
+
 class MockAnthropicClient {
   beta = {
     files: {
-      upload: vi.fn().mockResolvedValue({ id: "file_123" }),
+      upload: mockFilesUpload,
+      retrieveMetadata: mockFilesRetrieveMetadata,
     },
     messages: {
+      stream: mockMessagesStream,
       create: vi.fn().mockResolvedValue({
         content: [{ type: "text", text: "Hello" }],
         container: { id: "container_abc" },
@@ -74,6 +110,8 @@ function createMockReqRes(options: {
     status: vi.fn().mockReturnThis(),
     json: vi.fn().mockReturnThis(),
     setHeader: vi.fn().mockReturnThis(),
+    write: vi.fn().mockReturnThis(),
+    end: vi.fn().mockReturnThis(),
   } as unknown as VercelResponse;
 
   return { req, res };
@@ -184,12 +222,18 @@ describe("First message flow (Anthropic SDK)", () => {
     const handler = (await import("../chat")).default;
     await handler(req, res);
 
-    // Should return container ID
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        containerId: "container_abc",
-      })
+    expect(mockFilesUpload).toHaveBeenCalled();
+    expect(mockFilesRetrieveMetadata).toHaveBeenCalled();
+    expect(mockMessagesStream).toHaveBeenCalled();
+    expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "text/event-stream");
+    expect(res.write).toHaveBeenCalledWith(
+      expect.stringContaining('"type":"metadata"')
     );
+    expect(res.write).toHaveBeenCalledWith(
+      expect.stringContaining('"containerId":"container_abc"')
+    );
+    expect(res.end).toHaveBeenCalled();
+    expect(res.json).not.toHaveBeenCalled();
   });
 
   it("returns 400 when no extracted documents found", async () => {

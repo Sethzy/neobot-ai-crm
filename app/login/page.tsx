@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { use, useState } from "react";
 import { Button } from "@/components/landing/Button";
 import { Logo } from "@/components/landing/Logo";
 import { SlimLayout } from "@/components/landing/SlimLayout";
@@ -10,18 +10,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 
-export default function LoginPage() {
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ redirect?: string }>;
+}) {
   const router = useRouter();
-  const [redirect, setRedirect] = useState<string | null>(null);
+  const { redirect } = use(searchParams);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setRedirect(params.get("redirect"));
-  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +39,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.replace(redirect ?? "/cases");
+    router.replace(redirect || "/cases");
   };
 
   return (

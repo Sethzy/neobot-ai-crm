@@ -6,7 +6,8 @@
  */
 'use client';
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type MouseEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useReactTable,
@@ -125,6 +126,13 @@ export function CasesTable({ cases }: CasesTableProps) {
     []
   );
 
+  const handleRowClick = (event: MouseEvent<HTMLTableRowElement>, caseId: string) => {
+    if ((event.target as HTMLElement).closest("a,button,[role='button']")) {
+      return;
+    }
+    router.push(`/cases/${caseId}`);
+  };
+
   const columns = useMemo(
     () => [
       columnHelper.display({
@@ -142,30 +150,24 @@ export function CasesTable({ cases }: CasesTableProps) {
         header: "Ref",
         size: 120,
         cell: (info) => (
-          <button
+          <Link
+            href={`/cases/${info.row.original.id}`}
             className="text-left hover:underline"
-            onClick={(e) => {
-              e.stopPropagation();
-              router.push(`/cases/${info.row.original.id}`);
-            }}
           >
             {info.getValue()}
-          </button>
+          </Link>
         ),
       }),
       columnHelper.accessor("case_name", {
         header: "Name",
         size: 160,
         cell: (info) => (
-          <button
+          <Link
+            href={`/cases/${info.row.original.id}`}
             className="text-left hover:underline"
-            onClick={(e) => {
-              e.stopPropagation();
-              router.push(`/cases/${info.row.original.id}`);
-            }}
           >
             {info.getValue()}
-          </button>
+          </Link>
         ),
       }),
       columnHelper.accessor("description", {
@@ -293,7 +295,8 @@ export function CasesTable({ cases }: CasesTableProps) {
           <tr
             key={row.id}
             className="border-t border-border/30 hover:bg-muted/40 cursor-pointer transition-colors"
-            onClick={() => router.push(`/cases/${row.original.id}`)}
+            onMouseEnter={() => router.prefetch(`/cases/${row.original.id}`)}
+            onClick={(event) => handleRowClick(event, row.original.id)}
           >
             {row.getVisibleCells().map((cell) => (
               <td key={cell.id} className="px-5 py-4 text-[13px] text-foreground/80">

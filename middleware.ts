@@ -14,6 +14,10 @@ const PUBLIC_ROUTES = [
 const AUTH_ONLY_ROUTES = ["/login", "/register"];
 
 const STATIC_FILE_REGEX = /\.[^/]+$/;
+const SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY;
 
 function isInfrastructurePath(pathname: string): boolean {
   return (
@@ -41,22 +45,8 @@ function isPublicRoute(pathname: string): boolean {
   );
 }
 
-function getSupabaseEnv() {
-  const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
-  const supabaseAnonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      "Missing Supabase env vars. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
-    );
-  }
-
-  return { supabaseUrl, supabaseAnonKey };
-}
-
 export async function middleware(request: NextRequest) {
+  const mwStart = performance.now();
   const pathname = request.nextUrl.pathname;
 
   // Skip auth checks for static/infrastructure requests and non-auth public pages.
@@ -64,12 +54,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error(
+      "Missing Supabase env vars. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
+    );
+  }
+
   let response = NextResponse.next({ request });
 
+  const supabaseStart = performance.now();
   const supabase = createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
     {
       cookies: {
         getAll() {
@@ -88,9 +84,16 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  const getUserStart = performance.now();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const getUserMs = (performance.now() - getUserStart).toFixed(0);
+  const supabaseMs = (performance.now() - supabaseStart).toFixed(0);
+
+  console.log(
+    `[middleware] ${pathname} | getUser: ${getUserMs}ms | supabase total: ${supabaseMs}ms`
+  );
 
   if (!user && !isPublicRoute(pathname)) {
     const url = request.nextUrl.clone();
@@ -104,6 +107,12 @@ export async function middleware(request: NextRequest) {
     url.pathname = "/chat";
     return NextResponse.redirect(url);
   }
+
+  const totalMs = (performance.now() - mwStart).toFixed(0);
+  response.headers.set(
+    "Server-Timing",
+    `middleware;dur=${totalMs}, supabase-getuser;dur=${getUserMs}`
+  );
 
   return response;
 }

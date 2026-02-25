@@ -71,7 +71,7 @@ describe('AnalystSection', () => {
       { wrapper }
     );
 
-    expect(screen.getByPlaceholderText(/ask me anything/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/ask anything/i)).toBeInTheDocument();
   });
 
   it('does not render old header component', () => {
@@ -96,11 +96,10 @@ describe('AnalystSection', () => {
       { wrapper }
     );
 
-    // Stale indicator shows "Stale" when data is stale
-    expect(screen.getByRole('button', { name: /stale/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/new uploads detected/i)).toBeInTheDocument();
   });
 
-  it('shows Fresh indicator in sticky footer when data is not stale', () => {
+  it('hides stale indicator when data is not stale', () => {
     mockUseAnalystChat.mockReturnValue({
       ...defaultMockReturn,
       isStale: false,
@@ -111,7 +110,7 @@ describe('AnalystSection', () => {
       { wrapper }
     );
 
-    expect(screen.getByRole('button', { name: /fresh/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/new uploads detected/i)).not.toBeInTheDocument();
   });
 
   it('shows New Chat button in controls row', () => {
@@ -129,7 +128,7 @@ describe('AnalystSection', () => {
       { wrapper }
     );
 
-    expect(screen.getByRole('button', { name: /quick export/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /export totals/i })).toBeInTheDocument();
   });
 
   it('shows error message with retry button when error occurs', () => {
@@ -180,10 +179,14 @@ describe('AnalystSection', () => {
       { wrapper }
     );
 
-    const textarea = screen.getByPlaceholderText(/ask me anything/i);
+    const textarea = screen.getByPlaceholderText(/ask anything/i);
     await user.type(textarea, 'test message');
-    await user.click(screen.getByRole('button', { name: '' })); // Send button has icon only
+    const submitButton = screen
+      .getAllByRole('button')
+      .find((btn) => btn.getAttribute('type') === 'submit');
+    expect(submitButton).toBeDefined();
+    await user.click(submitButton!);
 
-    expect(sendMock).toHaveBeenCalledWith('test message', []);
+    expect(sendMock).toHaveBeenCalledWith('test message', [], [], []);
   });
 });

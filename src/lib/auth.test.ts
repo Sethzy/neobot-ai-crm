@@ -77,14 +77,14 @@ describe("getAuthRedirect", () => {
       expect(redirect).toBeNull();
     });
 
-    it("redirects from login to /cases", () => {
+    it("redirects from login to /chat", () => {
       const redirect = getAuthRedirect("/login", mockSession);
-      expect(redirect).toBe("/cases");
+      expect(redirect).toBe("/chat");
     });
 
-    it("redirects from register to /cases", () => {
+    it("redirects from register to /chat", () => {
       const redirect = getAuthRedirect("/register", mockSession);
-      expect(redirect).toBe("/cases");
+      expect(redirect).toBe("/chat");
     });
 
     it("allows access to /cases", () => {

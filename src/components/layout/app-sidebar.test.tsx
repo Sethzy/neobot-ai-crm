@@ -23,14 +23,13 @@ vi.mock("@/lib/supabase", () => ({
 
 // Configurable pathname for router mock
 let mockPathname = "/chat";
+const mockPush = vi.fn();
 
-// Mock TanStack Router
-vi.mock("@tanstack/react-router", () => ({
-  useLocation: () => ({ pathname: mockPathname }),
-  useNavigate: () => vi.fn(),
-  Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
-    <a href={to}>{children}</a>
-  ),
+vi.mock("next/navigation", () => ({
+  usePathname: () => mockPathname,
+  useRouter: () => ({
+    push: mockPush,
+  }),
 }));
 
 // Mock use-mobile hook

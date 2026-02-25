@@ -24,5 +24,4 @@ Copy `.env.example` to `.env.local` and fill in required values.
 
 ## Notes
 
-- Vite-era routes under `src/routes/**` remain in the repo for reference during migration cleanup.
 - `next build` is configured to skip lint gating; use `npm run lint` for lint checks.

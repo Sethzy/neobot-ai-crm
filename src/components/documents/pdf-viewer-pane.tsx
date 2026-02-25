@@ -2,13 +2,14 @@
  * PDF viewer pane with highlight support.
  * @module components/documents/pdf-viewer-pane
  */
+import Image from "next/image";
 import { Viewer, Worker } from "@react-pdf-viewer/core";
 import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
 import {
   highlightPlugin,
   type RenderHighlightsProps,
 } from "@react-pdf-viewer/highlight";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { HighlightArea } from "@/lib/highlight-utils";
 import { useHighlights } from "@/contexts/highlight-context";
 
@@ -25,6 +26,7 @@ interface PdfViewerPaneProps {
 
 /** Image file types that should be rendered as <img> instead of PDF viewer */
 const IMAGE_FILE_TYPES = ["png", "jpg", "jpeg", "gif", "webp", "tiff", "tif", "heic", "bmp"];
+const SUPABASE_STORAGE_HOST = "https://xtewwwycvapskgvfnliq.supabase.co/";
 
 /**
  * Renders a single highlight overlay.
@@ -57,6 +59,8 @@ export function PdfViewerPane({ pdfUrl, fileType = "pdf" }: PdfViewerPaneProps) 
   const isImage = IMAGE_FILE_TYPES.includes(fileType.toLowerCase());
   const isPdf = fileType.toLowerCase() === "pdf";
   const isUnsupported = !isImage && !isPdf;
+  const isSupabaseHostedImage = isImage && pdfUrl.startsWith(SUPABASE_STORAGE_HOST);
+  const [naturalImageSize, setNaturalImageSize] = useState<{ width: number; height: number } | null>(null);
 
   // Create plugins (only used for PDF)
   const defaultLayoutPluginInstance = defaultLayoutPlugin({
@@ -95,6 +99,32 @@ export function PdfViewerPane({ pdfUrl, fileType = "pdf" }: PdfViewerPaneProps) 
     return () => registerJumpToPage(null);
   }, [defaultLayoutPluginInstance, registerJumpToPage, isImage, isUnsupported]);
 
+  useEffect(() => {
+    if (!isSupabaseHostedImage) {
+      setNaturalImageSize(null);
+      return;
+    }
+
+    let cancelled = false;
+    const probe = new window.Image();
+    probe.onload = () => {
+      if (cancelled) return;
+      setNaturalImageSize({
+        width: probe.naturalWidth || 1200,
+        height: probe.naturalHeight || 1600,
+      });
+    };
+    probe.onerror = () => {
+      if (cancelled) return;
+      setNaturalImageSize({ width: 1200, height: 1600 });
+    };
+    probe.src = pdfUrl;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isSupabaseHostedImage, pdfUrl]);
+
   // Image viewer for non-PDF files
   if (isImage) {
     return (
@@ -109,12 +139,24 @@ export function PdfViewerPane({ pdfUrl, fileType = "pdf" }: PdfViewerPaneProps) 
           style={{ scrollbarWidth: 'thin', scrollbarColor: '#a8a29e66 transparent' }}
         >
           <div className="relative inline-block">
-            <img
-              src={pdfUrl}
-              alt="Document preview"
-              className="max-w-full h-auto"
-              style={{ backgroundColor: "white" }}
-            />
+            {isSupabaseHostedImage ? (
+              <Image
+                src={pdfUrl}
+                alt="Document preview"
+                width={naturalImageSize?.width ?? 1200}
+                height={naturalImageSize?.height ?? 1600}
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="h-auto max-w-full"
+                style={{ backgroundColor: "white" }}
+              />
+            ) : (
+              <img
+                src={pdfUrl}
+                alt="Document preview"
+                className="max-w-full h-auto"
+                style={{ backgroundColor: "white" }}
+              />
+            )}
             {/* Highlight overlays - same style as PDF viewer */}
             {highlights
               .filter((h) => h.pageIndex === 0) // Images are single page (index 0)

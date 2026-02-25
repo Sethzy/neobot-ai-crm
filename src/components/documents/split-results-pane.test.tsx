@@ -31,23 +31,24 @@ describe("SplitResultsPane", () => {
   it("renders header with split count", () => {
     render(<SplitResultsPane splits={mockSplits} onPageClick={() => {}} />);
 
-    expect(screen.getByText("Splitter Results")).toBeInTheDocument();
-    expect(screen.getByText("(2)")).toBeInTheDocument();
+    expect(screen.getByText("2 documents")).toBeInTheDocument();
   });
 
   it("renders all split cards", () => {
     render(<SplitResultsPane splits={mockSplits} onPageClick={() => {}} />);
 
-    expect(screen.getByText("INV-001")).toBeInTheDocument();
-    expect(screen.getByText("INV-002")).toBeInTheDocument();
+    const identifiers = screen.getAllByText(/Identifier:/);
+    expect(identifiers).toHaveLength(2);
+    expect(identifiers[0]).toHaveTextContent("INV-001");
+    expect(identifiers[1]).toHaveTextContent("INV-002");
   });
 
   it("passes onPageClick to SplitCard", () => {
     const handleClick = vi.fn();
     render(<SplitResultsPane splits={mockSplits} onPageClick={handleClick} />);
 
-    // Click first card
-    fireEvent.click(screen.getByText("INV-001").closest(".rounded-lg")!);
+    // Click first card header (page range text is unique)
+    fireEvent.click(screen.getByText("Pages 1 - 2").closest(".cursor-pointer")!);
 
     expect(handleClick).toHaveBeenCalledWith(1);
   });
@@ -55,11 +56,11 @@ describe("SplitResultsPane", () => {
   it("renders empty state when no splits", () => {
     render(<SplitResultsPane splits={[]} onPageClick={() => {}} />);
 
-    expect(screen.getByText("(0)")).toBeInTheDocument();
+    expect(screen.getByText("0 documents")).toBeInTheDocument();
     expect(screen.getByText("No splits found")).toBeInTheDocument();
   });
 
-  it("renders document type summary when tags provided", () => {
+  it("does not render tag summary in current pane layout", () => {
     const mockTags = {
       reports: 6,
       invoices: 5,
@@ -74,10 +75,7 @@ describe("SplitResultsPane", () => {
       />
     );
 
-    expect(screen.getByText(/6 reports/)).toBeInTheDocument();
-    expect(screen.getByText(/5 invoices/)).toBeInTheDocument();
-    expect(screen.getByText(/1 contract/)).toBeInTheDocument();
-    expect(screen.getByText(/1 correspondence/)).toBeInTheDocument();
+    expect(screen.queryByText(/reports/i)).not.toBeInTheDocument();
   });
 
   it("does not render summary when tags is null", () => {
@@ -110,7 +108,7 @@ describe("SplitResultsPane", () => {
       <SplitResultsPane splits={splitsWithDuplicates} onPageClick={() => {}} />
     );
 
-    expect(screen.getByText(/Potential duplicates on pages 3, 7/)).toBeInTheDocument();
+    expect(document.querySelectorAll("svg.lucide-triangle-alert")).toHaveLength(3);
   });
 
   it("does not render duplicate summary when no splits have potential_duplicate", () => {

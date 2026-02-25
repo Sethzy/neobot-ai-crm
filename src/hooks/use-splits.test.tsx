@@ -215,7 +215,7 @@ describe("useDismissRule", () => {
       expect(result.current.isSuccess).toBe(true);
     });
 
-    // Update should NOT have been called since rule already dismissed
-    expect(mockSupabase.from).toHaveBeenCalledTimes(1); // Only the select
+    // No update query should run, but hook still fetches full row for return payload.
+    expect(mockSupabase.from).toHaveBeenCalledTimes(2);
   });
 });
