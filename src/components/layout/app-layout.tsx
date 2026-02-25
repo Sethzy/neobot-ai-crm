@@ -12,19 +12,11 @@ import { useUploadProcessor } from "@/hooks/use-upload-processor";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-/** Read a cookie value on the client. */
-function getCookie(name: string): string | undefined {
-  if (typeof document === "undefined") return undefined;
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return match?.[1];
-}
-
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const defaultSidebarOpen = getCookie("sidebar_state") === "true";
   const { queue, isUploading, isPanelVisible, dismissPanel, reportTask, clearReportTask } = useUpload();
 
   // Initialize upload processor - auto-processes pending queue items
@@ -32,7 +24,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <SidebarProvider defaultOpen={defaultSidebarOpen} className="h-svh">
+      <SidebarProvider open={true} className="h-svh">
         <AppSidebar />
         <SidebarInset className="min-h-0">
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">{children}</div>

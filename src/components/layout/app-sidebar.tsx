@@ -32,8 +32,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
-  SidebarTrigger,
   SidebarGroup,
   SidebarGroupLabel,
 } from "@/components/ui/sidebar";
@@ -91,15 +89,10 @@ export function AppSidebar() {
     });
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-border/40 bg-background">
-      {/* Logo + Toggle */}
+    <Sidebar collapsible="none" className="border-r border-border/40 bg-background">
+      {/* Logo */}
       <SidebarHeader className="px-3 pt-5 pb-6">
-        <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
-          <div className="group-data-[collapsible=icon]:hidden">
-            <Logo />
-          </div>
-          <SidebarTrigger className="text-muted-foreground/60 hover:text-foreground hover:bg-muted/40 transition-colors" />
-        </div>
+        <Logo />
       </SidebarHeader>
 
       {/* Navigation */}
@@ -141,7 +134,7 @@ export function AppSidebar() {
               <div className="flex h-7 w-7 items-center justify-center rounded-md bg-muted/60 text-xs font-medium text-foreground/80">
                 {user?.email?.charAt(0).toUpperCase()}
               </div>
-              <span className="truncate text-sm text-foreground/90 group-data-[collapsible=icon]:hidden">
+              <span className="truncate text-sm text-foreground/90">
                 {user?.email}
               </span>
             </SidebarMenuButton>
@@ -159,8 +152,6 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarFooter>
 
-      {/* Drag edge to toggle */}
-      <SidebarRail />
     </Sidebar>
   );
 }
