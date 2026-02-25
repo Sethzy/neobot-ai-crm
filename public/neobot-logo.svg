@@ -1,0 +1,43 @@
+<svg width="220" height="52" viewBox="0 0 220 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 
+    NeoBot Full Logo (Icon + Wordmark)
+    V3 Geometrically Perfect (31° Iso)
+    Attio B&W Theme
+  -->
+  
+  <!-- ICON Group -->
+  <g>
+    <!-- Container -->
+    <rect x="2" y="2" width="48" height="48" rx="10" fill="#2B2B2B"/>
+    
+    <!-- 3D Shape (Scaled to fit 48x48 container) 
+         Original coords were for 80x80 viewBox. 
+         Let's just use a transform to scale the path data down.
+         Original rect was 76x76 starting at 2,2. 
+         New rect is 48x48. Scale factor ~0.63.
+         
+         Actually, let's just re-calculate for this specific viewBox size to be pixel-perfect implies re-drawing.
+         OR, simpler: embed the icon as a nested SVG or just use a transform group.
+         Let's use a transform group on the V3 points.
+         Scale: 0.6 (48/80 = 0.6)
+         Translate: 2,2
+    -->
+    <g transform="translate(2, 2) scale(0.6)">
+       <!-- Diagonal -->
+       <polygon points="15.5,20 26.5,20 59.5,64 48.5,64" fill="white"/>
+       <polygon points="26.5,20 31.5,17 64.5,61 59.5,64" fill="#c8c8c8"/>
+       <!-- Left Bar -->
+       <polygon points="26.5,20 31.5,17 31.5,61 26.5,64" fill="#c8c8c8"/>
+       <polygon points="15.5,20 26.5,20 26.5,64 15.5,64" fill="white"/>
+       <polygon points="15.5,20 26.5,20 31.5,17 20.5,17" fill="#e8e8e8"/>
+       <!-- Right Bar -->
+       <polygon points="59.5,20 64.5,17 64.5,61 59.5,64" fill="#c8c8c8"/>
+       <polygon points="48.5,20 59.5,20 59.5,64 48.5,64" fill="white"/>
+       <polygon points="48.5,20 59.5,20 64.5,17 53.5,17" fill="#e8e8e8"/>
+    </g>
+  </g>
+
+  <!-- WORDMARK -->
+  <!-- Font: DM Sans, Weight: 800, Size: 30px, Tracking: -0.03em -->
+  <text x="64" y="37" fill="#2B2B2B" font-family="'DM Sans', sans-serif" font-weight="800" font-size="30" letter-spacing="-0.03em">neobot</text>
+</svg>

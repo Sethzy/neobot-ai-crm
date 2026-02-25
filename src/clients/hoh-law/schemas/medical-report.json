@@ -1,0 +1,155 @@
+{
+  "_meta": {
+    "pulledAt": "2026-01-02T09:15:00.000Z"
+  },
+  "id": "dpv_jMfeYKRXvfyCnNiJDMHZu",
+  "version": "1.4",
+  "description": "",
+  "processorType": "EXTRACT",
+  "processorId": "dp_nZE3Zf4gQPvVbElfcZSfQ",
+  "processorName": "Hoh Law - Medical Report",
+  "config": {
+    "type": "EXTRACT",
+    "baseProcessor": "extraction_light",
+    "baseVersion": "3.4.0",
+    "parser": {
+      "advancedOptions": {
+        "engine": "parse_light",
+        "pageRanges": [],
+        "agenticOcrEnabled": false,
+        "pageBreaksEnabled": true,
+        "pageRotationEnabled": false
+      }
+    },
+    "schema": {
+      "type": "object",
+      "required": [
+        "summary_findings",
+        "anatomical_findings",
+        "type of injury",
+        "patient name",
+        "list of all company names mentioned",
+        "list of all numbers with a decimal",
+        "exam test scores",
+        "high school test scores",
+        "list of all numbers with without a  decimal",
+        "list of all injuries mentioned"
+      ],
+      "properties": {
+        "patient name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "what is the patient name"
+        },
+        "type of injury": {
+          "enum": [
+            "leg",
+            "hand",
+            "others",
+            null
+          ],
+          "description": "where the injury affects the body part",
+          "extend:descriptions": [
+            "",
+            "",
+            "",
+            ""
+          ]
+        },
+        "exam test scores": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "summary_findings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "A concise summary of the main findings or impressions from the examination. This section may be labeled as 'Summary', 'Impression', or similar, and provides a high-level overview of the results."
+        },
+        "anatomical_findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "region",
+              "finding",
+              "is serious"
+            ],
+            "properties": {
+              "region": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The anatomical region or structure being described, such as 'Bones', 'Medial Compartment', 'Patellofemoral Compartment', etc."
+              },
+              "finding": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The specific findings or observations related to this anatomical region. May include normal findings, abnormalities, measurements, or other relevant details."
+              },
+              "is serious": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "is the person going to die in the next 6 months"
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "An array of findings for specific anatomical regions or structures described in the report. Each item represents a distinct anatomical area (e.g., bones, ligaments, menisci) and summarizes the findings for that area. This structure allows for extraction of structured data from narrative reports."
+        },
+        "high school test scores": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "list of all injuries mentioned": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "list of all numbers with a decimal": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "list of all company names mentioned": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "just all the companuy names in the document that were metnioned"
+        },
+        "list of all numbers with without a  decimal": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "advancedOptions": {
+      "modelReasoningInsightsEnabled": true,
+      "citationsEnabled": true,
+      "arrayCitationStrategy": "item",
+      "pageRanges": [],
+      "chunkingOptions": {},
+      "advancedFigureParsingEnabled": true
+    }
+  },
+  "createdAt": "2026-01-02T03:53:31.450Z",
+  "updatedAt": "2026-01-02T03:53:31.450Z"
+}

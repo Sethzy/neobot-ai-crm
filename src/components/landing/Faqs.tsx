@@ -1,0 +1,158 @@
+'use client';
+
+/**
+ * FAQ section with 3-column grid layout.
+ * Mobile: collapsible accordion. Desktop: 3-column grid.
+ */
+import { useState } from 'react'
+import { Container } from '@/components/landing/Container'
+import { useScrollReveal } from '@/hooks/useScrollReveal'
+import { ChevronDown } from 'lucide-react'
+
+const faqs = [
+  {
+    question: 'What is NeoBot?',
+    answer:
+      'An AI assistant that works for you. Tell it what to do, and it does it — follow-ups, scheduling, admin, all of it.',
+  },
+  {
+    question: 'How is this different from ChatGPT?',
+    answer:
+      'ChatGPT answers questions. Neo takes action. It doesn\'t suggest a follow-up — it sends the follow-up.',
+  },
+  {
+    question: 'How long does setup take?',
+    answer:
+      'One click. No technical setup, no integrations to configure. You\'re up and running in minutes.',
+  },
+  {
+    question: 'How do I talk to Neo?',
+    answer:
+      'Just message Neo. In a meeting, on the MRT, wherever — it\'s always available.',
+  },
+  {
+    question: 'Is my data secure?',
+    answer:
+      'Yes. Dedicated infrastructure, encrypted end-to-end. We never use your data to train models.',
+  },
+  {
+    question: 'What if Neo makes a mistake?',
+    answer:
+      'It learns. Correct it once and it remembers. After a couple weeks, it rarely gets things wrong.',
+  },
+  {
+    question: 'Can I cancel anytime?',
+    answer:
+      'Yes. No contracts, no lock-in. Your data is yours.',
+  },
+  {
+    question: 'What\'s the difference between Pro and Enterprise?',
+    answer:
+      'Pro gives you full access to Neo 24/7 with all skills. Enterprise adds SSO, audit logs, and dedicated support.',
+  },
+]
+
+function FaqAccordion({ faqs }: { faqs: Array<{ question: string; answer: string }> }) {
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
+
+  return (
+    <div className="divide-y divide-zinc-200">
+      {faqs.map((faq, index) => (
+        <div key={index} className="py-4">
+          <button
+            onClick={() => setOpenIndex(openIndex === index ? null : index)}
+            className="flex w-full items-center justify-between text-left"
+          >
+            <span className="font-medium text-zinc-900">{faq.question}</span>
+            <ChevronDown
+              className={`h-5 w-5 text-zinc-500 transition-transform ${
+                openIndex === index ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+          <div
+            className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out ${
+              openIndex === index ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+            }`}
+          >
+            <div className="min-h-0">
+              <p className="pt-3 text-sm text-zinc-600">{faq.answer}</p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function Faqs() {
+  const { ref: headerRef, isVisible: headerVisible } = useScrollReveal<HTMLDivElement>()
+  const { ref: faqsRef, isVisible: faqsVisible } = useScrollReveal<HTMLDivElement>()
+
+  // Generate FAQPage JSON-LD schema for Google rich results
+  const faqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map((faq) => ({
+      '@type': 'Question',
+      name: faq.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: faq.answer,
+      },
+    })),
+  }
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
+      <section
+      id="faq"
+      aria-labelledby="faq-title"
+      className="relative overflow-hidden bg-white py-20 sm:py-24 md:py-32"
+    >
+      <Container className="relative">
+        <div
+          ref={headerRef}
+          className={`mx-auto max-w-2xl lg:mx-0 scroll-reveal ${headerVisible ? 'is-visible' : ''}`}
+        >
+          <h2
+            id="faq-title"
+            className="font-serif text-2xl tracking-tight text-foreground sm:text-3xl md:text-5xl"
+          >
+            Frequently asked <span className="italic text-sunder-green">questions.</span>
+          </h2>
+          <p className="mt-4 text-base leading-7 text-muted-foreground sm:mt-6 sm:text-lg sm:leading-8">
+            Everything you need to know about NeoBot.
+          </p>
+        </div>
+
+        {/* Mobile: Accordion */}
+        <div
+          ref={faqsRef}
+          className={`mt-10 lg:hidden scroll-reveal ${faqsVisible ? 'is-visible' : ''}`}
+        >
+          <FaqAccordion faqs={faqs} />
+        </div>
+
+        {/* Desktop: 3-column grid - unchanged from original */}
+        <dl className="hidden lg:mx-auto lg:mt-16 lg:grid lg:max-w-2xl lg:grid-cols-1 lg:gap-x-8 lg:gap-y-10 lg:max-w-none lg:grid-cols-3">
+          {faqs.map((faq) => (
+            <div key={faq.question}>
+              <dt className="font-serif text-lg leading-7 text-foreground">
+                {faq.question}
+              </dt>
+              <dd className="mt-4 text-sm leading-6 text-muted-foreground">
+                {faq.answer}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </Container>
+    </section>
+    </>
+  )
+}

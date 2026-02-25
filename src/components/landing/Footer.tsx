@@ -1,0 +1,88 @@
+import Link from "next/link";
+import { Container } from '@/components/landing/Container'
+import { Logo } from '@/components/landing/Logo'
+import { NavLink } from '@/components/landing/NavLink'
+import { MapPin, Mail, Phone } from 'lucide-react'
+
+export function Footer() {
+  return (
+    <footer className="relative py-24 overflow-hidden bg-[#0A0A0A]">
+      <Container className="relative z-10">
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-3">
+          {/* Brand & Contact */}
+          <div className="space-y-6">
+            <Link href="/" aria-label="Home" className="group inline-block transition-transform hover:scale-105">
+              <Logo className="text-white" iconClassName="text-white" />
+            </Link>
+            <p className="text-sm text-[#999]">
+              Your entire work life, one message away.
+            </p>
+            <div className="space-y-3 text-sm text-[#999]">
+              <a
+                href="https://maps.google.com/?q=109+North+Bridge+Road+Funan+Singapore+179097"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-start gap-3 hover:text-white transition-colors"
+              >
+                <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>109 North Bridge Road, Funan,<br />Singapore 179097</span>
+              </a>
+              <a
+                href="mailto:seth@neobot.com"
+                className="flex items-center gap-3 hover:text-white transition-colors"
+              >
+                <Mail className="h-4 w-4 shrink-0" />
+                <span>seth@neobot.com</span>
+              </a>
+              <a
+                href="https://wa.me/6597990493"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 hover:text-white transition-colors"
+              >
+                <Phone className="h-4 w-4 shrink-0" />
+                <span>+65 9799 0493</span>
+              </a>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <div className="lg:col-span-2 flex flex-col lg:flex-row lg:justify-end gap-8 lg:gap-16 lg:pt-2">
+            <div>
+              <h3 className="text-sm font-semibold text-white mb-4 tracking-wide">Plans</h3>
+              <nav className="flex flex-col gap-3 text-sm">
+                <NavLink href="#pricing" className="text-[#999] hover:text-white transition-colors">Pro</NavLink>
+                <NavLink href="#pricing" className="text-[#999] hover:text-white transition-colors">Enterprise</NavLink>
+                <NavLink href="#pricing" className="text-[#999] hover:text-white transition-colors">Talk to Sales</NavLink>
+              </nav>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-white mb-4 tracking-wide">Product</h3>
+              <nav className="flex flex-col gap-3 text-sm">
+                <NavLink href="#features" className="text-[#999] hover:text-white transition-colors">Features</NavLink>
+                <NavLink href="#pricing" className="text-[#999] hover:text-white transition-colors">Pricing</NavLink>
+                <NavLink href="#faq" className="text-[#999] hover:text-white transition-colors">FAQ</NavLink>
+              </nav>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-white mb-4 tracking-wide">Company</h3>
+              <nav className="flex flex-col gap-3 text-sm">
+                <NavLink href="#testimonials" className="text-[#999] hover:text-white transition-colors">Testimonials</NavLink>
+                <Link href="/demo" className="text-[#999] hover:text-white transition-colors">Book a Call</Link>
+              </nav>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-16 pt-8 border-t border-white/10 text-center text-sm text-[#666]">
+          <p>
+            &copy; {new Date().getFullYear()} NeoBot. All rights reserved.
+          </p>
+          <p className="mt-2 text-xs text-[#444]">
+            Built by University of Cambridge &amp; Airwallex alumni
+          </p>
+        </div>
+      </Container>
+    </footer>
+  )
+}

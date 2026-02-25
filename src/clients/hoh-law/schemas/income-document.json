@@ -1,0 +1,193 @@
+{
+  "_meta": {
+    "pulledAt": "2025-12-30T06:45:00.000Z"
+  },
+  "id": "dpv_oTv__io0HAsYpG4jBn590",
+  "version": "1.1",
+  "description": "",
+  "processorType": "EXTRACT",
+  "processorId": "dp_pKFvcN7cRNNDqPQz0X-V3",
+  "processorName": "Hoh Law - Income Document",
+  "config": {
+    "type": "EXTRACT",
+    "baseProcessor": "extraction_light",
+    "baseVersion": "3.4.0",
+    "schema": {
+      "type": "object",
+      "required": [
+        "net_salary",
+        "pay_period",
+        "cpf_employee",
+        "cpf_employer",
+        "gross_salary",
+        "employee_name",
+        "employer_name",
+        "number_of_trips",
+        "total_deductions",
+        "earnings_breakdown",
+        "cashout_transactions",
+        "deductions_breakdown",
+        "weekly_earnings_breakdown",
+        "trip_details"
+      ],
+      "properties": {
+        "net_salary": {
+          "type": ["number", "null"],
+          "description": "The take-home pay after all deductions have been applied. This is the final amount payable to the employee or worker. May be labeled as 'Net Pay', 'Net Salary', 'Take Home Pay', 'Amount Payable', 'Net Income', or 'Total Payable'. In gig statements, may be shown as 'Weekly Total', 'Net Earnings', or similar."
+        },
+        "pay_period": {
+          "type": ["string", "null"],
+          "description": "The time period covered by this payslip or income statement. May be a specific date range, a month, or a pay cycle. Common labels include 'Pay Period', 'Period', 'Month', 'For the Month of', 'Salary Month', or may be shown as a date range (e.g., '01 Jan 2024 - 31 Jan 2024'). In gig statements, often found near the top or in the header."
+        },
+        "cpf_employee": {
+          "type": ["number", "null"],
+          "description": "The employee's contribution to the Central Provident Fund (CPF), Singapore's mandatory social security savings scheme. This is the amount deducted from the employee's earnings for CPF. May be labeled as 'Employee CPF', 'CPF (Employee)', 'CPF Contribution', 'Member Contribution', or 'CPF Deduction'."
+        },
+        "cpf_employer": {
+          "type": ["number", "null"],
+          "description": "The employer's contribution to CPF on behalf of the employee. This is the amount contributed by the employer to the employee's CPF account. May be labeled as 'Employer CPF', 'CPF (Employer)', 'Company CPF', or 'Employer Contribution'. Sometimes shown separately from employee deductions."
+        },
+        "gross_salary": {
+          "type": ["number", "null"],
+          "description": "The total gross income before any deductions such as CPF, taxes, or other withholdings. This is the sum of all earnings, including basic pay, allowances, and incentives, prior to deductions. May be labeled as 'Gross Pay', 'Gross Salary', 'Total Earnings', 'Gross Income', 'Basic + Allowances', or 'Total Gross'. For gig workers, may be labeled as 'Total Earnings', 'Gross Fares', or 'Trip Earnings'."
+        },
+        "trip_details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["date", "order_no", "net_earnings"],
+            "properties": {
+              "date": {
+                "type": ["string", "null"],
+                "description": "The date associated with this trip.",
+                "extend:type": "date"
+              },
+              "order_no": {
+                "type": ["string", "null"],
+                "description": "The Order No. for the trip or Ride ID - unique identifier for that trip"
+              },
+              "net_earnings": {
+                "type": ["number", "null"],
+                "description": "the net earnings, after any and all deductions"
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "A list of all individual trip records found in the document. Extract the date for each trip from the section header (e.g., 'On Wed...').\""
+        },
+        "employee_name": {
+          "type": ["string", "null"],
+          "description": "The full name of the employee, worker, or payee receiving the salary or income. This is the individual for whom the statement or payslip is issued. May be labeled as 'Employee Name', 'Name', 'Worker', 'Staff Name', 'Payee', or appear in a personal details section. In gig platform statements, may be found near the top or in a summary block."
+        },
+        "employer_name": {
+          "type": ["string", "null"],
+          "description": "The name of the employer, company, or platform issuing the payslip or income statement. This is the entity responsible for payment, such as a business, organization, or gig platform (e.g., 'Grab', 'foodpanda', 'Deliveroo'). Typically appears prominently, often in the header or with a logo, but may also be found elsewhere without explicit labeling."
+        },
+        "number_of_trips": {
+          "type": ["integer", "null"],
+          "description": "The total number of completed trips, rides, or jobs during the pay period. Common in gig platform statements. May be labeled as 'No. of Completed Trips', 'Finished Rides', 'Total Rides', or similar."
+        },
+        "total_deductions": {
+          "type": ["number", "null"],
+          "description": "The total amount of all deductions applied to the gross salary or earnings, including CPF, platform fees, taxes, and other withholdings. May be labeled as 'Total Deductions', 'Deductions', or similar. In gig statements, may include platform fees, cancellation fees, and other charges."
+        },
+        "earnings_breakdown": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["amount", "description"],
+            "properties": {
+              "amount": {
+                "type": ["number", "null"],
+                "description": "The monetary amount for this earning component, before deductions."
+              },
+              "description": {
+                "type": ["string", "null"],
+                "description": "A description of the earning component, such as 'Trip fare', 'Incentives', 'Other earnings', 'Cancellation reward', etc."
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "A breakdown of the different components of earnings for the pay period. Each item represents a specific type of earning, such as fares, incentives, bonuses, or other income. May be presented as a table or list with descriptions and amounts."
+        },
+        "cashout_transactions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["amount", "date_time", "description"],
+            "properties": {
+              "amount": {
+                "type": ["number", "null"],
+                "description": "The amount paid out in this transaction."
+              },
+              "date_time": {
+                "type": ["string", "null"],
+                "description": "The date and time when the cashout or payout transaction occurred. May be in various date-time formats."
+              },
+              "description": {
+                "type": ["string", "null"],
+                "description": "A description of the cashout or payout transaction, such as 'Cashout request approved', 'Transfer to account', etc."
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "A list of cashout or payment transactions made to the employee or worker during the pay period. Each item represents a transfer or payout, typically including the date, description, and amount. May be labeled as 'Cashout Requests', 'Payouts', or similar."
+        },
+        "deductions_breakdown": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["amount", "description"],
+            "properties": {
+              "amount": {
+                "type": ["number", "null"],
+                "description": "The monetary amount for this deduction."
+              },
+              "description": {
+                "type": ["string", "null"],
+                "description": "A description of the deduction, such as 'Platform fee', 'Cancellation fee', 'CPF Deduction', etc."
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "A breakdown of the different types of deductions applied to the gross salary or earnings. Each item represents a specific deduction, such as platform fees, cancellation fees, CPF, or other charges. May be presented as a table or list with descriptions and amounts."
+        },
+        "weekly_earnings_breakdown": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["date", "completed_trips", "net_earnings"],
+            "properties": {
+              "date": {
+                "type": ["string", "null"],
+                "description": "The date of the entry (e.g., \"2023-12-13\").",
+                "extend:type": "date"
+              },
+              "net_earnings": {
+                "type": ["number", "null"],
+                "description": "The net earnings amount for that day."
+              },
+              "completed_trips": {
+                "type": ["number", "null"],
+                "description": "The number of completed trips for that day."
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "A list of daily records from the table showing Date, Completed Trips, and Net Earnings. It appears as a table."
+        }
+      },
+      "additionalProperties": false
+    },
+    "extractionRules": "make sure to recognise the company from the logo. ",
+    "advancedOptions": {
+      "modelReasoningInsightsEnabled": true,
+      "citationsEnabled": true,
+      "arrayCitationStrategy": "item",
+      "chunkingOptions": {},
+      "advancedFigureParsingEnabled": true
+    }
+  },
+  "createdAt": "2025-12-29T11:50:12.165Z",
+  "updatedAt": "2025-12-29T11:50:12.165Z"
+}

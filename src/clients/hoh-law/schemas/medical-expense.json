@@ -1,0 +1,136 @@
+{
+  "_meta": {
+    "pulledAt": "2025-12-30T06:45:00.000Z"
+  },
+  "id": "dpv_U8Fmf2pVm9Tk4mSrOPz5N",
+  "version": "1.0",
+  "description": "",
+  "processorType": "EXTRACT",
+  "processorId": "dp_CoZLsiI6FOxHC4rNTZHGS",
+  "processorName": "Hoh Law - Medical Expense",
+  "config": {
+    "type": "EXTRACT",
+    "baseProcessor": "extraction_light",
+    "baseVersion": "3.4.0",
+    "schema": {
+      "type": "object",
+      "required": [
+        "date",
+        "patient_name",
+        "patient_id_number",
+        "payer_name",
+        "invoice_number",
+        "provider_name",
+        "cash_amount",
+        "medisave_amount",
+        "insurance_amount",
+        "medishield_amount",
+        "employer_scheme_amount",
+        "total_amount_before_deductions"
+      ],
+      "properties": {
+        "date": {
+          "type": ["string", "null"],
+          "description": "The date when this bill or invoice was issued. This is the official document date for accounting and payment purposes. May be labeled as 'Date', 'Invoice Date', 'Bill Date', 'Issued On', 'Document Date', or may appear without an explicit label near the header. Formats may include DD/MM/YYYY, DD-MMM-YYYY, or DD MMM YYYY.",
+          "extend:type": "date"
+        },
+        "payer_name": {
+          "type": ["string", "null"],
+          "description": "The name of the person or entity responsible for payment of the bill. May be labeled as 'Payer's Name', 'Pay By', 'To', or similar. Typically found in the billing or payment section."
+        },
+        "cash_amount": {
+          "type": "object",
+          "required": ["amount", "iso_4217_currency_code"],
+          "properties": {
+            "amount": { "type": ["number", "null"] },
+            "iso_4217_currency_code": { "type": ["string", "null"] }
+          },
+          "description": "The final amount payable by the patient out-of-pocket after all deductions from Medisave, Medishield, insurance, employer schemes, and government subsidies have been applied. This is the amount the patient must pay directly. Found in the payment summary section, typically at the bottom. May be labeled as 'Cash', 'Amount Payable', 'Pay This Amount', 'Net Payable', 'Balance Due', 'Patient Payable', or 'Final Amount Payable'.",
+          "extend:type": "currency",
+          "additionalProperties": false
+        },
+        "patient_name": {
+          "type": ["string", "null"],
+          "description": "The full name of the patient who received the medical services or treatment. May be labeled as 'Patient Name', 'Name', or appear without a label. Typically found in the header or patient information section."
+        },
+        "provider_name": {
+          "type": ["string", "null"],
+          "description": "The name of the hospital, clinic, pharmacy, or healthcare facility that provided the medical services and issued this bill or invoice. This is typically the most prominent business name on the document, often found in the letterhead or header area, and may appear with or without a logo. Commonly appears at the top of the document."
+        },
+        "invoice_number": {
+          "type": ["string", "null"],
+          "description": "The unique reference number assigned to this bill or invoice for tracking and audit purposes. May include numbers, letters, or special characters. Common labels include 'Invoice No', 'Bill No', 'Reference', 'Ref No', 'Document No', 'Receipt No', or similar. Typically found near the top of the document, often close to the date."
+        },
+        "medisave_amount": {
+          "type": "object",
+          "required": ["amount", "iso_4217_currency_code"],
+          "properties": {
+            "amount": { "type": ["number", "null"] },
+            "iso_4217_currency_code": { "type": ["string", "null"] }
+          },
+          "description": "The portion of the bill paid using funds from the patient's CPF Medisave Account, a Singapore government healthcare savings scheme. May be labeled as 'Medisave', 'CPF Medisave', 'MS', 'CPF-MA', 'Medisave Deduction', or 'OA/MA'. Found in the payment breakdown section.",
+          "extend:type": "currency",
+          "additionalProperties": false
+        },
+        "insurance_amount": {
+          "type": "object",
+          "required": ["amount", "iso_4217_currency_code"],
+          "properties": {
+            "amount": { "type": ["number", "null"] },
+            "iso_4217_currency_code": { "type": ["string", "null"] }
+          },
+          "description": "The amount paid by private insurance such as Integrated Shield Plans (IP) or other private health insurance policies. May be labeled as 'Insurance', 'IP Rider', 'Private Insurance', 'Insurer Payment', or the specific insurer name (e.g., 'AIA', 'Prudential', 'Great Eastern'). Found in the payment breakdown section.",
+          "extend:type": "currency",
+          "additionalProperties": false
+        },
+        "medishield_amount": {
+          "type": "object",
+          "required": ["amount", "iso_4217_currency_code"],
+          "properties": {
+            "amount": { "type": ["number", "null"] },
+            "iso_4217_currency_code": { "type": ["string", "null"] }
+          },
+          "description": "The portion of the bill covered by MediShield Life, Singapore's basic healthcare insurance scheme. May be labeled as 'Medishield', 'MediShield Life', 'MSL', 'Medishield Deduction', or 'MSHL'. Found in the payment breakdown section.",
+          "extend:type": "currency",
+          "additionalProperties": false
+        },
+        "patient_id_number": {
+          "type": ["string", "null"],
+          "description": "The identification number of the patient, such as NRIC, FIN, or hospital-assigned patient ID. May be labeled as 'Patient ID', 'NRIC', 'FIN', 'Patient No', or similar. Appears in the patient information section if present."
+        },
+        "employer_scheme_amount": {
+          "type": "object",
+          "required": ["amount", "iso_4217_currency_code"],
+          "properties": {
+            "amount": { "type": ["number", "null"] },
+            "iso_4217_currency_code": { "type": ["string", "null"] }
+          },
+          "description": "The amount covered by employer or company healthcare schemes and benefits. May be labeled as 'Company Scheme', 'Employer', 'Corporate', 'Company Medical', or a specific company/scheme name. Found in the payment breakdown section.",
+          "extend:type": "currency",
+          "additionalProperties": false
+        },
+        "total_amount_before_deductions": {
+          "type": "object",
+          "required": ["amount", "iso_4217_currency_code"],
+          "properties": {
+            "amount": { "type": ["number", "null"] },
+            "iso_4217_currency_code": { "type": ["string", "null"] }
+          },
+          "description": "The complete bill amount before any government subsidies, Medisave, Medishield, insurance, employer, or other deductions are applied. This represents the full gross charges for medical services. Found in the payment summary or breakdown section, typically near the bottom of the bill. May be labeled as 'Total Bill', 'Gross Amount', 'Total Charges', 'Amount Before Subsidy', 'Bill Amount', or 'Subtotal'. Usually appears before the deduction breakdown showing various payment sources.",
+          "extend:type": "currency",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "advancedOptions": {
+      "modelReasoningInsightsEnabled": true,
+      "citationsEnabled": true,
+      "arrayCitationStrategy": "item",
+      "chunkingOptions": {},
+      "advancedFigureParsingEnabled": true
+    }
+  },
+  "createdAt": "2025-12-29T15:05:08.249Z",
+  "updatedAt": "2025-12-29T15:05:08.249Z"
+}

@@ -1,0 +1,201 @@
+{
+  "_metadata": {
+    "client_name": "Hoh Law",
+    "client_id": "hoh-law",
+    "status": "in_progress",
+    "started": "2024-12-29",
+    "last_updated": "2024-12-30 (Phase 7.2-7.4 complete)",
+    "user_email": "limzheyi1996@gmail.com",
+    "user_uuid": "280d59ae-a367-4d7e-8e12-07218c1553b6"
+  },
+  "phases": [
+    {
+      "category": "phase_0_discovery",
+      "description": "Phase 0: Discovery & Planning",
+      "core_feature": "client_onboarding",
+      "phase_number": 0,
+      "is_manual": false,
+      "steps": [
+        "Transcript uploaded → clients/hoh-law/transcript.md",
+        "Intake brief generated → clients/hoh-law/intake-brief.md",
+        "Sample documents uploaded → clients/hoh-law/samples/ (__ files)"
+      ],
+      "passes": true
+    },
+    {
+      "category": "phase_1_2_config_setup",
+      "description": "Phase 1-2: Config Setup (Automated)",
+      "core_feature": "client_onboarding",
+      "phase_number": 1,
+      "is_manual": false,
+      "steps": [
+        "Config file created → /src/config/clients/hoh-law.ts ✅",
+        "Config registered in loader → /src/config/loader.ts ✅",
+        "Tests passing → pnpm test src/config (37 tests) ✅",
+        "Tags configured: medical_expense, medical_report, income_document, other ✅"
+      ],
+      "passes": true
+    },
+    {
+      "category": "phase_3_processors",
+      "description": "Phase 3: ExtendAI Processors (Automated)",
+      "core_feature": "client_onboarding",
+      "phase_number": 3,
+      "is_manual": false,
+      "steps": [
+        "Processor created: medical_expense → dp_CoZLsiI6FOxHC4rNTZHGS ✅",
+        "Processor created: medical_report → dp_nZE3Zf4gQPvVbElfcZSfQ ✅",
+        "Processor created: income_document → dp_pKFvcN7cRNNDqPQz0X-V3 ✅"
+      ],
+      "passes": true
+    },
+    {
+      "category": "phase_4_schema_building",
+      "description": "Phase 4: Schema Building (MANUAL CHECKPOINT)",
+      "core_feature": "client_onboarding",
+      "phase_number": 4,
+      "is_manual": true,
+      "checkpoint_message": "🛑 CHECKPOINT: Build schemas in ExtendAI Dashboard. When all schemas reach 80%+ accuracy, type 'done' to continue.",
+      "steps": [
+        "medical_expense schema built → 80%+ accuracy ✅",
+        "medical_report schema built → 80%+ accuracy ✅",
+        "income_document schema built → 80%+ accuracy ✅"
+      ],
+      "passes": true
+    },
+    {
+      "category": "phase_5_6_schemas_validation",
+      "description": "Phase 5-6: Schemas & Validation (Automated)",
+      "core_feature": "client_onboarding",
+      "phase_number": 5,
+      "is_manual": false,
+      "steps": [
+        "Full config pulled from ExtendAI API (schema + baseProcessor + baseVersion) ✅",
+        "Pre-flight config validation passed (extraction_light, citationsEnabled, etc.) ✅",
+        "Schema files created → /src/config/schemas/hoh-law/*.schema.ts ✅",
+        "BASE_PROCESSOR and BASE_VERSION constants exported from schema files ✅",
+        "Schemas + baseProcessor + baseVersion registered in loader ✅",
+        "Validation functions written to config ✅",
+        "Tests passing ✅"
+      ],
+      "passes": true
+    },
+    {
+      "category": "phase_7_1_user_creation",
+      "description": "Phase 7.1: User Creation (MANUAL CHECKPOINT)",
+      "core_feature": "client_onboarding",
+      "phase_number": 7.1,
+      "is_manual": true,
+      "checkpoint_message": "🛑 CHECKPOINT: Create user in Supabase Dashboard",
+      "steps": [
+        "User invited: limzheyi1996@gmail.com ✅",
+        "Magic link sent ✅",
+        "User UUID: 280d59ae-a367-4d7e-8e12-07218c1553b6 ✅"
+      ],
+      "passes": true
+    },
+    {
+      "category": "phase_7_2_4_user_assignment",
+      "description": "Phase 7.2-7.4: User Assignment (Automated)",
+      "core_feature": "client_onboarding",
+      "phase_number": 7.2,
+      "is_manual": false,
+      "steps": [
+        "User UUID retrieved from auth.users ✅",
+        "User linked to hoh-law config in user_profiles ✅",
+        "Assignment verified via join query ✅"
+      ],
+      "passes": true
+    },
+    {
+      "category": "phase_8_e2e_testing",
+      "description": "Phase 8: End-to-End Testing (MANUAL CHECKPOINT)",
+      "core_feature": "client_onboarding",
+      "phase_number": 8,
+      "is_manual": true,
+      "checkpoint_message": "🛑 CHECKPOINT: QA testing with test documents from clients/hoh-law/test-docs/",
+      "test_scenarios": [
+        {
+          "scenario": "Happy path - Clean doc, all fields present",
+          "validations": [
+            "Status: complete ✅",
+            "No validation errors ✅",
+            "No low confidence warnings ✅"
+          ]
+        },
+        {
+          "scenario": "Missing required field - Triggers validation",
+          "validations": [
+            "Status: needs_review ✅",
+            "Validation error displayed ✅",
+            "Error mentions missing field ✅"
+          ]
+        },
+        {
+          "scenario": "Low quality scan - Flags confidence issues",
+          "validations": [
+            "Status: needs_review ✅",
+            "Low confidence fields highlighted ✅",
+            "Confidence scores visible ✅"
+          ]
+        },
+        {
+          "scenario": "Multi-type PDF - Splits correctly",
+          "validations": [
+            "Multiple splits created ✅",
+            "Each split tagged correctly ✅",
+            "Each split extracted independently ✅"
+          ]
+        },
+        {
+          "scenario": "Unknown document - Classifies as 'other'",
+          "validations": [
+            "Tagged as 'other' ✅",
+            "No extraction attempted ✅"
+          ]
+        }
+      ],
+      "steps": [
+        "Test scenario: Happy path - Clean doc, all fields present",
+        "Test scenario: Missing required field - Triggers validation",
+        "Test scenario: Low quality scan - Flags confidence issues",
+        "Test scenario: Multi-type PDF - Splits correctly",
+        "Test scenario: Unknown document - Classifies as 'other'",
+        "Database verification: schema_version shows 1.0.0",
+        "Database verification: All tags match config"
+      ],
+      "database_verification_query": "SELECT d.original_filename, s.tag_id, s.extraction_status, s.schema_version FROM splits s JOIN documents d ON s.document_id = d.id WHERE d.created_by = '{user_uuid}' ORDER BY d.created_at DESC LIMIT 10;",
+      "passes": false
+    },
+    {
+      "category": "phase_9_optimization",
+      "description": "Phase 9: Optimization (OPTIONAL)",
+      "core_feature": "client_onboarding",
+      "phase_number": 9,
+      "is_manual": true,
+      "is_optional": true,
+      "steps": [
+        "Evaluation set created (20-30+ docs)",
+        "Ground truth manually verified",
+        "Composer optimization run",
+        "Optimized schemas pulled to codebase",
+        "Version bumped (e.g., v1.0.0 → v1.1.0)"
+      ],
+      "passes": false
+    }
+  ],
+  "completion_summary": {
+    "status": "in_progress",
+    "files_created": {
+      "config": "/src/config/clients/hoh-law.ts",
+      "schemas": "/src/config/schemas/hoh-law/",
+      "user_assignment": "(pending)"
+    },
+    "next_steps": [
+      "Monitor production usage",
+      "Track HITL patterns via database queries",
+      "Iterate on schemas based on user corrections"
+    ],
+    "production_url": ""
+  }
+}

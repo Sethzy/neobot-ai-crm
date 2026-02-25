@@ -1,0 +1,302 @@
+'use client';
+
+/**
+ * Value comparison section — shows the cost of tools Neo replaces,
+ * GoHighLevel-style. Positions Neo as an all-in-one platform with
+ * dramatic price comparison and competitor logos.
+ */
+import { Container } from '@/components/landing/Container'
+import { useScrollReveal } from '@/hooks/useScrollReveal'
+import { SparkleDecoration } from '@/components/landing/SparkleDecoration'
+import { cn } from '@/lib/utils'
+import {
+  Check,
+  Calendar,
+  ClipboardList,
+  FolderOpen,
+  Mic,
+  AudioLines,
+  MessageSquare,
+  Zap,
+  Share2,
+  Mail,
+  Link2,
+  PenTool,
+  LayoutDashboard,
+  ArrowRight,
+  FileSearch,
+  Globe,
+  Monitor,
+} from 'lucide-react'
+import { useState } from 'react'
+
+/** Small logo that falls back to a text initial on error. */
+function CompetitorLogo({ name, domain }: { name: string; domain: string }) {
+  const [failed, setFailed] = useState(false)
+
+  if (failed) {
+    return (
+      <div
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#EDE6DB] text-[10px] font-bold text-[#8B7E76]"
+        title={name}
+      >
+        {name[0]}
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=128`}
+      alt={name}
+      title={name}
+      className="h-6 w-6 shrink-0 rounded-full object-contain"
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
+interface Competitor {
+  name: string
+  domain: string
+}
+
+interface ToolRow {
+  capability: string
+  icon: React.ElementType
+  replaces: Competitor[]
+  monthlyCost: number
+  status: 'included' | 'coming-soon'
+}
+
+const tools: ToolRow[] = [
+  { capability: 'CRM & Pipeline', icon: LayoutDashboard, replaces: [{ name: 'HubSpot', domain: 'hubspot.com' }, { name: 'Follow Up Boss', domain: 'followupboss.com' }], monthlyCost: 99, status: 'included' },
+  { capability: 'Booking & Scheduling', icon: Calendar, replaces: [{ name: 'Calendly', domain: 'calendly.com' }, { name: 'Cal.com', domain: 'cal.com' }], monthlyCost: 49, status: 'included' },
+  { capability: 'Forms & Lead Capture', icon: ClipboardList, replaces: [{ name: 'Typeform', domain: 'typeform.com' }, { name: 'Tally', domain: 'tally.so' }], monthlyCost: 49, status: 'included' },
+  { capability: 'Document Vault', icon: FolderOpen, replaces: [{ name: 'Notion', domain: 'notion.so' }, { name: 'Dropbox', domain: 'dropbox.com' }], monthlyCost: 29, status: 'included' },
+  { capability: 'Voice Transcription', icon: Mic, replaces: [{ name: 'Otter.ai', domain: 'otter.ai' }, { name: 'Fireflies', domain: 'fireflies.ai' }], monthlyCost: 29, status: 'included' },
+  { capability: 'WhatsApp Automation', icon: MessageSquare, replaces: [{ name: 'WATI', domain: 'wati.io' }, { name: 'Respond.io', domain: 'respond.io' }], monthlyCost: 99, status: 'included' },
+  { capability: 'AI Workflow Engine', icon: Zap, replaces: [{ name: 'Zapier', domain: 'zapier.com' }, { name: 'Make', domain: 'make.com' }], monthlyCost: 69, status: 'included' },
+  { capability: 'Document Processing', icon: FileSearch, replaces: [{ name: 'Nanonets', domain: 'nanonets.com' }, { name: 'DocParser', domain: 'docparser.com' }], monthlyCost: 99, status: 'included' },
+  { capability: 'Web Scraping', icon: Globe, replaces: [{ name: 'Apify', domain: 'apify.com' }, { name: 'PhantomBuster', domain: 'phantombuster.com' }], monthlyCost: 99, status: 'included' },
+  { capability: 'Browser Automation', icon: Monitor, replaces: [{ name: 'Browserbase', domain: 'browserbase.com' }, { name: 'Selenium Grid', domain: 'selenium.dev' }], monthlyCost: 79, status: 'included' },
+  { capability: 'Voice Cloning', icon: AudioLines, replaces: [{ name: 'ElevenLabs', domain: 'elevenlabs.io' }, { name: 'Resemble AI', domain: 'resemble.ai' }], monthlyCost: 49, status: 'included' },
+  { capability: 'Social Media', icon: Share2, replaces: [{ name: 'Buffer', domain: 'buffer.com' }, { name: 'Hootsuite', domain: 'hootsuite.com' }], monthlyCost: 99, status: 'coming-soon' },
+  { capability: 'Email Sequences', icon: Mail, replaces: [{ name: 'Mailchimp', domain: 'mailchimp.com' }, { name: 'ActiveCampaign', domain: 'activecampaign.com' }], monthlyCost: 79, status: 'coming-soon' },
+  { capability: 'Link Tracking', icon: Link2, replaces: [{ name: 'Bitly', domain: 'bitly.com' }, { name: 'Short.io', domain: 'short.io' }], monthlyCost: 49, status: 'coming-soon' },
+  { capability: 'Document Signing', icon: PenTool, replaces: [{ name: 'DocuSign', domain: 'docusign.com' }, { name: 'PandaDoc', domain: 'pandadoc.com' }], monthlyCost: 49, status: 'coming-soon' },
+]
+
+const totalCost = tools.reduce((sum, t) => sum + t.monthlyCost, 0)
+
+export function Differentiator() {
+  const { ref: headerRef, isVisible: headerVisible } = useScrollReveal<HTMLDivElement>()
+  const { ref: tableRef, isVisible: tableVisible } = useScrollReveal<HTMLDivElement>()
+
+  return (
+    <section
+      id="differentiator"
+      aria-label="Built-in tools value comparison"
+      className="py-20 sm:py-24 md:py-32"
+      style={{ background: 'linear-gradient(180deg, #FAF7F2 0%, #FDF6E3 50%, #FAF7F2 100%)' }}
+    >
+      <Container>
+        {/* Header */}
+        <div
+          ref={headerRef}
+          className={`mx-auto max-w-2xl md:text-center scroll-reveal ${headerVisible ? 'is-visible' : ''}`}
+        >
+          <h2 className="font-serif text-2xl tracking-tight text-foreground sm:text-3xl md:text-5xl">
+            One subscription.{' '}
+            <span className="relative inline-block italic text-sunder-green whitespace-nowrap">
+              Fifteen tools.
+              <SparkleDecoration className="absolute -top-4 -right-10 w-12 h-12 pointer-events-none" />
+            </span>
+          </h2>
+          <p className="mt-4 text-base leading-7 text-[#6B5E57] sm:mt-6 sm:text-lg sm:leading-8">
+            CRM, scheduling, forms, document processing, voice cloning — you&apos;ll never
+            open any of them. Neo runs everything behind the scenes while you
+            just send a message.
+          </p>
+        </div>
+
+        {/* Comparison table */}
+        <div
+          ref={tableRef}
+          className={`mx-auto mt-12 max-w-3xl scroll-reveal ${tableVisible ? 'is-visible' : ''}`}
+        >
+          <div className="overflow-hidden rounded-2xl shadow-xl shadow-sunder-green-dark/[0.08] ring-1 ring-black/[0.06]">
+            {/* Dark green table header */}
+            <div
+              className="grid grid-cols-[1fr_70px_48px] gap-x-2 items-center px-4 py-4 sm:grid-cols-[1fr_1fr_80px_64px] sm:gap-x-4 sm:px-8"
+              style={{ background: 'linear-gradient(135deg, #1B4332 0%, #2D6A4F 100%)' }}
+            >
+              <div className="text-[11px] font-semibold uppercase tracking-widest text-white/60 sm:text-xs">
+                Feature
+              </div>
+              <div className="hidden text-[11px] font-semibold uppercase tracking-widest text-white/60 sm:block sm:text-xs">
+                Replaces
+              </div>
+              <div className="text-right text-[11px] font-semibold uppercase tracking-widest text-white/60 sm:text-xs">
+                Cost
+              </div>
+              <div className="flex justify-center">
+                <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-sunder-green-dark sm:text-xs">
+                  Neo
+                </span>
+              </div>
+            </div>
+
+            {/* Tool rows */}
+            <div className="bg-white">
+              {tools.map((tool, i) => {
+                const Icon = tool.icon
+                const isComingSoon = tool.status === 'coming-soon'
+                return (
+                  <div
+                    key={tool.capability}
+                    className={cn(
+                      'group grid grid-cols-[1fr_70px_48px] gap-x-2 items-center px-4 py-2 transition-colors sm:grid-cols-[1fr_1fr_80px_64px] sm:gap-x-4 sm:px-8 sm:py-2.5',
+                      i !== tools.length - 1 && 'border-b border-[#EDE6DB]/80',
+                      i % 2 === 0 ? 'bg-white' : 'bg-[#FDFAF5]',
+                    )}
+                  >
+                    {/* Feature name + icon */}
+                    <div className="flex items-center gap-2.5 sm:gap-3">
+                      <div
+                        className={cn(
+                          'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors',
+                          isComingSoon
+                            ? 'bg-[#EDE6DB]/50 text-[#A89E96]'
+                            : 'bg-sunder-green/10 text-sunder-green group-hover:bg-sunder-green/15',
+                        )}
+                      >
+                        <Icon className="h-4 w-4" strokeWidth={2} />
+                      </div>
+                      <div className="min-w-0">
+                        <div
+                          className={cn(
+                            'text-sm font-medium sm:text-[15px]',
+                            isComingSoon ? 'text-[#A89E96]' : 'text-foreground',
+                          )}
+                        >
+                          {tool.capability}
+                        </div>
+                        {/* Replaces — logos + names inline on mobile */}
+                        <div className="mt-0.5 flex items-center gap-1.5 sm:hidden">
+                          {tool.replaces.map((comp) => (
+                            <CompetitorLogo key={comp.domain} name={comp.name} domain={comp.domain} />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Replaces — desktop: logos + names */}
+                    <div
+                      className={cn(
+                        'hidden items-center gap-2 sm:flex',
+                        isComingSoon ? 'opacity-50' : '',
+                      )}
+                    >
+                      {tool.replaces.map((comp) => (
+                        <CompetitorLogo key={comp.domain} name={comp.name} domain={comp.domain} />
+                      ))}
+                      <span className={cn('text-sm', isComingSoon ? 'text-[#C5BBB2]' : 'text-[#8B7E76]')}>
+                        {tool.replaces.map((c) => c.name).join(', ')}
+                      </span>
+                    </div>
+
+                    {/* Monthly cost */}
+                    <div
+                      className={cn(
+                        'text-right text-sm tabular-nums',
+                        isComingSoon ? 'text-[#C5BBB2]' : 'text-[#6B5E57]',
+                      )}
+                    >
+                      ${tool.monthlyCost}/mo
+                    </div>
+
+                    {/* Status */}
+                    <div className="flex justify-center">
+                      {tool.status === 'included' ? (
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-sunder-green text-white shadow-sm shadow-sunder-green/25 sm:h-8 sm:w-8">
+                          <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" strokeWidth={3} />
+                        </div>
+                      ) : (
+                        <span className="rounded-full border border-amber-200/80 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-500">
+                          Soon
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Total row — dark green footer */}
+            <div
+              className="px-4 py-5 sm:px-8 sm:py-6"
+              style={{ background: 'linear-gradient(135deg, #1B4332 0%, #2D6A4F 100%)' }}
+            >
+              <div className="grid grid-cols-[1fr_70px_48px] gap-x-2 items-center sm:grid-cols-[1fr_1fr_80px_64px] sm:gap-x-4">
+                <div className="text-sm font-bold uppercase tracking-wide text-white sm:text-base">
+                  Total
+                </div>
+                <div className="hidden sm:block" />
+                <div className="text-right">
+                  <span className="text-sm font-bold tabular-nums text-white/40 line-through decoration-white/25 sm:text-lg">
+                    ${totalCost}/mo
+                  </span>
+                </div>
+                <div className="text-center">
+                  <span className="text-sm font-bold text-white sm:text-lg">
+                    S$99
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Savings callout card */}
+          <div className="relative mt-8 overflow-hidden rounded-2xl border border-sunder-green/15 bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] px-6 py-8 sm:px-10 sm:py-10">
+            {/* Subtle glow */}
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(64,145,108,0.2),transparent)]" />
+
+            <div className="relative flex flex-col items-center gap-6 sm:flex-row sm:items-end sm:justify-center sm:gap-10">
+              {/* Separately */}
+              <div className="text-center">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-white/50 sm:text-xs">
+                  If you bought them all
+                </p>
+                <p className="mt-2 inline-flex items-baseline justify-center whitespace-nowrap font-serif text-2xl font-bold text-white/30 line-through decoration-white/15 sm:text-3xl">
+                  <span className="tabular-nums">${totalCost}</span>
+                  <span className="text-base text-white/20 no-underline">/mo</span>
+                </p>
+              </div>
+
+              {/* Arrow */}
+              <ArrowRight className="hidden h-5 w-5 text-white/30 sm:block" />
+              <div className="h-px w-12 bg-white/20 sm:hidden" />
+
+              {/* With Neo */}
+              <div className="text-center">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-white/50 sm:text-xs">
+                  With Neo
+                </p>
+                <p className="mt-2 inline-flex items-baseline justify-center whitespace-nowrap font-serif text-3xl font-bold text-white sm:text-4xl">
+                  <span className="tabular-nums">S$99</span>
+                  <span className="text-lg text-white/60">/mo</span>
+                </p>
+              </div>
+            </div>
+
+            <p className="relative mt-6 text-center text-sm text-white/50 sm:text-base">
+              Neo runs them all. You just send a <span className="text-white">message</span>.
+            </p>
+          </div>
+        </div>
+      </Container>
+    </section>
+  )
+}

@@ -1,0 +1,659 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.1"
+  }
+  public: {
+    Tables: {
+      cases: {
+        Row: {
+          case_name: string
+          case_opened_at: string
+          case_ref: string
+          created_at: string
+          created_by: string
+          description: string | null
+          event_date: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          case_name: string
+          case_opened_at?: string
+          case_ref: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          event_date?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          case_name?: string
+          case_opened_at?: string
+          case_ref?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          event_date?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      documents: {
+        Row: {
+          case_id: string
+          created_at: string
+          created_by: string
+          description: string | null
+          document_date: string | null
+          duplicate_status: string | null
+          file_hash: string
+          file_size: number
+          file_type: string
+          filename: string
+          gemini_response: Json | null
+          id: string
+          is_heterogeneous: boolean | null
+          is_reviewed: boolean | null
+          original_filename: string
+          page_ranges: Json | null
+          primary_tag: string | null
+          processed_at: string | null
+          processing_error: string | null
+          renamed_filename: string | null
+          reviewed_at: string | null
+          status: string
+          storage_path: string
+          tags: Json | null
+          updated_at: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          document_date?: string | null
+          duplicate_status?: string | null
+          file_hash: string
+          file_size: number
+          file_type: string
+          filename: string
+          gemini_response?: Json | null
+          id?: string
+          is_heterogeneous?: boolean | null
+          is_reviewed?: boolean | null
+          original_filename: string
+          page_ranges?: Json | null
+          primary_tag?: string | null
+          processed_at?: string | null
+          processing_error?: string | null
+          renamed_filename?: string | null
+          reviewed_at?: string | null
+          status?: string
+          storage_path: string
+          tags?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          document_date?: string | null
+          duplicate_status?: string | null
+          file_hash?: string
+          file_size?: number
+          file_type?: string
+          filename?: string
+          gemini_response?: Json | null
+          id?: string
+          is_heterogeneous?: boolean | null
+          is_reviewed?: boolean | null
+          original_filename?: string
+          page_ranges?: Json | null
+          primary_tag?: string | null
+          processed_at?: string | null
+          processing_error?: string | null
+          renamed_filename?: string | null
+          reviewed_at?: string | null
+          status?: string
+          storage_path?: string
+          tags?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      report_history: {
+        Row: {
+          ai_summary: string | null
+          case_id: string
+          created_at: string
+          file_path: string
+          file_size_bytes: number | null
+          generated_at: string
+          generated_by: string
+          id: string
+          name: string
+          prompt: string | null
+          report_type: string
+          splits_count: number
+          tags_included: string[]
+          updated_at: string
+        }
+        Insert: {
+          ai_summary?: string | null
+          case_id: string
+          created_at?: string
+          file_path: string
+          file_size_bytes?: number | null
+          generated_at?: string
+          generated_by: string
+          id?: string
+          name: string
+          prompt?: string | null
+          report_type: string
+          splits_count: number
+          tags_included: string[]
+          updated_at?: string
+        }
+        Update: {
+          ai_summary?: string | null
+          case_id?: string
+          created_at?: string
+          file_path?: string
+          file_size_bytes?: number | null
+          generated_at?: string
+          generated_by?: string
+          id?: string
+          name?: string
+          prompt?: string | null
+          report_type?: string
+          splits_count?: number
+          tags_included?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_history_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      splits: {
+        Row: {
+          created_at: string | null
+          dismissed_rule_ids: string[] | null
+          document_date: string | null
+          document_id: string
+          end_page: number
+          extend_dashboard_url: string | null
+          extend_processor_id: string | null
+          extracted_data: Json | null
+          extraction_error: string | null
+          extraction_metadata: Json | null
+          extraction_status: string | null
+          id: string
+          identifier: string | null
+          low_confidence_fields: Json | null
+          observation: string | null
+          original_extracted_data: Json | null
+          page_height: number | null
+          page_width: number | null
+          potential_duplicate: string | null
+          schema_version: string | null
+          split_index: number
+          start_page: number
+          tag_id: string
+          updated_at: string | null
+          validation_failures: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          dismissed_rule_ids?: string[] | null
+          document_date?: string | null
+          document_id: string
+          end_page: number
+          extend_dashboard_url?: string | null
+          extend_processor_id?: string | null
+          extracted_data?: Json | null
+          extraction_error?: string | null
+          extraction_metadata?: Json | null
+          extraction_status?: string | null
+          id?: string
+          identifier?: string | null
+          low_confidence_fields?: Json | null
+          observation?: string | null
+          original_extracted_data?: Json | null
+          page_height?: number | null
+          page_width?: number | null
+          potential_duplicate?: string | null
+          schema_version?: string | null
+          split_index: number
+          start_page: number
+          tag_id: string
+          updated_at?: string | null
+          validation_failures?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          dismissed_rule_ids?: string[] | null
+          document_date?: string | null
+          document_id?: string
+          end_page?: number
+          extend_dashboard_url?: string | null
+          extend_processor_id?: string | null
+          extracted_data?: Json | null
+          extraction_error?: string | null
+          extraction_metadata?: Json | null
+          extraction_status?: string | null
+          id?: string
+          identifier?: string | null
+          low_confidence_fields?: Json | null
+          observation?: string | null
+          original_extracted_data?: Json | null
+          page_height?: number | null
+          page_width?: number | null
+          potential_duplicate?: string | null
+          schema_version?: string | null
+          split_index?: number
+          start_page?: number
+          tag_id?: string
+          updated_at?: string | null
+          validation_failures?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "splits_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "splits_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents_with_status"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_instructions: {
+        Row: {
+          case_id: string | null
+          created_at: string
+          description: string
+          id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          case_id?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          case_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_instructions_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_contacts: {
+        Row: {
+          id: string
+          user_id: string
+          phone: string
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          phone: string
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          phone?: string
+          is_active?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      whatsapp_messages: {
+        Row: {
+          id: string
+          whatsapp_msg_id: string
+          phone: string
+          contact_id: string
+          case_id: string
+          document_id: string | null
+          message_type: string
+          message_text: string | null
+          filename: string | null
+          status: string
+          whatsapp_timestamp: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          whatsapp_msg_id: string
+          phone: string
+          contact_id: string
+          case_id: string
+          document_id?: string | null
+          message_type: string
+          message_text?: string | null
+          filename?: string | null
+          status?: string
+          whatsapp_timestamp: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          whatsapp_msg_id?: string
+          phone?: string
+          contact_id?: string
+          case_id?: string
+          document_id?: string | null
+          message_type?: string
+          message_text?: string | null
+          filename?: string | null
+          status?: string
+          whatsapp_timestamp?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          client_config_id: string | null
+          created_at: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          client_config_id?: string | null
+          created_at?: string | null
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          client_config_id?: string | null
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      documents_with_status: {
+        Row: {
+          case_id: string | null
+          computed_status: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          document_date: string | null
+          file_hash: string | null
+          file_size: number | null
+          file_type: string | null
+          filename: string | null
+          gemini_response: Json | null
+          id: string | null
+          is_heterogeneous: boolean | null
+          is_reviewed: boolean | null
+          ocr_confidence: string | null
+          original_filename: string | null
+          page_ranges: Json | null
+          primary_tag: string | null
+          processed_at: string | null
+          processing_error: string | null
+          renamed_filename: string | null
+          reviewed_at: string | null
+          status: string | null
+          storage_path: string | null
+          tags: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          case_id?: string | null
+          computed_status?: never
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          document_date?: string | null
+          file_hash?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          filename?: string | null
+          gemini_response?: Json | null
+          id?: string | null
+          is_heterogeneous?: boolean | null
+          is_reviewed?: boolean | null
+          ocr_confidence?: string | null
+          original_filename?: string | null
+          page_ranges?: Json | null
+          primary_tag?: string | null
+          processed_at?: string | null
+          processing_error?: string | null
+          renamed_filename?: string | null
+          reviewed_at?: string | null
+          status?: string | null
+          storage_path?: string | null
+          tags?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          case_id?: string | null
+          computed_status?: never
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          document_date?: string | null
+          file_hash?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          filename?: string | null
+          gemini_response?: Json | null
+          id?: string | null
+          is_heterogeneous?: boolean | null
+          is_reviewed?: boolean | null
+          ocr_confidence?: string | null
+          original_filename?: string | null
+          page_ranges?: Json | null
+          primary_tag?: string | null
+          processed_at?: string | null
+          processing_error?: string | null
+          renamed_filename?: string | null
+          reviewed_at?: string | null
+          status?: string | null
+          storage_path?: string | null
+          tags?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Functions: {
+      get_my_client_config: { Args: never; Returns: string }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

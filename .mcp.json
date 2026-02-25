@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "sunder": {
+      "command": "npx",
+      "args": ["tsx", "mcp-server.ts"],
+      "env": {
+        "SUPABASE_URL": "",
+        "SUPABASE_SERVICE_ROLE_KEY": "",
+        "SUNDER_USER_ID": "",
+        "SUNDER_APP_URL": "",
+        "SUNDER_INTERNAL_SECRET": ""
+      }
+    }
+  }
+}

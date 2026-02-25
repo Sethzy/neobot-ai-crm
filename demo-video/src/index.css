@@ -1,0 +1,4 @@
+@import "tailwindcss";
+
+/* Fonts are loaded via @remotion/fonts in src/fonts.ts */
+/* This ensures fonts are ready before rendering starts */
