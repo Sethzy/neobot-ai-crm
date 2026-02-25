@@ -2,6 +2,7 @@
 
 /** Pipeline board animation for the ProductShowcase hero section. */
 import { type ComponentType, useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 import { Flame, KeyRound, Clock3, AtSign, Phone } from 'lucide-react'
 
 type ClientCard = {
@@ -248,15 +249,20 @@ function Card({
   )
 }
 
-export function DocumentSplitAnimation() {
+/** Same heavy spring as UseCases cards. */
+const columnSpring = { type: 'spring' as const, stiffness: 35, damping: 14, mass: 2.4 }
+
+export function DocumentSplitAnimation({ isVisible = true }: { isVisible?: boolean }) {
   const [cycleIdx, setCycleIdx] = useState(0)
 
+  /** Only start the highlight cycle after columns have animated in. */
   useEffect(() => {
+    if (!isVisible) return
     const id = setInterval(() => {
       setCycleIdx((prev) => (prev + 1) % CYCLE_ORDER.length)
     }, CYCLE_MS)
     return () => clearInterval(id)
-  }, [])
+  }, [isVisible])
 
   const [activeCol, activeCard] = CYCLE_ORDER[cycleIdx]
 
@@ -267,7 +273,12 @@ export function DocumentSplitAnimation() {
           const Icon = column.icon
 
           return (
-            <div key={column.title}>
+            <motion.div
+              key={column.title}
+              initial={{ y: 60, opacity: 0 }}
+              animate={isVisible ? { y: 0, opacity: 1 } : { y: 60, opacity: 0 }}
+              transition={isVisible ? { ...columnSpring, delay: 0.3 + colIdx * 0.12 } : { duration: 0 }}
+            >
               <div
                 className={`mb-2 flex items-center gap-1.5 text-[11px] font-bold tracking-[0.12em] ${column.titleColor}`}
               >
@@ -284,7 +295,7 @@ export function DocumentSplitAnimation() {
                   />
                 ))}
               </div>
-            </div>
+            </motion.div>
           )
         })}
       </div>

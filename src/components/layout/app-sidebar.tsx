@@ -20,6 +20,7 @@ import {
   Radio,
   Settings,
   LogOut,
+  ChevronsUpDown,
 } from "lucide-react";
 import { Logo } from "@/components/landing/Logo";
 import { useSession } from "@/hooks/use-session";
@@ -35,6 +36,13 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from "@/components/ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 /** AGENT section — primary operating surfaces */
 const agentNavItems = [
@@ -60,7 +68,7 @@ export function AppSidebar() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    router.push("/login");
+    router.push("/");
   };
 
   const renderNavItems = (items: typeof agentNavItems) =>
@@ -89,29 +97,33 @@ export function AppSidebar() {
     });
 
   return (
-    <Sidebar collapsible="none" className="border-r border-border/40 bg-background">
-      {/* Logo */}
-      <SidebarHeader className="px-3 pt-5 pb-6">
+    <Sidebar collapsible="none" className="border-r border-border bg-background">
+      {/* Logo — tighter vertical padding */}
+      <SidebarHeader className="px-3 pt-3 pb-2">
         <Logo />
       </SidebarHeader>
 
-      {/* Navigation */}
-      <SidebarContent className="px-2 pt-1">
+      {/* Navigation — reduced group spacing */}
+      <SidebarContent className="px-2">
         {/* AGENT section */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Agent</SidebarGroupLabel>
+        <SidebarGroup className="py-1">
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold h-6">
+            Agent
+          </SidebarGroupLabel>
           <SidebarMenu>{renderNavItems(agentNavItems)}</SidebarMenu>
         </SidebarGroup>
 
         {/* DATABASE section */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Database</SidebarGroupLabel>
+        <SidebarGroup className="py-1">
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold h-6">
+            Database
+          </SidebarGroupLabel>
           <SidebarMenu>{renderNavItems(databaseNavItems)}</SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Footer: Settings + User */}
-      <SidebarFooter className="border-t border-border/40 px-2 py-3">
+      {/* Footer — compact: Settings link + user dropdown with sign-out */}
+      <SidebarFooter className="border-t border-border px-2 py-2">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -126,32 +138,42 @@ export function AppSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+
+          {/* User row — opens dropdown with sign-out */}
           <SidebarMenuItem>
-            <SidebarMenuButton
-              tooltip={user?.email || "User"}
-              className="hover:bg-transparent cursor-default"
-            >
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-muted/60 text-xs font-medium text-foreground/80">
-                {user?.email?.charAt(0).toUpperCase()}
-              </div>
-              <span className="truncate text-sm text-foreground/90">
-                {user?.email}
-              </span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              tooltip="Sign out"
-              onClick={handleSignOut}
-              className="text-muted-foreground/70 hover:text-foreground hover:bg-muted/40"
-            >
-              <LogOut className="h-4 w-4" />
-              <span>Sign out</span>
-            </SidebarMenuButton>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton
+                  tooltip={user?.email || "User"}
+                  className="hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-foreground text-[10px] font-semibold text-background">
+                    {user?.email?.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="truncate text-sm text-foreground/80">
+                    {user?.email}
+                  </span>
+                  <ChevronsUpDown className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                side="top"
+                align="start"
+                className="w-[--radix-dropdown-menu-trigger-width] min-w-48"
+              >
+                <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                  {user?.email}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-
     </Sidebar>
   );
 }

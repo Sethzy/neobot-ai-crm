@@ -2,6 +2,7 @@
  * Hero section with headline, CTA button, and promo video.
  */
 import Link from "next/link";
+import Image from "next/image";
 import { Container } from '@/components/landing/Container'
 import { PromoVideo } from '@/components/landing/PromoVideo'
 
@@ -19,14 +20,14 @@ export function Hero() {
           background: 'radial-gradient(ellipse 80% 50% at 50% 18%, rgba(210, 202, 186, 0.5), rgba(250, 247, 242, 0.35) 60%, transparent 100%)',
         }}
       >
-        <img
+        <Image
           src="/exports/hero-watercolor.webp"
           alt=""
-          aria-hidden="true"
-          loading="eager"
-          decoding="sync"
-          fetchPriority="high"
-          className="size-full object-cover object-top"
+          aria-hidden
+          priority
+          fill
+          sizes="100vw"
+          className="object-cover object-top"
         />
       </div>
 

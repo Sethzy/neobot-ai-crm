@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import { Header } from "@/components/landing/Header";
 import { Hero } from "@/components/landing/Hero";
+import { SmoothScroll } from "@/components/landing/SmoothScroll";
 
 /** Below-fold sections — lazy-loaded to cut initial module count */
 const UseCases = dynamic(() => import("@/components/landing/UseCases").then(m => ({ default: m.UseCases })));
@@ -41,6 +42,7 @@ export const metadata: Metadata = {
 
 export default function LandingPage() {
   return (
+    <SmoothScroll>
     <div className="landing-page min-h-screen selection:bg-indigo-100 selection:text-indigo-900">
       <Header />
       <main>
@@ -75,5 +77,6 @@ export default function LandingPage() {
       </main>
       <Footer />
     </div>
+    </SmoothScroll>
   );
 }

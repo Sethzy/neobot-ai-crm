@@ -4,6 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { AppSidebar } from "./app-sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
@@ -85,9 +86,11 @@ describe("AppSidebar", () => {
     expect(screen.getByText("test@example.com")).toBeInTheDocument();
   });
 
-  it("renders sign out button", () => {
+  it("renders sign out option in user dropdown", async () => {
     render(<AppSidebar />, { wrapper });
-    expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
+    const trigger = screen.getByText("test@example.com");
+    await userEvent.click(trigger);
+    expect(await screen.findByRole("menuitem", { name: /sign out/i })).toBeInTheDocument();
   });
 
   it("does not render old nav items", () => {

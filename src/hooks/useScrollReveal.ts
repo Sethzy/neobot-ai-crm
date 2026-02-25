@@ -2,7 +2,7 @@
 
 /**
  * Lightweight scroll-reveal hook for mobile-friendly animations.
- * Uses Intersection Observer for performant scroll-triggered reveals.
+ * Uses a singleton IntersectionObserver to avoid creating 12+ instances.
  */
 import { useEffect, useRef, useState } from 'react'
 
@@ -15,9 +15,67 @@ interface UseScrollRevealOptions {
   triggerOnce?: boolean
 }
 
+/* -------------------------------------------------------------------------- */
+/*                        Singleton observer pool                             */
+/* -------------------------------------------------------------------------- */
+
+type ObserverCallback = (isIntersecting: boolean) => void
+
+/** Key = "threshold|rootMargin" to reuse observers with identical options. */
+const observers = new Map<string, {
+  observer: IntersectionObserver
+  callbacks: Map<Element, ObserverCallback>
+}>()
+
+function getObserverKey(threshold: number, rootMargin: string) {
+  return `${threshold}|${rootMargin}`
+}
+
+function observe(
+  element: Element,
+  callback: ObserverCallback,
+  threshold: number,
+  rootMargin: string,
+) {
+  const key = getObserverKey(threshold, rootMargin)
+  let entry = observers.get(key)
+
+  if (!entry) {
+    const callbacks = new Map<Element, ObserverCallback>()
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          const cb = callbacks.get(e.target)
+          if (cb) cb(e.isIntersecting)
+        }
+      },
+      { threshold, rootMargin },
+    )
+    entry = { observer, callbacks }
+    observers.set(key, entry)
+  }
+
+  entry.callbacks.set(element, callback)
+  entry.observer.observe(element)
+
+  return () => {
+    entry!.callbacks.delete(element)
+    entry!.observer.unobserve(element)
+    // Clean up empty observers
+    if (entry!.callbacks.size === 0) {
+      entry!.observer.disconnect()
+      observers.delete(key)
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                  Hooks                                     */
+/* -------------------------------------------------------------------------- */
+
 /**
  * Hook that returns a ref and visibility state for scroll-triggered animations.
- * Optimized for mobile performance with minimal re-renders.
+ * Shares a singleton IntersectionObserver across all instances with the same options.
  */
 export function useScrollReveal<T extends HTMLElement = HTMLDivElement>(
   options: UseScrollRevealOptions = {}
@@ -43,29 +101,26 @@ export function useScrollReveal<T extends HTMLElement = HTMLDivElement>(
     }
 
     // Skip animation if user prefers reduced motion.
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (prefersReducedMotion) {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setIsVisible(true)
       return
     }
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
+    const unobserve = observe(
+      element,
+      (isIntersecting) => {
+        if (isIntersecting) {
           setIsVisible(true)
-          if (triggerOnce) {
-            observer.unobserve(element)
-          }
+          if (triggerOnce) unobserve()
         } else if (!triggerOnce) {
           setIsVisible(false)
         }
       },
-      { threshold, rootMargin }
+      threshold,
+      rootMargin,
     )
 
-    observer.observe(element)
-
-    return () => observer.disconnect()
+    return unobserve
   }, [threshold, rootMargin, triggerOnce])
 
   return { ref, isVisible }

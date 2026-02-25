@@ -4,10 +4,11 @@
  * Tabbed workflow showcase — displays concrete use-case cards across business
  * categories to communicate the breadth of what Neo can do for B2C salespeople.
  */
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { Container } from '@/components/landing/Container'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
+import { motion, useInView } from 'framer-motion'
 import {
   Heart,
   Briefcase,
@@ -300,12 +301,23 @@ export function UseCases() {
   const { ref: sectionRef, isVisible } = useScrollReveal<HTMLElement>()
   const active = categories[activeIndex]
 
-  /** Scroll the tapped tab into the visible center of the pill bar. */
-  const handleTabClick = (i: number, e: React.MouseEvent<HTMLButtonElement>) => {
+  /** Trigger when the tabs bar is visible — cards animate after user reads the heading. */
+  const tabsRef = useRef<HTMLDivElement>(null)
+  const tabsInView = useInView(tabsRef, { once: true })
+
+  /** Mark revealed AFTER the first animated render so tab switches skip animation. */
+  const hasRevealedRef = useRef(false)
+  useEffect(() => {
+    if (tabsInView) hasRevealedRef.current = true
+  }, [tabsInView])
+
+  const handleTabSwitch = (i: number, e: React.MouseEvent<HTMLButtonElement>) => {
     setActiveIndex(i)
-    const btn = e.currentTarget
-    btn.scrollIntoView({ inline: 'center', behavior: 'auto', block: 'nearest' })
+    e.currentTarget.scrollIntoView({ inline: 'center', behavior: 'auto', block: 'nearest' })
   }
+
+  /** Spring transition — low stiffness = heavy/weighted, low damping = more settle time */
+  const springTransition = { type: 'spring' as const, stiffness: 35, damping: 14, mass: 2.4 }
 
   return (
     <section
@@ -343,6 +355,7 @@ export function UseCases() {
 
         {/* ---- Tabs — icon-only inactive on mobile, all labels on desktop ---- */}
         <div
+          ref={tabsRef}
           className={`mt-6 sm:mt-8 scroll-reveal ${isVisible ? 'is-visible' : ''}`}
         >
           <div className="flex justify-center">
@@ -353,7 +366,7 @@ export function UseCases() {
                 return (
                   <button
                     key={cat.label}
-                    onClick={(e) => handleTabClick(i, e)}
+                    onClick={(e) => handleTabSwitch(i, e)}
                     className={cn(
                       'flex shrink-0 items-center justify-center rounded-full',
                       // Mobile: icon-only for inactive, icon+label for active
@@ -381,10 +394,24 @@ export function UseCases() {
         <div
           className="mx-auto mt-10 grid max-w-5xl grid-cols-1 gap-3 sm:mt-14 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3"
         >
-          {active.cards.map((card) => (
-            <div
+          {active.cards.map((card, i) => {
+            /** First reveal: spring in from below. After that: instant. */
+            const skipAnimation = hasRevealedRef.current
+            return (
+            <motion.div
               key={card.title}
-              className="group relative rounded-2xl bg-white p-4 sm:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.14)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(0,0,0,0.20)]"
+              initial={skipAnimation ? false : { y: 80, opacity: 0, scale: 0.95 }}
+              animate={
+                skipAnimation || tabsInView
+                  ? { y: 0, opacity: 1, scale: 1 }
+                  : { y: 80, opacity: 0, scale: 0.95 }
+              }
+              transition={
+                skipAnimation || !tabsInView
+                  ? { duration: 0 }
+                  : { ...springTransition, delay: i * 0.08 }
+              }
+              className="group rounded-2xl bg-white p-4 sm:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.14)]"
             >
               {/* Icon + title: inline on mobile, stacked on sm+ */}
               <div className="flex items-center gap-3 sm:block">
@@ -400,8 +427,9 @@ export function UseCases() {
               <p className="mt-2 text-sm leading-relaxed text-zinc-500">
                 {card.description}
               </p>
-            </div>
-          ))}
+            </motion.div>
+            )
+          })}
         </div>
       </Container>
     </section>

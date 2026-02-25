@@ -8,6 +8,8 @@ import { WhatsAppPhoneMockup } from "@/components/landing/WhatsAppPhoneMockup";
 import { SunburstDecoration } from "@/components/landing/SunburstDecoration";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
+import { motion, useScroll, useTransform, useSpring } from "framer-motion";
+import { useRef } from "react";
 import { Send, FileSpreadsheet, Bell, Link2 } from "lucide-react";
 
 /** Mobile messages per feature — each feature gets a static WhatsApp card on mobile */
@@ -135,9 +137,26 @@ export function PrimaryFeatures() {
     useScrollReveal<HTMLDivElement>();
   const { ref: featuresRef, isVisible: featuresVisible } =
     useScrollReveal<HTMLDivElement>();
+  const sectionRef = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "center center"],
+  });
+
+  /** Heavy spring config — low stiffness + moderate damping = weighted inertia */
+  const springConfig = { stiffness: 50, damping: 20 };
+  const rawY = useTransform(scrollYProgress, [0, 0.7, 1], [200, 20, 0]);
+  const rawOpacity = useTransform(scrollYProgress, [0, 0.4, 0.8], [0, 0.6, 1]);
+  const rawScale = useTransform(scrollYProgress, [0, 0.7, 1], [0.95, 0.99, 1]);
+
+  const y = useSpring(rawY, springConfig);
+  const opacity = useSpring(rawOpacity, springConfig);
+  const scale = useSpring(rawScale, springConfig);
+
   return (
     <section
       id="features"
+      ref={sectionRef}
       aria-label="Features for AI employee"
       className="relative overflow-hidden bg-background py-20 sm:py-24 md:py-32"
     >
@@ -244,11 +263,11 @@ export function PrimaryFeatures() {
 
           {/* Desktop: full phone mockup */}
           {isDesktop ? (
-            <div className="hidden lg:block lg:col-span-7 lg:-mr-8">
+            <motion.div style={{ y, opacity, scale }} className="hidden lg:block lg:col-span-7 lg:-mr-8">
               <div className="w-full flex justify-end">
                 <WhatsAppPhoneMockup isVisible />
               </div>
-            </div>
+            </motion.div>
           ) : null}
         </div>
       </Container>
