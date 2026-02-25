@@ -84,15 +84,19 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const getUserStart = performance.now();
+  // getSession() validates the JWT locally — no network round-trip.
+  // Use getUser() in Server Components / API routes where you need
+  // a verified identity from Supabase, not in the hot middleware path.
+  const getSessionStart = performance.now();
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const getUserMs = (performance.now() - getUserStart).toFixed(0);
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
+  const getSessionMs = (performance.now() - getSessionStart).toFixed(0);
   const supabaseMs = (performance.now() - supabaseStart).toFixed(0);
 
   console.log(
-    `[middleware] ${pathname} | getUser: ${getUserMs}ms | supabase total: ${supabaseMs}ms`
+    `[middleware] ${pathname} | getSession: ${getSessionMs}ms | supabase total: ${supabaseMs}ms`
   );
 
   if (!user && !isPublicRoute(pathname)) {
@@ -111,7 +115,7 @@ export async function middleware(request: NextRequest) {
   const totalMs = (performance.now() - mwStart).toFixed(0);
   response.headers.set(
     "Server-Timing",
-    `middleware;dur=${totalMs}, supabase-getuser;dur=${getUserMs}`
+    `middleware;dur=${totalMs}, supabase-session;dur=${getSessionMs}`
   );
 
   return response;
