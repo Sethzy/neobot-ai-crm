@@ -28,7 +28,7 @@ export function WhatsAppCard({ messages, width, height, className, scale = 1, sh
         transformOrigin: 'top left',
       }}
       className={cn(
-        "bg-[#ECE5DD] relative overflow-hidden flex flex-col font-sans",
+        "bg-[#C8C4BE] relative overflow-hidden flex flex-col font-sans shadow-lg shadow-black/[0.08] ring-1 ring-black/[0.06]",
         !width && "w-full",
         !height && "h-auto",
         className

@@ -11,9 +11,31 @@ export function Hero() {
     <div
       className="relative overflow-hidden pt-28 pb-0 sm:pt-36 bg-[#F5EEE1]"
     >
-      {/* Watercolor cloud texture — masked Unsplash image (same technique as Tailark) */}
+      {/* Watercolor cloud texture — mobile: original subtle opacity */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-[680px] opacity-[0.93]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[680px] opacity-[0.82] md:hidden"
+        style={{
+          maskImage: 'radial-gradient(ellipse 100% 70% at 50% 25%, black 20%, rgba(0,0,0,0.5) 38%, transparent 58%)',
+          WebkitMaskImage: 'radial-gradient(ellipse 100% 70% at 50% 25%, black 20%, rgba(0,0,0,0.5) 38%, transparent 58%)',
+          background: 'radial-gradient(ellipse 80% 50% at 50% 18%, rgba(210, 202, 186, 0.5), rgba(245, 238, 225, 0.35) 60%, transparent 100%)',
+        }}
+      >
+        <Image
+          src="/exports/hero-watercolor.webp"
+          alt=""
+          aria-hidden
+          priority
+          unoptimized
+          fetchPriority="high"
+          decoding="sync"
+          fill
+          sizes="100vw"
+          className="object-cover object-top"
+        />
+      </div>
+      {/* Watercolor cloud texture — desktop: enhanced opacity */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 hidden h-[680px] opacity-[0.93] md:block"
         style={{
           maskImage: 'radial-gradient(ellipse 112% 82% at 50% 22%, black 27%, rgba(0,0,0,0.56) 47%, transparent 70%)',
           WebkitMaskImage: 'radial-gradient(ellipse 112% 82% at 50% 22%, black 27%, rgba(0,0,0,0.56) 47%, transparent 70%)',
