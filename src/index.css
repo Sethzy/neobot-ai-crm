@@ -91,7 +91,7 @@
   --font-sans: 'Geist', system-ui, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, monospace;
   /* Sunder green palette (NeoBot Green) */
-  --color-sunder-green: #2D6A4F;
+  --color-sunder-green: #024F46;
   --color-sunder-green-light: #40916C;
   --color-sunder-green-dark: #1B4332;
   --color-parchment: #F5F0E6;
@@ -188,21 +188,21 @@
   --card-foreground: #1A1A1A;
   --popover: theme('colors.white');
   --popover-foreground: #1A1A1A;
-  --primary: #2D6A4F;
+  --primary: #024F46;
   --primary-foreground: theme('colors.white');
   --secondary: #D8F3DC;
-  --secondary-foreground: #2D6A4F;
+  --secondary-foreground: #024F46;
   --muted: #FAF7F2;
   --muted-foreground: #6B7280;
   --accent: #E8F5E9;
-  --accent-foreground: #2D6A4F;
+  --accent-foreground: #024F46;
   --destructive: theme('colors.red.500');
   --destructive-foreground: theme('colors.white');
   --border: #E8DFD0;
   --input: #E8DFD0;
-  --ring: #2D6A4F;
+  --ring: #024F46;
   /* Override sunder-green palette for landing page (now matches global) */
-  /* --color-sunder-green: #2D6A4F; */
+  /* --color-sunder-green: #024F46; */
   /* --color-sunder-green-light: #40916C; */
   /* --color-sunder-green-dark: #1B4332; */
   font-family: 'Figtree', sans-serif;

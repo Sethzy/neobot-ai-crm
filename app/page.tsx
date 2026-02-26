@@ -10,7 +10,6 @@ const PrimaryFeatures = dynamic(() => import("@/components/landing/PrimaryFeatur
 const SecondaryFeatures = dynamic(() => import("@/components/landing/SecondaryFeatures").then(m => ({ default: m.SecondaryFeatures })));
 const ProductShowcase = dynamic(() => import("@/components/landing/ProductShowcase").then(m => ({ default: m.ProductShowcase })));
 const Differentiator = dynamic(() => import("@/components/landing/Differentiator").then(m => ({ default: m.Differentiator })));
-const CallToAction = dynamic(() => import("@/components/landing/CallToAction").then(m => ({ default: m.CallToAction })));
 const Testimonials = dynamic(() => import("@/components/landing/Testimonials").then(m => ({ default: m.Testimonials })));
 const Pricing = dynamic(() => import("@/components/landing/Pricing").then(m => ({ default: m.Pricing })));
 const Faqs = dynamic(() => import("@/components/landing/Faqs").then(m => ({ default: m.Faqs })));
@@ -61,9 +60,6 @@ export default function LandingPage() {
         </div>
         <div className="lp-deferred-section">
           <Differentiator />
-        </div>
-        <div className="lp-deferred-section">
-          <CallToAction />
         </div>
         <div className="lp-deferred-section">
           <Testimonials />

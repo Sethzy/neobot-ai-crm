@@ -6,7 +6,7 @@ import { MapPin, Mail, Phone } from 'lucide-react'
 
 export function Footer() {
   return (
-    <footer className="relative py-24 overflow-hidden bg-[#0A0A0A]">
+    <footer className="relative py-24 overflow-hidden bg-[#1A1A1A]">
       <Container className="relative z-10">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-3">
           {/* Brand & Contact */}

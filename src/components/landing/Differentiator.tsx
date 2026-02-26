@@ -130,7 +130,7 @@ export function Differentiator() {
             {/* Dark green table header */}
             <div
               className="grid grid-cols-[1fr_70px_48px] gap-x-2 items-center px-4 py-4 sm:grid-cols-[1fr_1fr_80px_64px] sm:gap-x-4 sm:px-8"
-              style={{ background: 'linear-gradient(135deg, #1B4332 0%, #2D6A4F 100%)' }}
+              style={{ backgroundColor: '#024F46' }}
             >
               <div className="text-[11px] font-semibold uppercase tracking-widest text-white/60 sm:text-xs">
                 Feature
@@ -237,7 +237,7 @@ export function Differentiator() {
             {/* Total row — dark green footer */}
             <div
               className="px-4 py-5 sm:px-8 sm:py-6"
-              style={{ background: 'linear-gradient(135deg, #1B4332 0%, #2D6A4F 100%)' }}
+              style={{ backgroundColor: '#024F46' }}
             >
               <div className="grid grid-cols-[1fr_70px_48px] gap-x-2 items-center sm:grid-cols-[1fr_1fr_80px_64px] sm:gap-x-4">
                 <div className="text-sm font-bold uppercase tracking-wide text-white sm:text-base">
@@ -259,17 +259,17 @@ export function Differentiator() {
           </div>
 
           {/* Savings callout card */}
-          <div className="relative mt-8 overflow-hidden rounded-2xl border border-sunder-green/15 bg-gradient-to-br from-[#1B4332] to-[#2D6A4F] px-6 py-8 sm:px-10 sm:py-10">
+          <div className="relative mt-8 overflow-hidden rounded-2xl border border-sunder-green/15 bg-[#013D36] px-6 py-8 sm:px-10 sm:py-10">
             {/* Subtle glow */}
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(64,145,108,0.2),transparent)]" />
 
             <div className="relative flex flex-col items-center gap-6 sm:flex-row sm:items-end sm:justify-center sm:gap-10">
               {/* Separately */}
               <div className="text-center">
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-white/50 sm:text-xs">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-white/60 sm:text-xs">
                   If you bought them all
                 </p>
-                <p className="mt-2 inline-flex items-baseline justify-center whitespace-nowrap font-serif text-2xl font-bold text-white/30 line-through decoration-white/15 sm:text-3xl">
+                <p className="mt-2 inline-flex items-baseline justify-center whitespace-nowrap font-serif text-2xl font-bold text-white/40 line-through decoration-white/20 sm:text-3xl">
                   <span className="tabular-nums">${totalCost}</span>
                   <span className="text-base text-white/20 no-underline">/mo</span>
                 </p>
@@ -281,7 +281,7 @@ export function Differentiator() {
 
               {/* With Neo */}
               <div className="text-center">
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-white/50 sm:text-xs">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-white/70 sm:text-xs">
                   With Neo
                 </p>
                 <p className="mt-2 inline-flex items-baseline justify-center whitespace-nowrap font-serif text-3xl font-bold text-white sm:text-4xl">
@@ -291,7 +291,7 @@ export function Differentiator() {
               </div>
             </div>
 
-            <p className="relative mt-6 text-center text-sm text-white/50 sm:text-base">
+            <p className="relative mt-6 text-center text-sm text-white/60 sm:text-base">
               Neo runs them all. You just send a <span className="text-white">message</span>.
             </p>
           </div>

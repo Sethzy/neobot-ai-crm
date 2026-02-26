@@ -36,7 +36,7 @@ export function Hero() {
 
       <Container className="relative">
         <div className="flex flex-col items-center text-center">
-          <div className="inline-flex items-center gap-2.5 rounded-full bg-white/70 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-[#2A1F17] ring-1 ring-black/[0.14] mb-5 sm:px-6 sm:py-2 sm:text-sm">
+          <div className="inline-flex items-center gap-2.5 rounded-full bg-white/70 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-[#1A1A1A] ring-1 ring-black/[0.14] mb-5 sm:px-6 sm:py-2 sm:text-sm">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sunder-green opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-sunder-green"></span>
@@ -53,7 +53,7 @@ export function Hero() {
                 filter: 'blur(40px)',
               }}
             />
-            <h1 className="font-serif text-[9.5vw] font-semibold leading-[1.15] tracking-[-0.035em] text-[#2A1F17] sm:text-5xl md:text-[3.5rem] lg:text-6xl">
+            <h1 className="font-serif text-[9.5vw] font-semibold leading-[1.15] tracking-[-0.035em] text-[#1A1A1A] sm:text-5xl md:text-[3.5rem] lg:text-6xl">
               <span className="sm:hidden">Acts before you ask.<br /></span>
               <span className="hidden sm:inline">Your AI rep acts before you ask.{' '}</span>
               <br className="hidden sm:inline" />

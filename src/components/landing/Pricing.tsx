@@ -214,7 +214,7 @@ export function Pricing() {
               return (
                 <article
                   key={plan.name}
-                  className="relative flex flex-col overflow-hidden rounded-2xl bg-sunder-green-dark p-6 text-white lg:scale-105 sm:p-8 transition-transform duration-200 hover:-translate-y-1"
+                  className="relative flex flex-col overflow-hidden rounded-2xl bg-[#024F46] p-6 text-white lg:scale-105 sm:p-8 transition-transform duration-200 hover:-translate-y-1"
                   style={{
                     border: '1px solid rgba(255,255,255,0.6)',
                     boxShadow: '0 25px 50px -12px rgba(27, 50, 36, 0.25)',

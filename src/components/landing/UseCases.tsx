@@ -14,50 +14,20 @@ import {
   Briefcase,
   BarChart3,
   Megaphone,
-  Sparkles,
-  UserRound,
-  Users,
-  ListChecks,
   FileText,
-  FolderOpen,
-  ShieldCheck,
-  Calculator,
-  Receipt,
-  Bell,
-  Search,
-  Eye,
-  Newspaper,
-  TrendingDown,
-  QrCode,
-  MapPin,
-  Mic,
-  Globe,
-  Scale,
-  MousePointerClick,
-  ScanLine,
 } from 'lucide-react'
-import {
-  SiWhatsapp,
-  SiGooglecalendar,
-  SiGmail,
-  SiLinkedin,
-  SiInstagram,
-  SiMeta,
-  SiGooglesheets,
-} from 'react-icons/si'
-import type { IconType } from 'react-icons'
 import type { LucideProps } from 'lucide-react'
+import Image from 'next/image'
 
 /* -------------------------------------------------------------------------- */
 /*                                   Types                                    */
 /* -------------------------------------------------------------------------- */
 
-type AnyIcon = React.ComponentType<LucideProps> | IconType
-
 interface WorkflowCard {
   title: string
   description: string
-  icons: AnyIcon[]
+  /** Paths to SVG logos in /public/logos/ */
+  logos: string[]
 }
 
 interface Category {
@@ -79,37 +49,37 @@ const categories: Category[] = [
         title: 'Lead qualification',
         description:
           "Handle initial inquiries until they're qualified, then message me when it's ready for hand off.",
-        icons: [SiWhatsapp, UserRound],
+        logos: ['/logos/whatsapp-icon.svg', '/logos/phone.svg'],
       },
       {
         title: 'Lead scraping',
         description:
           'Scrape listing sites and databases daily for matching prospects, then add them to my pipeline automatically.',
-        icons: [Globe, Users],
+        logos: ['/logos/firecrawl.svg', '/logos/chrome.svg', '/logos/google-sheets.svg'],
       },
       {
         title: 'Lead research',
         description:
           'New lead added? Pull their LinkedIn, company site, and public records. Get me a full brief before my first call.',
-        icons: [Search, UserRound],
+        logos: ['/logos/linkedin.svg', '/logos/firecrawl.svg'],
       },
       {
         title: 'Daily LinkedIn',
         description:
           'Every day, engage with people in my market and repost relevant industry content on LinkedIn.',
-        icons: [SiLinkedin, Sparkles],
+        logos: ['/logos/linkedin.svg', '/logos/n8n.svg'],
       },
       {
         title: 'Referral timing',
         description:
           'Client just closed and sentiment is high. Draft a warm referral ask and send it at the right moment.',
-        icons: [Sparkles, SiWhatsapp],
+        logos: ['/logos/whatsapp-icon.svg', '/logos/n8n.svg'],
       },
       {
         title: 'Ad lead capture',
         description:
           'Someone clicks my ad and lands on the page — Neo qualifies them, tags the source, and books a call.',
-        icons: [SiInstagram, SiWhatsapp],
+        logos: ['/logos/instagram-icon.svg', '/logos/meta.svg', '/logos/whatsapp-icon.svg'],
       },
     ],
   },
@@ -121,37 +91,37 @@ const categories: Category[] = [
         title: 'Client support',
         description:
           'Triage incoming client questions about timelines, paperwork, and next steps — draft responses and escalate anything complex.',
-        icons: [SiWhatsapp, UserRound],
+        logos: ['/logos/whatsapp-icon.svg', '/logos/desktop.svg'],
       },
       {
         title: 'Reply nudges',
         description:
           "If a client messages me and I don't respond within 30 minutes, send me a reminder with context so nothing slips.",
-        icons: [SiWhatsapp, Bell],
+        logos: ['/logos/phone.svg', '/logos/n8n.svg'],
       },
       {
         title: 'Birthday messages',
         description:
           'Draft personalized birthday wishes for every client celebrating this week and send them a message.',
-        icons: [SiGooglecalendar, SiWhatsapp],
+        logos: ['/logos/google-calendar.svg', '/logos/phone.svg'],
       },
       {
         title: 'Client outings',
         description:
           "Find high-value clients I haven't reached out to in a while and events nearby to invite them to.",
-        icons: [Users, MapPin],
+        logos: ['/logos/googleMaps.svg', '/logos/desktop.svg'],
       },
       {
         title: 'Event planning',
         description:
           'Plan my client event this weekend — create sign-up forms, schedule reminders, and prep talking points.',
-        icons: [QrCode, SiGooglecalendar],
+        logos: ['/logos/google-calendar.svg', '/logos/n8n.svg'],
       },
       {
         title: 'Milestone reminders',
         description:
           "Client's anniversary is coming up. Remind me a week early and draft a personal note to send.",
-        icons: [SiGooglecalendar, SiWhatsapp],
+        logos: ['/logos/desktop.svg', '/logos/n8n.svg'],
       },
     ],
   },
@@ -163,37 +133,37 @@ const categories: Category[] = [
         title: 'Meeting briefing',
         description:
           'New appointment booked — research the prospect, pull relevant context, and prep me a brief before I walk in.',
-        icons: [SiGooglecalendar, UserRound],
+        logos: ['/logos/google-calendar.svg', '/logos/firecrawl.svg'],
       },
       {
         title: 'Meeting recaps',
         description:
           "Just finished a client meeting. Here's my voice note — log key takeaways and create follow-up tasks.",
-        icons: [Mic, ListChecks],
+        logos: ['/logos/phone.svg', '/logos/google-docs.svg'],
       },
       {
         title: 'Deal comparison',
         description:
           'Upload competing offers or quotes. Neo extracts key terms — price, conditions, timeline — into a side-by-side table.',
-        icons: [Scale, FileText],
+        logos: ['/logos/google-sheets.svg', '/logos/drive.svg'],
       },
       {
         title: 'Form filling',
         description:
           'Neo opens the submission portal, fills the application from your deal file, and screenshots each step for your review.',
-        icons: [MousePointerClick, FileText],
+        logos: ['/logos/desktop.svg', '/logos/chrome.svg'],
       },
       {
         title: 'Weekly pipeline review',
         description:
           'Every Monday: deals in progress, tasks overdue, pipeline value, and areas that need my attention.',
-        icons: [BarChart3, Newspaper],
+        logos: ['/logos/google-sheets.svg', '/logos/n8n.svg'],
       },
       {
         title: 'Due diligence',
         description:
-          'Pull transaction history, public filings, and background records from online databases. Get a summary before you commit.',
-        icons: [Search, ShieldCheck],
+          'Pull transaction history, public filings, and background records from online databases. Get a summary before committing.',
+        logos: ['/logos/firecrawl.svg', '/logos/google.svg'],
       },
     ],
   },
@@ -205,37 +175,37 @@ const categories: Category[] = [
         title: 'Competitor monitoring',
         description:
           "Monitor competitors' pricing and marketing — alert me the moment anything changes in my territory.",
-        icons: [Eye, Bell],
+        logos: ['/logos/firecrawl.svg', '/logos/google.svg'],
       },
       {
         title: 'Market research',
         description:
           "When I tag an email 'research', deep dive the topic and reply with a summary I can use with clients.",
-        icons: [Search, SiGmail],
+        logos: ['/logos/gmail.svg', '/logos/firecrawl.svg'],
       },
       {
         title: 'Industry monitoring',
         description:
           'Monitor industry podcasts and news for discussions relevant to my market and email me a summary.',
-        icons: [Newspaper, SiGmail],
+        logos: ['/logos/spotify.svg', '/logos/gmail.svg'],
       },
       {
         title: 'Lead gen audit',
         description:
           "Review all my lead gen subscriptions — which sources are actually converting? Cut what's not working.",
-        icons: [TrendingDown, Calculator],
+        logos: ['/logos/google-sheets.svg', '/logos/desktop.svg'],
       },
       {
         title: 'Auto-post wins',
         description:
           'When I close a deal or hit a milestone, auto-generate a social post and schedule it across my channels.',
-        icons: [SiInstagram, SiMeta],
+        logos: ['/logos/instagram-icon.svg', '/logos/linkedin.svg'],
       },
       {
         title: 'Email tracking',
         description:
           'Track opens on my outbound emails. When a prospect opens, research them and draft a personalized follow-up.',
-        icons: [SiGmail, SiWhatsapp],
+        logos: ['/logos/gmail.svg', '/logos/desktop.svg'],
       },
     ],
   },
@@ -247,50 +217,41 @@ const categories: Category[] = [
         title: 'Contract review',
         description:
           'Review this agreement for unusual terms, track all deadlines, and flag anything that needs attention before I sign.',
-        icons: [FileText, ShieldCheck],
+        logos: ['/logos/google-docs.svg', '/logos/drive.svg'],
       },
       {
         title: 'Document routing',
         description:
           "Sort today's incoming docs — classify each by type, tag the right deal, and file them automatically.",
-        icons: [FileText, FolderOpen],
+        logos: ['/logos/drive.svg', '/logos/n8n.svg'],
       },
       {
         title: 'Financial docs',
         description:
-          'Upload bank statements, invoices, or commission slips. Neo extracts amounts, dates, and parties into a clean spreadsheet.',
-        icons: [Calculator, Receipt],
+          'Upload bank statements, invoices, or commission slips. Neo extracts amounts, dates, and parties into a spreadsheet.',
+        logos: ['/logos/google-sheets.svg', '/logos/drive.svg'],
       },
       {
         title: 'Expense receipts',
         description:
           'Forward receipts from email or photos — client dinners, mileage, subscriptions — Neo categorizes everything for tax time.',
-        icons: [Receipt, SiGooglesheets],
+        logos: ['/logos/gmail.svg', '/logos/google-sheets.svg'],
       },
       {
         title: 'Compliance check',
         description:
           'Run a compliance check on the transaction file before submission. Neo flags missing items and inconsistencies.',
-        icons: [ShieldCheck, FileText],
+        logos: ['/logos/google-docs.svg', '/logos/desktop.svg'],
       },
       {
         title: 'Receipt scanning',
         description:
           'Snap a photo of any receipt. Neo reads it, categorizes the expense, and logs it to your tracker.',
-        icons: [ScanLine, Receipt],
+        logos: ['/logos/phone.svg', '/logos/google-sheets.svg'],
       },
     ],
   },
 ]
-
-/* -------------------------------------------------------------------------- */
-/*                              Icon renderer                                 */
-/* -------------------------------------------------------------------------- */
-
-/** Renders a single icon — always white for use inside the solid green badge. */
-function WorkflowIcon({ icon: Icon }: { icon: AnyIcon }) {
-  return <Icon className="h-5 w-5 shrink-0 text-white" />
-}
 
 /* -------------------------------------------------------------------------- */
 /*                                Component                                   */
@@ -320,24 +281,14 @@ export function UseCases() {
   const springTransition = { type: 'spring' as const, stiffness: 35, damping: 14, mass: 2.4 }
 
   return (
+    <div style={{ backgroundColor: '#FAF7F2' }}>
     <section
       id="use-cases"
       ref={sectionRef}
       aria-label="Use cases"
-      className="relative overflow-hidden py-20 sm:py-24 md:py-32"
-      style={{
-        background:
-          'radial-gradient(ellipse 160% 140% at 50% 30%, #0A2818 0%, #040F08 100%)',
-      }}
+      className="relative overflow-hidden rounded-t-[2rem] rounded-b-[2rem] sm:rounded-t-[5rem] sm:rounded-b-[5rem] py-20 sm:py-24 md:py-32"
+      style={{ backgroundColor: '#1A1A1A' }}
     >
-      {/* Ambient neon glow behind content */}
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-[800px]"
-        style={{
-          background:
-            'radial-gradient(ellipse 70% 50% at 50% 30%, rgba(34,197,94,0.18) 0%, transparent 100%)',
-        }}
-      />
 
       <Container className="relative">
         {/* ---- Header ---- */}
@@ -345,7 +296,7 @@ export function UseCases() {
           className={`mx-auto max-w-2xl text-center scroll-reveal ${isVisible ? 'is-visible' : ''}`}
         >
           <h2 className="font-serif text-2xl tracking-tight text-white sm:text-3xl md:text-5xl">
-            What will your assistant do?
+            <span style={{ color: '#FBF7F3' }}>What will your sales assistant do?</span>
           </h2>
           <p className="mt-4 text-base text-white/70 sm:mt-6 sm:text-lg sm:leading-relaxed">
             From customer support to closing deals — one message is all it
@@ -411,20 +362,29 @@ export function UseCases() {
                   ? { duration: 0 }
                   : { ...springTransition, delay: i * 0.08 }
               }
-              className="group rounded-2xl bg-white p-4 sm:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.14)]"
+              className="group rounded-2xl bg-[#FAF7F2] px-5 pt-5 pb-5 sm:px-7 sm:pt-6 sm:pb-6"
             >
-              {/* Icon + title: inline on mobile, stacked on sm+ */}
-              <div className="flex items-center gap-3 sm:block">
-                <div className="h-8 w-8 shrink-0 sm:mb-4 sm:h-10 sm:w-10 flex items-center justify-center rounded-full bg-[#2D6A4F] shadow-sm shadow-black/10">
-                  <WorkflowIcon icon={card.icons[0]} />
-                </div>
+              {/* Logos + title */}
+              <div className="flex items-center justify-between gap-4">
                 <h3 className="text-[15px] font-semibold leading-snug text-zinc-900">
                   {card.title}
                 </h3>
+                <div className="flex items-center gap-3 shrink-0">
+                  {card.logos.map((logo) => (
+                    <Image
+                      key={logo}
+                      src={logo}
+                      alt=""
+                      width={24}
+                      height={24}
+                      className="h-6 w-6 shrink-0"
+                    />
+                  ))}
+                </div>
               </div>
 
               {/* Description */}
-              <p className="mt-2 text-sm leading-relaxed text-zinc-500">
+              <p className="mt-3 text-sm leading-relaxed text-zinc-500">
                 {card.description}
               </p>
             </motion.div>
@@ -433,5 +393,6 @@ export function UseCases() {
         </div>
       </Container>
     </section>
+    </div>
   )
 }

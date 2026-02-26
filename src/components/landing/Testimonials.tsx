@@ -1,334 +1,179 @@
 'use client';
 
 /**
- * Testimonials section with 3-column grid of customer quotes.
- * Mobile: horizontal carousel with active indicators. Desktop: 3-column grid.
+ * Testimonials section — dark rounded container with marquee-scrolling cards
+ * and 2 green featured cards. Whisper Flow-inspired layout.
  */
-import { useState, useEffect, useRef } from 'react'
-import { Container } from '@/components/landing/Container'
-import { useScrollReveal } from '@/hooks/useScrollReveal'
-import { useMediaQuery } from '@/hooks/use-media-query'
+import { ArrowUpRight } from 'lucide-react'
+import { useScrollReveal, useStaggeredReveal } from '@/hooks/useScrollReveal'
 
-/** Type for a single testimonial */
-interface Testimonial {
+/* ------------------------------------------------------------------ */
+/*  Data                                                               */
+/* ------------------------------------------------------------------ */
+
+interface MarqueeTestimonial {
   content: string
-  stats: { value: string; label: string }[]
-  author: { name: string; role: string }
+  author: { name: string; role: string; avatar: string }
 }
 
-/**
- * Animated stat that counts up from 0 when triggered.
- * Works on both mobile and desktop.
- * Uses ease-out timing for smooth deceleration.
- */
-function AnimatedStat({ value, isActive, isVisible, hasAnimated, onAnimated }: {
-  value: string
-  isActive: boolean
-  isVisible: boolean
-  hasAnimated: boolean
-  onAnimated: () => void
-}) {
-  const [displayValue, setDisplayValue] = useState('0')
-  const [isAnimating, setIsAnimating] = useState(false)
-
-  useEffect(() => {
-    // Skip if already animated, not visible, or not active
-    if (hasAnimated || !isVisible || !isActive) return
-
-    // Parse numeric part and suffix (e.g., "90%" → 90, "%")
-    const match = value.match(/^(\d+)(.*)$/)
-    if (!match) {
-      // Non-numeric values just show immediately
-      setDisplayValue(value)
-      onAnimated()
-      return
-    }
-
-    const targetNum = parseInt(match[1], 10)
-    const suffix = match[2] || ''
-
-    // Start from 0 for dramatic count-up
-    const startNum = 0
-    const duration = 1200
-    const startTime = performance.now()
-
-    setIsAnimating(true)
-
-    // Ease-out quart: starts fast, slows down dramatically at end
-    const easeOutQuart = (t: number) => 1 - Math.pow(1 - t, 4)
-
-    const animate = (currentTime: number) => {
-      const elapsed = currentTime - startTime
-      const progress = Math.min(elapsed / duration, 1)
-      const easedProgress = easeOutQuart(progress)
-
-      const currentNum = Math.round(startNum + (targetNum - startNum) * easedProgress)
-      setDisplayValue(`${currentNum}${suffix}`)
-
-      if (progress < 1) {
-        requestAnimationFrame(animate)
-      } else {
-        setIsAnimating(false)
-        onAnimated()
-      }
-    }
-
-    requestAnimationFrame(animate)
-  }, [isActive, isVisible, hasAnimated, value, onAnimated])
-
-  return (
-    <span
-      className={`inline-block transition-transform duration-300 ${
-        isAnimating ? 'scale-110 text-sunder-green' : 'scale-100'
-      }`}
-    >
-      {displayValue}
-    </span>
-  )
+interface FeaturedTestimonial {
+  stat: string
+  tagline: string
+  author: { name: string; role: string; avatar: string }
 }
 
-/**
- * Desktop testimonial card with scroll-triggered stat animations.
- * Uses IntersectionObserver to animate stats when the card enters viewport.
- */
-function DesktopTestimonialCard({ testimonial }: { testimonial: Testimonial }) {
-  const cardRef = useRef<HTMLLIElement>(null)
-  const [isVisible, setIsVisible] = useState(false)
-  const [hasAnimated, setHasAnimated] = useState(false)
-
-  useEffect(() => {
-    const el = cardRef.current
-    if (!el) return
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true)
-          observer.disconnect()
-        }
-      },
-      { threshold: 0.3, rootMargin: '0px 0px -50px 0px' }
-    )
-
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
-
-  return (
-    <li ref={cardRef}>
-      <figure className="relative rounded-2xl bg-white p-6 shadow-sm ring-1 ring-lp-border-warm transition-all hover:shadow-[0_6px_24px_rgba(45,106,79,0.05)]">
-        <blockquote className="relative">
-          <p className="font-serif text-base tracking-tight text-foreground">
-            &ldquo;{testimonial.content}&rdquo;
-          </p>
-        </blockquote>
-        <div className="mt-4 flex justify-around border-t border-zinc-100 pt-4">
-          {testimonial.stats.map((stat) => (
-            <div key={stat.label} className="text-center">
-              <div className="text-xl font-bold tracking-tight text-foreground">
-                <AnimatedStat
-                  value={stat.value}
-                  isActive={true}
-                  isVisible={isVisible}
-                  hasAnimated={hasAnimated}
-                  onAnimated={() => setHasAnimated(true)}
-                />
-              </div>
-              <div className="text-xs font-medium text-muted-foreground">
-                {stat.label}
-              </div>
-            </div>
-          ))}
-        </div>
-        <figcaption className="mt-4 border-t border-zinc-100 pt-4">
-          <div className="text-sm font-semibold text-foreground">
-            {testimonial.author.name}
-          </div>
-          <div className="text-xs text-muted-foreground font-medium">
-            {testimonial.author.role}
-          </div>
-        </figcaption>
-      </figure>
-    </li>
-  )
-}
-
-const testimonials = [
-  [
-    {
-      content:
-        "I was losing leads because I couldn't follow up fast enough. Now Neo sends personalized follow-ups the moment a lead comes in and reminds me who to call. My conversion rate doubled in the first month.",
-      stats: [
-        { value: '2x', label: 'Conversion Rate' },
-        { value: '0', label: 'Missed Leads' },
-      ],
-      author: {
-        name: 'Rachel Ng',
-        role: 'Senior Associate, PropNex Realty',
-      },
-    },
-  ],
-  [
-    {
-      content:
-        "I used to spend 3 hours a day on paperwork — policy renewals, client updates, follow-up messages. Neo handles all of that now. I'm meeting 40% more clients every week instead of doing admin.",
-      stats: [
-        { value: '40%', label: 'More Client Meetings' },
-        { value: '3', label: 'Hours Saved/Day' },
-      ],
-      author: {
-        name: 'Marcus Loh',
-        role: 'Senior Financial Advisor, AIA',
-      },
-    },
-  ],
-  [
-    {
-      content:
-        "End-of-month used to mean 2 days buried in invoices and receipts. Neo processes everything, matches payments, and sends me a summary. I just review and approve.",
-      stats: [
-        { value: '2', label: 'Days Saved/Month' },
-        { value: '90%', label: 'Faster Close' },
-      ],
-      author: {
-        name: 'David Lim',
-        role: 'Director, AutoPrime SG (8 employees)',
-      },
-    },
-  ],
+const marqueeTestimonials: MarqueeTestimonial[] = [
+  {
+    content:
+      'Neo follows up with my leads within seconds. I close deals I used to lose.',
+    author: { name: 'Rachel Ng', role: 'Senior Associate, PropNex Realty', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=80&h=80&fit=crop&crop=face' },
+  },
+  {
+    content:
+      "I used to spend 3 hours a day on paperwork. Neo handles all of that now. I'm meeting 40% more clients every week instead of doing admin.",
+    author: { name: 'Priya Sharma', role: 'Independent Insurance Broker', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=80&h=80&fit=crop&crop=face' },
+  },
+  {
+    content:
+      "The morning brief changed everything. I wake up knowing exactly who to call, what's overdue, and where my pipeline stands. No more scrambling.",
+    author: { name: 'David Lim', role: 'Director, AutoPrime SG', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face' },
+  },
+  {
+    content:
+      "Can't live without it.",
+    author: { name: 'Marcus Loh', role: 'Senior Financial Advisor, AIA', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80&h=80&fit=crop&crop=face' },
+  },
+  {
+    content:
+      "I handle 3x the clients I used to — all by myself. Neo remembers every conversation and every deadline so I don't have to.",
+    author: { name: 'Sarah Tan', role: 'Property Agent, ERA', avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=80&h=80&fit=crop&crop=face' },
+  },
+  {
+    content:
+      "Best AI product I've used since ChatGPT.",
+    author: { name: 'James Wong', role: 'Financial Consultant, Prudential', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&crop=face' },
+  },
+  {
+    content:
+      'My admin time went from 3 hours a day to 20 minutes. The rest is client-facing work. My income went up 40% in two months.',
+    author: { name: 'Wei Lin Chen', role: 'Senior Advisor, Great Eastern', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=80&h=80&fit=crop&crop=face' },
+  },
+  {
+    content:
+      "It's like having an assistant who never sleeps, never forgets, and works entirely through WhatsApp. I can't imagine going back.",
+    author: { name: 'Aisha Rahman', role: 'Real Estate Negotiator, Knight Frank', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&crop=face' },
+  },
 ]
 
-// Flatten for mobile carousel
-const allTestimonials = testimonials.flat()
+const featuredTestimonials: FeaturedTestimonial[] = [
+  {
+    stat: '2x conversion rate',
+    tagline: 'The "never miss a lead" assistant.',
+    author: { name: 'Rachel Ng', role: 'Senior Associate, PropNex Realty', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=80&h=80&fit=crop&crop=face' },
+  },
+  {
+    stat: '3 hours saved/day',
+    tagline: "Before Neo, admin was my second job. Now it's handled.",
+    author: { name: 'Marcus Loh', role: 'Senior Financial Advisor, AIA', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80&h=80&fit=crop&crop=face' },
+  },
+]
+
+/* ------------------------------------------------------------------ */
+/*  Marquee card                                                       */
+/* ------------------------------------------------------------------ */
+
+function MarqueeCard({ testimonial }: { testimonial: MarqueeTestimonial }) {
+  return (
+    <figure className="w-[300px] shrink-0 rounded-2xl bg-[#FAF7F2] px-7 pt-8 pb-7 flex flex-col justify-end gap-4 text-center">
+      <blockquote>
+        <p className="text-base leading-relaxed text-[#1A1A1A]">
+          {testimonial.content}
+        </p>
+      </blockquote>
+      <figcaption className="text-sm">
+        <span className="font-semibold text-[#1A1A1A]">{testimonial.author.name}</span>
+        <span className="text-[#6B6B6B]">, {testimonial.author.role}</span>
+      </figcaption>
+    </figure>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/*  Featured card                                                      */
+/* ------------------------------------------------------------------ */
+
+function FeaturedCard({ testimonial }: { testimonial: FeaturedTestimonial }) {
+  return (
+    <figure className="relative flex-1 rounded-2xl bg-sunder-green px-8 pt-6 pb-6 sm:px-10 sm:pt-7 sm:pb-7 text-white flex flex-col">
+      <ArrowUpRight className="absolute top-6 right-6 h-7 w-7 text-white/50 sm:top-7 sm:right-8" />
+      <h3 className="font-serif text-3xl tracking-tight sm:text-4xl pr-10 whitespace-nowrap">
+        {testimonial.stat}
+      </h3>
+      <p className="mt-2 text-base text-white/80">
+        {testimonial.tagline}
+      </p>
+      <figcaption className="mt-auto pt-8 flex items-center gap-3">
+        <img
+          src={testimonial.author.avatar}
+          alt={testimonial.author.name}
+          className="h-10 w-10 rounded-full object-cover"
+        />
+        <div className="text-sm">
+          <div className="font-semibold text-white">{testimonial.author.name}</div>
+          <div className="text-white/70">{testimonial.author.role}</div>
+        </div>
+      </figcaption>
+    </figure>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/*  Section                                                            */
+/* ------------------------------------------------------------------ */
 
 export function Testimonials() {
-  const isDesktop = useMediaQuery('(min-width: 1024px)')
   const { ref: headerRef, isVisible: headerVisible } = useScrollReveal<HTMLDivElement>()
-  const { ref: cardsRef, isVisible: cardsVisible } = useScrollReveal<HTMLDivElement>({
-    threshold: 0.05
-  })
-
-  // Track active carousel item for indicators
-  const [activeIndex, setActiveIndex] = useState(0)
-  const carouselRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (isDesktop) return
-    const carousel = carouselRef.current
-    if (!carousel) return
-
-    const handleScroll = () => {
-      const scrollLeft = carousel.scrollLeft
-      const cardWidth = carousel.offsetWidth * 0.85 + 16 // 85vw + gap
-      const index = Math.round(scrollLeft / cardWidth)
-      setActiveIndex(Math.min(index, allTestimonials.length - 1))
-    }
-
-    carousel.addEventListener('scroll', handleScroll, { passive: true })
-    return () => carousel.removeEventListener('scroll', handleScroll)
-  }, [isDesktop])
+  const { ref: featuredRef, isVisible: featuredVisible } = useStaggeredReveal<HTMLDivElement>()
 
   return (
+    <div style={{ backgroundColor: '#FAF7F2' }}>
     <section
       id="testimonials"
       aria-label="What our customers are saying"
-      className="bg-white py-24 sm:py-32"
+      className="relative rounded-t-[2rem] rounded-b-[2rem] sm:rounded-t-[5rem] sm:rounded-b-[5rem] pt-16 pb-10 sm:pt-24 sm:pb-14 overflow-x-clip"
+      style={{ backgroundColor: '#1A1A1A' }}
     >
-      <Container>
-        <div
-          ref={headerRef}
-          className={`mx-auto max-w-2xl md:text-center scroll-reveal ${headerVisible ? 'is-visible' : ''}`}
-        >
-          <h2 className="font-serif text-3xl tracking-tight text-foreground sm:text-5xl">
-            Loved by <span className="italic text-sunder-green">sales teams.</span>
-          </h2>
-          <p className="mt-6 text-lg tracking-tight text-muted-foreground">
-            Join them, and boost sales and productivity by up to 300%.
-          </p>
+      {/* Header */}
+      <div
+        ref={headerRef}
+        className={`relative mx-auto max-w-3xl text-center px-6 pb-12 sm:pb-16 scroll-reveal ${headerVisible ? 'is-visible' : ''}`}
+      >
+        <h2 className="relative font-serif text-4xl tracking-tight text-[#FAF7F2] sm:text-5xl lg:text-6xl" style={{ transform: 'rotate(-4deg)' }}>
+          Kind words
+          <br />
+          <span className="italic text-[#FAF7F2]/70">from our users.</span>
+        </h2>
+      </div>
+
+      {/* Marquee */}
+      <div className="mt-0">
+        <div className="flex items-end gap-[6px] animate-marquee-slower" style={{ width: 'max-content' }}>
+          {[...marqueeTestimonials, ...marqueeTestimonials].map((t, i) => (
+            <MarqueeCard key={i} testimonial={t} />
+          ))}
         </div>
+      </div>
 
-        {/* Mobile carousel */}
-        {!isDesktop ? (
-          <div
-            ref={cardsRef}
-            className={`lg:hidden scroll-reveal ${cardsVisible ? 'is-visible' : ''}`}
-          >
-            <div ref={carouselRef} className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide px-4 -mx-4 py-4 mt-12">
-              {allTestimonials.map((testimonial, index) => (
-                <div
-                  key={index}
-                  className="snap-center shrink-0 w-[85vw] max-w-sm"
-                >
-                  <figure className="relative rounded-2xl bg-white p-6 shadow-md ring-1 ring-lp-border-warm min-h-[280px] flex flex-col">
-                    <blockquote className="relative flex-1">
-                      <p className="font-serif text-base tracking-tight text-foreground">
-                        &ldquo;{testimonial.content}&rdquo;
-                      </p>
-                    </blockquote>
-                    <div className="mt-4 flex justify-around border-t border-zinc-100 pt-4">
-                      {testimonial.stats.map((stat) => (
-                        <div key={stat.label} className="text-center">
-                          <div className="text-xl font-bold tracking-tight text-foreground">
-                            {stat.value}
-                          </div>
-                          <div className="text-xs font-medium text-muted-foreground">
-                            {stat.label}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <figcaption className="mt-4 border-t border-zinc-100 pt-4">
-                      <div className="text-sm font-semibold text-foreground">
-                        {testimonial.author.name}
-                      </div>
-                      <div className="text-xs text-muted-foreground font-medium">
-                        {testimonial.author.role}
-                      </div>
-                    </figcaption>
-                  </figure>
-                </div>
-              ))}
-            </div>
-            {/* Scroll indicators */}
-            <div className="flex justify-center gap-1.5 mt-4">
-              {allTestimonials.map((_, i) => (
-                <div
-                  key={i}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    i === activeIndex
-                      ? 'w-4 bg-sunder-green'
-                      : 'w-1.5 bg-zinc-300'
-                  }`}
-                />
-              ))}
-            </div>
-            <p className="text-center text-xs text-zinc-400 mt-2">
-              Swipe to see more
-            </p>
-          </div>
-        ) : null}
-
-        {/* Desktop grid with animated stats */}
-        {isDesktop ? (
-          <ul
-            role="list"
-            className="hidden lg:grid mx-auto mt-16 max-w-2xl grid-cols-1 gap-6 sm:gap-8 lg:mt-20 lg:max-w-none lg:grid-cols-3"
-          >
-            {testimonials.map((column, colIdx) => (
-              <li key={colIdx}>
-                <ul role="list" className="flex flex-col gap-y-6 sm:gap-y-8">
-                  {column.map((testimonial) => (
-                    <DesktopTestimonialCard
-                      key={testimonial.author.name}
-                      testimonial={testimonial}
-                    />
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </Container>
+      {/* Featured cards */}
+      <div
+        ref={featuredRef}
+        className={`mx-auto mt-8 max-w-5xl px-6 flex flex-col gap-3 sm:flex-row sm:mt-10 stagger-children ${featuredVisible ? 'is-visible' : ''}`}
+      >
+        {featuredTestimonials.map((t) => (
+          <FeaturedCard key={t.stat} testimonial={t} />
+        ))}
+      </div>
     </section>
+    </div>
   )
 }

@@ -13,14 +13,14 @@ import {
 } from 'remotion'
 
 const COLORS = {
-  scanner: '#2D6A4F',
+  scanner: '#024F46',
   brief: '#F59E0B',
   gift: '#EC4899',
   referral: '#10B981',
   route: '#3B82F6',
 }
 
-const PARTICLE_COLORS = ['#2D6A4F', '#40916C', '#C8962E', '#F59E0B', '#10B981', '#3B82F6']
+const PARTICLE_COLORS = ['#024F46', '#40916C', '#C8962E', '#F59E0B', '#10B981', '#3B82F6']
 
 /** Action icons for output cards */
 const ActionIcons: Record<string, React.FC<{ color: string }>> = {

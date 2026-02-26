@@ -64,7 +64,7 @@ export function QuickActionCards({ onSelectAction, className }: QuickActionCards
             onClick={() => onSelectAction(action.prompt)}
             className="group flex flex-col items-start p-4 h-auto text-left rounded-xl border bg-card hover:bg-secondary/40 hover:border-secondary transition-all duration-200"
           >
-            <div className="mb-3 p-2 rounded-lg bg-secondary/50 text-secondary-foreground group-hover:bg-[#2D6A4F]/10 group-hover:text-[#2D6A4F] transition-colors">
+            <div className="mb-3 p-2 rounded-lg bg-secondary/50 text-secondary-foreground group-hover:bg-[#024F46]/10 group-hover:text-[#024F46] transition-colors">
               <Icon className="h-4 w-4" />
             </div>
             <span className="font-semibold text-sm mb-1">{action.label}</span>

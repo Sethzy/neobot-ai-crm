@@ -61,7 +61,7 @@ export function SessionControls({
           size="sm"
           disabled={isExporting}
           onClick={() => onQuickExport('excel')}
-          className="bg-[#2D6A4F] hover:bg-[#1B4332] text-white border-0 ring-0 focus-visible:ring-0"
+          className="bg-[#024F46] hover:bg-[#1B4332] text-white border-0 ring-0 focus-visible:ring-0"
         >
           {isExporting ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
