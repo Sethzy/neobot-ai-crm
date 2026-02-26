@@ -26,42 +26,42 @@ const marqueeTestimonials: MarqueeTestimonial[] = [
   {
     content:
       'Neo follows up with my leads within seconds. I close deals I used to lose.',
-    author: { name: 'Rachel Ng', role: 'Senior Associate, PropNex Realty', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=80&h=80&fit=crop&crop=face' },
+    author: { name: 'Rachel Ng', role: 'Senior Associate, PropNex Realty', avatar: '/images/avatar-rachel-ng.webp' },
   },
   {
     content:
       "I used to spend 3 hours a day on paperwork. Neo handles all of that now. I'm meeting 40% more clients every week instead of doing admin.",
-    author: { name: 'Priya Sharma', role: 'Independent Insurance Broker', avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=80&h=80&fit=crop&crop=face' },
+    author: { name: 'Priya Sharma', role: 'Independent Insurance Broker', avatar: '/images/avatar-rachel-ng.webp' },
   },
   {
     content:
       "The morning brief changed everything. I wake up knowing exactly who to call, what's overdue, and where my pipeline stands. No more scrambling.",
-    author: { name: 'David Lim', role: 'Director, AutoPrime SG', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face' },
+    author: { name: 'David Lim', role: 'Director, AutoPrime SG', avatar: '/images/avatar-marcus-loh.webp' },
   },
   {
     content:
       "Can't live without it.",
-    author: { name: 'Marcus Loh', role: 'Senior Financial Advisor, AIA', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80&h=80&fit=crop&crop=face' },
+    author: { name: 'Marcus Loh', role: 'Senior Financial Advisor, AIA', avatar: '/images/avatar-marcus-loh.webp' },
   },
   {
     content:
       "I handle 3x the clients I used to — all by myself. Neo remembers every conversation and every deadline so I don't have to.",
-    author: { name: 'Sarah Tan', role: 'Property Agent, ERA', avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=80&h=80&fit=crop&crop=face' },
+    author: { name: 'Sarah Tan', role: 'Property Agent, ERA', avatar: '/images/avatar-rachel-ng.webp' },
   },
   {
     content:
       "Best AI product I've used since ChatGPT.",
-    author: { name: 'James Wong', role: 'Financial Consultant, Prudential', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&crop=face' },
+    author: { name: 'James Wong', role: 'Financial Consultant, Prudential', avatar: '/images/avatar-marcus-loh.webp' },
   },
   {
     content:
       'My admin time went from 3 hours a day to 20 minutes. The rest is client-facing work. My income went up 40% in two months.',
-    author: { name: 'Wei Lin Chen', role: 'Senior Advisor, Great Eastern', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=80&h=80&fit=crop&crop=face' },
+    author: { name: 'Wei Lin Chen', role: 'Senior Advisor, Great Eastern', avatar: '/images/avatar-marcus-loh.webp' },
   },
   {
     content:
       "It's like having an assistant who never sleeps, never forgets, and works entirely through WhatsApp. I can't imagine going back.",
-    author: { name: 'Aisha Rahman', role: 'Real Estate Negotiator, Knight Frank', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&crop=face' },
+    author: { name: 'Aisha Rahman', role: 'Real Estate Negotiator, Knight Frank', avatar: '/images/avatar-rachel-ng.webp' },
   },
 ]
 
@@ -69,12 +69,12 @@ const featuredTestimonials: FeaturedTestimonial[] = [
   {
     stat: '2x conversion rate',
     tagline: 'The "never miss a lead" assistant.',
-    author: { name: 'Rachel Ng', role: 'Senior Associate, PropNex Realty', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=80&h=80&fit=crop&crop=face' },
+    author: { name: 'Rachel Ng', role: 'Senior Associate, PropNex Realty', avatar: '/images/avatar-rachel-ng.webp' },
   },
   {
     stat: '3 hours saved/day',
     tagline: "Before Neo, admin was my second job. Now it's handled.",
-    author: { name: 'Marcus Loh', role: 'Senior Financial Advisor, AIA', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80&h=80&fit=crop&crop=face' },
+    author: { name: 'Marcus Loh', role: 'Senior Financial Advisor, AIA', avatar: '/images/avatar-marcus-loh.webp' },
   },
 ]
 

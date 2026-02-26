@@ -336,19 +336,21 @@ export function ProductShowcase() {
                 Assign tasks before bed. Wake up to completed work. Your AI
                 employee works overnight — all from one app.
               </p>
-              <div className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2">
-                {benefits.map((b) => (
-                  <div key={b} className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 shrink-0 text-sunder-green" strokeWidth={2.5} />
-                    <span className="text-xs text-[#6B5E57]">{b}</span>
-                  </div>
-                ))}
-              </div>
             </div>
           </Container>
-          <div className="mt-12 flex justify-center">
+          <div className="mt-10 flex justify-center">
             <WhatsAppPhoneMockup isVisible />
           </div>
+          <Container>
+            <div className="mt-10 flex flex-wrap justify-center gap-x-5 gap-y-2">
+              {benefits.map((b) => (
+                <div key={b} className="flex items-center gap-2">
+                  <Check className="h-3.5 w-3.5 shrink-0 text-sunder-green" strokeWidth={2.5} />
+                  <span className="text-xs text-[#6B5E57]">{b}</span>
+                </div>
+              ))}
+            </div>
+          </Container>
         </div>
       ) : null}
 
