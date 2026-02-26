@@ -25,6 +25,9 @@ export function Hero() {
           alt=""
           aria-hidden
           priority
+          unoptimized
+          fetchPriority="high"
+          decoding="sync"
           fill
           sizes="100vw"
           className="object-cover object-top"

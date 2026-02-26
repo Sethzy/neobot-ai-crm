@@ -1,16 +1,13 @@
 'use client';
 
 /**
- * Document processing animation using Remotion Player.
- * Embeds the Act4DocumentProcessing scene as a looping animation.
+ * Document processing animation rendered to video for lightweight playback.
  */
 import { useEffect, useRef, useState } from 'react'
-import { Player, type PlayerRef } from '@remotion/player'
-import { Act4DocumentProcessing } from '@/components/remotion/Act4DocumentProcessing'
 
 export function DocumentProcessingAnimation() {
   const wrapperRef = useRef<HTMLDivElement>(null)
-  const playerRef = useRef<PlayerRef>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
   const [isInView, setIsInView] = useState(true)
   const [isTabVisible, setIsTabVisible] = useState(() =>
     typeof document === 'undefined' ? true : !document.hidden
@@ -44,33 +41,35 @@ export function DocumentProcessingAnimation() {
   }, [])
 
   useEffect(() => {
-    const player = playerRef.current
-    if (!player) return
+    const video = videoRef.current
+    if (!video) return
 
     if (isInView && isTabVisible) {
-      player.play()
+      const playPromise = video.play()
+      if (playPromise) {
+        playPromise.catch(() => {
+          // Some browsers may block autoplay temporarily.
+        })
+      }
       return
     }
 
-    player.pause()
+    video.pause()
   }, [isInView, isTabVisible])
 
   return (
-    <div ref={wrapperRef}>
-      <Player
-        ref={playerRef}
-        component={Act4DocumentProcessing}
-        durationInFrames={242}
-        fps={30}
-        compositionWidth={1600}
-        compositionHeight={650}
-        style={{
-          width: '100%',
-        }}
+    <div ref={wrapperRef} className="w-full aspect-[1600/650]">
+      <video
+        ref={videoRef}
+        className="h-full w-full"
+        playsInline
+        muted
         loop
         autoPlay
-        acknowledgeRemotionLicense
-      />
+        preload="auto"
+      >
+        <source src="/exports/document-processing-loop.mp4" type="video/mp4" />
+      </video>
     </div>
   )
 }

@@ -5,6 +5,10 @@ import { Act4DocumentProcessing, DOCUMENT_PROCESSING_DURATION } from "./scenes/A
 import { Act4ROI, ROI_DURATION } from "./scenes/Act4ROI";
 import { Act5Close, CLOSE_DURATION } from "./scenes/Act5Close";
 import { ActDocumentSplit, DOCUMENT_SPLIT_DURATION } from "./scenes/ActDocumentSplit";
+import {
+  LandingDocumentProcessingLoop,
+  LANDING_DOCUMENT_PROCESSING_DURATION,
+} from "./scenes/LandingDocumentProcessingLoop";
 import { defaultConfig } from "./config";
 
 // Video specs: ~23 seconds at 30fps, 1920x1080 (16:9) resolution
@@ -59,6 +63,15 @@ export const RemotionRoot: React.FC = () => {
           defaultProps={{
             config: defaultConfig,
           }}
+        />
+
+        <Composition
+          id="Landing-DocumentProcessingLoop"
+          component={LandingDocumentProcessingLoop}
+          durationInFrames={LANDING_DOCUMENT_PROCESSING_DURATION}
+          fps={FPS}
+          width={1600}
+          height={650}
         />
 
         <Composition

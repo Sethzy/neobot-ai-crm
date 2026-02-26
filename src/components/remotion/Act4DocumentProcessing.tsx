@@ -222,6 +222,20 @@ const StripeCard: React.FC = () => (
   />
 )
 
+const NotionCard: React.FC = () => (
+  <LogoCard
+    name="Notion"
+    bgTint="#11182718"
+    icon={
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+        <rect x="4" y="4" width="16" height="16" rx="2.5" fill="white" stroke="#111827" strokeWidth="1.6" />
+        <path d="M9 17V10.5L14.5 17V7" stroke="#111827" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M9 10.5L14.5 7" stroke="#111827" strokeWidth="1.2" strokeLinecap="round" />
+      </svg>
+    }
+  />
+)
+
 /** Action output card with icon, label, and subtitle */
 const ActionCard: React.FC<{
   label: string
@@ -370,13 +384,23 @@ export const Act4DocumentProcessing: React.FC = () => {
   const spawnX = -550
   const travelDistance = scannerLineX - spawnX
 
-  const allIntegrations = [WhatsAppCard, GmailCard, LinkedInCard, CalendarCard, SalesforceCard, HubSpotCard, SlackCard, StripeCard]
-  const numDocs = 9
+  const allIntegrations = [
+    WhatsAppCard,
+    GmailCard,
+    LinkedInCard,
+    CalendarCard,
+    SalesforceCard,
+    HubSpotCard,
+    SlackCard,
+    StripeCard,
+    NotionCard,
+  ]
+  const numDocs = allIntegrations.length
+  const slotIndexes = Array.from({ length: numDocs }, (_, i) => i)
 
-  // Seamless loop: total scroll per loop must be exact multiple of card spacing
-  // so positions at frame=0 and frame=durationInFrames are identical
+  // Move exactly one full conveyor cycle each video loop to avoid seam jumps.
   const cardSpacing = travelDistance / numDocs
-  const cardsPerLoop = 3 // how many card-widths we advance per full loop (tune speed here)
+  const cardsPerLoop = numDocs
   const scrollSpeed = (cardsPerLoop * cardSpacing) / durationInFrames
 
   const getDocPosition = (slotIndex: number) => {
@@ -500,14 +524,10 @@ export const Act4DocumentProcessing: React.FC = () => {
       <div style={{ position: 'absolute', inset: 0, opacity: sceneOpacity }}>
         {/* Input cards - individually clipped as they pass scanner */}
         <div style={{ position: 'absolute', left: 0, top: 0, width, height, zIndex: 5 }}>
-          {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((slotIndex) => {
+          {slotIndexes.map((slotIndex) => {
             const xPos = getDocPosition(slotIndex)
             const state = getDocState(xPos)
-            // Per-slot wrap count: each card changes logo only when IT wraps
-            const phaseOffset = slotIndex * cardSpacing
-            const slotCycleCount = Math.floor((frame * scrollSpeed + phaseOffset) / travelDistance)
-            const logoIndex = (slotIndex + slotCycleCount) % allIntegrations.length
-            const InputComponent = allIntegrations[logoIndex]
+            const InputComponent = allIntegrations[slotIndex]
             if (xPos < -docWidth) return null
             const docRightEdge = xPos + docWidth
             const amountPastScanner = docRightEdge - scannerLineX

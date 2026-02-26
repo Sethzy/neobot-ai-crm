@@ -137,7 +137,7 @@ export function SecondaryFeatures() {
       id="secondary-features"
       aria-label="Skills architecture"
       className="py-20 sm:py-24 md:py-32"
-      style={{ background: 'linear-gradient(180deg, #FAF7F2 0%, #FDF6E3 50%, #FAF7F2 100%)' }}
+      style={{ background: 'linear-gradient(180deg, #FAF7F2 0%, #FDF6E3 45%, #FDF7E5 100%)' }}
     >
       <Container>
         <div
