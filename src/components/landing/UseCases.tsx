@@ -17,7 +17,6 @@ import {
   FileText,
 } from 'lucide-react'
 import type { LucideProps } from 'lucide-react'
-import Image from 'next/image'
 
 /* -------------------------------------------------------------------------- */
 /*                                   Types                                    */
@@ -371,7 +370,7 @@ export function UseCases() {
                 </h3>
                 <div className="flex items-center gap-3 shrink-0">
                   {card.logos.map((logo) => (
-                    <Image
+                    <img
                       key={logo}
                       src={logo}
                       alt=""
