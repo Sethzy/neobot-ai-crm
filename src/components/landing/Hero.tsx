@@ -13,10 +13,10 @@ export function Hero() {
     >
       {/* Watercolor cloud texture — masked Unsplash image (same technique as Tailark) */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-[680px] opacity-[0.82]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[680px] opacity-[0.93]"
         style={{
-          maskImage: 'radial-gradient(ellipse 100% 70% at 50% 25%, black 20%, rgba(0,0,0,0.5) 38%, transparent 58%)',
-          WebkitMaskImage: 'radial-gradient(ellipse 100% 70% at 50% 25%, black 20%, rgba(0,0,0,0.5) 38%, transparent 58%)',
+          maskImage: 'radial-gradient(ellipse 112% 82% at 50% 22%, black 27%, rgba(0,0,0,0.56) 47%, transparent 70%)',
+          WebkitMaskImage: 'radial-gradient(ellipse 112% 82% at 50% 22%, black 27%, rgba(0,0,0,0.56) 47%, transparent 70%)',
           background: 'radial-gradient(ellipse 80% 50% at 50% 18%, rgba(210, 202, 186, 0.5), rgba(245, 238, 225, 0.35) 60%, transparent 100%)',
         }}
       >
