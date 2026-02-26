@@ -112,7 +112,7 @@ export function Faqs() {
       <section
       id="faq"
       aria-labelledby="faq-title"
-      className="relative overflow-hidden bg-white py-20 sm:py-24 md:py-32"
+      className="relative overflow-hidden bg-[#F5EEE1] py-20 sm:py-24 md:py-32"
     >
       <Container className="relative">
         <div

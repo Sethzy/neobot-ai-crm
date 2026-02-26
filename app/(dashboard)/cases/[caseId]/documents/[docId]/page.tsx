@@ -118,11 +118,11 @@ export default function DocumentDetailPage() {
           <div className="h-8 w-8 rounded bg-muted/40" />
           <div className="h-4 w-48 rounded bg-muted" />
         </div>
-        <div className="flex min-h-0 flex-1">
-          <div className="flex w-1/2 items-center justify-center border-r border-[#E5E5E5]">
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+          <div className="flex w-full md:w-1/2 items-center justify-center border-b md:border-b-0 md:border-r border-[#E5E5E5]">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
           </div>
-          <div className="w-1/2 space-y-4 p-6">
+          <div className="w-full md:w-1/2 space-y-4 p-4 md:p-6">
             {Array.from({ length: 3 }).map((_, idx) => (
               <div key={idx} className="h-24 rounded-lg bg-muted/30" />
             ))}
@@ -137,7 +137,7 @@ export default function DocumentDetailPage() {
 
   return (
     <div className="flex h-screen flex-col bg-background">
-      <div className="flex items-center gap-4 border-b border-border/40 px-5 py-3">
+      <div className="flex items-center gap-2 md:gap-4 border-b border-border/40 px-3 md:px-5 py-3">
         <Button
           variant="ghost"
           size="icon"
@@ -166,12 +166,12 @@ export default function DocumentDetailPage() {
         )}
       </div>
 
-      <div className="flex min-h-0 flex-1">
-        <div className="w-1/2 border-r border-[#E5E5E5]">
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        <div className="h-1/2 md:h-auto w-full md:w-1/2 border-b md:border-b-0 md:border-r border-[#E5E5E5]">
           <PdfViewerPane pdfUrl={pdfUrl} fileType={document.file_type} />
         </div>
 
-        <div className="w-1/2 bg-muted/10">
+        <div className="h-1/2 md:h-auto w-full md:w-1/2 bg-muted/10 overflow-auto">
           {splitsLoading ? (
             <div className="p-6 text-muted-foreground">Loading extractions...</div>
           ) : viewMode === "split" || !hasExtractionData ? (

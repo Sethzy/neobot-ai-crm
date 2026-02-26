@@ -2,7 +2,7 @@ You are an expert in nextJS. Our database is hosted on Supabase. Our serverless 
 
 ## Project Context
 
-The SaaS app enables users to upload scattered documents, automatically classify and organize them using AI (Gemini for triage, Extend AI for extraction), review extracted data with citation verification, and generate submission-ready documents via mail-merge templates.
+both desktop and mobile responsiveness required.
 
 ## Key Principles
 

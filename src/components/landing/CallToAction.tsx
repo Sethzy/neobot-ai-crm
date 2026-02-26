@@ -31,7 +31,7 @@ export function CallToAction() {
           </p>
           <Button
             href="/demo"
-            className="press-effect mt-8 rounded-full bg-[#FAF7F2] px-8 py-3.5 text-sm font-semibold text-sunder-green-dark transition hover:bg-white shadow-xl shadow-black/10 sm:mt-10 sm:px-10 sm:py-4"
+            className="press-effect mt-8 rounded-full bg-[#F5EEE1] px-8 py-3.5 text-sm font-semibold text-sunder-green-dark transition hover:bg-[#FAF7F2] shadow-xl shadow-black/10 sm:mt-10 sm:px-10 sm:py-4"
           >
             Try for free
           </Button>

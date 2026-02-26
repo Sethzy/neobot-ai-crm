@@ -94,7 +94,7 @@
   --color-sunder-green: #024F46;
   --color-sunder-green-light: #40916C;
   --color-sunder-green-dark: #1B4332;
-  --color-parchment: #F5F0E6;
+  --color-parchment: #F0E8D8;
   /* Landing page visual refresh palette */
   --color-lp-gold: #C8962E;
   --color-lp-border-warm: #E8DCC8;
@@ -182,7 +182,7 @@
 
 /* Landing Page Specific Scoped Theme */
 .landing-page {
-  --background: theme('colors.white');
+  --background: #F5EEE1;
   --foreground: #1A1A1A;
   --card: theme('colors.white');
   --card-foreground: #1A1A1A;
@@ -192,7 +192,7 @@
   --primary-foreground: theme('colors.white');
   --secondary: #D8F3DC;
   --secondary-foreground: #024F46;
-  --muted: #FAF7F2;
+  --muted: #EFE8DA;
   --muted-foreground: #6B7280;
   --accent: #E8F5E9;
   --accent-foreground: #024F46;

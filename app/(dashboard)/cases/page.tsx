@@ -15,7 +15,7 @@ export default function CasesPage() {
   const { data: cases = [], isLoading } = useCases({ filter: "all", search });
 
   return (
-    <div className="px-12 py-10">
+    <div className="px-4 py-6 md:px-12 md:py-10 overflow-auto">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
           Workspace
@@ -54,7 +54,7 @@ export default function CasesPage() {
             ))}
           </div>
         ) : cases.length === 0 ? (
-          <div className="rounded-xl border border-border/40 bg-card p-20 text-center shadow-sm">
+          <div className="rounded-xl border border-border/40 bg-card p-10 md:p-20 text-center shadow-sm">
             <Briefcase className="mx-auto h-12 w-12 text-muted-foreground/40" />
             <p className="mt-6 text-muted-foreground">
               {search ? "No results match your search" : "Nothing here yet"}

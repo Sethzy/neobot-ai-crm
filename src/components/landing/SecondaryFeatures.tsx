@@ -69,8 +69,8 @@ function FeatureCard({
         className={cn(
           'w-10 h-10 rounded-xl flex items-center justify-center transition-colors',
           isActive
-            ? 'bg-sunder-green text-white shadow-lg shadow-sunder-green/20'
-            : 'bg-[#F0E8DC] text-[#A89E96]',
+            ? 'bg-[#F5EEE1] text-sunder-green shadow-lg shadow-black/20'
+            : 'bg-white/10 text-white/40',
         )}
       >
         <feature.icon className="h-5 w-5" strokeWidth={1.5} />
@@ -78,15 +78,15 @@ function FeatureCard({
       <h3
         className={cn(
           'mt-4 font-serif text-lg transition-colors',
-          isActive ? 'text-sunder-green' : 'text-[#A89E96]',
+          isActive ? 'text-[#F5EEE1]' : 'text-white/40',
         )}
       >
         {feature.name}
       </h3>
-      <p className="mt-2 font-serif text-xl text-foreground">
+      <p className="mt-2 font-serif text-xl text-white">
         {feature.summary}
       </p>
-      <p className="mt-4 text-sm text-[#6B5E57]">{feature.description}</p>
+      <p className="mt-4 text-sm text-white/70">{feature.description}</p>
     </div>
   )
 }
@@ -106,7 +106,7 @@ function FeaturesMobile() {
           <FeatureCard
             key={feature.value}
             feature={feature}
-            className="mx-auto max-w-2xl rounded-xl bg-gradient-to-br from-white to-[#FAF5ED] p-4 shadow-sm ring-1 ring-[#EDE6DB]"
+            className="mx-auto max-w-2xl rounded-xl bg-white/10 backdrop-blur-sm p-4 shadow-sm ring-1 ring-white/10"
             isActive
           />
         ))}
@@ -133,21 +133,22 @@ export function SecondaryFeatures() {
   const { ref: headerRef, isVisible: headerVisible } = useScrollReveal<HTMLDivElement>()
 
   return (
+    <div style={{ backgroundColor: '#F5EEE1' }}>
     <section
       id="secondary-features"
       aria-label="Skills architecture"
-      className="pt-20 pb-10 sm:pt-24 sm:pb-12 md:pt-32 md:pb-16"
-      style={{ background: 'linear-gradient(180deg, #FAF7F2 0%, #FDF6E3 45%, #FDF7E5 100%)' }}
+      className="relative overflow-hidden rounded-t-[2rem] rounded-b-[2rem] sm:rounded-t-[5rem] sm:rounded-b-[5rem] pt-20 pb-10 sm:pt-24 sm:pb-12 md:pt-32 md:pb-16"
+      style={{ backgroundColor: '#024F46' }}
     >
       <Container>
         <div
           ref={headerRef}
           className={`mx-auto max-w-2xl md:text-center scroll-reveal ${headerVisible ? 'is-visible' : ''}`}
         >
-          <h2 className="font-serif text-2xl tracking-tight text-foreground sm:text-3xl md:text-5xl">
-            Everything's <span className="italic text-sunder-green">already set up.</span>
+          <h2 className="font-serif text-2xl tracking-tight text-[#F5EEE1] sm:text-3xl md:text-5xl">
+            Everything's <span className="italic text-white">already set up.</span>
           </h2>
-          <p className="mt-4 text-base leading-7 text-[#6B5E57] sm:mt-6 sm:text-lg sm:leading-8">
+          <p className="mt-4 text-base leading-7 text-white/70 sm:mt-6 sm:text-lg sm:leading-8">
             No apps to download. No dashboards to learn. Your CRM, AI tools, and integrations — ready from day one.
           </p>
         </div>
@@ -155,16 +156,13 @@ export function SecondaryFeatures() {
         {isDesktop ? <FeaturesDesktop /> : null}
         {/* Animation on desktop/tablet only */}
         {isMdUp ? (
-          <div className="mt-10 hidden md:block lg:mt-16">
+          <div className="mt-10 hidden md:block lg:mt-16 rounded-2xl overflow-hidden shadow-2xl shadow-black/20">
             <DocumentProcessingAnimation />
           </div>
         ) : null}
       </Container>
 
-      {/* Mobile section divider */}
-      <div className="mt-16 sm:hidden">
-        <div className="section-divider" />
-      </div>
     </section>
+    </div>
   )
 }

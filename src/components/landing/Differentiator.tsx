@@ -99,7 +99,7 @@ export function Differentiator() {
       id="differentiator"
       aria-label="Built-in tools value comparison"
       className="py-20 sm:py-24 md:py-32"
-      style={{ background: 'linear-gradient(180deg, #FAF7F2 0%, #FDF6E3 50%, #FAF7F2 100%)' }}
+      style={{ backgroundColor: '#F5EEE1' }}
     >
       <Container>
         {/* Header */}
@@ -126,10 +126,10 @@ export function Differentiator() {
           ref={tableRef}
           className={`mx-auto mt-12 max-w-3xl scroll-reveal ${tableVisible ? 'is-visible' : ''}`}
         >
-          <div className="overflow-hidden rounded-2xl shadow-xl shadow-sunder-green-dark/[0.08] ring-1 ring-black/[0.06]">
+          <div className="overflow-hidden rounded-2xl bg-white shadow-2xl shadow-sunder-green-dark/[0.12] ring-1 ring-black/[0.08]">
             {/* Dark green table header */}
             <div
-              className="grid grid-cols-[1fr_70px_48px] gap-x-2 items-center px-4 py-4 sm:grid-cols-[1fr_1fr_80px_64px] sm:gap-x-4 sm:px-8"
+              className="grid grid-cols-[1fr_70px_48px] gap-x-2 items-center px-4 py-5 sm:grid-cols-[1fr_1fr_80px_64px] sm:gap-x-4 sm:px-8 sm:py-5"
               style={{ backgroundColor: '#024F46' }}
             >
               <div className="text-[11px] font-semibold uppercase tracking-widest text-white/60 sm:text-xs">
@@ -149,7 +149,7 @@ export function Differentiator() {
             </div>
 
             {/* Tool rows */}
-            <div className="bg-white">
+            <div>
               {tools.map((tool, i) => {
                 const Icon = tool.icon
                 const isComingSoon = tool.status === 'coming-soon'
@@ -157,9 +157,10 @@ export function Differentiator() {
                   <div
                     key={tool.capability}
                     className={cn(
-                      'group grid grid-cols-[1fr_70px_48px] gap-x-2 items-center px-4 py-2 transition-colors sm:grid-cols-[1fr_1fr_80px_64px] sm:gap-x-4 sm:px-8 sm:py-2.5',
-                      i !== tools.length - 1 && 'border-b border-[#EDE6DB]/80',
-                      i % 2 === 0 ? 'bg-white' : 'bg-[#FDFAF5]',
+                      'group grid grid-cols-[1fr_70px_48px] gap-x-2 items-center px-4 py-2.5 transition-colors sm:grid-cols-[1fr_1fr_80px_64px] sm:gap-x-4 sm:px-8 sm:py-3',
+                      i !== tools.length - 1 && 'border-b border-[#EDE6DB]/60',
+                      i % 2 === 0 ? 'bg-white' : 'bg-[#FAF7F2]',
+                      'hover:bg-[#F0EBE0]',
                     )}
                   >
                     {/* Feature name + icon */}
@@ -169,7 +170,7 @@ export function Differentiator() {
                           'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors',
                           isComingSoon
                             ? 'bg-[#EDE6DB]/50 text-[#A89E96]'
-                            : 'bg-sunder-green/10 text-sunder-green group-hover:bg-sunder-green/15',
+                            : 'bg-sunder-green/[0.12] text-sunder-green group-hover:bg-sunder-green/20',
                         )}
                       >
                         <Icon className="h-4 w-4" strokeWidth={2} />
@@ -210,8 +211,8 @@ export function Differentiator() {
                     {/* Monthly cost */}
                     <div
                       className={cn(
-                        'text-right text-sm tabular-nums',
-                        isComingSoon ? 'text-[#C5BBB2]' : 'text-[#6B5E57]',
+                        'text-right text-sm font-medium tabular-nums',
+                        isComingSoon ? 'text-[#C5BBB2]' : 'text-[#8B6B55]',
                       )}
                     >
                       ${tool.monthlyCost}/mo
@@ -220,8 +221,8 @@ export function Differentiator() {
                     {/* Status */}
                     <div className="flex justify-center">
                       {tool.status === 'included' ? (
-                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-sunder-green text-white shadow-sm shadow-sunder-green/25 sm:h-8 sm:w-8">
-                          <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" strokeWidth={3} />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sunder-green text-white shadow-md shadow-sunder-green/30 sm:h-9 sm:w-9">
+                          <Check className="h-4 w-4 sm:h-4.5 sm:w-4.5" strokeWidth={3} />
                         </div>
                       ) : (
                         <span className="rounded-full border border-amber-200/80 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-500">
@@ -236,7 +237,7 @@ export function Differentiator() {
 
             {/* Total row — dark green footer */}
             <div
-              className="px-4 py-5 sm:px-8 sm:py-6"
+              className="px-4 py-6 sm:px-8 sm:py-7"
               style={{ backgroundColor: '#024F46' }}
             >
               <div className="grid grid-cols-[1fr_70px_48px] gap-x-2 items-center sm:grid-cols-[1fr_1fr_80px_64px] sm:gap-x-4">
@@ -259,7 +260,7 @@ export function Differentiator() {
           </div>
 
           {/* Savings callout card */}
-          <div className="relative mt-8 overflow-hidden rounded-2xl border border-sunder-green/15 bg-[#013D36] px-6 py-8 sm:px-10 sm:py-10">
+          <div className="relative mt-8 overflow-hidden rounded-2xl border border-sunder-green/15 bg-[#013D36] px-6 py-10 sm:px-10 sm:py-12 shadow-xl shadow-sunder-green-dark/10">
             {/* Subtle glow */}
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(64,145,108,0.2),transparent)]" />
 

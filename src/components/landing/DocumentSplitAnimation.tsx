@@ -267,37 +267,58 @@ export function DocumentSplitAnimation({ isVisible = true }: { isVisible?: boole
   const [activeCol, activeCard] = CYCLE_ORDER[cycleIdx]
 
   return (
-    <div className="w-full rounded-xl bg-[#FDFDFD] p-4 ring-1 ring-zinc-100">
-      <div className="grid grid-cols-3 gap-4">
-        {columns.map((column, colIdx) => {
-          const Icon = column.icon
+    <div className="w-full overflow-hidden rounded-2xl bg-white shadow-2xl shadow-black/[0.08] ring-1 ring-black/[0.06]">
+      {/* macOS window chrome */}
+      <div className="flex items-center border-b border-zinc-100 bg-[#F8F8F8] px-4 py-3">
+        <div className="flex items-center gap-1.5">
+          <div className="h-3 w-3 rounded-full bg-[#FF5F57]" />
+          <div className="h-3 w-3 rounded-full bg-[#FEBC2E]" />
+          <div className="h-3 w-3 rounded-full bg-[#28C840]" />
+        </div>
+        <span className="mx-auto -ml-2 text-[11px] font-medium tracking-wide text-zinc-400">
+          Neo Pipeline
+        </span>
+      </div>
 
-          return (
-            <motion.div
-              key={column.title}
-              initial={{ y: 60, opacity: 0 }}
-              animate={isVisible ? { y: 0, opacity: 1 } : { y: 60, opacity: 0 }}
-              transition={isVisible ? { ...columnSpring, delay: 0.3 + colIdx * 0.12 } : { duration: 0 }}
-            >
-              <div
-                className={`mb-2 flex items-center gap-1.5 text-[11px] font-bold tracking-[0.12em] ${column.titleColor}`}
+      {/* Board content with bottom fade */}
+      <div
+        className="relative p-4"
+        style={{
+          maskImage: 'linear-gradient(to bottom, black 70%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, black 70%, transparent 100%)',
+        }}
+      >
+        <div className="grid grid-cols-3 gap-4">
+          {columns.map((column, colIdx) => {
+            const Icon = column.icon
+
+            return (
+              <motion.div
+                key={column.title}
+                initial={{ y: 60, opacity: 0 }}
+                animate={isVisible ? { y: 0, opacity: 1 } : { y: 60, opacity: 0 }}
+                transition={isVisible ? { ...columnSpring, delay: 0.3 + colIdx * 0.12 } : { duration: 0 }}
               >
-                <Icon className={`h-3.5 w-3.5 ${column.iconClass}`} />
-                <span>{column.title}</span>
-              </div>
-              <div className="space-y-2">
-                {column.cards.map((card, cardIdx) => (
-                  <Card
-                    key={`${column.title}-${card.name}`}
-                    card={card}
-                    isActive={colIdx === activeCol && cardIdx === activeCard}
-                    glowColor={column.glowColor}
-                  />
-                ))}
-              </div>
-            </motion.div>
-          )
-        })}
+                <div
+                  className={`mb-2 flex items-center gap-1.5 text-[11px] font-bold tracking-[0.12em] ${column.titleColor}`}
+                >
+                  <Icon className={`h-3.5 w-3.5 ${column.iconClass}`} />
+                  <span>{column.title}</span>
+                </div>
+                <div className="space-y-2">
+                  {column.cards.map((card, cardIdx) => (
+                    <Card
+                      key={`${column.title}-${card.name}`}
+                      card={card}
+                      isActive={colIdx === activeCol && cardIdx === activeCard}
+                      glowColor={column.glowColor}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
       </div>
       <div className="sr-only">
         Live pipeline board showing Hot Leads, Active Clients, and Follow Up lists.

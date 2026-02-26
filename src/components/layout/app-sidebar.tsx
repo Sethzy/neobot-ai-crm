@@ -35,6 +35,7 @@ import {
   SidebarMenuItem,
   SidebarGroup,
   SidebarGroupLabel,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -65,6 +66,7 @@ export function AppSidebar() {
   const pathname = usePathname() ?? "";
   const router = useRouter();
   const { user } = useSession();
+  const { isMobile, setOpenMobile } = useSidebar();
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -87,7 +89,7 @@ export function AppSidebar() {
             tooltip={item.label}
             className="hover:bg-muted/50 data-[active=true]:bg-muted/60 data-[active=true]:text-foreground data-[active=true]:font-medium data-[active=true]:hover:bg-muted/70 transition-colors"
           >
-            <Link href={item.href}>
+            <Link href={item.href} onClick={() => isMobile && setOpenMobile(false)}>
               <Icon className="h-4 w-4" />
               <span>{item.label}</span>
             </Link>
@@ -97,7 +99,7 @@ export function AppSidebar() {
     });
 
   return (
-    <Sidebar collapsible="none" className="border-r border-border bg-background">
+    <Sidebar collapsible="icon" className="border-r border-border bg-background">
       {/* Logo — tighter vertical padding */}
       <SidebarHeader className="px-3 pt-3 pb-2">
         <Logo />
@@ -132,7 +134,7 @@ export function AppSidebar() {
               tooltip="Settings"
               className="hover:bg-muted/50 data-[active=true]:bg-muted/60 data-[active=true]:text-foreground data-[active=true]:font-medium transition-colors"
             >
-              <Link href="/settings">
+              <Link href="/settings" onClick={() => isMobile && setOpenMobile(false)}>
                 <Settings className="h-4 w-4" />
                 <span>Settings</span>
               </Link>

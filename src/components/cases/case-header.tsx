@@ -118,8 +118,8 @@ export function CaseHeader({
         </div>
 
         {/* Row 2: Detailed Metadata */}
-        <div className="grid grid-cols-12 gap-3">
-          <div className="col-span-2 space-y-1">
+        <div className="grid grid-cols-6 md:grid-cols-12 gap-3">
+          <div className="col-span-3 md:col-span-2 space-y-1">
             <Label className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-[0.15em] leading-none">Reference</Label>
             <Input
               value={formData.case_ref}
@@ -131,7 +131,7 @@ export function CaseHeader({
             />
           </div>
 
-          <div className="col-span-2 space-y-1">
+          <div className="col-span-3 md:col-span-2 space-y-1">
             <Label className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-[0.15em] leading-none">Created</Label>
             <Popover>
               <PopoverTrigger asChild>
@@ -161,7 +161,7 @@ export function CaseHeader({
             </Popover>
           </div>
 
-          <div className="col-span-2 space-y-1">
+          <div className="col-span-3 md:col-span-2 space-y-1">
             <Label className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-[0.15em] leading-none">Event Date</Label>
             <Popover>
               <PopoverTrigger asChild>
@@ -194,7 +194,7 @@ export function CaseHeader({
             </Popover>
           </div>
 
-          <div className="col-span-6 space-y-1">
+          <div className="col-span-6 md:col-span-6 space-y-1">
             <Label className="text-[9px] font-bold text-muted-foreground/50 uppercase tracking-[0.15em] leading-none">Description</Label>
             <Input
               value={formData.description}
@@ -213,10 +213,10 @@ export function CaseHeader({
 
   // Read mode - slim single row
   return (
-    <div className="flex items-center justify-between py-1">
+    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between py-1">
       {/* Title + edit button */}
-      <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">{caseData.case_name}</h1>
+      <div className="flex items-center gap-3 min-w-0">
+        <h1 className="text-xl md:text-2xl font-bold text-foreground tracking-tight truncate">{caseData.case_name}</h1>
         <Button
           variant="ghost"
           size="icon-sm"
@@ -229,7 +229,7 @@ export function CaseHeader({
       </div>
 
       {/* Right side: CREATED + REVIEWED */}
-      <div className="flex items-center gap-8">
+      <div className="flex items-center gap-4 md:gap-8">
         <div className="flex flex-col items-end gap-0.5">
           <span className="uppercase tracking-[0.15em] text-[9px] font-bold text-muted-foreground/50 leading-none">Created</span>
           <span className="text-[12px] font-semibold text-foreground/70 tabular-nums">

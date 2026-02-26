@@ -84,7 +84,7 @@ const featuredTestimonials: FeaturedTestimonial[] = [
 
 function MarqueeCard({ testimonial }: { testimonial: MarqueeTestimonial }) {
   return (
-    <figure className="w-[300px] shrink-0 rounded-2xl bg-[#FAF7F2] px-7 pt-8 pb-7 flex flex-col justify-end gap-4 text-center">
+    <figure className="w-[300px] shrink-0 rounded-2xl bg-[#F5EEE1] px-7 pt-8 pb-7 flex flex-col justify-end gap-4 text-center">
       <blockquote>
         <p className="text-base leading-relaxed text-[#1A1A1A]">
           {testimonial.content}
@@ -136,7 +136,7 @@ export function Testimonials() {
   const { ref: featuredRef, isVisible: featuredVisible } = useStaggeredReveal<HTMLDivElement>()
 
   return (
-    <div style={{ backgroundColor: '#FAF7F2' }}>
+    <div style={{ backgroundColor: '#F5EEE1' }}>
     <section
       id="testimonials"
       aria-label="What our customers are saying"
@@ -148,10 +148,10 @@ export function Testimonials() {
         ref={headerRef}
         className={`relative mx-auto max-w-3xl text-center px-6 pb-12 sm:pb-16 scroll-reveal ${headerVisible ? 'is-visible' : ''}`}
       >
-        <h2 className="relative font-serif text-4xl tracking-tight text-[#FAF7F2] sm:text-5xl lg:text-6xl" style={{ transform: 'rotate(-4deg)' }}>
+        <h2 className="relative font-serif text-4xl tracking-tight text-[#F5EEE1] sm:text-5xl lg:text-6xl" style={{ transform: 'rotate(-4deg)' }}>
           Kind words
           <br />
-          <span className="italic text-[#FAF7F2]/70">from our users.</span>
+          <span className="italic text-[#F5EEE1]/70">from our users.</span>
         </h2>
       </div>
 

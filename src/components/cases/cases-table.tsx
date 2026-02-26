@@ -76,7 +76,7 @@ function DraggableHeader({
     <th
       ref={setNodeRef}
       style={style}
-      className="px-5 py-4 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground/70"
+      className="px-3 md:px-5 py-3 md:py-4 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground/70"
     >
       <div className="flex items-center gap-1">
         <GripVertical
@@ -299,7 +299,7 @@ export function CasesTable({ cases }: CasesTableProps) {
             onClick={(event) => handleRowClick(event, row.original.id)}
           >
             {row.getVisibleCells().map((cell) => (
-              <td key={cell.id} className="px-5 py-4 text-[13px] text-foreground/80">
+              <td key={cell.id} className="px-3 md:px-5 py-3 md:py-4 text-[13px] text-foreground/80">
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
               </td>
             ))}
@@ -310,7 +310,7 @@ export function CasesTable({ cases }: CasesTableProps) {
   );
 
   return (
-    <div className="rounded-xl border border-border/40 bg-card overflow-hidden shadow-sm">
+    <div className="rounded-xl border border-border/40 bg-card overflow-hidden shadow-sm overflow-x-auto">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}

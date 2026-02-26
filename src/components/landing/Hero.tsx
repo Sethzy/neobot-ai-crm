@@ -9,7 +9,7 @@ import { PromoVideo } from '@/components/landing/PromoVideo'
 export function Hero() {
   return (
     <div
-      className="relative overflow-hidden pt-28 pb-0 sm:pt-36 bg-[#FAF7F2]"
+      className="relative overflow-hidden pt-28 pb-0 sm:pt-36 bg-[#F5EEE1]"
     >
       {/* Watercolor cloud texture — masked Unsplash image (same technique as Tailark) */}
       <div
@@ -17,7 +17,7 @@ export function Hero() {
         style={{
           maskImage: 'radial-gradient(ellipse 100% 70% at 50% 25%, black 20%, rgba(0,0,0,0.5) 38%, transparent 58%)',
           WebkitMaskImage: 'radial-gradient(ellipse 100% 70% at 50% 25%, black 20%, rgba(0,0,0,0.5) 38%, transparent 58%)',
-          background: 'radial-gradient(ellipse 80% 50% at 50% 18%, rgba(210, 202, 186, 0.5), rgba(250, 247, 242, 0.35) 60%, transparent 100%)',
+          background: 'radial-gradient(ellipse 80% 50% at 50% 18%, rgba(210, 202, 186, 0.5), rgba(245, 238, 225, 0.35) 60%, transparent 100%)',
         }}
       >
         <Image
@@ -36,7 +36,7 @@ export function Hero() {
 
       <Container className="relative">
         <div className="flex flex-col items-center text-center">
-          <div className="inline-flex items-center gap-2.5 rounded-full bg-white/70 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-[#1A1A1A] ring-1 ring-black/[0.14] mb-5 sm:px-6 sm:py-2 sm:text-sm">
+          <div className="inline-flex items-center gap-2.5 rounded-full bg-[#F5EEE1]/80 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-[#1A1A1A] ring-1 ring-black/[0.14] mb-5 sm:px-6 sm:py-2 sm:text-sm">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sunder-green opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-sunder-green"></span>

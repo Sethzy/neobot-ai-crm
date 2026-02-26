@@ -280,7 +280,7 @@ export function UseCases() {
   const springTransition = { type: 'spring' as const, stiffness: 35, damping: 14, mass: 2.4 }
 
   return (
-    <div style={{ backgroundColor: '#FAF7F2' }}>
+    <div style={{ backgroundColor: '#F5EEE1' }}>
     <section
       id="use-cases"
       ref={sectionRef}
@@ -361,7 +361,7 @@ export function UseCases() {
                   ? { duration: 0 }
                   : { ...springTransition, delay: i * 0.08 }
               }
-              className="group rounded-2xl bg-[#FAF7F2] px-5 pt-5 pb-5 sm:px-7 sm:pt-6 sm:pb-6"
+              className="group rounded-2xl bg-[#F5EEE1] px-5 pt-5 pb-5 sm:px-7 sm:pt-6 sm:pb-6"
             >
               {/* Logos + title */}
               <div className="flex items-center justify-between gap-4">

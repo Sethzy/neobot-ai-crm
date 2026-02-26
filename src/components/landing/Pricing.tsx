@@ -102,7 +102,7 @@ export function Pricing() {
       id="pricing"
       aria-label="Pricing"
       className="py-20 sm:py-24 md:py-32"
-      style={{ background: 'linear-gradient(180deg, #FAF7F2 0%, #FDF6E3 50%, #FAF7F2 100%)' }}
+      style={{ background: 'linear-gradient(180deg, #F5EEE1 0%, #F7ECDA 50%, #F5EEE1 100%)' }}
     >
       <Container>
         <div
