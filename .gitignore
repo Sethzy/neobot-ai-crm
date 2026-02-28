@@ -26,3 +26,8 @@ dist-ssr
 .vercel
 .env*.local
 __pycache__/
+
+# Property data pipeline
+data/
+scripts/property-pipeline/.env
+scripts/property-pipeline/venv/
