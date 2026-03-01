@@ -1,4 +1,4 @@
-# Singapore Property Data Pipeline - Implementation Plan (v2)
+# Singapore Property Data Pipeline - Implementation Plan (v3)
 
 **Goal:** Build a data pipeline that ingests Singapore's property agent registry, agent transaction records, HDB resale prices, and private residential transaction data into Supabase — replicating the core data behind OpenAgent.sg for both per-agent and per-property views.
 
@@ -12,11 +12,11 @@
 
 - **Supabase project (property data):** Separate project from main Sunder app for separation of concerns
   - Create via Supabase dashboard or MCP: `mcp__supabase__create_project`
-  - Service role key in `scripts/sg-agent-scraper/.env`
+  - Service role key in `scripts/property-pipeline/.env`
   - Supabase MCP is enabled — use `mcp__supabase__apply_migration` for DDL and `mcp__supabase__execute_sql` for queries
-  - **Note:** Main Sunder app uses `xtewwwycvapskgvfnliq.supabase.co`. Property data goes in its own project.
+  - **Note:** Main Sunder app and property data must stay in separate projects.
   - The Next.js frontend will need a second Supabase client pointing to this project (read-only anon key for public data)
-- Python 3.11+ installed, venv at `scripts/sg-agent-scraper/venv/`
+- Python 3.11+ installed, venv at `scripts/property-pipeline/venv/`
 - **URA API Access Key:** stored in `.env` as `URA_ACCESS_KEY` — CONFIRMED WORKING
   - Token endpoint: `GET https://eservice.ura.gov.sg/uraDataService/insertNewToken/v1`
   - API docs: `https://eservice.ura.gov.sg/maps/api/#introduction`
@@ -28,7 +28,7 @@
 |---|---|---|---|---|
 | 1 | CEA Salesperson Info | 37,594 | CSV (downloaded) | Ready |
 | 2 | CEA Agent Transactions | 1,295,357 | CSV (downloaded) | Ready |
-| 3 | HDB Resale Flat Prices | 972,291 | 5 CSVs (downloaded) | Ready |
+| 3 | HDB Resale Flat Prices | 972,287 | 5 CSVs (downloaded) | Ready |
 | 4 | URA Private Residential Transactions | ~140,100 | Free API (4 batches) | Key confirmed |
 
 ### CSV File Locations (in Next.js project root)
@@ -44,10 +44,10 @@ data/hdb/
   └── Resale flat prices based on registration date from Jan-2017 onwards.csv (226K rows)
 ```
 
-**Original locations (Sunder Workspace):**
-- `docs/tasks/CEASalespersonInformation.csv`
-- `docs/tasks/CEASalespersonsPropertyTransactionRecordsresidential.csv`
-- `docs/tasks/ResaleFlatPrices/` (5 CSVs)
+**Source-of-truth locations for this repo:**
+- `data/cea/CEASalespersonInformation.csv`
+- `data/cea/CEASalespersonsPropertyTransactionRecordsresidential.csv`
+- `data/hdb/*.csv` (5 CSVs)
 
 ### CSV Column Schemas
 
@@ -100,12 +100,10 @@ data/hdb/
 
 ## What Already Exists (from prior session)
 
-MiniMax completed Tasks 1-4 of the old plan:
-- `scripts/sg-agent-scraper/` — project scaffold, venv, .env, .gitignore
-- `src/data_gov_client.py` — API client (no longer needed for CSV approach)
-- `src/ingest_agents.py` — agent ingestion via API (needs rewrite for CSV)
-- `tests/test_data_gov_client.py`, `tests/test_ingest_agents.py`
-- `supabase/migrations/001_create_tables.sql` — schema (needs expansion)
+Prior session scaffold currently in repo:
+- `scripts/property-pipeline/` — project scaffold, `.env`, `.env.example`, `requirements.txt`, `README.md`
+- `scripts/property-pipeline/src/data_gov_client.py` — API client (legacy; no longer needed for CSV approach)
+- `scripts/property-pipeline/src/ingest_agents.py` — agent ingestion via API (needs rewrite for CSV)
 
 **We'll rewrite the ingestion scripts for CSV import and add the new data sources.**
 
@@ -178,8 +176,9 @@ CREATE TABLE hdb_resale_transactions (
 );
 
 -- 4. URA private residential transactions (140K rows from API)
---    UNIQUE on (project, street, contract_date, price, area_sqm, floor_range) is safe here —
---    URA API data is structured per-project with distinct transactions.
+--    Keep UNIQUE(project, street, contract_date, price, area_sqm, floor_range)
+--    for idempotency. URA payload can still contain duplicate rows on this key,
+--    so ingestion must de-duplicate before each upsert batch to avoid PG 21000.
 CREATE TABLE ura_transactions (
     id BIGSERIAL PRIMARY KEY,
     project TEXT NOT NULL,
@@ -243,11 +242,55 @@ CREATE INDEX idx_ura_contract_date ON ura_transactions(contract_date);
 CREATE INDEX idx_ura_district ON ura_transactions(district);
 CREATE INDEX idx_ura_property_type ON ura_transactions(property_type);
 CREATE INDEX idx_movements_reg_no ON cea_agent_movements(registration_no);
+
+-- Service-role helper for true TRUNCATE + INSERT imports
+CREATE OR REPLACE FUNCTION truncate_property_table(table_name TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    IF table_name NOT IN ('cea_transactions', 'hdb_resale_transactions') THEN
+        RAISE EXCEPTION 'Table % not allowed for truncate', table_name;
+    END IF;
+    EXECUTE format('TRUNCATE TABLE %I RESTART IDENTITY', table_name);
+END;
+$$;
+REVOKE ALL ON FUNCTION truncate_property_table(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION truncate_property_table(TEXT) TO service_role;
+
+-- Security: public dataset is read-only from anon key
+ALTER TABLE cea_agents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cea_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE hdb_resale_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ura_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cea_agent_movements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pipeline_runs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "public_read_cea_agents" ON cea_agents
+FOR SELECT TO anon, authenticated
+USING (true);
+
+CREATE POLICY "public_read_cea_transactions" ON cea_transactions
+FOR SELECT TO anon, authenticated
+USING (true);
+
+CREATE POLICY "public_read_hdb_resale" ON hdb_resale_transactions
+FOR SELECT TO anon, authenticated
+USING (true);
+
+CREATE POLICY "public_read_ura_transactions" ON ura_transactions
+FOR SELECT TO anon, authenticated
+USING (true);
+
+CREATE POLICY "public_read_agent_movements" ON cea_agent_movements
+FOR SELECT TO anon, authenticated
+USING (true);
 ```
 
 **Apply via Supabase MCP:**
 ```
-mcp__supabase__apply_migration(project_id="cvfhbyxweoicfpjzpymj", name="create_all_tables_v2", query=<SQL above>)
+mcp__supabase__apply_migration(project_id="<PROPERTY_PROJECT_REF>", name="create_property_tables_v3", query=<SQL above>)
 ```
 
 **Verify:**
@@ -262,9 +305,9 @@ Expected: `cea_agent_movements`, `cea_agents`, `cea_transactions`, `hdb_resale_t
 
 ## Task 2: Rewrite Ingestion Scripts for CSV Import
 
-### 2a. Agent Registry Import (`src/ingest_agents.py`)
+### 2a. Agent Registry Import (`scripts/property-pipeline/src/ingest_agents.py`)
 
-**Source:** `docs/tasks/CEASalespersonInformation.csv` (37,594 rows)
+**Source:** `data/cea/CEASalespersonInformation.csv` (37,594 rows)
 
 Rewrite to read CSV with pandas instead of API client. Transform:
 - Names: UPPERCASE → Title Case
@@ -334,9 +377,9 @@ if __name__ == "__main__":
     run_agent_ingestion(dry_run="--dry-run" in sys.argv)
 ```
 
-### 2b. CEA Transactions Import (`src/ingest_cea_transactions.py`)
+### 2b. CEA Transactions Import (`scripts/property-pipeline/src/ingest_cea_transactions.py`)
 
-**Source:** `docs/tasks/CEASalespersonsPropertyTransactionRecordsresidential.csv` (1,295,357 rows)
+**Source:** `data/cea/CEASalespersonsPropertyTransactionRecordsresidential.csv` (1,295,357 rows)
 
 Transform:
 - transaction_date: `MMM-YYYY` → `YYYY-MM-01` (e.g. `OCT-2017` → `2017-10-01`)
@@ -367,16 +410,17 @@ def clean_dash(val):
     return str(val).strip() if val and pd.notna(val) else None
 ```
 
-### 2c. HDB Resale Import (`src/ingest_hdb_resale.py`)
+### 2c. HDB Resale Import (`scripts/property-pipeline/src/ingest_hdb_resale.py`)
 
-**Source:** 5 CSV files in `docs/tasks/ResaleFlatPrices/` (972K rows total)
+**Source:** 5 CSV files in `data/hdb/` (972,287 rows total)
 
 Transform:
 - month: `YYYY-MM` → `YYYY-MM-01`
 - Concat all 5 CSVs (older ones lack `remaining_lease` — fill with None)
-- Upsert in batches of 1000
+- **TRUNCATE** table before insert (no UNIQUE key — full refresh each run)
+- INSERT in batches of 1000
 
-### 2d. URA Transactions Import (`src/ingest_ura_transactions.py`)
+### 2d. URA Transactions Import (`scripts/property-pipeline/src/ingest_ura_transactions.py`)
 
 **Source:** URA Free API, 4 batches
 
@@ -386,6 +430,7 @@ Transform:
 - PSF is auto-calculated by Postgres (`GENERATED ALWAYS` column) — do NOT include in INSERT
 - Guard against area_sqm = 0 (land-only transactions) — handled by `CASE WHEN` in column definition
 - Flatten project+transaction[] into individual rows
+- De-duplicate rows by `(project, street, contract_date, price, area_sqm, floor_range)` before upsert
 - Upsert in batches of 500 (on_conflict on UNIQUE key)
 
 ```python
@@ -485,8 +530,8 @@ GROUP BY project, street ORDER BY txns DESC LIMIT 20;
 ```
 Task 1: Schema migration          (~2 min — just run SQL)
 Task 2a: Import CEA agents CSV    (~1 min — 37K rows)
-Task 2b: Import CEA transactions  (~5 min — 1.3M rows, batch upsert)
-Task 2c: Import HDB resale CSVs   (~3 min — 972K rows)
+Task 2b: Import CEA transactions  (~5 min — 1.3M rows, truncate + batch insert)
+Task 2c: Import HDB resale CSVs   (~3 min — 972K rows, truncate + batch insert)
 Task 2d: Fetch + import URA API   (~3 min — 4 API calls, 140K rows)
 Task 3: Pipeline orchestrator      (~2 min to write)
 Task 4: Movement detection         (deferred — needs 2nd snapshot)
@@ -545,7 +590,7 @@ After running the pipeline once, Supabase contains:
 |---|---|---|
 | `cea_agents` | 37,594 | Agent profiles, agency lookup, registration dates |
 | `cea_transactions` | 1,295,357 | Per-agent: transaction history, property type mix, representation split, top neighborhoods, activity heatmap |
-| `hdb_resale_transactions` | 972,291 | Per-property (HDB): price trends, block-level pricing, storey premium, flat type distribution |
+| `hdb_resale_transactions` | 972,287 | Per-property (HDB): price trends, block-level pricing, storey premium, flat type distribution |
 | `ura_transactions` | ~140,100 | Per-property (private): price trends, PSF, floor level premium, type of sale, tenure |
 | `cea_agent_movements` | builds over time | Agent transfer tracking between agencies |
 
@@ -790,7 +835,10 @@ ORDER BY txn_count DESC LIMIT 20;
 
 ### 7b. Property Header + Stats Row
 
-Stats from ura_transactions WHERE project = $1:
+Parse slug into `{project_name, district}`; all property-level queries should filter by both:
+`WHERE project = $1 AND district = $2`
+
+Stats from ura_transactions WHERE project = $1 AND district = $2:
 1. **Total transactions** — COUNT(*)
 2. **Avg PSF** — ROUND(AVG(price_psf))
 3. **Median price** — PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price)
@@ -804,7 +852,7 @@ Plus metadata: district, property type, tenure, market segment.
 Same pattern as agent, but for a property:
 ```sql
 SELECT DATE_TRUNC('year', contract_date) as period, COUNT(*) as count
-FROM ura_transactions WHERE project = $1
+FROM ura_transactions WHERE project = $1 AND district = $2
 GROUP BY period ORDER BY period;
 ```
 
@@ -814,7 +862,7 @@ GROUP BY period ORDER BY period;
 
 ```sql
 SELECT contract_date, price_psf, price, area_sqm
-FROM ura_transactions WHERE project = $1
+FROM ura_transactions WHERE project = $1 AND district = $2
 ORDER BY contract_date;
 ```
 
@@ -826,7 +874,7 @@ Plot: X = date, Y = price_psf. Show min/median/max bands.
 
 ```sql
 SELECT floor_range, price_psf, price
-FROM ura_transactions WHERE project = $1;
+FROM ura_transactions WHERE project = $1 AND district = $2;
 ```
 
 Parse floor_range ("01-05" → midpoint 3). X = PSF, Y = floor level.
@@ -835,7 +883,7 @@ Parse floor_range ("01-05" → midpoint 3). X = PSF, Y = floor level.
 
 ```sql
 SELECT type_of_sale, COUNT(*) FROM ura_transactions
-WHERE project = $1 GROUP BY type_of_sale;
+WHERE project = $1 AND district = $2 GROUP BY type_of_sale;
 ```
 
 ### 7g. All Transactions Table
@@ -956,7 +1004,7 @@ Unlike Fintool (which generates content via agent triggers on financial events),
 | Page Type | Count | URL Pattern | Data Source | Google Query Target |
 |---|---|---|---|---|
 | Agent profiles | **37,594** | `/agents/R004301C` | `cea_agents` + `cea_transactions` | "Walter Ng property agent" |
-| Condo/property pages | **~3,970** | `/properties/double-bay-residences` | `ura_transactions` | "Double Bay Residences price" |
+| Condo/property pages | **~3,970** | `/properties/double-bay-residences-d18` | `ura_transactions` | "Double Bay Residences price" |
 | HDB block pages | **~8,000** | `/hdb/ang-mo-kio/blk-406-ang-mo-kio-ave-10` | `hdb_resale_transactions` | "blk 406 ang mo kio resale price" |
 | Agency directory | **~1,200** | `/agencies/propnex-realty` | `cea_agents` grouped | "Propnex agents list" |
 | Town/district pages | **~50** | `/areas/tampines` | All txn tables aggregated | "Tampines property market" |
@@ -1065,6 +1113,7 @@ Auto-generate `sitemap.xml` from Supabase. For 50K+ URLs, **must** use split sit
 
 ```typescript
 // app/sitemap.ts
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.trysunder.com"
 export async function generateSitemaps() {
   // Split agents into 10K chunks; other entity types fit in one sitemap each
   return [
@@ -1090,7 +1139,7 @@ export default async function sitemap({ id }: { id: string }): Promise<MetadataR
       .order('registration_no')
       .range(batch * 10000, (batch + 1) * 10000 - 1)
     return data.map(a => ({
-      url: `https://sunder.sg/agents/${a.registration_no}`,
+      url: `${SITE_URL}/agents/${a.registration_no}`,
       lastModified: a.updated_at,
       changeFrequency: 'weekly' as const,
       priority: 0.6,
@@ -1102,9 +1151,9 @@ export default async function sitemap({ id }: { id: string }): Promise<MetadataR
       .from('ura_transactions')
       .select('project, district')
       .order('project')
-    const unique = [...new Map(data.map(p => [p.project, p])).values()]
+    const unique = [...new Map(data.map(p => [`${p.project}::${p.district}`, p])).values()]
     return unique.map(p => ({
-      url: `https://sunder.sg/properties/${slugify(p.project)}-d${p.district}`,
+      url: `${SITE_URL}/properties/${slugify(p.project)}-d${p.district}`,
       lastModified: new Date(),
       changeFrequency: 'weekly' as const,
       priority: 0.8,
@@ -1133,7 +1182,7 @@ This creates a dense internal link graph that Google crawls deeply.
 # public/robots.txt
 User-agent: *
 Allow: /
-Sitemap: https://sunder.sg/sitemap.xml
+Sitemap: https://www.trysunder.com/sitemap.xml
 
 # Block search/filter pages (duplicate content)
 Disallow: /agents?*
@@ -1156,7 +1205,7 @@ Fintool triggers content generation when earnings/filings drop. Our equivalent:
 |---|---|---|
 | URA API update | Tue/Fri | Re-fetch batches 1-4, upsert new transactions, ISR revalidates affected property pages |
 | CEA agent CSV refresh | Daily | Download fresh CSV from data.gov.sg, diff against DB, detect movements, revalidate agent pages |
-| HDB resale data update | Monthly | Download new CSV, upsert, revalidate HDB block pages |
+| HDB resale data update | Monthly | Download new CSV, TRUNCATE + INSERT full refresh, revalidate HDB block pages |
 
 Implemented as **Vercel Cron Jobs** (`vercel.json`):
 
@@ -1170,9 +1219,9 @@ Implemented as **Vercel Cron Jobs** (`vercel.json`):
 }
 ```
 
-Each cron endpoint:
+Each cron endpoint (must be protected with a shared secret, e.g. `Authorization: Bearer ${CRON_SECRET}`):
 1. Pulls fresh data
-2. Upserts to Supabase
+2. Writes to Supabase (`upsert` for URA, `TRUNCATE + INSERT` for CEA/HDB CSV datasets)
 3. Calls `revalidatePath()` or `revalidateTag()` on affected pages
 
 ---
@@ -1231,5 +1280,8 @@ All findings from the code review have been incorporated into the plan above. Su
 | S5 | SUGGESTION | `"use client"` not specified for Recharts | Added note to frontend setup section |
 | S6 | SUGGESTION | TanStack Table needs total count for pagination | Added `{ count: 'exact' }` pattern |
 | S7 | SUGGESTION | URA API key in plaintext in doc | Replaced with `.env` reference |
+| I8 | IMPORTANT | URA payload contains duplicate conflict keys causing PG 21000 upsert failure | Added pre-upsert de-duplication on URA unique key |
 
-**Infrastructure note:** Property data uses a **separate Supabase project** from the main Sunder app (`xtewwwycvapskgvfnliq`) for separation of concerns. The Next.js frontend needs a second Supabase client (`src/lib/supabase/property-client.ts`) pointing to the property data project with a read-only anon key.
+Additional repo-alignment fixes in v3: stale file paths updated to `scripts/property-pipeline` + `data/`, HDB import wording corrected to `TRUNCATE + INSERT`, slug/dedupe rules aligned to `project + district`, sitemap/robots domain made configurable via `NEXT_PUBLIC_SITE_URL`, RLS/policies added for public read-only access, and cron endpoint auth requirement documented.
+
+**Infrastructure note:** Property data uses a **separate Supabase project** from the main Sunder app. The Next.js frontend needs a second Supabase client (`src/lib/supabase/property-client.ts`) pointing to the property data project with a read-only anon key.

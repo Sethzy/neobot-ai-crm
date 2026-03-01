@@ -41,7 +41,12 @@ function isPublicRoute(pathname: string): boolean {
     PUBLIC_ROUTES.includes(pathname) ||
     pathname.startsWith("/auth/") ||
     pathname.startsWith("/use-cases") ||
-    pathname.startsWith("/industries")
+    pathname.startsWith("/industries") ||
+    pathname.startsWith("/agents") ||
+    pathname.startsWith("/properties") ||
+    pathname.startsWith("/hdb") ||
+    pathname.startsWith("/agencies") ||
+    pathname.startsWith("/areas")
   );
 }
 

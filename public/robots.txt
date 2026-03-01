@@ -1,8 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /cases/
-Disallow: /instructions
-Disallow: /auth/
-Disallow: /update-password
-
-Sitemap: https://www.trysunder.com/sitemap.xml
