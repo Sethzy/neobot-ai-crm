@@ -37,6 +37,8 @@ import {
   SidebarGroupLabel,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { ThreadRail } from "@/components/chat/thread-rail";
+import { useThreads } from "@/contexts/thread-context";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,18 +69,26 @@ export function AppSidebar() {
   const router = useRouter();
   const { user } = useSession();
   const { isMobile, setOpenMobile } = useSidebar();
+  const { threads, activeThreadId, createThread, selectThread } = useThreads();
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.push("/");
   };
 
-  const renderNavItems = (items: typeof agentNavItems) =>
+  const renderNavItems = (
+    items: typeof agentNavItems,
+    options?: { includeThreadRail?: boolean },
+  ) =>
     items.map((item) => {
       const isActive =
         item.href === "/cases"
           ? pathname.startsWith("/cases")
           : pathname.startsWith(item.href);
+      const shouldRenderThreadRail =
+        options?.includeThreadRail === true &&
+        item.href === "/chat" &&
+        pathname.startsWith("/chat");
       const Icon = item.icon;
 
       return (
@@ -94,6 +104,14 @@ export function AppSidebar() {
               <span>{item.label}</span>
             </Link>
           </SidebarMenuButton>
+          {shouldRenderThreadRail ? (
+            <ThreadRail
+              threads={threads}
+              activeThreadId={activeThreadId}
+              onSelectThread={selectThread}
+              onNewThread={createThread}
+            />
+          ) : null}
         </SidebarMenuItem>
       );
     });
@@ -112,7 +130,7 @@ export function AppSidebar() {
           <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold h-6">
             Agent
           </SidebarGroupLabel>
-          <SidebarMenu>{renderNavItems(agentNavItems)}</SidebarMenu>
+          <SidebarMenu>{renderNavItems(agentNavItems, { includeThreadRail: true })}</SidebarMenu>
         </SidebarGroup>
 
         {/* DATABASE section */}

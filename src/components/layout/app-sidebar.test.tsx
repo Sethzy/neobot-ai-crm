@@ -38,6 +38,16 @@ vi.mock("@/hooks/use-mobile", () => ({
   useIsMobile: () => false,
 }));
 
+vi.mock("@/contexts/thread-context", () => ({
+  useThreads: () => ({
+    threads: [{ id: "thread-1", title: "Test Chat", createdAt: new Date() }],
+    activeThreadId: "thread-1",
+    createThread: vi.fn(),
+    selectThread: vi.fn(),
+    updateThreadTitle: vi.fn(),
+  }),
+}));
+
 /** Wrapper with SidebarProvider */
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <SidebarProvider>{children}</SidebarProvider>
@@ -97,5 +107,12 @@ describe("AppSidebar", () => {
     render(<AppSidebar />, { wrapper });
     expect(screen.queryByText("Workspace")).not.toBeInTheDocument();
     expect(screen.queryByText("Instructions")).not.toBeInTheDocument();
+  });
+
+  it("renders chat thread rail on /chat routes", () => {
+    render(<AppSidebar />, { wrapper });
+
+    expect(screen.getByText("Test Chat")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /new chat/i })).toBeInTheDocument();
   });
 });
