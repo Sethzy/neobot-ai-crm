@@ -17,7 +17,6 @@ $$;
 COMMENT ON FUNCTION public.get_my_client_id() IS 'Resolves current auth user to client_id.';
 
 ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.clients FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY clients_select_own ON public.clients
   FOR SELECT
@@ -29,7 +28,6 @@ CREATE POLICY clients_update_own ON public.clients
   WITH CHECK (user_id = auth.uid());
 
 ALTER TABLE public.conversation_threads ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.conversation_threads FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY conversation_threads_select_own ON public.conversation_threads
   FOR SELECT
@@ -49,7 +47,6 @@ CREATE POLICY conversation_threads_delete_own ON public.conversation_threads
   USING (client_id = public.get_my_client_id());
 
 ALTER TABLE public.conversation_messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.conversation_messages FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY conversation_messages_select_own ON public.conversation_messages
   FOR SELECT
@@ -72,7 +69,6 @@ CREATE POLICY conversation_messages_insert_own ON public.conversation_messages
   );
 
 ALTER TABLE public.runs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.runs FORCE ROW LEVEL SECURITY;
 
 CREATE POLICY runs_select_own ON public.runs
   FOR SELECT

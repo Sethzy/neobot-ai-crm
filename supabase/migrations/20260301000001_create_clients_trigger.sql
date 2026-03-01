@@ -23,3 +23,13 @@ CREATE TRIGGER on_auth_user_created
   EXECUTE FUNCTION public.handle_new_user();
 
 COMMENT ON FUNCTION public.handle_new_user() IS 'Creates public.clients row on auth signup.';
+
+-- Backfill existing auth users so pre-migration accounts also have client rows.
+INSERT INTO public.clients (user_id, display_name)
+SELECT
+  users.id,
+  COALESCE(users.raw_user_meta_data->>'display_name', users.email)
+FROM auth.users AS users
+LEFT JOIN public.clients AS clients
+  ON clients.user_id = users.id
+WHERE clients.user_id IS NULL;
