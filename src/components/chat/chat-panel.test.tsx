@@ -53,6 +53,7 @@ describe("ChatPanel", () => {
   it("renders list empty state and composer", () => {
     render(<ChatPanel chatId="thread-1" />);
 
+    expect(mockUseChat).toHaveBeenCalledWith({ id: "thread-1", api: "/api/chat" });
     expect(screen.getByTestId("empty-chat")).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/type a message/i)).toBeInTheDocument();
   });

@@ -8,6 +8,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useCallback } from "react";
 import {
   MessageCircle,
   Gauge,
@@ -71,10 +72,29 @@ export function AppSidebar() {
   const { isMobile, setOpenMobile } = useSidebar();
   const { threads, activeThreadId, createThread, selectThread } = useThreads();
 
+  const closeMobileSidebar = useCallback(() => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }, [isMobile, setOpenMobile]);
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.push("/");
   };
+
+  const handleCreateThread = useCallback(() => {
+    createThread();
+    closeMobileSidebar();
+  }, [createThread, closeMobileSidebar]);
+
+  const handleSelectThread = useCallback(
+    (id: string) => {
+      selectThread(id);
+      closeMobileSidebar();
+    },
+    [selectThread, closeMobileSidebar],
+  );
 
   const renderNavItems = (
     items: typeof agentNavItems,
@@ -108,8 +128,8 @@ export function AppSidebar() {
             <ThreadRail
               threads={threads}
               activeThreadId={activeThreadId}
-              onSelectThread={selectThread}
-              onNewThread={createThread}
+              onSelectThread={handleSelectThread}
+              onNewThread={handleCreateThread}
             />
           ) : null}
         </SidebarMenuItem>

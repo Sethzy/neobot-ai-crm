@@ -53,10 +53,18 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const selectThread = useCallback((id: string) => {
-    setState((previousState) => ({
-      ...previousState,
-      activeThreadId: id,
-    }));
+    setState((previousState) => {
+      const hasThread = previousState.threads.some((thread) => thread.id === id);
+
+      if (!hasThread) {
+        return previousState;
+      }
+
+      return {
+        ...previousState,
+        activeThreadId: id,
+      };
+    });
   }, []);
 
   const updateThreadTitle = useCallback((id: string, title: string) => {

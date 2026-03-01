@@ -48,6 +48,17 @@ describe("thread context", () => {
     expect(result.current.activeThreadId).toBe(firstThreadId);
   });
 
+  it("ignores selection for unknown thread ids", () => {
+    const { result } = renderHook(() => useThreads(), { wrapper });
+    const initialActiveId = result.current.activeThreadId;
+
+    act(() => {
+      result.current.selectThread("thread-does-not-exist");
+    });
+
+    expect(result.current.activeThreadId).toBe(initialActiveId);
+  });
+
   it("updates a thread title", () => {
     const { result } = renderHook(() => useThreads(), { wrapper });
     const threadId = result.current.threads[0].id;

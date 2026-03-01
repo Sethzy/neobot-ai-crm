@@ -16,7 +16,7 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ chatId }: ChatPanelProps) {
-  const { messages, sendMessage, status, error } = useChat({ id: chatId });
+  const { messages, sendMessage, status, error } = useChat({ id: chatId, api: "/api/chat" });
   const [input, setInput] = useState("");
 
   const isLoading = status === "submitted" || status === "streaming";

@@ -3,7 +3,7 @@
  * @module components/chat/message-list.test
  */
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MessageList } from "./message-list";
 
@@ -36,6 +36,17 @@ const assistantMessage = {
 };
 
 describe("MessageList", () => {
+  beforeEach(() => {
+    isAtBottom = true;
+  });
+
+  it("keeps the scroll container mounted for empty-state transitions", () => {
+    render(<MessageList messages={[]} status="ready" />);
+
+    expect(screen.getByTestId("message-scroll-container")).toBeInTheDocument();
+    expect(screen.getByTestId("empty-chat")).toBeInTheDocument();
+  });
+
   it("renders empty state when there are no messages", () => {
     render(<MessageList messages={[]} status="ready" />);
 
