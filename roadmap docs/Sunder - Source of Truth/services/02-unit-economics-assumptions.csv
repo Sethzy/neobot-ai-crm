@@ -1,0 +1,50 @@
+type,provider,metric,unit,low,base,high,notes,source
+rate,Browserbase,fixed_plan_fee,usd/month,20,20,20,Developer plan,https://www.browserbase.com/pricing
+rate,Browserbase,included_browser_hours,hours/month,100,100,100,Developer plan inclusion,https://www.browserbase.com/pricing
+rate,Browserbase,browser_hour_overage,usd/hour,0.12,0.12,0.12,After included hours,https://www.browserbase.com/pricing
+rate,Browserbase,included_proxy_gb,gb/month,1,1,1,Developer plan inclusion,https://www.browserbase.com/pricing
+rate,Browserbase,proxy_overage,usd/gb,12,12,12,After included proxy data,https://www.browserbase.com/pricing
+rate,Firecrawl,fixed_plan_fee,usd/month,16,16,16,Hobby plan,https://www.firecrawl.dev/pricing
+rate,Firecrawl,included_credits,credits/month,3000,3000,3000,Hobby plan inclusion,https://www.firecrawl.dev/pricing
+rate,Firecrawl,credit_overage,usd/credit,0.009,0.009,0.009,$9 per extra 1k credits,https://www.firecrawl.dev/pricing
+rate,Composio,fixed_plan_fee,usd/month,29,29,29,$29 plan,https://composio.dev/pricing
+rate,Composio,included_tool_calls,calls/month,200000,200000,200000,$29 plan inclusion,https://composio.dev/pricing
+rate,Composio,tool_call_overage,usd/call,0.000299,0.000299,0.000299,$0.299 per 1k calls,https://composio.dev/pricing
+rate,Composio,included_premium_calls,calls/month,5000,5000,5000,Premium calls allowance on $29 plan,https://composio.dev/pricing
+rate,Composio,premium_call_overage,usd/call,0.000897,0.000897,0.000897,3x premium multiplier,https://composio.dev/pricing
+rate,Supabase,fixed_plan_fee,usd/month,25,25,25,Assumption: Pro base fee used for modeling,https://supabase.com/docs/guides/platform/billing-on-supabase
+rate,Supabase,egress_overage,usd/gb,0.09,0.09,0.09,From Pro/Team overage table,https://supabase.com/docs/guides/platform/billing-on-supabase
+rate,Supabase,storage_overage,usd/gb,0.021,0.021,0.021,From Pro/Team overage table,https://supabase.com/docs/guides/platform/billing-on-supabase
+rate,Vercel,fixed_plan_fee,usd/month,20,20,20,Pro plan seat (platform baseline),https://vercel.com/pricing
+rate,Brave Search,search_request,usd/request,0.005,0.005,0.005,$5 per 1k requests,https://api-dashboard.search.brave.com/documentation/pricing
+rate,Exa,search_request,usd/request,0.005,0.005,0.005,1-25 result search tier,https://exa.ai/pricing
+rate,Exa,contents_text_page,usd/page,0.001,0.001,0.001,Text mode,https://exa.ai/pricing
+rate,OpenRouter,platform_multiplier,x_spend,1.055,1.055,1.055,Pay-as-you-go platform fee 5.5%,https://openrouter.ai/pricing
+rate,OpenAI Whisper,transcription,usd/min,0.006,0.006,0.006,Whisper model card shows $0.006 cost point,https://openai.com/index/whisper/
+rate,Inworld,tts_max,usd/1m_chars,10,10,10,TTS-1.5-Max,https://inworld.ai/pricing
+rate,Gemini 2.5 Flash,input_tokens_text_image_video,usd/1m_tokens,0.3,0.3,0.3,Standard paid tier,https://ai.google.dev/gemini-api/docs/pricing
+rate,Gemini 2.5 Flash,output_tokens,usd/1m_tokens,2.5,2.5,2.5,Standard paid tier,https://ai.google.dev/gemini-api/docs/pricing
+rate,ExtendAI,effective_complex_doc_cost,usd/doc,0.25,0.25,0.25,Model assumption from public credit plans,https://www.extend.ai/pricing
+rate,Vercel_Sandbox,cpu,usd/cpu_hour,0.07,0.07,0.07,Usage-based,https://vercel.com/docs/sandbox
+rate,Vercel_Sandbox,memory,usd/gb_hour,0.04375,0.04375,0.04375,Usage-based,https://vercel.com/docs/sandbox
+rate,Vercel_Sandbox,hot_storage,usd/gb_hour,0.000683,0.000683,0.000683,Usage-based,https://vercel.com/docs/sandbox
+rate,Vercel_Sandbox,storage,usd/gb_hour,0.000027,0.000027,0.000027,Usage-based,https://vercel.com/docs/sandbox
+usage_per_active_user,Browserbase,browser_hours,hours/user/month,2,5,15,Stateful automation time per active user,internal model assumption
+usage_per_active_user,Browserbase,proxy_data,gb/user/month,0.03,0.08,0.3,Proxy data per active user,internal model assumption
+usage_per_active_user,Firecrawl,credits,credits/user/month,80,220,700,Browser + scrape usage,internal model assumption
+usage_per_active_user,Brave Search,requests,requests/user/month,30,80,250,Search requests,internal model assumption
+usage_per_active_user,Exa,search_requests,requests/user/month,15,40,120,Search calls,internal model assumption
+usage_per_active_user,Exa,contents_pages,pages/user/month,50,120,350,Known URL extraction pages,internal model assumption
+usage_per_active_user,OpenRouter,passthrough_llm_spend,usd/user/month,2,4,12,Model spend before OpenRouter platform fee,internal model assumption
+usage_per_active_user,OpenAI Whisper,minutes,minutes/user/month,8,20,60,Voice transcription volume,internal model assumption
+usage_per_active_user,Inworld,characters,chars/user/month,2500,6000,18000,TTS output volume,internal model assumption
+usage_per_active_user,Gemini 2.5 Flash,input_tokens,tokens/user/month,100000,250000,800000,Document classification + extraction input,internal model assumption
+usage_per_active_user,Gemini 2.5 Flash,output_tokens,tokens/user/month,20000,50000,170000,Document extraction output,internal model assumption
+usage_per_active_user,ExtendAI,complex_docs,docs/user/month,0.5,1.5,4,Complex extraction documents,internal model assumption
+usage_per_active_user,Composio,tool_calls,calls/user/month,200,450,1500,Standard tool calls,internal model assumption
+usage_per_active_user,Composio,premium_tool_calls,calls/user/month,15,40,150,Premium tool calls,internal model assumption
+usage_per_active_user,Vercel_Sandbox,cpu_hours,cpu_hours/user/month,6,12,30,Runtime CPU usage,internal model assumption
+usage_per_active_user,Vercel_Sandbox,memory_gb_hours,gb_hours/user/month,24,45,120,Runtime memory usage,internal model assumption
+usage_per_active_user,Vercel_Sandbox,hot_storage_gb_hours,gb_hours/user/month,120,220,500,Hot storage usage,internal model assumption
+usage_per_active_user,Vercel_Sandbox,storage_gb_hours,gb_hours/user/month,3650,6000,9000,Durable storage usage,internal model assumption
+usage_per_active_user,Supabase,overage_blended,usd/user/month,0,0.1,0.6,Blended overage allocation assumption,internal model assumption

@@ -1,0 +1,1227 @@
+{
+  "title": "Sunder Architecture Decision Checklist",
+  "description": "Every architecture decision requiring explicit approval before implementation. Grouped by domain. Categories 1-2 are foundational. Categories 3-10 are co-dependent (Data, Execution, Runner, Tools, Skills, Triggers, Sessions, Memory) and were decided as a cluster. Categories 11-18 are surface-level and meta.",
+  "last_updated": "2026-02-28",
+  "decisions": [
+    {
+      "id": "FOUND-01",
+      "category": "1-foundational-infrastructure",
+      "description": "No per-client containers — isolation comes from Supabase RLS + Storage path scoping, not container boundaries (no Fly Machines, no persistent sandboxes)",
+      "approved": true,
+      "decision": "Supabase RLS + Storage path scoping",
+      "reasoning": "All three references (Tasklet, Fintool, Sunder) use ephemeral compute — no always-on containers. Isolation differs: Tasklet=platform FUSE mounts, Fintool=AWS IAM/ABAC prefix scoping, Sunder=Supabase RLS. IAM/ABAC is overkill for <50 clients (hedge fund compliance pattern). RLS is battle-tested, Postgres-native, standard multi-tenant SaaS pattern. Fix policy bugs at the policy layer, not the infrastructure layer."
+    },
+    {
+      "id": "FOUND-02",
+      "category": "1-foundational-infrastructure",
+      "description": "Serverless-first architecture shape — Vercel (frontend + API) + Supabase (data + storage + auth). Two-service stack. Trigger.dev deferred to v3 for genuine >15 min background jobs (managed lead-gen scraping).",
+      "approved": true,
+      "decision": "REVISED: Two-service stack (Vercel + Supabase). Trigger.dev dropped from v1. Scheduling via Vercel cron + agent_triggers DB table (scanner pattern).",
+      "reasoning": "REVISED from three-service to two-service stack. Original decision chose Trigger.dev for: (1) schedules.create() for dynamic schedules, (2) no-timeout execution, (3) concurrency control, (4) retry/observability. Re-evaluation: (1) agent_triggers DB table + Vercel cron scanner replaces schedules.create() — same pattern Fintool uses (CloudWatch every 10 min → Lambda → query next_run_at), same pattern Tasklet uses internally (platform-managed trigger system). (2) Nothing in v1 workload exceeds 13 min — parallel tool calls keep even 'research 20 leads' under 5 min. 15-min Vercel Fluid Compute cap is sufficient. (3) Concurrency control: ~5 lines of SQL (check active_runs before starting). (4) Retry: scanner re-picks failed triggers on next tick. Observability: log to Supabase runs table + Vercel logs. Two-service stack means: one fewer vendor, one fewer billing item, one fewer deployment target, one execution environment (all runner code in Vercel). Trigger.dev earmarked for v3 Growth Pillar A (managed lead-gen pipeline with Lane 2 scraping that genuinely needs >15 min background execution). Adding Trigger.dev later is ~1 day of work, not a rewrite. Fixed costs drop from ~$55-75/mo to ~$45/mo (Vercel $20 + Supabase $25)."
+    },
+    {
+      "id": "FOUND-03",
+      "category": "1-foundational-infrastructure",
+      "description": "Single agent per client — collapse Tasklet's user→agent multi-agent model into client_id as sole scoping key. No agents table, no agent routing, no isolation logic between agents for same user",
+      "approved": true,
+      "decision": "client_id as sole scoping key, no agents table",
+      "reasoning": "All three references converge for vertical products: Fintool is single-agent-per-user, Sunder is single-agent-per-client, only Tasklet has multi-agent — and that's because Tasklet is a horizontal platform serving many use cases. Sunder is vertical (RE CRM, one agent personality). An agents table adds schema complexity (every query needs AND agent_id), routing logic, UX confusion ('which agent am I talking to?') for zero product value. YAGNI — if multi-agent is ever needed, add agent_id column later. No v1/v2 scenario requires it."
+    },
+    {
+      "id": "FOUND-04",
+      "category": "1-foundational-infrastructure",
+      "description": "Monorepo structure — Turborepo + pnpm workspaces. apps/web/ (Next.js App Router — frontend + API route handlers + cron scanner), packages/ui/ (ShadCN + AI Elements components), packages/shared/ (types, utils, Supabase client), supabase/ (migrations, seed, config)",
+      "approved": true,
+      "decision": "REVISED: packages/tasks/ removed (Trigger.dev dropped per FOUND-02). All code runs in apps/web/. Cron scanner lives at app/api/cron/scan/route.ts.",
+      "reasoning": "REVISED per FOUND-02 (two-service stack). Original had packages/tasks/ for Trigger.dev background jobs. With Trigger.dev removed, all server-side code lives in apps/web/ as Next.js API routes. The cron scanner (Vercel cron, every 1 min) is just another API route at app/api/cron/scan/route.ts. Trigger execution is app/api/trigger/run/route.ts. Monorepo shape otherwise unchanged: Turborepo + pnpm workspaces, packages/ui/ for ShadCN + AI Elements, packages/shared/ for types/utils/Supabase client, supabase/ for migrations. Simpler monorepo — one deployment target (Vercel), no separate Trigger.dev deploy step."
+    },
+    {
+      "id": "FOUND-05",
+      "category": "1-foundational-infrastructure",
+      "description": "Frontend stack confirmed — Next.js 15 (App Router) + React 19 + Tailwind 4 + ShadCN + AI Elements (UI components) + Vercel AI SDK (useChat + streamText + streamUI) + @ai-sdk/gateway (per LLM-01/02) + TanStack Query + TanStack Table + React Hook Form. Dropped: Vite (Next.js), TanStack Router (App Router), TanStack Form (React Hook Form via ShadCN). Any reference to Vite or standalone TanStack Router/Form in other docs is stale.",
+      "approved": true,
+      "decision": "Next.js + AI SDK + AI Elements as the blessed frontend stack. Vite + TanStack Router + TanStack Form dropped.",
+      "reasoning": "Chat is the primary surface area (~70%+ of user interaction). AI SDK and AI Elements are built Next.js-first by Vercel — using Vite means swimming upstream (CLI friction, adapting every example, no streamUI for server-rendered tool UIs). AI Elements provides 40+ components (chat, code, voice, workflow) built on ShadCN — richer than assistant-ui's ~15 chat primitives. assistant-ui evaluated and declined: adds a runtime abstraction layer over AI SDK that's unnecessary when fully committed to the AI SDK ecosystem. Key gains from Next.js switch: (1) streamUI for server-rendered generative UI, (2) AI Elements CLI works out of the box, (3) zero-config Vercel deploy, (4) App Router handles routing natively, (5) all AI SDK tutorials copy-paste without adaptation. TanStack Form dropped — ShadCN's Form component is built on React Hook Form + Zod, using TanStack Form would fight the ShadCN ecosystem. TanStack Query retained — CRM is mutation-heavy (deal updates, contact reassignment, task management) and needs optimistic updates + rollback that SWR doesn't provide well. TanStack Table retained — ShadCN DataTable is built on it, no alternative exists. Key losses: TanStack Router type-safe search params (mitigated by nuqs), Vite dev speed (mitigated by Turbopack)."
+    },
+    {
+      "id": "FOUND-06",
+      "category": "1-foundational-infrastructure",
+      "description": "Backend runtime — Node.js + TypeScript for all API and trigger code",
+      "approved": true,
+      "decision": "Node.js + TypeScript for all backend code we write. Sandbox runtime (agent-generated code) is a separate concern under EXEC-04/05.",
+      "reasoning": "Every dependency is TypeScript-first: Vercel AI SDK, Trigger.dev SDK, Supabase JS SDK, OpenRouter provider, TanStack, ShadCN. Using anything else means fighting the toolchain. Fintool uses Python (team of 6, ML pipeline heritage) — not applicable for 1-person team where the entire stack is JS/TS. Sandbox is intentionally polyglot (agent installs what it needs: Python for Scrapling/pandas, bash for FFmpeg, Node for ExcelJS) — that's an EXEC decision, not a backend runtime decision."
+    },
+    {
+      "id": "FOUND-07",
+      "category": "1-foundational-infrastructure",
+      "description": "Billing via Stripe with subscription management",
+      "approved": true,
+      "decision": "Stripe confirmed as billing provider. Implementation deferred — v1 is pilot/invite-only with no self-serve billing.",
+      "reasoning": "Stripe is the boring default for SaaS billing. No reason to evaluate alternatives (Lemon Squeezy, Paddle) — merchant-of-record benefits not needed. Fintool serves enterprise (likely annual contracts, not self-serve). Tasklet is platform-level billing (opaque). YAGNI: building Stripe integration before having paying users is premature. Ship billing when transitioning from pilot to paid. Schema should reserve a subscription_status column on the client/workspace table so RLS can gate features by tier when billing ships."
+    },
+    {
+      "id": "LLM-01",
+      "category": "2-llm-and-model-routing",
+      "description": "Vercel AI Gateway as sole LLM gateway — one API key (AI_GATEWAY_API_KEY), no direct provider endpoints, no OpenRouter. Gateway handles auth with all underlying providers (Google, Anthropic, OpenAI).",
+      "approved": true,
+      "decision": "Switched from OpenRouter to Vercel AI Gateway. One key, all providers, first-party Vercel integration.",
+      "reasoning": "Discovered via Savoir (vercel-labs/knowledge-agent-template) codebase analysis: they use @ai-sdk/gateway, not OpenRouter. Vercel AI Gateway is first-party — built by same team as AI SDK. Advantages over OpenRouter: (1) native fallback chains via providerOptions (no custom retry code), (2) one fewer vendor (no OpenRouter account/billing/outage risk), (3) all Savoir patterns (routeQuestion, streaming, tool calling) copy-paste without adaptation, (4) single API key for all providers. Model availability confirmed sufficient for our tier plan. OpenRouter's wider model catalog (100+ models) is not needed — we use 3-4 named models."
+    },
+    {
+      "id": "LLM-02",
+      "category": "2-llm-and-model-routing",
+      "description": "Vercel AI SDK v6 with @ai-sdk/gateway as the integration layer. createGateway({ apiKey }) is the sole model accessor.",
+      "approved": true,
+      "decision": "AI SDK + @ai-sdk/gateway. Replaces @openrouter/ai-sdk-provider.",
+      "reasoning": "Direct consequence of LLM-01 switch. @ai-sdk/gateway is first-party AI SDK package. Same generateText/streamText/generateObject API surface. Model references use provider/model-name format (e.g. google/gemini-3-flash, anthropic/claude-sonnet-4.6). All Savoir extraction patterns use this exact setup."
+    },
+    {
+      "id": "LLM-03",
+      "category": "2-llm-and-model-routing",
+      "description": "routeQuestion pattern from Savoir — cheap classifier (Gemini 2.5 Flash Lite) classifies every inbound message by complexity, returns { complexity, model, maxSteps, reasoning }. Product code never sees model IDs. Sunder adds domain-specific escalation signals (CRM writes, approval needed, sandbox needed, context size, autopilot pulse).",
+      "approved": true,
+      "decision": "Savoir routeQuestion pattern as the routing abstraction. Replaces hand-rolled llm-gateway.ts wrapper.",
+      "reasoning": "Savoir's routeQuestion is a concrete, tested implementation of what LLM-03 originally described abstractly. Router model (Gemini 2.5 Flash Lite) costs fractions of a cent per classification. Returns structured Zod-validated object with complexity level, model ID, maxSteps budget, and reasoning string. Default fallback on router failure: moderate/sonnet/15 steps. Product code passes routerConfig into streamText() — never references model IDs directly. Sunder extends the router prompt with domain-specific signals: CRM write risk, approval requirement, sandbox need, context size, autopilot vs interactive. Tasklet divergence noted: Tasklet injects 'Current intelligence level: genius' into system-reminder and provides suggest_intelligence_level_change tool for LLM self-escalation (bidirectional routing). We deliberately diverge — our routing is unidirectional (classifier picks tier, LLM is unaware). Reason: Sunder is an autonomous agent, not a general assistant. Users shouldn't think about model tiers. Self-escalation adds unmodeled cost risk (LLM may over-escalate on subjective complexity). If needed later, adding intelligence level to system-reminder is ~8 tokens. Recorded as intentional Tasklet delta."
+    },
+    {
+      "id": "LLM-04",
+      "category": "2-llm-and-model-routing",
+      "description": "Named model set with automatic fallback chains — each primary model has ordered fallbacks via providerOptions. Gateway auto-retries on provider failure. No opaque routing.",
+      "approved": true,
+      "decision": "Named models + gateway-native fallback chains. Replaces 'no fallback gateway' stance from original.",
+      "reasoning": "Savoir pattern: each model has a fallback chain passed via providerOptions: { gateway: { models: [...] } }. Example: gemini-3-flash → sonnet-4.6 → gpt-4o. Gateway handles retry automatically — zero custom code. This is strictly better than original LLM-01's 'no fallback gateway' stance, which accepted total outage if OpenRouter went down. Now if primary model is unavailable, gateway silently tries next in chain. Named model set still enforced — no auto-routing, every model in the chain is explicitly chosen."
+    },
+    {
+      "id": "LLM-05",
+      "category": "2-llm-and-model-routing",
+      "description": "Tier 1 (trivial/simple): google/gemini-3-flash. maxSteps 4 (trivial) or 8 (simple). Used for greetings, single CRM lookups, simple chat. Router-selected for interactive chat only.",
+      "approved": true,
+      "decision": "Gemini 3 Flash as Tier 1. Replaces original Gemini 2.5 Flash.",
+      "reasoning": "Savoir pattern uses Gemini 3 Flash as the trivial/simple tier. Cheap, fast, sufficient for single-lookup questions and acknowledgments. Router (Gemini 2.5 Flash Lite) classifies inbound and selects this tier for ~60-70% of interactive messages. maxSteps budget keeps tool loops short for simple tasks. Tasklet delta: Tasklet names its tiers (standard/advanced/expert/genius) as first-class concepts visible to the LLM. Our tiers are internal infrastructure concepts invisible to the LLM (classifier-selected). No change needed — just noting the divergence."
+    },
+    {
+      "id": "LLM-06",
+      "category": "2-llm-and-model-routing",
+      "description": "Tier 2 (moderate): google/gemini-3.1-pro. maxSteps 15. Used for CRM writes, research, multi-source synthesis, document extraction, large context. Also hardcoded for background tasks: deep-research, doc processing, memory synthesis.",
+      "approved": true,
+      "decision": "Gemini 3.1 Pro as Tier 2. Replaces original Kimi K2.5 + Gemini 3.1 Pro split.",
+      "reasoning": "Collapsed original Tier 2 (Kimi) and Tier 3a (Gemini Pro) into one tier. Gemini 3.1 Pro handles both research depth and complex reasoning. Kimi K2.5 dropped as separate tier — available as background model but not needed as a dedicated interactive tier. 3 interactive tiers + router is cleaner than 4 tiers. Gemini Pro's long context window handles the >32k escalation signal. Tasklet delta: same as LLM-05 — our tier definitions are internal to the classifier, not surfaced to the LLM. Intentional divergence from Tasklet's self-aware tier model."
+    },
+    {
+      "id": "LLM-07",
+      "category": "2-llm-and-model-routing",
+      "description": "Tier 3 (complex/high-trust): anthropic/claude-sonnet-4.6. maxSteps 25. Used for complex analysis, approval-adjacent decisions, deep debugging. Also hardcoded for high-trust background triggers.",
+      "approved": true,
+      "decision": "Claude Sonnet 4.6 as Tier 3. Replaces original split between Gemini Pro (complex) and Sonnet (high-trust).",
+      "reasoning": "Original plan had two Tier 3 slots (Gemini Pro for complexity, Sonnet for trust). Now Gemini Pro is Tier 2 and Sonnet is sole Tier 3 handling both complex reasoning and high-trust decisions. Sonnet is the ceiling — if Sonnet can't handle it, the task needs human intervention, not a bigger model. Opus available as fallback chain target but not a primary tier. Tasklet delta: same as LLM-05/06 — tier is classifier-selected, LLM-invisible."
+    },
+    {
+      "id": "LLM-08",
+      "category": "2-llm-and-model-routing",
+      "description": "Background tier: DeepSeek V3 or Kimi K2.5 (cheapest available on gateway). Hardcoded per task — no router. Used for autopilot pulse, enrichment batch, simple cron triggers. All via same Vercel AI Gateway.",
+      "approved": true,
+      "decision": "Cheap Chinese models for background tasks. No router overhead. Same gateway.",
+      "reasoning": "Background cron tasks are high-volume, low-stakes, no-streaming, predictable. Router is wasted — task type is known at invocation time. DeepSeek V3 / Kimi K2.5 at ~$0.10-0.30/M tokens vs Gemini Flash at ~$0.50/M tokens. At 50 clients with ~2,400 autopilot pulses/day (80% no-ops), saves ~$10-15/mo. At 500 clients, ~$150/mo. All through gateway('deepseek/deepseek-v3') — same API key, same generateText() call, just cheaper model string. Tasklet delta: same as LLM-05/06/07 — tier is classifier-selected, LLM-invisible."
+    },
+    {
+      "id": "LLM-09",
+      "category": "2-llm-and-model-routing",
+      "description": "Two routing paths, one gateway. Interactive: routeQuestion() classifies → dynamic model selection (Tier 1/2/3). Background: task definition hardcodes model (background tier or specific tier if high-trust). Escalation signals in router prompt: CRM writes → at least Tier 2, approval needed → force Tier 3, context >32k → at least Tier 2, tool call failure → retry one tier up, autopilot pulse → skip router.",
+      "approved": true,
+      "decision": "Dual routing path (router for interactive, hardcoded for background) with domain-specific escalation signals.",
+      "reasoning": "Savoir's routeQuestion only classifies on question complexity. Sunder adds domain-specific escalation signals to the router prompt: CRM write risk, approval gates, context size, tool failures. Background tasks skip the router entirely — paying for a classification call on a known task type is waste. Fallback chains: gemini-3-flash → gemini-3.1-pro → sonnet-4.6, gemini-3.1-pro → sonnet-4.6 → gemini-3-flash, sonnet-4.6 → gemini-3.1-pro → gemini-3-flash, deepseek-v3 → gemini-3-flash → retry task. Tasklet delta: LLM-09 defines unidirectional escalation (classifier → model). Tasklet adds a second path — LLM-initiated escalation via suggest_intelligence_level_change (bidirectional). We deliberately keep unidirectional routing. Self-escalation adds unmodeled cost risk and solves a problem we don't have (user-selected tiers). If needed, adding the reverse path is trivial."
+    },
+    {
+      "id": "LLM-10",
+      "category": "2-llm-and-model-routing",
+      "description": "Per-run telemetry mandatory — log selected model, tokens, cost, latency, and escalation reason for every run",
+      "approved": true,
+      "decision": "Log to Supabase usage_telemetry table on every generateText/streamText completion.",
+      "reasoning": "All references agree: Fintool uses Braintrust for LLM traces, Tasklet is opaque but platform-tracked, Sunder logs to Supabase. AI SDK returns usage object (inputTokens, outputTokens) on every call. Combined with model ID from router/task config, latency from timing wrapper, and escalation reason from routeQuestion reasoning field, this is a few lines in the gateway wrapper. Essential for cost monitoring, model performance comparison, and debugging routing decisions."
+    },
+    {
+      "id": "LLM-11",
+      "category": "2-llm-and-model-routing",
+      "description": "Cost ceiling target: <$20 per active paid user per month (LLM + infra + services combined)",
+      "approved": true,
+      "decision": "$20/user/mo ceiling confirmed. Even more achievable with two-service stack.",
+      "reasoning": "REVISED cost model per FOUND-02 (Trigger.dev dropped). Background tier on DeepSeek/Kimi (~$0.10-0.30/M tokens) handles 80%+ of pulse/cron volume. Interactive chat: ~60-70% hits Tier 1 (Gemini Flash, cheap), ~20-25% Tier 2 (Gemini Pro, moderate), ~5-10% Tier 3 (Sonnet, expensive but rare). Infra fixed costs now ~$45/mo (Vercel $20 + Supabase $25, down from $55-75 with Trigger.dev). At 10 clients: ~$4.50/client/mo infra + ~$3-5/client/mo LLM = ~$7.50-9.50 total. At 50 clients: ~$0.90 infra + ~$3-5 LLM = ~$4-6 total. Comfortably under $20 ceiling."
+    },
+    {
+      "id": "DATA-01",
+      "category": "3-data-architecture",
+      "description": "Supabase DB (Postgres) as primary structured data store — CRM entities, run metadata, triggers, approvals, conversations, thread state, usage telemetry",
+      "approved": true,
+      "decision": "Supabase Postgres confirmed.",
+      "reasoning": "Direct consequence of FOUND-02. All 25 v1 tables live in Supabase Postgres with RLS per client_id."
+    },
+    {
+      "id": "DATA-02",
+      "category": "3-data-architecture",
+      "description": "Supabase Storage as per-client file store — SOUL.md, USER.md, MEMORY.md, skills, workflows, subagents, artifacts, vault, toolcalls, run checkpoints",
+      "approved": true,
+      "decision": "Supabase Storage confirmed for all per-client files.",
+      "reasoning": "Direct consequence of FOUND-02. All personality, memory, skill, workflow, and artifact files live in Supabase Storage under /{clientId}/ path prefix."
+    },
+    {
+      "id": "DATA-03",
+      "category": "3-data-architecture",
+      "description": "Tenant isolation via Supabase RLS (client_id = current_setting) for DB + Storage path scoping for files",
+      "approved": true,
+      "decision": "RLS + Storage path scoping confirmed.",
+      "reasoning": "Direct consequence of FOUND-01. Already approved there. RLS policies on all 25 tables scope on client_id. Storage paths scope on /{clientId}/ prefix."
+    },
+    {
+      "id": "DATA-04",
+      "category": "3-data-architecture",
+      "description": "Per-client storage layout: /{clientId}/SOUL.md, USER.md, MEMORY.md, memory/, skills/, workflows/, subagents/, artifacts/, vault/, toolcalls/, runs/",
+      "approved": true,
+      "decision": "Storage layout confirmed.",
+      "reasoning": "Standard per-client directory structure. Each subdirectory serves a clear purpose. Layout anticipates future org-tier addition (/{orgId}/skills/shared/ when multi-seat ships)."
+    },
+    {
+      "id": "DATA-05",
+      "category": "3-data-architecture",
+      "description": "No file versioning in v1 — Supabase Storage doesn't have built-in versioning like S3. Accept this trade-off for simplicity.",
+      "approved": true,
+      "decision": "Accept no file versioning in v1.",
+      "reasoning": "Fintool gets S3 versioning for free (every file edit creates recoverable version). Supabase Storage doesn't offer this. The trade-off is acceptable: (1) memory auto-writes tracked via Storage metadata timestamps (last-modified on each file), (2) MEMORY.md working notebook provides human-readable audit trail of what the agent remembers, (3) synthesis pulse reviews recent writes weekly. Nightly Supabase backups cover catastrophic recovery. Revisit if file audit trails become a product requirement."
+    },
+    {
+      "id": "DATA-06",
+      "category": "3-data-architecture",
+      "description": "REVISED (v3): Path-aware write_file handler with inline DB sync — no background sync layer (no Lambda, no reconciliation job). write_file tool handler inspects the path and carries DB obligations automatically. Three behaviors: (1) Vault paths (/{clientId}/vault/*): write to Storage + immediately update vault_files row (content, updated_at) + set needs_reprocess = true. Async background function regenerates summary, tags, and embeddings. Full-text search works immediately on raw content; AI-derived metadata catches up async. (2) Skill paths (/{clientId}/skills/*): write to Storage + immediately update skill_registry row (metadata, updated_at). Cheap — no LLM call needed, just metadata update. (3) All other paths (memory, subagents, configs, artifacts, toolcalls): write to Storage only, no DB row. Agent calls one tool (write_file) for everything — path-awareness is invisible to it. Same pattern as Fintool's S3-event-triggered Lambda sync, but implemented as application-level inline sync instead of infrastructure-level async events. Supabase Storage has no native event triggers (unlike AWS S3), so inline handler is the only viable pattern without adding external infrastructure. No reconciliation job needed — sync is synchronous, failures are immediate and retriable.",
+      "approved": true,
+      "decision": "REVISED (v3): Path-aware write_file handler. Inline sync for vault (content + async reprocess) and skills (metadata). Storage-only for everything else. No background sync infrastructure.",
+      "reasoning": "REVISED (v3) to address the file-update sync problem: original co-located write pattern handled creation but not updates. If agent updates a vault markdown file via write_file, the vault_files row (summary, tags, full-text index) goes stale. Three approaches considered: (A) Path-aware handler — write_file backend inspects path, does inline DB update. Agent sees one tool. (B) Separate tools per domain — vault_upsert, skill_upsert, write_file. Clear contracts but more tools, agent could pick wrong one. (C) DB-first for vault/skills — content in DB column, Storage file is derived copy. Reverses file-first principle. Chose (A): one tool, invisible sync, simplest agent surface. Fintool does the same thing conceptually (one WriteFile tool, backend syncs to DB) but uses AWS S3 event triggers → Lambda — an infrastructure pattern unavailable on Supabase Storage. Sunder's inline handler achieves the same result without extra infrastructure. Vault reprocessing (LLM summary, embedding) is async because it takes 2-5 seconds — too slow to block write_file. vault_files.needs_reprocess flag + Vercel background function handles this. Stale window only affects AI-derived metadata (summary, tags), not raw content (updated immediately in vault_files.content column). Skill metadata updates are cheap (no LLM call) so fully inline. General files (memory, subagents, etc.) need no DB rows — discovered via directory listing per Tasklet pattern. Storage remains source of truth for all file types. DB row failure on vault/skill writes handled with try/catch + retry — Storage write succeeds first, DB update is retriable."
+    },
+    {
+      "id": "DATA-07",
+      "category": "3-data-architecture",
+      "description": "Supabase Realtime for live CRM updates and notification push to frontend",
+      "approved": true,
+      "decision": "Supabase Realtime confirmed.",
+      "reasoning": "Standard Supabase feature. Subscribe to table changes (INSERT/UPDATE/DELETE) filtered by client_id. Powers: live CRM dashboard updates, background task completion notifications, approval request delivery. No Redis or separate pub/sub needed."
+    },
+    {
+      "id": "DATA-08",
+      "category": "3-data-architecture",
+      "description": "Supabase Auth for user login and session management",
+      "approved": true,
+      "decision": "Supabase Auth confirmed.",
+      "reasoning": "Standard Supabase feature. Integrates with RLS (auth.uid() maps to client_id). Handles email/password + OAuth login, session tokens, password reset. No Better Auth or separate auth service needed. Savoir uses Better Auth but we explicitly declined — Better Auth would lose RLS integration."
+    },
+    {
+      "id": "DATA-09",
+      "category": "3-data-architecture",
+      "description": "REVISED: Supabase DB data classes (23 v1 tables). Core CRM (6): clients, contacts, deals, crm_tasks, interactions, crm_config. Agent System (6): agent_tasks, goals, runs, agent_triggers, autopilot_config, approval_events. Conversation (4): conversation_threads (with compaction_summary column), conversation_messages (with parts JSONB), thread_queue_records, guided_interview_sessions. Knowledge & Files (2): vault_files, document_processing_records. Operational (2): usage_telemetry, setup_progress. Infrastructure (3): sandbox_sessions, skill_registry, connections. Deferred to v1.5/v2: stream_replay_events, channel tables (6), growth_plan_items as DB table.",
+      "approved": true,
+      "decision": "REVISED from 24 to 23 v1 tables. Dropped agent_memories (MEM-03 v4 reverted memory to filesystem) and pause_checkpoints (SESSION-04 eliminated checkpoint/resume). Previously dropped: client_files.",
+      "reasoning": "agent_memories table dropped because MEM-03 v4 reverted memory storage from DB rows to filesystem (/{clientId}/MEMORY.md + /{clientId}/memory/*.md in Supabase Storage). Agent discovers memory files via read_file on directory paths, reads/writes via read_file/write_file. No DB table needed. Agent System group drops from 7 to 6 tables. All other tables unchanged. personality_prompt and user_profile columns also removed from clients table (MEM-01/02 reverted to SOUL.md and USER.md files in Storage). clients table retains: id, name, email, auth fields, created_at, updated_at, subscription fields.",
+      "depends_on": [
+        "MEM-01",
+        "MEM-03",
+        "SESSION-04"
+      ]
+    },
+    {
+      "id": "DATA-10",
+      "category": "3-data-architecture",
+      "description": "Toolcall artifact recovery — runner saves full tool results to /{clientId}/toolcalls/{blockId}/result.json and args.json for context truncation recovery",
+      "approved": true,
+      "decision": "Direct Tasklet pattern copy. Save full results to Supabase Storage, insert truncated version + recovery path into context.",
+      "reasoning": "Empirically confirmed in Tasklet live tests: platform truncates large tool results (~5KB in context, full 21KB saved to /agent/toolcalls/{blockId}/result). Agent reads back via filesystem when needed. Sunder equivalent: runner checks tool result size, if > threshold saves full result to /{clientId}/toolcalls/{blockId}/result.json in Supabase Storage, inserts truncated version with note 'full result at toolcalls/{blockId}/result.json' into context. Path is deterministic from blockId — no DB lookup needed (confirmed in DATA-06 analysis). Implementation details (truncation threshold, recovery prompt pattern) resolved during runner development."
+    },
+    {
+      "id": "EXEC-01",
+      "category": "4-execution-and-sandbox",
+      "description": "Two execution modes — Interactive (streamText, user is waiting) and Trigger (generateText, schedule fired, nobody watching). Both call the same runAgent() function. V1 entry points: /api/chat (interactive), /api/cron/scan (trigger scanner), /api/trigger/run (trigger execution). All run in Vercel API routes. V2: /api/webhook/telegram added (Vercel AI SDK Chat SDK adapter). V3: /api/webhook/whatsapp added (Meta Cloud API).",
+      "approved": true,
+      "decision": "REVISED: Two execution modes replace five named flows. Trigger.dev removed from execution path per FOUND-02 revision.",
+      "reasoning": "REVISED from five named flows to two execution modes (Tasklet-native pattern). Tasklet has exactly two modes: interactive chat and trigger execution. Sunder now matches. Interactive mode: user or webhook sends message → Next.js API route → streamText() → stream response. Trigger mode: Vercel cron (1 min) scans agent_triggers table → hits /api/trigger/run → generateText() → writes results to Supabase + notifies via Realtime. Both modes call the same runAgent({ clientId, messages, systemPromptVariant, stream }) function. The agent doesn't know which mode it's in. Flow B (background handoff via tasks.trigger()) eliminated — nothing in v1 exceeds 15 min. Flow C/E collapsed into trigger mode (scanner fires for autopilot pulses AND agent-created triggers). Flow D (webhook) is just interactive mode with a thin adapter (validate signature, return 200, process)."
+    },
+    {
+      "id": "EXEC-02",
+      "category": "4-execution-and-sandbox",
+      "description": "Vercel Pro with Fluid Compute allows up to 15 minutes per function invocation. Most chat completes in 5-30 seconds. This is the hard ceiling for ALL execution — no Trigger.dev fallback.",
+      "approved": true,
+      "decision": "REVISED: 15-min cap is now the hard ceiling, not a safety net. No Flow A→B handoff exists.",
+      "reasoning": "REVISED per FOUND-02/EXEC-01 changes. With Trigger.dev removed, 15-min Vercel Fluid Compute is the hard ceiling for all execution (interactive and trigger-fired). No handoff to a longer-running worker. This is acceptable because: (1) nothing in v1 workload exceeds 13 min even sequentially, (2) parallel tool calls (AI SDK native) keep most multi-item tasks under 5 min, (3) if a v2/v3 workload genuinely exceeds 15 min, add Trigger.dev then. The agent's system prompt should include guidance: 'if a task has more items than you can process in one session, process what you can and schedule a trigger for the remainder.'"
+    },
+    {
+      "id": "EXEC-03",
+      "category": "4-execution-and-sandbox",
+      "status": "removed",
+      "removed_reason": "Trigger.dev background handoff (Flow A→B) eliminated per FOUND-02. The 15-min Vercel Fluid Compute ceiling (EXEC-02) is now the hard cap for all execution — no longer-running worker exists. EXEC-02 reasoning explicitly states 'No Flow A→B handoff exists.'",
+      "merged_into": "EXEC-02"
+    },
+    {
+      "id": "EXEC-04",
+      "category": "4-execution-and-sandbox",
+      "description": "Vercel Sandbox (Firecracker microVMs) as code execution environment — chosen over E2B for native Vercel integration",
+      "approved": true,
+      "decision": "Vercel Sandbox confirmed.",
+      "reasoning": "Native Vercel integration, same team as AI SDK. Savoir extraction guide provides session management patterns (sandbox_sessions table). E2B is technically equivalent (both Firecracker) but adds another vendor. @vercel/sandbox supports per-session reuse and cross-invocation reconnection."
+    },
+    {
+      "id": "EXEC-05",
+      "category": "4-execution-and-sandbox",
+      "description": "Sandbox three-tier model — Tier 1 pure tools (~60-70%), Tier 2 sandbox-enhanced (~25-30%), Tier 3 full sandbox (~5-10%). Agent decides when code execution produces better results.",
+      "approved": true,
+      "decision": "Three-tier sandbox usage model confirmed.",
+      "reasoning": "RE workload genuinely has a pure-tool tier (CRM updates, messaging, simple lookups) that doesn't benefit from code execution. Fintool/Tasklet use sandbox ~100% because financial analysis always benefits from code. Sunder's split reflects workload reality, not an architectural limitation."
+    },
+    {
+      "id": "EXEC-06",
+      "category": "4-execution-and-sandbox",
+      "description": "Sandbox is first-class capability — not an edge case. Agent uses it transparently for reports, data analysis, file processing, document generation, Mini Lovable builds, FFmpeg voice conversion",
+      "approved": true,
+      "decision": "Confirmed. Aligned with Fintool/Tasklet philosophy.",
+      "reasoning": "Sandbox-as-capability, not sandbox-as-escape-hatch. The agent decides when code produces better results. User never knows a sandbox was involved. Three-tier model (EXEC-05) means it's not used for everything, but when used it's a natural part of the workflow."
+    },
+    {
+      "id": "EXEC-07",
+      "category": "4-execution-and-sandbox",
+      "description": "Sandbox routing guidance lives in system prompt — not hardcoded rules. Agent evaluates 'would code produce a meaningfully better result?'",
+      "approved": true,
+      "decision": "Confirmed. Agent decides, not rules engine.",
+      "reasoning": "Hardcoded rules (if file_type == xlsx then sandbox) are brittle and miss edge cases. System prompt guidance lets the model evaluate context: 'user wants a quick count → pure tool. User wants a formatted report with charts → sandbox.' Same pattern as Tasklet where the agent always has run_command available but chooses when to use it."
+    },
+    {
+      "id": "EXEC-08",
+      "category": "4-execution-and-sandbox",
+      "description": "Sandbox cold start mitigation — v1: accept 2-5s first-call latency. v1.5: pre-warm on user keypress + snapshot templates for common environments (FFmpeg, ExcelJS, pandas)",
+      "approved": true,
+      "decision": "Accept cold start in v1. Pre-warming deferred to v1.5.",
+      "reasoning": "Pragmatic. 2-5s cold start is acceptable for v1 pilot users. Pre-warming (spin up sandbox when user starts typing) and snapshot templates (pre-installed environments) are v1.5 optimizations. Fintool does pre-warming on keypress — worth stealing when sandbox usage volume justifies it."
+    },
+    {
+      "id": "EXEC-09",
+      "category": "4-execution-and-sandbox",
+      "description": "Sandbox per-session reuse — create once, .exec() many times within same invocation. Packages and temp files persist within session, lost on session end.",
+      "approved": true,
+      "decision": "Confirmed. Empirically validated in Tasklet tests.",
+      "reasoning": "Tasklet live tests confirmed: same container persists within invocation, new shell per command, /tmp shared, installed packages persist. Vercel Sandbox docs confirm .exec() reuse pattern. The sandbox is a persistent object within a session — create once, execute many times."
+    },
+    {
+      "id": "EXEC-10",
+      "category": "4-execution-and-sandbox",
+      "description": "Sandbox cross-invocation reconnection — persist sandboxId in sandbox_sessions DB table, reconnect from different serverless function via Sandbox.get({ sandboxId })",
+      "approved": true,
+      "decision": "Confirmed. Supported by sandbox_sessions table from DATA-09.",
+      "reasoning": "Vercel Sandbox explicitly documents 'persistent sandbox across serverless invocations' via Sandbox.get({ sandboxId }). sandbox_sessions table (added in DATA-09) stores sandboxId, client_id, created_at, last_used_at, status. Enables: background task creates sandbox → chat reconnects to same sandbox to show results."
+    },
+    {
+      "id": "EXEC-11",
+      "category": "4-execution-and-sandbox",
+      "description": "No mount infrastructure. Three file sources, all resolved before or during execution: (1) boot set downloaded at init, (2) message attachments downloaded at init from message metadata, (3) vault files accessed via read_file/write_file tools. No batch upload-after — writes persist immediately via write_file.",
+      "approved": true,
+      "decision": "Confirmed. Eager download + tool-mediated vault access replaces FUSE/S3 mounts. Same two tools as Tasklet (read_file, write_file), different plumbing.",
+      "reasoning": "Three reference patterns compared: (1) Tasklet mounts /agent/ via FUSE — cloud storage appears as local disk, every I/O is a network call (~10-50ms), requires FUSE driver in sandbox image. Agent uses read_file/write_file tools; FUSE mount is for sandbox code doing open(). (2) Fintool mounts S3 prefixes (/private, /shared, /public) with IAM ABAC credentials — same lazy I/O pattern, adds AWS credential provisioning per sandbox boot. Agent uses ReadFile/WriteFile tools. (3) Claude Skills API uses explicit container_upload — platform copies files into container before execution, no mounts. Sunder follows pattern (3) for init, plus standard read_file/write_file tools from pattern (1). Three file sources mapped to the user journey: (A) Boot set — SOUL.md, USER.md, MEMORY.md, memory/*, skills/*, workflows/*, subagents/* (~30-120KB total, <100ms download, free on Supabase Pro 250GB/mo egress). Always downloaded into sandbox /tmp/agent/ at init. Predictable, static list. (B) Message attachments — user uploads PDF/photo/doc via web chat (v2: Telegram, v3: WhatsApp). Frontend/webhook handler stores in Supabase Storage, message record includes attachment references (storage paths). Runner reads message metadata at init, downloads referenced attachments alongside boot set. No guessing — the message record declares what files exist. (C) Vault files on demand — agent needs a file from a previous conversation ('what did that inspection report say about the roof?'). Agent calls read_file(path), runner downloads from Supabase Storage, caches to sandbox local disk. Same tool as Tasklet, runner handles Supabase plumbing. Writes: write_file(path, content) persists to Supabase Storage immediately — no deferred batch upload, no lost work on sandbox timeout. Agent code in sandbox reads local disk at native speed (~0.1ms vs 10-50ms with FUSE). Functionally equivalent to Fintool's mount at <50 clients. Prerequisite: messages table must include attachment references (array of storage paths) so runner knows which files to download at init — this is a data model concern (category 3). Edge cases stress-tested: multiple attachments per message (all listed in metadata, all downloaded), large media (product scope decision, not architecture), agent-generated code referencing un-read vault file (FileNotFoundError, agent self-corrects with read_file, one wasted step), concurrent writes from cron + live chat (last-write-wins acceptable at <50 clients). Revisit eager loading if average boot download exceeds 500ms (working set > ~2MB) or if message attachment sizes routinely exceed 5MB."
+    },
+    {
+      "id": "RUNNER-01",
+      "category": "5-runner-engine",
+      "description": "Single runner engine — all entry points (chat, webhook, cron trigger, agent-created trigger) feed into the same runAgent() function. No separate execution paths.",
+      "approved": true,
+      "decision": "Confirmed. Single runner, standardized payload. Updated wording for two-mode architecture (EXEC-01 revision).",
+      "reasoning": "All three references (Tasklet, Fintool, Sunder blueprint) converge on single entry point. Entry point type is metadata in the payload ({ clientId, threadId, triggerType, input }), not a separate code path. Prevents drift between channel handlers, ensures bug fixes and tool availability are uniform. Two execution modes (interactive streamText vs trigger generateText) call the same runAgent() — only the streaming flag differs."
+    },
+    {
+      "id": "RUNNER-02",
+      "category": "5-runner-engine",
+      "description": "Tool loop via Vercel AI SDK — streamText/generateText with maxSteps per tier (Tier 1: 4-8, Tier 2: 15, Tier 3: 25, Background: task-specific). Each step = one model API call + tool execution. Entire loop runs inside ONE Vercel function invocation.",
+      "approved": true,
+      "decision": "AI SDK owns the tool loop. maxSteps varies by model tier per LLM-05–08.",
+      "reasoning": "AI SDK's streamText/generateText handles the call-execute-feed cycle internally — no manual while loop. Tradeoff vs Tasklet/Fintool (manual loop): less control but less code. AI SDK exposes onStepFinish callback for per-step telemetry, which is sufficient. maxSteps updated from flat '20' to per-tier values from LLM decisions. streamText for interactive mode (user watching), generateText for trigger mode (nobody watching). All execution in Vercel API routes per EXEC-01 revision."
+    },
+    {
+      "id": "RUNNER-03",
+      "category": "5-runner-engine",
+      "description": "Context assembly order (fixed): 1) SOUL.md personality, 2) USER.md profile, 3) MEMORY.md working notebook (first 200 lines), 4) Latest compaction summary, 5) Recent thread messages + state + active workflow artifacts. Topic files (memory/*.md) loaded on-demand via read_file.",
+      "approved": true,
+      "decision": "Confirmed. Fixed five-layer assembly order.",
+      "reasoning": "All three references converge on identity-first ordering. LLMs weight earlier tokens more heavily in long contexts — personality first ensures consistent tone/behavior. Compaction summary before raw messages gives the model 'story so far' before recent details. Direct Tasklet pattern: platform instructions → personality → profile → memory → conversation. SOUL.md is always-loaded (like CLAUDE.md in Claude Code)."
+    },
+    {
+      "id": "RUNNER-04",
+      "category": "5-runner-engine",
+      "description": "System-reminder injection pattern — regenerate lightweight state snapshot (~130 tokens) per turn with 7 fields: time+tz, user name+email, trigger count, task count, DB tables count, per-connection block (ID + X/Y activated tools + conditional skill pointer), inactive connection count. Inspired by Tasklet.",
+      "approved": true,
+      "decision": "Amended. Added DB tables count (was incorrectly dropped — Tasklet DOES inject count, not schema). Added per-connection 'X of Y tools activated' + conditional skill pointer. Added user email alongside name. Added inactive connection count. Corrected token estimate from ~200-400 to ~130. Deferred: intelligence level (our routing is classifier-driven, not user-selected) and contact methods count (single-channel web in v1).",
+      "reasoning": "Tasklet's actual production system-reminder traced verbatim (Feb 26 2026). 9 fields total, we adopt 7. (1) Time+tz: no LLM has a clock — every scheduling/timezone decision breaks without it. (2) User name+email: email needed for Gmail link construction, identity resolution in threads/calendar. (3) Trigger count: prevents duplicate creation, enables rediscovery on cron fire. (4) Task count: resume awareness for unfinished work across sessions. (5) DB tables count: 3 tokens, enables lazy schema discovery — if 0 don't bother calling get_schema, if N call it. Original drop was based on factual error ('Tasklet doesn't do it' — it does). (6) Per-connection block: connection ID + 'X of Y tools activated' (enables tool discovery — LLM knows more tools exist and can activate them) + conditional skill pointer (ONLY if SKILL.md exists for that connection — Gmail gets one, Calendar doesn't). This is the lazy-loading mechanism SKILL-01/SKILL-02 depend on. (7) Inactive connection count: prevents duplicate OAuth flows when user already has a disconnected service. Deferred: intelligence level — Tasklet uses it because users manually pick model tier; our routing is automated via routeQuestion classifier so the LLM doesn't need self-awareness of its tier. Contact methods count — we're single-channel (web) in v1, no multi-channel routing problem to solve. Both trivial to add later (~8 tokens each). Total budget: ~130 tokens per turn. Reference: references/tasklet/system-reminder-complete-engineering-trace.md"
+    },
+    {
+      "id": "RUNNER-05",
+      "category": "5-runner-engine",
+      "description": "Stateless invocation model — every model invocation treated as stateless. Reliability comes from persisted artifacts and contracts, not hidden memory.",
+      "approved": true,
+      "decision": "Confirmed. Foundational principle already baked into all prior decisions.",
+      "reasoning": "All three references converge. Vercel serverless is ephemeral by nature — no persistent process state. Context assembly (RUNNER-03) rebuilds world state from Supabase every invocation. Co-located writes (DATA-06) ensure everything important is persisted before function ends. Artifact recovery (DATA-10) handles large tool results. Run-status contract (RUNNER-08) tracks progress. Stateless systems fail loudly (if it's not in DB/Storage, it doesn't exist) vs stateful systems that fail silently (process crashes, hidden state lost). We don't need Temporal/durable execution because each invocation is a clean room that proves its own correctness."
+    },
+    {
+      "id": "RUNNER-06",
+      "category": "5-runner-engine",
+      "description": "Subagent spawning — runner calls generateText() via Vercel AI Gateway with subagent instruction file (.md) as system prompt + payload as user message. Subagents inherit ALL tools from parent except UI-interaction tools (trigger management, connection management, approval UI) which are blocked at platform level. Only final text returns to parent context; subagent intermediate tool calls and reasoning discarded. Instruction file controls behavior, not tool restrictions.",
+      "approved": true,
+      "decision": "Follow Tasklet exactly. Full tool inheritance, UI-tool blocklist, instruction-file guardrails.",
+      "reasoning": "Confirmed directly with Tasklet developer: subagents inherit all parent tools. No tool selection parameter exists. Platform blocks only UI-displaying tools (triggers, connections, rename chat) because subagents run invisibly. All other behavior control is via the instruction markdown file — 'like telling an intern.' Sunder follows the same model: instruction file says 'search the web, do NOT send emails' and the LLM obeys. No role-based tool sets, no parent-specifies-per-call complexity. Tasklet's users are also non-technical — this model works in production. If a subagent misbehaves, fix the instruction file, not the tool access layer."
+    },
+    {
+      "id": "RUNNER-07",
+      "category": "5-runner-engine",
+      "description": "Workflows are markdown, not code — agent writes instruction files (.md) during setup. Fresh LLM instances interpret them at trigger fire time. No DAGs or state machines.",
+      "approved": true,
+      "decision": "Follow Tasklet exactly. Markdown instruction files, no workflow engine.",
+      "reasoning": "Tasklet core philosophy: agent writes .md file to Storage, creates trigger pointing to it, fresh generateText() reads and executes at fire time. No Temporal, no Inngest, no state machines. The markdown IS the workflow definition — human-readable, editable, debuggable. Fintool uses Temporal for durable workflows (financial compliance requires atomic trade execution, saga patterns) — overkill for RE CRM workflows (scheduled reports, listing alerts, follow-up reminders, autopilot pulse). Tradeoff: markdown can't express conditional branching or error recovery as precisely as code DAGs. Acceptable for v1 — Sunder's workflows are linear instructions, not multi-branch sagas."
+    },
+    {
+      "id": "RUNNER-08",
+      "category": "5-runner-engine",
+      "description": "REVISED: Canonical run-status contract — non-terminal: queued, running. Terminal: completed, partial, failed, cancelled. Partial is a valid terminal state. Six statuses total. waiting_user_input and waiting_approval eliminated per SESSION-04 (run completes after asking, user reply triggers new run).",
+      "approved": true,
+      "decision": "REVISED: Six statuses, two non-terminal, four terminal. Dropped waiting_user_input and waiting_approval per SESSION-04.",
+      "reasoning": "REVISED to align with SESSION-04 (no pause-and-resume, no approval checkpoint). Original had 8 statuses including waiting_user_input and waiting_approval as non-terminal states with pause_checkpoints table. SESSION-04 eliminated all of this: agent asks a question, run completes as 'completed', user replies whenever, new run starts with full thread history. Same for approvals (per SESSION-04 reasoning): agent proposes action in thread, run completes, user replies to approve/reject, next run acts accordingly. No pause, no checkpoint, no lock held. Remaining 6 statuses: queued (trigger scanner picked up, not yet executing), running (inside generateText/streamText tool loop), completed (normal finish, including 'asked a question and finished'), partial (did useful work but couldn't finish — hit rate limit, timeout approaching — saves progress, terminal but usable), failed (error, no useful output), cancelled (user or system killed it). Partial as valid terminal unchanged: 'research 20 leads' → agent does 14, saves progress, marks partial."
+    },
+    {
+      "id": "RUNNER-09",
+      "category": "5-runner-engine",
+      "description": "Platform instructions layer (position #0, before SOUL.md in RUNNER-03 assembly) — hardcoded behavioral rules injected by the runner every invocation. Based on Tasklet's verbatim system prompt (references/tasklet/system-prompt-wholesale/00-system-prompt-wholesale-verbatim.md) as starting template, forked and adapted for Sunder. Covers: personality defaults, filesystem layout (Supabase Storage paths per DATA-04, not FUSE), tool usage guidance (12 categories per TOOL-03), context management (truncation recovery via toolcalls/), subagent instructions, sandbox usage, connection lifecycle, trigger setup, autonomous notification rules, task list management, output guidance. Extended with Sunder-specific rules: (1) always vault incoming user documents to appropriate deal/vault location via write_file, (2) CRM update guidance (when to create vs update contacts/deals/interactions), (3) web-first messaging with email notifications (TRIG-06b) — adapt contacting-the-user section for v1 web-only (v2: Telegram, v3: WhatsApp), (4) approval workflow instructions (when to request approval vs proceed), (5) no Computer Use references, no FUSE references. This is a fork, not a rewrite — Tasklet's prompt is production-proven, Sunder adapts rather than reinvents.",
+      "approved": true,
+      "decision": "Confirmed. Tasklet system prompt as starting template, forked for Sunder. Platform instructions = position #0 in context assembly.",
+      "reasoning": "RUNNER-03 defines five-layer assembly order starting at SOUL.md, but its own reasoning references 'platform instructions → personality → profile → memory → conversation' — acknowledging a layer before SOUL.md that was never formalized as a decision. Tasklet's full system prompt (229 lines, ~3,500 tokens) defines runtime behavior across 12 sections: personality, contacting-the-user, context-management, filesystem, skills, tasks, web-browsing-and-search, sql-db, subagents, sandbox, external-connections, triggers, when-to-notify, working-via-your-task-list, output-guidance. Approximately 80% maps directly to Sunder with path/tool name substitutions. Key adaptations: (1) filesystem section rewrites /agent/ paths to Supabase Storage layout (/{clientId}/SOUL.md, memory/, skills/, etc.) and removes FUSE references, (2) contacting-the-user section adapts for web-first v1 (in-app thread messages + email notifications via TRIG-06b; v2: Telegram, v3: WhatsApp with 24hr window/templates), (3) sandbox section updates for Vercel Sandbox (not Alpine Linux, different preinstalled tools, 300s timeout not 5m), (4) connections section adapts from Pipedream to Composio, removes per-tool activation gating (TOOL-02 delta). Sunder extensions not in Tasklet: (a) 'always vault incoming documents' — when user sends an attachment, agent saves to vault/{deal-or-inbox}/ via write_file, triggering DATA-06 inline sync (vault_files row + async reprocessing). This ensures all user-sent documents are discoverable via vault_files SQL, not buried in conversation_messages.parts JSONB. (b) CRM update rules — Tasklet has no CRM, Sunder needs guidance on when to create interactions, update deal status, link documents to contacts. (c) Approval rules — when actions require user confirmation (SAFETY category). The platform instructions layer is the only place these behavioral rules can live — SOUL.md is user-editable personality (MEM-01), not platform rules. Reference: references/tasklet/system-prompt-wholesale/00-system-prompt-wholesale-verbatim.md"
+    },
+    {
+      "id": "TOOL-01",
+      "category": "6-tool-architecture",
+      "description": "Hybrid tool contracts — strict versioned schemas for internal tools (CRM, filesystem, workflow, approvals), normalized output envelope for external integration tools (Composio, MCP, Direct API)",
+      "approved": true,
+      "decision": "Confirmed. Two tool classes with different contract models.",
+      "reasoning": "All three references converge on this split. Internal tools (CRM CRUD, Storage, sandbox, triggers, approvals) have strict Zod schemas — we control the contract, agent knows exact parameters and response shape. External tools (Composio, MCP, direct API) return unpredictable vendor JSON — normalized into consistent envelope { success, data, error, source } so the agent always knows: did it work, what's the data, what went wrong. Fintool versions their internal schemas (tool_v2, tool_v3) — overkill for v1 but worth noting if tool contracts evolve. Tasklet same pattern: platform tools strict, connected service tools wrapped."
+    },
+    {
+      "id": "TOOL-02",
+      "category": "6-tool-architecture",
+      "description": "Tasklet tool surface as baseline — ~20 of Tasklet's 30 built-in tools map directly to Sunder equivalents (adapted for Supabase/Composio instead of FUSE/Pipedream), ~5 Tasklet-specific tools adapted (contact_methods → CRM contact tools, create_tasklet_app → sandbox, quota → usage_telemetry, rename_chat → trivial), preview panel kept as v1 feature (show_preview/close_preview tools with persistent side panel for files, sandbox apps, and artifacts), plus domain-specific additions (CRM CRUD, document processing, approval tools).",
+      "approved": true,
+      "decision": "Not reduced — adapted baseline plus additions. Preview panel is v1. Reframed from 'smaller surface' to 'Tasklet baseline + Sunder domain tools'.",
+      "reasoning": "Source schemas: references/tasklet/tools/00-complete-tasklet-tool-definitions-verbatim.md (all 30 Tasklet tool definitions with full JSON schemas). Individual breakdowns: references/tasklet/tools/built-in/ (01-30). Use these as starting point for Sunder tool implementation — copy schema, adapt plumbing. Full tool-by-tool mapping: VERBATIM (same contract, rename plumbing only, 14 tools): read_file (Supabase Storage instead of FUSE, dual-purpose per TOOL-03), write_file (path-aware per DATA-06), web_search (Brave/Exa underneath), web_scrape (same contract), run_agent_memory_sql (Supabase Postgres), get_agent_db_schema (Supabase Postgres), manage_tasks (same), list_tasks (same), run_subagent (generateText per RUNNER-06), search_triggers (Trigger.dev/Supabase), setup_trigger (Trigger.dev/Supabase), manage_active_triggers (Trigger.dev/Supabase), show_user_preview (same), close_user_preview (same). ADAPTED (different contract or merged, 7 tools): run_command → adapted for Vercel Sandbox (300s timeout not 5m, no Alpine, different preinstalled tools), send_message → v1: platform email via Resend (TRIG-06b), v2: Telegram, v3: WhatsApp (24hr window + templates), reply_message → same channel adaptation, create_tasklet_app → replaced by create_sandbox + sandbox lifecycle tools, rename_chat → trivial (same concept, minimal), get_user_quota_status → replaced by usage_telemetry (different schema, Supabase usage data), connection tools (list/get_details/get_capabilities/search/reauthorize/delete/create — 7 Tasklet tools) → same 7 contracts adapted for Composio SDK instead of Pipedream SDK. OMITTED (3 tools): list_contact_methods → omitted (web single-channel in v1, no contact method management), add_contact_method → omitted (same reason), manage_activated_tools_for_connections → omitted (all tools active on connect, our allowlist is small per TOOL-02 delta). SUNDER ADDITIONS (not in Tasklet): CRM tools (get/search/update/create for contacts, deals, tasks, interactions, crm_config — Tasklet has no CRM), approval tools (request_approval, check_approval_status — SAFETY category), document processing (extract_document, process_pdf), sandbox lifecycle (create_sandbox, reconnect_sandbox — Tasklet's sandbox is always-on, ours is ephemeral), scraping lanes 2-3 (Apify/RapidAPI structured scraping, Stagehand+Browserbase interactive — Tasklet only has lane 1 web_scrape). Net count: ~14 verbatim + ~7 adapted + ~15-20 Sunder additions = ~36-41 total tools, comparable to Tasklet's 30 + connection tools. Preview panel (show_user_preview/close_user_preview) KEPT as v1 — persistent side panel that displays files, sandbox-generated apps, and artifacts while chat continues. streamUI handles inline rich components in the chat stream, but preview panel is a different UX (persistent, doesn't scroll away). Tasklet delta noted: (1) suggest_intelligence_level_change omitted — intentional, our routing is classifier-driven (see LLM-03). (2) manage_activated_tools_for_connections omitted — Tasklet uses per-tool activation gating (LLM requests activation, user approves via UI card) to manage 16+ tools per connection. We activate all tools on connect because our allowlist is small (3-5 integrations, curated tool sets per integration). Per-tool gating is overhead at our scale. If we grow to 10+ integrations with 50+ total tools, revisit."
+    },
+    {
+      "id": "TOOL-03",
+      "category": "6-tool-architecture",
+      "description": "Tool bridge categories (12): 1) CRM (get/search/update/create contacts, deals, tasks, crm_config), 2) Storage/File (read_file, write_file via Supabase Storage — read_file is dual-purpose: file path returns content, directory path returns recursive tree listing via Storage.list(prefix). This is the primary file discovery mechanism for agent operational files, direct Tasklet pattern. No separate list_files or search_files tool in v1. Knowledge base search uses vault_files full-text search via SQL, not directory listing), 3) Database (run_agent_memory_sql, get_agent_db_schema via Supabase Postgres), 4) Sandbox (run_command, create_sandbox, reconnect_sandbox), 5) Messaging (send_message, reply_message — v1: platform email via Resend, v2: Telegram, v3: WhatsApp), 6) Workflow/Subagent (run_subagent, setup_trigger, search_triggers, manage_active_triggers), 7) Connection (list/get/search/create/manage/reauth/delete connections via Composio), 8) UI (show_preview, close_preview, rename_chat), 9) Utility (web_search, web_scrape, usage/quota), 10) Scraping/Browser (three lanes: known-site Apify/RapidAPI, open-ended Scrapling in sandbox, interactive Stagehand+Browserbase, LinkedIn MCP), 11) Approval (request_approval, check_approval_status), 12) Document Processing (extract_document, process_pdf)",
+      "approved": true,
+      "decision": "12 tool categories confirmed. Category 2 clarified: read_file dual-purpose (content + directory listing), write_file path-aware (inline DB sync for vault/skill paths per DATA-06 v3). Knowledge base discovery via vault_files SQL.",
+      "reasoning": "Full taxonomy derived from TOOL-02 analysis. Category 2 clarified after filesystem-first discovery analysis: read_file handles both file reading (Storage.download) and directory browsing (Storage.list formatted as tree). This is the exact Tasklet pattern — Tasklet has 2 filesystem tools (read_file, write_file) with read_file doing double duty for content and discovery. Agent operational files (~15-20 per client: skills, subagents, memory, configs) discovered via directory listing. Knowledge base files (potentially 100+ vault docs) discovered via vault_files table with full-text search — directory listing doesn't scale for semantic search across large document sets. Two discovery mechanisms matched to scale: directory listing for small structured sets, SQL search for large unstructured sets. Categories 2-3 (Storage, DB), 5-7 (Messaging, Workflow, Connection), 8-9 (UI, Utility) are direct Tasklet mappings adapted for Sunder's platform (Supabase/Composio). Category 1 (CRM) is Sunder's core domain addition — Tasklet has no CRM. Category 4 (Sandbox) extends Tasklet's run_command with explicit sandbox lifecycle management. Categories 10-12 (Scraping, Approval, Document Processing) are Sunder-specific. Scraping three-lane model detailed in TOOL-10. Approval tools detailed in SAFETY category. Exact tool names and schemas resolved during implementation — this is the categorical structure. Tasklet delta noted: Category 7 (Connection) in Tasklet includes manage_activated_tools_for_connections for per-tool activation gating. Omitted in Sunder — we activate all tools on connect due to small integration count. suggest_intelligence_level_change (meta/model category in Tasklet) also omitted — classifier-driven routing means no LLM self-escalation tool needed. Neither omission creates a new category; both are intentional scope reductions."
+    },
+    {
+      "id": "TOOL-04",
+      "category": "6-tool-architecture",
+      "description": "Connection lifecycle follows Tasklet exactly — check existing connections → verify capability → activate minimum tools with approval → integrations→mcp→direct_api preference order → create new only if needed → reauthorize on failure. Composio as primary integration provider (replacing Pipedream), Pipedream as fallback if Composio lacks coverage.",
+      "approved": true,
+      "decision": "Tasklet connection lifecycle copied wholesale. Composio adapted to fit Tasklet's tool structure, not the other way round.",
+      "reasoning": "Tasklet's 8 connection tools (list, get_details, get_capabilities, search, manage_activated_tools, create, reauthorize, delete) define the tool contract. Sunder keeps the exact same tool names, parameters, and lifecycle flow. Implementation swaps Pipedream SDK for Composio SDK under the hood. Assumption: Composio's API surface (list apps, get actions, initiate connection, manage active tools) maps closely to Pipedream's — if any gaps exist, we write adapter code to make Composio fit Tasklet's contract, not refactor the tools to match Composio's API. Pipedream retained as fallback if Composio lacks coverage for a specific integration. Preference order: Composio integrations → managed MCP allowlist (TOOL-06) → direct API (managed allowlist only in v1). Fintool comparison: their connections are admin-provisioned, agent can't create new ones — too restrictive for our use case where the agent guides the user through connecting services. Tasklet delta: Tasklet's connection lifecycle includes per-tool activation gating via manage_activated_tools_for_connections (LLM requests, user approves via UI card). Sunder simplifies: all tools active on connect. Our allowlist is small (3-5 integrations with curated tool sets), so per-tool gating is overhead. 'Activate minimum tools with approval' in our lifecycle means the OAuth approval covers all tools for that integration, not a subset."
+    },
+    {
+      "id": "TOOL-05",
+      "category": "6-tool-architecture",
+      "status": "removed",
+      "removed_reason": "Original Pipedream-as-integration-backend decision superseded by CONN-02 (Composio as integration backend) and TOOL-06 (managed allowlist). Open/arbitrary MCP and raw API access restricted to managed allowlist in v1. Pipedream retained only as fallback in TOOL-04 reasoning, not as a primary decision.",
+      "merged_into": "CONN-02"
+    },
+    {
+      "id": "TOOL-06",
+      "category": "6-tool-architecture",
+      "description": "Managed allowlist for integrations in v1 — we pre-register which services are available in Composio (Google Calendar, Gmail, Outlook, etc). All 4 connection types (CONN-01) exist in the schema, but mcp and direct_api are done-for-you in v1: Sunder team configures the endpoint/auth on user request — user/agent never enters arbitrary URLs. integrations (Composio) are self-service via OAuth. UX is Tasklet-identical: agent discovers need → asks user → pops OAuth → activates tools → continues. User never knows there's an allowlist — unsupported services get 'not available yet'.",
+      "approved": true,
+      "decision": "Managed allowlist for integrations. mcp/direct_api available in v1 but done-for-you setup only (no user-entered URLs). Self-service mcp/direct_api may open in v2.",
+      "reasoning": "The allowlist is a backend decision (which integrations we register in Composio), not a UX decision. From the user's perspective, the flow is identical to Tasklet: conversational discovery → OAuth popup → tool activation → usage. The only difference is coverage — Tasklet/Pipedream supports anything, Sunder v1 supports a curated set. If user asks for something not on the list, agent says 'not supported yet' gracefully. No settings page, no pre-configuration screen. mcp and direct_api connections exist in the schema and can be populated by the Sunder team for specific client needs, but users/agents cannot enter arbitrary endpoint URLs in v1 — this prevents confusion loops where the AI tries to configure unknown MCP servers. Self-service mcp/direct_api may open in v2 if demand warrants it. Security boundary: we can't debug arbitrary MCP servers, and arbitrary API endpoints are an injection surface. Addition: the managed allowlist should track has_skill_file per integration (boolean). This feeds the conditional skill pointer in system-reminder (RUNNER-04) and the OAuth completion logic (SKILL-05). Example: Gmail=true, Calendar=false, Forms=false, Telegram=probably true (v2), WhatsApp=probably true (v3)."
+    },
+    {
+      "id": "TOOL-07",
+      "category": "6-tool-architecture",
+      "description": "First approved external MCP: Granola (meeting transcripts) on the managed allowlist. Document processing is NOT an MCP — it's internal tools (extract_document, process_pdf) implemented as tool handlers in our codebase that call our own Supabase Storage → sandbox processing → write results. MCP is for external services we don't control; internal capabilities are just tools.",
+      "approved": true,
+      "decision": "Granola as first external MCP. Document processing as internal tools, not MCP.",
+      "reasoning": "Granola is an external service (they provide the MCP server, we connect) — MCP is the correct integration pattern. Document processing is our own code: tool handler reads file from Supabase Storage, spins up sandbox if needed (PDF parsing, OCR, extraction), writes structured output back. Adding an MCP protocol layer between our own API route and our own agent is pointless overhead. Internal capabilities belong in TOOL-03 Category 12 (Document Processing tools). The managed allowlist (TOOL-06) governs which external MCPs are available — Granola is the first entry."
+    },
+    {
+      "id": "TOOL-08",
+      "category": "6-tool-architecture",
+      "description": "Tasklet-style custom schemas for top integrations via Composio modifySchema — customize tool descriptions, parameters, and LLM coaching (search strategies, readMask enums, simplified params) for top services (Gmail, Calendar, etc). Composio executes the actual API call underneath. Default Composio schemas for everything else.",
+      "approved": true,
+      "decision": "Use Composio modifySchema for top integrations from day one. Same pattern as Tasklet's custom schemas over Pipedream.",
+      "reasoning": "Tasklet doesn't use raw Pipedream tool definitions — they write custom schemas (e.g., gmail_search_threads with <search-strategy> coaching block, readMask enum, pagination guidance) and wire them to Pipedream's execution. The LLM sees Tasklet's optimized schema, Pipedream does the API call. Composio supports the exact same pattern via modifySchema({ toolSlug, schema }) at tool retrieval time — rewrite descriptions, add/remove params, inject LLM coaching, all without building separate tools. Also supports createCustomTool for cases where the existing Composio action doesn't match at all. Composio has first-party VercelProvider for AI SDK integration. No need to defer this to v1.5 — modifySchema is zero infrastructure cost, just schema overrides for top integrations. Original framing ('no static path') was wrong — Tasklet's approach was always 'custom schemas over marketplace execution', and Composio supports this natively."
+    },
+    {
+      "id": "TOOL-09",
+      "category": "6-tool-architecture",
+      "description": "Search and extraction are direct API calls, not Composio — too expensive through Composio. Defaults: Brave Search API (LLM Context endpoint) for web search, Exa /contents (text mode) for known-URL extraction. Provider is a config choice, swappable without code changes. Parallel Search MCP as optional A/B alternative.",
+      "approved": true,
+      "decision": "Brave + Exa as initial defaults. Direct API calls, not Composio. Swappable.",
+      "reasoning": "Search and extraction are high-frequency tools — every research task, every enrichment, every autopilot pulse may hit them. Running through Composio adds per-call cost that doesn't justify the abstraction for a tool we call hundreds of times daily. Direct API integration: Brave Search has an LLM-optimized endpoint (returns pre-formatted context), Exa /contents extracts clean text from known URLs. Both are simple REST calls wrapped in our tool handlers. Provider is configurable — if Brave pricing changes or a better option appears, swap the implementation behind the same tool contract. Parallel Search MCP already available as A/B alternative for comparison."
+    },
+    {
+      "id": "TOOL-10",
+      "category": "6-tool-architecture",
+      "description": "Three lane model for web data — distinct tool categories, not three versions of the same tool. Utility (TOOL-09): web_search (Brave) + web_scrape (Exa) for casual lookups, reading pages — Tasklet-identical tool contracts (query/limit/location/tbs for search, url for scrape). Lane 1 — Lead scraping: known-site structured extraction (Apify actors for PropertyGuru, RapidAPI for LinkedIn bulk). Domain tools for batch data jobs. Lane 2 — Open-ended scraping: Scrapling + cheap LLM in Vercel Sandbox for unknown site structures ('find team page on this company site'). Runs within 15-min Vercel cap. Lane 3 — RPA/Interactive browser: Stagehand + Browserbase for login-required, JS-heavy, multi-step navigation. LinkedIn MCP for interactive lookups. Firecrawl and Tinyfish not default paths.",
+      "approved": true,
+      "decision": "Three lanes as distinct tool categories (utility, lead scraping, RPA). Tasklet tool contracts for base utility. Trigger.dev reference removed per FOUND-02.",
+      "reasoning": "Tasklet's web_search_web and web_scrape_website are simple utility tools — the agent just says 'search this' or 'read this URL.' Our base utility tools match these contracts exactly (Brave + Exa underneath). But Sunder has additional job types Tasklet doesn't: bulk lead scraping (50 PropertyGuru listings, 200 LinkedIn profiles) and interactive browser automation (portal login, multi-step navigation). These aren't casual web reads — they're structured data extraction and RPA respectively. Different tool categories serving different job types, not three versions of the same thing. Agent knows which to use because the tasks are fundamentally different. Lane 2 updated: runs in Vercel Sandbox within 15-min cap (Trigger.dev deferred per FOUND-02). Candidate for v3 Trigger.dev if genuinely needs longer execution."
+    },
+    {
+      "id": "SKILL-01",
+      "category": "7-skill-system",
+      "description": "Skills as markdown files — five-layer architecture: (1) Storage: system templates in codebase (apps/web/skills/templates/{slug}/TEMPLATE.md, read-only), personalized + custom + connection skills per-client in Supabase Storage (/{clientId}/skills/{slug}.md, deterministic paths). (2) Index: skill_registry table (shared discovery layer for runner, subagents, frontend). (3) Pointers: system-reminder injects ~20-30 token pointers per skill, not full content. (4) Loading: lazy via read_file() on demand — LLM decides when to load. (5) Creation: co-located writes (Storage file + registry row in same function call per DATA-06).",
+      "approved": true,
+      "decision": "Hybrid architecture: Tasklet pointer-based lazy loading + Fintool skill_registry as shared discovery index. Self-contained .md files, no sub-file chains, no sync infrastructure.",
+      "reasoning": "Analyzed Tasklet (two-pointer lazy loading, platform IS the index, no SQL), Fintool (fs_files SQL index with YAML frontmatter, three-tier shadowing, S3→Lambda sync, sub-file chains), and Sunder needs (subagent self-discovery, bounded customization, <10 clients v1). Took: Tasklet's pointer + read_file lazy loading pattern (saves ~4,000-8,000 tokens/turn vs pre-assembled). Took: Fintool's SQL index concept (skill_registry enables subagent self-discovery + frontend skill library UI). Skipped: Fintool's S3→Lambda sync (co-located writes instead), YAML frontmatter parsing (metadata in DB not file), three-tier shadowing (two-tier sufficient, file layout anticipates org tier), sub-file chains (skills are self-contained). Token math: 10 skills × 25 tokens/pointer = 250 tokens in system-reminder. Average turn loads 1-2 skills = +500-1000 tokens. Total ~750-1250/turn vs ~5,000-10,000 pre-assembled. Clarification from Tasklet trace (Feb 26 2026): skill pointer injection in system-reminder is conditional on file existence. Connections without a SKILL.md (e.g., Calendar, Forms) get no pointer — no wasted tokens, no confusing 404. Runner assembly checks skill_registry for the connection; row exists = inject pointer, no row = skip. This conditionality is implicit in the lazy-loading design but was not explicitly stated."
+    },
+    {
+      "id": "SKILL-02",
+      "category": "7-skill-system",
+      "description": "Lazy loading via pointers in system-reminder, NOT pre-assembled into system prompt. Runner queries skill_registry → injects skill pointers (~20-30 tokens each) into system-reminder. LLM calls read_file() only when it decides a skill is relevant to the current task. Tasklet pattern: 'nag the LLM every turn to read it, LLM reads with same read_file tool it uses for anything else.'",
+      "approved": true,
+      "decision": "REVERSED from pre-assembled to lazy loading. Tasklet pattern with skill_registry backing.",
+      "reasoning": "Original decision was pre-assembled (simpler but wasteful). Reversed after analyzing token economics: with 10 skills at ~500 tokens each, pre-assembling costs ~5,000 tokens/turn even when unused. Lazy loading: ~250 tokens (pointers) + ~500-1000 (1-2 loaded on demand) = ~750-1250 tokens. Saves ~4,000+ tokens/turn. Tasklet confirms this works: 'Pointers cost ~20-30 tokens each; actual skill content costs ~200-1500 tokens. With 5 connections, saves ~1,000-7,000 tokens/turn when unused.' Connection skills follow same pattern: system-reminder says 'MUST read /{clientId}/skills/connections/gmail/SKILL.md before using Gmail tools.' Clarification: lazy-loading pointer is conditional — only injected when a skill file exists for the connection. Gmail gets a pointer (~30 tokens), Calendar does not (0 tokens). The mechanism is: runner queries skill_registry during system-reminder assembly, injects pointer only if row exists. No change to the pattern, just explicit acknowledgment of conditionality."
+    },
+    {
+      "id": "SKILL-03",
+      "category": "7-skill-system",
+      "description": "skill_registry table as shared discovery layer — queryable by runner (system-reminder pointers), subagents (self-discovery), and frontend (skill library UI). Columns: client_id, slug, type (template/personalized/custom/connection), metadata JSONB (storage_path, category, display_name, built_at). Global templates have client_id = NULL. Personalized skills shadow templates (same slug, client_id wins over NULL).",
+      "approved": true,
+      "decision": "REVERSED from 'no index in v1' to 'skill_registry from day one.' Already in DATA-09.",
+      "reasoning": "Original decision deferred skill_registry. Reversed because subagent self-discovery requires it — trigger-fired subagents execute days/weeks after instruction was written, skills may have been added or rebuilt since then. skill_registry is the only way subagents can find current skills without the parent embedding stale paths. Also needed for: frontend skill library UI, runner's system-reminder pointer assembly, Growth Plan status display. Table already exists in DATA-09. Written at: deploy time (template rows, client_id=NULL), interview completion (personalized row), connection activation (connection row). Co-located writes per DATA-06 — no sync infrastructure needed. NOT a filesystem mirror like Fintool's fs_files. It's an index. If row exists but file missing, that's a co-located write bug, not a sync problem."
+    },
+    {
+      "id": "SKILL-04",
+      "category": "7-skill-system",
+      "description": "Two-tier skill hierarchy: system templates (codebase, client_id=NULL in registry) + per-client skills (personalized/custom/connection in Storage). No three-tier shadowing (no org/shared tier in v1). Personalized skill with same slug as template shadows it in registry query (client_id IS NOT NULL sorts first). File layout anticipates org tier: future /{orgId}/skills/shared/.",
+      "approved": true,
+      "decision": "Two-tier confirmed. Shadowing is simple: personalized wins over template by sort order in registry query.",
+      "reasoning": "Fintool's three-tier (private > shared > public) exists because they serve teams of analysts at hedge funds who need org-level defaults that individuals can override. Sunder v1 is solo agents — no org tier, no shared skills between users. Two-tier is sufficient: system templates (what we ship) + per-client (what the interview produces). Shadowing is trivial: same slug, client_id IS NOT NULL sorts before NULL. No complex resolution logic. When multi-seat ships (v2/v3), add /{orgId}/skills/shared/ and a third tier in the registry query. File layout already supports this."
+    },
+    {
+      "id": "SKILL-05",
+      "category": "7-skill-system",
+      "description": "Connection skills are manually authored per service, NOT auto-generated. When user connects a service via Composio OAuth, our code checks if a pre-authored SKILL.md exists for that integration — if yes, copies to /{clientId}/skills/connections/{service}/SKILL.md + inserts registry row; if no, no skill file is created (intentional — tool definitions are sufficient). Not every connection needs a skill file.",
+      "approved": true,
+      "decision": "Manually authored connection skills, conditionally copied to client storage on OAuth completion. Skill files authored only for integrations with API quirks the LLM won't know from training. Integrations with self-sufficient tool definitions get no skill file — this is by design, not a gap.",
+      "reasoning": "Tasklet's actual behavior (traced Feb 26 2026): of 3 Google connections, only Gmail received a skill file — Calendar and Forms did not. Gmail needs one because of readMask strategy, label name-vs-ID gotcha, and link format. Calendar's tool definitions embed their own <search-strategy> block and are self-sufficient. A skill file costs ~500 tokens when loaded + 1 extra read_file round-trip — pure overhead if the tool definitions already cover everything. Criteria for authoring a SKILL.md: (1) API has quirks LLM won't know from training, (2) cross-tool knowledge exists (rules spanning multiple tools), (3) output formatting rules (link construction). The integration allowlist (TOOL-06) should track has_skill_file per integration. System-reminder pointer (RUNNER-04) is already conditional on file existence. No workflow change — just explicit acknowledgment that absent skill files are intentional. Reference: references/tasklet/google-suite-complete-tool-definitions.md, references/tasklet/skills-deep-dive-connection-generation-trace.md"
+    },
+    {
+      "id": "SKILL-06",
+      "category": "7-skill-system",
+      "description": "Bounded customization contract — users customize through guided skills, not config editing. Allowed: channel/workflow prefs, trigger timing, approval mode, output format. Disallowed: runner internals, isolation policy, safety gates, core tool schemas.",
+      "approved": true,
+      "decision": "Confirmed. Boundary is explicit and enforced by what's exposed in Skill-Building Interviews.",
+      "reasoning": "V1 and V2 App Specs are explicit: 'User customization remains skills-first and bounded: guided interview, explicit approval, no silent activation, and auditable change records.' The boundary is enforced architecturally: users only interact with skills through the interview flow (SKILL-07/08). They never see runner code, tool schemas, or safety policies. The skill file output IS the customization — it contains the user's preferences in natural language, not config parameters. If a user wants to change follow-up timing from 2 hours to 4 hours, they re-run the interview or tell the agent to update the skill (with approval)."
+    },
+    {
+      "id": "SKILL-07",
+      "category": "7-skill-system",
+      "description": "Reusable customization flow is fixed: guided interview → plain-language preview → explicit user approval → apply (co-located write to Storage + skill_registry) → verification summary. No silent skill activation.",
+      "approved": true,
+      "decision": "Confirmed. Apply step now explicitly includes co-located write to both Storage and skill_registry.",
+      "reasoning": "Standard Skill-Building Interview flow from V1 App Spec. The 'apply' step is now concrete: write personalized .md file to /{clientId}/skills/{slug}.md + INSERT/UPDATE skill_registry row in the same function call (DATA-06 co-located write pattern). Verification summary confirms: what was saved, where it lives, what it will do. If user declines at preview, nothing is written. Audit trail: skill_registry row has built_at timestamp, the .md file itself can include an approval note."
+    },
+    {
+      "id": "SKILL-08",
+      "category": "7-skill-system",
+      "description": "Skills ship as interview-guide templates, not pre-configured defaults — no skill ships with pre-configured behavior that runs without user discussion and approval. Every skill (built-in or marketplace) ships as a structured set of questions the agent asks to build a personalized version. First activation triggers Skill-Building Interview flow. Only exception: guardrail instructions (safety-scoped, imported with user acknowledgment, no full interview). Growth Plan items are proposals, not active skills — each becomes active only after completing its Skill-Building Interview.",
+      "approved": true,
+      "decision": "Confirmed. Core product principle. Templates in codebase, personalized outputs in Storage, skill_registry tracks status.",
+      "reasoning": "V1 App Spec hard lock: 'No skill is activated without completing its Skill-Building Interview first (except guardrail-scoped instructions with user acknowledgment).' This is the resolution of the DIY vs done-for-you tension: system templates define the interview (what questions to ask, what the default structure looks like), the interview produces a personalized skill tailored to the user. skill_registry tracks the lifecycle: template rows (client_id=NULL, type='template') exist at deploy time. When user activates → interview runs → personalized row inserted (client_id set, type='personalized'). Frontend can show: 'X available, Y built, Z proposed (Growth Plan).' Growth Plan items in memory/growth-plan.md with status: proposed → approved → in-progress → built. 'Built' means Skill-Building Interview completed and skill is in registry."
+    },
+    {
+      "id": "TRIG-01",
+      "category": "8-triggers-and-scheduling",
+      "description": "REVISED per FOUND-02: Vercel cron scanner as scheduling layer — no dedicated scheduler service. Cron hits /api/cron/scan every 1 min, scans agent_triggers + autopilot_config for due items, fires /api/trigger/run. The LLM tool loop IS the workflow engine — no Temporal, no Inngest, no DAGs.",
+      "approved": true,
+      "decision": "Vercel cron scanner replaces Trigger.dev. LLM tool loop as workflow engine confirmed.",
+      "reasoning": "Per FOUND-02 revision: Trigger.dev dropped from v1. Scheduling layer is now Vercel cron (1-min interval) → /api/cron/scan route → queries agent_triggers WHERE next_fire_at <= NOW() AND enabled = true + autopilot_config WHERE next_pulse_at <= NOW() AND autopilot_enabled = true → fires /api/trigger/run with payload. Same pattern as Fintool (CloudWatch every 10 min → Lambda → query next_run_at) and Tasklet (platform-managed trigger system). The LLM tool loop as workflow engine is the real architecture decision: agent reads .md instruction file (RUNNER-07), executes via generateText with tools, no state machines or DAG definitions needed."
+    },
+    {
+      "id": "TRIG-02",
+      "category": "8-triggers-and-scheduling",
+      "description": "REVISED (v2) per FOUND-02 + idempotency review: Vercel cron scanner at /api/cron/scan, every 1 min. Scanner uses atomic UPDATE...RETURNING with claim token to prevent duplicate dispatch. Query: UPDATE agent_triggers SET current_run_id = gen_random_uuid(), last_fired_at = NOW(), next_fire_at = compute_next(cron_expression) WHERE next_fire_at <= NOW() AND enabled = true AND current_run_id IS NULL RETURNING *. Second scanner tick sees current_run_id IS NOT NULL, skips. Same atomic pattern for autopilot_config. Fires /api/trigger/run per claimed item with { clientId, triggerId, triggerType, runId: current_run_id }. Execution route validates claim: SELECT WHERE id = triggerId AND current_run_id = runId — abort if no match (stale dispatch). On completion: SET current_run_id = NULL (releases claim). Stale claim reaper runs in same scanner: UPDATE agent_triggers SET current_run_id = NULL WHERE current_run_id IS NOT NULL AND last_fired_at < NOW() - INTERVAL '15 minutes'. Schema addition: current_run_id UUID DEFAULT NULL on agent_triggers. Lightweight — no LLM calls in scanner, just DB queries + HTTP dispatch.",
+      "approved": true,
+      "decision": "REVISED: Atomic claim via UPDATE...RETURNING + current_run_id column. Prevents duplicate dispatch at DB level. Stale claims reaped after 15 min. Vercel cron every 1 min.",
+      "reasoning": "REVISED after idempotency review. Original said 'scanner must be idempotent' but had no mechanism — just a comment about last_scan_at. Three failure modes identified: (1) Scanner overlap — scan at :00 dispatches trigger, run takes 90s, scan at :01 dispatches same trigger again. (2) Retry collision — scanner re-picks a 'failed' trigger while original is still running. (3) Vercel function replay — replayed /api/trigger/run executes trigger twice. Atomic UPDATE...RETURNING eliminates all three: only one scanner wins the UPDATE, second gets zero rows. current_run_id passed to execution route as idempotency key — runs table has unique constraint on run_id, so replays fail on INSERT. Stale claim reaper (15-min threshold matching Vercel Fluid Compute ceiling per GAP-17) handles crashed functions that never released their claim. Confirmed with Tasklet dev: Tasklet's mechanism is opaque but zero duplicates observed in production. Tasklet dev recommended A+B (atomic claim + idempotent tool calls) for systems where duplicates have real consequences (emails, CRM writes). Fintool uses triple-layer defense (SQS dedup + Temporal exactly-once + processed-pair tracking) — overkill for our scale. Cost: one column, one WHERE clause change in scanner, ~30 lines of code."
+    },
+    {
+      "id": "TRIG-03",
+      "category": "8-triggers-and-scheduling",
+      "description": "Agent-created triggers as first-class feature — agent calls create_trigger tool → INSERT into agent_triggers table → scanner picks up on next tick → fires /api/trigger/run. No deploy needed for new automations.",
+      "approved": true,
+      "decision": "Confirmed. Runtime trigger creation via DB writes, no deploy needed.",
+      "reasoning": "Core Tasklet feature (setup_trigger tool). Agent creates automations by writing to agent_triggers table at runtime. Scanner picks up any new trigger on next 1-min tick. User says 'remind me every Monday to check listings' → agent creates trigger → it just works. No code changes, no redeployment. This is what makes the agent feel autonomous — it sets up its own workflows. The trigger row points to a workflow .md file (RUNNER-07) that a fresh LLM interprets at fire time. Revised from 'fires agent-trigger-run task' to 'fires /api/trigger/run' per FOUND-02 (no Trigger.dev)."
+    },
+    {
+      "id": "TRIG-04",
+      "category": "8-triggers-and-scheduling",
+      "description": "REVISED: agent_triggers table schema — id (uuid PK), client_id (FK, RLS), thread_id (uuid FK, NOT NULL — trigger fires INTO this thread), trigger_type (schedule/event), name (text), cron_expression (nullable, schedule only), event_source (nullable, event only), instruction_path (text, NOT NULL — reference doc for complex workflows, insurance against compaction), payload (jsonb, nullable), enabled (boolean), next_fire_at (timestamptz), last_fired_at (nullable), last_status (nullable), created_at, updated_at. Triggers fire into the thread where they were created (Tasklet-confirmed behavior). Trigger event is inserted as a thread_message (role: 'system') using Tasklet structured XML format: <system-message><trigger-event> with trigger-name, trigger-title, event-title, trigger-instance-id, integration-id, payload. Cron expression is NOT included in event payload (LLM only sees it via manage_active_triggers tool). The LLM receives full thread history including prior trigger events and user replies. instruction_path .md file serves as detailed reference doc the agent CAN read, not sole context.",
+      "approved": true,
+      "decision": "Triggers fire into their creation thread. thread_id NOT NULL on agent_triggers. Trigger events as structured XML thread_messages. instruction_path as reference doc. One execution path for chat and triggers.",
+      "reasoning": "REVISED based on Tasklet live confirmation: triggers fire as system messages into the conversation where they were created, not as isolated subagent runs. Confirmed by creating 3 triggers in one Tasklet conversation and observing all 3 fire back into that same conversation as <system-message><trigger-event> XML. The LLM receives full thread history (including prior trigger events and user replies) — no isolated sessions, no marked runs, no reply routing. User can reply naturally to trigger results because it is the same conversation. instruction_path remains NOT NULL as insurance: when conversation compaction loses setup details, the .md file preserves detailed workflow instructions. Trigger event format follows Tasklet verbatim: structured XML with trigger-name (type), trigger-title (human label), event-title (event description), trigger-instance-id (for management), integration-id (system vs connection), and payload. Cron expression deliberately excluded from event payload (Tasklet pattern). Key drift from prior design: thread_id added, execution model changed from isolated subagent to in-thread conversation turn."
+    },
+    {
+      "id": "TRIG-05",
+      "category": "8-triggers-and-scheduling",
+      "description": "REVISED per FOUND-02: No separate task types. Two API routes handle all execution: /api/cron/scan (scanner, lightweight DB queries + HTTP dispatch, runs every 1 min) and /api/trigger/run (execution, reads instruction_path, runs subagent, up to 15-min Vercel Fluid Compute cap). Timeout is uniform — everything runs within 15 min. Original Trigger.dev task types (pulse-checker, autopilot-pulse, agent-trigger-run, deep-research, document-processing, enrichment-batch) collapsed into one execution route with different payloads.",
+      "approved": true,
+      "decision": "Two API routes replace six Trigger.dev task types. Uniform 15-min timeout.",
+      "reasoning": "Per FOUND-02: Trigger.dev dropped. The six named task types were Trigger.dev constructs with per-type timeouts and concurrency settings. Without Trigger.dev, all execution is Vercel serverless functions with a uniform 15-min cap. The scanner route is lightweight (DB queries only). The execution route handles everything — autopilot pulses, agent triggers, background tasks — differentiated by the trigger row's instruction_path and payload, not by separate task type definitions. If anything genuinely needs >15 min, it's a candidate for v3 Trigger.dev reintroduction per FOUND-02."
+    },
+    {
+      "id": "TRIG-06",
+      "category": "8-triggers-and-scheduling",
+      "description": "REVISED: Concurrency model — per-THREAD serialization (one active run at a time per thread_id). Trigger events and user messages share the same per-thread queue. Different threads may run concurrently with NO cross-thread cap in v1. Cross-client unlimited (Vercel scales horizontally). If trigger fires while thread is busy → trigger event queues behind current run (same pending_messages mechanism as chat). If user types while trigger is running in same thread → user message queues. Per-thread lock releases when run reaches any terminal status (completed/partial/failed/cancelled) per RUNNER-08. Stale run cleanup: runs older than 15 min still 'running' → mark 'failed'. DB-enforced via runs table (serverless-compatible). Add configurable per-client cap in v2 only if cost data warrants it.",
+      "approved": true,
+      "decision": "Per-thread serialization. Cross-thread uncapped in v1. DB-enforced. Add cap later if needed.",
+      "reasoning": "REVISED: Dropped the hard cap of 2 concurrent trigger runs across threads. A real estate agent will have 3-5 triggers total — the chance of all firing in the same minute is low. Per-thread serialization is the hard rule (prevents conflicts within a conversation). Cross-thread parallelism is safe because each thread is an independent conversation with its own context. YAGNI — add a configurable per-client cap in v2 only if cost data shows runaway execution. Researched Dorabot (no global cap), OpenClaw (global cap of 4), Tasklet (not documented). Dorabot's no-cap approach is appropriate for v1 given our low trigger volume per client."
+    },
+    {
+      "id": "TRIG-06b",
+      "category": "8-triggers-and-scheduling",
+      "description": "Platform notification email — agent has send_message tool (Tasklet parity). When agent calls send_message(to: 'owner', subject, body), platform sends HTML email from notifications@sunder.ai via Resend. Email includes: agent/thread name as header link, formatted body (markdown → HTML), link back to the thread in web app. Not every trigger sends an email — the agent decides based on whether results are noteworthy. This is platform transactional email (not user email integration, which remains Phase 3). Tasklet sends from notifications@agents.tasklet.ai with the same pattern.",
+      "approved": true,
+      "decision": "send_message tool → platform email via Resend from notifications@sunder.ai. Agent decides when to email. Links back to thread.",
+      "reasoning": "In v1 without Telegram/WhatsApp, the user has no way to know the agent did something unless they open the app. Email bridges this gap. Tasklet screenshot confirms: agent calls send_message, platform sends formatted HTML email from notifications@agents.tasklet.ai with thread link. Sunder uses Resend (already in tech stack, deferred to Phase 3 for user email workflows, but brought forward for this lightweight platform notification use case). This is transactional email only — one sender address, no user email integration, no reply handling. The agent decides when to email (listings check finds 3 properties → email; autopilot pulse finds nothing → no email). Cost: Resend free tier covers 3,000 emails/month, more than enough for v1."
+    },
+    {
+      "id": "TRIG-07",
+      "category": "8-triggers-and-scheduling",
+      "description": "REVISED: Autopilot pulse config — pre-installed 'Sunder Autopilot' thread created on user signup (pinned, cannot be deleted). Autopilot trigger row auto-created pointing to this thread. System-provided autopilot instruction .md file. Config: autopilot_enabled, pulse_interval (1h/2h/6h/12h, default 6h), quiet_hours_start/end, last/next_pulse_at. All autopilot activity (trigger events, agent responses) visible in this thread. User can reply naturally to autopilot results in the same thread. Default 6h = ~4 pulses/day, consistent with TRIG-09 no-suppression-infrastructure decision.",
+      "approved": true,
+      "decision": "Pre-installed Autopilot thread on signup. Autopilot trigger fires into this thread. User can interact with autopilot results.",
+      "reasoning": "Inspired by Dorabot's autonomy pulse (auto-created calendar item on startup) adapted to Sunder's thread model. The user should not have to set up the autopilot — it should exist from day one as a named thread. This gives the autopilot a HOME: the user knows exactly where to look for background activity. The thread accumulates autopilot history (what it checked, what it found, what it updated) so the user can scroll back and review. Replying to autopilot results ('yes, send that follow-up' or 'skip that one') works naturally because it is the same conversation. Provisioning on signup creates: (1) the thread, (2) the trigger row with thread_id, (3) the system autopilot .md file in Supabase Storage."
+    },
+    {
+      "id": "TRIG-08",
+      "category": "8-triggers-and-scheduling",
+      "description": "Autopilot pulse priority order and bootstrap. BOOTSTRAP: Even though autopilot fires into a thread with full history, the agent MUST call tools to get live state before acting (other threads may have changed things between pulses): tasks_view, goals_view, CRM follow-up query. Thread history = what autopilot did previously. Tool calls = what's actually true now. Both needed. PRIORITY (strict order, prompt-driven via autopilot instruction file, not hard-coded system logic): 1) Advance in_progress tasks — execute next concrete step, keep task status current. 2) Check overdue CRM follow-ups — surface what's late, draft follow-up messages for user approval. 3) Act on monitored things — check deal status changes, listing updates, anything user asked to watch. Live checks, not assumptions. 4) Follow up with the user — if they answered a previous question, incorporate it. If they haven't and it's been a while, nudge via email. 5) Handle blockers — if a task is blocked on user input, ask again. If still no answer, continue with best assumptions and log them. 6) Start next approved task — pick up next task with status planned:ready. 7) Research or prepare — if a task needs info, go get it. Check existing research first. 8) Get to know the user — if user profile is sparse, ask one concise question per pulse. 9) Engage the user — nudge about goals/tasks, remind about pending approvals/blockers/next steps. Always include a concrete next step or question. 10) Propose new goals/tasks — notice something worth doing? Create it. 11) Create momentum — break large tasks into smaller follow-up tasks and queue them. HARD RULES: Do at least one meaningful action every pulse. Do not end without a concrete next action. Before declaring 'nothing to act on', verify: goals checked, tasks checked, monitoring checked, follow-ups checked, new tasks considered. Log why none were actionable. 'Nothing to act on' should be rare. Adapted from Dorabot's 9-level autonomy pulse (verbatim philosophy), extended with CRM-specific priorities (#2, #3). Growth Plan nudging deferred to v2.",
+      "approved": true,
+      "decision": "Prompt-driven 11-level priority list with mandatory live-state bootstrap. Dorabot philosophy: always do something. Personal assistant slant after CRM duties cleared.",
+      "reasoning": "Dorabot's autonomy pulse is production-proven: strict priority order in a prompt (not hard-coded), 'always do something' philosophy, 'nothing to act on should be rare'. Adapted for Sunder: CRM follow-ups and deal monitoring added as priorities #2-3 (Sunder-specific). Dropped Dorabot's media/meme generation (not RE CRM relevant). Key addition vs Dorabot: mandatory tool-call bootstrap even though thread history exists, because other threads can change task/CRM state between pulses. Thread history shows what autopilot did; tool calls show what's true now. Priority list lives in the autopilot instruction .md file (updatable without code changes). Fintool's 'stay silent if nothing' rejected in favor of Dorabot's 'always do something' — user wants active engagement. Tasklet has no autopilot concept (individual triggers only). Growth Plan features deferred to v2."
+    },
+    {
+      "id": "TRIG-09",
+      "category": "8-triggers-and-scheduling",
+      "description": "REVISED: No platform-level no-op suppression. No AUTOPILOT_OK signal. No duplicate message filtering infrastructure. Solved by frequency: autopilot default is ~4x/day (every 6 hours), not 48x/day. At this frequency each pulse has enough elapsed time for state to genuinely change, making no-op and duplicate problems rare. Handled via prompt instructions: 'keep updates concise', 'don't repeat the same reminder unless something changed.' Thread compaction (SESSION contracts) handles long-term context growth. User can adjust frequency via autopilot config (TRIG-07).",
+      "approved": true,
+      "decision": "No suppression infrastructure. Solve with lower pulse frequency (~4x/day) and prompt instructions.",
+      "reasoning": "Original proposal had AUTOPILOT_OK signal + platform-level duplicate suppression. Both are unnecessary: (1) TRIG-08 says 'always do something', making no-op signals contradictory. (2) At 4 pulses/day instead of 48, each pulse has ~6 hours of elapsed state changes, so 'nothing to report' and duplicate reminders are naturally rare. (3) Building message deduplication infrastructure is engineering effort with marginal v1 value. Dorabot runs every 30 min but is a general-purpose personal agent with many things to monitor. Sunder is a vertical CRM agent -- 4x/day is plenty. Fintool's proactive skill detector runs weekly. Prompt-level guidance ('don't repeat unless changed') is sufficient. Thread compaction handles context growth."
+    },
+    {
+      "id": "TRIG-10",
+      "category": "8-triggers-and-scheduling",
+      "description": "REVISED: No dedicated post-pulse write-back mechanism. Handled by existing infrastructure: (1) last_run_at / next_run_at updated automatically by cron scanner after every trigger execution (FOUND-02). (2) Task/CRM state changes already committed during the pulse via tool calls. (3) Pulse run record logged in runs table (TRIG-04). (4) Journal entry unnecessary — thread history provides continuity between pulses (Sunder fires into persistent thread, unlike Dorabot which uses fresh sessions). Only prompt-level instruction: 'after acting, summarize what you did and what's next in a concise message' — conversation hygiene, not a write-back system.",
+      "approved": true,
+      "decision": "No dedicated write-back. Existing infra (cron scanner, runs, thread history) covers all four original requirements.",
+      "reasoning": "Original proposal had four write-back steps. All are already handled: (1) timestamps by cron scanner, (2) state changes by in-pulse tool calls, (3) run records by runs table, (4) journal by thread history. Dorabot needs explicit journal write-back because each pulse is a fresh session with zero conversation history — the journal is the only continuity. Sunder's autopilot fires into a persistent thread, so conversation history IS the continuity. Building a separate write-back system would duplicate what already exists. Tasklet similarly has no platform write-back — agent writes to files/DB during execution, not as a post-step. Prompt instruction for concise summary is sufficient."
+    },
+    {
+      "id": "TRIG-11",
+      "category": "8-triggers-and-scheduling",
+      "description": "REVISED (v3): Memory synthesis pulse — separate trigger from autopilot (different cadence, different purpose). V1 scope: weekly, one job — list memory files via read_file('/{clientId}/memory/') and check Storage metadata timestamps for files modified since last pulse. Read each changed file, surface a brief summary to the user ('here's what I wrote to memory this week, here's what seems stale, anything to correct?'). User replies in-thread to confirm/adjust. Agent updates or deletes memory files based on feedback via write_file. Also checks if MEMORY.md is approaching 200-line cap and self-organizes (moves detail to topic files, leaves pointers). Fires into its own dedicated thread (created alongside Autopilot thread on signup). If nothing changed since last pulse, stay silent (no-op). V2 DEFERRED: Growth Plan proposal/enrichment, Skill-Building Interview integration, performance review, pattern detection into named skill proposals, bi-directional feedback loop.",
+      "approved": true,
+      "decision": "REVISED: V1 weekly memory review using Storage metadata timestamps on memory files. Scoped to cleanup + summary. V2: Growth Plan integration, performance review, pattern detection.",
+      "reasoning": "REVISED (v3) to align with MEM-03 v4 filesystem revert. Previous version queried agent_memories table with updated_at column — now uses Storage.list() with metadata to check last-modified timestamps on files under /{clientId}/memory/. Functionally equivalent: both answer 'what memory files changed since last pulse?' The agent reads each changed file, composes a summary, presents to user. Core purpose unchanged: safety net for MEM-05's aggressive auto-write policy. Fintool's model is the v1 reference: weekly, prompt-driven, 'if nothing stay silent.' V2 full spec preserved: (1) Pattern detection writing to memory/growth-plan.md with status:proposed. (2) Growth Plan enrichment. (3) Performance review. (4) User feedback auto-written back. (5) Configurable frequency."
+    },
+    {
+      "id": "TRIG-12",
+      "category": "8-triggers-and-scheduling",
+      "description": "REVISED: Two retry policies, not four. (1) Autopilot pulse: 0 retries — next pulse in ~6 hours is the natural retry. (2) All other triggers (user-created cron, webhooks): max 2 retries — cron scanner re-picks failed triggers on next tick (~1 min) if status='failed' and retry_count < 2. No exponential backoff needed (LLM calls, not rate-limited APIs). Deep-research and document-processing are not separate trigger types in v1. retry_count column on runs table, incremented on each re-pick. After max retries: status='failed_permanent', visible in UI, user can manually re-trigger.",
+      "approved": true,
+      "decision": "Two policies: autopilot 0 retries (next pulse is the retry), everything else max 2 retries via scanner re-pick.",
+      "reasoning": "Original had four per-type retry configs with exponential backoff — overengineered for v1. No Temporal, no Trigger.dev, no retry orchestration engine. Cron scanner already ticks every minute (FOUND-02), so re-picking a failed trigger on the next tick is natural and free. Autopilot at ~4x/day doesn't need retries — the next pulse covers it, same as Dorabot and Tasklet (neither has retry infra). Deep-research and document-processing aren't separate trigger types in v1 — just two categories: autopilot and user-created. Exponential backoff solves API rate limiting, which isn't the failure mode here (LLM calls fail from timeouts or context errors, not 429s). 1-minute spacing via scanner tick is sufficient."
+    },
+    {
+      "id": "TRIG-13",
+      "category": "8-triggers-and-scheduling",
+      "description": "Tool-level idempotency as safety net (belt-and-suspenders with TRIG-02 atomic claim). External-facing tools include execution-scoped dedup to catch edge cases the claim mechanism misses (crashed function that re-executes, reaper that resets a claim too early). send_message tool: before sending, checks sent_messages table WHERE run_id = ? AND action = 'email' AND recipient = ? — if exists, skip. CRM insert tools: use INSERT...ON CONFLICT DO NOTHING where applicable. CRM update tools: inherently idempotent (UPDATE...SET is safe to replay). Internal tools (read_file, memory writes, task status updates): no dedup needed — idempotent by nature. Schema: sent_messages table (run_id, action, recipient, sent_at) for email dedup. This is the second layer — TRIG-02 claim prevents 99.9% of duplicates, this catches the rest.",
+      "approved": true,
+      "decision": "External-facing tools (send_message, CRM inserts) include execution-scoped idempotency checks. Internal tools are inherently idempotent. sent_messages table for email dedup.",
+      "reasoning": "Completes the idempotency story started by TRIG-02 (atomic claim at scanner level). TRIG-02 prevents duplicate dispatch. TRIG-13 prevents duplicate side effects even if dispatch-level dedup fails. Three scenarios where claim can fail: (1) Vercel function crashes after starting work but before completing — reaper resets claim after 15 min, trigger re-fires, agent re-executes including already-sent emails. (2) Reaper runs too early (clock skew, slow function) — releases claim while original is still running. (3) Bug in claim logic. For all three, tool-level checks are the last line of defense. Tasklet dev recommended this explicitly: 'atomic update guards (WHERE already_sent IS NULL style).' Fintool has processed-pair tracking at the application layer for the same reason. Cost: one small table (sent_messages), one WHERE clause per send_message call, ON CONFLICT on CRM inserts. ~15 lines of code. The principle: platform-level dedup for dispatch, application-level dedup for side effects. Neither alone is sufficient; together they provide defense in depth."
+    },
+    {
+      "id": "SESSION-01",
+      "category": "9-session-and-thread-continuity",
+      "description": "REVISED: Thread identity — simple UUID-based threads. Schema: thread_id (UUID PK), client_id (FK), title (user-editable or auto-generated), is_pinned (for Autopilot thread), created_at, updated_at. No channel routing, no chat_identity_key, no chat_type, no deterministic thread_key, no lane concept. Web-only for v1. User creates threads from web UI. Triggers reference threads by thread_id. Out-of-app notifications via email (TRIG-06b). V2: Telegram channel added via Vercel AI SDK Chat SDK adapter. V3: WhatsApp via Meta Cloud API. Multi-channel identity resolution (chat_identity_key = channel + chat_type + chat_id) deferred to v2/v3.",
+      "approved": true,
+      "decision": "Simple UUID threads, web-only. Multi-channel identity resolution deferred to v2.",
+      "reasoning": "Original designed for multi-channel (WhatsApp groups, Telegram DMs, web) with identity resolution across channels. V1 is web-only (WhatsApp/Telegram deferred per earlier decision). With one channel, thread identity is just a UUID — same as Tasklet (conversations) and Fintool (web-only UUIDs). chat_identity_key, chat_type, deterministic thread_key are all multi-channel routing concepts with zero v1 value. Email notifications (TRIG-06b, Resend) bridge the gap when user is not in the app. Dorabot's complex session routing (chat_id, marked runs, reply refs) exists because it serves 3 channels simultaneously — unnecessary for web-only."
+    },
+    {
+      "id": "SESSION-02",
+      "category": "9-session-and-thread-continuity",
+      "status": "removed",
+      "removed_reason": "Conversation forking / lane-based routing removed. Lanes don't exist in web-only v1. Multi-channel thread routing deferred to v2/v3 per SESSION-01.",
+      "merged_into": "SESSION-01"
+    },
+    {
+      "id": "SESSION-03",
+      "category": "9-session-and-thread-continuity",
+      "status": "removed",
+      "removed_reason": "Duplicate of TRIG-06 (per-thread concurrency model). Concurrency serialization is a trigger/scheduling concern, not a session concern.",
+      "merged_into": "TRIG-06"
+    },
+    {
+      "id": "SESSION-04",
+      "category": "9-session-and-thread-continuity",
+      "description": "REVISED: No pause-and-resume checkpoint system. Agent asks a question, run completes, lock released. User replies whenever. Reply triggers a new run with full thread history — LLM sees its own question and the user's answer, continues naturally. Thread history IS the checkpoint. Same model as Tasklet (no checkpoint, conversation context is continuity). No waiting_user_input status, no resume logic, no persisted checkpoints.",
+      "approved": true,
+      "decision": "No checkpoint/resume. Run completes after asking a question. Thread history provides continuity for the next run.",
+      "reasoning": "Blueprint proposed explicit state machine (waiting_user_input status, persisted checkpoint, lock release/reacquire). Unnecessary given persistent thread history — the LLM can re-read what it was doing and pick up, same as Tasklet. Dorabot blocks the run (AskUserQuestion sleeps waiting), which ties up resources. Fintool has no pause concept. Tasklet's model is simplest and proven: run completes, user replies, new run sees full history. The only tradeoff: agent can't resume mid-execution-step (e.g., halfway through a multi-tool-call sequence). In practice, the agent re-derives intent from thread history and continues, which is the same pattern every Tasklet trigger run uses."
+    },
+    {
+      "id": "SESSION-05",
+      "category": "9-session-and-thread-continuity",
+      "status": "removed",
+      "removed_reason": "Approval checkpoint system deemed unnecessary — same reasoning as SESSION-04 (no pause-and-resume). Agent asks for approval in-thread, run completes, user replies to approve/reject, next run acts accordingly. No checkpoint infrastructure needed.",
+      "merged_into": "SESSION-04"
+    },
+    {
+      "id": "SESSION-06",
+      "category": "9-session-and-thread-continuity",
+      "status": "removed",
+      "removed_reason": "Custom replay infrastructure unnecessary. Vercel AI SDK handles streaming replay natively. Thread history in conversation_messages table is the replay log — no separate replay persistence layer needed.",
+      "merged_into": "SESSION-07"
+    },
+    {
+      "id": "SESSION-07",
+      "category": "9-session-and-thread-continuity",
+      "description": "Long-thread compaction — when thread exceeds context budget, summarize older messages, keep recent turns verbatim. Never delete source history in thread_messages table. Prompt assembly order: system prompt (identity, tools, instructions) → memory (client profile, preferences) → compaction summary (older messages summarized) → recent turns verbatim → current message/trigger event. IMPLEMENTATION: Use provider-native compaction via AI SDK provider options (e.g., Anthropic compact_20260112 with token threshold trigger + CRM-tuned instructions: 'preserve deal names, contact details, task statuses, decisions made'). Implementation note: Sunder uses mixed models via AI SDK Gateway/OpenRouter (per LLM routing decisions). Verify compaction support per provider — Anthropic has native compact_20260112, other providers may need prepareStep-based DIY compaction as fallback. Fallback: AI SDK prepareStep callback for providers without native compaction (summarize old messages, send only recent turns). V1: start with provider-native, add prepareStep fallback if needed.",
+      "approved": true,
+      "decision": "Provider-native compaction first, prepareStep fallback for providers without it. Source history never deleted.",
+      "reasoning": "AI SDK has no built-in compaction, but Anthropic's API has native compact_20260112 supported via AI SDK provider options — zero custom code, server-side. Tasklet builds custom compaction ('LLM-based compactions, hide tool results, sub-agents get tailored portions'). Dorabot sidesteps it with fresh sessions per pulse. Fintool has no compaction (short-lived alert runs). For Sunder, threads are persistent and accumulate (especially Autopilot at 4x/day), so compaction is essential. Native provider compaction is the lowest-effort v1 path. CRM-tuned compaction instructions ensure deal names, contact details, and task statuses survive summarization. prepareStep fallback available if non-Anthropic models lack native compaction. Source messages in thread_messages table are never deleted — compaction is read-time prompt assembly, not destructive."
+    },
+    {
+      "id": "MEM-01",
+      "category": "10-memory-and-personality",
+      "description": "REVISED (v2): Assistant personality — /{clientId}/SOUL.md file in Supabase Storage. Runner reads via Storage API and loads into system prompt position #1 every run. Default SOUL.md seeded on signup. User-editable from settings UI (frontend reads/writes via Storage API). Agent cannot auto-edit (read_file allowed, write_file blocked on SOUL.md path by runner). Same concept as Dorabot's SOUL.md, now stored as actual file — aligning with Tasklet/Fintool filesystem-first pattern.",
+      "approved": true,
+      "decision": "REVERTED from DB column to filesystem. /{clientId}/SOUL.md in Supabase Storage. Agent read-only, user-editable from settings.",
+      "reasoning": "Original v1 stored personality as DB column, reasoning 'web SaaS not local app.' Reverted because: (1) DATA-04 storage layout already defined SOUL.md as a file — DB column created internal contradiction, (2) RUNNER-03 context assembly already references 'SOUL.md personality' as first layer — was always designed as a file, (3) both Tasklet and Fintool store agent instructions/personality as files, (4) Supabase Storage is already in the stack for skills/subagents/artifacts — personality is the same kind of content, (5) settings UI reads/writes Storage directly via supabase.storage.from('agent-files').download/upload — no harder than a DB column update. Key constraints unchanged: agent cannot auto-edit (runner blocks write_file to SOUL.md path), default seeded on signup, loaded every run."
+    },
+    {
+      "id": "MEM-02",
+      "category": "10-memory-and-personality",
+      "description": "REVISED (v2): User profile — /{clientId}/USER.md file in Supabase Storage. Agent can read and write via read_file/write_file tools. User can review/edit from settings UI. Runner reads via Storage API and loads into system prompt position #2 every run. Populated organically as agent learns about the user during conversations and autopilot pulses (TRIG-08 priority #8: 'get to know the user, ask one concise question per pulse if profile is sparse'). Deep Profile Interview deferred to v2. Empty/default USER.md seeded on signup — agent fills it over time.",
+      "approved": true,
+      "decision": "REVERTED from DB column to filesystem. /{clientId}/USER.md in Supabase Storage. Agent read+write via read_file/write_file. Organic population.",
+      "reasoning": "Same revert rationale as MEM-01. DATA-04 already defined USER.md in storage layout. RUNNER-03 already references it as position #2 in context assembly. Agent writes profile updates via the same write_file tool it uses for everything else — no separate tool needed. Markdown format is more natural for the LLM than structured JSON (agent writes 'Name: Seth\\nTimezone: SGT\\nPrefers: concise CMAs, text over calls' rather than constructing JSON). Settings UI reads/writes Storage directly. Fintool's UserMemories.md is the direct precedent — markdown file the user controls, agent sees every conversation."
+    },
+    {
+      "id": "MEM-03",
+      "category": "10-memory-and-personality",
+      "description": "REVISED (v4): Auto memory system — filesystem-first, following both Tasklet and Fintool patterns. Three file layers in Supabase Storage: (1) /{clientId}/SOUL.md — personality, loaded every run, agent read-only (MEM-01), (2) /{clientId}/USER.md — profile, loaded every run, agent read+write (MEM-02), (3) /{clientId}/MEMORY.md + /{clientId}/memory/*.md — auto memory files. Agent interacts via the same read_file/write_file tools used for everything else. No separate memory_read/memory_write tools. No agent_memories DB table. MEMORY.md is a WORKING NOTEBOOK — agent writes memories directly into it by default. As it grows toward the 200-line cap, agent moves detailed content to topic files (/{clientId}/memory/preferences.md, etc.) and leaves pointers behind. First 200 lines of MEMORY.md loaded into system prompt position #3 every run. Topic files read on-demand via read_file. Four seeded files on signup: memory/preferences.md, memory/growth-plan.md, memory/patterns.md, memory/key-decisions.md (empty, ready for use). Agent creates additional files as needed via write_file — taxonomy is seeded, not locked. Discovery: agent calls read_file('/{clientId}/memory/') to see all topic files. System-reminder advertises memory state (file count, last-modified timestamps from Storage metadata) so agent loads specific files on-demand. No CRM duplication — memory holds ONLY what the CRM schema cannot capture.",
+      "approved": true,
+      "decision": "REVERTED from DB table to filesystem. /{clientId}/MEMORY.md + /{clientId}/memory/*.md in Supabase Storage. Same read_file/write_file tools. agent_memories table dropped.",
+      "reasoning": "REVISED (v4) reverting DB-first back to filesystem-first. Key reasons: (1) DATA-04 storage layout already defined MEMORY.md and memory/ directory — DB table created internal contradiction, (2) agent was already 'thinking in files' via memory_read/memory_write tool names that mimicked filesystem ops — the abstraction leaked, just make it real files, (3) one tool surface (read_file/write_file) for memory + subagents + skills + artifacts is simpler than maintaining two parallel tool surfaces, (4) Tasklet stores memory in /agent/home/ files, Fintool stores memory in /private/memories/UserMemories.md — both production-proven filesystem patterns, (5) Fintool's Nicolas: 'S3 for files is a better database than a database' — durability, human-readability, simplicity. Trade-offs accepted: (a) no Postgres transactions — last-write-wins on concurrent writes, acceptable because memory writes are seconds apart and synthesis pulse catches conflicts weekly, (b) no updated_at column — Storage metadata provides last-modified timestamps, synthesis pulse can query Storage.list() with metadata, (c) no ILIKE search across memory content — agent reads MEMORY.md index to find the right topic file, same as Claude Code pattern. The DB approach was solving problems we don't have at our scale (<50 clients, <20 memory files per client)."
+    },
+    {
+      "id": "MEM-04",
+      "category": "10-memory-and-personality",
+      "description": "REVISED (v3): Memory taxonomy — four seeded files in /{clientId}/memory/ + agent freedom to create more. Seeded on signup: (1) memory/preferences.md — working style, communication prefs, tool preferences. Written when agent detects lasting preference ('never cold-call sellers', 'prefers concise CMAs'). Each entry timestamped inline. (2) memory/growth-plan.md — skill-building roadmap. Populated organically as agent detects patterns (v1) or via Deep Profile Interview (v2). Entries have status: proposed/approved/in-progress/built. (3) memory/patterns.md — recurring behaviors with evidence dates. Agent writes after 3+ instances of same behavior. Confirmed patterns may promote to growth-plan items. (4) memory/key-decisions.md — umbrella file for small decisions. For significant decisions, agent creates a dedicated file like memory/key-decisions/2026-02-26-123-main-pricing.md. Never deleted — institutional memory. Agent creates additional files as needed via write_file — follows Claude Code pattern where topic organization is emergent, not locked. Dropped from original: daily-changelog (KISS — synthesis pulse checks Storage metadata timestamps), context files (CRM data, not memory).",
+      "approved": true,
+      "decision": "REVERTED to filesystem language. Four seeded .md files in /{clientId}/memory/ + organic extension via write_file.",
+      "reasoning": "REVISED (v3) restoring filesystem language now that MEM-03 v4 reverted to Storage. 'memory/preferences.md' is a real file path again, not a DB file_key pretending to be one. Key-decisions can use actual subdirectories (memory/key-decisions/topic.md) since Storage supports path prefixes natively. Agent discovers all memory files via read_file('/{clientId}/memory/') — returns tree listing. Same four categories, same write conditions, same boundary rules. Just real files instead of DB rows."
+    },
+    {
+      "id": "MEM-05",
+      "category": "10-memory-and-personality",
+      "description": "REVISED (v3): Auto-write memory during runs — agent reads and writes memory files during any run (chat or trigger) using the same read_file/write_file tools used for everything else. No separate memory tools. No approval gate. Default write target is /{clientId}/MEMORY.md (working notebook). If a memory clearly fits a seeded category, agent writes to that topic file directly via write_file. Write conditions by file: (1) memory/preferences.md — write immediately when user states a lasting preference explicitly or implicitly ('just text her, I never cold-call'). Do NOT write transient requests ('send it now'). (2) memory/patterns.md — write after 3+ instances of same behavior. Include evidence dates. (3) memory/key-decisions/[topic].md — write when a significant, hard-to-reverse decision is made. Include reasoning. Creates a new file per major decision. (4) memory/growth-plan.md — write when synthesis pulse promotes a confirmed pattern, or user explicitly requests. (5) New files — agent creates via write_file('/{clientId}/memory/new-topic.md', content) when observation doesn't fit existing files. What NOT to save (follows Claude Code): session-specific context, information already in CRM database, speculative or unverified conclusions from a single instance. MEMORY.md is a working notebook — agent writes directly into it. As it grows toward the 200-line cap, agent moves detailed content to topic files and leaves pointers. Personality (MEM-01) is agent read-only via read_file. User profile (MEM-02) is agent read+write via read_file/write_file. Synthesis pulse (TRIG-11) is the cleanup safety net — reviews memory files weekly.",
+      "approved": true,
+      "decision": "REVERTED to filesystem tools. Auto-write during runs via read_file/write_file on /{clientId}/memory/ paths. No separate memory tools. Same write conditions + weekly synthesis pulse.",
+      "reasoning": "REVISED (v3) aligning with MEM-03 v4 filesystem revert. Key simplification: memory_read/memory_write tools eliminated. Agent uses the same read_file/write_file it already has for subagents, skills, and artifacts. One tool surface for all file operations. The LLM doesn't need to remember which tool to use for memory vs other files — it's always read_file/write_file. Per-file write conditions unchanged. Synthesis pulse now queries Storage.list('/{clientId}/memory/') with metadata to check last-modified timestamps instead of SQL updated_at — functionally equivalent."
+    },
+    {
+      "id": "MEM-06",
+      "category": "10-memory-and-personality",
+      "description": "REVISED (v3): Memory shared across all threads for same client — all threads for same client_id read/write the same files under /{clientId}/MEMORY.md and /{clientId}/memory/. Thread A writes to memory/preferences.md, Thread B reads it next run. Autopilot thread reads all memory files. No private-thread memory mode in v1. Concurrent write risk: last-write-wins on Supabase Storage (no Postgres transactions for files). Acceptable because memory writes are sparse (seconds apart in practice) and synthesis pulse catches conflicts weekly.",
+      "approved": true,
+      "decision": "REVERTED to filesystem. Shared memory via /{clientId}/ Storage path prefix. Last-write-wins accepted.",
+      "reasoning": "Claude Code pattern: per-project memory directory shared across all sessions. Sunder maps project→client_id, session→thread. Same pattern. Memory is the bridge between threads — Thread A learns 'seller prefers text', Thread B uses that knowledge next morning without the user repeating it. Concurrent write risk is now last-write-wins (no Postgres row locking for Storage files). This is acceptable: (1) memory writes happen during agent runs which are serialized per thread (one run per thread at a time per TRIG-06), (2) cross-thread concurrent writes would require two threads writing to the same memory file at the exact same second — extremely unlikely with <50 clients, (3) synthesis pulse reviews all memory files weekly and catches any inconsistencies, (4) Fintool accepts the same trade-off with S3 files. If concurrent writes become a real problem at scale, add a lightweight mutex (advisory lock in Postgres before Storage write) — but don't build it until it's needed."
+    },
+    {
+      "id": "MEM-07",
+      "category": "10-memory-and-personality",
+      "description": "Memory as primary switching cost/moat — compounding value curve from Week 1 (basic prefs) to Month 6+ (pattern detection, growth plan skills). Cannot be replicated by competitors. Memory files are human-readable markdown — user can view and edit from settings UI (v2). Export/portability deferred.",
+      "approved": true,
+      "decision": "Memory as moat. Compounding personalization is the defensibility layer.",
+      "reasoning": "Every session makes the agent better. Week 1: knows your name and timezone. Month 1: knows you prefer text over calls, always want concise CMAs, focus on District 9. Month 3: detects you do CMAs 3x/month and proposes auto-CMA skill. Month 6: patterns.md has 20+ entries, growth-plan has 5 built skills, key-decisions has institutional memory a new assistant couldn't replicate. Switching cost compounds — a competitor starts from zero. Claude Code validates the pattern at scale: developers don't switch away because their MEMORY.md and CLAUDE.md encode months of project knowledge. Same dynamic, different domain."
+    },
+    {
+      "id": "SAFETY-01",
+      "category": "11-safety-and-approvals",
+      "description": "REVISED: Mixed autonomy (Option B) — two tiers. Auto-run for internal work (CRM reads, memory writes, drafts, summaries, research, internal tasks, web search, knowledge base reads). Approval-required for external-facing work (outbound comms, client-facing CRM changes, calendar scheduling, deletions, publishing artifacts). One rule: if it leaves the system or is visible to someone other than the user, it needs approval. Internal work is autonomous, external-facing work pauses.",
+      "approved": true,
+      "decision": "Mixed autonomy. Internal = auto, external-facing = approval required.",
+      "reasoning": "Three options evaluated: (A) Full autonomy (Tasklet-lean) — agent runs all tools without pausing. Too risky for CRM that touches real clients. One bad email is unrecoverable. (B) Mixed autonomy (Sunder blueprint / Fintool-lean) — two tiers based on blast radius. Agent is useful autonomously for most work, user only interrupted for things that matter. (C) Approve everything — notification fatigue, defeats autonomy value prop, would gate memory writes which kills Claude Code pattern (MEM-05). Option B selected. Tasklet has no explicit approval mechanism — trusts system prompt. Fintool pauses background agents at 'needs confirmation' actions. Sunder follows Fintool pattern with a simpler rule: internal vs external-facing."
+    },
+    {
+      "id": "SAFETY-02",
+      "category": "11-safety-and-approvals",
+      "description": "REVISED: Approval gate is a chat interaction, not a special UI. Agent hits a high-risk tool call → instead of executing, presents the action in plain language in the thread ('I drafted this email to Mrs. Tan. Want me to send it?') → waits for user reply. User says yes → agent continues execution. User says no → run ends as cancelled. No special approval UI, no modal, no notification system. Just a conversation turn. Works identically in chat and trigger threads (trigger thread shows the pending action, user opens thread to respond).",
+      "approved": true,
+      "decision": "Approval gate via natural language in thread. No special approval UI.",
+      "reasoning": "Simplest possible implementation. The agent already talks to the user in threads — asking permission is just another message. No approval queue, no notification badge, no modal dialog. Fintool does the same: 'confirmation appears in the conversation, user responds to continue.' Tasklet has no approval mechanism. For trigger threads: the pending action sits in the thread until the user opens it. Combined with TRIG-06b (email notification), the platform can email the user 'Sunder needs your approval in [thread name]' to prevent stale pending actions. Rejection ends the run — agent doesn't retry or rephrase, it accepts the no."
+    },
+    {
+      "id": "SAFETY-03",
+      "category": "11-safety-and-approvals",
+      "description": "REVISED: Required safeguards — slimmed to what v1 actually needs. (1) Audit trail: every tool call and result is a thread_message — comes free from thread history. (2) Memory auto-writes exempt from approval gates (MEM-05). (3) Personality is agent read-only (MEM-01). (4) One run per thread (TRIG-06). Everything else from original (idempotency/dedupe, preflight checks, structured subagent outputs, replay persistence, versioned memory rollback) is YAGNI for v1. Synthesis pulse (TRIG-11) is the memory correction mechanism, not versioned rollback.",
+      "approved": true,
+      "decision": "V1 safeguards: audit trail via thread history + memory exempt from approval + personality read-only + per-thread serialization. Everything else deferred.",
+      "reasoning": "Original SAFETY-03 was a kitchen sink. Half already covered by other decisions (MEM-01, MEM-05, TRIG-06), half is YAGNI. Idempotency/dedupe: what would be duplicated? User messages are unique, trigger fires are serialized per-thread. Preflight checks: vague — just 'write good prompts.' Versioned memory rollback: over-engineering — synthesis pulse is the correction mechanism, agent rewrites the row. Replay persistence: thread history IS the replay log. Stripped to four concrete safeguards that are either already built or trivially free."
+    },
+    {
+      "id": "SAFETY-04",
+      "category": "11-safety-and-approvals",
+      "description": "REVISED: Approval matrix — simple two-column rule. AUTO-RUN: CRM reads (search contacts, view deals), memory reads/writes, generate drafts (CMA, email, notes), web search/research, create/update internal tasks, write to thread (responses, summaries), read knowledge base. APPROVAL REQUIRED: send email, send Telegram (v2), send WhatsApp/SMS (v3), create/update client-facing CRM records, schedule meetings on user's calendar, delete anything, publish artifacts (share links externally). Rule: if it leaves the system or is visible to someone other than the user, approval required. No per-action granularity, no configurable matrix in v1. One rule, two columns.",
+      "approved": true,
+      "decision": "Two-column approval matrix. Internal = auto, external-facing = approval. Not configurable in v1.",
+      "reasoning": "Resolves the 'NOT finalized' status from V1 spec. The matrix is intentionally simple — one rule (internal vs external-facing) rather than per-action configuration. Configurable approval levels (e.g., 'always auto-approve emails to this contact') are a v2 trust-building feature. V1 errs on the side of caution for all external-facing actions. The boundary is clear: CRM reads are internal (no one sees them), CRM writes that affect client-facing data need approval (wrong data visible to clients), emails/messages leave the system entirely (highest risk). Memory writes are explicitly exempt — memory IS the product value (MEM-05), gating it would cripple the Claude Code auto-memory pattern."
+    },
+    {
+      "id": "CONN-01",
+      "category": "12-connection-and-integration-model",
+      "description": "REVISED: Four connection types — follows Tasklet pattern exactly (ref: tasklet/tools/00-complete-tasklet-tool-definitions-verbatim.md). (1) integrations — pre-built OAuth connections via Composio (Sunder's equivalent of Tasklet's static + Pipedream backend). Handles OAuth, token refresh, pre-built actions. (2) mcp — custom MCP server connections. Agent or user provides HTTPS endpoint. (3) direct_api — raw HTTP API with explicit auth config (bearer, header, basic, query-parameter, custom-oauth). Agent researches API and sets up connection; user just approves auth. (4) computer_use — remote browser automation. Provider decision (Browserbase vs Firecrawl vs Vercel Agent Browser) deferred to SERVICE-12. Selection order follows Tasklet: reuse existing → integrations → mcp → direct_api → computer_use. Agent manages all connection setup — user only approves auth flows and tool activation.",
+      "approved": true,
+      "decision": "Four connection types: integrations (Composio), mcp, direct_api, computer_use. Follows Tasklet taxonomy exactly. computer_use is defined in the v1 taxonomy for completeness but returns 'not yet available' until SERVICE-12 ships in v2.",
+      "reasoning": "Tasklet has four connection types in production: integrations (static + Pipedream), mcp, direct_api, computer_use. Sunder adopts the same taxonomy with Composio replacing Tasklet's static + Pipedream integration backend. Key insight from Tasklet research: MCP and direct_api are agent-managed, not user-managed. The agent discovers it needs an API, creates the connection, and the user just approves auth / pastes an API key. This means even non-technical users (real estate agents) benefit from direct_api — they don't configure anything, they just approve. Computer_use maps to Tasklet's persistent VM concept — specific provider (Browserbase for persistent auth, Firecrawl for stateless, or Vercel Agent Browser) is a SERVICE-12 decision, deferred to v2. In v1 the connection type exists in the enum but the agent will not attempt it — the selection chain stops at direct_api. Fintool has no connection model — everything is hand-built for finance. Original Sunder blueprint had three types (no computer_use); adding it follows Tasklet and enables browser automation use cases (MLS scraping, property portal checks) when SERVICE-12 ships."
+    },
+    {
+      "id": "CONN-02",
+      "category": "12-connection-and-integration-model",
+      "description": "REVISED: Composio as integration backend — Sunder's equivalent of Tasklet's static + Pipedream backend. Handles OAuth flows, token refresh, pre-built actions. Agent calls Composio actions, not raw APIs. Composio covers the 'integrations' connection type from CONN-01. For the long tail not covered by Composio, agent falls through to mcp → direct_api → computer_use (CONN-01 selection order).",
+      "approved": true,
+      "decision": "Composio as integration backend for OAuth connections. Fallback to other connection types for uncovered services.",
+      "reasoning": "Tasklet builds top ~30 integrations in-house, proxies 3000+ through Pipedream. Sunder doesn't have the resources to build in-house integrations — Composio is the equivalent third-party marketplace. Same role: handle OAuth complexity so we don't build token refresh, scope management, etc. Agent interface is the same: discover → create → activate tools → use. Fintool has no marketplace (hand-built). Composio's 141+ pre-built actions cover the v1 services (Gmail, Google Calendar, Cal.com, Tally.so). For anything Composio doesn't cover, the Tasklet-pattern fallback chain (mcp → direct_api → computer_use) handles it."
+    },
+    {
+      "id": "CONN-03",
+      "category": "12-connection-and-integration-model",
+      "description": "Connection-first setup behavior — follows Tasklet system prompt instruction verbatim: 'ALWAYS prefer to use existing connections over creating new connections if the existing connection will work. You MUST use list_users_connections to check the users' existing connections first before creating new connections.' One-shot setup: user approves OAuth/auth once, connection persists, agent reuses automatically on subsequent runs. Agent discovers → checks existing → creates only if needed → activates tools → uses.",
+      "approved": true,
+      "decision": "Reuse-first, one-shot setup. Tasklet pattern verbatim.",
+      "reasoning": "Direct Tasklet alignment. The system prompt instruction prevents connection sprawl (agent creating duplicate Gmail connections) and reduces user friction (approve once, never again). Fintool has no connection concept. The lifecycle: agent needs Gmail → calls list_users_connections → finds existing gmail connection → uses it. No re-auth, no re-approval. If no connection exists: agent calls create_new_connections → user approves OAuth → connection persists → future runs reuse. Token refresh handled by Composio (CONN-02) transparently."
+    },
+    {
+      "id": "SERVICE-01",
+      "category": "13-service-provider-choices",
+      "description": "CRM: Custom on Supabase (MVP)",
+      "approved": true,
+      "reasoning": "Core to architecture. Custom CRM tables in Supabase — full control, no per-seat fees, AI reads/writes directly via SQL, RLS for multi-tenant isolation."
+    },
+    {
+      "id": "SERVICE-02",
+      "category": "13-service-provider-choices",
+      "description": "Knowledge Base: Custom (Supabase Storage + Supabase DB metadata index) (MVP)",
+      "approved": true,
+      "reasoning": "Supabase Storage for blobs + metadata table in Supabase DB for structured discovery. No sync layer (write to both at upload time). No vector/RAG — context window is the database. Metadata table included from day one to avoid folder-scanning as file count grows. Simpler than Fintool S3+Lambda sync, more discoverable than Tasklet bare filesystem."
+    },
+    {
+      "id": "SERVICE-03",
+      "category": "13-service-provider-choices",
+      "description": "Web search: Brave Search API LLM Context (default) + Exa /contents text mode (known URLs) + Parallel Search (optional A/B) (MVP)",
+      "approved": true,
+      "reasoning": "Ship Brave Search API (LLM Context mode) as default general-purpose search + Exa /contents for URL content extraction. Both day-one — Exa costs nothing until used and \"read this URL\" is a core use case. Parallel Search kept as optional dev tooling for A/B testing providers, not user-facing. Horizontal product cannot justify vertical search pipelines like Fintool."
+    },
+    {
+      "id": "SERVICE-04",
+      "category": "13-service-provider-choices",
+      "description": "Scheduling: Cal.com via Composio (user's free account) (MVP)",
+      "approved": true,
+      "reasoning": "Standard integration. Users connect own free Cal.com account via Composio. No calendar infrastructure to maintain."
+    },
+    {
+      "id": "SERVICE-05",
+      "category": "13-service-provider-choices",
+      "description": "Forms: Tally.so via Composio (user's free account) (MVP)",
+      "approved": true,
+      "reasoning": "Standard integration. Users connect own Tally.so account via Composio. No form infrastructure to maintain."
+    },
+    {
+      "id": "SERVICE-06",
+      "category": "13-service-provider-choices",
+      "description": "Voice input: OpenAI Whisper (speech-to-text) (MVP)",
+      "approved": true,
+      "reasoning": "Deferred to v2. Primary interface is web chat (SESSION-01). Voice input not needed for MVP."
+    },
+    {
+      "id": "SERVICE-07",
+      "category": "13-service-provider-choices",
+      "description": "Voice output: Inworld AI (cloned voice for user→client notes, AI voice for AI→user replies) (MVP basic)",
+      "approved": true,
+      "reasoning": "Deferred to v2. Voice output not needed when primary interface is web chat (SESSION-01). Revisit alongside SERVICE-06."
+    },
+    {
+      "id": "SERVICE-08",
+      "category": "13-service-provider-choices",
+      "description": "Meeting transcripts: Granola (user-managed, optional, MCP connection) (MVP ad hoc)",
+      "approved": true,
+      "reasoning": "Optional user-managed MCP connection. No platform dependency — user connects their own Granola account. AI pulls transcripts for post-meeting follow-ups. Zero cost to us if unused."
+    },
+    {
+      "id": "SERVICE-09",
+      "category": "13-service-provider-choices",
+      "description": "Document extraction: Two lanes — Lane 1 (comprehension): LLM reads document directly, no pipeline. Lane 2 (structured extraction): Existing Sunder pipeline (Gemini Flash split/classify + ExtendAI structured extraction + validation + human review). Option C routing: always start Lane 1, escalate to Lane 2 on request or when pre-configured schema exists. (MVP)",
+      "approved": true,
+      "reasoning": "Leverages existing Sunder extraction pipeline (Gemini Flash + ExtendAI + OCR confidence + citations + business rule validation). Two lanes: comprehension (cheap, LLM-direct) vs structured extraction (full pipeline). Option C routing — Lane 1 by default, AI suggests Lane 2 when schema exists. Cheap by default, structured when needed. Avoids wasting ExtendAI cost on simple read queries."
+    },
+    {
+      "id": "SERVICE-10",
+      "category": "13-service-provider-choices",
+      "description": "Document generation: Vercel Sandbox + custom skills with appropriate libraries (xlsx, pdf-lib, docx, etc.). No separate service — AI writes code in sandbox to generate documents. Skills customized per output format. (MVP)",
+      "approved": true,
+      "reasoning": "No dedicated doc-gen service needed. Sandbox is the document generator — AI writes code using libraries (xlsx, pdf-lib, etc.) via custom skills. Reference: github.com/anthropics/skills/tree/main/skills/xlsx. Simpler than a custom MCP, more flexible (any format the library supports), zero additional infrastructure."
+    },
+    {
+      "id": "SERVICE-11",
+      "category": "13-service-provider-choices",
+      "description": "Artifact publishing (Mini Lovable): DEFERRED to v2. AI can generate artifacts in sandbox but shareable URL hosting not needed for MVP.",
+      "approved": true,
+      "reasoning": "Deferred to v2. Artifact generation still works (sandbox produces files), but publishing/hosting adds infrastructure for a feature that is not core to v1 value prop. Revisit when client-facing sharing is a real need."
+    },
+    {
+      "id": "SERVICE-12",
+      "category": "13-service-provider-choices",
+      "description": "Interactive browser (Lane 3): Stagehand + Browserbase — action caching for ~80% speedup on repeated actions, persistent browser contexts for login-gated sites (MVP)",
+      "approved": true,
+      "reasoning": "Deferred to v3. Interactive browser (Stagehand + Browserbase) is expensive and complex. Not needed for v1/v2. Requires Trigger.dev for async execution (Trigger.dev deferred to v3 per FOUND-02)."
+    },
+    {
+      "id": "SERVICE-12b",
+      "category": "13-service-provider-choices",
+      "description": "Known-site scraping (Lane 1): Apify actors + RapidAPI — pre-built maintained scrapers for PropertyGuru, LinkedIn bulk, directories. Per-run pricing (MVP)",
+      "approved": true,
+      "reasoning": "Deferred to v3. Known-site scraping (Apify + RapidAPI) requires Trigger.dev for async crawls (Trigger.dev deferred to v3 per FOUND-02). Revisit when Trigger.dev ships."
+    },
+    {
+      "id": "SERVICE-12c",
+      "category": "13-service-provider-choices",
+      "description": "Open-ended scraping (Lane 2): Scrapling (BSD-3, Python) + MiniMax M2.5 (~$20-50/mo flat-rate) — general-purpose 'point at any site' scraping. Runs as async background job in Vercel Sandbox via Trigger.dev. User prompts, comes back when done (MVP)",
+      "approved": true,
+      "reasoning": "Deferred to v3. Open-ended scraping requires Trigger.dev (Trigger.dev deferred to v3 per FOUND-02). Exa (SERVICE-03) covers basic URL content extraction for now."
+    },
+    {
+      "id": "SERVICE-12d",
+      "category": "13-service-provider-choices",
+      "description": "LinkedIn intelligence: LinkedIn MCP server (Apache 2.0, read-only, Patchright browser, 7 tools) for interactive lookups + RapidAPI LinkedIn for bulk scraping. ToS risk acknowledged — rate limiting and compliance controls required (MVP)",
+      "approved": true,
+      "reasoning": "Deferred to v2. LinkedIn intelligence (MCP + RapidAPI bulk) not needed for MVP. Single lookups could be added easily later — bulk enrichment requires Trigger.dev."
+    },
+    {
+      "id": "SERVICE-13",
+      "category": "13-service-provider-choices",
+      "description": "Email: Resend — DEFERRED to Phase 3",
+      "approved": true,
+      "reasoning": "Deferred to Phase 3. Transactional/outbound email via Resend. Needs core chat + document workflows first."
+    },
+    {
+      "id": "SERVICE-14",
+      "category": "13-service-provider-choices",
+      "description": "Social media: Postiz — DEFERRED to Phase 2",
+      "approved": true,
+      "reasoning": "Deferred to Phase 2. Social media scheduling via Postiz (open-source). Needs core product first."
+    },
+    {
+      "id": "SERVICE-15",
+      "category": "13-service-provider-choices",
+      "description": "Link attribution: Short.io via Composio — DEFERRED to Phase 3",
+      "approved": true,
+      "reasoning": "Deferred to Phase 3. Branded short links via Short.io + Composio. Needs email and social to exist first."
+    },
+    {
+      "id": "SERVICE-16",
+      "category": "13-service-provider-choices",
+      "description": "Document signing: DocuSeal — DEFERRED to Phase 3+",
+      "approved": true,
+      "reasoning": "Deferred to Phase 3+. E-signatures via DocuSeal (open-source). Needs document generation and deal workflows first."
+    },
+    {
+      "id": "UX-01",
+      "category": "14-ux-and-navigation",
+      "description": "Chat is home screen. Mission Control is a control surface, not primary workspace.",
+      "approved": true,
+      "reasoning": "Core UX principle. Chat is the primary workspace — users live here. Mission Control is a check-in surface, not a daily driver."
+    },
+    {
+      "id": "UX-02",
+      "category": "14-ux-and-navigation",
+      "description": "Primary navigation: AGENT (Chat, Mission Control, Tasks, Automations, Memory) / DATABASE (CRM, Knowledge, Documents, Channels) / SYSTEM (Settings)",
+      "approved": true,
+      "reasoning": "Clean three-group nav: AGENT (AI actions) / DATABASE (data) / SYSTEM (config). Separates what the AI does from what it works with."
+    },
+    {
+      "id": "UX-03",
+      "category": "14-ux-and-navigation",
+      "description": "Mission Control: two tabs only — Overview (status dashboard) and Queue (approvals, failures, blocked tasks, goals at risk)",
+      "approved": true,
+      "reasoning": "Two tabs only — Overview (status dashboard) and Queue (actionable items). Keeps Mission Control focused. Not a project management tool."
+    },
+    {
+      "id": "UX-04",
+      "category": "14-ux-and-navigation",
+      "description": "Tasks: unified surface merging CRM tasks + Agent Tasks. Board (default), List, Goals views. Columns: Planned, In Progress, Review, Done. Blocked/Needs approval are badges, not columns.",
+      "approved": true,
+      "reasoning": "Unified surface. CRM tasks and agent tasks on one board — the AI is a teammate, its work belongs alongside yours. Task type (CRM vs agent) is a filter/badge, not a separate page. Board default (Planned → In Progress → Review → Done), Blocked/Needs Approval as badges not columns. List and Goals as alternate views."
+    },
+    {
+      "id": "UX-05",
+      "category": "14-ux-and-navigation",
+      "description": "Structured AI input primitive — AI can present clickable options with optional freeform input. AI decides when and what options. V1: web buttons via streamUI. V2: Telegram inline keyboards. V3: WhatsApp list/button messages. Not a dedicated interview engine — a conversation pattern. Onboarding, skill-building, workflow creation are skills that use this primitive.",
+      "approved": true,
+      "reasoning": "Simplified from \"Guided Interview UI engine\" to a UI primitive. The AI presents structured choices when useful — clickable options + freeform escape hatch. V1: web app buttons via streamUI. V2: Telegram inline keyboards via Vercel AI SDK Chat SDK. V3: WhatsApp native list/button messages. No dedicated engine needed."
+    },
+    {
+      "id": "UX-06",
+      "category": "14-ux-and-navigation",
+      "description": "Session rail in left sidebar — new chat creates new thread immediately, one active chat canvas at a time, no duplicate thread navigator inside chat canvas",
+      "approved": true,
+      "reasoning": "Standard chat app pattern. Session rail in left sidebar, one active chat canvas, new chat creates thread immediately. No split views or tabs."
+    },
+    {
+      "id": "UX-07",
+      "category": "14-ux-and-navigation",
+      "description": "Channels page — v1: coming-soon placeholder. v2: Telegram (via Vercel AI SDK Chat SDK). v3: WhatsApp (via Meta Cloud API). Channel page shows connection status, test send, delivery diagnostics.",
+      "approved": true,
+      "reasoning": "v1 placeholder. No implementation needed. v2: Telegram via Vercel AI SDK Chat SDK adapter (https://chat-sdk.dev/docs/adapters/telegram). v3: WhatsApp via Meta Cloud API."
+    },
+    {
+      "id": "UX-08",
+      "category": "14-ux-and-navigation",
+      "description": "Frontend inspirations — CRM: Twenty. Knowledge: Outline. Tasks: Super Productivity. Interview cards: Pearl + Fintool AskUserQuestion.",
+      "approved": true,
+      "reasoning": "Reference list for UI design phase. Twenty (CRM), Outline (knowledge), Super Productivity (tasks), Pearl + Fintool (interview cards). Not an architecture decision — design inspiration."
+    },
+    {
+      "id": "UX-09",
+      "category": "14-ux-and-navigation",
+      "description": "Two-phase onboarding — Phase 1 Quick Activation (<10 min): sign up, connect services, provision runtime, first useful output. Phase 2 Deep Profile Interview (scheduled within first week, 30-60 min): structured intake interview via Guided Interview UI with branching by role/domain, actively populates USER.md + preferences.md, proposes Growth Plan (memory/growth-plan.md). Phase 2 not required for activation but required for full personalization. If skipped, falls back to passive observation and autopilot pulse re-suggests (max once per 48h).",
+      "approved": true,
+      "reasoning": "Two-phase onboarding. Phase 1 (<10 min): sign up, connect services, first useful output — get to value fast. Phase 2 (first week): AI asks structured questions in normal chat using UX-05 primitive — populates USER.md + preferences.md, proposes Growth Plan. Not required for activation. Falls back to passive observation if skipped. Re-suggests max once per 48h."
+    },
+    {
+      "id": "TASKLET-01",
+      "category": "15-tasklet-alignment",
+      "description": "Tasklet patterns as default behavior — if spec is silent, follow Tasklet references. Any deviation must be documented in Delta Register.",
+      "approved": true,
+      "reasoning": "Governance rule. Tasklet patterns are the default — deviations documented in Delta Register. Keeps architecture decisions traceable."
+    },
+    {
+      "id": "TASKLET-02",
+      "category": "15-tasklet-alignment",
+      "description": "16 documented deltas from Tasklet (DELTA-001 through DELTA-016) — all require acknowledgment as accepted divergences",
+      "approved": true,
+      "reasoning": "16 deltas (DELTA-001 through DELTA-016) acknowledged as intentional divergences. Each was approved in its respective category (infra, data, execution, etc.)."
+    },
+    {
+      "id": "TASKLET-03",
+      "category": "15-tasklet-alignment",
+      "description": "Areas kept close to Tasklet (no planned delta): stateless invocation model, subagent execution pattern, trigger fresh-invocation semantics, context truncation recovery, determinism hardening",
+      "approved": true,
+      "reasoning": "Confirmed alignment with Tasklet on: stateless invocation, subagent execution, trigger semantics, context truncation recovery, determinism hardening. No planned deltas."
+    },
+    {
+      "id": "TASKLET-04",
+      "category": "15-tasklet-alignment",
+      "description": "Context recovery contract — on <context-removed>, recover from /agent/toolcalls/{blockId}/result before using data. If recovery fails and safe re-run possible, re-run. Otherwise return partial and ask for guidance.",
+      "approved": true,
+      "reasoning": "Standard resilience pattern from Tasklet. On context truncation: recover from saved toolcall results → re-run if safe → return partial and ask user. Protects long conversations."
+    },
+    {
+      "id": "TASKLET-05",
+      "category": "15-tasklet-alignment",
+      "description": "Dual task model — CRM tasks (tracking-only, binary open/completed) + Agent Tasks (executable, status lifecycle planning→planned→in_progress→review→done/cancelled). Unified Tasks page in UI.",
+      "approved": true,
+      "reasoning": "Dual task model: CRM tasks (tracking-only, open/completed) + Agent tasks (executable, full lifecycle). Both surface on unified Tasks page (UX-04). Matches Tasklet pattern with CRM extension."
+    },
+    {
+      "id": "SCALE-01",
+      "category": "16-scaling-and-cost",
+      "description": "REVISED per FOUND-02: v1 (0-50 clients): current architecture unchanged. Fixed costs ~$45/mo (Vercel $20 + Supabase $25). Trigger.dev dropped from v1.",
+      "approved": true,
+      "reasoning": "REVISED per FOUND-02 (two-service stack). v1 fixed costs ~$45/mo (Vercel $20 + Supabase $25). Trigger.dev dropped — scheduling via Vercel cron + agent_triggers DB table. Original $55-75/mo included Trigger.dev ~$10-30 which no longer applies."
+    },
+    {
+      "id": "SCALE-02",
+      "category": "16-scaling-and-cost",
+      "description": "Per-client infrastructure cost: 10 clients ~$7-9/client/mo, 50 clients ~$2-3/client/mo, 100 clients ~$1.50-1.80/client/mo. Well under $20 target.",
+      "approved": true,
+      "reasoning": "Acknowledged. Per-client cost curve well under $20 target at all projected volumes. Economies of scale from shared infra."
+    },
+    {
+      "id": "SCALE-03",
+      "category": "16-scaling-and-cost",
+      "description": "v1.5 (50-500 clients): artifact hosting → R2 + Workers, storage tiering (large files → R2, small files stay Supabase), sandbox snapshots + pre-warming",
+      "approved": true,
+      "reasoning": "Future milestone. At ~50 clients: R2 + Workers for artifacts, storage tiering, sandbox pre-warming. Not v1."
+    },
+    {
+      "id": "SCALE-04",
+      "category": "16-scaling-and-cost",
+      "description": "v2+ (500+ clients): evaluate Trigger.dev self-hosting, Supabase Team/Enterprise plan, read replicas, regional deployment (only if latency justifies)",
+      "approved": true,
+      "reasoning": "Future milestone. At ~500+ clients: evaluate Trigger.dev self-hosting, Supabase enterprise, read replicas, regional deployment. Way out."
+    },
+    {
+      "id": "SCALE-05",
+      "category": "16-scaling-and-cost",
+      "description": "Sandbox cost at 100 clients: ~$0.80/client/mo (50 interactions/day × 30% sandbox rate × ~45s avg × $0.128/CPU-hr)",
+      "approved": true,
+      "reasoning": "Acknowledged. Sandbox cost ~$0.80/client/mo at 100 clients. Not the cost bottleneck. LLM usage is the real variable cost."
+    },
+    {
+      "id": "EVAL-01",
+      "category": "17-evaluation-and-ops",
+      "description": "No eval harness built yet — 24 acceptance criteria defined in V1 spec but no automated test infrastructure. Biggest operational gap vs Fintool (2,000+ test cases).",
+      "approved": true,
+      "reasoning": "Acknowledged gap. 24 acceptance criteria defined, zero automated tests. Biggest operational gap vs Fintool. Building eval harness is a priority once core product is functional."
+    },
+    {
+      "id": "EVAL-02",
+      "category": "17-evaluation-and-ops",
+      "description": "Priority eval areas (ordered): CRM accuracy, approval gate correctness, skill-eval pairing, adversarial grounding (fake data injection), auto-filed issues on production errors",
+      "approved": true,
+      "reasoning": "Priority order: CRM accuracy → approval gate correctness → skill-eval pairing → adversarial grounding → auto-filed production errors. Safety-critical tests (approval gates) near top."
+    },
+    {
+      "id": "EVAL-03",
+      "category": "17-evaluation-and-ops",
+      "description": "REVISED per FOUND-02: Observability stack — Vercel logs (functions + cron scanner), per-run telemetry in Supabase (usage_telemetry table), runs table for background job history. No Braintrust/Datadog equivalent in v1.",
+      "approved": true,
+      "reasoning": "REVISED per FOUND-02 (Trigger.dev dropped). v1 observability: Vercel logs for all function execution (chat, webhook, cron scanner, trigger runs) + per-run telemetry in Supabase usage_telemetry table (model, tokens, cost, latency per LLM-10) + runs table for background job history and retry tracking (TRIG-04/12). Good enough to debug. No Braintrust/Datadog equivalent yet — revisit when operational volume justifies."
+    },
+    {
+      "id": "EVAL-04",
+      "category": "17-evaluation-and-ops",
+      "description": "Operational considerations — per-client health views, daily internal health digest, run-level logs with failure classification, fast rollback switches per integration, support runbook",
+      "approved": true,
+      "reasoning": "Aspirational ops maturity. Per-client health views, daily digest, failure classification, rollback switches, support runbook. Build incrementally as product matures."
+    },
+    {
+      "id": "GAP-01",
+      "category": "18-identified-gaps-and-deferred-items",
+      "description": "No deal-thesis/contact-thesis pattern — living {deal}-analysis.md with drift detection against market changes. Noted for v2.",
+      "approved": true,
+      "reasoning": "Acknowledged. Deal/contact thesis files with drift detection deferred to v2. Not needed for core product value."
+    },
+    {
+      "id": "GAP-02",
+      "category": "18-identified-gaps-and-deferred-items",
+      "description": "Automation Loop partially addressed — synthesis pulse (weekly per TRIG-11) detects patterns across memory files and proposes Growth Plan skill items. Autopilot pulse (~4x/day per TRIG-07/09) nudges user to build unbuilt Growth Plan skills when queue is empty. Full Fintool FDE-style weekly scan loop still deferred to v2/v3, but core detect-propose-build cycle is now in v1 via Growth Plan + pulse integration.",
+      "approved": true,
+      "reasoning": "Partially addressed in v1 via Growth Plan + synthesis/autopilot pulses. Full Fintool FDE-style weekly scan loop deferred to v2/v3."
+    },
+    {
+      "id": "GAP-03",
+      "category": "18-identified-gaps-and-deferred-items",
+      "description": "No Outreach Loop — re-engage quiet users with personalized content based on their memory (Fintool FDE loop). Noted for v2/v3.",
+      "approved": true,
+      "reasoning": "Acknowledged. Outreach loop for re-engaging quiet users deferred to v2/v3. Retention feature, not activation."
+    },
+    {
+      "id": "GAP-04",
+      "category": "18-identified-gaps-and-deferred-items",
+      "description": "Artifact versioning/rollback not yet designed — DELTA-013 is status 'proposed'. Nightly snapshots + restore script as stopgap.",
+      "approved": true,
+      "reasoning": "v1 stopgap: nightly snapshots + restore script. Proper versioning/rollback design deferred. DELTA-013 remains proposed."
+    },
+    {
+      "id": "GAP-05",
+      "category": "18-identified-gaps-and-deferred-items",
+      "description": "RESOLVED by SAFETY-04: Approval matrix defined as two-column rule (internal = auto-run, external-facing = approval required). Per-action granularity deferred to v2 configurable trust levels.",
+      "approved": true,
+      "reasoning": "RESOLVED by SAFETY-04. Original gap was 'exact approval matrix per action type — unresolved.' SAFETY-04 resolved this with a simple two-column rule: internal work (CRM reads, memory writes, drafts, research) = auto-run; external-facing work (outbound comms, client-facing CRM changes, deletions) = approval required. Per-action granularity (e.g., 'always auto-approve emails to this contact') deferred to v2 configurable trust levels."
+    },
+    {
+      "id": "GAP-06",
+      "category": "18-identified-gaps-and-deferred-items",
+      "description": "Threshold for introducing second routing profile — unresolved question in V1 spec",
+      "approved": true,
+      "reasoning": "Unresolved. Threshold for second routing profile decided during implementation based on observed usage patterns."
+    },
+    {
+      "id": "GAP-07",
+      "category": "18-identified-gaps-and-deferred-items",
+      "description": "Final pricing vs usage limits packaging — unresolved question in V1 spec",
+      "approved": true,
+      "reasoning": "Unresolved. Final pricing/usage packaging deferred to pre-launch. Depends on real cost data from beta."
+    },
+    {
+      "id": "GAP-08",
+      "category": "18-identified-gaps-and-deferred-items",
+      "description": "Exact depth of voice output in Wave 1 — unresolved question in V1 spec",
+      "approved": true,
+      "reasoning": "Moot — voice deferred to v2 entirely (SERVICE-06/07). No Wave 1 voice depth to decide."
+    },
+    {
+      "id": "GAP-09",
+      "category": "18-identified-gaps-and-deferred-items",
+      "description": "Precise criteria and timing for messaging channel launches — v2: Telegram (via Vercel AI SDK Chat SDK adapter), v3: WhatsApp (via Meta Cloud API). Criteria and timing unresolved.",
+      "approved": true,
+      "reasoning": "Channel roadmap updated: v2 Telegram via Vercel AI SDK Chat SDK (shipped, low-friction adapter), v3 WhatsApp via Meta Cloud API (requires Meta Business API approval, 24hr window rules, template management). Telegram first because SDK adapter already exists and no business approval process needed."
+    },
+    {
+      "id": "GAP-10",
+      "category": "18-identified-gaps-and-deferred-items",
+      "description": "Verified retention window and cross-session guarantees for toolcall artifacts — unresolved question in V1 spec",
+      "approved": true,
+      "reasoning": "Unresolved. Toolcall artifact retention window TBD during implementation. Start with 7 days, adjust based on storage costs."
+    },
+    {
+      "id": "GAP-11",
+      "category": "18-identified-gaps-and-deferred-items",
+      "description": "Platform limits and ordering guarantees for task list size — unresolved question in V1 spec",
+      "approved": true,
+      "reasoning": "Unresolved. Task list size limits and ordering guarantees TBD. Not a problem until scale — standard Supabase pagination handles it."
+    },
+    {
+      "id": "GAP-12",
+      "category": "18-identified-gaps-and-deferred-items",
+      "description": "Memory scope policy at launch: shared across all threads by default vs optional private-thread mode — unresolved question in V1 spec",
+      "approved": true,
+      "reasoning": "Shared memory by default. One MEMORY.md per user across all threads. Private-thread mode deferred — add if users request thread isolation."
+    },
+    {
+      "id": "GAP-13",
+      "category": "18-identified-gaps-and-deferred-items",
+      "description": "Bash vs SQL eval study — should run equivalent of Fintool's study: CRM queries via direct SDK vs agent-written SQL vs natural language, search strategies, enrichment approaches",
+      "approved": true,
+      "reasoning": "Acknowledged. Bash vs SQL eval study to run when eval harness is built (EVAL-01). Informs tool architecture for CRM queries."
+    },
+    {
+      "id": "GAP-14",
+      "category": "18-identified-gaps-and-deferred-items",
+      "description": "Skills marketplace and community workflows — Shortcut AI's skills library pattern shows skills-as-moat: community-created domain workflows with install counts as trust signals, compounding adoption. V1 has bounded customization + two-tier skills (system/custom) but no discovery, sharing, or community layer. Tracked as V3 Growth Pillar D. Ref: references/Fintool/nicbustamante-reverse-engineering-excel-ai-agents-FULL.md",
+      "approved": true,
+      "reasoning": "Acknowledged. Skills marketplace/community deferred to v3 (Growth Pillar D). v1 has system/custom two-tier skills. No discovery, sharing, or community layer yet."
+    },
+    {
+      "id": "GAP-15",
+      "category": "18-identified-gaps-and-deferred-items",
+      "description": "No approval timeout — SAFETY-02 pending approvals in trigger threads sit indefinitely if user doesn't check. No auto-cancel, no escalation. Consider: auto-cancel after 24h with logged explanation in thread.",
+      "approved": true,
+      "reasoning": "Acknowledged. v1 accepts stale approvals. Low risk at <50 clients with email notifications (TRIG-06b). Add 24h auto-cancel in v1.5 if stale approvals become a pattern."
+    },
+    {
+      "id": "GAP-16",
+      "category": "18-identified-gaps-and-deferred-items",
+      "description": "No per-client rate limiting — no throttling on API calls per client. One aggressive user could consume disproportionate resources.",
+      "approved": true,
+      "reasoning": "Acknowledged. Not needed at <50 clients. Add simple token-bucket rate limiting in v1.5 if cost data shows disproportionate usage. usage_telemetry table (LLM-10) provides monitoring data to detect this."
+    },
+    {
+      "id": "GAP-17",
+      "category": "18-identified-gaps-and-deferred-items",
+      "description": "15-min Vercel Fluid Compute hard ceiling is the single execution boundary for all agent runs (EXEC-02). No fallback exists — if a run exceeds 15 min it is killed. No Trigger.dev safety net until v3.",
+      "approved": true,
+      "reasoning": "Accepted risk. Current v1 workload analysis (FOUND-02) shows nothing approaching 15 min — parallel tool calls keep even 'research 20 leads' under 5 min, typical chat completes in 5-30 seconds. Mitigation: (1) runs table logs duration so we can monitor p95/p99, (2) agent system prompt instructs chunking for large tasks, (3) Trigger.dev in v3 provides genuine >15 min execution for managed scraping pipelines. If any v1 workflow consistently hits >10 min, escalate to Trigger.dev integration before v3."
+    }
+  ]
+}

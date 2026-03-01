@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sunder - Mission Control UI Mockup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Shadcn style baseline colors */
+            --bg: #ffffff;
+            --fg: #09090b;
+            --muted: #f4f4f5;
+            --muted-fg: #71717a;
+            --border: #e4e4e7;
+            --primary: #18181b;
+            --primary-fg: #fafafa;
+            background-color: var(--bg);
+            color: var(--fg);
+        }
+        
+        /* Shadcn component mimics */
+        .card { border: 1px solid var(--border); border-radius: 0.5rem; background: #fff; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
+        .card-header { padding: 1.5rem 1.5rem 0 1.5rem; }
+        .card-content { padding: 1.5rem; }
+        .badge { display: inline-flex; align-items: center; border-radius: 9999px; border: 1px solid var(--border); padding: 0.125rem 0.625rem; font-size: 0.75rem; font-weight: 600; transition: colors; }
+        .badge-secondary { background-color: var(--muted); color: var(--primary); border: transparent; }
+        .badge-destructive { background-color: #ef4444; color: #fff; border: transparent; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 500; height: 2.25rem; padding: 0 1rem; transition: background-color .2s; cursor: pointer; border: 1px solid var(--border); background: #fff; }
+        .btn:hover { background-color: var(--muted); }
+        .btn-primary { background-color: var(--primary); color: var(--primary-fg); border-color: transparent; }
+        .btn-primary:hover { background-color: #27272a; }
+        .btn-ghost { border-color: transparent; background: transparent; }
+        .btn-ghost:hover { background-color: var(--muted); }
+        
+        .nav-item { display: flex; align-items: center; gap: 0.75rem; border-radius: 0.375rem; padding: 0.5rem 0.75rem; font-size: 0.875rem; font-weight: 500; color: var(--muted-fg); cursor: pointer; transition: all .2s;}
+        .nav-item:hover { background-color: var(--muted); color: var(--fg); }
+        .nav-item.active { background-color: var(--muted); color: var(--fg); font-weight: 600; }
+        
+        .tab { display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; border-radius: 0.25rem; padding: 0.25rem 0.75rem; font-size: 0.875rem; font-weight: 500; transition: all .2s; color: var(--muted-fg); cursor: pointer; }
+        .tab:hover { background-color: var(--muted); color: var(--fg); }
+        .tab.active { background-color: #fff; color: var(--fg); box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
+        .tabs-list { display: inline-flex; height: 2.5rem; align-items: center; justify-content: center; border-radius: 0.375rem; background-color: var(--muted); padding: 0.25rem; color: var(--muted-fg); }
+        
+        .input { display: flex; height: 2.25rem; width: 100%; border-radius: 0.375rem; border: 1px solid var(--border); background-color: transparent; padding: 0 0.75rem; font-size: 0.875rem; }
+        .input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px var(--border); }
+    </style>
+</head>
+<body x-data="{ 
+    currentView: 'chat', 
+    mcTab: 'overview', 
+    tasksTab: 'board', 
+    crmTab: 'pipeline',
+    chatReconnect: true,
+    activeThreadId: 't1',
+    continuityAlertCount: 2,
+    threads: [
+        { id: 't1', title: 'Buyer follow-ups', status: 'working', queued: 0 },
+        { id: 't2', title: 'Prepare open house', status: 'queued', queued: 2 },
+        { id: 't3', title: 'Rivera contract', status: 'needs-approval', queued: 0 },
+        { id: 't4', title: 'Pipeline review', status: 'done', queued: 0 }
+    ]
+}" class="h-screen w-screen flex overflow-hidden antialiased">
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="w-64 border-r border-[#e4e4e7] bg-[#fafafa] flex flex-col pt-6 pb-4 overflow-hidden">
+        <div class="px-6 mb-6 flex items-center gap-2 font-bold text-lg tracking-tight shrink-0">
+            <div class="w-6 h-6 rounded bg-zinc-900 text-white flex items-center justify-center">S</div>
+            Sunder
+        </div>
+        
+        <div class="flex-1 overflow-y-auto w-full">
+            <div class="px-6 pb-2 text-[11px] font-bold text-zinc-400 tracking-widest">AGENT</div>
+            <div class="px-3 mb-6 space-y-0.5">
+                <a @click="threads.unshift({id: 't' + Date.now(), title: 'New chat', status: 'working', queued: 0}); activeThreadId = threads[0].id; currentView = 'chat'; setTimeout(() => { if($refs.messageInput) $refs.messageInput.focus() }, 50)" :class="currentView === 'chat' ? 'active' : ''" class="nav-item cursor-pointer text-zinc-900 bg-zinc-100/50"><i data-lucide="message-square" class="w-4 h-4"></i> Chat</a>
+                <a @click="currentView = 'mission_control'" :class="currentView === 'mission_control' ? 'active' : ''" class="nav-item"><i data-lucide="command" class="w-4 h-4"></i> Mission Control</a>
+                <a @click="currentView = 'tasks'" :class="currentView === 'tasks' ? 'active' : ''" class="nav-item"><i data-lucide="check-square" class="w-4 h-4"></i> Tasks</a>
+                <a @click="currentView = 'automations'" :class="currentView === 'automations' ? 'active' : ''" class="nav-item"><i data-lucide="workflow" class="w-4 h-4"></i> Automations</a>
+                <a @click="currentView = 'memory'" :class="currentView === 'memory' ? 'active' : ''" class="nav-item"><i data-lucide="brain" class="w-4 h-4"></i> Memory</a>
+            </div>
+            
+            <div class="px-6 pb-2 text-[11px] font-bold text-zinc-400 tracking-widest">DATABASE</div>
+            <div class="px-3 mb-6 space-y-0.5">
+                <a @click="currentView = 'crm'" :class="currentView === 'crm' ? 'active' : ''" class="nav-item"><i data-lucide="users" class="w-4 h-4"></i> CRM</a>
+                <a @click="currentView = 'knowledge'" :class="currentView === 'knowledge' ? 'active' : ''" class="nav-item"><i data-lucide="book-open" class="w-4 h-4"></i> Knowledge</a>
+                <a @click="currentView = 'documents'" :class="currentView === 'documents' ? 'active' : ''" class="nav-item"><i data-lucide="file-text" class="w-4 h-4"></i> Documents</a>
+                <a @click="currentView = 'channels'" :class="currentView === 'channels' ? 'active' : ''" class="nav-item"><i data-lucide="network" class="w-4 h-4"></i> Channels</a>
+            </div>
+
+            <div class="px-6 pb-2 mt-4 flex justify-between items-center text-[11px] font-bold text-zinc-400 tracking-widest">
+                <span>SESSIONS</span>
+            </div>
+            <div class="px-3 space-y-0.5 pb-4">
+                <template x-for="thread in threads" :key="thread.id">
+                    <a @click="activeThreadId = thread.id; currentView = 'chat'" :class="activeThreadId === thread.id && currentView === 'chat' ? 'bg-zinc-200/60 text-zinc-900 font-medium' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'" class="flex items-center gap-2 px-3 py-1.5 rounded-md text-[13px] cursor-pointer transition">
+                        <i data-lucide="message-square" class="w-3.5 h-3.5 shrink-0 opacity-50"></i>
+                        <span class="truncate" x-text="thread.title"></span>
+                        
+                        <template x-if="thread.status === 'working'">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0 ml-auto block"></span>
+                        </template>
+                        <template x-if="thread.status === 'queued'">
+                            <span class="bg-amber-100 text-amber-700 text-[9px] font-bold px-1.5 rounded ml-auto block shrink-0" x-text="thread.queued"></span>
+                        </template>
+                        <template x-if="thread.status === 'needs-approval'">
+                            <span class="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0 ml-auto block"></span>
+                        </template>
+                    </a>
+                </template>
+            </div>
+        </div>
+        
+        <div class="px-3 mt-auto pt-4 border-t border-zinc-200 shrink-0">
+            <a @click="currentView = 'settings'" :class="currentView === 'settings' ? 'active' : ''" class="nav-item"><i data-lucide="settings" class="w-4 h-4"></i> Settings</a>
+        </div>
+    </aside>
+
+    <!-- MAIN WORKSPACE -->
+    <main class="flex-1 flex flex-col h-full bg-white relative">
+        
+        <!-- TOP HEADER -->
+        <header class="h-14 border-b border-[#e4e4e7] flex items-center justify-between px-6 shrink-0 absolute top-0 w-full bg-white/80 backdrop-blur-sm z-10">
+            <div class="flex-1"></div>
+            <div class="flex items-center gap-4">
+                <div class="relative w-64">
+                    <i data-lucide="search" class="absolute left-2.5 top-2 h-4 w-4 text-zinc-500"></i>
+                    <input type="text" placeholder="Search..." class="input pl-9 h-9">
+                </div>
+                <button @click="currentView = 'mission_control'; mcTab = 'queue'" class="btn btn-ghost px-2 relative text-zinc-600">
+                    <i data-lucide="bell" class="h-5 w-5"></i>
+                    <span x-show="continuityAlertCount > 0" class="absolute top-1 right-2 w-3.5 h-3.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none border border-white" x-text="(continuityAlertCount + 1).toString()"></span>
+                </button>
+                <div class="w-8 h-8 rounded-full bg-zinc-200 border border-zinc-300 flex items-center justify-center text-sm font-medium">SL</div>
+            </div>
+        </header>
+
+        <!-- Dynamic Content Area -->
+        <div class="flex-1 overflow-auto pt-14 text-zinc-900">
+            
+            <!-- CHAT (HOME) -->
+            <div x-show="currentView === 'chat'" class="h-full flex px-4 max-w-4xl mx-auto gap-6 transition-all">
+
+
+                <!-- Chat Content area -->
+                <div class="flex-1 flex flex-col h-full relative pt-6">
+
+                    <!-- Reconnect Banner -->
+                    <div x-show="chatReconnect" class="absolute top-6 inset-x-0 z-10 bg-indigo-50 border border-indigo-200 rounded-md p-3 flex items-center justify-between shadow-sm">
+                        <div class="flex items-center gap-2 text-indigo-800">
+                            <i data-lucide="refresh-cw" class="w-4 h-4 animate-spin"></i>
+                            <span class="text-sm font-medium">Catching up updates from your recent threads...</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button @click="currentView = 'mission_control'; mcTab = 'queue'" class="btn btn-primary h-7 text-xs px-3 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">View Queue</button>
+                            <button @click="chatReconnect = false" class="btn btn-ghost h-7 text-xs border border-indigo-200 text-indigo-700 bg-white hover:bg-indigo-100 px-3">Keep Waiting</button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between mb-8 transition-all" :class="chatReconnect ? 'mt-16' : ''">
+                        <h1 class="text-2xl font-semibold tracking-tight">Active Thread</h1>
+                    <div class="flex items-center gap-2 text-sm font-medium text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 shadow-sm">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        AI: Working
+                    </div>
+                </div>
+
+                <div class="flex-1 space-y-6 overflow-y-auto mb-6 pr-2">
+                    <!-- User Message -->
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 rounded-full bg-zinc-200 shrink-0 flex items-center justify-center text-xs font-semibold">SL</div>
+                        <div class="pt-1"><p>Follow up all buyers I spoke to this week.</p></div>
+                    </div>
+                    
+                    <!-- AI Assistant Message -->
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 rounded-full bg-zinc-900 text-white shrink-0 flex items-center justify-center text-xs font-semibold">AI</div>
+                        <div class="pt-1 space-y-3">
+                            <p>Understood. I will draft messages and ask approval before sending.</p>
+                            
+                            <!-- Context / Action Cards generated in chat -->
+                            <div class="card p-4 flex flex-col gap-3 w-80">
+                                <div class="font-medium text-sm flex items-center gap-2"><i data-lucide="check-square" class="h-4 w-4 text-zinc-500"></i> Task Created</div>
+                                <p class="text-xs text-zinc-600">Draft outreach for 4 buyers spoken to this week.</p>
+                                <button @click="currentView = 'tasks'" class="btn btn-secondary h-8 text-xs w-full">Open Tasks</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Composer -->
+                <div class="relative shrink-0 card p-1 pt-2 shadow-sm border border-zinc-300 mb-6 mx-1">
+                    <textarea x-ref="messageInput" placeholder="Type a message..." class="w-full h-16 resize-none bg-transparent outline-none px-3 text-sm" @keydown.enter.prevent=""></textarea>
+                    <div class="flex justify-between items-center px-2 pb-1">
+                        <div class="flex gap-1">
+                            <button class="btn btn-ghost px-2 h-8 text-zinc-500"><i data-lucide="paperclip" class="h-4 w-4"></i></button>
+                        </div>
+                        <button class="btn btn-primary h-8 px-4"><i data-lucide="send" class="h-4 w-4 mr-2"></i> Send</button>
+                    </div>
+                </div>
+            </div>
+            </div>
+
+            <!-- MISSION CONTROL -->
+            <div x-show="currentView === 'mission_control'" class="h-full flex flex-col px-8 py-8 max-w-5xl mx-auto" style="display: none;">
+                <div class="flex items-center justify-between mb-6">
+                    <h1 class="text-3xl font-bold tracking-tight">Mission Control</h1>
+                </div>
+                
+                <div class="tabs-list mb-6 self-start w-auto">
+                    <div @click="mcTab = 'overview'" :class="mcTab === 'overview' ? 'active' : ''" class="tab w-32">Overview</div>
+                    <div @click="mcTab = 'queue'" :class="mcTab === 'queue' ? 'active' : ''" class="tab w-32 relative">Queue <span class="ml-2 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">4</span></div>
+                </div>
+
+                <!-- Overview Tab -->
+                <div x-show="mcTab === 'overview'" class="space-y-6">
+                    <div class="grid grid-cols-4 gap-4">
+                        <div class="card p-5">
+                            <p class="text-sm font-medium text-zinc-500 mb-1">Autopilot Status</p>
+                            <div class="flex items-center gap-2 mt-2"><span class="w-3 h-3 rounded-full bg-emerald-500"></span><span class="font-semibold text-lg">ON</span></div>
+                            <p class="text-xs text-zinc-500 mt-2">Next check: 2:30 PM (in 15m)</p>
+                        </div>
+                        <div class="card p-5">
+                            <p class="text-sm font-medium text-zinc-500 mb-1">Tasks Completed</p>
+                            <p class="text-3xl font-bold mt-2">5</p>
+                            <p class="text-xs text-zinc-500 mt-2">Today</p>
+                        </div>
+                        <div class="card p-5">
+                            <p class="text-sm font-medium text-zinc-500 mb-1">Pending Approvals</p>
+                            <p class="text-3xl font-bold mt-2 text-amber-500">3</p>
+                            <p class="text-xs text-amber-600 mt-2 hover:underline cursor-pointer" @click="mcTab='queue'">Review now &rarr;</p>
+                        </div>
+                        <div class="card p-5 border-red-200 bg-red-50/50">
+                            <p class="text-sm font-medium text-red-600 mb-1">Urgent Alerts</p>
+                            <p class="text-3xl font-bold mt-2 text-red-600">1</p>
+                            <p class="text-xs text-red-600 mt-2 hover:underline cursor-pointer" @click="mcTab='queue'">Requires attention &rarr;</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="card">
+                            <div class="card-header border-b pb-4 mb-4"><h3 class="font-semibold leading-none tracking-tight">Recent Activity</h3></div>
+                            <div class="card-content pt-0 space-y-4">
+                                <div class="flex items-start gap-4">
+                                    <div class="w-2 h-2 mt-2 rounded-full bg-emerald-500"></div>
+                                    <div><p class="text-sm font-medium">Drafted buyer outreach</p><p class="text-xs text-zinc-500">Autopilot • 2 minutes ago</p></div>
+                                </div>
+                                <div class="flex items-start gap-4">
+                                    <div class="w-2 h-2 mt-2 rounded-full bg-blue-500"></div>
+                                    <div><p class="text-sm font-medium">Updated CRM Deal #R-1208 stage</p><p class="text-xs text-zinc-500">1 hour ago</p></div>
+                                </div>
+                                <div class="flex items-start gap-4">
+                                    <div class="w-2 h-2 mt-2 rounded-full bg-zinc-300"></div>
+                                    <div><p class="text-sm font-medium">Task #41 marked done</p><p class="text-xs text-zinc-500">Manual • 3 hours ago</p></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header border-b pb-4 mb-4"><h3 class="font-semibold leading-none tracking-tight">Upcoming Jobs</h3></div>
+                            <div class="card-content pt-0 space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex flex-col gap-1">
+                                        <p class="text-sm font-medium">New Lead Triage</p>
+                                        <div class="flex items-center gap-2"><span class="badge badge-secondary">10:15 AM</span></div>
+                                    </div>
+                                    <button class="btn btn-ghost px-2 h-8 text-xs">Edit</button>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div class="flex flex-col gap-1">
+                                        <p class="text-sm font-medium">Morning Briefing</p>
+                                        <div class="flex items-center gap-2"><span class="badge badge-secondary">08:00 AM Tomorrow</span></div>
+                                    </div>
+                                    <button class="btn btn-ghost px-2 h-8 text-xs">Edit</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Queue Tab -->
+                <div x-show="mcTab === 'queue'" class="space-y-8">
+                    
+                    <!-- Section: Continuity Alerts -->
+                    <div x-show="continuityAlertCount > 0">
+                        <h3 class="text-sm font-semibold text-zinc-500 mb-3 ml-1 tracking-wider">THREAD CONTINUITY ALERTS (2)</h3>
+                        <div class="space-y-3">
+                            <div class="card flex items-center justify-between p-4 border-indigo-200 bg-indigo-50/50">
+                                <div class="flex items-start gap-4">
+                                    <div class="bg-indigo-100/80 p-2.5 rounded-lg mt-0.5 border border-indigo-200"><i data-lucide="inbox" class="h-4 w-4 text-indigo-700"></i></div>
+                                    <div>
+                                        <p class="font-semibold text-indigo-950">Thread backlog: 3 messages waiting</p>
+                                        <p class="text-sm text-indigo-800 mt-0.5">Thread: Prepare open house</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button class="btn btn-primary bg-indigo-600 hover:bg-indigo-700 h-9 font-medium shadow-sm">Open Thread</button>
+                                </div>
+                            </div>
+                            
+                            <div class="card flex items-center justify-between p-4 border-blue-200 bg-blue-50/50">
+                                <div class="flex items-start gap-4">
+                                    <div class="bg-blue-100/80 p-2.5 rounded-lg mt-0.5 border border-blue-200"><i data-lucide="refresh-cw" class="h-4 w-4 text-blue-700"></i></div>
+                                    <div>
+                                        <p class="font-semibold text-blue-950">Reconnect catch-up required</p>
+                                        <p class="text-sm text-blue-800 mt-0.5">System was offline for 2 hours</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button class="btn btn-secondary border-blue-200 text-blue-800 bg-white hover:bg-blue-50 h-9 font-medium shadow-sm">Resume Catch-up</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section: Approvals -->
+                    <div>
+                        <h3 class="text-sm font-semibold text-zinc-500 mb-3 ml-1 tracking-wider">PENDING APPROVALS (1)</h3>
+                        <div class="card flex items-center justify-between p-4 border-amber-200">
+                            <div class="flex items-start gap-3">
+                                <div class="bg-amber-100 p-2 rounded-md mt-0.5"><i data-lucide="check-square" class="h-4 w-4 text-amber-600"></i></div>
+                                <div>
+                                    <p class="font-medium">Buyer outreach draft</p>
+                                    <p class="text-xs text-zinc-500">Task: Follow up all buyers spoken to this week</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button class="btn btn-ghost border-zinc-200">Reject</button>
+                                <button class="btn btn-primary">Approve</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section: Alert / Blockers -->
+                    <div>
+                        <h3 class="text-sm font-semibold text-zinc-500 mb-3 ml-1 mt-6 tracking-wider">URGENT ACTION NEEDED (3)</h3>
+                        <div class="space-y-3">
+                            <div class="card flex items-center justify-between p-4 border-red-200">
+                                <div class="flex items-start gap-3">
+                                    <div class="bg-red-100 p-2 rounded-md mt-0.5"><i data-lucide="alert-triangle" class="h-4 w-4 text-red-600"></i></div>
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="badge badge-destructive">FAILED</span>
+                                            <p class="font-medium text-red-900">Telegram send (rate limit)</p>
+                                        </div>
+                                        <p class="text-xs text-red-700 mt-1">Failed to send alert to David Tan's device</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button class="btn btn-ghost border-zinc-200">Open Details</button>
+                                    <button class="btn btn-secondary border border-zinc-200">Retry</button>
+                                </div>
+                            </div>
+
+                            <div class="card flex items-center justify-between p-4 bg-zinc-50">
+                                <div class="flex items-start gap-3">
+                                    <div class="bg-zinc-200 p-2 rounded-md mt-0.5"><i data-lucide="minus-circle" class="h-4 w-4 text-zinc-600"></i></div>
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="badge badge-secondary border-zinc-300">BLOCKED</span>
+                                            <p class="font-medium">Missing price source</p>
+                                        </div>
+                                        <p class="text-xs text-zinc-500 mt-1">Task: Prepare Rivera offering memo</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button class="btn btn-ghost border-zinc-200">Snooze</button>
+                                    <button class="btn btn-primary">Open</button>
+                                </div>
+                            </div>
+                            
+                            <div class="card flex items-center justify-between p-4 bg-zinc-50 border-orange-200">
+                                <div class="flex items-start gap-3">
+                                    <div class="bg-orange-100 p-2 rounded-md mt-0.5"><i data-lucide="target" class="h-4 w-4 text-orange-600"></i></div>
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="badge bg-orange-100 text-orange-800">AT RISK</span>
+                                            <p class="font-medium">Close 3 listings this month</p>
+                                        </div>
+                                        <p class="text-xs text-zinc-500 mt-1">Currently at 0. Month ends in 5 days.</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button class="btn btn-secondary border border-zinc-200">View Goal</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TASKS -->
+            <div x-show="currentView === 'tasks'" class="h-full flex flex-col px-8 py-8 max-w-7xl mx-auto" style="display: none;">
+                <div class="flex items-center justify-between mb-6">
+                    <h1 class="text-3xl font-bold tracking-tight">Tasks</h1>
+                    <button class="btn btn-primary"><i data-lucide="plus" class="mr-2 h-4 w-4"></i> New Task</button>
+                </div>
+                
+                <div class="flex items-center justify-between mb-6">
+                    <div class="tabs-list self-start w-auto">
+                        <div @click="tasksTab = 'board'" :class="tasksTab === 'board' ? 'active' : ''" class="tab w-24">Board</div>
+                        <div @click="tasksTab = 'list'" :class="tasksTab === 'list' ? 'active' : ''" class="tab w-24">List</div>
+                        <div @click="tasksTab = 'goals'" :class="tasksTab === 'goals' ? 'active' : ''" class="tab w-24">Goals</div>
+                    </div>
+                    
+                    <div class="flex items-center bg-zinc-50 border border-zinc-200 rounded-lg p-2 gap-4 text-[10px] text-zinc-500 font-mono shadow-sm">
+                        <div class="flex gap-0.5"><span class="font-bold text-zinc-700">MAPPING</span></div>
+                        <div class="flex flex-col gap-0.5"><span>planning/planned &rarr; Planned</span></div>
+                        <div class="flex flex-col gap-0.5"><span>in_progress &rarr; In Progress</span></div>
+                        <div class="flex flex-col gap-0.5"><span>review &rarr; Review</span></div>
+                        <div class="flex flex-col gap-0.5"><span>done/cancelled &rarr; Done</span></div>
+                        <div class="flex flex-col gap-0.5"><span class="text-zinc-400">CRM open &rarr; Planned (hidden removed)</span></div>
+                    </div>
+                </div>
+
+                <!-- Board Tab -->
+                <div x-show="tasksTab === 'board'" class="flex gap-4 h-[calc(100vh-250px)] overflow-x-auto pb-4">
+                    <!-- Column -->
+                    <div class="w-80 shrink-0 bg-zinc-50 rounded-lg p-3 flex flex-col">
+                        <h3 class="text-sm font-semibold text-zinc-600 mb-3 flex items-center justify-between"><span>Planned</span> <span class="bg-zinc-200 text-zinc-600 rounded-full px-2 py-0.5 text-xs">1</span></h3>
+                        <div class="space-y-3">
+                            <div class="card p-3 shadow-sm border-zinc-200 hover:border-zinc-300 cursor-pointer">
+                                <div class="flex justify-between items-start mb-2">
+                                    <span class="badge text-[10px] px-1.5 py-0 border-blue-200 bg-blue-50 text-blue-700">CRM</span>
+                                </div>
+                                <p class="font-medium text-sm">Follow-up Sarah</p>
+                                <p class="text-xs text-zinc-500 mt-1">Ask about the latest viewing</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="w-80 shrink-0 bg-zinc-50 rounded-lg p-3 flex flex-col">
+                        <h3 class="text-sm font-semibold text-zinc-600 mb-3 flex items-center justify-between"><span>In Progress</span> <span class="bg-zinc-200 text-zinc-600 rounded-full px-2 py-0.5 text-xs">2</span></h3>
+                        <div class="space-y-3">
+                            <div class="card p-3 shadow-sm border-zinc-200 hover:border-zinc-300 cursor-pointer">
+                                <div class="flex justify-between items-start mb-2">
+                                    <span class="badge text-[10px] px-1.5 py-0 border-zinc-200 bg-white text-zinc-600">MANUAL</span>
+                                </div>
+                                <p class="font-medium text-sm">Prepare open house</p>
+                                <p class="text-xs text-zinc-500 mt-1">D10 listings staging checklist</p>
+                            </div>
+                            <div class="card p-3 shadow-sm border-red-200 bg-red-50/30 cursor-pointer">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="flex gap-1.5">
+                                        <span class="badge text-[10px] px-1.5 py-0 border-zinc-200 bg-white text-zinc-600">MANUAL</span>
+                                        <span class="badge text-[10px] px-1.5 py-0 bg-red-100 text-red-800 border-none">BLOCKED</span>
+                                    </div>
+                                </div>
+                                <p class="font-medium text-sm">Missing price source</p>
+                                <p class="text-xs text-zinc-500 mt-1">Waiting on developer feedback</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="w-80 shrink-0 bg-emerald-50/50 rounded-lg p-3 flex flex-col border border-emerald-100">
+                        <h3 class="text-sm font-semibold text-emerald-800 mb-3 flex items-center justify-between"><span>Review</span> <span class="bg-emerald-200 text-emerald-800 rounded-full px-2 py-0.5 text-xs">2</span></h3>
+                        <div class="space-y-3">
+                            <div class="card p-3 shadow-sm border-amber-200 hover:border-amber-300 cursor-pointer">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="flex gap-1.5">
+                                        <span class="badge text-[10px] px-1.5 py-0 border-purple-200 bg-purple-50 text-purple-700">AUTOPILOT</span>
+                                        <span class="badge text-[10px] px-1.5 py-0 bg-amber-100 text-amber-800 border-none">NEEDS APPROVAL</span>
+                                    </div>
+                                </div>
+                                <p class="font-medium text-sm">Buyer outreach draft</p>
+                                <button class="mt-3 btn btn-primary w-full h-7 text-xs">Review & Approve</button>
+                            </div>
+                            <div class="card p-3 shadow-sm border-zinc-200 hover:border-zinc-300 cursor-pointer">
+                                <div class="flex justify-between items-start mb-2">
+                                    <span class="badge text-[10px] px-1.5 py-0 border-blue-200 bg-blue-50 text-blue-700">CRM</span>
+                                </div>
+                                <p class="font-medium text-sm">Pipeline review</p>
+                                <button class="mt-3 btn btn-secondary w-full h-7 text-xs border border-zinc-200">Open</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="w-80 shrink-0 bg-zinc-50 rounded-lg p-3 flex flex-col">
+                        <h3 class="text-sm font-semibold text-zinc-600 mb-3 flex items-center justify-between"><span>Done</span> <span class="bg-zinc-200 text-zinc-600 rounded-full px-2 py-0.5 text-xs">1</span></h3>
+                        <div class="space-y-3 opacity-75">
+                            <div class="card p-3 shadow-sm border-zinc-200 bg-zinc-50 cursor-pointer">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="flex gap-1.5">
+                                        <span class="badge text-[10px] px-1.5 py-0 border-zinc-200 bg-white text-zinc-600">MANUAL</span>
+                                        <span class="badge text-[10px] px-1.5 py-0 bg-zinc-200 text-zinc-600 border-none">CANCELLED</span>
+                                    </div>
+                                </div>
+                                <p class="font-medium text-sm line-through text-zinc-500">Draft weekly report</p>
+                                <p class="text-xs text-zinc-400 mt-1">Not needed this week</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- List / Goals tabs content omitted for brevity in wireframe but functionally represented by tabs -->
+                <div x-show="tasksTab !== 'board'" class="text-zinc-500 flex items-center justify-center p-12 border border-dashed rounded-lg bg-zinc-50">
+                    Tab content goes here (List / Goals view over same task data)
+                </div>
+            </div>
+
+            <!-- CRM -->
+            <div x-show="currentView === 'crm'" class="h-full flex flex-col px-8 py-8 max-w-7xl mx-auto" style="display: none;">
+                <div class="flex items-center justify-between mb-6">
+                    <h1 class="text-3xl font-bold tracking-tight">CRM</h1>
+                    <button class="btn btn-primary"><i data-lucide="plus" class="mr-2 h-4 w-4"></i> New Deal</button>
+                </div>
+                <div class="tabs-list mb-6 self-start w-auto">
+                    <div @click="crmTab = 'pipeline'" :class="crmTab === 'pipeline' ? 'active' : ''" class="tab w-24">Pipeline</div>
+                    <div @click="crmTab = 'table'" :class="crmTab === 'table' ? 'active' : ''" class="tab w-24">Table</div>
+                </div>
+
+                <div x-show="crmTab === 'pipeline'" class="flex gap-4 h-[calc(100vh-250px)] overflow-x-auto pb-4">
+                    <!-- Columns -->
+                    <div class="w-72 shrink-0 bg-zinc-50 rounded-lg p-3">
+                        <div class="flex items-center justify-between border-b pb-2 mb-3">
+                            <h3 class="font-semibold text-zinc-900">Lead</h3>
+                            <span class="text-xs font-medium bg-white px-2 py-1 rounded border shadow-sm">12</span>
+                        </div>
+                        <div class="card p-3 mb-2 cursor-pointer hover:border-zinc-300">
+                            <p class="font-medium">Sarah Lee</p>
+                            <p class="text-sm font-semibold text-zinc-500">$1.2M</p>
+                        </div>
+                        <div class="card p-3 mb-2 cursor-pointer hover:border-zinc-300">
+                            <p class="font-medium">Mark Chen</p>
+                            <p class="text-sm font-semibold text-zinc-500">$850k</p>
+                        </div>
+                    </div>
+                    <div class="w-72 shrink-0 bg-zinc-50 rounded-lg p-3">
+                        <div class="flex items-center justify-between border-b pb-2 mb-3">
+                            <h3 class="font-semibold text-zinc-900">Viewing</h3>
+                            <span class="text-xs font-medium bg-white px-2 py-1 rounded border shadow-sm">5</span>
+                        </div>
+                        <div class="card p-3 mb-2 cursor-pointer hover:border-zinc-300">
+                            <div class="flex justify-between items-start">
+                                <p class="font-medium">David Tan</p>
+                                <span class="w-2 h-2 rounded-full bg-amber-400 mt-1.5" title="Action Needed"></span>
+                            </div>
+                            <p class="text-sm font-semibold text-zinc-500">$900k</p>
+                        </div>
+                    </div>
+                    <div class="w-72 shrink-0 bg-zinc-50 rounded-lg p-3">
+                        <div class="flex items-center justify-between border-b pb-2 mb-3">
+                            <h3 class="font-semibold text-zinc-900">Offer</h3>
+                            <span class="text-xs font-medium bg-white px-2 py-1 rounded border shadow-sm">3</span>
+                        </div>
+                        <div class="card p-3 mb-2 cursor-pointer hover:border-zinc-300 border-emerald-200">
+                            <p class="font-medium">Riveria</p>
+                            <p class="text-sm font-semibold mt-1 bg-emerald-100 text-emerald-800 rounded px-1.5 py-0.5 inline-block">$2.1M</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="crmTab === 'table'" class="border rounded-md overflow-hidden bg-white">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-zinc-50 text-zinc-500 font-medium border-b border-zinc-200">
+                            <tr>
+                                <th class="px-4 py-3">NAME</th>
+                                <th class="px-4 py-3">STAGE</th>
+                                <th class="px-4 py-3">VALUE</th>
+                                <th class="px-4 py-3">LAST CONTACT</th>
+                                <th class="px-4 py-3 text-right">ACTION</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-zinc-200">
+                            <tr class="hover:bg-zinc-50">
+                                <td class="px-4 py-3 font-medium">Sarah Lee</td>
+                                <td class="px-4 py-3"><span class="badge badge-secondary">Lead</span></td>
+                                <td class="px-4 py-3 font-semibold">$1.2M</td>
+                                <td class="px-4 py-3 text-zinc-500">2 days ago</td>
+                                <td class="px-4 py-3 text-right"><button class="text-blue-600 hover:underline">Open Task</button></td>
+                            </tr>
+                            <tr class="hover:bg-zinc-50">
+                                <td class="px-4 py-3 font-medium">Riveria</td>
+                                <td class="px-4 py-3"><span class="badge border-emerald-200 bg-emerald-50 text-emerald-700">Offer</span></td>
+                                <td class="px-4 py-3 font-semibold">$2.1M</td>
+                                <td class="px-4 py-3 text-zinc-500">Today</td>
+                                <td class="px-4 py-3 text-right"><button class="text-blue-600 hover:underline">Draft Contract</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- CHANNELS -->
+            <div x-show="currentView === 'channels'" class="h-full flex flex-col px-8 py-8 max-w-4xl mx-auto" style="display: none;">
+                <div class="flex items-center justify-between mb-8">
+                    <h1 class="text-3xl font-bold tracking-tight">Channels (v2)</h1>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6 mb-8">
+                    <!-- WhatsApp connection card -->
+                    <div class="card p-6 border-emerald-200 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-lg font-semibold flex items-center gap-2">
+                                <div class="bg-emerald-100 p-1.5 rounded-md text-emerald-600"><i data-lucide="message-circle" class="w-5 h-5"></i></div>
+                                WhatsApp
+                            </h3>
+                            <span class="badge font-medium text-emerald-700 bg-emerald-50 border-emerald-200">Connected</span>
+                        </div>
+                        <p class="text-sm text-zinc-500 mb-6">Messaging operations fully active.</p>
+                        <div class="text-xs bg-zinc-50 p-2 rounded border mb-4 text-zinc-600 flex justify-between items-center">
+                            <span>Last delivery: <strong class="text-zinc-900">Success</strong></span>
+                            <span>2 min ago</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="btn btn-secondary border border-zinc-200 text-xs h-8">Send Test</button>
+                            <button class="btn btn-ghost text-xs h-8">View Logs</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Telegram connection card -->
+                    <div class="card p-6 border-zinc-200 bg-zinc-50/50">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-lg font-semibold flex items-center gap-2">
+                                <div class="bg-zinc-200 p-1.5 rounded-md text-zinc-600"><i data-lucide="send" class="w-5 h-5"></i></div>
+                                Telegram
+                            </h3>
+                            <span class="badge text-zinc-500 bg-zinc-100 border-zinc-200">Not Connected</span>
+                        </div>
+                        <p class="text-sm text-zinc-500 mb-6">Connect bot token to route messages.</p>
+                        
+                        <div class="flex gap-2 mt-auto">
+                            <button class="btn btn-primary text-xs h-8">Connect Telegram</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Channels Continuity Status -->
+                <div class="mb-8">
+                    <h3 class="font-semibold text-lg mb-4">Continuity Health</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="card bg-zinc-50/50 border-zinc-200 p-4 flex items-center gap-3">
+                            <div class="w-3 h-3 rounded-full bg-emerald-500 shrink-0 shadow-sm border border-emerald-600/20"></div>
+                            <div>
+                                <p class="text-sm font-medium text-zinc-900">WhatsApp</p>
+                                <p class="text-xs text-zinc-500">Healthy</p>
+                            </div>
+                        </div>
+                        <div class="card p-4 flex items-center justify-between border-amber-200 bg-amber-50/40">
+                            <div class="flex items-center gap-3">
+                                <div class="w-3 h-3 rounded-full bg-amber-500 shrink-0 shadow-sm border border-amber-600/20"></div>
+                                <div>
+                                    <p class="text-sm font-medium text-amber-950">Telegram</p>
+                                    <p class="text-[11px] font-medium text-amber-700/80 mt-0.5">Catch-up needed (last sync 5 min ago)</p>
+                                </div>
+                            </div>
+                            <button class="btn btn-secondary border border-amber-200 h-8 text-xs text-amber-800 bg-white hover:bg-amber-100 shadow-sm">Sync</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div>
+                    <h3 class="font-semibold text-lg mb-4">Recent Activity</h3>
+                    <div class="card flex flex-col divide-y divide-zinc-100">
+                        <div class="flex items-center justify-between p-4 bg-white hover:bg-zinc-50 w-full transition border-l-[3px] border-emerald-500">
+                            <div class="flex items-center gap-x-4">
+                                <div class="bg-zinc-100 p-2 rounded-full"><i data-lucide="arrow-up-right" class="w-4 h-4 text-zinc-500"></i></div>
+                                <div>
+                                    <p class="text-sm font-medium text-zinc-900">WA outbound to Sarah</p>
+                                    <p class="text-xs text-zinc-500 mb-1 mt-0.5">Deal followup</p>
+                                    <p class="text-[10px] font-mono text-zinc-400 bg-zinc-100 inline-block px-1.5 py-0.5 rounded border border-zinc-200">Thread: wa:dm:sarah-lee</p>
+                                </div>
+                            </div>
+                            <div class="flex flex-col items-end gap-1.5">
+                                <span class="badge bg-zinc-100 text-zinc-600 border-zinc-200 text-[10px] hover:bg-zinc-100">Delivered</span>
+                                <span class="text-xs text-zinc-400 font-medium">10:45 AM</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-4 bg-white hover:bg-zinc-50 w-full transition border-l-[3px] border-amber-500">
+                            <div class="flex items-center gap-x-4">
+                                <div class="bg-zinc-100 p-2 rounded-full"><i data-lucide="arrow-down-left" class="w-4 h-4 text-zinc-500"></i></div>
+                                <div>
+                                    <p class="text-sm font-medium text-zinc-900">TG inbound from David</p>
+                                    <p class="text-xs text-zinc-500 mb-1 mt-0.5">Requires review</p>
+                                    <p class="text-[10px] font-mono text-zinc-400 bg-zinc-100 inline-block px-1.5 py-0.5 rounded border border-zinc-200">Thread: tg:dm:david-tan</p>
+                                </div>
+                            </div>
+                            <div class="flex flex-col items-end gap-1.5">
+                                <span class="badge bg-amber-50 text-amber-700 border-amber-200 text-[10px] hover:bg-amber-50">Waiting approval</span>
+                                <span class="text-xs text-zinc-400 font-medium">Yesterday</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AUTOMATIONS / EMPTY STATE EXAMPLE -->
+            <div x-show="currentView === 'automations'" class="h-full flex flex-col px-8 py-8 max-w-4xl mx-auto" style="display: none;">
+                <div class="flex items-center justify-between mb-8">
+                    <h1 class="text-3xl font-bold tracking-tight">Automations</h1>
+                </div>
+
+                <!-- Empty State -->
+                <div class="border-2 border-dashed border-zinc-200 rounded-xl p-12 flex flex-col items-center justify-center text-center bg-zinc-50 mt-12">
+                    <div class="w-16 h-16 bg-white rounded-2xl shadow-sm border border-zinc-100 flex items-center justify-center mb-6">
+                        <i data-lucide="workflow" class="w-8 h-8 text-zinc-400"></i>
+                    </div>
+                    <h2 class="text-xl font-semibold mb-2 text-zinc-900">Nothing is running yet</h2>
+                    <p class="text-zinc-500 max-w-md mb-8">Turn on Autopilot or create your first exact-time schedule to automate your routines.</p>
+                    <div class="flex gap-4">
+                        <button class="btn btn-primary">Turn On Autopilot</button>
+                        <button class="btn btn-secondary border border-zinc-200 bg-white">Create Schedule</button>
+                    </div>
+                    <button class="mt-6 text-sm text-zinc-500 hover:text-zinc-800 underline underline-offset-4 font-medium transition">See example setups &rarr;</button>
+                </div>
+            </div>
+
+            <!-- MEMORY -->
+            <div x-show="currentView === 'memory'" class="h-full flex flex-col px-8 py-8 max-w-5xl mx-auto" style="display: none;">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h1 class="text-3xl font-bold tracking-tight">Memory</h1>
+                        <p class="text-zinc-500 mt-1">Manage what Sunder remembers about you and your workflows.</p>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50/50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg mb-8 flex items-start gap-3 text-sm shadow-sm max-w-3xl">
+                    <i data-lucide="info" class="w-4 h-4 mt-0.5 text-blue-600 opacity-80 shrink-0"></i>
+                    <div>
+                        <span class="font-semibold block mb-0.5">Scope: Shared across your chats and channels.</span>
+                        <span class="text-xs text-blue-700/80">Updating memory here changes how Sunder naturally behaves in all your threads.</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
+                    <!-- Left Column -->
+                    <div class="space-y-8">
+                        <div>
+                            <h3 class="font-semibold text-lg mb-4 flex items-center justify-between">
+                                Active Memory
+                                <button class="btn btn-ghost h-7 text-xs text-indigo-600 hover:text-indigo-700 bg-indigo-50"><i data-lucide="plus" class="w-3.5 h-3.5 mr-1.5"></i> Add Note</button>
+                            </h3>
+                            <div class="card divide-y divide-zinc-100 overflow-hidden shadow-sm">
+                                <div class="p-4 flex justify-between items-start hover:bg-zinc-50/50 transition">
+                                    <div class="pr-8">
+                                        <p class="font-medium text-sm text-zinc-900 mb-1.5">Communication Style</p>
+                                        <div class="bg-zinc-50 border border-zinc-200 rounded p-3 text-sm text-zinc-700 italic">"Prefers concise WhatsApp messages. No emojis."</div>
+                                    </div>
+                                    <button class="btn btn-ghost px-2 h-8 text-zinc-400 shrink-0"><i data-lucide="more-horizontal" class="w-4 h-4"></i></button>
+                                </div>
+                                <div class="p-4 flex justify-between items-start hover:bg-zinc-50/50 transition">
+                                    <div class="pr-8">
+                                        <p class="font-medium text-sm text-zinc-900 mb-1.5">Focus Area</p>
+                                        <div class="bg-zinc-50 border border-zinc-200 rounded p-3 text-sm text-zinc-700 italic">"District 10 and 11 luxury properties."</div>
+                                    </div>
+                                    <button class="btn btn-ghost px-2 h-8 text-zinc-400 shrink-0"><i data-lucide="more-horizontal" class="w-4 h-4"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="font-semibold text-lg mb-4 flex items-center gap-2">Suggested Updates <span class="badge bg-zinc-900 text-white border-transparent">2</span></h3>
+                            <div class="space-y-4">
+                                <div class="card p-5 border-amber-200 bg-amber-50/30 shadow-sm">
+                                    <div class="flex justify-between items-start mb-4">
+                                        <div class="flex gap-2.5 items-center">
+                                            <span class="badge text-[10px] px-2 py-0.5 bg-emerald-100 text-emerald-800 border-emerald-200 font-bold">ADD RECORD</span>
+                                            <p class="font-semibold text-sm text-zinc-900">Scheduling Preference</p>
+                                        </div>
+                                    </div>
+                                    <p class="text-zinc-800 text-sm mb-5 font-medium border-l-2 border-emerald-400 pl-3">"Prefers calls after lunch (2 PM - 5 PM)."</p>
+                                    <div class="flex gap-3">
+                                        <button class="btn btn-primary h-8 text-xs px-5 shadow-sm">Approve</button>
+                                        <button class="btn btn-secondary border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-600 h-8 text-xs font-semibold px-4 shadow-sm">Reject</button>
+                                    </div>
+                                </div>
+                                <div class="card p-5 border-amber-200 bg-amber-50/30 shadow-sm relative overflow-hidden">
+                                     <div class="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-amber-100/50 to-transparent"></div>
+                                    <div class="flex justify-between items-start mb-4">
+                                        <div class="flex gap-2.5 items-center">
+                                            <span class="badge text-[10px] px-2 py-0.5 bg-blue-100 text-blue-800 border-blue-200 font-bold">MODIFY RECORD</span>
+                                            <p class="font-semibold text-sm text-zinc-900">Email Strategy</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-sm mb-5 space-y-2 border-l-2 border-blue-400 pl-3">
+                                        <p class="text-red-600/70 line-through bg-red-50/50 inline-block px-1 rounded">- "Prefers priority emails"</p>
+                                        <p class="text-emerald-700 font-medium bg-emerald-50/50 inline-block px-1 rounded">+ "Wait 2 days before following up on emails"</p>
+                                    </div>
+                                    <div class="flex gap-3">
+                                        <button class="btn btn-primary h-8 text-xs px-5 shadow-sm">Approve Changes</button>
+                                        <button class="btn btn-secondary border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-600 h-8 text-xs font-semibold px-4 shadow-sm">Keep Existing</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Timeline -->
+                    <div class="bg-zinc-50 border border-zinc-200 rounded-lg p-5">
+                        <h3 class="font-semibold text-base mb-6 pb-4 border-b">Recent Changes</h3>
+                        <div class="space-y-6 relative before:absolute before:inset-0 before:ml-[5px] before:-translate-x-px md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-zinc-200 before:via-zinc-200 before:to-transparent">
+                            
+                            <div class="relative flex items-start gap-4">
+                                <div class="absolute left-[0px] top-1.5 w-3 h-3 rounded-full bg-white border-2 border-indigo-500 z-10 box-content"></div>
+                                <div class="pl-8 pt-0.5 w-full">
+                                    <p class="text-sm font-semibold text-zinc-900 leading-none mb-1">Updated Communication Style</p>
+                                    <p class="text-[11px] text-zinc-500 mb-2">Approved by you • Feb 21</p>
+                                    <button class="text-xs text-indigo-600 hover:text-indigo-800 font-medium transition flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Rollback</button>
+                                </div>
+                            </div>
+                            
+                            <div class="relative flex items-start gap-4">
+                                <div class="absolute left-[0px] top-1.5 w-3 h-3 rounded-full bg-zinc-200 border-2 border-white z-10 box-content shadow-sm"></div>
+                                <div class="pl-8 pt-0.5 w-full">
+                                    <p class="text-sm font-semibold text-zinc-700 leading-none mb-1">Learned Focus Area</p>
+                                    <p class="text-[11px] text-zinc-500 mb-2">Auto-learned • Feb 15</p>
+                                    <button class="text-xs text-zinc-400 hover:text-indigo-600 font-medium transition flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Rollback</button>
+                                </div>
+                            </div>
+                            
+                        </div>
+                        <button class="w-full mt-8 btn btn-ghost text-xs text-zinc-500 hover:text-zinc-800">View Full History</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Placeholder for other tabs -->
+            <div x-show="['knowledge', 'documents', 'settings'].includes(currentView)" class="h-full flex items-center justify-center" style="display: none;">
+                <div class="text-center">
+                    <i data-lucide="layout-template" class="mx-auto h-12 w-12 text-zinc-300 mb-4"></i>
+                    <h2 class="text-xl font-medium text-zinc-800" x-text="(currentView.charAt(0).toUpperCase() + currentView.slice(1)).replace('_', ' ')"></h2>
+                    <p class="text-zinc-500 mt-2">Wireframe view placeholder</p>
+                </div>
+            </div>
+            
+        </div>
+    </main>
+    
+    <script>
+        // Initialize lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
