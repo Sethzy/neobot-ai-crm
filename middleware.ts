@@ -42,6 +42,7 @@ function isPublicRoute(pathname: string): boolean {
     pathname.startsWith("/auth/") ||
     pathname.startsWith("/use-cases") ||
     pathname.startsWith("/industries") ||
+    pathname.startsWith("/market") ||
     pathname.startsWith("/agents") ||
     pathname.startsWith("/properties") ||
     pathname.startsWith("/hdb") ||

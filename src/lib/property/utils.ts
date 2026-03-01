@@ -158,3 +158,112 @@ export function formatPriceRange(
 
   return `${formatCurrencySgd(min)} – ${formatCurrencySgd(max)}`;
 }
+
+/** Format an agent activity date range, e.g. "May 2021 – Dec 2026". */
+export function formatActiveRange(
+  firstDate: string | null,
+  latestDate: string | null
+): string {
+  if (!firstDate) {
+    return "No transaction history";
+  }
+
+  const fmt = (d: string) => {
+    const date = new Date(`${d}T00:00:00Z`);
+    if (Number.isNaN(date.getTime())) {
+      return "N/A";
+    }
+    return date.toLocaleDateString("en-SG", {
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  };
+
+  return `${fmt(firstDate)} – ${latestDate ? fmt(latestDate) : "Present"}`;
+}
+
+/** Parse floor range like "06 TO 10" to midpoint (8). */
+export function parseFloorMidpoint(
+  floorRange: string | null | undefined
+): number | null {
+  if (!floorRange) {
+    return null;
+  }
+
+  const match = floorRange.match(/^(\d+)\s*TO\s*(\d+)$/i);
+  if (!match) {
+    return null;
+  }
+
+  const low = Number.parseInt(match[1], 10);
+  const high = Number.parseInt(match[2], 10);
+  if (Number.isNaN(low) || Number.isNaN(high)) {
+    return null;
+  }
+
+  return Math.round((low + high) / 2);
+}
+
+/** Convert area in sqm to sqft and format with commas. */
+export function formatAreaSqft(sqm: number | null | undefined): string {
+  if (sqm === null || sqm === undefined || !Number.isFinite(sqm)) {
+    return "N/A";
+  }
+
+  const sqft = Math.round(sqm * 10.764);
+  return new Intl.NumberFormat("en-SG").format(sqft);
+}
+
+/** Known property type DB values → display labels. */
+const PROPERTY_TYPE_LABELS: Record<string, string> = {
+  CONDOMINIUM_APARTMENTS: "Condominium",
+  STRATA_SEMIDETACHED: "Strata Semi-D",
+  STRATA_TERRACE: "Strata Terrace",
+  STRATA_DETACHED: "Strata Detached",
+  EXECUTIVE_CONDOMINIUM: "Executive Condo",
+  DETACHED: "Detached",
+  SEMIDETACHED: "Semi-Detached",
+  TERRACE: "Terrace",
+  HDB: "HDB",
+};
+
+/** Convert an ALL_CAPS_UNDERSCORE or ALL CAPS string to Title Case. */
+export function toTitleCase(value: string): string {
+  return value
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Format a property_type DB enum to a display label. */
+export function formatPropertyType(value: string | null | undefined): string {
+  if (!value) return "N/A";
+  return PROPERTY_TYPE_LABELS[value] ?? toTitleCase(value);
+}
+
+/** Format a transaction_type or represented DB enum to a display label. */
+export function formatEnumLabel(value: string | null | undefined): string {
+  if (!value) return "N/A";
+  return toTitleCase(value);
+}
+
+/** Format area/town/district name: title-case ALL CAPS names, prefix bare numbers with "District ". */
+export function formatAreaName(value: string | null | undefined): string {
+  if (!value) return "Unknown";
+  const trimmed = value.trim();
+  if (!trimmed) return "Unknown";
+
+  // Bare district number (e.g. "19", "05")
+  if (/^\d{1,2}$/.test(trimmed)) {
+    return `District ${trimmed}`;
+  }
+
+  // Already mixed case (e.g. "Tampines/ Pasir Ris") — normalise slash spacing
+  if (trimmed !== trimmed.toUpperCase()) {
+    return trimmed.replace(/\s*\/\s*/g, "/");
+  }
+
+  // ALL CAPS — title-case
+  return toTitleCase(trimmed);
+}

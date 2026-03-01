@@ -12,6 +12,7 @@ from src.common import (
     log_pipeline_run,
     normalize_text,
     require_env,
+    safe_rpc_truncate,
     to_float,
     to_int,
     utc_now_iso,
@@ -33,14 +34,6 @@ TRANSACTION_URL = (
 )
 
 SALE_TYPE_MAP = {"1": "New Sale", "2": "Sub Sale", "3": "Resale"}
-UPSERT_KEY_FIELDS = (
-    "project",
-    "street",
-    "contract_date",
-    "price",
-    "area_sqm",
-    "floor_range",
-)
 
 
 def parse_contract_date(mmyy: object) -> str | None:
@@ -113,6 +106,7 @@ def flatten_batch_items(items: list[dict]) -> list[dict]:
 
             area_sqm = to_float(txn.get("area"))
             price = to_float(txn.get("price"))
+            nett_price = to_float(txn.get("nettPrice"))
             no_of_units = to_int(txn.get("noOfUnits")) or 1
             rows.append(
                 {
@@ -128,21 +122,13 @@ def flatten_batch_items(items: list[dict]) -> list[dict]:
                     "tenure": normalize_text(txn.get("tenure")),
                     "type_of_sale": map_sale_type(txn.get("typeOfSale")),
                     "type_of_area": normalize_text(txn.get("typeOfArea")),
+                    "nett_price": nett_price,
                     "no_of_units": no_of_units,
                     "x_coord": x_coord,
                     "y_coord": y_coord,
                 }
             )
     return rows
-
-
-def dedupe_rows_for_upsert(rows: list[dict]) -> list[dict]:
-    # Keep last occurrence per unique-key tuple to avoid Postgres 21000 upsert errors.
-    deduped: dict[tuple, dict] = {}
-    for row in rows:
-        key = tuple(row.get(field) for field in UPSERT_KEY_FIELDS)
-        deduped[key] = row
-    return list(deduped.values())
 
 
 def run_ura_ingestion(*, dry_run: bool = False) -> dict:
@@ -162,15 +148,10 @@ def run_ura_ingestion(*, dry_run: bool = False) -> dict:
         print(f"[ura] batch={batch} flattened_rows={len(rows)}")
 
     fetched = len(all_rows)
-    rows_to_write = dedupe_rows_for_upsert(all_rows)
-    unique_rows = len(rows_to_write)
-    dropped_duplicates = fetched - unique_rows
-    if dropped_duplicates:
-        print(f"[ura] Deduped {dropped_duplicates} duplicate rows before upsert")
 
     if dry_run:
-        print(f"[ura] DRY RUN fetched={fetched}, unique={unique_rows}")
-        for row in rows_to_write[:5]:
+        print(f"[ura] DRY RUN fetched={fetched}")
+        for row in all_rows[:5]:
             print(
                 f"  {row.get('contract_date')} | {row.get('project')} | "
                 f"{row.get('district')} | {row.get('price')}"
@@ -178,15 +159,22 @@ def run_ura_ingestion(*, dry_run: bool = False) -> dict:
         return {"dataset": DATASET, "fetched": fetched, "written": 0}
 
     client = create_supabase_service_client()
+
+    print("[ura] Truncating target table...")
+    safe_rpc_truncate(client, "ura_transactions")
+
     written = 0
-    for batch in chunked(rows_to_write, BATCH_SIZE):
-        client.table("ura_transactions").upsert(
-            list(batch),
-            on_conflict="project,street,contract_date,price,area_sqm,floor_range",
-        ).execute()
-        written += len(batch)
+    for batch in chunked(all_rows, BATCH_SIZE):
+        batch_start_offset = written
+        try:
+            client.table("ura_transactions").insert(list(batch)).execute()
+            written += len(batch)
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError(
+                f"URA txn import failed at inserted_offset={batch_start_offset}"
+            ) from exc
         if written % 5_000 == 0:
-            print(f"[ura] Upserted {written}")
+            print(f"[ura] Inserted {written}")
 
     log_pipeline_run(
         client,
@@ -195,7 +183,7 @@ def run_ura_ingestion(*, dry_run: bool = False) -> dict:
         records_written=written,
         started_at=started_at,
     )
-    print(f"[ura] Done fetched={fetched}, upserted={written}")
+    print(f"[ura] Done fetched={fetched}, inserted={written}")
     return {"dataset": DATASET, "fetched": fetched, "written": written}
 
 

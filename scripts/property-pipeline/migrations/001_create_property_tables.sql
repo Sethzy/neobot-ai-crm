@@ -54,6 +54,9 @@ CREATE TABLE hdb_resale_transactions (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- No UNIQUE constraint: developer launches have many identical-spec units
+-- (same project, street, date, price, area, floor) that are distinct transactions.
+-- Full refresh import strategy (truncate + insert), matching CEA/HDB pattern.
 CREATE TABLE ura_transactions (
     id BIGSERIAL PRIMARY KEY,
     project TEXT NOT NULL,
@@ -71,11 +74,11 @@ CREATE TABLE ura_transactions (
     tenure TEXT,
     type_of_sale TEXT,
     type_of_area TEXT,
+    nett_price NUMERIC,
     no_of_units INTEGER DEFAULT 1,
     x_coord TEXT,
     y_coord TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(project, street, contract_date, price, area_sqm, floor_range)
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE cea_agent_movements (
@@ -121,7 +124,7 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-    IF table_name NOT IN ('cea_transactions', 'hdb_resale_transactions') THEN
+    IF table_name NOT IN ('cea_transactions', 'hdb_resale_transactions', 'ura_transactions') THEN
         RAISE EXCEPTION 'Table % not allowed for truncate', table_name;
     END IF;
     EXECUTE format('TRUNCATE TABLE %I RESTART IDENTITY', table_name);

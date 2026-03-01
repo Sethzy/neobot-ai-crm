@@ -23,11 +23,12 @@ const STATIC_ROUTES = [
   "/demo",
   "/use-cases",
   "/industries",
-  "/agents",
-  "/properties",
-  "/hdb",
-  "/agencies",
-  "/areas",
+  "/market",
+  "/market/agents",
+  "/market/properties",
+  "/market/hdb",
+  "/market/agencies",
+  "/market/areas",
 ];
 
 type ExtraSitemapEntry = {
@@ -110,7 +111,7 @@ async function getAgentEntriesChunk(
   return ((data ?? []) as AgentSitemapRow[])
     .filter((row) => Boolean(row.registration_no))
     .map((row) => ({
-      url: `${siteUrl}/agents/${row.registration_no}`,
+      url: `${siteUrl}/market/agents/${row.registration_no}`,
       lastModified: row.updated_at ?? new Date().toISOString(),
       changeFrequency: "weekly",
       priority: 0.8,
@@ -181,7 +182,7 @@ async function getExtraEntries(siteUrl: string): Promise<ExtraSitemapEntry[]> {
     seenProperties.add(key);
 
     out.push({
-      url: `${siteUrl}/properties/${toPropertySlug(project, row.district)}`,
+      url: `${siteUrl}/market/properties/${toPropertySlug(project, row.district)}`,
       lastModified: toIsoDate(row.contract_date),
     });
   }
@@ -195,7 +196,7 @@ async function getExtraEntries(siteUrl: string): Promise<ExtraSitemapEntry[]> {
     seenAgencies.add(agencyName);
 
     out.push({
-      url: `${siteUrl}/agencies/${toAgencySlug(agencyName)}`,
+      url: `${siteUrl}/market/agencies/${toAgencySlug(agencyName)}`,
       lastModified: row.updated_at ?? new Date().toISOString(),
     });
   }
@@ -209,7 +210,7 @@ async function getExtraEntries(siteUrl: string): Promise<ExtraSitemapEntry[]> {
     seenAreas.add(areaName);
 
     out.push({
-      url: `${siteUrl}/areas/${toAreaSlug(areaName)}`,
+      url: `${siteUrl}/market/areas/${toAreaSlug(areaName)}`,
       lastModified: toIsoDate(row.transaction_date),
     });
   }
@@ -229,7 +230,7 @@ async function getExtraEntries(siteUrl: string): Promise<ExtraSitemapEntry[]> {
     seenHdbStreets.add(key);
 
     out.push({
-      url: `${siteUrl}/hdb/${toHdbTownSlug(town)}/${toHdbStreetSlug(street)}`,
+      url: `${siteUrl}/market/hdb/${toHdbTownSlug(town)}/${toHdbStreetSlug(street)}`,
       lastModified: toIsoDate(row.month),
     });
   }

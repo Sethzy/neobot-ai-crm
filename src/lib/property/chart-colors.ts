@@ -1,11 +1,11 @@
-/** Sunder-green derived palette for recharts visualizations. */
+/** Blue palette for recharts and chart visualizations. */
 export const CHART_COLORS = [
-  "#024F46",
-  "#2D6A4F",
-  "#40916C",
-  "#52B788",
-  "#95D5B2",
+  "#1e3a5f",  // navy — primary/dominant segment
+  "#2563eb",  // blue-600 — secondary segment
+  "#3b82f6",  // blue-500
+  "#60a5fa",  // blue-400
+  "#93c5fd",  // blue-300 — lightest segment
 ] as const;
 
-export const CHART_GREEN = "#024F46";
-export const CHART_GREEN_LIGHT = "#52B788";
+export const CHART_PRIMARY = "#1e3a5f";
+export const CHART_PRIMARY_LIGHT = "#60a5fa";

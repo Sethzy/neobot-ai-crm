@@ -11,7 +11,8 @@
     "smoke:property": "bash scripts/smoke-property-routes.sh",
     "test": "vitest",
     "test:run": "vitest run",
-    "mcp": "tsx mcp-server.ts"
+    "mcp": "tsx mcp-server.ts",
+    "map:generate": "tsx scripts/generate-sg-map.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.15",
@@ -73,10 +74,13 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
     "@testing-library/user-event": "^14.6.1",
+    "@turf/simplify": "^7.3.4",
+    "@types/d3-geo": "^3.1.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vercel/node": "^5.5.16",
+    "d3-geo": "^3.1.1",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "globals": "^16.5.0",

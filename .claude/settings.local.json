@@ -6,9 +6,14 @@
       "Bash(git checkout:*)",
       "Bash(git pull:*)",
       "Bash(git merge:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "WebFetch(domain:eservice.ura.gov.sg)"
     ]
   },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "sunder"
+  ],
   "hooks": {
     "Stop": [
       {
@@ -21,9 +26,5 @@
         ]
       }
     ]
-  },
-  "enabledMcpjsonServers": [
-    "sunder"
-  ],
-  "enableAllProjectMcpServers": true
+  }
 }

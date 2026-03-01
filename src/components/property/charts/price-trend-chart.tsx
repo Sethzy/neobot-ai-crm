@@ -1,48 +1,63 @@
-/** Line chart showing median price or PSF over time. */
+/** Price trend chart with monthly min/median/max bands. */
 "use client";
 
 import { useMemo } from "react";
 import {
-  LineChart,
+  Area,
+  CartesianGrid,
+  ComposedChart,
   Line,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
 } from "recharts";
-import { CHART_GREEN, CHART_GREEN_LIGHT } from "@/lib/property/chart-colors";
+import { CHART_PRIMARY, CHART_PRIMARY_LIGHT } from "@/lib/property/chart-colors";
 
 type PriceTrendChartProps = {
   title: string;
-  /** Array of { date: string; value: number } pairs. Dates in YYYY-MM-DD or YYYY-MM. */
+  subtitle?: string;
   points: Array<{ date: string | null; value: number | null }>;
-  /** Label for the value axis. */
   valueLabel?: string;
 };
 
-function groupByQuarter(
+type MonthBand = {
+  /** Sortable key like "2024-11". */
+  key: string;
+  /** Display label like "Nov 2024". */
+  period: string;
+  min: number;
+  median: number;
+  max: number;
+};
+
+const SHORT_MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+function groupByMonth(
   points: Array<{ date: string | null; value: number | null }>
-): Array<{ period: string; median: number }> {
+): MonthBand[] {
   const buckets = new Map<string, number[]>();
 
-  for (const p of points) {
-    if (!p.date || p.value === null) continue;
-    const d = new Date(`${p.date}T00:00:00Z`);
-    if (Number.isNaN(d.getTime())) continue;
+  for (const point of points) {
+    if (!point.date || point.value === null) continue;
+    const date = new Date(`${point.date}T00:00:00Z`);
+    if (Number.isNaN(date.getTime())) continue;
 
-    const year = d.getUTCFullYear();
-    const quarter = Math.ceil((d.getUTCMonth() + 1) / 3);
-    const key = `${year} Q${quarter}`;
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth(); // 0-indexed
+    const key = `${year}-${String(month + 1).padStart(2, "0")}`;
 
     const bucket = buckets.get(key) ?? [];
-    bucket.push(p.value);
+    bucket.push(point.value);
     buckets.set(key, bucket);
   }
 
   return Array.from(buckets.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([period, values]) => {
+    .map(([key, values]) => {
       const sorted = [...values].sort((a, b) => a - b);
       const mid = Math.floor(sorted.length / 2);
       const median =
@@ -50,30 +65,111 @@ function groupByQuarter(
           ? (sorted[mid - 1] + sorted[mid]) / 2
           : sorted[mid];
 
-      return { period, median: Math.round(median) };
+      const year = Number.parseInt(key.slice(0, 4), 10);
+      const monthIdx = Number.parseInt(key.slice(5, 7), 10) - 1;
+
+      return {
+        key,
+        period: `${SHORT_MONTHS[monthIdx]} ${String(year).slice(2)}`,
+        min: Math.round(Math.min(...sorted)),
+        median: Math.round(median),
+        max: Math.round(Math.max(...sorted)),
+      };
     });
 }
 
 function formatCompactPrice(value: number): string {
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
+  if (value >= 1_000) return `$${Math.round(value / 1_000)}K`;
   return `$${value}`;
+}
+
+function formatFullPrice(value: number): string {
+  return `$${Math.round(value).toLocaleString()}`;
+}
+
+/** Expand "Nov 24" → "November 2024" for the tooltip header. */
+function expandPeriodLabel(short: string): string {
+  const parts = short.split(" ");
+  if (parts.length !== 2) return short;
+  const monthAbbrev = parts[0];
+  const yearShort = parts[1];
+  const fullMonths = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+  const idx = SHORT_MONTHS.indexOf(monthAbbrev);
+  const fullMonth = idx >= 0 ? fullMonths[idx] : monthAbbrev;
+  const fullYear = Number.parseInt(yearShort, 10) < 50
+    ? `20${yearShort}`
+    : `19${yearShort}`;
+  return `${fullMonth} ${fullYear}`;
+}
+
+/** Custom tooltip showing period, price range, and median on separate lines. */
+function CustomTooltip({
+  active,
+  payload,
+  label,
+  valueLabel,
+}: {
+  active?: boolean;
+  payload?: Array<{ dataKey: string; value: number }>;
+  label?: string;
+  valueLabel: string;
+}) {
+  if (!active || !payload?.length) return null;
+
+  const values: Record<string, number> = {};
+  for (const entry of payload) {
+    values[entry.dataKey] = entry.value;
+  }
+
+  const min = values.min;
+  const max = values.max;
+  const med = values.median;
+
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm shadow-md">
+      <p className="font-semibold text-zinc-900">
+        {label ? expandPeriodLabel(label) : ""}
+      </p>
+      {min != null && max != null ? (
+        <p className="text-zinc-600">
+          {formatFullPrice(min)} – {formatFullPrice(max)}
+          <span className="ml-1.5 text-zinc-400">Price Range</span>
+        </p>
+      ) : null}
+      {med != null ? (
+        <p className="text-zinc-600">
+          {formatFullPrice(med)}
+          <span className="ml-1.5 text-zinc-400">{valueLabel}</span>
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 export function PriceTrendChart({
   title,
+  subtitle,
   points,
   valueLabel = "Median Price",
 }: PriceTrendChartProps) {
-  const chartData = useMemo(() => groupByQuarter(points), [points]);
+  const chartData = useMemo(() => groupByMonth(points), [points]);
 
-  if (chartData.length < 2) return null;
+  if (chartData.length < 2) {
+    return null;
+  }
 
   return (
-    <div className="rounded-2xl border border-[#E8DCC8] bg-white p-5 shadow-sm">
-      <h3 className="mb-4 text-lg font-semibold text-zinc-900">{title}</h3>
+    <div className="rounded-2xl border border-zinc-200/70 bg-white p-5">
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold text-zinc-900">{title}</h3>
+        {subtitle ? <p className="text-sm text-zinc-500">{subtitle}</p> : null}
+      </div>
       <ResponsiveContainer width="100%" height={280}>
-        <LineChart data={chartData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
+        <ComposedChart data={chartData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
           <XAxis
             dataKey="period"
@@ -89,26 +185,34 @@ export function PriceTrendChart({
             className="hidden sm:block"
           />
           <Tooltip
-            contentStyle={{
-              borderRadius: 8,
-              border: "1px solid #e4e4e7",
-              fontSize: 13,
-            }}
-            formatter={(value: number | undefined) => [
-              formatCompactPrice(value ?? 0),
-              valueLabel,
-            ]}
+            content={<CustomTooltip valueLabel={valueLabel} />}
+          />
+          <Area
+            type="monotone"
+            dataKey="max"
+            stroke="none"
+            fill={CHART_PRIMARY_LIGHT}
+            fillOpacity={0.15}
+            name="max"
+          />
+          <Area
+            type="monotone"
+            dataKey="min"
+            stroke="none"
+            fill="#ffffff"
+            fillOpacity={1}
+            name="min"
           />
           <Line
             type="monotone"
             dataKey="median"
-            stroke={CHART_GREEN}
+            stroke={CHART_PRIMARY}
             strokeWidth={2}
-            dot={{ fill: CHART_GREEN_LIGHT, r: 3 }}
-            activeDot={{ r: 5, fill: CHART_GREEN }}
-            name={valueLabel}
+            dot={{ fill: CHART_PRIMARY_LIGHT, r: 3 }}
+            activeDot={{ r: 5, fill: CHART_PRIMARY }}
+            name="median"
           />
-        </LineChart>
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   );

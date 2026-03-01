@@ -11,13 +11,14 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { CHART_GREEN } from "@/lib/property/chart-colors";
+import { CHART_PRIMARY } from "@/lib/property/chart-colors";
 
 type Granularity = "yearly" | "quarterly" | "monthly";
 
 type TransactionVolumeChartProps = {
   /** Array of date strings (YYYY-MM-DD or YYYY-MM format). */
   dates: (string | null)[];
+  subtitle?: string;
 };
 
 function bucketKey(date: string, granularity: Granularity): string | null {
@@ -57,16 +58,22 @@ const TABS: Array<{ label: string; value: Granularity }> = [
   { label: "Monthly", value: "monthly" },
 ];
 
-export function TransactionVolumeChart({ dates }: TransactionVolumeChartProps) {
+export function TransactionVolumeChart({
+  dates,
+  subtitle,
+}: TransactionVolumeChartProps) {
   const [granularity, setGranularity] = useState<Granularity>("yearly");
   const chartData = useMemo(() => groupDates(dates, granularity), [dates, granularity]);
 
   if (chartData.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-[#E8DCC8] bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-zinc-200/70 bg-white p-5">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-lg font-semibold text-zinc-900">Transaction Volume</h3>
+        <div>
+          <h3 className="text-lg font-semibold text-zinc-900">Transaction Volume</h3>
+          {subtitle ? <p className="text-sm text-zinc-500">{subtitle}</p> : null}
+        </div>
         <div className="flex gap-1 rounded-lg bg-zinc-100 p-1">
           {TABS.map((tab) => (
             <button
@@ -107,7 +114,7 @@ export function TransactionVolumeChart({ dates }: TransactionVolumeChartProps) {
               fontSize: 13,
             }}
           />
-          <Bar dataKey="count" fill={CHART_GREEN} radius={[4, 4, 0, 0]} name="Transactions" />
+          <Bar dataKey="count" fill={CHART_PRIMARY} radius={[4, 4, 0, 0]} name="Transactions" />
         </BarChart>
       </ResponsiveContainer>
     </div>

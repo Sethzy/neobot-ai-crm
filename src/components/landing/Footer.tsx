@@ -47,7 +47,7 @@ export function Footer() {
           </div>
 
           {/* Navigation */}
-          <div className="lg:col-span-2 flex flex-col lg:flex-row lg:justify-end gap-8 lg:gap-16 lg:pt-2">
+          <div className="lg:col-span-2 flex flex-col lg:flex-row lg:justify-end gap-8 lg:gap-12 lg:pt-2">
             <div>
               <h3 className="text-sm font-semibold text-white mb-4 tracking-wide">Plans</h3>
               <nav className="flex flex-col gap-3 text-sm">
@@ -69,6 +69,16 @@ export function Footer() {
               <nav className="flex flex-col gap-3 text-sm">
                 <NavLink href="#testimonials" className="text-[#999] hover:text-white transition-colors">Testimonials</NavLink>
                 <Link href="/demo" className="text-[#999] hover:text-white transition-colors">Book a Call</Link>
+              </nav>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-white mb-4 tracking-wide">Market Data</h3>
+              <nav className="flex flex-col gap-3 text-sm">
+                <Link href="/market/agents" className="text-[#999] hover:text-white transition-colors">Agent Profiles</Link>
+                <Link href="/market/properties" className="text-[#999] hover:text-white transition-colors">Private Properties</Link>
+                <Link href="/market/hdb" className="text-[#999] hover:text-white transition-colors">HDB Resale</Link>
+                <Link href="/market/agencies" className="text-[#999] hover:text-white transition-colors">Agencies</Link>
+                <Link href="/market/areas" className="text-[#999] hover:text-white transition-colors">Areas</Link>
               </nav>
             </div>
           </div>
