@@ -3,6 +3,7 @@
  * @module app/api/chat/route
  */
 import type { UIMessage } from "ai";
+import { z } from "zod";
 
 import { resolveClientId } from "@/lib/chat/client-id";
 import { runAgent } from "@/lib/runner/run-agent";
@@ -17,6 +18,8 @@ interface ChatRequestBody {
   message?: string;
   messages?: UIMessage[];
 }
+
+const threadIdSchema = z.string().uuid();
 
 function jsonError(message: string, status: number): Response {
   return Response.json({ error: message }, { status });
@@ -83,6 +86,10 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError("Invalid request body: id (thread id) is required.", 400);
   }
 
+  if (!threadIdSchema.safeParse(threadId).success) {
+    return jsonError("Invalid request body: thread id must be a UUID.", 400);
+  }
+
   const input = typeof body.message === "string" && body.message.trim().length > 0
     ? body.message.trim()
     : getLatestUserInput(body.messages);
@@ -101,20 +108,24 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError("Unauthorized.", 401);
   }
 
-  const clientId = await resolveClientId(supabase, user.id);
-  const result = await runAgent(
-    {
-      clientId,
-      threadId,
-      triggerType: "chat",
-      input,
-    },
-    supabase,
-  );
+  try {
+    const clientId = await resolveClientId(supabase, user.id);
+    const result = await runAgent(
+      {
+        clientId,
+        threadId,
+        triggerType: "chat",
+        input,
+      },
+      supabase,
+    );
 
-  if (result.status === "queued") {
-    return Response.json({ status: "queued" }, { status: 202 });
+    if (result.status === "queued") {
+      return Response.json({ status: "queued" }, { status: 202 });
+    }
+
+    return result.streamResult.toUIMessageStreamResponse();
+  } catch {
+    return jsonError("Failed to process chat request.", 500);
   }
-
-  return result.streamResult.toUIMessageStreamResponse();
 }

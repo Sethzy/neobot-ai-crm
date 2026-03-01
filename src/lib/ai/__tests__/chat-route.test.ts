@@ -33,6 +33,7 @@ function createJsonRequest(body: unknown): Request {
 }
 
 describe("POST /api/chat", () => {
+  const threadId = "770e8400-e29b-41d4-a716-446655440000";
   const mockSupabase = {
     auth: {
       getUser: vi.fn(),
@@ -66,7 +67,7 @@ describe("POST /api/chat", () => {
 
     const response = await POST(
       createJsonRequest({
-        id: "thread-789",
+        id: threadId,
         messages: [
           { id: "a1", role: "assistant", parts: [{ type: "text", text: "How can I help?" }] },
           { id: "u1", role: "user", parts: [{ type: "text", text: "Hello, Sunder!" }] },
@@ -78,7 +79,7 @@ describe("POST /api/chat", () => {
     expect(mockRunAgent).toHaveBeenCalledWith(
       {
         clientId: "client-456",
-        threadId: "thread-789",
+        threadId,
         triggerType: "chat",
         input: "Hello, Sunder!",
       },
@@ -93,7 +94,7 @@ describe("POST /api/chat", () => {
 
     const response = await POST(
       createJsonRequest({
-        id: "thread-789",
+        id: threadId,
         messages: [{ id: "u1", role: "user", parts: [{ type: "text", text: "Follow up" }] }],
       }),
     );
@@ -119,7 +120,7 @@ describe("POST /api/chat", () => {
   it("returns 400 when user input text cannot be resolved", async () => {
     const response = await POST(
       createJsonRequest({
-        id: "thread-789",
+        id: threadId,
         messages: [{ id: "a1", role: "assistant", parts: [{ type: "text", text: "Only assistant" }] }],
       }),
     );
@@ -139,7 +140,7 @@ describe("POST /api/chat", () => {
 
     const response = await POST(
       createJsonRequest({
-        id: "thread-789",
+        id: threadId,
         messages: [{ id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] }],
       }),
     );
@@ -166,7 +167,7 @@ describe("POST /api/chat", () => {
 
     const response = await POST(
       createJsonRequest({
-        id: "thread-789",
+        id: threadId,
         messages: [{ id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] }],
       }),
     );
@@ -175,5 +176,34 @@ describe("POST /api/chat", () => {
     expect(await response.json()).toEqual({
       error: "Server misconfiguration: AI_GATEWAY_API_KEY is required.",
     });
+  });
+
+  it("returns 400 when thread id is not a UUID", async () => {
+    const response = await POST(
+      createJsonRequest({
+        id: "thread-not-uuid",
+        messages: [{ id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] }],
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "Invalid request body: thread id must be a UUID.",
+    });
+    expect(mockRunAgent).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 with a stable payload when runner throws", async () => {
+    mockRunAgent.mockRejectedValue(new Error("database unavailable"));
+
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        messages: [{ id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] }],
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "Failed to process chat request." });
   });
 });
