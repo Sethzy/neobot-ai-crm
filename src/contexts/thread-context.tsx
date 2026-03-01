@@ -1,90 +1,120 @@
 /**
- * In-memory thread state for chat navigation in PR2.
+ * Thread state context backed by chat persistence hooks.
  * @module contexts/thread-context
  */
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
+import { useClientId } from "@/hooks/use-client-id";
+import {
+  useCreateThread,
+  useThreads as useThreadRows,
+  useUpdateThreadTitle,
+} from "@/hooks/use-threads";
 import type { Thread } from "@/types/chat";
 
 interface ThreadContextValue {
   threads: Thread[];
   activeThreadId: string;
-  createThread: () => void;
+  createThread: () => Promise<void>;
   selectThread: (id: string) => void;
   updateThreadTitle: (id: string, title: string) => void;
 }
 
 const ThreadContext = createContext<ThreadContextValue | null>(null);
 
-function createThreadId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return `thread-${crypto.randomUUID()}`;
-  }
-
-  return `thread-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function createNewThread(): Thread {
-  return {
-    id: createThreadId(),
-    title: "New Chat",
-    createdAt: new Date(),
-  };
-}
-
 export function ThreadProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState(() => {
-    const initialThread = createNewThread();
-    return {
-      threads: [initialThread],
-      activeThreadId: initialThread.id,
-    };
-  });
+  const [activeThreadId, setActiveThreadId] = useState("");
+  const hasAutoCreatedInitialThread = useRef(false);
 
-  const createThread = useCallback(() => {
-    const nextThread = createNewThread();
+  const { data: clientId } = useClientId();
+  const { data: threadRows = [], isLoading } = useThreadRows(clientId);
+  const {
+    mutate: createThreadMutate,
+    mutateAsync: createThreadMutateAsync,
+    isPending: isCreatingThread,
+  } = useCreateThread(clientId);
+  const { mutate: updateThreadTitleMutate } = useUpdateThreadTitle(clientId);
 
-    setState((previousState) => ({
-      threads: [nextThread, ...previousState.threads],
-      activeThreadId: nextThread.id,
-    }));
-  }, []);
+  const threads = useMemo<Thread[]>(
+    () =>
+      threadRows.map((thread) => ({
+        id: thread.thread_id,
+        title: thread.title ?? "New Chat",
+        createdAt: new Date(thread.created_at),
+      })),
+    [threadRows],
+  );
+
+  useEffect(() => {
+    hasAutoCreatedInitialThread.current = false;
+  }, [clientId]);
+
+  useEffect(() => {
+    if (threadRows.length === 0) {
+      setActiveThreadId("");
+      return;
+    }
+
+    if (!activeThreadId) {
+      setActiveThreadId(threadRows[0].thread_id);
+    }
+  }, [threadRows, activeThreadId]);
+
+  useEffect(() => {
+    if (!clientId || isLoading || isCreatingThread || threadRows.length > 0) {
+      return;
+    }
+
+    if (hasAutoCreatedInitialThread.current) {
+      return;
+    }
+
+    hasAutoCreatedInitialThread.current = true;
+    createThreadMutate(null, {
+      onSuccess: (thread) => {
+        setActiveThreadId(thread.thread_id);
+      },
+      onError: () => {
+        hasAutoCreatedInitialThread.current = false;
+      },
+    });
+  }, [clientId, isLoading, isCreatingThread, threadRows.length, createThreadMutate]);
+
+  const createThread = useCallback(async () => {
+    const thread = await createThreadMutateAsync(null);
+    setActiveThreadId(thread.thread_id);
+  }, [createThreadMutateAsync]);
 
   const selectThread = useCallback((id: string) => {
-    setState((previousState) => {
-      const hasThread = previousState.threads.some((thread) => thread.id === id);
-
-      if (!hasThread) {
-        return previousState;
-      }
-
-      return {
-        ...previousState,
-        activeThreadId: id,
-      };
-    });
-  }, []);
+    const hasThread = threadRows.some((thread) => thread.thread_id === id);
+    if (hasThread) {
+      setActiveThreadId(id);
+    }
+  }, [threadRows]);
 
   const updateThreadTitle = useCallback((id: string, title: string) => {
-    setState((previousState) => ({
-      ...previousState,
-      threads: previousState.threads.map((thread) =>
-        thread.id === id ? { ...thread, title } : thread,
-      ),
-    }));
-  }, []);
+    updateThreadTitleMutate({ threadId: id, title });
+  }, [updateThreadTitleMutate]);
 
   const value = useMemo<ThreadContextValue>(
     () => ({
-      threads: state.threads,
-      activeThreadId: state.activeThreadId,
+      threads,
+      activeThreadId,
       createThread,
       selectThread,
       updateThreadTitle,
     }),
-    [state, createThread, selectThread, updateThreadTitle],
+    [threads, activeThreadId, createThread, selectThread, updateThreadTitle],
   );
 
   return <ThreadContext.Provider value={value}>{children}</ThreadContext.Provider>;

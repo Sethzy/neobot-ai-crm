@@ -425,6 +425,148 @@ export type Database = {
         }
         Relationships: []
       }
+      clients: {
+        Row: {
+          client_id: string
+          created_at: string
+          display_name: string | null
+          user_id: string
+        }
+        Insert: {
+          client_id?: string
+          created_at?: string
+          display_name?: string | null
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          display_name?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      conversation_threads: {
+        Row: {
+          client_id: string
+          created_at: string
+          is_pinned: boolean
+          thread_id: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          is_pinned?: boolean
+          thread_id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          is_pinned?: boolean
+          thread_id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_threads_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
+      conversation_messages: {
+        Row: {
+          content: string | null
+          created_at: string
+          message_id: string
+          parts: Json | null
+          role: string
+          thread_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          message_id?: string
+          parts?: Json | null
+          role: string
+          thread_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          message_id?: string
+          parts?: Json | null
+          role?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
+      runs: {
+        Row: {
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          model: string | null
+          run_id: string
+          status: Database["public"]["Enums"]["run_status"]
+          thread_id: string
+          tokens_in: number | null
+          tokens_out: number | null
+        }
+        Insert: {
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          model?: string | null
+          run_id?: string
+          status?: Database["public"]["Enums"]["run_status"]
+          thread_id: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+        }
+        Update: {
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          model?: string | null
+          run_id?: string
+          status?: Database["public"]["Enums"]["run_status"]
+          thread_id?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "runs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "runs_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
     }
     Views: {
       documents_with_status: {
@@ -525,9 +667,10 @@ export type Database = {
     }
     Functions: {
       get_my_client_config: { Args: never; Returns: string }
+      get_my_client_id: { Args: never; Returns: string }
     }
     Enums: {
-      [_ in never]: never
+      run_status: "queued" | "running" | "completed" | "partial" | "failed" | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -654,6 +797,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      run_status: ["queued", "running", "completed", "partial", "failed", "cancelled"],
+    },
   },
 } as const

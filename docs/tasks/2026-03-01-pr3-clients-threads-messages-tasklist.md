@@ -16,6 +16,20 @@
 
 **App Spec Sections:** §10.1 (Supabase Tables), §10.1.1 (Auth→Client Mapping), §11.1 (Thread Identity), §11.2 (Per-Thread Run Serialization)
 
+## Reviewer-Approved Adjustments (Pre-Execution)
+
+These adjustments were approved before implementation to align with DRY, explicitness, and minimal-diff constraints:
+
+1. Reuse existing `ThreadRail` from PR2 instead of introducing a parallel `ThreadList` component.
+2. Keep a layered data path (DAL functions + hooks that call DAL), avoid duplicating Supabase query logic in hooks.
+3. Replace placeholder integration prose in Task 10 with concrete implementation on existing PR2 files (`thread-context`, `app-sidebar`, `chat/page`, `chat-panel`).
+4. Avoid `window.location.search` in sidebar rendering logic; keep active-thread selection in React state/context.
+5. Add DB-level `conversation_threads.updated_at` maintenance when messages are inserted (trigger), so thread ordering by recency remains correct.
+6. Use explicit RLS update policy checks (`USING` + `WITH CHECK`) for ownership-sensitive tables.
+7. Harden runtime validation in schemas (timestamp/date-time checks, bounded/typed `parts` validation) instead of permissive `z.any()`.
+8. Use auth-aware client-id caching strategy (query key includes current user id) instead of global infinite cache with no identity guard.
+9. Standardize on one reusable Supabase mock utility for new tests in this PR.
+
 ---
 
 ## Bite-Sized Step Granularity
