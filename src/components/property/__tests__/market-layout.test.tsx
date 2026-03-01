@@ -11,6 +11,6 @@ describe("Market layout structure", () => {
     render(<MarketSubNav />);
     const nav = screen.getByRole("navigation", { name: /market data/i });
     expect(nav.className).toContain("sticky");
-    expect(nav.className).toContain("z-40");
+    expect(nav.className).toContain("z-50");
   });
 });
