@@ -134,39 +134,33 @@ export default async function AreasPage({
 
   return (
     <>
-      <section className={hasSearch ? "py-10 sm:py-14" : "flex min-h-[calc(100vh-49px)] flex-col justify-center pb-24"}>
+      <section className={hasSearch ? "py-10 sm:py-14" : "flex min-h-[calc(100vh-49px)] flex-col items-center justify-center pb-16"}>
         <Container>
-          <div className="mx-auto max-w-2xl text-center">
-            <h1 className="font-serif text-4xl font-medium tracking-tight text-zinc-900 sm:text-5xl">
+          <div className="mx-auto max-w-xl text-center">
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
               Singapore Property Areas
             </h1>
-            <p className="mt-6 text-lg leading-relaxed text-zinc-600">
-              Track transaction activity by neighbourhood, town, and district.
+            <p className="mt-3 text-base text-zinc-500">
+              Track transaction activity across 30+ towns and districts.
             </p>
 
             <MarketSearchBox
               action="/market/areas"
               type="areas"
-              placeholder="Try: Tampines, Bukit Timah, D09"
+              placeholder="Enter town or district..."
               defaultValue={searchTerm}
             />
 
             {!hasSearch ? (
-              <div className="mt-10 flex flex-wrap justify-center gap-3">
-                <div className="flex items-center gap-3 rounded-xl border border-[#E8DCC8] bg-white px-5 py-3">
-                  <MapPin className="h-5 w-5 text-sunder-green" />
-                  <div className="text-left">
-                    <p className="text-sm font-semibold text-zinc-900">30+</p>
-                    <p className="text-xs text-zinc-500">Areas covered</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 rounded-xl border border-[#E8DCC8] bg-white px-5 py-3">
-                  <FileText className="h-5 w-5 text-sunder-green" />
-                  <div className="text-left">
-                    <p className="text-sm font-semibold text-zinc-900">CEA</p>
-                    <p className="text-xs text-zinc-500">Transaction data</p>
-                  </div>
-                </div>
+              <div className="mt-6 flex items-center justify-center gap-6 text-sm text-zinc-400">
+                <span className="inline-flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5" />
+                  30+ areas covered
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5" />
+                  CEA transaction data
+                </span>
               </div>
             ) : null}
           </div>

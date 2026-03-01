@@ -152,39 +152,33 @@ export default async function HdbPage({
 
   return (
     <>
-      <section className={hasSearch ? "py-10 sm:py-14" : "flex min-h-[calc(100vh-49px)] flex-col justify-center pb-24"}>
+      <section className={hasSearch ? "py-10 sm:py-14" : "flex min-h-[calc(100vh-49px)] flex-col items-center justify-center pb-16"}>
         <Container>
-          <div className="mx-auto max-w-2xl text-center">
-            <h1 className="font-serif text-4xl font-medium tracking-tight text-zinc-900 sm:text-5xl">
+          <div className="mx-auto max-w-xl text-center">
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
               HDB Resale Streets
             </h1>
-            <p className="mt-6 text-lg leading-relaxed text-zinc-600">
-              Compare HDB resale activity across streets and towns in Singapore.
+            <p className="mt-3 text-base text-zinc-500">
+              Compare 900+ streets across all HDB towns in Singapore.
             </p>
 
             <MarketSearchBox
               action="/market/hdb"
               type="hdb"
-              placeholder="Try: Tampines, Jurong West St 81"
+              placeholder="Enter town or street name..."
               defaultValue={searchTerm}
             />
 
             {!hasSearch ? (
-              <div className="mt-10 flex flex-wrap justify-center gap-3">
-                <div className="flex items-center gap-3 rounded-xl border border-[#E8DCC8] bg-white px-5 py-3">
-                  <Home className="h-5 w-5 text-sunder-green" />
-                  <div className="text-left">
-                    <p className="text-sm font-semibold text-zinc-900">900+</p>
-                    <p className="text-xs text-zinc-500">Streets tracked</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 rounded-xl border border-[#E8DCC8] bg-white px-5 py-3">
-                  <FileText className="h-5 w-5 text-sunder-green" />
-                  <div className="text-left">
-                    <p className="text-sm font-semibold text-zinc-900">HDB</p>
-                    <p className="text-xs text-zinc-500">Resale data</p>
-                  </div>
-                </div>
+              <div className="mt-6 flex items-center justify-center gap-6 text-sm text-zinc-400">
+                <span className="inline-flex items-center gap-1.5">
+                  <Home className="h-3.5 w-3.5" />
+                  900+ streets tracked
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5" />
+                  HDB resale data
+                </span>
               </div>
             ) : null}
           </div>
