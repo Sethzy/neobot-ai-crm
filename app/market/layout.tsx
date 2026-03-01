@@ -7,9 +7,9 @@ export default function MarketLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="landing-page min-h-screen bg-[#F5EEE1] selection:bg-indigo-100 selection:text-indigo-900">
+    <div className="landing-page grid min-h-screen grid-rows-[auto_1fr] bg-[#F5EEE1] selection:bg-indigo-100 selection:text-indigo-900">
       <MarketSubNav />
-      <main>{children}</main>
+      <main className="grid">{children}</main>
     </div>
   );
 }

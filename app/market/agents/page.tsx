@@ -183,7 +183,7 @@ export default async function AgentsPage({
   return (
     <>
       {/* Hero — vertically centered when no search, compact when results showing */}
-      <section className={hasSearch ? "py-10 sm:py-14" : "flex min-h-[calc(100vh-49px)] flex-col items-center justify-center pb-16"}>
+      <section className={hasSearch ? "py-10 sm:py-14" : "grid place-items-center pb-24"}>
         <Container>
           <div className="mx-auto max-w-xl text-center">
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">

@@ -172,7 +172,7 @@ export function MarketSearchBox({
         {isOpen && suggestions.length > 0 && (
           <div
             ref={dropdownRef}
-            className="absolute left-0 right-0 z-50 mt-1.5 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-lg"
+            className="absolute left-0 right-0 z-50 mt-1.5 max-h-80 overflow-y-auto rounded-2xl border border-zinc-200 bg-white shadow-lg"
           >
             <ul role="listbox" className="py-1.5">
               {suggestions.map((suggestion, i) => (
