@@ -15,7 +15,7 @@ vi.mock("@/hooks/use-session", () => ({
   useSession: vi.fn(),
 }));
 
-vi.mock("@/lib/chat/client-resolver", () => ({
+vi.mock("@/lib/chat/client-id", () => ({
   resolveClientId: (...args: unknown[]) => mockResolveClientId(...args),
 }));
 

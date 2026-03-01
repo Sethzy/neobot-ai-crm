@@ -54,12 +54,16 @@ function mapDbMessageToUiMessage(message: {
 }
 
 export function ChatPanel({ chatId }: ChatPanelProps) {
-  const { data: persistedMessages = [] } = useChatMessages(chatId);
+  const {
+    data: persistedMessages = [],
+    isLoading: isPersistedMessagesLoading,
+  } = useChatMessages(chatId);
   const saveMessages = useSaveMessages(chatId);
   const transport = useMemo(() => new DefaultChatTransport({ api: "/api/chat" }), []);
 
   const persistedMessageIds = useRef<Set<string>>(new Set());
   const pendingMessageIds = useRef<Set<string>>(new Set());
+  const hydratedThreadId = useRef<string | null>(null);
 
   const persistNewMessages = useCallback(
     async (messages: UIMessage[]) => {
@@ -103,20 +107,22 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
   const isLoading = status === "submitted" || status === "streaming";
 
   useEffect(() => {
+    hydratedThreadId.current = null;
     persistedMessageIds.current.clear();
     pendingMessageIds.current.clear();
   }, [chatId]);
 
   useEffect(() => {
-    if (isLoading) {
+    if (isLoading || isPersistedMessagesLoading || hydratedThreadId.current === chatId) {
       return;
     }
 
     const hydratedMessages = persistedMessages.map(mapDbMessageToUiMessage);
     setMessages(hydratedMessages);
+    hydratedThreadId.current = chatId;
     persistedMessageIds.current = new Set(hydratedMessages.map((message) => message.id));
     pendingMessageIds.current.clear();
-  }, [isLoading, persistedMessages, setMessages]);
+  }, [chatId, isLoading, isPersistedMessagesLoading, persistedMessages, setMessages]);
 
   const handleSubmit = useCallback(async () => {
     const text = input.trim();

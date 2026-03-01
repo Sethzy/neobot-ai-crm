@@ -7,7 +7,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { useSession } from "@/hooks/use-session";
-import { resolveClientId } from "@/lib/chat/client-resolver";
+import { resolveClientId } from "@/lib/chat/client-id";
 import { supabase } from "@/lib/supabase";
 
 export const clientIdKeys = {
