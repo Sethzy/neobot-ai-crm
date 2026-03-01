@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Briefcase, Search, FileText } from "lucide-react";
+import { ArrowRight, Briefcase, FileText } from "lucide-react";
 import { Container } from "@/components/landing/Container";
 import { ConfigNotice } from "@/components/property/config-notice";
 import { DataTable } from "@/components/property/data-table";
+import { MarketSearchBox } from "@/components/property/market-search-box";
 import {
   cleanSearchTerm,
   formatCount,
@@ -165,33 +166,19 @@ export default async function AgenciesPage({
             <h1 className="font-serif text-4xl font-medium tracking-tight text-zinc-900 sm:text-5xl">
               Singapore Property Agencies
             </h1>
-            <p className="mt-4 text-lg leading-relaxed text-zinc-600">
+            <p className="mt-6 text-lg leading-relaxed text-zinc-600">
               Discover agency-level activity and navigate to top-performing agents.
             </p>
 
-            <form action="/market/agencies" method="get" className="mt-8">
-              <div className="flex gap-3">
-                <div className="relative w-full">
-                  <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                  <input
-                    type="search"
-                    name="q"
-                    defaultValue={searchTerm}
-                    placeholder="Try: ERA, PropNex, Huttons"
-                    className="h-12 w-full rounded-xl border border-[#E8DCC8] bg-white pl-10 pr-4 text-zinc-900 shadow-sm outline-none transition focus:border-sunder-green focus:ring-2 focus:ring-sunder-green/20"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="h-12 shrink-0 rounded-xl bg-sunder-green px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-sunder-green-dark"
-                >
-                  Search
-                </button>
-              </div>
-            </form>
+            <MarketSearchBox
+              action="/market/agencies"
+              type="agencies"
+              placeholder="Try: ERA, PropNex, Huttons"
+              defaultValue={searchTerm}
+            />
 
             {!hasSearch ? (
-              <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <div className="mt-10 flex flex-wrap justify-center gap-3">
                 <div className="flex items-center gap-3 rounded-xl border border-[#E8DCC8] bg-white px-5 py-3">
                   <Briefcase className="h-5 w-5 text-sunder-green" />
                   <div className="text-left">
