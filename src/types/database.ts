@@ -567,6 +567,48 @@ export type Database = {
           },
         ]
       }
+      thread_queue_records: {
+        Row: {
+          channel: string
+          client_id: string
+          content: Json
+          created_at: string
+          queue_id: string
+          thread_id: string
+        }
+        Insert: {
+          channel?: string
+          client_id: string
+          content: Json
+          created_at?: string
+          queue_id?: string
+          thread_id: string
+        }
+        Update: {
+          channel?: string
+          client_id?: string
+          content?: Json
+          created_at?: string
+          queue_id?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_queue_records_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "thread_queue_records_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
     }
     Views: {
       documents_with_status: {
@@ -666,8 +708,24 @@ export type Database = {
       }
     }
     Functions: {
+      create_run_if_idle: {
+        Args: { p_client_id: string; p_thread_id: string }
+        Returns: string | null
+      }
+      drain_thread_queue: {
+        Args: { p_client_id: string; p_thread_id: string }
+        Returns: {
+          content: Json
+          created_at: string
+          queue_id: string
+        }[]
+      }
       get_my_client_config: { Args: never; Returns: string }
       get_my_client_id: { Args: never; Returns: string }
+      mark_stale_runs_failed: {
+        Args: { p_stale_minutes?: number; p_thread_id?: string | null }
+        Returns: number
+      }
     }
     Enums: {
       run_status: "queued" | "running" | "completed" | "partial" | "failed" | "cancelled"

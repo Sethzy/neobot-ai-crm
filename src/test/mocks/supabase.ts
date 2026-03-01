@@ -18,6 +18,7 @@ export interface MockSupabaseConfig {
   insertResult?: MockSupabaseResult;
   updateResult?: MockSupabaseResult;
   deleteResult?: MockSupabaseResult;
+  rpcResults?: Record<string, MockSupabaseResult>;
 }
 
 type Operation = "select" | "insert" | "update" | "delete";
@@ -47,8 +48,10 @@ interface ChainableQuery {
 
 export interface MockSupabaseClient {
   from: (table: string) => ChainableQuery;
+  rpc: (fn: string, args?: Record<string, unknown>) => Promise<MockSupabaseResult>;
   calls: {
     from: string[];
+    rpc: Array<{ fn: string; args?: Record<string, unknown> }>;
     methods: Array<{ method: string; args: unknown[] }>;
   };
 }
@@ -76,6 +79,7 @@ function pickResult(config: MockSupabaseConfig, operation: Operation): MockSupab
 export function createMockSupabaseClient(config: MockSupabaseConfig = {}): MockSupabaseClient {
   const calls = {
     from: [] as string[],
+    rpc: [] as Array<{ fn: string; args?: Record<string, unknown> }>,
     methods: [] as Array<{ method: string; args: unknown[] }>,
   };
 
@@ -178,6 +182,10 @@ export function createMockSupabaseClient(config: MockSupabaseConfig = {}): MockS
       };
 
       return query;
+    },
+    rpc: async (fn: string, args?: Record<string, unknown>) => {
+      calls.rpc.push({ fn, args });
+      return config.rpcResults?.[fn] ?? { data: null, error: null };
     },
   };
 }

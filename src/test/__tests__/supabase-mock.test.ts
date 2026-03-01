@@ -55,4 +55,26 @@ describe("createMockSupabaseClient", () => {
     expect(result.data).toBeNull();
     expect(result.error).toEqual({ message: "RLS violation", code: "42501" });
   });
+
+  test("supports configured rpc results", async () => {
+    const client = createMockSupabaseClient({
+      rpcResults: {
+        create_run_if_idle: { data: "run-1", error: null },
+      },
+    });
+
+    const result = await client.rpc("create_run_if_idle", {
+      p_thread_id: "thread-1",
+      p_client_id: "client-1",
+    });
+
+    expect(result.data).toBe("run-1");
+    expect(result.error).toBeNull();
+    expect(client.calls.rpc).toEqual([
+      {
+        fn: "create_run_if_idle",
+        args: { p_thread_id: "thread-1", p_client_id: "client-1" },
+      },
+    ]);
+  });
 });

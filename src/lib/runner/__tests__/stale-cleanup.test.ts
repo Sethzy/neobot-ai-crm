@@ -1,0 +1,91 @@
+/**
+ * Tests stale run cleanup ordering before lock acquisition.
+ * @module lib/runner/__tests__/stale-cleanup
+ */
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const {
+  mockStreamText,
+  mockStepCountIs,
+  mockGateway,
+  mockAssembleContext,
+  mockCreateRun,
+  mockCompleteRun,
+  mockMarkStaleRunsFailed,
+  mockEnqueueMessage,
+  mockDrainAndContinue,
+} = vi.hoisted(() => ({
+  mockStreamText: vi.fn(),
+  mockStepCountIs: vi.fn(() => vi.fn(() => true)),
+  mockGateway: vi.fn(() => "mock-model"),
+  mockAssembleContext: vi.fn(),
+  mockCreateRun: vi.fn(),
+  mockCompleteRun: vi.fn(),
+  mockMarkStaleRunsFailed: vi.fn(),
+  mockEnqueueMessage: vi.fn(),
+  mockDrainAndContinue: vi.fn(),
+}));
+
+vi.mock("ai", () => ({ streamText: mockStreamText, stepCountIs: mockStepCountIs }));
+vi.mock("@/lib/ai/gateway", () => ({
+  gateway: mockGateway,
+  TIER_1_MODEL: "google/gemini-3-flash",
+}));
+vi.mock("@/lib/runner/context", () => ({
+  assembleContext: mockAssembleContext,
+}));
+vi.mock("@/lib/runner/run-lifecycle", () => ({
+  createRun: mockCreateRun,
+  completeRun: mockCompleteRun,
+  markStaleRunsFailed: mockMarkStaleRunsFailed,
+}));
+vi.mock("@/lib/runner/thread-queue", () => ({
+  enqueueMessage: mockEnqueueMessage,
+}));
+vi.mock("@/lib/runner/drain-and-continue", () => ({
+  drainAndContinue: mockDrainAndContinue,
+}));
+
+import { runAgent } from "../run-agent";
+
+describe("stale run cleanup", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockMarkStaleRunsFailed.mockResolvedValue(0);
+    mockAssembleContext.mockResolvedValue({
+      system: "prompt",
+      messages: [{ role: "user", content: "test" }],
+    });
+    mockStreamText.mockReturnValue({
+      toUIMessageStreamResponse: vi.fn(() => new Response("streamed")),
+    });
+  });
+
+  it("calls stale cleanup before createRun", async () => {
+    const order: string[] = [];
+    mockMarkStaleRunsFailed.mockImplementation(async () => {
+      order.push("markStale");
+      return 0;
+    });
+    mockCreateRun.mockImplementation(async () => {
+      order.push("createRun");
+      return { created: true, runId: "run-1" };
+    });
+
+    await runAgent(
+      {
+        clientId: "ccc00000-0000-0000-0000-000000000000",
+        threadId: "ttt00000-0000-0000-0000-000000000000",
+        triggerType: "chat",
+        input: "Hello",
+      },
+      "supabase" as never,
+    );
+
+    expect(order).toEqual(["markStale", "createRun"]);
+    expect(mockMarkStaleRunsFailed).toHaveBeenCalledWith("supabase", {
+      threadId: "ttt00000-0000-0000-0000-000000000000",
+      staleMinutes: 15,
+    });
+  });
+});
