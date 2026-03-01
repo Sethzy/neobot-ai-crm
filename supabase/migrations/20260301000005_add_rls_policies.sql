@@ -22,11 +22,6 @@ CREATE POLICY clients_select_own ON public.clients
   FOR SELECT
   USING (user_id = auth.uid());
 
-CREATE POLICY clients_update_own ON public.clients
-  FOR UPDATE
-  USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
-
 ALTER TABLE public.conversation_threads ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY conversation_threads_select_own ON public.conversation_threads
