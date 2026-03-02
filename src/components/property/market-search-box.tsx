@@ -186,9 +186,9 @@ export function MarketSearchBox({
             className="absolute left-0 right-0 z-50 mt-1.5 max-h-80 overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200 bg-white shadow-lg"
           >
             {isLoading ? (
-              <p className="px-4 py-3 text-sm text-zinc-400">Searching...</p>
+              <p className="px-4 py-2.5 text-sm text-zinc-400">Searching...</p>
             ) : suggestions.length > 0 ? (
-              <ul role="listbox" className="py-1.5">
+              <ul role="listbox" className="py-1">
                 {suggestions.map((suggestion, i) => (
                   <li
                     key={`${suggestion.label}-${i}`}
@@ -196,28 +196,25 @@ export function MarketSearchBox({
                     aria-selected={i === activeIndex}
                     onMouseEnter={() => setActiveIndex(i)}
                     onClick={() => navigateToSuggestion(suggestion)}
-                    className={`flex cursor-pointer items-center gap-3 px-4 py-2.5 transition ${
+                    className={`flex cursor-pointer items-center justify-between gap-4 px-4 py-2 transition ${
                       i === activeIndex
                         ? "bg-zinc-50"
                         : ""
                     }`}
                   >
-                    <Search className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm text-zinc-900">
-                        {suggestion.label}
-                      </p>
-                      {suggestion.sublabel && (
-                        <p className="truncate text-xs text-zinc-400">
-                          {suggestion.sublabel}
-                        </p>
-                      )}
-                    </div>
+                    <span className="truncate text-sm font-medium text-zinc-900">
+                      {suggestion.label}
+                    </span>
+                    {suggestion.sublabel && (
+                      <span className="shrink-0 text-xs text-zinc-400">
+                        {suggestion.sublabel}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
             ) : hasSearched ? (
-              <p className="px-4 py-3 text-sm text-zinc-400">No results found</p>
+              <p className="px-4 py-2.5 text-sm text-zinc-400">No results found</p>
             ) : null}
           </div>
         )}

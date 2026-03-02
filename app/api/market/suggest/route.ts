@@ -10,7 +10,7 @@ type Suggestion = {
   href: string;
 };
 
-const LIMIT = 8;
+const LIMIT = 12;
 
 const HANDLERS: Record<
   string,
