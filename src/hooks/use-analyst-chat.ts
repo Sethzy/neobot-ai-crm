@@ -147,7 +147,7 @@ async function streamMessage(
     data: { session },
   } = await supabase.auth.getSession();
 
-  const res = await fetch("/api/chat", {
+  const res = await fetch("/api/analyst/chat", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

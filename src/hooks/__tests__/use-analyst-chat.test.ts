@@ -203,7 +203,7 @@ describe("useAnalystChat", () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        "/api/chat",
+        "/api/analyst/chat",
         expect.objectContaining({
           method: "POST",
           body: expect.stringContaining("Analyze my documents"),
@@ -281,7 +281,7 @@ describe("useAnalystChat", () => {
 
       // Should call fetch (SSE) with containerId - now uses same path as first message
       expect(mockFetch).toHaveBeenCalledWith(
-        "/api/chat",
+        "/api/analyst/chat",
         expect.objectContaining({
           method: "POST",
           body: expect.stringContaining("existing-container-123"),
