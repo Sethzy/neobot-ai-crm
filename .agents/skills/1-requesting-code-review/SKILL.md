@@ -5,105 +5,99 @@ description: Use when completing tasks, implementing major features, or before m
 
 # Requesting Code Review
 
-Dispatch `code-reviewer` subagent to catch issues before they cascade.
+Run a structured, report-only code review by spawning the Codex `reviewer` agent role.
 
-**Core principle:** Review early, review often.
+**Core principle:** review early, review often.
 
 ## When to Request Review
 
 **Mandatory:**
 
-- After each task in subagent-driven development
-- After completing major feature
+- After each major completed task
+- After completing a major feature
 - Before merge to main
 
 **Optional but valuable:**
 
 - When stuck (fresh perspective)
 - Before refactoring (baseline check)
-- After fixing complex bug
+- After fixing a complex bug
 
-## How to Request
+## How to Run
 
-**1. Get git SHAs:**
+**1. Decide review range (prefer explicit SHAs):**
 
 ```bash
-BASE_SHA=$(git rev-parse HEAD~1)  # or origin/main
+BASE_SHA=$(git rev-parse HEAD~1)  # or origin/main, or a batch-start SHA
 HEAD_SHA=$(git rev-parse HEAD)
 ```
 
-**2. Read the template (REQUIRED):**
+**2. Read template (REQUIRED):**
 
 ```
-Read file: .claude/skills/1-requesting-code-review/code-reviewer.md
+Read file: .agents/skills/1-requesting-code-review/code-reviewer.md
 ```
 
-**3. Dispatch code-reviewer subagent:**
+**3. Spawn `reviewer` agent using the exact template prompt:**
 
-Use Task tool with `subagent_type="code-reviewer"`.
+Fill these placeholders:
 
-**IMPORTANT:** Use the EXACT template from step 2 as your prompt, filling in these placeholders:
+- `{WHAT_WAS_IMPLEMENTED}` - what was built
+- `{PLAN_OR_REQUIREMENTS}` - target requirements
+- `{BASE_SHA}` - starting commit
+- `{HEAD_SHA}` - ending commit
+- `{DESCRIPTION}` - concise implementation summary
+- `{PLAN_REFERENCE}` - plan path or inline requirements
 
-- `{WHAT_WAS_IMPLEMENTED}` - What you just built
-- `{PLAN_OR_REQUIREMENTS}` - What it should do
-- `{BASE_SHA}` - Starting commit
-- `{HEAD_SHA}` - Ending commit
-- `{DESCRIPTION}` - Brief summary
-- `{PLAN_REFERENCE}` - Path to plan file or inline requirements
+Do not invent an ad-hoc review format. Use the template output shape.
+Pass the filled template as the reviewer's assignment.
 
-Do NOT write your own ad-hoc prompt. The template ensures consistent, thorough reviews.
+**4. Present findings to user (report-only):**
 
-**4. Present feedback to user:**
+- Do not implement fixes
+- Do not create todos automatically
+- Do not change files during review
 
-Report the code review results to the user in full markdown format. Do NOT:
-- Implement any fixes
-- Create todos
-- Make code changes
-
-The user reviews findings and decides what to action.
+The user decides what to action.
 
 ## Example
 
 ```
 [Just completed Task 2: Add verification function]
 
-You: Let me request code review before proceeding.
-
 BASE_SHA=$(git log --oneline | grep "Task 1" | head -1 | awk '{print $1}')
 HEAD_SHA=$(git rev-parse HEAD)
 
-[Dispatch code-reviewer subagent via Task tool]
+[Spawn reviewer agent with filled template]
   WHAT_WAS_IMPLEMENTED: Verification and repair functions for conversation index
   PLAN_OR_REQUIREMENTS: Task 2 from docs/plans/deployment-plan.md
   BASE_SHA: a7981ec
   HEAD_SHA: 3df7661
   DESCRIPTION: Added verifyIndex() and repairIndex() with 4 issue types
 
-[Subagent returns]:
+[Review returns]
   Strengths: Clean architecture, real tests
   Issues:
     Important: Missing progress indicators
     Minor: Magic number (100) for reporting interval
   Assessment: Ready to proceed
-
-You: [Present review to user - user decides what to fix]
 ```
 
 ## Integration with Workflows
 
-**Subagent-Driven Development:**
+**Task-driven development:**
 
-- Review after EACH task
+- Review after each meaningful task
 - Present findings to user
 - User decides what to action
 
-**Executing Plans (via `executing-plans` skill):**
+**Executing plans (via `executing-plans` skill):**
 
-- Called after each batch (default 3 tasks)
-- Review changes since batch start
-- Present findings to user for decision
+- Run after each completed batch
+- Review changes since batch start SHA
+- Present findings for decision
 
-**Ad-Hoc Development:**
+**Ad-hoc development:**
 
 - Review before merge
 - Review when stuck
@@ -116,4 +110,9 @@ You: [Present review to user - user decides what to fix]
 - Auto-fix issues without user approval
 - Dismiss review feedback without user input
 
-See template at: requesting-code-review/code-reviewer.md
+## Codex Notes
+
+- Codex CLI supports `/review` for working-tree review.
+- For deterministic plan-vs-implementation review, prefer spawning `reviewer` with this skill template and explicit `{BASE_SHA}` and `{HEAD_SHA}`.
+
+See template at: `.agents/skills/1-requesting-code-review/code-reviewer.md`

@@ -22,7 +22,6 @@ Authority chain (what wins in conflicts):
 4. Everything else in `roadmap docs/` is supporting reference material.
 
 **Before making architectural decisions**, check the App Spec and architecture decisions JSON. If the spec is silent on a behavior, follow Tasklet reference patterns by default (`TASKLET-01`).
-
 ## Tech Stack
 
 | Layer | Technology | Notes |

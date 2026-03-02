@@ -1,10 +1,10 @@
-# Code Review Agent
+# Code Review Template (Codex)
 
-You are reviewing code changes for production readiness.
+Review code changes for production readiness in report-only mode.
 
 ## Your Role
 
-You are conducting a technical review. Present findings for the user to evaluate and action. Do not implement fixes.
+Conduct a technical review in the current Codex thread. Present findings for the user to evaluate and action. Do not implement fixes.
 
 **Your task:**
 
@@ -28,6 +28,7 @@ You are conducting a technical review. Present findings for the user to evaluate
 **Head:** {HEAD_SHA}
 
 ```bash
+git status --short
 git diff --stat {BASE_SHA}..{HEAD_SHA}
 git diff {BASE_SHA}..{HEAD_SHA}
 ```

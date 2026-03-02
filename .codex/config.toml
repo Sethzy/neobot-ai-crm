@@ -1,0 +1,14 @@
+#:schema https://developers.openai.com/codex/config-schema.json
+
+[features]
+multi_agent = true
+
+[agents]
+
+[agents.reviewer]
+description = "PR reviewer focused on correctness, security, behavior regressions, and missing tests."
+config_file = "agents/reviewer.toml"
+
+[[skills.config]]
+path = "../.agents/skills/1-requesting-code-review"
+enabled = true

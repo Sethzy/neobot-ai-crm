@@ -120,6 +120,22 @@ For social platform workflows (e.g., LinkedIn), implementation must follow platf
 
 Apify offers a pre-built agent skill for scraping: https://skills.sh/apify/agent-skills/apify-ultimate-scraper — evaluate as a potential alternative or complement to Browserbase/Firecrawl for extraction-heavy workflows.
 
+#### Note: Open-Source Mission Control Dashboards (Browserbase Competitors / Complements)
+
+Two open-source "mission control" projects worth tracking as potential alternatives or complements to Browserbase for agent orchestration and monitoring:
+
+1. **crshdn/mission-control** — https://github.com/crshdn/mission-control
+   - AI agent orchestration dashboard with 7-column Kanban, interactive AI planning Q&A before task dispatch, and agent management with soul/user/agents markdown files.
+   - Stack: Next.js 14, Zustand, SQLite, SSE + WebSocket to OpenClaw Gateway.
+   - Relevant patterns: the pre-dispatch clarification Q&A flow maps to our safety-approval model; the soul/user markdown memory system mirrors our `SOUL.md`/`USER.md`/`MEMORY.md` architecture.
+
+2. **builderz-labs/mission-control** — https://github.com/builderz-labs/mission-control
+   - Full ops-grade dashboard (26 panels) for managing agent fleets at scale: task boards with quality-review gates, per-model token/cost tracking, cron scheduling, webhook management, agent network visualization (React Flow), RBAC, and audit trails.
+   - Stack: Next.js 16, React 19, Zustand, SQLite WAL, Recharts, Playwright E2E tests.
+   - Relevant patterns: quality-review gates map to our external-action approval tier; per-model cost tracking is directly useful for our 4-tier model routing (Background/Flash/Pro/Sonnet); smart polling that pauses on WebSocket connect or tab-inactive is applicable to our Supabase Realtime setup.
+
+**Evaluate for:** dashboard UX inspiration, cost-tracking UI patterns, and approval-gate workflows. Neither replaces Browserbase for browser automation — they sit at the orchestration/monitoring layer above it.
+
 ---
 
 ## 1. Scheduling — Cal.com via Composio

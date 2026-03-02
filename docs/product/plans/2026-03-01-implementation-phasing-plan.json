@@ -2,23 +2,34 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan",
     "created": "2026-03-01",
-    "updated": "2026-03-01",
+    "updated": "2026-03-02",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md §17",
     "markdownPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.md",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
     "totalPhases": 5,
     "estimatedPRs": 48,
-    "statusOptions": ["pending", "in_progress", "done", "blocked"],
+    "statusOptions": [
+      "pending",
+      "in_progress",
+      "done",
+      "blocked"
+    ],
     "changelog": [
       "2026-03-01: Initial creation from markdown plan",
-      "2026-03-01: Audit fix — added 5 missing DB tables, 3 missing tool categories, MEMORY.md bootstrap, 3 new PRs (12a, 19a, 32a), fixed 10+ missing decision IDs on existing PRs"
+      "2026-03-01: Audit fix — added 5 missing DB tables, 3 missing tool categories, MEMORY.md bootstrap, 3 new PRs (12a, 19a, 32a), fixed 10+ missing decision IDs on existing PRs",
+      "2026-03-02: Status sync — marked Phase 1 as in_progress, PRs 1–4 as done (all tasks), PR 5 as in_progress (migrations written)",
+      "2026-03-02: PR 5 marked done, PR 6 now in_progress",
+      "2026-03-02: PR 8 marked in_progress — tasklist generated at docs/tasks/2026-03-02-pr8-web-search-tool-tasklist.md",
+      "2026-03-02: PR 10 marked in_progress, tasklist created",
+      "2026-03-02: PR 7 marked done — storage tools + agent-files bucket + RLS policies applied to remote Supabase",
+      "2026-03-02: PR 6 marked done, PR 8 now in_progress"
     ]
   },
   "phases": [
     {
       "phase": 1,
       "title": "Chat + CRM + Basic Tools",
-      "status": "pending",
+      "status": "in_progress",
       "goal": "User can chat with an AI agent that reads/writes CRM data, searches the web, and reads/writes files. Read-only CRM pages let the user verify what the agent did.",
       "demoMoment": "\"I met John Smith at 123 Oak St\" → agent creates contact + deal, user sees it in CRM page",
       "endState": "User logs in → sees chat → talks to agent → agent creates CRM data → user verifies in CRM pages. Existing document processing untouched.",
@@ -34,66 +45,213 @@
         {
           "pr": 1,
           "title": "Vercel AI Gateway + basic streaming endpoint",
-          "status": "pending",
-          "decisions": ["LLM-01", "LLM-02", "LLM-05", "EXEC-01"],
-          "tasks": [
-            { "id": "PR1-1", "task": "Install @ai-sdk/gateway and ai (Vercel AI SDK)", "done": false },
-            { "id": "PR1-2", "task": "Create app/api/chat/route.ts (App Router)", "done": false },
-            { "id": "PR1-3", "task": "Wire up Vercel AI Gateway with AI_GATEWAY_API_KEY", "done": false },
-            { "id": "PR1-4", "task": "Basic streamText() call with Gemini Flash (Tier 1)", "done": false },
-            { "id": "PR1-5", "task": "Hardcoded system prompt (real estate agent persona placeholder)", "done": false },
-            { "id": "PR1-6", "task": "No tools yet — just streaming text responses", "done": false }
+          "status": "done",
+          "decisions": [
+            "LLM-01",
+            "LLM-02",
+            "LLM-05",
+            "EXEC-01"
           ],
-          "testCriteria": ["curl the endpoint, get a streamed response"]
+          "tasks": [
+            {
+              "id": "PR1-1",
+              "task": "Install @ai-sdk/gateway and ai (Vercel AI SDK)",
+              "done": true
+            },
+            {
+              "id": "PR1-2",
+              "task": "Create app/api/chat/route.ts (App Router)",
+              "done": true
+            },
+            {
+              "id": "PR1-3",
+              "task": "Wire up Vercel AI Gateway with AI_GATEWAY_API_KEY",
+              "done": true
+            },
+            {
+              "id": "PR1-4",
+              "task": "Basic streamText() call with Gemini Flash (Tier 1)",
+              "done": true
+            },
+            {
+              "id": "PR1-5",
+              "task": "Hardcoded system prompt (real estate agent persona placeholder)",
+              "done": true
+            },
+            {
+              "id": "PR1-6",
+              "task": "No tools yet — just streaming text responses",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "curl the endpoint, get a streamed response"
+          ]
         },
         {
           "pr": 2,
           "title": "Chat UI with streaming",
-          "status": "pending",
-          "decisions": ["UX-01", "UX-06"],
-          "tasks": [
-            { "id": "PR2-1", "task": "Replace /chat placeholder with real chat interface", "done": false },
-            { "id": "PR2-2", "task": "useChat() hook from Vercel AI SDK pointed at new endpoint", "done": false },
-            { "id": "PR2-3", "task": "Message list, input box, streaming response display", "done": false },
-            { "id": "PR2-4", "task": "Thread rail in sidebar (new thread button, thread list)", "done": false },
-            { "id": "PR2-5", "task": "Chat is default home after login (redirect from / dashboard)", "done": false }
+          "status": "done",
+          "decisions": [
+            "UX-01",
+            "UX-06"
           ],
-          "testCriteria": ["Log in, type a message, see streamed response"]
+          "tasks": [
+            {
+              "id": "PR2-1",
+              "task": "Replace /chat placeholder with real chat interface",
+              "done": true
+            },
+            {
+              "id": "PR2-2",
+              "task": "useChat() hook from Vercel AI SDK pointed at new endpoint",
+              "done": true
+            },
+            {
+              "id": "PR2-3",
+              "task": "Message list, input box, streaming response display",
+              "done": true
+            },
+            {
+              "id": "PR2-4",
+              "task": "Thread rail in sidebar (new thread button, thread list)",
+              "done": true
+            },
+            {
+              "id": "PR2-5",
+              "task": "Chat is default home after login (redirect from / dashboard)",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Log in, type a message, see streamed response"
+          ]
         },
         {
           "pr": 3,
           "title": "Clients + conversation threads + messages DB schema",
-          "status": "pending",
-          "decisions": ["DATA-03", "DATA-09", "SESSION-01", "RUNNER-08"],
-          "tasks": [
-            { "id": "PR3-1", "task": "Migration: clients table (client_id UUID PK, user_id FK to auth.users UNIQUE, display_name, created_at)", "done": false },
-            { "id": "PR3-2", "task": "Migration: database trigger on auth.users INSERT → auto-creates clients row", "done": false },
-            { "id": "PR3-3", "task": "Migration: conversation_threads table (thread_id UUID PK, client_id FK, title, is_pinned, created_at, updated_at)", "done": false },
-            { "id": "PR3-4", "task": "Migration: conversation_messages table (message_id, thread_id FK, role, content, parts JSONB, created_at)", "done": false },
-            { "id": "PR3-5", "task": "Migration: runs table (run_id, thread_id FK, client_id FK, status enum, model, tokens_in, tokens_out, created_at, completed_at)", "done": false },
-            { "id": "PR3-6", "task": "RLS policies on all tables: client_id = (SELECT client_id FROM clients WHERE user_id = auth.uid()) pattern (DATA-03)", "done": false },
-            { "id": "PR3-7", "task": "Wire chat UI to persist messages to DB", "done": false },
-            { "id": "PR3-8", "task": "Wire thread rail to list/create conversation_threads from DB", "done": false }
+          "status": "done",
+          "decisions": [
+            "DATA-03",
+            "DATA-09",
+            "SESSION-01",
+            "RUNNER-08"
           ],
-          "testCriteria": ["Create thread, send messages, refresh page — conversation persists"]
+          "tasks": [
+            {
+              "id": "PR3-1",
+              "task": "Migration: clients table (client_id UUID PK, user_id FK to auth.users UNIQUE, display_name, created_at)",
+              "done": true
+            },
+            {
+              "id": "PR3-2",
+              "task": "Migration: database trigger on auth.users INSERT → auto-creates clients row",
+              "done": true
+            },
+            {
+              "id": "PR3-3",
+              "task": "Migration: conversation_threads table (thread_id UUID PK, client_id FK, title, is_pinned, created_at, updated_at)",
+              "done": true
+            },
+            {
+              "id": "PR3-4",
+              "task": "Migration: conversation_messages table (message_id, thread_id FK, role, content, parts JSONB, created_at)",
+              "done": true
+            },
+            {
+              "id": "PR3-5",
+              "task": "Migration: runs table (run_id, thread_id FK, client_id FK, status enum, model, tokens_in, tokens_out, created_at, completed_at)",
+              "done": true
+            },
+            {
+              "id": "PR3-6",
+              "task": "RLS policies on all tables: client_id = (SELECT client_id FROM clients WHERE user_id = auth.uid()) pattern (DATA-03)",
+              "done": true
+            },
+            {
+              "id": "PR3-7",
+              "task": "Wire chat UI to persist messages to DB",
+              "done": true
+            },
+            {
+              "id": "PR3-8",
+              "task": "Wire thread rail to list/create conversation_threads from DB",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Create thread, send messages, refresh page — conversation persists"
+          ]
         },
         {
           "pr": 4,
           "title": "Runner engine (core loop) + per-thread serialization",
-          "status": "pending",
-          "decisions": ["RUNNER-01", "RUNNER-02", "RUNNER-03", "RUNNER-05", "SESSION-04", "TOOL-01", "TRIG-06"],
+          "status": "done",
+          "decisions": [
+            "RUNNER-01",
+            "RUNNER-02",
+            "RUNNER-03",
+            "RUNNER-05",
+            "SESSION-04",
+            "TOOL-01",
+            "TRIG-06"
+          ],
           "tasks": [
-            { "id": "PR4-1", "task": "Create src/lib/runner/run-agent.ts — single runAgent() function", "done": false },
-            { "id": "PR4-2", "task": "Context assembly skeleton: system prompt + thread message history (RUNNER-03 — full 7-layer assembly in Phase 2)", "done": false },
-            { "id": "PR4-3", "task": "streamText() with maxSteps: 4 and empty tools array", "done": false },
-            { "id": "PR4-4", "task": "Run status tracking: create run record on start, update on completion", "done": false },
-            { "id": "PR4-5", "task": "Stateless invocation model (RUNNER-05): every call loads fresh from DB", "done": false },
-            { "id": "PR4-6", "task": "No pause-and-resume (SESSION-04): question ends run, reply starts new run with full history", "done": false },
-            { "id": "PR4-7", "task": "Strict tool contract types with Zod schemas (TOOL-01)", "done": false },
-            { "id": "PR4-8", "task": "Per-thread run serialization (TRIG-06): atomic run insert checks no active run", "done": false },
-            { "id": "PR4-9", "task": "Migration: thread_queue_records table", "done": false },
-            { "id": "PR4-10", "task": "Queue draining: on run completion, batch queued messages and start next run", "done": false },
-            { "id": "PR4-11", "task": "Refactor /api/chat/route.ts to call runAgent() with queue check", "done": false }
+            {
+              "id": "PR4-1",
+              "task": "Create src/lib/runner/run-agent.ts — single runAgent() function",
+              "done": true
+            },
+            {
+              "id": "PR4-2",
+              "task": "Context assembly skeleton: system prompt + thread message history (RUNNER-03 — full 7-layer assembly in Phase 2)",
+              "done": true
+            },
+            {
+              "id": "PR4-3",
+              "task": "streamText() with maxSteps: 4 and empty tools array",
+              "done": true
+            },
+            {
+              "id": "PR4-4",
+              "task": "Run status tracking: create run record on start, update on completion",
+              "done": true
+            },
+            {
+              "id": "PR4-5",
+              "task": "Stateless invocation model (RUNNER-05): every call loads fresh from DB",
+              "done": true
+            },
+            {
+              "id": "PR4-6",
+              "task": "No pause-and-resume (SESSION-04): question ends run, reply starts new run with full history",
+              "done": true
+            },
+            {
+              "id": "PR4-7",
+              "task": "Strict tool contract types with Zod schemas (TOOL-01)",
+              "done": true
+            },
+            {
+              "id": "PR4-8",
+              "task": "Per-thread run serialization (TRIG-06): atomic run insert checks no active run",
+              "done": true
+            },
+            {
+              "id": "PR4-9",
+              "task": "Migration: thread_queue_records table",
+              "done": true
+            },
+            {
+              "id": "PR4-10",
+              "task": "Queue draining: on run completion, batch queued messages and start next run",
+              "done": true
+            },
+            {
+              "id": "PR4-11",
+              "task": "Refactor /api/chat/route.ts to call runAgent() with queue check",
+              "done": true
+            }
           ],
           "testCriteria": [
             "Chat works exactly as before but goes through runner",
@@ -103,129 +261,355 @@
         {
           "pr": 5,
           "title": "CRM schema + seed data",
-          "status": "pending",
-          "decisions": ["DATA-01", "DATA-03", "DATA-09"],
-          "tasks": [
-            { "id": "PR5-1", "task": "Migration: contacts table (contact_id, client_id, first_name, last_name, email, phone, type enum, notes, timestamps)", "done": false },
-            { "id": "PR5-2", "task": "Migration: deals table (deal_id, client_id, address, stage enum, price, contact_id FK, notes, timestamps)", "done": false },
-            { "id": "PR5-3", "task": "Migration: interactions table (interaction_id, client_id, contact_id FK, deal_id FK nullable, type enum, summary, occurred_at, timestamps)", "done": false },
-            { "id": "PR5-4", "task": "Migration: crm_tasks table (task_id, client_id, title, description, status enum, due_date, contact_id FK, deal_id FK, timestamps)", "done": false },
-            { "id": "PR5-5", "task": "Migration: crm_config table (config_id, client_id, deal_stages JSONB, task_types JSONB, interaction_types JSONB)", "done": false },
-            { "id": "PR5-6", "task": "RLS on all CRM tables using DATA-03 pattern", "done": false }
+          "status": "done",
+          "decisions": [
+            "DATA-01",
+            "DATA-03",
+            "DATA-09"
           ],
-          "testCriteria": ["Tables exist, RLS works, can insert/query via Supabase dashboard"]
+          "tasks": [
+            {
+              "id": "PR5-1",
+              "task": "Migration: contacts table (contact_id, client_id, first_name, last_name, email, phone, type enum, notes, timestamps)",
+              "done": true
+            },
+            {
+              "id": "PR5-2",
+              "task": "Migration: deals table (deal_id, client_id, address, stage enum, price, contact_id FK, notes, timestamps)",
+              "done": true
+            },
+            {
+              "id": "PR5-3",
+              "task": "Migration: interactions table (interaction_id, client_id, contact_id FK, deal_id FK nullable, type enum, summary, occurred_at, timestamps)",
+              "done": true
+            },
+            {
+              "id": "PR5-4",
+              "task": "Migration: crm_tasks table (task_id, client_id, title, description, status enum, due_date, contact_id FK, deal_id FK, timestamps)",
+              "done": true
+            },
+            {
+              "id": "PR5-5",
+              "task": "Migration: crm_config table (config_id, client_id, deal_stages JSONB, task_types JSONB, interaction_types JSONB)",
+              "done": true
+            },
+            {
+              "id": "PR5-6",
+              "task": "RLS on all CRM tables using DATA-03 pattern",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Tables exist, RLS works, can insert/query via Supabase dashboard"
+          ]
         },
         {
           "pr": 6,
           "title": "CRM tools for the agent",
-          "status": "pending",
-          "decisions": ["TOOL-03", "TOOL-09"],
-          "tasks": [
-            { "id": "PR6-1", "task": "Implement search_contacts tool with Zod schema", "done": false },
-            { "id": "PR6-2", "task": "Implement create_contact tool with Zod schema", "done": false },
-            { "id": "PR6-3", "task": "Implement update_contact tool with Zod schema", "done": false },
-            { "id": "PR6-4", "task": "Implement search_deals tool with Zod schema", "done": false },
-            { "id": "PR6-5", "task": "Implement create_deal tool with Zod schema", "done": false },
-            { "id": "PR6-6", "task": "Implement update_deal tool with Zod schema", "done": false },
-            { "id": "PR6-7", "task": "Implement create_interaction tool with Zod schema", "done": false },
-            { "id": "PR6-8", "task": "Implement search_tasks tool with Zod schema", "done": false },
-            { "id": "PR6-9", "task": "Implement create_task tool with Zod schema", "done": false },
-            { "id": "PR6-10", "task": "Implement update_task tool with Zod schema", "done": false },
-            { "id": "PR6-11", "task": "Register all CRM tools in runner's streamText() call", "done": false },
-            { "id": "PR6-12", "task": "Bump maxSteps to 8 for tool usage", "done": false }
+          "status": "done",
+          "decisions": [
+            "TOOL-03",
+            "TOOL-09"
           ],
-          "testCriteria": ["Ask agent 'create a contact for John Smith, phone 555-1234' → contact appears in DB"]
+          "tasks": [
+            {
+              "id": "PR6-1",
+              "task": "Implement search_contacts tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-2",
+              "task": "Implement create_contact tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-3",
+              "task": "Implement update_contact tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-4",
+              "task": "Implement search_deals tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-5",
+              "task": "Implement create_deal tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-6",
+              "task": "Implement update_deal tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-7",
+              "task": "Implement create_interaction tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-8",
+              "task": "Implement search_tasks tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-9",
+              "task": "Implement create_task tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-10",
+              "task": "Implement update_task tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-11",
+              "task": "Register all CRM tools in runner's streamText() call",
+              "done": true
+            },
+            {
+              "id": "PR6-12",
+              "task": "Bump maxSteps to 8 for tool usage",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Ask agent 'create a contact for John Smith, phone 555-1234' → contact appears in DB"
+          ]
         },
         {
           "pr": 7,
           "title": "File tools (Supabase Storage)",
-          "status": "pending",
-          "decisions": ["DATA-02", "DATA-04", "DATA-05", "TOOL-03"],
-          "tasks": [
-            { "id": "PR7-1", "task": "Create per-client storage layout: /{clientId}/ root in Supabase Storage", "done": false },
-            { "id": "PR7-2", "task": "Implement read_file tool (file path → content, directory path → tree listing)", "done": false },
-            { "id": "PR7-3", "task": "Implement write_file tool (writes to Supabase Storage, path-scoped to client)", "done": false },
-            { "id": "PR7-4", "task": "Create agent-files storage bucket (separate from existing documents/reports)", "done": false },
-            { "id": "PR7-5", "task": "RLS on storage: client can only access own prefix", "done": false },
-            { "id": "PR7-6", "task": "Accept no file versioning in v1 — Supabase Storage trade-off (DATA-05)", "done": false }
+          "status": "done",
+          "decisions": [
+            "DATA-02",
+            "DATA-04",
+            "DATA-05",
+            "TOOL-03"
           ],
-          "testCriteria": ["Ask agent 'write a note about today's showing' → file appears in Storage"]
+          "tasks": [
+            {
+              "id": "PR7-1",
+              "task": "Create per-client storage layout: /{clientId}/ root in Supabase Storage",
+              "done": true
+            },
+            {
+              "id": "PR7-2",
+              "task": "Implement read_file tool (file path → content, directory path → tree listing)",
+              "done": true
+            },
+            {
+              "id": "PR7-3",
+              "task": "Implement write_file tool (writes to Supabase Storage, path-scoped to client)",
+              "done": true
+            },
+            {
+              "id": "PR7-4",
+              "task": "Create agent-files storage bucket (separate from existing documents/reports)",
+              "done": true
+            },
+            {
+              "id": "PR7-5",
+              "task": "RLS on storage: client can only access own prefix",
+              "done": true
+            },
+            {
+              "id": "PR7-6",
+              "task": "Accept no file versioning in v1 — Supabase Storage trade-off (DATA-05)",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Ask agent 'write a note about today's showing' → file appears in Storage"
+          ]
         },
         {
           "pr": 8,
           "title": "Web search tool",
-          "status": "pending",
-          "decisions": ["SERVICE-03", "TOOL-03", "TOOL-10"],
-          "tasks": [
-            { "id": "PR8-1", "task": "Implement web_search tool using Brave Search API with Zod schema", "done": false },
-            { "id": "PR8-2", "task": "Input: query string. Output: formatted search results (title, snippet, URL)", "done": false },
-            { "id": "PR8-3", "task": "Implement web_scrape tool (fetch URL → extract text content)", "done": false }
+          "status": "in_progress",
+          "decisions": [
+            "SERVICE-03",
+            "TOOL-03",
+            "TOOL-10"
           ],
-          "testCriteria": ["Ask agent 'search for recent home sales in Austin TX' → returns real results"]
+          "tasks": [
+            {
+              "id": "PR8-1",
+              "task": "Implement web_search tool using Brave Search API with Zod schema",
+              "done": false
+            },
+            {
+              "id": "PR8-2",
+              "task": "Input: query string. Output: formatted search results (title, snippet, URL)",
+              "done": false
+            },
+            {
+              "id": "PR8-3",
+              "task": "Implement web_scrape tool (fetch URL → extract text content)",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Ask agent 'search for recent home sales in Austin TX' → returns real results"
+          ]
         },
         {
           "pr": 9,
           "title": "Supabase Realtime for live updates",
-          "status": "pending",
-          "decisions": ["DATA-07"],
-          "tasks": [
-            { "id": "PR9-1", "task": "Wire Supabase Realtime subscriptions on CRM tables", "done": false },
-            { "id": "PR9-2", "task": "When agent creates/updates contact or deal, frontend reflects immediately", "done": false },
-            { "id": "PR9-3", "task": "Subscribe on thread page load, unsubscribe on unmount", "done": false }
+          "status": "in_progress",
+          "decisions": [
+            "DATA-07"
           ],
-          "testCriteria": ["Have agent create a contact while CRM page is open in another tab → appears without refresh"]
+          "tasks": [
+            {
+              "id": "PR9-1",
+              "task": "Wire Supabase Realtime subscriptions on CRM tables",
+              "done": false
+            },
+            {
+              "id": "PR9-2",
+              "task": "When agent creates/updates contact or deal, frontend reflects immediately",
+              "done": false
+            },
+            {
+              "id": "PR9-3",
+              "task": "Subscribe on thread page load, unsubscribe on unmount",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Have agent create a contact while CRM page is open in another tab → appears without refresh"
+          ]
         },
         {
           "pr": 10,
           "title": "CRM read-only pages (Contacts)",
-          "status": "pending",
-          "decisions": ["UX-02"],
-          "tasks": [
-            { "id": "PR10-1", "task": "Replace /crm placeholder with tabbed CRM section", "done": false },
-            { "id": "PR10-2", "task": "Contacts list page: TanStack Table with search/filter", "done": false },
-            { "id": "PR10-3", "task": "Contact detail page: read-only fields + linked deals + interaction timeline", "done": false },
-            { "id": "PR10-4", "task": "Navigation: add CRM to sidebar nav", "done": false }
+          "status": "in_progress",
+          "decisions": [
+            "UX-02"
           ],
-          "testCriteria": ["Agent creates contacts via chat, user browses them in CRM pages"]
+          "tasks": [
+            {
+              "id": "PR10-1",
+              "task": "Replace /crm placeholder with tabbed CRM section",
+              "done": false
+            },
+            {
+              "id": "PR10-2",
+              "task": "Contacts list page: TanStack Table with search/filter",
+              "done": false
+            },
+            {
+              "id": "PR10-3",
+              "task": "Contact detail page: read-only fields + linked deals + interaction timeline",
+              "done": false
+            },
+            {
+              "id": "PR10-4",
+              "task": "Navigation: add CRM to sidebar nav",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Agent creates contacts via chat, user browses them in CRM pages"
+          ]
         },
         {
           "pr": 11,
           "title": "CRM read-only pages (Deals + Tasks)",
-          "status": "pending",
-          "decisions": ["UX-02"],
-          "tasks": [
-            { "id": "PR11-1", "task": "Deals list page: TanStack Table with stage badges", "done": false },
-            { "id": "PR11-2", "task": "Deal detail page: read-only fields + linked contact + interactions", "done": false },
-            { "id": "PR11-3", "task": "Tasks list page: table view with status, due date, linked contact/deal", "done": false }
+          "status": "in_progress",
+          "decisions": [
+            "UX-02"
           ],
-          "testCriteria": ["Full CRM browse experience across contacts, deals, tasks"]
+          "tasks": [
+            {
+              "id": "PR11-1",
+              "task": "Deals list page: TanStack Table with stage badges",
+              "done": false
+            },
+            {
+              "id": "PR11-2",
+              "task": "Deal detail page: read-only fields + linked contact + interactions",
+              "done": false
+            },
+            {
+              "id": "PR11-3",
+              "task": "Tasks list page: table view with status, due date, linked contact/deal",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Full CRM browse experience across contacts, deals, tasks"
+          ]
         },
         {
           "pr": 12,
           "title": "Audit trail + basic safety",
-          "status": "pending",
-          "decisions": ["SAFETY-03", "SCALE-01"],
-          "tasks": [
-            { "id": "PR12-1", "task": "Every tool call logged: tool name, input, output, timestamp, run_id → tool_calls JSONB on runs table", "done": false },
-            { "id": "PR12-2", "task": "Basic error handling: tool failures don't crash the run, agent gets error message and can retry", "done": false },
-            { "id": "PR12-3", "task": "Cost tracking stub: log model + token count per run", "done": false }
+          "status": "in_progress",
+          "decisions": [
+            "SAFETY-03",
+            "SCALE-01"
           ],
-          "testCriteria": ["Check runs table after a conversation — tool calls are logged"]
+          "tasks": [
+            {
+              "id": "PR12-1",
+              "task": "Every tool call logged: tool name, input, output, timestamp, run_id → tool_calls JSONB on runs table",
+              "done": false
+            },
+            {
+              "id": "PR12-2",
+              "task": "Basic error handling: tool failures don't crash the run, agent gets error message and can retry",
+              "done": false
+            },
+            {
+              "id": "PR12-3",
+              "task": "Cost tracking stub: log model + token count per run",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Check runs table after a conversation — tool calls are logged"
+          ]
         },
         {
           "pr": "12a",
           "title": "Knowledge Base schema + pages",
           "status": "pending",
-          "decisions": ["SERVICE-02", "DATA-09"],
+          "decisions": [
+            "SERVICE-02",
+            "DATA-09"
+          ],
           "note": "Added in audit — Knowledge Base was entirely missing from original plan despite vault_files being a v1 table (DATA-09) and Knowledge appearing in nav structure (§14.1).",
           "tasks": [
-            { "id": "PR12a-1", "task": "Migration: vault_files table (file_id, client_id, filename, storage_path, content_type, size, full_text_search tsvector, created_at, updated_at)", "done": false },
-            { "id": "PR12a-2", "task": "RLS on vault_files", "done": false },
-            { "id": "PR12a-3", "task": "Knowledge Base list page: file browser with search (full-text via vault_files SQL, not directory listing per DATA-06)", "done": false },
-            { "id": "PR12a-4", "task": "Knowledge Base upload: store file in Supabase Storage, index metadata in vault_files", "done": false },
-            { "id": "PR12a-5", "task": "Navigation: add Knowledge to sidebar nav under DATABASE section", "done": false }
+            {
+              "id": "PR12a-1",
+              "task": "Migration: vault_files table (file_id, client_id, filename, storage_path, content_type, size, full_text_search tsvector, created_at, updated_at)",
+              "done": false
+            },
+            {
+              "id": "PR12a-2",
+              "task": "RLS on vault_files",
+              "done": false
+            },
+            {
+              "id": "PR12a-3",
+              "task": "Knowledge Base list page: file browser with search (full-text via vault_files SQL, not directory listing per DATA-06)",
+              "done": false
+            },
+            {
+              "id": "PR12a-4",
+              "task": "Knowledge Base upload: store file in Supabase Storage, index metadata in vault_files",
+              "done": false
+            },
+            {
+              "id": "PR12a-5",
+              "task": "Navigation: add Knowledge to sidebar nav under DATABASE section",
+              "done": false
+            }
           ],
-          "testCriteria": ["Upload a document to Knowledge Base, search for it by content, agent can reference it"]
+          "testCriteria": [
+            "Upload a document to Knowledge Base, search for it by content, agent can reference it"
+          ]
         }
       ]
     },
@@ -240,15 +624,48 @@
           "pr": 13,
           "title": "Storage layout + SOUL.md + USER.md + MEMORY.md",
           "status": "pending",
-          "decisions": ["MEM-01", "MEM-02", "MEM-03", "DATA-04"],
+          "decisions": [
+            "MEM-01",
+            "MEM-02",
+            "MEM-03",
+            "DATA-04"
+          ],
           "tasks": [
-            { "id": "PR13-1", "task": "Bootstrap /{clientId}/SOUL.md on first login", "done": false },
-            { "id": "PR13-2", "task": "Bootstrap /{clientId}/USER.md on first login", "done": false },
-            { "id": "PR13-3", "task": "Bootstrap /{clientId}/MEMORY.md on first login (working notebook)", "done": false },
-            { "id": "PR13-4", "task": "Default SOUL.md: real estate agent personality template", "done": false },
-            { "id": "PR13-5", "task": "Default USER.md: empty, agent populates during conversations", "done": false },
-            { "id": "PR13-6", "task": "Default MEMORY.md: empty, agent writes working notes (first 200 lines loaded every run at context position #3)", "done": false },
-            { "id": "PR13-7", "task": "Runner reads SOUL.md + USER.md + MEMORY.md (first 200 lines) at context assembly time (RUNNER-03 becomes real)", "done": false }
+            {
+              "id": "PR13-1",
+              "task": "Bootstrap /{clientId}/SOUL.md on first login",
+              "done": false
+            },
+            {
+              "id": "PR13-2",
+              "task": "Bootstrap /{clientId}/USER.md on first login",
+              "done": false
+            },
+            {
+              "id": "PR13-3",
+              "task": "Bootstrap /{clientId}/MEMORY.md on first login (working notebook)",
+              "done": false
+            },
+            {
+              "id": "PR13-4",
+              "task": "Default SOUL.md: real estate agent personality template",
+              "done": false
+            },
+            {
+              "id": "PR13-5",
+              "task": "Default USER.md: empty, agent populates during conversations",
+              "done": false
+            },
+            {
+              "id": "PR13-6",
+              "task": "Default MEMORY.md: empty, agent writes working notes (first 200 lines loaded every run at context position #3)",
+              "done": false
+            },
+            {
+              "id": "PR13-7",
+              "task": "Runner reads SOUL.md + USER.md + MEMORY.md (first 200 lines) at context assembly time (RUNNER-03 becomes real)",
+              "done": false
+            }
           ],
           "testCriteria": [
             "First login creates SOUL.md, USER.md, and MEMORY.md in storage",
@@ -259,39 +676,110 @@
           "pr": 14,
           "title": "Memory system",
           "status": "pending",
-          "decisions": ["MEM-03", "MEM-04", "MEM-05", "MEM-06", "DATA-06"],
-          "tasks": [
-            { "id": "PR14-1", "task": "Seed /{clientId}/memory/ directory with 4 starter files: preferences.md, growth-plan.md, patterns.md, key-decisions.md (MEM-03/MEM-04 taxonomy)", "done": false },
-            { "id": "PR14-2", "task": "Agent reads memory files during context assembly (on-demand via read_file)", "done": false },
-            { "id": "PR14-3", "task": "Agent auto-writes to memory during runs per MEM-05 rules (preferences: immediate on lasting preference, patterns: after 3+ instances, key-decisions: on significant decisions)", "done": false },
-            { "id": "PR14-4", "task": "Memory files are storage-only — discovered via directory listing (DATA-06)", "done": false },
-            { "id": "PR14-5", "task": "Memory shared across all threads (MEM-06)", "done": false },
-            { "id": "PR14-6", "task": "Agent can create new memory files via write_file when observation doesn't fit existing files", "done": false }
+          "decisions": [
+            "MEM-03",
+            "MEM-04",
+            "MEM-05",
+            "MEM-06",
+            "DATA-06"
           ],
-          "testCriteria": ["Agent writes a preference to memory, next session it remembers"]
+          "tasks": [
+            {
+              "id": "PR14-1",
+              "task": "Seed /{clientId}/memory/ directory with 4 starter files: preferences.md, growth-plan.md, patterns.md, key-decisions.md (MEM-03/MEM-04 taxonomy)",
+              "done": false
+            },
+            {
+              "id": "PR14-2",
+              "task": "Agent reads memory files during context assembly (on-demand via read_file)",
+              "done": false
+            },
+            {
+              "id": "PR14-3",
+              "task": "Agent auto-writes to memory during runs per MEM-05 rules (preferences: immediate on lasting preference, patterns: after 3+ instances, key-decisions: on significant decisions)",
+              "done": false
+            },
+            {
+              "id": "PR14-4",
+              "task": "Memory files are storage-only — discovered via directory listing (DATA-06)",
+              "done": false
+            },
+            {
+              "id": "PR14-5",
+              "task": "Memory shared across all threads (MEM-06)",
+              "done": false
+            },
+            {
+              "id": "PR14-6",
+              "task": "Agent can create new memory files via write_file when observation doesn't fit existing files",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Agent writes a preference to memory, next session it remembers"
+          ]
         },
         {
           "pr": 15,
           "title": "Platform instructions + system-reminder",
           "status": "pending",
-          "decisions": ["RUNNER-03", "RUNNER-04", "RUNNER-09"],
-          "tasks": [
-            { "id": "PR15-1", "task": "Full 7-layer context assembly order (RUNNER-03): 0-Platform instructions, 1-System prompt, 2-SOUL.md, 3-USER.md, 4-MEMORY.md first 200 lines, 5-Thread compaction summary, 6-Recent messages, 7-Current message", "done": false },
-            { "id": "PR15-2", "task": "Platform instructions layer (position #0 in context assembly) — forked from Tasklet, adapted for Sunder", "done": false },
-            { "id": "PR15-3", "task": "System-reminder injection per turn (~130 tokens): current time, user display name, active trigger count, open task count, pending approval count, memory file count, days since signup (RUNNER-04)", "done": false }
+          "decisions": [
+            "RUNNER-03",
+            "RUNNER-04",
+            "RUNNER-09"
           ],
-          "testCriteria": ["Agent knows current time and user context without being told"]
+          "tasks": [
+            {
+              "id": "PR15-1",
+              "task": "Full 7-layer context assembly order (RUNNER-03): 0-Platform instructions, 1-System prompt, 2-SOUL.md, 3-USER.md, 4-MEMORY.md first 200 lines, 5-Thread compaction summary, 6-Recent messages, 7-Current message",
+              "done": false
+            },
+            {
+              "id": "PR15-2",
+              "task": "Platform instructions layer (position #0 in context assembly) — forked from Tasklet, adapted for Sunder",
+              "done": false
+            },
+            {
+              "id": "PR15-3",
+              "task": "System-reminder injection per turn (~130 tokens): current time, user display name, active trigger count, open task count, pending approval count, memory file count, days since signup (RUNNER-04)",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Agent knows current time and user context without being told"
+          ]
         },
         {
           "pr": 16,
           "title": "Model routing",
           "status": "pending",
-          "decisions": ["LLM-03", "LLM-04", "LLM-08", "LLM-09"],
+          "decisions": [
+            "LLM-03",
+            "LLM-04",
+            "LLM-08",
+            "LLM-09"
+          ],
           "tasks": [
-            { "id": "PR16-1", "task": "routeQuestion() classifier using Gemini Flash Lite", "done": false },
-            { "id": "PR16-2", "task": "Named model set with fallback chains", "done": false },
-            { "id": "PR16-3", "task": "Background tier for cheap work (DeepSeek/Kimi)", "done": false },
-            { "id": "PR16-4", "task": "Two routing paths: interactive (classifier) and trigger (hardcoded tier)", "done": false }
+            {
+              "id": "PR16-1",
+              "task": "routeQuestion() classifier using Gemini Flash Lite",
+              "done": false
+            },
+            {
+              "id": "PR16-2",
+              "task": "Named model set with fallback chains",
+              "done": false
+            },
+            {
+              "id": "PR16-3",
+              "task": "Background tier for cheap work (DeepSeek/Kimi)",
+              "done": false
+            },
+            {
+              "id": "PR16-4",
+              "task": "Two routing paths: interactive (classifier) and trigger (hardcoded tier)",
+              "done": false
+            }
           ],
           "testCriteria": [
             "Simple greeting uses Gemini Flash",
@@ -303,42 +791,124 @@
           "pr": 17,
           "title": "Per-run telemetry",
           "status": "pending",
-          "decisions": ["LLM-10", "LLM-11"],
-          "tasks": [
-            { "id": "PR17-1", "task": "Migration: usage_telemetry table", "done": false },
-            { "id": "PR17-2", "task": "Log model, tokens, cost, latency per run", "done": false },
-            { "id": "PR17-3", "task": "Cost ceiling monitoring (target: <$20/user/mo)", "done": false }
+          "decisions": [
+            "LLM-10",
+            "LLM-11"
           ],
-          "testCriteria": ["After several conversations, telemetry table shows accurate token/cost data"]
+          "tasks": [
+            {
+              "id": "PR17-1",
+              "task": "Migration: usage_telemetry table",
+              "done": false
+            },
+            {
+              "id": "PR17-2",
+              "task": "Log model, tokens, cost, latency per run",
+              "done": false
+            },
+            {
+              "id": "PR17-3",
+              "task": "Cost ceiling monitoring (target: <$20/user/mo)",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "After several conversations, telemetry table shows accurate token/cost data"
+          ]
         },
         {
           "pr": 18,
           "title": "Cron scanner + agent_triggers table",
           "status": "pending",
-          "decisions": ["TRIG-01", "TRIG-02", "TRIG-04", "TRIG-05"],
-          "tasks": [
-            { "id": "PR18-1", "task": "Migration: agent_triggers table schema", "done": false },
-            { "id": "PR18-2", "task": "Create /api/cron/scan route (Vercel cron, 1 min)", "done": false },
-            { "id": "PR18-3", "task": "Scanner queries next_run_at, fires /api/trigger/run", "done": false },
-            { "id": "PR18-4", "task": "Atomic claim via UPDATE ... SET status = 'running' WHERE status = 'active' RETURNING *", "done": false },
-            { "id": "PR18-5", "task": "Per-thread serialization for trigger runs (TRIG-06)", "done": false }
+          "decisions": [
+            "TRIG-01",
+            "TRIG-02",
+            "TRIG-04",
+            "TRIG-05"
           ],
-          "testCriteria": ["Trigger fires on schedule, creates a run, no double-execution"]
+          "tasks": [
+            {
+              "id": "PR18-1",
+              "task": "Migration: agent_triggers table schema",
+              "done": false
+            },
+            {
+              "id": "PR18-2",
+              "task": "Create /api/cron/scan route (Vercel cron, 1 min)",
+              "done": false
+            },
+            {
+              "id": "PR18-3",
+              "task": "Scanner queries next_run_at, fires /api/trigger/run",
+              "done": false
+            },
+            {
+              "id": "PR18-4",
+              "task": "Atomic claim via UPDATE ... SET status = 'running' WHERE status = 'active' RETURNING *",
+              "done": false
+            },
+            {
+              "id": "PR18-5",
+              "task": "Per-thread serialization for trigger runs (TRIG-06)",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Trigger fires on schedule, creates a run, no double-execution"
+          ]
         },
         {
           "pr": 19,
           "title": "Autopilot thread + pulse",
           "status": "pending",
-          "decisions": ["TRIG-06b", "TRIG-07", "TRIG-08", "TRIG-09", "TRIG-10"],
+          "decisions": [
+            "TRIG-06b",
+            "TRIG-07",
+            "TRIG-08",
+            "TRIG-09",
+            "TRIG-10"
+          ],
           "tasks": [
-            { "id": "PR19-1", "task": "Pre-installed 'Sunder Autopilot' pinned thread on signup", "done": false },
-            { "id": "PR19-2", "task": "Autopilot trigger auto-created (6h default pulse)", "done": false },
-            { "id": "PR19-3", "task": "Migration: autopilot_config table (config_id, client_id, pulse_interval enum [1h/2h/6h/12h], quiet_hours_start, quiet_hours_end, enabled boolean)", "done": false },
-            { "id": "PR19-4", "task": "Autopilot runs in trigger mode (generateText, not streamText)", "done": false },
-            { "id": "PR19-5", "task": "Autopilot system prompt with 11-level priority order from §7.2 (TRIG-08): advance tasks → check overdue → act on monitors → follow up → handle blockers → start next task → research → get to know user → engage user → propose goals → create momentum", "done": false },
-            { "id": "PR19-6", "task": "Bootstrap requirement: autopilot MUST call tools for live state before acting (thread history ≠ current truth)", "done": false },
-            { "id": "PR19-7", "task": "Noise suppression: lower frequency + prompt instructions to avoid low-value pulses (TRIG-09)", "done": false },
-            { "id": "PR19-8", "task": "Email notifications for autopilot results via platform send_message (TRIG-06b)", "done": false }
+            {
+              "id": "PR19-1",
+              "task": "Pre-installed 'Sunder Autopilot' pinned thread on signup",
+              "done": false
+            },
+            {
+              "id": "PR19-2",
+              "task": "Autopilot trigger auto-created (6h default pulse)",
+              "done": false
+            },
+            {
+              "id": "PR19-3",
+              "task": "Migration: autopilot_config table (config_id, client_id, pulse_interval enum [1h/2h/6h/12h], quiet_hours_start, quiet_hours_end, enabled boolean)",
+              "done": false
+            },
+            {
+              "id": "PR19-4",
+              "task": "Autopilot runs in trigger mode (generateText, not streamText)",
+              "done": false
+            },
+            {
+              "id": "PR19-5",
+              "task": "Autopilot system prompt with 11-level priority order from §7.2 (TRIG-08): advance tasks → check overdue → act on monitors → follow up → handle blockers → start next task → research → get to know user → engage user → propose goals → create momentum",
+              "done": false
+            },
+            {
+              "id": "PR19-6",
+              "task": "Bootstrap requirement: autopilot MUST call tools for live state before acting (thread history ≠ current truth)",
+              "done": false
+            },
+            {
+              "id": "PR19-7",
+              "task": "Noise suppression: lower frequency + prompt instructions to avoid low-value pulses (TRIG-09)",
+              "done": false
+            },
+            {
+              "id": "PR19-8",
+              "task": "Email notifications for autopilot results via platform send_message (TRIG-06b)",
+              "done": false
+            }
           ],
           "testCriteria": [
             "Autopilot fires every 6h, produces meaningful output in its thread",
@@ -350,54 +920,137 @@
           "pr": "19a",
           "title": "Agent tasks + goals schema",
           "status": "pending",
-          "decisions": ["DATA-09", "TASKLET-05"],
+          "decisions": [
+            "DATA-09",
+            "TASKLET-05"
+          ],
           "note": "Added in audit — agent_tasks and goals tables were missing from original plan despite being v1 tables in DATA-09. Required for Tasks UI (PR 36) and autopilot goal tracking.",
           "tasks": [
-            { "id": "PR19a-1", "task": "Migration: agent_tasks table (task_id, client_id, title, description, status enum [planning/planned/in_progress/review/done/cancelled], source enum [manual/autopilot/skill], contact_id FK nullable, deal_id FK nullable, goal_id FK nullable, created_at, updated_at)", "done": false },
-            { "id": "PR19a-2", "task": "Migration: goals table (goal_id, client_id, title, description, status enum [active/completed/abandoned], target_date, created_at, updated_at)", "done": false },
-            { "id": "PR19a-3", "task": "RLS on both tables using DATA-03 pattern", "done": false },
-            { "id": "PR19a-4", "task": "Agent tools: search_agent_tasks, create_agent_task, update_agent_task, search_goals, create_goal, update_goal", "done": false }
+            {
+              "id": "PR19a-1",
+              "task": "Migration: agent_tasks table (task_id, client_id, title, description, status enum [planning/planned/in_progress/review/done/cancelled], source enum [manual/autopilot/skill], contact_id FK nullable, deal_id FK nullable, goal_id FK nullable, created_at, updated_at)",
+              "done": false
+            },
+            {
+              "id": "PR19a-2",
+              "task": "Migration: goals table (goal_id, client_id, title, description, status enum [active/completed/abandoned], target_date, created_at, updated_at)",
+              "done": false
+            },
+            {
+              "id": "PR19a-3",
+              "task": "RLS on both tables using DATA-03 pattern",
+              "done": false
+            },
+            {
+              "id": "PR19a-4",
+              "task": "Agent tools: search_agent_tasks, create_agent_task, update_agent_task, search_goals, create_goal, update_goal",
+              "done": false
+            }
           ],
-          "testCriteria": ["Agent creates an agent_task, autopilot can track and advance it"]
+          "testCriteria": [
+            "Agent creates an agent_task, autopilot can track and advance it"
+          ]
         },
         {
           "pr": 20,
           "title": "Trigger tools + user-created triggers",
           "status": "pending",
-          "decisions": ["TRIG-03", "TRIG-12"],
-          "tasks": [
-            { "id": "PR20-1", "task": "Implement create_trigger tool", "done": false },
-            { "id": "PR20-2", "task": "Implement search_triggers tool", "done": false },
-            { "id": "PR20-3", "task": "Implement manage_active_triggers tool", "done": false },
-            { "id": "PR20-4", "task": "Two retry policies: autopilot (0 retries), everything else (max 2)", "done": false }
+          "decisions": [
+            "TRIG-03",
+            "TRIG-12"
           ],
-          "testCriteria": ["Ask agent to 'check PropertyGuru every morning' → trigger created and fires on schedule"]
+          "tasks": [
+            {
+              "id": "PR20-1",
+              "task": "Implement create_trigger tool",
+              "done": false
+            },
+            {
+              "id": "PR20-2",
+              "task": "Implement search_triggers tool",
+              "done": false
+            },
+            {
+              "id": "PR20-3",
+              "task": "Implement manage_active_triggers tool",
+              "done": false
+            },
+            {
+              "id": "PR20-4",
+              "task": "Two retry policies: autopilot (0 retries), everything else (max 2)",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Ask agent to 'check PropertyGuru every morning' → trigger created and fires on schedule"
+          ]
         },
         {
           "pr": 21,
           "title": "Memory synthesis pulse",
           "status": "pending",
-          "decisions": ["TRIG-11"],
-          "tasks": [
-            { "id": "PR21-1", "task": "Create dedicated Memory Synthesis pinned thread on signup", "done": false },
-            { "id": "PR21-2", "task": "Separate trigger from autopilot (weekly cadence)", "done": false },
-            { "id": "PR21-3", "task": "Reads memory files, detects patterns, proposes skill items", "done": false },
-            { "id": "PR21-4", "task": "Checks MEMORY.md line count, self-organizes if approaching 200-line cap", "done": false }
+          "decisions": [
+            "TRIG-11"
           ],
-          "testCriteria": ["Weekly synthesis produces summary of memory changes, asks user to confirm/correct"]
+          "tasks": [
+            {
+              "id": "PR21-1",
+              "task": "Create dedicated Memory Synthesis pinned thread on signup",
+              "done": false
+            },
+            {
+              "id": "PR21-2",
+              "task": "Separate trigger from autopilot (weekly cadence)",
+              "done": false
+            },
+            {
+              "id": "PR21-3",
+              "task": "Reads memory files, detects patterns, proposes skill items",
+              "done": false
+            },
+            {
+              "id": "PR21-4",
+              "task": "Checks MEMORY.md line count, self-organizes if approaching 200-line cap",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Weekly synthesis produces summary of memory changes, asks user to confirm/correct"
+          ]
         },
         {
           "pr": 22,
           "title": "Context recovery + thread compaction",
           "status": "pending",
-          "decisions": ["DATA-10", "SESSION-07"],
-          "tasks": [
-            { "id": "PR22-1", "task": "Toolcall artifact recovery on context truncation", "done": false },
-            { "id": "PR22-2", "task": "Long-thread summarization when context budget exceeded", "done": false },
-            { "id": "PR22-3", "task": "Compaction instructions tuned for CRM (preserve deal names, contacts, decisions)", "done": false },
-            { "id": "PR22-4", "task": "Use provider-native compaction via AI SDK provider options where available, fallback to prepareStep callback", "done": false }
+          "decisions": [
+            "DATA-10",
+            "SESSION-07"
           ],
-          "testCriteria": ["Long conversation with 50+ messages still works correctly after compaction"]
+          "tasks": [
+            {
+              "id": "PR22-1",
+              "task": "Toolcall artifact recovery on context truncation",
+              "done": false
+            },
+            {
+              "id": "PR22-2",
+              "task": "Long-thread summarization when context budget exceeded",
+              "done": false
+            },
+            {
+              "id": "PR22-3",
+              "task": "Compaction instructions tuned for CRM (preserve deal names, contacts, decisions)",
+              "done": false
+            },
+            {
+              "id": "PR22-4",
+              "task": "Use provider-native compaction via AI SDK provider options where available, fallback to prepareStep callback",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Long conversation with 50+ messages still works correctly after compaction"
+          ]
         }
       ]
     },
@@ -412,143 +1065,384 @@
           "pr": 23,
           "title": "Skill system — registry",
           "status": "pending",
-          "decisions": ["SKILL-01", "SKILL-02", "SKILL-03", "SKILL-04"],
-          "tasks": [
-            { "id": "PR23-1", "task": "Migration: skill_registry table", "done": false },
-            { "id": "PR23-2", "task": "Skill manifest format (name, description, config, runbook, subagent instructions)", "done": false },
-            { "id": "PR23-3", "task": "System skills: CRM management, document processing, daily briefing", "done": false },
-            { "id": "PR23-4", "task": "Skill discovery: agent can list and describe available skills", "done": false }
+          "decisions": [
+            "SKILL-01",
+            "SKILL-02",
+            "SKILL-03",
+            "SKILL-04"
           ],
-          "testCriteria": ["System skills are pre-loaded and agent can describe them"]
+          "tasks": [
+            {
+              "id": "PR23-1",
+              "task": "Migration: skill_registry table",
+              "done": false
+            },
+            {
+              "id": "PR23-2",
+              "task": "Skill manifest format (name, description, config, runbook, subagent instructions)",
+              "done": false
+            },
+            {
+              "id": "PR23-3",
+              "task": "System skills: CRM management, document processing, daily briefing",
+              "done": false
+            },
+            {
+              "id": "PR23-4",
+              "task": "Skill discovery: agent can list and describe available skills",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "System skills are pre-loaded and agent can describe them"
+          ]
         },
         {
           "pr": 24,
           "title": "Skill system — loading + custom skills",
           "status": "pending",
-          "decisions": ["SKILL-05", "SKILL-06", "SKILL-07", "SKILL-08"],
-          "tasks": [
-            { "id": "PR24-1", "task": "Skill loading at context assembly time", "done": false },
-            { "id": "PR24-2", "task": "Custom skill creation via Guided Interview UI", "done": false },
-            { "id": "PR24-3", "task": "Agent-proposed skills via Growth Plan", "done": false },
-            { "id": "PR24-4", "task": "Skill testing and audit trail", "done": false }
+          "decisions": [
+            "SKILL-05",
+            "SKILL-06",
+            "SKILL-07",
+            "SKILL-08"
           ],
-          "testCriteria": ["User creates a custom skill, agent uses it in a subsequent conversation"]
+          "tasks": [
+            {
+              "id": "PR24-1",
+              "task": "Skill loading at context assembly time",
+              "done": false
+            },
+            {
+              "id": "PR24-2",
+              "task": "Custom skill creation via Guided Interview UI",
+              "done": false
+            },
+            {
+              "id": "PR24-3",
+              "task": "Agent-proposed skills via Growth Plan",
+              "done": false
+            },
+            {
+              "id": "PR24-4",
+              "task": "Skill testing and audit trail",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "User creates a custom skill, agent uses it in a subsequent conversation"
+          ]
         },
         {
           "pr": 25,
           "title": "Composio connections + OAuth",
           "status": "pending",
-          "decisions": ["CONN-01", "CONN-02", "CONN-03"],
-          "tasks": [
-            { "id": "PR25-1", "task": "Migration: connections table", "done": false },
-            { "id": "PR25-2", "task": "Composio SDK integration for OAuth flows", "done": false },
-            { "id": "PR25-3", "task": "Connection-first behavior: agent checks existing before proposing new (CONN-03)", "done": false },
-            { "id": "PR25-4", "task": "One-shot OAuth setup with token refresh", "done": false }
+          "decisions": [
+            "CONN-01",
+            "CONN-02",
+            "CONN-03"
           ],
-          "testCriteria": ["User connects Gmail via OAuth, connection persists and agent can use it"]
+          "tasks": [
+            {
+              "id": "PR25-1",
+              "task": "Migration: connections table",
+              "done": false
+            },
+            {
+              "id": "PR25-2",
+              "task": "Composio SDK integration for OAuth flows",
+              "done": false
+            },
+            {
+              "id": "PR25-3",
+              "task": "Connection-first behavior: agent checks existing before proposing new (CONN-03)",
+              "done": false
+            },
+            {
+              "id": "PR25-4",
+              "task": "One-shot OAuth setup with token refresh",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "User connects Gmail via OAuth, connection persists and agent can use it"
+          ]
         },
         {
           "pr": 26,
           "title": "Connection tools",
           "status": "pending",
-          "decisions": ["TOOL-04", "TOOL-06"],
-          "tasks": [
-            { "id": "PR26-1", "task": "Integration actions tool (Composio)", "done": false },
-            { "id": "PR26-2", "task": "MCP connection support (done-for-you setup in v1)", "done": false },
-            { "id": "PR26-3", "task": "Direct API connection support (done-for-you setup in v1)", "done": false },
-            { "id": "PR26-4", "task": "computer_use returns 'not yet available' placeholder", "done": false }
+          "decisions": [
+            "TOOL-04",
+            "TOOL-06"
           ],
-          "testCriteria": ["Agent uses Composio action to read user's calendar"]
+          "tasks": [
+            {
+              "id": "PR26-1",
+              "task": "Integration actions tool (Composio)",
+              "done": false
+            },
+            {
+              "id": "PR26-2",
+              "task": "MCP connection support (done-for-you setup in v1)",
+              "done": false
+            },
+            {
+              "id": "PR26-3",
+              "task": "Direct API connection support (done-for-you setup in v1)",
+              "done": false
+            },
+            {
+              "id": "PR26-4",
+              "task": "computer_use returns 'not yet available' placeholder",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Agent uses Composio action to read user's calendar"
+          ]
         },
         {
           "pr": 27,
           "title": "Vercel Sandbox integration — setup",
           "status": "pending",
-          "decisions": ["EXEC-04", "EXEC-05", "EXEC-06"],
-          "tasks": [
-            { "id": "PR27-1", "task": "Migration: sandbox_sessions table", "done": false },
-            { "id": "PR27-2", "task": "Vercel Sandbox SDK integration", "done": false },
-            { "id": "PR27-3", "task": "Ephemeral microVM spin-up and teardown", "done": false },
-            { "id": "PR27-4", "task": "Sandbox execution within agent tool framework", "done": false }
+          "decisions": [
+            "EXEC-04",
+            "EXEC-05",
+            "EXEC-06"
           ],
-          "testCriteria": ["Agent can execute simple code in sandbox and return results"]
+          "tasks": [
+            {
+              "id": "PR27-1",
+              "task": "Migration: sandbox_sessions table",
+              "done": false
+            },
+            {
+              "id": "PR27-2",
+              "task": "Vercel Sandbox SDK integration",
+              "done": false
+            },
+            {
+              "id": "PR27-3",
+              "task": "Ephemeral microVM spin-up and teardown",
+              "done": false
+            },
+            {
+              "id": "PR27-4",
+              "task": "Sandbox execution within agent tool framework",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Agent can execute simple code in sandbox and return results"
+          ]
         },
         {
           "pr": 28,
           "title": "Vercel Sandbox integration — artifacts",
           "status": "pending",
-          "decisions": ["EXEC-07", "EXEC-08", "EXEC-09", "EXEC-10", "EXEC-11", "SERVICE-10"],
-          "tasks": [
-            { "id": "PR28-1", "task": "Artifact generation in sandbox (CMA, reports) via custom skills (SERVICE-10)", "done": false },
-            { "id": "PR28-2", "task": "Artifact storage and retrieval", "done": false },
-            { "id": "PR28-3", "task": "Sandbox timeout and resource limits", "done": false },
-            { "id": "PR28-4", "task": "Error handling and graceful degradation", "done": false }
+          "decisions": [
+            "EXEC-07",
+            "EXEC-08",
+            "EXEC-09",
+            "EXEC-10",
+            "EXEC-11",
+            "SERVICE-10"
           ],
-          "testCriteria": ["Agent generates a CMA report in sandbox, user can view the artifact"]
+          "tasks": [
+            {
+              "id": "PR28-1",
+              "task": "Artifact generation in sandbox (CMA, reports) via custom skills (SERVICE-10)",
+              "done": false
+            },
+            {
+              "id": "PR28-2",
+              "task": "Artifact storage and retrieval",
+              "done": false
+            },
+            {
+              "id": "PR28-3",
+              "task": "Sandbox timeout and resource limits",
+              "done": false
+            },
+            {
+              "id": "PR28-4",
+              "task": "Error handling and graceful degradation",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Agent generates a CMA report in sandbox, user can view the artifact"
+          ]
         },
         {
           "pr": 29,
           "title": "Subagents",
           "status": "pending",
-          "decisions": ["RUNNER-06", "RUNNER-07"],
-          "tasks": [
-            { "id": "PR29-1", "task": "Subagent spawning for parallel research", "done": false },
-            { "id": "PR29-2", "task": "Subagent spawning for document analysis", "done": false },
-            { "id": "PR29-3", "task": "Results summarization back to parent context", "done": false },
-            { "id": "PR29-4", "task": "Context isolation to prevent main context bloat", "done": false }
+          "decisions": [
+            "RUNNER-06",
+            "RUNNER-07"
           ],
-          "testCriteria": ["Agent spawns subagent for research, results appear in main thread"]
+          "tasks": [
+            {
+              "id": "PR29-1",
+              "task": "Subagent spawning for parallel research",
+              "done": false
+            },
+            {
+              "id": "PR29-2",
+              "task": "Subagent spawning for document analysis",
+              "done": false
+            },
+            {
+              "id": "PR29-3",
+              "task": "Results summarization back to parent context",
+              "done": false
+            },
+            {
+              "id": "PR29-4",
+              "task": "Context isolation to prevent main context bloat",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Agent spawns subagent for research, results appear in main thread"
+          ]
         },
         {
           "pr": 30,
           "title": "Full tool surface",
           "status": "pending",
-          "decisions": ["TOOL-02", "TOOL-07", "TOOL-08"],
-          "tasks": [
-            { "id": "PR30-1", "task": "Complete tool inventory matching Tasklet's 30+ built-in tools", "done": false },
-            { "id": "PR30-2", "task": "Hybrid contract: strict internal + normalized envelope for external", "done": false },
-            { "id": "PR30-3", "task": "Raw provider payloads retained for debugging", "done": false },
-            { "id": "PR30-4", "task": "Database tools: run_agent_memory_sql (read-only CRM queries), get_agent_db_schema (introspect available tables)", "done": false },
-            { "id": "PR30-5", "task": "UI tools: show_preview (render artifact in preview panel), close_preview, rename_chat (update thread title)", "done": false }
+          "decisions": [
+            "TOOL-02",
+            "TOOL-07",
+            "TOOL-08"
           ],
-          "testCriteria": ["All 12 tool categories from TOOL-03 functional end-to-end"]
+          "tasks": [
+            {
+              "id": "PR30-1",
+              "task": "Complete tool inventory matching Tasklet's 30+ built-in tools",
+              "done": false
+            },
+            {
+              "id": "PR30-2",
+              "task": "Hybrid contract: strict internal + normalized envelope for external",
+              "done": false
+            },
+            {
+              "id": "PR30-3",
+              "task": "Raw provider payloads retained for debugging",
+              "done": false
+            },
+            {
+              "id": "PR30-4",
+              "task": "Database tools: run_agent_memory_sql (read-only CRM queries), get_agent_db_schema (introspect available tables)",
+              "done": false
+            },
+            {
+              "id": "PR30-5",
+              "task": "UI tools: show_preview (render artifact in preview panel), close_preview, rename_chat (update thread title)",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "All 12 tool categories from TOOL-03 functional end-to-end"
+          ]
         },
         {
           "pr": 31,
           "title": "Scraping lanes",
           "status": "pending",
-          "decisions": ["SERVICE-12", "SERVICE-12b", "SERVICE-12c", "SERVICE-12d"],
-          "tasks": [
-            { "id": "PR31-1", "task": "Lane 1: Known-site scraping (Apify + RapidAPI)", "done": false },
-            { "id": "PR31-2", "task": "Lane 2: Open-ended scraping (Scrapling + flat-rate LLM)", "done": false },
-            { "id": "PR31-3", "task": "Lane 3: Interactive scraping placeholder (Stagehand + Browserbase)", "done": false }
+          "decisions": [
+            "SERVICE-12",
+            "SERVICE-12b",
+            "SERVICE-12c",
+            "SERVICE-12d"
           ],
-          "testCriteria": ["Agent can scrape a known property listing site and return structured data"]
+          "tasks": [
+            {
+              "id": "PR31-1",
+              "task": "Lane 1: Known-site scraping (Apify + RapidAPI)",
+              "done": false
+            },
+            {
+              "id": "PR31-2",
+              "task": "Lane 2: Open-ended scraping (Scrapling + flat-rate LLM)",
+              "done": false
+            },
+            {
+              "id": "PR31-3",
+              "task": "Lane 3: Interactive scraping placeholder (Stagehand + Browserbase)",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Agent can scrape a known property listing site and return structured data"
+          ]
         },
         {
           "pr": 32,
           "title": "Document processing as agent tool",
           "status": "pending",
-          "decisions": ["SERVICE-09"],
-          "tasks": [
-            { "id": "PR32-1", "task": "Wire existing /api/gemini/process as a tool the agent can call", "done": false },
-            { "id": "PR32-2", "task": "Agent can trigger document classification/extraction on behalf of user", "done": false },
-            { "id": "PR32-3", "task": "Migration: document_processing_records table (record_id, client_id, vault_file_id FK, processing_type, status, result JSONB, created_at)", "done": false }
+          "decisions": [
+            "SERVICE-09"
           ],
-          "testCriteria": ["Agent processes a document through existing pipeline when asked, record stored in document_processing_records"]
+          "tasks": [
+            {
+              "id": "PR32-1",
+              "task": "Wire existing /api/gemini/process as a tool the agent can call",
+              "done": false
+            },
+            {
+              "id": "PR32-2",
+              "task": "Agent can trigger document classification/extraction on behalf of user",
+              "done": false
+            },
+            {
+              "id": "PR32-3",
+              "task": "Migration: document_processing_records table (record_id, client_id, vault_file_id FK, processing_type, status, result JSONB, created_at)",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Agent processes a document through existing pipeline when asked, record stored in document_processing_records"
+          ]
         },
         {
           "pr": "32a",
           "title": "Email messaging tools (Resend)",
           "status": "pending",
-          "decisions": ["SERVICE-13", "TRIG-13"],
+          "decisions": [
+            "SERVICE-13",
+            "TRIG-13"
+          ],
           "note": "Added in audit — email sending via Resend (SERVICE-13) and tool-level idempotency for external tools (TRIG-13) were missing from original plan.",
           "tasks": [
-            { "id": "PR32a-1", "task": "Resend SDK integration for transactional email", "done": false },
-            { "id": "PR32a-2", "task": "Implement send_message tool (platform email via Resend) with Zod schema", "done": false },
-            { "id": "PR32a-3", "task": "Implement reply_message tool for threaded email replies", "done": false },
-            { "id": "PR32a-4", "task": "Tool-level idempotency for external-facing tools (TRIG-13): dedup via sent_messages table to prevent duplicate sends on retry", "done": false },
-            { "id": "PR32a-5", "task": "Migration: sent_messages table for idempotency tracking", "done": false }
+            {
+              "id": "PR32a-1",
+              "task": "Resend SDK integration for transactional email",
+              "done": false
+            },
+            {
+              "id": "PR32a-2",
+              "task": "Implement send_message tool (platform email via Resend) with Zod schema",
+              "done": false
+            },
+            {
+              "id": "PR32a-3",
+              "task": "Implement reply_message tool for threaded email replies",
+              "done": false
+            },
+            {
+              "id": "PR32a-4",
+              "task": "Tool-level idempotency for external-facing tools (TRIG-13): dedup via sent_messages table to prevent duplicate sends on retry",
+              "done": false
+            },
+            {
+              "id": "PR32a-5",
+              "task": "Migration: sent_messages table for idempotency tracking",
+              "done": false
+            }
           ],
           "testCriteria": [
             "Agent sends email via Resend after approval",
@@ -568,104 +1462,267 @@
           "pr": 33,
           "title": "Approval system — gate implementation",
           "status": "pending",
-          "decisions": ["SAFETY-01", "SAFETY-02"],
-          "tasks": [
-            { "id": "PR33-1", "task": "Two-tier safety model: auto-run internal, approval for external", "done": false },
-            { "id": "PR33-2", "task": "Approval gate as chat interaction (not special UI)", "done": false },
-            { "id": "PR33-3", "task": "Agent presents action in plain language, waits for user reply", "done": false },
-            { "id": "PR33-4", "task": "User says yes → agent continues. No → run cancelled.", "done": false },
-            { "id": "PR33-5", "task": "Works identically in chat and trigger threads", "done": false }
+          "decisions": [
+            "SAFETY-01",
+            "SAFETY-02"
           ],
-          "testCriteria": ["Agent tries to send email, pauses for approval, continues after yes"]
+          "tasks": [
+            {
+              "id": "PR33-1",
+              "task": "Two-tier safety model: auto-run internal, approval for external",
+              "done": false
+            },
+            {
+              "id": "PR33-2",
+              "task": "Approval gate as chat interaction (not special UI)",
+              "done": false
+            },
+            {
+              "id": "PR33-3",
+              "task": "Agent presents action in plain language, waits for user reply",
+              "done": false
+            },
+            {
+              "id": "PR33-4",
+              "task": "User says yes → agent continues. No → run cancelled.",
+              "done": false
+            },
+            {
+              "id": "PR33-5",
+              "task": "Works identically in chat and trigger threads",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Agent tries to send email, pauses for approval, continues after yes"
+          ]
         },
         {
           "pr": 34,
           "title": "Approval system — events + UI",
           "status": "pending",
-          "decisions": ["SAFETY-02", "SAFETY-04"],
-          "tasks": [
-            { "id": "PR34-1", "task": "Migration: approval_events table", "done": false },
-            { "id": "PR34-2", "task": "Approval queue visible in Mission Control", "done": false },
-            { "id": "PR34-3", "task": "Trigger thread shows pending action, user opens thread to respond", "done": false },
-            { "id": "PR34-4", "task": "No per-action granularity, no configurable matrix in v1 (SAFETY-04)", "done": false }
+          "decisions": [
+            "SAFETY-02",
+            "SAFETY-04"
           ],
-          "testCriteria": ["Pending approvals show in Mission Control queue, can be resolved from there"]
+          "tasks": [
+            {
+              "id": "PR34-1",
+              "task": "Migration: approval_events table",
+              "done": false
+            },
+            {
+              "id": "PR34-2",
+              "task": "Approval queue visible in Mission Control",
+              "done": false
+            },
+            {
+              "id": "PR34-3",
+              "task": "Trigger thread shows pending action, user opens thread to respond",
+              "done": false
+            },
+            {
+              "id": "PR34-4",
+              "task": "No per-action granularity, no configurable matrix in v1 (SAFETY-04)",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Pending approvals show in Mission Control queue, can be resolved from there"
+          ]
         },
         {
           "pr": 35,
           "title": "Mission Control — Overview tab",
           "status": "pending",
-          "decisions": ["UX-03"],
-          "tasks": [
-            { "id": "PR35-1", "task": "Status dashboard with agent activity summary", "done": false },
-            { "id": "PR35-2", "task": "Recent runs, active triggers, memory stats", "done": false },
-            { "id": "PR35-3", "task": "Quick actions to common agent tasks", "done": false }
+          "decisions": [
+            "UX-03"
           ],
-          "testCriteria": ["Mission Control Overview shows accurate real-time agent status"]
+          "tasks": [
+            {
+              "id": "PR35-1",
+              "task": "Status dashboard with agent activity summary",
+              "done": false
+            },
+            {
+              "id": "PR35-2",
+              "task": "Recent runs, active triggers, memory stats",
+              "done": false
+            },
+            {
+              "id": "PR35-3",
+              "task": "Quick actions to common agent tasks",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Mission Control Overview shows accurate real-time agent status"
+          ]
         },
         {
           "pr": 36,
           "title": "Mission Control — Queue tab + Tasks UI",
           "status": "pending",
-          "decisions": ["TASKLET-05", "UX-04"],
-          "tasks": [
-            { "id": "PR36-1", "task": "Queue tab: approvals, failures, blocked tasks, goals at risk", "done": false },
-            { "id": "PR36-2", "task": "Unified Tasks page: Board (kanban), List, Goals views — dual task model (TASKLET-05): CRM tasks (binary open/completed) + agent tasks (full lifecycle)", "done": false },
-            { "id": "PR36-3", "task": "Sort by: Needs Approval → Blocked → Overdue → Due Soon → Recently Updated", "done": false },
-            { "id": "PR36-4", "task": "Source labels: [CRM], [MANUAL], [AUTOPILOT]", "done": false },
-            { "id": "PR36-5", "task": "Blocked and Needs Approval are badges, not columns", "done": false }
+          "decisions": [
+            "TASKLET-05",
+            "UX-04"
           ],
-          "testCriteria": ["Tasks board shows both CRM tasks and agent tasks with correct sorting and labels"]
+          "tasks": [
+            {
+              "id": "PR36-1",
+              "task": "Queue tab: approvals, failures, blocked tasks, goals at risk",
+              "done": false
+            },
+            {
+              "id": "PR36-2",
+              "task": "Unified Tasks page: Board (kanban), List, Goals views — dual task model (TASKLET-05): CRM tasks (binary open/completed) + agent tasks (full lifecycle)",
+              "done": false
+            },
+            {
+              "id": "PR36-3",
+              "task": "Sort by: Needs Approval → Blocked → Overdue → Due Soon → Recently Updated",
+              "done": false
+            },
+            {
+              "id": "PR36-4",
+              "task": "Source labels: [CRM], [MANUAL], [AUTOPILOT]",
+              "done": false
+            },
+            {
+              "id": "PR36-5",
+              "task": "Blocked and Needs Approval are badges, not columns",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Tasks board shows both CRM tasks and agent tasks with correct sorting and labels"
+          ]
         },
         {
           "pr": 37,
           "title": "Structured AI input",
           "status": "pending",
-          "decisions": ["UX-05"],
-          "tasks": [
-            { "id": "PR37-1", "task": "AI presents clickable options via streamUI", "done": false },
-            { "id": "PR37-2", "task": "Optional freeform input alongside options", "done": false },
-            { "id": "PR37-3", "task": "Used by: User Profiling, Skill-Building, Workflow Creation", "done": false }
+          "decisions": [
+            "UX-05"
           ],
-          "testCriteria": ["Agent presents multiple-choice options in chat, user can click to respond"]
+          "tasks": [
+            {
+              "id": "PR37-1",
+              "task": "AI presents clickable options via streamUI",
+              "done": false
+            },
+            {
+              "id": "PR37-2",
+              "task": "Optional freeform input alongside options",
+              "done": false
+            },
+            {
+              "id": "PR37-3",
+              "task": "Used by: User Profiling, Skill-Building, Workflow Creation",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Agent presents multiple-choice options in chat, user can click to respond"
+          ]
         },
         {
           "pr": 38,
           "title": "Onboarding flow",
           "status": "pending",
-          "decisions": ["UX-09"],
-          "tasks": [
-            { "id": "PR38-1", "task": "Phase 1: Quick Activation (<10 min) — signup, connect services, seed files", "done": false },
-            { "id": "PR38-2", "task": "Phase 2: Deep Profile Interview (scheduled within first week)", "done": false },
-            { "id": "PR38-3", "task": "Migration: setup_progress table", "done": false },
-            { "id": "PR38-4", "task": "Migration: guided_interview_sessions table", "done": false },
-            { "id": "PR38-5", "task": "Re-suggest Phase 2 interview max once per 48h if skipped", "done": false }
+          "decisions": [
+            "UX-09"
           ],
-          "testCriteria": ["New user goes through full onboarding, first useful output in <10 min"]
+          "tasks": [
+            {
+              "id": "PR38-1",
+              "task": "Phase 1: Quick Activation (<10 min) — signup, connect services, seed files",
+              "done": false
+            },
+            {
+              "id": "PR38-2",
+              "task": "Phase 2: Deep Profile Interview (scheduled within first week)",
+              "done": false
+            },
+            {
+              "id": "PR38-3",
+              "task": "Migration: setup_progress table",
+              "done": false
+            },
+            {
+              "id": "PR38-4",
+              "task": "Migration: guided_interview_sessions table",
+              "done": false
+            },
+            {
+              "id": "PR38-5",
+              "task": "Re-suggest Phase 2 interview max once per 48h if skipped",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "New user goes through full onboarding, first useful output in <10 min"
+          ]
         },
         {
           "pr": 39,
           "title": "Higher tier models",
           "status": "pending",
-          "decisions": ["LLM-06", "LLM-07"],
-          "tasks": [
-            { "id": "PR39-1", "task": "Tier 2: Gemini Pro for CRM writes, research, multi-source synthesis", "done": false },
-            { "id": "PR39-2", "task": "Tier 3: Claude Sonnet for complex analysis, approval-adjacent decisions", "done": false },
-            { "id": "PR39-3", "task": "Fallback chains between tiers", "done": false }
+          "decisions": [
+            "LLM-06",
+            "LLM-07"
           ],
-          "testCriteria": ["Complex requests route to higher tiers, fallbacks work when primary model is unavailable"]
+          "tasks": [
+            {
+              "id": "PR39-1",
+              "task": "Tier 2: Gemini Pro for CRM writes, research, multi-source synthesis",
+              "done": false
+            },
+            {
+              "id": "PR39-2",
+              "task": "Tier 3: Claude Sonnet for complex analysis, approval-adjacent decisions",
+              "done": false
+            },
+            {
+              "id": "PR39-3",
+              "task": "Fallback chains between tiers",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Complex requests route to higher tiers, fallbacks work when primary model is unavailable"
+          ]
         },
         {
           "pr": 40,
           "title": "Eval harness + observability",
           "status": "pending",
-          "decisions": ["EVAL-01", "EVAL-02", "EVAL-03", "EVAL-04"],
-          "tasks": [
-            { "id": "PR40-1", "task": "Eval harness for agent quality testing", "done": false },
-            { "id": "PR40-2", "task": "Observability pipeline for production monitoring", "done": false },
-            { "id": "PR40-3", "task": "Quality metrics and regression detection", "done": false }
+          "decisions": [
+            "EVAL-01",
+            "EVAL-02",
+            "EVAL-03",
+            "EVAL-04"
           ],
-          "testCriteria": ["Eval suite runs against test scenarios, produces quality scores"]
+          "tasks": [
+            {
+              "id": "PR40-1",
+              "task": "Eval harness for agent quality testing",
+              "done": false
+            },
+            {
+              "id": "PR40-2",
+              "task": "Observability pipeline for production monitoring",
+              "done": false
+            },
+            {
+              "id": "PR40-3",
+              "task": "Quality metrics and regression detection",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Eval suite runs against test scenarios, produces quality scores"
+          ]
         }
       ]
     },
@@ -680,61 +1737,145 @@
           "pr": 41,
           "title": "Telegram integration — bot setup",
           "status": "pending",
-          "decisions": ["GAP-09", "UX-07"],
-          "tasks": [
-            { "id": "PR41-1", "task": "Telegram bot registration and webhook setup", "done": false },
-            { "id": "PR41-2", "task": "Vercel AI SDK Chat SDK adapter for Telegram", "done": false },
-            { "id": "PR41-3", "task": "Message format translation to unified thread model", "done": false }
+          "decisions": [
+            "GAP-09",
+            "UX-07"
           ],
-          "testCriteria": ["Send message to Telegram bot, get agent response"]
+          "tasks": [
+            {
+              "id": "PR41-1",
+              "task": "Telegram bot registration and webhook setup",
+              "done": false
+            },
+            {
+              "id": "PR41-2",
+              "task": "Vercel AI SDK Chat SDK adapter for Telegram",
+              "done": false
+            },
+            {
+              "id": "PR41-3",
+              "task": "Message format translation to unified thread model",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Send message to Telegram bot, get agent response"
+          ]
         },
         {
           "pr": 42,
           "title": "Telegram integration — full features",
           "status": "pending",
-          "decisions": ["UX-07"],
-          "tasks": [
-            { "id": "PR42-1", "task": "Inline keyboards for structured input (v2 of UX-05)", "done": false },
-            { "id": "PR42-2", "task": "Approval gates work via Telegram", "done": false },
-            { "id": "PR42-3", "task": "Multi-channel identity resolution", "done": false }
+          "decisions": [
+            "UX-07"
           ],
-          "testCriteria": ["Full agent interaction via Telegram including approvals"]
+          "tasks": [
+            {
+              "id": "PR42-1",
+              "task": "Inline keyboards for structured input (v2 of UX-05)",
+              "done": false
+            },
+            {
+              "id": "PR42-2",
+              "task": "Approval gates work via Telegram",
+              "done": false
+            },
+            {
+              "id": "PR42-3",
+              "task": "Multi-channel identity resolution",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Full agent interaction via Telegram including approvals"
+          ]
         },
         {
           "pr": 43,
           "title": "Rate limiting + cost controls",
           "status": "pending",
-          "decisions": ["GAP-16", "SCALE-02"],
-          "tasks": [
-            { "id": "PR43-1", "task": "Per-client rate limiting", "done": false },
-            { "id": "PR43-2", "task": "Cost ceiling enforcement", "done": false },
-            { "id": "PR43-3", "task": "Usage alerts and throttling", "done": false }
+          "decisions": [
+            "GAP-16",
+            "SCALE-02"
           ],
-          "testCriteria": ["Rate limits kick in at configured thresholds, user gets clear feedback"]
+          "tasks": [
+            {
+              "id": "PR43-1",
+              "task": "Per-client rate limiting",
+              "done": false
+            },
+            {
+              "id": "PR43-2",
+              "task": "Cost ceiling enforcement",
+              "done": false
+            },
+            {
+              "id": "PR43-3",
+              "task": "Usage alerts and throttling",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Rate limits kick in at configured thresholds, user gets clear feedback"
+          ]
         },
         {
           "pr": 44,
           "title": "Scaling prep (R2, Workers)",
           "status": "pending",
-          "decisions": ["SCALE-03", "SCALE-04"],
-          "tasks": [
-            { "id": "PR44-1", "task": "Artifact hosting migration to R2 + Workers", "done": false },
-            { "id": "PR44-2", "task": "Storage tiering", "done": false },
-            { "id": "PR44-3", "task": "Sandbox snapshots + pre-warming", "done": false }
+          "decisions": [
+            "SCALE-03",
+            "SCALE-04"
           ],
-          "testCriteria": ["Artifacts serve from R2, latency improves for repeat access"]
+          "tasks": [
+            {
+              "id": "PR44-1",
+              "task": "Artifact hosting migration to R2 + Workers",
+              "done": false
+            },
+            {
+              "id": "PR44-2",
+              "task": "Storage tiering",
+              "done": false
+            },
+            {
+              "id": "PR44-3",
+              "task": "Sandbox snapshots + pre-warming",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Artifacts serve from R2, latency improves for repeat access"
+          ]
         },
         {
           "pr": 45,
           "title": "Voice I/O",
           "status": "pending",
-          "decisions": ["SERVICE-06", "SERVICE-07"],
-          "tasks": [
-            { "id": "PR45-1", "task": "Voice input via OpenAI Whisper", "done": false },
-            { "id": "PR45-2", "task": "Voice output via Inworld AI", "done": false },
-            { "id": "PR45-3", "task": "Voice toggle in chat UI", "done": false }
+          "decisions": [
+            "SERVICE-06",
+            "SERVICE-07"
           ],
-          "testCriteria": ["User speaks into chat, agent responds with audio"]
+          "tasks": [
+            {
+              "id": "PR45-1",
+              "task": "Voice input via OpenAI Whisper",
+              "done": false
+            },
+            {
+              "id": "PR45-2",
+              "task": "Voice output via Inworld AI",
+              "done": false
+            },
+            {
+              "id": "PR45-3",
+              "task": "Voice toggle in chat UI",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "User speaks into chat, agent responds with audio"
+          ]
         }
       ]
     }
@@ -742,43 +1883,130 @@
   "crossPhaseDependencies": {
     "description": "Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5. Phase 4 UX work can start in parallel with Phase 3.",
     "graph": {
-      "phase1": ["phase2"],
-      "phase2": ["phase3", "phase4"],
-      "phase3": ["phase4"],
-      "phase4": ["phase5"]
+      "phase1": [
+        "phase2"
+      ],
+      "phase2": [
+        "phase3",
+        "phase4"
+      ],
+      "phase3": [
+        "phase4"
+      ],
+      "phase4": [
+        "phase5"
+      ]
     }
   },
   "uncoveredDecisions": {
     "description": "Architecture decisions that are intentionally not assigned to any PR. Tracked here for completeness.",
     "deferredToPostV1": [
-      { "id": "FOUND-07", "topic": "Stripe billing/subscriptions", "reason": "Deferred to post-v1 per App Spec §5.1" }
+      {
+        "id": "FOUND-07",
+        "topic": "Stripe billing/subscriptions",
+        "reason": "Deferred to post-v1 per App Spec §5.1"
+      }
     ],
     "crossCuttingPrinciples": [
-      { "id": "FOUND-01", "topic": "Vercel-native serverless architecture" },
-      { "id": "FOUND-03", "topic": "Single codebase, single deployment" },
-      { "id": "FOUND-04", "topic": "Turborepo deferred until second package needed" },
-      { "id": "FOUND-06", "topic": "Supabase as sole backend" },
-      { "id": "MEM-07", "topic": "Memory as switching cost (strategic principle)" },
-      { "id": "SCALE-05", "topic": "Scaling principles" },
-      { "id": "TASKLET-01", "topic": "Follow Tasklet patterns by default" },
-      { "id": "TASKLET-02", "topic": "Tasklet alignment — tools" },
-      { "id": "TASKLET-03", "topic": "Tasklet alignment — skills" },
-      { "id": "UX-08", "topic": "Frontend inspirations (Twenty, Outline, Super Productivity)" }
+      {
+        "id": "FOUND-01",
+        "topic": "Vercel-native serverless architecture"
+      },
+      {
+        "id": "FOUND-03",
+        "topic": "Single codebase, single deployment"
+      },
+      {
+        "id": "FOUND-04",
+        "topic": "Turborepo deferred until second package needed"
+      },
+      {
+        "id": "FOUND-06",
+        "topic": "Supabase as sole backend"
+      },
+      {
+        "id": "MEM-07",
+        "topic": "Memory as switching cost (strategic principle)"
+      },
+      {
+        "id": "SCALE-05",
+        "topic": "Scaling principles"
+      },
+      {
+        "id": "TASKLET-01",
+        "topic": "Follow Tasklet patterns by default"
+      },
+      {
+        "id": "TASKLET-02",
+        "topic": "Tasklet alignment — tools"
+      },
+      {
+        "id": "TASKLET-03",
+        "topic": "Tasklet alignment — skills"
+      },
+      {
+        "id": "UX-08",
+        "topic": "Frontend inspirations (Twenty, Outline, Super Productivity)"
+      }
     ],
     "implicitInFeaturePRs": [
-      { "id": "SERVICE-01", "topic": "CRM on Supabase", "implicitIn": "PR 5-6" },
-      { "id": "SERVICE-04", "topic": "Cal.com via Composio", "implicitIn": "PR 25-26" },
-      { "id": "SERVICE-05", "topic": "Tally.so via Composio", "implicitIn": "PR 25-26" },
-      { "id": "SERVICE-08", "topic": "Granola meeting notes", "implicitIn": "PR 25-26" },
-      { "id": "SERVICE-11", "topic": "Artifact publishing (deferred)", "implicitIn": "PR 28" },
-      { "id": "SERVICE-14", "topic": "Postiz social (deferred)", "reason": "v2+ feature" },
-      { "id": "SERVICE-15", "topic": "Short.io links (deferred)", "reason": "v2+ feature" },
-      { "id": "SERVICE-16", "topic": "DocuSeal (deferred)", "reason": "v2+ feature" }
+      {
+        "id": "SERVICE-01",
+        "topic": "CRM on Supabase",
+        "implicitIn": "PR 5-6"
+      },
+      {
+        "id": "SERVICE-04",
+        "topic": "Cal.com via Composio",
+        "implicitIn": "PR 25-26"
+      },
+      {
+        "id": "SERVICE-05",
+        "topic": "Tally.so via Composio",
+        "implicitIn": "PR 25-26"
+      },
+      {
+        "id": "SERVICE-08",
+        "topic": "Granola meeting notes",
+        "implicitIn": "PR 25-26"
+      },
+      {
+        "id": "SERVICE-11",
+        "topic": "Artifact publishing (deferred)",
+        "implicitIn": "PR 28"
+      },
+      {
+        "id": "SERVICE-14",
+        "topic": "Postiz social (deferred)",
+        "reason": "v2+ feature"
+      },
+      {
+        "id": "SERVICE-15",
+        "topic": "Short.io links (deferred)",
+        "reason": "v2+ feature"
+      },
+      {
+        "id": "SERVICE-16",
+        "topic": "DocuSeal (deferred)",
+        "reason": "v2+ feature"
+      }
     ],
     "gapItems": [
-      "GAP-01", "GAP-02", "GAP-03", "GAP-04", "GAP-05",
-      "GAP-06", "GAP-07", "GAP-08", "GAP-10", "GAP-11",
-      "GAP-12", "GAP-13", "GAP-14", "GAP-15", "GAP-17"
+      "GAP-01",
+      "GAP-02",
+      "GAP-03",
+      "GAP-04",
+      "GAP-05",
+      "GAP-06",
+      "GAP-07",
+      "GAP-08",
+      "GAP-10",
+      "GAP-11",
+      "GAP-12",
+      "GAP-13",
+      "GAP-14",
+      "GAP-15",
+      "GAP-17"
     ]
   },
   "resolvedQuestions": [
