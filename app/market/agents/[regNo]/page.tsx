@@ -107,7 +107,7 @@ async function fetchAgentProfile(
       )
       .eq("salesperson_reg_num", registrationNo)
       .order("transaction_date", { ascending: false })
-      .limit(500),
+      .limit(100),
   ]);
 
   for (const result of [
@@ -219,100 +219,98 @@ export default async function AgentProfilePage({
 
   return (
     <>
-      <section className="py-12 sm:py-16">
+      <section className="bg-gradient-to-b from-emerald-50/40 to-transparent pt-6 pb-10 sm:pt-8 sm:pb-14">
         <Container>
           <Link
             href="/market/agents"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-sunder-green"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-400 transition hover:text-zinc-700"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-3.5 w-3.5" />
             Back to agents
           </Link>
 
-          <div className="mt-6 rounded-2xl border border-[#E8DCC8] bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex items-start gap-4">
-                {/* Initials avatar */}
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-sunder-green/10 text-xl font-bold text-sunder-green">
-                  {displayName
-                    .split(" ")
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .map((w) => w[0])
-                    .join("")
-                    .toUpperCase()}
-                </div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="font-serif text-2xl font-medium tracking-tight text-zinc-900 sm:text-3xl">
-                      {displayName}
-                    </h1>
-                    {/* CEA status badge */}
-                    {isExpiredProfile ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
-                        Expired
-                      </span>
-                    ) : profile.agent ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        Active
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-500">
-                    <span className="inline-flex items-center gap-1">
-                      <Shield className="h-3.5 w-3.5" />
-                      {registrationNo}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Briefcase className="h-3.5 w-3.5" />
-                      {profile.agent?.estate_agent_name ? (
-                        <Link
-                          href={{
-                            pathname: `/market/agencies/${toAgencySlug(
-                              profile.agent.estate_agent_name
-                            )}`,
-                            query: { name: profile.agent.estate_agent_name },
-                          }}
-                          className="text-sunder-green hover:underline"
-                        >
-                          {agencyName}
-                        </Link>
-                      ) : (
-                        agencyName
-                      )}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Calendar className="h-3.5 w-3.5" />
-                      {formatActiveRange(
-                        profile.firstTransactionDate,
-                        profile.latestTransactionDate
-                      )}
-                    </span>
-                  </div>
-                </div>
+          <div className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-4">
+              {/* Initials avatar */}
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-lg font-semibold text-zinc-500">
+                {displayName
+                  .split(" ")
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .map((w) => w[0])
+                  .join("")
+                  .toUpperCase()}
               </div>
-              <div className="flex gap-2">
-                <a
-                  href="https://wa.me/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[#E8DCC8] bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:border-sunder-green hover:text-sunder-green"
-                >
-                  WhatsApp
-                </a>
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
+                    {displayName}
+                  </h1>
+                  {/* CEA status badge */}
+                  {isExpiredProfile ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500">
+                      Expired
+                    </span>
+                  ) : profile.agent ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      Active
+                    </span>
+                  ) : null}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-zinc-400">
+                  <span className="inline-flex items-center gap-1.5 font-mono">
+                    <Shield className="h-3.5 w-3.5" />
+                    {registrationNo}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-zinc-500 transition-colors hover:text-zinc-900">
+                    <Briefcase className="h-3.5 w-3.5 text-zinc-400" />
+                    {profile.agent?.estate_agent_name ? (
+                      <Link
+                        href={{
+                          pathname: `/market/agencies/${toAgencySlug(
+                            profile.agent.estate_agent_name
+                          )}`,
+                          query: { name: profile.agent.estate_agent_name },
+                        }}
+                        className="font-medium hover:underline underline-offset-4 decoration-zinc-300"
+                      >
+                        {agencyName}
+                      </Link>
+                    ) : (
+                      agencyName
+                    )}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5" />
+                    {formatActiveRange(
+                      profile.firstTransactionDate,
+                      profile.latestTransactionDate
+                    )}
+                  </span>
+                </div>
               </div>
             </div>
+            <div className="flex shrink-0 gap-3">
+              <a
+                href="https://wa.me/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-zinc-200 bg-white px-5 text-sm font-medium text-zinc-700 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50"
+              >
+                WhatsApp
+              </a>
+            </div>
+          </div>
 
             {isExpiredProfile ? (
-              <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <p className="mt-4 rounded-lg bg-zinc-50 p-3 text-sm text-zinc-500">
                 This registration is no longer in the current CEA registry, but
                 historical transactions remain available.
               </p>
             ) : null}
-          </div>
 
-          <div className="mt-8">
+          <div className="mt-8 border-t border-zinc-100 pt-6">
             <StatBar
               items={[
                 { label: "Total Transactions", value: formatCount(profile.transactionCount) },
@@ -339,13 +337,13 @@ export default async function AgentProfilePage({
         </Container>
       </section>
 
-      <section className="pb-20 sm:pb-24">
+      <section className="pb-12 sm:pb-16">
         <Container>
           <AgentTransactionsTable transactions={profile.recentTransactions} />
         </Container>
       </section>
 
-      <section className="pb-8">
+      <section className="pb-10">
         <Container>
           <MovementHistory
             agencyName={profile.agent?.estate_agent_name ?? null}
@@ -355,7 +353,7 @@ export default async function AgentProfilePage({
         </Container>
       </section>
 
-      <section className="pb-20 sm:pb-24">
+      <section className="pb-16 sm:pb-20">
         <Container>
           <MarketCta />
         </Container>

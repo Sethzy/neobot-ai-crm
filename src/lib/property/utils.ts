@@ -1,7 +1,7 @@
 const DISTRICT_NUMBER_REGEX = /(\d{1,2})/;
 
 export function cleanSearchTerm(input: string | undefined): string {
-  return (input ?? "").trim().slice(0, 80);
+  return (input ?? "").trim().replace(/[(),.]/g, "").slice(0, 80);
 }
 
 export function extractDistrictNumber(
