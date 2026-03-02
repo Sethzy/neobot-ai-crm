@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 from datetime import datetime
 
 import requests
@@ -34,6 +35,15 @@ TRANSACTION_URL = (
 )
 
 SALE_TYPE_MAP = {"1": "New Sale", "2": "Sub Sale", "3": "Resale"}
+PROJECT_PLACEHOLDER_SENTINELS = {
+    "na",
+    "landed housing development",
+}
+LANDED_PROPERTY_TYPE_KEYWORDS = (
+    "detached",
+    "terrace",
+    "bungalow",
+)
 
 
 def parse_contract_date(mmyy: object) -> str | None:
@@ -59,6 +69,19 @@ def map_sale_type(value: object) -> str | None:
     if text is None:
         return None
     return SALE_TYPE_MAP.get(text, text)
+
+
+def is_project_placeholder_sentinel(value: str) -> bool:
+    normalized = " ".join(value.lower().replace(".", "").replace("/", "").split())
+    return normalized in PROJECT_PLACEHOLDER_SENTINELS
+
+
+def is_landed_property_type(value: object) -> bool:
+    text = normalize_text(value)
+    if not text:
+        return False
+    normalized = re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
+    return any(keyword in normalized for keyword in LANDED_PROPERTY_TYPE_KEYWORDS)
 
 
 def fetch_token(access_key: str) -> str:
@@ -91,13 +114,27 @@ def flatten_batch_items(items: list[dict]) -> list[dict]:
     rows: list[dict] = []
     for item in items:
         project = normalize_text(item.get("project"))
+        street = normalize_text(item.get("street"))
+        transactions = item.get("transaction") or []
+        has_landed_transactions = any(
+            is_landed_property_type(txn.get("propertyType")) for txn in transactions
+        )
+
+        # URA uses placeholder project names for landed transactions. Use the
+        # street address as the real identifier so each landed property stays
+        # distinct.
+        if (
+            project
+            and has_landed_transactions
+            and is_project_placeholder_sentinel(project)
+        ):
+            project = street
+
         if not project:
             continue
-        street = normalize_text(item.get("street"))
         market_segment = normalize_text(item.get("marketSegment"))
         x_coord = normalize_text(item.get("x"))
         y_coord = normalize_text(item.get("y"))
-        transactions = item.get("transaction") or []
 
         for txn in transactions:
             contract_date = parse_contract_date(txn.get("contractDate"))
