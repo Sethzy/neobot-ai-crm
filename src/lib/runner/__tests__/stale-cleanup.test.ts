@@ -14,6 +14,8 @@ const {
   mockMarkStaleRunsFailed,
   mockEnqueueMessage,
   mockDrainAndContinue,
+  mockCreateCrmTools,
+  mockCreateStorageTools,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
@@ -24,6 +26,8 @@ const {
   mockMarkStaleRunsFailed: vi.fn(),
   mockEnqueueMessage: vi.fn(),
   mockDrainAndContinue: vi.fn(),
+  mockCreateCrmTools: vi.fn(),
+  mockCreateStorageTools: vi.fn(),
 }));
 
 vi.mock("ai", () => ({ streamText: mockStreamText, stepCountIs: mockStepCountIs }));
@@ -45,6 +49,10 @@ vi.mock("@/lib/runner/thread-queue", () => ({
 vi.mock("@/lib/runner/drain-and-continue", () => ({
   drainAndContinue: mockDrainAndContinue,
 }));
+vi.mock("@/lib/runner/tools", () => ({
+  createCrmTools: mockCreateCrmTools,
+  createStorageTools: mockCreateStorageTools,
+}));
 
 import { runAgent } from "../run-agent";
 
@@ -52,6 +60,13 @@ describe("stale run cleanup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockMarkStaleRunsFailed.mockResolvedValue(0);
+    mockCreateCrmTools.mockReturnValue({
+      search_contacts: { description: "tool" },
+    });
+    mockCreateStorageTools.mockReturnValue({
+      read_file: { description: "storage-tool" },
+      write_file: { description: "storage-tool" },
+    });
     mockAssembleContext.mockResolvedValue({
       system: "prompt",
       messages: [{ role: "user", content: "test" }],

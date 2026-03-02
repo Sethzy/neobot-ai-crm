@@ -2,7 +2,7 @@
  * Tests for the runner core loop orchestration.
  * @module lib/runner/__tests__/run-agent
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   mockStreamText,
@@ -14,6 +14,8 @@ const {
   mockMarkStaleRunsFailed,
   mockEnqueueMessage,
   mockDrainAndContinue,
+  mockCreateCrmTools,
+  mockCreateStorageTools,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
@@ -24,6 +26,8 @@ const {
   mockMarkStaleRunsFailed: vi.fn(),
   mockEnqueueMessage: vi.fn(),
   mockDrainAndContinue: vi.fn(),
+  mockCreateCrmTools: vi.fn(),
+  mockCreateStorageTools: vi.fn(),
 }));
 
 vi.mock("ai", () => ({
@@ -53,6 +57,10 @@ vi.mock("@/lib/runner/thread-queue", () => ({
 vi.mock("@/lib/runner/drain-and-continue", () => ({
   drainAndContinue: mockDrainAndContinue,
 }));
+vi.mock("@/lib/runner/tools", () => ({
+  createCrmTools: mockCreateCrmTools,
+  createStorageTools: mockCreateStorageTools,
+}));
 
 import type { RunnerPayload } from "../schemas";
 import { runAgent } from "../run-agent";
@@ -64,10 +72,24 @@ const validPayload: RunnerPayload = {
   input: "Hello, Sunder!",
 };
 
+const originalEnableCrmWriteToolsEnv = process.env.RUNNER_ENABLE_CRM_WRITE_TOOLS;
+const originalNodeEnv = process.env.NODE_ENV;
+const originalVercelEnv = process.env.VERCEL_ENV;
+
 describe("runAgent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.NODE_ENV = "test";
+    delete process.env.VERCEL_ENV;
+    delete process.env.RUNNER_ENABLE_CRM_WRITE_TOOLS;
     mockMarkStaleRunsFailed.mockResolvedValue(0);
+    mockCreateCrmTools.mockReturnValue({
+      search_contacts: { description: "tool" },
+    });
+    mockCreateStorageTools.mockReturnValue({
+      read_file: { description: "storage-tool" },
+      write_file: { description: "storage-tool" },
+    });
     mockAssembleContext.mockResolvedValue({
       system: "You are Sunder.",
       messages: [{ role: "user", content: "Hello, Sunder!" }],
@@ -84,14 +106,98 @@ describe("runAgent", () => {
 
     expect(result.status).toBe("streaming");
     expect(mockGateway).toHaveBeenCalledWith("google/gemini-3-flash");
+    expect(mockStepCountIs).toHaveBeenCalledWith(4);
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
         model: "mock-model",
         system: "You are Sunder.",
         messages: [{ role: "user", content: "Hello, Sunder!" }],
         stopWhen: expect.any(Function),
-        tools: {},
+        tools: {
+          search_contacts: { description: "tool" },
+          read_file: { description: "storage-tool" },
+          write_file: { description: "storage-tool" },
+        },
       }),
+    );
+    expect(mockCreateCrmTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      { allowWriteTools: false },
+    );
+    expect(mockCreateStorageTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+    );
+  });
+
+  it("enables CRM write tools only when env flag is set", async () => {
+    process.env.RUNNER_ENABLE_CRM_WRITE_TOOLS = "1";
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    expect(mockCreateCrmTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      { allowWriteTools: true },
+    );
+  });
+
+  it("keeps CRM write tools disabled for non-1 env values", async () => {
+    process.env.RUNNER_ENABLE_CRM_WRITE_TOOLS = "true";
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    expect(mockCreateCrmTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      { allowWriteTools: false },
+    );
+  });
+
+  it("keeps CRM write tools disabled in production even when env flag is set", async () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.RUNNER_ENABLE_CRM_WRITE_TOOLS = "1";
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    expect(mockCreateCrmTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      { allowWriteTools: false },
+    );
+  });
+
+  it("keeps CRM write tools disabled when NODE_ENV is production and VERCEL_ENV is unset", async () => {
+    process.env.NODE_ENV = "production";
+    delete process.env.VERCEL_ENV;
+    process.env.RUNNER_ENABLE_CRM_WRITE_TOOLS = "1";
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    expect(mockCreateCrmTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      { allowWriteTools: false },
+    );
+  });
+
+  it("allows CRM write tools in preview deployments when env flag is set", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.VERCEL_ENV = "preview";
+    process.env.RUNNER_ENABLE_CRM_WRITE_TOOLS = "1";
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    expect(mockCreateCrmTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      { allowWriteTools: true },
     );
   });
 
@@ -195,5 +301,26 @@ describe("runAgent", () => {
       clientId: validPayload.clientId,
       threadId: validPayload.threadId,
     });
+  });
+
+  afterAll(() => {
+    if (originalEnableCrmWriteToolsEnv === undefined) {
+      delete process.env.RUNNER_ENABLE_CRM_WRITE_TOOLS;
+    } else {
+      process.env.RUNNER_ENABLE_CRM_WRITE_TOOLS = originalEnableCrmWriteToolsEnv;
+    }
+
+    if (originalNodeEnv === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = originalNodeEnv;
+    }
+
+    if (originalVercelEnv === undefined) {
+      delete process.env.VERCEL_ENV;
+      return;
+    }
+
+    process.env.VERCEL_ENV = originalVercelEnv;
   });
 });

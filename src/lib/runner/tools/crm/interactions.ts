@@ -1,0 +1,79 @@
+/**
+ * CRM interaction tools for the runner.
+ * @module lib/runner/tools/crm/interactions
+ */
+import { tool } from "ai";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
+
+import { interactionTypeValues } from "@/lib/crm/schemas";
+import type { Database } from "@/types/database";
+
+const dateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const interactionTimestampSchema = z.union([
+  z.string().datetime({ offset: true }),
+  dateOnlySchema,
+]);
+
+function normalizeOccurredAt(occurredAt: string | undefined): string | undefined {
+  if (!occurredAt) {
+    return undefined;
+  }
+
+  return occurredAt.length === 10
+    ? `${occurredAt}T00:00:00Z`
+    : occurredAt;
+}
+
+/**
+ * Creates interaction-related CRM tools.
+ *
+ * Interactions are append-only in v1, so only create is exposed.
+ */
+export function createInteractionTools(
+  supabase: SupabaseClient<Database>,
+  clientId: string,
+) {
+  const create_interaction = tool({
+    description:
+      "Record a CRM interaction such as a call, meeting, email, message, viewing, or note.",
+    inputSchema: z.object({
+      contact_id: z.string().uuid().describe("Contact id linked to the interaction."),
+      deal_id: z.string().uuid().optional().describe("Optional deal id linked to the interaction."),
+      type: z.enum(interactionTypeValues).describe("Interaction type."),
+      summary: z.string().optional().describe("Interaction summary."),
+      occurred_at: interactionTimestampSchema
+        .optional()
+        .describe("ISO-8601 timestamp or YYYY-MM-DD date when the interaction occurred."),
+    }),
+    execute: async ({ contact_id, deal_id, type, summary, occurred_at }) => {
+      const normalizedOccurredAt = normalizeOccurredAt(occurred_at);
+
+      const { data, error } = await supabase
+        .from("interactions")
+        .insert({
+          client_id: clientId,
+          contact_id,
+          deal_id,
+          type,
+          summary: summary ?? null,
+          occurred_at: normalizedOccurredAt ?? new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) {
+        return { success: false as const, error: error.message };
+      }
+
+      return {
+        success: true as const,
+        interaction: data,
+      };
+    },
+  });
+
+  return {
+    create_interaction,
+  };
+}
