@@ -14,8 +14,8 @@ type SgPlanningAreaMapProps = {
   maxCount?: number;
 };
 
-/** Color scale: blue shades matching the reference design. */
-const FILL_COLOR = "37, 99, 235"; // rgb(37, 99, 235) — blue-600
+/** Color scale: green shades matching the NeoBot design. */
+const FILL_COLOR = "2, 79, 70"; // rgb(2, 79, 70) — sunder-green-dark
 
 export function SgPlanningAreaMap({ highlights, maxCount: maxCountProp }: SgPlanningAreaMapProps) {
   const [hovered, setHovered] = useState<string | null>(null);
@@ -47,7 +47,7 @@ export function SgPlanningAreaMap({ highlights, maxCount: maxCountProp }: SgPlan
                   ? `rgba(${FILL_COLOR}, ${Math.max(intensity * 0.7, 0.1)})`
                   : "#f4f4f5"
               }
-              stroke={isHovered ? "#2563eb" : "#d4d4d8"}
+              stroke={isHovered ? "#024F46" : "#e4e4e7"}
               strokeWidth={isHovered ? 1.5 : 0.5}
               className="cursor-pointer transition-all duration-150"
               onMouseEnter={() => setHovered(area.name)}

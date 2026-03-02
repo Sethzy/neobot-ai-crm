@@ -42,9 +42,9 @@ export function PaginatedTable<T>({
   const pageData = data.slice(start, end);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#E8DCC8] bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
       {title ? (
-        <div className="border-b border-[#E8DCC8] bg-[#FAF6EF] px-4 py-3">
+        <div className="border-b border-zinc-200 bg-zinc-50 px-5 py-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
             {title}
           </h2>
@@ -60,7 +60,7 @@ export function PaginatedTable<T>({
           {/* Desktop table */}
           <div className={`overflow-x-auto ${mobileCardRenderer ? "hidden sm:block" : ""}`}>
             <table className="min-w-full divide-y divide-zinc-200">
-              <thead className="bg-[#FAF6EF]">
+              <thead className="bg-zinc-50">
                 <tr>
                   {columns.map((col) => (
                     <th
@@ -101,7 +101,7 @@ export function PaginatedTable<T>({
           ) : null}
 
           {/* Pagination footer */}
-          <div className="flex flex-col gap-3 border-t border-[#E8DCC8] bg-[#FAF6EF] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-t border-zinc-200 bg-zinc-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-zinc-600">
               Showing {start + 1}–{end} of {data.length}
             </p>
@@ -113,7 +113,7 @@ export function PaginatedTable<T>({
                 type="button"
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
                 disabled={page === 0}
-                className="h-10 rounded-lg border border-[#E8DCC8] bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-[#FAF6EF] disabled:cursor-not-allowed disabled:opacity-40 sm:h-9"
+                className="h-10 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 sm:h-9"
               >
                 Previous
               </button>
@@ -121,7 +121,7 @@ export function PaginatedTable<T>({
                 type="button"
                 onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                 disabled={page >= totalPages - 1}
-                className="h-10 rounded-lg border border-[#E8DCC8] bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-[#FAF6EF] disabled:cursor-not-allowed disabled:opacity-40 sm:h-9"
+                className="h-10 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40 sm:h-9"
               >
                 Next
               </button>

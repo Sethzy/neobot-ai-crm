@@ -1,11 +1,11 @@
-/** Blue palette for recharts and chart visualizations. */
+/** Green palette for recharts and chart visualizations. */
 export const CHART_COLORS = [
-  "#1e3a5f",  // navy — primary/dominant segment
-  "#2563eb",  // blue-600 — secondary segment
-  "#3b82f6",  // blue-500
-  "#60a5fa",  // blue-400
-  "#93c5fd",  // blue-300 — lightest segment
+  "#024F46",  // sunder-green-dark — primary/dominant segment
+  "#40916C",  // sunder-green-light — secondary segment
+  "#52B788",  // lighter green
+  "#74C69D",  // lighter green
+  "#95D5B2",  // lightest segment
 ] as const;
 
-export const CHART_PRIMARY = "#1e3a5f";
-export const CHART_PRIMARY_LIGHT = "#60a5fa";
+export const CHART_PRIMARY = "#024F46";
+export const CHART_PRIMARY_LIGHT = "#52B788";

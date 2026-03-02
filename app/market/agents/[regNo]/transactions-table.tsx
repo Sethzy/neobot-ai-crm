@@ -21,17 +21,17 @@ type AgentTransaction = {
 };
 
 const TXN_TYPE_COLORS: Record<string, string> = {
-  "New Sale": "bg-emerald-100 text-emerald-800",
-  Resale: "bg-blue-100 text-blue-800",
-  "Whole Rental": "bg-violet-100 text-violet-800",
-  "Room Rental": "bg-amber-100 text-amber-800",
+  "New Sale": "bg-[#D8F3DC] text-sunder-green",
+  Resale: "bg-[#F0E8D8] text-sunder-green",
+  "Whole Rental": "bg-zinc-100 text-zinc-700",
+  "Room Rental": "bg-zinc-100 text-zinc-700",
 };
 
 const REP_COLORS: Record<string, string> = {
-  Seller: "bg-orange-100 text-orange-800",
-  Buyer: "bg-sky-100 text-sky-800",
-  Landlord: "bg-violet-100 text-violet-800",
-  Tenant: "bg-teal-100 text-teal-800",
+  Seller: "bg-[#D8F3DC] text-sunder-green",
+  Buyer: "bg-[#F0E8D8] text-sunder-green",
+  Landlord: "bg-zinc-100 text-zinc-600",
+  Tenant: "bg-zinc-100 text-zinc-600",
 };
 
 function Badge({ label, colorMap }: { label: string | null; colorMap: Record<string, string> }): ReactNode {

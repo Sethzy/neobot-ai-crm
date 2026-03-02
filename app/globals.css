@@ -182,7 +182,7 @@
 
 /* Landing Page Specific Scoped Theme */
 .landing-page {
-  --background: #F5EEE1;
+  --background: theme('colors.zinc.50');
   --foreground: #1A1A1A;
   --card: theme('colors.white');
   --card-foreground: #1A1A1A;
@@ -192,7 +192,7 @@
   --primary-foreground: theme('colors.white');
   --secondary: #D8F3DC;
   --secondary-foreground: #024F46;
-  --muted: #EFE8DA;
+  --muted: theme('colors.zinc.100');
   --muted-foreground: #6B7280;
   --accent: #E8F5E9;
   --accent-foreground: #024F46;

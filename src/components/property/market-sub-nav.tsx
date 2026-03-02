@@ -21,7 +21,7 @@ export function MarketSubNav() {
   return (
     <nav
       aria-label="Market data navigation"
-      className="sticky top-0 z-50 border-b border-[#E8DCC8] bg-[#F5EEE1]/95 backdrop-blur-sm"
+      className="sticky top-0 z-50 border-b border-zinc-200 bg-white/95 backdrop-blur-sm"
     >
       <div className="mx-auto flex max-w-7xl items-center px-4 sm:px-6 lg:px-8">
         <Link href="/" className="mr-6 shrink-0 py-3 transition-opacity hover:opacity-80">

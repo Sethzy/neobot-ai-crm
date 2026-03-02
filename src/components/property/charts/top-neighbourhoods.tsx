@@ -202,7 +202,7 @@ export function TopNeighbourhoods({ transactions }: TopNeighbourhoodsProps) {
               <span
                 className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
                 style={{
-                  backgroundColor: `rgba(37, 99, 235, ${Math.max(0.15, (10 - i) / 10)})`,
+                  backgroundColor: `rgba(2, 79, 70, ${Math.max(0.15, (10 - i) / 10)})`,
                 }}
               />
               <span className="flex-1 text-sm text-zinc-700">
