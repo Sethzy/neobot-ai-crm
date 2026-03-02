@@ -153,7 +153,7 @@ export function MarketSearchBox({
 
   return (
     <div className="mt-6">
-      <div className="relative mx-auto max-w-lg">
+      <div className="relative mx-auto max-w-2xl">
         <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
         <input
           ref={inputRef}
