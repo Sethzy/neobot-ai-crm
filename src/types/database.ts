@@ -446,6 +446,261 @@ export type Database = {
         }
         Relationships: []
       }
+      contacts: {
+        Row: {
+          client_id: string
+          contact_id: string
+          created_at: string
+          email: string | null
+          first_name: string
+          last_name: string
+          notes: string | null
+          phone: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          contact_id?: string
+          created_at?: string
+          email?: string | null
+          first_name: string
+          last_name: string
+          notes?: string | null
+          phone?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          contact_id?: string
+          created_at?: string
+          email?: string | null
+          first_name?: string
+          last_name?: string
+          notes?: string | null
+          phone?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
+      crm_config: {
+        Row: {
+          client_id: string
+          config_id: string
+          created_at: string
+          deal_stages: Json | null
+          interaction_types: Json | null
+          task_types: Json | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          config_id?: string
+          created_at?: string
+          deal_stages?: Json | null
+          interaction_types?: Json | null
+          task_types?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          config_id?: string
+          created_at?: string
+          deal_stages?: Json | null
+          interaction_types?: Json | null
+          task_types?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_config_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
+      crm_tasks: {
+        Row: {
+          client_id: string
+          contact_id: string | null
+          created_at: string
+          deal_id: string | null
+          description: string | null
+          due_date: string | null
+          status: string
+          task_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          contact_id?: string | null
+          created_at?: string
+          deal_id?: string | null
+          description?: string | null
+          due_date?: string | null
+          status?: string
+          task_id?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          contact_id?: string | null
+          created_at?: string
+          deal_id?: string | null
+          description?: string | null
+          due_date?: string | null
+          status?: string
+          task_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_tasks_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "crm_tasks_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "crm_tasks_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["deal_id"]
+          },
+        ]
+      }
+      deals: {
+        Row: {
+          address: string
+          client_id: string
+          contact_id: string | null
+          created_at: string
+          deal_id: string
+          notes: string | null
+          price: number | null
+          stage: string
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          client_id: string
+          contact_id?: string | null
+          created_at?: string
+          deal_id?: string
+          notes?: string | null
+          price?: number | null
+          stage?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          client_id?: string
+          contact_id?: string | null
+          created_at?: string
+          deal_id?: string
+          notes?: string | null
+          price?: number | null
+          stage?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deals_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["contact_id"]
+          },
+        ]
+      }
+      interactions: {
+        Row: {
+          client_id: string
+          contact_id: string
+          created_at: string
+          deal_id: string | null
+          interaction_id: string
+          occurred_at: string
+          summary: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          contact_id: string
+          created_at?: string
+          deal_id?: string | null
+          interaction_id?: string
+          occurred_at: string
+          summary?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          contact_id?: string
+          created_at?: string
+          deal_id?: string | null
+          interaction_id?: string
+          occurred_at?: string
+          summary?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interactions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "interactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "interactions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["deal_id"]
+          },
+        ]
+      }
       conversation_threads: {
         Row: {
           client_id: string
