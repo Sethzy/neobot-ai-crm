@@ -66,16 +66,14 @@ async function fetchPropertySuggestions(q: string): Promise<Suggestion[]> {
     .from("ura_transactions")
     .select("project, district")
     .ilike("project", `%${q}%`)
-    .order("contract_date", { ascending: false })
-    .limit(200);
+    .order("project", { ascending: true })
+    .limit(50);
 
   const seen = new Map<string, { project: string; district: string | null }>();
   for (const row of data ?? []) {
     if (!row.project) continue;
     const key = `${row.project}::${row.district ?? ""}`;
-    if (!seen.has(key)) {
-      seen.set(key, { project: row.project, district: row.district });
-    }
+    if (!seen.has(key)) seen.set(key, { project: row.project, district: row.district });
     if (seen.size >= LIMIT) break;
   }
 
@@ -95,7 +93,7 @@ async function fetchHdbSuggestions(q: string): Promise<Suggestion[]> {
     .or(`town.ilike.%${q}%,street_name.ilike.%${q}%`)
     .not("town", "is", null)
     .not("street_name", "is", null)
-    .limit(200);
+    .limit(50);
 
   const seen = new Map<string, { town: string; street: string }>();
   for (const row of data ?? []) {
@@ -126,7 +124,7 @@ async function fetchAgencySuggestions(q: string): Promise<Suggestion[]> {
     .select("estate_agent_name")
     .ilike("estate_agent_name", `%${q}%`)
     .not("estate_agent_name", "is", null)
-    .limit(500);
+    .limit(50);
 
   const counts = new Map<string, number>();
   for (const row of data ?? []) {
@@ -153,7 +151,7 @@ async function fetchAreaSuggestions(q: string): Promise<Suggestion[]> {
     .select("town")
     .ilike("town", `%${q}%`)
     .not("town", "is", null)
-    .limit(500);
+    .limit(50);
 
   const counts = new Map<string, number>();
   for (const row of data ?? []) {

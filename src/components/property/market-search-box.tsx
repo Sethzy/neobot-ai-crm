@@ -12,8 +12,6 @@ type Suggestion = {
 };
 
 interface MarketSearchBoxProps {
-  /** Form action URL for fallback submit (e.g. "/market/agents"). */
-  action: string;
   /** Suggest API type param (e.g. "agents", "properties"). */
   type: string;
   /** Input placeholder text. */
@@ -25,7 +23,6 @@ interface MarketSearchBoxProps {
 const DEBOUNCE_MS = 250;
 
 export function MarketSearchBox({
-  action,
   type,
   placeholder,
   defaultValue = "",
@@ -36,6 +33,7 @@ export function MarketSearchBox({
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -50,6 +48,7 @@ export function MarketSearchBox({
       }
 
       setIsLoading(true);
+      setIsOpen(true);
       try {
         const res = await fetch(
           `/api/market/suggest?type=${encodeURIComponent(type)}&q=${encodeURIComponent(q)}`
@@ -57,11 +56,13 @@ export function MarketSearchBox({
         const json = await res.json();
         const items: Suggestion[] = json.suggestions ?? [];
         setSuggestions(items);
-        setIsOpen(items.length > 0);
+        setIsOpen(true);
+        setHasSearched(true);
         setActiveIndex(-1);
       } catch {
         setSuggestions([]);
-        setIsOpen(false);
+        setIsOpen(true);
+        setHasSearched(true);
       } finally {
         setIsLoading(false);
       }
@@ -82,25 +83,27 @@ export function MarketSearchBox({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!isOpen || suggestions.length === 0) return;
-
     switch (e.key) {
       case "ArrowDown":
+        if (!isOpen || suggestions.length === 0) return;
         e.preventDefault();
         setActiveIndex((prev) =>
           prev < suggestions.length - 1 ? prev + 1 : 0
         );
         break;
       case "ArrowUp":
+        if (!isOpen || suggestions.length === 0) return;
         e.preventDefault();
         setActiveIndex((prev) =>
           prev > 0 ? prev - 1 : suggestions.length - 1
         );
         break;
       case "Enter":
+        e.preventDefault();
         if (activeIndex >= 0 && activeIndex < suggestions.length) {
-          e.preventDefault();
           navigateToSuggestion(suggestions[activeIndex]);
+        } else if (suggestions.length > 0) {
+          navigateToSuggestion(suggestions[0]);
         }
         break;
       case "Escape":
@@ -114,8 +117,16 @@ export function MarketSearchBox({
     setQuery("");
     setSuggestions([]);
     setIsOpen(false);
+    setHasSearched(false);
     inputRef.current?.focus();
   };
+
+  // Auto-fetch suggestions on mount when defaultValue is pre-filled (URL sharing)
+  useEffect(() => {
+    if (defaultValue.length >= 2) {
+      fetchSuggestions(defaultValue);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -141,7 +152,7 @@ export function MarketSearchBox({
   }, []);
 
   return (
-    <form action={action} method="get" className="mt-6">
+    <div className="mt-6">
       <div className="relative mx-auto max-w-lg">
         <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
         <input
@@ -169,42 +180,48 @@ export function MarketSearchBox({
         )}
 
         {/* Typeahead dropdown */}
-        {isOpen && suggestions.length > 0 && (
+        {isOpen && (
           <div
             ref={dropdownRef}
-            className="absolute left-0 right-0 z-50 mt-1.5 max-h-80 overflow-y-auto rounded-2xl border border-zinc-200 bg-white shadow-lg"
+            className="absolute left-0 right-0 z-50 mt-1.5 max-h-80 overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200 bg-white shadow-lg"
           >
-            <ul role="listbox" className="py-1.5">
-              {suggestions.map((suggestion, i) => (
-                <li
-                  key={`${suggestion.label}-${i}`}
-                  role="option"
-                  aria-selected={i === activeIndex}
-                  onMouseEnter={() => setActiveIndex(i)}
-                  onClick={() => navigateToSuggestion(suggestion)}
-                  className={`flex cursor-pointer items-center gap-3 px-4 py-2.5 transition ${
-                    i === activeIndex
-                      ? "bg-zinc-50"
-                      : ""
-                  }`}
-                >
-                  <Search className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm text-zinc-900">
-                      {suggestion.label}
-                    </p>
-                    {suggestion.sublabel && (
-                      <p className="truncate text-xs text-zinc-400">
-                        {suggestion.sublabel}
+            {isLoading ? (
+              <p className="px-4 py-3 text-sm text-zinc-400">Searching...</p>
+            ) : suggestions.length > 0 ? (
+              <ul role="listbox" className="py-1.5">
+                {suggestions.map((suggestion, i) => (
+                  <li
+                    key={`${suggestion.label}-${i}`}
+                    role="option"
+                    aria-selected={i === activeIndex}
+                    onMouseEnter={() => setActiveIndex(i)}
+                    onClick={() => navigateToSuggestion(suggestion)}
+                    className={`flex cursor-pointer items-center gap-3 px-4 py-2.5 transition ${
+                      i === activeIndex
+                        ? "bg-zinc-50"
+                        : ""
+                    }`}
+                  >
+                    <Search className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm text-zinc-900">
+                        {suggestion.label}
                       </p>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
+                      {suggestion.sublabel && (
+                        <p className="truncate text-xs text-zinc-400">
+                          {suggestion.sublabel}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : hasSearched ? (
+              <p className="px-4 py-3 text-sm text-zinc-400">No results found</p>
+            ) : null}
           </div>
         )}
       </div>
-    </form>
+    </div>
   );
 }
