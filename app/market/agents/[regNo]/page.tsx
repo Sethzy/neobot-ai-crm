@@ -106,8 +106,7 @@ async function fetchAgentProfile(
         "transaction_date, property_type, transaction_type, represented, town, district, general_location"
       )
       .eq("salesperson_reg_num", registrationNo)
-      .order("transaction_date", { ascending: false })
-      .limit(100),
+      .order("transaction_date", { ascending: false }),
   ]);
 
   for (const result of [
