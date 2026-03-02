@@ -106,8 +106,7 @@ export default async function HdbStreetProfilePage({
       )
       .eq("town", displayTown)
       .eq("street_name", streetName)
-      .order("month", { ascending: false })
-      .limit(200),
+      .order("month", { ascending: false }),
   ]);
 
   for (const result of [countResult, latestResult, recentResult]) {

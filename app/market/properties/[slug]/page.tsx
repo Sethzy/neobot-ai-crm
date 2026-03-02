@@ -127,8 +127,7 @@ async function fetchPropertyProfile(
     .from("ura_transactions")
     .select("price, price_psf, type_of_sale")
     .eq("project", context.project)
-    .order("contract_date", { ascending: false })
-    .limit(2000);
+    .order("contract_date", { ascending: false });
   const metricsQuery = context.district
     ? metricsBaseQuery.eq("district", context.district)
     : metricsBaseQuery.is("district", null);
@@ -139,8 +138,7 @@ async function fetchPropertyProfile(
       "contract_date, price, price_psf, area_sqm, floor_range, type_of_sale, property_type, tenure, no_of_units, street, market_segment"
     )
     .eq("project", context.project)
-    .order("contract_date", { ascending: false })
-    .limit(500);
+    .order("contract_date", { ascending: false });
   const recentTransactionsQuery = context.district
     ? recentTransactionsBaseQuery.eq("district", context.district)
     : recentTransactionsBaseQuery.is("district", null);

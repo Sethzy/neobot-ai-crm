@@ -106,16 +106,14 @@ export default async function AreaProfilePage({
         "id, salesperson_reg_num, salesperson_name, transaction_date, property_type, transaction_type"
       )
       .eq("town", areaName)
-      .order("transaction_date", { ascending: false })
-      .limit(120),
+      .order("transaction_date", { ascending: false }),
     client
       .from("cea_transactions")
       .select(
         "id, salesperson_reg_num, salesperson_name, transaction_date, property_type, transaction_type"
       )
       .eq("district", areaName)
-      .order("transaction_date", { ascending: false })
-      .limit(120),
+      .order("transaction_date", { ascending: false }),
     client
       .from("cea_transactions")
       .select("transaction_date")
@@ -136,8 +134,7 @@ export default async function AreaProfilePage({
       .from("hdb_resale_transactions")
       .select("resale_price, month")
       .eq("town", areaName)
-      .order("month", { ascending: false })
-      .limit(1200),
+      .order("month", { ascending: false }),
     client
       .from("hdb_resale_transactions")
       .select("month")
