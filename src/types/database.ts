@@ -425,6 +425,65 @@ export type Database = {
         }
         Relationships: []
       }
+      vault_files: {
+        Row: {
+          client_id: string
+          content: string | null
+          content_type: string | null
+          created_at: string
+          file_id: string
+          filename: string
+          fts: unknown
+          needs_reprocess: boolean
+          size_bytes: number | null
+          storage_path: string
+          summary: string | null
+          tags: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          content?: string | null
+          content_type?: string | null
+          created_at?: string
+          file_id?: string
+          filename: string
+          fts?: unknown
+          needs_reprocess?: boolean
+          size_bytes?: number | null
+          storage_path: string
+          summary?: string | null
+          tags?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          content?: string | null
+          content_type?: string | null
+          created_at?: string
+          file_id?: string
+          filename?: string
+          fts?: unknown
+          needs_reprocess?: boolean
+          size_bytes?: number | null
+          storage_path?: string
+          summary?: string | null
+          tags?: string[]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vault_files_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           client_id: string

@@ -25,7 +25,9 @@
       "2026-03-02: PR 6 marked done, PR 8 now in_progress",
       "2026-03-02: PR 8 marked done, PR 9 now in_progress",
       "2026-03-03: PR 11 marked done, PR 12 now in_progress",
-      "2026-03-03: PR 12 marked done (lean scope): step_count on runs, onFinish step counting, tool-error resilience test, schema/type updates"
+      "2026-03-03: PR 12 marked done (lean scope): step_count on runs, onFinish step counting, tool-error resilience test, schema/type updates",
+      "2026-03-03: PR 12a now in_progress — tasklist at docs/tasks/2026-03-03-pr12a-knowledge-base-tasklist.md",
+      "2026-03-03: PR 12a marked done — vault_files schema + RLS/realtime, Knowledge page (search/upload/download), vault metadata sync + tests"
     ]
   },
   "phases": [
@@ -591,7 +593,7 @@
         {
           "pr": "12a",
           "title": "Knowledge Base schema + pages",
-          "status": "pending",
+          "status": "done",
           "decisions": [
             "SERVICE-02",
             "DATA-09"
@@ -601,27 +603,27 @@
             {
               "id": "PR12a-1",
               "task": "Migration: vault_files table (file_id, client_id, filename, storage_path, content_type, size, full_text_search tsvector, created_at, updated_at)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR12a-2",
               "task": "RLS on vault_files",
-              "done": false
+              "done": true
             },
             {
               "id": "PR12a-3",
               "task": "Knowledge Base list page: file browser with search (full-text via vault_files SQL, not directory listing per DATA-06)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR12a-4",
               "task": "Knowledge Base upload: store file in Supabase Storage, index metadata in vault_files",
-              "done": false
+              "done": true
             },
             {
               "id": "PR12a-5",
               "task": "Navigation: add Knowledge to sidebar nav under DATABASE section",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [

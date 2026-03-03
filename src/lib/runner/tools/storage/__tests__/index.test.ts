@@ -27,6 +27,27 @@ import { createStorageTools } from "../index";
 const CLIENT_ID = "660e8400-e29b-41d4-a716-446655440000";
 const EXECUTION_OPTIONS = { toolCallId: "tool-call", messages: [] } as never;
 
+function createSupabaseMock() {
+  const upsert = vi.fn().mockResolvedValue({ data: null, error: null });
+  const deleteBuilder = {
+    eq: vi.fn().mockReturnThis(),
+    then: undefined as unknown,
+  };
+  deleteBuilder.then = (resolve: (value: unknown) => void) =>
+    Promise.resolve({ data: null, error: null }).then(resolve);
+
+  const deleteRows = vi.fn(() => deleteBuilder);
+  const from = vi.fn(() => ({ upsert, delete: deleteRows }));
+
+  return {
+    supabase: { from },
+    upsert,
+    deleteRows,
+    eq: deleteBuilder.eq,
+    from,
+  };
+}
+
 describe("createStorageTools", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -179,7 +200,8 @@ describe("createStorageTools", () => {
 
   it("write_file classifies vault and skills paths for path-aware handling", async () => {
     mockFileClient.uploadFile.mockResolvedValue(undefined);
-    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+    const { supabase } = createSupabaseMock();
+    const tools = createStorageTools(supabase as never, CLIENT_ID);
 
     const vaultResult = await tools.write_file.execute(
       { op: "write", path: "vault/lead-notes.md", content: "..." },
@@ -202,6 +224,45 @@ describe("createStorageTools", () => {
       path: "skills/gmail/SKILL.md",
       path_kind: "skills",
     });
+  });
+
+  it("write_file syncs vault metadata on write", async () => {
+    mockFileClient.uploadFile.mockResolvedValue(undefined);
+    const { supabase, upsert, from } = createSupabaseMock();
+    const tools = createStorageTools(supabase as never, CLIENT_ID);
+
+    await tools.write_file.execute(
+      { op: "write", path: "vault/Lead Notes.md", content: "prefers WhatsApp follow-up" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(from).toHaveBeenCalledWith("vault_files");
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        client_id: CLIENT_ID,
+        filename: "Lead Notes.md",
+        storage_path: "vault/Lead Notes.md",
+        title: "lead-notes",
+        content: "prefers WhatsApp follow-up",
+        needs_reprocess: true,
+      }),
+      { onConflict: "client_id,storage_path" },
+    );
+  });
+
+  it("write_file removes vault metadata row on delete", async () => {
+    mockFileClient.deleteFile.mockResolvedValue(undefined);
+    const { supabase, deleteRows, eq } = createSupabaseMock();
+    const tools = createStorageTools(supabase as never, CLIENT_ID);
+
+    await tools.write_file.execute(
+      { op: "delete", path: "vault/obsolete.md" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(deleteRows).toHaveBeenCalled();
+    expect(eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
+    expect(eq).toHaveBeenCalledWith("storage_path", "vault/obsolete.md");
   });
 
   it("bubbles protected-file errors from write operations", async () => {

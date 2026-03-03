@@ -82,7 +82,7 @@ export function createStorageTools(
           }
 
           await fileClient.uploadFile(path, content);
-          await runPathAwareSync({ op, path, pathKind });
+          await runPathAwareSync({ op, path, pathKind, content, supabase, clientId });
           return { success: true as const, op, path, path_kind: pathKind };
         }
 
@@ -92,13 +92,20 @@ export function createStorageTools(
           }
 
           const updatedContent = await fileClient.editFile(path, old_string, new_string, replace_all);
-          await runPathAwareSync({ op, path, pathKind });
+          await runPathAwareSync({
+            op,
+            path,
+            pathKind,
+            content: updatedContent,
+            supabase,
+            clientId,
+          });
           return { success: true as const, op, path, content: updatedContent, path_kind: pathKind };
         }
 
         case "delete": {
           await fileClient.deleteFile(path);
-          await runPathAwareSync({ op, path, pathKind });
+          await runPathAwareSync({ op, path, pathKind, supabase, clientId });
           return { success: true as const, op, path, path_kind: pathKind };
         }
       }
@@ -185,13 +192,77 @@ async function runPathAwareSync(params: {
   op: "write" | "edit" | "delete";
   path: string;
   pathKind: StoragePathKind;
+  content?: string;
+  supabase: SupabaseClient<Database>;
+  clientId: string;
 }): Promise<void> {
-  if (params.pathKind === "general") {
+  if (params.pathKind === "general" || params.pathKind === "skills") {
     return;
   }
 
-  // DATA-06 follow-up hooks:
-  // - vault/* paths should update vault_files metadata/content when PR12a lands.
-  // - skills/* paths should update skill_registry metadata when PR23 lands.
-  // This placeholder keeps write_file path-aware without introducing premature schema coupling.
+  const normalizedPath = normalizeWorkspacePath(params.path);
+
+  if (params.op === "delete") {
+    const { error } = await params.supabase
+      .from("vault_files")
+      .delete()
+      .eq("client_id", params.clientId)
+      .eq("storage_path", normalizedPath);
+
+    if (error) {
+      throw new Error(`Failed to delete vault metadata: ${error.message}`);
+    }
+
+    return;
+  }
+
+  const filename = getFileNameFromPath(normalizedPath);
+  const title = deriveTitleFromFilename(filename);
+  const textContent = params.content ?? null;
+  const contentSizeBytes = textContent === null ? null : new TextEncoder().encode(textContent).length;
+  const extension = filename.includes(".") ? filename.split(".").pop()?.toLowerCase() : "";
+  const contentType = extension === "md" || extension === "markdown"
+    ? "text/markdown"
+    : extension === "txt"
+      ? "text/plain"
+      : null;
+
+  const { error } = await params.supabase
+    .from("vault_files")
+    .upsert(
+      {
+        client_id: params.clientId,
+        filename,
+        storage_path: normalizedPath,
+        title,
+        content_type: contentType,
+        size_bytes: contentSizeBytes,
+        content: textContent,
+        needs_reprocess: true,
+      },
+      { onConflict: "client_id,storage_path" },
+    );
+
+  if (error) {
+    throw new Error(`Failed to upsert vault metadata: ${error.message}`);
+  }
+}
+
+function normalizeWorkspacePath(path: string): string {
+  return path.replace(/^\/+/, "");
+}
+
+function getFileNameFromPath(path: string): string {
+  const segments = path.split("/").filter((segment) => segment.length > 0);
+  return segments[segments.length - 1] ?? path;
+}
+
+function deriveTitleFromFilename(filename: string): string {
+  const withoutExtension = filename.replace(/\.[^/.]+$/, "");
+  const normalized = withoutExtension
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return normalized.length > 0 ? normalized : "file";
 }
