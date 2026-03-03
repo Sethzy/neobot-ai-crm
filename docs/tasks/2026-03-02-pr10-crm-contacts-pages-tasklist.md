@@ -1,10 +1,10 @@
 # PR 10: CRM Read-Only Pages (Contacts) — Implementation Plan
 
 **PR:** PR 10: CRM read-only pages (Contacts)
-**Decisions:** `UX-02` (primary navigation structure), `UX-08` (frontend inspirations — Twenty CRM), `DATA-06` / `DATA-09` (CRM tables)
+**Decisions:** `UX-02` (primary navigation structure), `DATA-09` (CRM tables), `DATA-07` (realtime capability via `useRealtimeTable`)
 **Goal:** Build the read-only Contacts list page and Contact detail page so users can browse CRM data the agent created via chat.
 
-**Architecture:** Replace the `/crm` placeholder with a tabbed CRM section. The Contacts list uses TanStack Table with search and type filter. The Contact detail page shows read-only fields, linked deals, and an interaction timeline. Data fetching via TanStack Query hooks calling Supabase PostgREST (RLS scopes to `client_id` automatically). No create/edit UI — the agent writes CRM data via chat; these pages are for inspection.
+**Architecture:** Add a minimal CRM route shell now (`app/(dashboard)/crm/layout.tsx`) so PR11 can extend it without route churn, and keep `/crm` redirecting to `/crm/contacts`. The Contacts list uses TanStack Table with search and type filter. The Contact detail page shows read-only fields, linked deals, and an interaction timeline. Data fetching uses TanStack Query hooks calling Supabase PostgREST (RLS scopes to `client_id` automatically). No create/edit UI — the agent writes CRM data via chat; these pages are for inspection.
 
 **Tech Stack:** Next.js 15 App Router, React 19, TanStack Table v8, TanStack Query v5, Supabase PostgREST, ShadCN UI (Badge, Tabs, Card, Input), Tailwind 4, Vitest + React Testing Library
 
@@ -25,7 +25,6 @@
 **Verify before starting:**
 - `src/lib/crm/schemas.ts` exports `Contact`, `Deal`, `Interaction`, `CrmTask`, `contactTypeValues`, `dealStageValues`, `interactionTypeValues`
 - `src/types/database.ts` includes `contacts`, `deals`, `interactions`, `crm_tasks` table types
-- `src/hooks/use-client-id.ts` exports `useClientId()` hook
 - `app/(dashboard)/crm/page.tsx` is a placeholder "Coming soon" page
 
 ---
@@ -48,11 +47,11 @@
 | 1 | TanStack Query hooks for contacts | 1 source + 1 test | ~8 tests | — |
 | 2 | Contacts list page (TanStack Table) | 2 source (page + table component) | ~6 tests | Task 1 |
 | 3 | Contact detail page (read-only) | 1 source (page) | ~5 tests | Task 1 |
-| 4 | TanStack Query hooks for related data (deals, interactions, tasks) | 1 source + 1 test | ~6 tests | — |
+| 4 | TanStack Query hooks for related data (deals, interactions) | 1 source + 1 test | ~5 tests | — |
 | 5 | Contact detail — linked deals + interaction timeline tabs | 2 source (tabs content components) | ~4 tests | Tasks 3, 4 |
 | 6 | CRM landing page redirect + sidebar active state | 1 modify (page.tsx) | ~2 tests | Task 2 |
 
-**Total: ~10 files created/modified, ~31 tests**
+**Total: ~11 files created/modified, ~33 tests**
 
 ---
 
@@ -61,8 +60,9 @@
 **Create:**
 - `src/hooks/use-contacts.ts` — TanStack Query hooks for contacts CRUD
 - `src/hooks/__tests__/use-contacts.test.tsx` — Hook tests
-- `src/hooks/use-contact-relations.ts` — Hooks for deals/interactions/tasks by contact_id
+- `src/hooks/use-contact-relations.ts` — Hooks for deals/interactions by contact_id
 - `src/hooks/__tests__/use-contact-relations.test.tsx` — Relation hook tests
+- `app/(dashboard)/crm/layout.tsx` — CRM route shell (tab scaffold, PR11 extends)
 - `app/(dashboard)/crm/contacts/page.tsx` — Contacts list page
 - `src/components/crm/contacts-table.tsx` — TanStack Table for contacts
 - `src/components/crm/__tests__/contacts-table.test.tsx` — Table component tests
@@ -77,7 +77,6 @@
 **Reference (read-only):**
 - `src/lib/crm/schemas.ts` — Zod schemas with type/stage enums (PR 5)
 - `src/types/database.ts` — Supabase-generated types
-- `src/hooks/use-client-id.ts` — `useClientId()` hook for tenant-scoped queries
 - `src/hooks/use-cases.ts` — Reference pattern for TanStack Query hooks
 - `src/components/cases/cases-table.tsx` — Reference pattern for TanStack Table
 - `app/(dashboard)/cases/page.tsx` — Reference pattern for list page layout
@@ -90,6 +89,20 @@
 
 ---
 
+### Task 0: CRM Layout Shell (Route Stabilization)
+
+**Files:**
+- Create: `app/(dashboard)/crm/layout.tsx`
+
+**Context:** Add a minimal CRM shell now so PR11 can add Deals without route architecture churn. Keep `/crm` redirecting to `/crm/contacts`.
+
+**Deliverable:**
+- `layout.tsx` wraps all `/crm/*` pages
+- shows tab scaffold with Contacts active state
+- no clickable broken `/crm/deals` link yet (PR11 adds Deals route and tab link)
+
+---
+
 ### Task 1: TanStack Query Hooks for Contacts
 
 **Files:**
@@ -97,6 +110,8 @@
 - Test: `src/hooks/__tests__/use-contacts.test.tsx`
 
 **Context:** All data fetching uses TanStack Query with a query key factory pattern (see `src/hooks/use-cases.ts` for the exact pattern). The hooks query Supabase PostgREST via the browser client. RLS automatically scopes results to the authenticated user's `client_id` — no explicit `client_id` filter needed in browser queries (unlike server-side tool code which passes `clientId` explicitly). The hook accepts optional `search` and `type` filter params.
+
+Use the existing PostgREST escaping helper pattern for `or(...)` filters (escape `%`, `_`, backslashes, and quote literals safely).
 
 **Step 1: Write failing tests for the query key factory and useContacts hook**
 
@@ -281,7 +296,7 @@ import {
 } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import type { Contact } from "@/lib/crm/schemas";
-import type { contactTypeValues } from "@/lib/crm/schemas";
+import { contactTypeValues } from "@/lib/crm/schemas";
 
 type ContactType = (typeof contactTypeValues)[number];
 
@@ -1167,13 +1182,13 @@ git commit -m "feat(crm): add contact detail page with read-only fields (PR 10)"
 
 ---
 
-### Task 4: TanStack Query Hooks for Related Data (Deals, Interactions, Tasks by Contact)
+### Task 4: TanStack Query Hooks for Related Data (Deals, Interactions by Contact)
 
 **Files:**
 - Create: `src/hooks/use-contact-relations.ts`
 - Test: `src/hooks/__tests__/use-contact-relations.test.tsx`
 
-**Context:** The contact detail page needs to show linked deals, interactions, and open tasks for a specific contact. These hooks query Supabase with a `contact_id` filter. RLS scopes to `client_id` automatically. Each hook returns an array of the related entity. We keep them in a separate file from `use-contacts.ts` to avoid circular dependencies and keep the contact hooks simple.
+**Context:** The contact detail page needs to show linked deals and interactions for a specific contact. These hooks query Supabase with a `contact_id` filter. RLS scopes to `client_id` automatically. Each hook returns an array of the related entity. We keep them in a separate file from `use-contacts.ts` to avoid circular dependencies and keep the contact hooks simple.
 
 **Step 1: Write failing tests**
 
@@ -1187,7 +1202,6 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
   useContactDeals,
   useContactInteractions,
-  useContactTasks,
   contactRelationKeys,
 } from "../use-contact-relations";
 
@@ -1230,9 +1244,6 @@ describe("contactRelationKeys", () => {
     expect(contactRelationKeys.interactions("c-1")).toEqual(["contact-relations", "interactions", "c-1"]);
   });
 
-  test("tasks key includes contact id", () => {
-    expect(contactRelationKeys.tasks("c-1")).toEqual(["contact-relations", "tasks", "c-1"]);
-  });
 });
 
 describe("useContactDeals", () => {
@@ -1273,21 +1284,6 @@ describe("useContactInteractions", () => {
   });
 });
 
-describe("useContactTasks", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  test("fetches open tasks for a contact", async () => {
-    const tasks = [{ task_id: "t-1", title: "Follow up" }];
-    const builder = mockQueryBuilder(tasks);
-    mockFrom.mockReturnValue(builder);
-
-    const { result } = renderHook(() => useContactTasks("c-1"), { wrapper: createWrapper() });
-
-    await waitFor(() => expect(result.current.data).toBeDefined());
-    expect(mockFrom).toHaveBeenCalledWith("crm_tasks");
-    expect(builder.eq).toHaveBeenCalledWith("contact_id", "c-1");
-  });
-});
 ```
 
 **Step 2: Run tests to verify they fail**
@@ -1304,12 +1300,12 @@ Expected: FAIL — module does not exist.
 // src/hooks/use-contact-relations.ts
 /**
  * TanStack Query hooks for data related to a specific contact.
- * Fetches deals, interactions, and CRM tasks linked via contact_id.
+ * Fetches deals and interactions linked via contact_id.
  * @module hooks/use-contact-relations
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import type { Deal, Interaction, CrmTask } from "@/lib/crm/schemas";
+import type { Deal, Interaction } from "@/lib/crm/schemas";
 
 /**
  * Query key factory for contact-related data.
@@ -1318,7 +1314,6 @@ export const contactRelationKeys = {
   all: ["contact-relations"] as const,
   deals: (contactId: string) => [...contactRelationKeys.all, "deals", contactId] as const,
   interactions: (contactId: string) => [...contactRelationKeys.all, "interactions", contactId] as const,
-  tasks: (contactId: string) => [...contactRelationKeys.all, "tasks", contactId] as const,
 };
 
 /**
@@ -1361,25 +1356,6 @@ export function useContactInteractions(contactId: string) {
   });
 }
 
-/**
- * Fetches CRM tasks linked to a contact, ordered by due date.
- * @param contactId - The contact UUID
- */
-export function useContactTasks(contactId: string) {
-  return useQuery({
-    queryKey: contactRelationKeys.tasks(contactId),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("crm_tasks")
-        .select("*")
-        .eq("contact_id", contactId)
-        .order("due_date", { ascending: true });
-      if (error) throw error;
-      return data as CrmTask[];
-    },
-    enabled: !!contactId,
-  });
-}
 ```
 
 **Step 4: Run tests to verify they pass**
@@ -1698,7 +1674,9 @@ import {
 import type { Interaction } from "@/lib/crm/schemas";
 
 /** Icon map for interaction types. */
-const typeIconMap: Record<Interaction["type"], React.ElementType> = {
+import type { ElementType } from "react";
+
+const typeIconMap: Record<Interaction["type"], ElementType> = {
   call: Phone,
   meeting: Calendar,
   email: Mail,
@@ -1898,13 +1876,14 @@ npx vitest run app/\(dashboard\)/crm/__tests__/page.test.tsx
 
 Expected: PASS.
 
-**Step 5: Run the full test suite to verify nothing is broken**
+**Step 5: Run targeted PR10 tests and type-check**
 
 ```bash
-npx vitest run
+npx vitest run src/hooks/__tests__/use-contacts.test.tsx src/hooks/__tests__/use-contact-relations.test.tsx src/components/crm/__tests__/ app/\(dashboard\)/crm/
+npx tsc --noEmit
 ```
 
-Expected: All tests pass. Check that the sidebar active state still works by verifying `pathname.startsWith("/crm")` matches `/crm/contacts` (this is already the case in `app-sidebar.tsx` line 106-107 — `pathname.startsWith(item.href)` where `item.href` is `/crm`).
+Expected: Targeted PR10 tests and type-check pass. Run full `vitest` suite once concurrent PR8/PR9 churn stabilizes.
 
 **Step 6: Commit**
 
@@ -1929,6 +1908,7 @@ git commit -m "feat(crm): redirect /crm to /crm/contacts (PR 10)"
 - [ ] Loading skeletons for all data-fetching states
 - [ ] Each test was watched failing before implementation (TDD red step)
 - [ ] No production code without a failing test first
-- [ ] All tests pass: `npx vitest run`
+- [ ] Targeted PR10 tests pass
 - [ ] No TypeScript errors: `npx tsc --noEmit`
+- [ ] Full `vitest` suite run after concurrent PR churn stabilizes
 - [ ] Test acceptance: "Agent creates contacts via chat, user browses them in CRM pages" (manual E2E after deployment)
