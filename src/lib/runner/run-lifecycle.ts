@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
+type SupabaseMutationError = { message: string; code?: string | null };
 
 export interface CreateRunInput {
   threadId: string;
@@ -28,6 +29,20 @@ export interface CompleteRunInput {
 export interface MarkStaleRunsInput {
   threadId: string;
   staleMinutes?: number;
+}
+
+function isMissingStepCountColumnError(error: SupabaseMutationError | null): boolean {
+  if (!error) {
+    return false;
+  }
+
+  if (error.code === "42703" || error.code === "PGRST204") {
+    return true;
+  }
+
+  const normalizedMessage = error.message.toLowerCase();
+  return normalizedMessage.includes("step_count") &&
+    (normalizedMessage.includes("does not exist") || normalizedMessage.includes("schema cache"));
 }
 
 /**
@@ -60,21 +75,40 @@ export async function completeRun(
   supabase: ChatSupabaseClient,
   { runId, status, model, tokensIn, tokensOut, stepCount }: CompleteRunInput,
 ): Promise<void> {
-  const { error } = await supabase
+  const updatePayload = {
+    status,
+    model,
+    tokens_in: tokensIn,
+    tokens_out: tokensOut,
+    completed_at: new Date().toISOString(),
+  };
+
+  const { error: primaryError } = await supabase
     .from("runs")
     .update({
-      status,
-      model,
-      tokens_in: tokensIn,
-      tokens_out: tokensOut,
-      completed_at: new Date().toISOString(),
+      ...updatePayload,
       ...(stepCount !== undefined && { step_count: stepCount }),
     })
     .eq("run_id", runId);
 
-  if (error) {
-    throw new Error(`Failed to complete run: ${error.message}`);
+  if (!primaryError) {
+    return;
   }
+
+  if (stepCount !== undefined && isMissingStepCountColumnError(primaryError)) {
+    const { error: fallbackError } = await supabase
+      .from("runs")
+      .update(updatePayload)
+      .eq("run_id", runId);
+
+    if (!fallbackError) {
+      return;
+    }
+
+    throw new Error(`Failed to complete run: ${fallbackError.message}`);
+  }
+
+  throw new Error(`Failed to complete run: ${primaryError.message}`);
 }
 
 /**
