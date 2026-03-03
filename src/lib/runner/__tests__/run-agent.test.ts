@@ -274,6 +274,7 @@ describe("runAgent", () => {
     expect(typeof streamCall.onFinish).toBe("function");
 
     await streamCall.onFinish({
+      steps: [],
       totalUsage: {
         inputTokens: 100,
         inputTokenDetails: {
@@ -296,10 +297,54 @@ describe("runAgent", () => {
       model: "google/gemini-3-flash",
       tokensIn: 100,
       tokensOut: 50,
+      stepCount: 0,
     });
     expect(mockDrainAndContinue).toHaveBeenCalledWith("mock-supabase-client", {
       clientId: validPayload.clientId,
       threadId: validPayload.threadId,
+    });
+  });
+
+  it("passes step count from onFinish steps to completeRun", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    const streamCall = mockStreamText.mock.calls[0]?.[0];
+    expect(typeof streamCall.onFinish).toBe("function");
+
+    await streamCall.onFinish({
+      steps: [
+        { toolCalls: [], toolResults: [] },
+        {
+          toolCalls: [{ toolCallId: "call-1", toolName: "search_contacts", args: {} }],
+          toolResults: [],
+        },
+        { toolCalls: [], toolResults: [] },
+      ],
+      totalUsage: {
+        inputTokens: 200,
+        inputTokenDetails: {
+          noCacheTokens: undefined,
+          cacheReadTokens: undefined,
+          cacheWriteTokens: undefined,
+        },
+        outputTokens: 100,
+        outputTokenDetails: {
+          textTokens: undefined,
+          reasoningTokens: undefined,
+        },
+        totalTokens: 300,
+      },
+    });
+
+    expect(mockCompleteRun).toHaveBeenCalledWith("mock-supabase-client", {
+      runId: "run-1",
+      status: "completed",
+      model: "google/gemini-3-flash",
+      tokensIn: 200,
+      tokensOut: 100,
+      stepCount: 3,
     });
   });
 

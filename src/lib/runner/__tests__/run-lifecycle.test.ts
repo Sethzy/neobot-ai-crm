@@ -56,7 +56,35 @@ describe("createRun", () => {
 });
 
 describe("completeRun", () => {
-  it("updates run status, usage, and completed timestamp", async () => {
+  it("updates run status, usage, completed timestamp, and step count when provided", async () => {
+    const client = createMockSupabaseClient({
+      updateResult: { data: [], error: null },
+    });
+
+    await completeRun(client as never, {
+      runId: "run-1",
+      status: "completed",
+      model: "google/gemini-3-flash",
+      tokensIn: 100,
+      tokensOut: 50,
+      stepCount: 3,
+    });
+
+    expect(client.calls.from).toContain("runs");
+    const updateCall = client.calls.methods.find((call) => call.method === "update");
+    expect(updateCall).toBeDefined();
+    expect(updateCall?.args[0]).toEqual(
+      expect.objectContaining({
+        status: "completed",
+        model: "google/gemini-3-flash",
+        tokens_in: 100,
+        tokens_out: 50,
+        step_count: 3,
+      }),
+    );
+  });
+
+  it("omits step_count when not provided", async () => {
     const client = createMockSupabaseClient({
       updateResult: { data: [], error: null },
     });
@@ -69,15 +97,30 @@ describe("completeRun", () => {
       tokensOut: 50,
     });
 
-    expect(client.calls.from).toContain("runs");
+    const updateCall = client.calls.methods.find((call) => call.method === "update");
+    expect(updateCall).toBeDefined();
+    expect(updateCall?.args[0]).not.toHaveProperty("step_count");
+  });
+
+  it("persists step_count when value is zero", async () => {
+    const client = createMockSupabaseClient({
+      updateResult: { data: [], error: null },
+    });
+
+    await completeRun(client as never, {
+      runId: "run-1",
+      status: "completed",
+      model: "google/gemini-3-flash",
+      tokensIn: 0,
+      tokensOut: 0,
+      stepCount: 0,
+    });
+
     const updateCall = client.calls.methods.find((call) => call.method === "update");
     expect(updateCall).toBeDefined();
     expect(updateCall?.args[0]).toEqual(
       expect.objectContaining({
-        status: "completed",
-        model: "google/gemini-3-flash",
-        tokens_in: 100,
-        tokens_out: 50,
+        step_count: 0,
       }),
     );
   });

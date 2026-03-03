@@ -73,6 +73,7 @@ export const runSchema = z.object({
   model: z.string().nullable(),
   tokens_in: z.number().int().nonnegative().nullable(),
   tokens_out: z.number().int().nonnegative().nullable(),
+  step_count: z.number().int().nonnegative().nullable(),
   created_at: isoDateTimeSchema,
   completed_at: isoDateTimeSchema.nullable(),
 });

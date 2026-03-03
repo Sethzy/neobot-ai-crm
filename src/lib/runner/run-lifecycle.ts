@@ -21,6 +21,8 @@ export interface CompleteRunInput {
   model: string;
   tokensIn: number;
   tokensOut: number;
+  /** Number of model/tool loop steps executed in this run. */
+  stepCount?: number;
 }
 
 export interface MarkStaleRunsInput {
@@ -56,7 +58,7 @@ export async function createRun(
  */
 export async function completeRun(
   supabase: ChatSupabaseClient,
-  { runId, status, model, tokensIn, tokensOut }: CompleteRunInput,
+  { runId, status, model, tokensIn, tokensOut, stepCount }: CompleteRunInput,
 ): Promise<void> {
   const { error } = await supabase
     .from("runs")
@@ -66,6 +68,7 @@ export async function completeRun(
       tokens_in: tokensIn,
       tokens_out: tokensOut,
       completed_at: new Date().toISOString(),
+      ...(stepCount !== undefined && { step_count: stepCount }),
     })
     .eq("run_id", runId);
 

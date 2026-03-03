@@ -145,6 +145,7 @@ describe("runSchema", () => {
       model: "google/gemini-3-flash",
       tokens_in: 150,
       tokens_out: 200,
+      step_count: 2,
       created_at: "2026-03-01T00:00:00Z",
       completed_at: "2026-03-01T00:00:01Z",
     };
@@ -161,6 +162,7 @@ describe("runSchema", () => {
       model: null,
       tokens_in: null,
       tokens_out: null,
+      step_count: null,
       created_at: "2026-03-01T00:00:00Z",
       completed_at: null,
     };
@@ -178,6 +180,24 @@ describe("runSchema", () => {
         model: "anthropic/claude-sonnet-4.6",
         tokens_in: -1,
         tokens_out: 10,
+        step_count: 1,
+        created_at: "2026-03-01T00:00:00Z",
+        completed_at: "2026-03-01T00:00:01Z",
+      }),
+    ).toThrow();
+  });
+
+  test("rejects negative step_count", () => {
+    expect(() =>
+      runSchema.parse({
+        run_id: "550e8400-e29b-41d4-a716-446655440000",
+        thread_id: "660e8400-e29b-41d4-a716-446655440000",
+        client_id: "770e8400-e29b-41d4-a716-446655440000",
+        status: "failed",
+        model: "anthropic/claude-sonnet-4.6",
+        tokens_in: 10,
+        tokens_out: 10,
+        step_count: -1,
         created_at: "2026-03-01T00:00:00Z",
         completed_at: "2026-03-01T00:00:01Z",
       }),

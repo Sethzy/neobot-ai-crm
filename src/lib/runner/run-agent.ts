@@ -82,13 +82,14 @@ export async function runAgent(
       messages,
       stopWhen: stepCountIs(MAX_STEPS_TIER_1),
       tools,
-      onFinish: async ({ totalUsage }) => {
+      onFinish: async ({ steps, totalUsage }) => {
         await completeRun(supabase, {
           runId: lockResult.runId,
           status: "completed",
           model: modelId,
           tokensIn: totalUsage.inputTokens ?? 0,
           tokensOut: totalUsage.outputTokens ?? 0,
+          stepCount: steps.length,
         });
         await drainAndContinue(supabase, { clientId, threadId });
       },

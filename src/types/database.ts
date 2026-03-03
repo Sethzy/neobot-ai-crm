@@ -779,6 +779,7 @@ export type Database = {
           model: string | null
           run_id: string
           status: Database["public"]["Enums"]["run_status"]
+          step_count: number | null
           thread_id: string
           tokens_in: number | null
           tokens_out: number | null
@@ -790,6 +791,7 @@ export type Database = {
           model?: string | null
           run_id?: string
           status?: Database["public"]["Enums"]["run_status"]
+          step_count?: number | null
           thread_id: string
           tokens_in?: number | null
           tokens_out?: number | null
@@ -801,6 +803,7 @@ export type Database = {
           model?: string | null
           run_id?: string
           status?: Database["public"]["Enums"]["run_status"]
+          step_count?: number | null
           thread_id?: string
           tokens_in?: number | null
           tokens_out?: number | null
