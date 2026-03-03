@@ -7,7 +7,9 @@
       "Bash(git pull:*)",
       "Bash(git merge:*)",
       "Bash(git push:*)",
-      "WebFetch(domain:eservice.ura.gov.sg)"
+      "WebFetch(domain:eservice.ura.gov.sg)",
+      "WebFetch(domain:ai-sdk.dev)",
+      "WebSearch"
     ]
   },
   "enableAllProjectMcpServers": true,
