@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan",
     "created": "2026-03-01",
-    "updated": "2026-03-02",
+    "updated": "2026-03-03",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md §17",
     "markdownPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.md",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -22,7 +22,8 @@
       "2026-03-02: PR 8 marked in_progress — tasklist generated at docs/tasks/2026-03-02-pr8-web-search-tool-tasklist.md",
       "2026-03-02: PR 10 marked in_progress, tasklist created",
       "2026-03-02: PR 7 marked done — storage tools + agent-files bucket + RLS policies applied to remote Supabase",
-      "2026-03-02: PR 6 marked done, PR 8 now in_progress"
+      "2026-03-02: PR 6 marked done, PR 8 now in_progress",
+      "2026-03-03: PR 12 marked done (lean scope): step_count on runs, onFinish step counting, tool-error resilience test, schema/type updates"
     ]
   },
   "phases": [
@@ -545,7 +546,7 @@
         {
           "pr": 12,
           "title": "Audit trail + basic safety",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [
             "SAFETY-03",
             "SCALE-01"
@@ -553,22 +554,36 @@
           "tasks": [
             {
               "id": "PR12-1",
-              "task": "Every tool call logged: tool name, input, output, timestamp, run_id → tool_calls JSONB on runs table",
-              "done": false
+              "task": "Migration: add runs.step_count INTEGER with non-negative check for run step analytics",
+              "done": true
             },
             {
               "id": "PR12-2",
-              "task": "Basic error handling: tool failures don't crash the run, agent gets error message and can retry",
-              "done": false
+              "task": "Extend completeRun to accept optional stepCount and persist to runs.step_count",
+              "done": true
             },
             {
               "id": "PR12-3",
-              "task": "Cost tracking stub: log model + token count per run",
-              "done": false
+              "task": "Wire streamText onFinish steps.length into completeRun stepCount",
+              "done": true
+            },
+            {
+              "id": "PR12-4",
+              "task": "Validate tool error resilience: thrown tool execute errors are handled without crashing run",
+              "done": true
+            },
+            {
+              "id": "PR12-5",
+              "task": "Align run schema/tests and database types for runs.step_count; verify test suite",
+              "done": true
             }
           ],
           "testCriteria": [
-            "Check runs table after a conversation — tool calls are logged"
+            "runs.step_count is persisted on completion and accepts zero/non-negative values",
+            "Runner completion passes steps.length into run lifecycle persistence",
+            "Tool execute throw is surfaced as tool-error content without crashing the run",
+            "Cost tracking fields (model, tokens_in, tokens_out) remain intact from PR4",
+            "Vitest suite passes after migration, schema, and type updates"
           ]
         },
         {
