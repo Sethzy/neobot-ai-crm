@@ -5,6 +5,7 @@ You are an expert in Next.js, Vercel AI SDK, and Supabase. Our database is hoste
 **Sunder** is a done-for-you AI orchestration SaaS for solo real estate agents in Singapore. The agent runs everyday business work in the background: CRM updates, follow-ups, briefings, inbound handling, and draft communications.
 
 Key product traits:
+
 - User activates in <10 minutes, useful from day 1 via web chat.
 - Compounding memory is the primary long-term value driver (SOUL.md, USER.md, MEMORY.md).
 - High-risk actions (anything external-facing) require user approval; internal work auto-runs.
@@ -25,18 +26,18 @@ Authority chain (what wins in conflicts):
 
 ## Tech Stack
 
-| Layer | Technology | Notes |
-|-------|-----------|-------|
-| Frontend | Next.js 15 (App Router) + React 19 + Tailwind 4 + ShadCN | `FOUND-05` |
-| State/Data | TanStack Query + TanStack Table + React Hook Form | `FOUND-05` |
-| AI SDK | Vercel AI SDK v6 + `@ai-sdk/gateway` | `LLM-02` — all LLM calls go through AI SDK, not direct provider SDKs |
-| LLM Gateway | Vercel AI Gateway | `LLM-01` — single gateway for all models |
-| Database | Supabase (Postgres + RLS) | `DATA-01` — all tables use RLS with `client_id` |
-| File Storage | Supabase Storage (per-client directories) | `DATA-02` |
-| Realtime | Supabase Realtime (Postgres changes) | `DATA-07` |
-| Auth | Supabase Auth | `DATA-08` |
-| Compute | Vercel Functions + Vercel Sandbox | `FOUND-02`, `EXEC-04` |
-| Connections | Composio (OAuth integrations) | `CONN-02` |
+| Layer        | Technology                                               | Notes                                                                |
+| ------------ | -------------------------------------------------------- | -------------------------------------------------------------------- |
+| Frontend     | Next.js 15 (App Router) + React 19 + Tailwind 4 + ShadCN | `FOUND-05`                                                           |
+| State/Data   | TanStack Query + TanStack Table + React Hook Form        | `FOUND-05`                                                           |
+| AI SDK       | Vercel AI SDK v6 + `@ai-sdk/gateway`                     | `LLM-02` — all LLM calls go through AI SDK, not direct provider SDKs |
+| LLM Gateway  | Vercel AI Gateway                                        | `LLM-01` — single gateway for all models                             |
+| Database     | Supabase (Postgres + RLS)                                | `DATA-01` — all tables use RLS with `client_id`                      |
+| File Storage | Supabase Storage (per-client directories)                | `DATA-02`                                                            |
+| Realtime     | Supabase Realtime (Postgres changes)                     | `DATA-07`                                                            |
+| Auth         | Supabase Auth                                            | `DATA-08`                                                            |
+| Compute      | Vercel Functions + Vercel Sandbox                        | `FOUND-02`, `EXEC-04`                                                |
+| Connections  | Composio (OAuth integrations)                            | `CONN-02`                                                            |
 
 ## Key Principles
 
@@ -48,7 +49,8 @@ Authority chain (what wins in conflicts):
 - **You have unlimited time.** Take as long as needed to get it right. All features must work end-to-end through the UI.
 - **YAGNI ruthlessly** — Remove unnecessary features from all designs.
 - **Verify and Question**. No performative agreement. Technical rigor always. Prefer technical correctness over social comfort.
-- **Session Boundaries:** If the user's request isn't directly related to the current context and can be safely started in a fresh session, suggest starting from scratch to avoid context confusion.
+- **Commit after each PR.** When executing tasklists from `docs/tasks/`, commit all work for a PR before moving to the next one. Use the PR number in the commit message (e.g., `feat(pr11): CRM deals and tasks pages`).
+- **Always use Context7 MCP** Use when you need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask. Grounding in context before starting each PR is a good idea.
 
 ## TypeScript Usage
 
