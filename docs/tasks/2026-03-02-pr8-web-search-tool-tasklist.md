@@ -8,6 +8,36 @@
 
 **Tech Stack:** Vercel AI SDK v6 `tool()`, Zod 4, Brave Search API, Exa API, Vitest
 
+## 2026-03-02 Handover Overrides (Authoritative)
+
+These notes supersede any contradictory details in the rest of this document.
+
+1. API keys are mandatory for manual verification:
+   - `BRAVE_SEARCH_API_KEY` (Brave Search)
+   - `EXA_API_KEY` (Exa)
+   - Keep real keys in `.env.local` only; add placeholders to `.env.example`.
+2. Keep tool return shape consistent with existing codebase:
+   - Success: `{ success: true, ...data }`
+   - Failure: `{ success: false, error: string }`
+3. Brave limits and mappings:
+   - `limit` must be `1..20` (Brave `count` max is 20)
+   - `qdr:h` has no Brave equivalent; map `qdr:h` to `pd` (closest available)
+   - Do not implement `cdr:*` parsing in v1 (YAGNI); pass unsupported `tbs` through unchanged
+   - Default `country` should be `"SG"` when `location` is omitted
+4. Exa response handling:
+   - Accept both response shapes: `results` and `content`
+   - Inspect `statuses` for per-URL failures and surface tags (e.g., `CRAWL_NOT_FOUND`, `CRAWL_TIMEOUT`)
+5. `web_scrape` URL validation must enforce `http://` or `https://` at schema level.
+6. Runner integration tests are mandatory (not optional):
+   - Add `mockCreateWebTools` in `src/lib/runner/__tests__/run-agent.test.ts`
+   - Assert `streamText` receives both `web_search` and `web_scrape`
+7. TDD is strict:
+   - Each new behavior starts red first (write failing test, run, then implement)
+   - Some tests are verification-only and may already be green; explicitly note this in the task step
+8. Tasklet reference paths in this repo:
+   - `roadmap docs/Sunder - Source of Truth/references/tasklet/tools/built-in/03-web_search_web.md`
+   - `roadmap docs/Sunder - Source of Truth/references/tasklet/tools/built-in/04-web_scrape_website.md`
+
 ---
 
 ## Context You Need
@@ -22,14 +52,16 @@
 
 ### Tasklet tool contracts (copy these schemas)
 
-**`web_search`** (from `references/tasklet/tools/built-in/03-web_search_web.md`):
+**`web_search`** (Tasklet contract source: `roadmap docs/Sunder - Source of Truth/references/tasklet/tools/built-in/03-web_search_web.md`):
 - `query` (string, required) — search query
-- `limit` (number, 1-100, optional, default 10) — max results
-- `location` (string, optional, default "US") — geographic context
-- `tbs` (string, optional) — time-based filter: `qdr:h`, `qdr:d`, `qdr:w`, `qdr:m`, `qdr:y`, or `cdr:1,cd_min:MM/DD/YYYY,cd_max:MM/DD/YYYY`
+- `limit` (number, 1-20, optional, default 10) — max results (Brave cap is 20)
+- `location` (string, optional, default "SG") — geographic context passed to Brave `country`
+- `tbs` (string, optional) — supported shortcuts: `qdr:h`, `qdr:d`, `qdr:w`, `qdr:m`, `qdr:y`
+  - `qdr:h` maps to `pd` because Brave has no past-hour freshness mode
+  - `cdr:*` format is not implemented in v1
 
-**`web_scrape`** (from `references/tasklet/tools/built-in/04-web_scrape_website.md`):
-- `url` (string, required) — http or https URL to scrape
+**`web_scrape`** (Tasklet contract source: `roadmap docs/Sunder - Source of Truth/references/tasklet/tools/built-in/04-web_scrape_website.md`):
+- `url` (string, required) — must be `http://` or `https://`
 
 ### Provider details (SERVICE-03)
 
@@ -66,6 +98,7 @@
 
 - `src/lib/runner/tools/index.ts` — add `createWebTools` export
 - `src/lib/runner/run-agent.ts` — register web tools in `streamText({ tools })`
+- `src/lib/runner/__tests__/run-agent.test.ts` — mock `createWebTools` and assert tools registration
 - `.env.example` — add `BRAVE_SEARCH_API_KEY` and `EXA_API_KEY`
 
 ---
