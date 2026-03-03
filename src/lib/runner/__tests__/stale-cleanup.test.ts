@@ -16,6 +16,7 @@ const {
   mockDrainAndContinue,
   mockCreateCrmTools,
   mockCreateStorageTools,
+  mockCreateWebTools,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
@@ -28,6 +29,7 @@ const {
   mockDrainAndContinue: vi.fn(),
   mockCreateCrmTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
+  mockCreateWebTools: vi.fn(),
 }));
 
 vi.mock("ai", () => ({ streamText: mockStreamText, stepCountIs: mockStepCountIs }));
@@ -52,6 +54,7 @@ vi.mock("@/lib/runner/drain-and-continue", () => ({
 vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createStorageTools: mockCreateStorageTools,
+  createWebTools: mockCreateWebTools,
 }));
 
 import { runAgent } from "../run-agent";
@@ -66,6 +69,10 @@ describe("stale run cleanup", () => {
     mockCreateStorageTools.mockReturnValue({
       read_file: { description: "storage-tool" },
       write_file: { description: "storage-tool" },
+    });
+    mockCreateWebTools.mockReturnValue({
+      web_search: { description: "web-search-tool" },
+      web_scrape: { description: "web-scrape-tool" },
     });
     mockAssembleContext.mockResolvedValue({
       system: "prompt",

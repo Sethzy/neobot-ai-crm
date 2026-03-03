@@ -13,7 +13,8 @@ import { createTaskTools } from "./tasks";
 
 interface CreateCrmToolsOptions {
   /**
-   * Enables mutating CRM tools. Keep disabled until approval orchestration is enforced.
+   * Enables mutating CRM tools. Always true in v1; prompt-level approval
+   * provides interim safety until the PR 33 approval gate ships.
    */
   allowWriteTools?: boolean;
 }
@@ -26,6 +27,8 @@ export function createCrmTools(
   clientId: string,
   options?: CreateCrmToolsOptions,
 ) {
+  const { allowWriteTools = true } = options ?? {};
+
   const contactTools = createContactTools(supabase, clientId);
   const dealTools = createDealTools(supabase, clientId);
   const interactionTools = createInteractionTools(supabase, clientId);
@@ -37,7 +40,7 @@ export function createCrmTools(
     search_tasks: taskTools.search_tasks,
   };
 
-  if (!options?.allowWriteTools) {
+  if (!allowWriteTools) {
     return readTools;
   }
 

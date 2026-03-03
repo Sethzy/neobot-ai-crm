@@ -10,33 +10,21 @@ import { assembleContext } from "@/lib/runner/context";
 import { drainAndContinue } from "@/lib/runner/drain-and-continue";
 import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
 import type { RunnerPayload } from "@/lib/runner/schemas";
-import { createCrmTools, createStorageTools } from "@/lib/runner/tools";
+import { createCrmTools, createStorageTools, createWebTools } from "@/lib/runner/tools";
 import { enqueueMessage } from "@/lib/runner/thread-queue";
 import type { Database } from "@/types/database";
 
-const MAX_STEPS_TIER_1 = 4;
-const ENABLE_CRM_WRITE_TOOLS_ENV = "RUNNER_ENABLE_CRM_WRITE_TOOLS";
+const MAX_STEPS_TIER_1 = 8;
 
 type ChatSupabaseClient = SupabaseClient<Database>;
-type RunnerTools = ReturnType<typeof createCrmTools> & ReturnType<typeof createStorageTools>;
+type RunnerTools = ReturnType<typeof createCrmTools> &
+  ReturnType<typeof createStorageTools> &
+  ReturnType<typeof createWebTools>;
 type StreamResult = ReturnType<typeof streamText<RunnerTools>>;
 
 export type RunAgentResult =
   | { status: "streaming"; streamResult: StreamResult }
   | { status: "queued" };
-
-function areCrmWriteToolsEnabled(): boolean {
-  const deploymentEnv = process.env.VERCEL_ENV;
-  const isProductionDeployment = deploymentEnv
-    ? deploymentEnv === "production"
-    : process.env.NODE_ENV === "production";
-
-  if (isProductionDeployment) {
-    return false;
-  }
-
-  return process.env[ENABLE_CRM_WRITE_TOOLS_ENV] === "1";
-}
 
 /**
  * Executes one thread run if no active run exists, otherwise queues the input.
@@ -68,12 +56,14 @@ export async function runAgent(
       currentMessage: input,
     });
     const crmTools = createCrmTools(supabase, clientId, {
-      allowWriteTools: areCrmWriteToolsEnabled(),
+      allowWriteTools: true,
     });
     const storageTools = createStorageTools(supabase, clientId);
+    const webTools = createWebTools();
     const tools = {
       ...crmTools,
       ...storageTools,
+      ...webTools,
     };
 
     const streamResult = streamText({

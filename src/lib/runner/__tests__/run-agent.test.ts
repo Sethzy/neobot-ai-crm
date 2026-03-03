@@ -16,6 +16,7 @@ const {
   mockDrainAndContinue,
   mockCreateCrmTools,
   mockCreateStorageTools,
+  mockCreateWebTools,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
@@ -28,6 +29,7 @@ const {
   mockDrainAndContinue: vi.fn(),
   mockCreateCrmTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
+  mockCreateWebTools: vi.fn(),
 }));
 
 vi.mock("ai", () => ({
@@ -60,6 +62,7 @@ vi.mock("@/lib/runner/drain-and-continue", () => ({
 vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createStorageTools: mockCreateStorageTools,
+  createWebTools: mockCreateWebTools,
 }));
 
 import type { RunnerPayload } from "../schemas";
@@ -72,7 +75,6 @@ const validPayload: RunnerPayload = {
   input: "Hello, Sunder!",
 };
 
-const originalEnableCrmWriteToolsEnv = process.env.RUNNER_ENABLE_CRM_WRITE_TOOLS;
 const originalNodeEnv = process.env.NODE_ENV;
 const originalVercelEnv = process.env.VERCEL_ENV;
 
@@ -81,14 +83,26 @@ describe("runAgent", () => {
     vi.clearAllMocks();
     process.env.NODE_ENV = "test";
     delete process.env.VERCEL_ENV;
-    delete process.env.RUNNER_ENABLE_CRM_WRITE_TOOLS;
     mockMarkStaleRunsFailed.mockResolvedValue(0);
     mockCreateCrmTools.mockReturnValue({
       search_contacts: { description: "tool" },
+      create_contact: { description: "tool" },
+      update_contact: { description: "tool" },
+      search_deals: { description: "tool" },
+      create_deal: { description: "tool" },
+      update_deal: { description: "tool" },
+      search_tasks: { description: "tool" },
+      create_task: { description: "tool" },
+      update_task: { description: "tool" },
+      create_interaction: { description: "tool" },
     });
     mockCreateStorageTools.mockReturnValue({
       read_file: { description: "storage-tool" },
       write_file: { description: "storage-tool" },
+    });
+    mockCreateWebTools.mockReturnValue({
+      web_search: { description: "web-search-tool" },
+      web_scrape: { description: "web-scrape-tool" },
     });
     mockAssembleContext.mockResolvedValue({
       system: "You are Sunder.",
@@ -106,7 +120,7 @@ describe("runAgent", () => {
 
     expect(result.status).toBe("streaming");
     expect(mockGateway).toHaveBeenCalledWith("google/gemini-3-flash");
-    expect(mockStepCountIs).toHaveBeenCalledWith(4);
+    expect(mockStepCountIs).toHaveBeenCalledWith(8);
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
         model: "mock-model",
@@ -115,81 +129,36 @@ describe("runAgent", () => {
         stopWhen: expect.any(Function),
         tools: {
           search_contacts: { description: "tool" },
+          create_contact: { description: "tool" },
+          update_contact: { description: "tool" },
+          search_deals: { description: "tool" },
+          create_deal: { description: "tool" },
+          update_deal: { description: "tool" },
+          search_tasks: { description: "tool" },
+          create_task: { description: "tool" },
+          update_task: { description: "tool" },
+          create_interaction: { description: "tool" },
           read_file: { description: "storage-tool" },
           write_file: { description: "storage-tool" },
+          web_search: { description: "web-search-tool" },
+          web_scrape: { description: "web-scrape-tool" },
         },
       }),
     );
     expect(mockCreateCrmTools).toHaveBeenCalledWith(
       "mock-supabase-client",
       validPayload.clientId,
-      { allowWriteTools: false },
+      { allowWriteTools: true },
     );
     expect(mockCreateStorageTools).toHaveBeenCalledWith(
       "mock-supabase-client",
       validPayload.clientId,
     );
+    expect(mockCreateWebTools).toHaveBeenCalledWith();
   });
 
-  it("enables CRM write tools only when env flag is set", async () => {
-    process.env.RUNNER_ENABLE_CRM_WRITE_TOOLS = "1";
-    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
-
-    await runAgent(validPayload, "mock-supabase-client" as never);
-
-    expect(mockCreateCrmTools).toHaveBeenCalledWith(
-      "mock-supabase-client",
-      validPayload.clientId,
-      { allowWriteTools: true },
-    );
-  });
-
-  it("keeps CRM write tools disabled for non-1 env values", async () => {
-    process.env.RUNNER_ENABLE_CRM_WRITE_TOOLS = "true";
-    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
-
-    await runAgent(validPayload, "mock-supabase-client" as never);
-
-    expect(mockCreateCrmTools).toHaveBeenCalledWith(
-      "mock-supabase-client",
-      validPayload.clientId,
-      { allowWriteTools: false },
-    );
-  });
-
-  it("keeps CRM write tools disabled in production even when env flag is set", async () => {
+  it("always enables CRM write tools regardless of environment", async () => {
     process.env.VERCEL_ENV = "production";
-    process.env.RUNNER_ENABLE_CRM_WRITE_TOOLS = "1";
-    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
-
-    await runAgent(validPayload, "mock-supabase-client" as never);
-
-    expect(mockCreateCrmTools).toHaveBeenCalledWith(
-      "mock-supabase-client",
-      validPayload.clientId,
-      { allowWriteTools: false },
-    );
-  });
-
-  it("keeps CRM write tools disabled when NODE_ENV is production and VERCEL_ENV is unset", async () => {
-    process.env.NODE_ENV = "production";
-    delete process.env.VERCEL_ENV;
-    process.env.RUNNER_ENABLE_CRM_WRITE_TOOLS = "1";
-    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
-
-    await runAgent(validPayload, "mock-supabase-client" as never);
-
-    expect(mockCreateCrmTools).toHaveBeenCalledWith(
-      "mock-supabase-client",
-      validPayload.clientId,
-      { allowWriteTools: false },
-    );
-  });
-
-  it("allows CRM write tools in preview deployments when env flag is set", async () => {
-    process.env.NODE_ENV = "production";
-    process.env.VERCEL_ENV = "preview";
-    process.env.RUNNER_ENABLE_CRM_WRITE_TOOLS = "1";
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
 
     await runAgent(validPayload, "mock-supabase-client" as never);
@@ -317,7 +286,7 @@ describe("runAgent", () => {
       steps: [
         { toolCalls: [], toolResults: [] },
         {
-          toolCalls: [{ toolCallId: "call-1", toolName: "search_contacts", args: {} }],
+          toolCalls: [{ toolCallId: "call-1", toolName: "search_contacts", input: {} }],
           toolResults: [],
         },
         { toolCalls: [], toolResults: [] },
@@ -349,12 +318,6 @@ describe("runAgent", () => {
   });
 
   afterAll(() => {
-    if (originalEnableCrmWriteToolsEnv === undefined) {
-      delete process.env.RUNNER_ENABLE_CRM_WRITE_TOOLS;
-    } else {
-      process.env.RUNNER_ENABLE_CRM_WRITE_TOOLS = originalEnableCrmWriteToolsEnv;
-    }
-
     if (originalNodeEnv === undefined) {
       delete process.env.NODE_ENV;
     } else {

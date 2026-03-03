@@ -1,5 +1,6 @@
 /**
- * @fileoverview Tests for the placeholder system prompt used in PR1 chat streaming.
+ * Tests for system prompt content and safety instructions.
+ * @module lib/ai/__tests__/system-prompt
  */
 
 import { describe, expect, it } from "vitest";
@@ -24,5 +25,29 @@ describe("SYSTEM_PROMPT", () => {
     const lower = SYSTEM_PROMPT.toLowerCase();
     expect(lower).toContain("concise");
     expect(lower).toContain("practical");
+  });
+
+  it("includes CRM mutation approval instructions", () => {
+    expect(SYSTEM_PROMPT).toContain("ask the user for confirmation");
+  });
+
+  it("includes example approval interaction", () => {
+    expect(SYSTEM_PROMPT).toContain("Should I go ahead?");
+  });
+
+  it("lists the write tool names that require approval", () => {
+    const writeTools = [
+      "create_contact",
+      "update_contact",
+      "create_deal",
+      "update_deal",
+      "create_interaction",
+      "create_task",
+      "update_task",
+    ];
+
+    for (const tool of writeTools) {
+      expect(SYSTEM_PROMPT).toContain(tool);
+    }
   });
 });
