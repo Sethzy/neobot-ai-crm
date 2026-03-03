@@ -6,6 +6,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useRealtimeTable } from "@/hooks/use-realtime";
 import { createThread, listThreads, updateThreadTitle } from "@/lib/chat/threads";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
@@ -21,6 +22,13 @@ export const threadKeys = {
  * Lists threads for a resolved client id.
  */
 export function useThreads(clientId: string | null | undefined) {
+  useRealtimeTable({
+    table: "conversation_threads",
+    filter: clientId ? `client_id=eq.${clientId}` : undefined,
+    queryKeys: [threadKeys.list(clientId ?? "")],
+    enabled: Boolean(clientId),
+  });
+
   return useQuery({
     queryKey: threadKeys.list(clientId ?? ""),
     queryFn: () => listThreads(supabase, clientId as string),

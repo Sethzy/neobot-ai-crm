@@ -11,6 +11,7 @@ import { useChatMessages, useSaveMessages } from "../use-chat-messages";
 
 const mockListMessages = vi.fn();
 const mockCreateMessages = vi.fn();
+const mockUseRealtimeTable = vi.fn();
 
 vi.mock("@/lib/chat/messages", () => ({
   listMessages: (...args: unknown[]) => mockListMessages(...args),
@@ -19,6 +20,10 @@ vi.mock("@/lib/chat/messages", () => ({
 
 vi.mock("@/lib/supabase", () => ({
   supabase: { marker: "browser-client" },
+}));
+
+vi.mock("@/hooks/use-realtime", () => ({
+  useRealtimeTable: (...args: unknown[]) => mockUseRealtimeTable(...args),
 }));
 
 function createWrapper() {
@@ -76,6 +81,32 @@ describe("useChatMessages", () => {
 
     await waitFor(() => expect(result.current.fetchStatus).toBe("idle"));
     expect(mockListMessages).not.toHaveBeenCalled();
+  });
+
+  test("wires realtime subscription for conversation message changes", () => {
+    renderHook(() => useChatMessages("thread-1"), {
+      wrapper: createWrapper(),
+    });
+
+    expect(mockUseRealtimeTable).toHaveBeenCalledWith({
+      table: "conversation_messages",
+      filter: "thread_id=eq.thread-1",
+      queryKeys: [["messages", "thread", "thread-1"]],
+      enabled: true,
+    });
+  });
+
+  test("disables realtime subscription when thread id is empty", () => {
+    renderHook(() => useChatMessages(""), {
+      wrapper: createWrapper(),
+    });
+
+    expect(mockUseRealtimeTable).toHaveBeenCalledWith({
+      table: "conversation_messages",
+      filter: undefined,
+      queryKeys: [["messages", "thread", ""]],
+      enabled: false,
+    });
   });
 });
 

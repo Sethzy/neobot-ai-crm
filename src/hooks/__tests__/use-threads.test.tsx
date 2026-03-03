@@ -16,6 +16,7 @@ import {
 const mockListThreads = vi.fn();
 const mockCreateThread = vi.fn();
 const mockUpdateThreadTitle = vi.fn();
+const mockUseRealtimeTable = vi.fn();
 
 vi.mock("@/lib/chat/threads", () => ({
   listThreads: (...args: unknown[]) => mockListThreads(...args),
@@ -25,6 +26,10 @@ vi.mock("@/lib/chat/threads", () => ({
 
 vi.mock("@/lib/supabase", () => ({
   supabase: { marker: "browser-client" },
+}));
+
+vi.mock("@/hooks/use-realtime", () => ({
+  useRealtimeTable: (...args: unknown[]) => mockUseRealtimeTable(...args),
 }));
 
 function createWrapper() {
@@ -74,6 +79,32 @@ describe("useThreads", () => {
 
     await waitFor(() => expect(result.current.fetchStatus).toBe("idle"));
     expect(mockListThreads).not.toHaveBeenCalled();
+  });
+
+  test("wires realtime subscription for conversation thread changes", () => {
+    renderHook(() => useThreads("client-1"), {
+      wrapper: createWrapper(),
+    });
+
+    expect(mockUseRealtimeTable).toHaveBeenCalledWith({
+      table: "conversation_threads",
+      filter: "client_id=eq.client-1",
+      queryKeys: [["threads", "list", "client-1"]],
+      enabled: true,
+    });
+  });
+
+  test("disables realtime subscription when client id is empty", () => {
+    renderHook(() => useThreads(""), {
+      wrapper: createWrapper(),
+    });
+
+    expect(mockUseRealtimeTable).toHaveBeenCalledWith({
+      table: "conversation_threads",
+      filter: undefined,
+      queryKeys: [["threads", "list", ""]],
+      enabled: false,
+    });
   });
 });
 

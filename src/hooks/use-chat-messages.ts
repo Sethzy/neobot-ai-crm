@@ -6,6 +6,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useRealtimeTable } from "@/hooks/use-realtime";
 import { createMessages, listMessages } from "@/lib/chat/messages";
 import { supabase } from "@/lib/supabase";
 import type { Database, Json } from "@/types/database";
@@ -28,6 +29,13 @@ export const messageKeys = {
  * Fetches persisted messages for a thread.
  */
 export function useChatMessages(threadId: string | null | undefined) {
+  useRealtimeTable({
+    table: "conversation_messages",
+    filter: threadId ? `thread_id=eq.${threadId}` : undefined,
+    queryKeys: [messageKeys.byThread(threadId ?? "")],
+    enabled: Boolean(threadId),
+  });
+
   return useQuery({
     queryKey: messageKeys.byThread(threadId ?? ""),
     queryFn: () => listMessages(supabase, threadId as string),
