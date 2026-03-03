@@ -23,6 +23,8 @@
       "2026-03-02: PR 10 marked in_progress, tasklist created",
       "2026-03-02: PR 7 marked done — storage tools + agent-files bucket + RLS policies applied to remote Supabase",
       "2026-03-02: PR 6 marked done, PR 8 now in_progress",
+      "2026-03-02: PR 8 marked done, PR 9 now in_progress",
+      "2026-03-03: PR 11 marked done, PR 12 now in_progress",
       "2026-03-03: PR 12 marked done (lean scope): step_count on runs, onFinish step counting, tool-error resilience test, schema/type updates"
     ]
   },
@@ -427,7 +429,7 @@
         {
           "pr": 8,
           "title": "Web search tool",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [
             "SERVICE-03",
             "TOOL-03",
@@ -437,17 +439,17 @@
             {
               "id": "PR8-1",
               "task": "Implement web_search tool using Brave Search API with Zod schema",
-              "done": false
+              "done": true
             },
             {
               "id": "PR8-2",
               "task": "Input: query string. Output: formatted search results (title, snippet, URL)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR8-3",
               "task": "Implement web_scrape tool (fetch URL → extract text content)",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -457,7 +459,7 @@
         {
           "pr": 9,
           "title": "Supabase Realtime for live updates",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [
             "DATA-07"
           ],
@@ -465,17 +467,17 @@
             {
               "id": "PR9-1",
               "task": "Wire Supabase Realtime subscriptions on CRM tables",
-              "done": false
+              "done": true
             },
             {
               "id": "PR9-2",
               "task": "When agent creates/updates contact or deal, frontend reflects immediately",
-              "done": false
+              "done": true
             },
             {
               "id": "PR9-3",
               "task": "Subscribe on thread page load, unsubscribe on unmount",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -485,7 +487,7 @@
         {
           "pr": 10,
           "title": "CRM read-only pages (Contacts)",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [
             "UX-02"
           ],
@@ -493,22 +495,22 @@
             {
               "id": "PR10-1",
               "task": "Replace /crm placeholder with tabbed CRM section",
-              "done": false
+              "done": true
             },
             {
               "id": "PR10-2",
               "task": "Contacts list page: TanStack Table with search/filter",
-              "done": false
+              "done": true
             },
             {
               "id": "PR10-3",
               "task": "Contact detail page: read-only fields + linked deals + interaction timeline",
-              "done": false
+              "done": true
             },
             {
               "id": "PR10-4",
               "task": "Navigation: add CRM to sidebar nav",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -518,7 +520,7 @@
         {
           "pr": 11,
           "title": "CRM read-only pages (Deals + Tasks)",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [
             "UX-02"
           ],
@@ -526,17 +528,17 @@
             {
               "id": "PR11-1",
               "task": "Deals list page: TanStack Table with stage badges",
-              "done": false
+              "done": true
             },
             {
               "id": "PR11-2",
               "task": "Deal detail page: read-only fields + linked contact + interactions",
-              "done": false
+              "done": true
             },
             {
               "id": "PR11-3",
               "task": "Tasks list page: table view with status, due date, linked contact/deal",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
