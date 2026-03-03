@@ -54,7 +54,7 @@ function formatContentType(contentType: string | null): string {
   return contentType.split("/").pop() ?? contentType;
 }
 
-async function handleDownload(file: Pick<VaultFile, "client_id" | "storage_path" | "filename">) {
+async function getDownloadUrl(file: Pick<VaultFile, "client_id" | "storage_path">): Promise<string> {
   const absoluteStoragePath = `${file.client_id}/${file.storage_path}`;
 
   const { data, error } = await supabase.storage
@@ -62,13 +62,10 @@ async function handleDownload(file: Pick<VaultFile, "client_id" | "storage_path"
     .createSignedUrl(absoluteStoragePath, 60);
 
   if (error || !data?.signedUrl) {
-    return;
+    throw new Error(error?.message ?? "Failed to generate download URL.");
   }
 
-  const anchor = document.createElement("a");
-  anchor.href = data.signedUrl;
-  anchor.download = file.filename;
-  anchor.click();
+  return data.signedUrl;
 }
 
 interface VaultFilesTableProps {
@@ -77,6 +74,7 @@ interface VaultFilesTableProps {
 
 export function VaultFilesTable({ files }: VaultFilesTableProps) {
   const [sorting, setSorting] = useState<SortingState>([{ id: "updated_at", desc: true }]);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const columns = useMemo(
     () => [
@@ -112,7 +110,18 @@ export function VaultFilesTable({ files }: VaultFilesTableProps) {
             className="rounded p-1 text-muted-foreground hover:text-foreground"
             onClick={(event) => {
               event.stopPropagation();
-              void handleDownload(info.row.original);
+              void (async () => {
+                try {
+                  setDownloadError(null);
+                  const signedUrl = await getDownloadUrl(info.row.original);
+                  const anchor = document.createElement("a");
+                  anchor.href = signedUrl;
+                  anchor.download = info.row.original.filename;
+                  anchor.click();
+                } catch {
+                  setDownloadError("Unable to download file. Please try again.");
+                }
+              })();
             }}
           >
             <Download className="h-4 w-4" />
@@ -133,38 +142,48 @@ export function VaultFilesTable({ files }: VaultFilesTableProps) {
   });
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border/40 bg-card shadow-sm">
-      <table className="w-full">
-        <thead className="border-b border-border/40 bg-muted/20">
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th
-                  key={header.id}
-                  className="cursor-pointer px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground/70 md:px-5 md:py-4"
-                  onClick={header.column.getToggleSortingHandler()}
-                >
-                  <div className="flex items-center gap-1 whitespace-nowrap">
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                    {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
-                  </div>
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.map((row) => (
-            <tr key={row.id} className="border-t border-border/30 transition-colors hover:bg-muted/40">
-              {row.getVisibleCells().map((cell) => (
-                <td key={cell.id} className="px-3 py-3 text-[13px] text-foreground/80 md:px-5 md:py-4">
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div>
+      {downloadError ? (
+        <p
+          role="alert"
+          className="mb-3 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+        >
+          {downloadError}
+        </p>
+      ) : null}
+      <div className="overflow-x-auto rounded-xl border border-border/40 bg-card shadow-sm">
+        <table className="w-full">
+          <thead className="border-b border-border/40 bg-muted/20">
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th
+                    key={header.id}
+                    className="cursor-pointer px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground/70 md:px-5 md:py-4"
+                    onClick={header.column.getToggleSortingHandler()}
+                  >
+                    <div className="flex items-center gap-1 whitespace-nowrap">
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                      {{ asc: " ↑", desc: " ↓" }[header.column.getIsSorted() as string] ?? null}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map((row) => (
+              <tr key={row.id} className="border-t border-border/30 transition-colors hover:bg-muted/40">
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id} className="px-3 py-3 text-[13px] text-foreground/80 md:px-5 md:py-4">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

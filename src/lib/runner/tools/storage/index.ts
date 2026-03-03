@@ -6,7 +6,7 @@ import { tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import { createAgentFileClient } from "@/lib/storage/agent-files";
+import { createAgentFileClient, normalizeWorkspacePath } from "@/lib/storage/agent-files";
 import type { Database } from "@/types/database";
 
 const readFileInputSchema = z.object({
@@ -24,6 +24,8 @@ const writeFileInputSchema = z.object({
   replace_all: z.boolean().optional().default(false),
 });
 type StoragePathKind = "vault" | "skills" | "general";
+const VAULT_SYNC_MAX_ATTEMPTS = 3;
+const VAULT_SYNC_BASE_DELAY_MS = 50;
 
 /**
  * Creates storage tools for one client.
@@ -73,7 +75,8 @@ export function createStorageTools(
     description: "Write, edit, or delete files in the client workspace.",
     inputSchema: writeFileInputSchema,
     execute: async ({ op, path, content, old_string, new_string, replace_all }) => {
-      const pathKind = classifyStoragePath(path);
+      const normalizedPath = normalizeWorkspacePath(path, false);
+      const pathKind = classifyStoragePath(normalizedPath);
 
       switch (op) {
         case "write": {
@@ -81,9 +84,16 @@ export function createStorageTools(
             throw new Error("write op requires content.");
           }
 
-          await fileClient.uploadFile(path, content);
-          await runPathAwareSync({ op, path, pathKind, content, supabase, clientId });
-          return { success: true as const, op, path, path_kind: pathKind };
+          await fileClient.uploadFile(normalizedPath, content);
+          await runPathAwareSync({
+            op,
+            path: normalizedPath,
+            pathKind,
+            content,
+            supabase,
+            clientId,
+          });
+          return { success: true as const, op, path: normalizedPath, path_kind: pathKind };
         }
 
         case "edit": {
@@ -91,22 +101,33 @@ export function createStorageTools(
             throw new Error("edit op requires old_string and new_string.");
           }
 
-          const updatedContent = await fileClient.editFile(path, old_string, new_string, replace_all);
+          const updatedContent = await fileClient.editFile(
+            normalizedPath,
+            old_string,
+            new_string,
+            replace_all,
+          );
           await runPathAwareSync({
             op,
-            path,
+            path: normalizedPath,
             pathKind,
             content: updatedContent,
             supabase,
             clientId,
           });
-          return { success: true as const, op, path, content: updatedContent, path_kind: pathKind };
+          return {
+            success: true as const,
+            op,
+            path: normalizedPath,
+            content: updatedContent,
+            path_kind: pathKind,
+          };
         }
 
         case "delete": {
-          await fileClient.deleteFile(path);
-          await runPathAwareSync({ op, path, pathKind, supabase, clientId });
-          return { success: true as const, op, path, path_kind: pathKind };
+          await fileClient.deleteFile(normalizedPath);
+          await runPathAwareSync({ op, path: normalizedPath, pathKind, supabase, clientId });
+          return { success: true as const, op, path: normalizedPath, path_kind: pathKind };
         }
       }
     },
@@ -175,13 +196,11 @@ function shouldFallbackToDirectory(error: unknown): boolean {
 }
 
 function classifyStoragePath(path: string): StoragePathKind {
-  const normalizedPath = path.replace(/^\/+/, "");
-
-  if (normalizedPath === "vault" || normalizedPath.startsWith("vault/")) {
+  if (path === "vault" || path.startsWith("vault/")) {
     return "vault";
   }
 
-  if (normalizedPath === "skills" || normalizedPath.startsWith("skills/")) {
+  if (path === "skills" || path.startsWith("skills/")) {
     return "skills";
   }
 
@@ -200,23 +219,20 @@ async function runPathAwareSync(params: {
     return;
   }
 
-  const normalizedPath = normalizeWorkspacePath(params.path);
-
   if (params.op === "delete") {
-    const { error } = await params.supabase
-      .from("vault_files")
-      .delete()
-      .eq("client_id", params.clientId)
-      .eq("storage_path", normalizedPath);
-
-    if (error) {
-      throw new Error(`Failed to delete vault metadata: ${error.message}`);
-    }
+    await withRetryableVaultSync(async () => {
+      const { error } = await params.supabase
+        .from("vault_files")
+        .delete()
+        .eq("client_id", params.clientId)
+        .eq("storage_path", params.path);
+      return error;
+    }, "delete");
 
     return;
   }
 
-  const filename = getFileNameFromPath(normalizedPath);
+  const filename = getFileNameFromPath(params.path);
   const title = deriveTitleFromFilename(filename);
   const textContent = params.content ?? null;
   const contentSizeBytes = textContent === null ? null : new TextEncoder().encode(textContent).length;
@@ -227,29 +243,73 @@ async function runPathAwareSync(params: {
       ? "text/plain"
       : null;
 
-  const { error } = await params.supabase
-    .from("vault_files")
-    .upsert(
-      {
-        client_id: params.clientId,
-        filename,
-        storage_path: normalizedPath,
-        title,
-        content_type: contentType,
-        size_bytes: contentSizeBytes,
-        content: textContent,
-        needs_reprocess: true,
-      },
-      { onConflict: "client_id,storage_path" },
-    );
+  await withRetryableVaultSync(async () => {
+    const { error } = await params.supabase
+      .from("vault_files")
+      .upsert(
+        {
+          client_id: params.clientId,
+          filename,
+          storage_path: params.path,
+          title,
+          content_type: contentType,
+          size_bytes: contentSizeBytes,
+          content: textContent,
+          needs_reprocess: true,
+        },
+        { onConflict: "client_id,storage_path" },
+      );
+    return error;
+  }, "upsert");
+}
 
-  if (error) {
-    throw new Error(`Failed to upsert vault metadata: ${error.message}`);
+async function withRetryableVaultSync(
+  operation: () => Promise<{ message: string } | null>,
+  operationName: "upsert" | "delete",
+): Promise<void> {
+  let attempt = 1;
+  let lastErrorMessage = "unknown error";
+
+  while (attempt <= VAULT_SYNC_MAX_ATTEMPTS) {
+    const error = await operation();
+
+    if (!error) {
+      return;
+    }
+
+    lastErrorMessage = error.message;
+    const shouldRetry = isRetryableVaultSyncError(lastErrorMessage);
+    const hasNextAttempt = attempt < VAULT_SYNC_MAX_ATTEMPTS;
+
+    if (!shouldRetry || !hasNextAttempt) {
+      throw new Error(`Failed to ${operationName} vault metadata: ${lastErrorMessage}`);
+    }
+
+    const retryDelay = VAULT_SYNC_BASE_DELAY_MS * 2 ** (attempt - 1);
+    await sleep(retryDelay);
+    attempt += 1;
   }
 }
 
-function normalizeWorkspacePath(path: string): string {
-  return path.replace(/^\/+/, "");
+function isRetryableVaultSyncError(message: string): boolean {
+  const normalizedMessage = message.toLowerCase();
+
+  return normalizedMessage.includes("timeout")
+    || normalizedMessage.includes("timed out")
+    || normalizedMessage.includes("network")
+    || normalizedMessage.includes("connection")
+    || normalizedMessage.includes("temporar")
+    || normalizedMessage.includes("rate limit")
+    || normalizedMessage.includes("too many requests")
+    || normalizedMessage.includes("service unavailable")
+    || normalizedMessage.includes("deadlock")
+    || normalizedMessage.includes("could not serialize");
+}
+
+async function sleep(durationMs: number): Promise<void> {
+  await new Promise((resolve) => {
+    setTimeout(resolve, durationMs);
+  });
 }
 
 function getFileNameFromPath(path: string): string {

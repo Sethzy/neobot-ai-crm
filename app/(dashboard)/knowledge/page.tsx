@@ -10,7 +10,7 @@ import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { VaultFilesTable } from "@/components/knowledge/vault-files-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useUploadVaultFile, useVaultFiles } from "@/hooks/use-vault-files";
+import { VAULT_UPLOAD_ACCEPT, useUploadVaultFile, useVaultFiles } from "@/hooks/use-vault-files";
 
 export default function KnowledgePage() {
   const [search, setSearch] = useState("");
@@ -48,6 +48,9 @@ export default function KnowledgePage() {
         <p className="mt-2 text-sm text-muted-foreground/80">
           Upload and search documents your AI agent can reference.
         </p>
+        <p className="mt-1 text-xs text-muted-foreground/70">
+          Supports text-based files for full content search.
+        </p>
       </div>
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -66,7 +69,7 @@ export default function KnowledgePage() {
           type="file"
           onChange={handleFileChange}
           className="hidden"
-          accept=".pdf,.doc,.docx,.md,.txt,.csv,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp"
+          accept={VAULT_UPLOAD_ACCEPT}
         />
 
         <Button

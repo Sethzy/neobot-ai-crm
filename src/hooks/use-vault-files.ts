@@ -18,6 +18,7 @@ import { useRealtimeTable } from "@/hooks/use-realtime";
 import { buildVaultSearchOrFilter } from "@/lib/knowledge/postgrest-filters";
 import {
   vaultFileInsertSchema,
+  vaultFileListSchema,
   vaultFileSchema,
   type VaultFile,
 } from "@/lib/knowledge/schemas";
@@ -27,6 +28,24 @@ import type { Database } from "@/types/database";
 export interface VaultFileFilters {
   search?: string;
 }
+
+const VAULT_LIST_FIELDS = [
+  "file_id",
+  "client_id",
+  "filename",
+  "storage_path",
+  "title",
+  "content_type",
+  "size_bytes",
+  "tags",
+  "summary",
+  "needs_reprocess",
+  "created_at",
+  "updated_at",
+];
+
+/** Column list used for Knowledge Base list queries (excludes heavy `content`). */
+export const VAULT_FILES_LIST_SELECT = VAULT_LIST_FIELDS.join(",");
 
 /** Query key factory for vault file queries. */
 export const vaultFileKeys = {
@@ -39,7 +58,7 @@ export const vaultFileKeys = {
 async function fetchVaultFiles(filters: VaultFileFilters): Promise<VaultFile[]> {
   let query = supabase
     .from("vault_files")
-    .select("*")
+    .select(VAULT_FILES_LIST_SELECT)
     .order("updated_at", { ascending: false });
 
   if (filters.search?.trim()) {
@@ -52,7 +71,7 @@ async function fetchVaultFiles(filters: VaultFileFilters): Promise<VaultFile[]> 
     throw error;
   }
 
-  return (data ?? []).map((row) => vaultFileSchema.parse(row));
+  return (data ?? []).map((row) => vaultFileListSchema.parse(row));
 }
 
 /** Query options factory for vault file list queries. */
@@ -81,7 +100,7 @@ export function useVaultFiles(filters: VaultFileFilters) {
 }
 
 const AGENT_FILES_BUCKET = "agent-files";
-const TEXT_FILE_EXTENSIONS = new Set([
+const SUPPORTED_TEXT_EXTENSIONS = [
   "md",
   "markdown",
   "txt",
@@ -90,7 +109,19 @@ const TEXT_FILE_EXTENSIONS = new Set([
   "xml",
   "yaml",
   "yml",
-]);
+] as const;
+const TEXT_FILE_EXTENSIONS = new Set<string>(SUPPORTED_TEXT_EXTENSIONS);
+
+/** `accept` value for text-first Knowledge Base uploads. */
+export const VAULT_UPLOAD_ACCEPT = SUPPORTED_TEXT_EXTENSIONS.map((extension) => `.${extension}`).join(",");
+
+function isSupportedVaultUpload(file: File, safeExtension: string): boolean {
+  if (file.type.startsWith("text/")) {
+    return true;
+  }
+
+  return TEXT_FILE_EXTENSIONS.has(safeExtension);
+}
 
 function sanitizeBaseFilename(filename: string): { safeBase: string; safeExtension: string } {
   const normalized = filename.trim();
@@ -109,11 +140,7 @@ function sanitizeBaseFilename(filename: string): { safeBase: string; safeExtensi
 }
 
 function isTextLikeFile(file: File, safeExtension: string): boolean {
-  if (file.type.startsWith("text/")) {
-    return true;
-  }
-
-  return TEXT_FILE_EXTENSIONS.has(safeExtension);
+  return isSupportedVaultUpload(file, safeExtension);
 }
 
 async function extractTextContent(file: File, safeExtension: string): Promise<string | null> {
@@ -145,6 +172,13 @@ export async function uploadVaultFile(
   file: File,
 ): Promise<VaultFile> {
   const { safeBase, safeExtension } = sanitizeBaseFilename(file.name);
+
+  if (!isSupportedVaultUpload(file, safeExtension)) {
+    throw new Error(
+      "Unsupported file type. Upload text-based files only (.md, .markdown, .txt, .json, .csv, .xml, .yaml, .yml).",
+    );
+  }
+
   const suffix = crypto.randomUUID().split("-")[0] ?? "file";
   const storedFilename = safeExtension.length > 0
     ? `${safeBase}-${suffix}.${safeExtension}`

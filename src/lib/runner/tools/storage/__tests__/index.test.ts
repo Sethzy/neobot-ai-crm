@@ -6,9 +6,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   mockCreateAgentFileClient,
+  mockNormalizeWorkspacePath,
   mockFileClient,
 } = vi.hoisted(() => ({
   mockCreateAgentFileClient: vi.fn(),
+  mockNormalizeWorkspacePath: vi.fn((inputPath: string) => {
+    const normalized = inputPath.replaceAll("\\", "/").replace(/^\/+/, "");
+    const segments = normalized.split("/").filter((segment) => segment.length > 0);
+    return segments.join("/");
+  }),
   mockFileClient: {
     downloadFile: vi.fn(),
     listDirectory: vi.fn(),
@@ -20,6 +26,7 @@ const {
 
 vi.mock("@/lib/storage/agent-files", () => ({
   createAgentFileClient: mockCreateAgentFileClient,
+  normalizeWorkspacePath: (...args: unknown[]) => mockNormalizeWorkspacePath(...args),
 }));
 
 import { createStorageTools } from "../index";
@@ -248,6 +255,57 @@ describe("createStorageTools", () => {
       }),
       { onConflict: "client_id,storage_path" },
     );
+  });
+
+  it("write_file normalizes vault paths before storage write and metadata sync", async () => {
+    mockFileClient.uploadFile.mockResolvedValue(undefined);
+    const { supabase, upsert } = createSupabaseMock();
+    const tools = createStorageTools(supabase as never, CLIENT_ID);
+
+    await tools.write_file.execute(
+      { op: "write", path: "//vault\\\\Lead Notes.md", content: "prefers WhatsApp follow-up" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(mockFileClient.uploadFile).toHaveBeenCalledWith(
+      "vault/Lead Notes.md",
+      "prefers WhatsApp follow-up",
+    );
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        storage_path: "vault/Lead Notes.md",
+      }),
+      { onConflict: "client_id,storage_path" },
+    );
+  });
+
+  it("write_file retries transient vault metadata upsert failures", async () => {
+    mockFileClient.uploadFile.mockResolvedValue(undefined);
+
+    const upsert = vi
+      .fn()
+      .mockResolvedValueOnce({ data: null, error: { message: "connection reset by peer" } })
+      .mockResolvedValueOnce({ data: null, error: { message: "network timeout" } })
+      .mockResolvedValueOnce({ data: null, error: null });
+
+    const supabase = {
+      from: vi.fn(() => ({ upsert })),
+    };
+    const tools = createStorageTools(supabase as never, CLIENT_ID);
+
+    await expect(
+      tools.write_file.execute(
+        { op: "write", path: "vault/lead-notes.md", content: "..." },
+        EXECUTION_OPTIONS,
+      ),
+    ).resolves.toEqual({
+      success: true,
+      op: "write",
+      path: "vault/lead-notes.md",
+      path_kind: "vault",
+    });
+
+    expect(upsert).toHaveBeenCalledTimes(3);
   });
 
   it("write_file removes vault metadata row on delete", async () => {

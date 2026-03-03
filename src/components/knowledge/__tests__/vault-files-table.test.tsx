@@ -94,4 +94,19 @@ describe("VaultFilesTable", () => {
 
     expect(clickSpy).toHaveBeenCalled();
   });
+
+  it("shows an error message when download URL generation fails", async () => {
+    const user = userEvent.setup();
+
+    mockCreateSignedUrl.mockResolvedValue({
+      data: null,
+      error: { message: "forbidden" },
+    });
+
+    render(<VaultFilesTable files={rows} />);
+
+    await user.click(screen.getByTitle(/download/i));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/unable to download file/i);
+  });
 });

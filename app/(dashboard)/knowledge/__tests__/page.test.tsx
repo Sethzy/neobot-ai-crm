@@ -10,6 +10,7 @@ import KnowledgePage from "../page";
 vi.mock("@/hooks/use-vault-files", () => ({
   useVaultFiles: vi.fn(),
   useUploadVaultFile: vi.fn(),
+  VAULT_UPLOAD_ACCEPT: ".md,.markdown,.txt,.json,.csv,.xml,.yaml,.yml",
 }));
 
 vi.mock("@/components/knowledge/vault-files-table", () => ({
@@ -91,5 +92,32 @@ describe("KnowledgePage", () => {
 
     expect(screen.getByText(/upload failed: upload failed/i)).toBeInTheDocument();
     expect(screen.getByTestId("vault-files-table")).toBeInTheDocument();
+  });
+
+  it("limits file chooser to text-based formats", async () => {
+    const { useVaultFiles, useUploadVaultFile } = await import("@/hooks/use-vault-files");
+
+    vi.mocked(useVaultFiles).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as never);
+
+    vi.mocked(useUploadVaultFile).mockReturnValue({
+      mutateAsync: vi.fn(),
+      isPending: false,
+      isError: false,
+      error: null,
+    } as never);
+
+    const { container } = render(<KnowledgePage />);
+    const fileInput = container.querySelector('input[type="file"]');
+
+    expect(fileInput).not.toBeNull();
+    const acceptValue = fileInput?.getAttribute("accept") ?? "";
+    expect(acceptValue).toContain(".md");
+    expect(acceptValue).toContain(".txt");
+    expect(acceptValue).not.toContain(".pdf");
   });
 });

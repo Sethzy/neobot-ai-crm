@@ -7,7 +7,12 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { uploadVaultFile, useVaultFiles, vaultFileKeys } from "@/hooks/use-vault-files";
+import {
+  VAULT_FILES_LIST_SELECT,
+  uploadVaultFile,
+  useVaultFiles,
+  vaultFileKeys,
+} from "@/hooks/use-vault-files";
 
 const CLIENT_ID = "660e8400-e29b-41d4-a716-446655440000";
 
@@ -55,7 +60,7 @@ function createThenableBuilder(data: unknown[], error: { message: string } | nul
   return builder;
 }
 
-const mockFile = {
+const mockListRow = {
   file_id: "550e8400-e29b-41d4-a716-446655440000",
   client_id: CLIENT_ID,
   filename: "test.pdf",
@@ -63,12 +68,16 @@ const mockFile = {
   title: "test",
   content_type: "application/pdf",
   size_bytes: 1024,
-  content: null,
   tags: [],
   summary: null,
   needs_reprocess: false,
   created_at: "2026-03-03T00:00:00.000Z",
   updated_at: "2026-03-03T00:00:00.000Z",
+};
+
+const mockInsertedRow = {
+  ...mockListRow,
+  content: null,
 };
 
 describe("vaultFileKeys", () => {
@@ -89,7 +98,7 @@ describe("useVaultFiles", () => {
   });
 
   it("fetches vault files ordered by updated_at descending", async () => {
-    const builder = createThenableBuilder([mockFile]);
+    const builder = createThenableBuilder([mockListRow]);
     mockFrom.mockReturnValue(builder);
 
     const { result } = renderHook(() => useVaultFiles({}), {
@@ -98,8 +107,9 @@ describe("useVaultFiles", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockFrom).toHaveBeenCalledWith("vault_files");
-    expect(builder.select).toHaveBeenCalledWith("*");
+    expect(builder.select).toHaveBeenCalledWith(VAULT_FILES_LIST_SELECT);
     expect(builder.order).toHaveBeenCalledWith("updated_at", { ascending: false });
+    expect(result.current.data?.[0]?.content).toBeNull();
   });
 
   it("applies search via or() across metadata and content", async () => {
@@ -156,7 +166,7 @@ describe("uploadVaultFile", () => {
       data: { path: `${CLIENT_ID}/vault/floor-plan-final-1a2b3c4d.md` },
       error: null,
     });
-    const mockSingle = vi.fn().mockResolvedValue({ data: mockFile, error: null });
+    const mockSingle = vi.fn().mockResolvedValue({ data: mockInsertedRow, error: null });
     const mockSelect = vi.fn(() => ({ single: mockSingle }));
     const mockInsert = vi.fn(() => ({ select: mockSelect }));
 
@@ -197,7 +207,7 @@ describe("uploadVaultFile", () => {
       }),
     );
 
-    expect(result).toEqual(mockFile);
+    expect(result).toEqual(mockInsertedRow);
   });
 
   it("throws on Storage upload failure", async () => {
@@ -213,7 +223,7 @@ describe("uploadVaultFile", () => {
       from: vi.fn(),
     } as never;
 
-    const file = new File(["test"], "test.pdf", { type: "application/pdf" });
+    const file = new File(["test"], "test.md", { type: "text/markdown" });
 
     await expect(uploadVaultFile(mock, CLIENT_ID, file)).rejects.toThrow(
       "Storage upload failed: bucket not found",
@@ -242,12 +252,29 @@ describe("uploadVaultFile", () => {
       })),
     } as never;
 
-    const file = new File(["test"], "test.pdf", { type: "application/pdf" });
+    const file = new File(["test"], "test.md", { type: "text/markdown" });
 
     await expect(uploadVaultFile(mock, CLIENT_ID, file)).rejects.toThrow(
       "Failed to create vault file record: insert failed",
     );
 
-    expect(mockRemove).toHaveBeenCalledWith([`${CLIENT_ID}/vault/test-1a2b3c4d.pdf`]);
+    expect(mockRemove).toHaveBeenCalledWith([`${CLIENT_ID}/vault/test-1a2b3c4d.md`]);
+  });
+
+  it("rejects unsupported non-text file uploads before storage write", async () => {
+    const mockUpload = vi.fn();
+    const mock = {
+      storage: {
+        from: vi.fn(() => ({ upload: mockUpload })),
+      },
+      from: vi.fn(),
+    } as never;
+
+    const file = new File(["%PDF"], "test.pdf", { type: "application/pdf" });
+
+    await expect(uploadVaultFile(mock, CLIENT_ID, file)).rejects.toThrow(
+      /unsupported file type/i,
+    );
+    expect(mockUpload).not.toHaveBeenCalled();
   });
 });

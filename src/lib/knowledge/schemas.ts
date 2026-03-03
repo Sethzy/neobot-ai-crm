@@ -26,6 +26,14 @@ export const vaultFileSchema = z.object({
 
 export type VaultFile = z.infer<typeof vaultFileSchema>;
 
+/**
+ * List-row validator for `vault_files`.
+ * List queries intentionally omit heavy `content`; default keeps consumer shape stable.
+ */
+export const vaultFileListSchema = vaultFileSchema.extend({
+  content: z.string().nullable().optional().default(null),
+});
+
 /** Insert payload for `vault_files` (id/timestamps/fts auto-generated). */
 export const vaultFileInsertSchema = z.object({
   client_id: z.string().uuid(),

@@ -13,7 +13,7 @@ const ROOT_SOUL_PATH = "SOUL.md";
  * @param inputPath - Relative path supplied by caller.
  * @param allowEmpty - Whether an empty normalized path is allowed.
  */
-function normalizeRelativePath(inputPath: string, allowEmpty: boolean): string {
+export function normalizeWorkspacePath(inputPath: string, allowEmpty: boolean): string {
   const withForwardSlashes = inputPath.replaceAll("\\", "/");
   const withoutLeadingSlash = withForwardSlashes.replace(/^\/+/, "");
   const segments = withoutLeadingSlash.split("/").filter((segment) => segment.length > 0);
@@ -37,7 +37,7 @@ function normalizeRelativePath(inputPath: string, allowEmpty: boolean): string {
  * @param allowEmpty - Whether empty path resolves to the workspace root.
  */
 function resolveStoragePath(clientId: string, inputPath: string, allowEmpty = false): string {
-  const normalizedPath = normalizeRelativePath(inputPath, allowEmpty);
+  const normalizedPath = normalizeWorkspacePath(inputPath, allowEmpty);
   return normalizedPath.length === 0 ? clientId : `${clientId}/${normalizedPath}`;
 }
 
@@ -47,7 +47,7 @@ function resolveStoragePath(clientId: string, inputPath: string, allowEmpty = fa
  * @param inputPath - Workspace-relative path.
  */
 function assertWritable(inputPath: string): void {
-  const normalizedPath = normalizeRelativePath(inputPath, false);
+  const normalizedPath = normalizeWorkspacePath(inputPath, false);
 
   if (normalizedPath === ROOT_SOUL_PATH) {
     throw new Error(`${ROOT_SOUL_PATH} is read-only and cannot be modified by the agent.`);
@@ -127,7 +127,7 @@ export function createAgentFileClient(supabase: SupabaseClient, clientId: string
     for (const directory of directories) {
       lines.push(`${indent}${directory.name}/`);
       const nextPath = path
-        ? `${normalizeRelativePath(path, true)}/${directory.name}`
+        ? `${normalizeWorkspacePath(path, true)}/${directory.name}`
         : directory.name;
       const nested = await listDirectory(nextPath, depth + 1);
       if (nested.length > 0) {
