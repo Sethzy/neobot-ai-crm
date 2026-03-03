@@ -1,18 +1,18 @@
 /**
- * Agent Tasks page backed by CRM tasks in v1.
- * @module app/(dashboard)/tasks/page
+ * CRM deals list page with search and read-only table.
+ * @module app/(dashboard)/crm/deals/page
  */
 "use client";
 
-import { CheckSquare, Search } from "lucide-react";
+import { Handshake, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { CrmTasksTable } from "@/components/crm/crm-tasks-table";
+import { DealsTable } from "@/components/crm/deals-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useCrmTasks } from "@/hooks/use-crm-tasks";
+import { useDeals } from "@/hooks/use-deals";
 
-export default function TasksPage() {
+export default function DealsPage() {
   const [search, setSearch] = useState("");
 
   const filters = useMemo(() => {
@@ -23,14 +23,14 @@ export default function TasksPage() {
     };
   }, [search]);
 
-  const { data: tasks = [], isLoading, isError, refetch } = useCrmTasks(filters);
+  const { data: deals = [], isLoading, isError, refetch } = useDeals(filters);
 
   return (
     <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Tasks</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Deals</h1>
         <p className="mt-2 text-sm text-muted-foreground/80">
-          Browse and inspect CRM follow-ups created by your AI agent.
+          Browse and inspect deals created by your AI agent.
         </p>
       </div>
 
@@ -40,7 +40,7 @@ export default function TasksPage() {
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search tasks by title or description..."
+            placeholder="Search deals by address or notes..."
             className="h-12 w-full border-border/50 pl-11 shadow-sm focus-visible:ring-1"
           />
         </div>
@@ -55,7 +55,7 @@ export default function TasksPage() {
           </div>
         ) : isError ? (
           <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-6">
-            <p className="text-sm text-destructive">Unable to load tasks</p>
+            <p className="text-sm text-destructive">Unable to load deals</p>
             <Button
               type="button"
               variant="outline"
@@ -68,15 +68,15 @@ export default function TasksPage() {
               Retry
             </Button>
           </div>
-        ) : tasks.length === 0 ? (
+        ) : deals.length === 0 ? (
           <div className="rounded-xl border border-border/40 bg-card p-10 text-center shadow-sm md:p-20">
-            <CheckSquare className="mx-auto h-12 w-12 text-muted-foreground/40" />
+            <Handshake className="mx-auto h-12 w-12 text-muted-foreground/40" />
             <p className="mt-6 text-muted-foreground">
-              {filters.search ? "No tasks match your search" : "No tasks yet"}
+              {filters.search ? "No deals match your search" : "No deals yet"}
             </p>
           </div>
         ) : (
-          <CrmTasksTable tasks={tasks} />
+          <DealsTable deals={deals} />
         )}
       </div>
     </div>

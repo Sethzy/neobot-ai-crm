@@ -1,0 +1,130 @@
+/**
+ * TanStack Query hooks for CRM deals queries.
+ * @module hooks/use-deals
+ */
+"use client";
+
+import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
+
+import { useClientId } from "@/hooks/use-client-id";
+import { useRealtimeTable } from "@/hooks/use-realtime";
+import { buildDealSearchOrFilter } from "@/lib/crm/postgrest-filters";
+import { type Contact, type Deal } from "@/lib/crm/schemas";
+import { supabase } from "@/lib/supabase";
+
+export type DealWithContact = Deal & {
+  contacts: Pick<Contact, "first_name" | "last_name"> | null;
+};
+
+export interface DealFilters {
+  search?: string;
+  stage?: Deal["stage"];
+}
+
+/**
+ * Query key factory for CRM deals list/detail queries.
+ */
+export const dealKeys = {
+  all: ["deals"] as const,
+  lists: () => [...dealKeys.all, "list"] as const,
+  list: (filters: DealFilters) => [...dealKeys.lists(), filters] as const,
+  details: () => [...dealKeys.all, "detail"] as const,
+  detail: (dealId: string) => [...dealKeys.details(), dealId] as const,
+};
+
+/**
+ * Fetches deals with optional free-text and stage filtering.
+ */
+async function fetchDeals(filters: DealFilters): Promise<DealWithContact[]> {
+  let query = supabase
+    .from("deals")
+    .select("*, contacts(first_name, last_name)")
+    .order("updated_at", { ascending: false });
+
+  if (filters.search?.trim()) {
+    query = query.or(buildDealSearchOrFilter(filters.search));
+  }
+
+  if (filters.stage) {
+    query = query.eq("stage", filters.stage);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as DealWithContact[];
+}
+
+/**
+ * Fetches a single deal by deal id with joined contact name.
+ */
+async function fetchDeal(dealId: string): Promise<DealWithContact> {
+  const { data, error } = await supabase
+    .from("deals")
+    .select("*, contacts(first_name, last_name)")
+    .eq("deal_id", dealId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as DealWithContact;
+}
+
+export function dealsQueryOptions(filters: DealFilters) {
+  return queryOptions({
+    queryKey: dealKeys.list(filters),
+    queryFn: () => fetchDeals(filters),
+  });
+}
+
+export function dealDetailQueryOptions(dealId: string) {
+  return queryOptions({
+    queryKey: dealKeys.detail(dealId),
+    queryFn: () => fetchDeal(dealId),
+  });
+}
+
+/**
+ * Returns deals list query state and subscribes to deals realtime invalidation.
+ */
+export function useDeals(filters: DealFilters) {
+  const { data: clientId } = useClientId();
+
+  useRealtimeTable({
+    table: "deals",
+    filter: clientId ? `client_id=eq.${clientId}` : undefined,
+    queryKeys: [dealKeys.all],
+    enabled: Boolean(clientId),
+  });
+
+  return useQuery({
+    ...dealsQueryOptions(filters),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * Returns a single deal query state by id.
+ */
+export function useDeal(dealId: string) {
+  const { data: clientId } = useClientId();
+
+  useRealtimeTable({
+    table: "deals",
+    filter: clientId ? `client_id=eq.${clientId}` : undefined,
+    queryKeys: [dealKeys.detail(dealId)],
+    enabled: Boolean(clientId && dealId),
+  });
+
+  return useQuery({
+    ...dealDetailQueryOptions(dealId),
+    enabled: Boolean(dealId),
+  });
+}
+
+export { fetchDeals, fetchDeal };

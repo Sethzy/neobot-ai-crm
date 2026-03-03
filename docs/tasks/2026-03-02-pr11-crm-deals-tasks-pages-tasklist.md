@@ -1,10 +1,10 @@
 # CRM Read-Only Pages (Deals + Tasks) Implementation Plan
 
 **PR:** PR 11: CRM read-only pages (Deals + Tasks)
-**Decisions:** UX-02, UX-04, DATA-01, DATA-09
+**Decisions:** UX-02, DATA-01, DATA-07, DATA-09
 **Goal:** Build read-only deals and tasks pages so users can browse CRM data the agent created via chat.
 
-**Architecture:** Deals live under the CRM section (`/crm/deals`, `/crm/deals/[dealId]`). Tasks live at `/tasks` as a top-level AGENT nav item (UX-02: Tasks is under AGENT, not DATABASE). Both use TanStack Table for list views and TanStack Query for data fetching, matching the existing `cases-table.tsx` and `use-cases.ts` patterns. All data is read via Supabase PostgREST with RLS — `client_id` scoping is automatic (DATA-01). Deal stages use colored badges. CRM tasks show binary `open`/`completed` status with due dates (not the full agent task lifecycle, which comes in PR 19a). Deal detail page shows linked contact info and interaction timeline.
+**Architecture:** Deals live under the CRM section (`/crm/deals`, `/crm/deals/[dealId]`). Tasks live at `/tasks` as a top-level AGENT nav item (UX-02: Tasks is under AGENT, not DATABASE). This PR keeps `/tasks` as a CRM-task table only for minimal scope; unified board/list/goals tasks UX (`UX-04`) remains deferred to the later tasks-surface PR. Both list surfaces use TanStack Table and TanStack Query, matching existing patterns. All data is read via Supabase PostgREST with RLS — `client_id` scoping is automatic (DATA-01). Realtime invalidation should be wired via `useRealtimeTable` for `deals`, `crm_tasks`, and `interactions` (DATA-07). Deal stages use colored badges. CRM tasks show binary `open`/`completed` status with due dates. Deal detail page shows linked contact info and interaction timeline.
 
 **Tech Stack:** Next.js 15 App Router, React 19, TanStack Table, TanStack Query, Supabase (PostgREST + RLS), Tailwind 4, ShadCN (Badge, Table components), Vitest + React Testing Library
 
@@ -29,7 +29,7 @@
 |------|-----------|------|------------|
 | 1 | TanStack Query hooks for deals | Yes | PR 10 (CRM section exists) |
 | 2 | TanStack Query hooks for CRM tasks | Yes | — |
-| 3 | TanStack Query hooks for interactions | Yes | — |
+| 3 | Extend existing interaction relation hooks with deal-scoped query | Yes | — |
 | 4 | Stage badge component | Yes | — |
 | 5 | Task status badge component | Yes | — |
 | 6 | Deals list page (table + route) | Yes | Tasks 1, 4 |
@@ -41,7 +41,7 @@
 
 ### Task 1: TanStack Query Hooks for Deals
 
-**Context:** Follow the exact same pattern as `src/hooks/use-cases.ts` — query key factory, `queryOptions()` factory, `useQuery()` hooks with `keepPreviousData`. The deals table has columns: `deal_id`, `client_id`, `address`, `stage`, `price`, `contact_id`, `notes`, `created_at`, `updated_at`. We join on `contacts` to display linked contact name. All queries go through the Supabase browser client at `src/lib/supabase.ts`, which auto-applies RLS via `client_id`.
+**Context:** Follow the exact same pattern as `src/hooks/use-cases.ts` for query key factories and `queryOptions()`. Use `keepPreviousData` on list queries only; detail queries should avoid stale entity flashes. Reuse shared PostgREST escaping helpers (extend `src/lib/crm/postgrest-filters.ts` for deals/tasks search) instead of raw string interpolation. The deals table has columns: `deal_id`, `client_id`, `address`, `stage`, `price`, `contact_id`, `notes`, `created_at`, `updated_at`. We join on `contacts` to display linked contact name. All queries go through the Supabase browser client at `src/lib/supabase.ts`, which auto-applies RLS via `client_id`.
 
 **Files:**
 - Create: `src/hooks/use-deals.ts`
@@ -292,7 +292,6 @@ export function useDeals(options: FetchDealsOptions = {}) {
 export function useDeal(dealId: string) {
   return useQuery({
     ...dealDetailQueryOptions(dealId),
-    placeholderData: keepPreviousData,
     enabled: !!dealId,
   });
 }
@@ -317,7 +316,7 @@ git commit -m "feat(crm): add TanStack Query hooks for deals with tests"
 
 ### Task 2: TanStack Query Hooks for CRM Tasks
 
-**Context:** Same pattern as Task 1 but for `crm_tasks` table. CRM tasks have binary `open`/`completed` status (not the full agent task lifecycle). We join on `contacts` and `deals` to show linked entity names. The tasks page at `/tasks` is under the AGENT nav section (UX-02), separate from CRM.
+**Context:** Same pattern as Task 1 but for `crm_tasks` table. CRM tasks have binary `open`/`completed` status (not the full agent task lifecycle). We join on `contacts` and `deals` to show linked entity names. The tasks page at `/tasks` is under the AGENT nav section (UX-02), separate from CRM. Reuse shared PostgREST escaping helpers for search filters; do not use raw interpolation.
 
 **Files:**
 - Create: `src/hooks/use-crm-tasks.ts`
@@ -535,20 +534,20 @@ git commit -m "feat(crm): add TanStack Query hooks for CRM tasks with tests"
 
 ---
 
-### Task 3: TanStack Query Hooks for Interactions
+### Task 3: Extend Existing Relation Hooks with Deal Interactions
 
-**Context:** Interactions are loaded on the deal detail page to show activity timeline. They're append-only records (call, meeting, email, message, viewing, note) linked to a contact and optionally a deal. We fetch interactions filtered by `deal_id` for the deal detail page.
+**Context:** Interactions are loaded on the deal detail page to show activity timeline. They're append-only records (call, meeting, email, message, viewing, note) linked to a contact and optionally a deal. To avoid duplicate hook surfaces, extend `src/hooks/use-contact-relations.ts` with deal-scoped interaction query keys/hooks instead of creating a second interactions hook file.
 
 **Files:**
-- Create: `src/hooks/use-interactions.ts`
-- Test: `src/hooks/__tests__/use-interactions.test.ts`
+- Modify: `src/hooks/use-contact-relations.ts`
+- Modify: `src/hooks/__tests__/use-contact-relations.test.tsx`
 - Reference: `src/types/database.ts:646-698` (interactions table types)
 - Reference: `src/lib/crm/schemas.ts:110-146` (Interaction, interactionTypeValues)
 
 **Step 1: Write failing tests**
 
 ```typescript
-// src/hooks/__tests__/use-interactions.test.ts
+// src/hooks/__tests__/use-contact-relations.test.tsx
 import { describe, expect, test, vi, beforeEach } from "vitest";
 
 const mockSelect = vi.fn();
@@ -571,7 +570,7 @@ function setupChain(resolvedData: unknown, error: unknown = null) {
   mockOrder.mockResolvedValue({ data: resolvedData, error });
 }
 
-import { interactionKeys, fetchInteractions } from "../use-interactions";
+import { interactionKeys, fetchInteractions } from "../use-contact-relations";
 
 describe("interactionKeys", () => {
   test("generates consistent query keys", () => {
@@ -624,19 +623,19 @@ describe("fetchInteractions", () => {
 **Step 2: Run tests to verify they fail**
 
 ```bash
-npx vitest run src/hooks/__tests__/use-interactions.test.ts
+npx vitest run src/hooks/__tests__/use-contact-relations.test.tsx
 ```
 
-Expected: FAIL — `use-interactions` module does not exist.
+Expected: FAIL — `use-contact-relations` deal interaction hook does not exist.
 
 **Step 3: Implement the hooks**
 
 ```typescript
-// src/hooks/use-interactions.ts
+// src/hooks/use-contact-relations.ts
 /**
  * TanStack Query hooks for interaction timeline data.
  * Interactions are append-only activity records linked to contacts and deals.
- * @module hooks/use-interactions
+ * @module hooks/use-contact-relations
  */
 import {
   useQuery,
@@ -700,7 +699,6 @@ export function useDealInteractions(dealId: string) {
   return useQuery({
     queryKey: interactionKeys.byDeal(dealId),
     queryFn: () => fetchInteractions({ dealId }),
-    placeholderData: keepPreviousData,
     enabled: !!dealId,
   });
 }
@@ -712,7 +710,6 @@ export function useContactInteractions(contactId: string) {
   return useQuery({
     queryKey: interactionKeys.byContact(contactId),
     queryFn: () => fetchInteractions({ contactId }),
-    placeholderData: keepPreviousData,
     enabled: !!contactId,
   });
 }
@@ -721,7 +718,7 @@ export function useContactInteractions(contactId: string) {
 **Step 4: Run tests to verify they pass**
 
 ```bash
-npx vitest run src/hooks/__tests__/use-interactions.test.ts
+npx vitest run src/hooks/__tests__/use-contact-relations.test.tsx
 ```
 
 Expected: PASS — all 4 tests green.
@@ -729,7 +726,7 @@ Expected: PASS — all 4 tests green.
 **Step 5: Commit**
 
 ```bash
-git add src/hooks/use-interactions.ts src/hooks/__tests__/use-interactions.test.ts
+git add src/hooks/use-contact-relations.ts src/hooks/__tests__/use-contact-relations.test.tsx
 git commit -m "feat(crm): add TanStack Query hooks for interactions with tests"
 ```
 
@@ -737,7 +734,7 @@ git commit -m "feat(crm): add TanStack Query hooks for interactions with tests"
 
 ### Task 4: Stage Badge Component
 
-**Context:** Deal stages (`leads`, `viewing`, `offer`, `negotiation`, `otp`, `completion`, `lost`) need distinct visual treatment. Use the existing ShadCN `Badge` component at `src/components/ui/badge.tsx` which already has variant support. Create a thin wrapper that maps stage values to badge variants and display labels. Stages are defined in `src/lib/crm/schemas.ts:72-80`.
+**Context:** Deal stages (`leads`, `viewing`, `offer`, `negotiation`, `otp`, `completion`, `lost`) need distinct visual treatment. Use the existing ShadCN `Badge` component at `src/components/ui/badge.tsx` and reuse shared maps/formatting from `src/lib/crm/display.ts` where possible to avoid duplicate stage config.
 
 **Files:**
 - Create: `src/components/crm/stage-badge.tsx`
@@ -859,7 +856,7 @@ git commit -m "feat(crm): add StageBadge component for deal pipeline stages"
 
 ### Task 5: Task Status Badge Component
 
-**Context:** CRM tasks use binary `open`/`completed` status. Similar to Task 4 but simpler — just two states with distinct colors. Open tasks use an outline badge, completed tasks use success.
+**Context:** CRM tasks use binary `open`/`completed` status. Similar to Task 4 but simpler — just two states with distinct colors. Open tasks use an outline badge, completed tasks use success. Keep it as a thin display wrapper with no duplicate formatting logic elsewhere.
 
 **Files:**
 - Create: `src/components/crm/task-status-badge.tsx`
@@ -1024,7 +1021,7 @@ describe("DealsTable", () => {
   test("formats price with dollar sign and commas", () => {
     render(<DealsTable deals={mockDeals} />);
 
-    expect(screen.getByText("$1,500,000")).toBeInTheDocument();
+    expect(screen.getByText("SGD 1,500,000")).toBeInTheDocument();
   });
 
   test("shows em-dash for null price", () => {
@@ -1096,7 +1093,11 @@ const columnHelper = createColumnHelper<DealWithContact>();
  */
 function formatPrice(price: number | null): string {
   if (price == null) return "—";
-  return `$${price.toLocaleString("en-US")}`;
+  return new Intl.NumberFormat("en-SG", {
+    style: "currency",
+    currency: "SGD",
+    maximumFractionDigits: 0,
+  }).format(price);
 }
 
 /**
@@ -1353,7 +1354,7 @@ git commit -m "feat(crm): add deals list page with TanStack Table and stage badg
 - Create: `src/components/crm/interaction-timeline.tsx`
 - Test: `src/components/crm/__tests__/interaction-timeline.test.tsx`
 - Reference: `app/(dashboard)/cases/[caseId]/page.tsx` (detail page pattern)
-- Depends: `src/hooks/use-deals.ts` (Task 1), `src/hooks/use-interactions.ts` (Task 3)
+- Depends: `src/hooks/use-deals.ts` (Task 1), `src/hooks/use-contact-relations.ts` (Task 3)
 
 **Step 1: Write failing tests for InteractionTimeline component**
 
@@ -1447,7 +1448,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import type { InteractionWithContact } from "@/hooks/use-interactions";
+import type { Interaction } from "@/lib/crm/schemas";
 
 /** Maps interaction type to an icon and human-readable label. */
 const typeConfig: Record<string, { icon: LucideIcon; label: string }> = {
@@ -1473,7 +1474,9 @@ function formatDateTime(dateString: string): string {
 }
 
 interface InteractionTimelineProps {
-  interactions: InteractionWithContact[];
+  interactions: Array<
+    Interaction & { contacts: { first_name: string; last_name: string } | null }
+  >;
 }
 
 /** Renders a vertical timeline of interactions sorted by occurred_at. */
@@ -1553,7 +1556,7 @@ Expected: PASS — all 4 tests green.
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useDeal } from "@/hooks/use-deals";
-import { useDealInteractions } from "@/hooks/use-interactions";
+import { useDealInteractions } from "@/hooks/use-contact-relations";
 import { StageBadge } from "@/components/crm/stage-badge";
 import { InteractionTimeline } from "@/components/crm/interaction-timeline";
 import { User, DollarSign, StickyNote } from "lucide-react";
@@ -1561,7 +1564,11 @@ import { User, DollarSign, StickyNote } from "lucide-react";
 /** Formats a number as a dollar amount with commas. */
 function formatPrice(price: number | null): string {
   if (price == null) return "—";
-  return `$${price.toLocaleString("en-US")}`;
+  return new Intl.NumberFormat("en-SG", {
+    style: "currency",
+    currency: "SGD",
+    maximumFractionDigits: 0,
+  }).format(price);
 }
 
 /** Formats a date string to "2 Mar 2026" format. */
@@ -2137,19 +2144,20 @@ npm run dev
 6. Search for a task — search should filter results
 7. Sidebar: CRM is highlighted when on `/crm/deals`, Tasks is highlighted when on `/tasks`
 
-**Step 4: Run all tests**
+**Step 4: Run targeted PR11 tests + type-check**
 
 ```bash
-npx vitest run
+npx vitest run src/hooks/__tests__/use-deals.test.ts src/hooks/__tests__/use-crm-tasks.test.ts src/hooks/__tests__/use-contact-relations.test.tsx src/components/crm/__tests__/ app/\(dashboard\)/crm/deals app/\(dashboard\)/tasks
+npx tsc --noEmit
 ```
 
-Expected: All existing tests still pass. All new tests pass.
+Expected: PR11-targeted tests and type-check pass. Run full `vitest` once concurrent PR churn stabilizes.
 
 **Step 5: Commit**
 
 ```bash
-git add -A
-git commit -m "feat(crm): wire up deals tab in CRM layout and verify all routes"
+git add app/\(dashboard\)/crm/layout.tsx
+git commit -m "feat(crm): wire deals tab into crm layout and verify routes"
 ```
 
 ---
@@ -2161,8 +2169,7 @@ git commit -m "feat(crm): wire up deals tab in CRM layout and verify all routes"
 - `src/hooks/__tests__/use-deals.test.ts` — Tests
 - `src/hooks/use-crm-tasks.ts` — TanStack Query hooks for CRM tasks
 - `src/hooks/__tests__/use-crm-tasks.test.ts` — Tests
-- `src/hooks/use-interactions.ts` — TanStack Query hooks for interactions
-- `src/hooks/__tests__/use-interactions.test.ts` — Tests
+- `src/hooks/__tests__/use-contact-relations.test.tsx` — Extended tests for deal interaction hooks
 - `src/components/crm/stage-badge.tsx` — Deal stage badge
 - `src/components/crm/__tests__/stage-badge.test.tsx` — Tests
 - `src/components/crm/task-status-badge.tsx` — Task status badge
@@ -2179,6 +2186,7 @@ git commit -m "feat(crm): wire up deals tab in CRM layout and verify all routes"
 ### Modified
 - `app/(dashboard)/tasks/page.tsx` — Replaced "Coming soon" placeholder
 - `app/(dashboard)/crm/layout.tsx` — Added Deals tab (depends on PR 10's structure)
+- `src/hooks/use-contact-relations.ts` — Added deal-scoped interaction hook/query keys
 
 ### Reference (read-only)
 - `src/hooks/use-cases.ts` — Pattern for query key factory + hooks
