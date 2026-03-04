@@ -98,4 +98,19 @@ describe("AppLayout", () => {
 
     expect(screen.getByPlaceholderText(/search contacts, deals, tasks, threads/i)).toBeInTheDocument();
   });
+
+  it("does not open command menu when shortcut is pressed inside an input field", () => {
+    render(
+      <AppLayout>
+        <input data-testid="typing-input" />
+      </AppLayout>,
+      { wrapper },
+    );
+
+    const input = screen.getByTestId("typing-input");
+    input.focus();
+    fireEvent.keyDown(input, { key: "k", metaKey: true });
+
+    expect(screen.queryByPlaceholderText(/search contacts, deals, tasks, threads/i)).not.toBeInTheDocument();
+  });
 });

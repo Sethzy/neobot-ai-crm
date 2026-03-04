@@ -127,6 +127,12 @@ describe("AppSidebar", () => {
     expect(screen.getByText("Test Chat")).toBeInTheDocument();
   });
 
+  it("hides the search button when command menu callback is not provided", () => {
+    render(<AppSidebar />, { wrapper });
+
+    expect(screen.queryByRole("button", { name: /search/i })).not.toBeInTheDocument();
+  });
+
   it("calls onOpenCommandMenu when clicking search button", async () => {
     const user = userEvent.setup();
     const onOpenCommandMenu = vi.fn();

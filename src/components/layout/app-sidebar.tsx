@@ -154,18 +154,20 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
       <SidebarHeader className="px-3 pt-3 pb-2">
         <div className="flex items-center justify-between gap-2">
           <Logo />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Search"
-            onClick={() => {
-              onOpenCommandMenu?.();
-              closeMobileSidebar();
-            }}
-          >
-            <Search className="h-4 w-4" />
-          </Button>
+          {onOpenCommandMenu ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Search"
+              onClick={() => {
+                onOpenCommandMenu();
+                closeMobileSidebar();
+              }}
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+          ) : null}
         </div>
       </SidebarHeader>
 

@@ -29,6 +29,17 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const isEditableTarget = Boolean(
+        target
+          && ((target instanceof HTMLElement && target.isContentEditable)
+            || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
+            || target.getAttribute("role") === "textbox"),
+      );
+      if (event.defaultPrevented || event.isComposing || isEditableTarget) {
+        return;
+      }
+
       const isCommandShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
       if (!isCommandShortcut) {
         return;
