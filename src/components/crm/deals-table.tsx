@@ -12,8 +12,6 @@ import {
   useReactTable,
   type SortingState,
 } from "@tanstack/react-table";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState, type MouseEvent } from "react";
 
 import { StageBadge } from "@/components/crm/stage-badge";
@@ -24,30 +22,18 @@ const columnHelper = createColumnHelper<DealWithContact>();
 
 interface DealsTableProps {
   deals: DealWithContact[];
+  /** Called when a user clicks a row outside inline link/button controls. */
+  onRowClick?: (dealId: string) => void;
 }
 
-export function DealsTable({ deals }: DealsTableProps) {
-  const router = useRouter();
+export function DealsTable({ deals, onRowClick }: DealsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([{ id: "updated_at", desc: true }]);
 
   const columns = useMemo(
     () => [
       columnHelper.accessor("address", {
         header: "Address",
-        cell: (info) => {
-          const address = info.getValue();
-          const dealId = info.row.original.deal_id;
-
-          return (
-            <Link
-              href={`/crm/deals/${dealId}`}
-              className="font-medium text-foreground/90 hover:underline"
-              onClick={(event) => event.stopPropagation()}
-            >
-              {address}
-            </Link>
-          );
-        },
+        cell: (info) => <span className="font-medium text-foreground/90">{info.getValue()}</span>,
       }),
       columnHelper.accessor("stage", {
         header: "Stage",
@@ -96,7 +82,7 @@ export function DealsTable({ deals }: DealsTableProps) {
       return;
     }
 
-    router.push(`/crm/deals/${dealId}`);
+    onRowClick?.(dealId);
   };
 
   if (deals.length === 0) {
@@ -133,7 +119,6 @@ export function DealsTable({ deals }: DealsTableProps) {
             <tr
               key={row.id}
               className="cursor-pointer border-t border-border/30 transition-colors hover:bg-muted/40"
-              onMouseEnter={() => router.prefetch(`/crm/deals/${row.original.deal_id}`)}
               onClick={(event) => handleRowClick(event, row.original.deal_id)}
             >
               {row.getVisibleCells().map((cell) => (

@@ -8,12 +8,15 @@ import { CheckSquare, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { CrmTasksTable } from "@/components/crm/crm-tasks-table";
+import { RecordDrawer } from "@/components/crm/record-drawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCrmTasks } from "@/hooks/use-crm-tasks";
+import { useRecordDrawer } from "@/hooks/use-record-drawer";
 
 export default function TasksPage() {
   const [search, setSearch] = useState("");
+  const { isOpen, recordId, open, close } = useRecordDrawer();
 
   const filters = useMemo(() => {
     const normalizedSearch = search.trim();
@@ -76,9 +79,11 @@ export default function TasksPage() {
             </p>
           </div>
         ) : (
-          <CrmTasksTable tasks={tasks} />
+          <CrmTasksTable tasks={tasks} onRowClick={open} />
         )}
       </div>
+
+      <RecordDrawer isOpen={isOpen} recordId={recordId} objectType="task" onClose={close} />
     </div>
   );
 }

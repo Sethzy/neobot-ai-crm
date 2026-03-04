@@ -11,6 +11,15 @@ vi.mock("@/hooks/use-crm-tasks", () => ({
   useCrmTasks: vi.fn(),
 }));
 
+vi.mock("@/hooks/use-record-drawer", () => ({
+  useRecordDrawer: () => ({
+    isOpen: false,
+    recordId: null,
+    open: vi.fn(),
+    close: vi.fn(),
+  }),
+}));
+
 describe("TasksPage integration", () => {
   beforeEach(() => {
     vi.clearAllMocks();

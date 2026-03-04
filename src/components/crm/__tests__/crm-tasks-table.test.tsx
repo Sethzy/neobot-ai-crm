@@ -1,9 +1,10 @@
 /**
- * Tests for CRM tasks table rendering behavior.
+ * Tests for CRM tasks table rendering and row click behavior.
  * @module components/crm/__tests__/crm-tasks-table
  */
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 
 import { CrmTasksTable } from "../crm-tasks-table";
 
@@ -70,5 +71,17 @@ describe("CrmTasksTable", () => {
     render(<CrmTasksTable tasks={[]} />);
 
     expect(screen.getByText(/no tasks yet/i)).toBeInTheDocument();
+  });
+
+  it("calls onRowClick with task id when clicking a row", async () => {
+    const user = userEvent.setup();
+    const onRowClick = vi.fn();
+    render(<CrmTasksTable tasks={sampleTasks} onRowClick={onRowClick} />);
+
+    const targetRow = screen.getByText("Follow up with John").closest("tr");
+    expect(targetRow).not.toBeNull();
+    await user.click(targetRow as HTMLElement);
+
+    expect(onRowClick).toHaveBeenCalledWith("t-1");
   });
 });

@@ -8,12 +8,15 @@ import { Handshake, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { DealsTable } from "@/components/crm/deals-table";
+import { RecordDrawer } from "@/components/crm/record-drawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDeals } from "@/hooks/use-deals";
+import { useRecordDrawer } from "@/hooks/use-record-drawer";
 
 export default function DealsPage() {
   const [search, setSearch] = useState("");
+  const { isOpen, recordId, open, close } = useRecordDrawer();
 
   const filters = useMemo(() => {
     const normalizedSearch = search.trim();
@@ -76,9 +79,11 @@ export default function DealsPage() {
             </p>
           </div>
         ) : (
-          <DealsTable deals={deals} />
+          <DealsTable deals={deals} onRowClick={open} />
         )}
       </div>
+
+      <RecordDrawer isOpen={isOpen} recordId={recordId} objectType="deal" onClose={close} />
     </div>
   );
 }

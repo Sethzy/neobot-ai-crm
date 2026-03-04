@@ -12,7 +12,7 @@ import {
   useReactTable,
   type SortingState,
 } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type MouseEvent } from "react";
 
 import { TaskStatusBadge } from "@/components/crm/task-status-badge";
 import { formatContactFullName, formatCrmDate } from "@/lib/crm/display";
@@ -22,9 +22,11 @@ const columnHelper = createColumnHelper<CrmTaskWithRelations>();
 
 interface CrmTasksTableProps {
   tasks: CrmTaskWithRelations[];
+  /** Called when a user clicks a row outside inline link/button controls. */
+  onRowClick?: (taskId: string) => void;
 }
 
-export function CrmTasksTable({ tasks }: CrmTasksTableProps) {
+export function CrmTasksTable({ tasks, onRowClick }: CrmTasksTableProps) {
   const [sorting, setSorting] = useState<SortingState>([{ id: "due_date", desc: false }]);
 
   const columns = useMemo(
@@ -80,6 +82,14 @@ export function CrmTasksTable({ tasks }: CrmTasksTableProps) {
     getSortedRowModel: getSortedRowModel(),
   });
 
+  const handleRowClick = (event: MouseEvent<HTMLTableRowElement>, taskId: string) => {
+    if ((event.target as HTMLElement).closest("a,button,[role='button']")) {
+      return;
+    }
+
+    onRowClick?.(taskId);
+  };
+
   if (tasks.length === 0) {
     return (
       <div className="rounded-xl border border-border/40 bg-card p-10 text-center shadow-sm">
@@ -111,7 +121,11 @@ export function CrmTasksTable({ tasks }: CrmTasksTableProps) {
         </thead>
         <tbody>
           {table.getRowModel().rows.map((row) => (
-            <tr key={row.id} className="border-t border-border/30 transition-colors hover:bg-muted/40">
+            <tr
+              key={row.id}
+              className="cursor-pointer border-t border-border/30 transition-colors hover:bg-muted/40"
+              onClick={(event) => handleRowClick(event, row.original.task_id)}
+            >
               {row.getVisibleCells().map((cell) => (
                 <td key={cell.id} className="px-3 py-3 text-[13px] text-foreground/80 md:px-5 md:py-4">
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}

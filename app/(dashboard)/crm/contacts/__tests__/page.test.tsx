@@ -15,6 +15,15 @@ vi.mock("@/components/crm/contacts-table", () => ({
   ContactsTable: () => <div>Contacts Table</div>,
 }));
 
+vi.mock("@/hooks/use-record-drawer", () => ({
+  useRecordDrawer: () => ({
+    isOpen: false,
+    recordId: null,
+    open: vi.fn(),
+    close: vi.fn(),
+  }),
+}));
+
 describe("ContactsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();

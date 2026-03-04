@@ -7,18 +7,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DealsPage from "../page";
 
-const mockPush = vi.fn();
-const mockPrefetch = vi.fn();
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: mockPush,
-    prefetch: mockPrefetch,
-  }),
-}));
-
 vi.mock("@/hooks/use-deals", () => ({
   useDeals: vi.fn(),
+}));
+
+vi.mock("@/hooks/use-record-drawer", () => ({
+  useRecordDrawer: () => ({
+    isOpen: false,
+    recordId: null,
+    open: vi.fn(),
+    close: vi.fn(),
+  }),
 }));
 
 describe("DealsPage integration", () => {
@@ -51,7 +50,7 @@ describe("DealsPage integration", () => {
 
     render(<DealsPage />);
 
-    expect(screen.getByRole("link", { name: "123 Orchard Road" })).toBeInTheDocument();
+    expect(screen.getByText("123 Orchard Road")).toBeInTheDocument();
     expect(screen.getByText("Viewing")).toBeInTheDocument();
     expect(screen.getByText("John Smith")).toBeInTheDocument();
   });

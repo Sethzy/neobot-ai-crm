@@ -1,5 +1,5 @@
 /**
- * Tests for CRM deals table rendering and navigation behavior.
+ * Tests for CRM deals table rendering and row click behavior.
  * @module components/crm/__tests__/deals-table
  */
 import { render, screen, within } from "@testing-library/react";
@@ -7,16 +7,6 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DealsTable } from "../deals-table";
-
-const mockPush = vi.fn();
-const mockPrefetch = vi.fn();
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: mockPush,
-    prefetch: mockPrefetch,
-  }),
-}));
 
 const sampleDeals = [
   {
@@ -61,33 +51,28 @@ describe("DealsTable", () => {
     expect(screen.getByText(/1,500,000/)).toBeInTheDocument();
   });
 
-  it("navigates to detail route on row click", async () => {
+  it("calls onRowClick with deal id when clicking a row", async () => {
     const user = userEvent.setup();
-    render(<DealsTable deals={sampleDeals} />);
+    const onRowClick = vi.fn();
+    render(<DealsTable deals={sampleDeals} onRowClick={onRowClick} />);
 
     const rows = screen.getAllByRole("row");
     await user.click(rows[1]);
 
-    expect(mockPush).toHaveBeenCalledWith("/crm/deals/d-1");
+    expect(onRowClick).toHaveBeenCalledWith("d-1");
   });
 
-  it("does not navigate row when clicking linked address", async () => {
-    const user = userEvent.setup();
+  it("renders address as plain text (not as link)", () => {
     render(<DealsTable deals={sampleDeals} />);
-
-    await user.click(screen.getByRole("link", { name: "123 Orchard Road" }));
-
-    expect(mockPush).not.toHaveBeenCalled();
+    expect(screen.queryByRole("link", { name: "123 Orchard Road" })).not.toBeInTheDocument();
   });
 
-  it("prefetches detail route on row hover", async () => {
+  it("triggers onRowClick when clicking non-link row content", async () => {
     const user = userEvent.setup();
-    render(<DealsTable deals={sampleDeals} />);
-
-    const rows = screen.getAllByRole("row");
-    await user.hover(rows[1]);
-
-    expect(mockPrefetch).toHaveBeenCalledWith("/crm/deals/d-1");
+    const onRowClick = vi.fn();
+    render(<DealsTable deals={sampleDeals} onRowClick={onRowClick} />);
+    await user.click(screen.getByText("Viewing"));
+    expect(onRowClick).toHaveBeenCalledTimes(1);
   });
 
   it("shows placeholders for missing contact and price", () => {

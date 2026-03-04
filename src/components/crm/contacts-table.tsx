@@ -5,7 +5,6 @@
 "use client";
 
 import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable, type SortingState } from "@tanstack/react-table";
-import { useRouter } from "next/navigation";
 import { useMemo, useState, type MouseEvent } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -16,10 +15,11 @@ const columnHelper = createColumnHelper<Contact>();
 
 interface ContactsTableProps {
   contacts: Contact[];
+  /** Called when a user clicks a row outside inline link/button controls. */
+  onRowClick?: (contactId: string) => void;
 }
 
-export function ContactsTable({ contacts }: ContactsTableProps) {
-  const router = useRouter();
+export function ContactsTable({ contacts, onRowClick }: ContactsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([{ id: "updated_at", desc: true }]);
 
   const columns = useMemo(
@@ -101,7 +101,7 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
       return;
     }
 
-    router.push(`/crm/contacts/${contactId}`);
+    onRowClick?.(contactId);
   };
 
   if (contacts.length === 0) {
@@ -138,7 +138,6 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
             <tr
               key={row.id}
               className="cursor-pointer border-t border-border/30 transition-colors hover:bg-muted/40"
-              onMouseEnter={() => router.prefetch(`/crm/contacts/${row.original.contact_id}`)}
               onClick={(event) => handleRowClick(event, row.original.contact_id)}
             >
               {row.getVisibleCells().map((cell) => (

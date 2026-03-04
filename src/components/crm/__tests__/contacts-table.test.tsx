@@ -1,5 +1,5 @@
 /**
- * Tests for CRM contacts table rendering and navigation behavior.
+ * Tests for CRM contacts table rendering and row click behavior.
  * @module components/crm/__tests__/contacts-table
  */
 import { render, screen, within } from "@testing-library/react";
@@ -7,16 +7,6 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { ContactsTable } from "../contacts-table";
-
-const mockPush = vi.fn();
-const mockPrefetch = vi.fn();
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: mockPush,
-    prefetch: mockPrefetch,
-  }),
-}));
 
 const sampleContacts = [
   {
@@ -71,23 +61,25 @@ describe("ContactsTable", () => {
     expect(phoneLink).toHaveAttribute("href", "tel:+6591234567");
   });
 
-  test("navigates to detail route on row click", async () => {
+  test("calls onRowClick with contact id when clicking a row", async () => {
     const user = userEvent.setup();
-    render(<ContactsTable contacts={sampleContacts} />);
+    const onRowClick = vi.fn();
+    render(<ContactsTable contacts={sampleContacts} onRowClick={onRowClick} />);
 
     const rows = screen.getAllByRole("row");
     await user.click(rows[1]);
 
-    expect(mockPush).toHaveBeenCalledWith("/crm/contacts/c-1");
+    expect(onRowClick).toHaveBeenCalledWith("c-1");
   });
 
-  test("does not navigate when clicking an inline link", async () => {
+  test("does not trigger onRowClick when clicking an inline link", async () => {
     const user = userEvent.setup();
-    render(<ContactsTable contacts={sampleContacts} />);
+    const onRowClick = vi.fn();
+    render(<ContactsTable contacts={sampleContacts} onRowClick={onRowClick} />);
 
     await user.click(screen.getByText("john@example.com"));
 
-    expect(mockPush).not.toHaveBeenCalled();
+    expect(onRowClick).not.toHaveBeenCalled();
   });
 
   test("renders placeholders for missing email and phone", () => {
