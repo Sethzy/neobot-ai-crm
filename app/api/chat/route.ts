@@ -39,8 +39,17 @@ function withCanonicalThreadIdHeader(response: Response, threadId: string): Resp
 }
 
 function getTextFromMessage(message: UIMessage): string | null {
-  const text = extractTextContent(message.parts);
-  return text.length > 0 ? text : null;
+  const legacyContentText = extractTextContent(
+    typeof message === "object" && message !== null && "content" in message
+      ? (message as { content?: unknown }).content
+      : null,
+  );
+  if (legacyContentText.length > 0) {
+    return legacyContentText;
+  }
+
+  const partsText = extractTextContent(message.parts);
+  return partsText.length > 0 ? partsText : null;
 }
 
 function getLatestUserInput(messages: UIMessage[] | undefined): string | null {

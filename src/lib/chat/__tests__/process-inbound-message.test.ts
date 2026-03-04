@@ -158,6 +158,46 @@ describe("processInboundMessage", () => {
     );
   });
 
+  it("throws mapping lookup error when both lookups fail", async () => {
+    const requestedThreadId = "22222222-2222-4222-8222-222222222222";
+    const supabase = createThreadLookupSupabase({
+      threadExists: false,
+      lookupErrorMessage: "thread lookup failed",
+    });
+    mockGetThreadIdForExternalConversation.mockRejectedValue(new Error("mapping unavailable"));
+
+    await expect(
+      processInboundMessage({
+        supabase: supabase as never,
+        clientId: "client-123",
+        channel: "web",
+        externalConversationId: "external-1",
+        messageText: "Hello",
+        requestedThreadId,
+      }),
+    ).rejects.toThrow("mapping unavailable");
+  });
+
+  it("throws requested-thread lookup error when mapping is missing and requested lookup fails", async () => {
+    const requestedThreadId = "22222222-2222-4222-8222-222222222222";
+    const supabase = createThreadLookupSupabase({
+      threadExists: false,
+      lookupErrorMessage: "requested lookup failed",
+    });
+    mockGetThreadIdForExternalConversation.mockResolvedValue(null);
+
+    await expect(
+      processInboundMessage({
+        supabase: supabase as never,
+        clientId: "client-123",
+        channel: "web",
+        externalConversationId: "external-1",
+        messageText: "Hello",
+        requestedThreadId,
+      }),
+    ).rejects.toThrow("requested lookup failed");
+  });
+
   it("reuses requested thread when it exists for the client and backfills mapping", async () => {
     const requestedThreadId = "22222222-2222-4222-8222-222222222222";
     const supabase = createThreadLookupSupabase({ threadExists: true, threadId: requestedThreadId });

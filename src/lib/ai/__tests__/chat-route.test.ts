@@ -129,6 +129,31 @@ describe("POST /api/chat", () => {
     expect(await response.json()).toEqual({ status: "duplicate" });
   });
 
+  it("accepts legacy user message content when text parts are absent", async () => {
+    mockProcessInboundMessage.mockResolvedValue({
+      status: "queued",
+      threadId: "thread-canonical",
+    });
+
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        message: {
+          id: "u1",
+          role: "user",
+          content: "Legacy content payload",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(202);
+    expect(mockProcessInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageText: "Legacy content payload",
+      }),
+    );
+  });
+
   it("returns 400 when thread id is missing", async () => {
     const response = await POST(
       createJsonRequest({
