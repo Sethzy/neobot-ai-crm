@@ -90,11 +90,11 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
         />
 
         <CommandList>
-          {debouncedQuery.length >= 2 && isError ? (
+          {hasActiveQuery && debouncedQuery.length >= 2 && isError ? (
             <CommandEmpty>Unable to search right now. Please try again.</CommandEmpty>
           ) : null}
 
-          {debouncedQuery.length >= 2 && !isError && !isLoading && results.length === 0 ? (
+          {hasActiveQuery && debouncedQuery.length >= 2 && !isError && !isLoading && results.length === 0 ? (
             <CommandEmpty>No results for &ldquo;{debouncedQuery}&rdquo;</CommandEmpty>
           ) : null}
 

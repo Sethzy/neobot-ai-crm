@@ -135,4 +135,27 @@ describe("CommandMenu", () => {
       expect(screen.getByText(/unable to search right now/i)).toBeInTheDocument();
     });
   });
+
+  it("does not show stale empty-state text after closing and reopening", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    mockUseSearchRecords.mockImplementation((query: string) => ({
+      data: query.length >= 2 ? [] : [],
+      isLoading: false,
+      isError: false,
+    }));
+
+    const { rerender } = render(<CommandMenu open onOpenChange={onOpenChange} />);
+
+    await user.type(screen.getByRole("combobox"), "zzz");
+    await waitFor(() => {
+      expect(screen.getByText(/no results for/i)).toBeInTheDocument();
+    });
+
+    rerender(<CommandMenu open={false} onOpenChange={onOpenChange} />);
+    rerender(<CommandMenu open onOpenChange={onOpenChange} />);
+
+    expect(screen.getByRole("combobox")).toHaveValue("");
+    expect(screen.queryByText(/no results for/i)).not.toBeInTheDocument();
+  });
 });
