@@ -1,0 +1,10 @@
+/**
+ * Shared Streamdown plugin configuration used by message and reasoning renderers.
+ * @module components/ai-elements/streamdown-plugins
+ */
+import { cjk } from "@streamdown/cjk";
+import { code } from "@streamdown/code";
+import { math } from "@streamdown/math";
+import { mermaid } from "@streamdown/mermaid";
+
+export const streamdownPlugins = { cjk, code, math, mermaid };
