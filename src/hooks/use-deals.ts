@@ -9,11 +9,15 @@ import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query"
 import { useClientId } from "@/hooks/use-client-id";
 import { useRealtimeTable } from "@/hooks/use-realtime";
 import { buildDealSearchOrFilter } from "@/lib/crm/postgrest-filters";
-import { type Contact, type Deal } from "@/lib/crm/schemas";
+import { type Contact, type Deal, type DealContact } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
-export type DealWithContact = Deal & {
+export type DealContactJoin = Pick<DealContact, "contact_id" | "role" | "is_primary"> & {
   contacts: Pick<Contact, "first_name" | "last_name"> | null;
+};
+
+export type DealWithContact = Deal & {
+  deal_contacts: DealContactJoin[];
 };
 
 export interface DealFilters {
@@ -38,7 +42,7 @@ export const dealKeys = {
 async function fetchDeals(filters: DealFilters): Promise<DealWithContact[]> {
   let query = supabase
     .from("deals")
-    .select("*, contacts(first_name, last_name)")
+    .select("*, deal_contacts(contact_id, role, is_primary, contacts(first_name, last_name))")
     .order("updated_at", { ascending: false });
 
   if (filters.search?.trim()) {
@@ -64,7 +68,7 @@ async function fetchDeals(filters: DealFilters): Promise<DealWithContact[]> {
 async function fetchDeal(dealId: string): Promise<DealWithContact> {
   const { data, error } = await supabase
     .from("deals")
-    .select("*, contacts(first_name, last_name)")
+    .select("*, deal_contacts(contact_id, role, is_primary, contacts(first_name, last_name))")
     .eq("deal_id", dealId)
     .single();
 
@@ -94,10 +98,18 @@ export function dealDetailQueryOptions(dealId: string) {
  */
 export function useDeals(filters: DealFilters) {
   const { data: clientId } = useClientId();
+  const realtimeFilter = clientId ? `client_id=eq.${clientId}` : undefined;
 
   useRealtimeTable({
     table: "deals",
-    filter: clientId ? `client_id=eq.${clientId}` : undefined,
+    filter: realtimeFilter,
+    queryKeys: [dealKeys.all],
+    enabled: Boolean(clientId),
+  });
+
+  useRealtimeTable({
+    table: "deal_contacts",
+    filter: realtimeFilter,
     queryKeys: [dealKeys.all],
     enabled: Boolean(clientId),
   });
@@ -113,10 +125,18 @@ export function useDeals(filters: DealFilters) {
  */
 export function useDeal(dealId: string) {
   const { data: clientId } = useClientId();
+  const realtimeFilter = clientId ? `client_id=eq.${clientId}` : undefined;
 
   useRealtimeTable({
     table: "deals",
-    filter: clientId ? `client_id=eq.${clientId}` : undefined,
+    filter: realtimeFilter,
+    queryKeys: [dealKeys.detail(dealId)],
+    enabled: Boolean(clientId && dealId),
+  });
+
+  useRealtimeTable({
+    table: "deal_contacts",
+    filter: realtimeFilter,
     queryKeys: [dealKeys.detail(dealId)],
     enabled: Boolean(clientId && dealId),
   });

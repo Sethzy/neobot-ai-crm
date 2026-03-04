@@ -8,8 +8,12 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useClientId } from "@/hooks/use-client-id";
 import { useRealtimeTable } from "@/hooks/use-realtime";
-import { type Deal, type Interaction } from "@/lib/crm/schemas";
+import { type DealContact, type Deal, type Interaction } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
+
+export type DealContactWithDeal = DealContact & {
+  deals: Deal | null;
+};
 
 export type InteractionWithContact = Interaction & {
   contacts: { first_name: string; last_name: string } | null;
@@ -34,7 +38,7 @@ export function useContactDeals(contactId: string) {
   const { data: clientId } = useClientId();
 
   useRealtimeTable({
-    table: "deals",
+    table: "deal_contacts",
     filter: clientId ? `client_id=eq.${clientId}` : undefined,
     queryKeys: [contactRelationKeys.deals(contactId)],
     enabled: Boolean(clientId && contactId),
@@ -44,16 +48,16 @@ export function useContactDeals(contactId: string) {
     queryKey: contactRelationKeys.deals(contactId),
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("deals")
-        .select("*")
+        .from("deal_contacts")
+        .select("*, deals(*)")
         .eq("contact_id", contactId)
-        .order("updated_at", { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (error) {
         throw error;
       }
 
-      return (data ?? []) as Deal[];
+      return (data ?? []) as DealContactWithDeal[];
     },
     enabled: Boolean(contactId),
   });
@@ -109,7 +113,7 @@ export function useDealInteractions(dealId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("interactions")
-        .select("*, contacts(first_name, last_name)")
+        .select("*, contacts!interactions_contact_id_fkey(first_name, last_name)")
         .eq("deal_id", dealId)
         .order("occurred_at", { ascending: false });
 

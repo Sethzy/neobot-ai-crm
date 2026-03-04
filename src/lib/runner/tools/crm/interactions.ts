@@ -36,11 +36,12 @@ export function createInteractionTools(
 ) {
   const create_interaction = tool({
     description:
-      "Record a CRM interaction such as a call, meeting, email, message, viewing, or note.",
+      "Record a CRM interaction such as a call, meeting, email, message, viewing, or note. " +
+      "Data Modification Warning: Only record interactions when the user has explicitly asked to do so.",
     inputSchema: z.object({
-      contact_id: z.string().uuid().describe("Contact id linked to the interaction."),
-      deal_id: z.string().uuid().optional().describe("Optional deal id linked to the interaction."),
-      type: z.enum(interactionTypeValues).describe("Interaction type."),
+      contact_id: z.string().uuid().describe("UUID of the contact. Use search_contacts to find this."),
+      deal_id: z.string().uuid().optional().describe("UUID of the deal. Use search_deals to find this."),
+      type: z.enum(interactionTypeValues).describe("Interaction type (call, meeting, email, message, viewing, note)."),
       summary: z.string().optional().describe("Interaction summary."),
       occurred_at: interactionTimestampSchema
         .optional()

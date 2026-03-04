@@ -84,8 +84,10 @@ describe("useContactDeals", () => {
     vi.clearAllMocks();
   });
 
-  it("fetches deals filtered by contact_id", async () => {
-    const builder = createThenableBuilder([{ deal_id: "deal-1", address: "123 Oak St" }]);
+  it("fetches deal_contacts filtered by contact_id with joined deals", async () => {
+    const builder = createThenableBuilder([
+      { deal_contact_id: "dc-1", deal_id: "deal-1", contact_id: "contact-1", deals: { deal_id: "deal-1", address: "123 Oak St" } },
+    ]);
     mockFrom.mockReturnValue(builder);
 
     const { result } = renderHook(() => useContactDeals("contact-1"), {
@@ -93,10 +95,12 @@ describe("useContactDeals", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(mockFrom).toHaveBeenCalledWith("deals");
+    expect(mockFrom).toHaveBeenCalledWith("deal_contacts");
+    expect(builder.select).toHaveBeenCalledWith("*, deals(*)");
     expect(builder.eq).toHaveBeenCalledWith("contact_id", "contact-1");
+    expect(builder.order).toHaveBeenCalledWith("created_at", { ascending: false });
     expect(mockUseRealtimeTable).toHaveBeenCalledWith({
-      table: "deals",
+      table: "deal_contacts",
       filter: "client_id=eq.client-1",
       queryKeys: [contactRelationKeys.deals("contact-1")],
       enabled: true,
@@ -153,7 +157,7 @@ describe("useDealInteractions", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockFrom).toHaveBeenCalledWith("interactions");
-    expect(builder.select).toHaveBeenCalledWith("*, contacts(first_name, last_name)");
+    expect(builder.select).toHaveBeenCalledWith("*, contacts!interactions_contact_id_fkey(first_name, last_name)");
     expect(builder.eq).toHaveBeenCalledWith("deal_id", "deal-1");
     expect(builder.order).toHaveBeenCalledWith("occurred_at", { ascending: false });
     expect(mockUseRealtimeTable).toHaveBeenCalledWith({

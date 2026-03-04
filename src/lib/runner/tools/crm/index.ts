@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 
 import { createContactTools } from "./contacts";
+import { createDealContactTools } from "./deal-contacts";
 import { createDealTools } from "./deals";
 import { createInteractionTools } from "./interactions";
 import { createTaskTools } from "./tasks";
@@ -31,6 +32,7 @@ export function createCrmTools(
 
   const contactTools = createContactTools(supabase, clientId);
   const dealTools = createDealTools(supabase, clientId);
+  const dealContactTools = createDealContactTools(supabase, clientId);
   const interactionTools = createInteractionTools(supabase, clientId);
   const taskTools = createTaskTools(supabase, clientId);
 
@@ -38,6 +40,7 @@ export function createCrmTools(
     search_contacts: contactTools.search_contacts,
     search_deals: dealTools.search_deals,
     search_tasks: taskTools.search_tasks,
+    get_deal_contacts: dealContactTools.get_deal_contacts,
   };
 
   if (!allowWriteTools) {
@@ -50,6 +53,8 @@ export function createCrmTools(
     update_contact: contactTools.update_contact,
     create_deal: dealTools.create_deal,
     update_deal: dealTools.update_deal,
+    link_contact_to_deal: dealContactTools.link_contact_to_deal,
+    unlink_contact_from_deal: dealContactTools.unlink_contact_from_deal,
     create_interaction: interactionTools.create_interaction,
     create_task: taskTools.create_task,
     update_task: taskTools.update_task,

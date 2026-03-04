@@ -14,6 +14,7 @@ export type RealtimeTableName =
   | "conversation_messages"
   | "contacts"
   | "deals"
+  | "deal_contacts"
   | "interactions"
   | "crm_tasks"
   | "vault_files";

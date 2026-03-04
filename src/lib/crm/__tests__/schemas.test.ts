@@ -11,6 +11,9 @@ import {
   crmTaskInsertSchema,
   crmTaskSchema,
   crmTaskStatusValues,
+  dealContactInsertSchema,
+  dealContactRoleValues,
+  dealContactSchema,
   dealInsertSchema,
   dealSchema,
   dealStageValues,
@@ -92,7 +95,6 @@ describe("deal schemas", () => {
   const validRow = {
     deal_id: "750e8400-e29b-41d4-a716-446655440000",
     client_id: "660e8400-e29b-41d4-a716-446655440000",
-    contact_id: "550e8400-e29b-41d4-a716-446655440000",
     address: "123 Orchard Road, #08-01",
     stage: "viewing" as const,
     price: 1500000,
@@ -105,8 +107,12 @@ describe("deal schemas", () => {
     expect(dealSchema.parse(validRow)).toEqual(validRow);
   });
 
+  test("no longer has contact_id field", () => {
+    expect(dealSchema.shape).not.toHaveProperty("contact_id");
+  });
+
   test("allows nullable fields in row", () => {
-    const nullableRow = { ...validRow, contact_id: null, price: null, notes: null };
+    const nullableRow = { ...validRow, price: null, notes: null };
     expect(dealSchema.parse(nullableRow)).toEqual(nullableRow);
   });
 
@@ -128,7 +134,6 @@ describe("deal schemas", () => {
       client_id: validRow.client_id,
       address: "1 Holland Ave",
       stage: "offer" as const,
-      contact_id: null,
       price: null,
       notes: null,
     };
@@ -145,6 +150,47 @@ describe("deal schemas", () => {
       "completion",
       "lost",
     ]);
+  });
+});
+
+describe("deal contact schemas", () => {
+  test("dealContactRoleValues contains expected roles", () => {
+    expect(dealContactRoleValues).toEqual(["buyer", "seller", "agent", "other"]);
+  });
+
+  test("validates a full deal_contacts row", () => {
+    const result = dealContactSchema.safeParse({
+      deal_contact_id: "550e8400-e29b-41d4-a716-446655440001",
+      client_id: "660e8400-e29b-41d4-a716-446655440000",
+      deal_id: "550e8400-e29b-41d4-a716-446655440010",
+      contact_id: "550e8400-e29b-41d4-a716-446655440020",
+      role: "buyer",
+      is_primary: true,
+      created_at: ISO,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  test("validates a minimal insert payload", () => {
+    const result = dealContactInsertSchema.safeParse({
+      client_id: "660e8400-e29b-41d4-a716-446655440000",
+      deal_id: "550e8400-e29b-41d4-a716-446655440010",
+      contact_id: "550e8400-e29b-41d4-a716-446655440020",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  test("rejects invalid role", () => {
+    const result = dealContactSchema.safeParse({
+      deal_contact_id: "550e8400-e29b-41d4-a716-446655440001",
+      client_id: "660e8400-e29b-41d4-a716-446655440000",
+      deal_id: "550e8400-e29b-41d4-a716-446655440010",
+      contact_id: "550e8400-e29b-41d4-a716-446655440020",
+      role: "invalid_role",
+      is_primary: true,
+      created_at: ISO,
+    });
+    expect(result.success).toBe(false);
   });
 });
 

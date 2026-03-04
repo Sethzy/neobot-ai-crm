@@ -104,7 +104,7 @@ describe("useDeals", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockFrom).toHaveBeenCalledWith("deals");
-    expect(builder.select).toHaveBeenCalledWith("*, contacts(first_name, last_name)");
+    expect(builder.select).toHaveBeenCalledWith("*, deal_contacts(contact_id, role, is_primary, contacts(first_name, last_name))");
     expect(builder.order).toHaveBeenCalledWith("updated_at", { ascending: false });
   });
 
@@ -134,7 +134,7 @@ describe("useDeals", () => {
     expect(builder.eq).toHaveBeenCalledWith("stage", "offer");
   });
 
-  it("wires realtime invalidation for deals table", async () => {
+  it("wires realtime invalidation for deals and deal_contacts tables", async () => {
     const builder = createThenableBuilder([]);
     mockFrom.mockReturnValue(builder);
 
@@ -145,6 +145,12 @@ describe("useDeals", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockUseRealtimeTable).toHaveBeenCalledWith({
       table: "deals",
+      filter: "client_id=eq.client-1",
+      queryKeys: [dealKeys.all],
+      enabled: true,
+    });
+    expect(mockUseRealtimeTable).toHaveBeenCalledWith({
+      table: "deal_contacts",
       filter: "client_id=eq.client-1",
       queryKeys: [dealKeys.all],
       enabled: true,
@@ -168,7 +174,7 @@ describe("useDeal", () => {
     vi.clearAllMocks();
   });
 
-  it("wires realtime invalidation for selected deal id", async () => {
+  it("wires realtime invalidation for deals and deal_contacts tables", async () => {
     const builder = createThenableBuilder([
       {
         deal_id: "deal-1",
@@ -186,6 +192,12 @@ describe("useDeal", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockUseRealtimeTable).toHaveBeenCalledWith({
       table: "deals",
+      filter: "client_id=eq.client-1",
+      queryKeys: [dealKeys.detail("deal-1")],
+      enabled: true,
+    });
+    expect(mockUseRealtimeTable).toHaveBeenCalledWith({
+      table: "deal_contacts",
       filter: "client_id=eq.client-1",
       queryKeys: [dealKeys.detail("deal-1")],
       enabled: true,

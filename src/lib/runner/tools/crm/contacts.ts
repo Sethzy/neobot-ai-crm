@@ -35,10 +35,11 @@ export function createContactTools(
 ) {
   const search_contacts = tool({
     description:
-      "Search contacts by name, email, or phone. Optionally filter by contact type.",
+      "Search contacts by name, email, or phone. Use this before creating a new contact to avoid duplicates. " +
+      "Omit query to list all contacts. Searches across first_name, last_name, email, and phone using OR matching.",
     inputSchema: z.object({
-      query: z.string().trim().min(1).describe("Search term for name, email, or phone."),
-      type: z.enum(contactTypeValues).optional().describe("Optional contact type filter."),
+      query: z.string().trim().min(1).optional().describe("Search term for name, email, or phone. Omit to list all contacts."),
+      type: z.enum(contactTypeValues).optional().describe("Contact type filter (buyer, seller, landlord, tenant, agent, other)."),
       limit: z
         .number()
         .int()
@@ -52,8 +53,11 @@ export function createContactTools(
 
       let queryBuilder = supabase
         .from("contacts")
-        .select("*")
-        .or(buildSearchExpression(query));
+        .select("*");
+
+      if (query) {
+        queryBuilder = queryBuilder.or(buildSearchExpression(query));
+      }
 
       if (type) {
         queryBuilder = queryBuilder.eq("type", type);
@@ -77,13 +81,14 @@ export function createContactTools(
 
   const create_contact = tool({
     description:
-      "Create a new contact. Use this when the user shares details about a new person.",
+      "Create a new contact. Use search_contacts first to avoid duplicates. " +
+      "Data Modification Warning: Only create contacts when the user has explicitly asked to do so.",
     inputSchema: z.object({
       first_name: z.string().min(1).describe("Contact first name."),
       last_name: z.string().min(1).describe("Contact last name."),
       email: z.string().email().optional().describe("Contact email address."),
       phone: z.string().min(1).optional().describe("Contact phone number."),
-      type: z.enum(contactTypeValues).optional().describe("Contact classification."),
+      type: z.enum(contactTypeValues).optional().describe("Contact classification (buyer, seller, landlord, tenant, agent, other). Defaults to 'other'."),
       notes: z.string().optional().describe("Free-form contact notes."),
     }),
     execute: async ({ first_name, last_name, email, phone, type, notes }) => {
@@ -114,9 +119,11 @@ export function createContactTools(
 
   const update_contact = tool({
     description:
-      "Update an existing contact by id. Use this after finding the contact via search_contacts.",
+      "Update an existing contact by id. Use this after finding the contact via search_contacts. " +
+      "Only provided fields are updated. Omit fields you don't want to change. Pass null to clear a nullable field. " +
+      "Data Modification Warning: Only update contacts when the user has explicitly asked to do so.",
     inputSchema: z.object({
-      contact_id: z.string().uuid().describe("UUID of the contact to update."),
+      contact_id: z.string().uuid().describe("UUID of the contact to update. Use search_contacts to find this."),
       first_name: z.string().min(1).optional().describe("Updated first name."),
       last_name: z.string().min(1).optional().describe("Updated last name."),
       email: z.string().email().nullable().optional().describe("Updated email or null to clear."),

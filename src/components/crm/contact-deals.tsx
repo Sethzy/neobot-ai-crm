@@ -69,16 +69,20 @@ export function ContactDeals({ contactId }: ContactDealsProps) {
           </tr>
         </thead>
         <tbody>
-          {deals.map((deal) => (
-            <tr key={deal.deal_id} className="border-t border-border/30">
-              <td className="px-4 py-3 text-sm text-foreground/80">{deal.address}</td>
-              <td className="px-4 py-3">
-                <Badge variant={dealStageBadgeVariantMap[deal.stage]}>{deal.stage}</Badge>
-              </td>
-              <td className="px-4 py-3 text-sm text-foreground/80">{formatCrmPrice(deal.price)}</td>
-              <td className="px-4 py-3 text-sm text-muted-foreground">{formatCrmDate(deal.updated_at)}</td>
-            </tr>
-          ))}
+          {deals.map((dc) => {
+            const deal = dc.deals;
+
+            return (
+              <tr key={dc.deal_contact_id} className="border-t border-border/30">
+                <td className="px-4 py-3 text-sm text-foreground/80">{deal?.address ?? <span className="text-muted-foreground">—</span>}</td>
+                <td className="px-4 py-3">
+                  {deal ? <Badge variant={dealStageBadgeVariantMap[deal.stage]}>{deal.stage}</Badge> : <span className="text-muted-foreground">—</span>}
+                </td>
+                <td className="px-4 py-3 text-sm text-foreground/80">{deal ? formatCrmPrice(deal.price) : <span className="text-muted-foreground">—</span>}</td>
+                <td className="px-4 py-3 text-sm text-muted-foreground">{deal ? formatCrmDate(deal.updated_at) : "—"}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

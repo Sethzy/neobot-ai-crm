@@ -37,11 +37,12 @@ export function createTaskTools(
 ) {
   const search_tasks = tool({
     description:
-      "Search CRM tasks. Optionally filter by status, contact id, or deal id.",
+      "Search CRM tasks. Optionally filter by status, contact, or deal. " +
+      "Use this to find tasks before updating them.",
     inputSchema: z.object({
-      status: z.enum(crmTaskStatusValues).optional().describe("Optional task status filter."),
-      contact_id: z.string().uuid().optional().describe("Optional contact id filter."),
-      deal_id: z.string().uuid().optional().describe("Optional deal id filter."),
+      status: z.enum(crmTaskStatusValues).optional().describe("Task status filter (open, completed)."),
+      contact_id: z.string().uuid().optional().describe("Filter by contact UUID. Use search_contacts to find this."),
+      deal_id: z.string().uuid().optional().describe("Filter by deal UUID. Use search_deals to find this."),
       limit: z
         .number()
         .int()
@@ -86,16 +87,17 @@ export function createTaskTools(
 
   const create_task = tool({
     description:
-      "Create a new CRM follow-up task.",
+      "Create a new CRM follow-up task. " +
+      "Data Modification Warning: Only create tasks when the user has explicitly asked to do so.",
     inputSchema: z.object({
       title: z.string().min(1).describe("Task title."),
       description: z.string().optional().describe("Task description."),
-      status: z.enum(crmTaskStatusValues).optional().describe("Task status."),
+      status: z.enum(crmTaskStatusValues).optional().describe("Task status (open, completed). Defaults to 'open'."),
       due_date: taskTimestampSchema
         .optional()
         .describe("ISO-8601 due timestamp or YYYY-MM-DD date."),
-      contact_id: z.string().uuid().optional().describe("Associated contact id."),
-      deal_id: z.string().uuid().optional().describe("Associated deal id."),
+      contact_id: z.string().uuid().optional().describe("UUID of the contact. Use search_contacts to find this."),
+      deal_id: z.string().uuid().optional().describe("UUID of the deal. Use search_deals to find this."),
     }),
     execute: async ({ title, description, status, due_date, contact_id, deal_id }) => {
       const normalizedDueDate = normalizeDueDate(due_date) ?? null;
@@ -127,18 +129,20 @@ export function createTaskTools(
 
   const update_task = tool({
     description:
-      "Update an existing CRM task by id.",
+      "Update an existing CRM task by id. Use this after finding the task via search_tasks. " +
+      "Only provided fields are updated. Omit fields you don't want to change. Pass null to clear a nullable field. " +
+      "Data Modification Warning: Only update tasks when the user has explicitly asked to do so.",
     inputSchema: z.object({
-      task_id: z.string().uuid().describe("UUID of the task to update."),
+      task_id: z.string().uuid().describe("UUID of the task to update. Use search_tasks to find this."),
       title: z.string().min(1).optional().describe("Updated task title."),
       description: z.string().nullable().optional().describe("Updated task description or null."),
-      status: z.enum(crmTaskStatusValues).optional().describe("Updated task status."),
+      status: z.enum(crmTaskStatusValues).optional().describe("Updated task status (open, completed)."),
       due_date: taskTimestampSchema
         .nullable()
         .optional()
         .describe("Updated due timestamp/date or null."),
-      contact_id: z.string().uuid().nullable().optional().describe("Updated contact id or null."),
-      deal_id: z.string().uuid().nullable().optional().describe("Updated deal id or null."),
+      contact_id: z.string().uuid().nullable().optional().describe("Updated contact UUID or null. Use search_contacts to find this."),
+      deal_id: z.string().uuid().nullable().optional().describe("Updated deal UUID or null. Use search_deals to find this."),
     }),
     execute: async ({ task_id, ...fields }) => {
       const updates = Object.fromEntries(

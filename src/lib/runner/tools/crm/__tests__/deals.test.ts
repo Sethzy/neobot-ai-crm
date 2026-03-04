@@ -18,7 +18,6 @@ describe("search_deals", () => {
         address: "123 Orchard Rd",
         stage: "leads",
         price: 1500000,
-        contact_id: "550e8400-e29b-41d4-a716-446655440001",
         notes: null,
       },
     ];
@@ -45,23 +44,6 @@ describe("search_deals", () => {
     await tools.search_deals.execute({ stage: "offer" }, EXECUTION_OPTIONS);
 
     expect(builders.deals.eq).toHaveBeenCalledWith("stage", "offer");
-  });
-
-  it("filters by contact_id when provided", async () => {
-    const { client, builders } = createMockSupabase({
-      deals: { data: [], error: null },
-    });
-    const tools = createDealTools(client, CLIENT_ID);
-
-    await tools.search_deals.execute(
-      { contact_id: "550e8400-e29b-41d4-a716-446655440001" },
-      EXECUTION_OPTIONS,
-    );
-
-    expect(builders.deals.eq).toHaveBeenCalledWith(
-      "contact_id",
-      "550e8400-e29b-41d4-a716-446655440001",
-    );
   });
 
   it("returns errors from Supabase", async () => {
@@ -100,7 +82,6 @@ describe("create_deal", () => {
       address: "456 Marina Bay",
       stage: "viewing",
       price: 2000000,
-      contact_id: "550e8400-e29b-41d4-a716-446655440001",
       notes: null,
       created_at: "2026-03-01T00:00:00Z",
       updated_at: "2026-03-01T00:00:00Z",
@@ -115,7 +96,6 @@ describe("create_deal", () => {
         address: "456 Marina Bay",
         stage: "viewing",
         price: 2000000,
-        contact_id: "550e8400-e29b-41d4-a716-446655440001",
       },
       EXECUTION_OPTIONS,
     );
@@ -154,7 +134,6 @@ describe("update_deal", () => {
       address: "123 Orchard Rd",
       stage: "negotiation",
       price: 1600000,
-      contact_id: "550e8400-e29b-41d4-a716-446655440001",
       notes: "Price negotiated down",
       created_at: "2026-03-01T00:00:00Z",
       updated_at: "2026-03-01T01:00:00Z",

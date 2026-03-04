@@ -34,14 +34,15 @@ describe("DealsPage integration", () => {
         {
           deal_id: "d-1",
           client_id: "cl-1",
-          contact_id: "c-1",
           address: "123 Orchard Road",
           stage: "viewing",
           price: 1500000,
           notes: null,
           created_at: "2026-02-01T00:00:00+08:00",
           updated_at: "2026-03-01T00:00:00+08:00",
-          contacts: { first_name: "John", last_name: "Smith" },
+          deal_contacts: [
+            { contact_id: "c-1", role: "buyer", is_primary: true, contacts: { first_name: "John", last_name: "Smith" } },
+          ],
         },
       ],
       isLoading: false,

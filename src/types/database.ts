@@ -651,11 +651,62 @@ export type Database = {
           },
         ]
       }
+      deal_contacts: {
+        Row: {
+          deal_contact_id: string
+          client_id: string
+          deal_id: string
+          contact_id: string
+          role: string
+          is_primary: boolean
+          created_at: string
+        }
+        Insert: {
+          deal_contact_id?: string
+          client_id: string
+          deal_id: string
+          contact_id: string
+          role?: string
+          is_primary?: boolean
+          created_at?: string
+        }
+        Update: {
+          deal_contact_id?: string
+          client_id?: string
+          deal_id?: string
+          contact_id?: string
+          role?: string
+          is_primary?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "deal_contacts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "deal_contacts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["contact_id"]
+          },
+        ]
+      }
       deals: {
         Row: {
           address: string
           client_id: string
-          contact_id: string | null
           created_at: string
           deal_id: string
           notes: string | null
@@ -666,7 +717,6 @@ export type Database = {
         Insert: {
           address: string
           client_id: string
-          contact_id?: string | null
           created_at?: string
           deal_id?: string
           notes?: string | null
@@ -677,7 +727,6 @@ export type Database = {
         Update: {
           address?: string
           client_id?: string
-          contact_id?: string | null
           created_at?: string
           deal_id?: string
           notes?: string | null
@@ -692,13 +741,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "deals_contact_id_fkey"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["contact_id"]
           },
         ]
       }

@@ -57,18 +57,19 @@ export function DealsTable({ deals }: DealsTableProps) {
         header: "Price",
         cell: (info) => <span className="tabular-nums text-foreground/80">{formatCrmPrice(info.getValue())}</span>,
       }),
-      columnHelper.accessor("contacts", {
+      columnHelper.display({
         id: "contact",
         header: "Contact",
         enableSorting: false,
-        cell: (info) => {
-          const contact = info.getValue();
+        cell: ({ row }) => {
+          const primary = row.original.deal_contacts?.find((dc) => dc.is_primary)
+            ?? row.original.deal_contacts?.[0];
 
-          if (!contact) {
+          if (!primary?.contacts) {
             return <span className="text-muted-foreground">—</span>;
           }
 
-          return formatContactFullName(contact);
+          return formatContactFullName(primary.contacts);
         },
       }),
       columnHelper.accessor("updated_at", {

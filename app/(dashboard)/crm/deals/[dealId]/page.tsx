@@ -62,7 +62,10 @@ export default function DealDetailPage() {
     );
   }
 
-  const contactName = deal.contacts ? formatContactFullName(deal.contacts) : null;
+  const primaryContact = deal.deal_contacts?.find((dc) => dc.is_primary)?.contacts
+    ?? deal.deal_contacts?.[0]?.contacts
+    ?? null;
+  const contactName = primaryContact ? formatContactFullName(primaryContact) : null;
 
   return (
     <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">

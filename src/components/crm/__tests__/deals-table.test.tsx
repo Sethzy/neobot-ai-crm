@@ -22,26 +22,26 @@ const sampleDeals = [
   {
     deal_id: "d-1",
     client_id: "cl-1",
-    contact_id: "c-1",
     address: "123 Orchard Road",
     stage: "viewing" as const,
     price: 1500000,
     notes: "Hot lead",
     created_at: "2026-02-01T00:00:00+08:00",
     updated_at: "2026-03-01T00:00:00+08:00",
-    contacts: { first_name: "John", last_name: "Smith" },
+    deal_contacts: [
+      { contact_id: "c-1", role: "buyer", is_primary: true, contacts: { first_name: "John", last_name: "Smith" } },
+    ],
   },
   {
     deal_id: "d-2",
     client_id: "cl-1",
-    contact_id: null,
     address: "456 Bukit Timah Road",
     stage: "lost" as const,
     price: null,
     notes: null,
     created_at: "2026-02-15T00:00:00+08:00",
     updated_at: "2026-02-28T00:00:00+08:00",
-    contacts: null,
+    deal_contacts: [],
   },
 ];
 

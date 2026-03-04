@@ -33,11 +33,11 @@ export function createDealTools(
 ) {
   const search_deals = tool({
     description:
-      "Search deals by address or notes. Optionally filter by stage or contact id.",
+      "Search deals by address or notes. Optionally filter by stage. " +
+      "Use get_deal_contacts to find contacts linked to a deal.",
     inputSchema: z.object({
-      query: z.string().trim().min(1).optional().describe("Search term for address and notes."),
-      stage: z.enum(dealStageValues).optional().describe("Optional deal stage filter."),
-      contact_id: z.string().uuid().optional().describe("Optional contact id filter."),
+      query: z.string().trim().min(1).optional().describe("Search term for address and notes. Omit to list all deals."),
+      stage: z.enum(dealStageValues).optional().describe("Deal pipeline stage filter (leads, viewing, offer, negotiation, otp, completion, lost)."),
       limit: z
         .number()
         .int()
@@ -46,7 +46,7 @@ export function createDealTools(
         .optional()
         .describe("Maximum results to return. Defaults to 20."),
     }),
-    execute: async ({ query, stage, contact_id, limit }) => {
+    execute: async ({ query, stage, limit }) => {
       const maxResults = limit ?? DEFAULT_RESULT_LIMIT;
       let queryBuilder = supabase.from("deals").select("*");
 
@@ -56,10 +56,6 @@ export function createDealTools(
 
       if (stage) {
         queryBuilder = queryBuilder.eq("stage", stage);
-      }
-
-      if (contact_id) {
-        queryBuilder = queryBuilder.eq("contact_id", contact_id);
       }
 
       const { data, error } = await queryBuilder.limit(maxResults);
@@ -80,15 +76,16 @@ export function createDealTools(
 
   const create_deal = tool({
     description:
-      "Create a new deal. Use this for new listings or opportunities.",
+      "Create a new deal. Use this for new listings or opportunities. " +
+      "Use link_contact_to_deal after creating to associate contacts. " +
+      "Data Modification Warning: Only create deals when the user has explicitly asked to do so.",
     inputSchema: z.object({
       address: z.string().min(1).describe("Property address."),
-      stage: z.enum(dealStageValues).optional().describe("Deal stage."),
+      stage: z.enum(dealStageValues).optional().describe("Deal pipeline stage (leads, viewing, offer, negotiation, otp, completion, lost). Defaults to 'leads'."),
       price: z.number().int().nonnegative().optional().describe("Deal price in whole units."),
-      contact_id: z.string().uuid().optional().describe("Associated contact id."),
       notes: z.string().optional().describe("Deal notes."),
     }),
-    execute: async ({ address, stage, price, contact_id, notes }) => {
+    execute: async ({ address, stage, price, notes }) => {
       const { data, error } = await supabase
         .from("deals")
         .insert({
@@ -96,7 +93,6 @@ export function createDealTools(
           address,
           stage,
           price,
-          contact_id,
           notes: notes ?? null,
         })
         .select()
@@ -115,13 +111,14 @@ export function createDealTools(
 
   const update_deal = tool({
     description:
-      "Update an existing deal by id. Use this after finding the deal via search_deals.",
+      "Update an existing deal by id. Use this after finding the deal via search_deals. " +
+      "Only provided fields are updated. Omit fields you don't want to change. Pass null to clear a nullable field. " +
+      "Data Modification Warning: Only update deals when the user has explicitly asked to do so.",
     inputSchema: z.object({
-      deal_id: z.string().uuid().describe("UUID of the deal to update."),
+      deal_id: z.string().uuid().describe("UUID of the deal to update. Use search_deals to find this."),
       address: z.string().min(1).optional().describe("Updated address."),
-      stage: z.enum(dealStageValues).optional().describe("Updated stage."),
+      stage: z.enum(dealStageValues).optional().describe("Updated pipeline stage (leads, viewing, offer, negotiation, otp, completion, lost)."),
       price: z.number().int().nonnegative().nullable().optional().describe("Updated price or null."),
-      contact_id: z.string().uuid().nullable().optional().describe("Updated contact id or null."),
       notes: z.string().nullable().optional().describe("Updated notes or null."),
     }),
     execute: async ({ deal_id, ...fields }) => {

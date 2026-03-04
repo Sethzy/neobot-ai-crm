@@ -85,7 +85,6 @@ const dealStageSchema = z.enum(dealStageValues);
 export const dealSchema = z.object({
   deal_id: z.string().uuid(),
   client_id: z.string().uuid(),
-  contact_id: z.string().uuid().nullable(),
   address: z.string().min(1),
   stage: dealStageSchema,
   price: z.number().int().nonnegative().nullable(),
@@ -97,7 +96,6 @@ export const dealSchema = z.object({
 /** Insert payload validator for `deals` (id/timestamps omitted). */
 export const dealInsertSchema = z.object({
   client_id: z.string().uuid(),
-  contact_id: z.string().uuid().nullable().optional(),
   address: z.string().min(1),
   stage: dealStageSchema.optional(),
   price: z.number().int().nonnegative().nullable().optional(),
@@ -106,6 +104,39 @@ export const dealInsertSchema = z.object({
 
 export type Deal = z.infer<typeof dealSchema>;
 export type DealInsert = z.infer<typeof dealInsertSchema>;
+
+/** Valid roles for contacts linked to a deal. */
+export const dealContactRoleValues = [
+  "buyer",
+  "seller",
+  "agent",
+  "other",
+] as const;
+
+const dealContactRoleSchema = z.enum(dealContactRoleValues);
+
+/** Full `deal_contacts` row validator. */
+export const dealContactSchema = z.object({
+  deal_contact_id: z.string().uuid(),
+  client_id: z.string().uuid(),
+  deal_id: z.string().uuid(),
+  contact_id: z.string().uuid(),
+  role: dealContactRoleSchema,
+  is_primary: z.boolean(),
+  created_at: isoDateTimeSchema,
+});
+
+/** Insert payload validator for `deal_contacts` (id/created_at omitted). */
+export const dealContactInsertSchema = z.object({
+  client_id: z.string().uuid(),
+  deal_id: z.string().uuid(),
+  contact_id: z.string().uuid(),
+  role: dealContactRoleSchema.optional(),
+  is_primary: z.boolean().optional(),
+});
+
+export type DealContact = z.infer<typeof dealContactSchema>;
+export type DealContactInsert = z.infer<typeof dealContactInsertSchema>;
 
 /** Valid interaction type classifications. */
 export const interactionTypeValues = [
