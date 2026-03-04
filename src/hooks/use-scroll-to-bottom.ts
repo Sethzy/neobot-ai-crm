@@ -35,6 +35,9 @@ export function useScrollToBottom() {
   /** Tracks if user is actively scrolling (prevents auto-scroll fighting) */
   const isUserScrollingRef = useRef(false);
 
+  /** Tracks if user recently clicked in the container (collapsible toggle) */
+  const isUserInteractingRef = useRef(false);
+
   /**
    * Checks if scroll position is within threshold of bottom.
    * Uses container's scroll metrics to calculate.
@@ -103,6 +106,34 @@ export function useScrollToBottom() {
   }, [checkIfAtBottom]);
 
   /**
+   * Suppress auto-scroll after user clicks in the container.
+   * Covers collapsible toggles — the DOM mutation from expanding content
+   * should not trigger auto-scroll since the user initiated it.
+   */
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const INTERACTION_DEBOUNCE_MS = 400;
+    let interactionTimeout: ReturnType<typeof setTimeout>;
+
+    const handlePointerDown = () => {
+      isUserInteractingRef.current = true;
+      clearTimeout(interactionTimeout);
+      interactionTimeout = setTimeout(() => {
+        isUserInteractingRef.current = false;
+      }, INTERACTION_DEBOUNCE_MS);
+    };
+
+    container.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      container.removeEventListener('pointerdown', handlePointerDown);
+      clearTimeout(interactionTimeout);
+    };
+  }, []);
+
+  /**
    * Auto-scroll on content changes using MutationObserver + ResizeObserver.
    * Only scrolls if user is at bottom and not actively scrolling.
    * Uses 'instant' behavior during streaming to avoid animation jank.
@@ -115,7 +146,7 @@ export function useScrollToBottom() {
       // Only auto-scroll if:
       // 1. User is at bottom (hasn't scrolled up)
       // 2. User is not actively scrolling (prevents fighting)
-      if (isAtBottomRef.current && !isUserScrollingRef.current) {
+      if (isAtBottomRef.current && !isUserScrollingRef.current && !isUserInteractingRef.current) {
         requestAnimationFrame(() => {
           container.scrollTo({
             top: container.scrollHeight,

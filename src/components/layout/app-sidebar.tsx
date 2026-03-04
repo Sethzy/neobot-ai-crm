@@ -9,6 +9,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback } from "react";
+import { toast } from "sonner";
 import {
   MessageCircle,
   Gauge,
@@ -22,6 +23,8 @@ import {
   Settings,
   LogOut,
   ChevronsUpDown,
+  MoreHorizontal,
+  Archive,
 } from "lucide-react";
 import { Logo } from "@/components/landing/Logo";
 import { useSession } from "@/hooks/use-session";
@@ -32,13 +35,13 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarGroup,
   SidebarGroupLabel,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { ThreadRail } from "@/components/chat/thread-rail";
 import { useThreads } from "@/contexts/thread-context";
 import {
   DropdownMenu,
@@ -61,7 +64,7 @@ const agentNavItems = [
 const databaseNavItems = [
   { label: "CRM", href: "/crm", icon: Users },
   { label: "Knowledge", href: "/knowledge", icon: BookOpen },
-  { label: "Documents", href: "/cases", icon: FileText },
+  { label: "Workspace", href: "/cases", icon: FileText },
   { label: "Channels", href: "/channels", icon: Radio },
 ];
 
@@ -70,7 +73,7 @@ export function AppSidebar() {
   const router = useRouter();
   const { user } = useSession();
   const { isMobile, setOpenMobile } = useSidebar();
-  const { threads, activeThreadId, createThread, selectThread } = useThreads();
+  const { threads, archiveThread } = useThreads();
 
   const closeMobileSidebar = useCallback(() => {
     if (isMobile) {
@@ -83,32 +86,42 @@ export function AppSidebar() {
     router.push("/");
   };
 
-  const handleCreateThread = useCallback(() => {
-    createThread();
-    closeMobileSidebar();
-  }, [createThread, closeMobileSidebar]);
+  const handleArchiveThread = useCallback(
+    async (threadId: string) => {
+      let hasArchived = false;
+      try {
+        hasArchived = await archiveThread(threadId);
+      } catch {
+        toast.error("Failed to archive chat.");
+        return;
+      }
 
-  const handleSelectThread = useCallback(
-    (id: string) => {
-      selectThread(id);
-      closeMobileSidebar();
+      if (!hasArchived) {
+        toast.error("Failed to archive chat.");
+        return;
+      }
+
+      const isViewingArchivedThread = pathname.startsWith(`/chat/${threadId}`);
+      if (!isViewingArchivedThread) {
+        return;
+      }
+
+      const nextThread = threads.find((thread) => thread.id !== threadId);
+      if (nextThread) {
+        router.push(`/chat/${nextThread.id}`);
+      } else {
+        router.push("/chat");
+      }
     },
-    [selectThread, closeMobileSidebar],
+    [archiveThread, pathname, router, threads],
   );
 
-  const renderNavItems = (
-    items: typeof agentNavItems,
-    options?: { includeThreadRail?: boolean },
-  ) =>
+  const renderNavItems = (items: typeof agentNavItems) =>
     items.map((item) => {
       const isActive =
         item.href === "/cases"
           ? pathname.startsWith("/cases")
           : pathname.startsWith(item.href);
-      const shouldRenderThreadRail =
-        options?.includeThreadRail === true &&
-        item.href === "/chat" &&
-        pathname.startsWith("/chat");
       const Icon = item.icon;
 
       return (
@@ -124,14 +137,6 @@ export function AppSidebar() {
               <span>{item.label}</span>
             </Link>
           </SidebarMenuButton>
-          {shouldRenderThreadRail ? (
-            <ThreadRail
-              threads={threads}
-              activeThreadId={activeThreadId}
-              onSelectThread={handleSelectThread}
-              onNewThread={handleCreateThread}
-            />
-          ) : null}
         </SidebarMenuItem>
       );
     });
@@ -150,7 +155,7 @@ export function AppSidebar() {
           <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold h-6">
             Agent
           </SidebarGroupLabel>
-          <SidebarMenu>{renderNavItems(agentNavItems, { includeThreadRail: true })}</SidebarMenu>
+          <SidebarMenu>{renderNavItems(agentNavItems)}</SidebarMenu>
         </SidebarGroup>
 
         {/* DATABASE section */}
@@ -159,6 +164,48 @@ export function AppSidebar() {
             Database
           </SidebarGroupLabel>
           <SidebarMenu>{renderNavItems(databaseNavItems)}</SidebarMenu>
+        </SidebarGroup>
+
+        {/* SESSIONS section — thread history, always visible */}
+        <SidebarGroup className="py-1">
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold h-6">
+            Sessions
+          </SidebarGroupLabel>
+          <SidebarMenu>
+            {threads.map((thread) => (
+              <SidebarMenuItem key={thread.id} className="group/thread">
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname.startsWith(`/chat/${thread.id}`)}
+                  tooltip={thread.title}
+                  className="hover:bg-muted/50 data-[active=true]:bg-muted/60 data-[active=true]:text-foreground data-[active=true]:font-medium transition-colors"
+                >
+                  <Link
+                    href={`/chat/${thread.id}`}
+                    onClick={() => closeMobileSidebar()}
+                  >
+                    <span className="truncate text-sm">{thread.title}</span>
+                  </Link>
+                </SidebarMenuButton>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <SidebarMenuAction
+                      aria-label={`More actions for ${thread.title}`}
+                      className="opacity-0 group-hover/thread:opacity-100 transition-opacity"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </SidebarMenuAction>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="right" align="start">
+                    <DropdownMenuItem onClick={() => handleArchiveThread(thread.id)}>
+                      <Archive className="h-4 w-4 mr-2" />
+                      Archive
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
 

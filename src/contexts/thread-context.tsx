@@ -10,12 +10,12 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 
 import { useClientId } from "@/hooks/use-client-id";
 import {
+  useArchiveThread,
   useCreateThread,
   useThreads as useThreadRows,
   useUpdateThreadTitle,
@@ -25,25 +25,26 @@ import type { Thread } from "@/types/chat";
 interface ThreadContextValue {
   threads: Thread[];
   activeThreadId: string;
-  createThread: () => Promise<void>;
+  /** Creates a new thread and returns its ID. */
+  createThread: () => Promise<string>;
   selectThread: (id: string) => void;
   updateThreadTitle: (id: string, title: string) => void;
+  /** Archives a thread and returns whether the operation succeeded. */
+  archiveThread: (id: string) => Promise<boolean>;
 }
 
 const ThreadContext = createContext<ThreadContextValue | null>(null);
 
 export function ThreadProvider({ children }: { children: React.ReactNode }) {
   const [activeThreadId, setActiveThreadId] = useState("");
-  const hasAutoCreatedInitialThread = useRef(false);
 
   const { data: clientId } = useClientId();
-  const { data: threadRows = [], isLoading } = useThreadRows(clientId);
+  const { data: threadRows = [] } = useThreadRows(clientId);
   const {
-    mutate: createThreadMutate,
     mutateAsync: createThreadMutateAsync,
-    isPending: isCreatingThread,
   } = useCreateThread(clientId);
   const { mutate: updateThreadTitleMutate } = useUpdateThreadTitle(clientId);
+  const { mutateAsync: archiveThreadMutateAsync } = useArchiveThread(clientId);
 
   const threads = useMemo<Thread[]>(
     () =>
@@ -56,10 +57,6 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    hasAutoCreatedInitialThread.current = false;
-  }, [clientId]);
-
-  useEffect(() => {
     if (threadRows.length === 0) {
       setActiveThreadId("");
       return;
@@ -70,29 +67,10 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
     }
   }, [threadRows, activeThreadId]);
 
-  useEffect(() => {
-    if (!clientId || isLoading || isCreatingThread || threadRows.length > 0) {
-      return;
-    }
-
-    if (hasAutoCreatedInitialThread.current) {
-      return;
-    }
-
-    hasAutoCreatedInitialThread.current = true;
-    createThreadMutate(null, {
-      onSuccess: (thread) => {
-        setActiveThreadId(thread.thread_id);
-      },
-      onError: () => {
-        hasAutoCreatedInitialThread.current = false;
-      },
-    });
-  }, [clientId, isLoading, isCreatingThread, threadRows.length, createThreadMutate]);
-
   const createThread = useCallback(async () => {
     const thread = await createThreadMutateAsync(null);
     setActiveThreadId(thread.thread_id);
+    return thread.thread_id;
   }, [createThreadMutateAsync]);
 
   const selectThread = useCallback((id: string) => {
@@ -106,6 +84,21 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
     updateThreadTitleMutate({ threadId: id, title });
   }, [updateThreadTitleMutate]);
 
+  const archiveThread = useCallback(async (id: string) => {
+    try {
+      await archiveThreadMutateAsync(id);
+      if (activeThreadId === id && threadRows.length > 1) {
+        const next = threadRows.find((t) => t.thread_id !== id);
+        if (next) {
+          setActiveThreadId(next.thread_id);
+        }
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }, [archiveThreadMutateAsync, activeThreadId, threadRows]);
+
   const value = useMemo<ThreadContextValue>(
     () => ({
       threads,
@@ -113,8 +106,9 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
       createThread,
       selectThread,
       updateThreadTitle,
+      archiveThread,
     }),
-    [threads, activeThreadId, createThread, selectThread, updateThreadTitle],
+    [threads, activeThreadId, createThread, selectThread, updateThreadTitle, archiveThread],
   );
 
   return <ThreadContext.Provider value={value}>{children}</ThreadContext.Provider>;

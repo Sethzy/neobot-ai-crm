@@ -7,6 +7,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AppSidebar } from "./app-sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 // Mock useSession hook
 vi.mock("@/hooks/use-session", () => ({
@@ -25,12 +26,21 @@ vi.mock("@/lib/supabase", () => ({
 // Configurable pathname for router mock
 let mockPathname = "/chat";
 const mockPush = vi.fn();
+const mockSelectThread = vi.fn();
+const mockUpdateThreadTitle = vi.fn();
+const mockArchiveThread = vi.fn();
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
   useRouter: () => ({
     push: mockPush,
   }),
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: vi.fn(),
+  },
 }));
 
 // Mock use-mobile hook
@@ -42,20 +52,24 @@ vi.mock("@/contexts/thread-context", () => ({
   useThreads: () => ({
     threads: [{ id: "thread-1", title: "Test Chat", createdAt: new Date() }],
     activeThreadId: "thread-1",
-    createThread: vi.fn(),
-    selectThread: vi.fn(),
-    updateThreadTitle: vi.fn(),
+    selectThread: mockSelectThread,
+    updateThreadTitle: mockUpdateThreadTitle,
+    archiveThread: mockArchiveThread,
   }),
 }));
 
-/** Wrapper with SidebarProvider */
+/** Wrapper with SidebarProvider and TooltipProvider */
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <SidebarProvider>{children}</SidebarProvider>
+  <TooltipProvider>
+    <SidebarProvider>{children}</SidebarProvider>
+  </TooltipProvider>
 );
 
 describe("AppSidebar", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     mockPathname = "/chat";
+    mockArchiveThread.mockResolvedValue(true);
   });
 
   it("renders logo", () => {
@@ -76,7 +90,7 @@ describe("AppSidebar", () => {
     render(<AppSidebar />, { wrapper });
     expect(screen.getByText("CRM")).toBeInTheDocument();
     expect(screen.getByText("Knowledge")).toBeInTheDocument();
-    expect(screen.getByText("Documents")).toBeInTheDocument();
+    expect(screen.getByText("Workspace")).toBeInTheDocument();
     expect(screen.getByText("Channels")).toBeInTheDocument();
   });
 
@@ -105,14 +119,20 @@ describe("AppSidebar", () => {
 
   it("does not render old nav items", () => {
     render(<AppSidebar />, { wrapper });
-    expect(screen.queryByText("Workspace")).not.toBeInTheDocument();
+    expect(screen.queryByText("Documents")).not.toBeInTheDocument();
     expect(screen.queryByText("Instructions")).not.toBeInTheDocument();
   });
 
-  it("renders chat thread rail on /chat routes", () => {
+  it("renders sessions section with thread history", () => {
     render(<AppSidebar />, { wrapper });
 
+    expect(screen.getByText("Sessions")).toBeInTheDocument();
     expect(screen.getByText("Test Chat")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /new chat/i })).toBeInTheDocument();
+  });
+
+  it("does not render a New Chat button in the Sessions section", () => {
+    render(<AppSidebar />, { wrapper });
+
+    expect(screen.queryByRole("button", { name: /new chat/i })).not.toBeInTheDocument();
   });
 });

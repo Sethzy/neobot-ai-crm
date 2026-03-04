@@ -1,14 +1,20 @@
 /**
- * Renders one chat message bubble with role-based layout.
+ * Renders one chat message with role-based layout and parts-based rendering.
+ * User messages: right-aligned bubble. Assistant messages: flat layout with
+ * AI Elements Message/Reasoning and compact pill-style tool calls.
+ * All parts render interleaved — no container wrapper.
  * @module components/chat/message-bubble
  */
 "use client";
 
-import Markdown from "react-markdown";
-
-import { cn } from "@/lib/utils";
-
+import {
+  Message,
+  MessageContent,
+  MessageResponse,
+} from "@/components/ai-elements/message";
+import { Shimmer } from "@/components/ai-elements/shimmer";
 import { getMessageText, type ChatUIMessage } from "./message-content";
+import { StepsSummary } from "./steps-summary";
 
 interface MessageBubbleProps {
   message: ChatUIMessage;
@@ -17,37 +23,51 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message, isStreaming = false }: MessageBubbleProps) {
   const isUserMessage = message.role === "user";
-  const messageText = getMessageText(message);
+
+  if (isUserMessage) {
+    return (
+      <div
+        data-testid="message-bubble"
+        className="flex w-full justify-end"
+      >
+        <div className="max-w-[80%] rounded-2xl rounded-br-md bg-foreground text-background px-3.5 py-2 text-sm leading-normal">
+          <p className="whitespace-pre-wrap">{getMessageText(message)}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const intermediateParts = message.parts.filter(
+    (p) => p.type === "reasoning" || p.type.startsWith("tool-"),
+  );
+  const textParts = message.parts.filter((p) => p.type === "text");
+  const hasParts = intermediateParts.length > 0 || textParts.length > 0;
 
   return (
-    <div
-      data-testid="message-bubble"
-      className={cn("flex w-full", isUserMessage ? "justify-end" : "justify-start")}
-    >
-      <div
-        className={cn(
-          "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
-          isUserMessage
-            ? "rounded-br-md bg-foreground text-background"
-            : "rounded-bl-md bg-muted text-foreground",
-        )}
-      >
-        {isUserMessage ? (
-          <p className="whitespace-pre-wrap">{messageText}</p>
-        ) : (
-          <div className="prose prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-            <Markdown>{messageText}</Markdown>
-          </div>
+    <Message from="assistant" data-testid="message-bubble">
+      <MessageContent>
+        {isStreaming && !hasParts && (
+          <Shimmer as="span" className="text-xs text-muted-foreground" duration={2}>
+            Thinking...
+          </Shimmer>
         )}
 
-        {isStreaming && !isUserMessage ? (
-          <span
-            data-testid="streaming-indicator"
-            aria-label="Streaming response"
-            className="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-full bg-foreground/50"
+        {intermediateParts.length > 0 && (
+          <StepsSummary
+            parts={intermediateParts}
+            isStreaming={isStreaming}
+            hasTextParts={textParts.length > 0}
+            messageId={message.id}
           />
-        ) : null}
-      </div>
-    </div>
+        )}
+
+        {textParts.map((part, i) => (
+          <MessageResponse key={`${message.id}-text-${i}`}>
+            {part.text}
+          </MessageResponse>
+        ))}
+
+      </MessageContent>
+    </Message>
   );
 }

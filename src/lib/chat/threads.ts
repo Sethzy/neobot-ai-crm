@@ -17,6 +17,7 @@ export async function listThreads(supabase: ChatSupabaseClient, clientId: string
     .from("conversation_threads")
     .select("*")
     .eq("client_id", clientId)
+    .eq("is_archived", false)
     .order("updated_at", { ascending: false });
 
   if (error) {
@@ -59,6 +60,27 @@ export async function getThread(supabase: ChatSupabaseClient, threadId: string):
 
   if (error || !data) {
     throw new Error(error?.message ?? "Thread not found");
+  }
+
+  return data;
+}
+
+/**
+ * Archives a thread (soft-delete).
+ */
+export async function archiveThread(
+  supabase: ChatSupabaseClient,
+  threadId: string,
+): Promise<ThreadRow> {
+  const { data, error } = await supabase
+    .from("conversation_threads")
+    .update({ is_archived: true })
+    .eq("thread_id", threadId)
+    .select("*")
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message ?? "Failed to archive thread");
   }
 
   return data;

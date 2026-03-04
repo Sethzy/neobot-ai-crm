@@ -11,6 +11,7 @@ const mockUseClientId = vi.fn();
 const mockUseThreadsQuery = vi.fn();
 const mockUseCreateThread = vi.fn();
 const mockUseUpdateThreadTitle = vi.fn();
+const mockUseArchiveThread = vi.fn();
 
 vi.mock("@/hooks/use-client-id", () => ({
   useClientId: () => mockUseClientId(),
@@ -20,6 +21,7 @@ vi.mock("@/hooks/use-threads", () => ({
   useThreads: (...args: unknown[]) => mockUseThreadsQuery(...args),
   useCreateThread: (...args: unknown[]) => mockUseCreateThread(...args),
   useUpdateThreadTitle: (...args: unknown[]) => mockUseUpdateThreadTitle(...args),
+  useArchiveThread: (...args: unknown[]) => mockUseArchiveThread(...args),
 }));
 
 const baseThread = {
@@ -58,6 +60,10 @@ describe("thread context", () => {
     mockUseUpdateThreadTitle.mockReturnValue({
       mutate: vi.fn(),
     });
+
+    mockUseArchiveThread.mockReturnValue({
+      mutateAsync: vi.fn(async () => baseThread),
+    });
   });
 
   it("hydrates threads from DB rows and selects first as active", async () => {
@@ -94,6 +100,28 @@ describe("thread context", () => {
 
     expect(mutateAsync).toHaveBeenCalledWith(null);
     expect(result.current.activeThreadId).toBe("thread-2");
+  });
+
+  it("does not auto-create a thread when none exist", async () => {
+    const mutate = vi.fn();
+
+    mockUseThreadsQuery.mockReturnValue({
+      data: [],
+      isLoading: false,
+    });
+    mockUseCreateThread.mockReturnValue({
+      mutate,
+      mutateAsync: vi.fn(async () => baseThread),
+      isPending: false,
+    });
+
+    const { result } = renderHook(() => useThreads(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.threads).toEqual([]);
+      expect(result.current.activeThreadId).toBe("");
+    });
+    expect(mutate).not.toHaveBeenCalled();
   });
 
   it("does not change active thread for unknown ids", async () => {

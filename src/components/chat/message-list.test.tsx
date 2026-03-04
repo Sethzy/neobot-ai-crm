@@ -2,13 +2,44 @@
  * Tests for chat message list rendering.
  * @module components/chat/message-list.test
  */
+import type React from "react";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MessageList } from "./message-list";
 
-vi.mock("react-markdown", () => ({
-  default: ({ children }: { children: string }) => <div>{children}</div>,
+/* ------------------------------------------------------------------ */
+/*  Mocks                                                             */
+/* ------------------------------------------------------------------ */
+
+vi.mock("@/components/ai-elements/message", () => ({
+  Message: ({ children, from, ...props }: { children: React.ReactNode; from: string }) => (
+    <div data-testid="ai-message" data-from={from} {...props}>{children}</div>
+  ),
+  MessageContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="ai-message-content">{children}</div>
+  ),
+  MessageResponse: ({ children }: { children: string }) => (
+    <div data-testid="message-response">{children}</div>
+  ),
+}));
+
+vi.mock("@/components/ai-elements/shimmer", () => ({
+  Shimmer: ({ children, className }: { children: string; className?: string }) => (
+    <span data-testid="shimmer" className={className}>{children}</span>
+  ),
+}));
+
+vi.mock("./tool-call-inline", () => ({
+  ToolCallInline: ({ name }: { name: string }) => (
+    <div data-testid="tool-call-inline">{name}</div>
+  ),
+}));
+
+vi.mock("./steps-summary", () => ({
+  StepsSummary: ({ isStreaming }: { parts: Array<{ type: string }>; isStreaming: boolean; hasTextParts: boolean; messageId: string }) => (
+    <div data-testid="steps-summary" data-streaming={isStreaming} />
+  ),
 }));
 
 let isAtBottom = true;
@@ -63,15 +94,44 @@ describe("MessageList", () => {
   });
 
   it("marks the last assistant message as streaming when status is streaming", () => {
-    render(<MessageList messages={[userMessage, assistantMessage]} status="streaming" />);
+    const streamingAssistant = {
+      id: "2",
+      role: "assistant" as const,
+      parts: [
+        { type: "reasoning" as const, text: "Thinking..." },
+        { type: "text" as const, text: "Hi there!" },
+      ],
+    };
+    render(<MessageList messages={[userMessage, streamingAssistant]} status="streaming" />);
 
-    expect(screen.getByTestId("streaming-indicator")).toBeInTheDocument();
+    expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-streaming", "true");
   });
 
-  it("hides streaming indicator when status is ready", () => {
-    render(<MessageList messages={[userMessage, assistantMessage]} status="ready" />);
+  it("does not mark messages as streaming when status is ready", () => {
+    const withReasoning = {
+      id: "2",
+      role: "assistant" as const,
+      parts: [
+        { type: "reasoning" as const, text: "Thinking..." },
+        { type: "text" as const, text: "Hi there!" },
+      ],
+    };
+    render(<MessageList messages={[userMessage, withReasoning]} status="ready" />);
 
-    expect(screen.queryByTestId("streaming-indicator")).not.toBeInTheDocument();
+    expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-streaming", "false");
+  });
+
+  it("shows thinking shimmer when status is submitted", () => {
+    render(<MessageList messages={[userMessage]} status="submitted" />);
+
+    expect(screen.getByTestId("shimmer")).toBeInTheDocument();
+    expect(screen.getByText("Thinking...")).toBeInTheDocument();
+  });
+
+  it("hides thinking shimmer when status is streaming", () => {
+    render(<MessageList messages={[userMessage, assistantMessage]} status="streaming" />);
+
+    expect(screen.queryByTestId("shimmer")).not.toBeInTheDocument();
   });
 
   it("shows scroll button when user is not at bottom", () => {

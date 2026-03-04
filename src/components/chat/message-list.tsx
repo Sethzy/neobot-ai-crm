@@ -6,6 +6,7 @@
 
 import { ArrowDown, MessageCircle } from "lucide-react";
 
+import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Button } from "@/components/ui/button";
 import { useScrollToBottom } from "@/hooks/use-scroll-to-bottom";
 import type { ChatStatus } from "@/types/chat";
@@ -27,7 +28,7 @@ export function MessageList({ messages, status }: MessageListProps) {
     <div className="relative flex-1 min-h-0">
       <div ref={containerRef} data-testid="message-scroll-container" className="h-full overflow-y-auto px-4 py-6">
         {hasMessages ? (
-          <div className="mx-auto max-w-2xl space-y-4">
+          <div className="mx-auto max-w-2xl space-y-3">
             {messages.map((message, index) => {
               const isLastMessage = index === messages.length - 1;
               const isLastAssistantMessage = isLastMessage && message.role === "assistant";
@@ -40,6 +41,13 @@ export function MessageList({ messages, status }: MessageListProps) {
                 />
               );
             })}
+
+            {status === "submitted" && (
+              <Shimmer as="span" className="text-xs text-muted-foreground" duration={2}>
+                Thinking...
+              </Shimmer>
+            )}
+
             <div ref={endRef} />
           </div>
         ) : (
@@ -56,6 +64,7 @@ export function MessageList({ messages, status }: MessageListProps) {
                 Ask your agent anything, and responses will stream in real time.
               </p>
             </div>
+
             <div ref={endRef} />
           </div>
         )}

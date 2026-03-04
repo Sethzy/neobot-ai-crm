@@ -7,7 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useRealtimeTable } from "@/hooks/use-realtime";
-import { createThread, listThreads, updateThreadTitle } from "@/lib/chat/threads";
+import { archiveThread, createThread, listThreads, updateThreadTitle } from "@/lib/chat/threads";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
@@ -50,6 +50,23 @@ export function useCreateThread(clientId: string | null | undefined) {
 
       return createThread(supabase, clientId, title);
     },
+    onSuccess: () => {
+      if (clientId) {
+        queryClient.invalidateQueries({ queryKey: threadKeys.list(clientId) });
+      }
+    },
+  });
+}
+
+/**
+ * Archives a thread and invalidates the thread list cache.
+ */
+export function useArchiveThread(clientId: string | null | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (threadId: string): Promise<ThreadRow> =>
+      archiveThread(supabase, threadId),
     onSuccess: () => {
       if (clientId) {
         queryClient.invalidateQueries({ queryKey: threadKeys.list(clientId) });

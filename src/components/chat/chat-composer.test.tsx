@@ -10,72 +10,71 @@ import { ChatComposer } from "./chat-composer";
 
 describe("ChatComposer", () => {
   const baseProps = {
-    value: "",
-    onValueChange: vi.fn(),
+    status: "ready" as const,
     onSubmit: vi.fn(),
-    isLoading: false,
   };
 
-  it("renders textarea and send button", () => {
+  it("renders textarea and submit button", () => {
     render(<ChatComposer {...baseProps} />);
 
-    expect(screen.getByPlaceholderText(/type a message/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /send message/i })).toBeInTheDocument();
-  });
-
-  it("calls onValueChange when user types", async () => {
-    const onValueChange = vi.fn();
-    const user = userEvent.setup();
-
-    render(<ChatComposer {...baseProps} onValueChange={onValueChange} />);
-    await user.type(screen.getByPlaceholderText(/type a message/i), "a");
-
-    expect(onValueChange).toHaveBeenCalled();
+    expect(screen.getByPlaceholderText(/send a message/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /submit/i })).toBeInTheDocument();
   });
 
   it("submits on send button click", async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
 
-    render(<ChatComposer {...baseProps} value="Hello" onSubmit={onSubmit} />);
-    await user.click(screen.getByRole("button", { name: /send message/i }));
+    render(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
+    await user.type(screen.getByPlaceholderText(/send a message/i), "Hello");
+    await user.click(screen.getByRole("button", { name: /submit/i }));
 
-    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit).toHaveBeenCalledWith("Hello");
   });
 
   it("submits on Enter without Shift", async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
 
-    render(<ChatComposer {...baseProps} value="Hello" onSubmit={onSubmit} />);
-    await user.type(screen.getByPlaceholderText(/type a message/i), "{Enter}");
+    render(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
+    await user.type(screen.getByPlaceholderText(/send a message/i), "Hello{Enter}");
 
-    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit).toHaveBeenCalledWith("Hello");
   });
 
   it("does not submit on Shift+Enter", async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
 
-    render(<ChatComposer {...baseProps} value="Hello" onSubmit={onSubmit} />);
-    await user.type(screen.getByPlaceholderText(/type a message/i), "{Shift>}{Enter}{/Shift}");
+    render(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
+    await user.type(
+      screen.getByPlaceholderText(/send a message/i),
+      "Hello{Shift>}{Enter}{/Shift}",
+    );
 
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("disables controls while loading", () => {
-    render(<ChatComposer {...baseProps} value="Hello" isLoading />);
+    render(<ChatComposer {...baseProps} status="streaming" />);
 
-    expect(screen.getByPlaceholderText(/type a message/i)).toBeDisabled();
-    expect(screen.getByRole("button", { name: /send message/i })).toBeDisabled();
+    expect(screen.getByPlaceholderText(/send a message/i)).toBeDisabled();
+    expect(screen.getByRole("button", { name: /stop/i })).toBeDisabled();
   });
 
-  it("disables send for empty and whitespace-only input", () => {
-    const { rerender } = render(<ChatComposer {...baseProps} value="" />);
+  it("disables send for empty input", () => {
+    render(<ChatComposer {...baseProps} />);
 
-    expect(screen.getByRole("button", { name: /send message/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /submit/i })).toBeDisabled();
+  });
 
-    rerender(<ChatComposer {...baseProps} value="   " />);
-    expect(screen.getByRole("button", { name: /send message/i })).toBeDisabled();
+  it("trims whitespace before submitting", async () => {
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+
+    render(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
+    await user.type(screen.getByPlaceholderText(/send a message/i), "  Hello  {Enter}");
+
+    expect(onSubmit).toHaveBeenCalledWith("Hello");
   });
 });
