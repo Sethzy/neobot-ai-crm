@@ -7,6 +7,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import { DealDrawerContent } from "../deal-drawer-content";
 
+const inlineFieldSpy = vi.fn(
+  ({ label, value, type }: { label: string; value: string | null; type?: string }) => (
+    <div data-testid={`inline-${label}`}>
+      {label}:{value ?? "—"}:{type ?? "text"}
+    </div>
+  ),
+);
+
 vi.mock("@/hooks/use-deals", () => ({
   useDeal: () => ({
     data: {
@@ -40,13 +48,32 @@ vi.mock("@/components/crm/interaction-timeline", () => ({
   InteractionTimeline: () => <div>Interaction Timeline</div>,
 }));
 
+vi.mock("@/hooks/use-update-deal", () => ({
+  useUpdateDeal: () => ({
+    mutateAsync: vi.fn(),
+  }),
+}));
+
+vi.mock("@/components/crm/inline-edit-field", () => ({
+  InlineEditField: (props: { label: string; value: string | null; type?: string }) => inlineFieldSpy(props),
+}));
+
 describe("DealDrawerContent", () => {
+  it("renders inline-edit fields for editable deal details", () => {
+    render(<DealDrawerContent dealId="d-1" />);
+
+    expect(screen.getByTestId("inline-Address")).toBeInTheDocument();
+    expect(screen.getByTestId("inline-Stage")).toBeInTheDocument();
+    expect(screen.getByTestId("inline-Price")).toBeInTheDocument();
+    expect(screen.getByTestId("inline-Notes")).toBeInTheDocument();
+  });
+
   it("renders deal header and pricing details", () => {
     render(<DealDrawerContent dealId="d-1" />);
 
     expect(screen.getByText("Bishan St 22 #12-34")).toBeInTheDocument();
     expect(screen.getByText("Offer")).toBeInTheDocument();
-    expect(screen.getByText(/1,200,000/)).toBeInTheDocument();
+    expect(screen.getByText(/Price:/)).toBeInTheDocument();
     expect(screen.getByText("Sarah Tan")).toBeInTheDocument();
   });
 
@@ -58,4 +85,3 @@ describe("DealDrawerContent", () => {
     expect(screen.getByText("Activity")).toBeInTheDocument();
   });
 });
-

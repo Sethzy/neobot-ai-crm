@@ -7,6 +7,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import { TaskDrawerContent } from "../task-drawer-content";
 
+const inlineFieldSpy = vi.fn(
+  ({ label, value, type }: { label: string; value: string | null; type?: string }) => (
+    <div data-testid={`inline-${label}`}>
+      {label}:{value ?? "—"}:{type ?? "text"}
+    </div>
+  ),
+);
+
 vi.mock("@/hooks/use-crm-tasks", () => ({
   useCrmTask: () => ({
     data: {
@@ -28,7 +36,26 @@ vi.mock("@/hooks/use-crm-tasks", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-update-crm-task", () => ({
+  useUpdateCrmTask: () => ({
+    mutateAsync: vi.fn(),
+  }),
+}));
+
+vi.mock("@/components/crm/inline-edit-field", () => ({
+  InlineEditField: (props: { label: string; value: string | null; type?: string }) => inlineFieldSpy(props),
+}));
+
 describe("TaskDrawerContent", () => {
+  it("renders inline-edit fields for editable task details", () => {
+    render(<TaskDrawerContent taskId="t-1" />);
+
+    expect(screen.getByTestId("inline-Title")).toBeInTheDocument();
+    expect(screen.getByTestId("inline-Status")).toBeInTheDocument();
+    expect(screen.getByTestId("inline-Due Date")).toBeInTheDocument();
+    expect(screen.getByTestId("inline-Description")).toBeInTheDocument();
+  });
+
   it("renders task title and status", () => {
     render(<TaskDrawerContent taskId="t-1" />);
 
@@ -43,4 +70,3 @@ describe("TaskDrawerContent", () => {
     expect(screen.getByText("Bishan St 22")).toBeInTheDocument();
   });
 });
-

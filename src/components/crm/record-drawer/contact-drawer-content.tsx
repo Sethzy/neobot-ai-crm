@@ -5,12 +5,15 @@
 "use client";
 
 import { ContactTimeline } from "@/components/crm/contact-timeline";
+import { InlineEditField } from "@/components/crm/inline-edit-field";
 import { StageBadge } from "@/components/crm/stage-badge";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useContactDeals } from "@/hooks/use-contact-relations";
 import { useContact } from "@/hooks/use-contacts";
+import { useUpdateContact } from "@/hooks/use-update-contact";
 import { contactTypeBadgeVariantMap, formatContactFullName } from "@/lib/crm/display";
+import { contactTypeValues, type Contact } from "@/lib/crm/schemas";
 
 import { DrawerSection } from "./drawer-section";
 
@@ -25,6 +28,12 @@ interface ContactDrawerContentProps {
 export function ContactDrawerContent({ contactId }: ContactDrawerContentProps) {
   const { data: contact, isLoading, isError } = useContact(contactId);
   const { data: linkedDeals = [] } = useContactDeals(contactId);
+  const updateContact = useUpdateContact(contactId);
+
+  const toNullableValue = (nextValue: string) => {
+    const trimmedValue = nextValue.trim();
+    return trimmedValue.length > 0 ? trimmedValue : null;
+  };
 
   if (isLoading) {
     return (
@@ -48,19 +57,41 @@ export function ContactDrawerContent({ contactId }: ContactDrawerContentProps) {
       </header>
 
       <DrawerSection title="Details">
-        <div className="space-y-2 text-sm">
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Phone</span>
-            <span className="max-w-[220px] text-right text-foreground/80">{contact.phone ?? "—"}</span>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Email</span>
-            <span className="max-w-[220px] text-right text-foreground/80">{contact.email ?? "—"}</span>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Notes</span>
-            <span className="max-w-[220px] text-right text-foreground/80">{contact.notes ?? "—"}</span>
-          </div>
+        <div className="space-y-0.5">
+          <InlineEditField
+            label="Phone"
+            value={contact.phone}
+            onSave={async (nextValue) => {
+              await updateContact.mutateAsync({ phone: toNullableValue(nextValue) });
+            }}
+          />
+          <InlineEditField
+            label="Email"
+            value={contact.email}
+            onSave={async (nextValue) => {
+              await updateContact.mutateAsync({ email: toNullableValue(nextValue) });
+            }}
+          />
+          <InlineEditField
+            label="Type"
+            value={contact.type}
+            type="select"
+            options={contactTypeValues.map((contactType) => ({
+              value: contactType,
+              label: contactType,
+            }))}
+            onSave={async (nextValue) => {
+              await updateContact.mutateAsync({ type: nextValue as Contact["type"] });
+            }}
+          />
+          <InlineEditField
+            label="Notes"
+            value={contact.notes}
+            type="textarea"
+            onSave={async (nextValue) => {
+              await updateContact.mutateAsync({ notes: toNullableValue(nextValue) });
+            }}
+          />
         </div>
       </DrawerSection>
 
@@ -88,4 +119,3 @@ export function ContactDrawerContent({ contactId }: ContactDrawerContentProps) {
     </div>
   );
 }
-

@@ -7,6 +7,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ContactDrawerContent } from "../contact-drawer-content";
 
+const inlineFieldSpy = vi.fn(
+  ({ label, value, type }: { label: string; value: string | null; type?: string }) => (
+    <div data-testid={`inline-${label}`}>
+      {label}:{value ?? "—"}:{type ?? "text"}
+    </div>
+  ),
+);
+
 vi.mock("@/hooks/use-contacts", () => ({
   useContact: () => ({
     data: {
@@ -34,14 +42,33 @@ vi.mock("@/components/crm/contact-timeline", () => ({
   ContactTimeline: () => <div>Contact Timeline</div>,
 }));
 
+vi.mock("@/hooks/use-update-contact", () => ({
+  useUpdateContact: () => ({
+    mutateAsync: vi.fn(),
+  }),
+}));
+
+vi.mock("@/components/crm/inline-edit-field", () => ({
+  InlineEditField: (props: { label: string; value: string | null; type?: string }) => inlineFieldSpy(props),
+}));
+
 describe("ContactDrawerContent", () => {
+  it("renders inline-edit fields for contact details", () => {
+    render(<ContactDrawerContent contactId="c-1" />);
+
+    expect(screen.getByTestId("inline-Phone")).toBeInTheDocument();
+    expect(screen.getByTestId("inline-Email")).toBeInTheDocument();
+    expect(screen.getByTestId("inline-Type")).toBeInTheDocument();
+    expect(screen.getByTestId("inline-Notes")).toBeInTheDocument();
+  });
+
   it("renders contact header and details", () => {
     render(<ContactDrawerContent contactId="c-1" />);
 
     expect(screen.getByText("Sarah Tan")).toBeInTheDocument();
     expect(screen.getByText("seller")).toBeInTheDocument();
-    expect(screen.getByText("+6598765432")).toBeInTheDocument();
-    expect(screen.getByText("sarah@example.com")).toBeInTheDocument();
+    expect(screen.getByText("Phone:+6598765432:text")).toBeInTheDocument();
+    expect(screen.getByText("Email:sarah@example.com:text")).toBeInTheDocument();
   });
 
   it("renders required sections", () => {
@@ -52,4 +79,3 @@ describe("ContactDrawerContent", () => {
     expect(screen.getByText("Activity")).toBeInTheDocument();
   });
 });
-

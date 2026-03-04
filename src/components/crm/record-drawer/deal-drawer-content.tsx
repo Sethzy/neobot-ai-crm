@@ -5,11 +5,14 @@
 "use client";
 
 import { InteractionTimeline } from "@/components/crm/interaction-timeline";
+import { InlineEditField } from "@/components/crm/inline-edit-field";
 import { StageBadge } from "@/components/crm/stage-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDealInteractions } from "@/hooks/use-contact-relations";
 import { useDeal } from "@/hooks/use-deals";
+import { useUpdateDeal } from "@/hooks/use-update-deal";
 import { formatContactFullName, formatCrmPrice } from "@/lib/crm/display";
+import { dealStageValues, type Deal } from "@/lib/crm/schemas";
 
 import { DrawerSection } from "./drawer-section";
 
@@ -24,6 +27,14 @@ interface DealDrawerContentProps {
 export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
   const { data: deal, isLoading, isError } = useDeal(dealId);
   const { data: interactions = [] } = useDealInteractions(dealId);
+  const updateDeal = useUpdateDeal(dealId);
+
+  const toNullableValue = (nextValue: string) => {
+    const trimmedValue = nextValue.trim();
+    return trimmedValue.length > 0 ? trimmedValue : null;
+  };
+
+  const toTitleCase = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
   if (isLoading) {
     return (
@@ -46,15 +57,49 @@ export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
       </header>
 
       <DrawerSection title="Details">
-        <div className="space-y-2 text-sm">
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Price</span>
-            <span className="tabular-nums text-foreground/80">{formatCrmPrice(deal.price)}</span>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Notes</span>
-            <span className="max-w-[220px] text-right text-foreground/80">{deal.notes ?? "—"}</span>
-          </div>
+        <div className="space-y-0.5">
+          <InlineEditField
+            label="Address"
+            value={deal.address}
+            onSave={async (nextValue) => {
+              await updateDeal.mutateAsync({ address: nextValue.trim() });
+            }}
+          />
+          <InlineEditField
+            label="Stage"
+            value={deal.stage}
+            type="select"
+            options={dealStageValues.map((stage) => ({ value: stage, label: toTitleCase(stage) }))}
+            onSave={async (nextValue) => {
+              await updateDeal.mutateAsync({ stage: nextValue as Deal["stage"] });
+            }}
+          />
+          <InlineEditField
+            label="Price"
+            value={formatCrmPrice(deal.price)}
+            onSave={async (nextValue) => {
+              const numericPriceString = nextValue.replace(/[^\d.-]/g, "");
+              if (!numericPriceString) {
+                await updateDeal.mutateAsync({ price: null });
+                return;
+              }
+
+              const parsedPrice = Number(numericPriceString);
+              if (Number.isNaN(parsedPrice)) {
+                throw new Error("Price must be a valid number.");
+              }
+
+              await updateDeal.mutateAsync({ price: Math.round(parsedPrice) });
+            }}
+          />
+          <InlineEditField
+            label="Notes"
+            value={deal.notes}
+            type="textarea"
+            onSave={async (nextValue) => {
+              await updateDeal.mutateAsync({ notes: toNullableValue(nextValue) });
+            }}
+          />
         </div>
       </DrawerSection>
 
@@ -84,4 +129,3 @@ export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
     </div>
   );
 }
-
