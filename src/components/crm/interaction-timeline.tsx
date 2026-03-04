@@ -10,7 +10,8 @@ import { formatContactFullName, formatCrmDateTime } from "@/lib/crm/display";
 import type { InteractionWithContact } from "@/hooks/use-contact-relations";
 import type { Interaction } from "@/lib/crm/schemas";
 
-const interactionTypeIconMap: Record<Interaction["type"], ElementType> = {
+/** Maps interaction types to Lucide icon components. Shared by timeline variants. */
+export const interactionTypeIconMap: Record<Interaction["type"], ElementType> = {
   call: Phone,
   meeting: Calendar,
   email: Mail,

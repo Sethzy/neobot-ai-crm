@@ -98,4 +98,19 @@ describe("KanbanBoard", () => {
     expect(within(blockedColumn as HTMLElement).getByText("0")).toBeInTheDocument();
     expect(within(blockedColumn as HTMLElement).getByText("No items")).toBeInTheDocument();
   });
+
+  it("renders board toolbar label and new-item footer rows when configured", () => {
+    render(
+      <KanbanBoard
+        boardLabel="By Stage"
+        items={items}
+        columns={columns}
+        groupBy={(item) => item.status}
+        renderCard={(item) => <div>{item.title}</div>}
+      />,
+    );
+
+    expect(screen.getByText("By Stage")).toBeInTheDocument();
+    expect(screen.getAllByText("+ New")).toHaveLength(columns.length);
+  });
 });

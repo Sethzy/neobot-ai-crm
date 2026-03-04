@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useContactDeals } from "@/hooks/use-contact-relations";
 import { useContact } from "@/hooks/use-contacts";
 import { useUpdateContact } from "@/hooks/use-update-contact";
-import { contactTypeBadgeVariantMap, formatContactFullName } from "@/lib/crm/display";
+import { contactTypeBadgeVariantMap, formatContactFullName, toNullableValue } from "@/lib/crm/display";
 import { contactTypeValues, type Contact } from "@/lib/crm/schemas";
 
 import { DrawerSection } from "./drawer-section";
@@ -29,11 +29,6 @@ export function ContactDrawerContent({ contactId }: ContactDrawerContentProps) {
   const { data: contact, isLoading, isError } = useContact(contactId);
   const { data: linkedDeals = [] } = useContactDeals(contactId);
   const updateContact = useUpdateContact(contactId);
-
-  const toNullableValue = (nextValue: string) => {
-    const trimmedValue = nextValue.trim();
-    return trimmedValue.length > 0 ? trimmedValue : null;
-  };
 
   if (isLoading) {
     return (

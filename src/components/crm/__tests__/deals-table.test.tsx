@@ -13,7 +13,7 @@ const sampleDeals = [
     deal_id: "d-1",
     client_id: "cl-1",
     address: "123 Orchard Road",
-    stage: "viewing" as const,
+    stage: "negotiation" as const,
     price: 1500000,
     notes: "Hot lead",
     created_at: "2026-02-01T00:00:00+08:00",
@@ -45,7 +45,7 @@ describe("DealsTable", () => {
 
     expect(screen.getByText("123 Orchard Road")).toBeInTheDocument();
     expect(screen.getByText("456 Bukit Timah Road")).toBeInTheDocument();
-    expect(screen.getByText("Viewing")).toBeInTheDocument();
+    expect(screen.getByText("Negotiation")).toBeInTheDocument();
     expect(screen.getByText("Lost")).toBeInTheDocument();
     expect(screen.getByText("John Smith")).toBeInTheDocument();
     expect(screen.getByText(/1,500,000/)).toBeInTheDocument();
@@ -71,7 +71,7 @@ describe("DealsTable", () => {
     const user = userEvent.setup();
     const onRowClick = vi.fn();
     render(<DealsTable deals={sampleDeals} onRowClick={onRowClick} />);
-    await user.click(screen.getByText("Viewing"));
+    await user.click(screen.getByText("Negotiation"));
     expect(onRowClick).toHaveBeenCalledTimes(1);
   });
 

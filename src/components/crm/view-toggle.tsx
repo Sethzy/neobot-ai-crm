@@ -1,10 +1,10 @@
 /**
- * Compact icon-based toggle for CRM table/kanban/calendar views.
+ * Compact icon-based toggle for CRM table/kanban views.
  * @module components/crm/view-toggle
  */
 "use client";
 
-import { CalendarDays, Columns3, LayoutGrid, type LucideIcon } from "lucide-react";
+import { Columns3, LayoutGrid, type LucideIcon } from "lucide-react";
 
 import type { ViewType } from "@/hooks/use-view-preference";
 import { Button } from "@/components/ui/button";
@@ -22,13 +22,11 @@ interface ViewToggleProps {
 const viewIconMap: Record<ViewType, LucideIcon> = {
   table: LayoutGrid,
   kanban: Columns3,
-  calendar: CalendarDays,
 };
 
 const viewLabelMap: Record<ViewType, string> = {
   table: "Table view",
   kanban: "Kanban view",
-  calendar: "Calendar view",
 };
 
 export function ViewToggle({ current, views, onChange }: ViewToggleProps) {

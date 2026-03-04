@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDealInteractions } from "@/hooks/use-contact-relations";
 import { useDeal } from "@/hooks/use-deals";
 import { useUpdateDeal } from "@/hooks/use-update-deal";
-import { formatContactFullName, formatCrmPrice } from "@/lib/crm/display";
+import { formatContactFullName, formatCrmPrice, toNullableValue } from "@/lib/crm/display";
 import { dealStageValues, type Deal } from "@/lib/crm/schemas";
 
 import { DrawerSection } from "./drawer-section";
@@ -28,11 +28,6 @@ export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
   const { data: deal, isLoading, isError } = useDeal(dealId);
   const { data: interactions = [] } = useDealInteractions(dealId);
   const updateDeal = useUpdateDeal(dealId);
-
-  const toNullableValue = (nextValue: string) => {
-    const trimmedValue = nextValue.trim();
-    return trimmedValue.length > 0 ? trimmedValue : null;
-  };
 
   const toTitleCase = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 

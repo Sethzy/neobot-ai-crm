@@ -45,7 +45,7 @@ describe("ContactDeals", () => {
             deal_id: "d-1",
             client_id: "cl-1",
             address: "123 Orchard Road",
-            stage: "viewing",
+            stage: "negotiation",
             price: 1500000,
             notes: null,
             created_at: "2026-02-01T00:00:00+08:00",
@@ -59,7 +59,7 @@ describe("ContactDeals", () => {
     render(<ContactDeals contactId="c-1" />, { wrapper: createWrapper() });
 
     expect(screen.getByText("123 Orchard Road")).toBeInTheDocument();
-    expect(screen.getByText("viewing")).toBeInTheDocument();
+    expect(screen.getByText("negotiation")).toBeInTheDocument();
     expect(screen.getByText(/\$1,500,000/)).toBeInTheDocument();
   });
 

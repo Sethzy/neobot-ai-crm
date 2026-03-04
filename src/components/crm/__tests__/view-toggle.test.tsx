@@ -15,17 +15,17 @@ describe("ViewToggle", () => {
     vi.clearAllMocks();
   });
 
-  it("renders three buttons", () => {
+  it("renders two buttons", () => {
     render(
-      <ViewToggle current="table" views={["table", "kanban", "calendar"]} onChange={onChange} />,
+      <ViewToggle current="table" views={["table", "kanban"]} onChange={onChange} />,
     );
 
-    expect(screen.getAllByRole("button")).toHaveLength(3);
+    expect(screen.getAllByRole("button")).toHaveLength(2);
   });
 
   it("marks the active view", () => {
     render(
-      <ViewToggle current="kanban" views={["table", "kanban", "calendar"]} onChange={onChange} />,
+      <ViewToggle current="kanban" views={["table", "kanban"]} onChange={onChange} />,
     );
 
     const buttons = screen.getAllByRole("button");
@@ -37,12 +37,12 @@ describe("ViewToggle", () => {
     const user = userEvent.setup();
 
     render(
-      <ViewToggle current="table" views={["table", "kanban", "calendar"]} onChange={onChange} />,
+      <ViewToggle current="table" views={["table", "kanban"]} onChange={onChange} />,
     );
 
     const buttons = screen.getAllByRole("button");
-    await user.click(buttons[2]);
+    await user.click(buttons[1]);
 
-    expect(onChange).toHaveBeenCalledWith("calendar");
+    expect(onChange).toHaveBeenCalledWith("kanban");
   });
 });

@@ -1,21 +1,28 @@
 /**
  * Generic read-only CRM kanban board grouped by a caller-provided column key.
+ * Styled to match Twenty CRM's horizontal column layout.
  * @module components/crm/kanban-board
  */
 "use client";
 
 import type { ReactNode } from "react";
 
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface KanbanColumn {
   /** Column key returned by `groupBy`. */
   key: string;
   /** User-facing column label. */
   label: string;
+  /** Chip background/text class for the column header label. */
+  toneClassName?: string;
+  /** Border-top color class for the colored column indicator line. */
+  topBorderClassName?: string;
 }
 
 interface KanbanBoardProps<T> {
+  /** Optional board grouping label shown in the toolbar (e.g. "By Stage"). */
+  boardLabel?: string;
   /** Flat list of items to group into columns. */
   items: T[];
   /** Available columns in render order. */
@@ -28,15 +35,19 @@ interface KanbanBoardProps<T> {
   onCardClick?: (id: string) => void;
   /** Optional stable id getter used for click payloads and React keys. */
   getItemId?: (item: T) => string;
+  /** Returns a summary string (e.g. total value) for a column header. */
+  getColumnSummary?: (columnKey: string, columnItems: T[]) => string | undefined;
 }
 
 export function KanbanBoard<T>({
+  boardLabel,
   items,
   columns,
   groupBy,
   renderCard,
   onCardClick,
   getItemId,
+  getColumnSummary,
 }: KanbanBoardProps<T>) {
   const groupedItems = new Map<string, T[]>();
 
@@ -53,48 +64,85 @@ export function KanbanBoard<T>({
   }
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
-      {columns.map((column) => {
-        const columnItems = groupedItems.get(column.key) ?? [];
+    <div>
+      {/* Board toolbar */}
+      {boardLabel ? (
+        <div className="flex items-center justify-between pb-3">
+          <div className="flex items-center gap-1.5 text-sm">
+            <span className="font-medium text-foreground">{boardLabel}</span>
+            <span className="text-muted-foreground">{items.length}</span>
+          </div>
+          <div className="hidden items-center gap-5 text-sm text-muted-foreground sm:flex">
+            <span className="cursor-default hover:text-foreground">Filter</span>
+            <span className="cursor-default hover:text-foreground">Sort</span>
+            <span className="cursor-default hover:text-foreground">Options</span>
+          </div>
+        </div>
+      ) : null}
 
-        return (
-          <section
-            key={column.key}
-            className="flex w-[260px] shrink-0 flex-col rounded-xl border border-border/40 bg-muted/10"
-          >
-            <header className="flex items-center gap-2 border-b border-border/30 px-3 py-2.5">
-              <span className="text-sm font-medium">{column.label}</span>
-              <Badge variant="secondary" className="text-[10px]">
-                {columnItems.length}
-              </Badge>
-            </header>
+      {/* Horizontal columns — fixed width per column, horizontal scroll */}
+      <div className="flex min-h-[420px] gap-3 overflow-x-auto pb-2">
+        {columns.map((column) => {
+          const columnItems = groupedItems.get(column.key) ?? [];
+          const summary = getColumnSummary?.(column.key, columnItems);
 
-            <div className="flex flex-col gap-2 p-2">
-              {columnItems.length === 0 ? (
-                <p className="px-2 py-4 text-center text-xs text-muted-foreground/50">No items</p>
-              ) : (
-                columnItems.map((item, index) => {
-                  const itemId = getItemId ? getItemId(item) : undefined;
-
-                  return (
-                    <div
-                      key={itemId ?? index}
-                      className="cursor-pointer rounded-lg border border-border/30 bg-card p-3 shadow-sm transition-colors hover:bg-muted/30"
-                      onClick={() => {
-                        if (onCardClick && itemId) {
-                          onCardClick(itemId);
-                        }
-                      }}
-                    >
-                      {renderCard(item)}
-                    </div>
-                  );
-                })
+          return (
+            <section
+              key={column.key}
+              className={cn(
+                "flex min-w-[180px] flex-1 flex-col border-t-[2.5px]",
+                column.topBorderClassName ?? "border-t-border",
               )}
-            </div>
-          </section>
-        );
-      })}
+            >
+              {/* Column header */}
+              <div className="flex items-center gap-2 py-2.5">
+                <span
+                  className={cn(
+                    "rounded px-2 py-0.5 text-xs font-medium",
+                    column.toneClassName ?? "bg-muted text-foreground/80",
+                  )}
+                >
+                  {column.label}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {columnItems.length}
+                </span>
+                {summary ? (
+                  <span className="text-xs text-muted-foreground">{summary}</span>
+                ) : null}
+              </div>
+
+              {/* Cards */}
+              <div className="flex flex-1 flex-col gap-2">
+                {columnItems.length === 0 ? (
+                  <p className="py-8 text-center text-xs text-muted-foreground/50">
+                    No items
+                  </p>
+                ) : (
+                  columnItems.map((item, index) => {
+                    const itemId = getItemId ? getItemId(item) : undefined;
+
+                    return (
+                      <div
+                        key={itemId ?? index}
+                        className="cursor-pointer rounded-md border border-border/40 bg-card p-3 transition-colors hover:bg-accent/50"
+                        onClick={() => {
+                          if (onCardClick && itemId) {
+                            onCardClick(itemId);
+                          }
+                        }}
+                      >
+                        {renderCard(item)}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }

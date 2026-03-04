@@ -4,23 +4,13 @@
  */
 "use client";
 
-import { Calendar, Eye, Mail, MessageCircle, Phone, StickyNote } from "lucide-react";
-import type { ElementType } from "react";
+import { StickyNote } from "lucide-react";
 
+import { interactionTypeIconMap } from "@/components/crm/interaction-timeline";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useContactInteractions } from "@/hooks/use-contact-relations";
 import { formatCrmDateTime } from "@/lib/crm/display";
-import type { Interaction } from "@/lib/crm/schemas";
-
-const interactionTypeIconMap: Record<Interaction["type"], ElementType> = {
-  call: Phone,
-  meeting: Calendar,
-  email: Mail,
-  message: MessageCircle,
-  viewing: Eye,
-  note: StickyNote,
-};
 
 interface ContactTimelineProps {
   contactId: string;

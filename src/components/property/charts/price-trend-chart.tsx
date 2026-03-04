@@ -12,6 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { formatCompactCurrency } from "@/lib/crm/display";
 import { CHART_PRIMARY, CHART_PRIMARY_LIGHT } from "@/lib/property/chart-colors";
 
 type PriceTrendChartProps = {
@@ -76,12 +77,6 @@ function groupByMonth(
         max: Math.round(Math.max(...sorted)),
       };
     });
-}
-
-function formatCompactPrice(value: number): string {
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `$${Math.round(value / 1_000)}K`;
-  return `$${value}`;
 }
 
 function formatFullPrice(value: number): string {
@@ -181,7 +176,7 @@ export function PriceTrendChart({
             tick={{ fontSize: 11 }}
             tickLine={false}
             axisLine={false}
-            tickFormatter={formatCompactPrice}
+            tickFormatter={formatCompactCurrency}
             className="hidden sm:block"
           />
           <Tooltip

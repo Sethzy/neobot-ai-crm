@@ -10,17 +10,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { formatCompactCurrency } from "@/lib/crm/display";
 import { CHART_PRIMARY, CHART_PRIMARY_LIGHT } from "@/lib/property/chart-colors";
 
 type FloorPremiumChartProps = {
   data: Array<{ floor: number; psf: number }>;
 };
-
-function formatCompactPrice(value: number): string {
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `$${Math.round(value / 1_000)}K`;
-  return `$${value}`;
-}
 
 export function FloorPremiumChart({ data }: FloorPremiumChartProps) {
   if (data.length < 5) {
@@ -43,7 +38,7 @@ export function FloorPremiumChart({ data }: FloorPremiumChartProps) {
             tick={{ fontSize: 11 }}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(v: number) => formatCompactPrice(v)}
+            tickFormatter={(v: number) => formatCompactCurrency(v)}
           />
           <YAxis
             type="number"
@@ -61,7 +56,7 @@ export function FloorPremiumChart({ data }: FloorPremiumChartProps) {
               fontSize: 13,
             }}
             formatter={(value: number | undefined, name: string | undefined) => {
-              if (name === "PSF") return [formatCompactPrice(value ?? 0), "PSF"];
+              if (name === "PSF") return [formatCompactCurrency(value ?? 0), "PSF"];
               return [value ?? 0, "Floor"];
             }}
           />

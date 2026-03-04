@@ -9,7 +9,7 @@ import { TaskStatusBadge } from "@/components/crm/task-status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCrmTask } from "@/hooks/use-crm-tasks";
 import { useUpdateCrmTask } from "@/hooks/use-update-crm-task";
-import { formatContactFullName } from "@/lib/crm/display";
+import { formatContactFullName, toNullableValue } from "@/lib/crm/display";
 import { crmTaskStatusValues, type CrmTask } from "@/lib/crm/schemas";
 
 import { DrawerSection } from "./drawer-section";
@@ -25,11 +25,6 @@ interface TaskDrawerContentProps {
 export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
   const { data: task, isLoading, isError } = useCrmTask(taskId);
   const updateTask = useUpdateCrmTask(taskId);
-
-  const toNullableValue = (nextValue: string) => {
-    const trimmedValue = nextValue.trim();
-    return trimmedValue.length > 0 ? trimmedValue : null;
-  };
 
   const toTitleCase = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
