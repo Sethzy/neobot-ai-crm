@@ -14,10 +14,10 @@ describe("StageBadge", () => {
     expect(screen.getByText("Leads")).toBeInTheDocument();
   });
 
-  it("renders OTP in uppercase", () => {
-    render(<StageBadge stage="otp" />);
+  it("renders Closing label", () => {
+    render(<StageBadge stage="closing" />);
 
-    expect(screen.getByText("OTP")).toBeInTheDocument();
+    expect(screen.getByText("Closing")).toBeInTheDocument();
   });
 
   it("uses destructive variant for lost stage", () => {
@@ -27,8 +27,8 @@ describe("StageBadge", () => {
     expect(badge).toHaveAttribute("data-variant", "destructive");
   });
 
-  it("uses success variant for completion stage", () => {
-    const { container } = render(<StageBadge stage="completion" />);
+  it("uses success variant for closing stage", () => {
+    const { container } = render(<StageBadge stage="closing" />);
 
     const badge = container.querySelector("[data-slot='badge']");
     expect(badge).toHaveAttribute("data-variant", "success");

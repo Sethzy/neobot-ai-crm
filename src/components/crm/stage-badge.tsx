@@ -8,11 +8,9 @@ import type { Deal } from "@/lib/crm/schemas";
 
 export const dealStageLabelMap: Record<Deal["stage"], string> = {
   leads: "Leads",
-  viewing: "Viewing",
-  offer: "Offer",
   negotiation: "Negotiation",
-  otp: "OTP",
-  completion: "Completion",
+  offer: "Offer",
+  closing: "Closing",
   lost: "Lost",
 };
 

@@ -71,11 +71,9 @@ export type ContactInsert = z.infer<typeof contactInsertSchema>;
 /** Default deal pipeline stages. */
 export const dealStageValues = [
   "leads",
-  "viewing",
-  "offer",
   "negotiation",
-  "otp",
-  "completion",
+  "offer",
+  "closing",
   "lost",
 ] as const;
 

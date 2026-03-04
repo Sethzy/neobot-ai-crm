@@ -96,7 +96,7 @@ describe("deal schemas", () => {
     deal_id: "750e8400-e29b-41d4-a716-446655440000",
     client_id: "660e8400-e29b-41d4-a716-446655440000",
     address: "123 Orchard Road, #08-01",
-    stage: "viewing" as const,
+    stage: "negotiation" as const,
     price: 1500000,
     notes: "3BR condo",
     created_at: ISO,
@@ -143,11 +143,9 @@ describe("deal schemas", () => {
   test("dealStageValues contains allowed values", () => {
     expect(dealStageValues).toEqual([
       "leads",
-      "viewing",
-      "offer",
       "negotiation",
-      "otp",
-      "completion",
+      "offer",
+      "closing",
       "lost",
     ]);
   });

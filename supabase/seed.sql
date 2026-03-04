@@ -32,7 +32,7 @@ BEGIN
 
   INSERT INTO public.deals (deal_id, client_id, contact_id, address, stage, price, notes)
   VALUES
-    (v_deal_orchard, v_client_id, v_contact_john, '88 Orchard Boulevard, #12-05', 'viewing', 1800000, 'Scheduled 2 viewings. Client likes the layout.'),
+    (v_deal_orchard, v_client_id, v_contact_john, '88 Orchard Boulevard, #12-05', 'negotiation', 1800000, 'Scheduled 2 viewings. Client likes the layout.'),
     (v_deal_bukit, v_client_id, v_contact_jane, '456 Bukit Timah Road, #04-12', 'leads', 850000, 'HDB valuation pending. Seller motivated.'),
     (v_deal_marine, v_client_id, v_contact_ahmad, '10 Marine Parade Road, #08-03', 'offer', 4500, 'Rental listing. Tenant interested at asking price.'),
     (v_deal_tanjong, v_client_id, v_contact_john, '22 Tanjong Rhu Road, #15-01', 'negotiation', 2200000, 'Counter-offer at 2.1M. Seller wants 2.25M.')
@@ -58,11 +58,9 @@ BEGIN
     v_client_id,
     '[
       {"id": "leads", "name": "Leads", "color": "#94a3b8"},
-      {"id": "viewing", "name": "Viewing", "color": "#60a5fa"},
-      {"id": "offer", "name": "Offer", "color": "#fbbf24"},
       {"id": "negotiation", "name": "Negotiation", "color": "#f97316"},
-      {"id": "otp", "name": "OTP Signed", "color": "#a78bfa"},
-      {"id": "completion", "name": "Completed", "color": "#34d399"},
+      {"id": "offer", "name": "Offer", "color": "#fbbf24"},
+      {"id": "closing", "name": "Closing", "color": "#34d399"},
       {"id": "lost", "name": "Lost", "color": "#ef4444"}
     ]'::jsonb,
     '[
