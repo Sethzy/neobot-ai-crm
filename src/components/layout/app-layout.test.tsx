@@ -8,16 +8,18 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppLayout } from "./app-layout";
 import { UploadProvider } from "@/contexts/upload-context";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+  }),
+}));
+
 vi.mock("./app-sidebar", () => ({
   AppSidebar: ({ onOpenCommandMenu }: { onOpenCommandMenu?: () => void }) => (
     <button type="button" data-testid="sidebar-open-search" onClick={onOpenCommandMenu}>
       Sidebar
     </button>
   ),
-}));
-
-vi.mock("@/components/command-menu", () => ({
-  CommandMenu: ({ open }: { open: boolean }) => <div data-testid="command-menu" data-open={open} />,
 }));
 
 // Mock file utils to prevent actual processing
@@ -68,7 +70,20 @@ describe("AppLayout", () => {
 
     fireEvent.keyDown(document, { key: "k", metaKey: true });
 
-    expect(screen.getByTestId("command-menu")).toHaveAttribute("data-open", "true");
+    expect(screen.getByPlaceholderText(/search contacts, deals, tasks, threads/i)).toBeInTheDocument();
+  });
+
+  it("opens command menu when pressing Ctrl+K", () => {
+    render(
+      <AppLayout>
+        <div>Page Content</div>
+      </AppLayout>,
+      { wrapper },
+    );
+
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+
+    expect(screen.getByPlaceholderText(/search contacts, deals, tasks, threads/i)).toBeInTheDocument();
   });
 
   it("opens command menu when sidebar triggers search", () => {
@@ -81,6 +96,6 @@ describe("AppLayout", () => {
 
     fireEvent.click(screen.getByTestId("sidebar-open-search"));
 
-    expect(screen.getByTestId("command-menu")).toHaveAttribute("data-open", "true");
+    expect(screen.getByPlaceholderText(/search contacts, deals, tasks, threads/i)).toBeInTheDocument();
   });
 });

@@ -6,7 +6,7 @@
 
 import { CheckSquare, Handshake, MessageCircle, User } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState, type ElementType } from "react";
+import { useCallback, useEffect, useMemo, useState, type ElementType } from "react";
 
 import {
   Command,
@@ -52,7 +52,14 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 300);
-  const { data: results = [], isLoading } = useSearchRecords(debouncedQuery);
+  const { data: results = [], isLoading, isError } = useSearchRecords(debouncedQuery);
+  const hasActiveQuery = query.trim().length >= 2;
+
+  useEffect(() => {
+    if (!open && query.length > 0) {
+      setQuery("");
+    }
+  }, [open, query]);
 
   const groupedResults = useMemo(() => {
     const groups = new Map<SearchResult["type"], SearchResult[]>();
@@ -83,34 +90,40 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
         />
 
         <CommandList>
-          {debouncedQuery.length >= 2 && !isLoading && results.length === 0 ? (
+          {debouncedQuery.length >= 2 && isError ? (
+            <CommandEmpty>Unable to search right now. Please try again.</CommandEmpty>
+          ) : null}
+
+          {debouncedQuery.length >= 2 && !isError && !isLoading && results.length === 0 ? (
             <CommandEmpty>No results for &ldquo;{debouncedQuery}&rdquo;</CommandEmpty>
           ) : null}
 
-          {(["contact", "deal", "task", "thread"] as const).map((type) => {
-            const items = groupedResults.get(type);
-            if (!items?.length) {
-              return null;
-            }
+          {hasActiveQuery
+            ? (["contact", "deal", "task", "thread"] as const).map((type) => {
+                const items = groupedResults.get(type);
+                if (!items?.length) {
+                  return null;
+                }
 
-            return (
-              <CommandGroup key={type} heading={typeLabelMap[type]}>
-                {items.map((result) => {
-                  const Icon = typeIconMap[type];
+                return (
+                  <CommandGroup key={type} heading={typeLabelMap[type]}>
+                    {items.map((result) => {
+                      const Icon = typeIconMap[type];
 
-                  return (
-                    <CommandItem key={`${type}-${result.id}`} onSelect={() => handleSelect(result)}>
-                      <Icon className="mr-2 h-4 w-4 text-muted-foreground" />
-                      <span>{result.title}</span>
-                      {result.subtitle ? (
-                        <span className="ml-2 text-xs text-muted-foreground">{result.subtitle}</span>
-                      ) : null}
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            );
-          })}
+                      return (
+                        <CommandItem key={`${type}-${result.id}`} onSelect={() => handleSelect(result)}>
+                          <Icon className="mr-2 h-4 w-4 text-muted-foreground" />
+                          <span>{result.title}</span>
+                          {result.subtitle ? (
+                            <span className="ml-2 text-xs text-muted-foreground">{result.subtitle}</span>
+                          ) : null}
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                );
+              })
+            : null}
         </CommandList>
       </Command>
     </CommandDialog>
