@@ -36,12 +36,22 @@ vi.mock("@/lib/chat/channel-routing", () => ({
 
 import { processInboundMessage } from "@/lib/chat/process-inbound-message";
 
-function createThreadLookupSupabase(options: { threadExists: boolean; threadId?: string }) {
-  const { threadExists, threadId = "11111111-1111-4111-8111-111111111111" } = options;
+function createThreadLookupSupabase(options: {
+  threadExists: boolean;
+  threadId?: string;
+  lookupErrorMessage?: string;
+}) {
+  const {
+    threadExists,
+    threadId = "11111111-1111-4111-8111-111111111111",
+    lookupErrorMessage,
+  } = options;
   const maybeSingle = vi.fn().mockResolvedValue(
-    threadExists
-      ? { data: { thread_id: threadId }, error: null }
-      : { data: null, error: null },
+    lookupErrorMessage
+      ? { data: null, error: { message: lookupErrorMessage } }
+      : threadExists
+        ? { data: { thread_id: threadId }, error: null }
+        : { data: null, error: null },
   );
   const thirdEq = vi.fn(() => ({ maybeSingle }));
   const secondEq = vi.fn(() => ({ eq: thirdEq }));
@@ -89,6 +99,61 @@ describe("processInboundMessage", () => {
         threadId: "thread-mapped",
         input: "Hello",
       }),
+      supabase,
+    );
+  });
+
+  it("keeps mapped thread when requested-thread lookup fails in parallel", async () => {
+    const requestedThreadId = "22222222-2222-4222-8222-222222222222";
+    const supabase = createThreadLookupSupabase({
+      threadExists: false,
+      lookupErrorMessage: "thread lookup failed",
+    });
+    mockGetThreadIdForExternalConversation.mockResolvedValue("thread-mapped");
+    mockRunAgent.mockResolvedValue({ status: "queued" });
+
+    const result = await processInboundMessage({
+      supabase: supabase as never,
+      clientId: "client-123",
+      channel: "web",
+      externalConversationId: "external-1",
+      messageText: "Hello",
+      requestedThreadId,
+    });
+
+    expect(result).toEqual({
+      status: "queued",
+      threadId: "thread-mapped",
+    });
+    expect(supabase.from).toHaveBeenCalledTimes(1);
+    expect(mockRunAgent).toHaveBeenCalledWith(
+      expect.objectContaining({ threadId: "thread-mapped" }),
+      supabase,
+    );
+  });
+
+  it("falls back to requested thread when mapping lookup fails but requested thread resolves", async () => {
+    const requestedThreadId = "22222222-2222-4222-8222-222222222222";
+    const supabase = createThreadLookupSupabase({ threadExists: true, threadId: requestedThreadId });
+    mockGetThreadIdForExternalConversation.mockRejectedValue(new Error("mapping unavailable"));
+    mockRunAgent.mockResolvedValue({ status: "queued" });
+
+    const result = await processInboundMessage({
+      supabase: supabase as never,
+      clientId: "client-123",
+      channel: "web",
+      externalConversationId: "external-1",
+      messageText: "Hello",
+      requestedThreadId,
+    });
+
+    expect(result).toEqual({
+      status: "queued",
+      threadId: requestedThreadId,
+    });
+    expect(mockCreateThread).not.toHaveBeenCalled();
+    expect(mockRunAgent).toHaveBeenCalledWith(
+      expect.objectContaining({ threadId: requestedThreadId }),
       supabase,
     );
   });

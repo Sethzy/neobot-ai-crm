@@ -11,13 +11,6 @@ import { ChatThreadPageClient } from "./chat-thread-page-client";
 
 const mockUpdateThreadTitle = vi.fn();
 const mockGenerateThreadTitle = vi.fn();
-const mockReplace = vi.fn();
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    replace: mockReplace,
-  }),
-}));
 
 vi.mock("@/contexts/thread-context", () => ({
   useThreads: () => ({
@@ -110,12 +103,14 @@ describe("ChatThreadPageClient", () => {
     expect(sessionStorage.getItem("initial_msg_thread-abc")).toBeNull();
   });
 
-  it("replaces URL when canonical thread id differs", async () => {
+  it("replaces URL via history.replaceState when canonical thread id differs", async () => {
+    const replaceStateSpy = vi.spyOn(window.history, "replaceState");
     const user = userEvent.setup();
 
     render(<ChatThreadPageClient threadId="thread-draft" initialMessages={[]} />);
     await user.click(screen.getByRole("button", { name: /trigger-canonical-thread-id/i }));
 
-    expect(mockReplace).toHaveBeenCalledWith("/chat/thread-canonical");
+    expect(replaceStateSpy).toHaveBeenCalledWith(null, "", "/chat/thread-canonical");
+    replaceStateSpy.mockRestore();
   });
 });

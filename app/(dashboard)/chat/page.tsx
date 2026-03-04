@@ -33,7 +33,7 @@ export default function ChatPage() {
       sessionStorage.setItem(getInitialMessageHandoffKey(draftThreadId), text);
 
       try {
-        router.push(`/chat/${draftThreadId}?draft=1`);
+        router.push(`/chat/${draftThreadId}?draft=1&source=new`);
       } catch {
         setIsCreating(false);
       }

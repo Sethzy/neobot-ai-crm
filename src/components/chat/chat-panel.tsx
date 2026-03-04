@@ -40,6 +40,7 @@ export function ChatPanel({
   /** Refs for values the memoized transport fetch wrapper needs to access. */
   const chatIdRef = useRef(chatId);
   const onCanonicalThreadIdRef = useRef(onCanonicalThreadId);
+  const prevChatIdRef = useRef(chatId);
 
   useEffect(() => {
     chatIdRef.current = chatId;
@@ -73,8 +74,14 @@ export function ChatPanel({
 
   useEffect(() => {
     hasAutoNamed.current = initialMessages.some((message) => message.role === "user");
-    hasSentInitialMessage.current = false;
-    hasReconciledCanonicalThreadId.current = false;
+
+    /** Only reset send/reconciliation guards when the thread actually changes.
+     *  This prevents React strict mode double-invocation from re-firing sendMessage. */
+    if (prevChatIdRef.current !== chatId) {
+      prevChatIdRef.current = chatId;
+      hasSentInitialMessage.current = false;
+      hasReconciledCanonicalThreadId.current = false;
+    }
   }, [chatId, initialMessages]);
 
   const { messages, sendMessage, status, error } = useChat({

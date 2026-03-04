@@ -16,7 +16,7 @@ import { ChatThreadPageClient } from "./chat-thread-page-client";
 
 interface ChatThreadPageProps {
   params: Promise<{ threadId: string }>;
-  searchParams?: Promise<{ draft?: string | string[] }>;
+  searchParams?: Promise<{ draft?: string | string[]; source?: string | string[] }>;
 }
 
 const threadIdSchema = z.string().uuid();
@@ -58,11 +58,25 @@ export default async function ChatThreadPage({ params, searchParams }: ChatThrea
   const { threadId } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const draftParam = resolvedSearchParams?.draft;
+  const sourceParam = resolvedSearchParams?.source;
   const isDraftRoute = Array.isArray(draftParam) ? draftParam.includes("1") : draftParam === "1";
+  const isNewDraftSource = Array.isArray(sourceParam) ? sourceParam.includes("new") : sourceParam === "new";
 
   if (!threadIdSchema.safeParse(threadId).success) {
     redirect("/chat");
     return null;
+  }
+
+  /** Skip DB work only for explicitly marked new-draft routes.
+   *  Plain ?draft=1 still resolves persisted threads to avoid hiding history. */
+  if (isDraftRoute && isNewDraftSource) {
+    return (
+      <ChatThreadPageClient
+        threadId={threadId}
+        initialMessages={[]}
+        isDraftRoute
+      />
+    );
   }
 
   const supabase = await createClient();

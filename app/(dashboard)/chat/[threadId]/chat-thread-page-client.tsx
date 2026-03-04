@@ -6,7 +6,6 @@
 "use client";
 
 import type { UIMessage } from "ai";
-import { useRouter } from "next/navigation";
 import { useCallback, useRef } from "react";
 
 import { ChatPanel } from "@/components/chat/chat-panel";
@@ -25,7 +24,6 @@ export function ChatThreadPageClient({
   initialMessages,
   isDraftRoute = false,
 }: ChatThreadPageClientProps) {
-  const router = useRouter();
   const { updateThreadTitle } = useThreads();
   const initialMessageRef = useRef<string | undefined>(
     typeof window !== "undefined"
@@ -58,9 +56,12 @@ export function ChatThreadPageClient({
         return;
       }
 
-      router.replace(`/chat/${canonicalThreadId}`);
+      /** Update the URL bar without triggering a React navigation/remount.
+       *  A full router.replace would unmount ChatPanel mid-stream, killing
+       *  the active useChat stream before the assistant response arrives. */
+      window.history.replaceState(null, "", `/chat/${canonicalThreadId}`);
     },
-    [router, threadId],
+    [threadId],
   );
 
   return (

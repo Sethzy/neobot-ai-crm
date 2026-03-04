@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { resolveClientId } from "@/lib/chat/client-id";
 import { processInboundMessage } from "@/lib/chat/process-inbound-message";
+import { extractTextContent } from "@/lib/runner/message-utils";
 import { createClient } from "@/lib/supabase/server";
 
 /** Allows longer streaming runs on Vercel functions. */
@@ -38,21 +39,7 @@ function withCanonicalThreadIdHeader(response: Response, threadId: string): Resp
 }
 
 function getTextFromMessage(message: UIMessage): string | null {
-  const legacyContent = "content" in message && typeof message.content === "string"
-    ? message.content.trim()
-    : "";
-  if (legacyContent.length > 0) {
-    return legacyContent;
-  }
-
-  const parts = Array.isArray(message.parts) ? message.parts : [];
-  const text = parts
-    .filter((part): part is { type: "text"; text: string } => part.type === "text")
-    .map((part) => part.text.trim())
-    .filter((part) => part.length > 0)
-    .join("\n")
-    .trim();
-
+  const text = extractTextContent(message.parts);
   return text.length > 0 ? text : null;
 }
 
@@ -124,6 +111,7 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const clientId = await resolveClientId(supabase, user.id);
+
     const result = await processInboundMessage({
       supabase,
       clientId,
@@ -159,7 +147,8 @@ export async function POST(request: Request): Promise<Response> {
       result.streamResult.toUIMessageStreamResponse(),
       result.threadId,
     );
-  } catch {
+  } catch (error) {
+    console.error("[chat/route] Failed to process chat request:", error);
     return jsonError("Failed to process chat request.", 500);
   }
 }

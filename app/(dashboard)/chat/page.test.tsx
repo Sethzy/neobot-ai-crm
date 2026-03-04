@@ -46,7 +46,7 @@ describe("/chat page", () => {
     await user.click(screen.getByRole("button", { name: /submit/i }));
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith("/chat/33333333-3333-4333-8333-333333333333?draft=1");
+      expect(mockPush).toHaveBeenCalledWith("/chat/33333333-3333-4333-8333-333333333333?draft=1&source=new");
       expect(sessionStorage.getItem("initial_msg_33333333-3333-4333-8333-333333333333")).toBe("First draft message");
     });
   });
@@ -74,7 +74,7 @@ describe("/chat page", () => {
     await user.click(screen.getByRole("button", { name: "Check my deal pipeline" }));
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith("/chat/33333333-3333-4333-8333-333333333333?draft=1");
+      expect(mockPush).toHaveBeenCalledWith("/chat/33333333-3333-4333-8333-333333333333?draft=1&source=new");
       expect(sessionStorage.getItem("initial_msg_33333333-3333-4333-8333-333333333333")).toBe("Check my deal pipeline");
     });
   });

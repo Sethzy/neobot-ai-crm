@@ -2,7 +2,6 @@
  * Shared inbound message orchestration for web and future channel adapters.
  * @module lib/chat/process-inbound-message
  */
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import type { Channel } from "@/lib/chat/channel-routing";
@@ -14,14 +13,12 @@ import {
 import { createThread } from "@/lib/chat/threads";
 import { runAgent } from "@/lib/runner/run-agent";
 import type { RunnerPayload } from "@/lib/runner/schemas";
-import type { Database } from "@/types/database";
-
-type ChatSupabaseClient = SupabaseClient<Database>;
+import type { AppSupabaseClient } from "@/lib/supabase/types";
 
 const threadIdSchema = z.string().uuid();
 
 export interface ProcessInboundMessageInput {
-  supabase: ChatSupabaseClient;
+  supabase: AppSupabaseClient;
   clientId: string;
   channel: Channel;
   externalConversationId: string;
@@ -37,7 +34,7 @@ export type ProcessInboundMessageResult =
   | { status: "duplicate"; threadId: string };
 
 async function findActiveThreadForClient(
-  supabase: ChatSupabaseClient,
+  supabase: AppSupabaseClient,
   clientId: string,
   threadId: string,
 ): Promise<string | null> {
@@ -56,6 +53,10 @@ async function findActiveThreadForClient(
   return thread?.thread_id ?? null;
 }
 
+function toError(reason: unknown): Error {
+  return reason instanceof Error ? reason : new Error("Unknown inbound lookup failure.");
+}
+
 /**
  * Resolves the canonical thread, deduplicates inbound deliveries, and runs/queues the agent.
  */
@@ -69,14 +70,39 @@ export async function processInboundMessage({
   deliveryId,
   triggerType = "chat",
 }: ProcessInboundMessageInput): Promise<ProcessInboundMessageResult> {
-  let canonicalThreadId = await getThreadIdForExternalConversation(supabase, {
-    clientId,
-    channel,
-    externalConversationId,
-  });
+  const validRequestedThreadId =
+    requestedThreadId && threadIdSchema.safeParse(requestedThreadId).success
+      ? requestedThreadId
+      : null;
 
-  if (!canonicalThreadId && requestedThreadId && threadIdSchema.safeParse(requestedThreadId).success) {
-    canonicalThreadId = await findActiveThreadForClient(supabase, clientId, requestedThreadId);
+  const [mappedLookup, requestedLookup] = await Promise.allSettled([
+    getThreadIdForExternalConversation(supabase, {
+      clientId,
+      channel,
+      externalConversationId,
+    }),
+    validRequestedThreadId
+      ? findActiveThreadForClient(supabase, clientId, validRequestedThreadId)
+      : Promise.resolve(null),
+  ]);
+
+  const mappedThreadId = mappedLookup.status === "fulfilled" ? mappedLookup.value : null;
+  const requestedActiveThreadId = requestedLookup.status === "fulfilled" ? requestedLookup.value : null;
+
+  let canonicalThreadId = mappedThreadId ?? requestedActiveThreadId;
+
+  if (!canonicalThreadId) {
+    if (mappedLookup.status === "rejected" && requestedLookup.status === "rejected") {
+      throw toError(mappedLookup.reason);
+    }
+
+    if (mappedLookup.status === "rejected" && !requestedActiveThreadId) {
+      throw toError(mappedLookup.reason);
+    }
+
+    if (requestedLookup.status === "rejected") {
+      throw toError(requestedLookup.reason);
+    }
   }
 
   if (!canonicalThreadId) {
