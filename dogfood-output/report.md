@@ -1,209 +1,200 @@
-# Dogfood Report: Sunder Market Data Hub
+# Dogfood Report: Sunder
 
 | Field | Value |
 |-------|-------|
-| **Date** | 2026-03-01 |
+| **Date** | 2026-03-03 |
 | **App URL** | http://localhost:3000 |
-| **Session** | market-data-hub |
-| **Scope** | Market Data Hub feature — /market/*, sub-navigation, category cards, CTAs, agent profile enhancements, redirects from old routes |
+| **Session** | sunder-local |
+| **Scope** | Full app — PRs 1-12 (Chat, CRM, Knowledge Base) |
 
 ## Summary
 
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| High | 0 |
+| High | 1 |
 | Medium | 4 |
 | Low | 3 |
-| **Total** | **7** |
-
-## What Works Well
-
-- Hub landing page (/market) renders correctly with all 5 category cards and CTA banner
-- Sub-navigation highlights the active section on all pages
-- All 5 listing pages load correctly under /market/*
-- Redirects from old routes (308 permanent) work for both index and deep-links (e.g., /agents/R060832J → /market/agents/R060832J)
-- Agent profile stat cards display correctly (Total Transactions, Last 12 Months, Last Transaction, Avg Txn/Quarter, Active Years)
-- Transaction Volume chart with Yearly/Quarterly/Monthly toggle works correctly
-- Activity Heatmap renders with correct year/month data
-- Property Type donut chart renders
-- Transaction Type and Sales Representation donut charts render
-- Top Neighbourhoods section with region cards and town list renders
-- Header navigation links updated to /market/* paths
-- No JavaScript errors in console across all pages tested
-- Search functionality returns results and updates count label
+| **Total** | **8** |
 
 ## Issues
 
-### ISSUE-001: Raw database enum values displayed across charts and tables
-
-| Field | Value |
-|-------|-------|
-| **Severity** | medium |
-| **Category** | content |
-| **URL** | http://localhost:3000/market/agents/R060832J |
-| **Repro Video** | N/A |
-
-**Description**
-
-Chart legends and the Recent Transactions table display raw database enum values instead of human-readable labels. This affects multiple data fields:
-
-- **Property Type:** "CONDOMINIUM_APARTMENTS" instead of "Condominium / Apartments"
-- **Transaction Type:** "NEW SALE", "RESALE" instead of "New Sale", "Resale"
-- **Representation:** "BUYER", "SELLER" instead of "Buyer", "Seller"
-- **Town/Area names in charts and neighbourhoods list:** "WOODLANDS", "SENGKANG", "TAMPINES" in ALL CAPS instead of title case
-
-This appears across the Property Type donut legend, Transaction Type donut legend, Sales Representation donut legend, Top Neighbourhoods town list, and all rows of the Recent Transactions table.
-
-**Repro Steps**
-
-1. Navigate to http://localhost:3000/market/agents (click any agent)
-   ![Agent Profile Charts](screenshots/agent-profile-charts.png)
-
-2. Scroll to the charts section — observe "CONDOMINIUM_APARTMENTS" and "HDB" in the Property Type legend
-   ![Breakdowns](screenshots/agent-profile-breakdowns.png)
-
-3. Scroll to the Recent Transactions table — all column values are raw DB enums
-   ![Transactions Table](screenshots/neighbourhoods-hdb.png)
-
----
-
-### ISSUE-002: Areas page shows bare district numbers without labels
-
-| Field | Value |
-|-------|-------|
-| **Severity** | medium |
-| **Category** | content |
-| **URL** | http://localhost:3000/market/areas |
-| **Repro Video** | N/A |
-
-**Description**
-
-The Areas listing page shows some entries as bare numeric values ("19", "10", "20", "05", "21", "23", "03") instead of proper labels like "District 19" or "D19 — Hougang / Punggol". These are private property district codes displayed without any context. A user seeing just "19" in a list of area names like "WOODLANDS" and "TAMPINES" has no idea what it refers to.
-
-**Repro Steps**
-
-1. Navigate to http://localhost:3000/market/areas and scroll down past the named towns
-   ![Areas Districts](screenshots/areas-districts-numbers.png)
-
-2. **Observe:** Entries like "19" (22 txns), "10" (11 txns), "20" (10 txns), "05" (9 txns) are mixed in with named areas
-
----
-
-### ISSUE-003: Inconsistent area name formatting in transactions table
-
-| Field | Value |
-|-------|-------|
-| **Severity** | low |
-| **Category** | content |
-| **URL** | http://localhost:3000/market/agents/R060832J |
-| **Repro Video** | N/A |
-
-**Description**
-
-The AREA column in the Recent Transactions table has inconsistent formatting. Most entries are ALL CAPS (e.g., "BUKIT PANJANG", "TAMPINES") but one entry shows "Tampines/ Pasir Ris" in mixed case with an extra space before the slash. This appears to be a data inconsistency between HDB and private property data sources.
-
-**Repro Steps**
-
-1. Navigate to an agent profile and scroll to the Recent Transactions table
-   ![Inconsistent Area](screenshots/neighbourhoods-hdb.png)
-
-2. **Observe:** First row shows "Tampines/ Pasir Ris" while all other rows show ALL CAPS like "BUKIT PANJANG"
-
----
-
-### ISSUE-004: Search query not persisted in URL
+### ISSUE-001: Chat threads all named "New Chat" — no auto-naming
 
 | Field | Value |
 |-------|-------|
 | **Severity** | medium |
 | **Category** | ux |
-| **URL** | http://localhost:3000/market/agents |
-| **Repro Video** | videos/issue-search.webm |
+| **URL** | http://localhost:3000/chat |
+| **Repro Video** | N/A |
 
 **Description**
 
-When searching on the Agents page (and likely all listing pages), the search query is not reflected in the URL as a query parameter. After searching "ERA", the URL remains `/market/agents` instead of `/market/agents?q=ERA`. This means:
-
-- Search results cannot be shared via URL
-- Refreshing the page loses the search query
-- Browser back button doesn't preserve search state
+All chat threads in the sidebar are labeled "New Chat" regardless of their content. Users cannot distinguish between conversations. Expected: threads should be auto-named based on the first message or conversation topic.
 
 **Repro Steps**
 
-1. Navigate to http://localhost:3000/market/agents
-   ![Before Search](screenshots/search-step1.png)
+1. Navigate to http://localhost:3000/chat
+   ![Step 1](screenshots/chat-page.png)
 
-2. Type "ERA" and click Search — results update correctly (24 agents found matching "ERA")
-   ![After Search](screenshots/search-step2.png)
-
-3. **Observe:** URL bar still shows `/market/agents` with no query parameter
+2. **Observe:** All 3 threads in the sidebar are named "New Chat" with no way to tell them apart.
+   ![Result](screenshots/chat-after-send.png)
 
 ---
 
-### ISSUE-005: No pagination on agent transactions table
+### ISSUE-002: CRM Deals tab missing empty state
+
+| Field | Value |
+|-------|-------|
+| **Severity** | low |
+| **Category** | ux |
+| **URL** | http://localhost:3000/crm?tab=deals |
+| **Repro Video** | N/A |
+
+**Description**
+
+The Deals tab shows only a search bar and blank space when there are no deals. The Contacts tab correctly shows a "No contacts yet" message with an icon. The Deals tab should have an equivalent empty state for consistency.
+
+**Repro Steps**
+
+1. Navigate to CRM > Deals tab
+   ![Result](screenshots/crm-deals.png)
+
+2. **Observe:** No empty state message — just blank white space below the search bar. Compare to Contacts tab which has "No contacts yet" with an icon.
+   ![Contacts comparison](screenshots/crm-page.png)
+
+---
+
+### ISSUE-003: Knowledge Base page shows "Coming soon" placeholder
+
+| Field | Value |
+|-------|-------|
+| **Severity** | high |
+| **Category** | functional |
+| **URL** | http://localhost:3000/knowledge |
+| **Repro Video** | N/A |
+
+**Description**
+
+The Knowledge page shows "Coming soon — This section is under construction." despite the knowledge base (PR 12a) being implemented. The backend schema and API are in place but the UI page was not connected. Users cannot access or manage their knowledge base through the app.
+
+**Repro Steps**
+
+1. Navigate to Knowledge in the sidebar
+   ![Result](screenshots/knowledge-page.png)
+
+2. **Observe:** Page shows "Coming soon" placeholder instead of the knowledge base UI.
+
+---
+
+### ISSUE-004: "Documents" sidebar links to /cases showing "Workspace" — naming mismatch
 
 | Field | Value |
 |-------|-------|
 | **Severity** | medium |
 | **Category** | ux |
-| **URL** | http://localhost:3000/market/agents/R060832J |
+| **URL** | http://localhost:3000/cases |
 | **Repro Video** | N/A |
 
 **Description**
 
-The Recent Transactions table on the agent profile page shows all transactions in a single unpaginated list. For the test agent (77 transactions), this creates a very long scrollable table. High-volume agents could have hundreds or thousands of transactions, making the page excessively long and hard to navigate.
+The sidebar item labeled "Documents" navigates to `/cases`, which displays a page titled "Workspace" with the description "Fully customised multi-step document processing workflows with built-in classification, extraction, validation, and review." Three different labels for the same page creates confusion. The URL, sidebar label, and page heading should be consistent.
 
 **Repro Steps**
 
-1. Navigate to any agent profile (e.g., http://localhost:3000/market/agents/R060832J)
-2. Scroll to the Recent Transactions section
-   ![Long Table](screenshots/agent-profile-movement.png)
-
-3. **Observe:** All 77 transactions are rendered in a single list with no pagination, page size control, or "load more" mechanism. Previous/Next buttons exist but are for a different section.
+1. Click "Documents" in the sidebar. URL becomes `/cases`, page title reads "Workspace".
+   ![Result](screenshots/sidebar-labels.png)
 
 ---
 
-### ISSUE-006: Spelling inconsistency — "neighborhood" vs "neighbourhoods"
+### ISSUE-005: Tasks page and Deals tab missing empty state message
 
 | Field | Value |
 |-------|-------|
 | **Severity** | low |
-| **Category** | content |
-| **URL** | http://localhost:3000/market/areas |
+| **Category** | ux |
+| **URL** | http://localhost:3000/tasks, http://localhost:3000/crm?tab=deals |
 | **Repro Video** | N/A |
 
 **Description**
 
-The Areas page uses American English spelling "neighborhood" in its description ("Track transaction activity by neighborhood, town, and district.") while the agent profile uses British/Singapore English "Neighbourhoods" ("Top Neighbourhoods"). Singapore follows British English conventions, so "neighbourhood" should be used consistently.
+Both the Tasks page and CRM Deals tab show a search bar and then blank white space when there are no records. The CRM Contacts tab correctly shows "No contacts yet" with an icon. Tasks and Deals should have equivalent empty state messaging for consistency.
 
 **Repro Steps**
 
-1. Navigate to http://localhost:3000/market/areas — subtitle reads "neighborhood"
-   ![Areas Page](screenshots/market-areas.png)
+1. Navigate to Tasks page — only a search bar and blank space.
+   ![Tasks](screenshots/tasks-detail.png)
 
-2. Navigate to any agent profile, scroll to Top Neighbourhoods — heading reads "Neighbourhoods"
-   ![Neighbourhoods](screenshots/agent-profile-breakdowns.png)
+2. Navigate to CRM > Deals tab — only a search bar and blank space.
+   ![Deals](screenshots/crm-deals.png)
 
 ---
 
-### ISSUE-007: Repeated CSS preload warning on every navigation
+### ISSUE-006: Chat threads have no unique URLs — cannot deep-link or share conversations
+
+| Field | Value |
+|-------|-------|
+| **Severity** | medium |
+| **Category** | functional |
+| **URL** | http://localhost:3000/chat |
+| **Repro Video** | videos/issue-007-thread-switch.webm |
+
+**Description**
+
+Switching between chat threads doesn't update the URL — it stays at `/chat` regardless of which conversation is selected. This means conversations can't be bookmarked, shared, or restored on page refresh. Expected: URL should include the thread ID (e.g., `/chat/thread-abc123`).
+
+**Repro Steps**
+
+1. Navigate to Chat page. URL is `/chat`.
+   ![Step 1](screenshots/issue-007-step-1.png)
+
+2. Click a different thread in the sidebar. Conversation content changes but URL stays at `/chat`.
+   ![Step 2](screenshots/issue-007-step-2.png)
+
+---
+
+### ISSUE-007: Workspace table columns inaccessible on mobile — no horizontal scroll
+
+| Field | Value |
+|-------|-------|
+| **Severity** | medium |
+| **Category** | visual |
+| **URL** | http://localhost:3000/cases |
+| **Repro Video** | N/A |
+
+**Description**
+
+On mobile viewport (375px), the Workspace table hides the CREATED, EVENT DATE, and LAST UPDATED columns entirely. There is no horizontal scroll to access them. The Description column text is severely truncated. Users on mobile have no way to see date information for their cases.
+
+**Repro Steps**
+
+1. View Workspace page on mobile viewport (375x812).
+   ![Mobile table](screenshots/mobile-workspace.png)
+
+2. Attempt to scroll right — nothing changes, date columns remain hidden.
+   ![After scroll](screenshots/mobile-workspace-scroll.png)
+
+---
+
+### ISSUE-008: 404 page uses default Next.js styling — no branding or navigation
 
 | Field | Value |
 |-------|-------|
 | **Severity** | low |
-| **Category** | console |
-| **URL** | All /market/* pages |
+| **Category** | visual |
+| **URL** | http://localhost:3000/nonexistent |
 | **Repro Video** | N/A |
 
 **Description**
 
-Every page navigation within `/market/*` generates a console warning: "The resource http://localhost:3000/_next/static/css/da6512f5b0afe8ea.css was preloaded using link preload but not used within a few seconds from the window's load event." This is a Next.js CSS preload issue that generates noise in the console. Not user-facing but indicates a potential performance optimization opportunity.
+Navigating to any invalid route (e.g., `/documents`, `/auth/signin`, `/signin`) shows the default Next.js 404 page — plain text "404 | This page could not be found." with no app branding, sidebar, or navigation back to the app. Users who hit a dead link have no way to return without manually editing the URL.
 
 **Repro Steps**
 
-1. Open browser DevTools console
-2. Navigate to any `/market/*` page
-3. **Observe:** CSS preload warning appears, and accumulates with each navigation
+1. Navigate to any invalid route like `/documents` or `/auth/signin`
+   ![Result](screenshots/issue-009-step-1.png)
+
+2. **Observe:** Generic Next.js 404 with no sidebar, branding, or navigation.
 
 ---
+
