@@ -12,6 +12,8 @@ const PUBLIC_ROUTES = [
 ];
 
 const AUTH_ONLY_ROUTES = ["/login", "/register"];
+/** Routes that need auth checks even though they're public (to redirect logged-in users). */
+const AUTH_CHECK_ROUTES = ["/", "/login", "/register"];
 
 const STATIC_FILE_REGEX = /\.[^/]+$/;
 const SUPABASE_URL =
@@ -56,7 +58,8 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // Skip auth checks for static/infrastructure requests and non-auth public pages.
-  if (isPublicRoute(pathname) && !AUTH_ONLY_ROUTES.includes(pathname)) {
+  // AUTH_CHECK_ROUTES need auth checks to redirect logged-in users.
+  if (isPublicRoute(pathname) && !AUTH_CHECK_ROUTES.includes(pathname)) {
     return NextResponse.next();
   }
 
@@ -112,7 +115,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && AUTH_ONLY_ROUTES.includes(pathname)) {
+  if (user && (AUTH_ONLY_ROUTES.includes(pathname) || pathname === "/")) {
     const url = request.nextUrl.clone();
     url.pathname = "/chat";
     return NextResponse.redirect(url);
