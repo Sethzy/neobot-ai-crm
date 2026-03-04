@@ -31,7 +31,12 @@ export default function ChatPage() {
       const draftThreadId = crypto.randomUUID();
       setIsCreating(true);
       sessionStorage.setItem(getInitialMessageHandoffKey(draftThreadId), text);
-      router.push(`/chat/${draftThreadId}?draft=1`);
+
+      try {
+        router.push(`/chat/${draftThreadId}?draft=1`);
+      } catch {
+        setIsCreating(false);
+      }
     },
     [isCreating, router],
   );

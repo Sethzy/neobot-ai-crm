@@ -7,9 +7,9 @@ import { describe, expect, it } from "vitest";
 import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
 import {
+  ensureExternalConversationMapping,
   getThreadIdForExternalConversation,
   recordInboundDelivery,
-  upsertExternalConversationThreadMap,
 } from "../channel-routing";
 
 function findMethodCall(
@@ -56,27 +56,27 @@ describe("getThreadIdForExternalConversation", () => {
   });
 });
 
-describe("upsertExternalConversationThreadMap", () => {
-  it("inserts a new mapping when none exists", async () => {
+describe("ensureExternalConversationMapping", () => {
+  it("inserts a new mapping and returns the thread id", async () => {
     const client = createMockSupabaseClient({
-      selectResult: {
-        data: [],
-        error: null,
-      },
       insertResult: {
         data: [],
         error: null,
       },
+      selectResult: {
+        data: [{ thread_id: "thread-1" }],
+        error: null,
+      },
     });
 
-    await expect(
-      upsertExternalConversationThreadMap(client as never, {
-        clientId: "client-1",
-        channel: "web",
-        externalConversationId: "external-1",
-        threadId: "thread-1",
-      }),
-    ).resolves.toBeUndefined();
+    const winnerId = await ensureExternalConversationMapping(client as never, {
+      clientId: "client-1",
+      channel: "web",
+      externalConversationId: "external-1",
+      threadId: "thread-1",
+    });
+
+    expect(winnerId).toBe("thread-1");
     expect(findMethodCall(client, "insert")?.args[0]).toEqual({
       client_id: "client-1",
       channel: "web",
@@ -85,36 +85,89 @@ describe("upsertExternalConversationThreadMap", () => {
     });
   });
 
-  it("updates existing mapping when thread id changes", async () => {
+  it("returns the existing thread id on conflict (first-write-wins)", async () => {
     const client = createMockSupabaseClient({
+      insertResult: {
+        data: null,
+        error: { message: "duplicate key", code: "23505" },
+      },
       selectResult: {
-        data: [{ mapping_id: "mapping-1", thread_id: "thread-old" }],
+        data: [{ thread_id: "thread-existing" }],
         error: null,
       },
-      updateResult: {
+    });
+
+    const winnerId = await ensureExternalConversationMapping(client as never, {
+      clientId: "client-1",
+      channel: "web",
+      externalConversationId: "external-1",
+      threadId: "thread-new",
+    });
+
+    expect(winnerId).toBe("thread-existing");
+  });
+
+  it("never overwrites an existing mapping with a different thread id", async () => {
+    const client = createMockSupabaseClient({
+      insertResult: {
+        data: null,
+        error: { message: "duplicate key", code: "23505" },
+      },
+      selectResult: {
+        data: [{ thread_id: "thread-existing" }],
+        error: null,
+      },
+    });
+
+    await ensureExternalConversationMapping(client as never, {
+      clientId: "client-1",
+      channel: "web",
+      externalConversationId: "external-1",
+      threadId: "thread-attacker",
+    });
+
+    const hasUpdate = client.calls.methods.some((call) => call.method === "update");
+    expect(hasUpdate).toBe(false);
+  });
+
+  it("throws on non-conflict insert errors", async () => {
+    const client = createMockSupabaseClient({
+      insertResult: {
+        data: null,
+        error: { message: "permission denied", code: "42501" },
+      },
+    });
+
+    await expect(
+      ensureExternalConversationMapping(client as never, {
+        clientId: "client-1",
+        channel: "web",
+        externalConversationId: "external-1",
+        threadId: "thread-1",
+      }),
+    ).rejects.toThrow("Failed to ensure channel mapping: permission denied");
+  });
+
+  it("throws when readback after ensure fails", async () => {
+    const client = createMockSupabaseClient({
+      insertResult: {
+        data: [],
+        error: null,
+      },
+      selectResult: {
         data: [],
         error: null,
       },
     });
 
     await expect(
-      upsertExternalConversationThreadMap(client as never, {
+      ensureExternalConversationMapping(client as never, {
         clientId: "client-1",
         channel: "web",
         externalConversationId: "external-1",
-        threadId: "thread-new",
+        threadId: "thread-1",
       }),
-    ).resolves.toBeUndefined();
-    expect(findMethodCall(client, "update")?.args[0]).toEqual({
-      thread_id: "thread-new",
-    });
-    expect(
-      client.calls.methods.some(
-        (call) => call.method === "eq" &&
-          call.args[0] === "mapping_id" &&
-          call.args[1] === "mapping-1",
-      ),
-    ).toBe(true);
+    ).rejects.toThrow("Failed to read channel mapping after ensure");
   });
 });
 

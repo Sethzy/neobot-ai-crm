@@ -6,9 +6,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import {
+  ensureExternalConversationMapping,
   getThreadIdForExternalConversation,
   recordInboundDelivery,
-  upsertExternalConversationThreadMap,
 } from "@/lib/chat/channel-routing";
 import { createThread } from "@/lib/chat/threads";
 import { runAgent } from "@/lib/runner/run-agent";
@@ -83,7 +83,7 @@ export async function processInboundMessage({
     canonicalThreadId = createdThread.thread_id;
   }
 
-  await upsertExternalConversationThreadMap(supabase, {
+  canonicalThreadId = await ensureExternalConversationMapping(supabase, {
     clientId,
     channel,
     externalConversationId,

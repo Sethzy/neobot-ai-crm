@@ -9,7 +9,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppSidebar } from "./app-sidebar";
 
 const mockSetOpenMobile = vi.fn();
-const mockSelectThread = vi.fn();
 const mockArchiveThread = vi.fn();
 const mockPush = vi.fn();
 const mockToastError = vi.fn();
@@ -44,8 +43,6 @@ vi.mock("@/contexts/thread-context", () => ({
       { id: "thread-1", title: "Thread Alpha", createdAt: new Date("2026-03-01T00:00:00.000Z") },
       { id: "thread-2", title: "Thread Beta", createdAt: new Date("2026-03-01T01:00:00.000Z") },
     ],
-    activeThreadId: "thread-1",
-    selectThread: mockSelectThread,
     updateThreadTitle: vi.fn(),
     archiveThread: mockArchiveThread,
   }),
@@ -119,13 +116,12 @@ describe("AppSidebar mobile thread actions", () => {
     expect(screen.queryByRole("button", { name: /new chat/i })).not.toBeInTheDocument();
   });
 
-  it("closes the mobile sidebar on thread link click without imperative context selection", async () => {
+  it("closes the mobile sidebar on thread link click", async () => {
     const user = userEvent.setup();
     render(<AppSidebar />);
 
     await user.click(screen.getByRole("link", { name: "Thread Beta" }));
 
-    expect(mockSelectThread).not.toHaveBeenCalled();
     expect(mockSetOpenMobile).toHaveBeenCalledWith(false);
   });
 

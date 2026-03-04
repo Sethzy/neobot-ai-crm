@@ -51,6 +51,22 @@ describe("/chat page", () => {
     });
   });
 
+  it("resets isCreating state when navigation throws", async () => {
+    mockPush.mockImplementationOnce(() => {
+      throw new Error("Navigation failed");
+    });
+
+    const user = userEvent.setup();
+    render(<ChatPage />);
+
+    await user.type(screen.getByPlaceholderText(/send a message/i), "Will fail");
+    await user.click(screen.getByRole("button", { name: /submit/i }));
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/send a message/i)).not.toBeDisabled();
+    });
+  });
+
   it("submits suggestion text as the initial draft message", async () => {
     const user = userEvent.setup();
     render(<ChatPage />);

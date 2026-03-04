@@ -1,5 +1,6 @@
 /**
  * Thread state context backed by chat persistence hooks.
+ * URL is the single source of truth for which thread is active.
  * @module contexts/thread-context
  */
 "use client";
@@ -8,9 +9,7 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useState,
 } from "react";
 
 import { useClientId } from "@/hooks/use-client-id";
@@ -24,10 +23,8 @@ import type { Thread } from "@/types/chat";
 
 interface ThreadContextValue {
   threads: Thread[];
-  activeThreadId: string;
   /** Creates a new thread and returns its ID. */
   createThread: () => Promise<string>;
-  selectThread: (id: string) => void;
   updateThreadTitle: (id: string, title: string) => void;
   /** Archives a thread and returns whether the operation succeeded. */
   archiveThread: (id: string) => Promise<boolean>;
@@ -36,8 +33,6 @@ interface ThreadContextValue {
 const ThreadContext = createContext<ThreadContextValue | null>(null);
 
 export function ThreadProvider({ children }: { children: React.ReactNode }) {
-  const [activeThreadId, setActiveThreadId] = useState("");
-
   const { data: clientId } = useClientId();
   const { data: threadRows = [] } = useThreadRows(clientId);
   const {
@@ -56,29 +51,10 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
     [threadRows],
   );
 
-  useEffect(() => {
-    if (threadRows.length === 0) {
-      setActiveThreadId("");
-      return;
-    }
-
-    if (!activeThreadId) {
-      setActiveThreadId(threadRows[0].thread_id);
-    }
-  }, [threadRows, activeThreadId]);
-
   const createThread = useCallback(async () => {
     const thread = await createThreadMutateAsync(null);
-    setActiveThreadId(thread.thread_id);
     return thread.thread_id;
   }, [createThreadMutateAsync]);
-
-  const selectThread = useCallback((id: string) => {
-    const hasThread = threadRows.some((thread) => thread.thread_id === id);
-    if (hasThread) {
-      setActiveThreadId(id);
-    }
-  }, [threadRows]);
 
   const updateThreadTitle = useCallback((id: string, title: string) => {
     updateThreadTitleMutate({ threadId: id, title });
@@ -87,28 +63,20 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
   const archiveThread = useCallback(async (id: string) => {
     try {
       await archiveThreadMutateAsync(id);
-      if (activeThreadId === id && threadRows.length > 1) {
-        const next = threadRows.find((t) => t.thread_id !== id);
-        if (next) {
-          setActiveThreadId(next.thread_id);
-        }
-      }
       return true;
     } catch {
       return false;
     }
-  }, [archiveThreadMutateAsync, activeThreadId, threadRows]);
+  }, [archiveThreadMutateAsync]);
 
   const value = useMemo<ThreadContextValue>(
     () => ({
       threads,
-      activeThreadId,
       createThread,
-      selectThread,
       updateThreadTitle,
       archiveThread,
     }),
-    [threads, activeThreadId, createThread, selectThread, updateThreadTitle, archiveThread],
+    [threads, createThread, updateThreadTitle, archiveThread],
   );
 
   return <ThreadContext.Provider value={value}>{children}</ThreadContext.Provider>;

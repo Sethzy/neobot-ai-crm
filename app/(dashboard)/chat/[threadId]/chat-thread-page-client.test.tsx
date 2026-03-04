@@ -9,7 +9,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChatThreadPageClient } from "./chat-thread-page-client";
 
-const mockSelectThread = vi.fn();
 const mockUpdateThreadTitle = vi.fn();
 const mockGenerateThreadTitle = vi.fn();
 const mockReplace = vi.fn();
@@ -22,7 +21,6 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/contexts/thread-context", () => ({
   useThreads: () => ({
-    selectThread: (...args: unknown[]) => mockSelectThread(...args),
     updateThreadTitle: (...args: unknown[]) => mockUpdateThreadTitle(...args),
   }),
 }));
@@ -79,12 +77,6 @@ describe("ChatThreadPageClient", () => {
 
     expect(screen.getByTestId("chat-id")).toHaveTextContent("thread-abc");
     expect(screen.getByTestId("initial-message-count")).toHaveTextContent("1");
-  });
-
-  it("does not imperatively select thread on mount", () => {
-    render(<ChatThreadPageClient threadId="thread-abc" initialMessages={[]} />);
-
-    expect(mockSelectThread).not.toHaveBeenCalled();
   });
 
   it("auto-names thread from first user message", async () => {

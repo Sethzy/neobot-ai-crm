@@ -35,8 +35,16 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const hasAutoNamed = useRef(false);
   const hasSentInitialMessage = useRef(false);
-  const pendingCanonicalThreadId = useRef<string | null>(null);
   const hasReconciledCanonicalThreadId = useRef(false);
+
+  /** Refs for values the memoized transport fetch wrapper needs to access. */
+  const chatIdRef = useRef(chatId);
+  const onCanonicalThreadIdRef = useRef(onCanonicalThreadId);
+
+  useEffect(() => {
+    chatIdRef.current = chatId;
+    onCanonicalThreadIdRef.current = onCanonicalThreadId;
+  }, [chatId, onCanonicalThreadId]);
 
   const transport = useMemo(
     () =>
@@ -46,7 +54,17 @@ export function ChatPanel({
         fetch: async (input, init) => {
           const response = await fetch(input, init);
           const canonicalThreadId = response.headers.get("x-thread-id");
-          pendingCanonicalThreadId.current = canonicalThreadId;
+
+          if (
+            onCanonicalThreadIdRef.current &&
+            canonicalThreadId &&
+            canonicalThreadId !== chatIdRef.current &&
+            !hasReconciledCanonicalThreadId.current
+          ) {
+            hasReconciledCanonicalThreadId.current = true;
+            onCanonicalThreadIdRef.current(canonicalThreadId);
+          }
+
           return response;
         },
       }),
@@ -56,7 +74,6 @@ export function ChatPanel({
   useEffect(() => {
     hasAutoNamed.current = initialMessages.some((message) => message.role === "user");
     hasSentInitialMessage.current = false;
-    pendingCanonicalThreadId.current = null;
     hasReconciledCanonicalThreadId.current = false;
   }, [chatId, initialMessages]);
 
@@ -71,17 +88,6 @@ export function ChatPanel({
           hasAutoNamed.current = true;
           onAutoName(getMessageText(firstUserMsg));
         }
-      }
-
-      const canonicalThreadId = pendingCanonicalThreadId.current;
-      if (
-        onCanonicalThreadId &&
-        canonicalThreadId &&
-        canonicalThreadId !== chatId &&
-        !hasReconciledCanonicalThreadId.current
-      ) {
-        hasReconciledCanonicalThreadId.current = true;
-        onCanonicalThreadId(canonicalThreadId);
       }
     },
   });

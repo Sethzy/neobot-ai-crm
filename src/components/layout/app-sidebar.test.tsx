@@ -26,7 +26,6 @@ vi.mock("@/lib/supabase", () => ({
 // Configurable pathname for router mock
 let mockPathname = "/chat";
 const mockPush = vi.fn();
-const mockSelectThread = vi.fn();
 const mockUpdateThreadTitle = vi.fn();
 const mockArchiveThread = vi.fn();
 
@@ -51,8 +50,6 @@ vi.mock("@/hooks/use-mobile", () => ({
 vi.mock("@/contexts/thread-context", () => ({
   useThreads: () => ({
     threads: [{ id: "thread-1", title: "Test Chat", createdAt: new Date() }],
-    activeThreadId: "thread-1",
-    selectThread: mockSelectThread,
     updateThreadTitle: mockUpdateThreadTitle,
     archiveThread: mockArchiveThread,
   }),

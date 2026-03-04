@@ -296,12 +296,11 @@ describe("ChatPanel", () => {
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  it("emits canonical thread id after response finish when header id differs", async () => {
+  it("emits canonical thread id immediately when fetch response header differs from chatId", async () => {
     const onCanonicalThreadId = vi.fn();
     render(<ChatPanel chatId="thread-draft" onCanonicalThreadId={onCanonicalThreadId} />);
 
     const options = mockUseChat.mock.calls[0][0] as {
-      onFinish?: (payload: { messages: UIMessage[] }) => Promise<void> | void;
       transport: { fetch?: (input: URL | RequestInfo, init?: RequestInit) => Promise<Response> };
     };
 
@@ -312,20 +311,16 @@ describe("ChatPanel", () => {
     );
 
     await options.transport.fetch?.("http://localhost/api/chat", { method: "POST" });
-    await options.onFinish?.({
-      messages: [{ id: "a1", role: "assistant", parts: [{ type: "text", text: "done" }] }] as UIMessage[],
-    });
 
     expect(onCanonicalThreadId).toHaveBeenCalledWith("thread-canonical");
     fetchSpy.mockRestore();
   });
 
-  it("does not emit canonical thread id when it matches current chat id", async () => {
+  it("does not emit canonical thread id when header matches current chat id", async () => {
     const onCanonicalThreadId = vi.fn();
     render(<ChatPanel chatId="thread-1" onCanonicalThreadId={onCanonicalThreadId} />);
 
     const options = mockUseChat.mock.calls[0][0] as {
-      onFinish?: (payload: { messages: UIMessage[] }) => Promise<void> | void;
       transport: { fetch?: (input: URL | RequestInfo, init?: RequestInit) => Promise<Response> };
     };
 
@@ -336,11 +331,29 @@ describe("ChatPanel", () => {
     );
 
     await options.transport.fetch?.("http://localhost/api/chat", { method: "POST" });
-    await options.onFinish?.({
-      messages: [{ id: "a1", role: "assistant", parts: [{ type: "text", text: "done" }] }] as UIMessage[],
-    });
 
     expect(onCanonicalThreadId).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("only emits canonical thread id once even if fetch is called multiple times", async () => {
+    const onCanonicalThreadId = vi.fn();
+    render(<ChatPanel chatId="thread-draft" onCanonicalThreadId={onCanonicalThreadId} />);
+
+    const options = mockUseChat.mock.calls[0][0] as {
+      transport: { fetch?: (input: URL | RequestInfo, init?: RequestInit) => Promise<Response> };
+    };
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("stream", {
+        headers: { "x-thread-id": "thread-canonical" },
+      }),
+    );
+
+    await options.transport.fetch?.("http://localhost/api/chat", { method: "POST" });
+    await options.transport.fetch?.("http://localhost/api/chat", { method: "POST" });
+
+    expect(onCanonicalThreadId).toHaveBeenCalledTimes(1);
     fetchSpy.mockRestore();
   });
 });

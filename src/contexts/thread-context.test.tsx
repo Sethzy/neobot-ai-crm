@@ -66,7 +66,7 @@ describe("thread context", () => {
     });
   });
 
-  it("hydrates threads from DB rows and selects first as active", async () => {
+  it("hydrates threads from DB rows", async () => {
     const { result } = renderHook(() => useThreads(), { wrapper });
 
     await waitFor(() => expect(result.current.threads).toHaveLength(1));
@@ -74,10 +74,9 @@ describe("thread context", () => {
       id: "thread-1",
       title: "First chat",
     });
-    expect(result.current.activeThreadId).toBe("thread-1");
   });
 
-  it("creates a new thread and makes it active", async () => {
+  it("creates a new thread and returns its id", async () => {
     const newThread = {
       ...baseThread,
       thread_id: "thread-2",
@@ -92,14 +91,15 @@ describe("thread context", () => {
     });
 
     const { result } = renderHook(() => useThreads(), { wrapper });
-    await waitFor(() => expect(result.current.activeThreadId).toBe("thread-1"));
+    await waitFor(() => expect(result.current.threads).toHaveLength(1));
 
+    let newId: string | undefined;
     await act(async () => {
-      await result.current.createThread();
+      newId = await result.current.createThread();
     });
 
     expect(mutateAsync).toHaveBeenCalledWith(null);
-    expect(result.current.activeThreadId).toBe("thread-2");
+    expect(newId).toBe("thread-2");
   });
 
   it("does not auto-create a thread when none exist", async () => {
@@ -119,20 +119,8 @@ describe("thread context", () => {
 
     await waitFor(() => {
       expect(result.current.threads).toEqual([]);
-      expect(result.current.activeThreadId).toBe("");
     });
     expect(mutate).not.toHaveBeenCalled();
-  });
-
-  it("does not change active thread for unknown ids", async () => {
-    const { result } = renderHook(() => useThreads(), { wrapper });
-    await waitFor(() => expect(result.current.activeThreadId).toBe("thread-1"));
-
-    act(() => {
-      result.current.selectThread("thread-does-not-exist");
-    });
-
-    expect(result.current.activeThreadId).toBe("thread-1");
   });
 
   it("delegates title updates to mutation hook", async () => {
@@ -140,7 +128,7 @@ describe("thread context", () => {
     mockUseUpdateThreadTitle.mockReturnValue({ mutate });
 
     const { result } = renderHook(() => useThreads(), { wrapper });
-    await waitFor(() => expect(result.current.activeThreadId).toBe("thread-1"));
+    await waitFor(() => expect(result.current.threads).toHaveLength(1));
 
     act(() => {
       result.current.updateThreadTitle("thread-1", "Renamed");
@@ -150,6 +138,34 @@ describe("thread context", () => {
       threadId: "thread-1",
       title: "Renamed",
     });
+  });
+
+  it("archives a thread and returns true on success", async () => {
+    const { result } = renderHook(() => useThreads(), { wrapper });
+    await waitFor(() => expect(result.current.threads).toHaveLength(1));
+
+    let success: boolean | undefined;
+    await act(async () => {
+      success = await result.current.archiveThread("thread-1");
+    });
+
+    expect(success).toBe(true);
+  });
+
+  it("returns false when archive fails", async () => {
+    mockUseArchiveThread.mockReturnValue({
+      mutateAsync: vi.fn(async () => { throw new Error("fail"); }),
+    });
+
+    const { result } = renderHook(() => useThreads(), { wrapper });
+    await waitFor(() => expect(result.current.threads).toHaveLength(1));
+
+    let success: boolean | undefined;
+    await act(async () => {
+      success = await result.current.archiveThread("thread-1");
+    });
+
+    expect(success).toBe(false);
   });
 
   it("throws outside provider", () => {

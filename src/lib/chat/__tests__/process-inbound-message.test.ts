@@ -8,13 +8,13 @@ const {
   mockRunAgent,
   mockCreateThread,
   mockGetThreadIdForExternalConversation,
-  mockUpsertExternalConversationThreadMap,
+  mockEnsureExternalConversationMapping,
   mockRecordInboundDelivery,
 } = vi.hoisted(() => ({
   mockRunAgent: vi.fn(),
   mockCreateThread: vi.fn(),
   mockGetThreadIdForExternalConversation: vi.fn(),
-  mockUpsertExternalConversationThreadMap: vi.fn(),
+  mockEnsureExternalConversationMapping: vi.fn(),
   mockRecordInboundDelivery: vi.fn(),
 }));
 
@@ -29,8 +29,8 @@ vi.mock("@/lib/chat/threads", () => ({
 vi.mock("@/lib/chat/channel-routing", () => ({
   getThreadIdForExternalConversation: (...args: unknown[]) =>
     mockGetThreadIdForExternalConversation(...args),
-  upsertExternalConversationThreadMap: (...args: unknown[]) =>
-    mockUpsertExternalConversationThreadMap(...args),
+  ensureExternalConversationMapping: (...args: unknown[]) =>
+    mockEnsureExternalConversationMapping(...args),
   recordInboundDelivery: (...args: unknown[]) => mockRecordInboundDelivery(...args),
 }));
 
@@ -55,7 +55,9 @@ describe("processInboundMessage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetThreadIdForExternalConversation.mockResolvedValue(null);
-    mockUpsertExternalConversationThreadMap.mockResolvedValue(undefined);
+    mockEnsureExternalConversationMapping.mockImplementation(
+      async (_supabase: unknown, mapping: { threadId: string }) => mapping.threadId,
+    );
     mockRecordInboundDelivery.mockResolvedValue(true);
     mockCreateThread.mockResolvedValue({ thread_id: "thread-created" });
   });
@@ -110,7 +112,7 @@ describe("processInboundMessage", () => {
       threadId: requestedThreadId,
     });
     expect(mockCreateThread).not.toHaveBeenCalled();
-    expect(mockUpsertExternalConversationThreadMap).toHaveBeenCalledWith(
+    expect(mockEnsureExternalConversationMapping).toHaveBeenCalledWith(
       supabase,
       {
         clientId: "client-123",
@@ -142,7 +144,7 @@ describe("processInboundMessage", () => {
       "client-123",
       "New external message",
     );
-    expect(mockUpsertExternalConversationThreadMap).toHaveBeenCalledWith(
+    expect(mockEnsureExternalConversationMapping).toHaveBeenCalledWith(
       supabase,
       {
         clientId: "client-123",
@@ -150,6 +152,27 @@ describe("processInboundMessage", () => {
         externalConversationId: "tg-chat-1",
         threadId: "thread-created",
       },
+    );
+  });
+
+  it("uses winning thread id from atomic mapping when race occurs", async () => {
+    const supabase = createThreadLookupSupabase({ threadExists: false });
+    mockCreateThread.mockResolvedValue({ thread_id: "thread-loser" });
+    mockEnsureExternalConversationMapping.mockResolvedValue("thread-winner");
+    mockRunAgent.mockResolvedValue({ status: "queued" });
+
+    const result = await processInboundMessage({
+      supabase: supabase as never,
+      clientId: "client-123",
+      channel: "telegram",
+      externalConversationId: "tg-chat-1",
+      messageText: "Raced message",
+    });
+
+    expect(result.threadId).toBe("thread-winner");
+    expect(mockRunAgent).toHaveBeenCalledWith(
+      expect.objectContaining({ threadId: "thread-winner" }),
+      supabase,
     );
   });
 

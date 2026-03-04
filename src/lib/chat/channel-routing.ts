@@ -48,54 +48,43 @@ export async function getThreadIdForExternalConversation(
 }
 
 /**
- * Creates or updates an external conversation mapping to the canonical thread id.
+ * Atomically ensures a mapping exists for an external conversation.
+ * Uses INSERT ON CONFLICT DO NOTHING (via unique constraint) + readback.
+ * First-write-wins: if a mapping already exists, returns the existing thread_id
+ * without overwriting. This is Dorabot's proven atomic pattern.
  */
-export async function upsertExternalConversationThreadMap(
+export async function ensureExternalConversationMapping(
   supabase: ChatSupabaseClient,
   mapping: ExternalConversationMapping,
-): Promise<void> {
-  const { data: existing, error: existingError } = await supabase
+): Promise<string> {
+  const { error: insertError } = await supabase
     .from("conversation_channel_mappings")
-    .select("mapping_id, thread_id")
+    .insert({
+      client_id: mapping.clientId,
+      channel: mapping.channel,
+      external_conversation_id: mapping.externalConversationId,
+      thread_id: mapping.threadId,
+    });
+
+  if (insertError && insertError.code !== "23505") {
+    throw new Error(`Failed to ensure channel mapping: ${insertError.message}`);
+  }
+
+  const { data, error: selectError } = await supabase
+    .from("conversation_channel_mappings")
+    .select("thread_id")
     .eq("client_id", mapping.clientId)
     .eq("channel", mapping.channel)
     .eq("external_conversation_id", mapping.externalConversationId)
     .maybeSingle();
 
-  if (existingError) {
-    throw new Error(`Failed to check channel mapping: ${existingError.message}`);
+  if (selectError || !data) {
+    throw new Error(
+      `Failed to read channel mapping after ensure: ${selectError?.message ?? "not found"}`,
+    );
   }
 
-  if (!existing) {
-    const { error: insertError } = await supabase
-      .from("conversation_channel_mappings")
-      .insert({
-        client_id: mapping.clientId,
-        channel: mapping.channel,
-        external_conversation_id: mapping.externalConversationId,
-        thread_id: mapping.threadId,
-      });
-
-    if (insertError) {
-      throw new Error(`Failed to create channel mapping: ${insertError.message}`);
-    }
-    return;
-  }
-
-  if (existing.thread_id === mapping.threadId) {
-    return;
-  }
-
-  const { error: updateError } = await supabase
-    .from("conversation_channel_mappings")
-    .update({
-      thread_id: mapping.threadId,
-    })
-    .eq("mapping_id", existing.mapping_id);
-
-  if (updateError) {
-    throw new Error(`Failed to update channel mapping: ${updateError.message}`);
-  }
+  return data.thread_id;
 }
 
 /**
