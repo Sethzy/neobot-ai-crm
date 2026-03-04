@@ -1685,6 +1685,44 @@
           ]
         },
         {
+          "pr": "38a",
+          "title": "CRM vocabulary customization via chat",
+          "status": "pending",
+          "decisions": [],
+          "note": "Added post-audit. The crm_config table (PR5) stores custom deal_stages, task_types, interaction_types as JSONB, but nothing wires it up. Currently all enums (contact types, deal stages, interaction types, deal-contact roles) are hardcoded to real estate vocabulary in Zod schemas and tool descriptions. This PR makes them dynamic so the CRM can serve any B2C vertical (insurance, financial advisory, car sales, etc.) — not just real estate. User configures via chat conversation, agent writes to crm_config, and all schemas + tool descriptions pull from config at runtime.",
+          "tasks": [
+            {
+              "id": "PR38a-1",
+              "task": "Chat-driven CRM configuration: agent interviews user about their sales process (deal stages, contact roles, interaction types) and writes to crm_config",
+              "done": false
+            },
+            {
+              "id": "PR38a-2",
+              "task": "Dynamic Zod schemas: contact types, deal stages, deal-contact roles, and interaction types pull from crm_config at runtime instead of hardcoded enums",
+              "done": false
+            },
+            {
+              "id": "PR38a-3",
+              "task": "Dynamic tool descriptions: LLM tool .describe() strings template from crm_config so the agent knows the user's vocabulary",
+              "done": false
+            },
+            {
+              "id": "PR38a-4",
+              "task": "Rename deals.address to deals.title (or make address optional) to support non-property verticals",
+              "done": false
+            },
+            {
+              "id": "PR38a-5",
+              "task": "Sensible defaults: if crm_config is empty, fall back to current real estate enums",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "User tells agent 'I sell insurance, my stages are lead/quoted/underwriting/bound/lost' via chat, agent updates crm_config, and all CRM tools reflect the new vocabulary",
+            "Default real estate vocabulary still works for users who skip configuration"
+          ]
+        },
+        {
           "pr": 39,
           "title": "Higher tier models",
           "status": "pending",
