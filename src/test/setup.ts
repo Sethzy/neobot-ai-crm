@@ -32,3 +32,8 @@ Object.defineProperty(window.HTMLElement.prototype, "scrollTo", {
   writable: true,
   value: () => {},
 });
+
+Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
+  writable: true,
+  value: () => {},
+});
