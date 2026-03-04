@@ -29,6 +29,8 @@ export const crmTaskKeys = {
   all: ["crm-tasks"] as const,
   lists: () => [...crmTaskKeys.all, "list"] as const,
   list: (filters: CrmTaskFilters) => [...crmTaskKeys.lists(), filters] as const,
+  details: () => [...crmTaskKeys.all, "detail"] as const,
+  detail: (taskId: string) => [...crmTaskKeys.details(), taskId] as const,
 };
 
 /**
@@ -57,10 +59,34 @@ async function fetchCrmTasks(filters: CrmTaskFilters): Promise<CrmTaskWithRelati
   return (data ?? []) as CrmTaskWithRelations[];
 }
 
+/**
+ * Fetches a single CRM task by id with related contact and deal labels.
+ */
+async function fetchCrmTask(taskId: string): Promise<CrmTaskWithRelations> {
+  const { data, error } = await supabase
+    .from("crm_tasks")
+    .select("*, contacts!crm_tasks_contact_id_fkey(first_name, last_name), deals!crm_tasks_deal_id_fkey(address)")
+    .eq("task_id", taskId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as CrmTaskWithRelations;
+}
+
 export function crmTasksQueryOptions(filters: CrmTaskFilters) {
   return queryOptions({
     queryKey: crmTaskKeys.list(filters),
     queryFn: () => fetchCrmTasks(filters),
+  });
+}
+
+export function crmTaskDetailQueryOptions(taskId: string) {
+  return queryOptions({
+    queryKey: crmTaskKeys.detail(taskId),
+    queryFn: () => fetchCrmTask(taskId),
   });
 }
 
@@ -83,4 +109,38 @@ export function useCrmTasks(filters: CrmTaskFilters) {
   });
 }
 
-export { fetchCrmTasks };
+/**
+ * Returns a single CRM task query state by id.
+ */
+export function useCrmTask(taskId: string) {
+  const { data: clientId } = useClientId();
+  const realtimeFilter = clientId ? `client_id=eq.${clientId}` : undefined;
+
+  useRealtimeTable({
+    table: "crm_tasks",
+    filter: realtimeFilter,
+    queryKeys: [crmTaskKeys.detail(taskId)],
+    enabled: Boolean(clientId && taskId),
+  });
+
+  useRealtimeTable({
+    table: "contacts",
+    filter: realtimeFilter,
+    queryKeys: [crmTaskKeys.detail(taskId)],
+    enabled: Boolean(clientId && taskId),
+  });
+
+  useRealtimeTable({
+    table: "deals",
+    filter: realtimeFilter,
+    queryKeys: [crmTaskKeys.detail(taskId)],
+    enabled: Boolean(clientId && taskId),
+  });
+
+  return useQuery({
+    ...crmTaskDetailQueryOptions(taskId),
+    enabled: Boolean(taskId),
+  });
+}
+
+export { fetchCrmTasks, fetchCrmTask };
