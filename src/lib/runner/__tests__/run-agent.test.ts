@@ -17,6 +17,7 @@ const {
   mockCreateCrmTools,
   mockCreateStorageTools,
   mockCreateWebTools,
+  mockCreateMessages,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
@@ -30,6 +31,7 @@ const {
   mockCreateCrmTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
+  mockCreateMessages: vi.fn(),
 }));
 
 vi.mock("ai", () => ({
@@ -63,6 +65,10 @@ vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
+}));
+
+vi.mock("@/lib/chat/messages", () => ({
+  createMessages: (...args: unknown[]) => mockCreateMessages(...args),
 }));
 
 import type { RunnerPayload } from "../schemas";
@@ -111,6 +117,7 @@ describe("runAgent", () => {
     mockStreamText.mockReturnValue({
       toUIMessageStreamResponse: vi.fn(() => new Response("streamed")),
     });
+    mockCreateMessages.mockResolvedValue([]);
   });
 
   it("streams when lock is acquired", async () => {
@@ -170,6 +177,15 @@ describe("runAgent", () => {
     );
   });
 
+  it("does not enable model thought-streaming by default", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    const streamCall = mockStreamText.mock.calls[0]?.[0];
+    expect(streamCall.providerOptions).toBeUndefined();
+  });
+
   it("enqueues and returns queued when thread is already running", async () => {
     mockCreateRun.mockResolvedValue({ created: false });
 
@@ -201,7 +217,7 @@ describe("runAgent", () => {
     expect(mockAssembleContext).toHaveBeenCalledWith({
       supabase: "mock-supabase-client",
       threadId: validPayload.threadId,
-      currentMessage: validPayload.input,
+      currentMessage: "",
     });
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -213,6 +229,108 @@ describe("runAgent", () => {
         ],
       }),
     );
+  });
+
+  it("persists the inbound user input to conversation_messages before streaming", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    expect(mockCreateMessages).toHaveBeenCalledWith("mock-supabase-client", [
+      {
+        thread_id: validPayload.threadId,
+        role: "user",
+        content: validPayload.input,
+        parts: [{ type: "text", text: validPayload.input }],
+      },
+    ]);
+    expect(mockAssembleContext).toHaveBeenCalledWith({
+      supabase: "mock-supabase-client",
+      threadId: validPayload.threadId,
+      currentMessage: "",
+    });
+  });
+
+  it("persists assistant output text to conversation_messages when stream finishes", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    const streamCall = mockStreamText.mock.calls[0]?.[0];
+    expect(typeof streamCall.onFinish).toBe("function");
+
+    await streamCall.onFinish({
+      text: "Assistant response",
+      steps: [],
+      totalUsage: {
+        inputTokens: 100,
+        inputTokenDetails: {
+          noCacheTokens: undefined,
+          cacheReadTokens: undefined,
+          cacheWriteTokens: undefined,
+        },
+        outputTokens: 50,
+        outputTokenDetails: {
+          textTokens: undefined,
+          reasoningTokens: undefined,
+        },
+        totalTokens: 150,
+      },
+    });
+
+    expect(mockCreateMessages).toHaveBeenNthCalledWith(2, "mock-supabase-client", [
+      {
+        thread_id: validPayload.threadId,
+        role: "assistant",
+        content: "Assistant response",
+        parts: [{ type: "text", text: "Assistant response" }],
+      },
+    ]);
+  });
+
+  it("persists assistant output from response.messages when text is empty", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    const streamCall = mockStreamText.mock.calls[0]?.[0];
+    expect(typeof streamCall.onFinish).toBe("function");
+
+    await streamCall.onFinish({
+      text: "",
+      response: {
+        messages: [
+          {
+            role: "assistant",
+            content: [{ type: "text", text: "Assistant from response messages" }],
+          },
+        ],
+      },
+      steps: [],
+      totalUsage: {
+        inputTokens: 100,
+        inputTokenDetails: {
+          noCacheTokens: undefined,
+          cacheReadTokens: undefined,
+          cacheWriteTokens: undefined,
+        },
+        outputTokens: 50,
+        outputTokenDetails: {
+          textTokens: undefined,
+          reasoningTokens: undefined,
+        },
+        totalTokens: 150,
+      },
+    });
+
+    expect(mockCreateMessages).toHaveBeenNthCalledWith(2, "mock-supabase-client", [
+      {
+        thread_id: validPayload.threadId,
+        role: "assistant",
+        content: "Assistant from response messages",
+        parts: [{ type: "text", text: "Assistant from response messages" }],
+      },
+    ]);
   });
 
   it("records failed run when streamText throws", async () => {

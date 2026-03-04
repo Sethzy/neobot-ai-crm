@@ -6,13 +6,14 @@ import { stepCountIs, streamText } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
+import { createMessages } from "@/lib/chat/messages";
 import { assembleContext } from "@/lib/runner/context";
 import { drainAndContinue } from "@/lib/runner/drain-and-continue";
 import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
 import type { RunnerPayload } from "@/lib/runner/schemas";
 import { createCrmTools, createStorageTools, createWebTools } from "@/lib/runner/tools";
 import { enqueueMessage } from "@/lib/runner/thread-queue";
-import type { Database } from "@/types/database";
+import type { Database, Json } from "@/types/database";
 
 const MAX_STEPS_TIER_1 = 8;
 
@@ -21,6 +22,59 @@ type RunnerTools = ReturnType<typeof createCrmTools> &
   ReturnType<typeof createStorageTools> &
   ReturnType<typeof createWebTools>;
 type StreamResult = ReturnType<typeof streamText<RunnerTools>>;
+
+function createTextParts(text: string): Json {
+  return [{ type: "text", text }];
+}
+
+function extractTextFromMessageContent(content: unknown): string {
+  if (typeof content === "string") {
+    return content.trim();
+  }
+
+  if (!Array.isArray(content)) {
+    return "";
+  }
+
+  return content
+    .filter(
+      (part): part is { type: string; text?: string } =>
+        typeof part === "object" && part !== null && "type" in part,
+    )
+    .filter((part) => part.type === "text" && typeof part.text === "string")
+    .map((part) => String(part.text).trim())
+    .filter((part) => part.length > 0)
+    .join("\n")
+    .trim();
+}
+
+function getAssistantRowsFromResponseMessages(
+  messages: unknown,
+  threadId: string,
+): Array<{ thread_id: string; role: string; content: string; parts: Json }> {
+  if (!Array.isArray(messages)) {
+    return [];
+  }
+
+  const rows = messages
+    .filter(
+      (message): message is { role: string; content?: unknown } =>
+        typeof message === "object" && message !== null && "role" in message,
+    )
+    .filter((message) => message.role === "assistant")
+    .map((message) => {
+      const text = extractTextFromMessageContent(message.content);
+      return {
+        thread_id: threadId,
+        role: "assistant",
+        content: text,
+        parts: createTextParts(text),
+      };
+    })
+    .filter((row) => row.content.length > 0);
+
+  return rows;
+}
 
 export type RunAgentResult =
   | { status: "streaming"; streamResult: StreamResult }
@@ -50,10 +104,19 @@ export async function runAgent(
   }
 
   try {
+    await createMessages(supabase, [
+      {
+        thread_id: threadId,
+        role: "user",
+        content: input,
+        parts: createTextParts(input),
+      },
+    ]);
+
     const { system, messages } = await assembleContext({
       supabase,
       threadId,
-      currentMessage: input,
+      currentMessage: "",
     });
     const crmTools = createCrmTools(supabase, clientId, {
       allowWriteTools: true,
@@ -72,7 +135,28 @@ export async function runAgent(
       messages,
       stopWhen: stepCountIs(MAX_STEPS_TIER_1),
       tools,
-      onFinish: async ({ steps, totalUsage }) => {
+      onFinish: async ({ text, response, steps, totalUsage }) => {
+        const assistantRowsFromResponse = getAssistantRowsFromResponseMessages(
+          response?.messages,
+          threadId,
+        );
+
+        if (assistantRowsFromResponse.length > 0) {
+          await createMessages(supabase, assistantRowsFromResponse);
+        } else {
+          const assistantText = typeof text === "string" ? text.trim() : "";
+          if (assistantText.length > 0) {
+            await createMessages(supabase, [
+              {
+                thread_id: threadId,
+                role: "assistant",
+                content: assistantText,
+                parts: createTextParts(assistantText),
+              },
+            ]);
+          }
+        }
+
         await completeRun(supabase, {
           runId: lockResult.runId,
           status: "completed",

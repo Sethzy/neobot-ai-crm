@@ -23,12 +23,14 @@ describe("createCrmTools", () => {
     ]);
   });
 
-  it("returns all 13 expected CRM tools when writes are enabled", () => {
+  it("returns all 15 expected CRM tools when writes are enabled", () => {
     const { client } = createMockSupabase();
 
     const tools = createCrmTools(client, CLIENT_ID, { allowWriteTools: true });
 
     expect(Object.keys(tools).sort()).toEqual([
+      "batch_create_contacts",
+      "batch_create_deals",
       "create_contact",
       "create_deal",
       "create_interaction",

@@ -233,3 +233,82 @@ describe("update_contact", () => {
     expect(result).toEqual({ success: false, error: "Row not found" });
   });
 });
+
+describe("batch_create_contacts", () => {
+  it("creates multiple contacts in a single call", async () => {
+    const created = [
+      {
+        contact_id: "aaa",
+        client_id: CLIENT_ID,
+        first_name: "Alice",
+        last_name: "Tan",
+        email: "alice@example.com",
+        phone: null,
+        type: "buyer",
+        notes: null,
+      },
+      {
+        contact_id: "bbb",
+        client_id: CLIENT_ID,
+        first_name: "Bob",
+        last_name: "Lee",
+        email: null,
+        phone: "+6591234567",
+        type: "other",
+        notes: null,
+      },
+    ];
+    const { client, builders } = createMockSupabase({
+      contacts: { data: created, error: null },
+    });
+    const tools = createContactTools(client, CLIENT_ID);
+
+    const result = await tools.batch_create_contacts.execute(
+      {
+        contacts: [
+          { first_name: "Alice", last_name: "Tan", email: "alice@example.com", type: "buyer" },
+          { first_name: "Bob", last_name: "Lee", phone: "+6591234567" },
+        ],
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, contacts: created, count: 2 });
+    expect(builders.contacts.insert).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ client_id: CLIENT_ID, first_name: "Alice" }),
+        expect.objectContaining({ client_id: CLIENT_ID, first_name: "Bob", type: "other" }),
+      ]),
+    );
+  });
+
+  it("defaults type to 'other' for each contact", async () => {
+    const { client, builders } = createMockSupabase({
+      contacts: { data: [{}], error: null },
+    });
+    const tools = createContactTools(client, CLIENT_ID);
+
+    await tools.batch_create_contacts.execute(
+      { contacts: [{ first_name: "No", last_name: "Type" }] },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(builders.contacts.insert).toHaveBeenCalledWith([
+      expect.objectContaining({ type: "other" }),
+    ]);
+  });
+
+  it("returns errors from Supabase", async () => {
+    const { client } = createMockSupabase({
+      contacts: { data: null, error: { message: "batch insert failed" } },
+    });
+    const tools = createContactTools(client, CLIENT_ID);
+
+    const result = await tools.batch_create_contacts.execute(
+      { contacts: [{ first_name: "Jane", last_name: "Doe" }] },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: false, error: "batch insert failed" });
+  });
+});

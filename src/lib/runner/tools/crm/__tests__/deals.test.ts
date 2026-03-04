@@ -189,3 +189,62 @@ describe("update_deal", () => {
     expect(result).toEqual({ success: false, error: "Row not found" });
   });
 });
+
+describe("batch_create_deals", () => {
+  it("creates multiple deals in a single call", async () => {
+    const created = [
+      {
+        deal_id: "d-1",
+        client_id: CLIENT_ID,
+        address: "123 Orchard Rd",
+        stage: "leads",
+        price: 1500000,
+        notes: null,
+      },
+      {
+        deal_id: "d-2",
+        client_id: CLIENT_ID,
+        address: "456 Marina Bay",
+        stage: "viewing",
+        price: 2000000,
+        notes: "Open house lead",
+      },
+    ];
+    const { client, builders } = createMockSupabase({
+      deals: { data: created, error: null },
+    });
+    const tools = createDealTools(client, CLIENT_ID);
+
+    const result = await tools.batch_create_deals.execute(
+      {
+        deals: [
+          { address: "123 Orchard Rd", price: 1500000 },
+          { address: "456 Marina Bay", stage: "viewing", price: 2000000, notes: "Open house lead" },
+        ],
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, deals: created, count: 2 });
+    expect(builders.deals.insert).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ client_id: CLIENT_ID, address: "123 Orchard Rd" }),
+        expect.objectContaining({ client_id: CLIENT_ID, address: "456 Marina Bay" }),
+      ]),
+    );
+  });
+
+  it("returns errors from Supabase", async () => {
+    const { client } = createMockSupabase({
+      deals: { data: null, error: { message: "batch insert failed" } },
+    });
+    const tools = createDealTools(client, CLIENT_ID);
+
+    const result = await tools.batch_create_deals.execute(
+      { deals: [{ address: "123 Test St" }] },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: false, error: "batch insert failed" });
+  });
+});

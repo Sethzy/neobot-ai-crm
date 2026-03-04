@@ -49,6 +49,29 @@ describe("assembleContext", () => {
     ]);
   });
 
+  it("does not append a synthetic user message when currentMessage is empty", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: {
+        data: [
+          { role: "user", content: "Persisted inbound message", parts: null },
+          { role: "assistant", content: "Existing response", parts: null },
+        ],
+        error: null,
+      },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "",
+    });
+
+    expect(result.messages).toEqual([
+      { role: "user", content: "Persisted inbound message" },
+      { role: "assistant", content: "Existing response" },
+    ]);
+  });
+
   it("falls back to text part content when row content is null", async () => {
     const supabase = createMockSupabaseClient({
       selectResult: {

@@ -72,14 +72,19 @@ export async function assembleContext({
     content: row.content ?? getTextFromParts(row.parts),
   }));
 
+  const trimmedCurrentMessage = currentMessage.trim();
+  const currentMessageTurn = trimmedCurrentMessage.length > 0
+    ? [{
+      role: "user" as const,
+      content: trimmedCurrentMessage,
+    }]
+    : [];
+
   return {
     system: SYSTEM_PROMPT,
     messages: [
       ...historyMessages,
-      {
-        role: "user",
-        content: currentMessage,
-      },
+      ...currentMessageTurn,
     ],
   };
 }

@@ -110,6 +110,22 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const clientId = await resolveClientId(supabase, user.id);
+    const { data: thread, error: threadLookupError } = await supabase
+      .from("conversation_threads")
+      .select("thread_id")
+      .eq("thread_id", threadId)
+      .eq("client_id", clientId)
+      .eq("is_archived", false)
+      .maybeSingle();
+
+    if (threadLookupError) {
+      return jsonError("Failed to process chat request.", 500);
+    }
+
+    if (!thread) {
+      return jsonError("Thread not found.", 404);
+    }
+
     const result = await runAgent(
       {
         clientId,

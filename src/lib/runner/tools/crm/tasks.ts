@@ -38,6 +38,7 @@ export function createTaskTools(
   const search_tasks = tool({
     description:
       "Search CRM tasks. Optionally filter by status, contact, or deal. " +
+      "Results are sorted by due date (earliest first). " +
       "Use this to find tasks before updating them.",
     inputSchema: z.object({
       status: z.enum(crmTaskStatusValues).optional().describe("Task status filter (open, completed)."),

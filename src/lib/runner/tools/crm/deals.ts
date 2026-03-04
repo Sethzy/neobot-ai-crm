@@ -34,6 +34,7 @@ export function createDealTools(
   const search_deals = tool({
     description:
       "Search deals by address or notes. Optionally filter by stage. " +
+      "Omit query to list all deals. " +
       "Use get_deal_contacts to find contacts linked to a deal.",
     inputSchema: z.object({
       query: z.string().trim().min(1).optional().describe("Search term for address and notes. Omit to list all deals."),
@@ -149,9 +150,57 @@ export function createDealTools(
     },
   });
 
+  const batch_create_deals = tool({
+    description:
+      "Create multiple deals in a single call. Use this for bulk imports (e.g., open house leads, CSV). " +
+      "Use link_contact_to_deal after creating to associate contacts with each deal. " +
+      "Data Modification Warning: Only create deals when the user has explicitly asked to do so.",
+    inputSchema: z.object({
+      deals: z
+        .array(
+          z.object({
+            address: z.string().min(1).describe("Property address."),
+            stage: z.enum(dealStageValues).optional().describe("Deal pipeline stage (leads, viewing, offer, negotiation, otp, completion, lost). Defaults to 'leads'."),
+            price: z.number().int().nonnegative().optional().describe("Deal price in whole units."),
+            notes: z.string().optional().describe("Deal notes."),
+          }),
+        )
+        .min(1)
+        .max(50)
+        .describe("Array of deals to create (1-50 per call)."),
+    }),
+    execute: async ({ deals }) => {
+      const rows = deals.map((d) => ({
+        client_id: clientId,
+        address: d.address,
+        stage: d.stage,
+        price: d.price,
+        notes: d.notes ?? null,
+      }));
+
+      const { data, error } = await supabase
+        .from("deals")
+        .insert(rows)
+        .select();
+
+      if (error) {
+        return { success: false as const, error: error.message };
+      }
+
+      const created = data ?? [];
+
+      return {
+        success: true as const,
+        deals: created,
+        count: created.length,
+      };
+    },
+  });
+
   return {
     search_deals,
     create_deal,
     update_deal,
+    batch_create_deals,
   };
 }

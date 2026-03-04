@@ -159,9 +159,61 @@ export function createContactTools(
     },
   });
 
+  const batch_create_contacts = tool({
+    description:
+      "Create multiple contacts in a single call. Use this for bulk imports (e.g., CSV, spreadsheet). " +
+      "Use search_contacts first to check for duplicates. " +
+      "Data Modification Warning: Only create contacts when the user has explicitly asked to do so.",
+    inputSchema: z.object({
+      contacts: z
+        .array(
+          z.object({
+            first_name: z.string().min(1).describe("Contact first name."),
+            last_name: z.string().min(1).describe("Contact last name."),
+            email: z.string().email().optional().describe("Contact email address."),
+            phone: z.string().min(1).optional().describe("Contact phone number."),
+            type: z.enum(contactTypeValues).optional().describe("Contact classification (buyer, seller, landlord, tenant, agent, other). Defaults to 'other'."),
+            notes: z.string().optional().describe("Free-form contact notes."),
+          }),
+        )
+        .min(1)
+        .max(50)
+        .describe("Array of contacts to create (1-50 per call)."),
+    }),
+    execute: async ({ contacts }) => {
+      const rows = contacts.map((c) => ({
+        client_id: clientId,
+        first_name: c.first_name,
+        last_name: c.last_name,
+        type: c.type ?? "other",
+        email: c.email ?? null,
+        phone: c.phone ?? null,
+        notes: c.notes ?? null,
+      }));
+
+      const { data, error } = await supabase
+        .from("contacts")
+        .insert(rows)
+        .select();
+
+      if (error) {
+        return { success: false as const, error: error.message };
+      }
+
+      const created = data ?? [];
+
+      return {
+        success: true as const,
+        contacts: created,
+        count: created.length,
+      };
+    },
+  });
+
   return {
     search_contacts,
     create_contact,
     update_contact,
+    batch_create_contacts,
   };
 }

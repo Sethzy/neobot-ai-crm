@@ -47,12 +47,17 @@ export function createCrmTools(
     return readTools;
   }
 
+  // Note: Delete tools are intentionally omitted in v1. Deletion is a
+  // high-risk action better handled through the Supabase dashboard until
+  // the approval gate (PR 33) ships. See 03-sunder-crm-vs-hubspot-tool-comparison.md.
   return {
     ...readTools,
     create_contact: contactTools.create_contact,
     update_contact: contactTools.update_contact,
+    batch_create_contacts: contactTools.batch_create_contacts,
     create_deal: dealTools.create_deal,
     update_deal: dealTools.update_deal,
+    batch_create_deals: dealTools.batch_create_deals,
     link_contact_to_deal: dealContactTools.link_contact_to_deal,
     unlink_contact_from_deal: dealContactTools.unlink_contact_from_deal,
     create_interaction: interactionTools.create_interaction,

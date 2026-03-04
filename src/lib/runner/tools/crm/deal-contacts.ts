@@ -21,7 +21,9 @@ export function createDealContactTools(
 ) {
   const link_contact_to_deal = tool({
     description:
-      "Link a contact to a deal with a role. Use search_contacts and search_deals to find IDs first. " +
+      "Link a contact to a deal with a role (buyer, seller, agent, other). " +
+      "A deal can have multiple contacts. Each contact-deal pair must be unique. " +
+      "Use search_contacts and search_deals to find IDs first. " +
       "Data Modification Warning: Only link contacts when the user has explicitly asked to do so.",
     inputSchema: z.object({
       deal_id: z.string().uuid().describe("UUID of the deal. Use search_deals to find this."),
@@ -54,7 +56,8 @@ export function createDealContactTools(
 
   const unlink_contact_from_deal = tool({
     description:
-      "Remove a contact from a deal. Use get_deal_contacts to see current links first. " +
+      "Remove a contact from a deal. This permanently deletes the link. " +
+      "Use get_deal_contacts to see current links first. " +
       "Data Modification Warning: Only unlink contacts when the user has explicitly asked to do so.",
     inputSchema: z.object({
       deal_id: z.string().uuid().describe("UUID of the deal."),
@@ -87,8 +90,9 @@ export function createDealContactTools(
 
   const get_deal_contacts = tool({
     description:
-      "Get all contacts linked to a deal, with their roles. " +
-      "Use this to see who is involved in a deal before making changes.",
+      "Get all contacts linked to a deal with their roles (buyer, seller, agent, other) and primary status. " +
+      "Returns contact details (name, email, phone) for each link. " +
+      "Use this to see who is involved in a deal before linking or unlinking contacts.",
     inputSchema: z.object({
       deal_id: z.string().uuid().describe("UUID of the deal."),
     }),

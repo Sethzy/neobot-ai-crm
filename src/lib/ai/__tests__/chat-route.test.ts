@@ -34,10 +34,28 @@ function createJsonRequest(body: unknown): Request {
 
 describe("POST /api/chat", () => {
   const threadId = "770e8400-e29b-41d4-a716-446655440000";
+
+  function createThreadLookup(options: { threadExists: boolean; error?: { message: string } | null }) {
+    const { threadExists, error = null } = options;
+    const maybeSingle = vi.fn().mockResolvedValue(
+      threadExists
+        ? { data: { thread_id: threadId }, error }
+        : { data: null, error },
+    );
+    const thirdEq = vi.fn(() => ({ maybeSingle }));
+    const secondEq = vi.fn(() => ({ eq: thirdEq }));
+    const firstEq = vi.fn(() => ({ eq: secondEq }));
+    const select = vi.fn(() => ({ eq: firstEq }));
+    const from = vi.fn(() => ({ select }));
+
+    return { from };
+  }
+
   const mockSupabase = {
     auth: {
       getUser: vi.fn(),
     },
+    from: vi.fn(),
   };
 
   beforeEach(() => {
@@ -49,6 +67,7 @@ describe("POST /api/chat", () => {
       data: { user: { id: "user-123" } },
       error: null,
     });
+    mockSupabase.from = createThreadLookup({ threadExists: true }).from;
     mockResolveClientId.mockResolvedValue("client-456");
   });
 
@@ -147,6 +166,39 @@ describe("POST /api/chat", () => {
 
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({ error: "Unauthorized." });
+  });
+
+  it("returns 404 when the thread is missing for the client", async () => {
+    mockSupabase.from = createThreadLookup({ threadExists: false }).from;
+
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        messages: [{ id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] }],
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "Thread not found." });
+    expect(mockRunAgent).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 when thread lookup fails", async () => {
+    mockSupabase.from = createThreadLookup({
+      threadExists: false,
+      error: { message: "database unavailable" },
+    }).from;
+
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        messages: [{ id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] }],
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "Failed to process chat request." });
+    expect(mockRunAgent).not.toHaveBeenCalled();
   });
 
   it("returns 400 for invalid JSON payload", async () => {
