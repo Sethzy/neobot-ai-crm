@@ -5,6 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
+import type { Channel } from "@/lib/chat/channel-routing";
 import {
   ensureExternalConversationMapping,
   getThreadIdForExternalConversation,
@@ -22,7 +23,7 @@ const threadIdSchema = z.string().uuid();
 export interface ProcessInboundMessageInput {
   supabase: ChatSupabaseClient;
   clientId: string;
-  channel: string;
+  channel: Channel;
   externalConversationId: string;
   messageText: string;
   requestedThreadId?: string;

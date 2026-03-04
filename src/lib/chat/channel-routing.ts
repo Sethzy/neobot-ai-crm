@@ -8,9 +8,12 @@ import type { Database } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
 
+/** Supported messaging channels. Must match the CHECK constraint on the DB tables. */
+export type Channel = "web" | "telegram" | "whatsapp";
+
 export interface ExternalConversationScope {
   clientId: string;
-  channel: string;
+  channel: Channel;
   externalConversationId: string;
 }
 
@@ -20,7 +23,7 @@ export interface ExternalConversationMapping extends ExternalConversationScope {
 
 export interface DeliveryReceiptInput {
   clientId: string;
-  channel: string;
+  channel: Channel;
   deliveryId: string;
   threadId: string;
 }
