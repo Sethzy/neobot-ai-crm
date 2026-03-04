@@ -20,6 +20,7 @@ import {
   BookOpen,
   FileText,
   Radio,
+  Search,
   Settings,
   LogOut,
   ChevronsUpDown,
@@ -42,6 +43,7 @@ import {
   SidebarGroupLabel,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
 import { useThreads } from "@/contexts/thread-context";
 import {
   DropdownMenu,
@@ -68,7 +70,12 @@ const databaseNavItems = [
   { label: "Channels", href: "/channels", icon: Radio },
 ];
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  /** Opens the global command menu from the sidebar search button. */
+  onOpenCommandMenu?: () => void;
+}
+
+export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
   const pathname = usePathname() ?? "";
   const router = useRouter();
   const { user } = useSession();
@@ -145,7 +152,21 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-border bg-background">
       {/* Logo — tighter vertical padding */}
       <SidebarHeader className="px-3 pt-3 pb-2">
-        <Logo />
+        <div className="flex items-center justify-between gap-2">
+          <Logo />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Search"
+            onClick={() => {
+              onOpenCommandMenu?.();
+              closeMobileSidebar();
+            }}
+          >
+            <Search className="h-4 w-4" />
+          </Button>
+        </div>
       </SidebarHeader>
 
       {/* Navigation — reduced group spacing */}

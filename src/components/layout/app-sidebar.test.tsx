@@ -127,6 +127,16 @@ describe("AppSidebar", () => {
     expect(screen.getByText("Test Chat")).toBeInTheDocument();
   });
 
+  it("calls onOpenCommandMenu when clicking search button", async () => {
+    const user = userEvent.setup();
+    const onOpenCommandMenu = vi.fn();
+    render(<AppSidebar onOpenCommandMenu={onOpenCommandMenu} />, { wrapper });
+
+    await user.click(screen.getByRole("button", { name: /search/i }));
+
+    expect(onOpenCommandMenu).toHaveBeenCalledTimes(1);
+  });
+
   it("does not render a New Chat button in the Sessions section", () => {
     render(<AppSidebar />, { wrapper });
 
