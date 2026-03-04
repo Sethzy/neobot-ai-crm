@@ -9,22 +9,7 @@ import { z } from "zod";
 import { crmTaskStatusValues } from "@/lib/crm/schemas";
 import type { Database } from "@/types/database";
 
-const DEFAULT_RESULT_LIMIT = 20;
-const dateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const taskTimestampSchema = z.union([
-  z.string().datetime({ offset: true }),
-  dateOnlySchema,
-]);
-
-function normalizeDueDate(value: string | null | undefined): string | null | undefined {
-  if (value === undefined || value === null) {
-    return value;
-  }
-
-  return value.length === 10
-    ? `${value}T00:00:00Z`
-    : value;
-}
+import { DEFAULT_CRM_RESULT_LIMIT, flexibleTimestampSchema, normalizeDateString } from "./filter-utils";
 
 /**
  * Creates CRM task-related tools.
@@ -53,7 +38,7 @@ export function createTaskTools(
         .describe("Maximum results to return. Defaults to 20."),
     }),
     execute: async ({ status, contact_id, deal_id, limit }) => {
-      const maxResults = limit ?? DEFAULT_RESULT_LIMIT;
+      const maxResults = limit ?? DEFAULT_CRM_RESULT_LIMIT;
       let queryBuilder = supabase.from("crm_tasks").select("*");
 
       if (status) {
@@ -94,14 +79,14 @@ export function createTaskTools(
       title: z.string().min(1).describe("Task title."),
       description: z.string().optional().describe("Task description."),
       status: z.enum(crmTaskStatusValues).optional().describe("Task status (open, completed). Defaults to 'open'."),
-      due_date: taskTimestampSchema
+      due_date: flexibleTimestampSchema
         .optional()
         .describe("ISO-8601 due timestamp or YYYY-MM-DD date."),
       contact_id: z.string().uuid().optional().describe("UUID of the contact. Use search_contacts to find this."),
       deal_id: z.string().uuid().optional().describe("UUID of the deal. Use search_deals to find this."),
     }),
     execute: async ({ title, description, status, due_date, contact_id, deal_id }) => {
-      const normalizedDueDate = normalizeDueDate(due_date) ?? null;
+      const normalizedDueDate = normalizeDateString(due_date) ?? null;
 
       const { data, error } = await supabase
         .from("crm_tasks")
@@ -138,7 +123,7 @@ export function createTaskTools(
       title: z.string().min(1).optional().describe("Updated task title."),
       description: z.string().nullable().optional().describe("Updated task description or null."),
       status: z.enum(crmTaskStatusValues).optional().describe("Updated task status (open, completed)."),
-      due_date: taskTimestampSchema
+      due_date: flexibleTimestampSchema
         .nullable()
         .optional()
         .describe("Updated due timestamp/date or null."),
@@ -149,7 +134,7 @@ export function createTaskTools(
       const updates = Object.fromEntries(
         Object.entries({
           ...fields,
-          due_date: normalizeDueDate(fields.due_date),
+          due_date: normalizeDateString(fields.due_date),
         }).filter(([, value]) => value !== undefined),
       );
 

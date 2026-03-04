@@ -9,18 +9,9 @@ import { z } from "zod";
 import { dealStageValues } from "@/lib/crm/schemas";
 import type { Database } from "@/types/database";
 
-import { buildContainsIlikeLiteral } from "./filter-utils";
+import { buildSearchExpression, DEFAULT_CRM_RESULT_LIMIT } from "./filter-utils";
 
-const DEFAULT_RESULT_LIMIT = 20;
-
-function buildSearchExpression(query: string): string {
-  const ilikeLiteral = buildContainsIlikeLiteral(query);
-
-  return [
-    `address.ilike.${ilikeLiteral}`,
-    `notes.ilike.${ilikeLiteral}`,
-  ].join(",");
-}
+const DEAL_SEARCH_COLUMNS = ["address", "notes"];
 
 /**
  * Creates deal-related CRM tools.
@@ -38,7 +29,7 @@ export function createDealTools(
       "Use get_deal_contacts to find contacts linked to a deal.",
     inputSchema: z.object({
       query: z.string().trim().min(1).optional().describe("Search term for address and notes. Omit to list all deals."),
-      stage: z.enum(dealStageValues).optional().describe("Deal pipeline stage filter (leads, viewing, offer, negotiation, otp, completion, lost)."),
+      stage: z.enum(dealStageValues).optional().describe("Deal pipeline stage filter (leads, negotiation, offer, closing, lost)."),
       limit: z
         .number()
         .int()
@@ -48,11 +39,11 @@ export function createDealTools(
         .describe("Maximum results to return. Defaults to 20."),
     }),
     execute: async ({ query, stage, limit }) => {
-      const maxResults = limit ?? DEFAULT_RESULT_LIMIT;
+      const maxResults = limit ?? DEFAULT_CRM_RESULT_LIMIT;
       let queryBuilder = supabase.from("deals").select("*");
 
       if (query) {
-        queryBuilder = queryBuilder.or(buildSearchExpression(query));
+        queryBuilder = queryBuilder.or(buildSearchExpression(query, DEAL_SEARCH_COLUMNS));
       }
 
       if (stage) {
@@ -82,7 +73,7 @@ export function createDealTools(
       "Data Modification Warning: Only create deals when the user has explicitly asked to do so.",
     inputSchema: z.object({
       address: z.string().min(1).describe("Property address."),
-      stage: z.enum(dealStageValues).optional().describe("Deal pipeline stage (leads, viewing, offer, negotiation, otp, completion, lost). Defaults to 'leads'."),
+      stage: z.enum(dealStageValues).optional().describe("Deal pipeline stage (leads, negotiation, offer, closing, lost). Defaults to 'leads'."),
       price: z.number().int().nonnegative().optional().describe("Deal price in whole units."),
       notes: z.string().optional().describe("Deal notes."),
     }),
@@ -118,7 +109,7 @@ export function createDealTools(
     inputSchema: z.object({
       deal_id: z.string().uuid().describe("UUID of the deal to update. Use search_deals to find this."),
       address: z.string().min(1).optional().describe("Updated address."),
-      stage: z.enum(dealStageValues).optional().describe("Updated pipeline stage (leads, viewing, offer, negotiation, otp, completion, lost)."),
+      stage: z.enum(dealStageValues).optional().describe("Updated pipeline stage (leads, negotiation, offer, closing, lost)."),
       price: z.number().int().nonnegative().nullable().optional().describe("Updated price or null."),
       notes: z.string().nullable().optional().describe("Updated notes or null."),
     }),
@@ -160,7 +151,7 @@ export function createDealTools(
         .array(
           z.object({
             address: z.string().min(1).describe("Property address."),
-            stage: z.enum(dealStageValues).optional().describe("Deal pipeline stage (leads, viewing, offer, negotiation, otp, completion, lost). Defaults to 'leads'."),
+            stage: z.enum(dealStageValues).optional().describe("Deal pipeline stage (leads, negotiation, offer, closing, lost). Defaults to 'leads'."),
             price: z.number().int().nonnegative().optional().describe("Deal price in whole units."),
             notes: z.string().optional().describe("Deal notes."),
           }),

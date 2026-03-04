@@ -1,34 +1,31 @@
 /**
- * Utilities for building safe PostgREST filter expressions.
+ * Shared utilities for CRM tool filter expressions and input normalization.
  * @module lib/runner/tools/crm/filter-utils
  */
+import { z } from "zod";
+
+export { buildContainsIlikeLiteral, buildSearchExpression } from "@/lib/crm/postgrest-filters";
+
+/** Default max results for CRM search tools. */
+export const DEFAULT_CRM_RESULT_LIMIT = 20;
+
+/** Zod schema matching YYYY-MM-DD date strings. */
+export const dateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+/** Zod schema accepting either an ISO-8601 datetime or a YYYY-MM-DD date. */
+export const flexibleTimestampSchema = z.union([
+  z.string().datetime({ offset: true }),
+  dateOnlySchema,
+]);
 
 /**
- * Normalizes free-form user search text to a compact single-line value.
+ * Normalizes a date-only string (YYYY-MM-DD) to an ISO-8601 timestamp.
+ * Passes through full timestamps and null/undefined unchanged.
  */
-function normalizeSearchText(value: string): string {
-  return value
-    .trim()
-    .replace(/\s+/g, " ");
-}
+export function normalizeDateString(value: string | null | undefined): string | null | undefined {
+  if (value === undefined || value === null) {
+    return value;
+  }
 
-/**
- * Escapes LIKE wildcard characters so user input is treated as literal text.
- */
-function escapeLikeWildcards(value: string): string {
-  return value
-    .replace(/\\/g, "\\\\")
-    .replace(/%/g, "\\%")
-    .replace(/_/g, "\\_");
-}
-
-/**
- * Returns a quoted PostgREST literal for a case-insensitive contains search.
- */
-export function buildContainsIlikeLiteral(searchText: string): string {
-  const normalizedText = normalizeSearchText(searchText);
-  const escapedText = escapeLikeWildcards(normalizedText);
-
-  // PostgREST accepts quoted filter values; JSON stringification provides robust escaping.
-  return JSON.stringify(`%${escapedText}%`);
+  return value.length === 10 ? `${value}T00:00:00Z` : value;
 }

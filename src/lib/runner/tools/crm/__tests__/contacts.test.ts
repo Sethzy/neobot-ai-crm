@@ -89,8 +89,8 @@ describe("search_contacts", () => {
 
     const [orExpression] = builders.contacts.or.mock.calls[0] as [string];
 
-    expect(orExpression).toContain("first_name.ilike.\"%John, (Doe)\\\\%\\\\_");
-    expect(orExpression).toContain("email.ilike.\"%John, (Doe)\\\\%\\\\_");
+    expect(orExpression).toContain("first_name.ilike.\"%John, (Doe)\\%\\_");
+    expect(orExpression).toContain("email.ilike.\"%John, (Doe)\\%\\_");
     expect(orExpression).toContain("VIP");
   });
 });

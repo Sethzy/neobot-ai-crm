@@ -6,9 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildContainsIlikeLiteral,
-  buildContactSearchOrFilter,
-  buildCrmTaskSearchOrFilter,
-  buildDealSearchOrFilter,
+  buildSearchExpression,
 } from "@/lib/crm/postgrest-filters";
 
 describe("buildContainsIlikeLiteral", () => {
@@ -25,25 +23,16 @@ describe("buildContainsIlikeLiteral", () => {
   });
 });
 
-describe("buildContactSearchOrFilter", () => {
-  it("creates a 4-column OR filter using a shared escaped literal", () => {
-    const filter = buildContactSearchOrFilter("john");
+describe("buildSearchExpression", () => {
+  it("creates a multi-column OR filter using a shared escaped literal", () => {
+    const filter = buildSearchExpression("john", ["first_name", "last_name", "email", "phone"]);
     expect(filter).toBe(
       'first_name.ilike."%john%",last_name.ilike."%john%",email.ilike."%john%",phone.ilike."%john%"',
     );
   });
-});
 
-describe("buildDealSearchOrFilter", () => {
-  it("creates a 2-column OR filter for address and notes", () => {
-    const filter = buildDealSearchOrFilter("orchard");
+  it("works with a 2-column filter", () => {
+    const filter = buildSearchExpression("orchard", ["address", "notes"]);
     expect(filter).toBe('address.ilike."%orchard%",notes.ilike."%orchard%"');
-  });
-});
-
-describe("buildCrmTaskSearchOrFilter", () => {
-  it("creates a 2-column OR filter for title and description", () => {
-    const filter = buildCrmTaskSearchOrFilter("follow");
-    expect(filter).toBe('title.ilike."%follow%",description.ilike."%follow%"');
   });
 });

@@ -5,7 +5,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 
-import { fetchWithTimeout } from "./fetch-with-timeout";
+import { fetchWithTimeout, isAbortError } from "./fetch-with-timeout";
 
 const BRAVE_SEARCH_URL = "https://api.search.brave.com/res/v1/web/search";
 const DEFAULT_RESULT_LIMIT = 10;
@@ -40,10 +40,6 @@ function mapTbsToFreshness(tbs?: string): string | undefined {
 
   // Keep unsupported values permissive and pass through unchanged for v1.
   return tbsToFreshnessMap[tbs] ?? tbs;
-}
-
-function isAbortError(error: unknown): boolean {
-  return error instanceof Error && error.name === "AbortError";
 }
 
 /**

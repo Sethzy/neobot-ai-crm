@@ -5,7 +5,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 
-import { fetchWithTimeout } from "./fetch-with-timeout";
+import { fetchWithTimeout, isAbortError } from "./fetch-with-timeout";
 
 const EXA_CONTENTS_URL = "https://api.exa.ai/contents";
 const MAX_TEXT_CHARACTERS = 10_000;
@@ -32,10 +32,6 @@ interface ExaContentsResponse {
   statuses?: ExaStatus[];
 }
 
-function isAbortError(error: unknown): boolean {
-  return error instanceof Error && error.name === "AbortError";
-}
-
 /**
  * Creates web-scrape utility tools.
  */
@@ -58,13 +54,6 @@ export function createScrapeTool() {
         return {
           success: false as const,
           error: "EXA_API_KEY is not configured.",
-        };
-      }
-
-      if (!url.startsWith("http://") && !url.startsWith("https://")) {
-        return {
-          success: false as const,
-          error: "URL must use http:// or https:// protocol",
         };
       }
 

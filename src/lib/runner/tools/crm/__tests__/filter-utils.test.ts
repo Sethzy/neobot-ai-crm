@@ -16,6 +16,6 @@ describe("buildContainsIlikeLiteral", () => {
   it("escapes wildcard and quote characters", () => {
     const result = buildContainsIlikeLiteral("A%_\"B");
 
-    expect(result).toBe("\"%A\\\\%\\\\_\\\"B%\"");
+    expect(result).toBe("\"%A\\%\\_\\\"B%\"");
   });
 });

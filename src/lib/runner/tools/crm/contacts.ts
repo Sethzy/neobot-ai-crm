@@ -9,20 +9,9 @@ import { z } from "zod";
 import { contactTypeValues } from "@/lib/crm/schemas";
 import type { Database } from "@/types/database";
 
-import { buildContainsIlikeLiteral } from "./filter-utils";
+import { buildSearchExpression, DEFAULT_CRM_RESULT_LIMIT } from "./filter-utils";
 
-const DEFAULT_RESULT_LIMIT = 20;
-
-function buildSearchExpression(query: string): string {
-  const ilikeLiteral = buildContainsIlikeLiteral(query);
-
-  return [
-    `first_name.ilike.${ilikeLiteral}`,
-    `last_name.ilike.${ilikeLiteral}`,
-    `email.ilike.${ilikeLiteral}`,
-    `phone.ilike.${ilikeLiteral}`,
-  ].join(",");
-}
+const CONTACT_SEARCH_COLUMNS = ["first_name", "last_name", "email", "phone"];
 
 /**
  * Creates contact-related CRM tools.
@@ -49,14 +38,14 @@ export function createContactTools(
         .describe("Maximum results to return. Defaults to 20."),
     }),
     execute: async ({ query, type, limit }) => {
-      const maxResults = limit ?? DEFAULT_RESULT_LIMIT;
+      const maxResults = limit ?? DEFAULT_CRM_RESULT_LIMIT;
 
       let queryBuilder = supabase
         .from("contacts")
         .select("*");
 
       if (query) {
-        queryBuilder = queryBuilder.or(buildSearchExpression(query));
+        queryBuilder = queryBuilder.or(buildSearchExpression(query, CONTACT_SEARCH_COLUMNS));
       }
 
       if (type) {

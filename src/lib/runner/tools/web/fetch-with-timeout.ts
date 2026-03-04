@@ -1,8 +1,13 @@
 /**
- * Shared fetch timeout helper for web utility tools.
+ * Shared fetch helpers for web utility tools.
  * @module lib/runner/tools/web/fetch-with-timeout
  */
 const DEFAULT_TIMEOUT_MS = 15_000;
+
+/** Checks whether an error is an AbortController timeout abort. */
+export function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
 
 /**
  * Executes fetch with an AbortController timeout.

@@ -64,8 +64,8 @@ describe("PostgREST query serialization", () => {
     expect(requestUrl).toBeDefined();
 
     const orFilter = requestUrl.searchParams.get("or");
-    expect(orFilter).toContain("first_name.ilike.\"%John, (Doe)\\\\%\\\\_");
-    expect(orFilter).toContain("email.ilike.\"%John, (Doe)\\\\%\\\\_");
+    expect(orFilter).toContain("first_name.ilike.\"%John, (Doe)\\%\\_");
+    expect(orFilter).toContain("email.ilike.\"%John, (Doe)\\%\\_");
     expect(orFilter).toContain("VIP");
   });
 
@@ -82,7 +82,7 @@ describe("PostgREST query serialization", () => {
     expect(requestUrl).toBeDefined();
 
     const orFilter = requestUrl.searchParams.get("or");
-    expect(orFilter).toContain("address.ilike.\"%Blk 123, #08-01 (A)\\\\_\\\\%%\"");
-    expect(orFilter).toContain("notes.ilike.\"%Blk 123, #08-01 (A)\\\\_\\\\%%\"");
+    expect(orFilter).toContain("address.ilike.\"%Blk 123, #08-01 (A)\\_\\%%\"");
+    expect(orFilter).toContain("notes.ilike.\"%Blk 123, #08-01 (A)\\_\\%%\"");
   });
 });

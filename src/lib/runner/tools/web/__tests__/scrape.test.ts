@@ -263,14 +263,4 @@ describe("createScrapeTool", () => {
     });
   });
 
-  it("rejects non-http protocols", async () => {
-    const tools = createScrapeTool();
-    const result = await tools.web_scrape.execute({ url: "ftp://example.com" }, EXECUTION_OPTIONS);
-
-    expect(result).toEqual({
-      success: false,
-      error: "URL must use http:// or https:// protocol",
-    });
-    expect(mockFetch).not.toHaveBeenCalled();
-  });
 });

@@ -9,21 +9,7 @@ import { z } from "zod";
 import { interactionTypeValues } from "@/lib/crm/schemas";
 import type { Database } from "@/types/database";
 
-const dateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const interactionTimestampSchema = z.union([
-  z.string().datetime({ offset: true }),
-  dateOnlySchema,
-]);
-
-function normalizeOccurredAt(occurredAt: string | undefined): string | undefined {
-  if (!occurredAt) {
-    return undefined;
-  }
-
-  return occurredAt.length === 10
-    ? `${occurredAt}T00:00:00Z`
-    : occurredAt;
-}
+import { flexibleTimestampSchema, normalizeDateString } from "./filter-utils";
 
 /**
  * Creates interaction-related CRM tools.
@@ -43,12 +29,12 @@ export function createInteractionTools(
       deal_id: z.string().uuid().optional().describe("UUID of the deal. Use search_deals to find this."),
       type: z.enum(interactionTypeValues).describe("Interaction type (call, meeting, email, message, viewing, note)."),
       summary: z.string().optional().describe("Interaction summary."),
-      occurred_at: interactionTimestampSchema
+      occurred_at: flexibleTimestampSchema
         .optional()
         .describe("ISO-8601 timestamp or YYYY-MM-DD date when the interaction occurred."),
     }),
     execute: async ({ contact_id, deal_id, type, summary, occurred_at }) => {
-      const normalizedOccurredAt = normalizeOccurredAt(occurred_at);
+      const normalizedOccurredAt = normalizeDateString(occurred_at);
 
       const { data, error } = await supabase
         .from("interactions")

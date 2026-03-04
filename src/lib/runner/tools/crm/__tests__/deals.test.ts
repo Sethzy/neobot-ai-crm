@@ -69,7 +69,7 @@ describe("search_deals", () => {
     );
 
     expect(builders.deals.or).toHaveBeenCalledWith(
-      expect.stringContaining("address.ilike.\"%Blk 123, #08-01 (A)\\\\_\\\\%%\""),
+      expect.stringContaining("address.ilike.\"%Blk 123, #08-01 (A)\\_\\%%\""),
     );
   });
 });
@@ -80,7 +80,7 @@ describe("create_deal", () => {
       deal_id: "550e8400-e29b-41d4-a716-446655440011",
       client_id: CLIENT_ID,
       address: "456 Marina Bay",
-      stage: "viewing",
+      stage: "negotiation",
       price: 2000000,
       notes: null,
       created_at: "2026-03-01T00:00:00Z",
@@ -94,7 +94,7 @@ describe("create_deal", () => {
     const result = await tools.create_deal.execute(
       {
         address: "456 Marina Bay",
-        stage: "viewing",
+        stage: "negotiation",
         price: 2000000,
       },
       EXECUTION_OPTIONS,
@@ -205,7 +205,7 @@ describe("batch_create_deals", () => {
         deal_id: "d-2",
         client_id: CLIENT_ID,
         address: "456 Marina Bay",
-        stage: "viewing",
+        stage: "negotiation",
         price: 2000000,
         notes: "Open house lead",
       },
@@ -219,7 +219,7 @@ describe("batch_create_deals", () => {
       {
         deals: [
           { address: "123 Orchard Rd", price: 1500000 },
-          { address: "456 Marina Bay", stage: "viewing", price: 2000000, notes: "Open house lead" },
+          { address: "456 Marina Bay", stage: "negotiation", price: 2000000, notes: "Open house lead" },
         ],
       },
       EXECUTION_OPTIONS,
