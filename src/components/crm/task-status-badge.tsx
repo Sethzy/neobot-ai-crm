@@ -5,7 +5,7 @@
 import { Badge } from "@/components/ui/badge";
 import type { CrmTask } from "@/lib/crm/schemas";
 
-const crmTaskStatusLabelMap: Record<CrmTask["status"], string> = {
+export const crmTaskStatusLabelMap: Record<CrmTask["status"], string> = {
   open: "Open",
   completed: "Completed",
 };

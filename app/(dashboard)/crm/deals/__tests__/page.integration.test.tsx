@@ -3,6 +3,7 @@
  * @module app/(dashboard)/crm/deals/__tests__/page.integration
  */
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DealsPage from "../page";
@@ -23,6 +24,7 @@ vi.mock("@/hooks/use-record-drawer", () => ({
 describe("DealsPage integration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   it("renders deal rows via DealsTable when data exists", async () => {
@@ -53,5 +55,39 @@ describe("DealsPage integration", () => {
     expect(screen.getByText("123 Orchard Road")).toBeInTheDocument();
     expect(screen.getByText("Viewing")).toBeInTheDocument();
     expect(screen.getByText("John Smith")).toBeInTheDocument();
+  });
+
+  it("switches between table, kanban, and calendar views", async () => {
+    const { useDeals } = await import("@/hooks/use-deals");
+    const user = userEvent.setup();
+
+    vi.mocked(useDeals).mockReturnValue({
+      data: [
+        {
+          deal_id: "d-1",
+          client_id: "cl-1",
+          address: "123 Orchard Road",
+          stage: "viewing",
+          price: 1500000,
+          notes: null,
+          created_at: "2026-02-01T00:00:00+08:00",
+          updated_at: "2026-03-01T00:00:00+08:00",
+          deal_contacts: [
+            { contact_id: "c-1", role: "buyer", is_primary: true, contacts: { first_name: "John", last_name: "Smith" } },
+          ],
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as never);
+
+    render(<DealsPage />);
+
+    expect(screen.getByRole("button", { name: "Table view" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Kanban view" }));
+    expect(screen.getByText("Viewing")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Calendar view" }));
+    expect(screen.getByText(/March 2026/i)).toBeInTheDocument();
   });
 });

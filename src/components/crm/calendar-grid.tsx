@@ -25,7 +25,7 @@ interface CalendarGridProps<T> {
   /** Records to place on days. */
   items: T[];
   /** Returns the date associated with a record. */
-  getDate: (item: T) => Date;
+  getDate: (item: T) => Date | null | undefined;
   /** Returns a stable item id used for keys and click payload. */
   getItemId: (item: T) => string;
   /** Renders the selected-day list row content for each item. */
@@ -59,7 +59,12 @@ export function CalendarGrid<T>({
     const groupedItems = new Map<string, T[]>();
 
     for (const item of items) {
-      const dayKey = getDayKey(getDate(item));
+      const itemDate = getDate(item);
+      if (!itemDate || Number.isNaN(itemDate.getTime())) {
+        continue;
+      }
+
+      const dayKey = getDayKey(itemDate);
       const dayItems = groupedItems.get(dayKey) ?? [];
       dayItems.push(item);
       groupedItems.set(dayKey, dayItems);

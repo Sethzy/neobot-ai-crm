@@ -7,16 +7,24 @@
 import { CheckSquare, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { CalendarGrid } from "@/components/crm/calendar-grid";
 import { CrmTasksTable } from "@/components/crm/crm-tasks-table";
+import { KanbanBoard } from "@/components/crm/kanban-board";
 import { RecordDrawer } from "@/components/crm/record-drawer";
+import { TaskKanbanCard } from "@/components/crm/task-kanban-card";
+import { crmTaskStatusLabelMap } from "@/components/crm/task-status-badge";
+import { ViewToggle } from "@/components/crm/view-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCrmTasks } from "@/hooks/use-crm-tasks";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
+import { useViewPreference } from "@/hooks/use-view-preference";
+import { crmTaskStatusValues } from "@/lib/crm/schemas";
 
 export default function TasksPage() {
   const [search, setSearch] = useState("");
   const { isOpen, recordId, open, close } = useRecordDrawer();
+  const { view, setView } = useViewPreference("tasks");
 
   const filters = useMemo(() => {
     const normalizedSearch = search.trim();
@@ -27,6 +35,10 @@ export default function TasksPage() {
   }, [search]);
 
   const { data: tasks = [], isLoading, isError, refetch } = useCrmTasks(filters);
+  const firstTaskWithDate = tasks.find((task) => task.due_date);
+  const initialCalendarMonth = firstTaskWithDate?.due_date
+    ? new Date(firstTaskWithDate.due_date)
+    : undefined;
 
   return (
     <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
@@ -47,6 +59,8 @@ export default function TasksPage() {
             className="h-12 w-full border-border/50 pl-11 shadow-sm focus-visible:ring-1"
           />
         </div>
+
+        <ViewToggle current={view} views={["table", "kanban", "calendar"]} onChange={setView} />
       </div>
 
       <div className="mt-6">
@@ -78,8 +92,29 @@ export default function TasksPage() {
               {filters.search ? "No tasks match your search" : "No tasks yet"}
             </p>
           </div>
-        ) : (
+        ) : view === "table" ? (
           <CrmTasksTable tasks={tasks} onRowClick={open} />
+        ) : view === "kanban" ? (
+          <KanbanBoard
+            items={tasks}
+            columns={crmTaskStatusValues.map((status) => ({
+              key: status,
+              label: crmTaskStatusLabelMap[status],
+            }))}
+            groupBy={(task) => task.status}
+            getItemId={(task) => task.task_id}
+            renderCard={(task) => <TaskKanbanCard task={task} />}
+            onCardClick={open}
+          />
+        ) : (
+          <CalendarGrid
+            items={tasks}
+            getDate={(task) => (task.due_date ? new Date(task.due_date) : null)}
+            getItemId={(task) => task.task_id}
+            renderItem={(task) => <TaskKanbanCard task={task} />}
+            initialMonth={initialCalendarMonth}
+            onItemClick={open}
+          />
         )}
       </div>
 

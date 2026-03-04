@@ -7,16 +7,24 @@
 import { Handshake, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { CalendarGrid } from "@/components/crm/calendar-grid";
+import { DealKanbanCard } from "@/components/crm/deal-kanban-card";
 import { DealsTable } from "@/components/crm/deals-table";
+import { KanbanBoard } from "@/components/crm/kanban-board";
 import { RecordDrawer } from "@/components/crm/record-drawer";
+import { dealStageLabelMap } from "@/components/crm/stage-badge";
+import { ViewToggle } from "@/components/crm/view-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDeals } from "@/hooks/use-deals";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
+import { useViewPreference } from "@/hooks/use-view-preference";
+import { dealStageValues } from "@/lib/crm/schemas";
 
 export default function DealsPage() {
   const [search, setSearch] = useState("");
   const { isOpen, recordId, open, close } = useRecordDrawer();
+  const { view, setView } = useViewPreference("deals");
 
   const filters = useMemo(() => {
     const normalizedSearch = search.trim();
@@ -27,6 +35,7 @@ export default function DealsPage() {
   }, [search]);
 
   const { data: deals = [], isLoading, isError, refetch } = useDeals(filters);
+  const firstDealDate = deals[0] ? new Date(deals[0].updated_at) : undefined;
 
   return (
     <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
@@ -47,6 +56,8 @@ export default function DealsPage() {
             className="h-12 w-full border-border/50 pl-11 shadow-sm focus-visible:ring-1"
           />
         </div>
+
+        <ViewToggle current={view} views={["table", "kanban", "calendar"]} onChange={setView} />
       </div>
 
       <div className="mt-6">
@@ -78,8 +89,26 @@ export default function DealsPage() {
               {filters.search ? "No deals match your search" : "No deals yet"}
             </p>
           </div>
-        ) : (
+        ) : view === "table" ? (
           <DealsTable deals={deals} onRowClick={open} />
+        ) : view === "kanban" ? (
+          <KanbanBoard
+            items={deals}
+            columns={dealStageValues.map((stage) => ({ key: stage, label: dealStageLabelMap[stage] }))}
+            groupBy={(deal) => deal.stage}
+            getItemId={(deal) => deal.deal_id}
+            renderCard={(deal) => <DealKanbanCard deal={deal} />}
+            onCardClick={open}
+          />
+        ) : (
+          <CalendarGrid
+            items={deals}
+            getDate={(deal) => new Date(deal.updated_at)}
+            getItemId={(deal) => deal.deal_id}
+            renderItem={(deal) => <DealKanbanCard deal={deal} />}
+            initialMonth={firstDealDate}
+            onItemClick={open}
+          />
         )}
       </div>
 
