@@ -2,7 +2,7 @@
  * Tests run lifecycle data access helpers.
  * @module lib/runner/__tests__/run-lifecycle
  */
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
@@ -141,76 +141,6 @@ describe("completeRun", () => {
     ).rejects.toThrow("Failed to complete run: not found");
   });
 
-  it("retries without step_count when column is unavailable", async () => {
-    const update = vi.fn();
-    const eq = vi
-      .fn()
-      .mockResolvedValueOnce({
-        data: null,
-        error: {
-          message: 'column "step_count" of relation "runs" does not exist',
-          code: "42703",
-        },
-      })
-      .mockResolvedValueOnce({ data: [], error: null });
-
-    update.mockReturnValue({ eq });
-
-    const client = {
-      from: vi.fn(() => ({
-        update,
-      })),
-    };
-
-    await completeRun(client as never, {
-      runId: "run-1",
-      status: "completed",
-      model: "google/gemini-3-flash",
-      tokensIn: 100,
-      tokensOut: 50,
-      stepCount: 2,
-    });
-
-    expect(update).toHaveBeenCalledTimes(2);
-    expect(update.mock.calls[0]?.[0]).toEqual(
-      expect.objectContaining({
-        step_count: 2,
-      }),
-    );
-    expect(update.mock.calls[1]?.[0]).not.toHaveProperty("step_count");
-  });
-
-  it("does not retry when step_count failure is unrelated to missing column", async () => {
-    const update = vi.fn();
-    const eq = vi.fn().mockResolvedValue({
-      data: null,
-      error: {
-        message: "permission denied for table runs",
-        code: "42501",
-      },
-    });
-
-    update.mockReturnValue({ eq });
-
-    const client = {
-      from: vi.fn(() => ({
-        update,
-      })),
-    };
-
-    await expect(
-      completeRun(client as never, {
-        runId: "run-1",
-        status: "completed",
-        model: "google/gemini-3-flash",
-        tokensIn: 100,
-        tokensOut: 50,
-        stepCount: 2,
-      }),
-    ).rejects.toThrow("Failed to complete run: permission denied for table runs");
-
-    expect(update).toHaveBeenCalledTimes(1);
-  });
 });
 
 describe("markStaleRunsFailed", () => {

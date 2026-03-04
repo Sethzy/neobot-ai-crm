@@ -2,11 +2,9 @@
  * Data access helpers for conversation message persistence.
  * @module lib/chat/messages
  */
-import type { SupabaseClient } from "@supabase/supabase-js";
-
+import type { AppSupabaseClient } from "@/lib/supabase/types";
 import type { Database, Json } from "@/types/database";
 
-type ChatSupabaseClient = SupabaseClient<Database>;
 type MessageRow = Database["public"]["Tables"]["conversation_messages"]["Row"];
 type MessageInsert = Database["public"]["Tables"]["conversation_messages"]["Insert"];
 
@@ -21,7 +19,7 @@ export interface CreateMessageInput {
  * Lists messages for a thread ordered chronologically.
  */
 export async function listMessages(
-  supabase: ChatSupabaseClient,
+  supabase: AppSupabaseClient,
   threadId: string,
 ): Promise<MessageRow[]> {
   const { data, error } = await supabase
@@ -41,7 +39,7 @@ export async function listMessages(
  * Persists one message row.
  */
 export async function createMessage(
-  supabase: ChatSupabaseClient,
+  supabase: AppSupabaseClient,
   message: CreateMessageInput,
 ): Promise<MessageRow> {
   const { data, error } = await supabase
@@ -61,7 +59,7 @@ export async function createMessage(
  * Persists multiple message rows in one insert.
  */
 export async function createMessages(
-  supabase: ChatSupabaseClient,
+  supabase: AppSupabaseClient,
   messages: CreateMessageInput[],
 ): Promise<MessageRow[]> {
   if (messages.length === 0) {

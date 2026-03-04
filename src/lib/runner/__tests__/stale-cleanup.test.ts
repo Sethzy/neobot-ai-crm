@@ -9,6 +9,7 @@ const {
   mockStepCountIs,
   mockGateway,
   mockAssembleContext,
+  mockCreateMessages,
   mockCreateRun,
   mockCompleteRun,
   mockMarkStaleRunsFailed,
@@ -22,6 +23,7 @@ const {
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
   mockGateway: vi.fn(() => "mock-model"),
   mockAssembleContext: vi.fn(),
+  mockCreateMessages: vi.fn(),
   mockCreateRun: vi.fn(),
   mockCompleteRun: vi.fn(),
   mockMarkStaleRunsFailed: vi.fn(),
@@ -36,6 +38,9 @@ vi.mock("ai", () => ({ streamText: mockStreamText, stepCountIs: mockStepCountIs 
 vi.mock("@/lib/ai/gateway", () => ({
   gateway: mockGateway,
   TIER_1_MODEL: "google/gemini-3-flash",
+}));
+vi.mock("@/lib/chat/messages", () => ({
+  createMessages: mockCreateMessages,
 }));
 vi.mock("@/lib/runner/context", () => ({
   assembleContext: mockAssembleContext,
@@ -63,6 +68,7 @@ describe("stale run cleanup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockMarkStaleRunsFailed.mockResolvedValue(0);
+    mockCreateMessages.mockResolvedValue({ data: [], error: null });
     mockCreateCrmTools.mockReturnValue({
       search_contacts: { description: "tool" },
     });

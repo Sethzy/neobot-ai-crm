@@ -2,18 +2,14 @@
  * Queue drain helper that starts follow-up runs for queued messages.
  * @module lib/runner/drain-and-continue
  */
-import type { SupabaseClient } from "@supabase/supabase-js";
-
 import { runAgent } from "@/lib/runner/run-agent";
 import { drainQueue } from "@/lib/runner/thread-queue";
-import type { Database } from "@/types/database";
+import type { AppSupabaseClient } from "@/lib/supabase/types";
 
 interface DrainAndContinueInput {
   clientId: string;
   threadId: string;
 }
-
-type ChatSupabaseClient = SupabaseClient<Database>;
 
 function buildQueuedInput(messages: string[]): string {
   if (messages.length <= 1) {
@@ -28,7 +24,7 @@ function buildQueuedInput(messages: string[]): string {
  * Drains queue rows for one thread and starts another run when payload exists.
  */
 export async function drainAndContinue(
-  supabase: ChatSupabaseClient,
+  supabase: AppSupabaseClient,
   { clientId, threadId }: DrainAndContinueInput,
 ): Promise<void> {
   const queuedMessages = await drainQueue(supabase, { threadId, clientId });

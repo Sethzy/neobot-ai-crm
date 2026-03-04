@@ -29,8 +29,8 @@ describe("assembleContext", () => {
     const supabase = createMockSupabaseClient({
       selectResult: {
         data: [
-          { role: "user", content: "Hi", parts: null },
           { role: "assistant", content: "Hello! How can I help?", parts: null },
+          { role: "user", content: "Hi", parts: null },
         ],
         error: null,
       },
@@ -53,8 +53,8 @@ describe("assembleContext", () => {
     const supabase = createMockSupabaseClient({
       selectResult: {
         data: [
-          { role: "user", content: "Persisted inbound message", parts: null },
           { role: "assistant", content: "Existing response", parts: null },
+          { role: "user", content: "Persisted inbound message", parts: null },
         ],
         error: null,
       },

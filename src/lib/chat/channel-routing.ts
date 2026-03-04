@@ -2,11 +2,7 @@
  * Data access helpers for channel/thread mapping and inbound idempotency.
  * @module lib/chat/channel-routing
  */
-import type { SupabaseClient } from "@supabase/supabase-js";
-
-import type { Database } from "@/types/database";
-
-type ChatSupabaseClient = SupabaseClient<Database>;
+import type { AppSupabaseClient } from "@/lib/supabase/types";
 
 /** Supported messaging channels. Must match the CHECK constraint on the DB tables. */
 export type Channel = "web" | "telegram" | "whatsapp";
@@ -32,7 +28,7 @@ export interface DeliveryReceiptInput {
  * Resolves a mapped internal thread for an external channel conversation.
  */
 export async function getThreadIdForExternalConversation(
-  supabase: ChatSupabaseClient,
+  supabase: AppSupabaseClient,
   scope: ExternalConversationScope,
 ): Promise<string | null> {
   const { data, error } = await supabase
@@ -57,7 +53,7 @@ export async function getThreadIdForExternalConversation(
  * without overwriting. This is Dorabot's proven atomic pattern.
  */
 export async function ensureExternalConversationMapping(
-  supabase: ChatSupabaseClient,
+  supabase: AppSupabaseClient,
   mapping: ExternalConversationMapping,
 ): Promise<string> {
   const { error: insertError } = await supabase
@@ -94,7 +90,7 @@ export async function ensureExternalConversationMapping(
  * Records one inbound delivery id. Returns false when the delivery was already seen.
  */
 export async function recordInboundDelivery(
-  supabase: ChatSupabaseClient,
+  supabase: AppSupabaseClient,
   input: DeliveryReceiptInput,
 ): Promise<boolean> {
   const { error } = await supabase.from("conversation_channel_delivery_receipts").insert({

@@ -2,11 +2,7 @@
  * Shared client_id resolution logic usable from server or browser Supabase clients.
  * @module lib/chat/client-id
  */
-import type { SupabaseClient } from "@supabase/supabase-js";
-
-import type { Database } from "@/types/database";
-
-type ChatSupabaseClient = SupabaseClient<Database>;
+import type { AppSupabaseClient } from "@/lib/supabase/types";
 
 /**
  * Resolves an authenticated user to client_id.
@@ -16,7 +12,7 @@ type ChatSupabaseClient = SupabaseClient<Database>;
  * @param userIdOverride - Optional auth user id to skip an extra auth lookup in caller flows.
  */
 export async function resolveClientId(
-  supabase: ChatSupabaseClient,
+  supabase: AppSupabaseClient,
   userIdOverride?: string,
 ): Promise<string> {
   const { data: rpcClientId, error: rpcError } = await supabase.rpc("get_my_client_id");
