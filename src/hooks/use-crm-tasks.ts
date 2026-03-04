@@ -8,7 +8,7 @@ import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query"
 
 import { useClientId } from "@/hooks/use-client-id";
 import { useRealtimeTable } from "@/hooks/use-realtime";
-import { buildCrmTaskSearchOrFilter } from "@/lib/crm/postgrest-filters";
+import { buildSearchExpression } from "@/lib/crm/postgrest-filters";
 import { type Contact, type CrmTask, type Deal } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
@@ -47,7 +47,7 @@ async function fetchCrmTasks(filters: CrmTaskFilters): Promise<CrmTaskWithRelati
   }
 
   if (filters.search?.trim()) {
-    query = query.or(buildCrmTaskSearchOrFilter(filters.search));
+    query = query.or(buildSearchExpression(filters.search, ["title", "description"]));
   }
 
   const { data, error } = await query;

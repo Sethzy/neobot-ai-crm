@@ -8,7 +8,7 @@ import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query"
 
 import { useClientId } from "@/hooks/use-client-id";
 import { useRealtimeTable } from "@/hooks/use-realtime";
-import { buildContactSearchOrFilter } from "@/lib/crm/postgrest-filters";
+import { buildSearchExpression } from "@/lib/crm/postgrest-filters";
 import { contactTypeValues, type Contact } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
@@ -34,7 +34,7 @@ async function fetchContacts({ search, type }: ContactFilters): Promise<Contact[
   let query = supabase.from("contacts").select("*").order("updated_at", { ascending: false });
 
   if (search?.trim()) {
-    query = query.or(buildContactSearchOrFilter(search));
+    query = query.or(buildSearchExpression(search, ["first_name", "last_name", "email", "phone"]));
   }
 
   if (type) {

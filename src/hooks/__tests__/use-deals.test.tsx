@@ -73,10 +73,10 @@ describe("dealKeys", () => {
   it("builds stable deal key namespaces", () => {
     expect(dealKeys.all).toEqual(["deals"]);
     expect(dealKeys.lists()).toEqual(["deals", "list"]);
-    expect(dealKeys.list({ search: "oak", stage: "viewing" })).toEqual([
+    expect(dealKeys.list({ search: "oak", stage: "negotiation" })).toEqual([
       "deals",
       "list",
-      { search: "oak", stage: "viewing" },
+      { search: "oak", stage: "negotiation" },
     ]);
     expect(dealKeys.detail("deal-1")).toEqual(["deals", "detail", "deal-1"]);
   });
@@ -92,7 +92,7 @@ describe("useDeals", () => {
       {
         deal_id: "deal-1",
         address: "123 Orchard Road",
-        stage: "viewing",
+        stage: "negotiation",
         contacts: { first_name: "John", last_name: "Smith" },
       },
     ]);
@@ -179,7 +179,7 @@ describe("useDeal", () => {
       {
         deal_id: "deal-1",
         address: "123 Orchard Road",
-        stage: "viewing",
+        stage: "negotiation",
         contacts: { first_name: "John", last_name: "Smith" },
       },
     ]);
@@ -209,7 +209,7 @@ describe("useDeal", () => {
       {
         deal_id: "deal-1",
         address: "123 Orchard Road",
-        stage: "viewing",
+        stage: "negotiation",
         contacts: { first_name: "John", last_name: "Smith" },
       },
     ]);
@@ -237,7 +237,7 @@ describe("useDeal", () => {
       {
         deal_id: "deal-1",
         address: "123 Orchard Road",
-        stage: "viewing",
+        stage: "negotiation",
         contacts: { first_name: "John", last_name: "Smith" },
       },
     ]);

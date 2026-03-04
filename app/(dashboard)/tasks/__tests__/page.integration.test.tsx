@@ -58,7 +58,7 @@ describe("TasksPage integration", () => {
     expect(screen.getByText("123 Orchard Road")).toBeInTheDocument();
   });
 
-  it("switches between table, kanban, and calendar views", async () => {
+  it("switches between table and kanban views", async () => {
     const { useCrmTasks } = await import("@/hooks/use-crm-tasks");
     const user = userEvent.setup();
 
@@ -88,8 +88,5 @@ describe("TasksPage integration", () => {
     expect(screen.getByRole("button", { name: "Table view" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Kanban view" }));
     expect(screen.getByText("Open")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Calendar view" }));
-    expect(screen.getByText(/March 2026/i)).toBeInTheDocument();
   });
 });

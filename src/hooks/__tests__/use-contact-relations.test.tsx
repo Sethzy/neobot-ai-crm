@@ -96,7 +96,7 @@ describe("useContactDeals", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockFrom).toHaveBeenCalledWith("deal_contacts");
-    expect(builder.select).toHaveBeenCalledWith("*, deals(*)");
+    expect(builder.select).toHaveBeenCalledWith("*, deals!deal_contacts_deal_id_fkey(*)");
     expect(builder.eq).toHaveBeenCalledWith("contact_id", "contact-1");
     expect(builder.order).toHaveBeenCalledWith("created_at", { ascending: false });
     expect(mockUseRealtimeTable).toHaveBeenCalledWith({

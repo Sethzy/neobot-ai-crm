@@ -28,14 +28,14 @@ interface UseRecordDrawerResult {
  */
 export function useRecordDrawer(): UseRecordDrawerResult {
   const searchParams = useSearchParams();
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "/";
   const router = useRouter();
 
-  const recordId = searchParams.get(detailParamKey);
+  const recordId = searchParams?.get(detailParamKey) ?? null;
 
   const open = useCallback(
     (nextRecordId: string) => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
       params.set(detailParamKey, nextRecordId);
       router.push(`${pathname}?${params.toString()}`, { scroll: false });
     },
@@ -43,13 +43,11 @@ export function useRecordDrawer(): UseRecordDrawerResult {
   );
 
   const close = useCallback(() => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.delete(detailParamKey);
 
-    const nextQueryString = params.toString();
-    router.replace(nextQueryString ? `${pathname}?${nextQueryString}` : pathname, {
-      scroll: false,
-    });
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }, [pathname, router, searchParams]);
 
   return useMemo(

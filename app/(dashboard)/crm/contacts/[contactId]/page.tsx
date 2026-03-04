@@ -5,15 +5,16 @@
 import { redirect } from "next/navigation";
 
 interface ContactDetailRouteProps {
-  params: {
+  params: Promise<{
     contactId: string;
-  };
+  }>;
 }
 
 /**
  * Keeps old deep links working while the canonical detail UX moves to `/crm/contacts?detail=...`.
  */
-export default function ContactDetailPage({ params }: ContactDetailRouteProps) {
-  redirect(`/crm/contacts?detail=${params.contactId}`);
+export default async function ContactDetailPage({ params }: ContactDetailRouteProps) {
+  const { contactId } = await params;
+  redirect(`/crm/contacts?detail=${contactId}`);
 }
 

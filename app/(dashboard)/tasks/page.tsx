@@ -7,7 +7,6 @@
 import { CheckSquare, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { CalendarGrid } from "@/components/crm/calendar-grid";
 import { CrmTasksTable } from "@/components/crm/crm-tasks-table";
 import { KanbanBoard } from "@/components/crm/kanban-board";
 import { RecordDrawer } from "@/components/crm/record-drawer";
@@ -19,7 +18,19 @@ import { Input } from "@/components/ui/input";
 import { useCrmTasks } from "@/hooks/use-crm-tasks";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
 import { useViewPreference } from "@/hooks/use-view-preference";
+import {
+  taskStatusTopBorderMap,
+  taskStatusToneClassMap,
+} from "@/lib/crm/display";
 import { crmTaskStatusValues } from "@/lib/crm/schemas";
+
+/** Static kanban column definitions for task statuses (all inputs are module-level constants). */
+const taskStatusColumns = crmTaskStatusValues.map((status) => ({
+  key: status,
+  label: crmTaskStatusLabelMap[status],
+  toneClassName: taskStatusToneClassMap[status],
+  topBorderClassName: taskStatusTopBorderMap[status],
+}));
 
 export default function TasksPage() {
   const [search, setSearch] = useState("");
@@ -35,10 +46,6 @@ export default function TasksPage() {
   }, [search]);
 
   const { data: tasks = [], isLoading, isError, refetch } = useCrmTasks(filters);
-  const firstTaskWithDate = tasks.find((task) => task.due_date);
-  const initialCalendarMonth = firstTaskWithDate?.due_date
-    ? new Date(firstTaskWithDate.due_date)
-    : undefined;
 
   return (
     <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
@@ -60,7 +67,7 @@ export default function TasksPage() {
           />
         </div>
 
-        <ViewToggle current={view} views={["table", "kanban", "calendar"]} onChange={setView} />
+        <ViewToggle current={view} views={["table", "kanban"]} onChange={setView} />
       </div>
 
       <div className="mt-6">
@@ -94,26 +101,15 @@ export default function TasksPage() {
           </div>
         ) : view === "table" ? (
           <CrmTasksTable tasks={tasks} onRowClick={open} />
-        ) : view === "kanban" ? (
+        ) : (
           <KanbanBoard
+            boardLabel="By Status"
             items={tasks}
-            columns={crmTaskStatusValues.map((status) => ({
-              key: status,
-              label: crmTaskStatusLabelMap[status],
-            }))}
+            columns={taskStatusColumns}
             groupBy={(task) => task.status}
             getItemId={(task) => task.task_id}
             renderCard={(task) => <TaskKanbanCard task={task} />}
             onCardClick={open}
-          />
-        ) : (
-          <CalendarGrid
-            items={tasks}
-            getDate={(task) => (task.due_date ? new Date(task.due_date) : null)}
-            getItemId={(task) => task.task_id}
-            renderItem={(task) => <TaskKanbanCard task={task} />}
-            initialMonth={initialCalendarMonth}
-            onItemClick={open}
           />
         )}
       </div>

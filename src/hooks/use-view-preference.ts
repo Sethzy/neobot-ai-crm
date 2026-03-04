@@ -6,9 +6,9 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-export type ViewType = "table" | "kanban" | "calendar";
+export type ViewType = "table" | "kanban";
 
-const validViews = new Set<ViewType>(["table", "kanban", "calendar"]);
+const validViews = new Set<ViewType>(["table", "kanban"]);
 const viewPreferenceEventName = "view-preference-change";
 
 function getStorageKey(objectType: string): string {

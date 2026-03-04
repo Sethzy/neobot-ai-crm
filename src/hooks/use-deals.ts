@@ -8,7 +8,7 @@ import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query"
 
 import { useClientId } from "@/hooks/use-client-id";
 import { useRealtimeTable } from "@/hooks/use-realtime";
-import { buildDealSearchOrFilter } from "@/lib/crm/postgrest-filters";
+import { buildSearchExpression } from "@/lib/crm/postgrest-filters";
 import { type Contact, type Deal, type DealContact } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
@@ -46,7 +46,7 @@ async function fetchDeals(filters: DealFilters): Promise<DealWithContact[]> {
     .order("updated_at", { ascending: false });
 
   if (filters.search?.trim()) {
-    query = query.or(buildDealSearchOrFilter(filters.search));
+    query = query.or(buildSearchExpression(filters.search, ["address", "notes"]));
   }
 
   if (filters.stage) {

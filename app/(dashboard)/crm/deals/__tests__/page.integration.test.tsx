@@ -36,7 +36,7 @@ describe("DealsPage integration", () => {
           deal_id: "d-1",
           client_id: "cl-1",
           address: "123 Orchard Road",
-          stage: "viewing",
+          stage: "negotiation",
           price: 1500000,
           notes: null,
           created_at: "2026-02-01T00:00:00+08:00",
@@ -53,11 +53,11 @@ describe("DealsPage integration", () => {
     render(<DealsPage />);
 
     expect(screen.getByText("123 Orchard Road")).toBeInTheDocument();
-    expect(screen.getByText("Viewing")).toBeInTheDocument();
+    expect(screen.getByText("Negotiation")).toBeInTheDocument();
     expect(screen.getByText("John Smith")).toBeInTheDocument();
   });
 
-  it("switches between table, kanban, and calendar views", async () => {
+  it("switches between table and kanban views", async () => {
     const { useDeals } = await import("@/hooks/use-deals");
     const user = userEvent.setup();
 
@@ -67,7 +67,7 @@ describe("DealsPage integration", () => {
           deal_id: "d-1",
           client_id: "cl-1",
           address: "123 Orchard Road",
-          stage: "viewing",
+          stage: "negotiation",
           price: 1500000,
           notes: null,
           created_at: "2026-02-01T00:00:00+08:00",
@@ -85,9 +85,6 @@ describe("DealsPage integration", () => {
 
     expect(screen.getByRole("button", { name: "Table view" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Kanban view" }));
-    expect(screen.getByText("Viewing")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Calendar view" }));
-    expect(screen.getByText(/March 2026/i)).toBeInTheDocument();
+    expect(screen.getByText("Negotiation")).toBeInTheDocument();
   });
 });
