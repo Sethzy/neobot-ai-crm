@@ -96,6 +96,14 @@ The user should feel:
 - "I trust what it is doing."
 - "I do not need to manage another tool stack."
 
+### Strategic thesis: Bundling fragmented services
+
+Sunder follows the **Toast playbook** for real estate: in verticals where incumbent software is fragmented enough to allow rip-and-replace, the winning strategy is to own the system of record and make every AI feature a retention mechanism rather than a standalone product. The two things that matter are **owning the underlying context** and **deploying intelligence on top of it**.
+
+Rather than layering AI on someone else's platform, Sunder bundles CRM, client memory, scheduling, communications, follow-ups, knowledge management, and document handling into a single AI-native experience. This creates compounding defensibility — the more services consolidated, the richer the context, the better the intelligence, and the higher the switching cost.
+
+> **Reference:** See `references/ease-health/bundling-thesis-reference.md` for the full thesis with comparables (Ease Health's $41M a16z-led round for behavioral health runs the identical playbook).
+
 ---
 
 ## 3. Who It Is For

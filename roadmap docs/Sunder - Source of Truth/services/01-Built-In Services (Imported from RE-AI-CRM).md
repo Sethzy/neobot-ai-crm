@@ -120,6 +120,15 @@ For social platform workflows (e.g., LinkedIn), implementation must follow platf
 
 Apify offers a pre-built agent skill for scraping: https://skills.sh/apify/agent-skills/apify-ultimate-scraper — evaluate as a potential alternative or complement to Browserbase/Firecrawl for extraction-heavy workflows.
 
+#### Note: Browserbase Claude Code Skills
+
+Browserbase offers a Claude Code plugin for AI-driven browser automation via Stagehand:
+
+- **Skill page:** https://skills.sh/browserbase/skills/browser — install with `npx skills add https://github.com/browserbase/skills --skill browser`. Provides `browse open/snapshot/screenshot/click/type/fill` commands. Local mode (no credentials) for dev; remote mode (with `BROWSERBASE_API_KEY`) for anti-bot stealth, CAPTCHA solving, residential proxies, and session persistence.
+- **Source repo:** https://github.com/browserbase/skills (TypeScript, 448 stars) — includes a `browser` skill and a `functions` skill for deploying serverless browser automation to Browserbase cloud via the `bb` CLI.
+
+**Evaluate for:** Claude Code-native browser automation in development workflows (QA testing localhost, scraping, form-filling). Complements the Stagehand + Browserbase runtime stack already chosen for Lane 3 interactive browser automation (`SERVICE-12`).
+
 #### Note: Open-Source Mission Control Dashboards (Browserbase Competitors / Complements)
 
 Two open-source "mission control" projects worth tracking as potential alternatives or complements to Browserbase for agent orchestration and monitoring:
@@ -1640,6 +1649,23 @@ The agent uses a specialized skill for artifact generation that enforces high de
 | 2 | Custom domains per client? | **Phase 2** — `{client-id}.sunder.app` subdomains sufficient for v1. |
 | 3 | Artifact expiration? | **No expiration in v1** — monitor storage. Add TTL later if needed. |
 | 4 | Edit after publish? | **Regenerate** — agent creates a new version at same URL. No visual editor. |
+| 5 | Listing video generation approach? | **Phase 2 candidate** — Calico AI workflow (see reference below). Sub-$10/video vs $1K–$5K traditional production. |
+
+#### Reference: AI Listing Video Pipeline (Calico AI)
+
+Source: https://heycalico.ai/ · Demo: https://www.youtube.com/watch?v=Ob4MFma5x34
+
+A proven workflow for generating luxury real estate listing videos from static photos at ~$10/video:
+
+1. **Image selection** — Pull the 6 best images from any property listing (e.g. PropertyGuru/99.co for SG market)
+2. **Image animation** — Calico AI animates each image with cinematic motion (dolly shots, pans, luxury styling)
+3. **Voiceover script** — LLM analyzes the listing and writes a polished 30-second narration script
+4. **Audio generation** — ElevenLabs generates AI narration + custom music track
+5. **Assembly** — CapCut (or equivalent) assembles final video with captions
+
+**Why this matters for Sunder:** Static listing photos are table stakes. Buyers want walkthrough-feel video before booking showings. This pipeline could be automated as an agent service — user provides a listing URL, agent produces a shareable video. Fits the "finished deliverables" pattern of the artifact generation system above.
+
+**Phase 2 integration path:** Agent tool `generate_listing_video(listing_url)` → orchestrates the pipeline → publishes to artifact URL. Depends on artifact publishing infra (Build 10) being in place first.
 
 ---
 

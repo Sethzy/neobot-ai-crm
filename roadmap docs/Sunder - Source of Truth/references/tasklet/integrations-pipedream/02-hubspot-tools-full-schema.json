@@ -1,0 +1,140 @@
+[
+  {
+    "name": "hubspot_search_objects",
+    "description": "Performs advanced filtered searches across HubSpot object types using complex criteria. Supports complex boolean logic through filter groups. Use this for targeted data retrieval when exact filtering criteria are known. Filter groups are combined with OR logic (ANY can match), while filters within a group are combined with AND logic (ALL must match).",
+    "arguments": [
+      { "name": "objectType", "description": "The type of HubSpot object to search (e.g., contacts, companies, deals, tickets, notes, tasks, calls, meetings, emails, products, line_items, quotes). For custom objects, use objectTypeId (e.g., \"2-123456\") or fullyQualifiedName (e.g., \"p123_pets\") from hubspot_get_schemas." },
+      { "name": "query", "description": "Text to search across default searchable properties of the specified object type. Each object type has different searchable properties." },
+      { "name": "limit", "description": "The maximum number of results to display per page (max: 100)." },
+      { "name": "after", "description": "The paging cursor token of the last successfully read resource." },
+      { "name": "properties", "description": "A list of the properties to be returned in the response." },
+      { "name": "sorts", "description": "A list of sort criteria to apply to the results." },
+      { "name": "filterGroups", "description": "Groups of filters to apply (combined with OR). You can include a maximum of five filterGroups with up to 6 filters in each group." }
+    ]
+  },
+  {
+    "name": "hubspot_batch_create_objects",
+    "description": "Creates multiple HubSpot objects of the same objectType in a single API call, optimizing for bulk operations. Data Modification Warning: This tool modifies HubSpot data. Only use when the user has explicitly requested to update their CRM.",
+    "arguments": [
+      { "name": "objectType", "description": "The type of HubSpot object to create (e.g., contacts, companies, deals, tickets, notes, tasks, calls, meetings, emails, products, line_items, quotes). For custom objects, use objectTypeId (e.g., \"2-123456\") or fullyQualifiedName (e.g., \"p123_pets\") from hubspot_get_schemas." },
+      { "name": "inputs", "description": "Array of objects to create (maximum 100 per batch)" }
+    ]
+  },
+  {
+    "name": "hubspot_batch_read_objects",
+    "description": "Retrieves multiple HubSpot objects of the same object type by their IDs in a single batch operation. Use this tool to retrieve objects when the object IDs are known.",
+    "arguments": [
+      { "name": "objectType", "description": "The type of HubSpot object to read (e.g., contacts, companies, deals, tickets, notes, tasks, calls, meetings, emails, products, line_items, quotes). For custom objects, use objectTypeId (e.g., \"2-123456\") or fullyQualifiedName (e.g., \"p123_pets\") from hubspot_get_schemas." },
+      { "name": "inputs", "description": "Array of object IDs to read (maximum 100 per batch)" },
+      { "name": "properties", "description": "Optional list of property names to include in the results" },
+      { "name": "propertiesWithHistory", "description": "Optional list of property names to include with history" }
+    ]
+  },
+  {
+    "name": "hubspot_batch_update_objects",
+    "description": "Updates multiple existing HubSpot objects of the same objectType in a single API call. Data Modification Warning: This tool modifies HubSpot data. Only use when the user has explicitly requested to update their CRM.",
+    "arguments": [
+      { "name": "objectType", "description": "The type of HubSpot object to update (e.g., contacts, companies, deals, tickets, notes, tasks, calls, meetings, emails, products, line_items, quotes). For custom objects, use objectTypeId (e.g., \"2-123456\") or fullyQualifiedName (e.g., \"p123_pets\") from hubspot_get_schemas." },
+      { "name": "inputs", "description": "Array of objects to update (maximum 100 per batch)" }
+    ]
+  },
+  {
+    "name": "hubspot_list_objects",
+    "description": "Retrieves a paginated list of objects of a specified type from HubSpot. Use for initial data exploration to understand the data structure of a HubSpot object type. Helps list objects when the search criteria or filter criteria is not clear.",
+    "arguments": [
+      { "name": "objectType", "description": "The type of HubSpot object to list (e.g., contacts, companies, deals, tickets, notes, tasks, calls, meetings, emails, products, line_items, quotes). For custom objects, use objectTypeId (e.g., \"2-123456\") or fullyQualifiedName (e.g., \"p123_pets\") from hubspot_get_schemas." },
+      { "name": "limit", "description": "The maximum number of results to display per page (max: 500)." },
+      { "name": "after", "description": "The paging cursor token of the last successfully read resource." },
+      { "name": "properties", "description": "A list of the properties to be returned in the response." },
+      { "name": "associations", "description": "A list of object types to retrieve associated IDs for." },
+      { "name": "archived", "description": "Whether to return only results that have been archived." }
+    ]
+  },
+  {
+    "name": "hubspot_get_schemas",
+    "description": "Retrieves all custom object schemas defined in the HubSpot account. Use before working with custom objects to understand available object types, their properties, and associations.",
+    "arguments": []
+  },
+  {
+    "name": "hubspot_batch_create_associations",
+    "description": "Establishes relationships between HubSpot objects, linking records across different object types, by creating associations between objects in batch. Data Modification Warning: This tool modifies HubSpot data. Only use when the user has explicitly requested to update their CRM.",
+    "arguments": [
+      { "name": "fromObjectType", "description": "The type of HubSpot object to create association from (e.g., contacts, companies, deals, tickets, notes, tasks, calls, meetings, emails, products, line_items, quotes). For custom objects, use objectTypeId (e.g., \"2-123456\") or fullyQualifiedName (e.g., \"p123_pets\") from hubspot_get_schemas." },
+      { "name": "toObjectType", "description": "The type of HubSpot object to create association to (e.g., contacts, companies, deals, tickets, notes, tasks, calls, meetings, emails, products, line_items, quotes). For custom objects, use objectTypeId (e.g., \"2-123456\") or fullyQualifiedName (e.g., \"p123_pets\") from hubspot_get_schemas." },
+      { "name": "types", "description": "The types of associations to create" },
+      { "name": "inputs", "description": "List of association inputs defining the relationships to create (max 100 associations per batch)" }
+    ]
+  },
+  {
+    "name": "hubspot_get_association_definitions",
+    "description": "Retrieves valid association types between specific HubSpot object types. Always use before creating associations to ensure valid relationship types or to help troubleshoot association creation errors.",
+    "arguments": [
+      { "name": "fromObjectType", "description": "The type of HubSpot object to get association from (e.g., contacts, companies, deals, tickets, notes, tasks, calls, meetings, emails, products, line_items, quotes). For custom objects, use objectTypeId (e.g., \"2-123456\") or fullyQualifiedName (e.g., \"p123_pets\") from hubspot_get_schemas." },
+      { "name": "toObjectType", "description": "The type of HubSpot object to get association to (e.g., contacts, companies, deals, tickets, notes, tasks, calls, meetings, emails, products, line_items, quotes). For custom objects, use objectTypeId (e.g., \"2-123456\") or fullyQualifiedName (e.g., \"p123_pets\") from hubspot_get_schemas." }
+    ]
+  },
+  {
+    "name": "hubspot_list_associations",
+    "description": "Retrieves existing relationships between a specific object and other objects of a particular type. For example, you can find all companies that a contact is associated with, all deals related to a company, or discover which customers have an open ticket.",
+    "arguments": [
+      { "name": "objectType", "description": "The type of HubSpot object to get associations from (e.g., contacts, companies, deals, tickets, notes, tasks, calls, meetings, emails, products, line_items, quotes). For custom objects, use objectTypeId (e.g., \"2-123456\") or fullyQualifiedName (e.g., \"p123_pets\") from hubspot_get_schemas." },
+      { "name": "objectId", "description": "The ID of the HubSpot object to get associations from" },
+      { "name": "toObjectType", "description": "The type of HubSpot object to get associations to (e.g., contacts, companies, deals, tickets, notes, tasks, calls, meetings, emails, products, line_items, quotes). For custom objects, use objectTypeId (e.g., \"2-123456\") or fullyQualifiedName (e.g., \"p123_pets\") from hubspot_get_schemas." },
+      { "name": "after", "description": "Paging cursor token for retrieving the next page of results" }
+    ]
+  },
+  {
+    "name": "hubspot_get_lists",
+    "description": "Searches HubSpot lists in the account. Can filter by name (query) and processing type (MANUAL, DYNAMIC, SNAPSHOT). Returns list ID, name, object type, processing type, and size.",
+    "arguments": [
+      { "name": "query", "description": "Optional text to search for in list names." },
+      { "name": "processingTypes", "description": "Optional filter by processing type. MANUAL = static lists, DYNAMIC = auto-updating lists, SNAPSHOT = one-time filter lists. If not specified, returns all types." },
+      { "name": "offset", "description": "The offset for pagination. Use to retrieve the next page of results." }
+    ]
+  },
+  {
+    "name": "hubspot_get_list_memberships",
+    "description": "Retrieves all record IDs that belong to a specific HubSpot list. Returns record IDs and when they were added to the list.",
+    "arguments": [
+      { "name": "listId", "description": "The ID of the HubSpot list to retrieve memberships for." },
+      { "name": "limit", "description": "The maximum number of record IDs to return per page (max: 500)." },
+      { "name": "after", "description": "The paging cursor token of the last successfully read resource." }
+    ]
+  },
+  {
+    "name": "hubspot_update_list_memberships",
+    "description": "Adds or removes records from a static (MANUAL) HubSpot list. Data Modification Warning: This tool modifies HubSpot list memberships. Only use when the user has explicitly requested to update list memberships. Note: Only works with static lists, not dynamic or snapshot lists.",
+    "arguments": [
+      { "name": "listId", "description": "The ID of the static HubSpot list to modify." },
+      { "name": "action", "description": "Whether to add or remove records from the list." },
+      { "name": "recordIds", "description": "Array of record IDs to add or remove (maximum 500 per request)." }
+    ]
+  },
+  {
+    "name": "hubspot_create_list",
+    "description": "Creates a new HubSpot list (segment). Use processingType 'MANUAL' for static lists where you'll add records manually, or 'DYNAMIC' for lists that auto-update based on filter criteria. After creating a static list, use hubspot_update_list_memberships to add records. Data Modification Warning: This tool creates HubSpot lists. Only use when the user has explicitly requested to create a list.",
+    "arguments": [
+      { "name": "name", "description": "The name of the list. Must be unique across all public lists in the account." },
+      { "name": "objectTypeId", "description": "The object type ID for records in this list. Common values: '0-1' (contacts), '0-2' (companies), '0-3' (deals), '0-5' (tickets)." },
+      { "name": "processingType", "description": "MANUAL = static list (add records via API), DYNAMIC = auto-updates based on filterBranch criteria, SNAPSHOT = filters once then becomes static." },
+      { "name": "filterBranch", "description": "Filter definition for DYNAMIC or SNAPSHOT lists. Structure: top-level filterBranchType 'OR' with filterBranches array containing 'AND' branches. Each filter requires: filterType, property, and operation object (with operationType and operator). Search HubSpot list filter API docs for valid operators." }
+    ]
+  },
+  {
+    "name": "hubspot_batch_delete_objects",
+    "description": "Archives (soft-deletes) multiple HubSpot objects of the same type in a single batch operation. Archived objects can be restored from the HubSpot UI within 90 days. Data Modification Warning: This tool permanently archives objects and should be used with extreme caution. Only use when the user has explicitly requested to delete/archive objects.",
+    "arguments": [
+      { "name": "objectType", "description": "The type of HubSpot object to archive (e.g., contacts, companies, deals, tickets, notes, tasks, calls, meetings, emails, products, line_items, quotes). For custom objects, use objectTypeId (e.g., \"2-123456\") or fullyQualifiedName (e.g., \"p123_pets\") from hubspot_get_schemas." },
+      { "name": "inputs", "description": "Array of object IDs to archive (maximum 100 per batch)" }
+    ]
+  },
+  {
+    "name": "hubspot_batch_delete_associations",
+    "description": "Removes associations (relationships) between HubSpot objects in batch. Data Modification Warning: This tool permanently removes relationships between objects. Only use when the user has explicitly requested to remove associations.",
+    "arguments": [
+      { "name": "fromObjectType", "description": "The type of HubSpot object to remove associations from (e.g., contacts, companies, deals, tickets, notes, tasks, calls, meetings, emails, products, line_items, quotes). For custom objects, use objectTypeId (e.g., \"2-123456\") or fullyQualifiedName (e.g., \"p123_pets\") from hubspot_get_schemas." },
+      { "name": "toObjectType", "description": "The type of HubSpot object to remove associations to (e.g., contacts, companies, deals, tickets, notes, tasks, calls, meetings, emails, products, line_items, quotes). For custom objects, use objectTypeId (e.g., \"2-123456\") or fullyQualifiedName (e.g., \"p123_pets\") from hubspot_get_schemas." },
+      { "name": "inputs", "description": "Array of association pairs to remove (maximum 100 per batch)" }
+    ]
+  }
+]

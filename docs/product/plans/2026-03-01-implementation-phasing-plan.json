@@ -25,6 +25,7 @@
       "2026-03-02: PR 6 marked done, PR 8 now in_progress",
       "2026-03-02: PR 8 marked done, PR 9 now in_progress",
       "2026-03-03: PR 11 marked done, PR 12 now in_progress",
+      "2026-03-04: PR 12 + PR 12a marked done. Phase 1 complete.",
       "2026-03-03: PR 12 marked done (lean scope): step_count on runs, onFinish step counting, tool-error resilience test, schema/type updates",
       "2026-03-03: PR 12a now in_progress — tasklist at docs/tasks/2026-03-03-pr12a-knowledge-base-tasklist.md",
       "2026-03-03: PR 12a marked done — vault_files schema + RLS/realtime, Knowledge page (search/upload/download), vault metadata sync + tests"
@@ -34,7 +35,7 @@
     {
       "phase": 1,
       "title": "Chat + CRM + Basic Tools",
-      "status": "in_progress",
+      "status": "done",
       "goal": "User can chat with an AI agent that reads/writes CRM data, searches the web, and reads/writes files. Read-only CRM pages let the user verify what the agent did.",
       "demoMoment": "\"I met John Smith at 123 Oak St\" → agent creates contact + deal, user sees it in CRM page",
       "endState": "User logs in → sees chat → talks to agent → agent creates CRM data → user verifies in CRM pages. Existing document processing untouched.",
