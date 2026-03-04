@@ -6,7 +6,7 @@ import type { UIMessage } from "ai";
 import { z } from "zod";
 
 import { resolveClientId } from "@/lib/chat/client-id";
-import { runAgent } from "@/lib/runner/run-agent";
+import { processInboundMessage } from "@/lib/chat/process-inbound-message";
 import { createClient } from "@/lib/supabase/server";
 
 /** Allows longer streaming runs on Vercel functions. */
@@ -15,14 +15,26 @@ export const maxDuration = 60;
 interface ChatRequestBody {
   id?: string;
   threadId?: string;
-  message?: string;
+  message?: string | UIMessage;
   messages?: UIMessage[];
+  deliveryId?: string;
 }
 
 const threadIdSchema = z.string().uuid();
 
 function jsonError(message: string, status: number): Response {
   return Response.json({ error: message }, { status });
+}
+
+function withCanonicalThreadIdHeader(response: Response, threadId: string): Response {
+  const headers = new Headers(response.headers);
+  headers.set("x-thread-id", threadId);
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
 
 function getTextFromMessage(message: UIMessage): string | null {
@@ -90,9 +102,11 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError("Invalid request body: thread id must be a UUID.", 400);
   }
 
-  const input = typeof body.message === "string" && body.message.trim().length > 0
+  const input = typeof body.message === "string"
     ? body.message.trim()
-    : getLatestUserInput(body.messages);
+    : body.message
+      ? getTextFromMessage(body.message)
+      : getLatestUserInput(body.messages);
 
   if (!input) {
     return jsonError("Invalid request body: could not resolve latest user message text.", 400);
@@ -110,37 +124,41 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const clientId = await resolveClientId(supabase, user.id);
-    const { data: thread, error: threadLookupError } = await supabase
-      .from("conversation_threads")
-      .select("thread_id")
-      .eq("thread_id", threadId)
-      .eq("client_id", clientId)
-      .eq("is_archived", false)
-      .maybeSingle();
-
-    if (threadLookupError) {
-      return jsonError("Failed to process chat request.", 500);
-    }
-
-    if (!thread) {
-      return jsonError("Thread not found.", 404);
-    }
-
-    const result = await runAgent(
-      {
-        clientId,
-        threadId,
-        triggerType: "chat",
-        input,
-      },
+    const result = await processInboundMessage({
       supabase,
-    );
+      clientId,
+      channel: "web",
+      externalConversationId: threadId,
+      requestedThreadId: threadId,
+      messageText: input,
+      deliveryId: typeof body.deliveryId === "string" ? body.deliveryId : undefined,
+      triggerType: "chat",
+    });
 
     if (result.status === "queued") {
-      return Response.json({ status: "queued" }, { status: 202 });
+      return Response.json(
+        { status: "queued" },
+        {
+          status: 202,
+          headers: { "x-thread-id": result.threadId },
+        },
+      );
     }
 
-    return result.streamResult.toUIMessageStreamResponse();
+    if (result.status === "duplicate") {
+      return Response.json(
+        { status: "duplicate" },
+        {
+          status: 200,
+          headers: { "x-thread-id": result.threadId },
+        },
+      );
+    }
+
+    return withCanonicalThreadIdHeader(
+      result.streamResult.toUIMessageStreamResponse(),
+      result.threadId,
+    );
   } catch {
     return jsonError("Failed to process chat request.", 500);
   }

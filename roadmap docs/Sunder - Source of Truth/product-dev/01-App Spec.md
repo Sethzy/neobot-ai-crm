@@ -632,7 +632,7 @@ SYSTEM
 ### 14.2 Key UX Decisions
 
 - **Chat is home.** Mission Control is a control surface, not the user's primary workspace (`UX-01`).
-- **Session rail** in left sidebar. New chat creates new thread immediately. One active canvas at a time. No duplicate thread navigator inside chat (`UX-06`).
+- **Session rail** in left sidebar. Clicking **Chat** opens a draft canvas; the canonical thread is created server-side on first submitted message, then URL reconciles to `/chat/{threadId}`. One active canvas at a time. No duplicate thread navigator inside chat (`UX-06`).
 - **Mission Control** has two tabs: Overview (status dashboard) and Queue (approvals, failures, blocked tasks, goals at risk) (`UX-03`).
 - **Tasks** board: sort by Needs Approval → Blocked → Overdue → Due Soon → Recently Updated. Source labels: `[CRM]`, `[MANUAL]`, `[AUTOPILOT]` (`UX-04`).
 

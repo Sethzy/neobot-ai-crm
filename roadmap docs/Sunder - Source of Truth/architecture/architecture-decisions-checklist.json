@@ -649,10 +649,10 @@
     {
       "id": "SESSION-01",
       "category": "9-session-and-thread-continuity",
-      "description": "REVISED: Thread identity — simple UUID-based threads. Schema: thread_id (UUID PK), client_id (FK), title (user-editable or auto-generated), is_pinned (for Autopilot thread), created_at, updated_at. No channel routing, no chat_identity_key, no chat_type, no deterministic thread_key, no lane concept. Web-only for v1. User creates threads from web UI. Triggers reference threads by thread_id. Out-of-app notifications via email (TRIG-06b). V2: Telegram channel added via Vercel AI SDK Chat SDK adapter. V3: WhatsApp via Meta Cloud API. Multi-channel identity resolution (chat_identity_key = channel + chat_type + chat_id) deferred to v2/v3.",
+      "description": "REVISED: Thread identity — simple UUID-based threads. Schema: thread_id (UUID PK), client_id (FK), title (user-editable or auto-generated), is_pinned (for Autopilot thread), created_at, updated_at. Web UX is draft-first: /chat is a draft canvas, canonical thread is created lazily on first submitted message, then URL reconciles to /chat/{thread_id}. Added minimal channel foundation tables in v1: conversation_channel_mappings (channel + external_conversation_id -> thread_id) and conversation_channel_delivery_receipts (delivery idempotency). No chat_identity_key, no chat_type, no deterministic thread_key, no lane concept. Triggers reference threads by thread_id. Out-of-app notifications via email (TRIG-06b). V2: Telegram channel added via Vercel AI SDK Chat SDK adapter. V3: WhatsApp via Meta Cloud API.",
       "approved": true,
-      "decision": "Simple UUID threads, web-only. Multi-channel identity resolution deferred to v2.",
-      "reasoning": "Original designed for multi-channel (WhatsApp groups, Telegram DMs, web) with identity resolution across channels. V1 is web-only (WhatsApp/Telegram deferred per earlier decision). With one channel, thread identity is just a UUID — same as Tasklet (conversations) and Fintool (web-only UUIDs). chat_identity_key, chat_type, deterministic thread_key are all multi-channel routing concepts with zero v1 value. Email notifications (TRIG-06b, Resend) bridge the gap when user is not in the app. Dorabot's complex session routing (chat_id, marked runs, reply refs) exists because it serves 3 channels simultaneously — unnecessary for web-only."
+      "decision": "Simple UUID threads with lazy server-side creation on first message. Keep lightweight channel mapping + delivery idempotency tables in v1 foundation.",
+      "reasoning": "Draft-first avoids empty thread spam and matches Chat SDK interaction flow. Canonical thread identity remains UUID-based in conversation_threads. The mapping + receipt tables are intentionally minimal and channel-agnostic: they provide stable external-conversation -> thread resolution and retry-safe delivery dedup without introducing full multi-channel routing complexity. This keeps v1 web UX clean while making Telegram/WhatsApp adapters a thin integration layer in v2/v3."
     },
     {
       "id": "SESSION-02",
@@ -981,9 +981,9 @@
     {
       "id": "UX-06",
       "category": "14-ux-and-navigation",
-      "description": "Session rail in left sidebar — new chat creates new thread immediately, one active chat canvas at a time, no duplicate thread navigator inside chat canvas",
+      "description": "Session rail in left sidebar — clicking Chat opens a draft canvas, thread is created server-side on first submitted message, one active chat canvas at a time, no duplicate thread navigator inside chat canvas",
       "approved": true,
-      "reasoning": "Standard chat app pattern. Session rail in left sidebar, one active chat canvas, new chat creates thread immediately. No split views or tabs."
+      "reasoning": "Aligns with Vercel Chat SDK style and avoids pre-created empty threads. Chat nav opens a draft state, first submit calls /api/chat, server resolves/creates canonical thread_id, and client reconciles URL once canonical ID is known. One active canvas, no split views/tabs."
     },
     {
       "id": "UX-07",

@@ -6,6 +6,7 @@
 "use client";
 
 import type { UIMessage } from "ai";
+import { useRouter } from "next/navigation";
 import { useCallback, useRef } from "react";
 
 import { ChatPanel } from "@/components/chat/chat-panel";
@@ -16,12 +17,15 @@ import { generateThreadTitle } from "@/lib/chat/thread-title";
 interface ChatThreadPageClientProps {
   threadId: string;
   initialMessages: UIMessage[];
+  isDraftRoute?: boolean;
 }
 
 export function ChatThreadPageClient({
   threadId,
   initialMessages,
+  isDraftRoute = false,
 }: ChatThreadPageClientProps) {
+  const router = useRouter();
   const { updateThreadTitle } = useThreads();
   const initialMessageRef = useRef<string | undefined>(
     typeof window !== "undefined"
@@ -36,12 +40,27 @@ export function ChatThreadPageClient({
 
   const handleAutoName = useCallback(
     (firstUserMessage: string) => {
+      if (isDraftRoute) {
+        return;
+      }
+
       const title = generateThreadTitle(firstUserMessage);
       if (title) {
         updateThreadTitle(threadId, title);
       }
     },
-    [threadId, updateThreadTitle],
+    [isDraftRoute, threadId, updateThreadTitle],
+  );
+
+  const handleCanonicalThreadId = useCallback(
+    (canonicalThreadId: string) => {
+      if (canonicalThreadId === threadId) {
+        return;
+      }
+
+      router.replace(`/chat/${canonicalThreadId}`);
+    },
+    [router, threadId],
   );
 
   return (
@@ -50,6 +69,7 @@ export function ChatThreadPageClient({
       initialMessages={initialMessages}
       initialMessage={initialMessages.length === 0 ? initialMessageRef.current : undefined}
       onAutoName={handleAutoName}
+      onCanonicalThreadId={handleCanonicalThreadId}
     />
   );
 }

@@ -16,6 +16,7 @@ import { ChatThreadPageClient } from "./chat-thread-page-client";
 
 interface ChatThreadPageProps {
   params: Promise<{ threadId: string }>;
+  searchParams?: Promise<{ draft?: string | string[] }>;
 }
 
 const threadIdSchema = z.string().uuid();
@@ -53,8 +54,11 @@ function mapDbMessageToUiMessage(message: {
   };
 }
 
-export default async function ChatThreadPage({ params }: ChatThreadPageProps) {
+export default async function ChatThreadPage({ params, searchParams }: ChatThreadPageProps) {
   const { threadId } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const draftParam = resolvedSearchParams?.draft;
+  const isDraftRoute = Array.isArray(draftParam) ? draftParam.includes("1") : draftParam === "1";
 
   if (!threadIdSchema.safeParse(threadId).success) {
     redirect("/chat");
@@ -77,6 +81,16 @@ export default async function ChatThreadPage({ params }: ChatThreadPageProps) {
   }
 
   if (!thread) {
+    if (isDraftRoute) {
+      return (
+        <ChatThreadPageClient
+          threadId={threadId}
+          initialMessages={[]}
+          isDraftRoute
+        />
+      );
+    }
+
     redirect("/chat");
     return null;
   }
@@ -88,6 +102,7 @@ export default async function ChatThreadPage({ params }: ChatThreadPageProps) {
     <ChatThreadPageClient
       threadId={threadId}
       initialMessages={initialMessages}
+      isDraftRoute={false}
     />
   );
 }

@@ -6,11 +6,9 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 
 import { Suggestion } from "@/components/ai-elements/suggestion";
 import { ChatComposer } from "@/components/chat/chat-composer";
-import { useThreads } from "@/contexts/thread-context";
 import { getInitialMessageHandoffKey } from "@/lib/chat/initial-message-handoff";
 
 const DRAFT_SUGGESTIONS = [
@@ -22,27 +20,20 @@ const DRAFT_SUGGESTIONS = [
 
 export default function ChatPage() {
   const router = useRouter();
-  const { createThread } = useThreads();
   const [isCreating, setIsCreating] = useState(false);
 
   const handleSubmit = useCallback(
-    async (text: string) => {
+    (text: string) => {
       if (isCreating) {
         return;
       }
 
+      const draftThreadId = crypto.randomUUID();
       setIsCreating(true);
-      try {
-        const threadId = await createThread();
-        sessionStorage.setItem(getInitialMessageHandoffKey(threadId), text);
-        router.push(`/chat/${threadId}`);
-      } catch {
-        toast.error("Failed to create chat.");
-      } finally {
-        setIsCreating(false);
-      }
+      sessionStorage.setItem(getInitialMessageHandoffKey(draftThreadId), text);
+      router.push(`/chat/${draftThreadId}?draft=1`);
     },
-    [createThread, isCreating, router],
+    [isCreating, router],
   );
 
   return (

@@ -25,9 +25,17 @@ vi.mock("@/hooks/use-scroll-to-bottom", () => ({
 vi.mock("ai", () => ({
   DefaultChatTransport: class {
     api: string | undefined;
+    fetch: ((input: URL | RequestInfo, init?: RequestInit) => Promise<Response>) | undefined;
+    prepareSendMessagesRequest: unknown;
 
-    constructor(options: { api?: string }) {
+    constructor(options: {
+      api?: string;
+      fetch?: (input: URL | RequestInfo, init?: RequestInit) => Promise<Response>;
+      prepareSendMessagesRequest?: unknown;
+    }) {
       this.api = options.api;
+      this.fetch = options.fetch;
+      this.prepareSendMessagesRequest = options.prepareSendMessagesRequest;
     }
   },
 }));
@@ -71,11 +79,12 @@ describe("ChatPanel", () => {
     const options = mockUseChat.mock.calls[0][0] as {
       id: string;
       messages: UIMessage[];
-      transport: { api?: string };
+      transport: { api?: string; prepareSendMessagesRequest?: unknown };
     };
     expect(options.id).toBe("thread-1");
     expect(options.messages).toEqual(initialMessages);
     expect(options.transport).toEqual(expect.objectContaining({ api: "/api/chat" }));
+    expect(options.transport.prepareSendMessagesRequest).toBeTypeOf("function");
   });
 
   it("sends trimmed text via sendMessage", async () => {
@@ -285,5 +294,53 @@ describe("ChatPanel", () => {
     );
 
     expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("emits canonical thread id after response finish when header id differs", async () => {
+    const onCanonicalThreadId = vi.fn();
+    render(<ChatPanel chatId="thread-draft" onCanonicalThreadId={onCanonicalThreadId} />);
+
+    const options = mockUseChat.mock.calls[0][0] as {
+      onFinish?: (payload: { messages: UIMessage[] }) => Promise<void> | void;
+      transport: { fetch?: (input: URL | RequestInfo, init?: RequestInit) => Promise<Response> };
+    };
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("stream", {
+        headers: { "x-thread-id": "thread-canonical" },
+      }),
+    );
+
+    await options.transport.fetch?.("http://localhost/api/chat", { method: "POST" });
+    await options.onFinish?.({
+      messages: [{ id: "a1", role: "assistant", parts: [{ type: "text", text: "done" }] }] as UIMessage[],
+    });
+
+    expect(onCanonicalThreadId).toHaveBeenCalledWith("thread-canonical");
+    fetchSpy.mockRestore();
+  });
+
+  it("does not emit canonical thread id when it matches current chat id", async () => {
+    const onCanonicalThreadId = vi.fn();
+    render(<ChatPanel chatId="thread-1" onCanonicalThreadId={onCanonicalThreadId} />);
+
+    const options = mockUseChat.mock.calls[0][0] as {
+      onFinish?: (payload: { messages: UIMessage[] }) => Promise<void> | void;
+      transport: { fetch?: (input: URL | RequestInfo, init?: RequestInit) => Promise<Response> };
+    };
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("stream", {
+        headers: { "x-thread-id": "thread-1" },
+      }),
+    );
+
+    await options.transport.fetch?.("http://localhost/api/chat", { method: "POST" });
+    await options.onFinish?.({
+      messages: [{ id: "a1", role: "assistant", parts: [{ type: "text", text: "done" }] }] as UIMessage[],
+    });
+
+    expect(onCanonicalThreadId).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 });

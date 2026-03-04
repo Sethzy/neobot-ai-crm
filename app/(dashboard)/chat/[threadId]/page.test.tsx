@@ -111,6 +111,23 @@ describe("/chat/[threadId] page", () => {
     expect(mockListMessages).not.toHaveBeenCalled();
   });
 
+  it("renders an empty draft thread page when missing thread has draft=1", async () => {
+    const supabase = createThreadLookupSupabase({ threadExists: false });
+    mockCreateClient.mockResolvedValue(supabase);
+    mockResolveClientId.mockResolvedValue("client-123");
+
+    const element = await ChatThreadPage({
+      params: Promise.resolve({ threadId: MISSING_THREAD_ID }),
+      searchParams: Promise.resolve({ draft: "1" }),
+    });
+    render(element);
+
+    expect(screen.getByTestId("thread-id")).toHaveTextContent(MISSING_THREAD_ID);
+    expect(screen.getByTestId("initial-message-count")).toHaveTextContent("0");
+    expect(redirect).not.toHaveBeenCalled();
+    expect(mockListMessages).not.toHaveBeenCalled();
+  });
+
   it("throws when thread lookup fails", async () => {
     const supabase = createThreadLookupSupabase({
       threadExists: false,

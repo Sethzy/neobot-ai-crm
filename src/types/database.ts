@@ -875,6 +875,93 @@ export type Database = {
           },
         ]
       }
+      conversation_channel_mappings: {
+        Row: {
+          channel: string
+          client_id: string
+          created_at: string
+          external_conversation_id: string
+          mapping_id: string
+          thread_id: string
+          updated_at: string
+        }
+        Insert: {
+          channel: string
+          client_id: string
+          created_at?: string
+          external_conversation_id: string
+          mapping_id?: string
+          thread_id: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          client_id?: string
+          created_at?: string
+          external_conversation_id?: string
+          mapping_id?: string
+          thread_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_channel_mappings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "conversation_channel_mappings_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
+      conversation_channel_delivery_receipts: {
+        Row: {
+          channel: string
+          client_id: string
+          created_at: string
+          delivery_id: string
+          receipt_id: string
+          thread_id: string
+        }
+        Insert: {
+          channel: string
+          client_id: string
+          created_at?: string
+          delivery_id: string
+          receipt_id?: string
+          thread_id: string
+        }
+        Update: {
+          channel?: string
+          client_id?: string
+          created_at?: string
+          delivery_id?: string
+          receipt_id?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_channel_delivery_receipts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "conversation_channel_delivery_receipts_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
       runs: {
         Row: {
           client_id: string
