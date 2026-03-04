@@ -49,7 +49,7 @@ export function useContactDeals(contactId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("deal_contacts")
-        .select("*, deals(*)")
+        .select("*, deals!deal_contacts_deal_id_fkey(*)")
         .eq("contact_id", contactId)
         .order("created_at", { ascending: false });
 

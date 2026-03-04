@@ -90,7 +90,7 @@ describe("useCrmTasks", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockFrom).toHaveBeenCalledWith("crm_tasks");
     expect(builder.select).toHaveBeenCalledWith(
-      "*, contacts(first_name, last_name), deals(address)",
+      "*, contacts!crm_tasks_contact_id_fkey(first_name, last_name), deals!crm_tasks_deal_id_fkey(address)",
     );
     expect(builder.order).toHaveBeenCalledWith("due_date", {
       ascending: true,

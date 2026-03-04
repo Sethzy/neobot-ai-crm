@@ -42,7 +42,7 @@ export const dealKeys = {
 async function fetchDeals(filters: DealFilters): Promise<DealWithContact[]> {
   let query = supabase
     .from("deals")
-    .select("*, deal_contacts(contact_id, role, is_primary, contacts(first_name, last_name))")
+    .select("*, deal_contacts!deal_contacts_deal_id_fkey(contact_id, role, is_primary, contacts!deal_contacts_contact_id_fkey(first_name, last_name))")
     .order("updated_at", { ascending: false });
 
   if (filters.search?.trim()) {
@@ -68,7 +68,7 @@ async function fetchDeals(filters: DealFilters): Promise<DealWithContact[]> {
 async function fetchDeal(dealId: string): Promise<DealWithContact> {
   const { data, error } = await supabase
     .from("deals")
-    .select("*, deal_contacts(contact_id, role, is_primary, contacts(first_name, last_name))")
+    .select("*, deal_contacts!deal_contacts_deal_id_fkey(contact_id, role, is_primary, contacts!deal_contacts_contact_id_fkey(first_name, last_name))")
     .eq("deal_id", dealId)
     .single();
 

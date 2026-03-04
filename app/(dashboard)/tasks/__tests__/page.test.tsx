@@ -39,6 +39,20 @@ describe("TasksPage", () => {
     expect(mockRefetch).toHaveBeenCalled();
   });
 
+  it("shows empty state with icon when no tasks exist", async () => {
+    const { useCrmTasks } = await import("@/hooks/use-crm-tasks");
+
+    vi.mocked(useCrmTasks).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    } as never);
+
+    render(<TasksPage />);
+
+    expect(screen.getByText(/no tasks yet/i)).toBeInTheDocument();
+  });
+
   it("passes trimmed search text into the tasks hook", async () => {
     const { useCrmTasks } = await import("@/hooks/use-crm-tasks");
 

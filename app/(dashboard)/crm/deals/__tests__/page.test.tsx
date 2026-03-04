@@ -39,6 +39,20 @@ describe("DealsPage", () => {
     expect(mockRefetch).toHaveBeenCalled();
   });
 
+  it("shows empty state with icon when no deals exist", async () => {
+    const { useDeals } = await import("@/hooks/use-deals");
+
+    vi.mocked(useDeals).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    } as never);
+
+    render(<DealsPage />);
+
+    expect(screen.getByText(/no deals yet/i)).toBeInTheDocument();
+  });
+
   it("passes trimmed search text into the deals hook", async () => {
     const { useDeals } = await import("@/hooks/use-deals");
 

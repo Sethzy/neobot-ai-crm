@@ -806,6 +806,7 @@ export type Database = {
         Row: {
           client_id: string
           created_at: string
+          is_archived: boolean
           is_pinned: boolean
           thread_id: string
           title: string | null
@@ -814,6 +815,7 @@ export type Database = {
         Insert: {
           client_id: string
           created_at?: string
+          is_archived?: boolean
           is_pinned?: boolean
           thread_id?: string
           title?: string | null
@@ -822,6 +824,7 @@ export type Database = {
         Update: {
           client_id?: string
           created_at?: string
+          is_archived?: boolean
           is_pinned?: boolean
           thread_id?: string
           title?: string | null

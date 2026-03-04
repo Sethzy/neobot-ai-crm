@@ -261,7 +261,7 @@ export function CasesTable({ cases }: CasesTableProps) {
   const headerIds = table.getHeaderGroups()[0]?.headers.map((h) => h.id) ?? [];
 
   const tableContent = (
-    <table className="w-full">
+    <table className="w-full min-w-[800px]">
       <thead className="border-b border-border/40 bg-muted/20">
         {table.getHeaderGroups().map((headerGroup) => (
           <tr key={headerGroup.id}>

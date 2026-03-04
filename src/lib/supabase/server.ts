@@ -3,10 +3,12 @@ import { cookies } from "next/headers";
 import type { Database } from "@/types/database";
 
 function getSupabaseEnv() {
-  const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
-  const supabaseAnonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY;
+  const supabaseUrl = (
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? ""
+  ).trim();
+  const supabaseAnonKey = (
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? ""
+  ).trim();
 
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(
@@ -28,6 +30,17 @@ export async function createClient() {
       cookies: {
         getAll() {
           return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // setAll is called from Server Components where cookies are
+            // read-only. The middleware handles persisting refreshed tokens
+            // in that case, so this catch is safe to swallow.
+          }
         },
       },
     }

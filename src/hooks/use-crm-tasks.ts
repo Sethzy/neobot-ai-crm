@@ -37,7 +37,7 @@ export const crmTaskKeys = {
 async function fetchCrmTasks(filters: CrmTaskFilters): Promise<CrmTaskWithRelations[]> {
   let query = supabase
     .from("crm_tasks")
-    .select("*, contacts(first_name, last_name), deals(address)")
+    .select("*, contacts!crm_tasks_contact_id_fkey(first_name, last_name), deals!crm_tasks_deal_id_fkey(address)")
     .order("due_date", { ascending: true, nullsFirst: false });
 
   if (filters.status) {

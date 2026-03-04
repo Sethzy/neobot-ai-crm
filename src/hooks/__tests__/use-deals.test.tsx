@@ -104,7 +104,7 @@ describe("useDeals", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockFrom).toHaveBeenCalledWith("deals");
-    expect(builder.select).toHaveBeenCalledWith("*, deal_contacts(contact_id, role, is_primary, contacts(first_name, last_name))");
+    expect(builder.select).toHaveBeenCalledWith("*, deal_contacts!deal_contacts_deal_id_fkey(contact_id, role, is_primary, contacts!deal_contacts_contact_id_fkey(first_name, last_name))");
     expect(builder.order).toHaveBeenCalledWith("updated_at", { ascending: false });
   });
 
