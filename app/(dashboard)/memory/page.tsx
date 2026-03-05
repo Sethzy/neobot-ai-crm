@@ -9,24 +9,18 @@ import { useState } from "react";
 import { MemoryFileList } from "@/components/memory/memory-file-list";
 import { MemoryFileViewer } from "@/components/memory/memory-file-viewer";
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   useMemoryFile,
   useMemoryFiles,
   useUpdateMemoryFile,
 } from "@/lib/memory/queries";
 
-function shouldAutoHideFileListOnSelection(): boolean {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-    return false;
-  }
-
-  return window.matchMedia("(max-width: 767px)").matches;
-}
-
 export default function MemoryPage() {
   const [selectedPath, setSelectedPath] = useState<string | null>("SOUL.md");
   const [isFileListVisible, setIsFileListVisible] = useState(true);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const isMobile = useIsMobile();
 
   const { data: files, isLoading: filesLoading } = useMemoryFiles();
   const {
@@ -39,14 +33,7 @@ export default function MemoryPage() {
   const updateFile = useUpdateMemoryFile();
 
   async function handleSave(newContent: string) {
-    if (!selectedPath) {
-      return;
-    }
-
-    if (isContentError) {
-      throw new Error("Cannot save while file content is unavailable.");
-    }
-
+    if (!selectedPath) return;
     await updateFile.mutateAsync({ path: selectedPath, content: newContent });
   }
 
@@ -66,7 +53,7 @@ export default function MemoryPage() {
 
     setSelectedPath(path);
     setHasUnsavedChanges(false);
-    if (shouldAutoHideFileListOnSelection()) {
+    if (isMobile) {
       setIsFileListVisible(false);
     }
   }

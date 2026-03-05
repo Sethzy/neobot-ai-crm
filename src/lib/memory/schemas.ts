@@ -46,27 +46,39 @@ export const memoryFileWriteBodySchema = z.object({
   content: z.string(),
 });
 
-/** Single file metadata shape used by list responses and UI hooks. */
-export const memoryFileInfoSchema = z.object({
-  name: z.string(),
-  path: memoryFilePathSchema,
-  updatedAt: z.string().nullable(),
-});
-export type MemoryFileInfo = z.infer<typeof memoryFileInfoSchema>;
+/** Metadata about a single memory file in storage. */
+export interface MemoryFileInfo {
+  /** Display name (e.g. "SOUL.md" or "preferences.md"). */
+  name: string;
+  /** Workspace-relative path (e.g. "SOUL.md" or "memory/preferences.md"). */
+  path: string;
+  /** ISO timestamp of last modification, or null if unavailable. */
+  updatedAt: string | null;
+}
+
+/**
+ * Client-side response schemas use plain `z.string()` for paths since the
+ * server already validated/normalized them. This avoids re-running the
+ * `normalizeWorkspacePath` transform on every response parse.
+ */
 
 /** Response contract for /api/memory/files. */
 export const memoryFilesResponseSchema = z.object({
-  files: z.array(memoryFileInfoSchema),
+  files: z.array(z.object({
+    name: z.string(),
+    path: z.string(),
+    updatedAt: z.string().nullable(),
+  })),
 });
 
 /** Response contract for /api/memory/file GET. */
 export const memoryFileReadResponseSchema = z.object({
-  path: memoryFilePathSchema,
+  path: z.string(),
   content: z.string(),
 });
 
 /** Response contract for /api/memory/file PUT. */
 export const memoryFileWriteResponseSchema = z.object({
   success: z.literal(true),
-  path: memoryFilePathSchema,
+  path: z.string(),
 });

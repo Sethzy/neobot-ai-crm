@@ -190,7 +190,8 @@ describe("memory routes", () => {
       path: "USER.md",
       content: "# User profile",
     });
-    expect(mockBootstrapMemoryFiles).toHaveBeenCalledWith(supabaseMock.client, clientId);
+    // File GET no longer calls bootstrap — files list endpoint handles it.
+    expect(mockBootstrapMemoryFiles).not.toHaveBeenCalled();
     expect(supabaseMock.mockDownload).toHaveBeenCalledWith(`${clientId}/USER.md`);
   });
 

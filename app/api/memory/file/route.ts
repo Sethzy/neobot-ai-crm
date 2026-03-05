@@ -2,97 +2,44 @@
  * Reads and writes a single memory file for the authenticated user.
  * @module app/api/memory/file/route
  */
+import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
-import { bootstrapMemoryFiles } from "@/lib/memory/bootstrap";
 import { MEMORY_BUCKET_ID, MEMORY_TEXT_CONTENT_TYPE } from "@/lib/memory/constants";
 import {
   memoryFileQuerySchema,
   memoryFileWriteBodySchema,
 } from "@/lib/memory/schemas";
-import {
-  decodeStorageTextPayload,
-  getStorageErrorMessage,
-  isMissingStorageObjectError,
-} from "@/lib/memory/storage";
-import { createClient } from "@/lib/supabase/server";
-
-type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
-type AuthenticatedUser = { id: string };
-type AuthResult =
-  | { kind: "error"; errorResponse: Response }
-  | { kind: "ok"; supabase: SupabaseServerClient; user: AuthenticatedUser };
-
-function jsonError(message: string, status: number): Response {
-  return Response.json({ error: message }, { status });
-}
-
-function logServerError(context: string, error: unknown): void {
-  console.error(context, error);
-}
-
-async function authenticateRequest(): Promise<AuthResult> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return { kind: "error", errorResponse: jsonError("Unauthorized.", 401) };
-  }
-
-  return { kind: "ok", supabase, user };
-}
+import { downloadMemoryFile, getStorageErrorMessage, getStoragePath } from "@/lib/memory/storage";
 
 export async function GET(request: Request): Promise<Response> {
   const authResult = await authenticateRequest();
-  if (authResult.kind === "error") {
-    return authResult.errorResponse;
-  }
+  if (authResult.kind === "error") return authResult.response;
 
-  const { supabase, user } = authResult;
+  const { supabase, userId } = authResult;
   const pathResult = memoryFileQuerySchema.safeParse({
     path: new URL(request.url).searchParams.get("path"),
   });
 
-  if (!pathResult.success) {
-    return jsonError("Invalid request.", 400);
-  }
+  if (!pathResult.success) return jsonError("Invalid request.", 400);
 
   try {
-    const clientId = await resolveClientId(supabase, user.id);
-    await bootstrapMemoryFiles(supabase, clientId);
-    const storagePath = `${clientId}/${pathResult.data.path}`;
-    const { data, error } = await supabase.storage
-      .from(MEMORY_BUCKET_ID)
-      .download(storagePath);
+    const clientId = await resolveClientId(supabase, userId);
+    const result = await downloadMemoryFile(supabase, clientId, pathResult.data.path);
 
-    if (error || !data) {
-      if (isMissingStorageObjectError(error)) {
-        return jsonError("File not found.", 404);
-      }
+    if (result.kind === "missing") return jsonError("File not found.", 404);
 
-      throw new Error(`Failed to read file: ${getStorageErrorMessage(error)}`);
-    }
-
-    const content = await decodeStorageTextPayload(data, pathResult.data.path);
-    return Response.json({
-      path: pathResult.data.path,
-      content,
-    });
-  } catch (unexpectedError) {
-    logServerError("Failed to load memory file.", unexpectedError);
+    return Response.json({ path: pathResult.data.path, content: result.content });
+  } catch (error) {
+    console.error("Failed to load memory file.", error);
     return jsonError("Failed to load memory file.", 500);
   }
 }
 
 export async function PUT(request: Request): Promise<Response> {
   const authResult = await authenticateRequest();
-  if (authResult.kind === "error") {
-    return authResult.errorResponse;
-  }
+  if (authResult.kind === "error") return authResult.response;
 
-  const { supabase, user } = authResult;
+  const { supabase, userId } = authResult;
   let parsedJson: unknown;
 
   try {
@@ -102,13 +49,11 @@ export async function PUT(request: Request): Promise<Response> {
   }
 
   const bodyResult = memoryFileWriteBodySchema.safeParse(parsedJson);
-  if (!bodyResult.success) {
-    return jsonError("Invalid request body.", 400);
-  }
+  if (!bodyResult.success) return jsonError("Invalid request body.", 400);
 
   try {
-    const clientId = await resolveClientId(supabase, user.id);
-    const storagePath = `${clientId}/${bodyResult.data.path}`;
+    const clientId = await resolveClientId(supabase, userId);
+    const storagePath = getStoragePath(clientId, bodyResult.data.path);
     const { error } = await supabase.storage
       .from(MEMORY_BUCKET_ID)
       .upload(storagePath, bodyResult.data.content, {
@@ -120,12 +65,9 @@ export async function PUT(request: Request): Promise<Response> {
       throw new Error(`Failed to save file: ${getStorageErrorMessage(error)}`);
     }
 
-    return Response.json({
-      success: true,
-      path: bodyResult.data.path,
-    });
-  } catch (unexpectedError) {
-    logServerError("Failed to save memory file.", unexpectedError);
+    return Response.json({ success: true, path: bodyResult.data.path });
+  } catch (error) {
+    console.error("Failed to save memory file.", error);
     return jsonError("Failed to save memory file.", 500);
   }
 }

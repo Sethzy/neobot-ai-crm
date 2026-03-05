@@ -143,6 +143,7 @@ describe("memory query hooks", () => {
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+    const setDataSpy = vi.spyOn(queryClient, "setQueryData");
     const { result } = renderHook(() => useUpdateMemoryFile(), {
       wrapper: createWrapper(queryClient),
     });
@@ -159,8 +160,13 @@ describe("memory query hooks", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: "SOUL.md", content: "updated soul" }),
     });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["memory", "file", "SOUL.md"] });
+    // File content is set optimistically; only file list is invalidated for timestamps.
+    expect(setDataSpy).toHaveBeenCalledWith(
+      ["memory", "file", "SOUL.md"],
+      "updated soul",
+    );
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["memory", "files"] });
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: ["memory", "file", "SOUL.md"] });
   });
 
   it("fails save mutation on non-OK response", async () => {

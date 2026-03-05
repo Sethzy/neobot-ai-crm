@@ -10,7 +10,10 @@ import {
   ROOT_MEMORY_FILE_PATHS,
   ROOT_MEMORY_FILE_SET,
 } from "./constants";
+import type { MemoryFileInfo } from "./schemas";
 import { getStorageErrorMessage, readMemoryRootFile } from "./storage";
+
+export type { MemoryFileInfo };
 
 const MEMORY_LINE_CAP = 200;
 
@@ -21,16 +24,6 @@ export interface MemoryContext {
   user: string;
   /** MEMORY.md content (capped to first 200 lines). */
   memory: string;
-}
-
-/** Metadata about a single memory file in storage. */
-export interface MemoryFileInfo {
-  /** Display name (e.g. "SOUL.md" or "preferences.md"). */
-  name: string;
-  /** Workspace-relative path (e.g. "SOUL.md" or "memory/preferences.md"). */
-  path: string;
-  /** ISO timestamp of last modification, or null if unavailable. */
-  updatedAt: string | null;
 }
 
 function truncateToLineCount(content: string, maxLines: number): string {

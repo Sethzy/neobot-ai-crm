@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,15 +36,6 @@ export function MemoryFileViewer({
   const [editContent, setEditContent] = useState(content ?? "");
   const [saveError, setSaveError] = useState<string | null>(null);
   const resolvedContent = content ?? "";
-
-  const hasUnsavedChanges = useMemo(
-    () => isEditing && editContent !== resolvedContent,
-    [editContent, isEditing, resolvedContent],
-  );
-
-  useEffect(() => {
-    onDirtyStateChange?.(hasUnsavedChanges);
-  }, [hasUnsavedChanges, onDirtyStateChange]);
 
   if (isLoading) {
     return (
@@ -86,6 +77,7 @@ export function MemoryFileViewer({
       setSaveError(null);
       await onSave(editContent);
       setIsEditing(false);
+      onDirtyStateChange?.(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Save failed";
       setSaveError(message);
@@ -96,12 +88,14 @@ export function MemoryFileViewer({
     setSaveError(null);
     setEditContent(resolvedContent);
     setIsEditing(true);
+    onDirtyStateChange?.(false);
   }
 
   function handleCancel() {
     setSaveError(null);
     setEditContent(resolvedContent);
     setIsEditing(false);
+    onDirtyStateChange?.(false);
   }
 
   return (
@@ -140,7 +134,11 @@ export function MemoryFileViewer({
       {isEditing ? (
         <Textarea
           value={editContent}
-          onChange={(event) => setEditContent(event.target.value)}
+          onChange={(event) => {
+            const newContent = event.target.value;
+            setEditContent(newContent);
+            onDirtyStateChange?.(newContent !== resolvedContent);
+          }}
           className="min-h-0 flex-1 resize-none font-mono text-sm"
           rows={20}
         />

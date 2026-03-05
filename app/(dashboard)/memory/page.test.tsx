@@ -13,39 +13,49 @@ vi.mock("@/lib/memory/queries", () => ({
   useUpdateMemoryFile: vi.fn(),
 }));
 
+vi.mock("@/hooks/use-mobile", () => ({
+  useIsMobile: vi.fn(() => false),
+}));
+
+async function setupQueryMocks(overrides?: {
+  files?: unknown[];
+  fileFn?: (path: string | null) => unknown;
+}) {
+  const { useMemoryFiles, useMemoryFile, useUpdateMemoryFile } =
+    await import("@/lib/memory/queries");
+
+  vi.mocked(useMemoryFiles).mockReturnValue({
+    data: overrides?.files ?? [
+      { name: "SOUL.md", path: "SOUL.md", updatedAt: null },
+      { name: "USER.md", path: "USER.md", updatedAt: null },
+    ],
+    isLoading: false,
+  } as never);
+
+  vi.mocked(useMemoryFile).mockImplementation(
+    (overrides?.fileFn ??
+      ((path: string | null) => ({
+        data: path ? `content for ${path}` : undefined,
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      }))) as never,
+  );
+
+  vi.mocked(useUpdateMemoryFile).mockReturnValue({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  } as never);
+}
+
 describe("MemoryPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("asks for confirmation before switching files with unsaved edits", async () => {
-    const {
-      useMemoryFiles,
-      useMemoryFile,
-      useUpdateMemoryFile,
-    } = await import("@/lib/memory/queries");
-
-    vi.mocked(useMemoryFiles).mockReturnValue({
-      data: [
-        { name: "SOUL.md", path: "SOUL.md", updatedAt: null },
-        { name: "USER.md", path: "USER.md", updatedAt: null },
-      ],
-      isLoading: false,
-    } as never);
-
-    vi.mocked(useMemoryFile).mockImplementation((path: string | null) => ({
-      data: path ? `content for ${path}` : undefined,
-      isLoading: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-    }) as never);
-
-    vi.mocked(useUpdateMemoryFile).mockReturnValue({
-      mutateAsync: vi.fn(),
-      isPending: false,
-    } as never);
-
+    await setupQueryMocks();
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<MemoryPage />);
 
@@ -58,30 +68,9 @@ describe("MemoryPage", () => {
   });
 
   it("toggles file list visibility from header control", async () => {
-    const {
-      useMemoryFiles,
-      useMemoryFile,
-      useUpdateMemoryFile,
-    } = await import("@/lib/memory/queries");
-
-    vi.mocked(useMemoryFiles).mockReturnValue({
-      data: [{ name: "SOUL.md", path: "SOUL.md", updatedAt: null }],
-      isLoading: false,
-    } as never);
-
-    vi.mocked(useMemoryFile).mockReturnValue({
-      data: "content",
-      isLoading: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-    } as never);
-
-    vi.mocked(useUpdateMemoryFile).mockReturnValue({
-      mutateAsync: vi.fn(),
-      isPending: false,
-    } as never);
-
+    await setupQueryMocks({
+      files: [{ name: "SOUL.md", path: "SOUL.md", updatedAt: null }],
+    });
     render(<MemoryPage />);
 
     const toggle = screen.getByRole("button", { name: /hide files/i });
@@ -90,37 +79,10 @@ describe("MemoryPage", () => {
   });
 
   it("keeps file list visible on desktop after selecting a file", async () => {
-    const {
-      useMemoryFiles,
-      useMemoryFile,
-      useUpdateMemoryFile,
-    } = await import("@/lib/memory/queries");
+    const { useIsMobile } = await import("@/hooks/use-mobile");
+    vi.mocked(useIsMobile).mockReturnValue(false);
 
-    vi.spyOn(window, "matchMedia").mockImplementation(
-      vi.fn().mockReturnValue({ matches: false }),
-    );
-
-    vi.mocked(useMemoryFiles).mockReturnValue({
-      data: [
-        { name: "SOUL.md", path: "SOUL.md", updatedAt: null },
-        { name: "USER.md", path: "USER.md", updatedAt: null },
-      ],
-      isLoading: false,
-    } as never);
-
-    vi.mocked(useMemoryFile).mockImplementation((path: string | null) => ({
-      data: path ? `content for ${path}` : undefined,
-      isLoading: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-    }) as never);
-
-    vi.mocked(useUpdateMemoryFile).mockReturnValue({
-      mutateAsync: vi.fn(),
-      isPending: false,
-    } as never);
-
+    await setupQueryMocks();
     render(<MemoryPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "USER.md" }));
@@ -130,37 +92,10 @@ describe("MemoryPage", () => {
   });
 
   it("auto-hides file list on mobile after selecting a file", async () => {
-    const {
-      useMemoryFiles,
-      useMemoryFile,
-      useUpdateMemoryFile,
-    } = await import("@/lib/memory/queries");
+    const { useIsMobile } = await import("@/hooks/use-mobile");
+    vi.mocked(useIsMobile).mockReturnValue(true);
 
-    vi.spyOn(window, "matchMedia").mockImplementation(
-      vi.fn().mockReturnValue({ matches: true }),
-    );
-
-    vi.mocked(useMemoryFiles).mockReturnValue({
-      data: [
-        { name: "SOUL.md", path: "SOUL.md", updatedAt: null },
-        { name: "USER.md", path: "USER.md", updatedAt: null },
-      ],
-      isLoading: false,
-    } as never);
-
-    vi.mocked(useMemoryFile).mockImplementation((path: string | null) => ({
-      data: path ? `content for ${path}` : undefined,
-      isLoading: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-    }) as never);
-
-    vi.mocked(useUpdateMemoryFile).mockReturnValue({
-      mutateAsync: vi.fn(),
-      isPending: false,
-    } as never);
-
+    await setupQueryMocks();
     render(<MemoryPage />);
 
     fireEvent.click(screen.getByRole("button", { name: "USER.md" }));
@@ -169,30 +104,16 @@ describe("MemoryPage", () => {
   });
 
   it("shows load error and disables editing when file read fails", async () => {
-    const {
-      useMemoryFiles,
-      useMemoryFile,
-      useUpdateMemoryFile,
-    } = await import("@/lib/memory/queries");
-
-    vi.mocked(useMemoryFiles).mockReturnValue({
-      data: [{ name: "SOUL.md", path: "SOUL.md", updatedAt: null }],
-      isLoading: false,
-    } as never);
-
-    vi.mocked(useMemoryFile).mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: true,
-      error: new Error("Failed to load memory file."),
-      refetch: vi.fn(),
-    } as never);
-
-    vi.mocked(useUpdateMemoryFile).mockReturnValue({
-      mutateAsync: vi.fn(),
-      isPending: false,
-    } as never);
-
+    await setupQueryMocks({
+      files: [{ name: "SOUL.md", path: "SOUL.md", updatedAt: null }],
+      fileFn: () => ({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        error: new Error("Failed to load memory file."),
+        refetch: vi.fn(),
+      }),
+    });
     render(<MemoryPage />);
 
     expect(screen.getByText("Failed to load memory file.")).toBeInTheDocument();

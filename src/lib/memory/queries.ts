@@ -85,7 +85,9 @@ export function useUpdateMemoryFile() {
       return parsed.data;
     },
     onSuccess: (_, variables) => {
-      void queryClient.invalidateQueries({ queryKey: memoryQueryKeys.file(variables.path) });
+      // Optimistically set the file content to avoid a refetch round trip.
+      queryClient.setQueryData(memoryQueryKeys.file(variables.path), variables.content);
+      // File list still needs invalidation to update timestamps.
       void queryClient.invalidateQueries({ queryKey: memoryQueryKeys.files() });
     },
   });
