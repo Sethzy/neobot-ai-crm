@@ -1,12 +1,12 @@
 /**
- * Cron scanner business logic for claiming, dispatching, and advancing triggers.
+ * Cron scanner business logic for claiming due triggers and dispatching them.
  * @module lib/triggers/scanner
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database";
 
-import { computeNextFireAt } from "./cron-utils";
+import { computeNextFireAt, InvalidCronExpressionError } from "./cron-utils";
 import {
   scanResultSchema,
   type ScanResult,
@@ -23,7 +23,11 @@ type TriggerSupabaseClient = SupabaseClient<Database>;
 
 export interface ScanDependencies {
   supabase: TriggerSupabaseClient;
-  dispatch: (payload: TriggerDispatchPayload) => Promise<{ ok: boolean }>;
+  dispatch: (payload: TriggerDispatchPayload) => Promise<{
+    ok: boolean;
+    status: number;
+    error?: string;
+  }>;
 }
 
 async function releaseClaim(
@@ -100,6 +104,26 @@ function buildDispatchPayload(trigger: TriggerRow): TriggerDispatchPayload {
   };
 }
 
+function formatDispatchFailure(result: {
+  status: number;
+  error?: string;
+}): string {
+  const detail = result.error?.trim();
+
+  if (!detail) {
+    return `dispatch returned ${result.status}`;
+  }
+
+  return `dispatch returned ${result.status} (${detail})`;
+}
+
+function isInvalidCronError(error: unknown): boolean {
+  return (
+    error instanceof InvalidCronExpressionError ||
+    (error instanceof Error && error.name === "InvalidCronExpressionError")
+  );
+}
+
 /**
  * Runs one scanner tick against all due triggers.
  */
@@ -113,23 +137,23 @@ export async function runScan({ supabase, dispatch }: ScanDependencies): Promise
     try {
       if (trigger.trigger_type === "schedule") {
         if (!trigger.cron_expression || !trigger.current_run_id || !trigger.next_fire_at) {
-          throw new Error("invalid cron");
+          throw new InvalidCronExpressionError("Trigger is missing cron scheduling fields.");
         }
 
         const nextFireAt = computeNextFireAt(
           trigger.cron_expression,
           new Date(trigger.next_fire_at),
         );
-        const dispatchResult = await dispatch(buildDispatchPayload(trigger));
+        const dispatchResult = await dispatch({
+          ...buildDispatchPayload(trigger),
+          nextFireAt: nextFireAt.toISOString(),
+        });
         if (!dispatchResult.ok) {
           await releaseClaim(supabase, trigger, DISPATCH_FAILED_STATUS);
-          errors.push(`${trigger.id}: dispatch returned not ok`);
+          errors.push(`${trigger.id}: ${formatDispatchFailure(dispatchResult)}`);
           continue;
         }
 
-        await updateTrigger(supabase, trigger.id, {
-          next_fire_at: nextFireAt.toISOString(),
-        });
         dispatched += 1;
         continue;
       }
@@ -137,7 +161,7 @@ export async function runScan({ supabase, dispatch }: ScanDependencies): Promise
       const dispatchResult = await dispatch(buildDispatchPayload(trigger));
       if (!dispatchResult.ok) {
         await releaseClaim(supabase, trigger, DISPATCH_FAILED_STATUS);
-        errors.push(`${trigger.id}: dispatch returned not ok`);
+        errors.push(`${trigger.id}: ${formatDispatchFailure(dispatchResult)}`);
         continue;
       }
 
@@ -145,17 +169,17 @@ export async function runScan({ supabase, dispatch }: ScanDependencies): Promise
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown scanner error";
 
-      if (message === "invalid cron") {
+      if (isInvalidCronError(error)) {
         await updateTrigger(supabase, trigger.id, {
           enabled: false,
           last_status: INVALID_CRON_STATUS,
         });
         await releaseClaim(supabase, trigger, INVALID_CRON_STATUS);
+        errors.push(`${trigger.id}: invalid cron`);
       } else if (trigger.current_run_id) {
         await releaseClaim(supabase, trigger, DISPATCH_FAILED_STATUS);
+        errors.push(`${trigger.id}: ${message}`);
       }
-
-      errors.push(`${trigger.id}: ${message}`);
     }
   }
 

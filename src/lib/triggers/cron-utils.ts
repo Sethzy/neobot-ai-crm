@@ -7,6 +7,16 @@ import { CronExpressionParser } from "cron-parser";
 const EXPECTED_CRON_FIELDS = 5;
 const UTC_TIMEZONE = "UTC";
 
+/**
+ * Explicit error used when a stored cron expression cannot be parsed safely.
+ */
+export class InvalidCronExpressionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidCronExpressionError";
+  }
+}
+
 function hasFiveCronFields(expression: string): boolean {
   return expression.trim().split(/\s+/).length === EXPECTED_CRON_FIELDS;
 }
@@ -35,13 +45,19 @@ export function isValidCronExpression(expression: string): boolean {
  */
 export function computeNextFireAt(cronExpression: string, referenceTime: Date): Date {
   if (!hasFiveCronFields(cronExpression)) {
-    throw new Error("Cron expression must contain exactly 5 fields.");
+    throw new InvalidCronExpressionError("Cron expression must contain exactly 5 fields.");
   }
 
-  const interval = CronExpressionParser.parse(`0 ${cronExpression}`, {
-    currentDate: referenceTime.toISOString(),
-    tz: UTC_TIMEZONE,
-  });
+  try {
+    const interval = CronExpressionParser.parse(`0 ${cronExpression}`, {
+      currentDate: referenceTime.toISOString(),
+      tz: UTC_TIMEZONE,
+    });
 
-  return interval.next().toDate();
+    return interval.next().toDate();
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Cron parser rejected expression.";
+    throw new InvalidCronExpressionError(message);
+  }
 }

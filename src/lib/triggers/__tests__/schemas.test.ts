@@ -75,6 +75,7 @@ describe("triggerDispatchPayloadSchema", () => {
     triggerName: "Daily briefing",
     instructionPath: "state/triggers/daily-briefing.md",
     triggerPayload: { source: "cron" },
+    nextFireAt: "2026-03-07T09:00:00.000Z",
   };
 
   it("parses a valid dispatch payload", () => {
@@ -86,6 +87,15 @@ describe("triggerDispatchPayloadSchema", () => {
     delete missingTriggerId.triggerId;
 
     expect(triggerDispatchPayloadSchema.safeParse(missingTriggerId).success).toBe(false);
+  });
+
+  it("rejects an invalid nextFireAt timestamp", () => {
+    expect(
+      triggerDispatchPayloadSchema.safeParse({
+        ...validPayload,
+        nextFireAt: "tomorrow morning",
+      }).success,
+    ).toBe(false);
   });
 });
 

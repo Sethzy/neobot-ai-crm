@@ -18,7 +18,11 @@ WHERE schemaname = 'public'
   AND tablename = 'agent_triggers'
 ORDER BY indexname;
 
-SELECT proname, pg_get_function_result(oid) AS result_signature
+SELECT
+  proname,
+  pg_get_function_identity_arguments(oid) AS identity_arguments,
+  pg_get_function_result(oid) AS result_signature,
+  prosecdef AS is_security_definer
 FROM pg_proc
 WHERE pronamespace = 'public'::regnamespace
   AND proname IN (
@@ -27,3 +31,16 @@ WHERE pronamespace = 'public'::regnamespace
     'release_trigger_claim'
   )
 ORDER BY proname;
+
+SELECT
+  routine_name,
+  grantee,
+  privilege_type
+FROM information_schema.routine_privileges
+WHERE specific_schema = 'public'
+  AND routine_name IN (
+    'claim_due_triggers',
+    'release_stale_trigger_claims',
+    'release_trigger_claim'
+  )
+ORDER BY routine_name, grantee, privilege_type;

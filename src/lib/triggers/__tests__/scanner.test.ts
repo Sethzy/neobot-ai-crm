@@ -6,12 +6,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TriggerRow } from "../schemas";
 
-const { mockComputeNextFireAt } = vi.hoisted(() => ({
+const {
+  mockComputeNextFireAt,
+  MockInvalidCronExpressionError,
+} = vi.hoisted(() => ({
   mockComputeNextFireAt: vi.fn(),
+  MockInvalidCronExpressionError: class InvalidCronExpressionError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = "InvalidCronExpressionError";
+    }
+  },
 }));
 
 vi.mock("../cron-utils", () => ({
   computeNextFireAt: mockComputeNextFireAt,
+  InvalidCronExpressionError: MockInvalidCronExpressionError,
 }));
 
 import { runScan } from "../scanner";
@@ -58,7 +68,7 @@ describe("runScan", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSupabase = createMockSupabase();
-    mockDispatch = vi.fn().mockResolvedValue({ ok: true });
+    mockDispatch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
     mockComputeNextFireAt.mockReturnValue(new Date("2026-03-07T09:00:00.000Z"));
   });
 
@@ -117,13 +127,12 @@ describe("runScan", () => {
       "0 9 * * *",
       new Date("2026-03-06T09:00:00.000Z"),
     );
-    expect(mockSupabase.mockUpdate).toHaveBeenCalledWith({
-      next_fire_at: "2026-03-07T09:00:00.000Z",
-    });
+    expect(mockSupabase.mockUpdate).not.toHaveBeenCalled();
     expect(mockDispatch).toHaveBeenCalledWith(
       expect.objectContaining({
         triggerId: trigger.id,
         currentRunId: trigger.current_run_id,
+        nextFireAt: "2026-03-07T09:00:00.000Z",
       }),
     );
     expect(result.dispatched).toBe(1);
@@ -148,7 +157,11 @@ describe("runScan", () => {
       return Promise.resolve({ data: null, error: null });
     });
 
-    mockDispatch.mockResolvedValueOnce({ ok: false });
+    mockDispatch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      error: "Execution failed: upstream crashed",
+    });
 
     const result = await runScan({
       supabase: mockSupabase as never,
@@ -162,7 +175,9 @@ describe("runScan", () => {
       p_status: "dispatch_failed",
     });
     expect(result.dispatched).toBe(0);
-    expect(result.errors).toHaveLength(1);
+    expect(result.errors).toEqual([
+      `${trigger.id}: dispatch returned 500 (Execution failed: upstream crashed)`,
+    ]);
   });
 
   it("disables invalid cron expressions and releases the claim", async () => {
@@ -185,7 +200,7 @@ describe("runScan", () => {
     });
 
     mockComputeNextFireAt.mockImplementationOnce(() => {
-      throw new Error("invalid cron");
+      throw new MockInvalidCronExpressionError("Cron parser rejected expression.");
     });
 
     const result = await runScan({
@@ -204,6 +219,38 @@ describe("runScan", () => {
     });
     expect(mockDispatch).not.toHaveBeenCalled();
     expect(result.errors).toEqual([`${trigger.id}: invalid cron`]);
+  });
+
+  it("does not issue a separate next_fire_at update after successful schedule dispatch", async () => {
+    const trigger = makeTriggerRow();
+
+    mockSupabase.rpc.mockImplementation((name: string) => {
+      if (name === "claim_due_triggers") {
+        return Promise.resolve({ data: [trigger], error: null });
+      }
+
+      if (name === "release_stale_trigger_claims") {
+        return Promise.resolve({ data: 0, error: null });
+      }
+
+      if (name === "release_trigger_claim") {
+        return Promise.resolve({ data: true, error: null });
+      }
+
+      return Promise.resolve({ data: null, error: null });
+    });
+
+    await runScan({
+      supabase: mockSupabase as never,
+      dispatch: mockDispatch,
+    });
+
+    expect(mockSupabase.mockUpdate).not.toHaveBeenCalled();
+    expect(mockDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nextFireAt: "2026-03-07T09:00:00.000Z",
+      }),
+    );
   });
 
   it("continues dispatching later triggers after one dispatch throws", async () => {

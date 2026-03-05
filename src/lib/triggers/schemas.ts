@@ -37,6 +37,7 @@ export const triggerDispatchPayloadSchema = z.object({
   triggerName: z.string().min(1),
   instructionPath: z.string().min(1),
   triggerPayload: jsonObjectSchema.default({}),
+  nextFireAt: z.string().datetime({ offset: true }).optional(),
 });
 
 /** Contract returned by one scanner tick. */

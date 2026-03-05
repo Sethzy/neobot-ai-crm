@@ -52,6 +52,7 @@ const validPayload: TriggerDispatchPayload = {
   triggerName: "Daily <briefing> & sync",
   instructionPath: "state/triggers/daily-briefing.md",
   triggerPayload: { source: "cron" },
+  nextFireAt: "2026-03-07T09:00:00.000Z",
 };
 
 describe("executeTrigger", () => {
@@ -119,6 +120,7 @@ describe("executeTrigger", () => {
       supabase,
     );
     expect(supabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
+      p_next_fire_at: "2026-03-07T09:00:00.000Z",
       p_trigger_id: validPayload.triggerId,
       p_run_id: validPayload.currentRunId,
       p_status: "completed",
@@ -141,10 +143,36 @@ describe("executeTrigger", () => {
     });
 
     expect(supabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
+      p_next_fire_at: "2026-03-07T09:00:00.000Z",
       p_trigger_id: validPayload.triggerId,
       p_run_id: validPayload.currentRunId,
       p_status: "failed",
     });
     expect(result).toEqual({ status: "failed" });
+  });
+
+  it("does not send next_fire_at for non-schedule trigger payloads", async () => {
+    const supabase = createMockSupabase();
+    supabase.selectChain.single.mockResolvedValue({
+      data: { id: validPayload.triggerId, current_run_id: validPayload.currentRunId },
+      error: null,
+    });
+    supabase.rpc.mockResolvedValue({ data: true, error: null });
+
+    const result = await executeTrigger({
+      supabase: supabase as never,
+      payload: {
+        ...validPayload,
+        nextFireAt: undefined,
+      },
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
+      p_next_fire_at: null,
+      p_trigger_id: validPayload.triggerId,
+      p_run_id: validPayload.currentRunId,
+      p_status: "completed",
+    });
+    expect(result).toEqual({ status: "completed" });
   });
 });

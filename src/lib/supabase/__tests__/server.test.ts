@@ -65,4 +65,18 @@ describe("createAdminClient", () => {
     );
     expect(client).toEqual({ kind: "admin-client" });
   });
+
+  it("throws when the service-role key is missing", async () => {
+    process.env = {
+      ...originalEnv,
+      NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon-key",
+      SUPABASE_SERVICE_ROLE_KEY: "   ",
+    };
+
+    const { createAdminClient } = await import("../server");
+
+    await expect(createAdminClient()).rejects.toThrow("Missing Supabase admin credentials");
+    expect(mockCreateAdminSupabaseClient).not.toHaveBeenCalled();
+  });
 });

@@ -32,6 +32,7 @@ const validPayload: TriggerDispatchPayload = {
   triggerName: "Daily briefing",
   instructionPath: "state/triggers/daily-briefing.md",
   triggerPayload: {},
+  nextFireAt: "2026-03-07T09:00:00.000Z",
 };
 
 describe("GET /api/cron/scan", () => {
@@ -119,6 +120,48 @@ describe("GET /api/cron/scan", () => {
         }),
       }),
     );
+  });
+
+  it("returns dispatch status and body details to the scanner dependency", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: "Execution failed: boom" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    mockRunScan.mockImplementationOnce(async ({ dispatch }) => {
+      const dispatchResult = await dispatch(validPayload);
+
+      expect(dispatchResult).toEqual({
+        ok: false,
+        status: 500,
+        error: "Execution failed: boom",
+      });
+
+      return {
+        claimed: 1,
+        dispatched: 0,
+        staleReleased: 0,
+        errors: ["dispatch failed"],
+      };
+    });
+
+    const { GET } = await import("../route");
+
+    const response = await GET(
+      new Request("http://localhost/api/cron/scan", {
+        headers: { authorization: "Bearer test-secret" },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      success: true,
+      claimed: 1,
+      dispatched: 0,
+      staleReleased: 0,
+      errors: ["dispatch failed"],
+    });
   });
 
   it("falls back to VERCEL_URL when NEXT_PUBLIC_APP_URL is missing", async () => {

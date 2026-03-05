@@ -23,7 +23,34 @@ function resolveInternalBaseUrl(): string {
   throw new Error("NEXT_PUBLIC_APP_URL or VERCEL_URL not configured");
 }
 
-async function dispatchTrigger(payload: TriggerDispatchPayload): Promise<{ ok: boolean }> {
+async function readDispatchError(response: Response): Promise<string | undefined> {
+  const responseText = (await response.text()).trim();
+  if (!responseText) {
+    return undefined;
+  }
+
+  try {
+    const parsedResponse = JSON.parse(responseText) as Record<string, unknown>;
+
+    if (typeof parsedResponse.error === "string" && parsedResponse.error.trim()) {
+      return parsedResponse.error.trim();
+    }
+
+    if (typeof parsedResponse.status === "string" && parsedResponse.status.trim()) {
+      return parsedResponse.status.trim();
+    }
+  } catch {
+    // Fall back to raw text when the internal route does not return JSON.
+  }
+
+  return responseText;
+}
+
+async function dispatchTrigger(payload: TriggerDispatchPayload): Promise<{
+  ok: boolean;
+  status: number;
+  error?: string;
+}> {
   const baseUrl = resolveInternalBaseUrl();
   const response = await fetch(`${baseUrl}/api/trigger/run`, {
     method: "POST",
@@ -34,7 +61,15 @@ async function dispatchTrigger(payload: TriggerDispatchPayload): Promise<{ ok: b
     body: JSON.stringify(payload),
   });
 
-  return { ok: response.ok };
+  if (response.ok) {
+    return { ok: true, status: response.status };
+  }
+
+  return {
+    ok: false,
+    status: response.status,
+    error: await readDispatchError(response),
+  };
 }
 
 export async function GET(request: Request): Promise<Response> {

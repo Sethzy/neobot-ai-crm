@@ -54,6 +54,7 @@ async function releaseClaim(
   status: ExecuteTriggerResult["status"] | "completed",
 ): Promise<void> {
   const { data, error } = await supabase.rpc("release_trigger_claim", {
+    p_next_fire_at: payload.nextFireAt ?? null,
     p_trigger_id: payload.triggerId,
     p_run_id: payload.currentRunId,
     p_status: status,

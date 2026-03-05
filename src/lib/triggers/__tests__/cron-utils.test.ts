@@ -4,7 +4,11 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { computeNextFireAt, isValidCronExpression } from "../cron-utils";
+import {
+  computeNextFireAt,
+  InvalidCronExpressionError,
+  isValidCronExpression,
+} from "../cron-utils";
 
 describe("isValidCronExpression", () => {
   it("returns true for a valid every-minute expression", () => {
@@ -52,6 +56,6 @@ describe("computeNextFireAt", () => {
   });
 
   it("throws for an invalid cron expression", () => {
-    expect(() => computeNextFireAt("bad", new Date())).toThrow();
+    expect(() => computeNextFireAt("bad", new Date())).toThrow(InvalidCronExpressionError);
   });
 });
