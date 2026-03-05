@@ -2,25 +2,20 @@
  * Cron scanner business logic for claiming due triggers and dispatching them.
  * @module lib/triggers/scanner
  */
-import type { SupabaseClient } from "@supabase/supabase-js";
-
 import { isInQuietHours } from "@/lib/autopilot/quiet-hours";
-import type { Database } from "@/types/database";
 
 import { computeNextFireAt, InvalidCronExpressionError } from "./cron-utils";
 import {
-  scanResultSchema,
   type ScanResult,
   type TriggerDispatchPayload,
   type TriggerRow,
+  type TriggerSupabaseClient,
   triggerRowSchema,
 } from "./schemas";
 
 const STALE_CLAIM_MINUTES = 15;
 const DISPATCH_FAILED_STATUS = "dispatch_failed";
 const INVALID_CRON_STATUS = "invalid_cron";
-
-type TriggerSupabaseClient = SupabaseClient<Database>;
 
 export interface ScanDependencies {
   supabase: TriggerSupabaseClient;
@@ -157,8 +152,10 @@ export async function runScan({
   dispatch,
   now = new Date(),
 }: ScanDependencies): Promise<ScanResult> {
-  const staleReleased = await reapStaleClaims(supabase);
-  const claimedTriggers = await claimDueTriggers(supabase);
+  const [staleReleased, claimedTriggers] = await Promise.all([
+    reapStaleClaims(supabase),
+    claimDueTriggers(supabase),
+  ]);
   const errors: string[] = [];
   let dispatched = 0;
 
@@ -234,10 +231,11 @@ export async function runScan({
     }
   }
 
-  return scanResultSchema.parse({
+  const result: ScanResult = {
     claimed: claimedTriggers.length,
     dispatched,
     staleReleased,
     errors,
-  });
+  };
+  return result;
 }

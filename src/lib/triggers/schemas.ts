@@ -2,7 +2,13 @@
  * Zod schemas for trigger persistence, dispatch, and scan results.
  * @module lib/triggers/schemas
  */
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+
+import type { Database } from "@/types/database";
+
+/** Typed Supabase client scoped to the trigger module. */
+export type TriggerSupabaseClient = SupabaseClient<Database>;
 
 const jsonObjectSchema = z.record(z.string(), z.unknown());
 

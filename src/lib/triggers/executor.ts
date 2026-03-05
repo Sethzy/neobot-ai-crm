@@ -2,16 +2,12 @@
  * Trigger execution logic for cron-dispatched agent runs.
  * @module lib/triggers/executor
  */
-import type { SupabaseClient } from "@supabase/supabase-js";
-
 import { createMessage } from "@/lib/chat/messages";
 import { runAgent } from "@/lib/runner/run-agent";
 import { runAutopilot } from "@/lib/runner/run-autopilot";
-import type { Database } from "@/types/database";
+import { escapeXml } from "@/lib/runner/system-reminder";
 
-import type { TriggerDispatchPayload } from "./schemas";
-
-type TriggerSupabaseClient = SupabaseClient<Database>;
+import type { TriggerDispatchPayload, TriggerSupabaseClient } from "./schemas";
 
 const CRON_RUN_NUDGE = "Process the most recent trigger event for this thread.";
 
@@ -22,15 +18,6 @@ export interface ExecuteTriggerInput {
 
 export interface ExecuteTriggerResult {
   status: "completed" | "failed" | "claim_mismatch" | "queued" | "skipped_busy";
-}
-
-function escapeXml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;");
 }
 
 function buildTriggerEventMessage(payload: TriggerDispatchPayload): string {
@@ -52,7 +39,7 @@ function buildTriggerEventMessage(payload: TriggerDispatchPayload): string {
 async function releaseClaim(
   supabase: TriggerSupabaseClient,
   payload: TriggerDispatchPayload,
-  status: ExecuteTriggerResult["status"] | "completed" | "skipped_thread_busy",
+  status: ExecuteTriggerResult["status"] | "skipped_thread_busy",
 ): Promise<void> {
   const { data, error } = await supabase.rpc("release_trigger_claim", {
     p_next_fire_at: payload.nextFireAt ?? null,
@@ -111,7 +98,8 @@ export async function executeTrigger({
 
       await releaseClaim(supabase, payload, "completed");
       return { status: "completed" };
-    } catch {
+    } catch (error) {
+      console.error("[executor] pulse trigger failed:", error);
       await releaseClaim(supabase, payload, "failed");
       return { status: "failed" };
     }
@@ -143,7 +131,8 @@ export async function executeTrigger({
 
     await releaseClaim(supabase, payload, "completed");
     return { status: "completed" };
-  } catch {
+  } catch (error) {
+    console.error("[executor] schedule trigger failed:", error);
     await releaseClaim(supabase, payload, "failed");
     return { status: "failed" };
   }

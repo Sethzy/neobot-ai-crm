@@ -46,12 +46,14 @@ async function readDispatchError(response: Response): Promise<string | undefined
   return responseText;
 }
 
-async function dispatchTrigger(payload: TriggerDispatchPayload): Promise<{
+async function dispatchTrigger(
+  baseUrl: string,
+  payload: TriggerDispatchPayload,
+): Promise<{
   ok: boolean;
   status: number;
   error?: string;
 }> {
-  const baseUrl = resolveInternalBaseUrl();
   const response = await fetch(`${baseUrl}/api/trigger/run`, {
     method: "POST",
     headers: {
@@ -79,10 +81,11 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   try {
+    const baseUrl = resolveInternalBaseUrl();
     const supabase = await createAdminClient();
     const result = await runScan({
       supabase,
-      dispatch: dispatchTrigger,
+      dispatch: (payload) => dispatchTrigger(baseUrl, payload),
     });
 
     return Response.json({

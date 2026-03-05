@@ -25,7 +25,7 @@ const FALLBACK_CONTEXT: SystemReminderContext = {
   memory_file_count: 0,
 };
 
-function escapeXml(value: string): string {
+export function escapeXml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")

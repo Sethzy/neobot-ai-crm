@@ -2,9 +2,7 @@
  * Shared authorization helpers for internal cron-trigger routes.
  * @module lib/triggers/route-auth
  */
-function jsonError(message: string, status: number): Response {
-  return Response.json({ error: message }, { status });
-}
+import { jsonError } from "@/lib/api/route-helpers";
 
 /**
  * Validates the bearer token for internal cron-trigger routes.
