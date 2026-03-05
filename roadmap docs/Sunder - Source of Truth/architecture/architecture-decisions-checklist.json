@@ -800,7 +800,8 @@
       "description": "REVISED: Composio as integration backend — Sunder's equivalent of Tasklet's static + Pipedream backend. Handles OAuth flows, token refresh, pre-built actions. Agent calls Composio actions, not raw APIs. Composio covers the 'integrations' connection type from CONN-01. For the long tail not covered by Composio, agent falls through to mcp → direct_api → computer_use (CONN-01 selection order).",
       "approved": true,
       "decision": "Composio as integration backend for OAuth connections. Fallback to other connection types for uncovered services.",
-      "reasoning": "Tasklet builds top ~30 integrations in-house, proxies 3000+ through Pipedream. Sunder doesn't have the resources to build in-house integrations — Composio is the equivalent third-party marketplace. Same role: handle OAuth complexity so we don't build token refresh, scope management, etc. Agent interface is the same: discover → create → activate tools → use. Fintool has no marketplace (hand-built). Composio's 141+ pre-built actions cover the v1 services (Gmail, Google Calendar, Cal.com, Tally.so). For anything Composio doesn't cover, the Tasklet-pattern fallback chain (mcp → direct_api → computer_use) handles it."
+      "reasoning": "Tasklet builds top ~30 integrations in-house, proxies 3000+ through Pipedream. Sunder doesn't have the resources to build in-house integrations — Composio is the equivalent third-party marketplace. Same role: handle OAuth complexity so we don't build token refresh, scope management, etc. Agent interface is the same: discover → create → activate tools → use. Fintool has no marketplace (hand-built). Composio's 141+ pre-built actions cover the v1 services (Gmail, Google Calendar, Cal.com, Tally.so). For anything Composio doesn't cover, the Tasklet-pattern fallback chain (mcp → direct_api → computer_use) handles it.",
+      "future_evaluation": "CONN-04 tracks googleworkspace/cli as a potential Composio replacement for Google services. Re-evaluate when it reaches v1.0."
     },
     {
       "id": "CONN-03",
@@ -809,6 +810,15 @@
       "approved": true,
       "decision": "Reuse-first, one-shot setup. Tasklet pattern verbatim.",
       "reasoning": "Direct Tasklet alignment. The system prompt instruction prevents connection sprawl (agent creating duplicate Gmail connections) and reduces user friction (approve once, never again). Fintool has no connection concept. The lifecycle: agent needs Gmail → calls list_users_connections → finds existing gmail connection → uses it. No re-auth, no re-approval. If no connection exists: agent calls create_new_connections → user approves OAuth → connection persists → future runs reuse. Token refresh handled by Composio (CONN-02) transparently."
+    },
+    {
+      "id": "CONN-04",
+      "category": "12-connection-and-integration-model",
+      "description": "EVALUATION (2026-03-05): googleworkspace/cli (github.com/googleworkspace/cli) as potential dedicated Google Workspace integration, replacing Composio for Google services (Drive, Gmail, Calendar, Sheets, Docs). The CLI provides a built-in MCP server (`gws mcp -s drive,gmail,calendar`) that exposes Google APIs as structured tools via MCP over stdio. Dynamically generates tool surface from Google's Discovery Service — auto-updated, complete API coverage. Free, open-source (Apache-2.0). Supports service accounts, OAuth, headless/CI credentials, pre-obtained access tokens.",
+      "approved": false,
+      "decision": "NOT APPROVED for v1. Re-evaluate when googleworkspace/cli reaches v1.0. Keep Composio (CONN-02) as integration backend.",
+      "reasoning": "Evaluated 2026-03-05. The CLI is v0.3.4, first published 2026-03-03 (2 days before evaluation). 9 releases in 2 days — extremely rapid, unstable iteration. Explicit 'expect breaking changes before v1.0' warning. Carries 'not an officially supported Google product' disclaimer despite being in the googleworkspace GitHub org. Critical gaps for Sunder's multi-tenant SaaS: (1) No per-user OAuth token management — designed for single-user/service-account, would require building entire token lifecycle (storage, encryption, refresh, isolation) ourselves; (2) CLI-first architecture, not a TypeScript library — integrating into Next.js API routes requires subprocess/sidecar bridging; (3) No triggers/webhooks for reactive workflows. However, compelling long-term properties: zero per-action cost (vs Composio pricing at scale), complete auto-updated API coverage, MCP-native design aligns with CONN-01 taxonomy, full token custody control (no third-party storage). If it reaches v1.0 with documented multi-user auth patterns, it could replace Composio specifically for Google services while keeping Composio for non-Google integrations (Cal.com, Tally.so, etc.).",
+      "watch_triggers": ["googleworkspace/cli reaches v1.0", "multi-user auth patterns documented", "Composio costs exceed $200/mo for Google actions"]
     },
     {
       "id": "SERVICE-01",

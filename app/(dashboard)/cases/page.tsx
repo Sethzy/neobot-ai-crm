@@ -18,7 +18,7 @@ export default function CasesPage() {
     <div className="px-4 py-6 md:px-12 md:py-10 overflow-auto">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Workspace
+          Documents
         </h1>
         <p className="mt-2 text-sm text-muted-foreground/80">
           Fully customised multi-step document processing workflows with built-in

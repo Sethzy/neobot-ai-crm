@@ -43,7 +43,7 @@ export default function CaseDetailPage() {
       <div className="px-4 py-6 md:px-12 md:py-10 text-center">
         <p className="text-destructive">Folder not found</p>
         <Link href="/cases" className="mt-4 inline-block text-primary hover:underline">
-          Back to Workspace
+          Back to Documents
         </Link>
       </div>
     );
@@ -84,7 +84,7 @@ export default function CaseDetailPage() {
                 href="/cases"
                 className="hover:muted-foreground transition-colors hover:text-foreground"
               >
-                Workspace
+                Documents
               </Link>
               <span className="font-light text-muted-foreground/30">/</span>
               <span className="font-semibold text-foreground/70">

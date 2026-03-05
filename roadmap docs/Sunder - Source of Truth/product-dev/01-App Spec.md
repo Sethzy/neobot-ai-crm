@@ -572,6 +572,16 @@ Selection order: reuse existing → integrations → mcp → direct_api → comp
 
 > **Pattern reference:** See `references/tasklet/tools/00-complete-tasklet-tool-definitions-verbatim.md` for Tasklet's connection model.
 
+### 12.1a Future: Dedicated Google Workspace Integration (`CONN-04`)
+
+**Status:** Evaluated 2026-03-05. **Not approved for v1.** Re-evaluate when stable.
+
+Google's `googleworkspace/cli` ([github.com/googleworkspace/cli](https://github.com/googleworkspace/cli)) provides an MCP server (`gws mcp -s drive,gmail,calendar`) that exposes all Google Workspace APIs as structured tools. Key advantages over Composio for Google services: zero per-action cost, complete auto-updated API coverage from Discovery Service, full token custody control, MCP-native design.
+
+**Why not now:** v0.3.4 (first published 2026-03-03), pre-v1 with expected breaking changes, no multi-tenant auth management, CLI-first (not a library), "not an officially supported Google product."
+
+**Re-evaluate when:** (1) reaches v1.0, (2) documents multi-user OAuth patterns, or (3) Composio Google action costs exceed $200/mo. If viable, would replace Composio for Google services only — keep Composio for Cal.com, Tally.so, and other non-Google integrations.
+
 ### 12.2 Connection-First Behavior (`CONN-03`)
 
 Follows Tasklet system prompt instruction: "ALWAYS prefer to use existing connections over creating new connections if the existing connection will work."
