@@ -39,9 +39,13 @@ vi.mock("@/lib/runner/system-reminder", () => ({
   buildSystemReminder: mockBuildSystemReminder,
 }));
 
-vi.mock("@/lib/runner/compaction", () => ({
-  fetchThreadCompactionState: mockFetchThreadCompactionState,
-}));
+vi.mock("@/lib/runner/compaction", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/runner/compaction")>();
+  return {
+    ...actual,
+    fetchThreadCompactionState: mockFetchThreadCompactionState,
+  };
+});
 
 describe("assembleContext", () => {
   beforeEach(() => {
@@ -243,6 +247,42 @@ describe("assembleContext", () => {
     expect(result.system).not.toContain("<platform-instructions>");
     expect(result.system).not.toContain("<system-reminder>");
     expect(mockBuildSystemReminder).not.toHaveBeenCalled();
+  });
+
+  it("injects run-specific instructions after the system prompt and before memory layers", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      clientId: "client-123",
+      instructions: "Custom autopilot instructions",
+    });
+
+    const systemPromptIndex = result.system.indexOf("You are Sunder");
+    const instructionsIndex = result.system.indexOf("Custom autopilot instructions");
+    const soulIndex = result.system.indexOf("<soul>");
+
+    expect(instructionsIndex).toBeGreaterThan(systemPromptIndex);
+    expect(instructionsIndex).toBeLessThan(soulIndex);
+  });
+
+  it("injects run-specific instructions when memory is not loaded", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      instructions: "Custom autopilot instructions",
+    });
+
+    expect(result.system).toContain("Custom autopilot instructions");
   });
 
   it("caps history query to the latest 50 messages", async () => {

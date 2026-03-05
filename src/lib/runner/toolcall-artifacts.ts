@@ -5,12 +5,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { ARTIFACT_SIZE_THRESHOLD_BYTES } from "@/lib/runner/compaction";
+import type { PersistedPart } from "@/lib/runner/message-utils";
 import type { Database } from "@/types/database";
 
 const AGENT_FILES_BUCKET_ID = "agent-files";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
-type PersistedPart = Record<string, unknown>;
 
 export interface TruncateOversizedPartsResult {
   parts: PersistedPart[];

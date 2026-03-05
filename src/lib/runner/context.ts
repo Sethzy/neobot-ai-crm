@@ -12,8 +12,10 @@ import { loadMemoryContext } from "@/lib/memory/loader";
 import type { MemoryContext } from "@/lib/memory/loader";
 import {
   fetchThreadCompactionState,
+  isAfterThreadCompactionBoundary,
   type ThreadCompactionState,
 } from "@/lib/runner/compaction";
+import { getTextFromParts } from "@/lib/runner/message-utils";
 import { buildSystemReminder } from "@/lib/runner/system-reminder";
 import type { Database, Json } from "@/types/database";
 
@@ -25,6 +27,7 @@ interface AssembleContextParams {
   threadId: string;
   currentMessage: string;
   clientId?: string;
+  instructions?: string;
 }
 
 interface AssembledContext {
@@ -47,28 +50,23 @@ function normalizeRole(role: string): MessageRole {
   return allowedRoles.includes(role as MessageRole) ? (role as MessageRole) : "assistant";
 }
 
-function getTextFromParts(parts: Json | null): string {
-  if (!Array.isArray(parts)) {
-    return "";
-  }
-
-  return parts
-    .filter(
-      (part): part is { type: string; text?: string } =>
-        typeof part === "object" && part !== null && "type" in part,
-    )
-    .filter((part) => part.type === "text" && typeof part.text === "string")
-    .map((part) => String(part.text))
-    .join("\n");
+interface BuildSystemPromptOptions {
+  memory?: MemoryContext;
+  compactionSummary?: string;
+  systemReminder?: string;
+  instructions?: string;
 }
 
-function buildSystemPrompt(
-  memory?: MemoryContext,
-  compactionSummary?: string,
-  systemReminder?: string,
-): string {
+function buildSystemPrompt({
+  memory,
+  compactionSummary,
+  systemReminder,
+  instructions,
+}: BuildSystemPromptOptions): string {
   if (!memory) {
-    return SYSTEM_PROMPT;
+    return instructions
+      ? [SYSTEM_PROMPT, instructions.trim()].join("\n\n")
+      : SYSTEM_PROMPT;
   }
 
   const sections: string[] = [];
@@ -78,6 +76,10 @@ function buildSystemPrompt(
 
   // Layer 2: core personality, tool usage, approvals, and output guidance.
   sections.push(SYSTEM_PROMPT);
+
+  if (instructions && instructions.trim().length > 0) {
+    sections.push(instructions.trim());
+  }
 
   if (memory.soul.length > 0) {
     sections.push(`<soul>\n${memory.soul}\n</soul>`);
@@ -102,25 +104,6 @@ function buildSystemPrompt(
   return sections.join("\n\n");
 }
 
-function isAfterCompactionBoundary(
-  row: HistoryRow,
-  compactionState?: ThreadCompactionState,
-): boolean {
-  if (!compactionState) {
-    return true;
-  }
-
-  if (row.created_at > compactionState.compaction_compacted_through_at) {
-    return true;
-  }
-
-  if (row.created_at < compactionState.compaction_compacted_through_at) {
-    return false;
-  }
-
-  return row.message_id > compactionState.compaction_compacted_through_message_id;
-}
-
 /**
  * Builds the runner context from persisted thread history plus the inbound message.
  */
@@ -129,17 +112,23 @@ export async function assembleContext({
   threadId,
   currentMessage,
   clientId,
+  instructions,
 }: AssembleContextParams): Promise<AssembledContext> {
   let memoryContext: MemoryContext | undefined;
   let systemReminder: string | undefined;
   let compactionState: ThreadCompactionState | null = null;
 
   if (clientId) {
+    // Bootstrap must complete before loadMemoryContext reads the files it seeds.
+    // buildSystemReminder and fetchThreadCompactionState are independent — start them early.
+    const reminderPromise = buildSystemReminder(supabase, clientId, threadId);
+    const compactionPromise = fetchThreadCompactionState(supabase, threadId);
+
     await bootstrapMemoryFiles(supabase, clientId);
     [memoryContext, systemReminder, compactionState] = await Promise.all([
       loadMemoryContext(supabase, clientId),
-      buildSystemReminder(supabase, clientId, threadId),
-      fetchThreadCompactionState(supabase, threadId),
+      reminderPromise,
+      compactionPromise,
     ]);
   }
 
@@ -165,9 +154,8 @@ export async function assembleContext({
   }
 
   const historyMessages: ModelMessage[] = ((data as HistoryRow[] | null) ?? [])
-    .filter((row) => isAfterCompactionBoundary(row, compactionState ?? undefined))
+    .filter((row) => isAfterThreadCompactionBoundary(row, compactionState))
     .slice(0, MAX_CONTEXT_MESSAGES)
-    .slice()
     .reverse()
     .map((row) => ({
       role: normalizeRole(row.role),
@@ -183,11 +171,12 @@ export async function assembleContext({
     : [];
 
   return {
-    system: buildSystemPrompt(
-      memoryContext,
-      compactionState?.compaction_summary,
+    system: buildSystemPrompt({
+      memory: memoryContext,
+      compactionSummary: compactionState?.compaction_summary,
       systemReminder,
-    ),
+      instructions,
+    }),
     messages: [
       ...historyMessages,
       ...currentMessageTurn,

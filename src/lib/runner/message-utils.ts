@@ -2,6 +2,7 @@
  * Runner utilities for normalizing assistant UI message parts for persistence.
  * @module lib/runner/message-utils
  */
+import type { Json } from "@/types/database";
 
 type ToolPartState =
   | "input-available"
@@ -10,7 +11,7 @@ type ToolPartState =
   | "approval-requested"
   | "output-denied";
 
-type PersistedPart = Record<string, unknown>;
+export type PersistedPart = Record<string, unknown>;
 
 interface StepLike {
   content?: ReadonlyArray<unknown>;
@@ -346,6 +347,25 @@ export function buildAssistantPartsFromSteps(
   }
 
   return parts;
+}
+
+/**
+ * Extracts text content from persisted DB message parts (Json column).
+ * Used by context assembly and compaction to reconstruct message text from the `parts` column.
+ */
+export function getTextFromParts(parts: Json | null): string {
+  if (!Array.isArray(parts)) {
+    return "";
+  }
+
+  return parts
+    .filter(
+      (part): part is { type: string; text?: string } =>
+        typeof part === "object" && part !== null && "type" in part,
+    )
+    .filter((part) => part.type === "text" && typeof part.text === "string")
+    .map((part) => String(part.text))
+    .join("\n");
 }
 
 /**

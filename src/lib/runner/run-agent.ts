@@ -46,7 +46,7 @@ function isAnthropicModel(modelId: string): boolean {
   return /^anthropic[/:]/.test(modelId);
 }
 
-function appendArtifactRecoveryNote(
+export function appendArtifactRecoveryNote(
   contentText: string,
   recoveryPaths: string[],
 ): string {
@@ -67,16 +67,39 @@ function appendArtifactRecoveryNote(
 }
 
 /**
+ * Creates the full tool registry for one runner invocation.
+ */
+export function createRunnerTools(
+  supabase: ChatSupabaseClient,
+  clientId: string,
+  threadId: string,
+) {
+  const crmTools = createCrmTools(supabase, clientId, {
+    allowWriteTools: true,
+  });
+  const storageTools = createStorageTools(supabase, clientId);
+  const webTools = createWebTools();
+  const utilityTools = createUtilityTools(supabase, clientId, threadId);
+
+  return {
+    ...crmTools,
+    ...storageTools,
+    ...webTools,
+    ...utilityTools,
+  };
+}
+
+/**
  * Builds per-step overrides for the active model.
  * Anthropic models receive native context-management compaction hints.
  */
-export function buildPrepareStep(modelId: string) {
+export function buildPrepareStep(modelId: string, maxSteps = MAX_STEPS_TIER_1) {
   const shouldUseAnthropicCompaction = isAnthropicModel(modelId);
 
   return ({ stepNumber }: { stepNumber: number }) => {
     const result: Record<string, unknown> = {};
 
-    if (stepNumber >= MAX_STEPS_TIER_1 - 1) {
+    if (stepNumber >= maxSteps - 1) {
       result.activeTools = [];
     }
 
@@ -142,18 +165,7 @@ export async function runAgent(
       currentMessage: "",
       clientId,
     });
-    const crmTools = createCrmTools(supabase, clientId, {
-      allowWriteTools: true,
-    });
-    const storageTools = createStorageTools(supabase, clientId);
-    const webTools = createWebTools();
-    const utilityTools = createUtilityTools(supabase, clientId, threadId);
-    const tools = {
-      ...crmTools,
-      ...storageTools,
-      ...webTools,
-      ...utilityTools,
-    };
+    const tools = createRunnerTools(supabase, clientId, threadId);
 
     const streamResult = streamText({
       model: gateway(modelId),

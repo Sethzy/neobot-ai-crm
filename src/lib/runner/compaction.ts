@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
+import { getTextFromParts } from "@/lib/runner/message-utils";
 import type { Database, Json } from "@/types/database";
 
 /** Tool results at or above this persisted size are stored as artifacts instead. */
@@ -162,22 +163,7 @@ function buildCompactionPrompt(input: GenerateCompactionSummaryInput): string {
   return sections.join("\n\n");
 }
 
-function getTextFromParts(parts: Json | null): string {
-  if (!Array.isArray(parts)) {
-    return "";
-  }
-
-  return parts
-    .filter(
-      (part): part is { type: string; text?: string } =>
-        typeof part === "object" && part !== null && "type" in part,
-    )
-    .filter((part) => part.type === "text" && typeof part.text === "string")
-    .map((part) => String(part.text))
-    .join("\n");
-}
-
-function isAfterThreadCompactionBoundary(
+export function isAfterThreadCompactionBoundary(
   row: Pick<CompactionMessageRow, "created_at" | "message_id">,
   compactionState?: ThreadCompactionState | null,
 ): boolean {
