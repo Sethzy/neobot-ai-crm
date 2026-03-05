@@ -847,6 +847,11 @@ export type Database = {
       conversation_threads: {
         Row: {
           client_id: string
+          compaction_compacted_through_at: string | null
+          compaction_compacted_through_message_id: string | null
+          compaction_summary: string | null
+          compaction_summary_model: string | null
+          compaction_summary_tokens_used: number
           created_at: string
           is_archived: boolean
           is_pinned: boolean
@@ -856,6 +861,11 @@ export type Database = {
         }
         Insert: {
           client_id: string
+          compaction_compacted_through_at?: string | null
+          compaction_compacted_through_message_id?: string | null
+          compaction_summary?: string | null
+          compaction_summary_model?: string | null
+          compaction_summary_tokens_used?: number
           created_at?: string
           is_archived?: boolean
           is_pinned?: boolean
@@ -865,6 +875,11 @@ export type Database = {
         }
         Update: {
           client_id?: string
+          compaction_compacted_through_at?: string | null
+          compaction_compacted_through_message_id?: string | null
+          compaction_summary?: string | null
+          compaction_summary_model?: string | null
+          compaction_summary_tokens_used?: number
           created_at?: string
           is_archived?: boolean
           is_pinned?: boolean
@@ -1319,7 +1334,12 @@ export type Database = {
         Returns: number
       }
       release_trigger_claim: {
-        Args: { p_run_id: string; p_status?: string; p_trigger_id: string }
+        Args: {
+          p_next_fire_at?: string | null
+          p_run_id: string
+          p_status?: string
+          p_trigger_id: string
+        }
         Returns: boolean
       }
       run_readonly_sql: {

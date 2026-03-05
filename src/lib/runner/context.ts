@@ -10,6 +10,10 @@ import { SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
 import { bootstrapMemoryFiles } from "@/lib/memory/bootstrap";
 import { loadMemoryContext } from "@/lib/memory/loader";
 import type { MemoryContext } from "@/lib/memory/loader";
+import {
+  fetchThreadCompactionState,
+  type ThreadCompactionState,
+} from "@/lib/runner/compaction";
 import { buildSystemReminder } from "@/lib/runner/system-reminder";
 import type { Database, Json } from "@/types/database";
 
@@ -29,6 +33,8 @@ interface AssembledContext {
 }
 
 interface HistoryRow {
+  message_id: string;
+  created_at: string;
   role: string;
   content: string | null;
   parts: Json | null;
@@ -58,6 +64,7 @@ function getTextFromParts(parts: Json | null): string {
 
 function buildSystemPrompt(
   memory?: MemoryContext,
+  compactionSummary?: string,
   systemReminder?: string,
 ): string {
   if (!memory) {
@@ -84,11 +91,34 @@ function buildSystemPrompt(
     sections.push(`<working-memory>\n${memory.memory}\n</working-memory>`);
   }
 
+  if (compactionSummary && compactionSummary.trim().length > 0) {
+    sections.push(`<compaction-summary>\n${compactionSummary.trim()}\n</compaction-summary>`);
+  }
+
   if (systemReminder) {
     sections.push(systemReminder);
   }
 
   return sections.join("\n\n");
+}
+
+function isAfterCompactionBoundary(
+  row: HistoryRow,
+  compactionState?: ThreadCompactionState,
+): boolean {
+  if (!compactionState) {
+    return true;
+  }
+
+  if (row.created_at > compactionState.compaction_compacted_through_at) {
+    return true;
+  }
+
+  if (row.created_at < compactionState.compaction_compacted_through_at) {
+    return false;
+  }
+
+  return row.message_id > compactionState.compaction_compacted_through_message_id;
 }
 
 /**
@@ -102,19 +132,30 @@ export async function assembleContext({
 }: AssembleContextParams): Promise<AssembledContext> {
   let memoryContext: MemoryContext | undefined;
   let systemReminder: string | undefined;
+  let compactionState: ThreadCompactionState | null = null;
 
   if (clientId) {
     await bootstrapMemoryFiles(supabase, clientId);
-    [memoryContext, systemReminder] = await Promise.all([
+    [memoryContext, systemReminder, compactionState] = await Promise.all([
       loadMemoryContext(supabase, clientId),
       buildSystemReminder(supabase, clientId, threadId),
+      fetchThreadCompactionState(supabase, threadId),
     ]);
   }
 
-  const { data, error } = await supabase
+  let historyQuery = supabase
     .from("conversation_messages")
-    .select("role, content, parts")
-    .eq("thread_id", threadId)
+    .select("message_id, created_at, role, content, parts")
+    .eq("thread_id", threadId);
+
+  if (compactionState) {
+    historyQuery = historyQuery.gte(
+      "created_at",
+      compactionState.compaction_compacted_through_at,
+    );
+  }
+
+  const { data, error } = await historyQuery
     .order("created_at", { ascending: false })
     .order("message_id", { ascending: false })
     .limit(MAX_CONTEXT_MESSAGES);
@@ -124,6 +165,7 @@ export async function assembleContext({
   }
 
   const historyMessages: ModelMessage[] = ((data as HistoryRow[] | null) ?? [])
+    .filter((row) => isAfterCompactionBoundary(row, compactionState ?? undefined))
     .slice(0, MAX_CONTEXT_MESSAGES)
     .slice()
     .reverse()
@@ -141,7 +183,11 @@ export async function assembleContext({
     : [];
 
   return {
-    system: buildSystemPrompt(memoryContext, systemReminder),
+    system: buildSystemPrompt(
+      memoryContext,
+      compactionState?.compaction_summary,
+      systemReminder,
+    ),
     messages: [
       ...historyMessages,
       ...currentMessageTurn,

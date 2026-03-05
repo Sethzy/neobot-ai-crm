@@ -19,6 +19,8 @@ const {
   mockCreateWebTools,
   mockCreateUtilityTools,
   mockCreateMessages,
+  mockMaybeCompactThread,
+  mockTruncateOversizedParts,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
@@ -34,6 +36,8 @@ const {
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
   mockCreateMessages: vi.fn(),
+  mockMaybeCompactThread: vi.fn(),
+  mockTruncateOversizedParts: vi.fn(),
 }));
 
 vi.mock("ai", () => ({
@@ -74,8 +78,18 @@ vi.mock("@/lib/chat/messages", () => ({
   createMessages: (...args: unknown[]) => mockCreateMessages(...args),
 }));
 
+vi.mock("@/lib/runner/compaction", () => ({
+  CRM_COMPACTION_INSTRUCTIONS:
+    "Preserve deal names, contact details, task statuses, and decisions made.",
+  maybeCompactThread: (...args: unknown[]) => mockMaybeCompactThread(...args),
+}));
+
+vi.mock("@/lib/runner/toolcall-artifacts", () => ({
+  truncateOversizedParts: (...args: unknown[]) => mockTruncateOversizedParts(...args),
+}));
+
 import type { RunnerPayload } from "../schemas";
-import { runAgent } from "../run-agent";
+import { buildPrepareStep, runAgent } from "../run-agent";
 
 const validPayload: RunnerPayload = {
   clientId: "550e8400-e29b-41d4-a716-446655440000",
@@ -124,6 +138,11 @@ describe("runAgent", () => {
       system: "You are Sunder.",
       messages: [{ role: "user", content: "Hello, Sunder!" }],
     });
+    mockTruncateOversizedParts.mockImplementation(async (_supabase, _clientId, parts) => ({
+      parts,
+      recoveryPaths: [],
+    }));
+    mockMaybeCompactThread.mockResolvedValue(false);
     mockStreamText.mockReturnValue({
       toUIMessageStreamResponse: vi.fn(() => new Response("streamed")),
     });
@@ -204,6 +223,36 @@ describe("runAgent", () => {
 
     const streamCall = mockStreamText.mock.calls[0]?.[0];
     expect(streamCall.providerOptions).toBeUndefined();
+  });
+
+  it("buildPrepareStep returns Anthropic context-management edits for Anthropic models", () => {
+    const prepareStep = buildPrepareStep("anthropic/claude-sonnet-4-6");
+    const result = prepareStep({ stepNumber: 0 } as never);
+
+    expect(result).toEqual({
+      providerOptions: {
+        anthropic: {
+          contextManagement: {
+            edits: [
+              {
+                type: "compact_20260112",
+                trigger: { type: "input_tokens", value: 50_000 },
+                instructions:
+                  "Preserve deal names, contact details, task statuses, and decisions made.",
+                pauseAfterCompaction: false,
+              },
+            ],
+          },
+        },
+      },
+    });
+  });
+
+  it("buildPrepareStep keeps the Gemini path unchanged except for the final-step tool cutoff", () => {
+    const prepareStep = buildPrepareStep("google/gemini-3-flash");
+
+    expect(prepareStep({ stepNumber: 0 } as never)).toBeUndefined();
+    expect(prepareStep({ stepNumber: 8 } as never)).toEqual({ activeTools: [] });
   });
 
   it("enqueues and returns queued when thread is already running", async () => {
@@ -410,6 +459,178 @@ describe("runAgent", () => {
     ]);
   });
 
+  it("truncates oversized tool outputs before persistence and appends a recovery note to content", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+    mockTruncateOversizedParts.mockResolvedValue({
+      parts: [
+        { type: "step-start" },
+        {
+          type: "tool-search_contacts",
+          toolCallId: "call-1",
+          state: "output-available",
+          output:
+            '<context-removed path="toolcalls/call-1/result.json" reason="Result exceeded size threshold (6200 bytes). Use read_file to recover the full content." />',
+        },
+        { type: "text", text: "I found the contacts." },
+      ],
+      recoveryPaths: ["toolcalls/call-1/result.json"],
+    });
+
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    const streamCall = mockStreamText.mock.calls[0]?.[0];
+    await streamCall.onFinish({
+      text: "I found the contacts.",
+      steps: [
+        {
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call-1",
+              toolName: "search_contacts",
+              input: { query: "John" },
+            },
+            {
+              type: "tool-result",
+              toolCallId: "call-1",
+              toolName: "search_contacts",
+              input: { query: "John" },
+              output: { blob: "x".repeat(6_000) },
+            },
+            { type: "text", text: "I found the contacts." },
+          ],
+          toolCalls: [],
+          toolResults: [],
+          text: "I found the contacts.",
+        },
+      ],
+      totalUsage: {
+        inputTokens: 100,
+        inputTokenDetails: {
+          noCacheTokens: undefined,
+          cacheReadTokens: undefined,
+          cacheWriteTokens: undefined,
+        },
+        outputTokens: 50,
+        outputTokenDetails: {
+          textTokens: undefined,
+          reasoningTokens: undefined,
+        },
+        totalTokens: 150,
+      },
+    });
+
+    expect(mockTruncateOversizedParts).toHaveBeenCalled();
+    expect(mockCreateMessages).toHaveBeenNthCalledWith(2, "mock-supabase-client", [
+      expect.objectContaining({
+        thread_id: validPayload.threadId,
+        role: "assistant",
+        content: expect.stringContaining("I found the contacts."),
+        parts: [
+          { type: "step-start" },
+          {
+            type: "tool-search_contacts",
+            toolCallId: "call-1",
+            state: "output-available",
+            output:
+              '<context-removed path="toolcalls/call-1/result.json" reason="Result exceeded size threshold (6200 bytes). Use read_file to recover the full content." />',
+          },
+          { type: "text", text: "I found the contacts." },
+        ],
+      }),
+    ]);
+    expect(mockCreateMessages.mock.calls[1]?.[1]?.[0]?.content).toContain(
+      "toolcalls/call-1/result.json",
+    );
+  });
+
+  it("falls back to raw parts when toolcall artifact persistence fails", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+    mockTruncateOversizedParts.mockRejectedValue(new Error("upload failed"));
+
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    const streamCall = mockStreamText.mock.calls[0]?.[0];
+    await streamCall.onFinish({
+      text: "I found the contacts.",
+      steps: [
+        {
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call-1",
+              toolName: "search_contacts",
+              input: { query: "John" },
+            },
+            {
+              type: "tool-result",
+              toolCallId: "call-1",
+              toolName: "search_contacts",
+              input: { query: "John" },
+              output: { blob: "x".repeat(6_000) },
+            },
+            { type: "text", text: "I found the contacts." },
+          ],
+          toolCalls: [],
+          toolResults: [],
+          text: "I found the contacts.",
+        },
+      ],
+      totalUsage: {
+        inputTokens: 100,
+        inputTokenDetails: {
+          noCacheTokens: undefined,
+          cacheReadTokens: undefined,
+          cacheWriteTokens: undefined,
+        },
+        outputTokens: 50,
+        outputTokenDetails: {
+          textTokens: undefined,
+          reasoningTokens: undefined,
+        },
+        totalTokens: 150,
+      },
+    });
+
+    expect(mockCreateMessages).toHaveBeenNthCalledWith(2, "mock-supabase-client", [
+      {
+        thread_id: validPayload.threadId,
+        role: "assistant",
+        content: "I found the contacts.",
+        parts: [
+          { type: "step-start" },
+          {
+            type: "tool-search_contacts",
+            toolCallId: "call-1",
+            state: "output-available",
+            input: { query: "John" },
+            output: { blob: "x".repeat(6_000) },
+          },
+          { type: "text", text: "I found the contacts." },
+        ],
+      },
+    ]);
+    expect(mockCompleteRun).toHaveBeenCalledWith("mock-supabase-client", {
+      runId: "run-1",
+      status: "completed",
+      model: "google/gemini-3-flash",
+      tokensIn: 100,
+      tokensOut: 50,
+      stepCount: 1,
+    });
+    expect(mockDrainAndContinue).toHaveBeenCalledWith("mock-supabase-client", {
+      clientId: validPayload.clientId,
+      threadId: validPayload.threadId,
+    });
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "[runner] toolcall artifact persistence failed:",
+      expect.any(Error),
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
   it("records failed run when streamText throws", async () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
     mockStreamText.mockImplementation(() => {
@@ -467,6 +688,11 @@ describe("runAgent", () => {
       clientId: validPayload.clientId,
       threadId: validPayload.threadId,
     });
+    expect(mockMaybeCompactThread).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      validPayload.threadId,
+    );
   });
 
   it("passes step count from onFinish steps to completeRun", async () => {
@@ -510,6 +736,44 @@ describe("runAgent", () => {
       tokensOut: 100,
       stepCount: 3,
     });
+  });
+
+  it("logs and swallows post-run compaction failures", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+    mockMaybeCompactThread.mockRejectedValueOnce(new Error("compaction failed"));
+
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    const streamCall = mockStreamText.mock.calls[0]?.[0];
+
+    await expect(
+      streamCall.onFinish({
+        text: "Assistant response",
+        steps: [],
+        totalUsage: {
+          inputTokens: 100,
+          inputTokenDetails: {
+            noCacheTokens: undefined,
+            cacheReadTokens: undefined,
+            cacheWriteTokens: undefined,
+          },
+          outputTokens: 50,
+          outputTokenDetails: {
+            textTokens: undefined,
+            reasoningTokens: undefined,
+          },
+          totalTokens: 150,
+        },
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "[runner] post-run compaction failed:",
+      expect.any(Error),
+    );
+
+    consoleErrorSpy.mockRestore();
   });
 
   afterAll(() => {

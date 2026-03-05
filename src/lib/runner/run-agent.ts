@@ -7,6 +7,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
 import { createMessages } from "@/lib/chat/messages";
+import {
+  CRM_COMPACTION_INSTRUCTIONS,
+  maybeCompactThread,
+} from "@/lib/runner/compaction";
 import { assembleContext } from "@/lib/runner/context";
 import { drainAndContinue } from "@/lib/runner/drain-and-continue";
 import {
@@ -15,6 +19,7 @@ import {
 } from "@/lib/runner/message-utils";
 import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
 import type { RunnerPayload } from "@/lib/runner/schemas";
+import { truncateOversizedParts } from "@/lib/runner/toolcall-artifacts";
 import {
   createCrmTools,
   createStorageTools,
@@ -36,6 +41,65 @@ type StreamResult = ReturnType<typeof streamText<RunnerTools>>;
 export type RunAgentResult =
   | { status: "streaming"; streamResult: StreamResult }
   | { status: "queued" };
+
+function isAnthropicModel(modelId: string): boolean {
+  return /^anthropic[/:]/.test(modelId);
+}
+
+function appendArtifactRecoveryNote(
+  contentText: string,
+  recoveryPaths: string[],
+): string {
+  if (recoveryPaths.length === 0) {
+    return contentText;
+  }
+
+  const recoveryNote = [
+    "Full tool results were truncated from persisted context. Recover them with read_file if needed:",
+    ...recoveryPaths.map((path) => `- ${path}`),
+  ].join("\n");
+
+  return [contentText, recoveryNote]
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0)
+    .join("\n\n")
+    .trim();
+}
+
+/**
+ * Builds per-step overrides for the active model.
+ * Anthropic models receive native context-management compaction hints.
+ */
+export function buildPrepareStep(modelId: string) {
+  const shouldUseAnthropicCompaction = isAnthropicModel(modelId);
+
+  return ({ stepNumber }: { stepNumber: number }) => {
+    const result: Record<string, unknown> = {};
+
+    if (stepNumber >= MAX_STEPS_TIER_1 - 1) {
+      result.activeTools = [];
+    }
+
+    if (shouldUseAnthropicCompaction) {
+      result.providerOptions = {
+        anthropic: {
+          contextManagement: {
+            edits: [
+              {
+                type: "compact_20260112",
+                trigger: { type: "input_tokens", value: 50_000 },
+                instructions: CRM_COMPACTION_INSTRUCTIONS,
+                pauseAfterCompaction: false,
+              },
+            ],
+          },
+        },
+      };
+    }
+
+    return Object.keys(result).length > 0 ? result : undefined;
+  };
+}
 
 /**
  * Executes one thread run if no active run exists, otherwise queues the input.
@@ -97,20 +161,30 @@ export async function runAgent(
       messages,
       stopWhen: stepCountIs(MAX_STEPS_TIER_1),
       tools,
-      prepareStep: ({ stepNumber }) => {
-        // On the final step, disable tools to force a text response.
-        // Without this, the model can exhaust all steps on tool calls
-        // and the stream ends with zero text output.
-        if (stepNumber >= MAX_STEPS_TIER_1 - 1) {
-          return { activeTools: [] };
-        }
-      },
+      prepareStep: buildPrepareStep(modelId),
       onFinish: async ({ text, steps, totalUsage }) => {
-        const parts = buildAssistantPartsFromSteps(steps);
+        const rawParts = buildAssistantPartsFromSteps(steps);
+        let parts = rawParts;
+        let recoveryPaths: string[] = [];
+
+        try {
+          const truncatedResult = await truncateOversizedParts(
+            supabase,
+            clientId,
+            rawParts,
+          );
+          parts = truncatedResult.parts;
+          recoveryPaths = truncatedResult.recoveryPaths;
+        } catch (artifactError) {
+          console.error("[runner] toolcall artifact persistence failed:", artifactError);
+        }
+
         const contentTextFromParts = getAssistantTextFromParts(parts);
         const fallbackContentText = typeof text === "string" ? text.trim() : "";
-        const contentText =
-          contentTextFromParts.length > 0 ? contentTextFromParts : fallbackContentText;
+        const contentText = appendArtifactRecoveryNote(
+          contentTextFromParts.length > 0 ? contentTextFromParts : fallbackContentText,
+          recoveryPaths,
+        );
         const hasNonStepParts = parts.some((part) => part.type !== "step-start");
 
         if (hasNonStepParts || contentText.length > 0) {
@@ -135,6 +209,9 @@ export async function runAgent(
           stepCount: steps.length,
         });
         await drainAndContinue(supabase, { clientId, threadId });
+        void maybeCompactThread(supabase, clientId, threadId).catch((compactionError) => {
+          console.error("[runner] post-run compaction failed:", compactionError);
+        });
       },
     });
 

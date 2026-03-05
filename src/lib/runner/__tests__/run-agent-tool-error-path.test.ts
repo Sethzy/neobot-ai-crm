@@ -18,6 +18,8 @@ const {
   mockCreateWebTools,
   mockCreateUtilityTools,
   mockCreateMessages,
+  mockMaybeCompactThread,
+  mockTruncateOversizedParts,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
@@ -32,6 +34,8 @@ const {
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
   mockCreateMessages: vi.fn(),
+  mockMaybeCompactThread: vi.fn(),
+  mockTruncateOversizedParts: vi.fn(),
 }));
 
 vi.mock("ai", () => ({
@@ -66,6 +70,16 @@ vi.mock("@/lib/chat/messages", () => ({
   createMessages: mockCreateMessages,
 }));
 
+vi.mock("@/lib/runner/compaction", () => ({
+  CRM_COMPACTION_INSTRUCTIONS:
+    "Preserve deal names, contact details, task statuses, and decisions made.",
+  maybeCompactThread: (...args: unknown[]) => mockMaybeCompactThread(...args),
+}));
+
+vi.mock("@/lib/runner/toolcall-artifacts", () => ({
+  truncateOversizedParts: (...args: unknown[]) => mockTruncateOversizedParts(...args),
+}));
+
 vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createStorageTools: mockCreateStorageTools,
@@ -97,6 +111,11 @@ describe("runAgent tool-error completion path", () => {
     mockCreateStorageTools.mockReturnValue({});
     mockCreateWebTools.mockReturnValue({});
     mockCreateUtilityTools.mockReturnValue({});
+    mockMaybeCompactThread.mockResolvedValue(false);
+    mockTruncateOversizedParts.mockImplementation(async (_supabase, _clientId, parts) => ({
+      parts,
+      recoveryPaths: [],
+    }));
     mockStreamText.mockReturnValue({
       toUIMessageStreamResponse: vi.fn(() => new Response("streamed")),
     });

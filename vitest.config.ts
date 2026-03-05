@@ -20,6 +20,7 @@ export default defineConfig({
       "tests/**/*.{test,spec}.{ts,tsx}",
       "api/**/*.{test,spec}.{ts,tsx}",
       "app/**/*.{test,spec}.{ts,tsx}",
+      "supabase/migrations/**/*.{test,spec}.{ts,tsx}",
     ],
   },
 });

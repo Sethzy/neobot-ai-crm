@@ -13,6 +13,7 @@ const {
   mockBootstrapMemoryFiles,
   mockLoadMemoryContext,
   mockBuildSystemReminder,
+  mockFetchThreadCompactionState,
 } = vi.hoisted(() => ({
   mockBootstrapMemoryFiles: vi.fn().mockResolvedValue(undefined),
   mockLoadMemoryContext: vi.fn().mockResolvedValue({
@@ -23,6 +24,7 @@ const {
   mockBuildSystemReminder: vi.fn().mockResolvedValue(
     "<system-reminder>\nCurrent time: 2026-03-05 14:30:00 UTC\nOpen todos: 0\n</system-reminder>",
   ),
+  mockFetchThreadCompactionState: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock("@/lib/memory/bootstrap", () => ({
@@ -35,6 +37,10 @@ vi.mock("@/lib/memory/loader", () => ({
 
 vi.mock("@/lib/runner/system-reminder", () => ({
   buildSystemReminder: mockBuildSystemReminder,
+}));
+
+vi.mock("@/lib/runner/compaction", () => ({
+  fetchThreadCompactionState: mockFetchThreadCompactionState,
 }));
 
 describe("assembleContext", () => {
@@ -121,6 +127,51 @@ describe("assembleContext", () => {
     expect(reminderIndex).toBeGreaterThan(memoryIndex);
   });
 
+  it("injects a compaction summary between working memory and the system reminder", async () => {
+    mockFetchThreadCompactionState.mockResolvedValueOnce({
+      thread_id: "thread-1",
+      client_id: "client-123",
+      compaction_summary: "Older thread summary",
+      compaction_compacted_through_at: "2026-03-06T02:00:00.000Z",
+      compaction_compacted_through_message_id: "message-2",
+      compaction_summary_model: "google/gemini-3-flash",
+      compaction_summary_tokens_used: 99,
+    });
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      clientId: "client-123",
+    });
+
+    const memoryIndex = result.system.indexOf("<working-memory>");
+    const compactionIndex = result.system.indexOf("<compaction-summary>");
+    const reminderIndex = result.system.indexOf("<system-reminder>");
+
+    expect(compactionIndex).toBeGreaterThan(memoryIndex);
+    expect(compactionIndex).toBeLessThan(reminderIndex);
+    expect(result.system).toContain("Older thread summary");
+  });
+
+  it("does not inject a compaction block when the thread has no summary", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      clientId: "client-123",
+    });
+
+    expect(result.system).not.toContain("<compaction-summary>");
+  });
+
   it("bootstraps before loading memory when clientId is provided", async () => {
     const supabase = createMockSupabaseClient({
       selectResult: { data: [], error: null },
@@ -172,6 +223,10 @@ describe("assembleContext", () => {
       "client-123",
       "thread-1",
     );
+    expect(mockFetchThreadCompactionState).toHaveBeenCalledWith(
+      expect.anything(),
+      "thread-1",
+    );
   });
 
   it("does not include platform instructions or system-reminder when clientId is omitted", async () => {
@@ -207,6 +262,34 @@ describe("assembleContext", () => {
         { method: "order", args: ["created_at", { ascending: false }] },
         { method: "order", args: ["message_id", { ascending: false }] },
         { method: "limit", args: [50] },
+      ]),
+    );
+  });
+
+  it("queries messages from the compaction cutoff timestamp onward when a summary exists", async () => {
+    mockFetchThreadCompactionState.mockResolvedValueOnce({
+      thread_id: "thread-1",
+      client_id: "client-123",
+      compaction_summary: "Older thread summary",
+      compaction_compacted_through_at: "2026-03-06T02:00:00.000Z",
+      compaction_compacted_through_message_id: "message-2",
+      compaction_summary_model: "google/gemini-3-flash",
+      compaction_summary_tokens_used: 99,
+    });
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      clientId: "client-123",
+    });
+
+    expect(supabase.calls.methods).toEqual(
+      expect.arrayContaining([
+        { method: "gte", args: ["created_at", "2026-03-06T02:00:00.000Z"] },
       ]),
     );
   });
@@ -261,6 +344,58 @@ describe("assembleContext", () => {
       { role: "user", content: "Hi" },
       { role: "assistant", content: "Hello! How can I help?" },
       { role: "user", content: "Create a follow-up reminder" },
+    ]);
+  });
+
+  it("filters out the compacted-through boundary message while keeping later messages at the same timestamp", async () => {
+    mockFetchThreadCompactionState.mockResolvedValueOnce({
+      thread_id: "thread-1",
+      client_id: "client-123",
+      compaction_summary: "Older thread summary",
+      compaction_compacted_through_at: "2026-03-06T02:00:00.000Z",
+      compaction_compacted_through_message_id: "message-2",
+      compaction_summary_model: "google/gemini-3-flash",
+      compaction_summary_tokens_used: 99,
+    });
+    const supabase = createMockSupabaseClient({
+      selectResult: {
+        data: [
+          {
+            message_id: "message-4",
+            created_at: "2026-03-06T02:05:00.000Z",
+            role: "assistant",
+            content: "Newest response",
+            parts: null,
+          },
+          {
+            message_id: "message-3",
+            created_at: "2026-03-06T02:00:00.000Z",
+            role: "user",
+            content: "Keep me",
+            parts: null,
+          },
+          {
+            message_id: "message-2",
+            created_at: "2026-03-06T02:00:00.000Z",
+            role: "assistant",
+            content: "Drop me",
+            parts: null,
+          },
+        ],
+        error: null,
+      },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "",
+      clientId: "client-123",
+    });
+
+    expect(result.messages).toEqual([
+      { role: "user", content: "Keep me" },
+      { role: "assistant", content: "Newest response" },
     ]);
   });
 
