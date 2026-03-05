@@ -38,7 +38,7 @@ const faqs = [
   {
     question: 'What if Neo makes a mistake?',
     answer:
-      'It learns. Correct it once and it remembers. After a couple weeks, it rarely gets things wrong.',
+      'It learns. Correct it once and it remembers. After a couple of weeks, it adapts to how you work.',
   },
   {
     question: 'Can I cancel anytime?',
@@ -46,9 +46,9 @@ const faqs = [
       'Yes. No contracts, no lock-in. Your data is yours.',
   },
   {
-    question: 'What\'s the difference between Pro and Enterprise?',
+    question: 'What\'s the difference between Pro and Teams?',
     answer:
-      'Pro gives you full access to Neo 24/7 with all skills. Enterprise adds SSO, audit logs, and dedicated support.',
+      'Pro gives you full access to Neo 24/7 with all skills. Teams adds a manager dashboard, conversation monitoring, and dedicated onboarding for your whole team.',
   },
 ]
 

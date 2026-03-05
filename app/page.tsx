@@ -16,22 +16,22 @@ const Faqs = dynamic(() => import("@/components/landing/Faqs").then(m => ({ defa
 const Footer = dynamic(() => import("@/components/landing/Footer").then(m => ({ default: m.Footer })));
 
 export const metadata: Metadata = {
-  title: "NeoBot - WhatsApp Your AI Assistant. Get Answers. Get Things Done.",
+  title: "NeoBot - Your AI Sales Assistant. Get Things Done via Chat.",
   description:
-    "NeoBot gives you back two hours every day by handling your inbox, meetings, and calendar — so you can focus on the work that moves the needle.",
+    "NeoBot runs your pipeline while you sleep — follow-ups, CRM updates, scheduling, and admin handled automatically. Built for B2C salespeople.",
   openGraph: {
-    title: "NeoBot - WhatsApp Your AI Assistant. Get Answers. Get Things Done.",
+    title: "NeoBot - Your AI Sales Assistant. Get Things Done via Chat.",
     description:
-      "NeoBot gives you back two hours every day by handling your inbox, meetings, and calendar — so you can focus on the work that moves the needle.",
+      "NeoBot runs your pipeline while you sleep — follow-ups, CRM updates, scheduling, and admin handled automatically. Built for B2C salespeople.",
     images: ["https://www.neobot.com/exports/og-image.png"],
     url: "https://www.neobot.com/",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "NeoBot - WhatsApp Your AI Assistant. Get Answers. Get Things Done.",
+    title: "NeoBot - Your AI Sales Assistant. Get Things Done via Chat.",
     description:
-      "NeoBot gives you back two hours every day by handling your inbox, meetings, and calendar — so you can focus on the work that moves the needle.",
+      "NeoBot runs your pipeline while you sleep — follow-ups, CRM updates, scheduling, and admin handled automatically. Built for B2C salespeople.",
     images: ["https://www.neobot.com/exports/og-image.png"],
   },
   alternates: {

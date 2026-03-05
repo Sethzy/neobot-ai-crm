@@ -115,9 +115,8 @@ export function Differentiator() {
             </span>
           </h2>
           <p className="mt-4 text-base leading-7 text-[#6B5E57] sm:mt-6 sm:text-lg sm:leading-8">
-            CRM, scheduling, forms, document processing, voice cloning — you&apos;ll never
-            open any of them. Neo runs everything behind the scenes while you
-            just send a message.
+            CRM, scheduling, forms, document processing, voice cloning — Neo
+            runs them all behind the scenes. You just send a message.
           </p>
         </div>
 

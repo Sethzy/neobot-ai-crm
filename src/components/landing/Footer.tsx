@@ -52,7 +52,7 @@ export function Footer() {
               <h3 className="text-sm font-semibold text-white mb-4 tracking-wide">Plans</h3>
               <nav className="flex flex-col gap-3 text-sm">
                 <NavLink href="#pricing" className="text-[#999] hover:text-white transition-colors">Pro</NavLink>
-                <NavLink href="#pricing" className="text-[#999] hover:text-white transition-colors">Enterprise</NavLink>
+                <NavLink href="#pricing" className="text-[#999] hover:text-white transition-colors">Teams</NavLink>
                 <NavLink href="#pricing" className="text-[#999] hover:text-white transition-colors">Talk to Sales</NavLink>
               </nav>
             </div>

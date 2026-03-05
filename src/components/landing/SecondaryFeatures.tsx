@@ -36,7 +36,7 @@ const features: Array<Feature> = [
   {
     name: 'Full AI Power',
     value: 'ai',
-    summary: 'Create anything from a message.',
+    summary: 'Videos, slides, docs — from a message.',
     description:
       'Videos, slides, images, documents — powered by the latest AI models. Describe what you need, it delivers.',
     icon: Sparkles,

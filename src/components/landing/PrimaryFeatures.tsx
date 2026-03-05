@@ -104,7 +104,7 @@ const features = [
     title: "Ask it to schedule. Ask it anything else.",
     value: "outreach",
     description:
-      "Neo finds the right time, sends the invite, and handles the back-and-forth — so you don't have to. Quick answers between meetings too.",
+      "Neo finds the right time, sends the invite, and handles the back-and-forth — so you don't have to.",
     icon: Send,
   },
   {
@@ -118,7 +118,7 @@ const features = [
     title: "Remembers everything that's said.",
     value: "briefings",
     description:
-      "Transcripts, meeting notes, action items — Neo captures it all, derives insights, and acts on your behalf.",
+      "Transcripts, meeting notes, action items — Neo captures it all and turns conversations into follow-ups automatically.",
     icon: Bell,
   },
   {
@@ -173,8 +173,8 @@ export function PrimaryFeatures() {
             </span>
           </h2>
           <p className="mt-4 text-base tracking-tight text-muted-foreground sm:mt-6 sm:text-lg">
-            Neo already knows how to do 30+ tasks like a b2c sales expert— from
-            reviewing contracts to generating leads. No setup. Just ask.
+            Neo already knows 30+ sales skills — from reviewing contracts
+            to generating leads. No setup. Just ask.
           </p>
         </div>
 
