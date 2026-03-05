@@ -34,10 +34,11 @@ export function Hero() {
 
       <Container className="relative">
         <div className="flex flex-col items-center text-center">
-          <div className="inline-flex items-center gap-2.5 rounded-full bg-parchment/80 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-lp-dark ring-1 ring-black/[0.14] mb-5 sm:px-6 sm:py-2 sm:text-sm">
+          {/* Badge — gold accent dot + shimmer sweep */}
+          <div className="badge-shimmer inline-flex items-center gap-2.5 rounded-full bg-parchment/80 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-lp-dark ring-1 ring-lp-gold/25 mb-5 sm:px-6 sm:py-2 sm:text-sm">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sunder-green opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-sunder-green"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-lp-gold opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-lp-gold"></span>
             </span>
             The cheat code for top producers
           </div>
@@ -65,7 +66,7 @@ export function Hero() {
 
           <div className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-4 sm:mt-10">
             <Link
-              href="/demo"
+              href="/login"
               className="press-effect rounded-full bg-sunder-green px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-sunder-green/25 transition hover:shadow-sunder-green/35 hover:scale-[1.02] active:scale-[0.98] sm:px-10 sm:py-4 sm:text-base"
             >
               Try for free

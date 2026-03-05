@@ -299,7 +299,7 @@ export function SlimLayout({ children }: { children: React.ReactNode }) {
 
                 {/* Dashboard — fills most of the frame, clipped right */}
                 <div
-                  className="absolute rounded-[1rem] bg-[#D9D0C3] p-[3px] shadow-2xl shadow-black/30"
+                  className="login-dashboard-entrance absolute rounded-[1rem] bg-[#D9D0C3] p-[3px] shadow-2xl shadow-black/30"
                   style={{ top: '8%', left: '15%', right: '-10%', bottom: '8%' }}
                 >
                   <div className="h-full overflow-hidden rounded-[0.85rem]">
@@ -308,18 +308,20 @@ export function SlimLayout({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
 
-              {/* Phone — overlapping bottom-left */}
+              {/* Phone — overlapping bottom-left, entrance + continuous float */}
               <div
-                className="absolute w-[30%]"
+                className="login-phone-entrance absolute w-[30%]"
                 style={{
                   left: '3%',
                   top: '42%',
                   filter: 'drop-shadow(0 25px 50px rgba(0,0,0,0.3)) drop-shadow(0 12px 20px rgba(0,0,0,0.15))',
                 }}
               >
-                <Iphone>
-                  <DarkMobileChat />
-                </Iphone>
+                <div className="login-phone-float">
+                  <Iphone>
+                    <DarkMobileChat />
+                  </Iphone>
+                </div>
               </div>
             </div>
           </div>

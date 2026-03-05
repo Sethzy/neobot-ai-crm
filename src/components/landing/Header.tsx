@@ -162,7 +162,7 @@ export function Header() {
           <div className="flex items-center gap-x-3 sm:gap-x-4">
             <Link
               href="/login"
-              className="hidden text-sm font-medium text-zinc-600 transition hover:text-sunder-green md:block"
+              className="hidden rounded-full bg-sunder-green px-4 py-1.5 text-sm font-medium text-white transition hover:opacity-90 md:block"
             >
               Sign in
             </Link>

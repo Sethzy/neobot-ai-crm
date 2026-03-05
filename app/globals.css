@@ -511,11 +511,36 @@
 .icon-key { animation: icon-key-wobble 2.5s ease-in-out infinite; }
 .icon-clock { animation: icon-clock-tick 2.5s ease-in-out infinite; }
 
+/* Login page — showcase entrance + phone float */
+@keyframes login-slide-in {
+  from { opacity: 0; transform: translateX(30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes login-fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes gentle-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.login-dashboard-entrance {
+  animation: login-slide-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both 200ms;
+}
+.login-phone-entrance {
+  animation: login-fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) both 450ms;
+}
+.login-phone-float {
+  animation: gentle-float 6s ease-in-out infinite;
+}
+
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .scroll-reveal,
   .scroll-reveal-scale,
-  .stagger-children > * {
+  .stagger-children > *,
+  .login-dashboard-entrance,
+  .login-phone-entrance {
     opacity: 1;
     transform: none;
     transition: none;
@@ -525,6 +550,9 @@
   .animate-marquee,
   .animate-marquee-slower,
   .animate-marquee-reverse,
+  .login-dashboard-entrance,
+  .login-phone-entrance,
+  .login-phone-float,
   .icon-flame,
   .icon-key,
   .icon-clock,
