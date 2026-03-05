@@ -882,6 +882,75 @@ export type Database = {
           },
         ]
       }
+      agent_triggers: {
+        Row: {
+          client_id: string
+          created_at: string
+          cron_expression: string | null
+          current_run_id: string | null
+          enabled: boolean
+          id: string
+          instruction_path: string
+          last_fired_at: string | null
+          last_status: string | null
+          name: string
+          next_fire_at: string | null
+          payload: Json
+          thread_id: string
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          cron_expression?: string | null
+          current_run_id?: string | null
+          enabled?: boolean
+          id?: string
+          instruction_path: string
+          last_fired_at?: string | null
+          last_status?: string | null
+          name: string
+          next_fire_at?: string | null
+          payload?: Json
+          thread_id: string
+          trigger_type?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          cron_expression?: string | null
+          current_run_id?: string | null
+          enabled?: boolean
+          id?: string
+          instruction_path?: string
+          last_fired_at?: string | null
+          last_status?: string | null
+          name?: string
+          next_fire_at?: string | null
+          payload?: Json
+          thread_id?: string
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_triggers_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "agent_triggers_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
       conversation_messages: {
         Row: {
           content: string | null
@@ -1199,6 +1268,26 @@ export type Database = {
       }
     }
     Functions: {
+      claim_due_triggers: {
+        Args: never
+        Returns: {
+          client_id: string
+          created_at: string
+          cron_expression: string | null
+          current_run_id: string | null
+          enabled: boolean
+          id: string
+          instruction_path: string
+          last_fired_at: string | null
+          last_status: string | null
+          name: string
+          next_fire_at: string | null
+          payload: Json
+          thread_id: string
+          trigger_type: string
+          updated_at: string
+        }[]
+      }
       create_run_if_idle: {
         Args: { p_client_id: string; p_thread_id: string }
         Returns: string | null
@@ -1224,6 +1313,14 @@ export type Database = {
       mark_stale_runs_failed: {
         Args: { p_stale_minutes?: number; p_thread_id?: string | null }
         Returns: number
+      }
+      release_stale_trigger_claims: {
+        Args: { p_stale_minutes?: number }
+        Returns: number
+      }
+      release_trigger_claim: {
+        Args: { p_run_id: string; p_status?: string; p_trigger_id: string }
+        Returns: boolean
       }
       run_readonly_sql: {
         Args: { query_text: string }

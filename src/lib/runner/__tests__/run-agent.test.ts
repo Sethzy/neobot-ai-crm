@@ -310,6 +310,21 @@ describe("runAgent", () => {
     ]);
   });
 
+  it("does not persist an extra user message for cron trigger runs", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(
+      {
+        ...validPayload,
+        triggerType: "cron",
+        input: "Process the most recent trigger event for this thread.",
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockCreateMessages).not.toHaveBeenCalled();
+  });
+
   it("persists assistant tool parts in AI SDK v6 format when stream finishes", async () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
 

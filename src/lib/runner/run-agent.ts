@@ -61,14 +61,16 @@ export async function runAgent(
   }
 
   try {
-    await createMessages(supabase, [
-      {
-        thread_id: threadId,
-        role: "user",
-        content: input,
-        parts: [{ type: "text", text: input }] as Json,
-      },
-    ]);
+    if (payload.triggerType !== "cron") {
+      await createMessages(supabase, [
+        {
+          thread_id: threadId,
+          role: "user",
+          content: input,
+          parts: [{ type: "text", text: input }] as Json,
+        },
+      ]);
+    }
 
     const { system, messages } = await assembleContext({
       supabase,

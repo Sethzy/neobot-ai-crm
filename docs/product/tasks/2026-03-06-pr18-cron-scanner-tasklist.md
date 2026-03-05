@@ -10,6 +10,21 @@
 
 **Prerequisite:** PR 15 (utility tools + context assembly) should be merged or close to merge. The runner engine, thread queue, and run lifecycle from earlier PRs are required.
 
+## Approved Clarifications
+
+These clarifications were approved after review. If any code snippet below conflicts with this section, this section wins.
+
+- Cron evaluation is **UTC-only in v1**. We do not add per-trigger timezone support in PR 18. `cron_expression` is interpreted in UTC and persisted in `TIMESTAMPTZ`.
+- Missed runs use **controlled catch-up**. The scanner computes the next schedule from the trigger's claimed `next_fire_at`, not from `new Date()`, so schedule math does not drift after delays. Only one occurrence is dispatched per scanner tick.
+- `next_fire_at` advances **only after successful dispatch**. A failed dispatch must not skip the missed occurrence.
+- Non-2xx responses from `/api/trigger/run` are failures. The scanner must record an error, release the claim with a failure status such as `dispatch_failed`, and leave the trigger eligible for retry on the next tick.
+- Malformed stored cron expressions are treated as configuration errors. The scanner should mark `last_status = 'invalid_cron'`, disable the trigger on first parse failure, release the claim, and continue scanning other rows.
+- Overlapping Vercel cron invocations rely on **per-trigger atomic claim** via `UPDATE ... RETURNING`. We do not add a global scan lock in PR 18.
+- Both cron routes must share one small auth helper for `CRON_SECRET` validation instead of duplicating header-check logic.
+- The executor must reuse the existing `createMessage()` helper from `src/lib/chat/messages.ts` instead of writing raw `conversation_messages` inserts inline.
+- `createAdminClient()` is required in `src/lib/supabase/server.ts` because the repo does not currently expose a service-role helper.
+- Tests should cover the approved failure paths, especially: dispatch non-2xx handling, `next_fire_at` advance-on-success-only, invalid cron disabling, internal route URL resolution, and the new admin client helper.
+
 ---
 
 ## Relevant Files
@@ -25,15 +40,19 @@
 - `src/lib/triggers/__tests__/executor.test.ts`
 - `src/lib/triggers/cron-utils.ts`
 - `src/lib/triggers/__tests__/cron-utils.test.ts`
+- `src/lib/triggers/route-auth.ts`
 - `app/api/cron/scan/route.ts`
 - `app/api/cron/scan/__tests__/route.test.ts`
 - `app/api/trigger/run/route.ts`
 - `app/api/trigger/run/__tests__/route.test.ts`
+- `src/lib/supabase/__tests__/server.test.ts`
+- `supabase/verification/pr18_trigger_rpc_contract_check.sql`
 
 ### Modify
 - `vercel.json` — add `crons` array
 - `src/types/database.ts` — targeted manual patch for `agent_triggers` table + new RPC types
 - `src/lib/runner/schemas.ts` — (if needed) verify `triggerType` enum includes `"cron"`
+- `src/lib/supabase/server.ts` — add `createAdminClient()` if missing
 
 ### Reference (do not modify)
 - `src/lib/runner/run-agent.ts` — runner engine entry point
@@ -284,7 +303,13 @@ git commit -m "feat(pr18): add trigger scanner RPC functions"
 - Create: `src/lib/triggers/cron-utils.ts`
 - Test: `src/lib/triggers/__tests__/cron-utils.test.ts`
 
-A utility to compute the next fire time from a cron expression. We'll use a small library (`cron-parser`) to parse standard 5-field cron expressions.
+A utility to compute the next fire time from a cron expression. We'll use `cron-parser` to parse standard 5-field cron expressions in **UTC**.
+
+**Approved execution notes:**
+- Validate 5-field expressions only. Reject 6-field expressions with seconds.
+- Use the current `cron-parser` API (`CronExpressionParser.parse(...)`) rather than older `parseExpression(...)` examples if the installed version requires it.
+- All parsing/computation must run in UTC.
+- `computeNextFireAt()` must accept a reference time so the scanner can anchor schedule math to the claimed due time instead of wall-clock now.
 
 **Step 1: Install cron-parser**
 
@@ -617,7 +642,15 @@ git commit -m "feat(pr18): add trigger Zod schemas with tests"
 - Create: `src/lib/triggers/scanner.ts`
 - Test: `src/lib/triggers/__tests__/scanner.test.ts`
 
-The scanner module: (1) claims due triggers via RPC, (2) computes + updates `next_fire_at` for each claimed trigger, (3) dispatches each to the execution endpoint, (4) reaps stale claims. This is pure business logic — the API route (Task 7) is a thin wrapper.
+The scanner module: (1) claims due triggers via RPC, (2) dispatches each claimed trigger to the execution endpoint, (3) advances `next_fire_at` only after successful dispatch, (4) releases failed claims deterministically, (5) reaps stale claims. This is pure business logic — the API route (Task 7) is a thin wrapper.
+
+**Approved execution notes:**
+- Compute the next schedule from the trigger's claimed `next_fire_at` value, not `new Date()`.
+- Treat `{ ok: false }` from dispatch the same as a thrown error.
+- On dispatch failure, call `release_trigger_claim(..., p_status := 'dispatch_failed')` so the row can retry on the next tick.
+- If cron parsing fails, update the row with `enabled = false` and `last_status = 'invalid_cron'`, release the claim, and continue processing the remaining triggers.
+- Only update `next_fire_at` after a successful dispatch.
+- Add tests for `dispatch()` returning `{ ok: false }`, invalid cron disabling, and anchoring schedule math to the stored due time.
 
 **Step 1: Write the failing tests**
 
@@ -968,7 +1001,12 @@ git commit -m "feat(pr18): add scanner business logic with tests"
 - Create: `src/lib/triggers/executor.ts`
 - Test: `src/lib/triggers/__tests__/executor.test.ts`
 
-The executor: (1) validates the dispatch payload claim still matches, (2) inserts a trigger-event system message into the thread (Tasklet XML format per TRIG-04), (3) calls `runAgent()` with `triggerType: "cron"`, (4) releases the claim on completion.
+The executor: (1) validates the dispatch payload claim still matches, (2) inserts a trigger-event system message into the thread using the existing message persistence helper, (3) calls `runAgent()` with `triggerType: "cron"`, (4) releases the claim on completion.
+
+**Approved execution notes:**
+- Reuse `createMessage()` from `src/lib/chat/messages.ts`.
+- Align the trigger event payload with the Tasklet cron reference: include `trigger_instance_id`, `trigger_type`, `fired_at`, `instruction_path`, and serialized payload content in the system message.
+- Add tests that verify XML escaping or equivalent safe serialization for trigger-controlled strings.
 
 **Step 1: Write the failing tests**
 
@@ -1287,6 +1325,11 @@ git commit -m "feat(pr18): add trigger executor with claim validation and tests"
 
 Thin HTTP wrapper around `runScan()`. Vercel cron hits this GET endpoint every 1 minute. Auth via `CRON_SECRET` environment variable (Vercel sets `Authorization: Bearer <secret>`).
 
+**Approved execution notes:**
+- Extract shared auth into `src/lib/triggers/route-auth.ts` and reuse it here and in `/api/trigger/run`.
+- Add route-level tests for internal URL resolution order: `NEXT_PUBLIC_APP_URL` first, then `VERCEL_URL`, and error if neither is present.
+- Non-2xx internal fetches from `dispatchTrigger()` must return `{ ok: false }`, not throw away response status information.
+
 **Step 1: Write the failing tests**
 
 ```typescript
@@ -1497,6 +1540,11 @@ git commit -m "feat(pr18): add /api/cron/scan route with tests"
 - Test: `app/api/trigger/run/__tests__/route.test.ts`
 
 POST endpoint called by the scanner. Validates the dispatch payload, delegates to `executeTrigger()`. Auth via same `CRON_SECRET` (internal-only route).
+
+**Approved execution notes:**
+- Reuse the same shared auth helper from Task 7.
+- Preserve the 409 response for claim mismatch.
+- Keep the route thin; business logic remains in `executeTrigger()`.
 
 **Step 1: Write the failing tests**
 
@@ -1728,7 +1776,7 @@ git commit -m "feat(pr18): add /api/trigger/run execution route with tests"
 
 **Step 1: Add cron schedule to vercel.json**
 
-Add the `crons` array to the existing config:
+Patch the existing config minimally. Do not rewrite unrelated keys; add only the `crons` array:
 
 ```json
 {
@@ -1867,6 +1915,11 @@ git commit -m "feat(pr18): add Vercel cron config and database type patch"
 
 The scanner and execution routes need a **service-role Supabase client** (admin client) because Vercel cron has no user session. Check if `createAdminClient()` already exists — if so, skip this task. If not, add it alongside the existing `createClient()`.
 
+**Approved execution notes:**
+- The current repo does **not** expose `createAdminClient()`, so plan to add it.
+- Reuse the existing environment resolution logic for Supabase URL where possible.
+- Add a focused Vitest file for this helper instead of leaving it untested.
+
 **Step 1: Check if `createAdminClient` exists**
 
 Read `src/lib/supabase/server.ts` and check for an admin client factory.
@@ -1888,16 +1941,16 @@ it("createAdminClient returns a client using service role key", async () => {
  * Creates a Supabase admin client using the service role key.
  * Bypasses RLS — use only in trusted server-side contexts (cron, webhooks).
  */
-export async function createAdminClient(): Promise<SupabaseClient> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+export async function createAdminClient(): Promise<SupabaseClient<Database>> {
+  const { supabaseUrl } = getSupabaseEnv();
+  const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
 
-  if (!supabaseUrl || !serviceRoleKey) {
+  if (!serviceRoleKey) {
     throw new Error("Missing Supabase admin credentials");
   }
 
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false },
+  return createSupabaseClient<Database>(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
   });
 }
 ```
@@ -1958,6 +2011,15 @@ npx vitest run
 
 Expected: All tests pass, including new trigger tests and existing runner/CRM/memory tests.
 
+Before the full run, also execute the new focused suites individually to prove RED/GREEN increments:
+- `src/lib/triggers/__tests__/cron-utils.test.ts`
+- `src/lib/triggers/__tests__/schemas.test.ts`
+- `src/lib/triggers/__tests__/scanner.test.ts`
+- `src/lib/triggers/__tests__/executor.test.ts`
+- `app/api/cron/scan/__tests__/route.test.ts`
+- `app/api/trigger/run/__tests__/route.test.ts`
+- `src/lib/supabase/__tests__/server.test.ts`
+
 **Step 2: Run linter**
 
 ```bash
@@ -1993,11 +2055,18 @@ Before marking PR 18 complete:
 - [ ] `release_trigger_claim` validates run_id before releasing (TRIG-02)
 - [ ] `/api/cron/scan` fires every 1 min via Vercel cron (TRIG-01)
 - [ ] Scanner dispatches to `/api/trigger/run` with correct payload (TRIG-05)
+- [ ] Scanner computes next schedule from the claimed due time, not wall-clock now
+- [ ] `next_fire_at` advances only after successful dispatch
+- [ ] Non-2xx dispatch releases the claim with a failure status and remains retryable
+- [ ] Invalid cron expressions disable the trigger and record `last_status = 'invalid_cron'`
 - [ ] Execution route validates claim before calling runner
-- [ ] Trigger event inserted as system message in Tasklet XML format (TRIG-04)
+- [ ] Trigger event inserted as system message via `createMessage()` in Tasklet-compatible trigger-event format (TRIG-04)
 - [ ] Runner called with `triggerType: "cron"` — reuses existing engine
 - [ ] Per-thread serialization respected — busy thread queues trigger (TRIG-06)
 - [ ] No double-execution: two scanner ticks cannot claim the same trigger
+- [ ] UTC-only cron evaluation is documented and covered by tests
+- [ ] Shared cron auth helper is used by both routes
+- [ ] `createAdminClient()` exists and is covered by tests
 - [ ] All tests pass (`npx vitest run`)
 - [ ] Lint clean (`npm run lint`)
 - [ ] Types clean (`npx tsc --noEmit`)
