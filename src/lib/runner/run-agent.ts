@@ -107,6 +107,7 @@ export async function runAgent(
       supabase,
       threadId,
       currentMessage: "",
+      clientId,
     });
     const crmTools = createCrmTools(supabase, clientId, {
       allowWriteTools: true,

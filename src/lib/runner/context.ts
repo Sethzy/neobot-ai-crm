@@ -6,6 +6,8 @@ import type { ModelMessage } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
+import { bootstrapMemoryFiles } from "@/lib/memory/bootstrap";
+import { loadMemoryContext } from "@/lib/memory/loader";
 import type { Database, Json } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
@@ -15,6 +17,7 @@ interface AssembleContextParams {
   supabase: ChatSupabaseClient;
   threadId: string;
   currentMessage: string;
+  clientId?: string;
 }
 
 interface AssembledContext {
@@ -49,6 +52,28 @@ function getTextFromParts(parts: Json | null): string {
     .join("\n");
 }
 
+function buildSystemPrompt(memory?: { soul: string; user: string; memory: string }): string {
+  if (!memory) {
+    return SYSTEM_PROMPT;
+  }
+
+  const sections = [SYSTEM_PROMPT];
+
+  if (memory.soul.length > 0) {
+    sections.push(`<soul>\n${memory.soul}\n</soul>`);
+  }
+
+  if (memory.user.length > 0) {
+    sections.push(`<user-profile>\n${memory.user}\n</user-profile>`);
+  }
+
+  if (memory.memory.length > 0) {
+    sections.push(`<working-memory>\n${memory.memory}\n</working-memory>`);
+  }
+
+  return sections.join("\n\n");
+}
+
 /**
  * Builds the runner context from persisted thread history plus the inbound message.
  */
@@ -56,7 +81,15 @@ export async function assembleContext({
   supabase,
   threadId,
   currentMessage,
+  clientId,
 }: AssembleContextParams): Promise<AssembledContext> {
+  let memoryContext: { soul: string; user: string; memory: string } | undefined;
+
+  if (clientId) {
+    await bootstrapMemoryFiles(supabase, clientId);
+    memoryContext = await loadMemoryContext(supabase, clientId);
+  }
+
   const { data, error } = await supabase
     .from("conversation_messages")
     .select("role, content, parts")
@@ -81,7 +114,7 @@ export async function assembleContext({
     : [];
 
   return {
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(memoryContext),
     messages: [
       ...historyMessages,
       ...currentMessageTurn,

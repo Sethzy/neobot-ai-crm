@@ -1,0 +1,117 @@
+/**
+ * Tests for memory bootstrap behavior.
+ * @module lib/memory/__tests__/bootstrap
+ */
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { bootstrapMemoryFiles } from "../bootstrap";
+import { DEFAULT_MEMORY_MD, DEFAULT_SOUL_MD, DEFAULT_USER_MD } from "../templates";
+
+const CLIENT_ID = "660e8400-e29b-41d4-a716-446655440000";
+
+function createDownloadPayload(content: string) {
+  return { text: vi.fn().mockResolvedValue(content) };
+}
+
+function createMockStorage() {
+  const mockDownload = vi.fn();
+  const mockUpload = vi.fn();
+  const mockFrom = vi.fn(() => ({
+    download: mockDownload,
+    upload: mockUpload,
+  }));
+
+  return {
+    client: { storage: { from: mockFrom } } as unknown as SupabaseClient,
+    mockDownload,
+    mockUpload,
+    mockFrom,
+  };
+}
+
+describe("bootstrapMemoryFiles", () => {
+  let mock: ReturnType<typeof createMockStorage>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mock = createMockStorage();
+  });
+
+  it("creates only files that are missing", async () => {
+    mock.mockDownload
+      .mockResolvedValueOnce({ data: createDownloadPayload("existing soul"), error: null })
+      .mockResolvedValueOnce({ data: null, error: { message: "Object not found" } })
+      .mockResolvedValueOnce({ data: null, error: { message: "Object not found" } });
+    mock.mockUpload.mockResolvedValue({ data: { path: "ok" }, error: null });
+
+    await bootstrapMemoryFiles(mock.client, CLIENT_ID);
+
+    expect(mock.mockUpload).toHaveBeenCalledTimes(2);
+    expect(mock.mockUpload).toHaveBeenCalledWith(
+      `${CLIENT_ID}/USER.md`,
+      DEFAULT_USER_MD,
+      { upsert: false, contentType: "text/plain; charset=utf-8" },
+    );
+    expect(mock.mockUpload).toHaveBeenCalledWith(
+      `${CLIENT_ID}/MEMORY.md`,
+      DEFAULT_MEMORY_MD,
+      { upsert: false, contentType: "text/plain; charset=utf-8" },
+    );
+  });
+
+  it("throws when storage read fails for a non-not-found error", async () => {
+    mock.mockDownload.mockResolvedValue({
+      data: null,
+      error: { message: "permission denied" },
+    });
+
+    await expect(bootstrapMemoryFiles(mock.client, CLIENT_ID)).rejects.toThrow(
+      "permission denied",
+    );
+    expect(mock.mockUpload).not.toHaveBeenCalled();
+  });
+
+  it("throws when bucket is not found", async () => {
+    mock.mockDownload.mockResolvedValue({
+      data: null,
+      error: { message: "Bucket not found" },
+    });
+
+    await expect(bootstrapMemoryFiles(mock.client, CLIENT_ID)).rejects.toThrow(
+      "Bucket not found",
+    );
+    expect(mock.mockUpload).not.toHaveBeenCalled();
+  });
+
+  it("throws when an upload fails", async () => {
+    mock.mockDownload
+      .mockResolvedValueOnce({ data: null, error: { message: "Object not found" } })
+      .mockResolvedValueOnce({ data: createDownloadPayload("existing user"), error: null })
+      .mockResolvedValueOnce({ data: createDownloadPayload("existing memory"), error: null });
+    mock.mockUpload.mockResolvedValueOnce({
+      data: null,
+      error: { message: "duplicate key value violates unique constraint" },
+    });
+
+    await expect(bootstrapMemoryFiles(mock.client, CLIENT_ID)).rejects.toThrow(
+      "Failed to bootstrap SOUL.md",
+    );
+    expect(mock.mockUpload).toHaveBeenCalledWith(
+      `${CLIENT_ID}/SOUL.md`,
+      DEFAULT_SOUL_MD,
+      { upsert: false, contentType: "text/plain; charset=utf-8" },
+    );
+  });
+
+  it("does nothing when all required files already exist", async () => {
+    mock.mockDownload
+      .mockResolvedValueOnce({ data: createDownloadPayload("existing soul"), error: null })
+      .mockResolvedValueOnce({ data: createDownloadPayload("existing user"), error: null })
+      .mockResolvedValueOnce({ data: createDownloadPayload("existing memory"), error: null });
+
+    await bootstrapMemoryFiles(mock.client, CLIENT_ID);
+
+    expect(mock.mockUpload).not.toHaveBeenCalled();
+  });
+});

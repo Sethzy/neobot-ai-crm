@@ -218,6 +218,7 @@ describe("runAgent", () => {
       supabase: "mock-supabase-client",
       threadId: validPayload.threadId,
       currentMessage: "",
+      clientId: validPayload.clientId,
     });
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -248,6 +249,7 @@ describe("runAgent", () => {
       supabase: "mock-supabase-client",
       threadId: validPayload.threadId,
       currentMessage: "",
+      clientId: validPayload.clientId,
     });
   });
 
