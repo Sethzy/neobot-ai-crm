@@ -9,6 +9,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChatPanel } from "./chat-panel";
 
+const { mockTransportConstructor } = vi.hoisted(() => ({
+  mockTransportConstructor: vi.fn(),
+}));
+
 vi.mock("react-markdown", () => ({
   default: ({ children }: { children: string }) => <div>{children}</div>,
 }));
@@ -26,8 +30,10 @@ vi.mock("ai", () => ({
   DefaultChatTransport: class {
     api: string | undefined;
 
-    constructor(options: { api?: string }) {
+    constructor(options: { api?: string; prepareSendMessagesRequest?: unknown }) {
+      mockTransportConstructor(options);
       this.api = options.api;
+      Object.assign(this, options);
     }
   },
 }));
@@ -76,6 +82,74 @@ describe("ChatPanel", () => {
     expect(options.id).toBe("thread-1");
     expect(options.messages).toEqual(initialMessages);
     expect(options.transport).toEqual(expect.objectContaining({ api: "/api/chat" }));
+  });
+
+  it("configures transport with prepareSendMessagesRequest", () => {
+    render(<ChatPanel chatId="thread-1" />);
+
+    const options = mockTransportConstructor.mock.calls[0][0] as {
+      api: string;
+      prepareSendMessagesRequest?: unknown;
+    };
+    expect(options.api).toBe("/api/chat");
+    expect(typeof options.prepareSendMessagesRequest).toBe("function");
+  });
+
+  it("prepareSendMessagesRequest sends only last user message for normal sends", () => {
+    render(<ChatPanel chatId="thread-1" />);
+
+    const options = mockTransportConstructor.mock.calls[0][0] as {
+      prepareSendMessagesRequest: (payload: { id: string; messages: UIMessage[] }) => {
+        body: Record<string, unknown>;
+      };
+    };
+
+    const result = options.prepareSendMessagesRequest({
+      id: "thread-1",
+      messages: [
+        { id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] } as UIMessage,
+      ],
+    });
+
+    expect(result.body.id).toBe("thread-1");
+    expect(result.body.message).toEqual({
+      id: "u1",
+      role: "user",
+      parts: [{ type: "text", text: "Hello" }],
+    });
+    expect(result.body.messages).toBeUndefined();
+  });
+
+  it("prepareSendMessagesRequest sends full messages for approval continuation", () => {
+    render(<ChatPanel chatId="thread-1" />);
+
+    const options = mockTransportConstructor.mock.calls[0][0] as {
+      prepareSendMessagesRequest: (payload: { id: string; messages: UIMessage[] }) => {
+        body: Record<string, unknown>;
+      };
+    };
+
+    const continuationMessages = [
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "tool-call", toolCallId: "t1", toolName: "write_file", args: {} }],
+      },
+      {
+        id: "u1",
+        role: "user",
+        parts: [{ type: "text", text: "Approve it" }, { type: "tool-write_file", state: "approval-responded" }],
+      },
+    ] as UIMessage[];
+
+    const result = options.prepareSendMessagesRequest({
+      id: "thread-1",
+      messages: continuationMessages,
+    });
+
+    expect(result.body.id).toBe("thread-1");
+    expect(result.body.messages).toEqual(continuationMessages);
+    expect(result.body.message).toBeUndefined();
   });
 
   it("sends trimmed text via sendMessage", async () => {

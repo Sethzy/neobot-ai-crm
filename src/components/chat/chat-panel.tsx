@@ -29,7 +29,28 @@ export function ChatPanel({
   initialMessage,
   onAutoName,
 }: ChatPanelProps) {
-  const transport = useMemo(() => new DefaultChatTransport({ api: "/api/chat" }), []);
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        prepareSendMessagesRequest({ id, messages }) {
+          const lastMessage = messages.at(-1);
+          const isToolApprovalContinuation = lastMessage?.role !== "user" || messages.some((message) =>
+            message.parts?.some((part) => {
+              const state = (part as { state?: string }).state;
+              return state === "approval-responded" || state === "output-denied";
+            })
+          );
+
+          return {
+            body: isToolApprovalContinuation
+              ? { id, messages }
+              : { id, message: lastMessage },
+          };
+        },
+      }),
+    [],
+  );
 
   const hasAutoNamed = useRef(false);
   const hasSentInitialMessage = useRef(false);

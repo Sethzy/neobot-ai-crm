@@ -108,6 +108,41 @@ describe("POST /api/chat", () => {
     expect(response).toBe(streamResponse);
   });
 
+  it("accepts message payload as a user UIMessage object", async () => {
+    const streamResponse = new Response("streamed", {
+      headers: { "Content-Type": "text/event-stream" },
+    });
+    const mockStreamResult = {
+      toUIMessageStreamResponse: vi.fn(() => streamResponse),
+    };
+    mockRunAgent.mockResolvedValue({
+      status: "streaming",
+      streamResult: mockStreamResult,
+    });
+
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Hello from message payload" }],
+        },
+      }),
+    );
+
+    expect(mockRunAgent).toHaveBeenCalledWith(
+      {
+        clientId: "client-456",
+        threadId,
+        triggerType: "chat",
+        input: "Hello from message payload",
+      },
+      mockSupabase,
+    );
+    expect(response).toBe(streamResponse);
+  });
+
   it("returns 202 queued when runner cannot acquire thread lock", async () => {
     mockRunAgent.mockResolvedValue({ status: "queued" });
 
@@ -131,8 +166,24 @@ describe("POST /api/chat", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({
-      error: "Invalid request body: id (thread id) is required.",
+      error: "Invalid request body.",
     });
+    expect(mockRunAgent).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when only legacy threadId is sent", async () => {
+    const response = await POST(
+      createJsonRequest({
+        threadId,
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Hello" }],
+        },
+      }),
+    );
+
+    expect(response.status).toBe(400);
     expect(mockRunAgent).not.toHaveBeenCalled();
   });
 
@@ -211,7 +262,7 @@ describe("POST /api/chat", () => {
     );
 
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "Invalid JSON payload." });
+    expect(await response.json()).toEqual({ error: "Invalid request body." });
   });
 
   it("returns 500 when AI gateway key is missing", async () => {
@@ -240,7 +291,7 @@ describe("POST /api/chat", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({
-      error: "Invalid request body: thread id must be a UUID.",
+      error: "Invalid request body.",
     });
     expect(mockRunAgent).not.toHaveBeenCalled();
   });

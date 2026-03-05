@@ -3,23 +3,14 @@
  * @module app/api/chat/route
  */
 import type { UIMessage } from "ai";
-import { z } from "zod";
 
 import { resolveClientId } from "@/lib/chat/client-id";
 import { runAgent } from "@/lib/runner/run-agent";
 import { createClient } from "@/lib/supabase/server";
+import { type PostRequestBody, postRequestBodySchema } from "./schema";
 
 /** Allows longer streaming runs on Vercel functions. */
 export const maxDuration = 60;
-
-interface ChatRequestBody {
-  id?: string;
-  threadId?: string;
-  message?: string;
-  messages?: UIMessage[];
-}
-
-const threadIdSchema = z.string().uuid();
 
 function jsonError(message: string, status: number): Response {
   return Response.json({ error: message }, { status });
@@ -69,29 +60,17 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError("Server misconfiguration: AI_GATEWAY_API_KEY is required.", 500);
   }
 
-  let body: ChatRequestBody;
+  let body: PostRequestBody;
   try {
-    body = await request.json();
+    body = postRequestBodySchema.parse(await request.json());
   } catch {
-    return jsonError("Invalid JSON payload.", 400);
+    return jsonError("Invalid request body.", 400);
   }
 
-  const threadId = typeof body.id === "string" && body.id.length > 0
-    ? body.id
-    : typeof body.threadId === "string" && body.threadId.length > 0
-      ? body.threadId
-      : null;
+  const threadId = body.id;
 
-  if (!threadId) {
-    return jsonError("Invalid request body: id (thread id) is required.", 400);
-  }
-
-  if (!threadIdSchema.safeParse(threadId).success) {
-    return jsonError("Invalid request body: thread id must be a UUID.", 400);
-  }
-
-  const input = typeof body.message === "string" && body.message.trim().length > 0
-    ? body.message.trim()
+  const input = body.message
+    ? getTextFromMessage(body.message as UIMessage)
     : getLatestUserInput(body.messages);
 
   if (!input) {
