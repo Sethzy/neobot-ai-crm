@@ -22,6 +22,7 @@ describe("createUtilityTools", () => {
       "manage_todo",
       "rename_chat",
       "run_agent_memory_sql",
+      "send_message",
     ]);
   });
 

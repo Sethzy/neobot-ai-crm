@@ -12,8 +12,8 @@ import {
 } from "../schemas";
 
 describe("triggerTypeValues", () => {
-  it("includes schedule, webhook, and rss", () => {
-    expect(triggerTypeValues).toEqual(["schedule", "webhook", "rss"]);
+  it("includes schedule, webhook, rss, and pulse", () => {
+    expect(triggerTypeValues).toEqual(["schedule", "webhook", "rss", "pulse"]);
   });
 });
 
@@ -72,6 +72,7 @@ describe("triggerDispatchPayloadSchema", () => {
     clientId: "660e8400-e29b-41d4-a716-446655440000",
     threadId: "770e8400-e29b-41d4-a716-446655440000",
     currentRunId: "880e8400-e29b-41d4-a716-446655440000",
+    triggerType: "schedule",
     triggerName: "Daily briefing",
     instructionPath: "state/triggers/daily-briefing.md",
     triggerPayload: { source: "cron" },
@@ -89,6 +90,13 @@ describe("triggerDispatchPayloadSchema", () => {
     expect(triggerDispatchPayloadSchema.safeParse(missingTriggerId).success).toBe(false);
   });
 
+  it("rejects a payload missing triggerType", () => {
+    const missingTriggerType = { ...validPayload };
+    delete missingTriggerType.triggerType;
+
+    expect(triggerDispatchPayloadSchema.safeParse(missingTriggerType).success).toBe(false);
+  });
+
   it("rejects an invalid nextFireAt timestamp", () => {
     expect(
       triggerDispatchPayloadSchema.safeParse({
@@ -96,6 +104,16 @@ describe("triggerDispatchPayloadSchema", () => {
         nextFireAt: "tomorrow morning",
       }).success,
     ).toBe(false);
+  });
+
+  it("accepts pulse dispatch payloads", () => {
+    expect(
+      triggerDispatchPayloadSchema.safeParse({
+        ...validPayload,
+        triggerType: "pulse",
+        instructionPath: "autopilot/pulse",
+      }).success,
+    ).toBe(true);
   });
 });
 

@@ -25,6 +25,7 @@ const validBody = {
   clientId: "660e8400-e29b-41d4-a716-446655440000",
   threadId: "770e8400-e29b-41d4-a716-446655440000",
   currentRunId: "880e8400-e29b-41d4-a716-446655440000",
+  triggerType: "schedule",
   triggerName: "Daily briefing",
   instructionPath: "state/triggers/daily-briefing.md",
   triggerPayload: {},

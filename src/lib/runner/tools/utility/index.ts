@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 
 import { createRenameChatTool } from "./rename-chat";
+import { createSendMessageTool } from "./send-message";
 import { createSqlTools } from "./sql";
 import { createTodoTools } from "./todo";
 
@@ -20,11 +21,13 @@ export function createUtilityTools(
 ) {
   const todoTools = createTodoTools(supabase, clientId, threadId);
   const renameChatTool = createRenameChatTool(supabase, clientId, threadId);
+  const sendMessageTool = createSendMessageTool();
   const sqlTools = createSqlTools(supabase);
 
   return {
     ...todoTools,
     ...renameChatTool,
+    ...sendMessageTool,
     ...sqlTools,
   };
 }

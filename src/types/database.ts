@@ -844,6 +844,47 @@ export type Database = {
           },
         ]
       }
+      autopilot_config: {
+        Row: {
+          client_id: string
+          config_id: string
+          created_at: string
+          enabled: boolean
+          pulse_interval: string
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          config_id?: string
+          created_at?: string
+          enabled?: boolean
+          pulse_interval?: string
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          config_id?: string
+          created_at?: string
+          enabled?: boolean
+          pulse_interval?: string
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "autopilot_config_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
       conversation_threads: {
         Row: {
           client_id: string

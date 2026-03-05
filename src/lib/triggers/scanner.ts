@@ -4,6 +4,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { isInQuietHours } from "@/lib/autopilot/quiet-hours";
 import type { Database } from "@/types/database";
 
 import { computeNextFireAt, InvalidCronExpressionError } from "./cron-utils";
@@ -28,18 +29,21 @@ export interface ScanDependencies {
     status: number;
     error?: string;
   }>;
+  now?: Date;
 }
 
 async function releaseClaim(
   supabase: TriggerSupabaseClient,
   trigger: TriggerRow,
   status: string,
+  nextFireAt?: string,
 ): Promise<void> {
   if (!trigger.current_run_id) {
     throw new Error(`Claimed trigger ${trigger.id} is missing current_run_id.`);
   }
 
   const { data, error } = await supabase.rpc("release_trigger_claim", {
+    p_next_fire_at: nextFireAt ?? null,
     p_trigger_id: trigger.id,
     p_run_id: trigger.current_run_id,
     p_status: status,
@@ -88,6 +92,26 @@ async function claimDueTriggers(supabase: TriggerSupabaseClient): Promise<Trigge
   return triggerRowSchema.array().parse(data ?? []);
 }
 
+async function fetchAutopilotConfig(
+  supabase: TriggerSupabaseClient,
+  clientId: string,
+): Promise<{
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
+} | null> {
+  const { data, error } = await supabase
+    .from("autopilot_config")
+    .select("quiet_hours_start, quiet_hours_end")
+    .eq("client_id", clientId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load autopilot config: ${error.message}`);
+  }
+
+  return data;
+}
+
 function buildDispatchPayload(trigger: TriggerRow): TriggerDispatchPayload {
   if (!trigger.current_run_id) {
     throw new Error("Claimed trigger is missing current_run_id");
@@ -98,6 +122,7 @@ function buildDispatchPayload(trigger: TriggerRow): TriggerDispatchPayload {
     clientId: trigger.client_id,
     threadId: trigger.thread_id,
     currentRunId: trigger.current_run_id,
+    triggerType: trigger.trigger_type,
     triggerName: trigger.name,
     instructionPath: trigger.instruction_path,
     triggerPayload: trigger.payload,
@@ -127,7 +152,11 @@ function isInvalidCronError(error: unknown): boolean {
 /**
  * Runs one scanner tick against all due triggers.
  */
-export async function runScan({ supabase, dispatch }: ScanDependencies): Promise<ScanResult> {
+export async function runScan({
+  supabase,
+  dispatch,
+  now = new Date(),
+}: ScanDependencies): Promise<ScanResult> {
   const staleReleased = await reapStaleClaims(supabase);
   const claimedTriggers = await claimDueTriggers(supabase);
   const errors: string[] = [];
@@ -135,7 +164,7 @@ export async function runScan({ supabase, dispatch }: ScanDependencies): Promise
 
   for (const trigger of claimedTriggers) {
     try {
-      if (trigger.trigger_type === "schedule") {
+      if (trigger.trigger_type === "schedule" || trigger.trigger_type === "pulse") {
         if (!trigger.cron_expression || !trigger.current_run_id || !trigger.next_fire_at) {
           throw new InvalidCronExpressionError("Trigger is missing cron scheduling fields.");
         }
@@ -144,6 +173,28 @@ export async function runScan({ supabase, dispatch }: ScanDependencies): Promise
           trigger.cron_expression,
           new Date(trigger.next_fire_at),
         );
+
+        if (trigger.trigger_type === "pulse") {
+          const autopilotConfig = await fetchAutopilotConfig(supabase, trigger.client_id);
+
+          if (
+            autopilotConfig &&
+            isInQuietHours({
+              quietHoursStart: autopilotConfig.quiet_hours_start,
+              quietHoursEnd: autopilotConfig.quiet_hours_end,
+              now,
+            })
+          ) {
+            await releaseClaim(
+              supabase,
+              trigger,
+              "skipped_quiet_hours",
+              nextFireAt.toISOString(),
+            );
+            continue;
+          }
+        }
+
         const dispatchResult = await dispatch({
           ...buildDispatchPayload(trigger),
           nextFireAt: nextFireAt.toISOString(),

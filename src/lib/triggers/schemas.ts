@@ -7,7 +7,7 @@ import { z } from "zod";
 const jsonObjectSchema = z.record(z.string(), z.unknown());
 
 /** Supported trigger types for the `agent_triggers` table. */
-export const triggerTypeValues = ["schedule", "webhook", "rss"] as const;
+export const triggerTypeValues = ["schedule", "webhook", "rss", "pulse"] as const;
 
 /** Validates one `agent_triggers` row returned from Supabase. */
 export const triggerRowSchema = z.object({
@@ -34,6 +34,7 @@ export const triggerDispatchPayloadSchema = z.object({
   clientId: z.string().uuid(),
   threadId: z.string().uuid(),
   currentRunId: z.string().uuid(),
+  triggerType: z.enum(triggerTypeValues),
   triggerName: z.string().min(1),
   instructionPath: z.string().min(1),
   triggerPayload: jsonObjectSchema.default({}),

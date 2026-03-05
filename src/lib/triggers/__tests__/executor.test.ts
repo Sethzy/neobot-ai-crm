@@ -8,14 +8,20 @@ import type { TriggerDispatchPayload } from "../schemas";
 
 const {
   mockRunAgent,
+  mockRunAutopilot,
   mockCreateMessage,
 } = vi.hoisted(() => ({
   mockRunAgent: vi.fn(),
+  mockRunAutopilot: vi.fn(),
   mockCreateMessage: vi.fn(),
 }));
 
 vi.mock("@/lib/runner/run-agent", () => ({
   runAgent: mockRunAgent,
+}));
+
+vi.mock("@/lib/runner/run-autopilot", () => ({
+  runAutopilot: mockRunAutopilot,
 }));
 
 vi.mock("@/lib/chat/messages", () => ({
@@ -49,6 +55,7 @@ const validPayload: TriggerDispatchPayload = {
   clientId: "660e8400-e29b-41d4-a716-446655440000",
   threadId: "770e8400-e29b-41d4-a716-446655440000",
   currentRunId: "880e8400-e29b-41d4-a716-446655440000",
+  triggerType: "schedule",
   triggerName: "Daily <briefing> & sync",
   instructionPath: "state/triggers/daily-briefing.md",
   triggerPayload: { source: "cron" },
@@ -59,6 +66,7 @@ describe("executeTrigger", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRunAgent.mockResolvedValue({ status: "streaming" });
+    mockRunAutopilot.mockResolvedValue({ status: "completed" });
     mockCreateMessage.mockResolvedValue({ message_id: "msg-001" });
   });
 
@@ -174,5 +182,62 @@ describe("executeTrigger", () => {
       p_status: "completed",
     });
     expect(result).toEqual({ status: "completed" });
+  });
+
+  it("routes pulse triggers to runAutopilot without persisting a trigger-event system message", async () => {
+    const supabase = createMockSupabase();
+    supabase.selectChain.single.mockResolvedValue({
+      data: { id: validPayload.triggerId, current_run_id: validPayload.currentRunId },
+      error: null,
+    });
+    supabase.rpc.mockResolvedValue({ data: true, error: null });
+
+    const result = await executeTrigger({
+      supabase: supabase as never,
+      payload: {
+        ...validPayload,
+        triggerType: "pulse",
+        triggerName: "Autopilot Pulse",
+        instructionPath: "autopilot/pulse",
+      },
+    });
+
+    expect(mockCreateMessage).not.toHaveBeenCalled();
+    expect(mockRunAgent).not.toHaveBeenCalled();
+    expect(mockRunAutopilot).toHaveBeenCalledWith({
+      clientId: validPayload.clientId,
+      threadId: validPayload.threadId,
+      supabase: supabase as never,
+    });
+    expect(result).toEqual({ status: "completed" });
+  });
+
+  it("marks pulse triggers as skipped_busy when the autopilot thread lock is already held", async () => {
+    const supabase = createMockSupabase();
+    supabase.selectChain.single.mockResolvedValue({
+      data: { id: validPayload.triggerId, current_run_id: validPayload.currentRunId },
+      error: null,
+    });
+    supabase.rpc.mockResolvedValue({ data: true, error: null });
+    mockRunAutopilot.mockResolvedValueOnce({ status: "skipped_busy" });
+
+    const result = await executeTrigger({
+      supabase: supabase as never,
+      payload: {
+        ...validPayload,
+        triggerType: "pulse",
+        triggerName: "Autopilot Pulse",
+        instructionPath: "autopilot/pulse",
+        nextFireAt: "2026-03-06T12:00:00.000Z",
+      },
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
+      p_next_fire_at: "2026-03-06T12:00:00.000Z",
+      p_trigger_id: validPayload.triggerId,
+      p_run_id: validPayload.currentRunId,
+      p_status: "skipped_thread_busy",
+    });
+    expect(result).toEqual({ status: "skipped_busy" });
   });
 });
