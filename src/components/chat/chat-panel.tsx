@@ -7,12 +7,11 @@
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useChat } from "@ai-sdk/react";
 import { AlertCircle } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useMemo } from "react";
 
 import { useAutoResume } from "@/hooks/use-auto-resume";
 import { ChatComposer } from "./chat-composer";
 import { useDataStream } from "./data-stream-provider";
-import { getMessageText } from "./message-content";
 import { MessageList } from "./message-list";
 
 interface ChatPanelProps {
@@ -21,15 +20,12 @@ interface ChatPanelProps {
   initialMessages?: UIMessage[];
   /** Enables one-time stream resumption for existing threads. */
   autoResume?: boolean;
-  /** Called once with the first user message text for auto-naming new threads. */
-  onAutoName?: (firstUserMessage: string) => void;
 }
 
 export function ChatPanel({
   chatId,
   initialMessages = [],
   autoResume = false,
-  onAutoName,
 }: ChatPanelProps) {
   const { setDataStream } = useDataStream();
   const transport = useMemo(
@@ -55,27 +51,12 @@ export function ChatPanel({
     [],
   );
 
-  const hasAutoNamed = useRef(false);
-
-  useEffect(() => {
-    hasAutoNamed.current = initialMessages.some((message) => message.role === "user");
-  }, [chatId, initialMessages]);
-
   const { messages, sendMessage, status, error, resumeStream, setMessages } = useChat({
     id: chatId,
     messages: initialMessages,
     transport,
     onData: (dataPart) => {
       setDataStream((currentParts) => (currentParts ? [...currentParts, dataPart] : [dataPart]));
-    },
-    onFinish: async ({ messages: finishedMessages }) => {
-      if (!hasAutoNamed.current && onAutoName) {
-        const firstUserMsg = finishedMessages.find((message) => message.role === "user");
-        if (firstUserMsg) {
-          hasAutoNamed.current = true;
-          onAutoName(getMessageText(firstUserMsg));
-        }
-      }
     },
   });
 

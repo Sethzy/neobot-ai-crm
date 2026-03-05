@@ -37,7 +37,23 @@ function getTextFromMessage(message: UIMessage): string | null {
   return text.length > 0 ? text : null;
 }
 
-function getLatestUserInput(messages: UIMessage[] | undefined): string | null {
+function getTextFromUnknownParts(parts: unknown[]): string | null {
+  const text = parts
+    .filter((part): part is { type: string; text?: unknown } =>
+      typeof part === "object" && part !== null && "type" in part
+    )
+    .filter((part): part is { type: "text"; text: string } =>
+      part.type === "text" && typeof part.text === "string"
+    )
+    .map((part) => part.text.trim())
+    .filter((part) => part.length > 0)
+    .join("\n")
+    .trim();
+
+  return text.length > 0 ? text : null;
+}
+
+function getLatestUserInput(messages: PostRequestBody["messages"]): string | null {
   if (!Array.isArray(messages) || messages.length === 0) {
     return null;
   }
@@ -48,7 +64,7 @@ function getLatestUserInput(messages: UIMessage[] | undefined): string | null {
       continue;
     }
 
-    const text = getTextFromMessage(message);
+    const text = getTextFromUnknownParts(message.parts);
     if (text) {
       return text;
     }
