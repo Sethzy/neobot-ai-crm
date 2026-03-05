@@ -10,7 +10,14 @@ import { fetchWithTimeout, isAbortError } from "./fetch-with-timeout";
 const BRAVE_SEARCH_URL = "https://api.search.brave.com/res/v1/web/search";
 const DEFAULT_RESULT_LIMIT = 10;
 const MAX_RESULT_LIMIT = 20;
-const DEFAULT_COUNTRY = "SG";
+
+/** Country codes accepted by Brave Search's `country` parameter. */
+const BRAVE_SUPPORTED_COUNTRIES = new Set([
+  "ALL", "AR", "AU", "AT", "BE", "BR", "CA", "CL", "CN", "DK", "FI", "FR",
+  "DE", "GR", "HK", "IN", "ID", "IT", "JP", "KR", "MY", "MX", "NL", "NZ",
+  "NO", "PH", "PL", "PT", "RU", "SA", "ZA", "ES", "SE", "CH", "TW", "TR",
+  "GB", "US",
+]);
 
 const tbsToFreshnessMap: Record<string, string> = {
   // Brave has no past-hour mode; use past-day as the nearest equivalent.
@@ -62,7 +69,7 @@ export function createSearchTool() {
         .string()
         .optional()
         .describe(
-          'Geographic location for results as country code. Examples: "SG", "US", "GB". Defaults to "SG".',
+          'Country code to target results. Supported: AR, AU, AT, BE, BR, CA, CL, CN, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, PH, PL, PT, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US. Omit for global results.',
         ),
       tbs: z
         .string()
@@ -84,7 +91,12 @@ export function createSearchTool() {
           ? DEFAULT_RESULT_LIMIT
           : Math.min(Math.max(Math.trunc(limit), 1), MAX_RESULT_LIMIT);
       params.set("count", String(resultLimit));
-      params.set("country", location ?? DEFAULT_COUNTRY);
+
+      // Only send country when Brave actually supports the code; omit for global results.
+      const country = location?.toUpperCase();
+      if (country && BRAVE_SUPPORTED_COUNTRIES.has(country)) {
+        params.set("country", country);
+      }
 
       const freshness = mapTbsToFreshness(tbs);
       if (freshness) {

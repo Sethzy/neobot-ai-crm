@@ -9,6 +9,8 @@ import { fetchWithTimeout, isAbortError } from "./fetch-with-timeout";
 
 const EXA_CONTENTS_URL = "https://api.exa.ai/contents";
 const MAX_TEXT_CHARACTERS = 10_000;
+/** Timeout (ms) for Exa livecrawl before falling back to cache. */
+const LIVECRAWL_TIMEOUT_MS = 30_000;
 
 interface ExaContentResult {
   url?: string;
@@ -67,6 +69,8 @@ export function createScrapeTool() {
           body: JSON.stringify({
             urls: [url],
             text: { maxCharacters: MAX_TEXT_CHARACTERS },
+            livecrawl: "preferred",
+            livecrawlTimeout: LIVECRAWL_TIMEOUT_MS,
           }),
         });
 
