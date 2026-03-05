@@ -9,9 +9,29 @@ import { z } from "zod";
 import { contactTypeValues } from "@/lib/crm/schemas";
 import type { Database } from "@/types/database";
 
-import { buildSearchExpression, DEFAULT_CRM_RESULT_LIMIT } from "./filter-utils";
+import { buildIlikePattern, buildSearchExpression, DEFAULT_CRM_RESULT_LIMIT } from "./filter-utils";
 
 const CONTACT_SEARCH_COLUMNS = ["first_name", "last_name", "email", "phone"];
+
+/**
+ * Searches for existing contacts matching first_name AND last_name (case-insensitive).
+ * Returns matched rows or `null` on query error (best-effort — callers should fall through on null).
+ */
+async function findDuplicateContacts(
+  supabase: SupabaseClient<Database>,
+  firstName: string,
+  lastName: string,
+): Promise<unknown[] | null> {
+  const { data, error } = await supabase
+    .from("contacts")
+    .select("*")
+    .ilike("first_name", buildIlikePattern(firstName))
+    .ilike("last_name", buildIlikePattern(lastName))
+    .limit(10);
+
+  if (error) return null;
+  return data ?? [];
+}
 
 /**
  * Creates contact-related CRM tools.
@@ -70,7 +90,9 @@ export function createContactTools(
 
   const create_contact = tool({
     description:
-      "Create a new contact. Use search_contacts first to avoid duplicates. " +
+      "Create a new contact. Has built-in duplicate detection — if a contact with a matching name already exists, " +
+      "returns possible_duplicates instead of creating. Review the candidates and use update_contact on the existing " +
+      "record, or re-call with force_create: true to override. " +
       "Data Modification Warning: Only create contacts when the user has explicitly asked to do so.",
     inputSchema: z.object({
       first_name: z.string().min(1).describe("Contact first name."),
@@ -79,8 +101,22 @@ export function createContactTools(
       phone: z.string().min(1).optional().describe("Contact phone number."),
       type: z.enum(contactTypeValues).optional().describe("Contact classification (buyer, seller, landlord, tenant, agent, other). Defaults to 'other'."),
       notes: z.string().optional().describe("Free-form contact notes."),
+      force_create: z.boolean().optional().describe("Set to true to skip duplicate detection and create the contact regardless."),
     }),
-    execute: async ({ first_name, last_name, email, phone, type, notes }) => {
+    execute: async ({ first_name, last_name, email, phone, type, notes, force_create }) => {
+      // Dedup check (best-effort — search failure falls through to insert)
+      if (!force_create) {
+        const duplicates = await findDuplicateContacts(supabase, first_name, last_name);
+        if (duplicates && duplicates.length > 0) {
+          return {
+            success: false as const,
+            reason: "possible_duplicates" as const,
+            possible_duplicates: duplicates,
+            message: `Found ${duplicates.length} existing contact(s) matching "${first_name} ${last_name}". Review and use update_contact, or re-call with force_create: true.`,
+          };
+        }
+      }
+
       const { data, error } = await supabase
         .from("contacts")
         .insert({
@@ -150,8 +186,9 @@ export function createContactTools(
 
   const batch_create_contacts = tool({
     description:
-      "Create multiple contacts in a single call. Use this for bulk imports (e.g., CSV, spreadsheet). " +
-      "Use search_contacts first to check for duplicates. " +
+      "Create multiple contacts in a single call. Has built-in duplicate detection — checks for intra-batch " +
+      "duplicates (same name appearing twice) and existing records with matching names. If any duplicates found, " +
+      "returns possible_duplicates for all entries without inserting. Use force_create: true to override. " +
       "Data Modification Warning: Only create contacts when the user has explicitly asked to do so.",
     inputSchema: z.object({
       contacts: z
@@ -168,8 +205,50 @@ export function createContactTools(
         .min(1)
         .max(50)
         .describe("Array of contacts to create (1-50 per call)."),
+      force_create: z.boolean().optional().describe("Set to true to skip duplicate detection for the entire batch."),
     }),
-    execute: async ({ contacts }) => {
+    execute: async ({ contacts, force_create }) => {
+      if (!force_create) {
+        // Check intra-batch duplicates (same first+last name appears twice)
+        const nameKeys = contacts.map((c) => `${c.first_name.toLowerCase()}|${c.last_name.toLowerCase()}`);
+        const seen = new Set<string>();
+        const intraDupes: string[] = [];
+        for (const key of nameKeys) {
+          if (seen.has(key)) {
+            intraDupes.push(key);
+          }
+          seen.add(key);
+        }
+
+        if (intraDupes.length > 0) {
+          const dupeNames = [...new Set(intraDupes)].map((k) => k.replace("|", " "));
+          return {
+            success: false as const,
+            reason: "possible_duplicates" as const,
+            possible_duplicates: [],
+            message: `Intra-batch duplicates detected: ${dupeNames.join(", ")}. Remove duplicates or use force_create: true.`,
+          };
+        }
+
+        // Check each entry against existing records
+        const allDuplicates: Array<{ input: { first_name: string; last_name: string }; existing: unknown[] }> = [];
+        for (const contact of contacts) {
+          const duplicates = await findDuplicateContacts(supabase, contact.first_name, contact.last_name);
+          if (duplicates && duplicates.length > 0) {
+            allDuplicates.push({ input: { first_name: contact.first_name, last_name: contact.last_name }, existing: duplicates });
+          }
+        }
+
+        if (allDuplicates.length > 0) {
+          return {
+            success: false as const,
+            reason: "possible_duplicates" as const,
+            possible_duplicates: allDuplicates,
+            message: `Found existing contacts matching ${allDuplicates.length} entries. Review and use update_contact, or re-call with force_create: true.`,
+          };
+        }
+      }
+
       const rows = contacts.map((c) => ({
         client_id: clientId,
         first_name: c.first_name,

@@ -4,6 +4,20 @@
  */
 
 /**
+ * Returns a raw `%escaped%` pattern for use with `.ilike()` builder calls.
+ * Escapes LIKE wildcards but does NOT add PostgREST quoting.
+ */
+export function buildIlikePattern(searchText: string): string {
+  const normalized = searchText.trim().replace(/\s+/g, " ");
+  const escaped = normalized
+    .replace(/\\/g, "\\\\")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_");
+
+  return `%${escaped}%`;
+}
+
+/**
  * Returns a quoted PostgREST literal for a case-insensitive contains search.
  * Escapes LIKE wildcards and wraps in PostgREST-quoted `"%…%"` format.
  */

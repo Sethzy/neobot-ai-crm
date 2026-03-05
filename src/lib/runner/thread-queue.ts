@@ -2,8 +2,11 @@
  * Data access helpers for thread-level queueing.
  * @module lib/runner/thread-queue
  */
-import type { AppSupabaseClient } from "@/lib/supabase/types";
-import type { Json } from "@/types/database";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import type { Database, Json } from "@/types/database";
+
+type ChatSupabaseClient = SupabaseClient<Database>;
 
 export interface EnqueueMessageInput {
   threadId: string;
@@ -39,7 +42,7 @@ function extractText(content: Json): string {
  * Inserts one queued message record for a busy thread.
  */
 export async function enqueueMessage(
-  supabase: AppSupabaseClient,
+  supabase: ChatSupabaseClient,
   { threadId, clientId, content, channel = "web" }: EnqueueMessageInput,
 ): Promise<void> {
   const { error } = await supabase.from("thread_queue_records").insert({
@@ -58,7 +61,7 @@ export async function enqueueMessage(
  * Atomically drains queue rows and returns plain-text payloads in order.
  */
 export async function drainQueue(
-  supabase: AppSupabaseClient,
+  supabase: ChatSupabaseClient,
   { threadId, clientId }: QueueScope,
 ): Promise<string[]> {
   const { data, error } = await supabase.rpc("drain_thread_queue", {
@@ -78,7 +81,7 @@ export async function drainQueue(
  * Fast existence check for pending queue rows.
  */
 export async function hasQueuedMessages(
-  supabase: AppSupabaseClient,
+  supabase: ChatSupabaseClient,
   { threadId, clientId }: QueueScope,
 ): Promise<boolean> {
   const { data, error } = await supabase

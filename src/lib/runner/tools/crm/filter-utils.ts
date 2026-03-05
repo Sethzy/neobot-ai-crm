@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 
-export { buildContainsIlikeLiteral, buildSearchExpression } from "@/lib/crm/postgrest-filters";
+export { buildContainsIlikeLiteral, buildIlikePattern, buildSearchExpression } from "@/lib/crm/postgrest-filters";
 
 /** Default max results for CRM search tools. */
 export const DEFAULT_CRM_RESULT_LIMIT = 20;

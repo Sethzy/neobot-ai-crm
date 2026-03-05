@@ -217,7 +217,7 @@ describe("runAgent", () => {
     expect(mockAssembleContext).toHaveBeenCalledWith({
       supabase: "mock-supabase-client",
       threadId: validPayload.threadId,
-      currentMessage: validPayload.input,
+      currentMessage: "",
     });
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -247,7 +247,7 @@ describe("runAgent", () => {
     expect(mockAssembleContext).toHaveBeenCalledWith({
       supabase: "mock-supabase-client",
       threadId: validPayload.threadId,
-      currentMessage: validPayload.input,
+      currentMessage: "",
     });
   });
 

@@ -3,20 +3,21 @@
  * @module lib/runner/run-agent
  */
 import { stepCountIs, streamText } from "ai";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
 import { createMessages } from "@/lib/chat/messages";
 import { assembleContext } from "@/lib/runner/context";
 import { drainAndContinue } from "@/lib/runner/drain-and-continue";
-import { extractTextContent } from "@/lib/runner/message-utils";
 import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
 import type { RunnerPayload } from "@/lib/runner/schemas";
 import { createCrmTools, createStorageTools, createWebTools } from "@/lib/runner/tools";
 import { enqueueMessage } from "@/lib/runner/thread-queue";
-import type { AppSupabaseClient } from "@/lib/supabase/types";
-import type { Json } from "@/types/database";
+import type { Database, Json } from "@/types/database";
 
 const MAX_STEPS_TIER_1 = 8;
 
+type ChatSupabaseClient = SupabaseClient<Database>;
 type RunnerTools = ReturnType<typeof createCrmTools> &
   ReturnType<typeof createStorageTools> &
   ReturnType<typeof createWebTools>;
@@ -24,6 +25,27 @@ type StreamResult = ReturnType<typeof streamText<RunnerTools>>;
 
 function createTextParts(text: string): Json {
   return [{ type: "text", text }];
+}
+
+function extractTextFromMessageContent(content: unknown): string {
+  if (typeof content === "string") {
+    return content.trim();
+  }
+
+  if (!Array.isArray(content)) {
+    return "";
+  }
+
+  return content
+    .filter(
+      (part): part is { type: string; text?: string } =>
+        typeof part === "object" && part !== null && "type" in part,
+    )
+    .filter((part) => part.type === "text" && typeof part.text === "string")
+    .map((part) => String(part.text).trim())
+    .filter((part) => part.length > 0)
+    .join("\n")
+    .trim();
 }
 
 function getAssistantRowsFromResponseMessages(
@@ -41,7 +63,7 @@ function getAssistantRowsFromResponseMessages(
     )
     .filter((message) => message.role === "assistant")
     .map((message) => {
-      const text = extractTextContent(message.content);
+      const text = extractTextFromMessageContent(message.content);
       return {
         thread_id: threadId,
         role: "assistant",
@@ -63,7 +85,7 @@ export type RunAgentResult =
  */
 export async function runAgent(
   payload: RunnerPayload,
-  supabase: AppSupabaseClient,
+  supabase: ChatSupabaseClient,
 ): Promise<RunAgentResult> {
   const { clientId, threadId, input } = payload;
   const modelId = TIER_1_MODEL;
@@ -82,21 +104,20 @@ export async function runAgent(
   }
 
   try {
-    const [, { system, messages }] = await Promise.all([
-      createMessages(supabase, [
-        {
-          thread_id: threadId,
-          role: "user",
-          content: input,
-          parts: createTextParts(input),
-        },
-      ]),
-      assembleContext({
-        supabase,
-        threadId,
-        currentMessage: input,
-      }),
+    await createMessages(supabase, [
+      {
+        thread_id: threadId,
+        role: "user",
+        content: input,
+        parts: createTextParts(input),
+      },
     ]);
+
+    const { system, messages } = await assembleContext({
+      supabase,
+      threadId,
+      currentMessage: "",
+    });
     const crmTools = createCrmTools(supabase, clientId, {
       allowWriteTools: true,
     });

@@ -96,7 +96,7 @@ describe("search_contacts", () => {
 });
 
 describe("create_contact", () => {
-  it("creates and returns a contact", async () => {
+  it("creates and returns a contact when no duplicates found", async () => {
     const created = {
       contact_id: "550e8400-e29b-41d4-a716-446655440001",
       client_id: CLIENT_ID,
@@ -109,8 +109,12 @@ describe("create_contact", () => {
       created_at: "2026-03-01T00:00:00Z",
       updated_at: "2026-03-01T00:00:00Z",
     };
-    const { client, builders } = createMockSupabase({
-      contacts: { data: created, error: null },
+    const { client, builderHistory } = createMockSupabase({
+      // First call: dedup search returns empty, second call: insert returns created
+      contacts: [
+        { data: [], error: null },
+        { data: created, error: null },
+      ],
     });
     const tools = createContactTools(client, CLIENT_ID);
 
@@ -125,7 +129,11 @@ describe("create_contact", () => {
     );
 
     expect(result).toEqual({ success: true, contact: created });
-    expect(builders.contacts.insert).toHaveBeenCalledWith(
+    // First call: dedup search
+    expect(builderHistory.contacts[0].ilike).toHaveBeenCalledWith("first_name", "%Jane%");
+    expect(builderHistory.contacts[0].ilike).toHaveBeenCalledWith("last_name", "%Doe%");
+    // Second call: insert
+    expect(builderHistory.contacts[1].insert).toHaveBeenCalledWith(
       expect.objectContaining({
         client_id: CLIENT_ID,
         first_name: "Jane",
@@ -133,12 +141,93 @@ describe("create_contact", () => {
         email: "jane@example.com",
       }),
     );
-    expect(builders.contacts.single).toHaveBeenCalled();
+    expect(builderHistory.contacts[1].single).toHaveBeenCalled();
+  });
+
+  it("returns possible_duplicates when matching contacts exist", async () => {
+    const existing = [
+      {
+        contact_id: "existing-1",
+        first_name: "Jane",
+        last_name: "Doe",
+        email: "jane.old@example.com",
+        type: "buyer",
+      },
+    ];
+    const { client } = createMockSupabase({
+      contacts: { data: existing, error: null },
+    });
+    const tools = createContactTools(client, CLIENT_ID);
+
+    const result = await tools.create_contact.execute(
+      { first_name: "Jane", last_name: "Doe" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({
+      success: false,
+      reason: "possible_duplicates",
+      possible_duplicates: existing,
+      message: expect.stringContaining("Jane Doe"),
+    });
+  });
+
+  it("skips dedup when force_create is true", async () => {
+    const created = {
+      contact_id: "new-1",
+      client_id: CLIENT_ID,
+      first_name: "Jane",
+      last_name: "Doe",
+      type: "other",
+    };
+    const { client, from } = createMockSupabase({
+      // Only one call — the insert (no dedup search)
+      contacts: { data: created, error: null },
+    });
+    const tools = createContactTools(client, CLIENT_ID);
+
+    const result = await tools.create_contact.execute(
+      { first_name: "Jane", last_name: "Doe", force_create: true },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, contact: created });
+    // Only one from("contacts") call — no dedup search
+    expect(from).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls through to insert when dedup search errors", async () => {
+    const created = {
+      contact_id: "new-2",
+      client_id: CLIENT_ID,
+      first_name: "Jane",
+      last_name: "Doe",
+      type: "other",
+    };
+    const { client } = createMockSupabase({
+      contacts: [
+        // First call: dedup search errors
+        { data: null, error: { message: "timeout" } },
+        // Second call: insert succeeds
+        { data: created, error: null },
+      ],
+    });
+    const tools = createContactTools(client, CLIENT_ID);
+
+    const result = await tools.create_contact.execute(
+      { first_name: "Jane", last_name: "Doe" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, contact: created });
   });
 
   it("returns default type when omitted", async () => {
-    const { client, builders } = createMockSupabase({
-      contacts: { data: {}, error: null },
+    const { client, builderHistory } = createMockSupabase({
+      contacts: [
+        { data: [], error: null },
+        { data: {}, error: null },
+      ],
     });
     const tools = createContactTools(client, CLIENT_ID);
 
@@ -147,14 +236,17 @@ describe("create_contact", () => {
       EXECUTION_OPTIONS,
     );
 
-    expect(builders.contacts.insert).toHaveBeenCalledWith(
+    expect(builderHistory.contacts[1].insert).toHaveBeenCalledWith(
       expect.objectContaining({ type: "other" }),
     );
   });
 
-  it("returns errors from Supabase", async () => {
+  it("returns errors from Supabase insert", async () => {
     const { client } = createMockSupabase({
-      contacts: { data: null, error: { message: "duplicate email" } },
+      contacts: [
+        { data: [], error: null },
+        { data: null, error: { message: "duplicate email" } },
+      ],
     });
     const tools = createContactTools(client, CLIENT_ID);
 
@@ -235,7 +327,7 @@ describe("update_contact", () => {
 });
 
 describe("batch_create_contacts", () => {
-  it("creates multiple contacts in a single call", async () => {
+  it("creates multiple contacts when no duplicates found", async () => {
     const created = [
       {
         contact_id: "aaa",
@@ -258,8 +350,13 @@ describe("batch_create_contacts", () => {
         notes: null,
       },
     ];
-    const { client, builders } = createMockSupabase({
-      contacts: { data: created, error: null },
+    const { client, builderHistory } = createMockSupabase({
+      // Call 1: dedup search for Alice Tan, Call 2: dedup search for Bob Lee, Call 3: insert
+      contacts: [
+        { data: [], error: null },
+        { data: [], error: null },
+        { data: created, error: null },
+      ],
     });
     const tools = createContactTools(client, CLIENT_ID);
 
@@ -274,7 +371,7 @@ describe("batch_create_contacts", () => {
     );
 
     expect(result).toEqual({ success: true, contacts: created, count: 2 });
-    expect(builders.contacts.insert).toHaveBeenCalledWith(
+    expect(builderHistory.contacts[2].insert).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({ client_id: CLIENT_ID, first_name: "Alice" }),
         expect.objectContaining({ client_id: CLIENT_ID, first_name: "Bob", type: "other" }),
@@ -282,9 +379,80 @@ describe("batch_create_contacts", () => {
     );
   });
 
+  it("returns possible_duplicates when existing contacts match", async () => {
+    const existing = [{ contact_id: "existing-1", first_name: "Alice", last_name: "Tan" }];
+    const { client } = createMockSupabase({
+      // First dedup search finds a match
+      contacts: [
+        { data: existing, error: null },
+        { data: [], error: null },
+      ],
+    });
+    const tools = createContactTools(client, CLIENT_ID);
+
+    const result = await tools.batch_create_contacts.execute(
+      {
+        contacts: [
+          { first_name: "Alice", last_name: "Tan" },
+          { first_name: "Bob", last_name: "Lee" },
+        ],
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      reason: "possible_duplicates",
+    });
+  });
+
+  it("detects intra-batch duplicates", async () => {
+    const { client } = createMockSupabase();
+    const tools = createContactTools(client, CLIENT_ID);
+
+    const result = await tools.batch_create_contacts.execute(
+      {
+        contacts: [
+          { first_name: "Alice", last_name: "Tan" },
+          { first_name: "alice", last_name: "tan" },
+        ],
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      reason: "possible_duplicates",
+      message: expect.stringContaining("Intra-batch"),
+    });
+  });
+
+  it("skips dedup when force_create is true", async () => {
+    const created = [{ contact_id: "aaa", first_name: "Alice", last_name: "Tan" }];
+    const { client, from } = createMockSupabase({
+      contacts: { data: created, error: null },
+    });
+    const tools = createContactTools(client, CLIENT_ID);
+
+    const result = await tools.batch_create_contacts.execute(
+      {
+        contacts: [{ first_name: "Alice", last_name: "Tan" }],
+        force_create: true,
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, contacts: created, count: 1 });
+    // Only one from("contacts") call — no dedup searches
+    expect(from).toHaveBeenCalledTimes(1);
+  });
+
   it("defaults type to 'other' for each contact", async () => {
-    const { client, builders } = createMockSupabase({
-      contacts: { data: [{}], error: null },
+    const { client, builderHistory } = createMockSupabase({
+      contacts: [
+        { data: [], error: null },
+        { data: [{}], error: null },
+      ],
     });
     const tools = createContactTools(client, CLIENT_ID);
 
@@ -293,14 +461,17 @@ describe("batch_create_contacts", () => {
       EXECUTION_OPTIONS,
     );
 
-    expect(builders.contacts.insert).toHaveBeenCalledWith([
+    expect(builderHistory.contacts[1].insert).toHaveBeenCalledWith([
       expect.objectContaining({ type: "other" }),
     ]);
   });
 
   it("returns errors from Supabase", async () => {
     const { client } = createMockSupabase({
-      contacts: { data: null, error: { message: "batch insert failed" } },
+      contacts: [
+        { data: [], error: null },
+        { data: null, error: { message: "batch insert failed" } },
+      ],
     });
     const tools = createContactTools(client, CLIENT_ID);
 

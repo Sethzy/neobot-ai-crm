@@ -96,6 +96,7 @@ export function createSearchTool() {
           headers: {
             Accept: "application/json",
             "Accept-Encoding": "gzip",
+            "Cache-Control": "no-cache",
             "X-Subscription-Token": apiKey,
           },
         });

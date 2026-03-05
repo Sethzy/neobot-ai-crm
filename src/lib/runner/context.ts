@@ -3,15 +3,16 @@
  * @module lib/runner/context
  */
 import type { ModelMessage } from "ai";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
-import { extractTextContent } from "@/lib/runner/message-utils";
-import type { AppSupabaseClient } from "@/lib/supabase/types";
-import type { Json } from "@/types/database";
-/** Roles that can be replayed as simple { role, content } messages. */
-type ReplayableRole = "system" | "user" | "assistant";
+import type { Database, Json } from "@/types/database";
+
+type ChatSupabaseClient = SupabaseClient<Database>;
+type MessageRole = "system" | "user" | "assistant";
 
 interface AssembleContextParams {
-  supabase: AppSupabaseClient;
+  supabase: ChatSupabaseClient;
   threadId: string;
   currentMessage: string;
 }
@@ -27,13 +28,25 @@ interface HistoryRow {
   parts: Json | null;
 }
 
-const replayableRoles: ReplayableRole[] = ["system", "user", "assistant"];
+const allowedRoles: MessageRole[] = ["system", "user", "assistant"];
 
-/** Max messages loaded from thread history to bound context size. */
-const MAX_HISTORY_MESSAGES = 200;
+function normalizeRole(role: string): MessageRole {
+  return allowedRoles.includes(role as MessageRole) ? (role as MessageRole) : "assistant";
+}
 
-function isReplayableRole(role: string): role is ReplayableRole {
-  return replayableRoles.includes(role as ReplayableRole);
+function getTextFromParts(parts: Json | null): string {
+  if (!Array.isArray(parts)) {
+    return "";
+  }
+
+  return parts
+    .filter(
+      (part): part is { type: string; text?: string } =>
+        typeof part === "object" && part !== null && "type" in part,
+    )
+    .filter((part) => part.type === "text" && typeof part.text === "string")
+    .map((part) => String(part.text))
+    .join("\n");
 }
 
 /**
@@ -48,20 +61,16 @@ export async function assembleContext({
     .from("conversation_messages")
     .select("role, content, parts")
     .eq("thread_id", threadId)
-    .order("created_at", { ascending: false })
-    .limit(MAX_HISTORY_MESSAGES);
+    .order("created_at", { ascending: true });
 
   if (error) {
     throw new Error(`Failed to load thread history: ${error.message}`);
   }
 
-  const rows = ((data as HistoryRow[] | null) ?? []).reverse();
-  const historyMessages: ModelMessage[] = rows
-    .filter((row) => isReplayableRole(row.role))
-    .map((row) => ({
-      role: row.role as ReplayableRole,
-      content: row.content ?? extractTextContent(row.parts),
-    }));
+  const historyMessages: ModelMessage[] = ((data as HistoryRow[] | null) ?? []).map((row) => ({
+    role: normalizeRole(row.role),
+    content: row.content ?? getTextFromParts(row.parts),
+  }));
 
   const trimmedCurrentMessage = currentMessage.trim();
   const currentMessageTurn = trimmedCurrentMessage.length > 0

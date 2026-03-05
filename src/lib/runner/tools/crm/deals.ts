@@ -9,9 +9,27 @@ import { z } from "zod";
 import { dealStageValues } from "@/lib/crm/schemas";
 import type { Database } from "@/types/database";
 
-import { buildSearchExpression, DEFAULT_CRM_RESULT_LIMIT } from "./filter-utils";
+import { buildIlikePattern, buildSearchExpression, DEFAULT_CRM_RESULT_LIMIT } from "./filter-utils";
 
 const DEAL_SEARCH_COLUMNS = ["address", "notes"];
+
+/**
+ * Searches for existing deals matching address (case-insensitive).
+ * Returns matched rows or `null` on query error (best-effort — callers should fall through on null).
+ */
+async function findDuplicateDeals(
+  supabase: SupabaseClient<Database>,
+  address: string,
+): Promise<unknown[] | null> {
+  const { data, error } = await supabase
+    .from("deals")
+    .select("*")
+    .ilike("address", buildIlikePattern(address))
+    .limit(10);
+
+  if (error) return null;
+  return data ?? [];
+}
 
 /**
  * Creates deal-related CRM tools.
@@ -68,7 +86,9 @@ export function createDealTools(
 
   const create_deal = tool({
     description:
-      "Create a new deal. Use this for new listings or opportunities. " +
+      "Create a new deal. Has built-in duplicate detection — if a deal with a matching address already exists, " +
+      "returns possible_duplicates instead of creating. Review the candidates and use update_deal on the existing " +
+      "record, or re-call with force_create: true to override. " +
       "Use link_contact_to_deal after creating to associate contacts. " +
       "Data Modification Warning: Only create deals when the user has explicitly asked to do so.",
     inputSchema: z.object({
@@ -76,8 +96,22 @@ export function createDealTools(
       stage: z.enum(dealStageValues).optional().describe("Deal pipeline stage (leads, negotiation, offer, closing, lost). Defaults to 'leads'."),
       price: z.number().int().nonnegative().optional().describe("Deal price in whole units."),
       notes: z.string().optional().describe("Deal notes."),
+      force_create: z.boolean().optional().describe("Set to true to skip duplicate detection and create the deal regardless."),
     }),
-    execute: async ({ address, stage, price, notes }) => {
+    execute: async ({ address, stage, price, notes, force_create }) => {
+      // Dedup check (best-effort — search failure falls through to insert)
+      if (!force_create) {
+        const duplicates = await findDuplicateDeals(supabase, address);
+        if (duplicates && duplicates.length > 0) {
+          return {
+            success: false as const,
+            reason: "possible_duplicates" as const,
+            possible_duplicates: duplicates,
+            message: `Found ${duplicates.length} existing deal(s) matching "${address}". Review and use update_deal, or re-call with force_create: true.`,
+          };
+        }
+      }
+
       const { data, error } = await supabase
         .from("deals")
         .insert({

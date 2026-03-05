@@ -75,7 +75,7 @@ describe("search_deals", () => {
 });
 
 describe("create_deal", () => {
-  it("creates and returns a deal", async () => {
+  it("creates and returns a deal when no duplicates found", async () => {
     const created = {
       deal_id: "550e8400-e29b-41d4-a716-446655440011",
       client_id: CLIENT_ID,
@@ -86,8 +86,12 @@ describe("create_deal", () => {
       created_at: "2026-03-01T00:00:00Z",
       updated_at: "2026-03-01T00:00:00Z",
     };
-    const { client, builders } = createMockSupabase({
-      deals: { data: created, error: null },
+    const { client, builderHistory } = createMockSupabase({
+      // First call: dedup search returns empty, second call: insert
+      deals: [
+        { data: [], error: null },
+        { data: created, error: null },
+      ],
     });
     const tools = createDealTools(client, CLIENT_ID);
 
@@ -101,19 +105,97 @@ describe("create_deal", () => {
     );
 
     expect(result).toEqual({ success: true, deal: created });
-    expect(builders.deals.insert).toHaveBeenCalledWith(
+    // First call: dedup search
+    expect(builderHistory.deals[0].ilike).toHaveBeenCalledWith("address", "%456 Marina Bay%");
+    // Second call: insert
+    expect(builderHistory.deals[1].insert).toHaveBeenCalledWith(
       expect.objectContaining({
         client_id: CLIENT_ID,
         address: "456 Marina Bay",
         price: 2000000,
       }),
     );
-    expect(builders.deals.single).toHaveBeenCalled();
+    expect(builderHistory.deals[1].single).toHaveBeenCalled();
   });
 
-  it("returns errors from Supabase", async () => {
+  it("returns possible_duplicates when matching deals exist", async () => {
+    const existing = [
+      {
+        deal_id: "existing-deal-1",
+        address: "456 Marina Bay Sands",
+        stage: "leads",
+        price: 1800000,
+      },
+    ];
     const { client } = createMockSupabase({
-      deals: { data: null, error: { message: "invalid address" } },
+      deals: { data: existing, error: null },
+    });
+    const tools = createDealTools(client, CLIENT_ID);
+
+    const result = await tools.create_deal.execute(
+      { address: "456 Marina Bay" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({
+      success: false,
+      reason: "possible_duplicates",
+      possible_duplicates: existing,
+      message: expect.stringContaining("456 Marina Bay"),
+    });
+  });
+
+  it("skips dedup when force_create is true", async () => {
+    const created = {
+      deal_id: "new-deal-1",
+      client_id: CLIENT_ID,
+      address: "456 Marina Bay",
+      stage: "leads",
+    };
+    const { client, from } = createMockSupabase({
+      deals: { data: created, error: null },
+    });
+    const tools = createDealTools(client, CLIENT_ID);
+
+    const result = await tools.create_deal.execute(
+      { address: "456 Marina Bay", force_create: true },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, deal: created });
+    // Only one from("deals") call — no dedup search
+    expect(from).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls through to insert when dedup search errors", async () => {
+    const created = {
+      deal_id: "new-deal-2",
+      client_id: CLIENT_ID,
+      address: "789 Bishan St",
+      stage: "leads",
+    };
+    const { client } = createMockSupabase({
+      deals: [
+        { data: null, error: { message: "timeout" } },
+        { data: created, error: null },
+      ],
+    });
+    const tools = createDealTools(client, CLIENT_ID);
+
+    const result = await tools.create_deal.execute(
+      { address: "789 Bishan St" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, deal: created });
+  });
+
+  it("returns errors from Supabase insert", async () => {
+    const { client } = createMockSupabase({
+      deals: [
+        { data: [], error: null },
+        { data: null, error: { message: "invalid address" } },
+      ],
     });
     const tools = createDealTools(client, CLIENT_ID);
 
