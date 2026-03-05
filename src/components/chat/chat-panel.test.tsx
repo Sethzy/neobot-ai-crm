@@ -12,8 +12,8 @@ import { ChatPanel } from "./chat-panel";
 const { mockTransportConstructor } = vi.hoisted(() => ({
   mockTransportConstructor: vi.fn(),
 }));
-const { mockInvalidateQueries } = vi.hoisted(() => ({
-  mockInvalidateQueries: vi.fn(),
+const { mockSetDataStream } = vi.hoisted(() => ({
+  mockSetDataStream: vi.fn(),
 }));
 
 vi.mock("react-markdown", () => ({
@@ -49,7 +49,14 @@ vi.mock("@ai-sdk/react", () => ({
 
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({
-    invalidateQueries: mockInvalidateQueries,
+    invalidateQueries: vi.fn(),
+  }),
+}));
+
+vi.mock("./data-stream-provider", () => ({
+  useDataStream: () => ({
+    dataStream: [],
+    setDataStream: mockSetDataStream,
   }),
 }));
 
@@ -161,7 +168,7 @@ describe("ChatPanel", () => {
     expect(result.body.message).toBeUndefined();
   });
 
-  it("invalidates thread queries when data-chat-title arrives", () => {
+  it("appends incoming stream data parts to data stream context", () => {
     render(<ChatPanel chatId="thread-1" />);
 
     const options = mockUseChat.mock.calls[0][0] as {
@@ -173,9 +180,7 @@ describe("ChatPanel", () => {
       data: "Generated title",
     });
 
-    expect(mockInvalidateQueries).toHaveBeenCalledWith({
-      queryKey: ["threads"],
-    });
+    expect(mockSetDataStream).toHaveBeenCalledTimes(1);
   });
 
   it("sends trimmed text via sendMessage", async () => {

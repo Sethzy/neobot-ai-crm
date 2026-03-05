@@ -11,6 +11,10 @@ vi.mock("./chat-draft-page", () => ({
   ChatDraftPage: ({ id }: { id: string }) => <div data-testid="draft-id">{id}</div>,
 }));
 
+vi.mock("@/components/chat/data-stream-handler", () => ({
+  DataStreamHandler: () => <div data-testid="data-stream-handler" />,
+}));
+
 describe("/chat page", () => {
   it("renders draft page with a generated UUID id", () => {
     render(<ChatPage />);
@@ -19,5 +23,6 @@ describe("/chat page", () => {
     expect(id).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
+    expect(screen.getByTestId("data-stream-handler")).toBeInTheDocument();
   });
 });

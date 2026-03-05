@@ -49,6 +49,10 @@ vi.mock("./chat-thread-page-client", () => ({
   ),
 }));
 
+vi.mock("@/components/chat/data-stream-handler", () => ({
+  DataStreamHandler: () => <div data-testid="data-stream-handler" />,
+}));
+
 function createThreadLookupSupabase(options: {
   threadExists: boolean;
   error?: { message: string } | null;
@@ -94,6 +98,7 @@ describe("/chat/[threadId] page", () => {
     expect(screen.getByTestId("thread-id")).toHaveTextContent(VALID_THREAD_ID);
     expect(screen.getByTestId("initial-message-count")).toHaveTextContent("1");
     expect(screen.getByTestId("first-message-text")).toHaveTextContent("Loaded from server");
+    expect(screen.getByTestId("data-stream-handler")).toBeInTheDocument();
     expect(mockListMessages).toHaveBeenCalledWith(supabase, VALID_THREAD_ID);
   });
 

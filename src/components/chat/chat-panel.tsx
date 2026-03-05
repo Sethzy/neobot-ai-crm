@@ -6,12 +6,12 @@
 
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useChat } from "@ai-sdk/react";
-import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { threadKeys } from "@/hooks/use-threads";
+import { useAutoResume } from "@/hooks/use-auto-resume";
 import { ChatComposer } from "./chat-composer";
+import { useDataStream } from "./data-stream-provider";
 import { getMessageText } from "./message-content";
 import { MessageList } from "./message-list";
 
@@ -19,6 +19,8 @@ interface ChatPanelProps {
   chatId: string;
   /** Initial persisted messages loaded server-side for this thread route. */
   initialMessages?: UIMessage[];
+  /** Enables one-time stream resumption for existing threads. */
+  autoResume?: boolean;
   /** Called once with the first user message text for auto-naming new threads. */
   onAutoName?: (firstUserMessage: string) => void;
 }
@@ -26,9 +28,10 @@ interface ChatPanelProps {
 export function ChatPanel({
   chatId,
   initialMessages = [],
+  autoResume = false,
   onAutoName,
 }: ChatPanelProps) {
-  const queryClient = useQueryClient();
+  const { setDataStream } = useDataStream();
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
@@ -58,19 +61,12 @@ export function ChatPanel({
     hasAutoNamed.current = initialMessages.some((message) => message.role === "user");
   }, [chatId, initialMessages]);
 
-  const { messages, sendMessage, status, error } = useChat({
+  const { messages, sendMessage, status, error, resumeStream, setMessages } = useChat({
     id: chatId,
     messages: initialMessages,
     transport,
     onData: (dataPart) => {
-      if (
-        typeof dataPart === "object" &&
-        dataPart !== null &&
-        "type" in dataPart &&
-        dataPart.type === "data-chat-title"
-      ) {
-        queryClient.invalidateQueries({ queryKey: threadKeys.all });
-      }
+      setDataStream((currentParts) => (currentParts ? [...currentParts, dataPart] : [dataPart]));
     },
     onFinish: async ({ messages: finishedMessages }) => {
       if (!hasAutoNamed.current && onAutoName) {
@@ -81,6 +77,13 @@ export function ChatPanel({
         }
       }
     },
+  });
+
+  useAutoResume({
+    autoResume,
+    initialMessages,
+    resumeStream,
+    setMessages,
   });
 
   const isLoading = status === "submitted" || status === "streaming";

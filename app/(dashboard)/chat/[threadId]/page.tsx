@@ -7,6 +7,7 @@ import type { UIMessage } from "ai";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { DataStreamHandler } from "@/components/chat/data-stream-handler";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { listMessages } from "@/lib/chat/messages";
 import { createClient } from "@/lib/supabase/server";
@@ -85,9 +86,12 @@ export default async function ChatThreadPage({ params }: ChatThreadPageProps) {
   const initialMessages = persistedMessages.map(mapDbMessageToUiMessage);
 
   return (
-    <ChatThreadPageClient
-      threadId={threadId}
-      initialMessages={initialMessages}
-    />
+    <>
+      <ChatThreadPageClient
+        threadId={threadId}
+        initialMessages={initialMessages}
+      />
+      <DataStreamHandler />
+    </>
   );
 }

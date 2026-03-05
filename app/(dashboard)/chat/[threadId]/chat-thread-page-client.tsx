@@ -22,6 +22,7 @@ export function ChatThreadPageClient({
     <ChatPanel
       chatId={threadId}
       initialMessages={initialMessages}
+      autoResume
     />
   );
 }

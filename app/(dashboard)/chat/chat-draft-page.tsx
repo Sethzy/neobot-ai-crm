@@ -13,7 +13,7 @@ interface ChatDraftPageProps {
 export function ChatDraftPage({ id }: ChatDraftPageProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ChatPanel chatId={id} initialMessages={[]} />
+      <ChatPanel chatId={id} initialMessages={[]} autoResume={false} />
     </div>
   );
 }
