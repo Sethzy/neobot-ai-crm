@@ -3,6 +3,7 @@
  * @module app/api/chat/route
  */
 import type { UIMessage } from "ai";
+import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 
 import { resolveClientId } from "@/lib/chat/client-id";
 import { runAgent } from "@/lib/runner/run-agent";
@@ -119,7 +120,14 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ status: "queued" }, { status: 202 });
     }
 
-    return result.streamResult.toUIMessageStreamResponse();
+    const stream = createUIMessageStream({
+      originalMessages: body.messages as UIMessage[] | undefined,
+      execute: async ({ writer }) => {
+        writer.merge(result.streamResult.toUIMessageStream());
+      },
+    });
+
+    return createUIMessageStreamResponse({ stream });
   } catch {
     return jsonError("Failed to process chat request.", 500);
   }

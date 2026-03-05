@@ -4,10 +4,18 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockRunAgent, mockCreateClient, mockResolveClientId } = vi.hoisted(() => ({
+const {
+  mockRunAgent,
+  mockCreateClient,
+  mockResolveClientId,
+  mockCreateUIMessageStream,
+  mockCreateUIMessageStreamResponse,
+} = vi.hoisted(() => ({
   mockRunAgent: vi.fn(),
   mockCreateClient: vi.fn(),
   mockResolveClientId: vi.fn(),
+  mockCreateUIMessageStream: vi.fn(),
+  mockCreateUIMessageStreamResponse: vi.fn(),
 }));
 
 vi.mock("@/lib/runner/run-agent", () => ({
@@ -20,6 +28,11 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/lib/chat/client-id", () => ({
   resolveClientId: mockResolveClientId,
+}));
+
+vi.mock("ai", () => ({
+  createUIMessageStream: mockCreateUIMessageStream,
+  createUIMessageStreamResponse: mockCreateUIMessageStreamResponse,
 }));
 
 import { POST } from "../../../../app/api/chat/route";
@@ -75,9 +88,13 @@ describe("POST /api/chat", () => {
     const streamResponse = new Response("streamed", {
       headers: { "Content-Type": "text/event-stream" },
     });
+    const uiStream = new ReadableStream();
+    const wrappedStream = new ReadableStream();
     const mockStreamResult = {
-      toUIMessageStreamResponse: vi.fn(() => streamResponse),
+      toUIMessageStream: vi.fn(() => uiStream),
     };
+    mockCreateUIMessageStream.mockReturnValue(wrappedStream);
+    mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
 
     mockRunAgent.mockResolvedValue({
       status: "streaming",
@@ -104,7 +121,23 @@ describe("POST /api/chat", () => {
       },
       mockSupabase,
     );
-    expect(mockStreamResult.toUIMessageStreamResponse).toHaveBeenCalledTimes(1);
+    expect(mockCreateUIMessageStream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        execute: expect.any(Function),
+        originalMessages: [
+          { id: "a1", role: "assistant", parts: [{ type: "text", text: "How can I help?" }] },
+          { id: "u1", role: "user", parts: [{ type: "text", text: "Hello, Sunder!" }] },
+        ],
+      }),
+    );
+    const execute = mockCreateUIMessageStream.mock.calls[0][0].execute as (args: {
+      writer: { merge: (stream: ReadableStream) => void };
+    }) => Promise<void>;
+    const merge = vi.fn();
+    await execute({ writer: { merge } });
+    expect(mockStreamResult.toUIMessageStream).toHaveBeenCalledTimes(1);
+    expect(merge).toHaveBeenCalledWith(uiStream);
+    expect(mockCreateUIMessageStreamResponse).toHaveBeenCalledWith({ stream: wrappedStream });
     expect(response).toBe(streamResponse);
   });
 
@@ -112,9 +145,12 @@ describe("POST /api/chat", () => {
     const streamResponse = new Response("streamed", {
       headers: { "Content-Type": "text/event-stream" },
     });
+    const wrappedStream = new ReadableStream();
     const mockStreamResult = {
-      toUIMessageStreamResponse: vi.fn(() => streamResponse),
+      toUIMessageStream: vi.fn(() => new ReadableStream()),
     };
+    mockCreateUIMessageStream.mockReturnValue(wrappedStream);
+    mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
     mockRunAgent.mockResolvedValue({
       status: "streaming",
       streamResult: mockStreamResult,
@@ -139,6 +175,11 @@ describe("POST /api/chat", () => {
         input: "Hello from message payload",
       },
       mockSupabase,
+    );
+    expect(mockCreateUIMessageStream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        originalMessages: undefined,
+      }),
     );
     expect(response).toBe(streamResponse);
   });
