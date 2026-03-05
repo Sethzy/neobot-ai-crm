@@ -4,15 +4,19 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { createAgentFileClient } from "@/lib/storage/agent-files";
-
 import { DEFAULT_MEMORY_MD, DEFAULT_SOUL_MD, DEFAULT_USER_MD } from "./templates";
+import {
+  getStorageErrorMessage,
+  isStorageConflictError,
+  readMemoryRootFile,
+  type MemoryRootPath,
+} from "./storage";
 
 const BUCKET_ID = "agent-files";
 const TEXT_CONTENT_TYPE = "text/plain; charset=utf-8";
 
 interface MemoryFileTemplate {
-  path: "SOUL.md" | "USER.md" | "MEMORY.md";
+  path: MemoryRootPath;
   content: string;
 }
 
@@ -21,22 +25,6 @@ const REQUIRED_MEMORY_FILES: MemoryFileTemplate[] = [
   { path: "USER.md", content: DEFAULT_USER_MD },
   { path: "MEMORY.md", content: DEFAULT_MEMORY_MD },
 ];
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return String(error);
-}
-
-function isMissingFileError(error: unknown): boolean {
-  const message = getErrorMessage(error).toLowerCase();
-
-  return message.includes("object not found")
-    || message.includes("file not found")
-    || message.includes("no such file");
-}
 
 async function uploadMissingFile(
   supabase: SupabaseClient,
@@ -50,8 +38,8 @@ async function uploadMissingFile(
       contentType: TEXT_CONTENT_TYPE,
     });
 
-  if (error) {
-    throw new Error(`Failed to bootstrap ${file.path}: ${error.message}`);
+  if (error && !isStorageConflictError(error)) {
+    throw new Error(`Failed to bootstrap ${file.path}: ${getStorageErrorMessage(error)}`);
   }
 }
 
@@ -65,19 +53,13 @@ export async function bootstrapMemoryFiles(
   supabase: SupabaseClient,
   clientId: string,
 ): Promise<void> {
-  const fileClient = createAgentFileClient(supabase, clientId);
   const missingFiles: MemoryFileTemplate[] = [];
 
   for (const file of REQUIRED_MEMORY_FILES) {
-    try {
-      await fileClient.downloadFile(file.path);
-    } catch (error) {
-      if (!isMissingFileError(error)) {
-        throw new Error(`Failed to inspect memory file "${file.path}": ${getErrorMessage(error)}`);
-      }
-
+    const result = await readMemoryRootFile(supabase, clientId, file.path);
+    if (result.kind === "missing") {
       missingFiles.push(file);
-    }
+    } // Existing files are left untouched.
   }
 
   for (const missingFile of missingFiles) {

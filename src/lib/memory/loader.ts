@@ -4,8 +4,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { createAgentFileClient } from "@/lib/storage/agent-files";
-import type { AgentFileClient } from "@/lib/storage/agent-files";
+import { readMemoryRootFile } from "./storage";
 
 const MEMORY_LINE_CAP = 200;
 
@@ -25,36 +24,27 @@ function truncateToLineCount(content: string, maxLines: number): string {
     : lines.slice(0, maxLines).join("\n");
 }
 
-async function safeReadFile(
-  fileClient: AgentFileClient,
-  path: "SOUL.md" | "USER.md" | "MEMORY.md",
-): Promise<string> {
-  try {
-    return await fileClient.downloadFile(path);
-  } catch {
-    return "";
-  }
-}
-
 /**
  * Reads memory files for one client and returns prompt-ready content.
  *
- * Any read failure falls back to an empty string so run assembly can continue.
+ * Missing files fall back to empty strings. Non-missing storage failures throw.
  */
 export async function loadMemoryContext(
   supabase: SupabaseClient,
   clientId: string,
 ): Promise<MemoryContext> {
-  const fileClient = createAgentFileClient(supabase, clientId);
-  const [soul, user, memoryRaw] = await Promise.all([
-    safeReadFile(fileClient, "SOUL.md"),
-    safeReadFile(fileClient, "USER.md"),
-    safeReadFile(fileClient, "MEMORY.md"),
+  const [soulResult, userResult, memoryResult] = await Promise.all([
+    readMemoryRootFile(supabase, clientId, "SOUL.md"),
+    readMemoryRootFile(supabase, clientId, "USER.md"),
+    readMemoryRootFile(supabase, clientId, "MEMORY.md"),
   ]);
 
   return {
-    soul,
-    user,
-    memory: truncateToLineCount(memoryRaw, MEMORY_LINE_CAP),
+    soul: soulResult.kind === "found" ? soulResult.content : "",
+    user: userResult.kind === "found" ? userResult.content : "",
+    memory: truncateToLineCount(
+      memoryResult.kind === "found" ? memoryResult.content : "",
+      MEMORY_LINE_CAP,
+    ),
   };
 }

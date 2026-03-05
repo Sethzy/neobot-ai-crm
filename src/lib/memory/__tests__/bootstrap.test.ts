@@ -41,8 +41,14 @@ describe("bootstrapMemoryFiles", () => {
   it("creates only files that are missing", async () => {
     mock.mockDownload
       .mockResolvedValueOnce({ data: createDownloadPayload("existing soul"), error: null })
-      .mockResolvedValueOnce({ data: null, error: { message: "Object not found" } })
-      .mockResolvedValueOnce({ data: null, error: { message: "Object not found" } });
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: "Object not found", status: 404, statusCode: "404" },
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: "Object not found", status: 404, statusCode: "404" },
+      });
     mock.mockUpload.mockResolvedValue({ data: { path: "ok" }, error: null });
 
     await bootstrapMemoryFiles(mock.client, CLIENT_ID);
@@ -86,7 +92,10 @@ describe("bootstrapMemoryFiles", () => {
 
   it("throws when an upload fails", async () => {
     mock.mockDownload
-      .mockResolvedValueOnce({ data: null, error: { message: "Object not found" } })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: "Object not found", status: 404, statusCode: "404" },
+      })
       .mockResolvedValueOnce({ data: createDownloadPayload("existing user"), error: null })
       .mockResolvedValueOnce({ data: createDownloadPayload("existing memory"), error: null });
     mock.mockUpload.mockResolvedValueOnce({
@@ -102,6 +111,22 @@ describe("bootstrapMemoryFiles", () => {
       DEFAULT_SOUL_MD,
       { upsert: false, contentType: "text/plain; charset=utf-8" },
     );
+  });
+
+  it("treats upload conflict as idempotent success", async () => {
+    mock.mockDownload
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: "Object not found", status: 404, statusCode: "404" },
+      })
+      .mockResolvedValueOnce({ data: createDownloadPayload("existing user"), error: null })
+      .mockResolvedValueOnce({ data: createDownloadPayload("existing memory"), error: null });
+    mock.mockUpload.mockResolvedValueOnce({
+      data: null,
+      error: { message: "The resource already exists", status: 409, statusCode: "409" },
+    });
+
+    await expect(bootstrapMemoryFiles(mock.client, CLIENT_ID)).resolves.toBeUndefined();
   });
 
   it("does nothing when all required files already exist", async () => {

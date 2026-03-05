@@ -66,7 +66,7 @@ describe("loadMemoryContext", () => {
   it("returns empty strings when files are missing or unreadable", async () => {
     mock.mockDownload.mockResolvedValue({
       data: null,
-      error: { message: "Object not found" },
+      error: { message: "Object not found", status: 404, statusCode: "404" },
     });
 
     const result = await loadMemoryContext(mock.client, CLIENT_ID);
@@ -76,5 +76,14 @@ describe("loadMemoryContext", () => {
       user: "",
       memory: "",
     });
+  });
+
+  it("throws when storage read fails with a non-missing error", async () => {
+    mock.mockDownload.mockResolvedValueOnce({
+      data: null,
+      error: { message: "permission denied", status: 403, statusCode: "403" },
+    });
+
+    await expect(loadMemoryContext(mock.client, CLIENT_ID)).rejects.toThrow("permission denied");
   });
 });

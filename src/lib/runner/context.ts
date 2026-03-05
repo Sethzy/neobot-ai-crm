@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
 import { bootstrapMemoryFiles } from "@/lib/memory/bootstrap";
 import { loadMemoryContext } from "@/lib/memory/loader";
+import type { MemoryContext } from "@/lib/memory/loader";
 import type { Database, Json } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
@@ -52,7 +53,7 @@ function getTextFromParts(parts: Json | null): string {
     .join("\n");
 }
 
-function buildSystemPrompt(memory?: { soul: string; user: string; memory: string }): string {
+function buildSystemPrompt(memory?: MemoryContext): string {
   if (!memory) {
     return SYSTEM_PROMPT;
   }
@@ -83,7 +84,7 @@ export async function assembleContext({
   currentMessage,
   clientId,
 }: AssembleContextParams): Promise<AssembledContext> {
-  let memoryContext: { soul: string; user: string; memory: string } | undefined;
+  let memoryContext: MemoryContext | undefined;
 
   if (clientId) {
     await bootstrapMemoryFiles(supabase, clientId);
