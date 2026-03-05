@@ -8,7 +8,6 @@ import { SmoothScroll } from "@/components/landing/SmoothScroll";
 const UseCases = dynamic(() => import("@/components/landing/UseCases").then(m => ({ default: m.UseCases })));
 const PrimaryFeatures = dynamic(() => import("@/components/landing/PrimaryFeatures").then(m => ({ default: m.PrimaryFeatures })));
 const SecondaryFeatures = dynamic(() => import("@/components/landing/SecondaryFeatures").then(m => ({ default: m.SecondaryFeatures })));
-const ProductShowcase = dynamic(() => import("@/components/landing/ProductShowcase").then(m => ({ default: m.ProductShowcase })));
 const Differentiator = dynamic(() => import("@/components/landing/Differentiator").then(m => ({ default: m.Differentiator })));
 const Testimonials = dynamic(() => import("@/components/landing/Testimonials").then(m => ({ default: m.Testimonials })));
 const Pricing = dynamic(() => import("@/components/landing/Pricing").then(m => ({ default: m.Pricing })));
@@ -54,9 +53,6 @@ export default function LandingPage() {
         </div>
         <div className="lp-deferred-section">
           <SecondaryFeatures />
-        </div>
-        <div className="lp-deferred-section">
-          <ProductShowcase />
         </div>
         <div className="lp-deferred-section">
           <Differentiator />

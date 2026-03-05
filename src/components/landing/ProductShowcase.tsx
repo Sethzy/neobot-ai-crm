@@ -6,12 +6,13 @@
  * Desktop (lg+): centered text + bento collage. Mobile: header + WhatsApp mockup.
  */
 import { useRef } from 'react'
+import Image from 'next/image'
 import { Container } from '@/components/landing/Container'
 import { WhatsAppPhoneMockup } from '@/components/landing/WhatsAppPhoneMockup'
 import { Iphone } from '@/components/ui/iphone'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
-import { motion, useInView } from 'framer-motion'
+import { motion, useInView, useReducedMotion } from 'framer-motion'
 import {
   Check,
   Home,
@@ -101,7 +102,7 @@ function DarkDashboard() {
                 className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] ${
                   active
                     ? 'bg-white/[0.08] font-medium text-white'
-                    : 'text-white/40'
+                    : 'text-white/50'
                 }`}
               >
                 <Icon className="h-4 w-4" strokeWidth={1.8} />
@@ -131,10 +132,10 @@ function DarkDashboard() {
               <p className="mt-0.5 text-[11px] text-white/30">12 deals · $8.4M total</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="rounded-md bg-white/[0.06] px-3 py-1.5 text-[11px] text-white/40">
+              <span className="rounded-md bg-white/[0.06] px-3 py-1.5 text-[11px] text-white/50">
                 Filter
               </span>
-              <span className="rounded-md bg-white/[0.06] px-3 py-1.5 text-[11px] text-white/40">
+              <span className="rounded-md bg-white/[0.06] px-3 py-1.5 text-[11px] text-white/50">
                 Sort
               </span>
             </div>
@@ -308,6 +309,7 @@ function DarkMobileChat() {
 
 export function ProductShowcase() {
   const isDesktop = useMediaQuery('(min-width: 1024px)')
+  const shouldReduceMotion = useReducedMotion()
   const { ref: headerRef, isVisible: headerVisible } = useScrollReveal<HTMLDivElement>()
   const sectionRef = useRef<HTMLElement>(null)
   const sectionInView = useInView(sectionRef, { once: true })
@@ -317,7 +319,7 @@ export function ProductShowcase() {
       id="product-showcase"
       ref={sectionRef}
       aria-label="Product demonstration"
-      className="pt-16 pb-10 sm:pt-20 sm:pb-12 md:pt-28 md:pb-16 bg-[#F5EEE1]"
+      className="pt-16 pb-10 sm:pt-20 sm:pb-12 md:pt-28 md:pb-16 bg-parchment"
     >
       {/* ---- Mobile / Tablet ---- */}
       {!isDesktop ? (
@@ -332,7 +334,7 @@ export function ProductShowcase() {
                 <br />
                 <span className="italic text-sunder-green">one message away.</span>
               </h2>
-              <p className="mt-4 text-base leading-relaxed text-[#6B5E57] sm:text-lg">
+              <p className="mt-4 text-base leading-relaxed text-lp-muted sm:text-lg">
                 Assign tasks before bed. Wake up to completed work. Your AI
                 employee works overnight — all from one app.
               </p>
@@ -346,7 +348,7 @@ export function ProductShowcase() {
               {benefits.map((b) => (
                 <div key={b} className="flex items-center gap-2">
                   <Check className="h-3.5 w-3.5 shrink-0 text-sunder-green" strokeWidth={2.5} />
-                  <span className="text-xs text-[#6B5E57]">{b}</span>
+                  <span className="text-xs text-lp-muted">{b}</span>
                 </div>
               ))}
             </div>
@@ -361,16 +363,16 @@ export function ProductShowcase() {
             {/* Text — left column */}
             <motion.div
               className="col-span-6"
-              initial={{ y: 50, opacity: 0 }}
-              animate={sectionInView ? { y: 0, opacity: 1 } : { y: 50, opacity: 0 }}
-              transition={sectionInView ? { ...springTransition, delay: 0.05 } : { duration: 0 }}
+              initial={shouldReduceMotion ? false : { y: 50, opacity: 0 }}
+              animate={shouldReduceMotion || sectionInView ? { y: 0, opacity: 1 } : { y: 50, opacity: 0 }}
+              transition={shouldReduceMotion ? { duration: 0 } : sectionInView ? { ...springTransition, delay: 0.05 } : { duration: 0 }}
             >
               <h2 className="font-serif text-4xl leading-tight tracking-tight text-gray-900 lg:text-5xl">
                 Your second brain,
                 <br />
                 <span className="italic text-sunder-green">one message away.</span>
               </h2>
-              <p className="mt-5 max-w-sm text-base leading-relaxed text-[#6B5E57] lg:text-lg">
+              <p className="mt-5 max-w-sm text-base leading-relaxed text-lp-muted lg:text-lg">
                 Assign tasks before bed. Wake up to completed work. Your AI
                 employee works overnight — all from one app.
               </p>
@@ -380,7 +382,7 @@ export function ProductShowcase() {
                     <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sunder-green/10">
                       <Check className="h-3 w-3 text-sunder-green" strokeWidth={2.5} />
                     </div>
-                    <span className="text-sm text-[#6B5E57]">{b}</span>
+                    <span className="text-sm text-lp-muted">{b}</span>
                   </div>
                 ))}
               </div>
@@ -392,25 +394,26 @@ export function ProductShowcase() {
                 {/* Main bento frame — blurred photo bg with rounded corners */}
                 <motion.div
                   className="relative h-[647px] overflow-hidden rounded-[1.75rem]"
-                  initial={{ y: 40, opacity: 0 }}
-                  animate={sectionInView ? { y: 0, opacity: 1 } : { y: 40, opacity: 0 }}
-                  transition={sectionInView ? { ...springTransition, delay: 0.1 } : { duration: 0 }}
+                  initial={shouldReduceMotion ? false : { y: 40, opacity: 0 }}
+                  animate={shouldReduceMotion || sectionInView ? { y: 0, opacity: 1 } : { y: 40, opacity: 0 }}
+                  transition={shouldReduceMotion ? { duration: 0 } : sectionInView ? { ...springTransition, delay: 0.1 } : { duration: 0 }}
                 >
-                  <img
+                  <Image
                     src="/images/bento-bg.webp"
                     alt=""
-                    className="absolute inset-0 h-full w-full object-cover"
+                    fill
+                    sizes="(min-width: 1024px) 50vw, 100vw"
+                    className="object-cover"
                     style={{ filter: 'blur(4px)', transform: 'scale(1.02)' }}
-                    loading="lazy"
                   />
 
                   {/* Dashboard — shifted right, clipped on right edge */}
                   <motion.div
                     className="absolute bottom-[10%] left-[12%] top-[10%] rounded-[1.25rem] bg-[#D9D0C3] p-[3px] shadow-2xl shadow-black/30"
                     style={{ right: '-8%' }}
-                    initial={{ y: 50, opacity: 0 }}
-                    animate={sectionInView ? { y: 0, opacity: 1 } : { y: 50, opacity: 0 }}
-                    transition={sectionInView ? { ...springTransition, delay: 0.25 } : { duration: 0 }}
+                    initial={shouldReduceMotion ? false : { y: 50, opacity: 0 }}
+                    animate={shouldReduceMotion || sectionInView ? { y: 0, opacity: 1 } : { y: 50, opacity: 0 }}
+                    transition={shouldReduceMotion ? { duration: 0 } : sectionInView ? { ...springTransition, delay: 0.25 } : { duration: 0 }}
                   >
                     <div className="h-full overflow-hidden rounded-[1.1rem]">
                       <DarkDashboard />
@@ -422,9 +425,9 @@ export function ProductShowcase() {
                 <motion.div
                   className="absolute left-[5%] top-[48%] w-[33%]"
                   style={{ filter: 'drop-shadow(0 25px 50px rgba(0,0,0,0.3)) drop-shadow(0 12px 20px rgba(0,0,0,0.15))' }}
-                  initial={{ y: 60, opacity: 0 }}
-                  animate={sectionInView ? { y: 0, opacity: 1 } : { y: 60, opacity: 0 }}
-                  transition={sectionInView ? { ...springTransition, delay: 0.45 } : { duration: 0 }}
+                  initial={shouldReduceMotion ? false : { y: 60, opacity: 0 }}
+                  animate={shouldReduceMotion || sectionInView ? { y: 0, opacity: 1 } : { y: 60, opacity: 0 }}
+                  transition={shouldReduceMotion ? { duration: 0 } : sectionInView ? { ...springTransition, delay: 0.45 } : { duration: 0 }}
                 >
                   <Iphone>
                     <DarkMobileChat />

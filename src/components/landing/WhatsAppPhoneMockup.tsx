@@ -290,7 +290,7 @@ export function WhatsAppPhoneMockup({ isVisible = false }: WhatsAppPhoneMockupPr
   )
 
   return (
-    <div ref={rootRef} className="relative mx-auto" style={{ width: 300 }}>
+    <div ref={rootRef} className="relative mx-auto w-full max-w-[300px]">
       <Iphone className="[filter:drop-shadow(0_25px_50px_rgba(0,0,0,0.15))_drop-shadow(0_12px_20px_rgba(0,0,0,0.08))]">
         <div className="relative flex h-full flex-col bg-[#C8C4BE]">
           {/* Status bar area — sits alongside the Dynamic Island */}

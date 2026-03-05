@@ -61,6 +61,7 @@ function FaqAccordion({ faqs }: { faqs: Array<{ question: string; answer: string
         <div key={index} className="py-4">
           <button
             onClick={() => setOpenIndex(openIndex === index ? null : index)}
+            aria-expanded={openIndex === index}
             className="flex w-full items-center justify-between text-left"
           >
             <span className="font-medium text-zinc-900">{faq.question}</span>
@@ -112,7 +113,7 @@ export function Faqs() {
       <section
       id="faq"
       aria-labelledby="faq-title"
-      className="relative overflow-hidden bg-[#F5EEE1] py-20 sm:py-24 md:py-32"
+      className="relative overflow-hidden bg-parchment py-20 sm:py-24 md:py-32"
     >
       <Container className="relative">
         <div

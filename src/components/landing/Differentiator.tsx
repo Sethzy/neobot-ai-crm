@@ -98,8 +98,7 @@ export function Differentiator() {
     <section
       id="differentiator"
       aria-label="Built-in tools value comparison"
-      className="py-20 sm:py-24 md:py-32"
-      style={{ backgroundColor: '#F5EEE1' }}
+      className="bg-parchment py-20 sm:py-24 md:py-32"
     >
       <Container>
         {/* Header */}
@@ -114,7 +113,7 @@ export function Differentiator() {
               <SparkleDecoration className="absolute -top-4 -right-10 w-12 h-12 pointer-events-none" />
             </span>
           </h2>
-          <p className="mt-4 text-base leading-7 text-[#6B5E57] sm:mt-6 sm:text-lg sm:leading-8">
+          <p className="mt-4 text-base leading-7 text-lp-muted sm:mt-6 sm:text-lg sm:leading-8">
             CRM, scheduling, forms, document processing, voice cloning — Neo
             runs them all behind the scenes. You just send a message.
           </p>
@@ -125,35 +124,35 @@ export function Differentiator() {
           ref={tableRef}
           className={`mx-auto mt-12 max-w-3xl scroll-reveal ${tableVisible ? 'is-visible' : ''}`}
         >
-          <div className="overflow-hidden rounded-2xl bg-white shadow-2xl shadow-sunder-green-dark/[0.12] ring-1 ring-black/[0.08]">
-            {/* Dark green table header */}
-            <div
-              className="grid grid-cols-[1fr_70px_48px] gap-x-2 items-center px-4 py-5 sm:grid-cols-[1fr_1fr_80px_64px] sm:gap-x-4 sm:px-8 sm:py-5"
-              style={{ backgroundColor: '#024F46' }}
-            >
-              <div className="text-[11px] font-semibold uppercase tracking-widest text-white/60 sm:text-xs">
-                Feature
-              </div>
-              <div className="hidden text-[11px] font-semibold uppercase tracking-widest text-white/60 sm:block sm:text-xs">
-                Replaces
-              </div>
-              <div className="text-right text-[11px] font-semibold uppercase tracking-widest text-white/60 sm:text-xs">
-                Cost
-              </div>
-              <div className="flex justify-center">
-                <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-sunder-green-dark sm:text-xs">
-                  Neo
-                </span>
-              </div>
-            </div>
+          <table className="w-full overflow-hidden rounded-2xl bg-white shadow-2xl shadow-sunder-green-dark/[0.12] ring-1 ring-black/[0.08]">
+            <thead>
+              <tr
+                className="grid grid-cols-[1fr_70px_48px] gap-x-2 items-center px-4 py-5 sm:grid-cols-[1fr_1fr_80px_64px] sm:gap-x-4 sm:px-8 sm:py-5"
+                style={{ backgroundColor: '#024F46' }}
+              >
+                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-widest text-white/60 sm:text-xs">
+                  Feature
+                </th>
+                <th scope="col" className="hidden text-left text-[11px] font-semibold uppercase tracking-widest text-white/60 sm:block sm:text-xs">
+                  Replaces
+                </th>
+                <th scope="col" className="text-right text-[11px] font-semibold uppercase tracking-widest text-white/60 sm:text-xs">
+                  Cost
+                </th>
+                <th scope="col" className="text-center">
+                  <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-sunder-green-dark sm:text-xs">
+                    Neo
+                  </span>
+                </th>
+              </tr>
+            </thead>
 
-            {/* Tool rows */}
-            <div>
+            <tbody>
               {tools.map((tool, i) => {
                 const Icon = tool.icon
                 const isComingSoon = tool.status === 'coming-soon'
                 return (
-                  <div
+                  <tr
                     key={tool.capability}
                     className={cn(
                       'group grid grid-cols-[1fr_70px_48px] gap-x-2 items-center px-4 py-2.5 transition-colors sm:grid-cols-[1fr_1fr_80px_64px] sm:gap-x-4 sm:px-8 sm:py-3',
@@ -163,7 +162,7 @@ export function Differentiator() {
                     )}
                   >
                     {/* Feature name + icon */}
-                    <div className="flex items-center gap-2.5 sm:gap-3">
+                    <td className="flex items-center gap-2.5 sm:gap-3">
                       <div
                         className={cn(
                           'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors',
@@ -190,10 +189,10 @@ export function Differentiator() {
                           ))}
                         </div>
                       </div>
-                    </div>
+                    </td>
 
                     {/* Replaces — desktop: logos + names */}
-                    <div
+                    <td
                       className={cn(
                         'hidden items-center gap-2 sm:flex',
                         isComingSoon ? 'opacity-50' : '',
@@ -205,20 +204,20 @@ export function Differentiator() {
                       <span className={cn('text-sm', isComingSoon ? 'text-[#C5BBB2]' : 'text-[#8B7E76]')}>
                         {tool.replaces.map((c) => c.name).join(', ')}
                       </span>
-                    </div>
+                    </td>
 
                     {/* Monthly cost */}
-                    <div
+                    <td
                       className={cn(
                         'text-right text-sm font-medium tabular-nums',
                         isComingSoon ? 'text-[#C5BBB2]' : 'text-[#8B6B55]',
                       )}
                     >
                       ${tool.monthlyCost}/mo
-                    </div>
+                    </td>
 
                     {/* Status */}
-                    <div className="flex justify-center">
+                    <td className="flex justify-center">
                       {tool.status === 'included' ? (
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sunder-green text-white shadow-md shadow-sunder-green/30 sm:h-9 sm:w-9">
                           <Check className="h-4 w-4 sm:h-4.5 sm:w-4.5" strokeWidth={3} />
@@ -228,35 +227,34 @@ export function Differentiator() {
                           Soon
                         </span>
                       )}
-                    </div>
-                  </div>
+                    </td>
+                  </tr>
                 )
               })}
-            </div>
+            </tbody>
 
-            {/* Total row — dark green footer */}
-            <div
-              className="px-4 py-6 sm:px-8 sm:py-7"
-              style={{ backgroundColor: '#024F46' }}
-            >
-              <div className="grid grid-cols-[1fr_70px_48px] gap-x-2 items-center sm:grid-cols-[1fr_1fr_80px_64px] sm:gap-x-4">
-                <div className="text-sm font-bold uppercase tracking-wide text-white sm:text-base">
+            <tfoot>
+              <tr
+                className="grid grid-cols-[1fr_70px_48px] gap-x-2 items-center px-4 py-6 sm:grid-cols-[1fr_1fr_80px_64px] sm:gap-x-4 sm:px-8 sm:py-7"
+                style={{ backgroundColor: '#024F46' }}
+              >
+                <td className="text-sm font-bold uppercase tracking-wide text-white sm:text-base">
                   Total
-                </div>
-                <div className="hidden sm:block" />
-                <div className="text-right">
+                </td>
+                <td className="hidden sm:block" />
+                <td className="text-right">
                   <span className="text-sm font-bold tabular-nums text-white/40 line-through decoration-white/25 sm:text-lg">
                     ${totalCost}/mo
                   </span>
-                </div>
-                <div className="text-center">
+                </td>
+                <td className="text-center">
                   <span className="text-sm font-bold text-white sm:text-lg">
                     S$99
                   </span>
-                </div>
-              </div>
-            </div>
-          </div>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
 
           {/* Savings callout card */}
           <div className="relative mt-8 overflow-hidden rounded-2xl border border-sunder-green/15 bg-[#013D36] px-6 py-10 sm:px-10 sm:py-12 shadow-xl shadow-sunder-green-dark/10">

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Pricing section with three bundle tiers for NeoBot.
+ * Pricing section with Free, Pro, and Teams tiers for NeoBot.
  */
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/landing/Button'
@@ -41,24 +41,23 @@ function CheckIcon({
 
 const plans = [
   {
-    name: 'Human Assistant',
-    price: '$3,000',
-    description: 'Boring.',
+    name: 'Free',
+    price: 'S$0',
+    description: 'See what Neo can do.',
     features: [
-      'Will inevitably stab you in the back',
-      'Gives you that \'disappointed parent\' look',
-      'Mysteriously unreachable when you need them most',
-      'Prone to errors (hey, they\'re human after all)',
+      '10 messages per day',
+      'All skills & integrations',
+      'Full CRM access',
+      'Memory that learns you',
     ],
     featured: false,
-    isJoke: true,
   },
   {
     name: 'Pro',
     price: 'S$99',
     description: 'Your AI sales assistant, always ready.',
     features: [
-      'Talk to Neo anytime',
+      'Unlimited messages',
       'Morning briefings & proactive follow-ups',
       'Voice notes → CRM updates, automatically',
       'Remembers every client detail',
@@ -67,7 +66,6 @@ const plans = [
       'All your tools, connected',
     ],
     featured: true,
-    isJoke: false,
   },
   {
     name: 'Teams',
@@ -82,13 +80,12 @@ const plans = [
       'Priority support',
     ],
     featured: false,
-    isJoke: false,
     contactSales: true,
   },
 ]
 
 const valueProps = [
-  'Start with 7 days free',
+  'Free plan, no credit card required',
   'Cancel anytime, no contracts',
   'Your data never used to train models',
 ]
@@ -101,8 +98,7 @@ export function Pricing() {
     <section
       id="pricing"
       aria-label="Pricing"
-      className="py-20 sm:py-24 md:py-32"
-      style={{ background: 'linear-gradient(180deg, #F5EEE1 0%, #F7ECDA 50%, #F5EEE1 100%)' }}
+      className="bg-gradient-to-b from-parchment via-[#F7ECDA] to-parchment py-20 sm:py-24 md:py-32"
     >
       <Container>
         <div
@@ -112,8 +108,8 @@ export function Pricing() {
           <h2 className="font-serif text-2xl tracking-tight text-foreground sm:text-3xl md:text-5xl">
             10 hours back per week for less than <span className="italic text-sunder-green">a coffee a day.</span>
           </h2>
-          <p className="mt-4 text-base leading-7 text-[#6B5E57] sm:mt-6 sm:text-lg sm:leading-8">
-            Start with 7 days free. Cancel anytime.
+          <p className="mt-4 text-base leading-7 text-lp-muted sm:mt-6 sm:text-lg sm:leading-8">
+            Free forever to start. Upgrade when you need more.
           </p>
         </div>
 
@@ -144,14 +140,14 @@ export function Pricing() {
                 <p
                   className={cn(
                     'mt-1 text-sm',
-                    plan.featured ? 'text-lp-green-muted' : 'text-[#6B5E57]'
+                    plan.featured ? 'text-lp-green-muted' : 'text-lp-muted'
                   )}
                 >
                   {plan.description}
                 </p>
                 <div className="mt-6 flex items-baseline gap-1">
                   {plan.price === 'Custom' ? (
-                    <span className="text-sm font-medium text-[#6B5E57]">
+                    <span className="text-sm font-medium text-lp-muted">
                       Custom pricing for your team
                     </span>
                   ) : (
@@ -167,7 +163,7 @@ export function Pricing() {
                       <span
                         className={cn(
                           'text-sm',
-                          plan.featured ? 'text-lp-green-muted' : 'text-[#6B5E57]'
+                          plan.featured ? 'text-lp-green-muted' : 'text-lp-muted'
                         )}
                       >
                         /mo
@@ -183,30 +179,28 @@ export function Pricing() {
                   )}
                 >
                   {plan.features.map((feature) => (
-                    <li key={feature} className={cn('flex gap-x-3', plan.isJoke && 'line-through opacity-60')}>
+                    <li key={feature} className="flex gap-x-3">
                       <CheckIcon
                         className={cn(
                           'h-6 w-6 flex-none',
-                          plan.isJoke ? 'text-[#C8BBAE]' : plan.featured ? 'text-white' : 'text-sunder-green'
+                          plan.featured ? 'text-white' : 'text-sunder-green'
                         )}
                       />
                       {feature}
                     </li>
                   ))}
                 </ul>
-                {!plan.isJoke && (
-                  <Button
-                    href={plan.contactSales ? '/contact' : '/demo'}
-                    className={cn(
-                      'press-effect mt-6 rounded-full py-2.5 text-sm font-semibold transition-all sm:mt-8',
-                      plan.featured
-                        ? 'bg-white text-sunder-green hover:bg-emerald-50'
-                        : 'bg-sunder-green text-white hover:bg-sunder-green-dark'
-                    )}
-                  >
-                    {plan.contactSales ? 'Contact Sales' : 'Try for free'}
-                  </Button>
-                )}
+                <Button
+                  href={plan.contactSales ? '/contact' : '/demo'}
+                  className={cn(
+                    'press-effect mt-6 rounded-full py-2.5 text-sm font-semibold transition-all sm:mt-8',
+                    plan.featured
+                      ? 'bg-white text-sunder-green hover:bg-emerald-50'
+                      : 'bg-sunder-green text-white hover:bg-sunder-green-dark'
+                  )}
+                >
+                  {plan.contactSales ? 'Contact Sales' : plan.price === 'S$0' ? 'Get started' : 'Try for free'}
+                </Button>
               </>
             )
 
@@ -226,19 +220,19 @@ export function Pricing() {
             }
 
             return (
-              <div
+              <article
                 key={plan.name}
                 className="flex flex-col rounded-2xl bg-white p-6 shadow-sm ring-1 ring-lp-border-warm sm:p-8"
               >
                 {cardContent}
-              </div>
+              </article>
             )
           })}
         </div>
 
         <ul className="mx-auto mt-10 flex max-w-lg flex-col items-center gap-3 sm:mt-12 sm:flex-row sm:justify-center sm:gap-8 lg:max-w-none">
           {valueProps.map((prop) => (
-            <li key={prop} className="flex gap-x-3 text-sm text-[#6B5E57]">
+            <li key={prop} className="flex gap-x-3 text-sm text-lp-muted">
               <CheckIcon className="h-5 w-5 flex-none text-sunder-green" />
               {prop}
             </li>

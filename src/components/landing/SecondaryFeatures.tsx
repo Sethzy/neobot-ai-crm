@@ -69,7 +69,7 @@ function FeatureCard({
         className={cn(
           'w-10 h-10 rounded-xl flex items-center justify-center transition-colors',
           isActive
-            ? 'bg-[#F5EEE1] text-sunder-green shadow-lg shadow-black/20'
+            ? 'bg-parchment text-sunder-green shadow-lg shadow-black/20'
             : 'bg-white/10 text-white/40',
         )}
       >
@@ -133,7 +133,7 @@ export function SecondaryFeatures() {
   const { ref: headerRef, isVisible: headerVisible } = useScrollReveal<HTMLDivElement>()
 
   return (
-    <div style={{ backgroundColor: '#F5EEE1' }}>
+    <div className="bg-parchment">
     <section
       id="secondary-features"
       aria-label="Skills architecture"

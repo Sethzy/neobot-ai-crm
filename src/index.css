@@ -340,34 +340,6 @@
   transform: scale(0.98);
 }
 
-/* Mobile WhatsApp attention animation - wiggle every 4s */
-@media (max-width: 639px) {
-  .whatsapp-attention {
-    animation: whatsapp-wiggle 4s ease-in-out infinite;
-  }
-
-  @keyframes whatsapp-wiggle {
-    0%, 92%, 100% {
-      transform: rotate(0deg);
-    }
-    94% {
-      transform: rotate(-5deg);
-    }
-    96% {
-      transform: rotate(5deg);
-    }
-    98% {
-      transform: rotate(-2deg);
-    }
-  }
-}
-
-/* Desktop: no wiggle */
-@media (min-width: 640px) {
-  .whatsapp-attention {
-    animation: none;
-  }
-}
 
 /* Mobile-specific section divider */
 .section-divider {

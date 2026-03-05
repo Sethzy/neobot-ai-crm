@@ -4,6 +4,7 @@
  * Testimonials section — dark rounded container with marquee-scrolling cards
  * and 2 green featured cards. Whisper Flow-inspired layout.
  */
+import Image from 'next/image'
 import { ArrowUpRight } from 'lucide-react'
 import { useScrollReveal, useStaggeredReveal } from '@/hooks/useScrollReveal'
 
@@ -25,55 +26,55 @@ interface FeaturedTestimonial {
 const marqueeTestimonials: MarqueeTestimonial[] = [
   {
     content:
-      'Neo follows up with my leads within seconds. I close deals I used to lose.',
+      'Neo follows up with my leads way faster than I ever could. I closed two deals last month that I definitely would have forgotten about.',
     author: { name: 'Rachel Ng', role: 'Senior Associate, PropNex Realty', avatar: '/images/avatar-rachel-ng.webp' },
   },
   {
     content:
-      "I used to spend 3 hours a day on paperwork. Neo handles all of that now. I'm meeting 40% more clients every week instead of doing admin.",
-    author: { name: 'Priya Sharma', role: 'Independent Insurance Broker', avatar: '/images/avatar-rachel-ng.webp' },
+      "I just forward everything to Neo and it handles the rest. Filing, tracking, follow-ups — I barely touch admin anymore which is great.",
+    author: { name: 'Priya Sharma', role: 'Independent Insurance Broker', avatar: '/images/avatar-priya-sharma.webp' },
   },
   {
     content:
-      "The morning brief changed everything. I wake up knowing exactly who to call, what's overdue, and where my pipeline stands. No more scrambling.",
-    author: { name: 'David Lim', role: 'Director, AutoPrime SG', avatar: '/images/avatar-marcus-loh.webp' },
+      "The morning brief is honestly my favourite part. I check WhatsApp at 7am and already know exactly what I need to do that day.",
+    author: { name: 'David Lim', role: 'Director, AutoPrime SG', avatar: '/images/avatar-david-lim.webp' },
   },
   {
     content:
-      "Can't live without it.",
+      "Was skeptical at first but two weeks in I couldn't go back. It just does so much of the boring stuff for you.",
     author: { name: 'Marcus Loh', role: 'Senior Financial Advisor, AIA', avatar: '/images/avatar-marcus-loh.webp' },
   },
   {
     content:
-      "I handle 3x the clients I used to — all by myself. Neo remembers every conversation and every deadline so I don't have to.",
-    author: { name: 'Sarah Tan', role: 'Property Agent, ERA', avatar: '/images/avatar-rachel-ng.webp' },
+      "I manage way more clients now than I used to and I don't feel overwhelmed. Neo remembers all the details so I don't have to.",
+    author: { name: 'Sarah Tan', role: 'Property Agent, ERA', avatar: '/images/avatar-sarah-tan.webp' },
   },
   {
     content:
-      "Best AI product I've used since ChatGPT.",
-    author: { name: 'James Wong', role: 'Financial Consultant, Prudential', avatar: '/images/avatar-marcus-loh.webp' },
+      "I send voice notes after meetings and by the time I get home Neo's already updated everything and scheduled the follow-ups. Super useful.",
+    author: { name: 'James Wong', role: 'Financial Consultant, Prudential', avatar: '/images/avatar-james-wong.webp' },
   },
   {
     content:
-      'My admin time went from 3 hours a day to 20 minutes. The rest is client-facing work. My income went up 40% in two months.',
-    author: { name: 'Wei Lin Chen', role: 'Senior Advisor, Great Eastern', avatar: '/images/avatar-marcus-loh.webp' },
+      "Basically stopped doing admin entirely last quarter and my numbers actually went up. Wish I'd found this earlier tbh.",
+    author: { name: 'Wei Lin Chen', role: 'Senior Advisor, Great Eastern', avatar: '/images/avatar-wei-lin-chen.webp' },
   },
   {
     content:
-      "It's like having an assistant who never sleeps, never forgets, and works entirely through WhatsApp. I can't imagine going back.",
-    author: { name: 'Aisha Rahman', role: 'Real Estate Negotiator, Knight Frank', avatar: '/images/avatar-rachel-ng.webp' },
+      "My clients think I have a whole team behind me but it's literally just me and Neo. The response time alone makes a huge difference.",
+    author: { name: 'Aisha Rahman', role: 'Real Estate Negotiator, Knight Frank', avatar: '/images/avatar-aisha-rahman.webp' },
   },
 ]
 
 const featuredTestimonials: FeaturedTestimonial[] = [
   {
     stat: '2x conversion rate',
-    tagline: 'The "never miss a lead" assistant.',
+    tagline: 'I stopped losing leads to slow follow-ups. That alone changed everything.',
     author: { name: 'Rachel Ng', role: 'Senior Associate, PropNex Realty', avatar: '/images/avatar-rachel-ng.webp' },
   },
   {
     stat: '3 hours saved/day',
-    tagline: "Before Neo, admin was my second job. Now it's handled.",
+    tagline: "I actually spend my time with clients now instead of doing paperwork.",
     author: { name: 'Marcus Loh', role: 'Senior Financial Advisor, AIA', avatar: '/images/avatar-marcus-loh.webp' },
   },
 ]
@@ -84,15 +85,24 @@ const featuredTestimonials: FeaturedTestimonial[] = [
 
 function MarqueeCard({ testimonial }: { testimonial: MarqueeTestimonial }) {
   return (
-    <figure className="w-[300px] shrink-0 rounded-2xl bg-[#F5EEE1] px-7 pt-8 pb-7 flex flex-col justify-end gap-4 text-center">
+    <figure className="w-[300px] shrink-0 rounded-2xl bg-parchment px-7 pt-8 pb-7 flex flex-col justify-end gap-4 text-center">
       <blockquote>
-        <p className="text-base leading-relaxed text-[#1A1A1A]">
+        <p className="text-base leading-relaxed text-lp-dark">
           {testimonial.content}
         </p>
       </blockquote>
-      <figcaption className="text-sm">
-        <span className="font-semibold text-[#1A1A1A]">{testimonial.author.name}</span>
-        <span className="text-[#6B6B6B]">, {testimonial.author.role}</span>
+      <figcaption className="flex items-center justify-center gap-2.5 text-sm">
+        <Image
+          src={testimonial.author.avatar}
+          alt={testimonial.author.name}
+          width={32}
+          height={32}
+          className="h-8 w-8 rounded-full object-cover"
+        />
+        <div className="text-left">
+          <span className="font-semibold text-lp-dark">{testimonial.author.name}</span>
+          <p className="text-xs text-[#6B6B6B]">{testimonial.author.role}</p>
+        </div>
       </figcaption>
     </figure>
   )
@@ -106,16 +116,18 @@ function FeaturedCard({ testimonial }: { testimonial: FeaturedTestimonial }) {
   return (
     <figure className="relative flex-1 rounded-2xl bg-sunder-green px-8 pt-6 pb-6 sm:px-10 sm:pt-7 sm:pb-7 text-white flex flex-col">
       <ArrowUpRight className="absolute top-6 right-6 h-7 w-7 text-white/50 sm:top-7 sm:right-8" />
-      <h3 className="font-serif text-3xl tracking-tight sm:text-4xl pr-10 whitespace-nowrap">
+      <h3 className="font-serif text-3xl tracking-tight sm:text-4xl pr-10">
         {testimonial.stat}
       </h3>
       <p className="mt-2 text-base text-white/80">
         {testimonial.tagline}
       </p>
       <figcaption className="mt-auto pt-8 flex items-center gap-3">
-        <img
+        <Image
           src={testimonial.author.avatar}
           alt={testimonial.author.name}
+          width={40}
+          height={40}
           className="h-10 w-10 rounded-full object-cover"
         />
         <div className="text-sm">
@@ -136,7 +148,7 @@ export function Testimonials() {
   const { ref: featuredRef, isVisible: featuredVisible } = useStaggeredReveal<HTMLDivElement>()
 
   return (
-    <div style={{ backgroundColor: '#F5EEE1' }}>
+    <div className="bg-parchment">
     <section
       id="testimonials"
       aria-label="What our customers are saying"
@@ -156,10 +168,16 @@ export function Testimonials() {
       </div>
 
       {/* Marquee */}
-      <div className="mt-0">
-        <div className="flex items-end gap-[6px] animate-marquee-slower" style={{ width: 'max-content' }}>
-          {[...marqueeTestimonials, ...marqueeTestimonials].map((t, i) => (
-            <MarqueeCard key={i} testimonial={t} />
+      <div className="group/marquee mt-0" role="region" aria-label="Customer testimonials">
+        <div className="flex items-end gap-[6px] animate-marquee-slower group-hover/marquee:[animation-play-state:paused]" style={{ width: 'max-content' }}>
+          {marqueeTestimonials.map((t, i) => (
+            <MarqueeCard key={`orig-${t.author.name}-${i}`} testimonial={t} />
+          ))}
+          {/* Duplicate for infinite scroll — hidden from screen readers */}
+          {marqueeTestimonials.map((t, i) => (
+            <div key={`dup-${t.author.name}-${i}`} aria-hidden="true">
+              <MarqueeCard testimonial={t} />
+            </div>
           ))}
         </div>
       </div>

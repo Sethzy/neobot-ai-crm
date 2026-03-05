@@ -8,7 +8,7 @@ import { useState, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { Container } from '@/components/landing/Container'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
-import { motion, useInView } from 'framer-motion'
+import { motion, useInView, useReducedMotion } from 'framer-motion'
 import {
   Heart,
   Briefcase,
@@ -258,6 +258,7 @@ const categories: Category[] = [
 
 export function UseCases() {
   const [activeIndex, setActiveIndex] = useState(0)
+  const shouldReduceMotion = useReducedMotion()
   const { ref: sectionRef, isVisible } = useScrollReveal<HTMLElement>()
   const active = categories[activeIndex]
 
@@ -271,16 +272,42 @@ export function UseCases() {
     if (tabsInView) hasRevealedRef.current = true
   }, [tabsInView])
 
-  const handleTabSwitch = (i: number, e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleTabSwitch = (i: number, e: React.MouseEvent<HTMLButtonElement> | React.KeyboardEvent<HTMLButtonElement>) => {
     setActiveIndex(i)
-    e.currentTarget.scrollIntoView({ inline: 'center', behavior: 'auto', block: 'nearest' })
+    ;(e.currentTarget as HTMLElement).scrollIntoView({ inline: 'center', behavior: 'auto', block: 'nearest' })
+  }
+
+  /** Keyboard navigation for tabs — arrow keys cycle through tabs */
+  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, i: number) => {
+    const count = categories.length
+    let next = i
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault()
+      next = (i + 1) % count
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      next = (i - 1 + count) % count
+    } else if (e.key === 'Home') {
+      e.preventDefault()
+      next = 0
+    } else if (e.key === 'End') {
+      e.preventDefault()
+      next = count - 1
+    } else {
+      return
+    }
+    setActiveIndex(next)
+    // Focus the newly active tab
+    const tablist = e.currentTarget.parentElement
+    const buttons = tablist?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+    buttons?.[next]?.focus()
   }
 
   /** Spring transition — low stiffness = heavy/weighted, low damping = more settle time */
   const springTransition = { type: 'spring' as const, stiffness: 35, damping: 14, mass: 2.4 }
 
   return (
-    <div style={{ backgroundColor: '#F5EEE1' }}>
+    <div className="bg-parchment">
     <section
       id="use-cases"
       ref={sectionRef}
@@ -309,20 +336,26 @@ export function UseCases() {
           className={`mt-6 sm:mt-8 scroll-reveal ${isVisible ? 'is-visible' : ''}`}
         >
           <div className="flex justify-center">
-            <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.06] p-1 backdrop-blur-sm">
+            <div role="tablist" aria-label="Use case categories" className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.06] p-1 backdrop-blur-sm">
               {categories.map((cat, i) => {
                 const Icon = cat.tabIcon
                 const isActive = i === activeIndex
+                const panelId = `usecase-panel-${cat.label.toLowerCase().replace(/\s/g, '-')}`
                 return (
                   <button
                     key={cat.label}
+                    role="tab"
+                    aria-selected={isActive}
+                    aria-controls={panelId}
+                    tabIndex={isActive ? 0 : -1}
                     onClick={(e) => handleTabSwitch(i, e)}
+                    onKeyDown={(e) => handleTabKeyDown(e, i)}
                     className={cn(
-                      'flex shrink-0 items-center justify-center rounded-full',
-                      // Mobile: icon-only for inactive, icon+label for active
+                      'flex shrink-0 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white',
+                      // Mobile: icon-only for inactive, icon+label for active — 44px min touch target
                       isActive
                         ? 'gap-1.5 bg-white text-sunder-green-dark shadow-lg shadow-black/10 px-3.5 py-2 sm:gap-2 sm:px-4 sm:py-2.5'
-                        : 'text-white/40 hover:text-white/70 w-9 h-9 sm:w-auto sm:h-auto sm:px-4 sm:py-2.5 sm:gap-2',
+                        : 'text-white/60 hover:text-white/80 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-auto sm:h-auto sm:px-4 sm:py-2.5 sm:gap-2',
                     )}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
@@ -342,11 +375,14 @@ export function UseCases() {
 
         {/* ---- Card grid ---- */}
         <div
+          role="tabpanel"
+          id={`usecase-panel-${active.label.toLowerCase().replace(/\s/g, '-')}`}
+          aria-label={`${active.label} use cases`}
           className="mx-auto mt-10 grid max-w-5xl grid-cols-1 gap-3 sm:mt-14 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3"
         >
           {active.cards.map((card, i) => {
             /** First reveal: spring in from below. After that: instant. */
-            const skipAnimation = hasRevealedRef.current
+            const skipAnimation = hasRevealedRef.current || shouldReduceMotion
             return (
             <motion.div
               key={card.title}
@@ -361,7 +397,7 @@ export function UseCases() {
                   ? { duration: 0 }
                   : { ...springTransition, delay: i * 0.08 }
               }
-              className="group rounded-2xl bg-[#F5EEE1] px-5 pt-5 pb-5 sm:px-7 sm:pt-6 sm:pb-6"
+              className="group rounded-2xl bg-parchment px-5 pt-5 pb-5 sm:px-7 sm:pt-6 sm:pb-6"
             >
               {/* Logos + title */}
               <div className="flex items-center justify-between gap-4">

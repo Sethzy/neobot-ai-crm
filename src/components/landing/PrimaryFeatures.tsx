@@ -8,7 +8,7 @@ import { WhatsAppPhoneMockup } from "@/components/landing/WhatsAppPhoneMockup";
 import { SunburstDecoration } from "@/components/landing/SunburstDecoration";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
-import { motion, useScroll, useTransform, useSpring } from "framer-motion";
+import { motion, useScroll, useTransform, useSpring, useReducedMotion } from "framer-motion";
 import { useRef } from "react";
 import { Send, FileSpreadsheet, Bell, Link2 } from "lucide-react";
 
@@ -137,6 +137,7 @@ export function PrimaryFeatures() {
     useScrollReveal<HTMLDivElement>();
   const { ref: featuresRef, isVisible: featuresVisible } =
     useScrollReveal<HTMLDivElement>();
+  const shouldReduceMotion = useReducedMotion();
   const sectionRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({
     target: sectionRef,
@@ -186,7 +187,11 @@ export function PrimaryFeatures() {
             {features.map((feature, featureIndex) => (
               <div
                 key={feature.title}
+                tabIndex={0}
+                role="button"
                 onMouseEnter={() => setSelectedIndex(featureIndex)}
+                onClick={() => setSelectedIndex(featureIndex)}
+                onFocus={() => setSelectedIndex(featureIndex)}
                 className={cn(
                   "group relative py-5 text-left transition-all duration-300 select-none sm:py-6",
                   // Dashed divider for all except the last item
@@ -194,6 +199,8 @@ export function PrimaryFeatures() {
                     "border-b border-dashed border-zinc-200",
                   // Cursor pointer on desktop only
                   "md:cursor-pointer",
+                  // Focus indicator
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sunder-green rounded-lg",
                 )}
               >
                 <div className="flex items-center gap-4">
@@ -263,7 +270,7 @@ export function PrimaryFeatures() {
 
           {/* Desktop: full phone mockup */}
           {isDesktop ? (
-            <motion.div style={{ y, opacity, scale }} className="hidden lg:block lg:col-span-7 lg:-mr-8">
+            <motion.div style={shouldReduceMotion ? {} : { y, opacity, scale }} className="hidden lg:block lg:col-span-7 lg:-mr-8">
               <div className="w-full flex justify-end">
                 <WhatsAppPhoneMockup isVisible />
               </div>
