@@ -319,45 +319,21 @@ describe("ChatPanel", () => {
     expect(screen.queryByText(/start a conversation/i)).not.toBeInTheDocument();
   });
 
-  it("auto-sends the initial draft message once for an empty thread", async () => {
-    const { rerender } = render(
-      <ChatPanel
-        chatId="thread-1"
-        initialMessages={[]}
-        initialMessage="Draft first message"
-      />,
-    );
+  it("pushes /chat/{id} before sending from the draft route", async () => {
+    const user = userEvent.setup();
+    const pushStateSpy = vi.spyOn(window.history, "pushState");
+    window.history.replaceState({}, "", "/chat");
+
+    render(<ChatPanel chatId="thread-1" />);
+
+    await user.type(screen.getByPlaceholderText(/send a message/i), "Hello from draft");
+    await user.click(screen.getByRole("button", { name: /submit/i }));
 
     await waitFor(() => {
-      expect(sendMessage).toHaveBeenCalledWith({ text: "Draft first message" });
+      expect(pushStateSpy).toHaveBeenCalledWith({}, "", "/chat/thread-1");
+      expect(sendMessage).toHaveBeenCalledWith({ text: "Hello from draft" });
     });
 
-    rerender(
-      <ChatPanel
-        chatId="thread-1"
-        initialMessages={[]}
-        initialMessage="Draft first message"
-      />,
-    );
-
-    await waitFor(() => {
-      expect(sendMessage).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  it("does not auto-send an initial draft message when initialMessages already exist", () => {
-    const initialMessages = [
-      { id: "u0", role: "user", parts: [{ type: "text", text: "Existing" }] },
-    ] as UIMessage[];
-
-    render(
-      <ChatPanel
-        chatId="thread-1"
-        initialMessages={initialMessages}
-        initialMessage="Should not send"
-      />,
-    );
-
-    expect(sendMessage).not.toHaveBeenCalled();
+    pushStateSpy.mockRestore();
   });
 });

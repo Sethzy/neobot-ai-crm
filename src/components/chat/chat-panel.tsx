@@ -17,8 +17,6 @@ interface ChatPanelProps {
   chatId: string;
   /** Initial persisted messages loaded server-side for this thread route. */
   initialMessages?: UIMessage[];
-  /** Optional first message transferred from /chat draft to this thread route. */
-  initialMessage?: string;
   /** Called once with the first user message text for auto-naming new threads. */
   onAutoName?: (firstUserMessage: string) => void;
 }
@@ -26,7 +24,6 @@ interface ChatPanelProps {
 export function ChatPanel({
   chatId,
   initialMessages = [],
-  initialMessage,
   onAutoName,
 }: ChatPanelProps) {
   const transport = useMemo(
@@ -53,11 +50,9 @@ export function ChatPanel({
   );
 
   const hasAutoNamed = useRef(false);
-  const hasSentInitialMessage = useRef(false);
 
   useEffect(() => {
     hasAutoNamed.current = initialMessages.some((message) => message.role === "user");
-    hasSentInitialMessage.current = false;
   }, [chatId, initialMessages]);
 
   const { messages, sendMessage, status, error } = useChat({
@@ -77,30 +72,19 @@ export function ChatPanel({
 
   const isLoading = status === "submitted" || status === "streaming";
 
-  useEffect(() => {
-    if (
-      !initialMessage ||
-      hasSentInitialMessage.current ||
-      initialMessages.length > 0 ||
-      messages.length > 0 ||
-      isLoading
-    ) {
-      return;
-    }
-
-    hasSentInitialMessage.current = true;
-    sendMessage({ text: initialMessage });
-  }, [initialMessage, initialMessages.length, isLoading, messages.length, sendMessage]);
-
   const handleSubmit = useCallback(
     (text: string) => {
       if (text.length === 0 || isLoading) {
         return;
       }
 
+      if (typeof window !== "undefined" && window.location.pathname === "/chat") {
+        window.history.pushState({}, "", `/chat/${chatId}`);
+      }
+
       sendMessage({ text });
     },
-    [isLoading, sendMessage],
+    [chatId, isLoading, sendMessage],
   );
 
   return (
