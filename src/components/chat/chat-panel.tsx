@@ -54,6 +54,7 @@ export function ChatPanel({
   const { messages, sendMessage, status, error, resumeStream, setMessages } = useChat({
     id: chatId,
     messages: initialMessages,
+    generateId: () => crypto.randomUUID(),
     transport,
     onData: (dataPart) => {
       setDataStream((currentParts) => (currentParts ? [...currentParts, dataPart] : [dataPart]));

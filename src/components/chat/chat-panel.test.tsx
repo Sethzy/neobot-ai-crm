@@ -94,10 +94,15 @@ describe("ChatPanel", () => {
       id: string;
       messages: UIMessage[];
       transport: { api?: string };
+      generateId?: () => string;
     };
     expect(options.id).toBe("thread-1");
     expect(options.messages).toEqual(initialMessages);
     expect(options.transport).toEqual(expect.objectContaining({ api: "/api/chat" }));
+    expect(typeof options.generateId).toBe("function");
+    expect(options.generateId?.()).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
   });
 
   it("configures transport with prepareSendMessagesRequest", () => {
