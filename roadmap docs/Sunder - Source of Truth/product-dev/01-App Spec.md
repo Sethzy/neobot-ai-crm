@@ -15,7 +15,7 @@ This is the single product specification for Sunder. It defines what we're build
 | Document | Purpose | Path |
 |----------|---------|------|
 | Architecture Decisions | 154 approved technical decisions across 18 categories | `architecture/architecture-decisions-checklist.json` |
-| Implementation Plan | 5 phases, 48 PRs, PR-by-PR breakdown | `docs/product/plans/2026-03-01-implementation-phasing-plan.md` (prose) and `.json` (checkable task list) at repo root |
+| Implementation Plan | **v2 (active):** 5 phases, 29 PRs (12 done + 17 to build) | `docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json`. Supersedes original 48-PR plan at `2026-03-01-implementation-phasing-plan.json`. |
 | Built-In Services | 13 service integrations with API verification and code examples | `services/01-Built-In Services (Imported from RE-AI-CRM).md` |
 | Unit Economics | Per-user cost model across paid service stack | `services/02-Unit Economics Model ($20 Target vs Actual).md` |
 | Mission Control UX | UI behavior spec (draft) | `ux-and-pm/01-Mission Control UX Spec (Draft).md` |

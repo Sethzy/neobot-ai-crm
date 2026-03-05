@@ -7,7 +7,7 @@
     "markdownPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.md",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
     "totalPhases": 5,
-    "estimatedPRs": 48,
+    "estimatedPRs": 49,
     "statusOptions": [
       "pending",
       "in_progress",

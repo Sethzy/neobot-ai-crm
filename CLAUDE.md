@@ -19,7 +19,7 @@ Authority chain (what wins in conflicts):
 
 1. **`roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md`** — canonical product spec. Wins on product behavior, architecture, phasing, and scope.
 2. **`roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json`** — 154 approved decisions across 18 categories. Wins on technical implementation. Referenced by IDs like `FOUND-01`, `LLM-03`, `DATA-06`.
-3. **`docs/product/plans/2026-03-01-implementation-phasing-plan.json`** — PR-by-PR execution checklist (48 PRs across 5 phases). Prose version: `docs/product/plans/2026-03-01-implementation-phasing-plan.md`.
+3. **`docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json`** — PR-by-PR execution checklist (29 PRs across 5 phases, 12 done + 17 to build). Supersedes the original 48-PR plan at `docs/product/plans/2026-03-01-implementation-phasing-plan.json`.
 4. Everything else in `roadmap docs/` is supporting reference material.
 
 **Before making architectural decisions**, check the App Spec and architecture decisions JSON. If the spec is silent on a behavior, follow Tasklet reference patterns by default (`TASKLET-01`).
@@ -80,7 +80,7 @@ Authority chain (what wins in conflicts):
 - **Memory system:** Per-client files in Supabase Storage (`SOUL.md`, `USER.md`, `MEMORY.md`, `memory/*.md`). Agent reads/writes via `read_file`/`write_file` tools.
 - **Safety model:** Two tiers only. Internal work auto-runs. External-facing actions require approval. No per-action granularity in v1.
 - **Thread serialization:** One run per thread at a time. DB-backed queue for messages arriving during active runs.
-- **Model routing:** 4 tiers (Background → Flash → Pro → Sonnet). Router classifies inbound messages. Background tasks skip router.
+- **Model routing:** Single model (Gemini Flash) for v1. Multi-tier routing deferred.
 
 ## UI and Styling
 
