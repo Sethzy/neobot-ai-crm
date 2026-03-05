@@ -6,13 +6,27 @@
 
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useChat } from "@ai-sdk/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle } from "lucide-react";
 import { useCallback, useMemo } from "react";
 
 import { useAutoResume } from "@/hooks/use-auto-resume";
+import { threadKeys } from "@/hooks/use-threads";
 import { ChatComposer } from "./chat-composer";
 import { useDataStream } from "./data-stream-provider";
 import { MessageList } from "./message-list";
+
+/** Batches token updates to reduce render churn during fast streams. */
+const STREAM_UI_THROTTLE_MS = 50;
+
+function shouldStoreDataPartForClient(part: unknown): boolean {
+  return (
+    typeof part === "object" &&
+    part !== null &&
+    "type" in part &&
+    (part.type === "data-chat-title" || part.type === "data-appendMessage")
+  );
+}
 
 interface ChatPanelProps {
   chatId: string;
@@ -28,6 +42,7 @@ export function ChatPanel({
   autoResume = false,
 }: ChatPanelProps) {
   const { setDataStream } = useDataStream();
+  const queryClient = useQueryClient();
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
@@ -55,9 +70,17 @@ export function ChatPanel({
     id: chatId,
     messages: initialMessages,
     generateId: () => crypto.randomUUID(),
+    experimental_throttle: STREAM_UI_THROTTLE_MS,
     transport,
     onData: (dataPart) => {
+      if (!shouldStoreDataPartForClient(dataPart)) {
+        return;
+      }
+
       setDataStream((currentParts) => (currentParts ? [...currentParts, dataPart] : [dataPart]));
+    },
+    onFinish: () => {
+      queryClient.invalidateQueries({ queryKey: threadKeys.all });
     },
   });
 

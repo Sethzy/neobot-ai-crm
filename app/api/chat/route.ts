@@ -3,16 +3,27 @@
  * @module app/api/chat/route
  */
 import type { UIMessage } from "ai";
-import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
+import { createUIMessageStream, createUIMessageStreamResponse, generateId } from "ai";
+import { after } from "next/server";
+import { createResumableStreamContext } from "resumable-stream";
 
 import { resolveClientId } from "@/lib/chat/client-id";
 import { generateTitleFromUserMessage } from "@/lib/ai/title";
+import { clearActiveStreamId, setActiveStreamId } from "@/lib/redis";
 import { runAgent } from "@/lib/runner/run-agent";
 import { createClient } from "@/lib/supabase/server";
 import { type PostRequestBody, postRequestBodySchema } from "./schema";
 
 /** Allows longer streaming runs on Vercel functions. */
 export const maxDuration = 60;
+
+function getStreamContext() {
+  try {
+    return createResumableStreamContext({ waitUntil: after });
+  } catch (_) {
+    return null;
+  }
+}
 
 function jsonError(message: string, status: number): Response {
   return Response.json({ error: message }, { status });
@@ -171,9 +182,40 @@ export async function POST(request: Request): Promise<Response> {
           }
         }
       },
+      onFinish: async () => {
+        if (!process.env.REDIS_URL) {
+          return;
+        }
+
+        try {
+          await clearActiveStreamId(threadId);
+        } catch (_) {
+          // Ignore Redis cleanup failures to avoid breaking completed responses.
+        }
+      },
     });
 
-    return createUIMessageStreamResponse({ stream });
+    return createUIMessageStreamResponse({
+      stream,
+      async consumeSseStream({ stream: sseStream }) {
+        if (!process.env.REDIS_URL) {
+          return;
+        }
+
+        try {
+          const streamContext = getStreamContext();
+          if (!streamContext) {
+            return;
+          }
+
+          const streamId = generateId();
+          await setActiveStreamId(threadId, streamId);
+          await streamContext.createNewResumableStream(streamId, () => sseStream);
+        } catch (_) {
+          clearActiveStreamId(threadId).catch(() => {});
+        }
+      },
+    });
   } catch {
     return jsonError("Failed to process chat request.", 500);
   }
