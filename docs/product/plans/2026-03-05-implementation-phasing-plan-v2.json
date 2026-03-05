@@ -823,7 +823,7 @@
         {
           "pr": "15c",
           "title": "CRM configurability \u2014 dynamic vocabulary + custom fields",
-          "status": "pending",
+          "status": "in_progress",
           "decisions": [],
           "dependsOn": [
             5,
@@ -974,7 +974,7 @@
         {
           "pr": 19,
           "title": "Autopilot thread + pulse",
-          "status": "pending",
+          "status": "in_progress",
           "decisions": [
             "TRIG-06b",
             "TRIG-07",
