@@ -103,7 +103,17 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     if (!thread) {
-      return jsonError("Thread not found.", 404);
+      if (!body.message || body.message.role !== "user") {
+        return jsonError("Thread not found.", 404);
+      }
+
+      const { error: insertError } = await supabase
+        .from("conversation_threads")
+        .insert({ thread_id: threadId, client_id: clientId, title: null });
+
+      if (insertError) {
+        return jsonError("Failed to process chat request.", 500);
+      }
     }
 
     const result = await runAgent(

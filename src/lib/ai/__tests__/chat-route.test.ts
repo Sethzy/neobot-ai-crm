@@ -64,6 +64,18 @@ describe("POST /api/chat", () => {
     return { from };
   }
 
+  function createMissingThreadWithInsert() {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const thirdEq = vi.fn(() => ({ maybeSingle }));
+    const secondEq = vi.fn(() => ({ eq: thirdEq }));
+    const firstEq = vi.fn(() => ({ eq: secondEq }));
+    const select = vi.fn(() => ({ eq: firstEq }));
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    const from = vi.fn(() => ({ select, insert }));
+
+    return { from, insert };
+  }
+
   const mockSupabase = {
     auth: {
       getUser: vi.fn(),
@@ -196,6 +208,50 @@ describe("POST /api/chat", () => {
 
     expect(response.status).toBe(202);
     expect(await response.json()).toEqual({ status: "queued" });
+  });
+
+  it("creates thread lazily when thread does not exist and request contains user message", async () => {
+    const { from, insert } = createMissingThreadWithInsert();
+    mockSupabase.from = from;
+
+    const streamResponse = new Response("streamed", {
+      headers: { "Content-Type": "text/event-stream" },
+    });
+    mockCreateUIMessageStream.mockReturnValue(new ReadableStream());
+    mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
+    mockRunAgent.mockResolvedValue({
+      status: "streaming",
+      streamResult: {
+        toUIMessageStream: vi.fn(() => new ReadableStream()),
+      },
+    });
+
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Create lazily" }],
+        },
+      }),
+    );
+
+    expect(insert).toHaveBeenCalledWith({
+      thread_id: threadId,
+      client_id: "client-456",
+      title: null,
+    });
+    expect(mockRunAgent).toHaveBeenCalledWith(
+      {
+        clientId: "client-456",
+        threadId,
+        triggerType: "chat",
+        input: "Create lazily",
+      },
+      mockSupabase,
+    );
+    expect(response).toBe(streamResponse);
   });
 
   it("returns 400 when thread id is missing", async () => {
