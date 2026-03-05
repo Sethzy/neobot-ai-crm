@@ -39,8 +39,8 @@ describe("createSendMessageTool", () => {
     );
     expect(result).toEqual({
       success: false,
-      delivered: false,
-      error: "send_message is not implemented until PR 32a",
+      data: null,
+      error: "Message delivery is not available in this environment",
       source: "send_message",
     });
   });

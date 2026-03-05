@@ -7,19 +7,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
 import { createMessages } from "@/lib/chat/messages";
-import {
-  CRM_COMPACTION_INSTRUCTIONS,
-  maybeCompactThread,
-} from "@/lib/runner/compaction";
+import { CRM_COMPACTION_INSTRUCTIONS } from "@/lib/runner/compaction";
 import { assembleContext } from "@/lib/runner/context";
-import { drainAndContinue } from "@/lib/runner/drain-and-continue";
-import {
-  buildAssistantPartsFromSteps,
-  getAssistantTextFromParts,
-} from "@/lib/runner/message-utils";
 import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
+import { finalizeRun } from "@/lib/runner/run-persistence";
 import type { RunnerPayload } from "@/lib/runner/schemas";
-import { truncateOversizedParts } from "@/lib/runner/toolcall-artifacts";
 import {
   createCrmTools,
   createStorageTools,
@@ -44,26 +36,6 @@ export type RunAgentResult =
 
 function isAnthropicModel(modelId: string): boolean {
   return /^anthropic[/:]/.test(modelId);
-}
-
-export function appendArtifactRecoveryNote(
-  contentText: string,
-  recoveryPaths: string[],
-): string {
-  if (recoveryPaths.length === 0) {
-    return contentText;
-  }
-
-  const recoveryNote = [
-    "Full tool results were truncated from persisted context. Recover them with read_file if needed:",
-    ...recoveryPaths.map((path) => `- ${path}`),
-  ].join("\n");
-
-  return [contentText, recoveryNote]
-    .map((value) => value.trim())
-    .filter((value) => value.length > 0)
-    .join("\n\n")
-    .trim();
 }
 
 /**
@@ -175,54 +147,16 @@ export async function runAgent(
       tools,
       prepareStep: buildPrepareStep(modelId),
       onFinish: async ({ text, steps, totalUsage }) => {
-        const rawParts = buildAssistantPartsFromSteps(steps);
-        let parts = rawParts;
-        let recoveryPaths: string[] = [];
-
-        try {
-          const truncatedResult = await truncateOversizedParts(
-            supabase,
-            clientId,
-            rawParts,
-          );
-          parts = truncatedResult.parts;
-          recoveryPaths = truncatedResult.recoveryPaths;
-        } catch (artifactError) {
-          console.error("[runner] toolcall artifact persistence failed:", artifactError);
-        }
-
-        const contentTextFromParts = getAssistantTextFromParts(parts);
-        const fallbackContentText = typeof text === "string" ? text.trim() : "";
-        const contentText = appendArtifactRecoveryNote(
-          contentTextFromParts.length > 0 ? contentTextFromParts : fallbackContentText,
-          recoveryPaths,
-        );
-        const hasNonStepParts = parts.some((part) => part.type !== "step-start");
-
-        if (hasNonStepParts || contentText.length > 0) {
-          await createMessages(supabase, [
-            {
-              thread_id: threadId,
-              role: "assistant",
-              content: contentText,
-              parts: hasNonStepParts
-                ? (parts as Json)
-                : ([{ type: "text", text: contentText }] as Json),
-            },
-          ]);
-        }
-
-        await completeRun(supabase, {
+        await finalizeRun({
+          supabase,
+          clientId,
+          threadId,
           runId: lockResult.runId,
-          status: "completed",
-          model: modelId,
-          tokensIn: totalUsage.inputTokens ?? 0,
-          tokensOut: totalUsage.outputTokens ?? 0,
-          stepCount: steps.length,
-        });
-        await drainAndContinue(supabase, { clientId, threadId });
-        void maybeCompactThread(supabase, clientId, threadId).catch((compactionError) => {
-          console.error("[runner] post-run compaction failed:", compactionError);
+          modelId,
+          steps,
+          text,
+          totalUsage,
+          logLabel: "runner",
         });
       },
     });

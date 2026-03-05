@@ -7,7 +7,7 @@ import { z } from "zod";
 
 /**
  * Creates a Tasklet-aligned `send_message` tool stub.
- * Delivery is deferred until PR 32a wires the platform email backend.
+ * Delivery is deferred until the platform email backend is wired.
  */
 export function createSendMessageTool() {
   return {
@@ -26,10 +26,10 @@ export function createSendMessageTool() {
         console.warn("[send_message] delivery skipped in stub mode", input);
 
         return {
-          success: false as const,
-          delivered: false as const,
-          error: "send_message is not implemented until PR 32a",
-          source: "send_message" as const,
+          success: false,
+          data: null,
+          error: "Message delivery is not available in this environment",
+          source: "send_message",
         };
       },
     }),

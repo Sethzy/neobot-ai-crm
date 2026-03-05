@@ -7,22 +7,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
 import { AUTOPILOT_INSTRUCTION_PROMPT } from "@/lib/autopilot/constants";
-import { createMessages } from "@/lib/chat/messages";
-import { maybeCompactThread } from "@/lib/runner/compaction";
 import { assembleContext } from "@/lib/runner/context";
-import { drainAndContinue } from "@/lib/runner/drain-and-continue";
-import {
-  buildAssistantPartsFromSteps,
-  getAssistantTextFromParts,
-} from "@/lib/runner/message-utils";
-import {
-  appendArtifactRecoveryNote,
-  buildPrepareStep,
-  createRunnerTools,
-} from "@/lib/runner/run-agent";
+import { buildPrepareStep, createRunnerTools } from "@/lib/runner/run-agent";
 import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
-import { truncateOversizedParts } from "@/lib/runner/toolcall-artifacts";
-import type { Database, Json } from "@/types/database";
+import { finalizeRun } from "@/lib/runner/run-persistence";
+import type { Database } from "@/types/database";
 
 const MAX_STEPS_AUTOPILOT = 9;
 
@@ -75,68 +64,33 @@ export async function runAutopilot({
       prepareStep: buildPrepareStep(modelId, MAX_STEPS_AUTOPILOT),
     });
 
-    const rawParts = buildAssistantPartsFromSteps(result.steps);
-    let parts = rawParts;
-    let recoveryPaths: string[] = [];
-
-    try {
-      const truncatedResult = await truncateOversizedParts(
-        supabase,
-        clientId,
-        rawParts,
-      );
-      parts = truncatedResult.parts;
-      recoveryPaths = truncatedResult.recoveryPaths;
-    } catch (artifactError) {
-      console.error("[autopilot] toolcall artifact persistence failed:", artifactError);
-    }
-
-    const contentTextFromParts = getAssistantTextFromParts(parts);
-    const fallbackContentText = typeof result.text === "string" ? result.text.trim() : "";
-    const contentText = appendArtifactRecoveryNote(
-      contentTextFromParts.length > 0 ? contentTextFromParts : fallbackContentText,
-      recoveryPaths,
-    );
-    const hasNonStepParts = parts.some((part) => part.type !== "step-start");
-
-    if (hasNonStepParts || contentText.length > 0) {
-      await createMessages(supabase, [
-        {
-          thread_id: threadId,
-          role: "assistant",
-          content: contentText,
-          parts: hasNonStepParts
-            ? (parts as Json)
-            : ([{ type: "text", text: contentText }] as Json),
-        },
-      ]);
-    }
-
-    await completeRun(supabase, {
+    await finalizeRun({
+      supabase,
+      clientId,
+      threadId,
       runId: lockResult.runId,
-      status: "completed",
-      model: modelId,
-      tokensIn: result.totalUsage.inputTokens ?? 0,
-      tokensOut: result.totalUsage.outputTokens ?? 0,
-      stepCount: result.steps.length,
-    });
-
-    await drainAndContinue(supabase, { clientId, threadId });
-    void maybeCompactThread(supabase, clientId, threadId).catch((compactionError) => {
-      console.error("[autopilot] post-run compaction failed:", compactionError);
+      modelId,
+      steps: result.steps,
+      text: result.text,
+      totalUsage: result.totalUsage,
+      logLabel: "autopilot",
     });
 
     return { status: "completed" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown autopilot error";
 
-    await completeRun(supabase, {
-      runId: lockResult.runId,
-      status: "failed",
-      model: modelId,
-      tokensIn: 0,
-      tokensOut: 0,
-    });
+    try {
+      await completeRun(supabase, {
+        runId: lockResult.runId,
+        status: "failed",
+        model: modelId,
+        tokensIn: 0,
+        tokensOut: 0,
+      });
+    } catch (lifecycleError) {
+      console.error("[autopilot] completeRun failed during error handling:", lifecycleError);
+    }
 
     return { status: "failed", error: message };
   }

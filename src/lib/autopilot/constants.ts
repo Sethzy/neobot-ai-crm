@@ -19,7 +19,7 @@ export const PULSE_INTERVAL_MAP = {
 } as const;
 
 /** Supported pulse interval values persisted in `autopilot_config`. */
-export const pulseIntervalValues = Object.keys(PULSE_INTERVAL_MAP) as Array<keyof typeof PULSE_INTERVAL_MAP>;
+export const pulseIntervalValues = ["1h", "2h", "6h", "12h"] as const;
 
 const quietHoursTimeSchema = z.string().regex(/^\d{2}:\d{2}(?::\d{2})?$/);
 
