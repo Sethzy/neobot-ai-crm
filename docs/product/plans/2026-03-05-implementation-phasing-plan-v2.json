@@ -1,16 +1,16 @@
 {
   "meta": {
-    "title": "Sunder Implementation Phasing Plan v2 — Scope Cut",
+    "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-05",
+    "updated": "2026-03-06",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
-    "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md §17",
+    "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
     "totalPhases": 5,
     "estimatedPRs": 32,
     "keptPRs": 19,
     "cutPRs": 19,
-    "donePRs": 13,
+    "donePRs": 16,
     "statusOptions": [
       "pending",
       "in_progress",
@@ -20,13 +20,13 @@
     ],
     "scopeDecision": "Simplified to: AI CRM + autopilot + connections + email + Telegram. Cut skills system, sandbox, scraping lanes, scaling infra, voice, eval, model routing, structured AI input. Restored CRM configurability (PR 15a) and added agent-generated views placeholder (PR 42a).",
     "changelog": [
-      "2026-03-05: v2 created — scope cut from 48 PRs to 30 (13 done + 17 to build). Reordered into new phases. Original plan preserved at 2026-03-01-implementation-phasing-plan.json.",
-      "2026-03-05: Removed PR 19a (Agent tasks). (Superseded by entry 6 — reverted to dedicated agent_todo table.)",
+      "2026-03-05: v2 created \u2014 scope cut from 48 PRs to 30 (13 done + 17 to build). Reordered into new phases. Original plan preserved at 2026-03-01-implementation-phasing-plan.json.",
+      "2026-03-05: Removed PR 19a (Agent tasks). (Superseded by entry 6 \u2014 reverted to dedicated agent_todo table.)",
       "2026-03-05: Restored PR 22 (Context recovery + thread compaction) into Phase 2. Required for autopilot thread which accumulates messages every 6h.",
       "2026-03-05: Explicitly cut goals table (goals written to MEMORY.md). Confirmed per-thread approval discovery (no Queue tab). Autopilot priority order rewritten for simplified crm_tasks model.",
-      "2026-03-05: Tasklet gap analysis fixes — PR 15: user email in system-reminder, connection state slot, state/ directory convention in platform instructions. PR 20: webhook + RSS trigger types. PR 26: wire connection state into system-reminder.",
+      "2026-03-05: Tasklet gap analysis fixes \u2014 PR 15: user email in system-reminder, connection state slot, state/ directory convention in platform instructions. PR 20: webhook + RSS trigger types. PR 26: wire connection state into system-reminder.",
       "2026-03-05: Split agent todo from CRM tasks. Reverted unified task model (source+payload on crm_tasks). Added dedicated agent_todo table + manage_todo/list_todo tools in PR 15 (Tasklet-parity, minimal schema: title+payload, exists-or-deleted). CRM task tools unchanged. Updated autopilot pulse prompt (PR 19-5) to use list_todo() for agent work + search_tasks() for CRM work.",
-      "2026-03-05: CRM tool review vs Attio MCP + HubSpot MCP. Added PR 15a (CRM configurability — dynamic vocabulary + custom fields) in Phase 2 after PR 15. Restored from cut PR 38a with expanded scope: Layer 1 (vocabulary from crm_config) + Layer 2 (custom fields via JSONB). Added PR 42a (agent-generated views) as exploratory Phase 5 placeholder inspired by Tasklet instant apps. Removed PR 38a from cutPRs list."
+      "2026-03-05: CRM tool review vs Attio MCP + HubSpot MCP. Added PR 15a (CRM configurability \u2014 dynamic vocabulary + custom fields) in Phase 2 after PR 15. Restored from cut PR 38a with expanded scope: Layer 1 (vocabulary from crm_config) + Layer 2 (custom fields via JSONB). Added PR 42a (agent-generated views) as exploratory Phase 5 placeholder inspired by Tasklet instant apps. Removed PR 38a from cutPRs list."
     ]
   },
   "phases": [
@@ -35,8 +35,8 @@
       "title": "Chat + CRM + Basic Tools",
       "status": "done",
       "goal": "User can chat with an AI agent that reads/writes CRM data, searches the web, and reads/writes files. Read-only CRM pages let the user verify what the agent did.",
-      "demoMoment": "\"I met John Smith at 123 Oak St\" → agent creates contact + deal, user sees it in CRM page",
-      "endState": "User logs in → sees chat → talks to agent → agent creates CRM data → user verifies in CRM pages. Existing document processing untouched.",
+      "demoMoment": "\"I met John Smith at 123 Oak St\" \u2192 agent creates contact + deal, user sees it in CRM page",
+      "endState": "User logs in \u2192 sees chat \u2192 talks to agent \u2192 agent creates CRM data \u2192 user verifies in CRM pages. Existing document processing untouched.",
       "alreadyDone": [
         "Auth + middleware (DATA-08)",
         "Supabase project + deployment (FOUND-02)",
@@ -50,182 +50,536 @@
           "pr": 1,
           "title": "Vercel AI Gateway + basic streaming endpoint",
           "status": "done",
-          "decisions": ["LLM-01", "LLM-02", "LLM-05", "EXEC-01"],
-          "tasks": [
-            { "id": "PR1-1", "task": "Install @ai-sdk/gateway and ai (Vercel AI SDK)", "done": true },
-            { "id": "PR1-2", "task": "Create app/api/chat/route.ts (App Router)", "done": true },
-            { "id": "PR1-3", "task": "Wire up Vercel AI Gateway with AI_GATEWAY_API_KEY", "done": true },
-            { "id": "PR1-4", "task": "Basic streamText() call with Gemini Flash (Tier 1)", "done": true },
-            { "id": "PR1-5", "task": "Hardcoded system prompt (real estate agent persona placeholder)", "done": true },
-            { "id": "PR1-6", "task": "No tools yet — just streaming text responses", "done": true }
+          "decisions": [
+            "LLM-01",
+            "LLM-02",
+            "LLM-05",
+            "EXEC-01"
           ],
-          "testCriteria": ["curl the endpoint, get a streamed response"]
+          "tasks": [
+            {
+              "id": "PR1-1",
+              "task": "Install @ai-sdk/gateway and ai (Vercel AI SDK)",
+              "done": true
+            },
+            {
+              "id": "PR1-2",
+              "task": "Create app/api/chat/route.ts (App Router)",
+              "done": true
+            },
+            {
+              "id": "PR1-3",
+              "task": "Wire up Vercel AI Gateway with AI_GATEWAY_API_KEY",
+              "done": true
+            },
+            {
+              "id": "PR1-4",
+              "task": "Basic streamText() call with Gemini Flash (Tier 1)",
+              "done": true
+            },
+            {
+              "id": "PR1-5",
+              "task": "Hardcoded system prompt (real estate agent persona placeholder)",
+              "done": true
+            },
+            {
+              "id": "PR1-6",
+              "task": "No tools yet \u2014 just streaming text responses",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "curl the endpoint, get a streamed response"
+          ]
         },
         {
           "pr": 2,
           "title": "Chat UI with streaming",
           "status": "done",
-          "decisions": ["UX-01", "UX-06"],
-          "tasks": [
-            { "id": "PR2-1", "task": "Replace /chat placeholder with real chat interface", "done": true },
-            { "id": "PR2-2", "task": "useChat() hook from Vercel AI SDK pointed at new endpoint", "done": true },
-            { "id": "PR2-3", "task": "Message list, input box, streaming response display", "done": true },
-            { "id": "PR2-4", "task": "Thread rail in sidebar (new thread button, thread list)", "done": true },
-            { "id": "PR2-5", "task": "Chat is default home after login (redirect from / dashboard)", "done": true }
+          "decisions": [
+            "UX-01",
+            "UX-06"
           ],
-          "testCriteria": ["Log in, type a message, see streamed response"]
+          "tasks": [
+            {
+              "id": "PR2-1",
+              "task": "Replace /chat placeholder with real chat interface",
+              "done": true
+            },
+            {
+              "id": "PR2-2",
+              "task": "useChat() hook from Vercel AI SDK pointed at new endpoint",
+              "done": true
+            },
+            {
+              "id": "PR2-3",
+              "task": "Message list, input box, streaming response display",
+              "done": true
+            },
+            {
+              "id": "PR2-4",
+              "task": "Thread rail in sidebar (new thread button, thread list)",
+              "done": true
+            },
+            {
+              "id": "PR2-5",
+              "task": "Chat is default home after login (redirect from / dashboard)",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Log in, type a message, see streamed response"
+          ]
         },
         {
           "pr": 3,
           "title": "Clients + conversation threads + messages DB schema",
           "status": "done",
-          "decisions": ["DATA-03", "DATA-09", "SESSION-01", "RUNNER-08"],
-          "tasks": [
-            { "id": "PR3-1", "task": "Migration: clients table (client_id UUID PK, user_id FK to auth.users UNIQUE, display_name, created_at)", "done": true },
-            { "id": "PR3-2", "task": "Migration: database trigger on auth.users INSERT → auto-creates clients row", "done": true },
-            { "id": "PR3-3", "task": "Migration: conversation_threads table (thread_id UUID PK, client_id FK, title, is_pinned, created_at, updated_at)", "done": true },
-            { "id": "PR3-4", "task": "Migration: conversation_messages table (message_id, thread_id FK, role, content, parts JSONB, created_at)", "done": true },
-            { "id": "PR3-5", "task": "Migration: runs table (run_id, thread_id FK, client_id FK, status enum, model, tokens_in, tokens_out, created_at, completed_at)", "done": true },
-            { "id": "PR3-6", "task": "RLS policies on all tables: client_id = (SELECT client_id FROM clients WHERE user_id = auth.uid()) pattern (DATA-03)", "done": true },
-            { "id": "PR3-7", "task": "Wire chat UI to persist messages to DB", "done": true },
-            { "id": "PR3-8", "task": "Wire thread rail to list/create conversation_threads from DB", "done": true }
+          "decisions": [
+            "DATA-03",
+            "DATA-09",
+            "SESSION-01",
+            "RUNNER-08"
           ],
-          "testCriteria": ["Create thread, send messages, refresh page — conversation persists"]
+          "tasks": [
+            {
+              "id": "PR3-1",
+              "task": "Migration: clients table (client_id UUID PK, user_id FK to auth.users UNIQUE, display_name, created_at)",
+              "done": true
+            },
+            {
+              "id": "PR3-2",
+              "task": "Migration: database trigger on auth.users INSERT \u2192 auto-creates clients row",
+              "done": true
+            },
+            {
+              "id": "PR3-3",
+              "task": "Migration: conversation_threads table (thread_id UUID PK, client_id FK, title, is_pinned, created_at, updated_at)",
+              "done": true
+            },
+            {
+              "id": "PR3-4",
+              "task": "Migration: conversation_messages table (message_id, thread_id FK, role, content, parts JSONB, created_at)",
+              "done": true
+            },
+            {
+              "id": "PR3-5",
+              "task": "Migration: runs table (run_id, thread_id FK, client_id FK, status enum, model, tokens_in, tokens_out, created_at, completed_at)",
+              "done": true
+            },
+            {
+              "id": "PR3-6",
+              "task": "RLS policies on all tables: client_id = (SELECT client_id FROM clients WHERE user_id = auth.uid()) pattern (DATA-03)",
+              "done": true
+            },
+            {
+              "id": "PR3-7",
+              "task": "Wire chat UI to persist messages to DB",
+              "done": true
+            },
+            {
+              "id": "PR3-8",
+              "task": "Wire thread rail to list/create conversation_threads from DB",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Create thread, send messages, refresh page \u2014 conversation persists"
+          ]
         },
         {
           "pr": 4,
           "title": "Runner engine (core loop) + per-thread serialization",
           "status": "done",
-          "decisions": ["RUNNER-01", "RUNNER-02", "RUNNER-03", "RUNNER-05", "SESSION-04", "TOOL-01", "TRIG-06"],
+          "decisions": [
+            "RUNNER-01",
+            "RUNNER-02",
+            "RUNNER-03",
+            "RUNNER-05",
+            "SESSION-04",
+            "TOOL-01",
+            "TRIG-06"
+          ],
           "tasks": [
-            { "id": "PR4-1", "task": "Create src/lib/runner/run-agent.ts — single runAgent() function", "done": true },
-            { "id": "PR4-2", "task": "Context assembly skeleton: system prompt + thread message history (RUNNER-03 — full 7-layer assembly in Phase 2)", "done": true },
-            { "id": "PR4-3", "task": "streamText() with maxSteps: 4 and empty tools array", "done": true },
-            { "id": "PR4-4", "task": "Run status tracking: create run record on start, update on completion", "done": true },
-            { "id": "PR4-5", "task": "Stateless invocation model (RUNNER-05): every call loads fresh from DB", "done": true },
-            { "id": "PR4-6", "task": "No pause-and-resume (SESSION-04): question ends run, reply starts new run with full history", "done": true },
-            { "id": "PR4-7", "task": "Strict tool contract types with Zod schemas (TOOL-01)", "done": true },
-            { "id": "PR4-8", "task": "Per-thread run serialization (TRIG-06): atomic run insert checks no active run", "done": true },
-            { "id": "PR4-9", "task": "Migration: thread_queue_records table", "done": true },
-            { "id": "PR4-10", "task": "Queue draining: on run completion, batch queued messages and start next run", "done": true },
-            { "id": "PR4-11", "task": "Refactor /api/chat/route.ts to call runAgent() with queue check", "done": true }
+            {
+              "id": "PR4-1",
+              "task": "Create src/lib/runner/run-agent.ts \u2014 single runAgent() function",
+              "done": true
+            },
+            {
+              "id": "PR4-2",
+              "task": "Context assembly skeleton: system prompt + thread message history (RUNNER-03 \u2014 full 7-layer assembly in Phase 2)",
+              "done": true
+            },
+            {
+              "id": "PR4-3",
+              "task": "streamText() with maxSteps: 4 and empty tools array",
+              "done": true
+            },
+            {
+              "id": "PR4-4",
+              "task": "Run status tracking: create run record on start, update on completion",
+              "done": true
+            },
+            {
+              "id": "PR4-5",
+              "task": "Stateless invocation model (RUNNER-05): every call loads fresh from DB",
+              "done": true
+            },
+            {
+              "id": "PR4-6",
+              "task": "No pause-and-resume (SESSION-04): question ends run, reply starts new run with full history",
+              "done": true
+            },
+            {
+              "id": "PR4-7",
+              "task": "Strict tool contract types with Zod schemas (TOOL-01)",
+              "done": true
+            },
+            {
+              "id": "PR4-8",
+              "task": "Per-thread run serialization (TRIG-06): atomic run insert checks no active run",
+              "done": true
+            },
+            {
+              "id": "PR4-9",
+              "task": "Migration: thread_queue_records table",
+              "done": true
+            },
+            {
+              "id": "PR4-10",
+              "task": "Queue draining: on run completion, batch queued messages and start next run",
+              "done": true
+            },
+            {
+              "id": "PR4-11",
+              "task": "Refactor /api/chat/route.ts to call runAgent() with queue check",
+              "done": true
+            }
           ],
           "testCriteria": [
             "Chat works exactly as before but goes through runner",
-            "Send two messages fast — second gets queued, processed after first completes"
+            "Send two messages fast \u2014 second gets queued, processed after first completes"
           ]
         },
         {
           "pr": 5,
           "title": "CRM schema + seed data",
           "status": "done",
-          "decisions": ["DATA-01", "DATA-03", "DATA-09"],
-          "tasks": [
-            { "id": "PR5-1", "task": "Migration: contacts table (contact_id, client_id, first_name, last_name, email, phone, type enum, notes, timestamps)", "done": true },
-            { "id": "PR5-2", "task": "Migration: deals table (deal_id, client_id, address, stage enum, price, contact_id FK, notes, timestamps)", "done": true },
-            { "id": "PR5-3", "task": "Migration: interactions table (interaction_id, client_id, contact_id FK, deal_id FK nullable, type enum, summary, occurred_at, timestamps)", "done": true },
-            { "id": "PR5-4", "task": "Migration: crm_tasks table (task_id, client_id, title, description, status enum, due_date, contact_id FK, deal_id FK, timestamps)", "done": true },
-            { "id": "PR5-5", "task": "Migration: crm_config table (config_id, client_id, deal_stages JSONB, task_types JSONB, interaction_types JSONB)", "done": true },
-            { "id": "PR5-6", "task": "RLS on all CRM tables using DATA-03 pattern", "done": true }
+          "decisions": [
+            "DATA-01",
+            "DATA-03",
+            "DATA-09"
           ],
-          "testCriteria": ["Tables exist, RLS works, can insert/query via Supabase dashboard"]
+          "tasks": [
+            {
+              "id": "PR5-1",
+              "task": "Migration: contacts table (contact_id, client_id, first_name, last_name, email, phone, type enum, notes, timestamps)",
+              "done": true
+            },
+            {
+              "id": "PR5-2",
+              "task": "Migration: deals table (deal_id, client_id, address, stage enum, price, contact_id FK, notes, timestamps)",
+              "done": true
+            },
+            {
+              "id": "PR5-3",
+              "task": "Migration: interactions table (interaction_id, client_id, contact_id FK, deal_id FK nullable, type enum, summary, occurred_at, timestamps)",
+              "done": true
+            },
+            {
+              "id": "PR5-4",
+              "task": "Migration: crm_tasks table (task_id, client_id, title, description, status enum, due_date, contact_id FK, deal_id FK, timestamps)",
+              "done": true
+            },
+            {
+              "id": "PR5-5",
+              "task": "Migration: crm_config table (config_id, client_id, deal_stages JSONB, task_types JSONB, interaction_types JSONB)",
+              "done": true
+            },
+            {
+              "id": "PR5-6",
+              "task": "RLS on all CRM tables using DATA-03 pattern",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Tables exist, RLS works, can insert/query via Supabase dashboard"
+          ]
         },
         {
           "pr": 6,
           "title": "CRM tools for the agent",
           "status": "done",
-          "decisions": ["TOOL-03", "TOOL-09"],
-          "tasks": [
-            { "id": "PR6-1", "task": "Implement search_contacts tool with Zod schema", "done": true },
-            { "id": "PR6-2", "task": "Implement create_contact tool with Zod schema", "done": true },
-            { "id": "PR6-3", "task": "Implement update_contact tool with Zod schema", "done": true },
-            { "id": "PR6-4", "task": "Implement search_deals tool with Zod schema", "done": true },
-            { "id": "PR6-5", "task": "Implement create_deal tool with Zod schema", "done": true },
-            { "id": "PR6-6", "task": "Implement update_deal tool with Zod schema", "done": true },
-            { "id": "PR6-7", "task": "Implement create_interaction tool with Zod schema", "done": true },
-            { "id": "PR6-8", "task": "Implement search_tasks tool with Zod schema", "done": true },
-            { "id": "PR6-9", "task": "Implement create_task tool with Zod schema", "done": true },
-            { "id": "PR6-10", "task": "Implement update_task tool with Zod schema", "done": true },
-            { "id": "PR6-11", "task": "Register all CRM tools in runner's streamText() call", "done": true },
-            { "id": "PR6-12", "task": "Bump maxSteps to 8 for tool usage", "done": true }
+          "decisions": [
+            "TOOL-03",
+            "TOOL-09"
           ],
-          "testCriteria": ["Ask agent 'create a contact for John Smith, phone 555-1234' → contact appears in DB"]
+          "tasks": [
+            {
+              "id": "PR6-1",
+              "task": "Implement search_contacts tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-2",
+              "task": "Implement create_contact tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-3",
+              "task": "Implement update_contact tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-4",
+              "task": "Implement search_deals tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-5",
+              "task": "Implement create_deal tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-6",
+              "task": "Implement update_deal tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-7",
+              "task": "Implement create_interaction tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-8",
+              "task": "Implement search_tasks tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-9",
+              "task": "Implement create_task tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-10",
+              "task": "Implement update_task tool with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR6-11",
+              "task": "Register all CRM tools in runner's streamText() call",
+              "done": true
+            },
+            {
+              "id": "PR6-12",
+              "task": "Bump maxSteps to 8 for tool usage",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Ask agent 'create a contact for John Smith, phone 555-1234' \u2192 contact appears in DB"
+          ]
         },
         {
           "pr": 7,
           "title": "File tools (Supabase Storage)",
           "status": "done",
-          "decisions": ["DATA-02", "DATA-04", "DATA-05", "TOOL-03"],
-          "tasks": [
-            { "id": "PR7-1", "task": "Create per-client storage layout: /{clientId}/ root in Supabase Storage", "done": true },
-            { "id": "PR7-2", "task": "Implement read_file tool (file path → content, directory path → tree listing)", "done": true },
-            { "id": "PR7-3", "task": "Implement write_file tool (writes to Supabase Storage, path-scoped to client)", "done": true },
-            { "id": "PR7-4", "task": "Create agent-files storage bucket (separate from existing documents/reports)", "done": true },
-            { "id": "PR7-5", "task": "RLS on storage: client can only access own prefix", "done": true },
-            { "id": "PR7-6", "task": "Accept no file versioning in v1 — Supabase Storage trade-off (DATA-05)", "done": true }
+          "decisions": [
+            "DATA-02",
+            "DATA-04",
+            "DATA-05",
+            "TOOL-03"
           ],
-          "testCriteria": ["Ask agent 'write a note about today's showing' → file appears in Storage"]
+          "tasks": [
+            {
+              "id": "PR7-1",
+              "task": "Create per-client storage layout: /{clientId}/ root in Supabase Storage",
+              "done": true
+            },
+            {
+              "id": "PR7-2",
+              "task": "Implement read_file tool (file path \u2192 content, directory path \u2192 tree listing)",
+              "done": true
+            },
+            {
+              "id": "PR7-3",
+              "task": "Implement write_file tool (writes to Supabase Storage, path-scoped to client)",
+              "done": true
+            },
+            {
+              "id": "PR7-4",
+              "task": "Create agent-files storage bucket (separate from existing documents/reports)",
+              "done": true
+            },
+            {
+              "id": "PR7-5",
+              "task": "RLS on storage: client can only access own prefix",
+              "done": true
+            },
+            {
+              "id": "PR7-6",
+              "task": "Accept no file versioning in v1 \u2014 Supabase Storage trade-off (DATA-05)",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Ask agent 'write a note about today's showing' \u2192 file appears in Storage"
+          ]
         },
         {
           "pr": 8,
           "title": "Web search tool",
           "status": "done",
-          "decisions": ["SERVICE-03", "TOOL-03", "TOOL-10"],
-          "tasks": [
-            { "id": "PR8-1", "task": "Implement web_search tool using Brave Search API with Zod schema", "done": true },
-            { "id": "PR8-2", "task": "Input: query string. Output: formatted search results (title, snippet, URL)", "done": true },
-            { "id": "PR8-3", "task": "Implement web_scrape tool (fetch URL → extract text content)", "done": true }
+          "decisions": [
+            "SERVICE-03",
+            "TOOL-03",
+            "TOOL-10"
           ],
-          "testCriteria": ["Ask agent 'search for recent home sales in Austin TX' → returns real results"]
+          "tasks": [
+            {
+              "id": "PR8-1",
+              "task": "Implement web_search tool using Brave Search API with Zod schema",
+              "done": true
+            },
+            {
+              "id": "PR8-2",
+              "task": "Input: query string. Output: formatted search results (title, snippet, URL)",
+              "done": true
+            },
+            {
+              "id": "PR8-3",
+              "task": "Implement web_scrape tool (fetch URL \u2192 extract text content)",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Ask agent 'search for recent home sales in Austin TX' \u2192 returns real results"
+          ]
         },
         {
           "pr": 9,
           "title": "Supabase Realtime for live updates",
           "status": "done",
-          "decisions": ["DATA-07"],
-          "tasks": [
-            { "id": "PR9-1", "task": "Wire Supabase Realtime subscriptions on CRM tables", "done": true },
-            { "id": "PR9-2", "task": "When agent creates/updates contact or deal, frontend reflects immediately", "done": true },
-            { "id": "PR9-3", "task": "Subscribe on thread page load, unsubscribe on unmount", "done": true }
+          "decisions": [
+            "DATA-07"
           ],
-          "testCriteria": ["Have agent create a contact while CRM page is open in another tab → appears without refresh"]
+          "tasks": [
+            {
+              "id": "PR9-1",
+              "task": "Wire Supabase Realtime subscriptions on CRM tables",
+              "done": true
+            },
+            {
+              "id": "PR9-2",
+              "task": "When agent creates/updates contact or deal, frontend reflects immediately",
+              "done": true
+            },
+            {
+              "id": "PR9-3",
+              "task": "Subscribe on thread page load, unsubscribe on unmount",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Have agent create a contact while CRM page is open in another tab \u2192 appears without refresh"
+          ]
         },
         {
           "pr": 10,
           "title": "CRM read-only pages (Contacts)",
           "status": "done",
-          "decisions": ["UX-02"],
-          "tasks": [
-            { "id": "PR10-1", "task": "Replace /crm placeholder with tabbed CRM section", "done": true },
-            { "id": "PR10-2", "task": "Contacts list page: TanStack Table with search/filter", "done": true },
-            { "id": "PR10-3", "task": "Contact detail page: read-only fields + linked deals + interaction timeline", "done": true },
-            { "id": "PR10-4", "task": "Navigation: add CRM to sidebar nav", "done": true }
+          "decisions": [
+            "UX-02"
           ],
-          "testCriteria": ["Agent creates contacts via chat, user browses them in CRM pages"]
+          "tasks": [
+            {
+              "id": "PR10-1",
+              "task": "Replace /crm placeholder with tabbed CRM section",
+              "done": true
+            },
+            {
+              "id": "PR10-2",
+              "task": "Contacts list page: TanStack Table with search/filter",
+              "done": true
+            },
+            {
+              "id": "PR10-3",
+              "task": "Contact detail page: read-only fields + linked deals + interaction timeline",
+              "done": true
+            },
+            {
+              "id": "PR10-4",
+              "task": "Navigation: add CRM to sidebar nav",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Agent creates contacts via chat, user browses them in CRM pages"
+          ]
         },
         {
           "pr": 11,
           "title": "CRM read-only pages (Deals + Tasks)",
           "status": "done",
-          "decisions": ["UX-02"],
-          "tasks": [
-            { "id": "PR11-1", "task": "Deals list page: TanStack Table with stage badges", "done": true },
-            { "id": "PR11-2", "task": "Deal detail page: read-only fields + linked contact + interactions", "done": true },
-            { "id": "PR11-3", "task": "Tasks list page: table view with status, due date, linked contact/deal", "done": true }
+          "decisions": [
+            "UX-02"
           ],
-          "testCriteria": ["Full CRM browse experience across contacts, deals, tasks"]
+          "tasks": [
+            {
+              "id": "PR11-1",
+              "task": "Deals list page: TanStack Table with stage badges",
+              "done": true
+            },
+            {
+              "id": "PR11-2",
+              "task": "Deal detail page: read-only fields + linked contact + interactions",
+              "done": true
+            },
+            {
+              "id": "PR11-3",
+              "task": "Tasks list page: table view with status, due date, linked contact/deal",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Full CRM browse experience across contacts, deals, tasks"
+          ]
         },
         {
           "pr": 12,
           "title": "Audit trail + basic safety",
           "status": "done",
-          "decisions": ["SAFETY-03", "SCALE-01"],
+          "decisions": [
+            "SAFETY-03",
+            "SCALE-01"
+          ],
           "tasks": [
-            { "id": "PR12-1", "task": "Migration: add runs.step_count INTEGER with non-negative check for run step analytics", "done": true },
-            { "id": "PR12-2", "task": "Extend completeRun to accept optional stepCount and persist to runs.step_count", "done": true },
-            { "id": "PR12-3", "task": "Wire streamText onFinish steps.length into completeRun stepCount", "done": true },
-            { "id": "PR12-4", "task": "Validate tool error resilience: thrown tool execute errors are handled without crashing run", "done": true },
-            { "id": "PR12-5", "task": "Align run schema/tests and database types for runs.step_count; verify test suite", "done": true }
+            {
+              "id": "PR12-1",
+              "task": "Migration: add runs.step_count INTEGER with non-negative check for run step analytics",
+              "done": true
+            },
+            {
+              "id": "PR12-2",
+              "task": "Extend completeRun to accept optional stepCount and persist to runs.step_count",
+              "done": true
+            },
+            {
+              "id": "PR12-3",
+              "task": "Wire streamText onFinish steps.length into completeRun stepCount",
+              "done": true
+            },
+            {
+              "id": "PR12-4",
+              "task": "Validate tool error resilience: thrown tool execute errors are handled without crashing run",
+              "done": true
+            },
+            {
+              "id": "PR12-5",
+              "task": "Align run schema/tests and database types for runs.step_count; verify test suite",
+              "done": true
+            }
           ],
           "testCriteria": [
             "runs.step_count is persisted on completion and accepts zero/non-negative values",
@@ -239,16 +593,41 @@
           "pr": "12a",
           "title": "Knowledge Base schema + pages",
           "status": "done",
-          "decisions": ["SERVICE-02", "DATA-09"],
-          "note": "Added in audit — Knowledge Base was entirely missing from original plan despite vault_files being a v1 table (DATA-09) and Knowledge appearing in nav structure (§14.1).",
-          "tasks": [
-            { "id": "PR12a-1", "task": "Migration: vault_files table (file_id, client_id, filename, storage_path, content_type, size, full_text_search tsvector, created_at, updated_at)", "done": true },
-            { "id": "PR12a-2", "task": "RLS on vault_files", "done": true },
-            { "id": "PR12a-3", "task": "Knowledge Base list page: file browser with search (full-text via vault_files SQL, not directory listing per DATA-06)", "done": true },
-            { "id": "PR12a-4", "task": "Knowledge Base upload: store file in Supabase Storage, index metadata in vault_files", "done": true },
-            { "id": "PR12a-5", "task": "Navigation: add Knowledge to sidebar nav under DATABASE section", "done": true }
+          "decisions": [
+            "SERVICE-02",
+            "DATA-09"
           ],
-          "testCriteria": ["Upload a document to Knowledge Base, search for it by content, agent can reference it"]
+          "note": "Added in audit \u2014 Knowledge Base was entirely missing from original plan despite vault_files being a v1 table (DATA-09) and Knowledge appearing in nav structure (\u00a714.1).",
+          "tasks": [
+            {
+              "id": "PR12a-1",
+              "task": "Migration: vault_files table (file_id, client_id, filename, storage_path, content_type, size, full_text_search tsvector, created_at, updated_at)",
+              "done": true
+            },
+            {
+              "id": "PR12a-2",
+              "task": "RLS on vault_files",
+              "done": true
+            },
+            {
+              "id": "PR12a-3",
+              "task": "Knowledge Base list page: file browser with search (full-text via vault_files SQL, not directory listing per DATA-06)",
+              "done": true
+            },
+            {
+              "id": "PR12a-4",
+              "task": "Knowledge Base upload: store file in Supabase Storage, index metadata in vault_files",
+              "done": true
+            },
+            {
+              "id": "PR12a-5",
+              "task": "Navigation: add Knowledge to sidebar nav under DATABASE section",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Upload a document to Knowledge Base, search for it by content, agent can reference it"
+          ]
         }
       ]
     },
@@ -262,16 +641,49 @@
         {
           "pr": 13,
           "title": "Storage layout + SOUL.md + USER.md + MEMORY.md",
-          "status": "in_progress",
-          "decisions": ["MEM-01", "MEM-02", "MEM-03", "DATA-04"],
+          "status": "done",
+          "decisions": [
+            "MEM-01",
+            "MEM-02",
+            "MEM-03",
+            "DATA-04"
+          ],
           "tasks": [
-            { "id": "PR13-1", "task": "Bootstrap /{clientId}/SOUL.md on first login", "done": false },
-            { "id": "PR13-2", "task": "Bootstrap /{clientId}/USER.md on first login", "done": false },
-            { "id": "PR13-3", "task": "Bootstrap /{clientId}/MEMORY.md on first login (working notebook)", "done": false },
-            { "id": "PR13-4", "task": "Default SOUL.md: real estate agent personality template", "done": false },
-            { "id": "PR13-5", "task": "Default USER.md: empty, agent populates during conversations", "done": false },
-            { "id": "PR13-6", "task": "Default MEMORY.md: empty, agent writes working notes (first 200 lines loaded every run at context position #3)", "done": false },
-            { "id": "PR13-7", "task": "Runner reads SOUL.md + USER.md + MEMORY.md (first 200 lines) at context assembly time (RUNNER-03 becomes real)", "done": false }
+            {
+              "id": "PR13-1",
+              "task": "Bootstrap /{clientId}/SOUL.md on first login",
+              "done": false
+            },
+            {
+              "id": "PR13-2",
+              "task": "Bootstrap /{clientId}/USER.md on first login",
+              "done": false
+            },
+            {
+              "id": "PR13-3",
+              "task": "Bootstrap /{clientId}/MEMORY.md on first login (working notebook)",
+              "done": false
+            },
+            {
+              "id": "PR13-4",
+              "task": "Default SOUL.md: real estate agent personality template",
+              "done": false
+            },
+            {
+              "id": "PR13-5",
+              "task": "Default USER.md: empty, agent populates during conversations",
+              "done": false
+            },
+            {
+              "id": "PR13-6",
+              "task": "Default MEMORY.md: empty, agent writes working notes (first 200 lines loaded every run at context position #3)",
+              "done": false
+            },
+            {
+              "id": "PR13-7",
+              "task": "Runner reads SOUL.md + USER.md + MEMORY.md (first 200 lines) at context assembly time (RUNNER-03 becomes real)",
+              "done": false
+            }
           ],
           "testCriteria": [
             "First login creates SOUL.md, USER.md, and MEMORY.md in storage",
@@ -281,37 +693,123 @@
         {
           "pr": 14,
           "title": "Memory system",
-          "status": "in_progress",
-          "decisions": ["MEM-03", "MEM-04", "MEM-05", "MEM-06", "DATA-06"],
-          "tasks": [
-            { "id": "PR14-1", "task": "Seed /{clientId}/memory/ directory with 4 starter files: preferences.md, growth-plan.md, patterns.md, key-decisions.md (MEM-03/MEM-04 taxonomy)", "done": false },
-            { "id": "PR14-2", "task": "Agent reads memory files during context assembly (on-demand via read_file)", "done": false },
-            { "id": "PR14-3", "task": "Agent auto-writes to memory during runs per MEM-05 rules (preferences: immediate on lasting preference, patterns: after 3+ instances, key-decisions: on significant decisions)", "done": false },
-            { "id": "PR14-4", "task": "Memory files are storage-only — discovered via directory listing (DATA-06)", "done": false },
-            { "id": "PR14-5", "task": "Memory shared across all threads (MEM-06)", "done": false },
-            { "id": "PR14-6", "task": "Agent can create new memory files via write_file when observation doesn't fit existing files", "done": false },
-            { "id": "PR14-7", "task": "Memory page at /memory — read-only viewer for SOUL.md, USER.md, MEMORY.md, and memory/*.md files. User can view current contents and edit inline. Uses read_file/write_file via API routes to Supabase Storage.", "done": false }
+          "status": "done",
+          "decisions": [
+            "MEM-03",
+            "MEM-04",
+            "MEM-05",
+            "MEM-06",
+            "DATA-06"
           ],
-          "testCriteria": ["Agent writes a preference to memory, next session it remembers", "User can view and edit memory files at /memory"]
+          "tasks": [
+            {
+              "id": "PR14-1",
+              "task": "Seed /{clientId}/memory/ directory with 4 starter files: preferences.md, growth-plan.md, patterns.md, key-decisions.md (MEM-03/MEM-04 taxonomy)",
+              "done": false
+            },
+            {
+              "id": "PR14-2",
+              "task": "Agent reads memory files during context assembly (on-demand via read_file)",
+              "done": false
+            },
+            {
+              "id": "PR14-3",
+              "task": "Agent auto-writes to memory during runs per MEM-05 rules (preferences: immediate on lasting preference, patterns: after 3+ instances, key-decisions: on significant decisions)",
+              "done": false
+            },
+            {
+              "id": "PR14-4",
+              "task": "Memory files are storage-only \u2014 discovered via directory listing (DATA-06)",
+              "done": false
+            },
+            {
+              "id": "PR14-5",
+              "task": "Memory shared across all threads (MEM-06)",
+              "done": false
+            },
+            {
+              "id": "PR14-6",
+              "task": "Agent can create new memory files via write_file when observation doesn't fit existing files",
+              "done": false
+            },
+            {
+              "id": "PR14-7",
+              "task": "Memory page at /memory \u2014 read-only viewer for SOUL.md, USER.md, MEMORY.md, and memory/*.md files. User can view current contents and edit inline. Uses read_file/write_file via API routes to Supabase Storage.",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Agent writes a preference to memory, next session it remembers",
+            "User can view and edit memory files at /memory"
+          ]
         },
         {
           "pr": 15,
           "title": "Platform instructions + system-reminder + utility tools",
-          "status": "in_progress",
-          "decisions": ["RUNNER-03", "RUNNER-04", "RUNNER-09", "TOOL-02"],
+          "status": "done",
+          "decisions": [
+            "RUNNER-03",
+            "RUNNER-04",
+            "RUNNER-09",
+            "TOOL-02"
+          ],
           "note": "v2 change: folded rename_chat, run_agent_memory_sql, and get_agent_db_schema into this PR (previously in PR 30). Also added dedicated agent_todo table + manage_todo/list_todo tools (Tasklet-parity). CRM task tools unchanged.",
           "tasks": [
-            { "id": "PR15-1", "task": "Full 7-layer context assembly order (RUNNER-03): 0-Platform instructions, 1-System prompt, 2-SOUL.md, 3-USER.md, 4-MEMORY.md first 200 lines, 5-Thread compaction summary, 6-Recent messages, 7-Current message", "done": false },
-            { "id": "PR15-2", "task": "Platform instructions layer (position #0 in context assembly) — forked from Tasklet, adapted for Sunder", "done": false },
-            { "id": "PR15-3", "task": "System-reminder injection per turn (~130 tokens): current time, user display name + email, open todos count (from agent_todo scoped to thread_id), memory file count, days since signup. Trigger count, approval count, and connection state are wired in by their respective PRs (PR 18, PR 34, PR 26) when those tables are created (RUNNER-04)", "done": false },
-            { "id": "PR15-4", "task": "Implement rename_chat tool — agent sets thread title (concise 3-5 word summaries)", "done": false },
-            { "id": "PR15-5", "task": "Implement run_agent_memory_sql tool — read-only SQL queries against all client-accessible tables (CRM, vault_files, agent_triggers, etc.). Platform instructions document available schemas including vault_files.fts for full-text knowledge base search.", "done": false },
-            { "id": "PR15-6", "task": "Implement get_agent_db_schema tool — introspect available tables, columns, row counts", "done": false },
-            { "id": "PR15-7", "task": "Migration: CREATE TABLE agent_todo (id UUID PK, client_id TEXT NOT NULL, thread_id UUID NOT NULL, title TEXT NOT NULL, payload JSONB DEFAULT '{}', created_at TIMESTAMPTZ DEFAULT now()) + RLS policy on client_id", "done": false },
-            { "id": "PR15-8", "task": "Implement manage_todo tool — Tasklet-parity batch operations (add/update/delete). Add: creates todo with title + optional payload, scoped to current thread. Update: modify title/payload by id. Delete: remove todo (= mark done). Supports multiple operations in one call.", "done": false },
-            { "id": "PR15-9", "task": "Implement list_todo tool — returns all todos for current thread, optional filter by IDs. Schema: { id, title, payload, created_at }", "done": false },
-            { "id": "PR15-10", "task": "Wire agent_todo count into system-reminder: 'Open todos: N' (SELECT count(*) FROM agent_todo WHERE client_id = $1 AND thread_id = $2)", "done": false },
-            { "id": "PR15-11", "task": "Platform instructions: document state/ directory convention — agent writes JSON files to /{clientId}/state/ for cross-run tracking (dedup sets, counters, progress markers). Zero new infra, uses existing read_file/write_file.", "done": false }
+            {
+              "id": "PR15-1",
+              "task": "Full 7-layer context assembly order (RUNNER-03): 0-Platform instructions, 1-System prompt, 2-SOUL.md, 3-USER.md, 4-MEMORY.md first 200 lines, 5-Thread compaction summary, 6-Recent messages, 7-Current message",
+              "done": false
+            },
+            {
+              "id": "PR15-2",
+              "task": "Platform instructions layer (position #0 in context assembly) \u2014 forked from Tasklet, adapted for Sunder",
+              "done": false
+            },
+            {
+              "id": "PR15-3",
+              "task": "System-reminder injection per turn (~130 tokens): current time, user display name + email, open todos count (from agent_todo scoped to thread_id), memory file count, days since signup. Trigger count, approval count, and connection state are wired in by their respective PRs (PR 18, PR 34, PR 26) when those tables are created (RUNNER-04)",
+              "done": false
+            },
+            {
+              "id": "PR15-4",
+              "task": "Implement rename_chat tool \u2014 agent sets thread title (concise 3-5 word summaries)",
+              "done": false
+            },
+            {
+              "id": "PR15-5",
+              "task": "Implement run_agent_memory_sql tool \u2014 read-only SQL queries against all client-accessible tables (CRM, vault_files, agent_triggers, etc.). Platform instructions document available schemas including vault_files.fts for full-text knowledge base search.",
+              "done": false
+            },
+            {
+              "id": "PR15-6",
+              "task": "Implement get_agent_db_schema tool \u2014 introspect available tables, columns, row counts",
+              "done": false
+            },
+            {
+              "id": "PR15-7",
+              "task": "Migration: CREATE TABLE agent_todo (id UUID PK, client_id TEXT NOT NULL, thread_id UUID NOT NULL, title TEXT NOT NULL, payload JSONB DEFAULT '{}', created_at TIMESTAMPTZ DEFAULT now()) + RLS policy on client_id",
+              "done": false
+            },
+            {
+              "id": "PR15-8",
+              "task": "Implement manage_todo tool \u2014 Tasklet-parity batch operations (add/update/delete). Add: creates todo with title + optional payload, scoped to current thread. Update: modify title/payload by id. Delete: remove todo (= mark done). Supports multiple operations in one call.",
+              "done": false
+            },
+            {
+              "id": "PR15-9",
+              "task": "Implement list_todo tool \u2014 returns all todos for current thread, optional filter by IDs. Schema: { id, title, payload, created_at }",
+              "done": false
+            },
+            {
+              "id": "PR15-10",
+              "task": "Wire agent_todo count into system-reminder: 'Open todos: N' (SELECT count(*) FROM agent_todo WHERE client_id = $1 AND thread_id = $2)",
+              "done": false
+            },
+            {
+              "id": "PR15-11",
+              "task": "Platform instructions: document state/ directory convention \u2014 agent writes JSON files to /{clientId}/state/ for cross-run tracking (dedup sets, counters, progress markers). Zero new infra, uses existing read_file/write_file.",
+              "done": false
+            }
           ],
           "testCriteria": [
             "Agent knows current time and user context without being told",
@@ -323,28 +821,76 @@
           ]
         },
         {
-          "pr": "15a",
-          "title": "CRM configurability — dynamic vocabulary + custom fields",
+          "pr": "15c",
+          "title": "CRM configurability \u2014 dynamic vocabulary + custom fields",
           "status": "pending",
           "decisions": [],
-          "dependsOn": [5, 6, 15],
+          "dependsOn": [
+            5,
+            6,
+            15
+          ],
           "note": "Restored from cut PR 38a with expanded scope. Informed by Attio MCP (schema introspection, upsert) and HubSpot MCP (activity feed) comparison. Layer 1: vocabulary swaps via crm_config (deal stages, contact types, entity labels). Layer 2: custom fields via JSONB columns. Agent configures CRM via chat; tool schemas and UI adapt at runtime. Real-estate defaults as fallback for zero-config users.",
           "tasks": [
-            { "id": "PR15a-1", "task": "Migration: add custom_fields JSONB DEFAULT '{}' to contacts, deals, crm_tasks tables", "done": false },
-            { "id": "PR15a-2", "task": "Define crm_config Zod schema: deal_label, deal_stages, contact_types, interaction_types, deal_contact_roles, deal_custom_fields, contact_custom_fields (each field: key, label, type text|number|currency|date|select, options?, required?)", "done": false },
-            { "id": "PR15a-3", "task": "load_crm_config helper: reads crm_config for clientId, returns typed config with real-estate defaults as fallback. Called once at runner start, passed into tool factories", "done": false },
-            { "id": "PR15a-4", "task": "Dynamic Zod schemas: tool parameter schemas for stage, contact type, interaction type, deal-contact role pull from config instead of hardcoded enums", "done": false },
-            { "id": "PR15a-5", "task": "Dynamic tool descriptions: .describe() strings template from config — 'Create a new {deal_label}' with valid enum values listed", "done": false },
-            { "id": "PR15a-6", "task": "Custom fields in create/update tools: create_contact, update_contact, create_deal, update_deal, create_task, update_task accept optional custom_fields object, validated against config schema at runtime", "done": false },
-            { "id": "PR15a-7", "task": "Custom fields in search results: search_contacts, search_deals, search_tasks return custom_fields in response", "done": false },
-            { "id": "PR15a-8", "task": "configure_crm tool: agent writes to crm_config table. Accepts partial updates. Validates against PR15a-2 schema. Returns updated config", "done": false },
-            { "id": "PR15a-9", "task": "Platform instructions template CRM vocab: inject current vocabulary into platform instructions layer — entity labels, stages, custom field definitions — so LLM knows valid values without tool calls", "done": false },
-            { "id": "PR15a-10", "task": "CRM pages: dynamic labels + columns — Contact/Deal/Task pages read crm_config via API route. Table columns for custom fields rendered dynamically. Stage filter uses config values. Entity labels pulled from config", "done": false },
-            { "id": "PR15a-11", "task": "Fallback defaults: if crm_config is empty/missing, fall back to current real-estate vocabulary. Zero-config for real estate users", "done": false }
+            {
+              "id": "PR15c-1",
+              "task": "Migration: add custom_fields JSONB DEFAULT '{}' to contacts, deals, crm_tasks tables",
+              "done": false
+            },
+            {
+              "id": "PR15c-2",
+              "task": "Define crm_config Zod schema: deal_label, deal_stages, contact_types, interaction_types, deal_contact_roles, deal_custom_fields, contact_custom_fields (each field: key, label, type text|number|currency|date|select, options?, required?)",
+              "done": false
+            },
+            {
+              "id": "PR15c-3",
+              "task": "load_crm_config helper: reads crm_config for clientId, returns typed config with real-estate defaults as fallback. Called once at runner start, passed into tool factories",
+              "done": false
+            },
+            {
+              "id": "PR15c-4",
+              "task": "Dynamic Zod schemas: tool parameter schemas for stage, contact type, interaction type, deal-contact role pull from config instead of hardcoded enums",
+              "done": false
+            },
+            {
+              "id": "PR15c-5",
+              "task": "Dynamic tool descriptions: .describe() strings template from config \u2014 'Create a new {deal_label}' with valid enum values listed",
+              "done": false
+            },
+            {
+              "id": "PR15c-6",
+              "task": "Custom fields in create/update tools: create_contact, update_contact, create_deal, update_deal, create_task, update_task accept optional custom_fields object, validated against config schema at runtime",
+              "done": false
+            },
+            {
+              "id": "PR15c-7",
+              "task": "Custom fields in search results: search_contacts, search_deals, search_tasks return custom_fields in response",
+              "done": false
+            },
+            {
+              "id": "PR15c-8",
+              "task": "configure_crm tool: agent writes to crm_config table. Accepts partial updates. Validates against PR15a-2 schema. Returns updated config",
+              "done": false
+            },
+            {
+              "id": "PR15c-9",
+              "task": "Platform instructions template CRM vocab: inject current vocabulary into platform instructions layer \u2014 entity labels, stages, custom field definitions \u2014 so LLM knows valid values without tool calls",
+              "done": false
+            },
+            {
+              "id": "PR15c-10",
+              "task": "CRM pages: dynamic labels + columns \u2014 Contact/Deal/Task pages read crm_config via API route. Table columns for custom fields rendered dynamically. Stage filter uses config values. Entity labels pulled from config",
+              "done": false
+            },
+            {
+              "id": "PR15c-11",
+              "task": "Fallback defaults: if crm_config is empty/missing, fall back to current real-estate vocabulary. Zero-config for real estate users",
+              "done": false
+            }
           ],
           "testCriteria": [
-            "User tells agent 'I sell insurance, my stages are lead/quoted/underwriting/bound/lost' → agent calls configure_crm → all tools and UI reflect new vocabulary immediately",
-            "User says 'I need to track policy number and coverage amount on deals' → agent adds custom fields → create_deal accepts them → deal page shows new columns",
+            "User tells agent 'I sell insurance, my stages are lead/quoted/underwriting/bound/lost' \u2192 agent calls configure_crm \u2192 all tools and UI reflect new vocabulary immediately",
+            "User says 'I need to track policy number and coverage amount on deals' \u2192 agent adds custom fields \u2192 create_deal accepts them \u2192 deal page shows new columns",
             "Default real-estate vocabulary works with zero configuration (no crm_config row)",
             "configure_crm partial update: change only deal_stages without affecting contact_types"
           ]
@@ -353,44 +899,130 @@
           "pr": 18,
           "title": "Cron scanner + agent_triggers table",
           "status": "in_progress",
-          "decisions": ["TRIG-01", "TRIG-02", "TRIG-04", "TRIG-05"],
-          "tasks": [
-            { "id": "PR18-1", "task": "Migration: agent_triggers table schema", "done": false },
-            { "id": "PR18-2", "task": "Create /api/cron/scan route (Vercel cron, 1 min)", "done": false },
-            { "id": "PR18-3", "task": "Scanner queries next_run_at, fires /api/trigger/run", "done": false },
-            { "id": "PR18-4", "task": "Atomic claim via UPDATE ... SET status = 'running' WHERE status = 'active' RETURNING *", "done": false },
-            { "id": "PR18-5", "task": "Per-thread serialization for trigger runs (TRIG-06)", "done": false }
+          "decisions": [
+            "TRIG-01",
+            "TRIG-02",
+            "TRIG-04",
+            "TRIG-05"
           ],
-          "testCriteria": ["Trigger fires on schedule, creates a run, no double-execution"]
+          "tasks": [
+            {
+              "id": "PR18-1",
+              "task": "Migration: agent_triggers table schema",
+              "done": false
+            },
+            {
+              "id": "PR18-2",
+              "task": "Create /api/cron/scan route (Vercel cron, 1 min)",
+              "done": false
+            },
+            {
+              "id": "PR18-3",
+              "task": "Scanner queries next_run_at, fires /api/trigger/run",
+              "done": false
+            },
+            {
+              "id": "PR18-4",
+              "task": "Atomic claim via UPDATE ... SET status = 'running' WHERE status = 'active' RETURNING *",
+              "done": false
+            },
+            {
+              "id": "PR18-5",
+              "task": "Per-thread serialization for trigger runs (TRIG-06)",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Trigger fires on schedule, creates a run, no double-execution"
+          ]
         },
         {
           "pr": 22,
           "title": "Context recovery + thread compaction",
           "status": "pending",
-          "decisions": ["DATA-10", "SESSION-07"],
+          "decisions": [
+            "DATA-10",
+            "SESSION-07"
+          ],
           "note": "v2 restored: required for autopilot thread which accumulates messages every 6h and will exceed context limits within days without compaction.",
           "tasks": [
-            { "id": "PR22-1", "task": "Toolcall artifact recovery on context truncation", "done": false },
-            { "id": "PR22-2", "task": "Long-thread summarization when context budget exceeded", "done": false },
-            { "id": "PR22-3", "task": "Compaction instructions tuned for CRM (preserve deal names, contacts, decisions)", "done": false },
-            { "id": "PR22-4", "task": "Use provider-native compaction via AI SDK provider options where available, fallback to prepareStep callback", "done": false }
+            {
+              "id": "PR22-1",
+              "task": "Toolcall artifact recovery on context truncation",
+              "done": false
+            },
+            {
+              "id": "PR22-2",
+              "task": "Long-thread summarization when context budget exceeded",
+              "done": false
+            },
+            {
+              "id": "PR22-3",
+              "task": "Compaction instructions tuned for CRM (preserve deal names, contacts, decisions)",
+              "done": false
+            },
+            {
+              "id": "PR22-4",
+              "task": "Use provider-native compaction via AI SDK provider options where available, fallback to prepareStep callback",
+              "done": false
+            }
           ],
-          "testCriteria": ["Long conversation with 50+ messages still works correctly after compaction"]
+          "testCriteria": [
+            "Long conversation with 50+ messages still works correctly after compaction"
+          ]
         },
         {
           "pr": 19,
           "title": "Autopilot thread + pulse",
           "status": "pending",
-          "decisions": ["TRIG-06b", "TRIG-07", "TRIG-08", "TRIG-09", "TRIG-10"],
+          "decisions": [
+            "TRIG-06b",
+            "TRIG-07",
+            "TRIG-08",
+            "TRIG-09",
+            "TRIG-10"
+          ],
           "tasks": [
-            { "id": "PR19-1", "task": "Pre-installed 'Sunder Autopilot' pinned thread on signup", "done": false },
-            { "id": "PR19-2", "task": "Autopilot trigger auto-created (6h default pulse)", "done": false },
-            { "id": "PR19-3", "task": "Migration: autopilot_config table (config_id, client_id, pulse_interval enum [1h/2h/6h/12h], quiet_hours_start, quiet_hours_end, enabled boolean)", "done": false },
-            { "id": "PR19-4", "task": "Autopilot runs in trigger mode (generateText, not streamText)", "done": false },
-            { "id": "PR19-5", "task": "Autopilot system prompt with simplified priority order adapted from §7.2 (TRIG-08). Two surfaces: agent_todo (list_todo for interrupted agent work with resume payload) and crm_tasks (search_tasks for CRM follow-ups). Priority: 1-resume interrupted work (list_todo, read payload for next step) → 2-check overdue CRM tasks (search_tasks where due_date < now) → 3-act on monitored triggers (deal changes, inbound) → 4-follow up with user on unanswered questions → 5-handle stale CRM tasks (open too long) → 6-research/prepare for upcoming tasks → 7-get to know user (sparse USER.md) → 8-engage user (nudge, pending approvals) → 9-propose new CRM tasks (create_task) or self-todos (manage_todo add) → 10-create momentum (break large work into smaller pieces)", "done": false },
-            { "id": "PR19-6", "task": "Bootstrap requirement: autopilot MUST call tools for live state before acting (thread history ≠ current truth)", "done": false },
-            { "id": "PR19-7", "task": "Noise suppression: lower frequency + prompt instructions to avoid low-value pulses (TRIG-09)", "done": false },
-            { "id": "PR19-8", "task": "Email notifications for autopilot results via platform send_message — stub until PR 32a implements tool (TRIG-06b)", "done": false }
+            {
+              "id": "PR19-1",
+              "task": "Pre-installed 'Sunder Autopilot' pinned thread on signup",
+              "done": false
+            },
+            {
+              "id": "PR19-2",
+              "task": "Autopilot trigger auto-created (6h default pulse)",
+              "done": false
+            },
+            {
+              "id": "PR19-3",
+              "task": "Migration: autopilot_config table (config_id, client_id, pulse_interval enum [1h/2h/6h/12h], quiet_hours_start, quiet_hours_end, enabled boolean)",
+              "done": false
+            },
+            {
+              "id": "PR19-4",
+              "task": "Autopilot runs in trigger mode (generateText, not streamText)",
+              "done": false
+            },
+            {
+              "id": "PR19-5",
+              "task": "Autopilot system prompt with simplified priority order adapted from \u00a77.2 (TRIG-08). Two surfaces: agent_todo (list_todo for interrupted agent work with resume payload) and crm_tasks (search_tasks for CRM follow-ups). Priority: 1-resume interrupted work (list_todo, read payload for next step) \u2192 2-check overdue CRM tasks (search_tasks where due_date < now) \u2192 3-act on monitored triggers (deal changes, inbound) \u2192 4-follow up with user on unanswered questions \u2192 5-handle stale CRM tasks (open too long) \u2192 6-research/prepare for upcoming tasks \u2192 7-get to know user (sparse USER.md) \u2192 8-engage user (nudge, pending approvals) \u2192 9-propose new CRM tasks (create_task) or self-todos (manage_todo add) \u2192 10-create momentum (break large work into smaller pieces)",
+              "done": false
+            },
+            {
+              "id": "PR19-6",
+              "task": "Bootstrap requirement: autopilot MUST call tools for live state before acting (thread history \u2260 current truth)",
+              "done": false
+            },
+            {
+              "id": "PR19-7",
+              "task": "Noise suppression: lower frequency + prompt instructions to avoid low-value pulses (TRIG-09)",
+              "done": false
+            },
+            {
+              "id": "PR19-8",
+              "task": "Email notifications for autopilot results via platform send_message \u2014 stub until PR 32a implements tool (TRIG-06b)",
+              "done": false
+            }
           ],
           "testCriteria": [
             "Autopilot fires every 6h, produces meaningful output in its thread",
@@ -402,19 +1034,50 @@
           "pr": 20,
           "title": "Trigger tools + user-created triggers",
           "status": "pending",
-          "decisions": ["TRIG-03", "TRIG-12"],
+          "decisions": [
+            "TRIG-03",
+            "TRIG-12"
+          ],
           "note": "v2 change: added webhook and RSS trigger types from Tasklet gap analysis. Three trigger types: schedule (cron), webhook (external push), RSS (feed monitoring).",
           "tasks": [
-            { "id": "PR20-1", "task": "Implement search_triggers tool — search available trigger types by keyword", "done": false },
-            { "id": "PR20-2", "task": "Implement setup_trigger tool — create new trigger with schedule/type/config. Supported types: schedule (cron expression), webhook (generates unique URL), rss (feed URL + polling interval)", "done": false },
-            { "id": "PR20-3", "task": "Implement manage_active_triggers tool — list/view/delete/simulate active triggers", "done": false },
-            { "id": "PR20-4", "task": "Two retry policies: autopilot (0 retries), everything else (max 2)", "done": false },
-            { "id": "PR20-5", "task": "Webhook trigger endpoint: /api/trigger/webhook/[triggerId] — POST fires a run in the trigger's thread. Optional webhook_secret column on agent_triggers for HMAC validation.", "done": false },
-            { "id": "PR20-6", "task": "RSS trigger support: store feed URL in trigger config JSONB. On next_run_at hit, fetch feed, parse XML, compare item GUIDs against state file (state/{triggerId}/seen.json via write_file). New items passed as trigger payload.", "done": false },
-            { "id": "PR20-7", "task": "Automations page at /automations — list active triggers with name, type (schedule/webhook/RSS), schedule/config, last_run_at, next_run_at, status. Enable/disable toggle per trigger. Links to trigger's thread for run history.", "done": false }
+            {
+              "id": "PR20-1",
+              "task": "Implement search_triggers tool \u2014 search available trigger types by keyword",
+              "done": false
+            },
+            {
+              "id": "PR20-2",
+              "task": "Implement setup_trigger tool \u2014 create new trigger with schedule/type/config. Supported types: schedule (cron expression), webhook (generates unique URL), rss (feed URL + polling interval)",
+              "done": false
+            },
+            {
+              "id": "PR20-3",
+              "task": "Implement manage_active_triggers tool \u2014 list/view/delete/simulate active triggers",
+              "done": false
+            },
+            {
+              "id": "PR20-4",
+              "task": "Two retry policies: autopilot (0 retries), everything else (max 2)",
+              "done": false
+            },
+            {
+              "id": "PR20-5",
+              "task": "Webhook trigger endpoint: /api/trigger/webhook/[triggerId] \u2014 POST fires a run in the trigger's thread. Optional webhook_secret column on agent_triggers for HMAC validation.",
+              "done": false
+            },
+            {
+              "id": "PR20-6",
+              "task": "RSS trigger support: store feed URL in trigger config JSONB. On next_run_at hit, fetch feed, parse XML, compare item GUIDs against state file (state/{triggerId}/seen.json via write_file). New items passed as trigger payload.",
+              "done": false
+            },
+            {
+              "id": "PR20-7",
+              "task": "Automations page at /automations \u2014 list active triggers with name, type (schedule/webhook/RSS), schedule/config, last_run_at, next_run_at, status. Enable/disable toggle per trigger. Links to trigger's thread for run history.",
+              "done": false
+            }
           ],
           "testCriteria": [
-            "Ask agent to 'check PropertyGuru every morning' → trigger created and fires on schedule",
+            "Ask agent to 'check PropertyGuru every morning' \u2192 trigger created and fires on schedule",
             "User can list and delete active triggers via chat",
             "Webhook trigger: POST to /api/trigger/webhook/{id} fires a run with the POST body as payload",
             "RSS trigger: fires only for new items, deduplicates via state file",
@@ -434,30 +1097,91 @@
           "pr": 25,
           "title": "Composio connections + OAuth",
           "status": "pending",
-          "decisions": ["CONN-01", "CONN-02", "CONN-03"],
-          "tasks": [
-            { "id": "PR25-1", "task": "Migration: connections table", "done": false },
-            { "id": "PR25-2", "task": "Composio SDK integration for OAuth flows", "done": false },
-            { "id": "PR25-3", "task": "Connection-first behavior: agent checks existing before proposing new (CONN-03)", "done": false },
-            { "id": "PR25-4", "task": "One-shot OAuth setup with token refresh", "done": false }
+          "decisions": [
+            "CONN-01",
+            "CONN-02",
+            "CONN-03"
           ],
-          "testCriteria": ["User connects Gmail via OAuth, connection persists and agent can use it"]
+          "tasks": [
+            {
+              "id": "PR25-1",
+              "task": "Migration: connections table",
+              "done": false
+            },
+            {
+              "id": "PR25-2",
+              "task": "Composio SDK integration for OAuth flows",
+              "done": false
+            },
+            {
+              "id": "PR25-3",
+              "task": "Connection-first behavior: agent checks existing before proposing new (CONN-03)",
+              "done": false
+            },
+            {
+              "id": "PR25-4",
+              "task": "One-shot OAuth setup with token refresh",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "User connects Gmail via OAuth, connection persists and agent can use it"
+          ]
         },
         {
           "pr": 26,
           "title": "Connection tools",
           "status": "pending",
-          "decisions": ["TOOL-04", "TOOL-06"],
+          "decisions": [
+            "TOOL-04",
+            "TOOL-06"
+          ],
           "tasks": [
-            { "id": "PR26-1", "task": "Implement list_users_connections tool", "done": false },
-            { "id": "PR26-2", "task": "Implement get_details_for_connections tool", "done": false },
-            { "id": "PR26-3", "task": "Implement search_for_integrations tool (Composio catalog)", "done": false },
-            { "id": "PR26-4", "task": "Implement create_new_connections tool (OAuth flow initiation)", "done": false },
-            { "id": "PR26-5", "task": "Implement manage_activated_tools_for_connections tool (activate/deactivate per-connection tools)", "done": false },
-            { "id": "PR26-6", "task": "Implement reauthorize_connection tool", "done": false },
-            { "id": "PR26-7", "task": "Implement delete_connection tool", "done": false },
-            { "id": "PR26-8", "task": "Write connection skill files to storage on connection creation (Tasklet pattern — lazy-loaded instructions for service quirks)", "done": false },
-            { "id": "PR26-9", "task": "Wire connection state into system-reminder slot (from PR 15): active connections with tool counts + skill file pointers, inactive connection count. e.g. 'Gmail: 12/45 tools active (skill: connections/gmail.md)'", "done": false }
+            {
+              "id": "PR26-1",
+              "task": "Implement list_users_connections tool",
+              "done": false
+            },
+            {
+              "id": "PR26-2",
+              "task": "Implement get_details_for_connections tool",
+              "done": false
+            },
+            {
+              "id": "PR26-3",
+              "task": "Implement search_for_integrations tool (Composio catalog)",
+              "done": false
+            },
+            {
+              "id": "PR26-4",
+              "task": "Implement create_new_connections tool (OAuth flow initiation)",
+              "done": false
+            },
+            {
+              "id": "PR26-5",
+              "task": "Implement manage_activated_tools_for_connections tool (activate/deactivate per-connection tools)",
+              "done": false
+            },
+            {
+              "id": "PR26-6",
+              "task": "Implement reauthorize_connection tool",
+              "done": false
+            },
+            {
+              "id": "PR26-7",
+              "task": "Implement delete_connection tool",
+              "done": false
+            },
+            {
+              "id": "PR26-8",
+              "task": "Write connection skill files to storage on connection creation (Tasklet pattern \u2014 lazy-loaded instructions for service quirks)",
+              "done": false
+            },
+            {
+              "id": "PR26-9",
+              "task": "Wire connection state into system-reminder slot (from PR 15): active connections with tool counts + skill file pointers, inactive connection count. e.g. 'Gmail: 12/45 tools active (skill: connections/gmail.md)'",
+              "done": false
+            }
           ],
           "testCriteria": [
             "Agent uses Composio action to read user's calendar",
@@ -469,29 +1193,81 @@
           "pr": 29,
           "title": "Subagents",
           "status": "pending",
-          "decisions": ["RUNNER-06", "RUNNER-07"],
-          "tasks": [
-            { "id": "PR29-1", "task": "Subagent spawning for parallel research", "done": false },
-            { "id": "PR29-2", "task": "Subagent spawning for document analysis", "done": false },
-            { "id": "PR29-3", "task": "Results summarization back to parent context", "done": false },
-            { "id": "PR29-4", "task": "Context isolation to prevent main context bloat", "done": false }
+          "decisions": [
+            "RUNNER-06",
+            "RUNNER-07"
           ],
-          "testCriteria": ["Agent spawns subagent for research, results appear in main thread"]
+          "tasks": [
+            {
+              "id": "PR29-1",
+              "task": "Subagent spawning for parallel research",
+              "done": false
+            },
+            {
+              "id": "PR29-2",
+              "task": "Subagent spawning for document analysis",
+              "done": false
+            },
+            {
+              "id": "PR29-3",
+              "task": "Results summarization back to parent context",
+              "done": false
+            },
+            {
+              "id": "PR29-4",
+              "task": "Context isolation to prevent main context bloat",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Agent spawns subagent for research, results appear in main thread"
+          ]
         },
         {
           "pr": "32a",
           "title": "Email messaging tools (Resend)",
           "status": "pending",
-          "decisions": ["SERVICE-13", "TRIG-13"],
+          "decisions": [
+            "SERVICE-13",
+            "TRIG-13"
+          ],
           "note": "Platform transactional email for notifications and autopilot results. Separate from Gmail connection (Composio) which is user's own email.",
           "tasks": [
-            { "id": "PR32a-1", "task": "Resend SDK integration for transactional email", "done": false },
-            { "id": "PR32a-2", "task": "Implement send_message tool (platform email via Resend) with Zod schema", "done": false },
-            { "id": "PR32a-3", "task": "Implement reply_message tool for threaded email replies", "done": false },
-            { "id": "PR32a-4", "task": "Implement list_contact_methods tool", "done": false },
-            { "id": "PR32a-5", "task": "Implement add_contact_method tool (with verification)", "done": false },
-            { "id": "PR32a-6", "task": "Tool-level idempotency for external-facing tools (TRIG-13): dedup via sent_messages table to prevent duplicate sends on retry", "done": false },
-            { "id": "PR32a-7", "task": "Migration: sent_messages table for idempotency tracking", "done": false }
+            {
+              "id": "PR32a-1",
+              "task": "Resend SDK integration for transactional email",
+              "done": false
+            },
+            {
+              "id": "PR32a-2",
+              "task": "Implement send_message tool (platform email via Resend) with Zod schema",
+              "done": false
+            },
+            {
+              "id": "PR32a-3",
+              "task": "Implement reply_message tool for threaded email replies",
+              "done": false
+            },
+            {
+              "id": "PR32a-4",
+              "task": "Implement list_contact_methods tool",
+              "done": false
+            },
+            {
+              "id": "PR32a-5",
+              "task": "Implement add_contact_method tool (with verification)",
+              "done": false
+            },
+            {
+              "id": "PR32a-6",
+              "task": "Tool-level idempotency for external-facing tools (TRIG-13): dedup via sent_messages table to prevent duplicate sends on retry",
+              "done": false
+            },
+            {
+              "id": "PR32a-7",
+              "task": "Migration: sent_messages table for idempotency tracking",
+              "done": false
+            }
           ],
           "testCriteria": [
             "Agent sends email via Resend after approval",
@@ -510,56 +1286,130 @@
       "prs": [
         {
           "pr": 33,
-          "title": "Approval system — gate implementation",
+          "title": "Approval system \u2014 gate implementation",
           "status": "pending",
-          "decisions": ["SAFETY-01", "SAFETY-02"],
-          "tasks": [
-            { "id": "PR33-1", "task": "Two-tier safety model: auto-run internal, approval for external", "done": false },
-            { "id": "PR33-2", "task": "Approval gate as chat interaction (not special UI)", "done": false },
-            { "id": "PR33-3", "task": "Agent presents action in plain language, waits for user reply", "done": false },
-            { "id": "PR33-4", "task": "User says yes → agent continues. No → run cancelled.", "done": false },
-            { "id": "PR33-5", "task": "Works identically in chat and trigger threads", "done": false }
+          "decisions": [
+            "SAFETY-01",
+            "SAFETY-02"
           ],
-          "testCriteria": ["Agent tries to send email, pauses for approval, continues after yes"]
+          "tasks": [
+            {
+              "id": "PR33-1",
+              "task": "Two-tier safety model: auto-run internal, approval for external",
+              "done": false
+            },
+            {
+              "id": "PR33-2",
+              "task": "Approval gate as chat interaction (not special UI)",
+              "done": false
+            },
+            {
+              "id": "PR33-3",
+              "task": "Agent presents action in plain language, waits for user reply",
+              "done": false
+            },
+            {
+              "id": "PR33-4",
+              "task": "User says yes \u2192 agent continues. No \u2192 run cancelled.",
+              "done": false
+            },
+            {
+              "id": "PR33-5",
+              "task": "Works identically in chat and trigger threads",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Agent tries to send email, pauses for approval, continues after yes"
+          ]
         },
         {
           "pr": 34,
-          "title": "Approval system — events + UI",
+          "title": "Approval system \u2014 events + UI",
           "status": "pending",
-          "decisions": ["SAFETY-02", "SAFETY-04"],
+          "decisions": [
+            "SAFETY-02",
+            "SAFETY-04"
+          ],
           "note": "v2 simplification: pending approvals visible in chat thread, skip separate queue UI.",
           "tasks": [
-            { "id": "PR34-1", "task": "Migration: approval_events table", "done": false },
-            { "id": "PR34-2", "task": "Trigger thread shows pending action, user opens thread to respond", "done": false },
-            { "id": "PR34-3", "task": "No per-action granularity, no configurable matrix in v1 (SAFETY-04)", "done": false }
+            {
+              "id": "PR34-1",
+              "task": "Migration: approval_events table",
+              "done": false
+            },
+            {
+              "id": "PR34-2",
+              "task": "Trigger thread shows pending action, user opens thread to respond",
+              "done": false
+            },
+            {
+              "id": "PR34-3",
+              "task": "No per-action granularity, no configurable matrix in v1 (SAFETY-04)",
+              "done": false
+            }
           ],
-          "testCriteria": ["Pending approvals visible in trigger thread, resolvable from chat"]
+          "testCriteria": [
+            "Pending approvals visible in trigger thread, resolvable from chat"
+          ]
         },
         {
           "pr": 35,
-          "title": "Mission Control — status summary",
+          "title": "Mission Control \u2014 status summary",
           "status": "pending",
-          "decisions": ["UX-03"],
+          "decisions": [
+            "UX-03"
+          ],
           "note": "v2 simplification: status summary only, not full dashboard with queue tab.",
           "tasks": [
-            { "id": "PR35-1", "task": "Status dashboard with agent activity summary", "done": false },
-            { "id": "PR35-2", "task": "Recent runs, active triggers, memory stats", "done": false },
-            { "id": "PR35-3", "task": "Quick actions to common agent tasks", "done": false }
+            {
+              "id": "PR35-1",
+              "task": "Status dashboard with agent activity summary",
+              "done": false
+            },
+            {
+              "id": "PR35-2",
+              "task": "Recent runs, active triggers, memory stats",
+              "done": false
+            },
+            {
+              "id": "PR35-3",
+              "task": "Quick actions to common agent tasks",
+              "done": false
+            }
           ],
-          "testCriteria": ["Mission Control shows accurate real-time agent status"]
+          "testCriteria": [
+            "Mission Control shows accurate real-time agent status"
+          ]
         },
         {
           "pr": 38,
           "title": "Onboarding flow",
           "status": "pending",
-          "decisions": ["UX-09"],
+          "decisions": [
+            "UX-09"
+          ],
           "note": "v2 simplification: bootstrap files + first chat only. Skip guided interview and deep profile phase.",
           "tasks": [
-            { "id": "PR38-1", "task": "Phase 1: Quick Activation (<10 min) — signup, connect services, seed files", "done": false },
-            { "id": "PR38-2", "task": "Migration: setup_progress table", "done": false },
-            { "id": "PR38-3", "task": "First-chat experience: agent introduces itself, asks basic preferences, populates USER.md", "done": false }
+            {
+              "id": "PR38-1",
+              "task": "Phase 1: Quick Activation (<10 min) \u2014 signup, connect services, seed files",
+              "done": false
+            },
+            {
+              "id": "PR38-2",
+              "task": "Migration: setup_progress table",
+              "done": false
+            },
+            {
+              "id": "PR38-3",
+              "task": "First-chat experience: agent introduces itself, asks basic preferences, populates USER.md",
+              "done": false
+            }
           ],
-          "testCriteria": ["New user goes through onboarding, first useful output in <10 min"]
+          "testCriteria": [
+            "New user goes through onboarding, first useful output in <10 min"
+          ]
         }
       ]
     },
@@ -572,43 +1422,90 @@
       "prs": [
         {
           "pr": 41,
-          "title": "Telegram integration — bot setup",
+          "title": "Telegram integration \u2014 bot setup",
           "status": "pending",
-          "decisions": ["GAP-09", "UX-07"],
-          "tasks": [
-            { "id": "PR41-1", "task": "Telegram bot registration and webhook setup", "done": false },
-            { "id": "PR41-2", "task": "Vercel AI SDK Chat SDK adapter for Telegram", "done": false },
-            { "id": "PR41-3", "task": "Message format translation to unified thread model", "done": false }
+          "decisions": [
+            "GAP-09",
+            "UX-07"
           ],
-          "testCriteria": ["Send message to Telegram bot, get agent response"]
+          "tasks": [
+            {
+              "id": "PR41-1",
+              "task": "Telegram bot registration and webhook setup",
+              "done": false
+            },
+            {
+              "id": "PR41-2",
+              "task": "Vercel AI SDK Chat SDK adapter for Telegram",
+              "done": false
+            },
+            {
+              "id": "PR41-3",
+              "task": "Message format translation to unified thread model",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Send message to Telegram bot, get agent response"
+          ]
         },
         {
           "pr": 42,
-          "title": "Telegram integration — approvals + features",
+          "title": "Telegram integration \u2014 approvals + features",
           "status": "pending",
-          "decisions": ["UX-07"],
+          "decisions": [
+            "UX-07"
+          ],
           "note": "v2 simplification: text + approvals only, skip inline keyboards.",
           "tasks": [
-            { "id": "PR42-1", "task": "Approval gates work via Telegram", "done": false },
-            { "id": "PR42-2", "task": "Multi-channel identity resolution", "done": false }
+            {
+              "id": "PR42-1",
+              "task": "Approval gates work via Telegram",
+              "done": false
+            },
+            {
+              "id": "PR42-2",
+              "task": "Multi-channel identity resolution",
+              "done": false
+            }
           ],
-          "testCriteria": ["Full agent interaction via Telegram including approvals"]
+          "testCriteria": [
+            "Full agent interaction via Telegram including approvals"
+          ]
         },
         {
           "pr": "42a",
           "title": "Agent-generated interactive views (Tasklet instant-app inspired)",
           "status": "pending",
           "decisions": [],
-          "dependsOn": ["15a"],
-          "note": "Exploratory — implementation approach TBD. Inspired by Tasklet's create_instant_app + show_user_preview pattern. Agent generates sandboxed React mini-apps (kanban boards, dashboards, custom CRUD views) that read from existing CRM tables via a bridge API. Key difference from Tasklet: our apps read from the real Postgres CRM schema (with custom fields from PR 15a), not agent-created SQLite tables. Depends on sandboxed iframe execution environment. This is Layer 3 of the CRM configurability stack (Layer 1: vocabulary, Layer 2: custom fields, Layer 3: custom views).",
+          "dependsOn": [
+            "15a"
+          ],
+          "note": "Exploratory \u2014 implementation approach TBD. Inspired by Tasklet's create_instant_app + show_user_preview pattern. Agent generates sandboxed React mini-apps (kanban boards, dashboards, custom CRUD views) that read from existing CRM tables via a bridge API. Key difference from Tasklet: our apps read from the real Postgres CRM schema (with custom fields from PR 15a), not agent-created SQLite tables. Depends on sandboxed iframe execution environment. This is Layer 3 of the CRM configurability stack (Layer 1: vocabulary, Layer 2: custom fields, Layer 3: custom views).",
           "tasks": [
-            { "id": "PR42a-1", "task": "Spike: sandboxed iframe execution for agent-generated React apps on Vercel (CSP, CDN deps, bridge API)", "done": false },
-            { "id": "PR42a-2", "task": "Bridge API: read-only access to CRM tables from sandboxed app (contacts, deals, tasks, interactions with custom fields)", "done": false },
-            { "id": "PR42a-3", "task": "Agent tool: create_view or show_view for generating and displaying custom views in preview panel", "done": false },
-            { "id": "PR42a-4", "task": "Pin/save views to sidebar or CRM pages", "done": false }
+            {
+              "id": "PR42a-1",
+              "task": "Spike: sandboxed iframe execution for agent-generated React apps on Vercel (CSP, CDN deps, bridge API)",
+              "done": false
+            },
+            {
+              "id": "PR42a-2",
+              "task": "Bridge API: read-only access to CRM tables from sandboxed app (contacts, deals, tasks, interactions with custom fields)",
+              "done": false
+            },
+            {
+              "id": "PR42a-3",
+              "task": "Agent tool: create_view or show_view for generating and displaying custom views in preview panel",
+              "done": false
+            },
+            {
+              "id": "PR42a-4",
+              "task": "Pin/save views to sidebar or CRM pages",
+              "done": false
+            }
           ],
           "testCriteria": [
-            "User says 'show me a kanban of my deals grouped by stage' → agent generates and displays an interactive board",
+            "User says 'show me a kanban of my deals grouped by stage' \u2192 agent generates and displays an interactive board",
             "Generated view reads live CRM data including custom fields from PR 15a"
           ]
         }
@@ -622,85 +1519,137 @@
         "pr": "19a",
         "title": "Agent tasks (over-engineered version)",
         "reason": "Original design had lifecycle statuses (planning/planned/in_progress/review/done), approval flags, etc. Replaced with Tasklet-parity minimal agent_todo table (title + payload, exists-or-deleted) in PR 15.",
-        "decisions": ["DATA-09", "TASKLET-05"]
+        "decisions": [
+          "DATA-09",
+          "TASKLET-05"
+        ]
       },
       {
         "pr": "19a-goals",
         "title": "Goals table + Goals view",
         "reason": "OKR-style goal tracking is overkill for solo agent. Agent writes goals to MEMORY.md instead.",
-        "decisions": ["DATA-09"]
+        "decisions": [
+          "DATA-09"
+        ]
       },
       {
         "pr": 16,
         "title": "Model routing",
         "reason": "Use Gemini Flash for everything. Add tiers when cost matters.",
-        "decisions": ["LLM-03", "LLM-04", "LLM-08", "LLM-09"]
+        "decisions": [
+          "LLM-03",
+          "LLM-04",
+          "LLM-08",
+          "LLM-09"
+        ]
       },
       {
         "pr": 17,
         "title": "Per-run telemetry",
         "reason": "Vercel logs + existing runs table (model, tokens_in, tokens_out) is enough.",
-        "decisions": ["LLM-10", "LLM-11"]
+        "decisions": [
+          "LLM-10",
+          "LLM-11"
+        ]
       },
       {
         "pr": 21,
         "title": "Memory synthesis pulse",
         "reason": "Agent self-organizes MEMORY.md without a dedicated cron.",
-        "decisions": ["TRIG-11"]
+        "decisions": [
+          "TRIG-11"
+        ]
       },
       {
         "pr": 23,
-        "title": "Skill system — registry",
+        "title": "Skill system \u2014 registry",
         "reason": "Skills are just markdown files in Supabase Storage. No DB registry needed. Agent reads them with read_file().",
-        "decisions": ["SKILL-01", "SKILL-02", "SKILL-03", "SKILL-04"]
+        "decisions": [
+          "SKILL-01",
+          "SKILL-02",
+          "SKILL-03",
+          "SKILL-04"
+        ]
       },
       {
         "pr": 24,
-        "title": "Skill system — loading + custom skills",
+        "title": "Skill system \u2014 loading + custom skills",
         "reason": "No guided interview UI. Agent writes skill files directly via write_file.",
-        "decisions": ["SKILL-05", "SKILL-06", "SKILL-07", "SKILL-08"]
+        "decisions": [
+          "SKILL-05",
+          "SKILL-06",
+          "SKILL-07",
+          "SKILL-08"
+        ]
       },
       {
         "pr": 27,
-        "title": "Vercel Sandbox integration — setup",
+        "title": "Vercel Sandbox integration \u2014 setup",
         "reason": "No code execution for v1. CRM autopilot doesn't need sandbox.",
-        "decisions": ["EXEC-04", "EXEC-05", "EXEC-06"]
+        "decisions": [
+          "EXEC-04",
+          "EXEC-05",
+          "EXEC-06"
+        ]
       },
       {
         "pr": 28,
-        "title": "Vercel Sandbox integration — artifacts",
+        "title": "Vercel Sandbox integration \u2014 artifacts",
         "reason": "No CMA generation or artifact rendering for v1.",
-        "decisions": ["EXEC-07", "EXEC-08", "EXEC-09", "EXEC-10", "EXEC-11", "SERVICE-10"]
+        "decisions": [
+          "EXEC-07",
+          "EXEC-08",
+          "EXEC-09",
+          "EXEC-10",
+          "EXEC-11",
+          "SERVICE-10"
+        ]
       },
       {
         "pr": 30,
         "title": "Full tool surface",
         "reason": "Useful tools (run_agent_memory_sql, get_agent_db_schema, rename_chat) folded into PR 15. Rest cut.",
-        "decisions": ["TOOL-02", "TOOL-07", "TOOL-08"]
+        "decisions": [
+          "TOOL-02",
+          "TOOL-07",
+          "TOOL-08"
+        ]
       },
       {
         "pr": 31,
         "title": "Scraping lanes",
         "reason": "web_search + web_scrape from Phase 1 is enough.",
-        "decisions": ["SERVICE-12", "SERVICE-12b", "SERVICE-12c", "SERVICE-12d"]
+        "decisions": [
+          "SERVICE-12",
+          "SERVICE-12b",
+          "SERVICE-12c",
+          "SERVICE-12d"
+        ]
       },
       {
         "pr": 32,
         "title": "Document processing as agent tool",
         "reason": "Existing doc processing pipeline stays separate.",
-        "decisions": ["SERVICE-09"]
+        "decisions": [
+          "SERVICE-09"
+        ]
       },
       {
         "pr": 36,
-        "title": "Mission Control — Queue tab + Tasks UI",
-        "reason": "CRM tasks page already exists. Agent todos are per-thread (visible in system-reminder, not a dedicated page). Goals view cut (goals written to MEMORY.md instead). Approval discovery is per-thread only — KISS.",
-        "decisions": ["TASKLET-05", "UX-04"]
+        "title": "Mission Control \u2014 Queue tab + Tasks UI",
+        "reason": "CRM tasks page already exists. Agent todos are per-thread (visible in system-reminder, not a dedicated page). Goals view cut (goals written to MEMORY.md instead). Approval discovery is per-thread only \u2014 KISS.",
+        "decisions": [
+          "TASKLET-05",
+          "UX-04"
+        ]
       },
       {
         "pr": 37,
         "title": "Structured AI input",
         "reason": "Text chat is fine for v1. Clickable options can wait.",
-        "decisions": ["UX-05"]
+        "decisions": [
+          "UX-05"
+        ]
       },
       {
         "pr": "38a",
@@ -713,92 +1662,279 @@
         "pr": 39,
         "title": "Higher tier models",
         "reason": "Single model (Gemini Flash) for v1.",
-        "decisions": ["LLM-06", "LLM-07"]
+        "decisions": [
+          "LLM-06",
+          "LLM-07"
+        ]
       },
       {
         "pr": 40,
         "title": "Eval harness + observability",
         "reason": "Manual testing for v1.",
-        "decisions": ["EVAL-01", "EVAL-02", "EVAL-03", "EVAL-04"]
+        "decisions": [
+          "EVAL-01",
+          "EVAL-02",
+          "EVAL-03",
+          "EVAL-04"
+        ]
       },
       {
         "pr": 43,
         "title": "Rate limiting + cost controls",
         "reason": "Zero users, no scaling needed yet.",
-        "decisions": ["GAP-16", "SCALE-02"]
+        "decisions": [
+          "GAP-16",
+          "SCALE-02"
+        ]
       },
       {
         "pr": 44,
         "title": "Scaling prep (R2, Workers)",
         "reason": "Zero users, premature optimization.",
-        "decisions": ["SCALE-03", "SCALE-04"]
+        "decisions": [
+          "SCALE-03",
+          "SCALE-04"
+        ]
       },
       {
         "pr": 45,
         "title": "Voice I/O",
         "reason": "Text only for v1.",
-        "decisions": ["SERVICE-06", "SERVICE-07"]
+        "decisions": [
+          "SERVICE-06",
+          "SERVICE-07"
+        ]
       }
     ]
   },
   "crossPhaseDependencies": {
-    "description": "Phase 1 (done) → Phase 2 → Phase 3 → Phase 4 → Phase 5. Phase 4 can start in parallel with Phase 3 (approval gates don't depend on connections).",
+    "description": "Phase 1 (done) \u2192 Phase 2 \u2192 Phase 3 \u2192 Phase 4 \u2192 Phase 5. Phase 4 can start in parallel with Phase 3 (approval gates don't depend on connections).",
     "graph": {
-      "phase1": ["phase2"],
-      "phase2": ["phase3", "phase4"],
-      "phase3": ["phase5"],
-      "phase4": ["phase5"]
+      "phase1": [
+        "phase2"
+      ],
+      "phase2": [
+        "phase3",
+        "phase4"
+      ],
+      "phase3": [
+        "phase5"
+      ],
+      "phase4": [
+        "phase5"
+      ]
     }
   },
   "toolInventory": {
     "description": "Complete tool surface for v2, mapped against Tasklet's 30 built-in tools.",
     "done": [
-      { "tool": "read_file", "pr": 7, "category": "Filesystem" },
-      { "tool": "write_file", "pr": 7, "category": "Filesystem" },
-      { "tool": "web_search", "pr": 8, "category": "Web" },
-      { "tool": "web_scrape", "pr": 8, "category": "Web" },
-      { "tool": "search_contacts", "pr": 6, "category": "CRM" },
-      { "tool": "create_contact", "pr": 6, "category": "CRM" },
-      { "tool": "update_contact", "pr": 6, "category": "CRM" },
-      { "tool": "search_deals", "pr": 6, "category": "CRM" },
-      { "tool": "create_deal", "pr": 6, "category": "CRM" },
-      { "tool": "update_deal", "pr": 6, "category": "CRM" },
-      { "tool": "create_interaction", "pr": 6, "category": "CRM" },
-      { "tool": "search_tasks", "pr": 6, "category": "CRM" },
-      { "tool": "create_task", "pr": 6, "category": "CRM" },
-      { "tool": "update_task", "pr": 6, "category": "CRM" }
+      {
+        "tool": "read_file",
+        "pr": 7,
+        "category": "Filesystem"
+      },
+      {
+        "tool": "write_file",
+        "pr": 7,
+        "category": "Filesystem"
+      },
+      {
+        "tool": "web_search",
+        "pr": 8,
+        "category": "Web"
+      },
+      {
+        "tool": "web_scrape",
+        "pr": 8,
+        "category": "Web"
+      },
+      {
+        "tool": "search_contacts",
+        "pr": 6,
+        "category": "CRM"
+      },
+      {
+        "tool": "create_contact",
+        "pr": 6,
+        "category": "CRM"
+      },
+      {
+        "tool": "update_contact",
+        "pr": 6,
+        "category": "CRM"
+      },
+      {
+        "tool": "search_deals",
+        "pr": 6,
+        "category": "CRM"
+      },
+      {
+        "tool": "create_deal",
+        "pr": 6,
+        "category": "CRM"
+      },
+      {
+        "tool": "update_deal",
+        "pr": 6,
+        "category": "CRM"
+      },
+      {
+        "tool": "create_interaction",
+        "pr": 6,
+        "category": "CRM"
+      },
+      {
+        "tool": "search_tasks",
+        "pr": 6,
+        "category": "CRM"
+      },
+      {
+        "tool": "create_task",
+        "pr": 6,
+        "category": "CRM"
+      },
+      {
+        "tool": "update_task",
+        "pr": 6,
+        "category": "CRM"
+      }
     ],
     "building": [
-      { "tool": "manage_todo", "pr": 15, "category": "Agent Todo" },
-      { "tool": "list_todo", "pr": 15, "category": "Agent Todo" },
-      { "tool": "rename_chat", "pr": 15, "category": "UI" },
-      { "tool": "run_agent_memory_sql", "pr": 15, "category": "Database" },
-      { "tool": "get_agent_db_schema", "pr": 15, "category": "Database" },
-      { "tool": "search_triggers", "pr": 20, "category": "Triggers" },
-      { "tool": "setup_trigger", "pr": 20, "category": "Triggers" },
-      { "tool": "manage_active_triggers", "pr": 20, "category": "Triggers" },
-      { "tool": "list_users_connections", "pr": 26, "category": "Connections" },
-      { "tool": "get_details_for_connections", "pr": 26, "category": "Connections" },
-      { "tool": "search_for_integrations", "pr": 26, "category": "Connections" },
-      { "tool": "create_new_connections", "pr": 26, "category": "Connections" },
-      { "tool": "manage_activated_tools_for_connections", "pr": 26, "category": "Connections" },
-      { "tool": "reauthorize_connection", "pr": 26, "category": "Connections" },
-      { "tool": "delete_connection", "pr": 26, "category": "Connections" },
-      { "tool": "configure_crm", "pr": "15a", "category": "CRM" },
-      { "tool": "run_subagent", "pr": 29, "category": "Subagents" },
-      { "tool": "send_message", "pr": "32a", "category": "Messaging" },
-      { "tool": "reply_message", "pr": "32a", "category": "Messaging" },
-      { "tool": "list_contact_methods", "pr": "32a", "category": "Messaging" },
-      { "tool": "add_contact_method", "pr": "32a", "category": "Messaging" }
+      {
+        "tool": "manage_todo",
+        "pr": 15,
+        "category": "Agent Todo"
+      },
+      {
+        "tool": "list_todo",
+        "pr": 15,
+        "category": "Agent Todo"
+      },
+      {
+        "tool": "rename_chat",
+        "pr": 15,
+        "category": "UI"
+      },
+      {
+        "tool": "run_agent_memory_sql",
+        "pr": 15,
+        "category": "Database"
+      },
+      {
+        "tool": "get_agent_db_schema",
+        "pr": 15,
+        "category": "Database"
+      },
+      {
+        "tool": "search_triggers",
+        "pr": 20,
+        "category": "Triggers"
+      },
+      {
+        "tool": "setup_trigger",
+        "pr": 20,
+        "category": "Triggers"
+      },
+      {
+        "tool": "manage_active_triggers",
+        "pr": 20,
+        "category": "Triggers"
+      },
+      {
+        "tool": "list_users_connections",
+        "pr": 26,
+        "category": "Connections"
+      },
+      {
+        "tool": "get_details_for_connections",
+        "pr": 26,
+        "category": "Connections"
+      },
+      {
+        "tool": "search_for_integrations",
+        "pr": 26,
+        "category": "Connections"
+      },
+      {
+        "tool": "create_new_connections",
+        "pr": 26,
+        "category": "Connections"
+      },
+      {
+        "tool": "manage_activated_tools_for_connections",
+        "pr": 26,
+        "category": "Connections"
+      },
+      {
+        "tool": "reauthorize_connection",
+        "pr": 26,
+        "category": "Connections"
+      },
+      {
+        "tool": "delete_connection",
+        "pr": 26,
+        "category": "Connections"
+      },
+      {
+        "tool": "configure_crm",
+        "pr": "15a",
+        "category": "CRM"
+      },
+      {
+        "tool": "run_subagent",
+        "pr": 29,
+        "category": "Subagents"
+      },
+      {
+        "tool": "send_message",
+        "pr": "32a",
+        "category": "Messaging"
+      },
+      {
+        "tool": "reply_message",
+        "pr": "32a",
+        "category": "Messaging"
+      },
+      {
+        "tool": "list_contact_methods",
+        "pr": "32a",
+        "category": "Messaging"
+      },
+      {
+        "tool": "add_contact_method",
+        "pr": "32a",
+        "category": "Messaging"
+      }
     ],
     "cut": [
-      { "tool": "manage_tasks", "reason": "Renamed to manage_todo for clarity. Implemented in PR 15." },
-      { "tool": "list_tasks", "reason": "Renamed to list_todo for clarity. Implemented in PR 15." },
-      { "tool": "run_command", "reason": "No sandbox" },
-      { "tool": "show_user_preview", "reason": "No preview panel" },
-      { "tool": "close_user_preview", "reason": "No preview panel" },
-      { "tool": "create_tasklet_app", "reason": "No TSX apps in v1. PR 42a explores agent-generated views as a lighter alternative." },
-      { "tool": "get_user_quota_status", "reason": "No quota system" }
+      {
+        "tool": "manage_tasks",
+        "reason": "Renamed to manage_todo for clarity. Implemented in PR 15."
+      },
+      {
+        "tool": "list_tasks",
+        "reason": "Renamed to list_todo for clarity. Implemented in PR 15."
+      },
+      {
+        "tool": "run_command",
+        "reason": "No sandbox"
+      },
+      {
+        "tool": "show_user_preview",
+        "reason": "No preview panel"
+      },
+      {
+        "tool": "close_user_preview",
+        "reason": "No preview panel"
+      },
+      {
+        "tool": "create_tasklet_app",
+        "reason": "No TSX apps in v1. PR 42a explores agent-generated views as a lighter alternative."
+      },
+      {
+        "tool": "get_user_quota_status",
+        "reason": "No quota system"
+      }
     ]
   }
 }

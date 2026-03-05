@@ -11,7 +11,7 @@
 
 **Prerequisite:** PR 14 (memory system) must be merged. PR 13 (memory bootstrap) already merged.
 
-**Next:** After completing Part A, proceed to Part B (`2026-03-05-pr15b-context-assembly-tasklist.md`) for platform instructions, system-reminder, and 7-layer context assembly.
+**Next:** After completing Part A, proceed to Part B (`2026-03-05-pr15-part-b-context-assembly-tasklist.md`) for platform instructions, system-reminder, and 7-layer context assembly.
 
 ---
 
@@ -1434,4 +1434,4 @@ Expected: PASS — all existing tests green plus new utility tool assertions.
 
 **Part A total: 10 new files, 7 modified files, 2 SQL migrations**
 
-**Next:** Proceed to Part B (`2026-03-05-pr15b-context-assembly-tasklist.md`).
+**Next:** Proceed to Part B (`2026-03-05-pr15-part-b-context-assembly-tasklist.md`).

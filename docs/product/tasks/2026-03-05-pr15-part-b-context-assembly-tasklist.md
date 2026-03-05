@@ -9,7 +9,7 @@
 
 **Tech Stack:** Supabase (Postgres + RLS), Vercel AI SDK v6, Next.js 15, Vitest, Zod 4
 
-**Prerequisite:** Part A (`2026-03-05-pr15a-utility-tools-tasklist.md`) must be completed first. Part A provides the agent_todo table, SQL helper functions (including `get_system_reminder_context` RPC), utility tools, and runner wiring.
+**Prerequisite:** Part A (`2026-03-05-pr15-part-a-utility-tools-tasklist.md`) must be completed first. Part A provides the agent_todo table, SQL helper functions (including `get_system_reminder_context` RPC), utility tools, and runner wiring.
 
 ### Scope Clarification (2026-03-05)
 
