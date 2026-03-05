@@ -9,11 +9,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChatThreadPageClient } from "./chat-thread-page-client";
 
+const mockSelectThread = vi.fn();
 const mockUpdateThreadTitle = vi.fn();
 const mockGenerateThreadTitle = vi.fn();
 
 vi.mock("@/contexts/thread-context", () => ({
   useThreads: () => ({
+    selectThread: (...args: unknown[]) => mockSelectThread(...args),
     updateThreadTitle: (...args: unknown[]) => mockUpdateThreadTitle(...args),
   }),
 }));
@@ -28,13 +30,11 @@ vi.mock("@/components/chat/chat-panel", () => ({
     onAutoName,
     initialMessages,
     initialMessage,
-    onCanonicalThreadId,
   }: {
     chatId: string;
     onAutoName?: (message: string) => void;
     initialMessages: UIMessage[];
     initialMessage?: string;
-    onCanonicalThreadId?: (threadId: string) => void;
   }) => (
     <div>
       <div data-testid="chat-id">{chatId}</div>
@@ -42,9 +42,6 @@ vi.mock("@/components/chat/chat-panel", () => ({
       <div data-testid="initial-message">{initialMessage ?? ""}</div>
       <button type="button" onClick={() => onAutoName?.("hello from user")}>
         trigger-auto-name
-      </button>
-      <button type="button" onClick={() => onCanonicalThreadId?.("thread-canonical")}>
-        trigger-canonical-thread-id
       </button>
     </div>
   ),
@@ -70,6 +67,12 @@ describe("ChatThreadPageClient", () => {
 
     expect(screen.getByTestId("chat-id")).toHaveTextContent("thread-abc");
     expect(screen.getByTestId("initial-message-count")).toHaveTextContent("1");
+  });
+
+  it("does not imperatively select thread on mount", () => {
+    render(<ChatThreadPageClient threadId="thread-abc" initialMessages={[]} />);
+
+    expect(mockSelectThread).not.toHaveBeenCalled();
   });
 
   it("auto-names thread from first user message", async () => {
@@ -101,16 +104,5 @@ describe("ChatThreadPageClient", () => {
 
     expect(screen.getByTestId("initial-message")).toHaveTextContent("");
     expect(sessionStorage.getItem("initial_msg_thread-abc")).toBeNull();
-  });
-
-  it("replaces URL via history.replaceState when canonical thread id differs", async () => {
-    const replaceStateSpy = vi.spyOn(window.history, "replaceState");
-    const user = userEvent.setup();
-
-    render(<ChatThreadPageClient threadId="thread-draft" initialMessages={[]} />);
-    await user.click(screen.getByRole("button", { name: /trigger-canonical-thread-id/i }));
-
-    expect(replaceStateSpy).toHaveBeenCalledWith(null, "", "/chat/thread-canonical");
-    replaceStateSpy.mockRestore();
   });
 });

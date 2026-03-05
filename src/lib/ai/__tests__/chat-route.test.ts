@@ -2,13 +2,16 @@
  * Tests for the runner-backed App Router chat endpoint.
  * @module lib/ai/__tests__/chat-route
  */
-import type { UIMessage } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockCreateClient, mockResolveClientId, mockProcessInboundMessage } = vi.hoisted(() => ({
+const { mockRunAgent, mockCreateClient, mockResolveClientId } = vi.hoisted(() => ({
+  mockRunAgent: vi.fn(),
   mockCreateClient: vi.fn(),
   mockResolveClientId: vi.fn(),
-  mockProcessInboundMessage: vi.fn(),
+}));
+
+vi.mock("@/lib/runner/run-agent", () => ({
+  runAgent: mockRunAgent,
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -17,10 +20,6 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/lib/chat/client-id", () => ({
   resolveClientId: mockResolveClientId,
-}));
-
-vi.mock("@/lib/chat/process-inbound-message", () => ({
-  processInboundMessage: (...args: unknown[]) => mockProcessInboundMessage(...args),
 }));
 
 import { POST } from "../../../../app/api/chat/route";
@@ -36,10 +35,27 @@ function createJsonRequest(body: unknown): Request {
 describe("POST /api/chat", () => {
   const threadId = "770e8400-e29b-41d4-a716-446655440000";
 
+  function createThreadLookup(options: { threadExists: boolean; error?: { message: string } | null }) {
+    const { threadExists, error = null } = options;
+    const maybeSingle = vi.fn().mockResolvedValue(
+      threadExists
+        ? { data: { thread_id: threadId }, error }
+        : { data: null, error },
+    );
+    const thirdEq = vi.fn(() => ({ maybeSingle }));
+    const secondEq = vi.fn(() => ({ eq: thirdEq }));
+    const firstEq = vi.fn(() => ({ eq: secondEq }));
+    const select = vi.fn(() => ({ eq: firstEq }));
+    const from = vi.fn(() => ({ select }));
+
+    return { from };
+  }
+
   const mockSupabase = {
     auth: {
       getUser: vi.fn(),
     },
+    from: vi.fn(),
   };
 
   beforeEach(() => {
@@ -51,10 +67,11 @@ describe("POST /api/chat", () => {
       data: { user: { id: "user-123" } },
       error: null,
     });
+    mockSupabase.from = createThreadLookup({ threadExists: true }).from;
     mockResolveClientId.mockResolvedValue("client-456");
   });
 
-  it("delegates to processInboundMessage and streams response with canonical header", async () => {
+  it("calls runAgent with AI SDK transport payload and returns stream response", async () => {
     const streamResponse = new Response("streamed", {
       headers: { "Content-Type": "text/event-stream" },
     });
@@ -62,42 +79,37 @@ describe("POST /api/chat", () => {
       toUIMessageStreamResponse: vi.fn(() => streamResponse),
     };
 
-    mockProcessInboundMessage.mockResolvedValue({
+    mockRunAgent.mockResolvedValue({
       status: "streaming",
-      threadId: "thread-canonical",
       streamResult: mockStreamResult,
     });
 
     const response = await POST(
       createJsonRequest({
         id: threadId,
-        message: {
-          id: "u1",
-          role: "user",
-          parts: [{ type: "text", text: "Hello from UI message" }],
-        },
+        messages: [
+          { id: "a1", role: "assistant", parts: [{ type: "text", text: "How can I help?" }] },
+          { id: "u1", role: "user", parts: [{ type: "text", text: "Hello, Sunder!" }] },
+        ],
       }),
     );
 
     expect(mockResolveClientId).toHaveBeenCalledWith(mockSupabase, "user-123");
-    expect(mockProcessInboundMessage).toHaveBeenCalledWith({
-      supabase: mockSupabase,
-      clientId: "client-456",
-      channel: "web",
-      externalConversationId: threadId,
-      requestedThreadId: threadId,
-      messageText: "Hello from UI message",
-      triggerType: "chat",
-    });
+    expect(mockRunAgent).toHaveBeenCalledWith(
+      {
+        clientId: "client-456",
+        threadId,
+        triggerType: "chat",
+        input: "Hello, Sunder!",
+      },
+      mockSupabase,
+    );
     expect(mockStreamResult.toUIMessageStreamResponse).toHaveBeenCalledTimes(1);
-    expect(response.headers.get("x-thread-id")).toBe("thread-canonical");
+    expect(response).toBe(streamResponse);
   });
 
-  it("returns 202 queued with canonical header", async () => {
-    mockProcessInboundMessage.mockResolvedValue({
-      status: "queued",
-      threadId: "thread-canonical",
-    });
+  it("returns 202 queued when runner cannot acquire thread lock", async () => {
+    mockRunAgent.mockResolvedValue({ status: "queued" });
 
     const response = await POST(
       createJsonRequest({
@@ -107,51 +119,7 @@ describe("POST /api/chat", () => {
     );
 
     expect(response.status).toBe(202);
-    expect(response.headers.get("x-thread-id")).toBe("thread-canonical");
     expect(await response.json()).toEqual({ status: "queued" });
-  });
-
-  it("returns duplicate status with canonical header when delivery is already processed", async () => {
-    mockProcessInboundMessage.mockResolvedValue({
-      status: "duplicate",
-      threadId: "thread-canonical",
-    });
-
-    const response = await POST(
-      createJsonRequest({
-        id: threadId,
-        message: { id: "u1", role: "user", parts: [{ type: "text", text: "Duplicate" }] },
-      }),
-    );
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("x-thread-id")).toBe("thread-canonical");
-    expect(await response.json()).toEqual({ status: "duplicate" });
-  });
-
-  it("accepts legacy user message content when text parts are absent", async () => {
-    mockProcessInboundMessage.mockResolvedValue({
-      status: "queued",
-      threadId: "thread-canonical",
-    });
-
-    const response = await POST(
-      createJsonRequest({
-        id: threadId,
-        message: {
-          id: "u1",
-          role: "user",
-          content: "Legacy content payload",
-        },
-      }),
-    );
-
-    expect(response.status).toBe(202);
-    expect(mockProcessInboundMessage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        messageText: "Legacy content payload",
-      }),
-    );
   });
 
   it("returns 400 when thread id is missing", async () => {
@@ -165,7 +133,7 @@ describe("POST /api/chat", () => {
     expect(await response.json()).toEqual({
       error: "Invalid request body: id (thread id) is required.",
     });
-    expect(mockProcessInboundMessage).not.toHaveBeenCalled();
+    expect(mockRunAgent).not.toHaveBeenCalled();
   });
 
   it("returns 400 when user input text cannot be resolved", async () => {
@@ -180,7 +148,7 @@ describe("POST /api/chat", () => {
     expect(await response.json()).toEqual({
       error: "Invalid request body: could not resolve latest user message text.",
     });
-    expect(mockProcessInboundMessage).not.toHaveBeenCalled();
+    expect(mockRunAgent).not.toHaveBeenCalled();
   });
 
   it("returns 401 when request is unauthenticated", async () => {
@@ -198,7 +166,39 @@ describe("POST /api/chat", () => {
 
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({ error: "Unauthorized." });
-    expect(mockProcessInboundMessage).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the thread is missing for the client", async () => {
+    mockSupabase.from = createThreadLookup({ threadExists: false }).from;
+
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        messages: [{ id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] }],
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "Thread not found." });
+    expect(mockRunAgent).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 when thread lookup fails", async () => {
+    mockSupabase.from = createThreadLookup({
+      threadExists: false,
+      error: { message: "database unavailable" },
+    }).from;
+
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        messages: [{ id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] }],
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "Failed to process chat request." });
+    expect(mockRunAgent).not.toHaveBeenCalled();
   });
 
   it("returns 400 for invalid JSON payload", async () => {
@@ -242,11 +242,11 @@ describe("POST /api/chat", () => {
     expect(await response.json()).toEqual({
       error: "Invalid request body: thread id must be a UUID.",
     });
-    expect(mockProcessInboundMessage).not.toHaveBeenCalled();
+    expect(mockRunAgent).not.toHaveBeenCalled();
   });
 
-  it("returns 500 with a stable payload when inbound orchestration fails", async () => {
-    mockProcessInboundMessage.mockRejectedValue(new Error("database unavailable"));
+  it("returns 500 with a stable payload when runner throws", async () => {
+    mockRunAgent.mockRejectedValue(new Error("database unavailable"));
 
     const response = await POST(
       createJsonRequest({

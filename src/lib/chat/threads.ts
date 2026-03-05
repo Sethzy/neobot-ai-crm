@@ -2,15 +2,17 @@
  * Data access helpers for conversation thread persistence.
  * @module lib/chat/threads
  */
-import type { AppSupabaseClient } from "@/lib/supabase/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import type { Database } from "@/types/database";
 
+type ChatSupabaseClient = SupabaseClient<Database>;
 type ThreadRow = Database["public"]["Tables"]["conversation_threads"]["Row"];
 
 /**
  * Lists threads for a client sorted by most recently updated first.
  */
-export async function listThreads(supabase: AppSupabaseClient, clientId: string): Promise<ThreadRow[]> {
+export async function listThreads(supabase: ChatSupabaseClient, clientId: string): Promise<ThreadRow[]> {
   const { data, error } = await supabase
     .from("conversation_threads")
     .select("*")
@@ -29,7 +31,7 @@ export async function listThreads(supabase: AppSupabaseClient, clientId: string)
  * Creates a new thread for the client.
  */
 export async function createThread(
-  supabase: AppSupabaseClient,
+  supabase: ChatSupabaseClient,
   clientId: string,
   title: string | null = null,
 ): Promise<ThreadRow> {
@@ -49,7 +51,7 @@ export async function createThread(
 /**
  * Loads one thread by primary key.
  */
-export async function getThread(supabase: AppSupabaseClient, threadId: string): Promise<ThreadRow> {
+export async function getThread(supabase: ChatSupabaseClient, threadId: string): Promise<ThreadRow> {
   const { data, error } = await supabase
     .from("conversation_threads")
     .select("*")
@@ -67,7 +69,7 @@ export async function getThread(supabase: AppSupabaseClient, threadId: string): 
  * Archives a thread (soft-delete).
  */
 export async function archiveThread(
-  supabase: AppSupabaseClient,
+  supabase: ChatSupabaseClient,
   threadId: string,
 ): Promise<ThreadRow> {
   const { data, error } = await supabase
@@ -88,7 +90,7 @@ export async function archiveThread(
  * Updates the thread title.
  */
 export async function updateThreadTitle(
-  supabase: AppSupabaseClient,
+  supabase: ChatSupabaseClient,
   threadId: string,
   title: string,
 ): Promise<ThreadRow> {

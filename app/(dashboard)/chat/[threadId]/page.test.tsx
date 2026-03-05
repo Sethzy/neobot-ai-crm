@@ -111,64 +111,6 @@ describe("/chat/[threadId] page", () => {
     expect(mockListMessages).not.toHaveBeenCalled();
   });
 
-  it("renders an empty draft thread page when missing thread has draft=1", async () => {
-    const supabase = createThreadLookupSupabase({ threadExists: false });
-    mockCreateClient.mockResolvedValue(supabase);
-    mockResolveClientId.mockResolvedValue("client-123");
-
-    const element = await ChatThreadPage({
-      params: Promise.resolve({ threadId: MISSING_THREAD_ID }),
-      searchParams: Promise.resolve({ draft: "1" }),
-    });
-    render(element);
-
-    expect(screen.getByTestId("thread-id")).toHaveTextContent(MISSING_THREAD_ID);
-    expect(screen.getByTestId("initial-message-count")).toHaveTextContent("0");
-    expect(redirect).not.toHaveBeenCalled();
-    expect(mockListMessages).not.toHaveBeenCalled();
-  });
-
-  it("keeps loading persisted messages for existing threads even when draft=1 is present", async () => {
-    const supabase = createThreadLookupSupabase({ threadExists: true });
-    mockCreateClient.mockResolvedValue(supabase);
-    mockResolveClientId.mockResolvedValue("client-123");
-    mockListMessages.mockResolvedValue([
-      {
-        message_id: "m1",
-        role: "assistant",
-        content: "Persisted message",
-        parts: null,
-      },
-    ]);
-
-    const element = await ChatThreadPage({
-      params: Promise.resolve({ threadId: VALID_THREAD_ID }),
-      searchParams: Promise.resolve({ draft: "1" }),
-    });
-    render(element);
-
-    expect(screen.getByTestId("thread-id")).toHaveTextContent(VALID_THREAD_ID);
-    expect(screen.getByTestId("initial-message-count")).toHaveTextContent("1");
-    expect(screen.getByTestId("first-message-text")).toHaveTextContent("Persisted message");
-    expect(mockListMessages).toHaveBeenCalledWith(supabase, VALID_THREAD_ID);
-    expect(redirect).not.toHaveBeenCalled();
-  });
-
-  it("skips DB calls only for routes explicitly marked as new drafts", async () => {
-    const element = await ChatThreadPage({
-      params: Promise.resolve({ threadId: MISSING_THREAD_ID }),
-      searchParams: Promise.resolve({ draft: "1", source: "new" } as never),
-    });
-    render(element);
-
-    expect(screen.getByTestId("thread-id")).toHaveTextContent(MISSING_THREAD_ID);
-    expect(screen.getByTestId("initial-message-count")).toHaveTextContent("0");
-    expect(mockCreateClient).not.toHaveBeenCalled();
-    expect(mockResolveClientId).not.toHaveBeenCalled();
-    expect(mockListMessages).not.toHaveBeenCalled();
-    expect(redirect).not.toHaveBeenCalled();
-  });
-
   it("throws when thread lookup fails", async () => {
     const supabase = createThreadLookupSupabase({
       threadExists: false,

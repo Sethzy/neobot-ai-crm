@@ -9,7 +9,6 @@ import { useChat } from "@ai-sdk/react";
 import { AlertCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { prepareChatSendMessagesRequest } from "./chat-transport";
 import { ChatComposer } from "./chat-composer";
 import { getMessageText } from "./message-content";
 import { MessageList } from "./message-list";
@@ -22,8 +21,6 @@ interface ChatPanelProps {
   initialMessage?: string;
   /** Called once with the first user message text for auto-naming new threads. */
   onAutoName?: (firstUserMessage: string) => void;
-  /** Called when API reports a canonical thread id different from current route id. */
-  onCanonicalThreadId?: (threadId: string) => void;
 }
 
 export function ChatPanel({
@@ -31,57 +28,15 @@ export function ChatPanel({
   initialMessages = [],
   initialMessage,
   onAutoName,
-  onCanonicalThreadId,
 }: ChatPanelProps) {
+  const transport = useMemo(() => new DefaultChatTransport({ api: "/api/chat" }), []);
+
   const hasAutoNamed = useRef(false);
   const hasSentInitialMessage = useRef(false);
-  const hasReconciledCanonicalThreadId = useRef(false);
-
-  /** Refs for values the memoized transport fetch wrapper needs to access. */
-  const chatIdRef = useRef(chatId);
-  const onCanonicalThreadIdRef = useRef(onCanonicalThreadId);
-  const prevChatIdRef = useRef(chatId);
-
-  useEffect(() => {
-    chatIdRef.current = chatId;
-    onCanonicalThreadIdRef.current = onCanonicalThreadId;
-  }, [chatId, onCanonicalThreadId]);
-
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport({
-        api: "/api/chat",
-        prepareSendMessagesRequest: prepareChatSendMessagesRequest,
-        fetch: async (input, init) => {
-          const response = await fetch(input, init);
-          const canonicalThreadId = response.headers.get("x-thread-id");
-
-          if (
-            onCanonicalThreadIdRef.current &&
-            canonicalThreadId &&
-            canonicalThreadId !== chatIdRef.current &&
-            !hasReconciledCanonicalThreadId.current
-          ) {
-            hasReconciledCanonicalThreadId.current = true;
-            onCanonicalThreadIdRef.current(canonicalThreadId);
-          }
-
-          return response;
-        },
-      }),
-    [],
-  );
 
   useEffect(() => {
     hasAutoNamed.current = initialMessages.some((message) => message.role === "user");
-
-    /** Only reset send/reconciliation guards when the thread actually changes.
-     *  This prevents React strict mode double-invocation from re-firing sendMessage. */
-    if (prevChatIdRef.current !== chatId) {
-      prevChatIdRef.current = chatId;
-      hasSentInitialMessage.current = false;
-      hasReconciledCanonicalThreadId.current = false;
-    }
+    hasSentInitialMessage.current = false;
   }, [chatId, initialMessages]);
 
   const { messages, sendMessage, status, error } = useChat({
