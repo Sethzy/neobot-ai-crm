@@ -1,5 +1,10 @@
 /**
  * Bootstraps required memory files in client-scoped storage.
+ *
+ * Called on every chat message via `assembleContext`. Uses list-based existence
+ * checks (2 parallel calls) instead of downloading file content, and caches
+ * bootstrapped clients in-process to skip storage calls on warm invocations.
+ *
  * @module lib/memory/bootstrap
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -7,73 +12,29 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   MEMORY_BUCKET_ID,
   MEMORY_TEXT_CONTENT_TYPE,
+  MEMORY_TOPIC_DIRECTORY,
+  REQUIRED_MEMORY_FILE_PATHS,
   ROOT_MEMORY_FILE_SET,
-  type MemoryRootPath,
 } from "./constants";
-import {
-  DEFAULT_GROWTH_PLAN_MD,
-  DEFAULT_KEY_DECISIONS_MD,
-  DEFAULT_MEMORY_MD,
-  DEFAULT_PATTERNS_MD,
-  DEFAULT_PREFERENCES_MD,
-  DEFAULT_SOUL_MD,
-  DEFAULT_USER_MD,
-} from "./templates";
+import { DEFAULT_MEMORY_FILE_CONTENT } from "./templates";
 import {
   getStorageErrorMessage,
-  isMissingStorageObjectError,
   isStorageConflictError,
-  readMemoryRootFile,
 } from "./storage";
 
-interface MemoryFileTemplate {
-  path: string;
-  content: string;
-}
+/** Process-scoped cache — avoids storage calls on warm serverless invocations. */
+const bootstrappedClients = new Set<string>();
 
-const REQUIRED_MEMORY_FILES: MemoryFileTemplate[] = [
-  { path: "SOUL.md", content: DEFAULT_SOUL_MD },
-  { path: "USER.md", content: DEFAULT_USER_MD },
-  { path: "MEMORY.md", content: DEFAULT_MEMORY_MD },
-  { path: "memory/preferences.md", content: DEFAULT_PREFERENCES_MD },
-  { path: "memory/growth-plan.md", content: DEFAULT_GROWTH_PLAN_MD },
-  { path: "memory/patterns.md", content: DEFAULT_PATTERNS_MD },
-  { path: "memory/key-decisions.md", content: DEFAULT_KEY_DECISIONS_MD },
-];
-
-function isRootMemoryPath(path: string): path is MemoryRootPath {
-  return ROOT_MEMORY_FILE_SET.has(path);
-}
-
-async function isMemoryFileMissing(
-  supabase: SupabaseClient,
-  clientId: string,
-  path: string,
-): Promise<boolean> {
-  if (isRootMemoryPath(path)) {
-    const result = await readMemoryRootFile(supabase, clientId, path);
-    return result.kind === "missing";
-  }
-
-  const { data, error } = await supabase.storage
-    .from(MEMORY_BUCKET_ID)
-    .download(`${clientId}/${path}`);
-
-  if (error) {
-    if (isMissingStorageObjectError(error)) {
-      return true;
-    }
-
-    throw new Error(`Failed to read memory file "${path}": ${getStorageErrorMessage(error)}`);
-  }
-
-  return !data;
-}
+/** Derives the bootstrap file list from the canonical constant + content map. */
+const REQUIRED_MEMORY_FILES = REQUIRED_MEMORY_FILE_PATHS.map((path) => ({
+  path,
+  content: DEFAULT_MEMORY_FILE_CONTENT[path],
+}));
 
 async function uploadMissingFile(
   supabase: SupabaseClient,
   clientId: string,
-  file: MemoryFileTemplate,
+  file: { path: string; content: string },
 ): Promise<void> {
   const { error } = await supabase.storage
     .from(MEMORY_BUCKET_ID)
@@ -90,23 +51,43 @@ async function uploadMissingFile(
 /**
  * Creates missing required memory files for a client.
  *
- * This function is idempotent and safe to call on each run. It validates each
- * required file independently so a partial folder state is repaired.
+ * Idempotent and safe to call on each run. Uses 2 parallel directory list calls
+ * to detect missing files (instead of 7 sequential downloads), then uploads
+ * missing files in parallel. Skips entirely on warm invocations via process cache.
  */
 export async function bootstrapMemoryFiles(
   supabase: SupabaseClient,
   clientId: string,
 ): Promise<void> {
-  const missingFiles: MemoryFileTemplate[] = [];
+  if (bootstrappedClients.has(clientId)) return;
 
-  for (const file of REQUIRED_MEMORY_FILES) {
-    const isMissing = await isMemoryFileMissing(supabase, clientId, file.path);
-    if (isMissing) {
-      missingFiles.push(file);
-    } // Existing files are left untouched.
+  const bucket = supabase.storage.from(MEMORY_BUCKET_ID);
+
+  // 2 parallel list calls instead of 7 sequential downloads.
+  const [{ data: rootData }, { data: topicData }] = await Promise.all([
+    bucket.list(clientId),
+    bucket.list(`${clientId}/${MEMORY_TOPIC_DIRECTORY}`),
+  ]);
+
+  const existingRoot = new Set((rootData ?? []).map((f) => f.name));
+  const existingTopic = new Set((topicData ?? []).map((f) => f.name));
+
+  const missingFiles = REQUIRED_MEMORY_FILES.filter(({ path }) => {
+    const isRoot = ROOT_MEMORY_FILE_SET.has(path);
+    const fileName = path.split("/").pop()!;
+    return isRoot ? !existingRoot.has(fileName) : !existingTopic.has(fileName);
+  });
+
+  if (missingFiles.length > 0) {
+    await Promise.all(
+      missingFiles.map((file) => uploadMissingFile(supabase, clientId, file)),
+    );
   }
 
-  for (const missingFile of missingFiles) {
-    await uploadMissingFile(supabase, clientId, missingFile);
-  }
+  bootstrappedClients.add(clientId);
+}
+
+/** Clears the process-scoped bootstrap cache. Exposed for testing. */
+export function _resetBootstrapCache(): void {
+  bootstrappedClients.clear();
 }

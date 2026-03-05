@@ -98,10 +98,12 @@ describe("listMemoryFiles", () => {
   });
 
   it("throws when root listing fails", async () => {
-    mock.mockList.mockResolvedValueOnce({
-      data: null,
-      error: { message: "permission denied" },
-    });
+    mock.mockList
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: "permission denied" },
+      })
+      .mockResolvedValueOnce({ data: [], error: null });
 
     await expect(listMemoryFiles(mock.client, CLIENT_ID)).rejects.toThrow(
       "permission denied",

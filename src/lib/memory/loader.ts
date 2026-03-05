@@ -77,12 +77,22 @@ export async function listMemoryFiles(
 ): Promise<MemoryFileInfo[]> {
   const bucket = supabase.storage.from(MEMORY_BUCKET_ID);
 
-  const { data: rootData, error: rootError } = await bucket.list(clientId, {
-    sortBy: { column: "name", order: "asc" },
-  });
+  // Parallel list calls — root dir and topic dir are independent.
+  const [
+    { data: rootData, error: rootError },
+    { data: topicData, error: topicError },
+  ] = await Promise.all([
+    bucket.list(clientId, { sortBy: { column: "name", order: "asc" } }),
+    bucket.list(`${clientId}/${MEMORY_TOPIC_DIRECTORY}`, {
+      sortBy: { column: "name", order: "asc" },
+    }),
+  ]);
 
   if (rootError) {
     throw new Error(`Failed to list root files: ${getStorageErrorMessage(rootError)}`);
+  }
+  if (topicError) {
+    throw new Error(`Failed to list memory directory: ${getStorageErrorMessage(topicError)}`);
   }
 
   const rootEntries = new Map(
@@ -91,26 +101,13 @@ export async function listMemoryFiles(
       .map((item) => [item.name, item] as const),
   );
 
+  // Preserve canonical SOUL → USER → MEMORY order from the constant.
   const rootFiles: MemoryFileInfo[] = ROOT_MEMORY_FILE_PATHS
     .filter((path) => rootEntries.has(path))
     .map((path) => {
       const entry = rootEntries.get(path)!;
-
-      return {
-        name: path,
-        path,
-        updatedAt: entry.updated_at ?? null,
-      };
+      return { name: path, path, updatedAt: entry.updated_at ?? null };
     });
-
-  const { data: topicData, error: topicError } = await bucket.list(
-    `${clientId}/${MEMORY_TOPIC_DIRECTORY}`,
-    { sortBy: { column: "name", order: "asc" } },
-  );
-
-  if (topicError) {
-    throw new Error(`Failed to list memory directory: ${getStorageErrorMessage(topicError)}`);
-  }
 
   const topicFiles: MemoryFileInfo[] = (topicData ?? [])
     .filter((item) => item.id !== null && item.name.toLowerCase().endsWith(".md"))

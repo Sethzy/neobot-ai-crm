@@ -5,7 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { bootstrapMemoryFiles } from "../bootstrap";
+import { _resetBootstrapCache, bootstrapMemoryFiles } from "../bootstrap";
 import {
   DEFAULT_GROWTH_PLAN_MD,
   DEFAULT_KEY_DECISIONS_MD,
@@ -18,21 +18,22 @@ import {
 
 const CLIENT_ID = "660e8400-e29b-41d4-a716-446655440000";
 
-function createDownloadPayload(content: string) {
-  return { text: vi.fn().mockResolvedValue(content) };
+/** Simulates a file entry returned by `bucket.list()`. */
+function fileEntry(name: string) {
+  return { id: name, name, updated_at: "2026-03-05T00:00:00Z" };
 }
 
 function createMockStorage() {
-  const mockDownload = vi.fn();
+  const mockList = vi.fn();
   const mockUpload = vi.fn();
   const mockFrom = vi.fn(() => ({
-    download: mockDownload,
+    list: mockList,
     upload: mockUpload,
   }));
 
   return {
     client: { storage: { from: mockFrom } } as unknown as SupabaseClient,
-    mockDownload,
+    mockList,
     mockUpload,
     mockFrom,
   };
@@ -43,24 +44,26 @@ describe("bootstrapMemoryFiles", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    _resetBootstrapCache();
     mock = createMockStorage();
   });
 
   it("creates only files that are missing", async () => {
-    mock.mockDownload
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing soul"), error: null })
+    // Root dir has SOUL.md only — USER.md and MEMORY.md are missing.
+    mock.mockList
       .mockResolvedValueOnce({
-        data: null,
-        error: { message: "Object not found", status: 404, statusCode: "404" },
+        data: [fileEntry("SOUL.md")],
+        error: null,
       })
       .mockResolvedValueOnce({
-        data: null,
-        error: { message: "Object not found", status: 404, statusCode: "404" },
-      })
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing preferences"), error: null })
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing growth"), error: null })
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing patterns"), error: null })
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing decisions"), error: null });
+        data: [
+          fileEntry("preferences.md"),
+          fileEntry("growth-plan.md"),
+          fileEntry("patterns.md"),
+          fileEntry("key-decisions.md"),
+        ],
+        error: null,
+      });
     mock.mockUpload.mockResolvedValue({ data: { path: "ok" }, error: null });
 
     await bootstrapMemoryFiles(mock.client, CLIENT_ID);
@@ -78,42 +81,22 @@ describe("bootstrapMemoryFiles", () => {
     );
   });
 
-  it("throws when storage read fails for a non-not-found error", async () => {
-    mock.mockDownload.mockResolvedValue({
-      data: null,
-      error: { message: "permission denied" },
-    });
-
-    await expect(bootstrapMemoryFiles(mock.client, CLIENT_ID)).rejects.toThrow(
-      "permission denied",
-    );
-    expect(mock.mockUpload).not.toHaveBeenCalled();
-  });
-
-  it("throws when bucket is not found", async () => {
-    mock.mockDownload.mockResolvedValue({
-      data: null,
-      error: { message: "Bucket not found" },
-    });
-
-    await expect(bootstrapMemoryFiles(mock.client, CLIENT_ID)).rejects.toThrow(
-      "Bucket not found",
-    );
-    expect(mock.mockUpload).not.toHaveBeenCalled();
-  });
-
   it("throws when an upload fails", async () => {
-    mock.mockDownload
+    // Only SOUL.md missing in root, all topic files present.
+    mock.mockList
       .mockResolvedValueOnce({
-        data: null,
-        error: { message: "Object not found", status: 404, statusCode: "404" },
+        data: [fileEntry("USER.md"), fileEntry("MEMORY.md")],
+        error: null,
       })
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing user"), error: null })
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing memory"), error: null })
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing preferences"), error: null })
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing growth"), error: null })
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing patterns"), error: null })
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing decisions"), error: null });
+      .mockResolvedValueOnce({
+        data: [
+          fileEntry("preferences.md"),
+          fileEntry("growth-plan.md"),
+          fileEntry("patterns.md"),
+          fileEntry("key-decisions.md"),
+        ],
+        error: null,
+      });
     mock.mockUpload.mockResolvedValueOnce({
       data: null,
       error: { message: "duplicate key value violates unique constraint" },
@@ -130,17 +113,20 @@ describe("bootstrapMemoryFiles", () => {
   });
 
   it("treats upload conflict as idempotent success", async () => {
-    mock.mockDownload
+    mock.mockList
       .mockResolvedValueOnce({
-        data: null,
-        error: { message: "Object not found", status: 404, statusCode: "404" },
+        data: [fileEntry("USER.md"), fileEntry("MEMORY.md")],
+        error: null,
       })
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing user"), error: null })
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing memory"), error: null })
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing preferences"), error: null })
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing growth"), error: null })
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing patterns"), error: null })
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing decisions"), error: null });
+      .mockResolvedValueOnce({
+        data: [
+          fileEntry("preferences.md"),
+          fileEntry("growth-plan.md"),
+          fileEntry("patterns.md"),
+          fileEntry("key-decisions.md"),
+        ],
+        error: null,
+      });
     mock.mockUpload.mockResolvedValueOnce({
       data: null,
       error: { message: "The resource already exists", status: 409, statusCode: "409" },
@@ -150,12 +136,20 @@ describe("bootstrapMemoryFiles", () => {
   });
 
   it("does nothing when all required files already exist", async () => {
-    for (let index = 0; index < 7; index += 1) {
-      mock.mockDownload.mockResolvedValueOnce({
-        data: createDownloadPayload(`existing-${index}`),
+    mock.mockList
+      .mockResolvedValueOnce({
+        data: [fileEntry("SOUL.md"), fileEntry("USER.md"), fileEntry("MEMORY.md")],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: [
+          fileEntry("preferences.md"),
+          fileEntry("growth-plan.md"),
+          fileEntry("patterns.md"),
+          fileEntry("key-decisions.md"),
+        ],
         error: null,
       });
-    }
 
     await bootstrapMemoryFiles(mock.client, CLIENT_ID);
 
@@ -163,26 +157,12 @@ describe("bootstrapMemoryFiles", () => {
   });
 
   it("creates topic files when root files exist but topic files are missing", async () => {
-    mock.mockDownload
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing soul"), error: null })
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing user"), error: null })
-      .mockResolvedValueOnce({ data: createDownloadPayload("existing memory"), error: null })
+    mock.mockList
       .mockResolvedValueOnce({
-        data: null,
-        error: { message: "Object not found", status: 404, statusCode: "404" },
+        data: [fileEntry("SOUL.md"), fileEntry("USER.md"), fileEntry("MEMORY.md")],
+        error: null,
       })
-      .mockResolvedValueOnce({
-        data: null,
-        error: { message: "Object not found", status: 404, statusCode: "404" },
-      })
-      .mockResolvedValueOnce({
-        data: null,
-        error: { message: "Object not found", status: 404, statusCode: "404" },
-      })
-      .mockResolvedValueOnce({
-        data: null,
-        error: { message: "Object not found", status: 404, statusCode: "404" },
-      });
+      .mockResolvedValueOnce({ data: [], error: null });
     mock.mockUpload.mockResolvedValue({ data: { path: "ok" }, error: null });
 
     await bootstrapMemoryFiles(mock.client, CLIENT_ID);
@@ -208,5 +188,54 @@ describe("bootstrapMemoryFiles", () => {
       DEFAULT_KEY_DECISIONS_MD,
       { upsert: false, contentType: "text/plain; charset=utf-8" },
     );
+  });
+
+  it("skips storage calls on warm invocations (process cache)", async () => {
+    mock.mockList
+      .mockResolvedValueOnce({
+        data: [fileEntry("SOUL.md"), fileEntry("USER.md"), fileEntry("MEMORY.md")],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: [
+          fileEntry("preferences.md"),
+          fileEntry("growth-plan.md"),
+          fileEntry("patterns.md"),
+          fileEntry("key-decisions.md"),
+        ],
+        error: null,
+      });
+
+    await bootstrapMemoryFiles(mock.client, CLIENT_ID);
+    mock.mockList.mockClear();
+
+    // Second call should skip entirely.
+    await bootstrapMemoryFiles(mock.client, CLIENT_ID);
+
+    expect(mock.mockList).not.toHaveBeenCalled();
+    expect(mock.mockUpload).not.toHaveBeenCalled();
+  });
+
+  it("uses parallel list calls (root + topic dirs)", async () => {
+    mock.mockList
+      .mockResolvedValueOnce({
+        data: [fileEntry("SOUL.md"), fileEntry("USER.md"), fileEntry("MEMORY.md")],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: [
+          fileEntry("preferences.md"),
+          fileEntry("growth-plan.md"),
+          fileEntry("patterns.md"),
+          fileEntry("key-decisions.md"),
+        ],
+        error: null,
+      });
+
+    await bootstrapMemoryFiles(mock.client, CLIENT_ID);
+
+    expect(mock.mockList).toHaveBeenCalledTimes(2);
+    expect(mock.mockList).toHaveBeenCalledWith(CLIENT_ID);
+    expect(mock.mockList).toHaveBeenCalledWith(`${CLIENT_ID}/memory`);
   });
 });

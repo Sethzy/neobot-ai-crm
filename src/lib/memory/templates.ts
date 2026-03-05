@@ -71,3 +71,19 @@ export const DEFAULT_KEY_DECISIONS_MD = `# Key Decisions
 
 Significant decisions with reasoning.
 `;
+
+/**
+ * Type-checked map from seeded file path to default content.
+ *
+ * Used by bootstrap to derive the file list from the canonical
+ * `REQUIRED_MEMORY_FILE_PATHS` constant — keeping paths in one place.
+ */
+export const DEFAULT_MEMORY_FILE_CONTENT: Record<string, string> = {
+  "SOUL.md": DEFAULT_SOUL_MD,
+  "USER.md": DEFAULT_USER_MD,
+  "MEMORY.md": DEFAULT_MEMORY_MD,
+  "memory/preferences.md": DEFAULT_PREFERENCES_MD,
+  "memory/growth-plan.md": DEFAULT_GROWTH_PLAN_MD,
+  "memory/patterns.md": DEFAULT_PATTERNS_MD,
+  "memory/key-decisions.md": DEFAULT_KEY_DECISIONS_MD,
+};
