@@ -116,6 +116,7 @@ export async function assembleContext({
     .select("role, content, parts")
     .eq("thread_id", threadId)
     .order("created_at", { ascending: false })
+    .order("message_id", { ascending: false })
     .limit(MAX_CONTEXT_MESSAGES);
 
   if (error) {
@@ -123,6 +124,7 @@ export async function assembleContext({
   }
 
   const historyMessages: ModelMessage[] = ((data as HistoryRow[] | null) ?? [])
+    .slice(0, MAX_CONTEXT_MESSAGES)
     .slice()
     .reverse()
     .map((row) => ({

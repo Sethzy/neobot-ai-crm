@@ -205,9 +205,39 @@ describe("assembleContext", () => {
     expect(supabase.calls.methods).toEqual(
       expect.arrayContaining([
         { method: "order", args: ["created_at", { ascending: false }] },
+        { method: "order", args: ["message_id", { ascending: false }] },
         { method: "limit", args: [50] },
       ]),
     );
+  });
+
+  it("enforces a maximum history window of 50 messages even if more rows are returned", async () => {
+    const historyRows = Array.from({ length: 60 }, (_, index) => {
+      const newestFirstIndex = 60 - index;
+      return {
+        role: newestFirstIndex % 2 === 0 ? "assistant" : "user",
+        content: `Message ${newestFirstIndex}`,
+        parts: null,
+      };
+    });
+
+    const supabase = createMockSupabaseClient({
+      selectResult: {
+        data: historyRows,
+        error: null,
+      },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "",
+      clientId: "client-123",
+    });
+
+    expect(result.messages).toHaveLength(50);
+    expect(result.messages[0]).toEqual({ role: "user", content: "Message 11" });
+    expect(result.messages[49]).toEqual({ role: "assistant", content: "Message 60" });
   });
 
   it("includes thread history before the current message", async () => {
