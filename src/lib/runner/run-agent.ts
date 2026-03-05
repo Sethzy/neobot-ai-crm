@@ -15,7 +15,7 @@ import { createCrmTools, createStorageTools, createWebTools } from "@/lib/runner
 import { enqueueMessage } from "@/lib/runner/thread-queue";
 import type { Database, Json } from "@/types/database";
 
-const MAX_STEPS_TIER_1 = 8;
+const MAX_STEPS_TIER_1 = 9;
 
 type ChatSupabaseClient = SupabaseClient<Database>;
 type RunnerTools = ReturnType<typeof createCrmTools> &
@@ -27,53 +27,43 @@ function createTextParts(text: string): Json {
   return [{ type: "text", text }];
 }
 
-function extractTextFromMessageContent(content: unknown): string {
-  if (typeof content === "string") {
-    return content.trim();
+/**
+ * Reconstructs UIMessage-compatible parts from streamText step results.
+ * Preserves tool-invocation parts so the chat UI can render step details
+ * (tool names, arguments, results) after page reloads.
+ */
+function buildAssistantParts(
+  steps: Array<{
+    toolCalls: Array<{ toolCallId: string; toolName: string; args?: unknown }>;
+    toolResults: Array<{ toolCallId: string; result?: unknown }>;
+    text: string;
+  }>,
+): Array<Record<string, unknown>> {
+  const parts: Array<Record<string, unknown>> = [];
+
+  for (const step of steps) {
+    parts.push({ type: "step-start" });
+
+    for (const toolCall of step.toolCalls) {
+      const toolResult = step.toolResults.find(
+        (r) => r.toolCallId === toolCall.toolCallId,
+      );
+      parts.push({
+        type: "tool-invocation",
+        toolCallId: toolCall.toolCallId,
+        toolName: toolCall.toolName,
+        args: toolCall.args ?? {},
+        state: toolResult ? "result" : "call",
+        ...(toolResult ? { result: toolResult.result ?? null } : {}),
+      });
+    }
+
+    if (step.text.trim().length > 0) {
+      parts.push({ type: "text", text: step.text.trim() });
+    }
   }
 
-  if (!Array.isArray(content)) {
-    return "";
-  }
-
-  return content
-    .filter(
-      (part): part is { type: string; text?: string } =>
-        typeof part === "object" && part !== null && "type" in part,
-    )
-    .filter((part) => part.type === "text" && typeof part.text === "string")
-    .map((part) => String(part.text).trim())
-    .filter((part) => part.length > 0)
-    .join("\n")
-    .trim();
-}
-
-function getAssistantRowsFromResponseMessages(
-  messages: unknown,
-  threadId: string,
-): Array<{ thread_id: string; role: string; content: string; parts: Json }> {
-  if (!Array.isArray(messages)) {
-    return [];
-  }
-
-  const rows = messages
-    .filter(
-      (message): message is { role: string; content?: unknown } =>
-        typeof message === "object" && message !== null && "role" in message,
-    )
-    .filter((message) => message.role === "assistant")
-    .map((message) => {
-      const text = extractTextFromMessageContent(message.content);
-      return {
-        thread_id: threadId,
-        role: "assistant",
-        content: text,
-        parts: createTextParts(text),
-      };
-    })
-    .filter((row) => row.content.length > 0);
-
-  return rows;
+  return parts;
 }
 
 export type RunAgentResult =
@@ -135,26 +125,27 @@ export async function runAgent(
       messages,
       stopWhen: stepCountIs(MAX_STEPS_TIER_1),
       tools,
-      onFinish: async ({ text, response, steps, totalUsage }) => {
-        const assistantRowsFromResponse = getAssistantRowsFromResponseMessages(
-          response?.messages,
-          threadId,
-        );
+      prepareStep: ({ stepNumber }) => {
+        // On the final step, disable tools to force a text response.
+        // Without this, the model can exhaust all steps on tool calls
+        // and the stream ends with zero text output.
+        if (stepNumber >= MAX_STEPS_TIER_1 - 1) {
+          return { activeTools: [] };
+        }
+      },
+      onFinish: async ({ text, steps, totalUsage }) => {
+        const parts = buildAssistantParts(steps);
+        const contentText = typeof text === "string" ? text.trim() : "";
 
-        if (assistantRowsFromResponse.length > 0) {
-          await createMessages(supabase, assistantRowsFromResponse);
-        } else {
-          const assistantText = typeof text === "string" ? text.trim() : "";
-          if (assistantText.length > 0) {
-            await createMessages(supabase, [
-              {
-                thread_id: threadId,
-                role: "assistant",
-                content: assistantText,
-                parts: createTextParts(assistantText),
-              },
-            ]);
-          }
+        if (parts.length > 0 || contentText.length > 0) {
+          await createMessages(supabase, [
+            {
+              thread_id: threadId,
+              role: "assistant",
+              content: contentText,
+              parts: parts.length > 0 ? (parts as Json) : createTextParts(contentText),
+            },
+          ]);
         }
 
         await completeRun(supabase, {
