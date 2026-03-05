@@ -10,14 +10,24 @@ const {
   mockResolveClientId,
   mockCreateUIMessageStream,
   mockCreateUIMessageStreamResponse,
+  mockGenerateId,
   mockGenerateTitleFromUserMessage,
+  mockSetActiveStreamId,
+  mockClearActiveStreamId,
+  mockCreateNewResumableStream,
+  mockCreateResumableStreamContext,
 } = vi.hoisted(() => ({
   mockRunAgent: vi.fn(),
   mockCreateClient: vi.fn(),
   mockResolveClientId: vi.fn(),
   mockCreateUIMessageStream: vi.fn(),
   mockCreateUIMessageStreamResponse: vi.fn(),
+  mockGenerateId: vi.fn(),
   mockGenerateTitleFromUserMessage: vi.fn(),
+  mockSetActiveStreamId: vi.fn(),
+  mockClearActiveStreamId: vi.fn(),
+  mockCreateNewResumableStream: vi.fn(),
+  mockCreateResumableStreamContext: vi.fn(),
 }));
 
 vi.mock("@/lib/runner/run-agent", () => ({
@@ -35,10 +45,20 @@ vi.mock("@/lib/chat/client-id", () => ({
 vi.mock("ai", () => ({
   createUIMessageStream: mockCreateUIMessageStream,
   createUIMessageStreamResponse: mockCreateUIMessageStreamResponse,
+  generateId: mockGenerateId,
 }));
 
 vi.mock("@/lib/ai/title", () => ({
   generateTitleFromUserMessage: mockGenerateTitleFromUserMessage,
+}));
+
+vi.mock("@/lib/redis", () => ({
+  setActiveStreamId: mockSetActiveStreamId,
+  clearActiveStreamId: mockClearActiveStreamId,
+}));
+
+vi.mock("resumable-stream", () => ({
+  createResumableStreamContext: mockCreateResumableStreamContext,
 }));
 
 import { POST } from "../../../../app/api/chat/route";
@@ -107,6 +127,7 @@ describe("POST /api/chat", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.AI_GATEWAY_API_KEY = "test-key";
+    process.env.REDIS_URL = "redis://localhost:6379";
 
     mockCreateClient.mockResolvedValue(mockSupabase);
     mockSupabase.auth.getUser.mockResolvedValue({
@@ -115,6 +136,10 @@ describe("POST /api/chat", () => {
     });
     mockSupabase.from = createThreadLookup({ threadExists: true }).from;
     mockResolveClientId.mockResolvedValue("client-456");
+    mockGenerateId.mockReturnValue("stream-123");
+    mockCreateResumableStreamContext.mockReturnValue({
+      createNewResumableStream: mockCreateNewResumableStream,
+    });
   });
 
   it("calls runAgent with AI SDK transport payload and returns stream response", async () => {
@@ -168,9 +193,26 @@ describe("POST /api/chat", () => {
     }) => Promise<void>;
     const merge = vi.fn();
     await execute({ writer: { merge } });
+
+    const onFinish = mockCreateUIMessageStream.mock.calls[0][0].onFinish as () => Promise<void>;
+    await onFinish();
+
     expect(mockStreamResult.toUIMessageStream).toHaveBeenCalledTimes(1);
     expect(merge).toHaveBeenCalledWith(uiStream);
-    expect(mockCreateUIMessageStreamResponse).toHaveBeenCalledWith({ stream: wrappedStream });
+    expect(mockClearActiveStreamId).toHaveBeenCalledWith(threadId);
+
+    const responseOptions = mockCreateUIMessageStreamResponse.mock.calls[0][0] as {
+      stream: ReadableStream;
+      consumeSseStream: (args: { stream: ReadableStream }) => Promise<void>;
+    };
+    expect(responseOptions.stream).toBe(wrappedStream);
+    expect(typeof responseOptions.consumeSseStream).toBe("function");
+
+    await responseOptions.consumeSseStream({ stream: uiStream });
+
+    expect(mockSetActiveStreamId).toHaveBeenCalledWith(threadId, "stream-123");
+    expect(mockCreateNewResumableStream).toHaveBeenCalledWith("stream-123", expect.any(Function));
+
     expect(response).toBe(streamResponse);
   });
 

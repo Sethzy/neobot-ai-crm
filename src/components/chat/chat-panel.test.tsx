@@ -7,6 +7,7 @@ import userEvent from "@testing-library/user-event";
 import type { UIMessage } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { threadKeys } from "@/hooks/use-threads";
 import { ChatPanel } from "./chat-panel";
 
 const { mockTransportConstructor } = vi.hoisted(() => ({
@@ -14,6 +15,9 @@ const { mockTransportConstructor } = vi.hoisted(() => ({
 }));
 const { mockSetDataStream } = vi.hoisted(() => ({
   mockSetDataStream: vi.fn(),
+}));
+const { mockInvalidateQueries } = vi.hoisted(() => ({
+  mockInvalidateQueries: vi.fn(),
 }));
 
 vi.mock("react-markdown", () => ({
@@ -49,7 +53,7 @@ vi.mock("@ai-sdk/react", () => ({
 
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({
-    invalidateQueries: vi.fn(),
+    invalidateQueries: mockInvalidateQueries,
   }),
 }));
 
@@ -95,11 +99,13 @@ describe("ChatPanel", () => {
       messages: UIMessage[];
       transport: { api?: string };
       generateId?: () => string;
+      experimental_throttle?: number;
     };
     expect(options.id).toBe("thread-1");
     expect(options.messages).toEqual(initialMessages);
     expect(options.transport).toEqual(expect.objectContaining({ api: "/api/chat" }));
     expect(typeof options.generateId).toBe("function");
+    expect(options.experimental_throttle).toBe(50);
     expect(options.generateId?.()).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
@@ -186,6 +192,33 @@ describe("ChatPanel", () => {
     });
 
     expect(mockSetDataStream).toHaveBeenCalledTimes(1);
+  });
+
+  it("invalidates thread queries when a stream finishes", async () => {
+    render(<ChatPanel chatId="thread-1" />);
+
+    const options = mockUseChat.mock.calls[0][0] as {
+      onFinish?: () => void;
+    };
+
+    options.onFinish?.();
+
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: threadKeys.all });
+  });
+
+  it("ignores unrelated stream data parts to avoid extra client re-renders", () => {
+    render(<ChatPanel chatId="thread-1" />);
+
+    const options = mockUseChat.mock.calls[0][0] as {
+      onData?: (data: unknown) => void;
+    };
+
+    options.onData?.({
+      type: "data-unrelated-part",
+      data: "skip",
+    });
+
+    expect(mockSetDataStream).not.toHaveBeenCalled();
   });
 
   it("sends trimmed text via sendMessage", async () => {

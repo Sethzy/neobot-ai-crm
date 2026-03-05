@@ -53,7 +53,7 @@ describe("createSearchTool", () => {
     });
   });
 
-  it("defaults country to SG when location is omitted", async () => {
+  it("omits country param when location is not provided (SG unsupported by Brave)", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ web: { results: [] } }),
@@ -65,7 +65,35 @@ describe("createSearchTool", () => {
     expect(mockFetch).toHaveBeenCalledOnce();
     const [url] = mockFetch.mock.calls[0] as [string];
     const parsedUrl = new URL(url);
-    expect(parsedUrl.searchParams.get("country")).toBe("SG");
+    expect(parsedUrl.searchParams.has("country")).toBe(false);
+  });
+
+  it("sends country param when a supported code is provided", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ web: { results: [] } }),
+    });
+
+    const tools = createSearchTool();
+    await tools.web_search.execute({ query: "news", location: "US" }, EXECUTION_OPTIONS);
+
+    const [url] = mockFetch.mock.calls[0] as [string];
+    const parsedUrl = new URL(url);
+    expect(parsedUrl.searchParams.get("country")).toBe("US");
+  });
+
+  it("ignores unsupported country codes like SG", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ web: { results: [] } }),
+    });
+
+    const tools = createSearchTool();
+    await tools.web_search.execute({ query: "food", location: "SG" }, EXECUTION_OPTIONS);
+
+    const [url] = mockFetch.mock.calls[0] as [string];
+    const parsedUrl = new URL(url);
+    expect(parsedUrl.searchParams.has("country")).toBe(false);
   });
 
   it("maps qdr:h to Brave freshness pd", async () => {
