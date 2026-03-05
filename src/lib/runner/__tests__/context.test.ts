@@ -9,13 +9,20 @@ import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
 import { assembleContext } from "../context";
 
-const { mockBootstrapMemoryFiles, mockLoadMemoryContext } = vi.hoisted(() => ({
+const {
+  mockBootstrapMemoryFiles,
+  mockLoadMemoryContext,
+  mockBuildSystemReminder,
+} = vi.hoisted(() => ({
   mockBootstrapMemoryFiles: vi.fn().mockResolvedValue(undefined),
   mockLoadMemoryContext: vi.fn().mockResolvedValue({
     soul: "soul-content",
     user: "user-content",
     memory: "memory-content",
   }),
+  mockBuildSystemReminder: vi.fn().mockResolvedValue(
+    "<system-reminder>\nCurrent time: 2026-03-05 14:30:00 UTC\nOpen todos: 0\n</system-reminder>",
+  ),
 }));
 
 vi.mock("@/lib/memory/bootstrap", () => ({
@@ -24,6 +31,10 @@ vi.mock("@/lib/memory/bootstrap", () => ({
 
 vi.mock("@/lib/memory/loader", () => ({
   loadMemoryContext: mockLoadMemoryContext,
+}));
+
+vi.mock("@/lib/runner/system-reminder", () => ({
+  buildSystemReminder: mockBuildSystemReminder,
 }));
 
 describe("assembleContext", () => {
@@ -46,7 +57,7 @@ describe("assembleContext", () => {
     expect(result.messages).toEqual([{ role: "user", content: "Hello!" }]);
   });
 
-  it("injects memory sections when clientId is provided", async () => {
+  it("assembles system string in 7-layer order when clientId is provided", async () => {
     const supabase = createMockSupabaseClient({
       selectResult: { data: [], error: null },
     });
@@ -58,12 +69,56 @@ describe("assembleContext", () => {
       clientId: "client-123",
     });
 
-    expect(result.system).toContain("<soul>");
-    expect(result.system).toContain("soul-content");
-    expect(result.system).toContain("<user-profile>");
-    expect(result.system).toContain("user-content");
-    expect(result.system).toContain("<working-memory>");
-    expect(result.system).toContain("memory-content");
+    const platformIdx = result.system.indexOf("<platform-instructions>");
+    const sunderIdx = result.system.indexOf("You are Sunder");
+    const soulIdx = result.system.indexOf("<soul>");
+    const userIdx = result.system.indexOf("<user-profile>");
+    const memoryIdx = result.system.indexOf("<working-memory>");
+    const reminderIdx = result.system.indexOf("<system-reminder>");
+
+    expect(platformIdx).toBeLessThan(sunderIdx);
+    expect(sunderIdx).toBeLessThan(soulIdx);
+    expect(soulIdx).toBeLessThan(userIdx);
+    expect(userIdx).toBeLessThan(memoryIdx);
+    expect(memoryIdx).toBeLessThan(reminderIdx);
+  });
+
+  it("includes platform instructions before system prompt when clientId is provided", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      clientId: "client-123",
+    });
+
+    const platformIndex = result.system.indexOf("<platform-instructions>");
+    const systemPromptIndex = result.system.indexOf("You are Sunder");
+
+    expect(platformIndex).toBeGreaterThanOrEqual(0);
+    expect(systemPromptIndex).toBeGreaterThan(platformIndex);
+  });
+
+  it("includes system-reminder at the end of the system string when clientId is provided", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      clientId: "client-123",
+    });
+
+    expect(result.system).toContain("<system-reminder>");
+
+    const reminderIndex = result.system.indexOf("<system-reminder>");
+    const memoryIndex = result.system.indexOf("<working-memory>");
+    expect(reminderIndex).toBeGreaterThan(memoryIndex);
   });
 
   it("bootstraps before loading memory when clientId is provided", async () => {
@@ -100,12 +155,67 @@ describe("assembleContext", () => {
     expect(mockLoadMemoryContext).not.toHaveBeenCalled();
   });
 
+  it("passes clientId and threadId to buildSystemReminder", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      clientId: "client-123",
+    });
+
+    expect(mockBuildSystemReminder).toHaveBeenCalledWith(
+      expect.anything(),
+      "client-123",
+      "thread-1",
+    );
+  });
+
+  it("does not include platform instructions or system-reminder when clientId is omitted", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+    });
+
+    expect(result.system).not.toContain("<platform-instructions>");
+    expect(result.system).not.toContain("<system-reminder>");
+    expect(mockBuildSystemReminder).not.toHaveBeenCalled();
+  });
+
+  it("caps history query to the latest 50 messages", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      clientId: "client-123",
+    });
+
+    expect(supabase.calls.methods).toEqual(
+      expect.arrayContaining([
+        { method: "order", args: ["created_at", { ascending: false }] },
+        { method: "limit", args: [50] },
+      ]),
+    );
+  });
+
   it("includes thread history before the current message", async () => {
     const supabase = createMockSupabaseClient({
       selectResult: {
         data: [
-          { role: "user", content: "Hi", parts: null },
           { role: "assistant", content: "Hello! How can I help?", parts: null },
+          { role: "user", content: "Hi", parts: null },
         ],
         error: null,
       },
@@ -128,8 +238,8 @@ describe("assembleContext", () => {
     const supabase = createMockSupabaseClient({
       selectResult: {
         data: [
-          { role: "user", content: "Persisted inbound message", parts: null },
           { role: "assistant", content: "Existing response", parts: null },
+          { role: "user", content: "Persisted inbound message", parts: null },
         ],
         error: null,
       },

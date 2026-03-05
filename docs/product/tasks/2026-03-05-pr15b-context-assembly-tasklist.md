@@ -3,13 +3,23 @@
 **PR:** PR 15: Platform instructions + system-reminder + utility tools
 **Part:** B of 2 — Platform instructions, system-reminder builder, 7-layer context assembly
 **Decisions:** RUNNER-03, RUNNER-04, RUNNER-09
-**Goal:** Implement platform instructions constant, per-turn system-reminder builder, and refactor context assembly to 7-layer order (platform instructions → SYSTEM_PROMPT → SOUL.md → USER.md → MEMORY.md → system-reminder).
+**Goal:** Implement platform instructions constant, per-turn system-reminder builder, and refactor context assembly to 7-layer order (platform instructions → SYSTEM_PROMPT → SOUL.md → USER.md → MEMORY.md → system-reminder) while capping thread-history fetch size.
 
-**Architecture:** The system string follows a 7-layer order. Platform instructions are a new constant forked from Tasklet v2, adapted for Sunder (filesystem, SQL DB, tasks, state directory, thread-naming). System-reminder is a per-turn state snapshot (~130 tokens target) appended to the system string. The `get_system_reminder_context` RPC (created in Part A's migration) gathers user info, todo count, and memory file count in a single round trip.
+**Architecture:** The system string follows a 7-layer order. Platform instructions are a new constant forked from Tasklet v2, adapted for Sunder (state directory, SQL DB, scratchpad todo, thread-naming). System-reminder is a per-turn state snapshot (~130 tokens target) appended to the system string. The `get_system_reminder_context` RPC (created in Part A's migration) gathers user info, todo count, and memory file count in a single round trip. Thread history is capped to the latest 50 messages to control token growth until compaction infrastructure is available.
 
 **Tech Stack:** Supabase (Postgres + RLS), Vercel AI SDK v6, Next.js 15, Vitest, Zod 4
 
 **Prerequisite:** Part A (`2026-03-05-pr15a-utility-tools-tasklist.md`) must be completed first. Part A provides the agent_todo table, SQL helper functions (including `get_system_reminder_context` RPC), utility tools, and runner wiring.
+
+### Scope Clarification (2026-03-05)
+
+PR15-1 in the v2 plan includes:
+- layer #5: thread compaction summary
+- layer #6: recent messages
+- layer #7: current message
+
+This tasklist fully covers recent messages/current message behavior and introduces a 50-message cap.  
+Compaction summary is **explicitly deferred** to a later PR because the required compaction infrastructure does not yet exist.
 
 ### Part A Contract (Required Before Starting Part B)
 
@@ -69,8 +79,8 @@ describe("PLATFORM_INSTRUCTIONS", () => {
     expect(PLATFORM_INSTRUCTIONS.length).toBeGreaterThan(0);
   });
 
-  it("contains filesystem guidance", () => {
-    expect(PLATFORM_INSTRUCTIONS).toContain("filesystem");
+  it("contains state directory convention", () => {
+    expect(PLATFORM_INSTRUCTIONS).toContain("state");
   });
 
   it("contains SQL database guidance", () => {
@@ -81,16 +91,14 @@ describe("PLATFORM_INSTRUCTIONS", () => {
     expect(PLATFORM_INSTRUCTIONS).toContain("todo");
   });
 
-  it("contains state directory convention", () => {
-    expect(PLATFORM_INSTRUCTIONS).toContain("state");
-  });
-
-  it("contains rename_chat instruction", () => {
+  it("contains guarded rename_chat instruction", () => {
     expect(PLATFORM_INSTRUCTIONS).toContain("rename_chat");
+    expect(PLATFORM_INSTRUCTIONS).toContain("untitled");
   });
 
-  it("does not duplicate personality section from SYSTEM_PROMPT", () => {
-    expect(PLATFORM_INSTRUCTIONS).not.toContain("<your-personality>");
+  it("does not duplicate memory-system section from SYSTEM_PROMPT", () => {
+    expect(PLATFORM_INSTRUCTIONS).not.toContain("<memory-system>");
+    expect(PLATFORM_INSTRUCTIONS).not.toContain("SOUL.md — your personality and identity");
   });
 
   it("does not duplicate tool-usage section from SYSTEM_PROMPT", () => {
@@ -130,23 +138,6 @@ Create `src/lib/ai/platform-instructions.ts`:
  * @module lib/ai/platform-instructions
  */
 export const PLATFORM_INSTRUCTIONS = `<platform-instructions>
-<filesystem>
-You have a workspace of files accessible via read_file and write_file tools.
-
-Layout:
-- SOUL.md — your identity (read-only)
-- USER.md — user profile (read+write)
-- MEMORY.md — working notebook (read+write, first 200 lines loaded each run)
-- memory/ — topic files for organized storage
-- vault/ — user documents, indexed in Knowledge Base
-- state/ — ephemeral working state for multi-step processes
-
-Conventions:
-- Use descriptive filenames with dates (e.g. "market-analysis-bishan-2026-03-05.md").
-- Use state/ for intermediate work (draft emails, scraped data, analysis steps). Clean up when done.
-- Never store secrets or credentials in files.
-</filesystem>
-
 <tasks>
 You have a scratchpad todo list scoped to this conversation thread.
 
@@ -185,7 +176,9 @@ Clean up state/ files when the process is complete. State files are not indexed 
 </state-directory>
 
 <thread-naming>
-After the first meaningful user message, use rename_chat to give this conversation a short descriptive title (under 60 characters). Do not rename if the thread already has a meaningful title.
+Thread titles are usually auto-generated by the chat route after the first user message.
+Use rename_chat only when the thread title is still untitled/generic and you can provide a better concise title (under 60 characters).
+Do not rename if the thread already has a meaningful specific title.
 </thread-naming>
 </platform-instructions>`;
 ```
@@ -196,7 +189,7 @@ After the first meaningful user message, use rename_chat to give this conversati
 npx vitest run src/lib/ai/__tests__/platform-instructions.test.ts
 ```
 
-Expected: PASS — all 9 tests green.
+Expected: PASS — all platform-instructions tests green.
 
 ---
 
@@ -223,6 +216,26 @@ import { buildSystemReminder } from "../system-reminder";
 
 const CLIENT_ID = "550e8400-e29b-41d4-a716-446655440000";
 const THREAD_ID = "660e8400-e29b-41d4-a716-446655440000";
+const BASE_CONTEXT = {
+  display_name: "John Tan",
+  user_email: "john@example.com",
+  days_since_signup: 5,
+  open_todo_count: 0,
+  memory_file_count: 7,
+};
+
+function createReminderSupabase(
+  contextOverrides: Partial<typeof BASE_CONTEXT> = {},
+) {
+  return createMockSupabaseClient({
+    rpcResults: {
+      get_system_reminder_context: {
+        data: { ...BASE_CONTEXT, ...contextOverrides },
+        error: null,
+      },
+    },
+  });
+}
 
 describe("buildSystemReminder", () => {
   beforeEach(() => {
@@ -232,21 +245,7 @@ describe("buildSystemReminder", () => {
   });
 
   it("returns a system-reminder XML block", async () => {
-    const supabase = createMockSupabaseClient({
-      selectResult: { data: [], error: null },
-      rpcResults: {
-        get_system_reminder_context: {
-          data: {
-            display_name: "John Tan",
-            user_email: "john@example.com",
-            days_since_signup: 5,
-            open_todo_count: 0,
-            memory_file_count: 7,
-          },
-          error: null,
-        },
-      },
-    });
+    const supabase = createReminderSupabase();
 
     const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);
 
@@ -255,21 +254,7 @@ describe("buildSystemReminder", () => {
   });
 
   it("includes current UTC time", async () => {
-    const supabase = createMockSupabaseClient({
-      selectResult: { data: [], error: null },
-      rpcResults: {
-        get_system_reminder_context: {
-          data: {
-            display_name: "John Tan",
-            user_email: "john@example.com",
-            days_since_signup: 5,
-            open_todo_count: 0,
-            memory_file_count: 7,
-          },
-          error: null,
-        },
-      },
-    });
+    const supabase = createReminderSupabase();
 
     const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);
 
@@ -277,20 +262,11 @@ describe("buildSystemReminder", () => {
   });
 
   it("includes user display name and email", async () => {
-    const supabase = createMockSupabaseClient({
-      selectResult: { data: [], error: null },
-      rpcResults: {
-        get_system_reminder_context: {
-          data: {
-            display_name: "Sarah Lee",
-            user_email: "sarah@realty.sg",
-            days_since_signup: 12,
-            open_todo_count: 3,
-            memory_file_count: 7,
-          },
-          error: null,
-        },
-      },
+    const supabase = createReminderSupabase({
+      display_name: "Sarah Lee",
+      user_email: "sarah@realty.sg",
+      days_since_signup: 12,
+      open_todo_count: 3,
     });
 
     const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);
@@ -299,75 +275,35 @@ describe("buildSystemReminder", () => {
     expect(result).toContain("sarah@realty.sg");
   });
 
-  it("includes open todo count for the thread", async () => {
-    const supabase = createMockSupabaseClient({
-      selectResult: { data: [], error: null },
-      rpcResults: {
-        get_system_reminder_context: {
-          data: {
-            display_name: "John Tan",
-            user_email: "john@example.com",
-            days_since_signup: 5,
-            open_todo_count: 3,
-            memory_file_count: 7,
-          },
-          error: null,
-        },
-      },
+  it("includes open todo count, memory file count, and days since signup", async () => {
+    const supabase = createReminderSupabase({
+      open_todo_count: 3,
+      memory_file_count: 9,
+      days_since_signup: 42,
     });
 
     const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);
 
     expect(result).toContain("Open todos: 3");
-  });
-
-  it("includes memory file count", async () => {
-    const supabase = createMockSupabaseClient({
-      selectResult: { data: [], error: null },
-      rpcResults: {
-        get_system_reminder_context: {
-          data: {
-            display_name: "John Tan",
-            user_email: "john@example.com",
-            days_since_signup: 5,
-            open_todo_count: 0,
-            memory_file_count: 7,
-          },
-          error: null,
-        },
-      },
-    });
-
-    const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);
-
-    expect(result).toContain("Memory files: 7");
-  });
-
-  it("includes days since signup", async () => {
-    const supabase = createMockSupabaseClient({
-      selectResult: { data: [], error: null },
-      rpcResults: {
-        get_system_reminder_context: {
-          data: {
-            display_name: "John Tan",
-            user_email: "john@example.com",
-            days_since_signup: 42,
-            open_todo_count: 0,
-            memory_file_count: 7,
-          },
-          error: null,
-        },
-      },
-    });
-
-    const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);
-
+    expect(result).toContain("Memory files: 9");
     expect(result).toContain("Days since signup: 42");
+  });
+
+  it("escapes XML-reserved characters from user fields", async () => {
+    const supabase = createReminderSupabase({
+      display_name: "</system-reminder><script>",
+      user_email: "john&jane@example.com",
+    });
+
+    const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);
+
+    expect(result).not.toContain("</system-reminder><script>");
+    expect(result).toContain("&lt;/system-reminder&gt;&lt;script&gt;");
+    expect(result).toContain("john&amp;jane@example.com");
   });
 
   it("falls back gracefully when RPC fails", async () => {
     const supabase = createMockSupabaseClient({
-      selectResult: { data: [], error: null },
       rpcResults: {
         get_system_reminder_context: {
           data: null,
@@ -381,6 +317,29 @@ describe("buildSystemReminder", () => {
     expect(result).toContain("<system-reminder>");
     expect(result).toContain("2026-03-05");
     // Should still return a valid reminder with available data
+  });
+
+  it("falls back gracefully when RPC shape is invalid", async () => {
+    const supabase = createMockSupabaseClient({
+      rpcResults: {
+        get_system_reminder_context: {
+          data: {
+            display_name: "John Tan",
+            user_email: "john@example.com",
+            days_since_signup: "five",
+            open_todo_count: "three",
+            memory_file_count: null,
+          },
+          error: null,
+        },
+      },
+    });
+
+    const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);
+
+    expect(result).toContain("<system-reminder>");
+    expect(result).toContain("Open todos: 0");
+    expect(result).toContain("Memory files: 0");
   });
 
   afterEach(() => {
@@ -405,23 +364,25 @@ Create `src/lib/runner/system-reminder.ts`:
 /**
  * Builds the per-turn system-reminder injected at the end of the system string.
  *
- * The system-reminder is a compact state snapshot (~30 tokens) that gives
+ * The system-reminder is a compact state snapshot (~130-token target) that gives
  * the agent awareness of current time, user identity, and workspace state
  * without consuming excessive context.
  *
  * @module lib/runner/system-reminder
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
 
 import type { Database } from "@/types/database";
 
-interface SystemReminderContext {
-  display_name: string | null;
-  user_email: string | null;
-  days_since_signup: number | null;
-  open_todo_count: number;
-  memory_file_count: number;
-}
+const systemReminderContextSchema = z.object({
+  display_name: z.string().nullable(),
+  user_email: z.string().nullable(),
+  days_since_signup: z.number().int().nullable(),
+  open_todo_count: z.number().int().nonnegative(),
+  memory_file_count: z.number().int().nonnegative(),
+});
+type SystemReminderContext = z.infer<typeof systemReminderContextSchema>;
 
 const FALLBACK_CONTEXT: SystemReminderContext = {
   display_name: null,
@@ -451,7 +412,12 @@ async function fetchReminderContext(
     return FALLBACK_CONTEXT;
   }
 
-  const context = data as unknown as SystemReminderContext;
+  const parsed = systemReminderContextSchema.safeParse(data);
+  if (!parsed.success) {
+    return FALLBACK_CONTEXT;
+  }
+
+  const context = parsed.data;
 
   return {
     display_name: context.display_name ?? null,
@@ -460,6 +426,15 @@ async function fetchReminderContext(
     open_todo_count: context.open_todo_count ?? 0,
     memory_file_count: context.memory_file_count ?? 0,
   };
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
 }
 
 /**
@@ -481,9 +456,11 @@ export async function buildSystemReminder(
   lines.push(`Current time: ${currentTime}`);
 
   if (context.display_name) {
-    lines.push(`User: ${context.display_name}${context.user_email ? ` (${context.user_email})` : ""}`);
+    const escapedName = escapeXml(context.display_name);
+    const escapedEmail = context.user_email ? escapeXml(context.user_email) : null;
+    lines.push(`User: ${escapedName}${escapedEmail ? ` (${escapedEmail})` : ""}`);
   } else if (context.user_email) {
-    lines.push(`User: ${context.user_email}`);
+    lines.push(`User: ${escapeXml(context.user_email)}`);
   }
 
   lines.push(`Open todos: ${context.open_todo_count}`);
@@ -503,7 +480,7 @@ export async function buildSystemReminder(
 npx vitest run src/lib/runner/__tests__/system-reminder.test.ts
 ```
 
-Expected: PASS — all 7 tests green.
+Expected: PASS — all system-reminder tests green.
 
 ---
 
@@ -515,11 +492,15 @@ Expected: PASS — all 7 tests green.
 
 ### Step 1: Write failing tests for 7-layer context assembly
 
-Update `src/lib/runner/__tests__/context.test.ts`. Add mocks for the new dependencies and update existing assertions:
+Update `src/lib/runner/__tests__/context.test.ts`. Add mocks for the new dependencies and update existing assertions.
 
-Add to the `vi.hoisted` block:
+Extend the existing `vi.hoisted` object by adding `mockBuildSystemReminder` (do not replace the existing hoisted block):
 ```typescript
-const { mockBootstrapMemoryFiles, mockLoadMemoryContext, mockBuildSystemReminder } = vi.hoisted(() => ({
+const {
+  mockBootstrapMemoryFiles,
+  mockLoadMemoryContext,
+  mockBuildSystemReminder,
+} = vi.hoisted(() => ({
   mockBootstrapMemoryFiles: vi.fn().mockResolvedValue(undefined),
   mockLoadMemoryContext: vi.fn().mockResolvedValue({
     soul: "soul-content",
@@ -612,6 +593,26 @@ it("does not include platform instructions or system-reminder when clientId is o
   expect(result.system).not.toContain("<system-reminder>");
   expect(mockBuildSystemReminder).not.toHaveBeenCalled();
 });
+
+it("caps history query to the latest 50 messages", async () => {
+  const supabase = createMockSupabaseClient({
+    selectResult: { data: [], error: null },
+  });
+
+  await assembleContext({
+    supabase: supabase as never,
+    threadId: "thread-1",
+    currentMessage: "Hello!",
+    clientId: "client-123",
+  });
+
+  expect(supabase.calls.methods).toEqual(
+    expect.arrayContaining([
+      { method: "order", args: ["created_at", { ascending: false }] },
+      { method: "limit", args: [50] },
+    ]),
+  );
+});
 ```
 
 Update the existing `"injects memory sections when clientId is provided"` test to also check 7-layer order:
@@ -661,6 +662,11 @@ Add imports:
 ```typescript
 import { PLATFORM_INSTRUCTIONS } from "@/lib/ai/platform-instructions";
 import { buildSystemReminder } from "@/lib/runner/system-reminder";
+```
+
+Add a history cap constant near other top-level constants:
+```typescript
+const MAX_CONTEXT_MESSAGES = 50;
 ```
 
 Replace the `buildSystemPrompt` function with a new version that accepts the system-reminder:
@@ -730,16 +736,20 @@ export async function assembleContext({
     .from("conversation_messages")
     .select("role, content, parts")
     .eq("thread_id", threadId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false })
+    .limit(MAX_CONTEXT_MESSAGES);
 
   if (error) {
     throw new Error(`Failed to load thread history: ${error.message}`);
   }
 
-  const historyMessages: ModelMessage[] = ((data as HistoryRow[] | null) ?? []).map((row) => ({
-    role: normalizeRole(row.role),
-    content: row.content ?? getTextFromParts(row.parts),
-  }));
+  const historyMessages: ModelMessage[] = ((data as HistoryRow[] | null) ?? [])
+    .slice()
+    .reverse()
+    .map((row) => ({
+      role: normalizeRole(row.role),
+      content: row.content ?? getTextFromParts(row.parts),
+    }));
 
   const trimmedCurrentMessage = currentMessage.trim();
   const currentMessageTurn = trimmedCurrentMessage.length > 0
@@ -798,7 +808,7 @@ Expected: No type errors.
 ### Step 3: Lint check
 
 ```bash
-npx next lint
+npm run lint
 ```
 
 Expected: No lint errors in new files.
@@ -813,6 +823,8 @@ Review each test criterion:
 4. **Agent creates todo via manage_todo, next trigger run reads via list_todo** — both tools implemented, thread-scoped, system-reminder shows open todo count.
 5. **manage_todo batch: add 3 + delete 1 in single call** — batch operations array with per-operation error reporting.
 6. **System-reminder shows accurate "Open todos: N" scoped to thread** — get_system_reminder_context RPC counts agent_todo rows for the specific thread.
+7. **Context history is bounded** — `assembleContext` fetches only the latest 50 persisted messages (descending query + reverse in memory).
+8. **PR15-1 compaction summary is deferred** — this PR intentionally does not implement compaction summary generation/storage.
 
 ---
 

@@ -5,10 +5,12 @@
 import type { ModelMessage } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { PLATFORM_INSTRUCTIONS } from "@/lib/ai/platform-instructions";
 import { SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
 import { bootstrapMemoryFiles } from "@/lib/memory/bootstrap";
 import { loadMemoryContext } from "@/lib/memory/loader";
 import type { MemoryContext } from "@/lib/memory/loader";
+import { buildSystemReminder } from "@/lib/runner/system-reminder";
 import type { Database, Json } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
@@ -33,6 +35,7 @@ interface HistoryRow {
 }
 
 const allowedRoles: MessageRole[] = ["system", "user", "assistant"];
+const MAX_CONTEXT_MESSAGES = 50;
 
 function normalizeRole(role: string): MessageRole {
   return allowedRoles.includes(role as MessageRole) ? (role as MessageRole) : "assistant";
@@ -53,12 +56,21 @@ function getTextFromParts(parts: Json | null): string {
     .join("\n");
 }
 
-function buildSystemPrompt(memory?: MemoryContext): string {
+function buildSystemPrompt(
+  memory?: MemoryContext,
+  systemReminder?: string,
+): string {
   if (!memory) {
     return SYSTEM_PROMPT;
   }
 
-  const sections = [SYSTEM_PROMPT];
+  const sections: string[] = [];
+
+  // Layer 1: platform-level operational instructions.
+  sections.push(PLATFORM_INSTRUCTIONS);
+
+  // Layer 2: core personality, tool usage, approvals, and output guidance.
+  sections.push(SYSTEM_PROMPT);
 
   if (memory.soul.length > 0) {
     sections.push(`<soul>\n${memory.soul}\n</soul>`);
@@ -70,6 +82,10 @@ function buildSystemPrompt(memory?: MemoryContext): string {
 
   if (memory.memory.length > 0) {
     sections.push(`<working-memory>\n${memory.memory}\n</working-memory>`);
+  }
+
+  if (systemReminder) {
+    sections.push(systemReminder);
   }
 
   return sections.join("\n\n");
@@ -85,26 +101,34 @@ export async function assembleContext({
   clientId,
 }: AssembleContextParams): Promise<AssembledContext> {
   let memoryContext: MemoryContext | undefined;
+  let systemReminder: string | undefined;
 
   if (clientId) {
     await bootstrapMemoryFiles(supabase, clientId);
-    memoryContext = await loadMemoryContext(supabase, clientId);
+    [memoryContext, systemReminder] = await Promise.all([
+      loadMemoryContext(supabase, clientId),
+      buildSystemReminder(supabase, clientId, threadId),
+    ]);
   }
 
   const { data, error } = await supabase
     .from("conversation_messages")
     .select("role, content, parts")
     .eq("thread_id", threadId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false })
+    .limit(MAX_CONTEXT_MESSAGES);
 
   if (error) {
     throw new Error(`Failed to load thread history: ${error.message}`);
   }
 
-  const historyMessages: ModelMessage[] = ((data as HistoryRow[] | null) ?? []).map((row) => ({
-    role: normalizeRole(row.role),
-    content: row.content ?? getTextFromParts(row.parts),
-  }));
+  const historyMessages: ModelMessage[] = ((data as HistoryRow[] | null) ?? [])
+    .slice()
+    .reverse()
+    .map((row) => ({
+      role: normalizeRole(row.role),
+      content: row.content ?? getTextFromParts(row.parts),
+    }));
 
   const trimmedCurrentMessage = currentMessage.trim();
   const currentMessageTurn = trimmedCurrentMessage.length > 0
@@ -115,7 +139,7 @@ export async function assembleContext({
     : [];
 
   return {
-    system: buildSystemPrompt(memoryContext),
+    system: buildSystemPrompt(memoryContext, systemReminder),
     messages: [
       ...historyMessages,
       ...currentMessageTurn,
