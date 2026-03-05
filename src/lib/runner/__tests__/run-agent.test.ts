@@ -17,6 +17,7 @@ const {
   mockCreateCrmTools,
   mockCreateStorageTools,
   mockCreateWebTools,
+  mockCreateUtilityTools,
   mockCreateMessages,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
@@ -31,6 +32,7 @@ const {
   mockCreateCrmTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
+  mockCreateUtilityTools: vi.fn(),
   mockCreateMessages: vi.fn(),
 }));
 
@@ -65,6 +67,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
+  createUtilityTools: mockCreateUtilityTools,
 }));
 
 vi.mock("@/lib/chat/messages", () => ({
@@ -110,6 +113,13 @@ describe("runAgent", () => {
       web_search: { description: "web-search-tool" },
       web_scrape: { description: "web-scrape-tool" },
     });
+    mockCreateUtilityTools.mockReturnValue({
+      manage_todo: { description: "utility-tool" },
+      list_todo: { description: "utility-tool" },
+      rename_chat: { description: "utility-tool" },
+      run_agent_memory_sql: { description: "utility-tool" },
+      get_agent_db_schema: { description: "utility-tool" },
+    });
     mockAssembleContext.mockResolvedValue({
       system: "You are Sunder.",
       messages: [{ role: "user", content: "Hello, Sunder!" }],
@@ -127,7 +137,7 @@ describe("runAgent", () => {
 
     expect(result.status).toBe("streaming");
     expect(mockGateway).toHaveBeenCalledWith("google/gemini-3-flash");
-    expect(mockStepCountIs).toHaveBeenCalledWith(8);
+    expect(mockStepCountIs).toHaveBeenCalledWith(9);
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
         model: "mock-model",
@@ -149,6 +159,11 @@ describe("runAgent", () => {
           write_file: { description: "storage-tool" },
           web_search: { description: "web-search-tool" },
           web_scrape: { description: "web-scrape-tool" },
+          manage_todo: { description: "utility-tool" },
+          list_todo: { description: "utility-tool" },
+          rename_chat: { description: "utility-tool" },
+          run_agent_memory_sql: { description: "utility-tool" },
+          get_agent_db_schema: { description: "utility-tool" },
         },
       }),
     );
@@ -162,6 +177,11 @@ describe("runAgent", () => {
       validPayload.clientId,
     );
     expect(mockCreateWebTools).toHaveBeenCalledWith();
+    expect(mockCreateUtilityTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      validPayload.threadId,
+    );
   });
 
   it("always enables CRM write tools regardless of environment", async () => {
@@ -290,7 +310,7 @@ describe("runAgent", () => {
     ]);
   });
 
-  it("persists assistant output from response.messages when text is empty", async () => {
+  it("persists assistant tool parts in AI SDK v6 format when stream finishes", async () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
 
     await runAgent(validPayload, "mock-supabase-client" as never);
@@ -299,16 +319,46 @@ describe("runAgent", () => {
     expect(typeof streamCall.onFinish).toBe("function");
 
     await streamCall.onFinish({
-      text: "",
-      response: {
-        messages: [
-          {
-            role: "assistant",
-            content: [{ type: "text", text: "Assistant from response messages" }],
-          },
-        ],
-      },
-      steps: [],
+      text: "I found the contacts.",
+      steps: [
+        {
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call-1",
+              toolName: "search_contacts",
+              input: { query: "John" },
+            },
+            {
+              type: "tool-result",
+              toolCallId: "call-1",
+              toolName: "search_contacts",
+              input: { query: "John" },
+              output: { success: true, contacts: [] },
+            },
+            {
+              type: "text",
+              text: "I found the contacts.",
+            },
+          ],
+          toolCalls: [
+            {
+              toolCallId: "call-1",
+              toolName: "search_contacts",
+              input: { query: "John" },
+            },
+          ],
+          toolResults: [
+            {
+              toolCallId: "call-1",
+              toolName: "search_contacts",
+              input: { query: "John" },
+              output: { success: true, contacts: [] },
+            },
+          ],
+          text: "I found the contacts.",
+        },
+      ],
       totalUsage: {
         inputTokens: 100,
         inputTokenDetails: {
@@ -329,8 +379,18 @@ describe("runAgent", () => {
       {
         thread_id: validPayload.threadId,
         role: "assistant",
-        content: "Assistant from response messages",
-        parts: [{ type: "text", text: "Assistant from response messages" }],
+        content: "I found the contacts.",
+        parts: [
+          { type: "step-start" },
+          {
+            type: "tool-search_contacts",
+            toolCallId: "call-1",
+            state: "output-available",
+            input: { query: "John" },
+            output: { success: true, contacts: [] },
+          },
+          { type: "text", text: "I found the contacts." },
+        ],
       },
     ]);
   });

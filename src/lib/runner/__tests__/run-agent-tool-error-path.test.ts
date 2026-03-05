@@ -16,6 +16,7 @@ const {
   mockCreateCrmTools,
   mockCreateStorageTools,
   mockCreateWebTools,
+  mockCreateUtilityTools,
   mockCreateMessages,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
@@ -29,6 +30,7 @@ const {
   mockCreateCrmTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
+  mockCreateUtilityTools: vi.fn(),
   mockCreateMessages: vi.fn(),
 }));
 
@@ -68,6 +70,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
+  createUtilityTools: mockCreateUtilityTools,
 }));
 
 import type { RunnerPayload } from "../schemas";
@@ -93,6 +96,7 @@ describe("runAgent tool-error completion path", () => {
     mockCreateCrmTools.mockReturnValue({});
     mockCreateStorageTools.mockReturnValue({});
     mockCreateWebTools.mockReturnValue({});
+    mockCreateUtilityTools.mockReturnValue({});
     mockStreamText.mockReturnValue({
       toUIMessageStreamResponse: vi.fn(() => new Response("streamed")),
     });
@@ -107,6 +111,21 @@ describe("runAgent tool-error completion path", () => {
     await streamCall.onFinish({
       steps: [
         {
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call-1",
+              toolName: "failing_tool",
+              input: {},
+            },
+            {
+              type: "tool-error",
+              toolCallId: "call-1",
+              toolName: "failing_tool",
+              input: {},
+              error: "Supabase timeout",
+            },
+          ],
           toolCalls: [
             {
               toolCallId: "call-1",
@@ -121,6 +140,7 @@ describe("runAgent tool-error completion path", () => {
               output: { type: "tool-error", error: "Supabase timeout" },
             },
           ],
+          text: "",
         },
       ],
       totalUsage: {
@@ -151,5 +171,22 @@ describe("runAgent tool-error completion path", () => {
       clientId: validPayload.clientId,
       threadId: validPayload.threadId,
     });
+    expect(mockCreateMessages).toHaveBeenNthCalledWith(2, "mock-supabase-client", [
+      {
+        thread_id: validPayload.threadId,
+        role: "assistant",
+        content: "",
+        parts: [
+          { type: "step-start" },
+          {
+            type: "tool-failing_tool",
+            toolCallId: "call-1",
+            state: "output-error",
+            input: {},
+            errorText: "Supabase timeout",
+          },
+        ],
+      },
+    ]);
   });
 });

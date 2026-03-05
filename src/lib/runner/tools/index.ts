@@ -4,4 +4,5 @@
  */
 export { createCrmTools } from "./crm";
 export { createStorageTools } from "./storage";
+export { createUtilityTools } from "./utility";
 export { createWebTools } from "./web";

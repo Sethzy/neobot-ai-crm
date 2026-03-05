@@ -505,6 +505,48 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_todo: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          payload: Json
+          thread_id: string
+          title: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          thread_id: string
+          title: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          thread_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_todo_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "agent_todo_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           client_id: string
@@ -1169,11 +1211,23 @@ export type Database = {
           queue_id: string
         }[]
       }
+      get_client_accessible_schema: {
+        Args: never
+        Returns: Json
+      }
       get_my_client_config: { Args: never; Returns: string }
       get_my_client_id: { Args: never; Returns: string }
+      get_system_reminder_context: {
+        Args: { p_client_id: string; p_thread_id: string }
+        Returns: Json
+      }
       mark_stale_runs_failed: {
         Args: { p_stale_minutes?: number; p_thread_id?: string | null }
         Returns: number
+      }
+      run_readonly_sql: {
+        Args: { query_text: string }
+        Returns: Json
       }
     }
     Enums: {

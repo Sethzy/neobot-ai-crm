@@ -9,9 +9,18 @@ import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
 import { createMessages } from "@/lib/chat/messages";
 import { assembleContext } from "@/lib/runner/context";
 import { drainAndContinue } from "@/lib/runner/drain-and-continue";
+import {
+  buildAssistantPartsFromSteps,
+  getAssistantTextFromParts,
+} from "@/lib/runner/message-utils";
 import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
 import type { RunnerPayload } from "@/lib/runner/schemas";
-import { createCrmTools, createStorageTools, createWebTools } from "@/lib/runner/tools";
+import {
+  createCrmTools,
+  createStorageTools,
+  createUtilityTools,
+  createWebTools,
+} from "@/lib/runner/tools";
 import { enqueueMessage } from "@/lib/runner/thread-queue";
 import type { Database, Json } from "@/types/database";
 
@@ -20,51 +29,9 @@ const MAX_STEPS_TIER_1 = 9;
 type ChatSupabaseClient = SupabaseClient<Database>;
 type RunnerTools = ReturnType<typeof createCrmTools> &
   ReturnType<typeof createStorageTools> &
+  ReturnType<typeof createUtilityTools> &
   ReturnType<typeof createWebTools>;
 type StreamResult = ReturnType<typeof streamText<RunnerTools>>;
-
-function createTextParts(text: string): Json {
-  return [{ type: "text", text }];
-}
-
-/**
- * Reconstructs UIMessage-compatible parts from streamText step results.
- * Preserves tool-invocation parts so the chat UI can render step details
- * (tool names, arguments, results) after page reloads.
- */
-function buildAssistantParts(
-  steps: Array<{
-    toolCalls: Array<{ toolCallId: string; toolName: string; args?: unknown }>;
-    toolResults: Array<{ toolCallId: string; result?: unknown }>;
-    text: string;
-  }>,
-): Array<Record<string, unknown>> {
-  const parts: Array<Record<string, unknown>> = [];
-
-  for (const step of steps) {
-    parts.push({ type: "step-start" });
-
-    for (const toolCall of step.toolCalls) {
-      const toolResult = step.toolResults.find(
-        (r) => r.toolCallId === toolCall.toolCallId,
-      );
-      parts.push({
-        type: "tool-invocation",
-        toolCallId: toolCall.toolCallId,
-        toolName: toolCall.toolName,
-        args: toolCall.args ?? {},
-        state: toolResult ? "result" : "call",
-        ...(toolResult ? { result: toolResult.result ?? null } : {}),
-      });
-    }
-
-    if (step.text.trim().length > 0) {
-      parts.push({ type: "text", text: step.text.trim() });
-    }
-  }
-
-  return parts;
-}
 
 export type RunAgentResult =
   | { status: "streaming"; streamResult: StreamResult }
@@ -99,7 +66,7 @@ export async function runAgent(
         thread_id: threadId,
         role: "user",
         content: input,
-        parts: createTextParts(input),
+        parts: [{ type: "text", text: input }] as Json,
       },
     ]);
 
@@ -114,10 +81,12 @@ export async function runAgent(
     });
     const storageTools = createStorageTools(supabase, clientId);
     const webTools = createWebTools();
+    const utilityTools = createUtilityTools(supabase, clientId, threadId);
     const tools = {
       ...crmTools,
       ...storageTools,
       ...webTools,
+      ...utilityTools,
     };
 
     const streamResult = streamText({
@@ -135,16 +104,22 @@ export async function runAgent(
         }
       },
       onFinish: async ({ text, steps, totalUsage }) => {
-        const parts = buildAssistantParts(steps);
-        const contentText = typeof text === "string" ? text.trim() : "";
+        const parts = buildAssistantPartsFromSteps(steps);
+        const contentTextFromParts = getAssistantTextFromParts(parts);
+        const fallbackContentText = typeof text === "string" ? text.trim() : "";
+        const contentText =
+          contentTextFromParts.length > 0 ? contentTextFromParts : fallbackContentText;
+        const hasNonStepParts = parts.some((part) => part.type !== "step-start");
 
-        if (parts.length > 0 || contentText.length > 0) {
+        if (hasNonStepParts || contentText.length > 0) {
           await createMessages(supabase, [
             {
               thread_id: threadId,
               role: "assistant",
               content: contentText,
-              parts: parts.length > 0 ? (parts as Json) : createTextParts(contentText),
+              parts: hasNonStepParts
+                ? (parts as Json)
+                : ([{ type: "text", text: contentText }] as Json),
             },
           ]);
         }

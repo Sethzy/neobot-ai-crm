@@ -16,6 +16,7 @@ const {
   mockCreateCrmTools,
   mockCreateStorageTools,
   mockCreateWebTools,
+  mockCreateUtilityTools,
   mockCreateMessages,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
@@ -29,6 +30,7 @@ const {
   mockCreateCrmTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
+  mockCreateUtilityTools: vi.fn(),
   mockCreateMessages: vi.fn(),
 }));
 
@@ -55,6 +57,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
+  createUtilityTools: mockCreateUtilityTools,
 }));
 
 import { runAgent } from "../run-agent";
@@ -78,6 +81,13 @@ describe("per-thread serialization", () => {
     mockCreateWebTools.mockReturnValue({
       web_search: { description: "web-search-tool" },
       web_scrape: { description: "web-scrape-tool" },
+    });
+    mockCreateUtilityTools.mockReturnValue({
+      manage_todo: { description: "utility-tool" },
+      list_todo: { description: "utility-tool" },
+      rename_chat: { description: "utility-tool" },
+      run_agent_memory_sql: { description: "utility-tool" },
+      get_agent_db_schema: { description: "utility-tool" },
     });
     mockAssembleContext.mockResolvedValue({
       system: "prompt",
