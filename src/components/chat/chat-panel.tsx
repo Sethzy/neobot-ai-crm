@@ -6,9 +6,11 @@
 
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useChat } from "@ai-sdk/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
+import { threadKeys } from "@/hooks/use-threads";
 import { ChatComposer } from "./chat-composer";
 import { getMessageText } from "./message-content";
 import { MessageList } from "./message-list";
@@ -26,6 +28,7 @@ export function ChatPanel({
   initialMessages = [],
   onAutoName,
 }: ChatPanelProps) {
+  const queryClient = useQueryClient();
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
@@ -59,6 +62,16 @@ export function ChatPanel({
     id: chatId,
     messages: initialMessages,
     transport,
+    onData: (dataPart) => {
+      if (
+        typeof dataPart === "object" &&
+        dataPart !== null &&
+        "type" in dataPart &&
+        dataPart.type === "data-chat-title"
+      ) {
+        queryClient.invalidateQueries({ queryKey: threadKeys.all });
+      }
+    },
     onFinish: async ({ messages: finishedMessages }) => {
       if (!hasAutoNamed.current && onAutoName) {
         const firstUserMsg = finishedMessages.find((message) => message.role === "user");

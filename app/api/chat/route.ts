@@ -6,6 +6,7 @@ import type { UIMessage } from "ai";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 
 import { resolveClientId } from "@/lib/chat/client-id";
+import { generateTitleFromUserMessage } from "@/lib/ai/title";
 import { runAgent } from "@/lib/runner/run-agent";
 import { createClient } from "@/lib/supabase/server";
 import { type PostRequestBody, postRequestBodySchema } from "./schema";
@@ -97,6 +98,7 @@ export async function POST(request: Request): Promise<Response> {
       .eq("client_id", clientId)
       .eq("is_archived", false)
       .maybeSingle();
+    let isNewThread = false;
 
     if (threadLookupError) {
       return jsonError("Failed to process chat request.", 500);
@@ -114,6 +116,8 @@ export async function POST(request: Request): Promise<Response> {
       if (insertError) {
         return jsonError("Failed to process chat request.", 500);
       }
+
+      isNewThread = true;
     }
 
     const result = await runAgent(
@@ -130,10 +134,26 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ status: "queued" }, { status: 202 });
     }
 
+    const titlePromise = isNewThread
+      ? generateTitleFromUserMessage(input)
+      : null;
+
     const stream = createUIMessageStream({
       originalMessages: body.messages as UIMessage[] | undefined,
       execute: async ({ writer }) => {
         writer.merge(result.streamResult.toUIMessageStream());
+
+        if (titlePromise) {
+          const title = await titlePromise;
+          if (title.length > 0) {
+            writer.write({ type: "data-chat-title", data: title });
+            supabase
+              .from("conversation_threads")
+              .update({ title })
+              .eq("thread_id", threadId)
+              .then(() => {});
+          }
+        }
       },
     });
 

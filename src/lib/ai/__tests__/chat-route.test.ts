@@ -10,12 +10,14 @@ const {
   mockResolveClientId,
   mockCreateUIMessageStream,
   mockCreateUIMessageStreamResponse,
+  mockGenerateTitleFromUserMessage,
 } = vi.hoisted(() => ({
   mockRunAgent: vi.fn(),
   mockCreateClient: vi.fn(),
   mockResolveClientId: vi.fn(),
   mockCreateUIMessageStream: vi.fn(),
   mockCreateUIMessageStreamResponse: vi.fn(),
+  mockGenerateTitleFromUserMessage: vi.fn(),
 }));
 
 vi.mock("@/lib/runner/run-agent", () => ({
@@ -33,6 +35,10 @@ vi.mock("@/lib/chat/client-id", () => ({
 vi.mock("ai", () => ({
   createUIMessageStream: mockCreateUIMessageStream,
   createUIMessageStreamResponse: mockCreateUIMessageStreamResponse,
+}));
+
+vi.mock("@/lib/ai/title", () => ({
+  generateTitleFromUserMessage: mockGenerateTitleFromUserMessage,
 }));
 
 import { POST } from "../../../../app/api/chat/route";
@@ -74,6 +80,21 @@ describe("POST /api/chat", () => {
     const from = vi.fn(() => ({ select, insert }));
 
     return { from, insert };
+  }
+
+  function createMissingThreadWithInsertAndUpdate() {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const thirdEq = vi.fn(() => ({ maybeSingle }));
+    const secondEq = vi.fn(() => ({ eq: thirdEq }));
+    const firstEq = vi.fn(() => ({ eq: secondEq }));
+    const select = vi.fn(() => ({ eq: firstEq }));
+
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    const updateEq = vi.fn().mockResolvedValue({ error: null });
+    const update = vi.fn(() => ({ eq: updateEq }));
+
+    const from = vi.fn(() => ({ select, insert, update }));
+    return { from, insert, update, updateEq };
   }
 
   const mockSupabase = {
@@ -211,18 +232,21 @@ describe("POST /api/chat", () => {
   });
 
   it("creates thread lazily when thread does not exist and request contains user message", async () => {
-    const { from, insert } = createMissingThreadWithInsert();
+    const { from, insert, update, updateEq } = createMissingThreadWithInsertAndUpdate();
     mockSupabase.from = from;
+    mockGenerateTitleFromUserMessage.mockResolvedValue("Generated title");
 
     const streamResponse = new Response("streamed", {
       headers: { "Content-Type": "text/event-stream" },
     });
-    mockCreateUIMessageStream.mockReturnValue(new ReadableStream());
+    const uiStream = new ReadableStream();
+    const wrappedStream = new ReadableStream();
+    mockCreateUIMessageStream.mockReturnValue(wrappedStream);
     mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
     mockRunAgent.mockResolvedValue({
       status: "streaming",
       streamResult: {
-        toUIMessageStream: vi.fn(() => new ReadableStream()),
+        toUIMessageStream: vi.fn(() => uiStream),
       },
     });
 
@@ -251,6 +275,20 @@ describe("POST /api/chat", () => {
       },
       mockSupabase,
     );
+    const execute = mockCreateUIMessageStream.mock.calls[0][0].execute as (args: {
+      writer: { merge: (stream: ReadableStream) => void; write: (part: unknown) => void };
+    }) => Promise<void>;
+    const merge = vi.fn();
+    const write = vi.fn();
+    await execute({ writer: { merge, write } });
+    expect(mockGenerateTitleFromUserMessage).toHaveBeenCalledWith("Create lazily");
+    expect(merge).toHaveBeenCalledWith(uiStream);
+    expect(write).toHaveBeenCalledWith({
+      type: "data-chat-title",
+      data: "Generated title",
+    });
+    expect(update).toHaveBeenCalledWith({ title: "Generated title" });
+    expect(updateEq).toHaveBeenCalledWith("thread_id", threadId);
     expect(response).toBe(streamResponse);
   });
 
