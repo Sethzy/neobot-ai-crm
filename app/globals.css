@@ -181,7 +181,7 @@
 
 /* Landing Page Specific Scoped Theme */
 .landing-page {
-  --background: theme('colors.zinc.50');
+  --background: #F5EEE1;
   --foreground: var(--color-lp-dark);
   --card: theme('colors.white');
   --card-foreground: var(--color-lp-dark);
@@ -219,15 +219,15 @@
 
 /* Hero watercolor — responsive mask + opacity (single image, no duplicate load) */
 .hero-watercolor {
-  opacity: 0.82;
-  mask-image: radial-gradient(ellipse 100% 70% at 50% 25%, black 20%, rgba(0,0,0,0.5) 38%, transparent 58%);
-  -webkit-mask-image: radial-gradient(ellipse 100% 70% at 50% 25%, black 20%, rgba(0,0,0,0.5) 38%, transparent 58%);
+  opacity: 0.94;
+  mask-image: radial-gradient(ellipse 110% 80% at 50% 22%, black 28%, rgba(0,0,0,0.6) 48%, transparent 68%);
+  -webkit-mask-image: radial-gradient(ellipse 110% 80% at 50% 22%, black 28%, rgba(0,0,0,0.6) 48%, transparent 68%);
 }
 @media (min-width: 768px) {
   .hero-watercolor {
-    opacity: 0.93;
-    mask-image: radial-gradient(ellipse 112% 82% at 50% 22%, black 27%, rgba(0,0,0,0.56) 47%, transparent 70%);
-    -webkit-mask-image: radial-gradient(ellipse 112% 82% at 50% 22%, black 27%, rgba(0,0,0,0.56) 47%, transparent 70%);
+    opacity: 1;
+    mask-image: radial-gradient(ellipse 120% 90% at 50% 20%, black 32%, rgba(0,0,0,0.65) 55%, transparent 78%);
+    -webkit-mask-image: radial-gradient(ellipse 120% 90% at 50% 20%, black 32%, rgba(0,0,0,0.65) 55%, transparent 78%);
   }
 }
 

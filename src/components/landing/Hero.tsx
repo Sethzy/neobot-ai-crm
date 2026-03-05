@@ -9,13 +9,16 @@ import { PromoVideo } from '@/components/landing/PromoVideo'
 export function Hero() {
   return (
     <div
-      className="relative overflow-hidden pt-28 pb-0 sm:pt-36 bg-parchment"
+      className="relative overflow-hidden pt-28 pb-0 sm:pt-36"
+      style={{
+        background: 'linear-gradient(180deg, #EDE4D3 0%, #F5EEE1 35%, #F5EEE1 100%)',
+      }}
     >
       {/* Watercolor cloud texture — single image, responsive mask via CSS */}
       <div
-        className="hero-watercolor pointer-events-none absolute inset-x-0 top-0 h-[680px]"
+        className="hero-watercolor pointer-events-none absolute inset-x-0 top-0 h-[780px]"
         style={{
-          background: 'radial-gradient(ellipse 80% 50% at 50% 18%, rgba(210, 202, 186, 0.5), rgba(245, 238, 225, 0.35) 60%, transparent 100%)',
+          background: 'radial-gradient(ellipse 90% 60% at 50% 16%, rgba(195, 182, 160, 0.6), rgba(235, 225, 205, 0.4) 55%, transparent 100%)',
         }}
       >
         <Image
@@ -35,7 +38,7 @@ export function Hero() {
       <Container className="relative">
         <div className="flex flex-col items-center text-center">
           {/* Badge — gold accent dot + shimmer sweep */}
-          <div className="badge-shimmer inline-flex items-center gap-2.5 rounded-full bg-parchment/80 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-lp-dark ring-1 ring-lp-gold/25 mb-5 sm:px-6 sm:py-2 sm:text-sm">
+          <div className="badge-shimmer inline-flex items-center gap-2.5 rounded-full bg-parchment/90 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.15em] text-lp-dark ring-1 ring-lp-gold/40 shadow-sm shadow-lp-gold/10 mb-5 sm:px-6 sm:py-2 sm:text-sm">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-lp-gold opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-lp-gold"></span>
@@ -48,15 +51,15 @@ export function Hero() {
             <div
               className="pointer-events-none absolute inset-0 -z-10"
               style={{
-                background: 'radial-gradient(ellipse 600px 250px at 50% 50%, rgba(45, 106, 79, 0.07), transparent)',
-                filter: 'blur(40px)',
+                background: 'radial-gradient(ellipse 700px 300px at 50% 55%, rgba(45, 106, 79, 0.13), transparent)',
+                filter: 'blur(50px)',
               }}
             />
             <h1 className="font-serif text-[9.5vw] font-semibold leading-[1.15] tracking-[-0.035em] text-lp-dark sm:text-5xl md:text-[3.5rem] lg:text-6xl">
               <span className="sm:hidden">Acts before you ask.<br /></span>
               <span className="hidden sm:inline">Your AI rep acts before you ask.{' '}</span>
               <br className="hidden sm:inline" />
-              <em className="text-sunder-green">Work already done.</em>
+              <em className="text-sunder-green" style={{ textShadow: '0 2px 30px rgba(2, 79, 70, 0.15)' }}>Work already done.</em>
             </h1>
           </div>
 
@@ -67,7 +70,7 @@ export function Hero() {
           <div className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-4 sm:mt-10">
             <Link
               href="/login"
-              className="press-effect rounded-full bg-sunder-green px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-sunder-green/25 transition hover:shadow-sunder-green/35 hover:scale-[1.02] active:scale-[0.98] sm:px-10 sm:py-4 sm:text-base"
+              className="press-effect rounded-full bg-sunder-green px-8 py-3.5 text-sm font-semibold text-white shadow-xl shadow-sunder-green/30 transition hover:shadow-sunder-green/45 hover:scale-[1.02] active:scale-[0.98] sm:px-12 sm:py-4.5 sm:text-base"
             >
               Try for free
             </Link>
