@@ -10,7 +10,7 @@
     "estimatedPRs": 32,
     "keptPRs": 19,
     "cutPRs": 19,
-    "donePRs": 16,
+    "donePRs": 17,
     "statusOptions": [
       "pending",
       "in_progress",
@@ -939,7 +939,7 @@
         {
           "pr": 22,
           "title": "Context recovery + thread compaction",
-          "status": "pending",
+          "status": "done",
           "decisions": [
             "DATA-10",
             "SESSION-07"
@@ -949,22 +949,22 @@
             {
               "id": "PR22-1",
               "task": "Toolcall artifact recovery on context truncation",
-              "done": false
+              "done": true
             },
             {
               "id": "PR22-2",
               "task": "Long-thread summarization when context budget exceeded",
-              "done": false
+              "done": true
             },
             {
               "id": "PR22-3",
               "task": "Compaction instructions tuned for CRM (preserve deal names, contacts, decisions)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR22-4",
               "task": "Use provider-native compaction via AI SDK provider options where available, fallback to prepareStep callback",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
