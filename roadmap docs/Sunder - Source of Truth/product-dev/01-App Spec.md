@@ -8,14 +8,16 @@
 
 ## How to Read This Document
 
-This is the single product specification for Sunder. It defines what we're building, how it works, and where to find the details.
+This is the full product vision for Sunder. It defines the complete product and architecture.
+
+> **Important:** For what we're _actually building now_, see the **v2 implementation plan** (`docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json`). The v2 plan is scope-cut from this spec. Where they conflict, **the v2 plan wins.** This spec describes the aspirational full product; many sections (skills system, sandbox, Goals view, structured input, etc.) are deferred beyond v2.
 
 **Companion documents:**
 
 | Document | Purpose | Path |
 |----------|---------|------|
 | Architecture Decisions | 154 approved technical decisions across 18 categories | `architecture/architecture-decisions-checklist.json` |
-| Implementation Plan | **v2 (active):** 5 phases, 29 PRs (12 done + 17 to build) | `docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json`. Supersedes original 48-PR plan at `2026-03-01-implementation-phasing-plan.json`. |
+| Implementation Plan | **v2 (active):** 5 phases, 30 PRs (13 done + 17 to build) | `docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json`. Supersedes original 48-PR plan at `2026-03-01-implementation-phasing-plan.json`. |
 | Built-In Services | 13 service integrations with API verification and code examples | `services/01-Built-In Services (Imported from RE-AI-CRM).md` |
 | Unit Economics | Per-user cost model across paid service stack | `services/02-Unit Economics Model ($20 Target vs Actual).md` |
 | Mission Control UX | UI behavior spec (draft) | `ux-and-pm/01-Mission Control UX Spec (Draft).md` |
@@ -203,7 +205,7 @@ Every response must:
 | File Storage | Supabase Storage (per-client directories) | `DATA-02` |
 | Realtime | Supabase Realtime (Postgres changes) | `DATA-07` |
 | Auth | Supabase Auth | `DATA-08` |
-| Compute | Vercel Functions + Vercel Sandbox (ephemeral Firecracker microVMs) | `FOUND-02`, `EXEC-04` |
+| Compute | Vercel Functions + Vercel Sandbox (ephemeral Firecracker microVMs) | `FOUND-02`, `EXEC-04`. **v2 scope: Sandbox deferred. No code execution in v1. CRM autopilot doesn't need sandbox.** |
 | Scheduling | Vercel cron (1-min scanner) + `agent_triggers` DB table | `FOUND-02` |
 | Payments | Stripe (deferred to post-v1) | `FOUND-07` |
 
@@ -257,6 +259,8 @@ Implementation uses Vercel AI SDK `streamText()` with `maxSteps` for tool-call l
 
 **Model routing** (`LLM-05` through `LLM-09`):
 
+> **v2 scope: Single model (Gemini Flash) for v1. Multi-tier routing is deferred, not cancelled. The table below describes the target state.**
+
 | Tier | Model | Use Case |
 |------|-------|----------|
 | Background | DeepSeek V3 / Kimi K2.5 | Autopilot pulse, enrichment batch, simple cron triggers |
@@ -285,6 +289,8 @@ Seven tool categories:
 > **Pattern reference:** See `references/tasklet/tools/` for Tasklet's complete tool definitions (30+ built-in tools). Sunder's tool surface mirrors this closely. See `references/tasklet/tools/built-in/` for individual tool specs.
 
 ### 6.3 Skills and Subagents
+
+> **v2 scope: Deferred. Skills are markdown files in Supabase Storage, read via `read_file()`. No `skill_registry` table, no guided interview UI, no skill packages in v1.**
 
 **Skills** (`SKILL-01` through `SKILL-08`):
 
@@ -329,24 +335,25 @@ All autopilot activity visible in this thread. User can reply naturally to autop
 
 ### 7.2 Priority Order (`TRIG-08`)
 
-Strict order, prompt-driven (not hard-coded system logic):
+Strict order, prompt-driven (not hard-coded system logic). Uses two surfaces: `agent_todo` (`list_todo`) for agent work, `crm_tasks` (`search_tasks`) for CRM follow-ups.
 
-1. **Advance in_progress tasks** — execute next concrete step, keep task status current.
-2. **Check overdue CRM follow-ups** — surface what's late, draft follow-up messages for approval.
-3. **Act on monitored things** — deal status changes, listing updates, anything user asked to watch. Live checks, not assumptions.
-4. **Follow up with the user** — if they answered a previous question, incorporate it. If not and it's been a while, nudge.
-5. **Handle blockers** — if a task is blocked on user input, ask again. If still no answer, continue with best assumptions and log them.
-6. **Start next approved task** — pick up next task with status `planned:ready`.
-7. **Research or prepare** — if a task needs info, go get it. Check existing research first.
-8. **Get to know the user** — if user profile is sparse, ask one concise question per pulse.
-9. **Engage the user** — nudge about goals/tasks, remind about pending approvals/blockers/next steps.
-10. **Propose new goals/tasks** — notice something worth doing? Create it.
-11. **Create momentum** — break large tasks into smaller follow-up tasks and queue them.
+1. **Resume interrupted work** — `list_todo` — read payload for next step.
+2. **Overdue CRM tasks** — `search_tasks` where `due_date < now`.
+3. **Act on monitored triggers** — deal changes, inbound, anything user asked to watch. Live checks via tool calls, not assumptions.
+4. **Follow up with user on unanswered questions** — if they answered, incorporate it. If not and it's been a while, nudge.
+5. **Handle stale CRM tasks** — open too long without progress.
+6. **Research/prepare for upcoming tasks** — if a task needs info, go get it. Check existing research first.
+7. **Get to know user** — if `USER.md` is sparse, ask one concise question per pulse.
+8. **Engage user** — nudge about pending approvals, remind about next steps.
+9. **Propose new CRM tasks** (`create_task`) or self-todos (`manage_todo add`) — notice something worth doing? Create it.
+10. **Create momentum** — break large work into smaller pieces.
+
+> **v2 alignment:** Simplified from 11 to 10 items. Uses two surfaces: `agent_todo` (`list_todo`) for agent work, `crm_tasks` (`search_tasks`) for CRM follow-ups.
 
 **Hard rules:**
 - Do at least one meaningful action every pulse.
 - Do not end without a concrete next action.
-- Before declaring "nothing to act on", verify: goals checked, tasks checked, monitoring checked, follow-ups checked, new tasks considered.
+- Before declaring "nothing to act on", verify: todos checked, CRM tasks checked, monitoring checked, follow-ups checked, new tasks considered.
 - "Nothing to act on" should be rare.
 
 **Bootstrap requirement:** Even though autopilot fires into a thread with full history, the agent MUST call tools to get live state before acting (other threads may have changed things between pulses). Thread history = what autopilot did previously. Tool calls = what's actually true now. Both needed.
@@ -393,11 +400,13 @@ Agent reads and writes memory files during any run (chat or trigger) using `read
 
 ### 8.3 Memory Synthesis Pulse (`TRIG-11`)
 
+> **v2 scope: Deferred. Agent self-organizes MEMORY.md during normal work. No dedicated cron pulse in v1.**
+
 Separate trigger from autopilot (different cadence, different purpose). Weekly. Fires into its own dedicated thread (created alongside Autopilot thread on signup).
 
-**v1 scope:** List memory files, check Storage metadata timestamps for files modified since last pulse. Read each changed file, surface a brief summary to the user ("here's what I wrote to memory this week, here's what seems stale, anything to correct?"). User replies in-thread to confirm/adjust. Agent updates or deletes memory files based on feedback. Also checks if MEMORY.md is approaching 200-line cap and self-organizes.
+**Target state (post-v1):** List memory files, check Storage metadata timestamps for files modified since last pulse. Read each changed file, surface a brief summary to the user ("here's what I wrote to memory this week, here's what seems stale, anything to correct?"). User replies in-thread to confirm/adjust. Agent updates or deletes memory files based on feedback. Also checks if MEMORY.md is approaching 200-line cap and self-organizes.
 
-**v2 deferred:** Growth Plan proposal/enrichment, performance review, pattern detection into named skill proposals, bi-directional feedback loop.
+**Further deferred:** Growth Plan proposal/enrichment, performance review, pattern detection into named skill proposals, bi-directional feedback loop.
 
 ### 8.4 Memory as Switching Cost (`MEM-07`)
 
@@ -457,16 +466,18 @@ Everything else (idempotency infrastructure, preflight checks, structured subage
 
 ### 10.1 Supabase Tables
 
-`DATA-09` defines **23 new v1 tables** across 6 categories. See the architecture decisions JSON for the full authoritative list. Summary:
+`DATA-09` defines **21 new v1 tables** across 6 categories. See the architecture decisions JSON for the full authoritative list. Summary:
 
 | Category | Tables | Decision |
 |----------|--------|----------|
-| **Core CRM** (6) | `clients`, `contacts`, `deals`, `crm_tasks`, `interactions`, `crm_config` | `DATA-06`, `DATA-09` |
-| **Agent System** (6) | `agent_tasks`, `goals`, `runs`, `agent_triggers`, `autopilot_config`, `approval_events` | `TRIG-01`, `RUNNER-08`, `SAFETY-02` |
+| **Core CRM** (6) | `clients`, `contacts`, `deals`, `crm_tasks`, `interactions`, `crm_config` | `DATA-06`, `DATA-09`. **v2 note:** PR 15a expands `crm_config` with custom fields via JSONB columns on `contacts`, `deals`, `crm_tasks`. Agent configures CRM vocabulary and fields via chat. |
+| **Agent System** (5) | `agent_todo`, `runs`, `agent_triggers`, `autopilot_config`, `approval_events` | `TRIG-01`, `RUNNER-08`, `SAFETY-02` |
 | **Conversation** (4) | `conversation_threads`, `conversation_messages`, `thread_queue_records`, `guided_interview_sessions` | `SESSION-01`, `DATA-09` |
 | **Knowledge & Files** (2) | `vault_files`, `document_processing_records` | `SERVICE-02`, `DATA-09` |
 | **Operational** (2) | `usage_telemetry`, `setup_progress` | `EVAL-03`, `UX-09` |
 | **Infrastructure** (3) | `sandbox_sessions`, `skill_registry`, `connections` | `EXEC-04`, `SKILL-01`, `CONN-01` |
+
+> **v2 alignment:** `agent_tasks` replaced by `agent_todo` (Tasklet-parity). `goals` table removed -- goals are written to `MEMORY.md` instead of a dedicated table. Table count reduced from 23 to 21.
 
 All tables use RLS with `client_id` for row-level security.
 
@@ -498,12 +509,12 @@ All tables use RLS with `client_id` for row-level security.
 
 ### 10.3 Dual Task Model (`TASKLET-05`)
 
-Two task types, one unified UI:
+Two task surfaces, distinct purposes:
 
-1. **CRM tasks** — tracking-only, binary `open` / `completed`. Created by agent to track follow-ups, reminders.
-2. **Agent tasks** — executable, full status lifecycle: `planning` → `planned` → `in_progress` → `review` → `done` / `cancelled`. Approval-gated for risky actions.
+1. **CRM tasks** (`crm_tasks`) — tracking-only, binary `open` / `completed`. Created by agent to track follow-ups, reminders. User-visible in CRM UI.
+2. **Agent todo** (`agent_todo`) — minimal Tasklet-parity scratchpad. Schema: `id` UUID, `client_id` TEXT, `thread_id` UUID, `title` TEXT, `payload` JSONB, `created_at` TIMESTAMPTZ. Binary state: exists (open) or deleted (done). No lifecycle statuses, no approval flags. Tools: `manage_todo` (batch add/update/delete), `list_todo` (per-thread). Purpose: agent's scratchpad for planning and cross-session resume. NOT CRM tasks.
 
-Unified Tasks page: Board (default, kanban), List, Goals views. Columns: Planned, In Progress, Review, Done. "Blocked" and "Needs Approval" are badges, not columns (`UX-04`).
+> **v2 alignment:** Replaced full-lifecycle `agent_tasks` (planning → planned → in_progress → review → done / cancelled) with Tasklet-parity `agent_todo`. See v2 plan PR 15.
 
 ---
 

@@ -1,6 +1,6 @@
 /**
  * @fileoverview Zod schemas and TypeScript types for AI Analyst chat API.
- * Validates UIMessage format from Vercel AI SDK 5.0+.
+ * Validates UIMessage format from Vercel AI SDK 6.
  * @see https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message
  */
 
@@ -37,21 +37,31 @@ export const ImagePartSchema = z.object({
   mediaType: z.string(),
 });
 
-/** Tool invocation part - when model calls a tool */
-export const ToolInvocationPartSchema = z.object({
-  type: z.literal("tool-invocation"),
+/** Typed tool part - AI SDK format `tool-${toolName}` */
+export const ToolPartSchema = z.object({
+  type: z.string().startsWith("tool-"),
   toolCallId: z.string(),
-  toolName: z.string(),
-  state: z.enum(["call", "partial-call"]),
-  args: z.record(z.string(), z.unknown()),
-});
-
-/** Tool result part - result from tool execution */
-export const ToolResultPartSchema = z.object({
-  type: z.literal("tool-result"),
-  toolCallId: z.string(),
-  state: z.enum(["result", "error"]),
-  result: z.unknown(),
+  state: z.enum([
+    "input-streaming",
+    "input-available",
+    "approval-requested",
+    "approval-responded",
+    "output-available",
+    "output-error",
+    "output-denied",
+  ]),
+  input: z.unknown().optional(),
+  output: z.unknown().optional(),
+  errorText: z.string().optional(),
+  title: z.string().optional(),
+  providerExecuted: z.boolean().optional(),
+  approval: z
+    .object({
+      id: z.string(),
+      approved: z.boolean().optional(),
+      reason: z.string().optional(),
+    })
+    .optional(),
 });
 
 /** Dynamic tool part - AI SDK's format for tool calls with results */
@@ -76,13 +86,12 @@ export const DynamicToolPartSchema = z.object({
 });
 
 /** Union of all known message part types */
-export const MessagePartSchema = z.discriminatedUnion("type", [
+export const MessagePartSchema = z.union([
   TextPartSchema,
   ReasoningPartSchema,
   FilePartSchema,
   ImagePartSchema,
-  ToolInvocationPartSchema,
-  ToolResultPartSchema,
+  ToolPartSchema,
   DynamicToolPartSchema,
 ]);
 

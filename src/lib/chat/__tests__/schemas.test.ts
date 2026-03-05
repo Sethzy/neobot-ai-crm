@@ -90,16 +90,14 @@ describe("conversationMessageSchema", () => {
       content: "Created contact.",
       parts: [
         {
-          type: "tool-call",
-          toolCallId: "call_123",
-          toolName: "create_contact",
-          args: { first_name: "John" },
+          type: "step-start",
         },
         {
-          type: "tool-result",
+          type: "tool-create_contact",
           toolCallId: "call_123",
-          toolName: "create_contact",
-          result: { contact_id: "c_123" },
+          state: "output-available",
+          input: { first_name: "John" },
+          output: { contact_id: "c_123" },
         },
       ],
       created_at: "2026-03-01T00:00:01Z",
@@ -128,7 +126,7 @@ describe("conversationMessageSchema", () => {
         thread_id: "660e8400-e29b-41d4-a716-446655440000",
         role: "assistant",
         content: "test",
-        parts: [{ type: "tool-call", toolName: "missing-id-and-args" }],
+        parts: [{ type: "tool-search_contacts", state: "output-available" }],
         created_at: "2026-03-01T00:00:00Z",
       }),
     ).toThrow();

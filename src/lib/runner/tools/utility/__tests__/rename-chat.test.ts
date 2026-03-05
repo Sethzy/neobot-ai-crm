@@ -74,4 +74,21 @@ describe("rename_chat", () => {
       error: "update failed",
     });
   });
+
+  it("returns not-found error when no thread row is updated", async () => {
+    const supabase = createMockSupabaseClient({
+      updateResult: { data: [], error: null },
+    });
+
+    const tool = createRenameChatTool(supabase as never, CLIENT_ID, THREAD_ID);
+    const result = await tool.rename_chat.execute(
+      { new_title: "New Title" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Thread not found or access denied",
+    });
+  });
 });

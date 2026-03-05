@@ -8,17 +8,25 @@ import { z } from "zod";
 
 import type { Database } from "@/types/database";
 
+type TodoPayload = NonNullable<Database["public"]["Tables"]["agent_todo"]["Row"]["payload"]>;
+
 const addOperationSchema = z.object({
   op: z.literal("add"),
   title: z.string().min(1).describe("Todo title."),
-  payload: z.record(z.unknown()).optional().describe("Optional structured payload."),
+  payload: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe("Optional structured payload."),
 });
 
 const updateOperationSchema = z.object({
   op: z.literal("update"),
   todo_id: z.string().uuid().describe("UUID of the todo to update."),
   title: z.string().min(1).optional().describe("Updated title."),
-  payload: z.record(z.unknown()).optional().describe("Updated structured payload."),
+  payload: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe("Updated structured payload."),
 });
 
 const deleteOperationSchema = z.object({
@@ -53,13 +61,15 @@ export function createTodoTools(
   async function executeAdd(
     operation: z.infer<typeof addOperationSchema>,
   ): Promise<TodoOperationResult> {
+    const payload = (operation.payload ?? {}) as TodoPayload;
+
     const { data, error } = await supabase
       .from("agent_todo")
       .insert({
         client_id: clientId,
         thread_id: threadId,
         title: operation.title,
-        payload: operation.payload ?? {},
+        payload,
       })
       .select()
       .single();
@@ -74,12 +84,15 @@ export function createTodoTools(
   async function executeUpdate(
     operation: z.infer<typeof updateOperationSchema>,
   ): Promise<TodoOperationResult> {
-    const updates = Object.fromEntries(
-      Object.entries({
-        title: operation.title,
-        payload: operation.payload,
-      }).filter(([, value]) => value !== undefined),
-    );
+    const updates: Database["public"]["Tables"]["agent_todo"]["Update"] = {};
+
+    if (operation.title !== undefined) {
+      updates.title = operation.title;
+    }
+
+    if (operation.payload !== undefined) {
+      updates.payload = operation.payload as TodoPayload;
+    }
 
     if (Object.keys(updates).length === 0) {
       return { op: "update", success: false, error: "No fields to update" };

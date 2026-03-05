@@ -24,21 +24,92 @@ const textPartSchema = z.object({
   text: z.string(),
 });
 
-const toolCallPartSchema = z.object({
-  type: z.literal("tool-call"),
-  toolCallId: z.string().min(1),
-  toolName: z.string().min(1),
-  args: z.record(z.string(), z.unknown()),
+const reasoningPartSchema = z.object({
+  type: z.literal("reasoning"),
+  text: z.string(),
 });
 
-const toolResultPartSchema = z.object({
-  type: z.literal("tool-result"),
-  toolCallId: z.string().min(1),
-  toolName: z.string().min(1),
-  result: z.unknown(),
+const filePartSchema = z.object({
+  type: z.literal("file"),
+  mediaType: z.string().min(1),
+  url: z.string().min(1),
+  filename: z.string().optional(),
 });
 
-const messagePartSchema = z.union([textPartSchema, toolCallPartSchema, toolResultPartSchema]);
+const stepStartPartSchema = z.object({
+  type: z.literal("step-start"),
+});
+
+const typedToolPartSchema = z.object({
+  type: z.string().startsWith("tool-"),
+  toolCallId: z.string().min(1),
+  state: z.enum([
+    "input-streaming",
+    "input-available",
+    "approval-requested",
+    "approval-responded",
+    "output-available",
+    "output-error",
+    "output-denied",
+  ]),
+  input: z.unknown().optional(),
+  output: z.unknown().optional(),
+  errorText: z.string().optional(),
+  providerExecuted: z.boolean().optional(),
+  preliminary: z.boolean().optional(),
+  title: z.string().optional(),
+  approval: z
+    .object({
+      id: z.string(),
+      approved: z.boolean().optional(),
+      reason: z.string().optional(),
+    })
+    .optional(),
+});
+
+const dynamicToolPartSchema = z.object({
+  type: z.literal("dynamic-tool"),
+  toolCallId: z.string().min(1),
+  toolName: z.string().min(1),
+  state: z.enum([
+    "input-streaming",
+    "input-available",
+    "approval-requested",
+    "approval-responded",
+    "output-available",
+    "output-error",
+    "output-denied",
+  ]),
+  input: z.unknown().optional(),
+  output: z.unknown().optional(),
+  errorText: z.string().optional(),
+  providerExecuted: z.boolean().optional(),
+  preliminary: z.boolean().optional(),
+  title: z.string().optional(),
+  approval: z
+    .object({
+      id: z.string(),
+      approved: z.boolean().optional(),
+      reason: z.string().optional(),
+    })
+    .optional(),
+});
+
+const dataPartSchema = z.object({
+  type: z.string().startsWith("data-"),
+  data: z.unknown(),
+  id: z.string().optional(),
+});
+
+const messagePartSchema = z.union([
+  textPartSchema,
+  reasoningPartSchema,
+  filePartSchema,
+  stepStartPartSchema,
+  typedToolPartSchema,
+  dynamicToolPartSchema,
+  dataPartSchema,
+]);
 
 export const clientSchema = z.object({
   client_id: z.string().uuid(),

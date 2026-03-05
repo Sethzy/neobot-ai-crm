@@ -23,14 +23,20 @@ export function createRenameChatTool(
       new_title: z.string().min(1).max(200).describe("New title for this conversation."),
     }),
     execute: async ({ new_title }) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("conversation_threads")
         .update({ title: new_title })
         .eq("thread_id", threadId)
-        .eq("client_id", clientId);
+        .eq("client_id", clientId)
+        .select("thread_id")
+        .maybeSingle();
 
       if (error) {
         return { success: false as const, error: error.message };
+      }
+
+      if (!data) {
+        return { success: false as const, error: "Thread not found or access denied" };
       }
 
       return { success: true as const, title: new_title };

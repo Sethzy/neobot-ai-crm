@@ -20,7 +20,7 @@ export function createUtilityTools(
 ) {
   const todoTools = createTodoTools(supabase, clientId, threadId);
   const renameChatTool = createRenameChatTool(supabase, clientId, threadId);
-  const sqlTools = createSqlTools(supabase, clientId);
+  const sqlTools = createSqlTools(supabase);
 
   return {
     ...todoTools,

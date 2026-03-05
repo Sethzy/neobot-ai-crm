@@ -17,12 +17,20 @@ All product and architecture decisions live in `roadmap docs/Sunder - Source of 
 
 Authority chain (what wins in conflicts):
 
-1. **`roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md`** — canonical product spec. Wins on product behavior, architecture, phasing, and scope.
-2. **`roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json`** — 154 approved decisions across 18 categories. Wins on technical implementation. Referenced by IDs like `FOUND-01`, `LLM-03`, `DATA-06`.
-3. **`docs/product/plans/2026-03-01-implementation-phasing-plan.json`** — PR-by-PR execution checklist (48 PRs across 5 phases). Prose version: `docs/product/plans/2026-03-01-implementation-phasing-plan.md`.
-4. Everything else in `roadmap docs/` is supporting reference material.
+1. **`docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json`** — **THE source of truth for what to build.** PR-by-PR execution checklist (30 PRs across 5 phases, 13 done + 17 to build). Wins on scope, implementation details, and phasing. Supersedes the original 48-PR plan.
+2. **`roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md`** — full product vision and rationale. Useful for understanding _why_ things exist. Where it conflicts with the v2 plan, **the v2 plan wins** (the App Spec describes the aspirational full product; the v2 plan is the scoped build).
+3. **`roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json`** — 154 approved decisions across 18 categories. Reference for technical rationale and decision IDs (`FOUND-01`, `LLM-03`, `DATA-06`). Where a decision conflicts with the v2 plan, **the v2 plan wins**.
+4. Everything else in `roadmap docs/` (including Tasklet references) is supporting reference material.
 
-**Before making architectural decisions**, check the App Spec and architecture decisions JSON. If the spec is silent on a behavior, follow Tasklet reference patterns by default (`TASKLET-01`).
+**Before making architectural decisions**, check the v2 plan first, then the App Spec and architecture decisions JSON for rationale. If the v2 plan is silent on a behavior, follow Tasklet reference patterns by default (`TASKLET-01`).
+
+### Tasklet Reference Docs
+
+All Tasklet reference material lives in `roadmap docs/Sunder - Source of Truth/references/tasklet/`. **Always use v2 — ignore v1 (deprecated).** The most useful references when building agent features:
+
+- **v2 built-in tool definitions:** `tasklet tools/built-in/v2/` — 31 tool specs covering file I/O, tasks, triggers, connections, messaging, and more. Use these as the canonical reference for how Sunder's tools should behave.
+- **v2 system prompt:** `tasklet tools/system-prompt-wholesale/01-v2-system-prompt-verbatim.md` — full production system prompt. Essential reference for context assembly, system-reminder format, and agent persona.
+- **Other references** (core architecture, persistence, skills, workflows, etc.) are all useful supporting material — read as needed.
 
 ## Tech Stack
 
@@ -49,6 +57,7 @@ Authority chain (what wins in conflicts):
 - **You have unlimited time.** Take as long as needed to get it right. All features must work end-to-end through the UI.
 - **YAGNI ruthlessly** — Remove unnecessary features from all designs.
 - **Verify and Question**. No performative agreement. Technical rigor always. Prefer technical correctness over social comfort.
+- **Session Boundaries:** If the user's request isn't directly related to the current context and can be safely started in a fresh session, suggest starting from scratch to avoid context confusion.
 - **Commit after each PR.** When executing tasklists from `docs/tasks/`, commit all work for a PR before moving to the next one. Use the PR number in the commit message (e.g., `feat(pr11): CRM deals and tasks pages`).
 - **Always use Context7 MCP** Use when you need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask. Grounding in context before starting each PR is a good idea.
 
@@ -80,7 +89,7 @@ Authority chain (what wins in conflicts):
 - **Memory system:** Per-client files in Supabase Storage (`SOUL.md`, `USER.md`, `MEMORY.md`, `memory/*.md`). Agent reads/writes via `read_file`/`write_file` tools.
 - **Safety model:** Two tiers only. Internal work auto-runs. External-facing actions require approval. No per-action granularity in v1.
 - **Thread serialization:** One run per thread at a time. DB-backed queue for messages arriving during active runs.
-- **Model routing:** 4 tiers (Background → Flash → Pro → Sonnet). Router classifies inbound messages. Background tasks skip router.
+- **Model routing:** Single model (Gemini Flash) for v1. Multi-tier routing deferred.
 
 ## UI and Styling
 

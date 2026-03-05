@@ -7,9 +7,9 @@
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md §17",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
     "totalPhases": 5,
-    "estimatedPRs": 30,
-    "keptPRs": 17,
-    "cutPRs": 20,
+    "estimatedPRs": 32,
+    "keptPRs": 19,
+    "cutPRs": 19,
     "donePRs": 13,
     "statusOptions": [
       "pending",
@@ -18,14 +18,15 @@
       "blocked",
       "cut"
     ],
-    "scopeDecision": "Simplified to: AI CRM + autopilot + connections + email + Telegram. Cut skills system, sandbox, scraping lanes, scaling infra, voice, eval, model routing, structured AI input, CRM vocab customization.",
+    "scopeDecision": "Simplified to: AI CRM + autopilot + connections + email + Telegram. Cut skills system, sandbox, scraping lanes, scaling infra, voice, eval, model routing, structured AI input. Restored CRM configurability (PR 15a) and added agent-generated views placeholder (PR 42a).",
     "changelog": [
-      "2026-03-05: v2 created — scope cut from 49 PRs to 30 (13 done + 17 to build). Reordered into new phases. Original plan preserved at 2026-03-01-implementation-phasing-plan.json.",
-      "2026-03-05: Removed PR 19a (Agent tasks). Merged task enhancements into PR 15: add source + payload columns to crm_tasks, badge UI, system-reminder task count. Single unified task model using existing CRM task tools.",
+      "2026-03-05: v2 created — scope cut from 48 PRs to 30 (13 done + 17 to build). Reordered into new phases. Original plan preserved at 2026-03-01-implementation-phasing-plan.json.",
+      "2026-03-05: Removed PR 19a (Agent tasks). (Superseded by entry 6 — reverted to dedicated agent_todo table.)",
       "2026-03-05: Restored PR 22 (Context recovery + thread compaction) into Phase 2. Required for autopilot thread which accumulates messages every 6h.",
       "2026-03-05: Explicitly cut goals table (goals written to MEMORY.md). Confirmed per-thread approval discovery (no Queue tab). Autopilot priority order rewritten for simplified crm_tasks model.",
       "2026-03-05: Tasklet gap analysis fixes — PR 15: user email in system-reminder, connection state slot, state/ directory convention in platform instructions. PR 20: webhook + RSS trigger types. PR 26: wire connection state into system-reminder.",
-      "2026-03-05: Split agent todo from CRM tasks. Reverted unified task model (source+payload on crm_tasks). Added dedicated agent_todo table + manage_todo/list_todo tools in PR 15 (Tasklet-parity, minimal schema: title+payload, exists-or-deleted). CRM task tools unchanged. Updated autopilot pulse prompt (PR 19-5) to use list_todo() for agent work + search_tasks() for CRM work."
+      "2026-03-05: Split agent todo from CRM tasks. Reverted unified task model (source+payload on crm_tasks). Added dedicated agent_todo table + manage_todo/list_todo tools in PR 15 (Tasklet-parity, minimal schema: title+payload, exists-or-deleted). CRM task tools unchanged. Updated autopilot pulse prompt (PR 19-5) to use list_todo() for agent work + search_tasks() for CRM work.",
+      "2026-03-05: CRM tool review vs Attio MCP + HubSpot MCP. Added PR 15a (CRM configurability — dynamic vocabulary + custom fields) in Phase 2 after PR 15. Restored from cut PR 38a with expanded scope: Layer 1 (vocabulary from crm_config) + Layer 2 (custom fields via JSONB). Added PR 42a (agent-generated views) as exploratory Phase 5 placeholder inspired by Tasklet instant apps. Removed PR 38a from cutPRs list."
     ]
   },
   "phases": [
@@ -261,7 +262,7 @@
         {
           "pr": 13,
           "title": "Storage layout + SOUL.md + USER.md + MEMORY.md",
-          "status": "pending",
+          "status": "in_progress",
           "decisions": ["MEM-01", "MEM-02", "MEM-03", "DATA-04"],
           "tasks": [
             { "id": "PR13-1", "task": "Bootstrap /{clientId}/SOUL.md on first login", "done": false },
@@ -280,7 +281,7 @@
         {
           "pr": 14,
           "title": "Memory system",
-          "status": "pending",
+          "status": "in_progress",
           "decisions": ["MEM-03", "MEM-04", "MEM-05", "MEM-06", "DATA-06"],
           "tasks": [
             { "id": "PR14-1", "task": "Seed /{clientId}/memory/ directory with 4 starter files: preferences.md, growth-plan.md, patterns.md, key-decisions.md (MEM-03/MEM-04 taxonomy)", "done": false },
@@ -296,7 +297,7 @@
         {
           "pr": 15,
           "title": "Platform instructions + system-reminder + utility tools",
-          "status": "pending",
+          "status": "in_progress",
           "decisions": ["RUNNER-03", "RUNNER-04", "RUNNER-09", "TOOL-02"],
           "note": "v2 change: folded rename_chat, run_agent_memory_sql, and get_agent_db_schema into this PR (previously in PR 30). Also added dedicated agent_todo table + manage_todo/list_todo tools (Tasklet-parity). CRM task tools unchanged.",
           "tasks": [
@@ -322,9 +323,36 @@
           ]
         },
         {
+          "pr": "15a",
+          "title": "CRM configurability — dynamic vocabulary + custom fields",
+          "status": "pending",
+          "decisions": [],
+          "dependsOn": [5, 6, 15],
+          "note": "Restored from cut PR 38a with expanded scope. Informed by Attio MCP (schema introspection, upsert) and HubSpot MCP (activity feed) comparison. Layer 1: vocabulary swaps via crm_config (deal stages, contact types, entity labels). Layer 2: custom fields via JSONB columns. Agent configures CRM via chat; tool schemas and UI adapt at runtime. Real-estate defaults as fallback for zero-config users.",
+          "tasks": [
+            { "id": "PR15a-1", "task": "Migration: add custom_fields JSONB DEFAULT '{}' to contacts, deals, crm_tasks tables", "done": false },
+            { "id": "PR15a-2", "task": "Define crm_config Zod schema: deal_label, deal_stages, contact_types, interaction_types, deal_contact_roles, deal_custom_fields, contact_custom_fields (each field: key, label, type text|number|currency|date|select, options?, required?)", "done": false },
+            { "id": "PR15a-3", "task": "load_crm_config helper: reads crm_config for clientId, returns typed config with real-estate defaults as fallback. Called once at runner start, passed into tool factories", "done": false },
+            { "id": "PR15a-4", "task": "Dynamic Zod schemas: tool parameter schemas for stage, contact type, interaction type, deal-contact role pull from config instead of hardcoded enums", "done": false },
+            { "id": "PR15a-5", "task": "Dynamic tool descriptions: .describe() strings template from config — 'Create a new {deal_label}' with valid enum values listed", "done": false },
+            { "id": "PR15a-6", "task": "Custom fields in create/update tools: create_contact, update_contact, create_deal, update_deal, create_task, update_task accept optional custom_fields object, validated against config schema at runtime", "done": false },
+            { "id": "PR15a-7", "task": "Custom fields in search results: search_contacts, search_deals, search_tasks return custom_fields in response", "done": false },
+            { "id": "PR15a-8", "task": "configure_crm tool: agent writes to crm_config table. Accepts partial updates. Validates against PR15a-2 schema. Returns updated config", "done": false },
+            { "id": "PR15a-9", "task": "Platform instructions template CRM vocab: inject current vocabulary into platform instructions layer — entity labels, stages, custom field definitions — so LLM knows valid values without tool calls", "done": false },
+            { "id": "PR15a-10", "task": "CRM pages: dynamic labels + columns — Contact/Deal/Task pages read crm_config via API route. Table columns for custom fields rendered dynamically. Stage filter uses config values. Entity labels pulled from config", "done": false },
+            { "id": "PR15a-11", "task": "Fallback defaults: if crm_config is empty/missing, fall back to current real-estate vocabulary. Zero-config for real estate users", "done": false }
+          ],
+          "testCriteria": [
+            "User tells agent 'I sell insurance, my stages are lead/quoted/underwriting/bound/lost' → agent calls configure_crm → all tools and UI reflect new vocabulary immediately",
+            "User says 'I need to track policy number and coverage amount on deals' → agent adds custom fields → create_deal accepts them → deal page shows new columns",
+            "Default real-estate vocabulary works with zero configuration (no crm_config row)",
+            "configure_crm partial update: change only deal_stages without affecting contact_types"
+          ]
+        },
+        {
           "pr": 18,
           "title": "Cron scanner + agent_triggers table",
-          "status": "pending",
+          "status": "in_progress",
           "decisions": ["TRIG-01", "TRIG-02", "TRIG-04", "TRIG-05"],
           "tasks": [
             { "id": "PR18-1", "task": "Migration: agent_triggers table schema", "done": false },
@@ -565,6 +593,24 @@
             { "id": "PR42-2", "task": "Multi-channel identity resolution", "done": false }
           ],
           "testCriteria": ["Full agent interaction via Telegram including approvals"]
+        },
+        {
+          "pr": "42a",
+          "title": "Agent-generated interactive views (Tasklet instant-app inspired)",
+          "status": "pending",
+          "decisions": [],
+          "dependsOn": ["15a"],
+          "note": "Exploratory — implementation approach TBD. Inspired by Tasklet's create_instant_app + show_user_preview pattern. Agent generates sandboxed React mini-apps (kanban boards, dashboards, custom CRUD views) that read from existing CRM tables via a bridge API. Key difference from Tasklet: our apps read from the real Postgres CRM schema (with custom fields from PR 15a), not agent-created SQLite tables. Depends on sandboxed iframe execution environment. This is Layer 3 of the CRM configurability stack (Layer 1: vocabulary, Layer 2: custom fields, Layer 3: custom views).",
+          "tasks": [
+            { "id": "PR42a-1", "task": "Spike: sandboxed iframe execution for agent-generated React apps on Vercel (CSP, CDN deps, bridge API)", "done": false },
+            { "id": "PR42a-2", "task": "Bridge API: read-only access to CRM tables from sandboxed app (contacts, deals, tasks, interactions with custom fields)", "done": false },
+            { "id": "PR42a-3", "task": "Agent tool: create_view or show_view for generating and displaying custom views in preview panel", "done": false },
+            { "id": "PR42a-4", "task": "Pin/save views to sidebar or CRM pages", "done": false }
+          ],
+          "testCriteria": [
+            "User says 'show me a kanban of my deals grouped by stage' → agent generates and displays an interactive board",
+            "Generated view reads live CRM data including custom fields from PR 15a"
+          ]
         }
       ]
     }
@@ -658,9 +704,10 @@
       },
       {
         "pr": "38a",
-        "title": "CRM vocabulary customization via chat",
-        "reason": "Real estate vocabulary hardcoded is fine for v1 target market.",
-        "decisions": []
+        "title": "CRM vocabulary customization via chat (original v1 plan)",
+        "reason": "Restored and expanded as PR 15a in Phase 2. Original scope (vocab only) expanded to include custom fields (Layer 2). Moved earlier in plan to support onboarding flow.",
+        "decisions": [],
+        "restoredAs": "15a"
       },
       {
         "pr": 39,
@@ -737,6 +784,7 @@
       { "tool": "manage_activated_tools_for_connections", "pr": 26, "category": "Connections" },
       { "tool": "reauthorize_connection", "pr": 26, "category": "Connections" },
       { "tool": "delete_connection", "pr": 26, "category": "Connections" },
+      { "tool": "configure_crm", "pr": "15a", "category": "CRM" },
       { "tool": "run_subagent", "pr": 29, "category": "Subagents" },
       { "tool": "send_message", "pr": "32a", "category": "Messaging" },
       { "tool": "reply_message", "pr": "32a", "category": "Messaging" },
@@ -749,7 +797,7 @@
       { "tool": "run_command", "reason": "No sandbox" },
       { "tool": "show_user_preview", "reason": "No preview panel" },
       { "tool": "close_user_preview", "reason": "No preview panel" },
-      { "tool": "create_tasklet_app", "reason": "No TSX apps" },
+      { "tool": "create_tasklet_app", "reason": "No TSX apps in v1. PR 42a explores agent-generated views as a lighter alternative." },
       { "tool": "get_user_quota_status", "reason": "No quota system" }
     ]
   }

@@ -17,12 +17,20 @@ All product and architecture decisions live in `roadmap docs/Sunder - Source of 
 
 Authority chain (what wins in conflicts):
 
-1. **`roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md`** — canonical product spec. Wins on product behavior, architecture, phasing, and scope.
-2. **`roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json`** — 154 approved decisions across 18 categories. Wins on technical implementation. Referenced by IDs like `FOUND-01`, `LLM-03`, `DATA-06`.
-3. **`docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json`** — PR-by-PR execution checklist (29 PRs across 5 phases, 12 done + 17 to build). Supersedes the original 48-PR plan at `docs/product/plans/2026-03-01-implementation-phasing-plan.json`.
-4. Everything else in `roadmap docs/` is supporting reference material.
+1. **`docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json`** — **THE source of truth for what to build.** PR-by-PR execution checklist (30 PRs across 5 phases, 13 done + 17 to build). Wins on scope, implementation details, and phasing. Supersedes the original 48-PR plan.
+2. **`roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md`** — full product vision and rationale. Useful for understanding _why_ things exist. Where it conflicts with the v2 plan, **the v2 plan wins** (the App Spec describes the aspirational full product; the v2 plan is the scoped build).
+3. **`roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json`** — 154 approved decisions across 18 categories. Reference for technical rationale and decision IDs (`FOUND-01`, `LLM-03`, `DATA-06`). Where a decision conflicts with the v2 plan, **the v2 plan wins**.
+4. Everything else in `roadmap docs/` (including Tasklet references) is supporting reference material.
 
-**Before making architectural decisions**, check the App Spec and architecture decisions JSON. If the spec is silent on a behavior, follow Tasklet reference patterns by default (`TASKLET-01`).
+**Before making architectural decisions**, check the v2 plan first, then the App Spec and architecture decisions JSON for rationale. If the v2 plan is silent on a behavior, follow Tasklet reference patterns by default (`TASKLET-01`).
+
+### Tasklet Reference Docs
+
+All Tasklet reference material lives in `roadmap docs/Sunder - Source of Truth/references/tasklet/`. **Always use v2 — ignore v1 (deprecated).** The most useful references when building agent features:
+
+- **v2 built-in tool definitions:** `tasklet tools/built-in/v2/` — 31 tool specs covering file I/O, tasks, triggers, connections, messaging, and more. Use these as the canonical reference for how Sunder's tools should behave.
+- **v2 system prompt:** `tasklet tools/system-prompt-wholesale/01-v2-system-prompt-verbatim.md` — full production system prompt. Essential reference for context assembly, system-reminder format, and agent persona.
+- **Other references** (core architecture, persistence, skills, workflows, etc.) are all useful supporting material — read as needed.
 
 ## Tech Stack
 

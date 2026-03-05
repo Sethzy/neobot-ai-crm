@@ -102,17 +102,17 @@ describe("UIMessageSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("validates message with tool invocation part", () => {
+  it("validates message with typed tool part", () => {
     const message = {
       id: "msg-123",
       role: "assistant",
       parts: [
         {
-          type: "tool-invocation",
+          type: "tool-code_execution",
           toolCallId: "tool-1",
-          toolName: "code_execution",
-          state: "call",
-          args: { code: "print('hello')" },
+          state: "output-available",
+          input: { code: "print('hello')" },
+          output: { stdout: "hello" },
         },
       ],
     };

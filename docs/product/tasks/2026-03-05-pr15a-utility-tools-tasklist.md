@@ -37,6 +37,16 @@ The following decisions are agreed and **override conflicting snippets below**:
    - `src/lib/runner/__tests__/run-agent-tool-error-path.test.ts`
 9. Execute with strict TDD micro-cycles (red -> green -> refactor per behavior), not only per-module.
 
+## Post-Review Fixes (2026-03-05)
+
+The following fixes were applied after independent code review and should be treated as required behavior:
+
+1. `rename_chat` must treat zero updated rows as failure and return a deterministic error (`Thread not found or access denied`) instead of returning success.
+2. `run_agent_memory_sql` now performs local query-shape validation before RPC (reject non-`SELECT/WITH`, reject semicolon-delimited multi-statement payloads) as defense-in-depth.
+3. Add DB-level assertive verification script at `supabase/verification/pr15a_sql_helpers_security_check.sql` to validate:
+   - `run_readonly_sql` read-only guard behavior
+   - `get_system_reminder_context` ownership enforcement under JWT-scoped context
+
 ---
 
 ## Relevant Files
@@ -44,6 +54,7 @@ The following decisions are agreed and **override conflicting snippets below**:
 ### Create
 - `supabase/migrations/20260305030000_create_agent_todo.sql`
 - `supabase/migrations/20260305030001_create_sql_helper_functions.sql`
+- `supabase/verification/pr15a_sql_helpers_security_check.sql`
 - `src/lib/runner/tools/utility/todo.ts`
 - `src/lib/runner/tools/utility/__tests__/todo.test.ts`
 - `src/lib/runner/tools/utility/rename-chat.ts`

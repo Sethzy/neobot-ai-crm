@@ -1,6 +1,6 @@
 {
   "title": "Sunder Architecture Decision Checklist",
-  "description": "Every architecture decision requiring explicit approval before implementation. Grouped by domain. Categories 1-2 are foundational. Categories 3-10 are co-dependent (Data, Execution, Runner, Tools, Skills, Triggers, Sessions, Memory) and were decided as a cluster. Categories 11-18 are surface-level and meta.",
+  "description": "Every architecture decision requiring explicit approval before implementation. Grouped by domain. Categories 1-2 are foundational. Categories 3-10 are co-dependent (Data, Execution, Runner, Tools, Skills, Triggers, Sessions, Memory) and were decided as a cluster. Categories 11-18 are surface-level and meta. NOTE: This file captures rationale and decision history. For what we're actually building, see the v2 implementation plan (docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json). Where a decision here conflicts with the v2 plan, the v2 plan wins.",
   "last_updated": "2026-02-28",
   "decisions": [
     {
@@ -80,7 +80,7 @@
       "category": "2-llm-and-model-routing",
       "description": "routeQuestion pattern from Savoir — cheap classifier (Gemini 2.5 Flash Lite) classifies every inbound message by complexity, returns { complexity, model, maxSteps, reasoning }. Product code never sees model IDs. Sunder adds domain-specific escalation signals (CRM writes, approval needed, sandbox needed, context size, autopilot pulse).",
       "approved": true,
-      "decision": "Savoir routeQuestion pattern as the routing abstraction. Replaces hand-rolled llm-gateway.ts wrapper.",
+      "decision": "DEFERRED to post-v1. Single model (Gemini Flash) for v1. Savoir routeQuestion pattern as the routing abstraction. Replaces hand-rolled llm-gateway.ts wrapper.",
       "reasoning": "Savoir's routeQuestion is a concrete, tested implementation of what LLM-03 originally described abstractly. Router model (Gemini 2.5 Flash Lite) costs fractions of a cent per classification. Returns structured Zod-validated object with complexity level, model ID, maxSteps budget, and reasoning string. Default fallback on router failure: moderate/sonnet/15 steps. Product code passes routerConfig into streamText() — never references model IDs directly. Sunder extends the router prompt with domain-specific signals: CRM write risk, approval requirement, sandbox need, context size, autopilot vs interactive. Tasklet divergence noted: Tasklet injects 'Current intelligence level: genius' into system-reminder and provides suggest_intelligence_level_change tool for LLM self-escalation (bidirectional routing). We deliberately diverge — our routing is unidirectional (classifier picks tier, LLM is unaware). Reason: Sunder is an autonomous agent, not a general assistant. Users shouldn't think about model tiers. Self-escalation adds unmodeled cost risk (LLM may over-escalate on subjective complexity). If needed later, adding intelligence level to system-reminder is ~8 tokens. Recorded as intentional Tasklet delta."
     },
     {
@@ -96,7 +96,7 @@
       "category": "2-llm-and-model-routing",
       "description": "Tier 1 (trivial/simple): google/gemini-3-flash. maxSteps 4 (trivial) or 8 (simple). Used for greetings, single CRM lookups, simple chat. Router-selected for interactive chat only.",
       "approved": true,
-      "decision": "Gemini 3 Flash as Tier 1. Replaces original Gemini 2.5 Flash.",
+      "decision": "DEFERRED to post-v1. Single model (Gemini Flash) for v1. Gemini 3 Flash as Tier 1. Replaces original Gemini 2.5 Flash.",
       "reasoning": "Savoir pattern uses Gemini 3 Flash as the trivial/simple tier. Cheap, fast, sufficient for single-lookup questions and acknowledgments. Router (Gemini 2.5 Flash Lite) classifies inbound and selects this tier for ~60-70% of interactive messages. maxSteps budget keeps tool loops short for simple tasks. Tasklet delta: Tasklet names its tiers (standard/advanced/expert/genius) as first-class concepts visible to the LLM. Our tiers are internal infrastructure concepts invisible to the LLM (classifier-selected). No change needed — just noting the divergence."
     },
     {
@@ -104,7 +104,7 @@
       "category": "2-llm-and-model-routing",
       "description": "Tier 2 (moderate): google/gemini-3.1-pro. maxSteps 15. Used for CRM writes, research, multi-source synthesis, document extraction, large context. Also hardcoded for background tasks: deep-research, doc processing, memory synthesis.",
       "approved": true,
-      "decision": "Gemini 3.1 Pro as Tier 2. Replaces original Kimi K2.5 + Gemini 3.1 Pro split.",
+      "decision": "DEFERRED to post-v1. Single model (Gemini Flash) for v1. Gemini 3.1 Pro as Tier 2. Replaces original Kimi K2.5 + Gemini 3.1 Pro split.",
       "reasoning": "Collapsed original Tier 2 (Kimi) and Tier 3a (Gemini Pro) into one tier. Gemini 3.1 Pro handles both research depth and complex reasoning. Kimi K2.5 dropped as separate tier — available as background model but not needed as a dedicated interactive tier. 3 interactive tiers + router is cleaner than 4 tiers. Gemini Pro's long context window handles the >32k escalation signal. Tasklet delta: same as LLM-05 — our tier definitions are internal to the classifier, not surfaced to the LLM. Intentional divergence from Tasklet's self-aware tier model."
     },
     {
@@ -112,7 +112,7 @@
       "category": "2-llm-and-model-routing",
       "description": "Tier 3 (complex/high-trust): anthropic/claude-sonnet-4.6. maxSteps 25. Used for complex analysis, approval-adjacent decisions, deep debugging. Also hardcoded for high-trust background triggers.",
       "approved": true,
-      "decision": "Claude Sonnet 4.6 as Tier 3. Replaces original split between Gemini Pro (complex) and Sonnet (high-trust).",
+      "decision": "DEFERRED to post-v1. Single model (Gemini Flash) for v1. Claude Sonnet 4.6 as Tier 3. Replaces original split between Gemini Pro (complex) and Sonnet (high-trust).",
       "reasoning": "Original plan had two Tier 3 slots (Gemini Pro for complexity, Sonnet for trust). Now Gemini Pro is Tier 2 and Sonnet is sole Tier 3 handling both complex reasoning and high-trust decisions. Sonnet is the ceiling — if Sonnet can't handle it, the task needs human intervention, not a bigger model. Opus available as fallback chain target but not a primary tier. Tasklet delta: same as LLM-05/06 — tier is classifier-selected, LLM-invisible."
     },
     {
@@ -120,7 +120,7 @@
       "category": "2-llm-and-model-routing",
       "description": "Background tier: DeepSeek V3 or Kimi K2.5 (cheapest available on gateway). Hardcoded per task — no router. Used for autopilot pulse, enrichment batch, simple cron triggers. All via same Vercel AI Gateway.",
       "approved": true,
-      "decision": "Cheap Chinese models for background tasks. No router overhead. Same gateway.",
+      "decision": "DEFERRED to post-v1. Single model (Gemini Flash) for v1. Cheap Chinese models for background tasks. No router overhead. Same gateway.",
       "reasoning": "Background cron tasks are high-volume, low-stakes, no-streaming, predictable. Router is wasted — task type is known at invocation time. DeepSeek V3 / Kimi K2.5 at ~$0.10-0.30/M tokens vs Gemini Flash at ~$0.50/M tokens. At 50 clients with ~2,400 autopilot pulses/day (80% no-ops), saves ~$10-15/mo. At 500 clients, ~$150/mo. All through gateway('deepseek/deepseek-v3') — same API key, same generateText() call, just cheaper model string. Tasklet delta: same as LLM-05/06/07 — tier is classifier-selected, LLM-invisible."
     },
     {
@@ -214,10 +214,10 @@
     {
       "id": "DATA-09",
       "category": "3-data-architecture",
-      "description": "REVISED: Supabase DB data classes (23 v1 tables). Core CRM (6): clients, contacts, deals, crm_tasks, interactions, crm_config. Agent System (6): agent_tasks, goals, runs, agent_triggers, autopilot_config, approval_events. Conversation (4): conversation_threads (with compaction_summary column), conversation_messages (with parts JSONB), thread_queue_records, guided_interview_sessions. Knowledge & Files (2): vault_files, document_processing_records. Operational (2): usage_telemetry, setup_progress. Infrastructure (3): sandbox_sessions, skill_registry, connections. Deferred to v1.5/v2: stream_replay_events, channel tables (6), growth_plan_items as DB table.",
+      "description": "REVISED: Supabase DB data classes (20 v1 tables). Core CRM (6): clients, contacts, deals, crm_tasks, interactions, crm_config. Agent System (5): agent_todo, runs, agent_triggers, autopilot_config, approval_events. Conversation (4): conversation_threads (with compaction_summary column), conversation_messages (with parts JSONB), thread_queue_records, guided_interview_sessions. Knowledge & Files (2): vault_files, document_processing_records. Operational (2): usage_telemetry, setup_progress. Infrastructure (1): connections. Deferred to v1.5/v2: stream_replay_events, channel tables (6), growth_plan_items as DB table, sandbox_sessions, skill_registry.",
       "approved": true,
-      "decision": "REVISED from 24 to 23 v1 tables. Dropped agent_memories (MEM-03 v4 reverted memory to filesystem) and pause_checkpoints (SESSION-04 eliminated checkpoint/resume). Previously dropped: client_files.",
-      "reasoning": "agent_memories table dropped because MEM-03 v4 reverted memory storage from DB rows to filesystem (/{clientId}/MEMORY.md + /{clientId}/memory/*.md in Supabase Storage). Agent discovers memory files via read_file on directory paths, reads/writes via read_file/write_file. No DB table needed. Agent System group drops from 7 to 6 tables. All other tables unchanged. personality_prompt and user_profile columns also removed from clients table (MEM-01/02 reverted to SOUL.md and USER.md files in Storage). clients table retains: id, name, email, auth fields, created_at, updated_at, subscription fields.",
+      "decision": "REVISED from 23 to 20 v1 tables. v2 revision: agent_tasks renamed to agent_todo (Tasklet-parity, title+payload, exists-or-deleted). Goals table cut (written to MEMORY.md). skill_registry and sandbox_sessions deferred.",
+      "reasoning": "agent_memories table dropped because MEM-03 v4 reverted memory storage from DB rows to filesystem (/{clientId}/MEMORY.md + /{clientId}/memory/*.md in Supabase Storage). Agent discovers memory files via read_file on directory paths, reads/writes via read_file/write_file. No DB table needed. v2 revision: agent_tasks renamed to agent_todo (Tasklet-parity, title+payload, exists-or-deleted). Goals table cut — goals are written to MEMORY.md as markdown, no dedicated DB table needed. skill_registry deferred (skills system deferred to post-v1). sandbox_sessions deferred (sandbox deferred to post-v1). Agent System group drops from 6 to 5 tables. Infrastructure drops from 3 to 1 table. personality_prompt and user_profile columns also removed from clients table (MEM-01/02 reverted to SOUL.md and USER.md files in Storage). clients table retains: id, name, email, auth fields, created_at, updated_at, subscription fields.",
       "depends_on": [
         "MEM-01",
         "MEM-03",
@@ -260,7 +260,7 @@
       "category": "4-execution-and-sandbox",
       "description": "Vercel Sandbox (Firecracker microVMs) as code execution environment — chosen over E2B for native Vercel integration",
       "approved": true,
-      "decision": "Vercel Sandbox confirmed.",
+      "decision": "DEFERRED to post-v1. Vercel Sandbox confirmed.",
       "reasoning": "Native Vercel integration, same team as AI SDK. Savoir extraction guide provides session management patterns (sandbox_sessions table). E2B is technically equivalent (both Firecracker) but adds another vendor. @vercel/sandbox supports per-session reuse and cross-invocation reconnection."
     },
     {
@@ -268,7 +268,7 @@
       "category": "4-execution-and-sandbox",
       "description": "Sandbox three-tier model — Tier 1 pure tools (~60-70%), Tier 2 sandbox-enhanced (~25-30%), Tier 3 full sandbox (~5-10%). Agent decides when code execution produces better results.",
       "approved": true,
-      "decision": "Three-tier sandbox usage model confirmed.",
+      "decision": "DEFERRED to post-v1. Three-tier sandbox usage model confirmed.",
       "reasoning": "RE workload genuinely has a pure-tool tier (CRM updates, messaging, simple lookups) that doesn't benefit from code execution. Fintool/Tasklet use sandbox ~100% because financial analysis always benefits from code. Sunder's split reflects workload reality, not an architectural limitation."
     },
     {
@@ -276,7 +276,7 @@
       "category": "4-execution-and-sandbox",
       "description": "Sandbox is first-class capability — not an edge case. Agent uses it transparently for reports, data analysis, file processing, document generation, Mini Lovable builds, FFmpeg voice conversion",
       "approved": true,
-      "decision": "Confirmed. Aligned with Fintool/Tasklet philosophy.",
+      "decision": "DEFERRED to post-v1. Confirmed. Aligned with Fintool/Tasklet philosophy.",
       "reasoning": "Sandbox-as-capability, not sandbox-as-escape-hatch. The agent decides when code produces better results. User never knows a sandbox was involved. Three-tier model (EXEC-05) means it's not used for everything, but when used it's a natural part of the workflow."
     },
     {
@@ -475,7 +475,7 @@
       "category": "7-skill-system",
       "description": "Skills as markdown files — five-layer architecture: (1) Storage: system templates in codebase (apps/web/skills/templates/{slug}/TEMPLATE.md, read-only), personalized + custom + connection skills per-client in Supabase Storage (/{clientId}/skills/{slug}.md, deterministic paths). (2) Index: skill_registry table (shared discovery layer for runner, subagents, frontend). (3) Pointers: system-reminder injects ~20-30 token pointers per skill, not full content. (4) Loading: lazy via read_file() on demand — LLM decides when to load. (5) Creation: co-located writes (Storage file + registry row in same function call per DATA-06).",
       "approved": true,
-      "decision": "Hybrid architecture: Tasklet pointer-based lazy loading + Fintool skill_registry as shared discovery index. Self-contained .md files, no sub-file chains, no sync infrastructure.",
+      "decision": "DEFERRED to post-v1. Hybrid architecture: Tasklet pointer-based lazy loading + Fintool skill_registry as shared discovery index. Self-contained .md files, no sub-file chains, no sync infrastructure.",
       "reasoning": "Analyzed Tasklet (two-pointer lazy loading, platform IS the index, no SQL), Fintool (fs_files SQL index with YAML frontmatter, three-tier shadowing, S3→Lambda sync, sub-file chains), and Sunder needs (subagent self-discovery, bounded customization, <10 clients v1). Took: Tasklet's pointer + read_file lazy loading pattern (saves ~4,000-8,000 tokens/turn vs pre-assembled). Took: Fintool's SQL index concept (skill_registry enables subagent self-discovery + frontend skill library UI). Skipped: Fintool's S3→Lambda sync (co-located writes instead), YAML frontmatter parsing (metadata in DB not file), three-tier shadowing (two-tier sufficient, file layout anticipates org tier), sub-file chains (skills are self-contained). Token math: 10 skills × 25 tokens/pointer = 250 tokens in system-reminder. Average turn loads 1-2 skills = +500-1000 tokens. Total ~750-1250/turn vs ~5,000-10,000 pre-assembled. Clarification from Tasklet trace (Feb 26 2026): skill pointer injection in system-reminder is conditional on file existence. Connections without a SKILL.md (e.g., Calendar, Forms) get no pointer — no wasted tokens, no confusing 404. Runner assembly checks skill_registry for the connection; row exists = inject pointer, no row = skip. This conditionality is implicit in the lazy-loading design but was not explicitly stated."
     },
     {
@@ -483,7 +483,7 @@
       "category": "7-skill-system",
       "description": "Lazy loading via pointers in system-reminder, NOT pre-assembled into system prompt. Runner queries skill_registry → injects skill pointers (~20-30 tokens each) into system-reminder. LLM calls read_file() only when it decides a skill is relevant to the current task. Tasklet pattern: 'nag the LLM every turn to read it, LLM reads with same read_file tool it uses for anything else.'",
       "approved": true,
-      "decision": "REVERSED from pre-assembled to lazy loading. Tasklet pattern with skill_registry backing.",
+      "decision": "DEFERRED to post-v1. REVERSED from pre-assembled to lazy loading. Tasklet pattern with skill_registry backing.",
       "reasoning": "Original decision was pre-assembled (simpler but wasteful). Reversed after analyzing token economics: with 10 skills at ~500 tokens each, pre-assembling costs ~5,000 tokens/turn even when unused. Lazy loading: ~250 tokens (pointers) + ~500-1000 (1-2 loaded on demand) = ~750-1250 tokens. Saves ~4,000+ tokens/turn. Tasklet confirms this works: 'Pointers cost ~20-30 tokens each; actual skill content costs ~200-1500 tokens. With 5 connections, saves ~1,000-7,000 tokens/turn when unused.' Connection skills follow same pattern: system-reminder says 'MUST read /{clientId}/skills/connections/gmail/SKILL.md before using Gmail tools.' Clarification: lazy-loading pointer is conditional — only injected when a skill file exists for the connection. Gmail gets a pointer (~30 tokens), Calendar does not (0 tokens). The mechanism is: runner queries skill_registry during system-reminder assembly, injects pointer only if row exists. No change to the pattern, just explicit acknowledgment of conditionality."
     },
     {
@@ -491,7 +491,7 @@
       "category": "7-skill-system",
       "description": "skill_registry table as shared discovery layer — queryable by runner (system-reminder pointers), subagents (self-discovery), and frontend (skill library UI). Columns: client_id, slug, type (template/personalized/custom/connection), metadata JSONB (storage_path, category, display_name, built_at). Global templates have client_id = NULL. Personalized skills shadow templates (same slug, client_id wins over NULL).",
       "approved": true,
-      "decision": "REVERSED from 'no index in v1' to 'skill_registry from day one.' Already in DATA-09.",
+      "decision": "DEFERRED to post-v1. REVERSED from 'no index in v1' to 'skill_registry from day one.' Already in DATA-09.",
       "reasoning": "Original decision deferred skill_registry. Reversed because subagent self-discovery requires it — trigger-fired subagents execute days/weeks after instruction was written, skills may have been added or rebuilt since then. skill_registry is the only way subagents can find current skills without the parent embedding stale paths. Also needed for: frontend skill library UI, runner's system-reminder pointer assembly, Growth Plan status display. Table already exists in DATA-09. Written at: deploy time (template rows, client_id=NULL), interview completion (personalized row), connection activation (connection row). Co-located writes per DATA-06 — no sync infrastructure needed. NOT a filesystem mirror like Fintool's fs_files. It's an index. If row exists but file missing, that's a co-located write bug, not a sync problem."
     },
     {
@@ -499,7 +499,7 @@
       "category": "7-skill-system",
       "description": "Two-tier skill hierarchy: system templates (codebase, client_id=NULL in registry) + per-client skills (personalized/custom/connection in Storage). No three-tier shadowing (no org/shared tier in v1). Personalized skill with same slug as template shadows it in registry query (client_id IS NOT NULL sorts first). File layout anticipates org tier: future /{orgId}/skills/shared/.",
       "approved": true,
-      "decision": "Two-tier confirmed. Shadowing is simple: personalized wins over template by sort order in registry query.",
+      "decision": "DEFERRED to post-v1. Two-tier confirmed. Shadowing is simple: personalized wins over template by sort order in registry query.",
       "reasoning": "Fintool's three-tier (private > shared > public) exists because they serve teams of analysts at hedge funds who need org-level defaults that individuals can override. Sunder v1 is solo agents — no org tier, no shared skills between users. Two-tier is sufficient: system templates (what we ship) + per-client (what the interview produces). Shadowing is trivial: same slug, client_id IS NOT NULL sorts before NULL. No complex resolution logic. When multi-seat ships (v2/v3), add /{orgId}/skills/shared/ and a third tier in the registry query. File layout already supports this."
     },
     {
@@ -507,7 +507,7 @@
       "category": "7-skill-system",
       "description": "Connection skills are manually authored per service, NOT auto-generated. When user connects a service via Composio OAuth, our code checks if a pre-authored SKILL.md exists for that integration — if yes, copies to /{clientId}/skills/connections/{service}/SKILL.md + inserts registry row; if no, no skill file is created (intentional — tool definitions are sufficient). Not every connection needs a skill file.",
       "approved": true,
-      "decision": "Manually authored connection skills, conditionally copied to client storage on OAuth completion. Skill files authored only for integrations with API quirks the LLM won't know from training. Integrations with self-sufficient tool definitions get no skill file — this is by design, not a gap.",
+      "decision": "DEFERRED to post-v1. Manually authored connection skills, conditionally copied to client storage on OAuth completion. Skill files authored only for integrations with API quirks the LLM won't know from training. Integrations with self-sufficient tool definitions get no skill file — this is by design, not a gap.",
       "reasoning": "Tasklet's actual behavior (traced Feb 26 2026): of 3 Google connections, only Gmail received a skill file — Calendar and Forms did not. Gmail needs one because of readMask strategy, label name-vs-ID gotcha, and link format. Calendar's tool definitions embed their own <search-strategy> block and are self-sufficient. A skill file costs ~500 tokens when loaded + 1 extra read_file round-trip — pure overhead if the tool definitions already cover everything. Criteria for authoring a SKILL.md: (1) API has quirks LLM won't know from training, (2) cross-tool knowledge exists (rules spanning multiple tools), (3) output formatting rules (link construction). The integration allowlist (TOOL-06) should track has_skill_file per integration. System-reminder pointer (RUNNER-04) is already conditional on file existence. No workflow change — just explicit acknowledgment that absent skill files are intentional. Reference: references/tasklet/google-suite-complete-tool-definitions.md, references/tasklet/skills-deep-dive-connection-generation-trace.md"
     },
     {
@@ -515,7 +515,7 @@
       "category": "7-skill-system",
       "description": "Bounded customization contract — users customize through guided skills, not config editing. Allowed: channel/workflow prefs, trigger timing, approval mode, output format. Disallowed: runner internals, isolation policy, safety gates, core tool schemas.",
       "approved": true,
-      "decision": "Confirmed. Boundary is explicit and enforced by what's exposed in Skill-Building Interviews.",
+      "decision": "DEFERRED to post-v1. Confirmed. Boundary is explicit and enforced by what's exposed in Skill-Building Interviews.",
       "reasoning": "V1 and V2 App Specs are explicit: 'User customization remains skills-first and bounded: guided interview, explicit approval, no silent activation, and auditable change records.' The boundary is enforced architecturally: users only interact with skills through the interview flow (SKILL-07/08). They never see runner code, tool schemas, or safety policies. The skill file output IS the customization — it contains the user's preferences in natural language, not config parameters. If a user wants to change follow-up timing from 2 hours to 4 hours, they re-run the interview or tell the agent to update the skill (with approval)."
     },
     {
@@ -523,7 +523,7 @@
       "category": "7-skill-system",
       "description": "Reusable customization flow is fixed: guided interview → plain-language preview → explicit user approval → apply (co-located write to Storage + skill_registry) → verification summary. No silent skill activation.",
       "approved": true,
-      "decision": "Confirmed. Apply step now explicitly includes co-located write to both Storage and skill_registry.",
+      "decision": "DEFERRED to post-v1. Confirmed. Apply step now explicitly includes co-located write to both Storage and skill_registry.",
       "reasoning": "Standard Skill-Building Interview flow from V1 App Spec. The 'apply' step is now concrete: write personalized .md file to /{clientId}/skills/{slug}.md + INSERT/UPDATE skill_registry row in the same function call (DATA-06 co-located write pattern). Verification summary confirms: what was saved, where it lives, what it will do. If user declines at preview, nothing is written. Audit trail: skill_registry row has built_at timestamp, the .md file itself can include an approval note."
     },
     {
@@ -531,7 +531,7 @@
       "category": "7-skill-system",
       "description": "Skills ship as interview-guide templates, not pre-configured defaults — no skill ships with pre-configured behavior that runs without user discussion and approval. Every skill (built-in or marketplace) ships as a structured set of questions the agent asks to build a personalized version. First activation triggers Skill-Building Interview flow. Only exception: guardrail instructions (safety-scoped, imported with user acknowledgment, no full interview). Growth Plan items are proposals, not active skills — each becomes active only after completing its Skill-Building Interview.",
       "approved": true,
-      "decision": "Confirmed. Core product principle. Templates in codebase, personalized outputs in Storage, skill_registry tracks status.",
+      "decision": "DEFERRED to post-v1. Confirmed. Core product principle. Templates in codebase, personalized outputs in Storage, skill_registry tracks status.",
       "reasoning": "V1 App Spec hard lock: 'No skill is activated without completing its Skill-Building Interview first (except guardrail-scoped instructions with user acknowledgment).' This is the resolution of the DIY vs done-for-you tension: system templates define the interview (what questions to ask, what the default structure looks like), the interview produces a personalized skill tailored to the user. skill_registry tracks the lifecycle: template rows (client_id=NULL, type='template') exist at deploy time. When user activates → interview runs → personalized row inserted (client_id set, type='personalized'). Frontend can show: 'X available, Y built, Z proposed (Growth Plan).' Growth Plan items in memory/growth-plan.md with status: proposed → approved → in-progress → built. 'Built' means Skill-Building Interview completed and skill is in registry."
     },
     {
@@ -801,7 +801,15 @@
       "approved": true,
       "decision": "Composio as integration backend for OAuth connections. Fallback to other connection types for uncovered services.",
       "reasoning": "Tasklet builds top ~30 integrations in-house, proxies 3000+ through Pipedream. Sunder doesn't have the resources to build in-house integrations — Composio is the equivalent third-party marketplace. Same role: handle OAuth complexity so we don't build token refresh, scope management, etc. Agent interface is the same: discover → create → activate tools → use. Fintool has no marketplace (hand-built). Composio's 141+ pre-built actions cover the v1 services (Gmail, Google Calendar, Cal.com, Tally.so). For anything Composio doesn't cover, the Tasklet-pattern fallback chain (mcp → direct_api → computer_use) handles it.",
-      "future_evaluation": "CONN-04 tracks googleworkspace/cli as a potential Composio replacement for Google services. Re-evaluate when it reaches v1.0."
+      "future_evaluation": "CONN-04 tracks googleworkspace/cli as a potential Composio replacement for Google services. Re-evaluate when it reaches v1.0.",
+      "alternatives": {
+        "arcade": {
+          "url": "https://arcade.dev",
+          "description": "MCP runtime for AI agents. Handles auth (OAuth + identity providers), tool execution, and agent governance. Agent-optimized tool catalog (Gmail, Calendar, Slack, Salesforce, X). Multi-language SDKs (Python, JS). OpenAI-compatible base URL. Custom tool framework with built-in OAuth and evals. Audit trails for tool usage. Deploys cloud/VPC/on-prem/air-gapped.",
+          "vs_composio": "Direct competitor. Key differentiators: MCP-native design (vs Composio's custom protocol), enterprise governance features (audit trails, agent visibility), flexible deployment (VPC/on-prem vs Composio cloud-only). Evaluate catalog coverage for our v1 services (Gmail, Google Calendar, Cal.com, Tally.so) when PR 25-26 are in scope.",
+          "vs_pipedream": "Pipedream is a workflow automation platform (3000+ integrations, event-driven). Arcade is agent-first (tool calling, not workflows). Arcade's MCP-native approach may integrate more cleanly with our agent architecture than Pipedream's workflow model."
+        }
+      }
     },
     {
       "id": "CONN-03",
@@ -902,7 +910,14 @@
       "category": "13-service-provider-choices",
       "description": "Interactive browser (Lane 3): Stagehand + Browserbase — action caching for ~80% speedup on repeated actions, persistent browser contexts for login-gated sites (MVP)",
       "approved": true,
-      "reasoning": "Deferred to v3. Interactive browser (Stagehand + Browserbase) is expensive and complex. Not needed for v1/v2. Requires Trigger.dev for async execution (Trigger.dev deferred to v3 per FOUND-02)."
+      "reasoning": "Deferred to v3. Interactive browser (Stagehand + Browserbase) is expensive and complex. Not needed for v1/v2. Requires Trigger.dev for async execution (Trigger.dev deferred to v3 per FOUND-02).",
+      "alternatives": {
+        "kernel": {
+          "url": "https://kernel.sh",
+          "description": "Browser infrastructure for AI agents. Anti-bot detection, reusable sessions, fast spin-up, autoscaling. CDP-based (connect via Playwright/Puppeteer). Individual VM isolation per browser, sessions up to 72h, session replay, managed auth, proxy support (residential/ISP/datacenter). Claims fastest browser infra (benchmarked). Open-source browser image (Kernel OSS).",
+          "vs_browserbase": "Direct competitor. Key differentiators: speed (claims fastest), open-source browser image, GPU-powered browser experiments (Hypeman OSS). Evaluate pricing and Stagehand compatibility when SERVICE-12 is in scope."
+        }
+      }
     },
     {
       "id": "SERVICE-12b",

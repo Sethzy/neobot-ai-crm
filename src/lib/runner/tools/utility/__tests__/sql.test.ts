@@ -7,8 +7,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
 import { createSqlTools } from "../sql";
-
-const CLIENT_ID = "550e8400-e29b-41d4-a716-446655440000";
 const EXECUTION_OPTIONS = {
   toolCallId: "call-1",
   messages: [],
@@ -18,7 +16,7 @@ const EXECUTION_OPTIONS = {
 describe("createSqlTools", () => {
   it("returns run_agent_memory_sql and get_agent_db_schema tools", () => {
     const supabase = createMockSupabaseClient();
-    const tools = createSqlTools(supabase as never, CLIENT_ID);
+    const tools = createSqlTools(supabase as never);
 
     expect(tools).toHaveProperty("run_agent_memory_sql");
     expect(tools).toHaveProperty("get_agent_db_schema");
@@ -44,7 +42,7 @@ describe("run_agent_memory_sql", () => {
       },
     });
 
-    const tools = createSqlTools(supabase as never, CLIENT_ID);
+    const tools = createSqlTools(supabase as never);
     const result = await tools.run_agent_memory_sql.execute(
       {
         query: "SELECT deal_id, title, stage FROM deals WHERE stage = 'closed_won'",
@@ -73,7 +71,7 @@ describe("run_agent_memory_sql", () => {
       },
     });
 
-    const tools = createSqlTools(supabase as never, CLIENT_ID);
+    const tools = createSqlTools(supabase as never);
     const result = await tools.run_agent_memory_sql.execute(
       { query: "SELECT * FROM massive_table" },
       EXECUTION_OPTIONS,
@@ -83,6 +81,36 @@ describe("run_agent_memory_sql", () => {
       success: false,
       error: "statement timeout",
     });
+  });
+
+  it("rejects non-read-only query shapes before RPC", async () => {
+    const supabase = createMockSupabaseClient();
+    const tools = createSqlTools(supabase as never);
+    const result = await tools.run_agent_memory_sql.execute(
+      { query: "UPDATE deals SET stage = 'closed_won'" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Only SELECT/CTE queries are allowed",
+    });
+    expect(supabase.calls.rpc).toEqual([]);
+  });
+
+  it("rejects multi-statement SQL before RPC", async () => {
+    const supabase = createMockSupabaseClient();
+    const tools = createSqlTools(supabase as never);
+    const result = await tools.run_agent_memory_sql.execute(
+      { query: "SELECT * FROM deals; SELECT * FROM contacts" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Only single-statement SQL is allowed",
+    });
+    expect(supabase.calls.rpc).toEqual([]);
   });
 });
 
@@ -109,7 +137,7 @@ describe("get_agent_db_schema", () => {
       },
     });
 
-    const tools = createSqlTools(supabase as never, CLIENT_ID);
+    const tools = createSqlTools(supabase as never);
     const result = await tools.get_agent_db_schema.execute({}, EXECUTION_OPTIONS);
 
     expect(result).toEqual({
@@ -132,7 +160,7 @@ describe("get_agent_db_schema", () => {
       },
     });
 
-    const tools = createSqlTools(supabase as never, CLIENT_ID);
+    const tools = createSqlTools(supabase as never);
     const result = await tools.get_agent_db_schema.execute({}, EXECUTION_OPTIONS);
 
     expect(result).toEqual({
