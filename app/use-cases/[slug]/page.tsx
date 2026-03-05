@@ -126,7 +126,7 @@ export default async function UseCasePage({
               </p>
               <div className="mt-10">
                 <Link
-                  href="/demo"
+                  href="/login"
                   className="inline-flex items-center gap-2 rounded-full bg-sunder-green px-8 py-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-sunder-green-dark"
                 >
                   Book a Demo
@@ -261,7 +261,7 @@ export default async function UseCasePage({
               </p>
               <div className="mt-8">
                 <Link
-                  href="/demo"
+                  href="/login"
                   className="inline-flex items-center gap-2 rounded-full bg-sunder-green px-8 py-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-sunder-green-dark"
                 >
                   Book a Demo

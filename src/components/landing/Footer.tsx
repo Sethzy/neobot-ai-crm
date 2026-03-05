@@ -68,7 +68,7 @@ export function Footer() {
               <h3 className="text-sm font-semibold text-white mb-4 tracking-wide">Company</h3>
               <nav className="flex flex-col gap-3 text-sm">
                 <NavLink href="#testimonials" className="text-[#999] hover:text-white transition-colors">Testimonials</NavLink>
-                <Link href="/demo" className="text-[#999] hover:text-white transition-colors">Book a Call</Link>
+                <Link href="/login" className="text-[#999] hover:text-white transition-colors">Book a Call</Link>
               </nav>
             </div>
             <div>
