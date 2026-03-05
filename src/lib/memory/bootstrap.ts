@@ -4,19 +4,30 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { DEFAULT_MEMORY_MD, DEFAULT_SOUL_MD, DEFAULT_USER_MD } from "./templates";
+import {
+  MEMORY_BUCKET_ID,
+  MEMORY_TEXT_CONTENT_TYPE,
+  ROOT_MEMORY_FILE_SET,
+  type MemoryRootPath,
+} from "./constants";
+import {
+  DEFAULT_GROWTH_PLAN_MD,
+  DEFAULT_KEY_DECISIONS_MD,
+  DEFAULT_MEMORY_MD,
+  DEFAULT_PATTERNS_MD,
+  DEFAULT_PREFERENCES_MD,
+  DEFAULT_SOUL_MD,
+  DEFAULT_USER_MD,
+} from "./templates";
 import {
   getStorageErrorMessage,
+  isMissingStorageObjectError,
   isStorageConflictError,
   readMemoryRootFile,
-  type MemoryRootPath,
 } from "./storage";
 
-const BUCKET_ID = "agent-files";
-const TEXT_CONTENT_TYPE = "text/plain; charset=utf-8";
-
 interface MemoryFileTemplate {
-  path: MemoryRootPath;
+  path: string;
   content: string;
 }
 
@@ -24,7 +35,40 @@ const REQUIRED_MEMORY_FILES: MemoryFileTemplate[] = [
   { path: "SOUL.md", content: DEFAULT_SOUL_MD },
   { path: "USER.md", content: DEFAULT_USER_MD },
   { path: "MEMORY.md", content: DEFAULT_MEMORY_MD },
+  { path: "memory/preferences.md", content: DEFAULT_PREFERENCES_MD },
+  { path: "memory/growth-plan.md", content: DEFAULT_GROWTH_PLAN_MD },
+  { path: "memory/patterns.md", content: DEFAULT_PATTERNS_MD },
+  { path: "memory/key-decisions.md", content: DEFAULT_KEY_DECISIONS_MD },
 ];
+
+function isRootMemoryPath(path: string): path is MemoryRootPath {
+  return ROOT_MEMORY_FILE_SET.has(path);
+}
+
+async function isMemoryFileMissing(
+  supabase: SupabaseClient,
+  clientId: string,
+  path: string,
+): Promise<boolean> {
+  if (isRootMemoryPath(path)) {
+    const result = await readMemoryRootFile(supabase, clientId, path);
+    return result.kind === "missing";
+  }
+
+  const { data, error } = await supabase.storage
+    .from(MEMORY_BUCKET_ID)
+    .download(`${clientId}/${path}`);
+
+  if (error) {
+    if (isMissingStorageObjectError(error)) {
+      return true;
+    }
+
+    throw new Error(`Failed to read memory file "${path}": ${getStorageErrorMessage(error)}`);
+  }
+
+  return !data;
+}
 
 async function uploadMissingFile(
   supabase: SupabaseClient,
@@ -32,10 +76,10 @@ async function uploadMissingFile(
   file: MemoryFileTemplate,
 ): Promise<void> {
   const { error } = await supabase.storage
-    .from(BUCKET_ID)
+    .from(MEMORY_BUCKET_ID)
     .upload(`${clientId}/${file.path}`, file.content, {
       upsert: false,
-      contentType: TEXT_CONTENT_TYPE,
+      contentType: MEMORY_TEXT_CONTENT_TYPE,
     });
 
   if (error && !isStorageConflictError(error)) {
@@ -56,8 +100,8 @@ export async function bootstrapMemoryFiles(
   const missingFiles: MemoryFileTemplate[] = [];
 
   for (const file of REQUIRED_MEMORY_FILES) {
-    const result = await readMemoryRootFile(supabase, clientId, file.path);
-    if (result.kind === "missing") {
+    const isMissing = await isMemoryFileMissing(supabase, clientId, file.path);
+    if (isMissing) {
       missingFiles.push(file);
     } // Existing files are left untouched.
   }

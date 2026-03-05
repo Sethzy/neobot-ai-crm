@@ -72,3 +72,45 @@ describe("SYSTEM_PROMPT", () => {
     expect(lower).toContain("batch-creating");
   });
 });
+
+describe("SYSTEM_PROMPT memory instructions", () => {
+  it("contains a memory-system section", () => {
+    expect(SYSTEM_PROMPT).toContain("<memory-system>");
+    expect(SYSTEM_PROMPT).toContain("</memory-system>");
+  });
+
+  it("documents all root memory files", () => {
+    expect(SYSTEM_PROMPT).toContain("SOUL.md");
+    expect(SYSTEM_PROMPT).toContain("USER.md");
+    expect(SYSTEM_PROMPT).toContain("MEMORY.md");
+  });
+
+  it("documents all topic files", () => {
+    expect(SYSTEM_PROMPT).toContain("memory/preferences.md");
+    expect(SYSTEM_PROMPT).toContain("memory/growth-plan.md");
+    expect(SYSTEM_PROMPT).toContain("memory/patterns.md");
+    expect(SYSTEM_PROMPT).toContain("memory/key-decisions.md");
+  });
+
+  it("includes auto-write rules", () => {
+    expect(SYSTEM_PROMPT).toContain("lasting preference");
+    expect(SYSTEM_PROMPT).toContain("3+");
+  });
+
+  it("includes what not to save guidance", () => {
+    expect(SYSTEM_PROMPT.toLowerCase()).toContain("do not save");
+    expect(SYSTEM_PROMPT).toContain("already in CRM");
+  });
+
+  it("mentions SOUL.md is read-only for the agent", () => {
+    expect(SYSTEM_PROMPT).toMatch(/SOUL\.md.*read-only/is);
+  });
+
+  it("mentions the 200-line cap on MEMORY.md", () => {
+    expect(SYSTEM_PROMPT).toContain("200");
+  });
+
+  it("documents how to discover topic files", () => {
+    expect(SYSTEM_PROMPT).toContain('read_file("memory/")');
+  });
+});

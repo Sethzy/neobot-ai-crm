@@ -4,7 +4,13 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { readMemoryRootFile } from "./storage";
+import {
+  MEMORY_BUCKET_ID,
+  MEMORY_TOPIC_DIRECTORY,
+  ROOT_MEMORY_FILE_PATHS,
+  ROOT_MEMORY_FILE_SET,
+} from "./constants";
+import { getStorageErrorMessage, readMemoryRootFile } from "./storage";
 
 const MEMORY_LINE_CAP = 200;
 
@@ -15,6 +21,16 @@ export interface MemoryContext {
   user: string;
   /** MEMORY.md content (capped to first 200 lines). */
   memory: string;
+}
+
+/** Metadata about a single memory file in storage. */
+export interface MemoryFileInfo {
+  /** Display name (e.g. "SOUL.md" or "preferences.md"). */
+  name: string;
+  /** Workspace-relative path (e.g. "SOUL.md" or "memory/preferences.md"). */
+  path: string;
+  /** ISO timestamp of last modification, or null if unavailable. */
+  updatedAt: string | null;
 }
 
 function truncateToLineCount(content: string, maxLines: number): string {
@@ -47,4 +63,63 @@ export async function loadMemoryContext(
       MEMORY_LINE_CAP,
     ),
   };
+}
+
+/**
+ * Lists memory files for one client.
+ *
+ * Includes only root memory files (SOUL/USER/MEMORY) and one-level topic
+ * files under memory/.
+ */
+export async function listMemoryFiles(
+  supabase: SupabaseClient,
+  clientId: string,
+): Promise<MemoryFileInfo[]> {
+  const bucket = supabase.storage.from(MEMORY_BUCKET_ID);
+
+  const { data: rootData, error: rootError } = await bucket.list(clientId, {
+    sortBy: { column: "name", order: "asc" },
+  });
+
+  if (rootError) {
+    throw new Error(`Failed to list root files: ${getStorageErrorMessage(rootError)}`);
+  }
+
+  const rootEntries = new Map(
+    (rootData ?? [])
+      .filter((item) => item.id !== null && ROOT_MEMORY_FILE_SET.has(item.name))
+      .map((item) => [item.name, item] as const),
+  );
+
+  const rootFiles: MemoryFileInfo[] = ROOT_MEMORY_FILE_PATHS
+    .filter((path) => rootEntries.has(path))
+    .map((path) => {
+      const entry = rootEntries.get(path)!;
+
+      return {
+        name: path,
+        path,
+        updatedAt: entry.updated_at ?? null,
+      };
+    });
+
+  const { data: topicData, error: topicError } = await bucket.list(
+    `${clientId}/${MEMORY_TOPIC_DIRECTORY}`,
+    { sortBy: { column: "name", order: "asc" } },
+  );
+
+  if (topicError) {
+    throw new Error(`Failed to list memory directory: ${getStorageErrorMessage(topicError)}`);
+  }
+
+  const topicFiles: MemoryFileInfo[] = (topicData ?? [])
+    .filter((item) => item.id !== null && item.name.toLowerCase().endsWith(".md"))
+    .map((item) => ({
+      name: item.name,
+      path: `${MEMORY_TOPIC_DIRECTORY}/${item.name}`,
+      updatedAt: item.updated_at ?? null,
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+
+  return [...rootFiles, ...topicFiles];
 }

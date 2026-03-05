@@ -4,9 +4,12 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-const MEMORY_BUCKET_ID = "agent-files";
+import {
+  MEMORY_BUCKET_ID,
+  type MemoryRootPath,
+} from "./constants";
 
-export type MemoryRootPath = "SOUL.md" | "USER.md" | "MEMORY.md";
+export type { MemoryRootPath };
 
 export type MemoryFileReadResult =
   | { kind: "missing" }
@@ -86,9 +89,9 @@ function getStoragePath(clientId: string, path: MemoryRootPath): string {
   return `${clientId}/${path}`;
 }
 
-async function decodeStoragePayload(
+export async function decodeStorageTextPayload(
   payload: unknown,
-  path: MemoryRootPath,
+  path: string,
 ): Promise<string> {
   if (typeof payload === "string") {
     return payload;
@@ -141,6 +144,6 @@ export async function readMemoryRootFile(
     return { kind: "missing" };
   }
 
-  const content = await decodeStoragePayload(data, path);
+  const content = await decodeStorageTextPayload(data, path);
   return { kind: "found", content };
 }

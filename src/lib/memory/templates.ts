@@ -39,3 +39,35 @@ export const DEFAULT_MEMORY_MD = `# Working Memory
 <!-- The agent writes short working notes here. -->
 <!-- Only the first 200 lines are loaded into each run context. -->
 `;
+
+/**
+ * Default memory/preferences.md content.
+ */
+export const DEFAULT_PREFERENCES_MD = `# Preferences
+
+Working style, communication preferences, and tool preferences.
+`;
+
+/**
+ * Default memory/growth-plan.md content.
+ */
+export const DEFAULT_GROWTH_PLAN_MD = `# Growth Plan
+
+Skill-building roadmap.
+`;
+
+/**
+ * Default memory/patterns.md content.
+ */
+export const DEFAULT_PATTERNS_MD = `# Patterns
+
+Recurring behaviors with evidence dates.
+`;
+
+/**
+ * Default memory/key-decisions.md content.
+ */
+export const DEFAULT_KEY_DECISIONS_MD = `# Key Decisions
+
+Significant decisions with reasoning.
+`;
