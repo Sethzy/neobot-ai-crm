@@ -6,9 +6,32 @@ import { generateText } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
+import { COMPACTION_MODEL, gateway } from "@/lib/ai/gateway";
 import { getTextFromParts } from "@/lib/runner/message-utils";
 import type { Database, Json } from "@/types/database";
+
+/**
+ * Base compaction prompt copied from Codex's local compaction flow.
+ * It frames the summarization step as a handoff checkpoint for a future run.
+ */
+export const SUMMARIZATION_PROMPT = [
+  "You are performing a CONTEXT CHECKPOINT COMPACTION. Create a handoff summary for another LLM that will resume the task.",
+  "",
+  "Include:",
+  "- Current progress and key decisions made",
+  "- Important context, constraints, or user preferences",
+  "- What remains to be done (clear next steps)",
+  "- Any critical data, examples, or references needed to continue",
+  "",
+  "Be concise, structured, and focused on helping the next LLM seamlessly continue the work.",
+].join("\n");
+
+/**
+ * Prefix prepended to compacted summaries so later runs can recognize the
+ * stored text as a prior-model handoff instead of an ordinary user message.
+ */
+export const SUMMARY_PREFIX =
+  "Another language model started to solve this problem and produced a summary of its thinking process. You also have access to the state of the tools that were used by that language model. Use this to build on the work that has already been done and avoid duplicating work. Here is the summary produced by the other language model, use the information in this summary to assist with your own analysis:";
 
 /** Tool results at or above this persisted size are stored as artifacts instead. */
 export const ARTIFACT_SIZE_THRESHOLD_BYTES = 5_000;
@@ -80,6 +103,31 @@ interface CompactionMessageRow {
 }
 
 /**
+ * Returns true when the provided text matches the persisted handoff-summary format.
+ */
+export function isSummaryMessage(message: string): boolean {
+  return message.startsWith(`${SUMMARY_PREFIX}\n`);
+}
+
+function addSummaryPrefix(message: string): string {
+  const trimmedMessage = message.trim();
+
+  if (trimmedMessage.length === 0) {
+    return "";
+  }
+
+  return `${SUMMARY_PREFIX}\n${trimmedMessage}`;
+}
+
+function stripSummaryPrefix(message: string): string {
+  if (!isSummaryMessage(message)) {
+    return message;
+  }
+
+  return message.slice(`${SUMMARY_PREFIX}\n`.length).trim();
+}
+
+/**
  * Loads the current thread-level compaction state, if one exists.
  */
 export async function fetchThreadCompactionState(
@@ -147,9 +195,10 @@ export async function persistThreadCompactionState(
 
 function buildCompactionPrompt(input: GenerateCompactionSummaryInput): string {
   const sections: string[] = [];
+  const existingSummary = stripSummaryPrefix(input.existingSummary?.trim() ?? "");
 
-  if (input.existingSummary && input.existingSummary.trim().length > 0) {
-    sections.push(["<existing-summary>", input.existingSummary.trim(), "</existing-summary>"].join("\n"));
+  if (existingSummary.length > 0) {
+    sections.push(["<existing-summary>", existingSummary, "</existing-summary>"].join("\n"));
   }
 
   const transcript = input.messages
@@ -194,20 +243,20 @@ export async function generateCompactionSummary(
     return {
       summaryText: "",
       tokensUsed: 0,
-      model: TIER_1_MODEL,
+      model: COMPACTION_MODEL,
     };
   }
 
   const result = await generateText({
-    model: gateway(TIER_1_MODEL),
-    system: CRM_COMPACTION_INSTRUCTIONS,
+    model: gateway(COMPACTION_MODEL),
+    system: `${SUMMARIZATION_PROMPT}\n\n${CRM_COMPACTION_INSTRUCTIONS}`,
     prompt,
   });
 
   return {
     summaryText: result.text,
     tokensUsed: result.usage?.totalTokens ?? 0,
-    model: TIER_1_MODEL,
+    model: COMPACTION_MODEL,
   };
 }
 
@@ -272,10 +321,12 @@ export async function maybeCompactThread(
     return false;
   }
 
+  const prefixedSummary = addSummaryPrefix(summary.summaryText);
+
   await persistThreadCompactionState(supabase, {
     threadId,
     clientId,
-    summaryText: summary.summaryText,
+    summaryText: prefixedSummary,
     compactedThroughAt: lastCompactedRow.created_at,
     compactedThroughMessageId: lastCompactedRow.message_id,
     model: summary.model,

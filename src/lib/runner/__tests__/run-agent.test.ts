@@ -225,27 +225,10 @@ describe("runAgent", () => {
     expect(streamCall.providerOptions).toBeUndefined();
   });
 
-  it("buildPrepareStep returns Anthropic context-management edits for Anthropic models", () => {
+  it("buildPrepareStep no longer injects Anthropic-native compaction edits", () => {
     const prepareStep = buildPrepareStep("anthropic/claude-sonnet-4-6");
-    const result = prepareStep({ stepNumber: 0 } as never);
-
-    expect(result).toEqual({
-      providerOptions: {
-        anthropic: {
-          contextManagement: {
-            edits: [
-              {
-                type: "compact_20260112",
-                trigger: { type: "input_tokens", value: 50_000 },
-                instructions:
-                  "Preserve deal names, contact details, task statuses, and decisions made.",
-                pauseAfterCompaction: false,
-              },
-            ],
-          },
-        },
-      },
-    });
+    expect(prepareStep({ stepNumber: 0 } as never)).toBeUndefined();
+    expect(prepareStep({ stepNumber: 8 } as never)).toEqual({ activeTools: [] });
   });
 
   it("buildPrepareStep keeps the Gemini path unchanged except for the final-step tool cutoff", () => {

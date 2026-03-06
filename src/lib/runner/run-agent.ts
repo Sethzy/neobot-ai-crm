@@ -7,7 +7,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
 import { createMessages } from "@/lib/chat/messages";
-import { CRM_COMPACTION_INSTRUCTIONS } from "@/lib/runner/compaction";
 import { assembleContext } from "@/lib/runner/context";
 import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
 import { finalizeRun } from "@/lib/runner/run-persistence";
@@ -34,10 +33,6 @@ export type RunAgentResult =
   | { status: "streaming"; streamResult: StreamResult }
   | { status: "queued" };
 
-function isAnthropicModel(modelId: string): boolean {
-  return /^anthropic[/:]/.test(modelId);
-}
-
 /**
  * Creates the full tool registry for one runner invocation.
  */
@@ -63,33 +58,14 @@ export function createRunnerTools(
 
 /**
  * Builds per-step overrides for the active model.
- * Anthropic models receive native context-management compaction hints.
+ * The only current override is disabling tools on the final allowed step.
  */
-export function buildPrepareStep(modelId: string, maxSteps = MAX_STEPS_TIER_1) {
-  const shouldUseAnthropicCompaction = isAnthropicModel(modelId);
-
+export function buildPrepareStep(_modelId: string, maxSteps = MAX_STEPS_TIER_1) {
   return ({ stepNumber }: { stepNumber: number }) => {
     const result: Record<string, unknown> = {};
 
     if (stepNumber >= maxSteps - 1) {
       result.activeTools = [];
-    }
-
-    if (shouldUseAnthropicCompaction) {
-      result.providerOptions = {
-        anthropic: {
-          contextManagement: {
-            edits: [
-              {
-                type: "compact_20260112",
-                trigger: { type: "input_tokens", value: 50_000 },
-                instructions: CRM_COMPACTION_INSTRUCTIONS,
-                pauseAfterCompaction: false,
-              },
-            ],
-          },
-        },
-      };
     }
 
     return Object.keys(result).length > 0 ? result : undefined;

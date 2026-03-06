@@ -21,6 +21,7 @@ vi.mock("ai", () => ({
 vi.mock("@/lib/ai/gateway", () => ({
   gateway: mockGateway,
   TIER_1_MODEL: "google/gemini-3-flash",
+  COMPACTION_MODEL: "google/gemini-2.5-flash-lite",
 }));
 
 import {
@@ -28,8 +29,11 @@ import {
   COMPACTION_KEEP_RECENT,
   COMPACTION_MESSAGE_THRESHOLD,
   CRM_COMPACTION_INSTRUCTIONS,
+  SUMMARIZATION_PROMPT,
+  SUMMARY_PREFIX,
   fetchThreadCompactionState,
   generateCompactionSummary,
+  isSummaryMessage,
   maybeCompactThread,
   persistThreadCompactionState,
   threadCompactionStateSchema,
@@ -166,6 +170,39 @@ describe("compaction constants", () => {
     expect(CRM_COMPACTION_INSTRUCTIONS).toContain("contact");
     expect(CRM_COMPACTION_INSTRUCTIONS).toContain("task statuses");
     expect(CRM_COMPACTION_INSTRUCTIONS.trim().length).toBeGreaterThan(0);
+  });
+});
+
+describe("SUMMARIZATION_PROMPT", () => {
+  it("contains the Codex checkpoint-compaction framing", () => {
+    expect(SUMMARIZATION_PROMPT).toContain("CONTEXT CHECKPOINT COMPACTION");
+    expect(SUMMARIZATION_PROMPT).toContain("handoff summary");
+    expect(SUMMARIZATION_PROMPT).toContain("Current progress");
+  });
+});
+
+describe("SUMMARY_PREFIX", () => {
+  it("contains the Codex handoff framing", () => {
+    expect(SUMMARY_PREFIX).toContain("Another language model");
+    expect(SUMMARY_PREFIX).toContain("avoid duplicating work");
+  });
+});
+
+describe("isSummaryMessage", () => {
+  it("returns true for summaries beginning with the prefix", () => {
+    expect(isSummaryMessage(`${SUMMARY_PREFIX}\nDeal X is in follow-up.`)).toBe(true);
+  });
+
+  it("returns false for normal user text", () => {
+    expect(isSummaryMessage("Call John Tan tomorrow")).toBe(false);
+  });
+
+  it("returns false for partial prefix matches", () => {
+    expect(isSummaryMessage("Another language model started")).toBe(false);
+  });
+
+  it("returns false for an empty string", () => {
+    expect(isSummaryMessage("")).toBe(false);
   });
 });
 
@@ -343,12 +380,12 @@ describe("generateCompactionSummary", () => {
     expect(result).toEqual({
       summaryText: "",
       tokensUsed: 0,
-      model: "google/gemini-3-flash",
+      model: "google/gemini-2.5-flash-lite",
     });
     expect(mockGenerateText).not.toHaveBeenCalled();
   });
 
-  it("calls generateText with CRM instructions and prior summary context", async () => {
+  it("calls generateText with COMPACTION_MODEL and combined Codex plus CRM instructions", async () => {
     mockGenerateText.mockResolvedValue({
       text: "Compacted summary",
       usage: { totalTokens: 222 },
@@ -365,12 +402,15 @@ describe("generateCompactionSummary", () => {
     expect(result).toEqual({
       summaryText: "Compacted summary",
       tokensUsed: 222,
-      model: "google/gemini-3-flash",
+      model: "google/gemini-2.5-flash-lite",
     });
-    expect(mockGateway).toHaveBeenCalledWith("google/gemini-3-flash");
+    expect(mockGateway).toHaveBeenCalledWith("google/gemini-2.5-flash-lite");
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
       model: "mock-model",
-      system: CRM_COMPACTION_INSTRUCTIONS,
+      system: expect.stringContaining("CONTEXT CHECKPOINT COMPACTION"),
+    }));
+    expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
+      system: expect.stringContaining(CRM_COMPACTION_INSTRUCTIONS),
       prompt: expect.stringContaining("Earlier summary block"),
     }));
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
@@ -428,12 +468,12 @@ describe("maybeCompactThread", () => {
       updateRow: {
         thread_id: createUuid(90),
         client_id: createUuid(91),
-        compaction_summary: "Compacted summary",
+        compaction_summary: `${SUMMARY_PREFIX}\nCompacted summary`,
         compaction_compacted_through_at:
           messageRows[COMPACTION_MESSAGE_THRESHOLD - COMPACTION_KEEP_RECENT - 1]?.created_at,
         compaction_compacted_through_message_id:
           messageRows[COMPACTION_MESSAGE_THRESHOLD - COMPACTION_KEEP_RECENT - 1]?.message_id,
-        compaction_summary_model: "google/gemini-3-flash",
+        compaction_summary_model: "google/gemini-2.5-flash-lite",
         compaction_summary_tokens_used: 456,
       },
     });
@@ -456,6 +496,7 @@ describe("maybeCompactThread", () => {
         {
           method: "update",
           args: [expect.objectContaining({
+            compaction_summary: `${SUMMARY_PREFIX}\nCompacted summary`,
             compaction_compacted_through_message_id: createUuid(26),
           })],
         },
@@ -463,7 +504,7 @@ describe("maybeCompactThread", () => {
     );
   });
 
-  it("rolls forward an existing summary and excludes the exact boundary message", async () => {
+  it("strips the stored prefix before re-summarizing and excludes the exact boundary message", async () => {
     mockGenerateText.mockResolvedValue({
       text: "Updated rolled-forward summary",
       usage: { totalTokens: 222 },
@@ -474,20 +515,20 @@ describe("maybeCompactThread", () => {
       threadRow: {
         thread_id: createUuid(90),
         client_id: createUuid(91),
-        compaction_summary: "Earlier summary block",
+        compaction_summary: `${SUMMARY_PREFIX}\nEarlier summary block`,
         compaction_compacted_through_at: "2026-03-06T02:00:00.000Z",
         compaction_compacted_through_message_id: boundaryMessageId,
-        compaction_summary_model: "google/gemini-3-flash",
+        compaction_summary_model: "google/gemini-2.5-flash-lite",
         compaction_summary_tokens_used: 100,
       },
       messageRows,
       updateRow: {
         thread_id: createUuid(90),
         client_id: createUuid(91),
-        compaction_summary: "Updated rolled-forward summary",
+        compaction_summary: `${SUMMARY_PREFIX}\nUpdated rolled-forward summary`,
         compaction_compacted_through_at: "2026-03-06T02:00:00.000Z",
         compaction_compacted_through_message_id: createUuid(46),
-        compaction_summary_model: "google/gemini-3-flash",
+        compaction_summary_model: "google/gemini-2.5-flash-lite",
         compaction_summary_tokens_used: 222,
       },
     });
@@ -505,6 +546,9 @@ describe("maybeCompactThread", () => {
     );
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
       prompt: expect.stringContaining("Earlier summary block"),
+    }));
+    expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
+      prompt: expect.not.stringContaining(`${SUMMARY_PREFIX}\nEarlier summary block`),
     }));
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
       prompt: expect.not.stringContaining("Message 20"),

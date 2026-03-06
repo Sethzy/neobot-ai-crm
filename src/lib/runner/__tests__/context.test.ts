@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
 import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
+import { SUMMARY_PREFIX } from "../compaction";
 import { assembleContext } from "../context";
 
 const {
@@ -135,10 +136,10 @@ describe("assembleContext", () => {
     mockFetchThreadCompactionState.mockResolvedValueOnce({
       thread_id: "thread-1",
       client_id: "client-123",
-      compaction_summary: "Older thread summary",
+      compaction_summary: `${SUMMARY_PREFIX}\nOlder thread summary`,
       compaction_compacted_through_at: "2026-03-06T02:00:00.000Z",
       compaction_compacted_through_message_id: "message-2",
-      compaction_summary_model: "google/gemini-3-flash",
+      compaction_summary_model: "google/gemini-2.5-flash-lite",
       compaction_summary_tokens_used: 99,
     });
     const supabase = createMockSupabaseClient({
@@ -158,6 +159,7 @@ describe("assembleContext", () => {
 
     expect(compactionIndex).toBeGreaterThan(memoryIndex);
     expect(compactionIndex).toBeLessThan(reminderIndex);
+    expect(result.system).toContain(SUMMARY_PREFIX);
     expect(result.system).toContain("Older thread summary");
   });
 
@@ -310,10 +312,10 @@ describe("assembleContext", () => {
     mockFetchThreadCompactionState.mockResolvedValueOnce({
       thread_id: "thread-1",
       client_id: "client-123",
-      compaction_summary: "Older thread summary",
+      compaction_summary: `${SUMMARY_PREFIX}\nOlder thread summary`,
       compaction_compacted_through_at: "2026-03-06T02:00:00.000Z",
       compaction_compacted_through_message_id: "message-2",
-      compaction_summary_model: "google/gemini-3-flash",
+      compaction_summary_model: "google/gemini-2.5-flash-lite",
       compaction_summary_tokens_used: 99,
     });
     const supabase = createMockSupabaseClient({
@@ -391,10 +393,10 @@ describe("assembleContext", () => {
     mockFetchThreadCompactionState.mockResolvedValueOnce({
       thread_id: "thread-1",
       client_id: "client-123",
-      compaction_summary: "Older thread summary",
+      compaction_summary: `${SUMMARY_PREFIX}\nOlder thread summary`,
       compaction_compacted_through_at: "2026-03-06T02:00:00.000Z",
       compaction_compacted_through_message_id: "message-2",
-      compaction_summary_model: "google/gemini-3-flash",
+      compaction_summary_model: "google/gemini-2.5-flash-lite",
       compaction_summary_tokens_used: 99,
     });
     const supabase = createMockSupabaseClient({
