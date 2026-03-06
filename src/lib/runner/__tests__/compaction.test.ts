@@ -160,8 +160,9 @@ describe("compaction constants", () => {
     expect(Number.isInteger(ARTIFACT_SIZE_THRESHOLD_BYTES)).toBe(true);
     expect(ARTIFACT_SIZE_THRESHOLD_BYTES).toBeGreaterThan(0);
     expect(Number.isInteger(COMPACTION_KEEP_RECENT)).toBe(true);
-    expect(COMPACTION_KEEP_RECENT).toBeGreaterThan(0);
+    expect(COMPACTION_KEEP_RECENT).toBe(50);
     expect(Number.isInteger(COMPACTION_MESSAGE_THRESHOLD)).toBe(true);
+    expect(COMPACTION_MESSAGE_THRESHOLD).toBe(200);
     expect(COMPACTION_MESSAGE_THRESHOLD).toBeGreaterThan(COMPACTION_KEEP_RECENT);
   });
 
@@ -454,6 +455,7 @@ describe("maybeCompactThread", () => {
       usage: { totalTokens: 456 },
     });
     const messageRows = createMessageRows(COMPACTION_MESSAGE_THRESHOLD + 1);
+    const lastCompactedMessageNumber = COMPACTION_MESSAGE_THRESHOLD + 1 - COMPACTION_KEEP_RECENT;
     const supabase = createCompactionSupabaseMock({
       threadRow: {
         thread_id: createUuid(90),
@@ -470,9 +472,9 @@ describe("maybeCompactThread", () => {
         client_id: createUuid(91),
         compaction_summary: `${SUMMARY_PREFIX}\nCompacted summary`,
         compaction_compacted_through_at:
-          messageRows[COMPACTION_MESSAGE_THRESHOLD - COMPACTION_KEEP_RECENT - 1]?.created_at,
+          messageRows[lastCompactedMessageNumber - 1]?.created_at,
         compaction_compacted_through_message_id:
-          messageRows[COMPACTION_MESSAGE_THRESHOLD - COMPACTION_KEEP_RECENT - 1]?.message_id,
+          messageRows[lastCompactedMessageNumber - 1]?.message_id,
         compaction_summary_model: "google/gemini-2.5-flash-lite",
         compaction_summary_tokens_used: 456,
       },
@@ -486,10 +488,10 @@ describe("maybeCompactThread", () => {
 
     expect(result).toBe(true);
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-      prompt: expect.stringContaining("Message 26"),
+      prompt: expect.stringContaining(`Message ${lastCompactedMessageNumber}`),
     }));
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-      prompt: expect.not.stringContaining("Message 27"),
+      prompt: expect.not.stringContaining(`Message ${lastCompactedMessageNumber + 1}`),
     }));
     expect(supabase.calls.methods).toEqual(
       expect.arrayContaining([
@@ -497,7 +499,7 @@ describe("maybeCompactThread", () => {
           method: "update",
           args: [expect.objectContaining({
             compaction_summary: `${SUMMARY_PREFIX}\nCompacted summary`,
-            compaction_compacted_through_message_id: createUuid(26),
+            compaction_compacted_through_message_id: createUuid(lastCompactedMessageNumber),
           })],
         },
       ]),
@@ -510,7 +512,8 @@ describe("maybeCompactThread", () => {
       usage: { totalTokens: 222 },
     });
     const boundaryMessageId = createUuid(20);
-    const messageRows = createMessageRows(61, { sameTimestampFrom: 20 });
+    const messageRows = createMessageRows(230, { sameTimestampFrom: 20 });
+    const lastCompactedMessageNumber = 230 - COMPACTION_KEEP_RECENT;
     const supabase = createCompactionSupabaseMock({
       threadRow: {
         thread_id: createUuid(90),
@@ -527,7 +530,7 @@ describe("maybeCompactThread", () => {
         client_id: createUuid(91),
         compaction_summary: `${SUMMARY_PREFIX}\nUpdated rolled-forward summary`,
         compaction_compacted_through_at: "2026-03-06T02:00:00.000Z",
-        compaction_compacted_through_message_id: createUuid(46),
+        compaction_compacted_through_message_id: createUuid(lastCompactedMessageNumber),
         compaction_summary_model: "google/gemini-2.5-flash-lite",
         compaction_summary_tokens_used: 222,
       },
@@ -556,5 +559,15 @@ describe("maybeCompactThread", () => {
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
       prompt: expect.stringContaining("Message 21"),
     }));
+    expect(supabase.calls.methods).toEqual(
+      expect.arrayContaining([
+        {
+          method: "update",
+          args: [expect.objectContaining({
+            compaction_compacted_through_message_id: createUuid(lastCompactedMessageNumber),
+          })],
+        },
+      ]),
+    );
   });
 });

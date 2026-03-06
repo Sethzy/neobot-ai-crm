@@ -287,7 +287,7 @@ describe("assembleContext", () => {
     expect(result.system).toContain("Custom autopilot instructions");
   });
 
-  it("caps history query to the latest 50 messages", async () => {
+  it("caps history query to the latest 240 messages", async () => {
     const supabase = createMockSupabaseClient({
       selectResult: { data: [], error: null },
     });
@@ -303,7 +303,7 @@ describe("assembleContext", () => {
       expect.arrayContaining([
         { method: "order", args: ["created_at", { ascending: false }] },
         { method: "order", args: ["message_id", { ascending: false }] },
-        { method: "limit", args: [50] },
+        { method: "limit", args: [240] },
       ]),
     );
   });
@@ -336,9 +336,9 @@ describe("assembleContext", () => {
     );
   });
 
-  it("enforces a maximum history window of 50 messages even if more rows are returned", async () => {
-    const historyRows = Array.from({ length: 60 }, (_, index) => {
-      const newestFirstIndex = 60 - index;
+  it("enforces a maximum history window of 240 messages even if more rows are returned", async () => {
+    const historyRows = Array.from({ length: 250 }, (_, index) => {
+      const newestFirstIndex = 250 - index;
       return {
         role: newestFirstIndex % 2 === 0 ? "assistant" : "user",
         content: `Message ${newestFirstIndex}`,
@@ -360,9 +360,9 @@ describe("assembleContext", () => {
       clientId: "client-123",
     });
 
-    expect(result.messages).toHaveLength(50);
+    expect(result.messages).toHaveLength(240);
     expect(result.messages[0]).toEqual({ role: "user", content: "Message 11" });
-    expect(result.messages[49]).toEqual({ role: "assistant", content: "Message 60" });
+    expect(result.messages[239]).toEqual({ role: "assistant", content: "Message 250" });
   });
 
   it("includes thread history before the current message", async () => {

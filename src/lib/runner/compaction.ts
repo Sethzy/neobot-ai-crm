@@ -37,10 +37,10 @@ export const SUMMARY_PREFIX =
 export const ARTIFACT_SIZE_THRESHOLD_BYTES = 5_000;
 
 /** Uncompacted message windows above this count should be summarized. */
-export const COMPACTION_MESSAGE_THRESHOLD = 40;
+export const COMPACTION_MESSAGE_THRESHOLD = 200;
 
 /** The newest messages that always remain verbatim after each compaction pass. */
-export const COMPACTION_KEEP_RECENT = 15;
+export const COMPACTION_KEEP_RECENT = 50;
 
 /**
  * CRM-tuned instructions for summary generation.
