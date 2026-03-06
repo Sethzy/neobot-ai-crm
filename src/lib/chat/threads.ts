@@ -10,6 +10,35 @@ type ChatSupabaseClient = SupabaseClient<Database>;
 type ThreadRow = Database["public"]["Tables"]["conversation_threads"]["Row"];
 
 /**
+ * Prevents mutations against pinned system threads before issuing the write.
+ * This keeps the UI and runner aligned with the autopilot-thread invariant even
+ * if a caller bypasses the sidebar affordances.
+ */
+async function ensureThreadIsMutable(
+  supabase: ChatSupabaseClient,
+  threadId: string,
+  action: "archived" | "renamed",
+): Promise<void> {
+  const { data, error } = await supabase
+    .from("conversation_threads")
+    .select("thread_id, is_pinned")
+    .eq("thread_id", threadId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    throw new Error("Thread not found");
+  }
+
+  if (data.is_pinned) {
+    throw new Error(`Pinned threads cannot be ${action}`);
+  }
+}
+
+/**
  * Lists threads for a client sorted by most recently updated first.
  */
 export async function listThreads(supabase: ChatSupabaseClient, clientId: string): Promise<ThreadRow[]> {
@@ -72,6 +101,8 @@ export async function archiveThread(
   supabase: ChatSupabaseClient,
   threadId: string,
 ): Promise<ThreadRow> {
+  await ensureThreadIsMutable(supabase, threadId, "archived");
+
   const { data, error } = await supabase
     .from("conversation_threads")
     .update({ is_archived: true })
@@ -94,6 +125,8 @@ export async function updateThreadTitle(
   threadId: string,
   title: string,
 ): Promise<ThreadRow> {
+  await ensureThreadIsMutable(supabase, threadId, "renamed");
+
   const { data, error } = await supabase
     .from("conversation_threads")
     .update({ title })

@@ -49,7 +49,7 @@ vi.mock("@/hooks/use-mobile", () => ({
 
 vi.mock("@/contexts/thread-context", () => ({
   useThreads: () => ({
-    threads: [{ id: "thread-1", title: "Test Chat", createdAt: new Date() }],
+    threads: [{ id: "thread-1", title: "Test Chat", isPinned: false, createdAt: new Date() }],
     updateThreadTitle: mockUpdateThreadTitle,
     archiveThread: mockArchiveThread,
   }),

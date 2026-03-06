@@ -46,6 +46,7 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
       threadRows.map((thread) => ({
         id: thread.thread_id,
         title: thread.title ?? "New Chat",
+        isPinned: thread.is_pinned,
         createdAt: new Date(thread.created_at),
       })),
     [threadRows],

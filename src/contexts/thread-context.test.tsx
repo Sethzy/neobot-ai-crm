@@ -73,6 +73,7 @@ describe("thread context", () => {
     expect(result.current.threads[0]).toMatchObject({
       id: "thread-1",
       title: "First chat",
+      isPinned: false,
     });
   });
 

@@ -6,7 +6,13 @@ import { describe, expect, test } from "vitest";
 
 import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
-import { createThread, getThread, listThreads, updateThreadTitle } from "../threads";
+import {
+  archiveThread,
+  createThread,
+  getThread,
+  listThreads,
+  updateThreadTitle,
+} from "../threads";
 
 function findMethodCall(
   client: ReturnType<typeof createMockSupabaseClient>,
@@ -112,10 +118,66 @@ describe("updateThreadTitle", () => {
       updated_at: "2026-03-01T02:00:00Z",
     };
     const client = createMockSupabaseClient({
+      selectResult: {
+        data: [{ thread_id: "thread-1", is_pinned: false }],
+        error: null,
+      },
       updateResult: { data: [row], error: null },
     });
 
     await expect(updateThreadTitle(client as never, "thread-1", "Renamed")).resolves.toEqual(row);
     expect(findMethodCall(client, "update")?.args).toEqual([{ title: "Renamed" }]);
+    expect(client.calls.from).toEqual(["conversation_threads", "conversation_threads"]);
+  });
+
+  test("rejects renaming pinned threads", async () => {
+    const client = createMockSupabaseClient({
+      selectResult: {
+        data: [{ thread_id: "thread-1", is_pinned: true }],
+        error: null,
+      },
+    });
+
+    await expect(updateThreadTitle(client as never, "thread-1", "Renamed")).rejects.toThrow(
+      "Pinned threads cannot be renamed",
+    );
+  });
+});
+
+describe("archiveThread", () => {
+  test("archives a non-pinned thread", async () => {
+    const row = {
+      thread_id: "thread-1",
+      client_id: "client-1",
+      title: "Chat",
+      is_pinned: false,
+      is_archived: true,
+      created_at: "2026-03-01T00:00:00Z",
+      updated_at: "2026-03-01T02:00:00Z",
+    };
+    const client = createMockSupabaseClient({
+      selectResult: {
+        data: [{ thread_id: "thread-1", is_pinned: false }],
+        error: null,
+      },
+      updateResult: { data: [row], error: null },
+    });
+
+    await expect(archiveThread(client as never, "thread-1")).resolves.toEqual(row);
+    expect(findMethodCall(client, "update")?.args).toEqual([{ is_archived: true }]);
+    expect(client.calls.from).toEqual(["conversation_threads", "conversation_threads"]);
+  });
+
+  test("rejects archiving pinned threads", async () => {
+    const client = createMockSupabaseClient({
+      selectResult: {
+        data: [{ thread_id: "thread-1", is_pinned: true }],
+        error: null,
+      },
+    });
+
+    await expect(archiveThread(client as never, "thread-1")).rejects.toThrow(
+      "Pinned threads cannot be archived",
+    );
   });
 });

@@ -19,7 +19,7 @@ describe("createSendMessageTool", () => {
     expect(tools.send_message).toHaveProperty("inputSchema");
   });
 
-  test("logs the attempted delivery and returns an explicit non-delivery result", async () => {
+  test("logs only redacted delivery metadata and returns an explicit non-delivery result", async () => {
     const tools = createSendMessageTool();
     const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
@@ -32,9 +32,16 @@ describe("createSendMessageTool", () => {
 
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining("[send_message]"),
-      expect.objectContaining({
+      {
         to: ["owner"],
         subject: "Autopilot update",
+        attachmentCount: 1,
+      },
+    );
+    expect(consoleSpy).not.toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        body: expect.any(String),
       }),
     );
     expect(result).toEqual({

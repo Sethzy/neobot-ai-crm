@@ -428,4 +428,55 @@ describe("runScan", () => {
     expect(result.dispatched).toBe(0);
     expect(result.errors).toEqual([]);
   });
+
+  it("advances quiet-hours-skipped pulses until the next fire is after now", async () => {
+    const trigger = makeTriggerRow({
+      trigger_type: "pulse",
+      cron_expression: "0 */6 * * *",
+      next_fire_at: "2026-03-06T00:00:00.000Z",
+    });
+
+    mockSupabase.autopilotConfigSelect.maybeSingle.mockResolvedValueOnce({
+      data: {
+        quiet_hours_start: "22:00:00",
+        quiet_hours_end: "07:00:00",
+      },
+      error: null,
+    });
+    mockSupabase.rpc.mockImplementation((name: string) => {
+      if (name === "claim_due_triggers") {
+        return Promise.resolve({ data: [trigger], error: null });
+      }
+
+      if (name === "release_trigger_claim") {
+        return Promise.resolve({ data: true, error: null });
+      }
+
+      if (name === "release_stale_trigger_claims") {
+        return Promise.resolve({ data: 0, error: null });
+      }
+
+      return Promise.resolve({ data: null, error: null });
+    });
+    mockComputeNextFireAt
+      .mockReturnValueOnce(new Date("2026-03-06T06:00:00.000Z"))
+      .mockReturnValueOnce(new Date("2026-03-06T12:00:00.000Z"))
+      .mockReturnValueOnce(new Date("2026-03-06T18:00:00.000Z"));
+
+    const result = await runScan({
+      supabase: mockSupabase as never,
+      dispatch: mockDispatch,
+      now: new Date("2026-03-06T23:30:00+08:00"),
+    });
+
+    expect(mockDispatch).not.toHaveBeenCalled();
+    expect(mockSupabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
+      p_next_fire_at: "2026-03-06T18:00:00.000Z",
+      p_trigger_id: trigger.id,
+      p_run_id: trigger.current_run_id,
+      p_status: "skipped_quiet_hours",
+    });
+    expect(result.dispatched).toBe(0);
+    expect(result.errors).toEqual([]);
+  });
 });

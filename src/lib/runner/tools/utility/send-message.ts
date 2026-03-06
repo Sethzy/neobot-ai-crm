@@ -23,7 +23,11 @@ export function createSendMessageTool() {
         attachments: z.array(z.string().min(1)).optional().describe("Attachment file paths."),
       }),
       execute: async (input) => {
-        console.warn("[send_message] delivery skipped in stub mode", input);
+        console.warn("[send_message] delivery skipped in stub mode", {
+          to: input.to,
+          subject: input.subject,
+          attachmentCount: input.attachments?.length ?? 0,
+        });
 
         return {
           success: false,

@@ -8,6 +8,7 @@ import type { ChatStatus as SDKChatStatus } from "ai";
 export interface Thread {
   id: string;
   title: string;
+  isPinned: boolean;
   createdAt: Date;
 }
 

@@ -16,6 +16,7 @@ import {
 const STALE_CLAIM_MINUTES = 15;
 const DISPATCH_FAILED_STATUS = "dispatch_failed";
 const INVALID_CRON_STATUS = "invalid_cron";
+const MAX_SCHEDULE_CATCH_UP_STEPS = 64;
 
 export interface ScanDependencies {
   supabase: TriggerSupabaseClient;
@@ -145,6 +146,29 @@ function isInvalidCronError(error: unknown): boolean {
 }
 
 /**
+ * Advances a stale scheduled trigger until the next fire time is strictly in
+ * the future relative to the current scan tick. Quiet-hours skips can otherwise
+ * get trapped repeatedly rescheduling already-expired pulse windows.
+ */
+function advanceNextFireAtPastNow(
+  cronExpression: string,
+  nextFireAt: Date,
+  now: Date,
+): Date {
+  let candidate = nextFireAt;
+
+  for (let step = 0; candidate <= now; step += 1) {
+    if (step >= MAX_SCHEDULE_CATCH_UP_STEPS) {
+      throw new Error(`Failed to advance next_fire_at past now for cron expression: ${cronExpression}`);
+    }
+
+    candidate = computeNextFireAt(cronExpression, candidate);
+  }
+
+  return candidate;
+}
+
+/**
  * Runs one scanner tick against all due triggers.
  */
 export async function runScan({
@@ -182,11 +206,16 @@ export async function runScan({
               now,
             })
           ) {
+            const nextFireAtAfterNow = advanceNextFireAtPastNow(
+              trigger.cron_expression,
+              nextFireAt,
+              now,
+            );
             await releaseClaim(
               supabase,
               trigger,
               "skipped_quiet_hours",
-              nextFireAt.toISOString(),
+              nextFireAtAfterNow.toISOString(),
             );
             continue;
           }

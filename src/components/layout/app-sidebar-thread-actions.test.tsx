@@ -40,8 +40,18 @@ vi.mock("sonner", () => ({
 vi.mock("@/contexts/thread-context", () => ({
   useThreads: () => ({
     threads: [
-      { id: "thread-1", title: "Thread Alpha", createdAt: new Date("2026-03-01T00:00:00.000Z") },
-      { id: "thread-2", title: "Thread Beta", createdAt: new Date("2026-03-01T01:00:00.000Z") },
+      {
+        id: "thread-1",
+        title: "Thread Alpha",
+        isPinned: false,
+        createdAt: new Date("2026-03-01T00:00:00.000Z"),
+      },
+      {
+        id: "thread-2",
+        title: "Thread Beta",
+        isPinned: true,
+        createdAt: new Date("2026-03-01T01:00:00.000Z"),
+      },
     ],
     updateThreadTitle: vi.fn(),
     archiveThread: mockArchiveThread,
@@ -146,6 +156,14 @@ describe("AppSidebar mobile thread actions", () => {
 
     expect(mockArchiveThread).toHaveBeenCalledWith("thread-1");
     expect(mockPush).toHaveBeenCalledWith("/chat/thread-2");
+  });
+
+  it("does not render archive actions for pinned threads", async () => {
+    render(<AppSidebar />);
+
+    expect(
+      screen.queryByRole("button", { name: /more actions for thread beta/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not navigate when archiving fails and shows an error toast", async () => {

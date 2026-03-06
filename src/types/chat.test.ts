@@ -11,11 +11,13 @@ describe("chat types", () => {
     const thread: Thread = {
       id: "thread-1",
       title: "New Chat",
+      isPinned: false,
       createdAt: new Date("2026-03-01T00:00:00.000Z"),
     };
 
     expect(thread.id).toBe("thread-1");
     expect(thread.title).toBe("New Chat");
+    expect(thread.isPinned).toBe(false);
     expect(thread.createdAt).toBeInstanceOf(Date);
   });
 

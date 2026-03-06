@@ -67,6 +67,10 @@ DECLARE
   v_pulse_interval TEXT;
   v_enabled BOOLEAN;
 BEGIN
+  IF auth.role() <> 'service_role' THEN
+    RAISE EXCEPTION 'ensure_autopilot_for_client is restricted to service_role';
+  END IF;
+
   INSERT INTO public.autopilot_config (client_id)
   VALUES (p_client_id)
   ON CONFLICT (client_id) DO NOTHING;
@@ -150,6 +154,10 @@ BEGIN
   END IF;
 END;
 $$;
+
+REVOKE ALL ON FUNCTION public.ensure_autopilot_for_client(UUID)
+FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.ensure_autopilot_for_client(UUID) TO service_role;
 
 CREATE OR REPLACE FUNCTION public.sync_autopilot_trigger_from_config()
 RETURNS TRIGGER

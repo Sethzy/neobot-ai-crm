@@ -67,6 +67,17 @@ describe("PR19 autopilot pulse migrations", () => {
     expect(bootstrapSql).toContain("SELECT public.ensure_autopilot_for_client(client_id)");
   });
 
+  it("locks down ensure_autopilot_for_client to privileged execution only", () => {
+    expect(bootstrapSql).toContain("IF auth.role() <> 'service_role' THEN");
+    expect(bootstrapSql).toContain("ensure_autopilot_for_client is restricted to service_role");
+    expect(bootstrapSql).toContain(
+      "REVOKE ALL ON FUNCTION public.ensure_autopilot_for_client(UUID)",
+    );
+    expect(bootstrapSql).toContain(
+      "GRANT EXECUTE ON FUNCTION public.ensure_autopilot_for_client(UUID) TO service_role;",
+    );
+  });
+
   it("adds a verification script that checks bootstrap coverage and pulse invariants", () => {
     expect(verificationSql).toContain("public.autopilot_config");
     expect(verificationSql).toContain("trigger_type = 'pulse'");

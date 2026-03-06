@@ -31,6 +31,15 @@ describe("rename_chat", () => {
 
   it("updates the thread title on success", async () => {
     const supabase = createMockSupabaseClient({
+      selectResult: {
+        data: [
+          {
+            thread_id: THREAD_ID,
+            is_pinned: false,
+          },
+        ],
+        error: null,
+      },
       updateResult: {
         data: [
           {
@@ -55,11 +64,20 @@ describe("rename_chat", () => {
       success: true,
       title: "Market Analysis Bishan",
     });
-    expect(supabase.calls.from).toContain("conversation_threads");
+    expect(supabase.calls.from).toEqual(["conversation_threads", "conversation_threads"]);
   });
 
   it("returns error on update failure", async () => {
     const supabase = createMockSupabaseClient({
+      selectResult: {
+        data: [
+          {
+            thread_id: THREAD_ID,
+            is_pinned: false,
+          },
+        ],
+        error: null,
+      },
       updateResult: { data: null, error: { message: "update failed" } },
     });
 
@@ -77,7 +95,7 @@ describe("rename_chat", () => {
 
   it("returns not-found error when no thread row is updated", async () => {
     const supabase = createMockSupabaseClient({
-      updateResult: { data: [], error: null },
+      selectResult: { data: [], error: null },
     });
 
     const tool = createRenameChatTool(supabase as never, CLIENT_ID, THREAD_ID);
@@ -89,6 +107,31 @@ describe("rename_chat", () => {
     expect(result).toEqual({
       success: false,
       error: "Thread not found or access denied",
+    });
+  });
+
+  it("rejects renaming the pinned autopilot thread", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: {
+        data: [
+          {
+            thread_id: THREAD_ID,
+            is_pinned: true,
+          },
+        ],
+        error: null,
+      },
+    });
+
+    const tool = createRenameChatTool(supabase as never, CLIENT_ID, THREAD_ID);
+    const result = await tool.rename_chat.execute(
+      { new_title: "Different Title" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Pinned threads cannot be renamed",
     });
   });
 });

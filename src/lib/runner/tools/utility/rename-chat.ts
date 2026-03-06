@@ -23,6 +23,25 @@ export function createRenameChatTool(
       new_title: z.string().min(1).max(200).describe("New title for this conversation."),
     }),
     execute: async ({ new_title }) => {
+      const { data: thread, error: threadError } = await supabase
+        .from("conversation_threads")
+        .select("thread_id, is_pinned")
+        .eq("thread_id", threadId)
+        .eq("client_id", clientId)
+        .maybeSingle();
+
+      if (threadError) {
+        return { success: false as const, error: threadError.message };
+      }
+
+      if (!thread) {
+        return { success: false as const, error: "Thread not found or access denied" };
+      }
+
+      if (thread.is_pinned) {
+        return { success: false as const, error: "Pinned threads cannot be renamed" };
+      }
+
       const { data, error } = await supabase
         .from("conversation_threads")
         .update({ title: new_title })
