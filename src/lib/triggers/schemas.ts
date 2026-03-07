@@ -62,3 +62,9 @@ export const scanResultSchema = z.object({
 export type TriggerRow = z.infer<typeof triggerRowSchema>;
 export type TriggerDispatchPayload = z.infer<typeof triggerDispatchPayloadSchema>;
 export type ScanResult = z.infer<typeof scanResultSchema>;
+
+/** Maximum retries for user-created (non-pulse) triggers before permanent failure. */
+export const MAX_USER_CREATED_RETRIES = 2;
+
+/** Default nudge message inserted as input when executing a cron-dispatched run. */
+export const CRON_RUN_NUDGE = "Process the most recent trigger event for this thread.";

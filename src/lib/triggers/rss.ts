@@ -236,14 +236,10 @@ async function persistSeenGuids(
 ): Promise<void> {
   await fileClient.uploadFile(
     getSeenStatePath(triggerId),
-    JSON.stringify(
-      {
-        seenGuids,
-        updatedAt: new Date().toISOString(),
-      },
-      null,
-      2,
-    ),
+    JSON.stringify({
+      seenGuids,
+      updatedAt: new Date().toISOString(),
+    }),
   );
 }
 
@@ -258,6 +254,7 @@ export async function fetchRssFeed(
     headers: {
       Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.1",
     },
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (!response.ok) {

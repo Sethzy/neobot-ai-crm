@@ -8,11 +8,8 @@ import { runAutopilot } from "@/lib/runner/run-autopilot";
 import { createAgentFileClient } from "@/lib/storage/agent-files";
 
 import { collectNewRssItems } from "./rss";
-import type { TriggerDispatchPayload, TriggerSupabaseClient } from "./schemas";
+import { CRON_RUN_NUDGE, MAX_USER_CREATED_RETRIES, type TriggerDispatchPayload, type TriggerSupabaseClient } from "./schemas";
 import { buildTriggerEventMessage } from "./trigger-event";
-
-const CRON_RUN_NUDGE = "Process the most recent trigger event for this thread.";
-const MAX_USER_CREATED_RETRIES = 2;
 
 export interface ExecuteTriggerInput {
   supabase: TriggerSupabaseClient;

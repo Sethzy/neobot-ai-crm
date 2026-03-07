@@ -10,6 +10,7 @@ import {
   normalizeTriggerTimezone,
 } from "./cron-utils";
 import {
+  MAX_USER_CREATED_RETRIES,
   type ScanResult,
   type TriggerDispatchPayload,
   type TriggerRow,
@@ -23,7 +24,6 @@ const INVALID_CRON_STATUS = "invalid_cron";
 const INVALID_RSS_CONFIG_STATUS = "invalid_rss_config";
 const FAILED_PERMANENT_STATUS = "failed_permanent";
 const MAX_SCHEDULE_CATCH_UP_STEPS = 64;
-const MAX_USER_CREATED_RETRIES = 2;
 const MAX_PULSE_RETRIES = 0;
 
 class InvalidRssConfigError extends Error {

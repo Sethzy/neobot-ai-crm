@@ -3,7 +3,6 @@
  * @module lib/runner/tools/triggers/setup-trigger
  */
 import { tool } from "ai";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import {
@@ -14,6 +13,7 @@ import {
   DEFAULT_RSS_POLLING_INTERVAL_MINUTES,
   deriveRssCronExpression,
 } from "@/lib/triggers/rss-schedule";
+import type { TriggerSupabaseClient } from "@/lib/triggers/schemas";
 import type { Database } from "@/types/database";
 
 const setupTriggerInputSchema = z.object({
@@ -23,8 +23,6 @@ const setupTriggerInputSchema = z.object({
   params: z.record(z.string(), z.unknown()),
   invocation_message: z.string().min(1).max(200).optional(),
 });
-
-type TriggerSupabaseClient = SupabaseClient<Database>;
 type AgentTriggerInsert = Database["public"]["Tables"]["agent_triggers"]["Insert"];
 
 function resolvePublicAppBaseUrl(): string | null {

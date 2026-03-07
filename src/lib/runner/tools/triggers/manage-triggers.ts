@@ -3,7 +3,6 @@
  * @module lib/runner/tools/triggers/manage-triggers
  */
 import { tool } from "ai";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { createMessage } from "@/lib/chat/messages";
@@ -15,15 +14,14 @@ import {
   DEFAULT_RSS_POLLING_INTERVAL_MINUTES,
   deriveRssCronExpression,
 } from "@/lib/triggers/rss-schedule";
+import { CRON_RUN_NUDGE, type TriggerSupabaseClient } from "@/lib/triggers/schemas";
 import { buildTriggerEventMessage } from "@/lib/triggers/trigger-event";
 import { runAgent } from "@/lib/runner/run-agent";
 import type { Database, Json } from "@/types/database";
 
-const MUTATING_ACTIONS = ["list", "view", "delete", "simulate", "edit"] as const;
+const TRIGGER_ACTIONS = ["list", "view", "delete", "simulate", "edit"] as const;
 const READ_ONLY_ACTIONS = ["list", "view"] as const;
-const CRON_RUN_NUDGE = "Process the most recent trigger event for this thread.";
 
-type TriggerSupabaseClient = SupabaseClient<Database>;
 type TriggerRow = Database["public"]["Tables"]["agent_triggers"]["Row"];
 type TriggerUpdate = Database["public"]["Tables"]["agent_triggers"]["Update"];
 
@@ -39,8 +37,9 @@ function formatTriggerArguments(trigger: Pick<TriggerRow, "cron_expression" | "p
 }
 
 function formatTriggerForResponse(trigger: TriggerRow) {
+  const { webhook_secret: _secret, ...rest } = trigger;
   return {
-    ...trigger,
+    ...rest,
     title: trigger.trigger_type,
     invocationMessage: trigger.invocation_message,
     arguments: formatTriggerArguments(trigger),
@@ -70,8 +69,8 @@ function buildUpdatedTriggerRow(
   editParams: Record<string, unknown> | undefined,
   invocationMessage: string | null | undefined,
 ): TriggerUpdate {
-  const mergedPayload = {
-    ...(typeof trigger.payload === "object" && trigger.payload ? trigger.payload : {}),
+  const mergedPayload: Record<string, unknown> = {
+    ...(typeof trigger.payload === "object" && trigger.payload && !Array.isArray(trigger.payload) ? trigger.payload : {}),
     ...(editParams ?? {}),
   };
   const update: TriggerUpdate = {
@@ -95,7 +94,7 @@ function buildUpdatedTriggerRow(
       ...mergedPayload,
       cron,
       timezone,
-    };
+    } as Json;
     update.cron_expression = cron;
     update.next_fire_at = computeNextFireAt(cron, new Date(), timezone).toISOString();
   }
@@ -106,7 +105,7 @@ function buildUpdatedTriggerRow(
       ...nextPayload
     } = mergedPayload;
 
-    update.payload = nextPayload;
+    update.payload = nextPayload as Json;
 
     if (rawWebhookSecret === null) {
       update.webhook_secret = null;
@@ -138,7 +137,7 @@ function buildUpdatedTriggerRow(
       ...mergedPayload,
       polling_interval_minutes: pollingIntervalMinutes,
       timezone,
-    };
+    } as Json;
     update.cron_expression = cronExpression;
     update.next_fire_at = computeNextFireAt(
       cronExpression,
@@ -159,7 +158,7 @@ export function createManageTriggersTool(
   options?: CreateManageTriggersToolOptions,
 ) {
   const readOnly = options?.readOnly ?? false;
-  const actionSchema = readOnly ? z.enum(READ_ONLY_ACTIONS) : z.enum(MUTATING_ACTIONS);
+  const actionSchema = readOnly ? z.enum(READ_ONLY_ACTIONS) : z.enum(TRIGGER_ACTIONS);
 
   const manage_active_triggers = tool({
     description: readOnly
@@ -173,6 +172,10 @@ export function createManageTriggersTool(
       payload: z.record(z.string(), z.unknown()).optional(),
     }),
     execute: async (input) => {
+      if (input.action !== "list" && !input.trigger_instance_id) {
+        return { success: false as const, error: "trigger_instance_id is required." };
+      }
+
       switch (input.action) {
         case "list": {
           const { data, error } = await supabase
@@ -197,11 +200,7 @@ export function createManageTriggersTool(
           return { success: true as const, triggers };
         }
         case "view": {
-          if (!input.trigger_instance_id) {
-            return { success: false as const, error: "trigger_instance_id is required." };
-          }
-
-          const { data, error } = await loadTrigger(supabase, clientId, input.trigger_instance_id);
+          const { data, error } = await loadTrigger(supabase, clientId, input.trigger_instance_id!);
           if (error || !data) {
             return { success: false as const, error: error?.message ?? "Trigger not found." };
           }
@@ -209,15 +208,11 @@ export function createManageTriggersTool(
           return { success: true as const, trigger: formatTriggerForResponse(data) };
         }
         case "delete": {
-          if (!input.trigger_instance_id) {
-            return { success: false as const, error: "trigger_instance_id is required." };
-          }
-
           const { error } = await supabase
             .from("agent_triggers")
             .delete()
             .eq("client_id", clientId)
-            .eq("id", input.trigger_instance_id);
+            .eq("id", input.trigger_instance_id!);
 
           if (error) {
             return { success: false as const, error: error.message };
@@ -226,14 +221,10 @@ export function createManageTriggersTool(
           return {
             success: true as const,
             deleted: true,
-            trigger_id: input.trigger_instance_id,
+            trigger_id: input.trigger_instance_id!,
           };
         }
         case "edit": {
-          if (!input.trigger_instance_id) {
-            return { success: false as const, error: "trigger_instance_id is required." };
-          }
-
           if (!input.edit_params && input.invocation_message === undefined) {
             return {
               success: false as const,
@@ -244,7 +235,7 @@ export function createManageTriggersTool(
           const { data: trigger, error: loadError } = await loadTrigger(
             supabase,
             clientId,
-            input.trigger_instance_id,
+            input.trigger_instance_id!,
           );
           if (loadError || !trigger) {
             return {
@@ -263,7 +254,7 @@ export function createManageTriggersTool(
               .from("agent_triggers")
               .update(update)
               .eq("client_id", clientId)
-              .eq("id", input.trigger_instance_id)
+              .eq("id", input.trigger_instance_id!)
               .select("*")
               .single();
 
@@ -283,10 +274,6 @@ export function createManageTriggersTool(
           }
         }
         case "simulate": {
-          if (!input.trigger_instance_id) {
-            return { success: false as const, error: "trigger_instance_id is required." };
-          }
-
           if (!input.payload) {
             return { success: false as const, error: "payload is required for simulate." };
           }
@@ -294,7 +281,7 @@ export function createManageTriggersTool(
           const { data: trigger, error } = await loadTrigger(
             supabase,
             clientId,
-            input.trigger_instance_id,
+            input.trigger_instance_id!,
           );
           if (error || !trigger) {
             return { success: false as const, error: error?.message ?? "Trigger not found." };

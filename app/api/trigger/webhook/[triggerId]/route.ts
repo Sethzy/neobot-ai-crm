@@ -16,6 +16,7 @@ import {
 import { claimWebhookTrigger } from "@/lib/triggers/webhook-claim";
 
 export const maxDuration = 60;
+const MAX_WEBHOOK_BODY_BYTES = 256 * 1024; // 256 KB
 
 const triggerIdSchema = z.string().uuid();
 const webhookTriggerSchema = z.object({
@@ -61,14 +62,20 @@ export async function POST(
     return Response.json({ error: "Invalid trigger id" }, { status: 400 });
   }
 
-  const supabase = await createAdminClient();
+  const contentLength = request.headers.get("content-length");
+  if (contentLength && Number(contentLength) > MAX_WEBHOOK_BODY_BYTES) {
+    return Response.json({ error: "Request body too large" }, { status: 413 });
+  }
+
+  const [supabase, rawBody] = await Promise.all([
+    createAdminClient(),
+    request.text(),
+  ]);
   const trigger = await loadWebhookTrigger(supabase, parsedTriggerId.data);
 
   if (!trigger || !trigger.enabled) {
     return Response.json({ error: "Webhook trigger not found" }, { status: 404 });
   }
-
-  const rawBody = await request.text();
 
   if (trigger.webhook_secret) {
     const signature = getWebhookSignatureHeader(request.headers);
