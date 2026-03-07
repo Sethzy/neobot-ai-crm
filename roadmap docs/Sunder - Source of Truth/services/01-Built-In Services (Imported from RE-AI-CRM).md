@@ -60,6 +60,7 @@ The agent comes batteries-included. One signup, one QR scan, everything works. N
 | **Document Extraction** | Gemini 2.5 Flash + ExtendAI | Sunder central account | Document Vault processing (#21), auto-CRM linking, custom schemas | MVP |
 | **Document Generation** | Custom MCP (ported from Sunder) | Custom-built | Excel reports, AI analysis, reconciliation checks | MVP |
 | **Artifact Publishing (Mini Lovable)** | Custom (frontend-design skill + browser sandbox) | Custom-built | Personalized pitch webpages, property showcases, interactive deliverables | MVP |
+| **Diagramming (Excalidraw MCP)** | Excalidraw MCP (`mcp.excalidraw.com`) | Sunder central account | Visual diagrams, property comparisons, transaction timelines, process flows | MVP |
 
 ### What We DON'T Need
 
@@ -1669,6 +1670,77 @@ A proven workflow for generating luxury real estate listing videos from static p
 
 ---
 
+## 14. Diagramming — Excalidraw MCP (Sunder Central Account)
+
+### Architecture
+
+```
+Sunder connects to Excalidraw MCP server (remote or self-hosted)
+    → Agent generates hand-drawn style diagrams via MCP tool calls
+    → Diagrams rendered as interactive Excalidraw files or exported as images
+    → Published to artifact URLs or embedded in chat responses
+```
+
+### Source
+
+- **GitHub:** https://github.com/excalidraw/excalidraw-mcp
+- **Remote endpoint:** `https://mcp.excalidraw.com`
+- **License:** MIT
+- **Self-hosted option:** Deploy on Vercel (one-click)
+
+### Why This Works
+
+- **MCP-native** — plugs directly into our agent's tool system via `create_new_connections` (custom MCP type)
+- **Hand-drawn aesthetic** — feels personal and approachable, not corporate. Fits the agent-to-user communication style.
+- **Remote or self-hosted** — connect to `mcp.excalidraw.com` for zero-ops, or self-host on Vercel for full control
+- **Cost to Sunder: $0** — open-source (MIT), remote endpoint is free
+- **Interactive editing** — users can open and edit generated diagrams in fullscreen
+
+### What the Agent Does With Diagrams
+
+| Use Case | Product Feature | Example |
+|----------|----------------|---------|
+| **Transaction timeline** | Transaction Coordinator (#17) | Visual timeline: OTP signed → exercise deadline → completion date → key collection |
+| **Property comparison** | Client Matchmaker (#29) | Side-by-side comparison chart: Unit A vs Unit B (price, PSF, size, floor, facing) |
+| **Process flow** | Onboarding, any workflow | "Here's how the buying process works" — visual walkthrough for first-time buyers |
+| **Pipeline visualization** | CRM / Morning Briefing | Visual snapshot of active deals by stage |
+| **Area map / neighborhood** | Neighborhood Expert (#27) | Annotated area diagram showing amenities, MRT, schools relative to property |
+| **Commission breakdown** | Commission Tracker (#18) | Visual split diagram: gross commission → co-broke → agency cut → agent net |
+
+### User Experience
+
+```
+User: "Show Sarah a visual breakdown of the buying timeline for her Noriega deal"
+
+Agent:
+  → Generates Excalidraw diagram via MCP:
+    OTP Signed (Feb 10) → Exercise Deadline (Feb 24) → Completion (May 10)
+    └── Checklist items branching off each milestone
+  → Publishes to artifact URL or sends as image in chat
+  → "Here's the transaction timeline for Sarah's deal at 42 Noriega.
+     Exercise deadline is in 14 days (Feb 24). Want me to send this to Sarah?"
+```
+
+### Integration with Artifact Publishing (§13)
+
+Excalidraw diagrams complement HTML artifacts. The agent can:
+1. Generate a diagram (Excalidraw MCP) → embed in an HTML artifact (§13) → publish to client-facing URL
+2. Generate standalone diagrams for internal briefings and CRM notes
+3. Export diagrams as PNG/SVG for WhatsApp delivery
+
+### Deployment Options
+
+| Option | Pros | Cons | Recommended |
+|--------|------|------|-------------|
+| **Remote** (`mcp.excalidraw.com`) | Zero ops, instant setup | Dependency on third-party uptime | **MVP** |
+| **Self-hosted** (Vercel) | Full control, no external dependency | Minor setup/maintenance | Phase 2+ |
+
+### Cost
+
+$0 at any scale. Open-source, no per-use charges. Self-hosting on Vercel fits within free tier for expected volume.
+
+---
+
 ## Cost Summary
 
 **Updated:** February 18, 2026
@@ -1750,6 +1822,7 @@ Phase 1 (MVP):
                                              — Neo replies to user as voice (Neo fixed voice)
   ☐ Document Extraction (§11)              — classify, split, extract from forwarded docs (Build 7-8)
   ☐ Document Generation MCP (§12)          — Excel reports from extracted data (Build 9)
+  ☐ Excalidraw MCP (§14)                   — visual diagrams, timelines, comparisons (remote MCP, zero setup)
 
 Phase 2:
   ☐ Postiz social media                     — Social Butler (#10), Content Factory (#8)
