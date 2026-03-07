@@ -11,6 +11,7 @@ import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useCrmTask } from "@/hooks/use-crm-tasks";
 import { useUpdateCrmTask } from "@/hooks/use-update-crm-task";
 import {
+  formatCrmEnumLabel,
   parseCustomFieldInputValue,
   formatContactFullName,
   toNullableValue,
@@ -32,8 +33,6 @@ export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
   const { data: task, isLoading, isError } = useCrmTask(taskId);
   const { data: crmConfigResult } = useCrmConfig();
   const updateTask = useUpdateCrmTask(taskId);
-
-  const toTitleCase = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
   if (isLoading) {
     return (
@@ -70,7 +69,7 @@ export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
             label="Status"
             value={task.status}
             type="select"
-            options={crmTaskStatusValues.map((status) => ({ value: status, label: toTitleCase(status) }))}
+            options={crmTaskStatusValues.map((status) => ({ value: status, label: formatCrmEnumLabel(status) }))}
             onSave={async (nextValue) => {
               await updateTask.mutateAsync({ status: nextValue as CrmTask["status"] });
             }}

@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import {
   customFieldDefinitionSchema,
+  deduplicateStrings,
   loadCrmConfig,
   resolveCrmConfig,
   type CrmConfigRow,
@@ -16,56 +17,27 @@ import type { Database } from "@/types/database";
 
 const vocabularyFieldSchema = z.array(z.string().trim().min(2)).min(1).max(30);
 
-const dealCustomFieldsSchema = z.array(customFieldDefinitionSchema)
-  .superRefine((definitions, context) => {
-    const seenKeys = new Set<string>();
-
-    for (const definition of definitions) {
-      if (seenKeys.has(definition.key)) {
-        context.addIssue({
-          code: "custom",
-          message: `Duplicate custom field key "${definition.key}".`,
-          path: ["deal_custom_fields"],
-        });
+/** Creates a Zod schema for custom field definition arrays that rejects duplicate keys. */
+function uniqueKeyCustomFieldsSchema(pathLabel: string) {
+  return z.array(customFieldDefinitionSchema)
+    .superRefine((definitions, context) => {
+      const seenKeys = new Set<string>();
+      for (const definition of definitions) {
+        if (seenKeys.has(definition.key)) {
+          context.addIssue({
+            code: "custom",
+            message: `Duplicate custom field key "${definition.key}".`,
+            path: [pathLabel],
+          });
+        }
+        seenKeys.add(definition.key);
       }
+    });
+}
 
-      seenKeys.add(definition.key);
-    }
-  });
-
-const contactCustomFieldsSchema = z.array(customFieldDefinitionSchema)
-  .superRefine((definitions, context) => {
-    const seenKeys = new Set<string>();
-
-    for (const definition of definitions) {
-      if (seenKeys.has(definition.key)) {
-        context.addIssue({
-          code: "custom",
-          message: `Duplicate custom field key "${definition.key}".`,
-          path: ["contact_custom_fields"],
-        });
-      }
-
-      seenKeys.add(definition.key);
-    }
-  });
-
-const taskCustomFieldsSchema = z.array(customFieldDefinitionSchema)
-  .superRefine((definitions, context) => {
-    const seenKeys = new Set<string>();
-
-    for (const definition of definitions) {
-      if (seenKeys.has(definition.key)) {
-        context.addIssue({
-          code: "custom",
-          message: `Duplicate custom field key "${definition.key}".`,
-          path: ["task_custom_fields"],
-        });
-      }
-
-      seenKeys.add(definition.key);
-    }
-  });
+const dealCustomFieldsSchema = uniqueKeyCustomFieldsSchema("deal_custom_fields");
+const contactCustomFieldsSchema = uniqueKeyCustomFieldsSchema("contact_custom_fields");
+const taskCustomFieldsSchema = uniqueKeyCustomFieldsSchema("task_custom_fields");
 
 const inputSchema = z.object({
   deal_label: z.string().trim().min(1).optional()
@@ -104,10 +76,6 @@ const customFieldEntityMap = {
 type VocabularyFieldName = keyof typeof vocabularyEntityMap;
 type CustomFieldConfigName = keyof typeof customFieldEntityMap;
 
-function deduplicateStrings(values: string[]): string[] {
-  return Array.from(new Set(values));
-}
-
 function isPopulatedCustomFieldValue(value: unknown): boolean {
   if (value === null || value === undefined) {
     return false;
@@ -136,7 +104,8 @@ async function checkVocabularyRemovals(
   const { data, error } = await supabase
     .from(table)
     .select(column)
-    .eq("client_id", clientId);
+    .eq("client_id", clientId)
+    .in(column, removedValues);
 
   if (error || !Array.isArray(data)) {
     return {};
@@ -144,18 +113,9 @@ async function checkVocabularyRemovals(
 
   const counts: Record<string, number> = {};
 
-  for (const removedValue of removedValues) {
-    const count = data.filter((row) => {
-      if (!row || typeof row !== "object") {
-        return false;
-      }
-
-      return (row as Record<string, unknown>)[column] === removedValue;
-    }).length;
-
-    if (count > 0) {
-      counts[removedValue] = count;
-    }
+  for (const row of data) {
+    const value = (row as unknown as Record<string, string>)[column];
+    counts[value] = (counts[value] ?? 0) + 1;
   }
 
   return counts;
@@ -231,20 +191,10 @@ export function createConfigureCrmTool(
         return { success: false as const, error: "No fields to update." };
       }
 
-      if (updates.deal_stages) {
-        updates.deal_stages = deduplicateStrings(updates.deal_stages);
-      }
-
-      if (updates.contact_types) {
-        updates.contact_types = deduplicateStrings(updates.contact_types);
-      }
-
-      if (updates.interaction_types) {
-        updates.interaction_types = deduplicateStrings(updates.interaction_types);
-      }
-
-      if (updates.deal_contact_roles) {
-        updates.deal_contact_roles = deduplicateStrings(updates.deal_contact_roles);
+      for (const key of Object.keys(vocabularyEntityMap) as VocabularyFieldName[]) {
+        if (updates[key]) {
+          updates[key] = deduplicateStrings(updates[key]);
+        }
       }
 
       const { config: currentConfig } = await loadCrmConfig(supabase, clientId);
@@ -254,96 +204,32 @@ export function createConfigureCrmTool(
         const inUseCustomFields:
           Partial<Record<CustomFieldConfigName, Record<string, number>>> = {};
 
-        if (updates.deal_stages) {
-          const counts = await checkVocabularyRemovals(
-            supabase,
-            clientId,
-            "deal_stages",
-            currentConfig.deal_stages,
-            updates.deal_stages,
-          );
-          if (Object.keys(counts).length > 0) {
-            inUseValues.deal_stages = counts;
-          }
-        }
+        // Run all removal checks in parallel (independent DB queries)
+        const vocabChecks = (Object.keys(vocabularyEntityMap) as VocabularyFieldName[])
+          .filter((key) => updates[key])
+          .map(async (key) => {
+            const counts = await checkVocabularyRemovals(
+              supabase, clientId, key, currentConfig[key], updates[key]!,
+            );
+            if (Object.keys(counts).length > 0) {
+              inUseValues[key] = counts;
+            }
+          });
 
-        if (updates.contact_types) {
-          const counts = await checkVocabularyRemovals(
-            supabase,
-            clientId,
-            "contact_types",
-            currentConfig.contact_types,
-            updates.contact_types,
-          );
-          if (Object.keys(counts).length > 0) {
-            inUseValues.contact_types = counts;
-          }
-        }
+        const customFieldChecks = (Object.keys(customFieldEntityMap) as CustomFieldConfigName[])
+          .filter((key) => updates[key])
+          .map(async (key) => {
+            const counts = await checkCustomFieldDefinitionRemovals(
+              supabase, clientId, key,
+              currentConfig[key].map((field) => field.key),
+              updates[key]!.map((field) => field.key),
+            );
+            if (Object.keys(counts).length > 0) {
+              inUseCustomFields[key] = counts;
+            }
+          });
 
-        if (updates.interaction_types) {
-          const counts = await checkVocabularyRemovals(
-            supabase,
-            clientId,
-            "interaction_types",
-            currentConfig.interaction_types,
-            updates.interaction_types,
-          );
-          if (Object.keys(counts).length > 0) {
-            inUseValues.interaction_types = counts;
-          }
-        }
-
-        if (updates.deal_contact_roles) {
-          const counts = await checkVocabularyRemovals(
-            supabase,
-            clientId,
-            "deal_contact_roles",
-            currentConfig.deal_contact_roles,
-            updates.deal_contact_roles,
-          );
-          if (Object.keys(counts).length > 0) {
-            inUseValues.deal_contact_roles = counts;
-          }
-        }
-
-        if (updates.deal_custom_fields) {
-          const counts = await checkCustomFieldDefinitionRemovals(
-            supabase,
-            clientId,
-            "deal_custom_fields",
-            currentConfig.deal_custom_fields.map((field) => field.key),
-            updates.deal_custom_fields.map((field) => field.key),
-          );
-          if (Object.keys(counts).length > 0) {
-            inUseCustomFields.deal_custom_fields = counts;
-          }
-        }
-
-        if (updates.contact_custom_fields) {
-          const counts = await checkCustomFieldDefinitionRemovals(
-            supabase,
-            clientId,
-            "contact_custom_fields",
-            currentConfig.contact_custom_fields.map((field) => field.key),
-            updates.contact_custom_fields.map((field) => field.key),
-          );
-          if (Object.keys(counts).length > 0) {
-            inUseCustomFields.contact_custom_fields = counts;
-          }
-        }
-
-        if (updates.task_custom_fields) {
-          const counts = await checkCustomFieldDefinitionRemovals(
-            supabase,
-            clientId,
-            "task_custom_fields",
-            currentConfig.task_custom_fields.map((field) => field.key),
-            updates.task_custom_fields.map((field) => field.key),
-          );
-          if (Object.keys(counts).length > 0) {
-            inUseCustomFields.task_custom_fields = counts;
-          }
-        }
+        await Promise.all([...vocabChecks, ...customFieldChecks]);
 
         if (Object.keys(inUseValues).length > 0) {
           return {

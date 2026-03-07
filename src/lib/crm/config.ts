@@ -71,7 +71,8 @@ export const CRM_DEFAULTS: CrmVocabConfig = {
   task_custom_fields: [],
 };
 
-function deduplicateStrings(values: string[]): string[] {
+/** Removes duplicate entries from a string array (preserves first occurrence order). */
+export function deduplicateStrings(values: string[]): string[] {
   return Array.from(new Set(values));
 }
 
