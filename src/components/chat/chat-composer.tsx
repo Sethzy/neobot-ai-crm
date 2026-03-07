@@ -31,6 +31,8 @@ interface ChatComposerProps {
   status: ChatStatus;
   onSubmit: (message: ChatSubmitInput) => void;
   onStop: () => void;
+  /** Optional initial value to pre-fill the textarea (e.g. from template prompt). */
+  initialValue?: string;
 }
 
 function toFilePart(attachment: Attachment): FileUIPart {
@@ -60,8 +62,8 @@ function removeQueuedFilenames(currentQueue: string[], filenamesToRemove: string
   });
 }
 
-export function ChatComposer({ status, onSubmit, onStop }: ChatComposerProps) {
-  const [value, setValue] = useState("");
+export function ChatComposer({ status, onSubmit, onStop, initialValue = "" }: ChatComposerProps) {
+  const [value, setValue] = useState(initialValue);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);

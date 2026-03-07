@@ -6,6 +6,7 @@
 
 import { AppIcon } from "@/components/icons/app-icons";
 import { AutomationsTable } from "@/components/automations/automations-table";
+import { SuggestedTemplates } from "@/components/automations/suggested-templates";
 import { Button } from "@/components/ui/button";
 import { useSetTriggerEnabled, useTriggers } from "@/hooks/use-triggers";
 
@@ -60,6 +61,12 @@ export default function AutomationsPage() {
           />
         )}
       </div>
+
+      {!isLoading && !isError ? (
+        <div className="mt-10">
+          <SuggestedTemplates />
+        </div>
+      ) : null}
     </div>
   );
 }

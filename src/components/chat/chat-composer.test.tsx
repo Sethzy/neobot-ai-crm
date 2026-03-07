@@ -194,4 +194,28 @@ describe("ChatComposer", () => {
 
     expect(screen.getByRole("button", { name: /submit/i })).toBeDisabled();
   });
+
+  it("pre-fills the textarea when initialValue is provided", () => {
+    render(<ChatComposer {...baseProps} initialValue="Set up a morning briefing" />);
+
+    expect(screen.getByPlaceholderText(/send a message/i)).toHaveValue(
+      "Set up a morning briefing",
+    );
+  });
+
+  it("submits the pre-filled initialValue on send", async () => {
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <ChatComposer {...baseProps} onSubmit={onSubmit} initialValue="Set up a morning briefing" />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /submit/i }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      text: "Set up a morning briefing",
+      files: [],
+    });
+  });
 });

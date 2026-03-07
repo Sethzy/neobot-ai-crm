@@ -34,12 +34,15 @@ interface ChatPanelProps {
   initialMessages?: UIMessage[];
   /** Enables one-time stream resumption for existing threads. */
   autoResume?: boolean;
+  /** Pre-filled prompt text for the composer (e.g. from ?prompt= query param). */
+  initialPrompt?: string;
 }
 
 export function ChatPanel({
   chatId,
   initialMessages = [],
   autoResume = false,
+  initialPrompt,
 }: ChatPanelProps) {
   const { setDataStream } = useDataStream();
   const queryClient = useQueryClient();
@@ -125,6 +128,14 @@ export function ChatPanel({
     [chatId, isLoading, sendMessage],
   );
 
+  const handleSuggestionClick = useCallback(
+    (prompt: string) => {
+      if (isLoading) return;
+      handleSubmit({ text: prompt, files: [] });
+    },
+    [handleSubmit, isLoading],
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {error ? (
@@ -134,9 +145,9 @@ export function ChatPanel({
         </div>
       ) : null}
 
-      <MessageList messages={messages} status={status} onToolApproval={handleToolApproval} />
+      <MessageList messages={messages} status={status} onToolApproval={handleToolApproval} onSuggestionClick={handleSuggestionClick} />
 
-      <ChatComposer status={status} onSubmit={handleSubmit} onStop={stop} />
+      <ChatComposer status={status} onSubmit={handleSubmit} onStop={stop} initialValue={initialPrompt} />
     </div>
   );
 }

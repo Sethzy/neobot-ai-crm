@@ -7,8 +7,8 @@
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
     "totalPhases": 5,
-    "estimatedPRs": 34,
-    "keptPRs": 21,
+    "estimatedPRs": 35,
+    "keptPRs": 22,
     "cutPRs": 19,
     "donePRs": 20,
     "statusOptions": [
@@ -30,6 +30,7 @@
       "2026-03-06: Expanded PR 38 onboarding scope to capture the auth funnel shipped ahead of full onboarding: dedicated /login + /register pages, Supabase Google OAuth callback flow, unified /chat post-auth redirect, display_name fallback fix for OAuth users, and the remaining hosted Supabase/Google setup checklist needed before launch.",
       "2026-03-07: Generative UI approach decision. PR 42a rewritten: catalog-based JSON view specs (inspired by Vercel Labs json-render) replaces sandboxed iframe approach. Agent outputs JSON conforming to a Zod component catalog, frontend renders deterministically \u2014 no sandbox, no CSP, no bridge API. Moved PR 42a from Phase 5 to Phase 3 (no longer blocked by EXEC-04 sandbox). Added PR 42b as deferred Phase 5 escape hatch for full Tasklet-style sandboxed code gen if catalog proves insufficient. Added architecture decision UX-10.",
       "2026-03-07: Added PR 22a (multimodal chat \u2014 image attachments) and PR 22b (tool output rendering \u2014 json-render + tool approval UI) to Phase 2. Both follow vercel/chatbot patterns with minimal drift. PR 22a: file upload via Supabase Storage, PreviewAttachment component, parts-based messaging, stop button. PR 22b: json-render for tool output display, addToolApprovalResponse wiring with approve/deny buttons. Reference docs in roadmap docs/Sunder - Source of Truth/references/vercel-chatbot/.",
+      "2026-03-07: Added PR 20a (Suggested automations \u2014 template prompt cards) to Phase 2 after PR 20. KISS approach following Tasklet pattern: a template is just a pre-filled chat message. Hardcoded TS array of { id, title, description, category, icon, prompt }. Cards shown on /automations page + suggestion chips in chat empty state. Click \u2192 navigate to /chat with prompt pre-filled \u2192 agent handles setup conversationally. No template engine, no activation flow, no special UI. Reference: roadmap docs/Sunder - Source of Truth/references/template-automations.md.",
       "2026-03-07: Out-of-plan extension of PR 22 (done): PR 22c \u2014 Block Storage + Context Management Alignment. Adds block index utilities for compaction summaries (DATA-10), stores ALL tool call args+results to storage, embeds mechanical block index in compaction summaries for post-compaction recovery (SESSION-07), adds <context-management> and <autonomous-mode> instructions. Tasklist: docs/product/tasks/2026-03-07-pr22c-block-storage-context-management-tasklist.md."
     ]
   },
@@ -1164,6 +1165,45 @@
             "Webhook trigger: POST to /api/trigger/webhook/{id} fires a run with the POST body as payload",
             "RSS trigger: fires only for new items, deduplicates via state file",
             "Automations page shows all triggers with status and next run time"
+          ]
+        },
+        {
+          "pr": "20a",
+          "title": "Suggested automations \u2014 template prompt cards",
+          "status": "in_progress",
+          "decisions": [
+            "TRIG-03"
+          ],
+          "note": "Solves the blank-canvas problem. Follows Tasklet pattern exactly: a template is just a pre-filled chat message. User clicks a card \u2192 navigates to /chat with the prompt text pre-filled \u2192 sends it \u2192 agent handles everything conversationally (asks clarifying questions, writes subagent .md to storage, creates trigger via setup_trigger). No template engine, no activation flow, no special UI beyond the cards themselves. Templates are a hardcoded TS array \u2014 each is just { id, title, description, category, icon, prompt }. Chat empty state also shows a few suggestion chips pulling from the same catalog.",
+          "referenceDoc": "roadmap docs/Sunder - Source of Truth/references/template-automations.md",
+          "tasks": [
+            {
+              "id": "PR20a-1",
+              "task": "Create automation template catalog \u2014 hardcoded TS array in src/lib/automations/templates.ts. Each entry: { id, title, description, category, icon, prompt }. 6-8 real estate agent templates: Morning CRM briefing, New listing alert monitor (RSS), Daily follow-up reminder sweep, Weekly pipeline summary, Post-viewing follow-up drafter, Inbound lead qualification, Birthday/anniversary reminder",
+              "done": false
+            },
+            {
+              "id": "PR20a-2",
+              "task": "Add 'Suggested' section to /automations page below the trigger table (and in empty state). Card grid using existing QuickActionCards pattern. Each card shows icon, title, description. Click \u2192 navigates to /chat?prompt={encodeURIComponent(template.prompt)} to pre-fill a new thread.",
+              "done": false
+            },
+            {
+              "id": "PR20a-3",
+              "task": "Wire /chat prompt pre-fill \u2014 read ?prompt query param in ChatPanel, set it as the initial composer value. On send, creates a new thread as normal. Clear the query param after send.",
+              "done": false
+            },
+            {
+              "id": "PR20a-4",
+              "task": "Add suggestion chips to chat empty state (message-list.tsx) \u2014 show 3-4 top templates as pill buttons using existing Suggestion component. Click \u2192 pre-fills composer with template prompt.",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "User opens /automations (empty or with triggers), sees Suggested cards below",
+            "User clicks a template card \u2192 lands on /chat with prompt pre-filled in composer",
+            "User sends the pre-filled message \u2192 new thread created, agent starts setting up the automation conversationally",
+            "Chat empty state shows suggestion chips, clicking one pre-fills composer",
+            "Agent uses setup_trigger + write_file to complete the automation setup from the conversation"
           ]
         },
         {

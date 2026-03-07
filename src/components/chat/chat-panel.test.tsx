@@ -305,14 +305,18 @@ describe("ChatPanel", () => {
     expect(screen.getByText(/gateway timeout/i)).toBeInTheDocument();
   });
 
-  it("uses MessageList as the single empty-state source and does not render suggestion chips", () => {
+  it("renders suggestion chips in empty state and sends message on click", async () => {
+    const user = userEvent.setup();
     render(<ChatPanel chatId="thread-1" />);
 
     expect(screen.getByText(/start a conversation/i)).toBeInTheDocument();
-    expect(screen.queryByText("Brief me on today's tasks")).not.toBeInTheDocument();
-    expect(screen.queryByText("Check my deal pipeline")).not.toBeInTheDocument();
-    expect(screen.queryByText("Draft a follow-up email")).not.toBeInTheDocument();
-    expect(screen.queryByText("Summarize my recent contacts")).not.toBeInTheDocument();
+    expect(screen.getByText("Morning CRM briefing")).toBeInTheDocument();
+
+    await user.click(screen.getByText("Morning CRM briefing"));
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalled();
+    });
   });
 
   it("does not render empty-state copy when messages exist", () => {
@@ -389,6 +393,14 @@ describe("ChatPanel", () => {
     });
 
     pushStateSpy.mockRestore();
+  });
+
+  it("passes initialPrompt through to ChatComposer as initialValue", () => {
+    render(<ChatPanel chatId="thread-1" initialPrompt="Set up a daily briefing" />);
+
+    expect(screen.getByPlaceholderText(/send a message/i)).toHaveValue(
+      "Set up a daily briefing",
+    );
   });
 
   it("sends file-only messages via the AI SDK files shortcut", async () => {

@@ -9,6 +9,7 @@ import { ArrowDown, MessageCircle } from "@/components/icons/lucide-compat";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Button } from "@/components/ui/button";
 import { useScrollToBottom } from "@/hooks/use-scroll-to-bottom";
+import { AUTOMATION_TEMPLATES } from "@/lib/automations/templates";
 import type { ChatStatus } from "@/types/chat";
 
 import { MessageBubble } from "./message-bubble";
@@ -19,9 +20,11 @@ interface MessageListProps {
   status: ChatStatus;
   /** Callback for tool approval actions. */
   onToolApproval?: (approvalId: string, approved: boolean) => void;
+  /** Called when user clicks a suggestion chip in the empty state. Receives the prompt text. */
+  onSuggestionClick?: (prompt: string) => void;
 }
 
-export function MessageList({ messages, status, onToolApproval }: MessageListProps) {
+export function MessageList({ messages, status, onToolApproval, onSuggestionClick }: MessageListProps) {
   const { containerRef, endRef, isAtBottom, scrollToBottom } = useScrollToBottom();
   const hasMessages = messages.length > 0;
   const isStreaming = status === "streaming";
@@ -67,6 +70,21 @@ export function MessageList({ messages, status, onToolApproval }: MessageListPro
                 Ask your agent anything, and responses will stream in real time.
               </p>
             </div>
+
+            {onSuggestionClick ? (
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {AUTOMATION_TEMPLATES.slice(0, 4).map((template) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => onSuggestionClick(template.prompt)}
+                    className="rounded-full border border-border/50 bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-secondary/30 hover:text-foreground"
+                  >
+                    {template.title}
+                  </button>
+                ))}
+              </div>
+            ) : null}
 
             <div ref={endRef} />
           </div>

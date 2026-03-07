@@ -4,6 +4,7 @@
  */
 import type React from "react";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MessageList } from "./message-list";
@@ -44,6 +45,15 @@ vi.mock("./steps-summary", () => ({
 
 let isAtBottom = true;
 const scrollToBottom = vi.fn();
+
+vi.mock("@/lib/automations/templates", () => ({
+  AUTOMATION_TEMPLATES: [
+    { id: "t1", title: "Morning briefing", description: "Daily summary", category: "sales", prompt: "Set up morning briefing" },
+    { id: "t2", title: "Follow-up sweep", description: "Check stale leads", category: "sales", prompt: "Set up follow-up sweep" },
+    { id: "t3", title: "Pipeline summary", description: "Weekly recap", category: "sales", prompt: "Set up pipeline summary" },
+    { id: "t4", title: "Listing monitor", description: "Watch feeds", category: "research", prompt: "Set up listing monitor" },
+  ],
+}));
 
 vi.mock("@/hooks/use-scroll-to-bottom", () => ({
   useScrollToBottom: () => ({
@@ -155,5 +165,37 @@ describe("MessageList", () => {
     render(<MessageList messages={[userMessage, assistantMessage]} status="ready" />);
 
     expect(screen.getByRole("button", { name: /scroll to bottom/i })).toBeInTheDocument();
+  });
+
+  it("renders suggestion chips in empty state", () => {
+    const onSuggestionClick = vi.fn();
+    render(<MessageList messages={[]} status="ready" onSuggestionClick={onSuggestionClick} />);
+
+    expect(screen.getByText("Morning briefing")).toBeInTheDocument();
+    expect(screen.getByText("Follow-up sweep")).toBeInTheDocument();
+    expect(screen.getByText("Pipeline summary")).toBeInTheDocument();
+  });
+
+  it("calls onSuggestionClick with the template prompt when a chip is clicked", async () => {
+    const user = userEvent.setup();
+    const onSuggestionClick = vi.fn();
+    render(<MessageList messages={[]} status="ready" onSuggestionClick={onSuggestionClick} />);
+
+    await user.click(screen.getByText("Morning briefing"));
+
+    expect(onSuggestionClick).toHaveBeenCalledWith("Set up morning briefing");
+  });
+
+  it("does not render suggestion chips when messages exist", () => {
+    const onSuggestionClick = vi.fn();
+    render(
+      <MessageList
+        messages={[userMessage]}
+        status="ready"
+        onSuggestionClick={onSuggestionClick}
+      />,
+    );
+
+    expect(screen.queryByText("Morning briefing")).not.toBeInTheDocument();
   });
 });
