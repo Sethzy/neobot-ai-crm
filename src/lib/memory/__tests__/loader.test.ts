@@ -56,11 +56,33 @@ describe("loadMemoryContext", () => {
       .mockResolvedValueOnce({ data: createDownloadPayload(longMemory), error: null });
 
     const result = await loadMemoryContext(mock.client, CLIENT_ID);
+
+    // Content starts with the first 200 lines
+    expect(result.memory).toMatch(/^Line 1\n/);
+    expect(result.memory).toContain("Line 200");
+    // Does NOT contain line 201
+    expect(result.memory).not.toContain("Line 201");
+  });
+
+  it("appends a warning when MEMORY.md exceeds 200 lines", async () => {
+    const longMemory = Array.from({ length: 220 }, (_, index) => `Line ${index + 1}`).join("\n");
+
+    mock.mockDownload
+      .mockResolvedValueOnce({ data: createDownloadPayload("soul"), error: null })
+      .mockResolvedValueOnce({ data: createDownloadPayload("user"), error: null })
+      .mockResolvedValueOnce({ data: createDownloadPayload(longMemory), error: null });
+
+    const result = await loadMemoryContext(mock.client, CLIENT_ID);
     const lines = result.memory.split("\n");
 
-    expect(lines).toHaveLength(200);
+    // First 200 lines preserved
     expect(lines[0]).toBe("Line 1");
     expect(lines[199]).toBe("Line 200");
+
+    // Warning appended after the 200 lines
+    expect(result.memory).toContain("WARNING");
+    expect(result.memory).toContain("220 lines");
+    expect(result.memory).toContain("200");
   });
 
   it("returns empty strings when files are missing or unreadable", async () => {

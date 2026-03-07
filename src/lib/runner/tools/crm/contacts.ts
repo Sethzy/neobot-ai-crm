@@ -6,12 +6,18 @@ import { tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import { contactTypeValues } from "@/lib/crm/schemas";
-import type { Database } from "@/types/database";
+import {
+  buildCustomFieldsSchema,
+  CRM_DEFAULTS,
+  type CrmVocabConfig,
+} from "@/lib/crm/config";
+import type { Database, Json } from "@/types/database";
 
 import { buildIlikePattern, buildSearchExpression, DEFAULT_CRM_RESULT_LIMIT } from "./filter-utils";
 
 const CONTACT_SEARCH_COLUMNS = ["first_name", "last_name", "email", "phone"];
+type ContactUpdate = Database["public"]["Tables"]["contacts"]["Update"];
+type JsonObject = { [key: string]: Json | undefined };
 
 /**
  * Searches for existing contacts matching first_name AND last_name (case-insensitive).
@@ -41,14 +47,21 @@ async function findDuplicateContacts(
 export function createContactTools(
   supabase: SupabaseClient<Database>,
   clientId: string,
+  config: CrmVocabConfig = CRM_DEFAULTS,
 ) {
+  const contactTypeEnum = z.enum(config.contact_types as [string, ...string[]]);
+  const contactTypeList = config.contact_types.join(", ");
+  const defaultContactType = config.contact_types.includes("other")
+    ? "other"
+    : config.contact_types[0];
+
   const search_contacts = tool({
     description:
       "Search contacts by name, email, or phone. Use this before creating a new contact to avoid duplicates. " +
       "Omit query to list all contacts. Searches across first_name, last_name, email, and phone using OR matching.",
     inputSchema: z.object({
       query: z.string().trim().min(1).optional().describe("Search term for name, email, or phone. Omit to list all contacts."),
-      type: z.enum(contactTypeValues).optional().describe("Contact type filter (buyer, seller, landlord, tenant, agent, other)."),
+      type: contactTypeEnum.optional().describe(`Contact type filter (${contactTypeList}).`),
       limit: z
         .number()
         .int()
@@ -93,17 +106,20 @@ export function createContactTools(
       "Create a new contact. Has built-in duplicate detection — if a contact with a matching name already exists, " +
       "returns possible_duplicates instead of creating. Review the candidates and use update_contact on the existing " +
       "record, or re-call with force_create: true to override. " +
+      `Valid contact types: ${contactTypeList}. ` +
       "Data Modification Warning: Only create contacts when the user has explicitly asked to do so.",
     inputSchema: z.object({
       first_name: z.string().min(1).describe("Contact first name."),
       last_name: z.string().min(1).describe("Contact last name."),
       email: z.string().email().optional().describe("Contact email address."),
       phone: z.string().min(1).optional().describe("Contact phone number."),
-      type: z.enum(contactTypeValues).optional().describe("Contact classification (buyer, seller, landlord, tenant, agent, other). Defaults to 'other'."),
+      type: contactTypeEnum.optional().describe(`Contact classification (${contactTypeList}). Defaults to "${defaultContactType}".`),
       notes: z.string().optional().describe("Free-form contact notes."),
+      custom_fields: buildCustomFieldsSchema(config.contact_custom_fields).optional()
+        .describe("Configured contact custom fields. Unknown keys are rejected."),
       force_create: z.boolean().optional().describe("Set to true to skip duplicate detection and create the contact regardless."),
     }),
-    execute: async ({ first_name, last_name, email, phone, type, notes, force_create }) => {
+    execute: async ({ first_name, last_name, email, phone, type, notes, custom_fields, force_create }) => {
       // Dedup check (best-effort — search failure falls through to insert)
       if (!force_create) {
         const duplicates = await findDuplicateContacts(supabase, first_name, last_name);
@@ -123,10 +139,11 @@ export function createContactTools(
           client_id: clientId,
           first_name,
           last_name,
-          type: type ?? "other",
+          type: type ?? defaultContactType,
           email: email ?? null,
           phone: phone ?? null,
           notes: notes ?? null,
+          custom_fields: custom_fields ?? {},
         })
         .select()
         .single();
@@ -146,6 +163,7 @@ export function createContactTools(
     description:
       "Update an existing contact by id. Use this after finding the contact via search_contacts. " +
       "Only provided fields are updated. Omit fields you don't want to change. Pass null to clear a nullable field. " +
+      `Valid contact types: ${contactTypeList}. ` +
       "Data Modification Warning: Only update contacts when the user has explicitly asked to do so.",
     inputSchema: z.object({
       contact_id: z.string().uuid().describe("UUID of the contact to update. Use search_contacts to find this."),
@@ -153,16 +171,38 @@ export function createContactTools(
       last_name: z.string().min(1).optional().describe("Updated last name."),
       email: z.string().email().nullable().optional().describe("Updated email or null to clear."),
       phone: z.string().min(1).nullable().optional().describe("Updated phone or null to clear."),
-      type: z.enum(contactTypeValues).optional().describe("Updated contact type."),
+      type: contactTypeEnum.optional().describe("Updated contact type."),
       notes: z.string().nullable().optional().describe("Updated notes or null to clear."),
+      custom_fields: buildCustomFieldsSchema(config.contact_custom_fields, "update").optional()
+        .describe("Partial patch for configured contact custom fields."),
     }),
     execute: async ({ contact_id, ...fields }) => {
       const updates = Object.fromEntries(
         Object.entries(fields).filter(([, value]) => value !== undefined),
-      );
+      ) as ContactUpdate;
 
       if (Object.keys(updates).length === 0) {
         return { success: false as const, error: "No fields to update" };
+      }
+
+      if ("custom_fields" in updates) {
+        const { data: existing, error: existingError } = await supabase
+          .from("contacts")
+          .select("custom_fields")
+          .eq("contact_id", contact_id)
+          .eq("client_id", clientId)
+          .single();
+
+        if (existingError) {
+          return { success: false as const, error: existingError.message };
+        }
+
+        const nextCustomFields = {
+          ...((existing?.custom_fields as JsonObject | null) ?? {}),
+          ...((updates.custom_fields as JsonObject | undefined) ?? {}),
+        } satisfies JsonObject;
+
+        updates.custom_fields = nextCustomFields;
       }
 
       const { data, error } = await supabase
@@ -198,8 +238,10 @@ export function createContactTools(
             last_name: z.string().min(1).describe("Contact last name."),
             email: z.string().email().optional().describe("Contact email address."),
             phone: z.string().min(1).optional().describe("Contact phone number."),
-            type: z.enum(contactTypeValues).optional().describe("Contact classification (buyer, seller, landlord, tenant, agent, other). Defaults to 'other'."),
+            type: contactTypeEnum.optional().describe(`Contact classification (${contactTypeList}). Defaults to "${defaultContactType}".`),
             notes: z.string().optional().describe("Free-form contact notes."),
+            custom_fields: buildCustomFieldsSchema(config.contact_custom_fields).optional()
+              .describe("Configured contact custom fields. Unknown keys are rejected."),
           }),
         )
         .min(1)
@@ -253,10 +295,11 @@ export function createContactTools(
         client_id: clientId,
         first_name: c.first_name,
         last_name: c.last_name,
-        type: c.type ?? "other",
+        type: c.type ?? defaultContactType,
         email: c.email ?? null,
         phone: c.phone ?? null,
         notes: c.notes ?? null,
+        custom_fields: c.custom_fields ?? {},
       }));
 
       const { data, error } = await supabase

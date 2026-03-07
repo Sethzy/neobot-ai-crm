@@ -4,15 +4,21 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { CRM_DEFAULTS, type CrmVocabConfig } from "@/lib/crm/config";
 import type { Database } from "@/types/database";
 
 import { createContactTools } from "./contacts";
+import { createConfigureCrmTool } from "./configure-crm";
 import { createDealContactTools } from "./deal-contacts";
 import { createDealTools } from "./deals";
 import { createInteractionTools } from "./interactions";
 import { createTaskTools } from "./tasks";
 
 interface CreateCrmToolsOptions {
+  /** Explicit CRM tool mode for the current run. */
+  mode?: "normal" | "setup";
+  /** Runtime CRM vocabulary/custom-field config for normal mode. */
+  config?: CrmVocabConfig;
   /**
    * Enables mutating CRM tools. Always true in v1; prompt-level approval
    * provides interim safety until the PR 33 approval gate ships.
@@ -28,13 +34,21 @@ export function createCrmTools(
   clientId: string,
   options?: CreateCrmToolsOptions,
 ) {
-  const { allowWriteTools = true } = options ?? {};
+  const {
+    allowWriteTools = true,
+    mode = "normal",
+    config = CRM_DEFAULTS,
+  } = options ?? {};
 
-  const contactTools = createContactTools(supabase, clientId);
-  const dealTools = createDealTools(supabase, clientId);
-  const dealContactTools = createDealContactTools(supabase, clientId);
-  const interactionTools = createInteractionTools(supabase, clientId);
-  const taskTools = createTaskTools(supabase, clientId);
+  if (mode === "setup") {
+    return createConfigureCrmTool(supabase, clientId);
+  }
+
+  const contactTools = createContactTools(supabase, clientId, config);
+  const dealTools = createDealTools(supabase, clientId, config);
+  const dealContactTools = createDealContactTools(supabase, clientId, config);
+  const interactionTools = createInteractionTools(supabase, clientId, config);
+  const taskTools = createTaskTools(supabase, clientId, config);
 
   const readTools = {
     search_contacts: contactTools.search_contacts,

@@ -7,11 +7,20 @@ import { z } from "zod";
 /** Supported invocation sources for runAgent. */
 export const triggerTypeValues = ["chat", "webhook", "cron", "pulse"] as const;
 
+export const runnerFilePartSchema = z.object({
+  type: z.literal("file"),
+  filename: z.string().min(1).optional(),
+  mediaType: z.string().min(1),
+  url: z.string().min(1),
+});
+
 export const runnerPayloadSchema = z.object({
   clientId: z.string().uuid(),
   threadId: z.string().uuid(),
   triggerType: z.enum(triggerTypeValues),
   input: z.string(),
+  fileParts: z.array(runnerFilePartSchema).optional(),
+  crmMode: z.enum(["normal", "setup"]).optional(),
 });
 
 export const toolResultEnvelopeSchema = z.object({
@@ -30,5 +39,6 @@ export const runResultSchema = z.object({
 });
 
 export type RunnerPayload = z.infer<typeof runnerPayloadSchema>;
+export type RunnerFilePart = z.infer<typeof runnerFilePartSchema>;
 export type ToolResultEnvelope = z.infer<typeof toolResultEnvelopeSchema>;
 export type RunResult = z.infer<typeof runResultSchema>;

@@ -6,7 +6,7 @@ import { tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import { dealContactRoleValues } from "@/lib/crm/schemas";
+import { CRM_DEFAULTS, type CrmVocabConfig } from "@/lib/crm/config";
 import type { Database } from "@/types/database";
 
 /**
@@ -18,18 +18,25 @@ import type { Database } from "@/types/database";
 export function createDealContactTools(
   supabase: SupabaseClient<Database>,
   clientId: string,
+  config: CrmVocabConfig = CRM_DEFAULTS,
 ) {
+  const roleEnum = z.enum(config.deal_contact_roles as [string, ...string[]]);
+  const roleList = config.deal_contact_roles.join(", ");
+  const defaultRole = config.deal_contact_roles.includes("buyer")
+    ? "buyer"
+    : config.deal_contact_roles[0];
+
   const link_contact_to_deal = tool({
     description:
-      "Link a contact to a deal with a role (buyer, seller, agent, other). " +
+      `Link a contact to a deal with a role (${roleList}). ` +
       "A deal can have multiple contacts. Each contact-deal pair must be unique. " +
       "Use search_contacts and search_deals to find IDs first. " +
       "Data Modification Warning: Only link contacts when the user has explicitly asked to do so.",
     inputSchema: z.object({
       deal_id: z.string().uuid().describe("UUID of the deal. Use search_deals to find this."),
       contact_id: z.string().uuid().describe("UUID of the contact. Use search_contacts to find this."),
-      role: z.enum(dealContactRoleValues).optional()
-        .describe("Contact's role in the deal (buyer, seller, agent, other). Defaults to 'buyer'."),
+      role: roleEnum.optional()
+        .describe(`Contact's role in the deal (${roleList}). Defaults to "${defaultRole}".`),
       is_primary: z.boolean().optional()
         .describe("Whether this is the primary contact for display. Defaults to false."),
     }),
@@ -40,7 +47,7 @@ export function createDealContactTools(
           client_id: clientId,
           deal_id,
           contact_id,
-          role: role ?? "buyer",
+          role: role ?? defaultRole,
           is_primary: is_primary ?? false,
         })
         .select()
@@ -90,7 +97,7 @@ export function createDealContactTools(
 
   const get_deal_contacts = tool({
     description:
-      "Get all contacts linked to a deal with their roles (buyer, seller, agent, other) and primary status. " +
+      `Get all contacts linked to a deal with their roles (${roleList}) and primary status. ` +
       "Returns contact details (name, email, phone) for each link. " +
       "Use this to see who is involved in a deal before linking or unlinking contacts.",
     inputSchema: z.object({

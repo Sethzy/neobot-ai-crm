@@ -5,6 +5,7 @@
 import type { VariantProps } from "class-variance-authority";
 
 import type { badgeVariants } from "@/components/ui/badge";
+import type { CustomFieldDefinition } from "@/lib/crm/config";
 import type { Contact, CrmTask, Deal } from "@/lib/crm/schemas";
 import { crmTaskStatusValues, dealStageValues } from "@/lib/crm/schemas";
 
@@ -71,6 +72,76 @@ export function formatCrmPrice(price: number | null): string {
 /** Returns a normalized full name for a contact. */
 export function formatContactFullName(contact: Pick<Contact, "first_name" | "last_name">): string {
   return `${contact.first_name} ${contact.last_name}`.trim();
+}
+
+/** Formats CRM enum-like values such as `hot_lead` into `Hot Lead`. */
+export function formatCrmEnumLabel(value: string): string {
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) {
+    return value;
+  }
+
+  return trimmed
+    .replace(/[_-]+/g, " ")
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+/** Builds select options while preserving a current out-of-config value if needed. */
+export function buildCrmSelectOptions(values: readonly string[], currentValue?: string | null) {
+  const nextValues = currentValue && !values.includes(currentValue)
+    ? [...values, currentValue]
+    : values;
+
+  return nextValues.map((value) => ({
+    value,
+    label: formatCrmEnumLabel(value),
+  }));
+}
+
+/** Formats a stored custom-field value for `InlineEditField`. */
+export function formatCustomFieldValue(
+  type: CustomFieldDefinition["type"],
+  value: unknown,
+): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (type === "number" || type === "currency") {
+    return typeof value === "number" ? String(value) : String(value).trim();
+  }
+
+  if (type === "date" || type === "select" || type === "text") {
+    return String(value);
+  }
+
+  return String(value);
+}
+
+/** Parses inline-edit custom-field input back into the stored JSONB value. */
+export function parseCustomFieldInputValue(
+  type: CustomFieldDefinition["type"],
+  value: string,
+) {
+  if (type === "number" || type === "currency") {
+    const normalizedValue = value.replace(/[^\d.-]/g, "");
+
+    if (!normalizedValue) {
+      return null;
+    }
+
+    const parsedValue = Number(normalizedValue);
+    if (Number.isNaN(parsedValue)) {
+      throw new Error("Value must be a valid number.");
+    }
+
+    return parsedValue;
+  }
+
+  return toNullableValue(value);
 }
 
 /** Converts a string to `null` when empty/whitespace-only — used by CRM inline edit fields. */

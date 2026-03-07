@@ -4,15 +4,19 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { type RunnerFilePart, runnerFilePartSchema } from "@/lib/runner/schemas";
 import type { Database, Json } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
+type QueuedTriggerType = "chat" | "cron" | "webhook" | "pulse";
 
 export interface EnqueueMessageInput {
   threadId: string;
   clientId: string;
   content: string;
+  fileParts?: RunnerFilePart[];
   channel?: string;
+  triggerType?: QueuedTriggerType;
 }
 
 export interface QueueScope {
@@ -26,16 +30,45 @@ interface DrainedQueueRow {
   created_at: string;
 }
 
-function extractText(content: Json): string {
+export interface DrainedQueuedMessage {
+  text: string;
+  triggerType: QueuedTriggerType;
+  fileParts?: RunnerFilePart[];
+}
+
+function isQueuedTriggerType(value: unknown): value is QueuedTriggerType {
+  return value === "chat" || value === "cron" || value === "webhook" || value === "pulse";
+}
+
+function parseQueuedFileParts(value: unknown): RunnerFilePart[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const parsed = runnerFilePartSchema.array().safeParse(value);
+  return parsed.success && parsed.data.length > 0 ? parsed.data : undefined;
+}
+
+function extractQueuedMessage(content: Json): DrainedQueuedMessage {
   if (typeof content === "string") {
-    return content;
+    return {
+      text: content,
+      triggerType: "chat",
+    };
   }
 
   if (typeof content === "object" && content && "text" in content && typeof content.text === "string") {
-    return content.text;
+    return {
+      text: content.text,
+      triggerType: isQueuedTriggerType(content.triggerType) ? content.triggerType : "chat",
+      fileParts: parseQueuedFileParts(content.fileParts),
+    };
   }
 
-  return JSON.stringify(content);
+  return {
+    text: JSON.stringify(content),
+    triggerType: "chat",
+  };
 }
 
 /**
@@ -43,13 +76,22 @@ function extractText(content: Json): string {
  */
 export async function enqueueMessage(
   supabase: ChatSupabaseClient,
-  { threadId, clientId, content, channel = "web" }: EnqueueMessageInput,
+  { threadId, clientId, content, fileParts, channel = "web", triggerType }: EnqueueMessageInput,
 ): Promise<void> {
   const { error } = await supabase.from("thread_queue_records").insert({
     thread_id: threadId,
     client_id: clientId,
     channel,
-    content: { text: content },
+    content: triggerType && triggerType !== "chat"
+      ? {
+          text: content,
+          triggerType,
+          ...(fileParts && fileParts.length > 0 ? { fileParts } : {}),
+        }
+      : {
+          text: content,
+          ...(fileParts && fileParts.length > 0 ? { fileParts } : {}),
+        },
   });
 
   if (error) {
@@ -63,7 +105,7 @@ export async function enqueueMessage(
 export async function drainQueue(
   supabase: ChatSupabaseClient,
   { threadId, clientId }: QueueScope,
-): Promise<string[]> {
+): Promise<DrainedQueuedMessage[]> {
   const { data, error } = await supabase.rpc("drain_thread_queue", {
     p_thread_id: threadId,
     p_client_id: clientId,
@@ -74,7 +116,7 @@ export async function drainQueue(
   }
 
   const rows = (data as DrainedQueueRow[] | null) ?? [];
-  return rows.map((row) => extractText(row.content));
+  return rows.map((row) => extractQueuedMessage(row.content));
 }
 
 /**

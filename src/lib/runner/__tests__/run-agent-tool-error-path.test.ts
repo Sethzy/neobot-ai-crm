@@ -8,6 +8,7 @@ const {
   mockStreamText,
   mockStepCountIs,
   mockGateway,
+  mockLoadCrmConfig,
   mockAssembleContext,
   mockCreateRun,
   mockCompleteRun,
@@ -17,6 +18,7 @@ const {
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
+  mockCreateTriggerTools,
   mockCreateMessages,
   mockMaybeCompactThread,
   mockTruncateOversizedParts,
@@ -24,6 +26,7 @@ const {
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
   mockGateway: vi.fn(() => "mock-model"),
+  mockLoadCrmConfig: vi.fn(),
   mockAssembleContext: vi.fn(),
   mockCreateRun: vi.fn(),
   mockCompleteRun: vi.fn(),
@@ -33,6 +36,7 @@ const {
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
+  mockCreateTriggerTools: vi.fn(),
   mockCreateMessages: vi.fn(),
   mockMaybeCompactThread: vi.fn(),
   mockTruncateOversizedParts: vi.fn(),
@@ -47,6 +51,14 @@ vi.mock("@/lib/ai/gateway", () => ({
   gateway: mockGateway,
   TIER_1_MODEL: "google/gemini-3-flash",
 }));
+
+vi.mock("@/lib/crm/config", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/crm/config")>();
+  return {
+    ...actual,
+    loadCrmConfig: mockLoadCrmConfig,
+  };
+});
 
 vi.mock("@/lib/runner/context", () => ({
   assembleContext: mockAssembleContext,
@@ -85,6 +97,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
+  createTriggerTools: mockCreateTriggerTools,
 }));
 
 import type { RunnerPayload } from "../schemas";
@@ -102,6 +115,7 @@ describe("runAgent tool-error completion path", () => {
     vi.clearAllMocks();
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
     mockMarkStaleRunsFailed.mockResolvedValue(0);
+    mockLoadCrmConfig.mockResolvedValue({ config: {}, hasConfig: false });
     mockCreateMessages.mockResolvedValue([]);
     mockAssembleContext.mockResolvedValue({
       system: "You are Sunder.",
@@ -111,6 +125,7 @@ describe("runAgent tool-error completion path", () => {
     mockCreateStorageTools.mockReturnValue({});
     mockCreateWebTools.mockReturnValue({});
     mockCreateUtilityTools.mockReturnValue({});
+    mockCreateTriggerTools.mockReturnValue({});
     mockMaybeCompactThread.mockResolvedValue(false);
     mockTruncateOversizedParts.mockImplementation(async (_supabase, _clientId, parts) => ({
       parts,

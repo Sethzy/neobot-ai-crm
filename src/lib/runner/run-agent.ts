@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
 import { createMessages } from "@/lib/chat/messages";
+import { loadCrmConfig } from "@/lib/crm/config";
 import { assembleContext } from "@/lib/runner/context";
 import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
 import { finalizeRun } from "@/lib/runner/run-persistence";
@@ -14,6 +15,7 @@ import type { RunnerPayload } from "@/lib/runner/schemas";
 import {
   createCrmTools,
   createStorageTools,
+  createTriggerTools,
   createUtilityTools,
   createWebTools,
 } from "@/lib/runner/tools";
@@ -25,6 +27,7 @@ const MAX_STEPS_TIER_1 = 9;
 type ChatSupabaseClient = SupabaseClient<Database>;
 type RunnerTools = ReturnType<typeof createCrmTools> &
   ReturnType<typeof createStorageTools> &
+  ReturnType<typeof createTriggerTools> &
   ReturnType<typeof createUtilityTools> &
   ReturnType<typeof createWebTools>;
 type StreamResult = ReturnType<typeof streamText<RunnerTools>>;
@@ -40,19 +43,30 @@ export function createRunnerTools(
   supabase: ChatSupabaseClient,
   clientId: string,
   threadId: string,
+  options?: {
+    allowTriggerMutations?: boolean;
+    crmMode?: "normal" | "setup";
+    crmConfig?: Awaited<ReturnType<typeof loadCrmConfig>>["config"];
+  },
 ) {
   const crmTools = createCrmTools(supabase, clientId, {
     allowWriteTools: true,
+    mode: options?.crmMode ?? "normal",
+    config: options?.crmConfig,
   });
   const storageTools = createStorageTools(supabase, clientId);
   const webTools = createWebTools();
   const utilityTools = createUtilityTools(supabase, clientId, threadId);
+  const triggerTools = createTriggerTools(supabase, clientId, threadId, {
+    allowMutations: options?.allowTriggerMutations ?? true,
+  });
 
   return {
     ...crmTools,
     ...storageTools,
     ...webTools,
     ...utilityTools,
+    ...triggerTools,
   };
 }
 
@@ -81,6 +95,7 @@ export async function runAgent(
 ): Promise<RunAgentResult> {
   const { clientId, threadId, input } = payload;
   const modelId = TIER_1_MODEL;
+  const crmMode = payload.crmMode ?? "normal";
 
   await markStaleRunsFailed(supabase, { threadId, staleMinutes: 15 });
 
@@ -90,30 +105,45 @@ export async function runAgent(
       threadId,
       clientId,
       content: input,
+      fileParts: payload.fileParts,
       channel: "web",
+      ...(payload.triggerType === "chat" ? {} : { triggerType: payload.triggerType }),
     });
     return { status: "queued" };
   }
 
   try {
     if (payload.triggerType !== "cron") {
+      const userMessageParts = [
+        ...(payload.fileParts ?? []),
+        ...(input.length > 0 ? [{ type: "text", text: input }] : []),
+      ];
+
       await createMessages(supabase, [
         {
           thread_id: threadId,
           role: "user",
-          content: input,
-          parts: [{ type: "text", text: input }] as Json,
+          content: input.length > 0 ? input : null,
+          parts: userMessageParts as Json,
         },
       ]);
     }
+
+    const { config: crmConfig } = await loadCrmConfig(supabase, clientId);
 
     const { system, messages } = await assembleContext({
       supabase,
       threadId,
       currentMessage: "",
       clientId,
+      crmConfig,
+      crmMode,
     });
-    const tools = createRunnerTools(supabase, clientId, threadId);
+    const tools = createRunnerTools(supabase, clientId, threadId, {
+      allowTriggerMutations: payload.triggerType === "chat",
+      crmMode,
+      crmConfig,
+    });
 
     const streamResult = streamText({
       model: gateway(modelId),

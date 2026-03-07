@@ -4,6 +4,8 @@
  */
 import { describe, expect, it } from "vitest";
 
+import { CRM_DEFAULTS } from "@/lib/crm/config";
+
 import { createCrmTools } from "../index";
 import { createMockSupabase } from "./mock-supabase";
 
@@ -56,5 +58,32 @@ describe("createCrmTools", () => {
       expect(typeof tools[toolName as keyof typeof tools]).toBe("object");
       expect(typeof tools[toolName as keyof typeof tools].execute).toBe("function");
     }
+  });
+
+  it("returns only configure_crm in setup mode", () => {
+    const { client } = createMockSupabase();
+
+    const tools = createCrmTools(client, CLIENT_ID, { mode: "setup" });
+
+    expect(Object.keys(tools)).toEqual(["configure_crm"]);
+  });
+
+  it("passes config through to the normal tool factories", () => {
+    const { client } = createMockSupabase();
+
+    const tools = createCrmTools(client, CLIENT_ID, {
+      mode: "normal",
+      config: {
+        ...CRM_DEFAULTS,
+        deal_label: "Policy",
+        deal_stages: ["lead", "underwriting", "bound"],
+      },
+    });
+
+    expect(tools.create_deal.description).toContain("Policy");
+    expect(tools.search_deals.description).toContain("Policy");
+    expect(tools.search_deals.inputSchema.safeParse({ stage: "underwriting" }).success).toBe(true);
+    expect(tools.search_deals.inputSchema.safeParse({ stage: "offer" }).success).toBe(false);
+    expect(tools).not.toHaveProperty("configure_crm");
   });
 });

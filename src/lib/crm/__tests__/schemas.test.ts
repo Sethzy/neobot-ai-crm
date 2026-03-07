@@ -34,6 +34,7 @@ describe("contact schemas", () => {
     phone: "+6591234567",
     type: "buyer" as const,
     notes: "Met at property viewing",
+    custom_fields: {},
     created_at: ISO,
     updated_at: ISO,
   };
@@ -99,6 +100,7 @@ describe("deal schemas", () => {
     stage: "negotiation" as const,
     price: 1500000,
     notes: "3BR condo",
+    custom_fields: {},
     created_at: ISO,
     updated_at: ISO,
   };
@@ -184,7 +186,7 @@ describe("deal contact schemas", () => {
       client_id: "660e8400-e29b-41d4-a716-446655440000",
       deal_id: "550e8400-e29b-41d4-a716-446655440010",
       contact_id: "550e8400-e29b-41d4-a716-446655440020",
-      role: "invalid_role",
+      role: "",
       is_primary: true,
       created_at: ISO,
     });
@@ -258,6 +260,7 @@ describe("crm task schemas", () => {
     description: "Call and confirm preferred district",
     status: "open" as const,
     due_date: ISO,
+    custom_fields: {},
     created_at: ISO,
     updated_at: ISO,
   };
@@ -301,9 +304,15 @@ describe("crm config schemas", () => {
   const validRow = {
     config_id: "a50e8400-e29b-41d4-a716-446655440000",
     client_id: "660e8400-e29b-41d4-a716-446655440000",
+    deal_label: "Deal",
     deal_stages: [{ id: "leads", name: "Leads" }],
+    contact_types: ["buyer", "seller"],
     task_types: [{ id: "follow_up", name: "Follow up" }],
     interaction_types: [{ id: "call", name: "Call" }],
+    deal_contact_roles: ["buyer", "agent"],
+    deal_custom_fields: [],
+    contact_custom_fields: [],
+    task_custom_fields: [],
     created_at: ISO,
     updated_at: ISO,
   };
@@ -316,8 +325,10 @@ describe("crm config schemas", () => {
     const nullableRow = {
       ...validRow,
       deal_stages: null,
+      contact_types: null,
       task_types: null,
       interaction_types: null,
+      deal_contact_roles: null,
     };
     expect(crmConfigSchema.parse(nullableRow)).toEqual(nullableRow);
   });

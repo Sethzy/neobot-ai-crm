@@ -18,6 +18,7 @@ const {
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
+  mockCreateTriggerTools,
   mockCreateMessages,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
@@ -33,6 +34,7 @@ const {
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
+  mockCreateTriggerTools: vi.fn(),
   mockCreateMessages: vi.fn(),
 }));
 
@@ -63,6 +65,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
+  createTriggerTools: mockCreateTriggerTools,
 }));
 
 import { runAgent } from "../run-agent";
@@ -89,6 +92,11 @@ describe("stale run cleanup", () => {
       rename_chat: { description: "utility-tool" },
       run_agent_memory_sql: { description: "utility-tool" },
       get_agent_db_schema: { description: "utility-tool" },
+    });
+    mockCreateTriggerTools.mockReturnValue({
+      search_triggers: { description: "trigger-tool" },
+      setup_trigger: { description: "trigger-tool" },
+      manage_active_triggers: { description: "trigger-tool" },
     });
     mockAssembleContext.mockResolvedValue({
       system: "prompt",

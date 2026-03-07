@@ -18,9 +18,11 @@ const {
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
+  mockCreateTriggerTools,
   mockCreateMessages,
   mockMaybeCompactThread,
   mockTruncateOversizedParts,
+  mockLoadCrmConfig,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
@@ -35,9 +37,11 @@ const {
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
+  mockCreateTriggerTools: vi.fn(),
   mockCreateMessages: vi.fn(),
   mockMaybeCompactThread: vi.fn(),
   mockTruncateOversizedParts: vi.fn(),
+  mockLoadCrmConfig: vi.fn(),
 }));
 
 vi.mock("ai", () => ({
@@ -72,6 +76,11 @@ vi.mock("@/lib/runner/tools", () => ({
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
+  createTriggerTools: mockCreateTriggerTools,
+}));
+
+vi.mock("@/lib/crm/config", () => ({
+  loadCrmConfig: mockLoadCrmConfig,
 }));
 
 vi.mock("@/lib/chat/messages", () => ({
@@ -134,6 +143,11 @@ describe("runAgent", () => {
       run_agent_memory_sql: { description: "utility-tool" },
       get_agent_db_schema: { description: "utility-tool" },
     });
+    mockCreateTriggerTools.mockReturnValue({
+      search_triggers: { description: "trigger-tool" },
+      setup_trigger: { description: "trigger-tool" },
+      manage_active_triggers: { description: "trigger-tool" },
+    });
     mockAssembleContext.mockResolvedValue({
       system: "You are Sunder.",
       messages: [{ role: "user", content: "Hello, Sunder!" }],
@@ -142,6 +156,19 @@ describe("runAgent", () => {
       parts,
       recoveryPaths: [],
     }));
+    mockLoadCrmConfig.mockResolvedValue({
+      hasConfig: true,
+      config: {
+        deal_label: "Policy",
+        deal_stages: ["lead", "quoted", "bound"],
+        contact_types: ["prospect", "client"],
+        interaction_types: ["call", "email"],
+        deal_contact_roles: ["insured", "owner"],
+        deal_custom_fields: [],
+        contact_custom_fields: [],
+        task_custom_fields: [],
+      },
+    });
     mockMaybeCompactThread.mockResolvedValue(false);
     mockStreamText.mockReturnValue({
       toUIMessageStreamResponse: vi.fn(() => new Response("streamed")),
@@ -183,13 +210,20 @@ describe("runAgent", () => {
           rename_chat: { description: "utility-tool" },
           run_agent_memory_sql: { description: "utility-tool" },
           get_agent_db_schema: { description: "utility-tool" },
+          search_triggers: { description: "trigger-tool" },
+          setup_trigger: { description: "trigger-tool" },
+          manage_active_triggers: { description: "trigger-tool" },
         },
       }),
     );
     expect(mockCreateCrmTools).toHaveBeenCalledWith(
       "mock-supabase-client",
       validPayload.clientId,
-      { allowWriteTools: true },
+      {
+        allowWriteTools: true,
+        mode: "normal",
+        config: expect.objectContaining({ deal_label: "Policy" }),
+      },
     );
     expect(mockCreateStorageTools).toHaveBeenCalledWith(
       "mock-supabase-client",
@@ -200,6 +234,12 @@ describe("runAgent", () => {
       "mock-supabase-client",
       validPayload.clientId,
       validPayload.threadId,
+    );
+    expect(mockCreateTriggerTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      validPayload.threadId,
+      { allowMutations: true },
     );
   });
 
@@ -212,7 +252,54 @@ describe("runAgent", () => {
     expect(mockCreateCrmTools).toHaveBeenCalledWith(
       "mock-supabase-client",
       validPayload.clientId,
-      { allowWriteTools: true },
+      expect.objectContaining({ allowWriteTools: true, mode: "normal" }),
+    );
+  });
+
+  it("loads CRM config once per run and injects it into context", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    expect(mockLoadCrmConfig).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+    );
+    expect(mockAssembleContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        crmMode: "normal",
+        crmConfig: expect.objectContaining({
+          deal_label: "Policy",
+          deal_stages: ["lead", "quoted", "bound"],
+        }),
+      }),
+    );
+  });
+
+  it("switches to explicit setup mode without auto-detecting from missing config", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(
+      { ...validPayload, crmMode: "setup" },
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockCreateCrmTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      expect.objectContaining({
+        mode: "setup",
+        config: expect.objectContaining({ deal_label: "Policy" }),
+      }),
+    );
+    expect(mockAssembleContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        crmMode: "setup",
+        crmConfig: expect.objectContaining({
+          deal_label: "Policy",
+          deal_stages: ["lead", "quoted", "bound"],
+        }),
+      }),
     );
   });
 
@@ -253,6 +340,64 @@ describe("runAgent", () => {
     expect(mockStreamText).not.toHaveBeenCalled();
   });
 
+  it("preserves cron trigger metadata when queueing a busy trigger run", async () => {
+    mockCreateRun.mockResolvedValue({ created: false });
+
+    const result = await runAgent(
+      {
+        ...validPayload,
+        triggerType: "cron",
+        input: "Process the most recent trigger event for this thread.",
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(result).toEqual({ status: "queued" });
+    expect(mockEnqueueMessage).toHaveBeenCalledWith("mock-supabase-client", {
+      threadId: validPayload.threadId,
+      clientId: validPayload.clientId,
+      content: "Process the most recent trigger event for this thread.",
+      channel: "web",
+      triggerType: "cron",
+    });
+  });
+
+  it("queues file parts when a busy chat thread receives an attachment", async () => {
+    mockCreateRun.mockResolvedValue({ created: false });
+
+    const result = await runAgent(
+      {
+        ...validPayload,
+        input: "Review this screenshot",
+        fileParts: [
+          {
+            type: "file",
+            filename: "shot.png",
+            mediaType: "image/png",
+            url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+          },
+        ],
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(result).toEqual({ status: "queued" });
+    expect(mockEnqueueMessage).toHaveBeenCalledWith("mock-supabase-client", {
+      threadId: validPayload.threadId,
+      clientId: validPayload.clientId,
+      content: "Review this screenshot",
+      channel: "web",
+      fileParts: [
+        {
+          type: "file",
+          filename: "shot.png",
+          mediaType: "image/png",
+          url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+        },
+      ],
+    });
+  });
+
   it("passes assembled thread context to streamText", async () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
     mockAssembleContext.mockResolvedValue({
@@ -266,12 +411,16 @@ describe("runAgent", () => {
 
     await runAgent(validPayload, "mock-supabase-client" as never);
 
-    expect(mockAssembleContext).toHaveBeenCalledWith({
-      supabase: "mock-supabase-client",
-      threadId: validPayload.threadId,
-      currentMessage: "",
-      clientId: validPayload.clientId,
-    });
+    expect(mockAssembleContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        supabase: "mock-supabase-client",
+        threadId: validPayload.threadId,
+        currentMessage: "",
+        clientId: validPayload.clientId,
+        crmMode: "normal",
+        crmConfig: expect.objectContaining({ deal_label: "Policy" }),
+      }),
+    );
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
         system: "Custom system prompt",
@@ -297,12 +446,89 @@ describe("runAgent", () => {
         parts: [{ type: "text", text: validPayload.input }],
       },
     ]);
-    expect(mockAssembleContext).toHaveBeenCalledWith({
-      supabase: "mock-supabase-client",
-      threadId: validPayload.threadId,
-      currentMessage: "",
-      clientId: validPayload.clientId,
-    });
+    expect(mockAssembleContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        supabase: "mock-supabase-client",
+        threadId: validPayload.threadId,
+        currentMessage: "",
+        clientId: validPayload.clientId,
+        crmMode: "normal",
+        crmConfig: expect.objectContaining({ deal_label: "Policy" }),
+      }),
+    );
+  });
+
+  it("persists inbound multimodal user messages before streaming", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(
+      {
+        ...validPayload,
+        input: "Review this screenshot",
+        fileParts: [
+          {
+            type: "file",
+            filename: "shot.png",
+            mediaType: "image/png",
+            url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+          },
+        ],
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockCreateMessages).toHaveBeenCalledWith("mock-supabase-client", [
+      {
+        thread_id: validPayload.threadId,
+        role: "user",
+        content: "Review this screenshot",
+        parts: [
+          {
+            type: "file",
+            filename: "shot.png",
+            mediaType: "image/png",
+            url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+          },
+          { type: "text", text: "Review this screenshot" },
+        ],
+      },
+    ]);
+  });
+
+  it("persists image-only user messages with null content and file parts", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(
+      {
+        ...validPayload,
+        input: "",
+        fileParts: [
+          {
+            type: "file",
+            filename: "shot.png",
+            mediaType: "image/png",
+            url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+          },
+        ],
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockCreateMessages).toHaveBeenCalledWith("mock-supabase-client", [
+      {
+        thread_id: validPayload.threadId,
+        role: "user",
+        content: null,
+        parts: [
+          {
+            type: "file",
+            filename: "shot.png",
+            mediaType: "image/png",
+            url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+          },
+        ],
+      },
+    ]);
   });
 
   it("persists assistant output text to conversation_messages when stream finishes", async () => {
@@ -355,6 +581,26 @@ describe("runAgent", () => {
     );
 
     expect(mockCreateMessages).not.toHaveBeenCalled();
+  });
+
+  it("creates read-only trigger tools for cron trigger runs", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(
+      {
+        ...validPayload,
+        triggerType: "cron",
+        input: "Process the most recent trigger event for this thread.",
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockCreateTriggerTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      validPayload.threadId,
+      { allowMutations: false },
+    );
   });
 
   it("persists assistant tool parts in AI SDK v6 format when stream finishes", async () => {

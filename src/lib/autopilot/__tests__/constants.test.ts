@@ -38,9 +38,22 @@ describe("autopilot constants", () => {
   });
 
   test("includes the live-state bootstrap and noise suppression rules", () => {
-    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("MUST call tools");
-    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("Never say \"nothing to do.\"");
-    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("Avoid low-value pulses");
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("Thread history is not current truth");
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("Never end without a concrete next action");
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("No filler");
+  });
+
+  test("includes memory continuity and after-acting persistence", () => {
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("memory files are your only continuity");
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("AFTER ACTING");
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("MEMORY.md");
+  });
+
+  test("overrides approval rules for autonomous execution", () => {
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("<approval-override>");
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("MAY execute without approval");
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("create_task");
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("MUST still describe and defer");
   });
 });
 

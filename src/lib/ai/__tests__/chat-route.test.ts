@@ -259,6 +259,124 @@ describe("POST /api/chat", () => {
     expect(response).toBe(streamResponse);
   });
 
+  it("passes the explicit crmMode flag through to runAgent", async () => {
+    const streamResponse = new Response("streamed", {
+      headers: { "Content-Type": "text/event-stream" },
+    });
+    const wrappedStream = new ReadableStream();
+    const mockStreamResult = {
+      toUIMessageStream: vi.fn(() => new ReadableStream()),
+    };
+    mockCreateUIMessageStream.mockReturnValue(wrappedStream);
+    mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
+    mockRunAgent.mockResolvedValue({
+      status: "streaming",
+      streamResult: mockStreamResult,
+    });
+
+    await POST(
+      createJsonRequest({
+        id: threadId,
+        crmMode: "setup",
+        messages: [
+          { id: "u1", role: "user", parts: [{ type: "text", text: "Reconfigure my CRM" }] },
+        ],
+      }),
+    );
+
+    expect(mockRunAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        crmMode: "setup",
+      }),
+      mockSupabase,
+    );
+  });
+
+  it("passes crmMode through to runAgent when explicitly requested", async () => {
+    const streamResponse = new Response("streamed", {
+      headers: { "Content-Type": "text/event-stream" },
+    });
+    const wrappedStream = new ReadableStream();
+    const mockStreamResult = {
+      toUIMessageStream: vi.fn(() => new ReadableStream()),
+    };
+    mockCreateUIMessageStream.mockReturnValue(wrappedStream);
+    mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
+    mockRunAgent.mockResolvedValue({
+      status: "streaming",
+      streamResult: mockStreamResult,
+    });
+
+    await POST(
+      createJsonRequest({
+        id: threadId,
+        crmMode: "setup",
+        messages: [
+          { id: "u1", role: "user", parts: [{ type: "text", text: "Configure my CRM" }] },
+        ],
+      }),
+    );
+
+    expect(mockRunAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        crmMode: "setup",
+      }),
+      mockSupabase,
+    );
+  });
+
+  it("accepts image-only user messages and forwards file parts to the runner", async () => {
+    const streamResponse = new Response("streamed", {
+      headers: { "Content-Type": "text/event-stream" },
+    });
+    const wrappedStream = new ReadableStream();
+    mockCreateUIMessageStream.mockReturnValue(wrappedStream);
+    mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
+    mockRunAgent.mockResolvedValue({
+      status: "streaming",
+      streamResult: {
+        toUIMessageStream: vi.fn(() => new ReadableStream()),
+      },
+    });
+
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [
+            {
+              type: "file",
+              filename: "screenshot.png",
+              mediaType: "image/png",
+              url: "https://storage.example.com/chat-attachments/client-1/screenshot.png",
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(mockRunAgent).toHaveBeenCalledWith(
+      {
+        clientId: "client-456",
+        threadId,
+        triggerType: "chat",
+        input: "",
+        fileParts: [
+          {
+            type: "file",
+            filename: "screenshot.png",
+            mediaType: "image/png",
+            url: "https://storage.example.com/chat-attachments/client-1/screenshot.png",
+          },
+        ],
+      },
+      mockSupabase,
+    );
+    expect(response).toBe(streamResponse);
+  });
+
   it("returns 202 queued when runner cannot acquire thread lock", async () => {
     mockRunAgent.mockResolvedValue({ status: "queued" });
 
@@ -332,6 +450,50 @@ describe("POST /api/chat", () => {
     expect(update).toHaveBeenCalledWith({ title: "Generated title" });
     expect(updateEq).toHaveBeenCalledWith("thread_id", threadId);
     expect(response).toBe(streamResponse);
+  });
+
+  it("does not generate a chat title for a new thread when the opening message only contains files", async () => {
+    const { from, insert } = createMissingThreadWithInsert();
+    mockSupabase.from = from;
+
+    const streamResponse = new Response("streamed", {
+      headers: { "Content-Type": "text/event-stream" },
+    });
+    const uiStream = new ReadableStream();
+    const wrappedStream = new ReadableStream();
+    mockCreateUIMessageStream.mockReturnValue(wrappedStream);
+    mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
+    mockRunAgent.mockResolvedValue({
+      status: "streaming",
+      streamResult: {
+        toUIMessageStream: vi.fn(() => uiStream),
+      },
+    });
+
+    await POST(
+      createJsonRequest({
+        id: threadId,
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [
+            {
+              type: "file",
+              filename: "brief.png",
+              mediaType: "image/png",
+              url: "https://storage.example.com/chat-attachments/client-1/brief.png",
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(insert).toHaveBeenCalledWith({
+      thread_id: threadId,
+      client_id: "client-456",
+      title: null,
+    });
+    expect(mockGenerateTitleFromUserMessage).not.toHaveBeenCalled();
   });
 
   it("returns 400 when thread id is missing", async () => {

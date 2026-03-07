@@ -4,7 +4,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
+import { buildPlatformInstructions } from "@/lib/ai/platform-instructions";
+import { SETUP_SYSTEM_PROMPT, SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
 import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
 import { SUMMARY_PREFIX } from "../compaction";
@@ -36,9 +37,15 @@ vi.mock("@/lib/memory/loader", () => ({
   loadMemoryContext: mockLoadMemoryContext,
 }));
 
-vi.mock("@/lib/runner/system-reminder", () => ({
-  buildSystemReminder: mockBuildSystemReminder,
-}));
+vi.mock("@/lib/runner/system-reminder", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/runner/system-reminder")>(
+    "@/lib/runner/system-reminder",
+  );
+  return {
+    ...actual,
+    buildSystemReminder: mockBuildSystemReminder,
+  };
+});
 
 vi.mock("@/lib/runner/compaction", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/runner/compaction")>();
@@ -49,6 +56,13 @@ vi.mock("@/lib/runner/compaction", async (importOriginal) => {
 });
 
 describe("assembleContext", () => {
+  function textModelMessage(role: "user" | "assistant" | "system", text: string) {
+    return {
+      role,
+      content: [{ type: "text" as const, text }],
+    };
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -65,7 +79,7 @@ describe("assembleContext", () => {
     });
 
     expect(result.system).toBe(SYSTEM_PROMPT);
-    expect(result.messages).toEqual([{ role: "user", content: "Hello!" }]);
+    expect(result.messages).toEqual([textModelMessage("user", "Hello!")]);
   });
 
   it("assembles system string in 7-layer order when clientId is provided", async () => {
@@ -272,6 +286,66 @@ describe("assembleContext", () => {
     expect(instructionsIndex).toBeLessThan(soulIndex);
   });
 
+  it("injects runtime CRM vocabulary into the normal-mode platform instructions", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+    const platformInstructions = buildPlatformInstructions({
+      deal_label: "Policy & Claim",
+      deal_stages: ["lead", "underwriting", "bound"],
+      contact_types: ["prospect", "policy_holder"],
+      interaction_types: ["call", "email"],
+      deal_contact_roles: ["insured", "owner"],
+      deal_custom_fields: [
+        { key: "coverage_amount", label: 'Coverage "Amount"', type: "currency" },
+      ],
+      contact_custom_fields: [],
+      task_custom_fields: [],
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      clientId: "client-123",
+      platformInstructions,
+    });
+
+    expect(result.system).toContain("<crm-vocabulary>");
+    expect(result.system).toContain("Policy &amp; Claim");
+    expect(result.system).toContain("underwriting");
+    expect(result.system).toContain("Coverage &quot;Amount&quot;");
+  });
+
+  it("replaces the normal prompt with the setup prompt in crm setup mode", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Help me configure my CRM",
+      clientId: "client-123",
+      platformInstructions: buildPlatformInstructions({
+        deal_label: "Policy",
+        deal_stages: ["lead", "underwriting", "bound"],
+        contact_types: ["prospect", "client"],
+        interaction_types: ["call", "email"],
+        deal_contact_roles: ["insured", "owner"],
+        deal_custom_fields: [],
+        contact_custom_fields: [],
+        task_custom_fields: [],
+      }),
+      systemPrompt: SETUP_SYSTEM_PROMPT,
+    });
+
+    expect(result.system).toContain("setup mode");
+    expect(result.system).toContain("configure_crm");
+    expect(result.system).toContain("<crm-vocabulary>");
+    expect(result.system).not.toContain("search before creating");
+  });
+
   it("injects run-specific instructions when memory is not loaded", async () => {
     const supabase = createMockSupabaseClient({
       selectResult: { data: [], error: null },
@@ -285,6 +359,23 @@ describe("assembleContext", () => {
     });
 
     expect(result.system).toContain("Custom autopilot instructions");
+  });
+
+  it("replaces the default system prompt when an override is provided", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      clientId: "client-123",
+      systemPrompt: "You are configuring the CRM.",
+    });
+
+    expect(result.system).toContain("You are configuring the CRM.");
+    expect(result.system).not.toContain("You are Sunder, an AI assistant for solo real estate agents in Singapore.");
   });
 
   it("caps history query to the latest 240 messages", async () => {
@@ -361,8 +452,8 @@ describe("assembleContext", () => {
     });
 
     expect(result.messages).toHaveLength(240);
-    expect(result.messages[0]).toEqual({ role: "user", content: "Message 11" });
-    expect(result.messages[239]).toEqual({ role: "assistant", content: "Message 250" });
+    expect(result.messages[0]).toEqual(textModelMessage("user", "Message 11"));
+    expect(result.messages[239]).toEqual(textModelMessage("assistant", "Message 250"));
   });
 
   it("includes thread history before the current message", async () => {
@@ -383,9 +474,9 @@ describe("assembleContext", () => {
     });
 
     expect(result.messages).toEqual([
-      { role: "user", content: "Hi" },
-      { role: "assistant", content: "Hello! How can I help?" },
-      { role: "user", content: "Create a follow-up reminder" },
+      textModelMessage("user", "Hi"),
+      textModelMessage("assistant", "Hello! How can I help?"),
+      textModelMessage("user", "Create a follow-up reminder"),
     ]);
   });
 
@@ -436,8 +527,8 @@ describe("assembleContext", () => {
     });
 
     expect(result.messages).toEqual([
-      { role: "user", content: "Keep me" },
-      { role: "assistant", content: "Newest response" },
+      textModelMessage("user", "Keep me"),
+      textModelMessage("assistant", "Newest response"),
     ]);
   });
 
@@ -459,8 +550,8 @@ describe("assembleContext", () => {
     });
 
     expect(result.messages).toEqual([
-      { role: "user", content: "Persisted inbound message" },
-      { role: "assistant", content: "Existing response" },
+      textModelMessage("user", "Persisted inbound message"),
+      textModelMessage("assistant", "Existing response"),
     ]);
   });
 
@@ -486,8 +577,57 @@ describe("assembleContext", () => {
 
     expect(result.messages[0]).toEqual({
       role: "assistant",
-      content: "Rendered from parts",
+      content: [{ type: "text", text: "Rendered from parts" }],
     });
+  });
+
+  it("converts persisted user file parts into model message content", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: {
+        data: [
+          {
+            message_id: "message-1",
+            created_at: "2026-03-07T09:00:00.000Z",
+            role: "user",
+            content: "See attached",
+            parts: [
+              {
+                type: "file",
+                filename: "screenshot.png",
+                mediaType: "image/png",
+                url: "https://storage.example.com/chat-attachments/client-1/screenshot.png",
+              },
+              { type: "text", text: "See attached" },
+            ],
+          },
+        ],
+        error: null,
+      },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "",
+    });
+
+    expect(result.messages).toEqual([
+      {
+        role: "user",
+        content: [
+          {
+            type: "file",
+            filename: "screenshot.png",
+            mediaType: "image/png",
+            data: "https://storage.example.com/chat-attachments/client-1/screenshot.png",
+          },
+          {
+            type: "text",
+            text: "See attached",
+          },
+        ],
+      },
+    ]);
   });
 
   it("throws when history query fails", async () => {

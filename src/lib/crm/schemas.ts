@@ -4,6 +4,8 @@
  */
 import { z } from "zod";
 
+import { customFieldDefinitionSchema } from "@/lib/crm/config";
+
 /** ISO-8601 timestamp validator aligned with existing chat schemas. */
 const isoDateTimeSchema = z.string().datetime({ offset: true });
 
@@ -28,6 +30,9 @@ const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
   ])
 );
 
+/** JSON object schema used for `custom_fields` JSONB columns. */
+const jsonObjectSchema = z.record(z.string(), jsonValueSchema);
+
 /** Valid contact type classifications for Singapore real estate contacts. */
 export const contactTypeValues = [
   "buyer",
@@ -38,7 +43,7 @@ export const contactTypeValues = [
   "other",
 ] as const;
 
-const contactTypeSchema = z.enum(contactTypeValues);
+const configurableVocabularySchema = z.string().min(1);
 
 /** Full `contacts` row validator. */
 export const contactSchema = z.object({
@@ -48,8 +53,9 @@ export const contactSchema = z.object({
   last_name: z.string().min(1),
   email: z.string().nullable(),
   phone: z.string().nullable(),
-  type: contactTypeSchema,
+  type: configurableVocabularySchema,
   notes: z.string().nullable(),
+  custom_fields: jsonObjectSchema,
   created_at: isoDateTimeSchema,
   updated_at: isoDateTimeSchema,
 });
@@ -61,8 +67,9 @@ export const contactInsertSchema = z.object({
   last_name: z.string().min(1),
   email: z.string().nullable().optional(),
   phone: z.string().nullable().optional(),
-  type: contactTypeSchema,
+  type: configurableVocabularySchema,
   notes: z.string().nullable().optional(),
+  custom_fields: jsonObjectSchema.optional(),
 });
 
 export type Contact = z.infer<typeof contactSchema>;
@@ -77,16 +84,15 @@ export const dealStageValues = [
   "lost",
 ] as const;
 
-const dealStageSchema = z.enum(dealStageValues);
-
 /** Full `deals` row validator. */
 export const dealSchema = z.object({
   deal_id: z.string().uuid(),
   client_id: z.string().uuid(),
   address: z.string().min(1),
-  stage: dealStageSchema,
+  stage: configurableVocabularySchema,
   price: z.number().int().nonnegative().nullable(),
   notes: z.string().nullable(),
+  custom_fields: jsonObjectSchema,
   created_at: isoDateTimeSchema,
   updated_at: isoDateTimeSchema,
 });
@@ -95,9 +101,10 @@ export const dealSchema = z.object({
 export const dealInsertSchema = z.object({
   client_id: z.string().uuid(),
   address: z.string().min(1),
-  stage: dealStageSchema.optional(),
+  stage: configurableVocabularySchema.optional(),
   price: z.number().int().nonnegative().nullable().optional(),
   notes: z.string().nullable().optional(),
+  custom_fields: jsonObjectSchema.optional(),
 });
 
 export type Deal = z.infer<typeof dealSchema>;
@@ -111,15 +118,13 @@ export const dealContactRoleValues = [
   "other",
 ] as const;
 
-const dealContactRoleSchema = z.enum(dealContactRoleValues);
-
 /** Full `deal_contacts` row validator. */
 export const dealContactSchema = z.object({
   deal_contact_id: z.string().uuid(),
   client_id: z.string().uuid(),
   deal_id: z.string().uuid(),
   contact_id: z.string().uuid(),
-  role: dealContactRoleSchema,
+  role: configurableVocabularySchema,
   is_primary: z.boolean(),
   created_at: isoDateTimeSchema,
 });
@@ -129,7 +134,7 @@ export const dealContactInsertSchema = z.object({
   client_id: z.string().uuid(),
   deal_id: z.string().uuid(),
   contact_id: z.string().uuid(),
-  role: dealContactRoleSchema.optional(),
+  role: configurableVocabularySchema.optional(),
   is_primary: z.boolean().optional(),
 });
 
@@ -146,15 +151,13 @@ export const interactionTypeValues = [
   "note",
 ] as const;
 
-const interactionTypeSchema = z.enum(interactionTypeValues);
-
 /** Full `interactions` row validator. */
 export const interactionSchema = z.object({
   interaction_id: z.string().uuid(),
   client_id: z.string().uuid(),
   contact_id: z.string().uuid(),
   deal_id: z.string().uuid().nullable(),
-  type: interactionTypeSchema,
+  type: configurableVocabularySchema,
   summary: z.string().nullable(),
   occurred_at: isoDateTimeSchema,
   created_at: isoDateTimeSchema,
@@ -166,7 +169,7 @@ export const interactionInsertSchema = z.object({
   client_id: z.string().uuid(),
   contact_id: z.string().uuid(),
   deal_id: z.string().uuid().nullable().optional(),
-  type: interactionTypeSchema,
+  type: configurableVocabularySchema,
   summary: z.string().nullable().optional(),
   occurred_at: isoDateTimeSchema,
 });
@@ -189,6 +192,7 @@ export const crmTaskSchema = z.object({
   description: z.string().nullable(),
   status: crmTaskStatusSchema,
   due_date: isoDateTimeSchema.nullable(),
+  custom_fields: jsonObjectSchema,
   created_at: isoDateTimeSchema,
   updated_at: isoDateTimeSchema,
 });
@@ -202,6 +206,7 @@ export const crmTaskInsertSchema = z.object({
   description: z.string().nullable().optional(),
   status: crmTaskStatusSchema.optional(),
   due_date: isoDateTimeSchema.nullable().optional(),
+  custom_fields: jsonObjectSchema.optional(),
 });
 
 export type CrmTask = z.infer<typeof crmTaskSchema>;
@@ -211,9 +216,15 @@ export type CrmTaskInsert = z.infer<typeof crmTaskInsertSchema>;
 export const crmConfigSchema = z.object({
   config_id: z.string().uuid(),
   client_id: z.string().uuid(),
+  deal_label: z.string(),
   deal_stages: jsonValueSchema.nullable(),
+  contact_types: jsonValueSchema.nullable(),
   task_types: jsonValueSchema.nullable(),
   interaction_types: jsonValueSchema.nullable(),
+  deal_contact_roles: jsonValueSchema.nullable(),
+  deal_custom_fields: z.array(customFieldDefinitionSchema),
+  contact_custom_fields: z.array(customFieldDefinitionSchema),
+  task_custom_fields: z.array(customFieldDefinitionSchema),
   created_at: isoDateTimeSchema,
   updated_at: isoDateTimeSchema,
 });
@@ -221,9 +232,15 @@ export const crmConfigSchema = z.object({
 /** Insert payload validator for `crm_config` (id/timestamps omitted). */
 export const crmConfigInsertSchema = z.object({
   client_id: z.string().uuid(),
+  deal_label: z.string().optional(),
   deal_stages: jsonValueSchema.nullable().optional(),
+  contact_types: jsonValueSchema.nullable().optional(),
   task_types: jsonValueSchema.nullable().optional(),
   interaction_types: jsonValueSchema.nullable().optional(),
+  deal_contact_roles: jsonValueSchema.nullable().optional(),
+  deal_custom_fields: z.array(customFieldDefinitionSchema).optional(),
+  contact_custom_fields: z.array(customFieldDefinitionSchema).optional(),
+  task_custom_fields: z.array(customFieldDefinitionSchema).optional(),
 });
 
 export type CrmConfig = z.infer<typeof crmConfigSchema>;

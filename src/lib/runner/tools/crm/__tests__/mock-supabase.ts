@@ -24,6 +24,7 @@ const CHAIN_METHOD_NAMES = [
   "select",
   "insert",
   "update",
+  "upsert",
   "delete",
   "eq",
   "neq",

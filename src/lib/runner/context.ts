@@ -2,11 +2,15 @@
  * Context assembly for the runner engine.
  * @module lib/runner/context
  */
-import type { ModelMessage } from "ai";
+import { convertToModelMessages, type ModelMessage, type UIMessage } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { PLATFORM_INSTRUCTIONS } from "@/lib/ai/platform-instructions";
-import { SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
+import {
+  buildPlatformInstructions,
+  PLATFORM_INSTRUCTIONS,
+} from "@/lib/ai/platform-instructions";
+import { CRM_SETUP_SYSTEM_PROMPT, SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
+import type { CrmVocabConfig } from "@/lib/crm/config";
 import { bootstrapMemoryFiles } from "@/lib/memory/bootstrap";
 import { loadMemoryContext } from "@/lib/memory/loader";
 import type { MemoryContext } from "@/lib/memory/loader";
@@ -28,6 +32,10 @@ interface AssembleContextParams {
   currentMessage: string;
   clientId?: string;
   instructions?: string;
+  crmConfig?: CrmVocabConfig;
+  crmMode?: "normal" | "setup";
+  platformInstructions?: string;
+  systemPrompt?: string;
 }
 
 interface AssembledContext {
@@ -55,6 +63,8 @@ interface BuildSystemPromptOptions {
   compactionSummary?: string;
   systemReminder?: string;
   instructions?: string;
+  platformInstructions?: string;
+  systemPrompt?: string;
 }
 
 function buildSystemPrompt({
@@ -62,20 +72,25 @@ function buildSystemPrompt({
   compactionSummary,
   systemReminder,
   instructions,
+  platformInstructions,
+  systemPrompt,
 }: BuildSystemPromptOptions): string {
+  const activeSystemPrompt = systemPrompt ?? SYSTEM_PROMPT;
+  const activePlatformInstructions = platformInstructions ?? PLATFORM_INSTRUCTIONS;
+
   if (!memory) {
     return instructions
-      ? [SYSTEM_PROMPT, instructions.trim()].join("\n\n")
-      : SYSTEM_PROMPT;
+      ? [activeSystemPrompt, instructions.trim()].join("\n\n")
+      : activeSystemPrompt;
   }
 
   const sections: string[] = [];
 
   // Layer 1: platform-level operational instructions.
-  sections.push(PLATFORM_INSTRUCTIONS);
+  sections.push(activePlatformInstructions);
 
   // Layer 2: core personality, tool usage, approvals, and output guidance.
-  sections.push(SYSTEM_PROMPT);
+  sections.push(activeSystemPrompt);
 
   if (instructions && instructions.trim().length > 0) {
     sections.push(instructions.trim());
@@ -104,6 +119,19 @@ function buildSystemPrompt({
   return sections.join("\n\n");
 }
 
+function buildUiMessageParts(row: HistoryRow): UIMessage["parts"] | null {
+  if (Array.isArray(row.parts) && row.parts.length > 0) {
+    return row.parts as UIMessage["parts"];
+  }
+
+  const fallbackText = row.content ?? getTextFromParts(row.parts);
+  if (!fallbackText || fallbackText.length === 0) {
+    return null;
+  }
+
+  return [{ type: "text", text: fallbackText }];
+}
+
 /**
  * Builds the runner context from persisted thread history plus the inbound message.
  */
@@ -113,6 +141,10 @@ export async function assembleContext({
   currentMessage,
   clientId,
   instructions,
+  crmConfig,
+  crmMode = "normal",
+  platformInstructions,
+  systemPrompt,
 }: AssembleContextParams): Promise<AssembledContext> {
   let memoryContext: MemoryContext | undefined;
   let systemReminder: string | undefined;
@@ -153,22 +185,34 @@ export async function assembleContext({
     throw new Error(`Failed to load thread history: ${error.message}`);
   }
 
-  const historyMessages: ModelMessage[] = ((data as HistoryRow[] | null) ?? [])
+  const historyMessages = ((data as HistoryRow[] | null) ?? [])
     .filter((row) => isAfterThreadCompactionBoundary(row, compactionState))
     .slice(0, MAX_CONTEXT_MESSAGES)
     .reverse()
-    .map((row) => ({
-      role: normalizeRole(row.role),
-      content: row.content ?? getTextFromParts(row.parts),
-    }));
+    .map((row) => {
+      const parts = buildUiMessageParts(row);
+      if (!parts) {
+        return null;
+      }
+
+      return {
+        role: normalizeRole(row.role),
+        parts,
+      } satisfies Omit<UIMessage, "id">;
+    })
+    .filter((message): message is Omit<UIMessage, "id"> => message !== null);
 
   const trimmedCurrentMessage = currentMessage.trim();
   const currentMessageTurn = trimmedCurrentMessage.length > 0
     ? [{
       role: "user" as const,
-      content: trimmedCurrentMessage,
+      parts: [{ type: "text" as const, text: trimmedCurrentMessage }],
     }]
     : [];
+  const modelMessages = await convertToModelMessages([
+    ...historyMessages,
+    ...currentMessageTurn,
+  ]);
 
   return {
     system: buildSystemPrompt({
@@ -176,10 +220,13 @@ export async function assembleContext({
       compactionSummary: compactionState?.compaction_summary,
       systemReminder,
       instructions,
+      platformInstructions: platformInstructions ?? (crmConfig
+        ? buildPlatformInstructions(crmConfig)
+        : PLATFORM_INSTRUCTIONS),
+      systemPrompt: systemPrompt ?? (crmMode === "setup"
+        ? CRM_SETUP_SYSTEM_PROMPT
+        : SYSTEM_PROMPT),
     }),
-    messages: [
-      ...historyMessages,
-      ...currentMessageTurn,
-    ],
+    messages: modelMessages,
   };
 }

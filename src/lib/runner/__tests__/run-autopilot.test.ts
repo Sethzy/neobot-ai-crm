@@ -17,6 +17,7 @@ const {
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
+  mockCreateTriggerTools,
   mockCreateMessages,
   mockMaybeCompactThread,
   mockTruncateOversizedParts,
@@ -35,6 +36,7 @@ const {
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
+  mockCreateTriggerTools: vi.fn(),
   mockCreateMessages: vi.fn(),
   mockMaybeCompactThread: vi.fn(),
   mockTruncateOversizedParts: vi.fn(),
@@ -71,6 +73,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
+  createTriggerTools: mockCreateTriggerTools,
 }));
 
 vi.mock("@/lib/chat/messages", () => ({
@@ -100,6 +103,10 @@ describe("runAutopilot", () => {
     mockCreateStorageTools.mockReturnValue({ read_file: { description: "tool" } });
     mockCreateWebTools.mockReturnValue({ web_search: { description: "tool" } });
     mockCreateUtilityTools.mockReturnValue({ list_todo: { description: "tool" } });
+    mockCreateTriggerTools.mockReturnValue({
+      search_triggers: { description: "tool" },
+      manage_active_triggers: { description: "tool" },
+    });
     mockAssembleContext.mockResolvedValue({
       system: "system prompt",
       messages: [{ role: "assistant", content: "Previous autopilot update" }],
@@ -137,7 +144,17 @@ describe("runAutopilot", () => {
         model: "mock-model",
         system: "system prompt",
         stopWhen: expect.any(Function),
+        tools: expect.objectContaining({
+          search_triggers: { description: "tool" },
+          manage_active_triggers: { description: "tool" },
+        }),
       }),
+    );
+    expect(mockCreateTriggerTools).toHaveBeenCalledWith(
+      "supabase",
+      "550e8400-e29b-41d4-a716-446655440000",
+      "660e8400-e29b-41d4-a716-446655440000",
+      { allowMutations: false },
     );
   });
 

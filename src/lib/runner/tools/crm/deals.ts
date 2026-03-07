@@ -6,12 +6,18 @@ import { tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import { dealStageValues } from "@/lib/crm/schemas";
-import type { Database } from "@/types/database";
+import {
+  buildCustomFieldsSchema,
+  CRM_DEFAULTS,
+  type CrmVocabConfig,
+} from "@/lib/crm/config";
+import type { Database, Json } from "@/types/database";
 
 import { buildIlikePattern, buildSearchExpression, DEFAULT_CRM_RESULT_LIMIT } from "./filter-utils";
 
 const DEAL_SEARCH_COLUMNS = ["address", "notes"];
+type DealUpdate = Database["public"]["Tables"]["deals"]["Update"];
+type JsonObject = { [key: string]: Json | undefined };
 
 /**
  * Searches for existing deals matching address (case-insensitive).
@@ -39,15 +45,23 @@ async function findDuplicateDeals(
 export function createDealTools(
   supabase: SupabaseClient<Database>,
   clientId: string,
+  config: CrmVocabConfig = CRM_DEFAULTS,
 ) {
+  const dealStageEnum = z.enum(config.deal_stages as [string, ...string[]]);
+  const dealStageList = config.deal_stages.join(", ");
+  const defaultDealStage = config.deal_stages.includes("leads")
+    ? "leads"
+    : config.deal_stages[0];
+
   const search_deals = tool({
     description:
-      "Search deals by address or notes. Optionally filter by stage. " +
-      "Omit query to list all deals. " +
+      `Search ${config.deal_label}s by address or notes. Optionally filter by stage. ` +
+      `Valid stages: ${dealStageList}. ` +
+      `Omit query to list all ${config.deal_label}s. ` +
       "Use get_deal_contacts to find contacts linked to a deal.",
     inputSchema: z.object({
       query: z.string().trim().min(1).optional().describe("Search term for address and notes. Omit to list all deals."),
-      stage: z.enum(dealStageValues).optional().describe("Deal pipeline stage filter (leads, negotiation, offer, closing, lost)."),
+      stage: dealStageEnum.optional().describe(`Deal pipeline stage filter (${dealStageList}).`),
       limit: z
         .number()
         .int()
@@ -86,19 +100,21 @@ export function createDealTools(
 
   const create_deal = tool({
     description:
-      "Create a new deal. Has built-in duplicate detection — if a deal with a matching address already exists, " +
+      `Create a new ${config.deal_label}. Has built-in duplicate detection — if a ${config.deal_label} with a matching address already exists, ` +
       "returns possible_duplicates instead of creating. Review the candidates and use update_deal on the existing " +
       "record, or re-call with force_create: true to override. " +
       "Use link_contact_to_deal after creating to associate contacts. " +
       "Data Modification Warning: Only create deals when the user has explicitly asked to do so.",
     inputSchema: z.object({
       address: z.string().min(1).describe("Property address."),
-      stage: z.enum(dealStageValues).optional().describe("Deal pipeline stage (leads, negotiation, offer, closing, lost). Defaults to 'leads'."),
+      stage: dealStageEnum.optional().describe(`Deal pipeline stage (${dealStageList}). Defaults to "${defaultDealStage}".`),
       price: z.number().int().nonnegative().optional().describe("Deal price in whole units."),
       notes: z.string().optional().describe("Deal notes."),
+      custom_fields: buildCustomFieldsSchema(config.deal_custom_fields).optional()
+        .describe(`Configured custom fields for ${config.deal_label.toLowerCase()}s.`),
       force_create: z.boolean().optional().describe("Set to true to skip duplicate detection and create the deal regardless."),
     }),
-    execute: async ({ address, stage, price, notes, force_create }) => {
+    execute: async ({ address, stage, price, notes, custom_fields, force_create }) => {
       // Dedup check (best-effort — search failure falls through to insert)
       if (!force_create) {
         const duplicates = await findDuplicateDeals(supabase, address);
@@ -117,9 +133,10 @@ export function createDealTools(
         .insert({
           client_id: clientId,
           address,
-          stage,
+          stage: stage ?? defaultDealStage,
           price,
           notes: notes ?? null,
+          custom_fields: custom_fields ?? {},
         })
         .select()
         .single();
@@ -137,23 +154,45 @@ export function createDealTools(
 
   const update_deal = tool({
     description:
-      "Update an existing deal by id. Use this after finding the deal via search_deals. " +
+      `Update an existing ${config.deal_label} by id. Use this after finding it via search_deals. ` +
       "Only provided fields are updated. Omit fields you don't want to change. Pass null to clear a nullable field. " +
       "Data Modification Warning: Only update deals when the user has explicitly asked to do so.",
     inputSchema: z.object({
       deal_id: z.string().uuid().describe("UUID of the deal to update. Use search_deals to find this."),
       address: z.string().min(1).optional().describe("Updated address."),
-      stage: z.enum(dealStageValues).optional().describe("Updated pipeline stage (leads, negotiation, offer, closing, lost)."),
+      stage: dealStageEnum.optional().describe(`Updated pipeline stage (${dealStageList}).`),
       price: z.number().int().nonnegative().nullable().optional().describe("Updated price or null."),
       notes: z.string().nullable().optional().describe("Updated notes or null."),
+      custom_fields: buildCustomFieldsSchema(config.deal_custom_fields, "update").optional()
+        .describe(`Partial custom field patch for ${config.deal_label.toLowerCase()}s.`),
     }),
     execute: async ({ deal_id, ...fields }) => {
       const updates = Object.fromEntries(
         Object.entries(fields).filter(([, value]) => value !== undefined),
-      );
+      ) as DealUpdate;
 
       if (Object.keys(updates).length === 0) {
         return { success: false as const, error: "No fields to update" };
+      }
+
+      if ("custom_fields" in updates) {
+        const { data: existing, error: existingError } = await supabase
+          .from("deals")
+          .select("custom_fields")
+          .eq("deal_id", deal_id)
+          .eq("client_id", clientId)
+          .single();
+
+        if (existingError) {
+          return { success: false as const, error: existingError.message };
+        }
+
+        const nextCustomFields = {
+          ...((existing?.custom_fields as JsonObject | null) ?? {}),
+          ...((updates.custom_fields as JsonObject | undefined) ?? {}),
+        } satisfies JsonObject;
+
+        updates.custom_fields = nextCustomFields;
       }
 
       const { data, error } = await supabase
@@ -185,9 +224,11 @@ export function createDealTools(
         .array(
           z.object({
             address: z.string().min(1).describe("Property address."),
-            stage: z.enum(dealStageValues).optional().describe("Deal pipeline stage (leads, negotiation, offer, closing, lost). Defaults to 'leads'."),
+            stage: dealStageEnum.optional().describe(`Deal pipeline stage (${dealStageList}). Defaults to "${defaultDealStage}".`),
             price: z.number().int().nonnegative().optional().describe("Deal price in whole units."),
             notes: z.string().optional().describe("Deal notes."),
+            custom_fields: buildCustomFieldsSchema(config.deal_custom_fields).optional()
+              .describe(`Configured custom fields for ${config.deal_label.toLowerCase()}s.`),
           }),
         )
         .min(1)
@@ -198,9 +239,10 @@ export function createDealTools(
       const rows = deals.map((d) => ({
         client_id: clientId,
         address: d.address,
-        stage: d.stage,
+        stage: d.stage ?? defaultDealStage,
         price: d.price,
         notes: d.notes ?? null,
+        custom_fields: d.custom_fields ?? {},
       }));
 
       const { data, error } = await supabase

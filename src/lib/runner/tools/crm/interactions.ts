@@ -6,7 +6,7 @@ import { tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import { interactionTypeValues } from "@/lib/crm/schemas";
+import { CRM_DEFAULTS, type CrmVocabConfig } from "@/lib/crm/config";
 import type { Database } from "@/types/database";
 
 import { flexibleTimestampSchema, normalizeDateString } from "./filter-utils";
@@ -19,15 +19,19 @@ import { flexibleTimestampSchema, normalizeDateString } from "./filter-utils";
 export function createInteractionTools(
   supabase: SupabaseClient<Database>,
   clientId: string,
+  config: CrmVocabConfig = CRM_DEFAULTS,
 ) {
+  const interactionTypeEnum = z.enum(config.interaction_types as [string, ...string[]]);
+  const interactionTypeList = config.interaction_types.join(", ");
+
   const create_interaction = tool({
     description:
-      "Record a CRM interaction such as a call, meeting, email, message, viewing, or note. " +
+      `Record a CRM interaction. Valid interaction types: ${interactionTypeList}. ` +
       "Data Modification Warning: Only record interactions when the user has explicitly asked to do so.",
     inputSchema: z.object({
       contact_id: z.string().uuid().describe("UUID of the contact. Use search_contacts to find this."),
       deal_id: z.string().uuid().optional().describe("UUID of the deal. Use search_deals to find this."),
-      type: z.enum(interactionTypeValues).describe("Interaction type (call, meeting, email, message, viewing, note)."),
+      type: interactionTypeEnum.describe(`Interaction type (${interactionTypeList}).`),
       summary: z.string().optional().describe("Interaction summary."),
       occurred_at: flexibleTimestampSchema
         .optional()

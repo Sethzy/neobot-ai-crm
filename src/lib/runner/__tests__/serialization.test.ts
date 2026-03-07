@@ -8,6 +8,7 @@ const {
   mockStreamText,
   mockStepCountIs,
   mockGateway,
+  mockLoadCrmConfig,
   mockAssembleContext,
   mockCreateRun,
   mockCompleteRun,
@@ -17,11 +18,13 @@ const {
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
+  mockCreateTriggerTools,
   mockCreateMessages,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
   mockGateway: vi.fn(() => "mock-model"),
+  mockLoadCrmConfig: vi.fn(),
   mockAssembleContext: vi.fn(),
   mockCreateRun: vi.fn(),
   mockCompleteRun: vi.fn(),
@@ -31,6 +34,7 @@ const {
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
+  mockCreateTriggerTools: vi.fn(),
   mockCreateMessages: vi.fn(),
 }));
 
@@ -42,6 +46,13 @@ vi.mock("@/lib/ai/gateway", () => ({
   gateway: mockGateway,
   TIER_1_MODEL: "google/gemini-3-flash",
 }));
+vi.mock("@/lib/crm/config", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/crm/config")>();
+  return {
+    ...actual,
+    loadCrmConfig: mockLoadCrmConfig,
+  };
+});
 vi.mock("@/lib/runner/context", () => ({
   assembleContext: mockAssembleContext,
 }));
@@ -58,6 +69,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
+  createTriggerTools: mockCreateTriggerTools,
 }));
 
 import { runAgent } from "../run-agent";
@@ -70,6 +82,7 @@ describe("per-thread serialization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockMarkStaleRunsFailed.mockResolvedValue(0);
+    mockLoadCrmConfig.mockResolvedValue({ config: {}, hasConfig: false });
     mockCreateMessages.mockResolvedValue([]);
     mockCreateCrmTools.mockReturnValue({
       search_contacts: { description: "tool" },
@@ -88,6 +101,11 @@ describe("per-thread serialization", () => {
       rename_chat: { description: "utility-tool" },
       run_agent_memory_sql: { description: "utility-tool" },
       get_agent_db_schema: { description: "utility-tool" },
+    });
+    mockCreateTriggerTools.mockReturnValue({
+      search_triggers: { description: "trigger-tool" },
+      setup_trigger: { description: "trigger-tool" },
+      manage_active_triggers: { description: "trigger-tool" },
     });
     mockAssembleContext.mockResolvedValue({
       system: "prompt",

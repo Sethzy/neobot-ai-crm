@@ -13,6 +13,7 @@ const systemReminderContextSchema = z.object({
   days_since_signup: z.number().int().nullable(),
   open_todo_count: z.number().int().nonnegative(),
   memory_file_count: z.number().int().nonnegative(),
+  active_trigger_count: z.number().int().nonnegative(),
 });
 
 type SystemReminderContext = z.infer<typeof systemReminderContextSchema>;
@@ -23,6 +24,7 @@ const FALLBACK_CONTEXT: SystemReminderContext = {
   days_since_signup: null,
   open_todo_count: 0,
   memory_file_count: 0,
+  active_trigger_count: 0,
 };
 
 export function escapeXml(value: string): string {
@@ -60,6 +62,7 @@ async function fetchReminderContext(
     days_since_signup: parsedResult.data.days_since_signup ?? null,
     open_todo_count: parsedResult.data.open_todo_count ?? 0,
     memory_file_count: parsedResult.data.memory_file_count ?? 0,
+    active_trigger_count: parsedResult.data.active_trigger_count ?? 0,
   };
 }
 
@@ -91,6 +94,7 @@ export async function buildSystemReminder(
 
   reminderLines.push(`Open todos: ${context.open_todo_count}`);
   reminderLines.push(`Memory files: ${context.memory_file_count}`);
+  reminderLines.push(`Active triggers: ${context.active_trigger_count}`);
 
   if (context.days_since_signup !== null) {
     reminderLines.push(`Days since signup: ${context.days_since_signup}`);

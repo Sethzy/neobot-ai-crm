@@ -4,13 +4,15 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockDrainQueue, mockRunAgent } = vi.hoisted(() => ({
+const { mockDrainQueue, mockRunAgent, mockEnqueueMessage } = vi.hoisted(() => ({
   mockDrainQueue: vi.fn(),
   mockRunAgent: vi.fn(),
+  mockEnqueueMessage: vi.fn(),
 }));
 
 vi.mock("@/lib/runner/thread-queue", () => ({
   drainQueue: mockDrainQueue,
+  enqueueMessage: mockEnqueueMessage,
 }));
 
 vi.mock("@/lib/runner/run-agent", () => ({
@@ -40,7 +42,7 @@ describe("drainAndContinue", () => {
   });
 
   it("starts follow-up run with single drained message", async () => {
-    mockDrainQueue.mockResolvedValue(["Only message"]);
+    mockDrainQueue.mockResolvedValue([{ text: "Only message", triggerType: "chat" }]);
     mockRunAgent.mockResolvedValue({ status: "streaming" });
 
     await drainAndContinue("supabase" as never, { clientId: CLIENT, threadId: THREAD });
@@ -57,7 +59,10 @@ describe("drainAndContinue", () => {
   });
 
   it("batches multiple drained messages into one follow-up run input", async () => {
-    mockDrainQueue.mockResolvedValue(["First question", "Second question"]);
+    mockDrainQueue.mockResolvedValue([
+      { text: "First question", triggerType: "chat" },
+      { text: "Second question", triggerType: "chat" },
+    ]);
     mockRunAgent.mockResolvedValue({ status: "streaming" });
 
     await drainAndContinue("supabase" as never, { clientId: CLIENT, threadId: THREAD });
@@ -74,11 +79,153 @@ describe("drainAndContinue", () => {
   });
 
   it("does not throw when follow-up run result is queued", async () => {
-    mockDrainQueue.mockResolvedValue(["Follow up"]);
+    mockDrainQueue.mockResolvedValue([{ text: "Follow up", triggerType: "chat" }]);
     mockRunAgent.mockResolvedValue({ status: "queued" });
 
     await expect(
       drainAndContinue("supabase" as never, { clientId: CLIENT, threadId: THREAD }),
     ).resolves.not.toThrow();
+  });
+
+  it("replays queued cron messages as cron runs instead of chat runs", async () => {
+    mockDrainQueue.mockResolvedValue([
+      {
+        text: "Process the most recent trigger event for this thread.",
+        triggerType: "cron",
+      },
+    ]);
+    mockRunAgent.mockResolvedValue({ status: "streaming" });
+
+    await drainAndContinue("supabase" as never, { clientId: CLIENT, threadId: THREAD });
+
+    expect(mockRunAgent).toHaveBeenCalledWith(
+      {
+        clientId: CLIENT,
+        threadId: THREAD,
+        triggerType: "cron",
+        input: "Process the most recent trigger event for this thread.",
+      },
+      "supabase",
+    );
+  });
+
+  it("requeues remaining messages after taking the first non-chat item", async () => {
+    mockDrainQueue.mockResolvedValue([
+      {
+        text: "Process the most recent trigger event for this thread.",
+        triggerType: "cron",
+      },
+      {
+        text: "Follow up on the leads from this morning",
+        triggerType: "chat",
+      },
+    ]);
+    mockRunAgent.mockResolvedValue({ status: "streaming" });
+
+    await drainAndContinue("supabase" as never, { clientId: CLIENT, threadId: THREAD });
+
+    expect(mockEnqueueMessage).toHaveBeenCalledWith("supabase", {
+      threadId: THREAD,
+      clientId: CLIENT,
+      content: "Follow up on the leads from this morning",
+      triggerType: "chat",
+    });
+  });
+
+  it("does not batch queued chat messages when the first item contains file parts", async () => {
+    mockDrainQueue.mockResolvedValue([
+      {
+        text: "Review this screenshot",
+        triggerType: "chat",
+        fileParts: [
+          {
+            type: "file",
+            filename: "shot.png",
+            mediaType: "image/png",
+            url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+          },
+        ],
+      },
+      {
+        text: "Then remind me to follow up",
+        triggerType: "chat",
+      },
+    ]);
+    mockRunAgent.mockResolvedValue({ status: "streaming" });
+
+    await drainAndContinue("supabase" as never, { clientId: CLIENT, threadId: THREAD });
+
+    expect(mockRunAgent).toHaveBeenCalledWith(
+      {
+        clientId: CLIENT,
+        threadId: THREAD,
+        triggerType: "chat",
+        input: "Review this screenshot",
+        fileParts: [
+          {
+            type: "file",
+            filename: "shot.png",
+            mediaType: "image/png",
+            url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+          },
+        ],
+      },
+      "supabase",
+    );
+    expect(mockEnqueueMessage).toHaveBeenCalledWith("supabase", {
+      threadId: THREAD,
+      clientId: CLIENT,
+      content: "Then remind me to follow up",
+      triggerType: "chat",
+      fileParts: undefined,
+    });
+  });
+
+  it("stops batching before the first queued chat message that contains file parts", async () => {
+    mockDrainQueue.mockResolvedValue([
+      {
+        text: "First question",
+        triggerType: "chat",
+      },
+      {
+        text: "Review this screenshot",
+        triggerType: "chat",
+        fileParts: [
+          {
+            type: "file",
+            filename: "shot.png",
+            mediaType: "image/png",
+            url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+          },
+        ],
+      },
+    ]);
+    mockRunAgent.mockResolvedValue({ status: "streaming" });
+
+    await drainAndContinue("supabase" as never, { clientId: CLIENT, threadId: THREAD });
+
+    expect(mockRunAgent).toHaveBeenCalledWith(
+      {
+        clientId: CLIENT,
+        threadId: THREAD,
+        triggerType: "chat",
+        input: "First question",
+      },
+      "supabase",
+    );
+    expect(mockEnqueueMessage).toHaveBeenCalledWith("supabase", {
+      threadId: THREAD,
+      clientId: CLIENT,
+      content: "Review this screenshot",
+      triggerType: "chat",
+      fileParts: [
+        {
+          type: "file",
+          filename: "shot.png",
+          mediaType: "image/png",
+          url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+        },
+      ],
+    });
   });
 });

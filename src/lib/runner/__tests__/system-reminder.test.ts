@@ -16,6 +16,7 @@ const BASE_CONTEXT = {
   days_since_signup: 5,
   open_todo_count: 0,
   memory_file_count: 7,
+  active_trigger_count: 0,
 };
 
 function createReminderSupabase(
@@ -81,6 +82,16 @@ describe("buildSystemReminder", () => {
     expect(result).toContain("Open todos: 3");
     expect(result).toContain("Memory files: 9");
     expect(result).toContain("Days since signup: 42");
+  });
+
+  it("includes active trigger count", async () => {
+    const supabase = createReminderSupabase({
+      active_trigger_count: 4,
+    });
+
+    const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);
+
+    expect(result).toContain("Active triggers: 4");
   });
 
   it("escapes XML-reserved characters from user fields", async () => {

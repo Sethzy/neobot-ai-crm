@@ -24,6 +24,7 @@ describe("runnerPayloadSchema", () => {
       threadId: "660e8400-e29b-41d4-a716-446655440000",
       triggerType: "chat" as const,
       input: "Hello, Sunder!",
+      crmMode: "setup" as const,
     };
 
     expect(runnerPayloadSchema.parse(valid)).toEqual(valid);
@@ -35,6 +36,18 @@ describe("runnerPayloadSchema", () => {
       threadId: "660e8400-e29b-41d4-a716-446655440000",
       triggerType: "email",
       input: "Hello, Sunder!",
+    };
+
+    expect(() => runnerPayloadSchema.parse(invalid)).toThrow();
+  });
+
+  test("rejects invalid crm mode", () => {
+    const invalid = {
+      clientId: "550e8400-e29b-41d4-a716-446655440000",
+      threadId: "660e8400-e29b-41d4-a716-446655440000",
+      triggerType: "chat" as const,
+      input: "Hello, Sunder!",
+      crmMode: "reconfigure",
     };
 
     expect(() => runnerPayloadSchema.parse(invalid)).toThrow();

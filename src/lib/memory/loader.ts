@@ -26,11 +26,18 @@ export interface MemoryContext {
   memory: string;
 }
 
+/**
+ * Truncates content to maxLines. When content exceeds the cap, appends a
+ * warning so the agent knows to move detail into topic files.
+ *
+ * Mirrors Claude Code's auto-memory truncation behavior.
+ */
 function truncateToLineCount(content: string, maxLines: number): string {
   const lines = content.split("\n");
-  return lines.length <= maxLines
-    ? content
-    : lines.slice(0, maxLines).join("\n");
+  if (lines.length <= maxLines) return content;
+
+  const truncated = lines.slice(0, maxLines).join("\n");
+  return `${truncated}\n\n> WARNING: MEMORY.md is ${lines.length} lines (limit: ${maxLines}). Only the first ${maxLines} lines were loaded. Move detailed content to topic files and keep MEMORY.md concise.`;
 }
 
 /**

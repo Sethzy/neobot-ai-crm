@@ -30,6 +30,69 @@ describe("enqueueMessage", () => {
     });
   });
 
+  it("persists trigger metadata for queued cron runs", async () => {
+    const client = createMockSupabaseClient({
+      insertResult: { data: [], error: null },
+    });
+
+    await enqueueMessage(client as never, {
+      threadId: "thread-1",
+      clientId: "client-1",
+      content: "Process the most recent trigger event for this thread.",
+      channel: "web",
+      triggerType: "cron",
+    });
+
+    const insertCall = client.calls.methods.find((call) => call.method === "insert");
+    expect(insertCall?.args[0]).toEqual({
+      thread_id: "thread-1",
+      client_id: "client-1",
+      channel: "web",
+      content: {
+        text: "Process the most recent trigger event for this thread.",
+        triggerType: "cron",
+      },
+    });
+  });
+
+  it("persists queued chat file parts alongside the text payload", async () => {
+    const client = createMockSupabaseClient({
+      insertResult: { data: [], error: null },
+    });
+
+    await enqueueMessage(client as never, {
+      threadId: "thread-1",
+      clientId: "client-1",
+      content: "Review this screenshot",
+      fileParts: [
+        {
+          type: "file",
+          filename: "shot.png",
+          mediaType: "image/png",
+          url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+        },
+      ],
+    });
+
+    const insertCall = client.calls.methods.find((call) => call.method === "insert");
+    expect(insertCall?.args[0]).toEqual({
+      thread_id: "thread-1",
+      client_id: "client-1",
+      channel: "web",
+      content: {
+        text: "Review this screenshot",
+        fileParts: [
+          {
+            type: "file",
+            filename: "shot.png",
+            mediaType: "image/png",
+            url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+          },
+        ],
+      },
+    });
+  });
+
   it("throws on insert failure", async () => {
     const client = createMockSupabaseClient({
       insertResult: { data: null, error: { message: "insert failed" } },
@@ -46,13 +109,20 @@ describe("enqueueMessage", () => {
 });
 
 describe("drainQueue", () => {
-  it("drains queued payloads via atomic rpc and returns ordered text", async () => {
+  it("drains queued payloads via atomic rpc and preserves trigger metadata", async () => {
     const client = createMockSupabaseClient({
       rpcResults: {
         drain_thread_queue: {
           data: [
             { queue_id: "q1", content: { text: "First message" }, created_at: "2026-03-01T00:00:01Z" },
-            { queue_id: "q2", content: { text: "Second message" }, created_at: "2026-03-01T00:00:02Z" },
+            {
+              queue_id: "q2",
+              content: {
+                text: "Process the most recent trigger event for this thread.",
+                triggerType: "cron",
+              },
+              created_at: "2026-03-01T00:00:02Z",
+            },
           ],
           error: null,
         },
@@ -61,7 +131,13 @@ describe("drainQueue", () => {
 
     await expect(
       drainQueue(client as never, { threadId: "thread-1", clientId: "client-1" }),
-    ).resolves.toEqual(["First message", "Second message"]);
+    ).resolves.toEqual([
+      { text: "First message", triggerType: "chat" },
+      {
+        text: "Process the most recent trigger event for this thread.",
+        triggerType: "cron",
+      },
+    ]);
   });
 
   it("returns empty array when queue has no rows", async () => {
@@ -74,6 +150,50 @@ describe("drainQueue", () => {
     await expect(
       drainQueue(client as never, { threadId: "thread-1", clientId: "client-1" }),
     ).resolves.toEqual([]);
+  });
+
+  it("hydrates queued chat file parts when draining rows", async () => {
+    const client = createMockSupabaseClient({
+      rpcResults: {
+        drain_thread_queue: {
+          data: [
+            {
+              queue_id: "q1",
+              content: {
+                text: "Review this screenshot",
+                fileParts: [
+                  {
+                    type: "file",
+                    filename: "shot.png",
+                    mediaType: "image/png",
+                    url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+                  },
+                ],
+              },
+              created_at: "2026-03-01T00:00:01Z",
+            },
+          ],
+          error: null,
+        },
+      },
+    });
+
+    await expect(
+      drainQueue(client as never, { threadId: "thread-1", clientId: "client-1" }),
+    ).resolves.toEqual([
+      {
+        text: "Review this screenshot",
+        triggerType: "chat",
+        fileParts: [
+          {
+            type: "file",
+            filename: "shot.png",
+            mediaType: "image/png",
+            url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+          },
+        ],
+      },
+    ]);
   });
 });
 
