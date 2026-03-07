@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
+import { AppIcon } from "@/components/icons/app-icons";
 import { Container } from "@/components/landing/Container";
 import { ConfigNotice } from "@/components/property/config-notice";
 import { DataTable } from "@/components/property/data-table";
@@ -202,7 +202,7 @@ export default async function AgencyProfilePage({
             href="/market/agencies"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-sunder-green"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <AppIcon name="arrowLeft" className="h-4 w-4" />
             Back to agencies
           </Link>
 

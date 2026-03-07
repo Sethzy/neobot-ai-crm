@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Building2, FileText } from "lucide-react";
+import { AppIcon } from "@/components/icons/app-icons";
 import { Container } from "@/components/landing/Container";
 import { ConfigNotice } from "@/components/property/config-notice";
 import { MarketSearchBox } from "@/components/property/market-search-box";
@@ -52,11 +52,11 @@ export default async function PropertiesPage({
 
           <div className="mt-6 flex items-center justify-center gap-6 text-sm text-zinc-400">
             <span className="inline-flex items-center gap-1.5">
-              <Building2 className="h-3.5 w-3.5" />
+              <AppIcon name="property" className="h-3.5 w-3.5" />
               3,000+ projects
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <FileText className="h-3.5 w-3.5" />
+              <AppIcon name="document" className="h-3.5 w-3.5" />
               URA transaction data
             </span>
           </div>

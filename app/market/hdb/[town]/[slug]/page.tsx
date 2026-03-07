@@ -1,8 +1,8 @@
 /** HDB street profile page — resale transaction history and pricing. */
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Calendar, Home, MapPin } from "lucide-react";
 import { notFound } from "next/navigation";
+import { AppIcon } from "@/components/icons/app-icons";
 import { Container } from "@/components/landing/Container";
 import { ConfigNotice } from "@/components/property/config-notice";
 import { MarketCta } from "@/components/property/market-cta";
@@ -181,7 +181,7 @@ export default async function HdbStreetProfilePage({
             href="/market/hdb"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-sunder-green"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <AppIcon name="arrowLeft" className="h-4 w-4" />
             Back to HDB streets
           </Link>
 
@@ -194,18 +194,18 @@ export default async function HdbStreetProfilePage({
             </h1>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
-                <MapPin className="h-3 w-3" />
+                <AppIcon name="mapPin" className="h-3 w-3" />
                 {displayTown}
               </span>
               {dominantFlatTypes ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
-                  <Home className="h-3 w-3" />
+                  <AppIcon name="home" className="h-3 w-3" />
                   {dominantFlatTypes}
                 </span>
               ) : null}
               {earliestLease ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
-                  <Calendar className="h-3 w-3" />
+                  <AppIcon name="calendar" className="h-3 w-3" />
                   Lease from {earliestLease}
                 </span>
               ) : null}

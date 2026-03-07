@@ -1,8 +1,8 @@
 /** Area profile page — combined CEA and HDB transaction activity for a town/district. */
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
+import { AppIcon } from "@/components/icons/app-icons";
 import { Container } from "@/components/landing/Container";
 import { ConfigNotice } from "@/components/property/config-notice";
 import { MarketCta } from "@/components/property/market-cta";
@@ -208,7 +208,7 @@ export default async function AreaProfilePage({
             href="/market/areas"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-sunder-green"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <AppIcon name="arrowLeft" className="h-4 w-4" />
             Back to areas
           </Link>
 

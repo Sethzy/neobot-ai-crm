@@ -53,29 +53,27 @@ BEGIN
     (v_client_id, v_contact_jane, v_deal_bukit, 'Get HDB valuation report', 'Request valuation from HDB. Need for listing price.', 'open', now() + interval '5 days'),
     (v_client_id, v_contact_mei, NULL, 'Send rental listings to Mei Ling', 'Compile 2BR listings near MRT under $5k.', 'completed', now() - interval '1 day');
 
-  INSERT INTO public.crm_config (client_id, deal_stages, task_types, interaction_types)
+  INSERT INTO public.crm_config (
+    client_id,
+    deal_label,
+    deal_stages,
+    contact_types,
+    interaction_types,
+    deal_contact_roles,
+    deal_custom_fields,
+    contact_custom_fields,
+    task_custom_fields
+  )
   VALUES (
     v_client_id,
-    '[
-      {"id": "leads", "name": "Leads", "color": "#94a3b8"},
-      {"id": "negotiation", "name": "Negotiation", "color": "#f97316"},
-      {"id": "offer", "name": "Offer", "color": "#fbbf24"},
-      {"id": "closing", "name": "Closing", "color": "#34d399"},
-      {"id": "lost", "name": "Lost", "color": "#ef4444"}
-    ]'::jsonb,
-    '[
-      {"id": "follow_up", "name": "Follow up"},
-      {"id": "paperwork", "name": "Paperwork"},
-      {"id": "viewing", "name": "Viewing"}
-    ]'::jsonb,
-    '[
-      {"id": "call", "name": "Call"},
-      {"id": "meeting", "name": "Meeting"},
-      {"id": "email", "name": "Email"},
-      {"id": "message", "name": "Message"},
-      {"id": "viewing", "name": "Viewing"},
-      {"id": "note", "name": "Note"}
-    ]'::jsonb
+    'Deal',
+    '["leads", "negotiation", "offer", "closing", "lost"]'::jsonb,
+    '["buyer", "seller", "landlord", "tenant", "agent", "other"]'::jsonb,
+    '["call", "meeting", "email", "message", "viewing", "note"]'::jsonb,
+    '["buyer", "seller", "agent", "other"]'::jsonb,
+    '[]'::jsonb,
+    '[]'::jsonb,
+    '[]'::jsonb
   )
   ON CONFLICT (client_id) DO NOTHING;
 END $$;

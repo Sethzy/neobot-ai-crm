@@ -2,15 +2,15 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-06",
+    "updated": "2026-03-07",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
     "totalPhases": 5,
-    "estimatedPRs": 32,
-    "keptPRs": 19,
+    "estimatedPRs": 34,
+    "keptPRs": 21,
     "cutPRs": 19,
-    "donePRs": 17,
+    "donePRs": 20,
     "statusOptions": [
       "pending",
       "in_progress",
@@ -18,7 +18,7 @@
       "blocked",
       "cut"
     ],
-    "scopeDecision": "Simplified to: AI CRM + autopilot + connections + email + Telegram. Cut skills system, sandbox, scraping lanes, scaling infra, voice, eval, model routing, structured AI input. Restored CRM configurability (PR 15a) and added agent-generated views placeholder (PR 42a).",
+    "scopeDecision": "Simplified to: AI CRM + autopilot + connections + email + Telegram + agent-generated views. Cut skills system, sandbox, scraping lanes, scaling infra, voice, eval, model routing, structured AI input. Restored CRM configurability (PR 15a). Agent-generated views (PR 42a) moved to Phase 3 using catalog-based JSON spec approach (json-render pattern) \u2014 no sandbox needed. Sandboxed code-gen views (Tasklet instant-app pattern) deferred to PR 42b.",
     "changelog": [
       "2026-03-05: v2 created \u2014 scope cut from 48 PRs to 30 (13 done + 17 to build). Reordered into new phases. Original plan preserved at 2026-03-01-implementation-phasing-plan.json.",
       "2026-03-05: Removed PR 19a (Agent tasks). (Superseded by entry 6 \u2014 reverted to dedicated agent_todo table.)",
@@ -26,7 +26,11 @@
       "2026-03-05: Explicitly cut goals table (goals written to MEMORY.md). Confirmed per-thread approval discovery (no Queue tab). Autopilot priority order rewritten for simplified crm_tasks model.",
       "2026-03-05: Tasklet gap analysis fixes \u2014 PR 15: user email in system-reminder, connection state slot, state/ directory convention in platform instructions. PR 20: webhook + RSS trigger types. PR 26: wire connection state into system-reminder.",
       "2026-03-05: Split agent todo from CRM tasks. Reverted unified task model (source+payload on crm_tasks). Added dedicated agent_todo table + manage_todo/list_todo tools in PR 15 (Tasklet-parity, minimal schema: title+payload, exists-or-deleted). CRM task tools unchanged. Updated autopilot pulse prompt (PR 19-5) to use list_todo() for agent work + search_tasks() for CRM work.",
-      "2026-03-05: CRM tool review vs Attio MCP + HubSpot MCP. Added PR 15a (CRM configurability \u2014 dynamic vocabulary + custom fields) in Phase 2 after PR 15. Restored from cut PR 38a with expanded scope: Layer 1 (vocabulary from crm_config) + Layer 2 (custom fields via JSONB). Added PR 42a (agent-generated views) as exploratory Phase 5 placeholder inspired by Tasklet instant apps. Removed PR 38a from cutPRs list."
+      "2026-03-05: CRM tool review vs Attio MCP + HubSpot MCP. Added PR 15a (CRM configurability \u2014 dynamic vocabulary + custom fields) in Phase 2 after PR 15. Restored from cut PR 38a with expanded scope: Layer 1 (vocabulary from crm_config) + Layer 2 (custom fields via JSONB). Added PR 42a (agent-generated views) as exploratory Phase 5 placeholder inspired by Tasklet instant apps. Removed PR 38a from cutPRs list.",
+      "2026-03-06: Expanded PR 38 onboarding scope to capture the auth funnel shipped ahead of full onboarding: dedicated /login + /register pages, Supabase Google OAuth callback flow, unified /chat post-auth redirect, display_name fallback fix for OAuth users, and the remaining hosted Supabase/Google setup checklist needed before launch.",
+      "2026-03-07: Generative UI approach decision. PR 42a rewritten: catalog-based JSON view specs (inspired by Vercel Labs json-render) replaces sandboxed iframe approach. Agent outputs JSON conforming to a Zod component catalog, frontend renders deterministically \u2014 no sandbox, no CSP, no bridge API. Moved PR 42a from Phase 5 to Phase 3 (no longer blocked by EXEC-04 sandbox). Added PR 42b as deferred Phase 5 escape hatch for full Tasklet-style sandboxed code gen if catalog proves insufficient. Added architecture decision UX-10.",
+      "2026-03-07: Added PR 22a (multimodal chat \u2014 image attachments) and PR 22b (tool output rendering \u2014 json-render + tool approval UI) to Phase 2. Both follow vercel/chatbot patterns with minimal drift. PR 22a: file upload via Supabase Storage, PreviewAttachment component, parts-based messaging, stop button. PR 22b: json-render for tool output display, addToolApprovalResponse wiring with approve/deny buttons. Reference docs in roadmap docs/Sunder - Source of Truth/references/vercel-chatbot/.",
+      "2026-03-07: Out-of-plan extension of PR 22 (done): PR 22c \u2014 Block Storage + Context Management Alignment. Adds block index utilities for compaction summaries (DATA-10), stores ALL tool call args+results to storage, embeds mechanical block index in compaction summaries for post-compaction recovery (SESSION-07), adds <context-management> and <autonomous-mode> instructions. Tasklist: docs/product/tasks/2026-03-07-pr22c-block-storage-context-management-tasklist.md."
     ]
   },
   "phases": [
@@ -824,13 +828,23 @@
           "pr": "15c",
           "title": "CRM configurability \u2014 dynamic vocabulary + custom fields",
           "status": "in_progress",
-          "decisions": [],
+          "decisions": [
+            "TOOL-01",
+            "TOOL-02",
+            "TOOL-03",
+            "TOOL-08",
+            "RUNNER-03",
+            "RUNNER-09",
+            "DATA-01",
+            "DATA-09",
+            "SAFETY-04"
+          ],
           "dependsOn": [
             5,
             6,
             15
           ],
-          "note": "Restored from cut PR 38a with expanded scope. Informed by Attio MCP (schema introspection, upsert) and HubSpot MCP (activity feed) comparison. Layer 1: vocabulary swaps via crm_config (deal stages, contact types, entity labels). Layer 2: custom fields via JSONB columns. Agent configures CRM via chat; tool schemas and UI adapt at runtime. Real-estate defaults as fallback for zero-config users.",
+          "note": "Restored from cut PR 38a with expanded scope. Informed by Attio MCP (schema introspection, upsert) and HubSpot MCP (activity feed) comparison. Layer 1: vocabulary swaps via crm_config (deal stages, contact types, entity labels). Layer 2: custom fields via JSONB columns. Agent configures CRM via chat; tool schemas and UI adapt at runtime. Real-estate defaults as fallback for zero-config users. PR15c ships custom fields in record drawers only; dynamic table columns are deferred to the first task of PR15d or a standalone micro-PR.",
           "tasks": [
             {
               "id": "PR15c-1",
@@ -879,7 +893,7 @@
             },
             {
               "id": "PR15c-10",
-              "task": "CRM pages: dynamic labels + columns \u2014 Contact/Deal/Task pages read crm_config via API route. Table columns for custom fields rendered dynamically. Stage filter uses config values. Entity labels pulled from config",
+              "task": "CRM pages: dynamic labels + columns \u2014 Contact/Deal/Task pages read crm_config via API route. PR15c ships custom fields in drawers only; dynamic custom-field table columns move to PR15d or a standalone micro-PR. Stage filter uses config values. Entity labels pulled from config",
               "done": false
             },
             {
@@ -890,15 +904,83 @@
           ],
           "testCriteria": [
             "User tells agent 'I sell insurance, my stages are lead/quoted/underwriting/bound/lost' \u2192 agent calls configure_crm \u2192 all tools and UI reflect new vocabulary immediately",
-            "User says 'I need to track policy number and coverage amount on deals' \u2192 agent adds custom fields \u2192 create_deal accepts them \u2192 deal page shows new columns",
+            "User says 'I need to track policy number and coverage amount on deals' \u2192 agent adds custom fields \u2192 create_deal accepts them \u2192 deal/contact/task drawers show the new fields; table columns are deferred",
             "Default real-estate vocabulary works with zero configuration (no crm_config row)",
             "configure_crm partial update: change only deal_stages without affecting contact_types"
           ]
         },
         {
+          "pr": "15d",
+          "title": "Company object \u2014 complete the CRM triad",
+          "status": "in_progress",
+          "decisions": [],
+          "dependsOn": [
+            5,
+            6,
+            "15c"
+          ],
+          "note": "Adds Company as the third standard CRM object, completing the universal Company-Contact-Deal triad (matches Twenty, Attio, HubSpot, Salesforce). Direct FK on contacts and deals (company_id, ON DELETE SET NULL). Configurable company_industries vocabulary via crm_config. Extends TAM beyond real estate to insurance, consulting, property management, and any B2B service. Reference: roadmap docs/Sunder - Source of Truth/references/twenty-crm/company-object-reference.md",
+          "tasks": [
+            {
+              "id": "PR15d-1",
+              "task": "Migration: CREATE TABLE companies (company_id, client_id, name, industry, website, phone, email, address, notes, custom_fields JSONB). ADD COLUMN company_id UUID FK on contacts and deals (ON DELETE SET NULL). RLS + indexes. Extend crm_config with company_industries, company_custom_fields, company_label",
+              "done": false
+            },
+            {
+              "id": "PR15d-2",
+              "task": "Regenerate database.ts. Add companySchema + companyInsertSchema to schemas.ts. Add company fields to CrmVocabConfig/CRM_DEFAULTS (company_industries, company_custom_fields, company_label)",
+              "done": false
+            },
+            {
+              "id": "PR15d-3",
+              "task": "createCompanyTools factory: search_companies, create_company (with duplicate detection by name), update_company, batch_create_companies. Follow existing factory pattern with config param and dynamic schemas",
+              "done": false
+            },
+            {
+              "id": "PR15d-4",
+              "task": "link_contact_to_company / unlink_contact_from_company tools: UPDATE contacts SET company_id. link_deal_to_company / unlink_deal_from_company: UPDATE deals SET company_id",
+              "done": false
+            },
+            {
+              "id": "PR15d-5",
+              "task": "Wire company tools into createCrmTools index barrel. Update configure_crm to accept company_industries, company_custom_fields, company_label",
+              "done": false
+            },
+            {
+              "id": "PR15d-6",
+              "task": "Companies list page at /crm/companies \u2014 table with name, industry, phone, website, contact count, deal count. Industry filter from config. Search by name",
+              "done": false
+            },
+            {
+              "id": "PR15d-7",
+              "task": "Company drawer: name, industry badge, website, phone, email, address, notes, custom fields. Related contacts list. Related deals list",
+              "done": false
+            },
+            {
+              "id": "PR15d-8",
+              "task": "Update contact drawer and deal drawer: add Company field (select from existing companies). Update contacts and deals table columns to show Company name",
+              "done": false
+            },
+            {
+              "id": "PR15d-9",
+              "task": "Tests: company tool tests, config extension tests, link/unlink tests. Seed data with sample companies",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Agent creates a company via chat \u2192 appears in /crm/companies page",
+            "Agent links a contact to a company \u2192 contact drawer shows company, company drawer shows contact",
+            "Agent links a deal to a company \u2192 deal drawer shows company, company drawer shows deal",
+            "search_companies by name and industry filter work correctly",
+            "Company industries configurable via configure_crm tool",
+            "Default real-estate industries work with zero configuration",
+            "Deleting a company SET NULLs company_id on related contacts and deals"
+          ]
+        },
+        {
           "pr": 18,
           "title": "Cron scanner + agent_triggers table",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [
             "TRIG-01",
             "TRIG-02",
@@ -974,7 +1056,7 @@
         {
           "pr": 19,
           "title": "Autopilot thread + pulse",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [
             "TRIG-06b",
             "TRIG-07",
@@ -1033,7 +1115,7 @@
         {
           "pr": 20,
           "title": "Trigger tools + user-created triggers",
-          "status": "pending",
+          "status": "done",
           "decisions": [
             "TRIG-03",
             "TRIG-12"
@@ -1043,37 +1125,37 @@
             {
               "id": "PR20-1",
               "task": "Implement search_triggers tool \u2014 search available trigger types by keyword",
-              "done": false
+              "done": true
             },
             {
               "id": "PR20-2",
               "task": "Implement setup_trigger tool \u2014 create new trigger with schedule/type/config. Supported types: schedule (cron expression), webhook (generates unique URL), rss (feed URL + polling interval)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR20-3",
               "task": "Implement manage_active_triggers tool \u2014 list/view/delete/simulate active triggers",
-              "done": false
+              "done": true
             },
             {
               "id": "PR20-4",
               "task": "Two retry policies: autopilot (0 retries), everything else (max 2)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR20-5",
               "task": "Webhook trigger endpoint: /api/trigger/webhook/[triggerId] \u2014 POST fires a run in the trigger's thread. Optional webhook_secret column on agent_triggers for HMAC validation.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR20-6",
               "task": "RSS trigger support: store feed URL in trigger config JSONB. On next_run_at hit, fetch feed, parse XML, compare item GUIDs against state file (state/{triggerId}/seen.json via write_file). New items passed as trigger payload.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR20-7",
               "task": "Automations page at /automations \u2014 list active triggers with name, type (schedule/webhook/RSS), schedule/config, last_run_at, next_run_at, status. Enable/disable toggle per trigger. Links to trigger's thread for run history.",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -1083,20 +1165,119 @@
             "RSS trigger: fires only for new items, deduplicates via state file",
             "Automations page shows all triggers with status and next run time"
           ]
+        },
+        {
+          "pr": "22a",
+          "title": "Multimodal chat \u2014 image attachments",
+          "status": "in_progress",
+          "decisions": [],
+          "tasklist": "docs/product/tasks/2026-03-07-pr22a-multimodal-chat-tasklist.md",
+          "note": "Follows vercel/chatbot multimodal pattern exactly. Only drift: Supabase Storage instead of Vercel Blob. Reference: roadmap docs/Sunder - Source of Truth/references/vercel-chatbot/multimodal-reference.md",
+          "tasks": [
+            {
+              "id": "PR22a-1",
+              "task": "Create file upload API route (app/api/files/upload/route.ts) \u2014 Supabase Storage, Zod validation (5MB, JPEG/PNG), returns { url, pathname, contentType }",
+              "done": false
+            },
+            {
+              "id": "PR22a-2",
+              "task": "Create PreviewAttachment component (src/components/chat/preview-attachment.tsx) \u2014 copy from vercel/chatbot, reusable in input + message rendering",
+              "done": false
+            },
+            {
+              "id": "PR22a-3",
+              "task": "Add multimodal to ChatComposer \u2014 attachments state, uploadQueue state, uploadFile() callback, handleFileChange(), handlePaste() with addEventListener, hidden file input, paperclip button, preview area",
+              "done": false
+            },
+            {
+              "id": "PR22a-4",
+              "task": "Update ChatPanel.handleSubmit \u2014 switch from sendMessage({ text }) to sendMessage({ role: 'user', parts: [...fileParts, { type: 'text', text }] })",
+              "done": false
+            },
+            {
+              "id": "PR22a-5",
+              "task": "Update MessageBubble \u2014 filter message.parts for type==='file', render PreviewAttachment for each",
+              "done": false
+            },
+            {
+              "id": "PR22a-6",
+              "task": "Extend runAgent to accept file parts \u2014 forward to streamText via convertToModelMessages() so images reach the model",
+              "done": false
+            },
+            {
+              "id": "PR22a-7",
+              "task": "Add stop button to ChatComposer \u2014 wire useChat stop() when status === 'submitted' or 'streaming'",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "User clicks paperclip, selects image, sees preview thumbnail in input area",
+            "User pastes image from clipboard, sees preview thumbnail",
+            "User sends message with image, image appears in message bubble",
+            "Model receives image and responds about its content",
+            "User can remove attachment before sending",
+            "Stop button cancels streaming response"
+          ]
+        },
+        {
+          "pr": "22b",
+          "title": "Tool output rendering \u2014 json-render + tool approval UI",
+          "status": "done",
+          "decisions": [],
+          "note": "Two improvements to tool display in chat: (1) Replace raw JSON.stringify in ToolCallInline with custom zero-dep JsonView component for readable tool output (pivoted from @vercel-labs/json-render \u2014 that package is a generative UI framework, not a JSON viewer). (2) Wire addToolApprovalResponse with approve/deny buttons for tools with approval-requested state. Reference: roadmap docs/Sunder - Source of Truth/references/vercel-chatbot/generative-ui-hooks-reference.md",
+          "tasks": [
+            {
+              "id": "PR22b-1",
+              "task": "Create custom JsonView component (zero-dep, Tailwind-native) for tool input/output display in ToolCallInline and Tool components",
+              "done": true
+            },
+            {
+              "id": "PR22b-2",
+              "task": "Replace JSON.stringify in ToolCallInline with JsonView for tool arguments and results",
+              "done": true
+            },
+            {
+              "id": "PR22b-3",
+              "task": "Replace JSON.stringify in ai-elements Tool component (ToolInput/ToolOutput) with JsonView",
+              "done": true
+            },
+            {
+              "id": "PR22b-4",
+              "task": "Wire addToolApprovalResponse from useChat \u2014 destructure in ChatPanel, pass through to MessageBubble",
+              "done": true
+            },
+            {
+              "id": "PR22b-5",
+              "task": "Add approve/deny buttons in message rendering when tool part state === 'approval-requested' \u2014 follows vercel/chatbot pattern exactly",
+              "done": true
+            },
+            {
+              "id": "PR22b-6",
+              "task": "Show denial state in ToolCallInline when state === 'output-denied'",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Tool outputs render as readable tree/table instead of raw JSON",
+            "Tool requiring approval shows approve/deny buttons",
+            "Clicking approve continues the agent run",
+            "Clicking deny shows denied state and stops tool execution",
+            "JsonView handles nested objects, arrays, and primitives cleanly"
+          ]
         }
       ]
     },
     {
       "phase": 3,
-      "title": "Connections + Email + Subagents",
+      "title": "Connections + Email + Subagents + Agent-Generated Views",
       "status": "pending",
-      "goal": "Agent connects to external services via OAuth. Can send emails. Subagents handle heavy research in isolation.",
-      "demoMoment": "User connects Gmail, agent drafts follow-up and sends after approval. Agent delegates lead research to subagent.",
+      "goal": "Agent connects to external services via OAuth. Can send emails. Subagents handle heavy research in isolation. Agent generates custom views from chat that users can pin.",
+      "demoMoment": "User connects Gmail, agent drafts follow-up and sends after approval. User says 'show me my deals as a kanban' \u2192 agent generates and displays an interactive board. User pins it to sidebar.",
       "prs": [
         {
           "pr": 25,
           "title": "Composio connections + OAuth",
-          "status": "pending",
+          "status": "in_progress",
           "decisions": [
             "CONN-01",
             "CONN-02",
@@ -1224,6 +1405,51 @@
           ]
         },
         {
+          "pr": "42a",
+          "title": "Agent-generated views (catalog-based, json-render pattern)",
+          "status": "pending",
+          "decisions": [
+            "UX-10"
+          ],
+          "dependsOn": [
+            "15a"
+          ],
+          "note": "Layer 3 of CRM configurability stack. Agent generates views by outputting a JSON spec conforming to a Zod-defined component catalog \u2014 not arbitrary code. Frontend renders specs deterministically via a <ViewRenderer> component using existing React components and TanStack Query data layer. No sandbox, no iframe, no bridge API needed. Inspired by Vercel Labs json-render pattern. Covers the real estate vertical's predictable view needs (kanban, table, chart, timeline, priority list). Saved specs become pinnable persistent views. Tasklet-style sandboxed code gen deferred to PR 42b as an escape hatch if catalog coverage proves insufficient.",
+          "tasks": [
+            {
+              "id": "PR42a-1",
+              "task": "Define component catalog: Zod schemas for view components (kanban board, data table, chart, timeline, priority list, stat card). Each schema defines valid props \u2014 the LLM can only produce components in this catalog.",
+              "done": false
+            },
+            {
+              "id": "PR42a-2",
+              "task": "Build <ViewRenderer> component \u2014 takes a JSON view spec, validates against catalog schemas, renders the matching React component. Streaming/progressive rendering support.",
+              "done": false
+            },
+            {
+              "id": "PR42a-3",
+              "task": "Agent tool: create_view (generates JSON spec via structured output) + show_view (displays in preview/split panel). View specs read live CRM data including custom fields from PR 15a via existing TanStack Query hooks.",
+              "done": false
+            },
+            {
+              "id": "PR42a-4",
+              "task": "Migration: saved_views table (id, client_id, spec JSONB, display_name, pinned boolean, created_at, updated_at). Pin/unpin views to sidebar or CRM pages.",
+              "done": false
+            },
+            {
+              "id": "PR42a-5",
+              "task": "Wire saved views into sidebar navigation \u2014 pinned views appear as nav items, clicking renders the saved spec via <ViewRenderer>.",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "User says 'show me a kanban of my deals grouped by stage' \u2192 agent outputs JSON spec \u2192 ViewRenderer displays interactive board with live CRM data",
+            "User pins the view \u2192 it appears in sidebar \u2192 clicking it re-renders the saved spec with fresh data",
+            "Generated view includes custom fields from PR 15a",
+            "Agent cannot produce components outside the defined catalog (Zod validation rejects invalid specs)"
+          ]
+        },
+        {
           "pr": "32a",
           "title": "Email messaging tools (Resend)",
           "status": "pending",
@@ -1321,7 +1547,8 @@
           ],
           "testCriteria": [
             "Agent tries to send email, pauses for approval, continues after yes"
-          ]
+          ],
+          "note": "Tool approval UI (approve/deny buttons, denial state, prop drilling ChatPanel\u2192ToolCallInline) already shipped in PR 22b. This PR adds the backend gate logic (two-tier safety model, which tools require approval)."
         },
         {
           "pr": 34,
@@ -1331,7 +1558,7 @@
             "SAFETY-02",
             "SAFETY-04"
           ],
-          "note": "v2 simplification: pending approvals visible in chat thread, skip separate queue UI.",
+          "note": "v2 simplification: pending approvals visible in chat thread, skip separate queue UI. Tool approval UI components already shipped in PR 22b \u2014 this PR adds the approval_events table and trigger-thread integration.",
           "tasks": [
             {
               "id": "PR34-1",
@@ -1385,29 +1612,58 @@
         {
           "pr": 38,
           "title": "Onboarding flow",
-          "status": "pending",
+          "status": "in_progress",
           "decisions": [
-            "UX-09"
+            "UX-09",
+            "DATA-08"
           ],
-          "note": "v2 simplification: bootstrap files + first chat only. Skip guided interview and deep profile phase.",
+          "note": "v2 simplification: bootstrap files + first chat only. Skip guided interview and deep profile phase. Auth funnel work can land ahead of the rest of onboarding: dedicated login/signup pages, Google-first Supabase auth, unified post-auth redirect to /chat, and a display_name fallback fix so OAuth users bootstrap cleanly into clients.",
           "tasks": [
             {
               "id": "PR38-1",
-              "task": "Phase 1: Quick Activation (<10 min) \u2014 signup, connect services, seed files",
-              "done": false
+              "task": "Quick activation auth surface: dedicated /register and /login pages with a high-conversion split layout, Google as primary CTA, and email/password fallback",
+              "done": true
             },
             {
               "id": "PR38-2",
+              "task": "Supabase Google OAuth flow: signInWithOAuth on the client, /auth/callback code exchange, sanitized next redirect, and unified post-auth landing on /chat",
+              "done": true
+            },
+            {
+              "id": "PR38-3",
+              "task": "Redirect consistency across auth surfaces: landing CTA points to signup, email confirmation lands on /chat, and middleware/auth pages agree on chat as the default home",
+              "done": true
+            },
+            {
+              "id": "PR38-4",
               "task": "Migration: setup_progress table",
               "done": false
             },
             {
-              "id": "PR38-3",
+              "id": "PR38-5",
+              "task": "Update clients bootstrap/display_name fallback for social sign-in metadata: prefer display_name \u2192 full_name \u2192 name \u2192 email so Google users do not default to raw email when profile data is available",
+              "done": true
+            },
+            {
+              "id": "PR38-6",
+              "task": "Document prelaunch hosted auth checklist: apply the display_name migration to the hosted Supabase project, add Auth URL allow-list entries for localhost, Vercel previews, and the final production domain, create the Google OAuth web client, and enable the Google provider in Supabase Auth",
+              "done": true
+            },
+            {
+              "id": "PR38-7",
+              "task": "Document the access needed to finish hosted auth setup: Supabase migration apply rights, Supabase Auth URL Configuration access, Supabase Auth Providers access, and either the Google OAuth client ID/secret or equivalent Google Cloud project access",
+              "done": true
+            },
+            {
+              "id": "PR38-8",
               "task": "First-chat experience: agent introduces itself, asks basic preferences, populates USER.md",
               "done": false
             }
           ],
           "testCriteria": [
+            "New user can sign up with Google or email, lands in /chat, and sees the dedicated auth funnel instead of placeholder auth pages",
+            "OAuth users create clients rows with a human-friendly display_name derived from provider metadata when available",
+            "Hosted launch checklist is explicit: redirect URLs, Google provider credentials, migration apply, and required Supabase permissions are documented before domain cutover",
             "New user goes through onboarding, first useful output in <10 min"
           ]
         }
@@ -1474,39 +1730,37 @@
           ]
         },
         {
-          "pr": "42a",
-          "title": "Agent-generated interactive views (Tasklet instant-app inspired)",
+          "pr": "42b",
+          "title": "Sandboxed code-gen views (Tasklet instant-app pattern) \u2014 DEFERRED",
           "status": "pending",
-          "decisions": [],
-          "dependsOn": [
-            "15a"
+          "decisions": [
+            "UX-10",
+            "EXEC-04"
           ],
-          "note": "Exploratory \u2014 implementation approach TBD. Inspired by Tasklet's create_instant_app + show_user_preview pattern. Agent generates sandboxed React mini-apps (kanban boards, dashboards, custom CRUD views) that read from existing CRM tables via a bridge API. Key difference from Tasklet: our apps read from the real Postgres CRM schema (with custom fields from PR 15a), not agent-created SQLite tables. Depends on sandboxed iframe execution environment. This is Layer 3 of the CRM configurability stack (Layer 1: vocabulary, Layer 2: custom fields, Layer 3: custom views).",
+          "dependsOn": [
+            "42a"
+          ],
+          "note": "Escape hatch if PR 42a's catalog-based views prove insufficient. Full Tasklet pattern: agent writes arbitrary TSX, rendered in sandboxed iframe with CSP-locked CDN deps (React + Tailwind from cdnjs), bridge API for tool calls (window.tasklet.runTool equivalent). Only pursue if users need truly custom views that the component catalog can't express. Requires Vercel Sandbox (EXEC-04) or equivalent iframe sandboxing.",
           "tasks": [
             {
-              "id": "PR42a-1",
-              "task": "Spike: sandboxed iframe execution for agent-generated React apps on Vercel (CSP, CDN deps, bridge API)",
+              "id": "PR42b-1",
+              "task": "Spike: sandboxed iframe execution for agent-generated TSX on Vercel (CSP, CDN deps, Babel standalone)",
               "done": false
             },
             {
-              "id": "PR42a-2",
-              "task": "Bridge API: read-only access to CRM tables from sandboxed app (contacts, deals, tasks, interactions with custom fields)",
+              "id": "PR42b-2",
+              "task": "Bridge API: runTool() from sandboxed iframe to agent tools (read-only CRM access + any other tools)",
               "done": false
             },
             {
-              "id": "PR42a-3",
-              "task": "Agent tool: create_view or show_view for generating and displaying custom views in preview panel",
-              "done": false
-            },
-            {
-              "id": "PR42a-4",
-              "task": "Pin/save views to sidebar or CRM pages",
+              "id": "PR42b-3",
+              "task": "Agent tool: create_app (scaffolds multi-file TSX app) \u2014 Tasklet create_instant_app equivalent",
               "done": false
             }
           ],
           "testCriteria": [
-            "User says 'show me a kanban of my deals grouped by stage' \u2192 agent generates and displays an interactive board",
-            "Generated view reads live CRM data including custom fields from PR 15a"
+            "Agent generates a custom TSX app that renders in sandboxed iframe with live CRM data",
+            "Bridge API calls are CSP-restricted and validated"
           ]
         }
       ]
@@ -1921,15 +2175,15 @@
       },
       {
         "tool": "show_user_preview",
-        "reason": "No preview panel"
+        "reason": "V1 equivalent is create_view/show_view tools using catalog-based JSON specs (PR 42a). Full preview panel (files, computer use) deferred."
       },
       {
         "tool": "close_user_preview",
-        "reason": "No preview panel"
+        "reason": "V1 equivalent is dismissing a rendered view. Full preview panel deferred."
       },
       {
         "tool": "create_tasklet_app",
-        "reason": "No TSX apps in v1. PR 42a explores agent-generated views as a lighter alternative."
+        "reason": "Deferred to PR 42b. V1 uses catalog-based JSON view specs (PR 42a) instead of sandboxed TSX apps."
       },
       {
         "tool": "get_user_quota_status",

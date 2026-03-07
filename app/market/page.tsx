@@ -1,6 +1,5 @@
 /** Market Data Hub — lead magnet entrypoint for agents. */
 import type { Metadata } from "next";
-import { Briefcase, Building2, Home, MapPin, Users } from "lucide-react";
 import { Container } from "@/components/landing/Container";
 import { MarketCategoryCard } from "@/components/property/market-category-card";
 import { MarketCta } from "@/components/property/market-cta";
@@ -19,7 +18,7 @@ const CATEGORIES = [
       "Search 42,000+ CEA-registered agents and their full transaction histories",
     count: "42,000+",
     countLabel: "registered agents",
-    icon: <Users className="h-6 w-6" />,
+    icon: "contacts",
   },
   {
     href: "/market/properties",
@@ -28,7 +27,7 @@ const CATEGORIES = [
       "Condo and residential project transaction data across all districts",
     count: "3,000+",
     countLabel: "projects",
-    icon: <Building2 className="h-6 w-6" />,
+    icon: "property",
   },
   {
     href: "/market/hdb",
@@ -36,7 +35,7 @@ const CATEGORIES = [
     description: "HDB resale street-level pricing and transaction volume data",
     count: "900+",
     countLabel: "streets",
-    icon: <Home className="h-6 w-6" />,
+    icon: "home",
   },
   {
     href: "/market/agencies",
@@ -44,7 +43,7 @@ const CATEGORIES = [
     description: "Agency-level activity, headcount, and top-performing agents",
     count: "1,500+",
     countLabel: "agencies",
-    icon: <Briefcase className="h-6 w-6" />,
+    icon: "agency",
   },
   {
     href: "/market/areas",
@@ -52,7 +51,7 @@ const CATEGORIES = [
     description: "Town and district transaction activity and neighbourhood analytics",
     count: "30+",
     countLabel: "areas",
-    icon: <MapPin className="h-6 w-6" />,
+    icon: "area",
   },
 ] as const;
 

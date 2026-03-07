@@ -470,14 +470,15 @@ Everything else (idempotency infrastructure, preflight checks, structured subage
 
 | Category | Tables | Decision |
 |----------|--------|----------|
-| **Core CRM** (6) | `clients`, `contacts`, `deals`, `crm_tasks`, `interactions`, `crm_config` | `DATA-06`, `DATA-09`. **v2 note:** PR 15a expands `crm_config` with custom fields via JSONB columns on `contacts`, `deals`, `crm_tasks`. Agent configures CRM vocabulary and fields via chat. |
+| **Core CRM** (6) | `clients`, `contacts`, `deals`, `crm_tasks`, `interactions`, `crm_config` | `DATA-06`, `DATA-09`. **v2 note:** PR 15a expands `crm_config` with custom fields via JSONB columns on `contacts`, `deals`, `crm_tasks`. Agent configures CRM vocabulary and fields via chat. **Three-layer CRM configurability stack:** Layer 1 (vocabulary from `crm_config`), Layer 2 (custom fields via JSONB), Layer 3 (agent-generated views — catalog-based JSON specs per `UX-10`, PR 42a). |
 | **Agent System** (5) | `agent_todo`, `runs`, `agent_triggers`, `autopilot_config`, `approval_events` | `TRIG-01`, `RUNNER-08`, `SAFETY-02` |
 | **Conversation** (4) | `conversation_threads`, `conversation_messages`, `thread_queue_records`, `guided_interview_sessions` | `SESSION-01`, `DATA-09` |
 | **Knowledge & Files** (2) | `vault_files`, `document_processing_records` | `SERVICE-02`, `DATA-09` |
 | **Operational** (2) | `usage_telemetry`, `setup_progress` | `EVAL-03`, `UX-09` |
+| **Views** (1) | `saved_views` | `UX-10`. Stores agent-generated view specs (JSON) with pin state. PR 42a. |
 | **Infrastructure** (3) | `sandbox_sessions`, `skill_registry`, `connections` | `EXEC-04`, `SKILL-01`, `CONN-01` |
 
-> **v2 alignment:** `agent_tasks` replaced by `agent_todo` (Tasklet-parity). `goals` table removed -- goals are written to `MEMORY.md` instead of a dedicated table. Table count reduced from 23 to 21.
+> **v2 alignment:** `agent_tasks` replaced by `agent_todo` (Tasklet-parity). `goals` table removed -- goals are written to `MEMORY.md` instead of a dedicated table. `saved_views` added for agent-generated views (PR 42a). Table count: 22.
 
 All tables use RLS with `client_id` for row-level security.
 

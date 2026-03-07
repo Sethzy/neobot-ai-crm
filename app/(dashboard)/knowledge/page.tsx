@@ -4,9 +4,9 @@
  */
 "use client";
 
-import { FileText, Search, Upload } from "lucide-react";
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
 
+import { AppIcon } from "@/components/icons/app-icons";
 import { VaultFilesTable } from "@/components/knowledge/vault-files-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,7 +55,10 @@ export default function KnowledgePage() {
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+          <AppIcon
+            name="search"
+            className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60"
+          />
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -78,7 +81,7 @@ export default function KnowledgePage() {
           disabled={upload.isPending}
           onClick={() => fileInputRef.current?.click()}
         >
-          <Upload className="h-4 w-4" />
+          <AppIcon name="upload" className="h-4 w-4" />
           {upload.isPending ? "Uploading..." : "Upload"}
         </Button>
       </div>
@@ -113,7 +116,7 @@ export default function KnowledgePage() {
           </div>
         ) : files.length === 0 ? (
           <div className="rounded-xl border border-border/40 bg-card p-10 text-center shadow-sm md:p-20">
-            <FileText className="mx-auto h-12 w-12 text-muted-foreground/40" />
+            <AppIcon name="knowledgeFile" className="mx-auto h-12 w-12 text-muted-foreground/40" />
             <p className="mt-6 text-muted-foreground">
               {filters.search
                 ? "No files match your search"

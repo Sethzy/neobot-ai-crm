@@ -1,8 +1,8 @@
 /** Agent profile page — CEA agent transaction history and activity summary. */
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Briefcase, Calendar, Shield } from "lucide-react";
 import { notFound } from "next/navigation";
+import { AppIcon } from "@/components/icons/app-icons";
 import { Container } from "@/components/landing/Container";
 import { ConfigNotice } from "@/components/property/config-notice";
 import { MarketCta } from "@/components/property/market-cta";
@@ -224,7 +224,7 @@ export default async function AgentProfilePage({
             href="/market/agents"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-400 transition hover:text-zinc-700"
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
+            <AppIcon name="arrowLeft" className="h-3.5 w-3.5" />
             Back to agents
           </Link>
 
@@ -259,11 +259,11 @@ export default async function AgentProfilePage({
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-zinc-400">
                   <span className="inline-flex items-center gap-1.5 font-mono">
-                    <Shield className="h-3.5 w-3.5" />
+                    <AppIcon name="shield" className="h-3.5 w-3.5" />
                     {registrationNo}
                   </span>
                   <span className="inline-flex items-center gap-1.5 text-zinc-500 transition-colors hover:text-zinc-900">
-                    <Briefcase className="h-3.5 w-3.5 text-zinc-400" />
+                    <AppIcon name="agency" className="h-3.5 w-3.5 text-zinc-400" />
                     {profile.agent?.estate_agent_name ? (
                       <Link
                         href={{
@@ -281,7 +281,7 @@ export default async function AgentProfilePage({
                     )}
                   </span>
                   <span className="inline-flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5" />
+                    <AppIcon name="calendar" className="h-3.5 w-3.5" />
                     {formatActiveRange(
                       profile.firstTransactionDate,
                       profile.latestTransactionDate

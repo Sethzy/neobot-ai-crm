@@ -1032,6 +1032,15 @@
       "reasoning": "Two-phase onboarding. Phase 1 (<10 min): sign up, connect services, first useful output — get to value fast. Phase 2 (first week): AI asks structured questions in normal chat using UX-05 primitive — populates USER.md + preferences.md, proposes Growth Plan. Not required for activation. Falls back to passive observation if skipped. Re-suggests max once per 48h."
     },
     {
+      "id": "UX-10",
+      "category": "14-ux-and-navigation",
+      "description": "Two-tier generative UI for agent-generated views — Tier 1 (v1): catalog-based JSON view specs (json-render pattern). Agent outputs a JSON spec conforming to a Zod-defined component catalog (kanban, table, chart, timeline, priority list, stat card). Frontend renders deterministically via <ViewRenderer>. No sandbox, no iframe, no bridge API. Saved specs become pinnable persistent views (saved_views table). Tier 2 (deferred): sandboxed code generation (Tasklet create_instant_app pattern) — agent writes arbitrary TSX, rendered in CSP-locked iframe. Only if catalog coverage proves insufficient. This is Layer 3 of the CRM configurability stack (Layer 1: vocabulary, Layer 2: custom fields, Layer 3: custom views).",
+      "approved": true,
+      "decision": "Tier 1 catalog-based JSON specs in v1 (PR 42a, Phase 3). Tier 2 sandboxed code gen deferred (PR 42b). Diverges from Tasklet's create_instant_app approach — DELTA-017.",
+      "reasoning": "Catalog approach eliminates sandbox infra (no iframe, no CSP, no Babel, no bridge API). Zod validation guarantees well-formed output — agent literally cannot produce components outside the catalog. Covers the real estate vertical's predictable view needs. Tasklet's arbitrary-code approach is maximum power but overkill for v1 and introduces reliability risk (buggy agent-generated code, inconsistent styling, incorrect data fetching). json-render (Vercel Labs) validates the pattern; Tambo validates the two-mode lifecycle (ephemeral JIT views + persistent pinned views) but is rejected as SDK because Sunder owns its own orchestration layer. Key Sunder differentiator from Tasklet: views read from real Postgres CRM schema (with custom fields), not agent-created SQLite tables.",
+      "depends_on": ["EXEC-04"]
+    },
+    {
       "id": "TASKLET-01",
       "category": "15-tasklet-alignment",
       "description": "Tasklet patterns as default behavior — if spec is silent, follow Tasklet references. Any deviation must be documented in Delta Register.",

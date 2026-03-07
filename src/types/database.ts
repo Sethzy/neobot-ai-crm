@@ -552,6 +552,7 @@ export type Database = {
           client_id: string
           contact_id: string
           created_at: string
+          custom_fields: Json
           email: string | null
           first_name: string
           last_name: string
@@ -564,6 +565,7 @@ export type Database = {
           client_id: string
           contact_id?: string
           created_at?: string
+          custom_fields?: Json
           email?: string | null
           first_name: string
           last_name: string
@@ -576,6 +578,7 @@ export type Database = {
           client_id?: string
           contact_id?: string
           created_at?: string
+          custom_fields?: Json
           email?: string | null
           first_name?: string
           last_name?: string
@@ -598,28 +601,46 @@ export type Database = {
         Row: {
           client_id: string
           config_id: string
+          contact_custom_fields: Json
+          contact_types: Json | null
           created_at: string
+          deal_contact_roles: Json | null
+          deal_custom_fields: Json
+          deal_label: string
           deal_stages: Json | null
           interaction_types: Json | null
           task_types: Json | null
+          task_custom_fields: Json
           updated_at: string
         }
         Insert: {
           client_id: string
           config_id?: string
+          contact_custom_fields?: Json
+          contact_types?: Json | null
           created_at?: string
+          deal_contact_roles?: Json | null
+          deal_custom_fields?: Json
+          deal_label?: string
           deal_stages?: Json | null
           interaction_types?: Json | null
           task_types?: Json | null
+          task_custom_fields?: Json
           updated_at?: string
         }
         Update: {
           client_id?: string
           config_id?: string
+          contact_custom_fields?: Json
+          contact_types?: Json | null
           created_at?: string
+          deal_contact_roles?: Json | null
+          deal_custom_fields?: Json
+          deal_label?: string
           deal_stages?: Json | null
           interaction_types?: Json | null
           task_types?: Json | null
+          task_custom_fields?: Json
           updated_at?: string
         }
         Relationships: [
@@ -637,6 +658,7 @@ export type Database = {
           client_id: string
           contact_id: string | null
           created_at: string
+          custom_fields: Json
           deal_id: string | null
           description: string | null
           due_date: string | null
@@ -649,6 +671,7 @@ export type Database = {
           client_id: string
           contact_id?: string | null
           created_at?: string
+          custom_fields?: Json
           deal_id?: string | null
           description?: string | null
           due_date?: string | null
@@ -661,6 +684,7 @@ export type Database = {
           client_id?: string
           contact_id?: string | null
           created_at?: string
+          custom_fields?: Json
           deal_id?: string | null
           description?: string | null
           due_date?: string | null
@@ -750,6 +774,7 @@ export type Database = {
           address: string
           client_id: string
           created_at: string
+          custom_fields: Json
           deal_id: string
           notes: string | null
           price: number | null
@@ -760,6 +785,7 @@ export type Database = {
           address: string
           client_id: string
           created_at?: string
+          custom_fields?: Json
           deal_id?: string
           notes?: string | null
           price?: number | null
@@ -770,6 +796,7 @@ export type Database = {
           address?: string
           client_id?: string
           created_at?: string
+          custom_fields?: Json
           deal_id?: string
           notes?: string | null
           price?: number | null
@@ -946,15 +973,18 @@ export type Database = {
           current_run_id: string | null
           enabled: boolean
           id: string
+          invocation_message: string | null
           instruction_path: string
           last_fired_at: string | null
           last_status: string | null
           name: string
           next_fire_at: string | null
           payload: Json
+          retry_count: number
           thread_id: string
           trigger_type: string
           updated_at: string
+          webhook_secret: string | null
         }
         Insert: {
           client_id: string
@@ -963,15 +993,18 @@ export type Database = {
           current_run_id?: string | null
           enabled?: boolean
           id?: string
+          invocation_message?: string | null
           instruction_path: string
           last_fired_at?: string | null
           last_status?: string | null
           name: string
           next_fire_at?: string | null
           payload?: Json
+          retry_count?: number
           thread_id: string
           trigger_type?: string
           updated_at?: string
+          webhook_secret?: string | null
         }
         Update: {
           client_id?: string
@@ -980,15 +1013,18 @@ export type Database = {
           current_run_id?: string | null
           enabled?: boolean
           id?: string
+          invocation_message?: string | null
           instruction_path?: string
           last_fired_at?: string | null
           last_status?: string | null
           name?: string
           next_fire_at?: string | null
           payload?: Json
+          retry_count?: number
           thread_id?: string
           trigger_type?: string
           updated_at?: string
+          webhook_secret?: string | null
         }
         Relationships: [
           {
@@ -1333,15 +1369,18 @@ export type Database = {
           current_run_id: string | null
           enabled: boolean
           id: string
+          invocation_message: string | null
           instruction_path: string
           last_fired_at: string | null
           last_status: string | null
           name: string
           next_fire_at: string | null
           payload: Json
+          retry_count: number
           thread_id: string
           trigger_type: string
           updated_at: string
+          webhook_secret: string | null
         }[]
       }
       create_run_if_idle: {
@@ -1376,6 +1415,7 @@ export type Database = {
       }
       release_trigger_claim: {
         Args: {
+          p_advance_next_fire_at?: boolean | null
           p_next_fire_at?: string | null
           p_run_id: string
           p_status?: string

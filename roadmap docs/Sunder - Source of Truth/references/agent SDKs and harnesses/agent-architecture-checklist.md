@@ -3,7 +3,7 @@
 ## Why this file exists
 This is a comprehensive, plain-language list of every pattern, decision, and consideration surfaced from the agent harness reference materials in this directory. Each item maps to Sunder's current state and says what it is, what implementing (or explicitly skipping) it would achieve, and where Sunder currently stands.
 
-Cross-referenced against: `agent-harness-is-the-real-product.md`, `context-engineering-landscape.md`, `how-to-be-a-world-class-agentic-engineer.md`, `Harness-Model Coupling — Research and Contingency Plan.md`, and the existing Sunder runner at `src/lib/runner/`.
+Cross-referenced against: `agent-harness-is-the-real-product.md`, `context-engineering-landscape.md`, `how-to-be-a-world-class-agentic-engineer.md`, `Harness-Model Coupling — Research and Contingency Plan.md`, `openai-harness-engineering-codex-agent-first.md`, and the existing Sunder runner at `src/lib/runner/`.
 
 ---
 
@@ -389,15 +389,87 @@ Sources: Anthropic (Jan 26 incident), Harness-Model Coupling research doc
 
 ---
 
-## N) CLAUDE.md / Agent Configuration as a Product
+## N) Application Legibility and Agent-Driven QA
 
-56. **CLAUDE.md as a logical directory, not a dumping ground**
+58. **Making application UI legible to agents (Chrome DevTools Protocol)**
+What it is: Wire the browser's DevTools Protocol into the agent runtime so the agent can take DOM snapshots, screenshots, and drive navigation. Boot one app instance per git worktree so changes are isolated.
+What this achieves: Agents can reproduce bugs, validate fixes, and reason about UI behavior directly — replacing human QA as the bottleneck. OpenAI reports single Codex runs working 6+ hours on a task autonomously with this setup.
+Sunder status: Not implemented. Not critical for V1 text-based chat. Becomes relevant if Sunder adds visual QA, screenshot-based bug reproduction, or agent-driven UI testing. Consider: a lightweight variant using Playwright for Phase 3+ if agents need to validate their own UI outputs.
+Sources: OpenAI ("Harness Engineering")
+
+59. **Full observability stack exposed to agents**
+What it is: Give the agent access to logs (LogQL), metrics (PromQL), and traces (TraceQL) via a local, ephemeral observability stack per worktree. Agents can query, correlate, and reason about runtime behavior.
+What this achieves: Prompts like "ensure service startup completes in under 800ms" become tractable. Agent-driven performance optimization and debugging without human intervention.
+Sunder status: Not implemented. Sunder doesn't currently have an observability stack exposed to the runner agent. Consider: if Sunder's agent needs to debug its own performance (e.g., slow tool calls, timeout issues), exposing run telemetry as a queryable tool could help.
+Sources: OpenAI ("Harness Engineering")
+
+---
+
+## O) Repository Knowledge as System of Record
+
+60. **AGENTS.md as table of contents, not encyclopedia**
+What it is: Keep the root agent config file short (~100 lines) as a map with pointers to deeper sources of truth in a structured `docs/` directory. Don't dump all instructions into one file.
+What this achieves: Prevents the "monolithic manual" failure modes: context crowding, stale rules, non-guidance from over-specification, and inability to mechanically verify freshness.
+Sunder status: Partially aligned. Sunder's CLAUDE.md is ~150 lines with authority-chain pointers to the v2 plan, App Spec, and arch decisions JSON. The system prompt is separate and compact. Risk: as Phase 2 adds memory layers, ensure the system prompt stays as a map, not a dump.
+Sources: OpenAI ("Harness Engineering")
+
+61. **Doc-gardening agents for stale documentation**
+What it is: A recurring agent scans for stale or obsolete documentation that doesn't reflect real code behavior and opens fix-up pull requests. Linters and CI jobs validate that the knowledge base is up to date, cross-linked, and structured correctly.
+What this achieves: Documentation stays fresh mechanically rather than relying on human discipline. Prevents knowledge rot.
+Sunder status: Not implemented. Consider: as Sunder's `roadmap docs/` directory grows, periodic validation that docs match implementation. Not a V1 priority, but valuable long-term.
+Sources: OpenAI ("Harness Engineering")
+
+62. **Plans as first-class versioned artifacts**
+What it is: Active plans, completed plans, and known technical debt are all versioned and co-located in the repository. Complex work is captured in execution plans with progress and decision logs checked into the repo.
+What this achieves: Agents can operate without relying on external context (Google Docs, Slack threads, etc.). All context is repo-local and versioned.
+Sunder status: Aligned. Sunder already uses `docs/product/plans/` for phasing plans and `docs/tasks/` for PR-level task lists. The v2 plan JSON is the authoritative source of truth. This pattern is working well.
+Sources: OpenAI ("Harness Engineering")
+
+---
+
+## P) Enforcing Architecture Mechanically
+
+63. **Layered domain architecture with enforced dependency directions**
+What it is: Each business domain is divided into fixed layers (Types → Config → Repo → Service → Runtime → UI) with strictly validated dependency directions. Custom linters and structural tests enforce the rules mechanically.
+What this achieves: Speed without decay. Agents ship fast because constraints prevent architectural drift. This is "the kind of architecture you usually postpone until hundreds of engineers — with agents, it's an early prerequisite."
+Sunder status: Not implemented at the linter level. Sunder has implicit layering (schemas → lib → API routes → UI) but no mechanical enforcement. Consider: as the codebase grows, adding structural validation that prevents, e.g., UI components from importing directly from `lib/runner/` internals.
+Sources: OpenAI ("Harness Engineering")
+
+64. **Taste invariants encoded as custom lints**
+What it is: Statically enforce structured logging, naming conventions, file size limits, and reliability requirements. Write custom lint error messages that inject remediation instructions into agent context.
+What this achieves: Human taste captured once, enforced continuously on every line. Error messages double as agent instructions for self-correction.
+Sunder status: Not implemented. Sunder uses standard ESLint but no custom rules for domain-specific taste. Consider: custom lint rules for patterns like "all tool responses must follow `{ success, ... }` shape" or "no direct Supabase imports outside `lib/`."
+Sources: OpenAI ("Harness Engineering")
+
+65. **Golden principles and automated garbage collection**
+What it is: Encode opinionated mechanical rules ("golden principles") into the repo. Background agent tasks regularly scan for deviations, update quality grades, and open cleanup PRs. Functions like garbage collection — continuous small debt payments rather than painful bursts.
+What this achieves: Prevents "AI slop" accumulation. OpenAI's team went from spending 20% of their week on manual cleanup to fully automated drift correction.
+Sunder status: Not implemented. Not critical for V1 with human-written code. Becomes critical if Sunder leans into agent-generated code. Consider: a quality scoring system for agent outputs as autopilot workloads increase.
+Sources: OpenAI ("Harness Engineering")
+
+66. **Agent-to-agent review (reducing human QA bottleneck)**
+What it is: Instead of requiring humans to review all PRs, instruct the coding agent to review its own changes, request additional agent reviews, respond to feedback, and iterate in a loop until all agent reviewers are satisfied.
+What this achieves: Removes human review as a bottleneck. OpenAI pushed "almost all review effort towards being handled agent-to-agent."
+Sunder status: Not applicable for V1 (no code generation). Relevant if Sunder's agent generates artifacts (email drafts, briefings, document templates) that benefit from multi-pass quality checks. Consider: a "review pass" where a second LLM call validates agent outputs before presenting to the user.
+Sources: OpenAI ("Harness Engineering")
+
+67. **"Agentability" as a design goal — boring tech wins**
+What it is: Favor technologies and abstractions that can be fully internalized and reasoned about in-repo. "Boring" technologies (composable, stable APIs, well-represented in training data) are easier for agents to model. Sometimes cheaper to reimplement than to work around opaque upstream behavior.
+What this achieves: Higher agent success rates. Less debugging of library edge cases. Full control over behavior.
+Sunder status: Aligned directionally. Sunder chose "boring" tech (Next.js, Supabase, Zod) that is well-represented in training data. Continue this principle — avoid exotic libraries that agents struggle with.
+Sources: OpenAI ("Harness Engineering")
+
+---
+
+## Q) CLAUDE.md / Agent Configuration as a Product
+
+68. **CLAUDE.md as a logical directory, not a dumping ground**
 What it is: Treat the agent's configuration as a nested directory of "where to find context given a scenario and an outcome." Keep it as barebones as possible — only IF-ELSE routing to relevant context files.
 What this achieves: The agent loads only relevant context for each task. No bloat from irrelevant rules.
 Sunder status: Apply this principle to the system prompt design in Phase 2. The 7-layer prompt should route to specific context (SOUL.md, USER.md, relevant memory files) rather than inlining everything. The system prompt says "what you are and where to find more," not "everything you need to know."
 Sources: "How to be a world-class agentic engineer"
 
-57. **Rules and skills as iteratively-added preferences**
+69. **Rules and skills as iteratively-added preferences**
 What it is: Start barebones. Add rules when the agent does something wrong. Add skills when a repeatable recipe is needed. Clean up periodically when rules contradict or accumulate.
 What this achieves: The agent's behavior converges toward user preferences over time. Organic, not pre-engineered.
 Sunder status: Aligns with Sunder's memory system design. Client-specific rules and preferences should accumulate in USER.md through conversation, not be pre-configured.
@@ -405,7 +477,7 @@ Sources: "How to be a world-class agentic engineer"
 
 ---
 
-## O) Immediate Action Items (Priority Order)
+## R) Immediate Action Items (Priority Order)
 
 ### P0 — Before Phase 2 Implementation
 - [ ] **Item 13:** Design the 7-layer system prompt architecture with progressive disclosure in mind
@@ -432,6 +504,11 @@ Sources: "How to be a world-class agentic engineer"
 - [ ] **Item 39:** Model-specific prompt tuning (if multi-tier routing is active)
 - [ ] **Item 40:** Sub-agent architecture (for Phase 3+ autopilot)
 - [ ] **Item 50:** Two-layer stack evaluation (if trigger conditions are met)
+- [ ] **Item 58:** Agent-driven UI validation via DevTools Protocol (if visual QA needed)
+- [ ] **Item 63:** Layered domain architecture with mechanical enforcement (as codebase grows)
+- [ ] **Item 64:** Custom taste-invariant lints with agent-readable error messages
+- [ ] **Item 65:** Automated garbage collection agents for code drift (if agent-generated code increases)
+- [ ] **Item 66:** Agent-to-agent review for artifact quality (for autopilot outputs)
 
 ---
 
@@ -442,5 +519,6 @@ All patterns in this document are sourced from:
 2. `context-engineering-landscape.md` — Context engineering techniques from Manus, Cursor, Anthropic, OpenAI, Google, LangChain
 3. `how-to-be-a-world-class-agentic-engineer.md` — Practitioner guide on agentic workflow principles
 4. `Harness-Model Coupling — Research and Contingency Plan.md` — SDK coupling analysis and two-layer stack contingency
-5. Sunder architecture decisions: `architecture-decisions-checklist.json`
-6. Sunder runner implementation: `src/lib/runner/`
+5. `openai-harness-engineering-codex-agent-first.md` — OpenAI's experience building a product with 0 manually-written code using Codex agents (repo knowledge as system of record, app legibility, mechanical architecture enforcement, automated garbage collection)
+6. Sunder architecture decisions: `architecture-decisions-checklist.json`
+7. Sunder runner implementation: `src/lib/runner/`

@@ -1,8 +1,8 @@
 /** Property profile page — private residential project transaction history. */
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Building2, Clock, MapPin } from "lucide-react";
 import { notFound } from "next/navigation";
+import { AppIcon } from "@/components/icons/app-icons";
 import { Container } from "@/components/landing/Container";
 import { ConfigNotice } from "@/components/property/config-notice";
 import { MarketCta } from "@/components/property/market-cta";
@@ -277,7 +277,7 @@ export default async function PropertyProfilePage({
             href="/market/properties"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-sunder-green"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <AppIcon name="arrowLeft" className="h-4 w-4" />
             Back to properties
           </Link>
 
@@ -288,20 +288,20 @@ export default async function PropertyProfilePage({
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {context.district ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
-                  <MapPin className="h-3 w-3" />
+                  <AppIcon name="mapPin" className="h-3 w-3" />
                   D{context.district}
                   {marketSegment ? `: ${marketSegment}` : ""}
                 </span>
               ) : null}
               {propertyType ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
-                  <Building2 className="h-3 w-3" />
+                  <AppIcon name="property" className="h-3 w-3" />
                   {propertyType}
                 </span>
               ) : null}
               {tenure ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
-                  <Clock className="h-3 w-3" />
+                  <AppIcon name="clock" className="h-3 w-3" />
                   {tenure}
                 </span>
               ) : null}
