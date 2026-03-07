@@ -7,28 +7,14 @@ import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Container } from "@/components/landing/Container";
 import {
-  TbAlertTriangle,
   TbArrowRight,
   TbCheck,
   TbClipboardList,
-  TbClock,
-  TbEdit,
   TbFileCheck,
   TbFileText,
-  TbFileX,
-  TbLayersIntersect,
   TbReceipt2,
-  TbSearch,
 } from "react-icons/tb";
-
-const iconMap = {
-  "alert-triangle": TbAlertTriangle,
-  clock: TbClock,
-  search: TbSearch,
-  "file-x": TbFileX,
-  edit: TbEdit,
-  layers: TbLayersIntersect,
-} as const;
+import { problemIconMap as iconMap } from "@/data/problem-icons";
 
 const useCaseIcons = {
   invoices: TbFileText,
