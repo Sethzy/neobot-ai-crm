@@ -6,28 +6,10 @@
  * dramatic price comparison and competitor logos.
  */
 import { Container } from '@/components/landing/Container'
+import { AppIcon, type AppIconName } from '@/components/icons/app-icons'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
 import { SparkleDecoration } from '@/components/landing/SparkleDecoration'
 import { cn } from '@/lib/utils'
-import {
-  Check,
-  Calendar,
-  ClipboardList,
-  FolderOpen,
-  Mic,
-  AudioLines,
-  MessageSquare,
-  Zap,
-  Share2,
-  Mail,
-  Link2,
-  PenTool,
-  LayoutDashboard,
-  ArrowRight,
-  FileSearch,
-  Globe,
-  Monitor,
-} from 'lucide-react'
 import { useState } from 'react'
 
 /** Small logo that falls back to a text initial on error. */
@@ -64,28 +46,28 @@ interface Competitor {
 
 interface ToolRow {
   capability: string
-  icon: React.ElementType
+  icon: AppIconName
   replaces: Competitor[]
   monthlyCost: number
   status: 'included' | 'coming-soon'
 }
 
 const tools: ToolRow[] = [
-  { capability: 'CRM & Pipeline', icon: LayoutDashboard, replaces: [{ name: 'HubSpot', domain: 'hubspot.com' }, { name: 'Follow Up Boss', domain: 'followupboss.com' }], monthlyCost: 99, status: 'included' },
-  { capability: 'Booking & Scheduling', icon: Calendar, replaces: [{ name: 'Calendly', domain: 'calendly.com' }, { name: 'Cal.com', domain: 'cal.com' }], monthlyCost: 49, status: 'included' },
-  { capability: 'Forms & Lead Capture', icon: ClipboardList, replaces: [{ name: 'Typeform', domain: 'typeform.com' }, { name: 'Tally', domain: 'tally.so' }], monthlyCost: 49, status: 'included' },
-  { capability: 'Document Vault', icon: FolderOpen, replaces: [{ name: 'Notion', domain: 'notion.so' }, { name: 'Dropbox', domain: 'dropbox.com' }], monthlyCost: 29, status: 'included' },
-  { capability: 'Voice Transcription', icon: Mic, replaces: [{ name: 'Otter.ai', domain: 'otter.ai' }, { name: 'Fireflies', domain: 'fireflies.ai' }], monthlyCost: 29, status: 'included' },
-  { capability: 'WhatsApp Automation', icon: MessageSquare, replaces: [{ name: 'WATI', domain: 'wati.io' }, { name: 'Respond.io', domain: 'respond.io' }], monthlyCost: 99, status: 'included' },
-  { capability: 'AI Workflow Engine', icon: Zap, replaces: [{ name: 'Zapier', domain: 'zapier.com' }, { name: 'Make', domain: 'make.com' }], monthlyCost: 69, status: 'included' },
-  { capability: 'Document Processing', icon: FileSearch, replaces: [{ name: 'Nanonets', domain: 'nanonets.com' }, { name: 'DocParser', domain: 'docparser.com' }], monthlyCost: 99, status: 'included' },
-  { capability: 'Web Scraping', icon: Globe, replaces: [{ name: 'Apify', domain: 'apify.com' }, { name: 'PhantomBuster', domain: 'phantombuster.com' }], monthlyCost: 99, status: 'included' },
-  { capability: 'Browser Automation', icon: Monitor, replaces: [{ name: 'Browserbase', domain: 'browserbase.com' }, { name: 'Selenium Grid', domain: 'selenium.dev' }], monthlyCost: 79, status: 'included' },
-  { capability: 'Voice Cloning', icon: AudioLines, replaces: [{ name: 'ElevenLabs', domain: 'elevenlabs.io' }, { name: 'Resemble AI', domain: 'resemble.ai' }], monthlyCost: 49, status: 'included' },
-  { capability: 'Social Media', icon: Share2, replaces: [{ name: 'Buffer', domain: 'buffer.com' }, { name: 'Hootsuite', domain: 'hootsuite.com' }], monthlyCost: 99, status: 'coming-soon' },
-  { capability: 'Email Sequences', icon: Mail, replaces: [{ name: 'Mailchimp', domain: 'mailchimp.com' }, { name: 'ActiveCampaign', domain: 'activecampaign.com' }], monthlyCost: 79, status: 'coming-soon' },
-  { capability: 'Link Tracking', icon: Link2, replaces: [{ name: 'Bitly', domain: 'bitly.com' }, { name: 'Short.io', domain: 'short.io' }], monthlyCost: 49, status: 'coming-soon' },
-  { capability: 'Document Signing', icon: PenTool, replaces: [{ name: 'DocuSign', domain: 'docusign.com' }, { name: 'PandaDoc', domain: 'pandadoc.com' }], monthlyCost: 49, status: 'coming-soon' },
+  { capability: 'CRM & Pipeline', icon: 'dashboard', replaces: [{ name: 'HubSpot', domain: 'hubspot.com' }, { name: 'Follow Up Boss', domain: 'followupboss.com' }], monthlyCost: 99, status: 'included' },
+  { capability: 'Booking & Scheduling', icon: 'calendar', replaces: [{ name: 'Calendly', domain: 'calendly.com' }, { name: 'Cal.com', domain: 'cal.com' }], monthlyCost: 49, status: 'included' },
+  { capability: 'Forms & Lead Capture', icon: 'form', replaces: [{ name: 'Typeform', domain: 'typeform.com' }, { name: 'Tally', domain: 'tally.so' }], monthlyCost: 49, status: 'included' },
+  { capability: 'Document Vault', icon: 'folderOpen', replaces: [{ name: 'Notion', domain: 'notion.so' }, { name: 'Dropbox', domain: 'dropbox.com' }], monthlyCost: 29, status: 'included' },
+  { capability: 'Voice Transcription', icon: 'microphone', replaces: [{ name: 'Otter.ai', domain: 'otter.ai' }, { name: 'Fireflies', domain: 'fireflies.ai' }], monthlyCost: 29, status: 'included' },
+  { capability: 'WhatsApp Automation', icon: 'whatsapp', replaces: [{ name: 'WATI', domain: 'wati.io' }, { name: 'Respond.io', domain: 'respond.io' }], monthlyCost: 99, status: 'included' },
+  { capability: 'AI Workflow Engine', icon: 'automations', replaces: [{ name: 'Zapier', domain: 'zapier.com' }, { name: 'Make', domain: 'make.com' }], monthlyCost: 69, status: 'included' },
+  { capability: 'Document Processing', icon: 'document', replaces: [{ name: 'Nanonets', domain: 'nanonets.com' }, { name: 'DocParser', domain: 'docparser.com' }], monthlyCost: 99, status: 'included' },
+  { capability: 'Web Scraping', icon: 'globe', replaces: [{ name: 'Apify', domain: 'apify.com' }, { name: 'PhantomBuster', domain: 'phantombuster.com' }], monthlyCost: 99, status: 'included' },
+  { capability: 'Browser Automation', icon: 'browser', replaces: [{ name: 'Browserbase', domain: 'browserbase.com' }, { name: 'Selenium Grid', domain: 'selenium.dev' }], monthlyCost: 79, status: 'included' },
+  { capability: 'Voice Cloning', icon: 'microphone', replaces: [{ name: 'ElevenLabs', domain: 'elevenlabs.io' }, { name: 'Resemble AI', domain: 'resemble.ai' }], monthlyCost: 49, status: 'included' },
+  { capability: 'Social Media', icon: 'share', replaces: [{ name: 'Buffer', domain: 'buffer.com' }, { name: 'Hootsuite', domain: 'hootsuite.com' }], monthlyCost: 99, status: 'coming-soon' },
+  { capability: 'Email Sequences', icon: 'email', replaces: [{ name: 'Mailchimp', domain: 'mailchimp.com' }, { name: 'ActiveCampaign', domain: 'activecampaign.com' }], monthlyCost: 79, status: 'coming-soon' },
+  { capability: 'Link Tracking', icon: 'link', replaces: [{ name: 'Bitly', domain: 'bitly.com' }, { name: 'Short.io', domain: 'short.io' }], monthlyCost: 49, status: 'coming-soon' },
+  { capability: 'Document Signing', icon: 'signature', replaces: [{ name: 'DocuSign', domain: 'docusign.com' }, { name: 'PandaDoc', domain: 'pandadoc.com' }], monthlyCost: 49, status: 'coming-soon' },
 ]
 
 const totalCost = tools.reduce((sum, t) => sum + t.monthlyCost, 0)
@@ -149,7 +131,6 @@ export function Differentiator() {
 
             <tbody>
               {tools.map((tool, i) => {
-                const Icon = tool.icon
                 const isComingSoon = tool.status === 'coming-soon'
                 return (
                   <tr
@@ -171,7 +152,7 @@ export function Differentiator() {
                             : 'bg-sunder-green/[0.12] text-sunder-green group-hover:bg-sunder-green/20',
                         )}
                       >
-                        <Icon className="h-4 w-4" strokeWidth={2} />
+                        <AppIcon name={tool.icon} className="h-4 w-4" />
                       </div>
                       <div className="min-w-0">
                         <div
@@ -220,7 +201,7 @@ export function Differentiator() {
                     <td className="flex justify-center">
                       {tool.status === 'included' ? (
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sunder-green text-white shadow-md shadow-sunder-green/30 sm:h-9 sm:w-9">
-                          <Check className="h-4 w-4 sm:h-4.5 sm:w-4.5" strokeWidth={3} />
+                          <AppIcon name="check" className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
                         </div>
                       ) : (
                         <span className="rounded-full border border-amber-200/80 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-500">
@@ -274,7 +255,7 @@ export function Differentiator() {
               </div>
 
               {/* Arrow */}
-              <ArrowRight className="hidden h-5 w-5 text-white/30 sm:block" />
+              <AppIcon name="arrowRight" className="hidden h-5 w-5 text-white/30 sm:block" />
               <div className="h-px w-12 bg-white/20 sm:hidden" />
 
               {/* With Neo */}

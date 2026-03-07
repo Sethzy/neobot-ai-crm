@@ -4,19 +4,12 @@
  * Tabbed workflow showcase — displays concrete use-case cards across business
  * categories to communicate the breadth of what Neo can do for B2C salespeople.
  */
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { cn } from '@/lib/utils'
+import { AppIcon, type AppIconName } from '@/components/icons/app-icons'
 import { Container } from '@/components/landing/Container'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
 import { motion, useInView, useReducedMotion } from 'framer-motion'
-import {
-  Heart,
-  Briefcase,
-  BarChart3,
-  Megaphone,
-  FileText,
-} from 'lucide-react'
-import type { LucideProps } from 'lucide-react'
 
 /* -------------------------------------------------------------------------- */
 /*                                   Types                                    */
@@ -31,7 +24,7 @@ interface WorkflowCard {
 
 interface Category {
   label: string
-  tabIcon: React.ComponentType<LucideProps>
+  tabIcon: AppIconName
   cards: WorkflowCard[]
 }
 
@@ -42,7 +35,7 @@ interface Category {
 const categories: Category[] = [
   {
     label: 'Lead Gen',
-    tabIcon: Megaphone,
+    tabIcon: 'leadGen',
     cards: [
       {
         title: 'Lead qualification',
@@ -84,7 +77,7 @@ const categories: Category[] = [
   },
   {
     label: 'Client Care',
-    tabIcon: Heart,
+    tabIcon: 'clientCare',
     cards: [
       {
         title: 'Client support',
@@ -126,7 +119,7 @@ const categories: Category[] = [
   },
   {
     label: 'Deal Pipeline',
-    tabIcon: Briefcase,
+    tabIcon: 'agency',
     cards: [
       {
         title: 'Meeting briefing',
@@ -168,7 +161,7 @@ const categories: Category[] = [
   },
   {
     label: 'Insights',
-    tabIcon: BarChart3,
+    tabIcon: 'insights',
     cards: [
       {
         title: 'Competitor monitoring',
@@ -210,7 +203,7 @@ const categories: Category[] = [
   },
   {
     label: 'Documents',
-    tabIcon: FileText,
+    tabIcon: 'document',
     cards: [
       {
         title: 'Contract review',
@@ -258,6 +251,7 @@ const categories: Category[] = [
 
 export function UseCases() {
   const [activeIndex, setActiveIndex] = useState(0)
+  const [hasAnimatedCards, setHasAnimatedCards] = useState(false)
   const shouldReduceMotion = useReducedMotion()
   const { ref: sectionRef, isVisible } = useScrollReveal<HTMLElement>()
   const active = categories[activeIndex]
@@ -265,12 +259,6 @@ export function UseCases() {
   /** Trigger when the tabs bar is visible — cards animate after user reads the heading. */
   const tabsRef = useRef<HTMLDivElement>(null)
   const tabsInView = useInView(tabsRef, { once: true })
-
-  /** Mark revealed AFTER the first animated render so tab switches skip animation. */
-  const hasRevealedRef = useRef(false)
-  useEffect(() => {
-    if (tabsInView) hasRevealedRef.current = true
-  }, [tabsInView])
 
   const handleTabSwitch = (i: number, e: React.MouseEvent<HTMLButtonElement> | React.KeyboardEvent<HTMLButtonElement>) => {
     setActiveIndex(i)
@@ -305,6 +293,7 @@ export function UseCases() {
 
   /** Spring transition — low stiffness = heavy/weighted, low damping = more settle time */
   const springTransition = { type: 'spring' as const, stiffness: 35, damping: 14, mass: 2.4 }
+  const shouldAnimateCards = !hasAnimatedCards && !shouldReduceMotion
 
   return (
     <div className="bg-parchment">
@@ -338,7 +327,6 @@ export function UseCases() {
           <div className="flex justify-center">
             <div role="tablist" aria-label="Use case categories" className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.06] p-1 backdrop-blur-sm">
               {categories.map((cat, i) => {
-                const Icon = cat.tabIcon
                 const isActive = i === activeIndex
                 const panelId = `usecase-panel-${cat.label.toLowerCase().replace(/\s/g, '-')}`
                 return (
@@ -358,7 +346,7 @@ export function UseCases() {
                         : 'text-white/60 hover:text-white/80 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-auto sm:h-auto sm:px-4 sm:py-2.5 sm:gap-2',
                     )}
                   >
-                    <Icon className="h-4 w-4 shrink-0" />
+                    <AppIcon name={cat.tabIcon} className="h-4 w-4 shrink-0" />
                     {/* Mobile: only show label for active tab. Desktop: always show. */}
                     <span className={cn(
                       'text-sm font-medium whitespace-nowrap',
@@ -382,20 +370,24 @@ export function UseCases() {
         >
           {active.cards.map((card, i) => {
             /** First reveal: spring in from below. After that: instant. */
-            const skipAnimation = hasRevealedRef.current || shouldReduceMotion
             return (
             <motion.div
               key={card.title}
-              initial={skipAnimation ? false : { y: 80, opacity: 0, scale: 0.95 }}
+              initial={shouldAnimateCards ? { y: 80, opacity: 0, scale: 0.95 } : false}
               animate={
-                skipAnimation || tabsInView
+                !shouldAnimateCards || tabsInView
                   ? { y: 0, opacity: 1, scale: 1 }
                   : { y: 80, opacity: 0, scale: 0.95 }
               }
               transition={
-                skipAnimation || !tabsInView
+                !shouldAnimateCards || !tabsInView
                   ? { duration: 0 }
                   : { ...springTransition, delay: i * 0.08 }
+              }
+              onAnimationComplete={
+                shouldAnimateCards && tabsInView && i === active.cards.length - 1
+                  ? () => setHasAnimatedCards(true)
+                  : undefined
               }
               className="group rounded-2xl bg-parchment px-5 pt-5 pb-5 sm:px-7 sm:pt-6 sm:pb-6"
             >

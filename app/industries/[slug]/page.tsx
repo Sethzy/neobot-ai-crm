@@ -7,34 +7,34 @@ import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Container } from "@/components/landing/Container";
 import {
-  AlertTriangle,
-  Clock,
-  Search,
-  FileX,
-  Edit,
-  Layers,
-  Check,
-  ArrowRight,
-  FileText,
-  Receipt,
-  FileCheck,
-  ClipboardList,
-} from "lucide-react";
+  TbAlertTriangle,
+  TbArrowRight,
+  TbCheck,
+  TbClipboardList,
+  TbClock,
+  TbEdit,
+  TbFileCheck,
+  TbFileText,
+  TbFileX,
+  TbLayersIntersect,
+  TbReceipt2,
+  TbSearch,
+} from "react-icons/tb";
 
 const iconMap = {
-  "alert-triangle": AlertTriangle,
-  clock: Clock,
-  search: Search,
-  "file-x": FileX,
-  edit: Edit,
-  layers: Layers,
+  "alert-triangle": TbAlertTriangle,
+  clock: TbClock,
+  search: TbSearch,
+  "file-x": TbFileX,
+  edit: TbEdit,
+  layers: TbLayersIntersect,
 } as const;
 
 const useCaseIcons = {
-  invoices: FileText,
-  receipts: Receipt,
-  contracts: FileCheck,
-  forms: ClipboardList,
+  invoices: TbFileText,
+  receipts: TbReceipt2,
+  contracts: TbFileCheck,
+  forms: TbClipboardList,
 } as const;
 
 export async function generateMetadata({
@@ -132,7 +132,7 @@ export default async function IndustryPage({
                   className="inline-flex items-center gap-2 rounded-full bg-sunder-green px-8 py-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-sunder-green-dark"
                 >
                   Book a Demo
-                  <ArrowRight className="h-4 w-4" />
+                  <TbArrowRight className="h-4 w-4" />
                 </Link>
               </div>
             </div>
@@ -156,7 +156,7 @@ export default async function IndustryPage({
                   key={i}
                   className="flex items-center gap-2 rounded-full border border-zinc-100 bg-white px-5 py-3 shadow-sm"
                 >
-                  <FileText className="h-5 w-5 text-sunder-green" />
+                  <TbFileText className="h-5 w-5 text-sunder-green" />
                   <span className="font-medium text-zinc-900">{docType}</span>
                 </div>
               ))}
@@ -217,7 +217,7 @@ export default async function IndustryPage({
                   className="rounded-2xl border border-sunder-green/10 bg-sunder-green/5 p-6"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sunder-green/10">
-                    <Check className="h-6 w-6 text-sunder-green" />
+                    <TbCheck className="h-6 w-6 text-sunder-green" />
                   </div>
                   <h3 className="mt-4 font-semibold text-zinc-900">
                     {benefit.title}
@@ -249,7 +249,7 @@ export default async function IndustryPage({
                   if (!useCase) return null;
                   const Icon =
                     useCaseIcons[caseSlug as keyof typeof useCaseIcons] ||
-                    FileText;
+                    TbFileText;
                   return (
                     <Link
                       key={caseSlug}
@@ -290,7 +290,7 @@ export default async function IndustryPage({
                   className="inline-flex items-center gap-2 rounded-full bg-sunder-green px-8 py-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-sunder-green-dark"
                 >
                   Book a Demo
-                  <ArrowRight className="h-4 w-4" />
+                  <TbArrowRight className="h-4 w-4" />
                 </Link>
               </div>
             </div>

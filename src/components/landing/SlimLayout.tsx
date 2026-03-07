@@ -2,36 +2,27 @@
  * Auth page layout with paper texture background and product showcase.
  */
 import Image from 'next/image'
+import { AppIcon, type AppIconName } from '@/components/icons/app-icons'
 import { PaperTextureBackground } from '@/components/landing/PaperTextureBackground'
 import { Iphone } from '@/components/ui/iphone'
-import {
-  Home,
-  Users,
-  LayoutDashboard,
-  Calendar,
-  Settings,
-  Flame,
-  KeyRound,
-  Clock3,
-} from 'lucide-react'
 
 /* ------------------------------------------------------------------ */
 /*  Dark dashboard — sidebar + pipeline (from ProductShowcase)         */
 /* ------------------------------------------------------------------ */
 
 const navItems = [
-  { icon: Home, label: 'Dashboard', active: false },
-  { icon: Users, label: 'Contacts', active: true },
-  { icon: LayoutDashboard, label: 'Pipeline', active: false },
-  { icon: Calendar, label: 'Calendar', active: false },
-  { icon: Settings, label: 'Settings', active: false },
-]
+  { icon: 'home', label: 'Dashboard', active: false },
+  { icon: 'contacts', label: 'Contacts', active: true },
+  { icon: 'dashboard', label: 'Pipeline', active: false },
+  { icon: 'calendar', label: 'Calendar', active: false },
+  { icon: 'settings', label: 'Settings', active: false },
+] as const satisfies ReadonlyArray<{ icon: AppIconName; label: string; active: boolean }>
 
 const pipelineColumns = [
   {
     title: 'HOT LEADS',
     color: '#E56A6A',
-    icon: Flame,
+    icon: 'flame',
     cards: [
       { name: 'Sarah Chen', company: 'Maple Realty', value: '$1.2M', status: 'Demo booked', initials: 'SC', bg: '#8B5CF6' },
       { name: 'James Lim', company: 'PropNex', value: '$850K', status: 'Viewing set', initials: 'JL', bg: '#3B82F6' },
@@ -41,7 +32,7 @@ const pipelineColumns = [
   {
     title: 'ACTIVE',
     color: '#4CAE80',
-    icon: KeyRound,
+    icon: 'lock',
     cards: [
       { name: 'David Lee', company: 'OrangeTee', value: '$1.5M', status: 'Contract sent', initials: 'DL', bg: '#10B981' },
       { name: 'Emily Ng', company: 'Knight Frank', value: '$920K', status: 'Negotiating', initials: 'EN', bg: '#06B6D4' },
@@ -51,14 +42,26 @@ const pipelineColumns = [
   {
     title: 'FOLLOW UP',
     color: '#D8A139',
-    icon: Clock3,
+    icon: 'clock',
     cards: [
       { name: 'Ryan Teo', company: 'Savills', value: '$1.1M', status: 'Callback', initials: 'RT', bg: '#8B5CF6' },
       { name: 'Michelle L.', company: 'Colliers', value: '$400K', status: '2 weeks ago', initials: 'ML', bg: '#3B82F6' },
       { name: 'Kevin Pang', company: 'EdgeProp', value: '$560K', status: 'Re-engaged', initials: 'KP', bg: '#10B981' },
     ],
   },
-]
+] as const satisfies ReadonlyArray<{
+  title: string
+  color: string
+  icon: AppIconName
+  cards: ReadonlyArray<{
+    name: string
+    company: string
+    value: string
+    status: string
+    initials: string
+    bg: string
+  }>
+}>
 
 function DarkDashboard() {
   return (
@@ -77,7 +80,7 @@ function DarkDashboard() {
           </div>
 
           <nav className="space-y-1">
-            {navItems.map(({ icon: Icon, label, active }) => (
+            {navItems.map(({ icon, label, active }) => (
               <div
                 key={label}
                 className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] ${
@@ -86,7 +89,7 @@ function DarkDashboard() {
                     : 'text-white/50'
                 }`}
               >
-                <Icon className="h-4 w-4" strokeWidth={1.8} />
+                <AppIcon name={icon} className="h-4 w-4" />
                 {label}
               </div>
             ))}
@@ -123,54 +126,51 @@ function DarkDashboard() {
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            {pipelineColumns.map((col) => {
-              const Icon = col.icon
-              return (
-                <div key={col.title}>
-                  <div className="mb-3 flex items-center gap-1.5">
-                    <Icon className="h-3.5 w-3.5" style={{ color: col.color }} strokeWidth={2} />
-                    <span
-                      className="text-[10px] font-bold tracking-[0.1em]"
-                      style={{ color: col.color }}
+            {pipelineColumns.map((col) => (
+              <div key={col.title}>
+                <div className="mb-3 flex items-center gap-1.5">
+                  <AppIcon name={col.icon} className="h-3.5 w-3.5" style={{ color: col.color }} />
+                  <span
+                    className="text-[10px] font-bold tracking-[0.1em]"
+                    style={{ color: col.color }}
+                  >
+                    {col.title}
+                  </span>
+                  <span className="ml-auto text-[10px] text-white/20">{col.cards.length}</span>
+                </div>
+                <div className="space-y-2.5">
+                  {col.cards.map((card) => (
+                    <div
+                      key={card.name}
+                      className="rounded-lg bg-[#242424] p-3 ring-1 ring-white/[0.04]"
                     >
-                      {col.title}
-                    </span>
-                    <span className="ml-auto text-[10px] text-white/20">{col.cards.length}</span>
-                  </div>
-                  <div className="space-y-2.5">
-                    {col.cards.map((card) => (
-                      <div
-                        key={card.name}
-                        className="rounded-lg bg-[#242424] p-3 ring-1 ring-white/[0.04]"
-                      >
-                        <div className="mb-2 flex items-center justify-between">
-                          <span className="rounded-full bg-white/[0.06] px-2.5 py-0.5 text-[10px] text-white/40">
-                            {card.status}
-                          </span>
-                          <span className="text-[12px] font-semibold tabular-nums text-white/70">
-                            {card.value}
-                          </span>
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="rounded-full bg-white/[0.06] px-2.5 py-0.5 text-[10px] text-white/40">
+                          {card.status}
+                        </span>
+                        <span className="text-[12px] font-semibold tabular-nums text-white/70">
+                          {card.value}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white"
+                          style={{ backgroundColor: card.bg }}
+                        >
+                          {card.initials}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white"
-                            style={{ backgroundColor: card.bg }}
-                          >
-                            {card.initials}
-                          </div>
-                          <div>
-                            <p className="text-[12px] font-medium leading-tight text-white/80">
-                              {card.name}
-                            </p>
-                            <p className="text-[10px] text-white/30">{card.company}</p>
-                          </div>
+                        <div>
+                          <p className="text-[12px] font-medium leading-tight text-white/80">
+                            {card.name}
+                          </p>
+                          <p className="text-[10px] text-white/30">{card.company}</p>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
-              )
-            })}
+              </div>
+            ))}
           </div>
         </div>
       </div>

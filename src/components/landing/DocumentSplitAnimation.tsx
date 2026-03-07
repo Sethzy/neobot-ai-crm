@@ -1,9 +1,9 @@
 'use client';
 
 /** Pipeline board animation for the ProductShowcase hero section. */
-import { type ComponentType, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Flame, KeyRound, Clock3, AtSign, Phone } from 'lucide-react'
+import { AppIcon, type AppIconName } from '@/components/icons/app-icons'
 
 type ClientCard = {
   status: string
@@ -20,7 +20,7 @@ type ClientColumn = {
   title: string
   titleColor: string
   glowColor: string
-  icon: ComponentType<{ className?: string }>
+  icon: AppIconName
   iconClass: string
   cards: ClientCard[]
 }
@@ -30,7 +30,7 @@ const columns: ClientColumn[] = [
     title: 'HOT LEADS',
     titleColor: 'text-[#E56A6A]',
     glowColor: '#E56A6A',
-    icon: Flame,
+    icon: 'flame',
     iconClass: 'icon-flame',
     cards: [
       {
@@ -79,7 +79,7 @@ const columns: ClientColumn[] = [
     title: 'ACTIVE CLIENTS',
     titleColor: 'text-[#4CAE80]',
     glowColor: '#4CAE80',
-    icon: KeyRound,
+    icon: 'lock',
     iconClass: 'icon-key',
     cards: [
       {
@@ -128,7 +128,7 @@ const columns: ClientColumn[] = [
     title: 'FOLLOW UP',
     titleColor: 'text-[#D8A139]',
     glowColor: '#D8A139',
-    icon: Clock3,
+    icon: 'clock',
     iconClass: 'icon-clock',
     cards: [
       {
@@ -237,11 +237,11 @@ function Card({
 
       <div className="mt-2 space-y-0.5 text-[10px] text-zinc-500">
         <p className="flex items-center gap-1">
-          <AtSign className="h-2.5 w-2.5" />
+          <AppIcon name="email" className="h-2.5 w-2.5" />
           {card.email}
         </p>
         <p className="flex items-center gap-1">
-          <Phone className="h-2.5 w-2.5" />
+          <AppIcon name="phone" className="h-2.5 w-2.5" />
           {card.phone}
         </p>
       </div>
@@ -290,8 +290,6 @@ export function DocumentSplitAnimation({ isVisible = true }: { isVisible?: boole
       >
         <div className="grid grid-cols-3 gap-4">
           {columns.map((column, colIdx) => {
-            const Icon = column.icon
-
             return (
               <motion.div
                 key={column.title}
@@ -302,7 +300,10 @@ export function DocumentSplitAnimation({ isVisible = true }: { isVisible?: boole
                 <div
                   className={`mb-2 flex items-center gap-1.5 text-[11px] font-bold tracking-[0.12em] ${column.titleColor}`}
                 >
-                  <Icon className={`h-3.5 w-3.5 ${column.iconClass}`} />
+                  <AppIcon
+                    name={column.icon}
+                    className={`h-3.5 w-3.5 ${column.iconClass}`}
+                  />
                   <span>{column.title}</span>
                 </div>
                 <div className="space-y-2">

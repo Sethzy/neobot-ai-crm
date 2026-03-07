@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from "react";
+import { useRef } from "react";
 import { cn } from "@/lib/utils";
+import { AppIcon, type AppIconName } from "@/components/icons/app-icons";
 import { Container } from "@/components/landing/Container";
 import { WhatsAppCard, type Message } from "@/components/landing/WhatsAppCard";
 import { WhatsAppPhoneMockup } from "@/components/landing/WhatsAppPhoneMockup";
@@ -9,8 +11,6 @@ import { SunburstDecoration } from "@/components/landing/SunburstDecoration";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 import { motion, useScroll, useTransform, useSpring, useReducedMotion } from "framer-motion";
-import { useRef } from "react";
-import { Send, FileSpreadsheet, Bell, Link2 } from "lucide-react";
 
 /** Mobile messages per feature — each feature gets a static WhatsApp card on mobile */
 const featureMobileMessages: (Message[] | null)[] = [
@@ -99,34 +99,41 @@ const featureMobileMessages: (Message[] | null)[] = [
   ],
 ];
 
-const features = [
+interface PrimaryFeature {
+  title: string;
+  value: string;
+  description: string;
+  icon: AppIconName;
+}
+
+const features: PrimaryFeature[] = [
   {
     title: "Ask it to schedule. Ask it anything else.",
     value: "outreach",
     description:
       "Neo finds the right time, sends the invite, and handles the back-and-forth — so you don't have to.",
-    icon: Send,
+    icon: "send",
   },
   {
     title: "Built to do, not just talk.",
     value: "documents",
     description:
       "Contract review, lead enrichment, commission tracking, content generation — real skills, not just conversation. Tell it what you need and it executes.",
-    icon: FileSpreadsheet,
+    icon: "table",
   },
   {
     title: "Remembers everything that's said.",
     value: "briefings",
     description:
       "Transcripts, meeting notes, action items — Neo captures it all and turns conversations into follow-ups automatically.",
-    icon: Bell,
+    icon: "note",
   },
   {
     title: "It messages you first.",
     value: "followup",
     description:
       "Neo creates tasks overnight, messages you with a plan, and executes the moment you approve. You wake up to work already done.",
-    icon: Link2,
+    icon: "outputs",
   },
 ];
 
@@ -214,7 +221,7 @@ export function PrimaryFeatures() {
                         "md:text-zinc-400 md:group-hover:text-zinc-500",
                     )}
                   >
-                    <feature.icon className="h-5 w-5" />
+                    <AppIcon name={feature.icon} className="h-5 w-5" />
                   </div>
                   <h3
                     className={cn(

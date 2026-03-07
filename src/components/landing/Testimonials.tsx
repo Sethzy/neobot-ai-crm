@@ -5,7 +5,7 @@
  * and 2 green featured cards. Whisper Flow-inspired layout.
  */
 import Image from 'next/image'
-import { ArrowUpRight } from 'lucide-react'
+import { AppIcon } from '@/components/icons/app-icons'
 import { useScrollReveal, useStaggeredReveal } from '@/hooks/useScrollReveal'
 
 /* ------------------------------------------------------------------ */
@@ -115,7 +115,7 @@ function MarqueeCard({ testimonial }: { testimonial: MarqueeTestimonial }) {
 function FeaturedCard({ testimonial }: { testimonial: FeaturedTestimonial }) {
   return (
     <figure className="relative flex-1 rounded-2xl bg-sunder-green px-8 pt-6 pb-6 sm:px-10 sm:pt-7 sm:pb-7 text-white flex flex-col">
-      <ArrowUpRight className="absolute top-6 right-6 h-7 w-7 text-white/50 sm:top-7 sm:right-8" />
+      <AppIcon name="arrowUpRight" className="absolute top-6 right-6 h-7 w-7 text-white/50 sm:top-7 sm:right-8" />
       <h3 className="font-serif text-3xl tracking-tight sm:text-4xl pr-10">
         {testimonial.stat}
       </h3>

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Container } from '@/components/landing/Container'
+import { AppIcon } from '@/components/icons/app-icons'
 import { Logo } from '@/components/landing/Logo'
 import { NavLink } from '@/components/landing/NavLink'
-import { MapPin, Mail, Phone } from 'lucide-react'
 
 export function Footer() {
   return (
@@ -24,14 +24,14 @@ export function Footer() {
                 rel="noopener noreferrer"
                 className="flex items-start gap-3 hover:text-white transition-colors"
               >
-                <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+                <AppIcon name="mapPin" className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>109 North Bridge Road, Funan,<br />Singapore 179097</span>
               </a>
               <a
                 href="mailto:seth@neobot.com"
                 className="flex items-center gap-3 hover:text-white transition-colors"
               >
-                <Mail className="h-4 w-4 shrink-0" />
+                <AppIcon name="email" className="h-4 w-4 shrink-0" />
                 <span>seth@neobot.com</span>
               </a>
               <a
@@ -40,7 +40,7 @@ export function Footer() {
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 hover:text-white transition-colors"
               >
-                <Phone className="h-4 w-4 shrink-0" />
+                <AppIcon name="phone" className="h-4 w-4 shrink-0" />
                 <span>+65 9799 0493</span>
               </a>
             </div>

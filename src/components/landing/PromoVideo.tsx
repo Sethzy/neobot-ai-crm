@@ -5,7 +5,7 @@
  * Video plays silently in background; clicking enables sound and controls.
  */
 import { useState, useRef, useEffect } from 'react'
-import { Play } from 'lucide-react'
+import { AppIcon } from '@/components/icons/app-icons'
 
 export function PromoVideo() {
   const [hasInteracted, setHasInteracted] = useState(false)
@@ -94,7 +94,7 @@ export function PromoVideo() {
           aria-label="Watch demo with sound"
         >
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-xl ring-1 ring-black/5 transition-transform group-hover:scale-110 sm:h-20 sm:w-20">
-            <Play className="h-6 w-6 text-sunder-green ml-1 sm:h-8 sm:w-8" fill="currentColor" />
+            <AppIcon name="play" className="h-6 w-6 text-sunder-green sm:h-8 sm:w-8" />
           </div>
           <span className="mt-4 text-sm font-medium text-white sm:text-base">
             Watch 27s demo

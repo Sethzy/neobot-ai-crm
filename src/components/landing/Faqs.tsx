@@ -5,9 +5,9 @@
  * Mobile: collapsible accordion. Desktop: 3-column grid.
  */
 import { useState } from 'react'
+import { AppIcon } from '@/components/icons/app-icons'
 import { Container } from '@/components/landing/Container'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
-import { ChevronDown } from 'lucide-react'
 
 const faqs = [
   {
@@ -65,7 +65,8 @@ function FaqAccordion({ faqs }: { faqs: Array<{ question: string; answer: string
             className="flex w-full items-center justify-between text-left"
           >
             <span className="font-medium text-zinc-900">{faq.question}</span>
-            <ChevronDown
+            <AppIcon
+              name="chevronDown"
               className={`h-5 w-5 text-zinc-500 transition-transform ${
                 openIndex === index ? 'rotate-180' : ''
               }`}

@@ -69,7 +69,7 @@ export function Hero() {
 
           <div className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-4 sm:mt-10">
             <Link
-              href="/login"
+              href="/register"
               className="press-effect rounded-full bg-sunder-green px-8 py-3.5 text-sm font-semibold text-white shadow-xl shadow-sunder-green/30 transition hover:shadow-sunder-green/45 hover:scale-[1.02] active:scale-[0.98] sm:px-12 sm:py-4.5 sm:text-base"
             >
               Try for free

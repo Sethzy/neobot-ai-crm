@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { CheckCheck } from 'lucide-react'
+import { AppIcon } from '@/components/icons/app-icons'
 
 export interface Message {
   sender: 'user' | 'assistant'
@@ -28,36 +28,26 @@ export function WhatsAppCard({ messages, width, height, className, scale = 1, sh
         transformOrigin: 'top left',
       }}
       className={cn(
-        "bg-[#C8C4BE] relative overflow-hidden flex flex-col font-sans shadow-lg shadow-black/[0.08] ring-1 ring-black/[0.06]",
-        !width && "w-full",
-        !height && "h-auto",
+        'bg-[#C8C4BE] relative overflow-hidden flex flex-col font-sans shadow-lg shadow-black/[0.08] ring-1 ring-black/[0.06]',
+        !width && 'w-full',
+        !height && 'h-auto',
         className
       )}
     >
       {/* WhatsApp header bar */}
       {showHeader && (
         <div className="relative z-10 flex items-center gap-2 px-3 py-2 bg-[#075E54]">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
+          <AppIcon name="arrowLeft" className="h-4 w-4 text-white" />
           <div className="w-8 h-8 rounded-full bg-[#25D366] flex items-center justify-center flex-shrink-0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-            </svg>
+            <AppIcon name="whatsapp" className="h-4 w-4 text-white" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-white text-xs font-semibold leading-tight">NeoBot</p>
             <p className="text-white/70 text-[10px] leading-tight">online</p>
           </div>
           <div className="flex items-center gap-3">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15.05 5A5 5 0 0119 8.95M15.05 1A9 9 0 0123 8.94M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.362 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0122 16.92z" />
-            </svg>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5">
-              <circle cx="12" cy="5" r="1.5" fill="white" />
-              <circle cx="12" cy="12" r="1.5" fill="white" />
-              <circle cx="12" cy="19" r="1.5" fill="white" />
-            </svg>
+            <AppIcon name="phone" className="h-3.5 w-3.5 text-white" />
+            <AppIcon name="more" className="h-3.5 w-3.5 text-white" />
           </div>
         </div>
       )}
@@ -100,7 +90,7 @@ export function WhatsAppCard({ messages, width, height, className, scale = 1, sh
                 {msg.time || '10:42 AM'}
               </span>
               {msg.sender === 'user' && (
-                <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />
+                <AppIcon name="checks" className="w-3.5 h-3.5 text-[#53bdeb]" />
               )}
             </div>
           </div>

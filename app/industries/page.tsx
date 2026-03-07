@@ -4,12 +4,17 @@ import { industries } from "@/data/industries";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Container } from "@/components/landing/Container";
-import { ArrowRight, Calculator, Scale, Truck } from "lucide-react";
+import {
+  TbArrowRight,
+  TbCalculator,
+  TbScale,
+  TbTruck,
+} from "react-icons/tb";
 
 const industryIcons = {
-  accounting: Calculator,
-  legal: Scale,
-  logistics: Truck,
+  accounting: TbCalculator,
+  legal: TbScale,
+  logistics: TbTruck,
 } as const;
 
 export const metadata: Metadata = {
@@ -68,7 +73,7 @@ export default function IndustriesIndexPage() {
               {industries.map((industry) => {
                 const Icon =
                   industryIcons[industry.slug as keyof typeof industryIcons] ||
-                  Calculator;
+                  TbCalculator;
                 return (
                   <Link
                     key={industry.slug}
@@ -101,7 +106,7 @@ export default function IndustriesIndexPage() {
                     </div>
                     <div className="mt-6 flex items-center gap-2 text-sm font-medium text-sunder-green">
                       Learn more
-                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      <TbArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </div>
                   </Link>
                 );
@@ -127,7 +132,7 @@ export default function IndustriesIndexPage() {
                   className="inline-flex items-center gap-2 rounded-full bg-sunder-green px-8 py-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-sunder-green-dark"
                 >
                   Book a Demo
-                  <ArrowRight className="h-4 w-4" />
+                  <TbArrowRight className="h-4 w-4" />
                 </Link>
               </div>
             </div>

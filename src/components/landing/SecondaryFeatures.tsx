@@ -1,10 +1,16 @@
 'use client';
 
 /**
- * Skills architecture section — showcases the modular skills (briefs, intelligence, automation)
- * that power the agent. Animation is rendered once for both mobile and desktop layouts.
+ * SecondaryFeatures showcases the product capabilities that are already included on day one.
+ * The iconography uses a tighter prebuilt Tabler set instead of generic stock AI symbols.
  */
 import dynamic from 'next/dynamic'
+import type { IconType } from 'react-icons'
+import {
+  TbLayoutKanban,
+  TbMessage2Cog,
+  TbPlugConnected,
+} from 'react-icons/tb'
 import { cn } from '@/lib/utils'
 import { Container } from '@/components/landing/Container'
 import { useMediaQuery } from '@/hooks/use-media-query'
@@ -14,14 +20,13 @@ const DocumentProcessingAnimation = dynamic(
   { ssr: false }
 )
 import { useScrollReveal, useStaggeredReveal } from '@/hooks/useScrollReveal'
-import { Contact, Sparkles, Link, type LucideProps } from 'lucide-react'
 
 interface Feature {
   name: string
   value: string
   summary: string
   description: string
-  icon: React.ComponentType<LucideProps>
+  icon: IconType
 }
 
 const features: Array<Feature> = [
@@ -31,7 +36,7 @@ const features: Array<Feature> = [
     summary: 'Leads, deals, and scheduling — handled.',
     description:
       'Contacts, follow-ups, pipelines, appointments — managed through chat. No spreadsheets, no manual entry.',
-    icon: Contact,
+    icon: TbLayoutKanban,
   },
   {
     name: 'Full AI Power',
@@ -39,7 +44,7 @@ const features: Array<Feature> = [
     summary: 'Videos, slides, docs — from a message.',
     description:
       'Videos, slides, images, documents — powered by the latest AI models. Describe what you need, it delivers.',
-    icon: Sparkles,
+    icon: TbMessage2Cog,
   },
   {
     name: 'Your Tools, Connected',
@@ -47,7 +52,7 @@ const features: Array<Feature> = [
     summary: 'Gmail, Calendar, Notion, and more.',
     description:
       'Neo plugs into your existing apps. One message can check your calendar, draft an email, and update your CRM.',
-    icon: Link,
+    icon: TbPlugConnected,
   },
 ]
 
@@ -67,18 +72,18 @@ function FeatureCard({
     >
       <div
         className={cn(
-          'w-10 h-10 rounded-xl flex items-center justify-center transition-colors',
+          'flex h-12 w-14 items-center justify-center rounded-[1.1rem] border transition-colors duration-300',
           isActive
-            ? 'bg-parchment text-sunder-green shadow-lg shadow-black/20'
-            : 'bg-white/10 text-white/40',
+            ? 'border-[#F5EEE1]/20 bg-[#F5EEE1]/8 text-[#F5EEE1] shadow-[0_18px_40px_-26px_rgba(0,0,0,0.75)]'
+            : 'border-white/10 bg-white/[0.04] text-white/45',
         )}
       >
-        <feature.icon className="h-5 w-5" strokeWidth={1.5} />
+        <feature.icon className="h-7 w-7" />
       </div>
       <h3
         className={cn(
           'mt-4 font-serif text-lg transition-colors',
-          isActive ? 'text-[#F5EEE1]' : 'text-white/40',
+          isActive ? 'text-[#F5EEE1]' : 'text-white/55',
         )}
       >
         {feature.name}
