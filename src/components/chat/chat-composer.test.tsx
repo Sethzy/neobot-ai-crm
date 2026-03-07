@@ -1,35 +1,57 @@
 /**
- * Tests for chat composer input behavior.
+ * Tests for chat composer multimodal input behavior.
  * @module components/chat/chat-composer.test
  */
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { mockToastError } = vi.hoisted(() => ({
+  mockToastError: vi.fn(),
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: mockToastError,
+  },
+}));
 
 import { ChatComposer } from "./chat-composer";
 
 describe("ChatComposer", () => {
+  const mockFetch = vi.fn();
+
   const baseProps = {
     status: "ready" as const,
     onSubmit: vi.fn(),
+    onStop: vi.fn(),
   };
 
-  it("renders textarea and submit button", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal("fetch", mockFetch);
+  });
+
+  it("renders textarea, attachment control, and submit button", () => {
     render(<ChatComposer {...baseProps} />);
 
     expect(screen.getByPlaceholderText(/send a message/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /attach files/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /submit/i })).toBeInTheDocument();
   });
 
-  it("submits on send button click", async () => {
+  it("submits trimmed text with no files on send button click", async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
 
     render(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
-    await user.type(screen.getByPlaceholderText(/send a message/i), "Hello");
+    await user.type(screen.getByPlaceholderText(/send a message/i), "  Hello  ");
     await user.click(screen.getByRole("button", { name: /submit/i }));
 
-    expect(onSubmit).toHaveBeenCalledWith("Hello");
+    expect(onSubmit).toHaveBeenCalledWith({
+      text: "Hello",
+      files: [],
+    });
   });
 
   it("submits on Enter without Shift", async () => {
@@ -39,7 +61,10 @@ describe("ChatComposer", () => {
     render(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
     await user.type(screen.getByPlaceholderText(/send a message/i), "Hello{Enter}");
 
-    expect(onSubmit).toHaveBeenCalledWith("Hello");
+    expect(onSubmit).toHaveBeenCalledWith({
+      text: "Hello",
+      files: [],
+    });
   });
 
   it("does not submit on Shift+Enter", async () => {
@@ -55,26 +80,118 @@ describe("ChatComposer", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("disables controls while loading", () => {
-    render(<ChatComposer {...baseProps} status="streaming" />);
+  it("uploads a selected image and allows attachment-only sends", async () => {
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          url: "https://storage.example.com/chat-attachments/client-1/photo.png",
+          pathname: "photo.png",
+          contentType: "image/png",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
 
-    expect(screen.getByPlaceholderText(/send a message/i)).toBeDisabled();
-    expect(screen.getByRole("button", { name: /stop/i })).toBeDisabled();
+    render(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
+
+    await user.upload(
+      screen.getByLabelText(/upload attachments/i),
+      new File(["photo"], "photo.png", { type: "image/png" }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("photo.png")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /submit/i }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      text: "",
+      files: [
+        {
+          type: "file",
+          url: "https://storage.example.com/chat-attachments/client-1/photo.png",
+          filename: "photo.png",
+          mediaType: "image/png",
+        },
+      ],
+    });
   });
 
-  it("disables send for empty input", () => {
+  it("uploads pasted images through the React onPaste path", async () => {
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          url: "https://storage.example.com/chat-attachments/client-1/pasted.png",
+          pathname: "pasted.png",
+          contentType: "image/png",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+
+    render(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
+
+    const pastedFile = new File(["clipboard"], "pasted.png", { type: "image/png" });
+    fireEvent.paste(screen.getByPlaceholderText(/send a message/i), {
+      clipboardData: {
+        items: [
+          {
+            kind: "file",
+            type: "image/png",
+            getAsFile: () => pastedFile,
+          },
+        ],
+      },
+    });
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("pasted.png")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /submit/i }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      text: "",
+      files: [
+        {
+          type: "file",
+          url: "https://storage.example.com/chat-attachments/client-1/pasted.png",
+          filename: "pasted.png",
+          mediaType: "image/png",
+        },
+      ],
+    });
+  });
+
+  it("keeps the stop button enabled while streaming", async () => {
+    const onStop = vi.fn();
+    const user = userEvent.setup();
+
+    render(<ChatComposer {...baseProps} status="streaming" onStop={onStop} />);
+
+    expect(screen.getByPlaceholderText(/send a message/i)).toBeDisabled();
+    expect(screen.getByRole("button", { name: /stop/i })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: /stop/i }));
+
+    expect(onStop).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables submit for empty input when there are no attachments", () => {
     render(<ChatComposer {...baseProps} />);
 
     expect(screen.getByRole("button", { name: /submit/i })).toBeDisabled();
-  });
-
-  it("trims whitespace before submitting", async () => {
-    const onSubmit = vi.fn();
-    const user = userEvent.setup();
-
-    render(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
-    await user.type(screen.getByPlaceholderText(/send a message/i), "  Hello  {Enter}");
-
-    expect(onSubmit).toHaveBeenCalledWith("Hello");
   });
 });

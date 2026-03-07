@@ -4,7 +4,7 @@
  */
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ToolCallInline } from "./tool-call-inline";
 
@@ -63,7 +63,8 @@ describe("ToolCallInline", () => {
 
     await user.click(screen.getByTestId("tool-expand-trigger"));
 
-    expect(screen.getByTestId("tool-arguments")).toHaveTextContent('"query": "John"');
+    expect(screen.getByTestId("tool-arguments")).toHaveTextContent("query:");
+    expect(screen.getByTestId("tool-arguments")).toHaveTextContent('"John"');
   });
 
   it("shows formatted output when expanded", async () => {
@@ -72,7 +73,7 @@ describe("ToolCallInline", () => {
 
     await user.click(screen.getByTestId("tool-expand-trigger"));
 
-    expect(screen.getByTestId("tool-result")).toHaveTextContent("John Doe");
+    expect(screen.getByTestId("tool-result")).toHaveTextContent('"John Doe"');
   });
 
   it("shows error text instead of result when errorText is provided", async () => {
@@ -115,5 +116,165 @@ describe("ToolCallInline", () => {
 
     // Still shows the trigger (for viewing args), but it's there
     expect(screen.getByTestId("tool-expand-trigger")).toBeInTheDocument();
+  });
+
+  it("renders tool arguments with JsonView instead of raw JSON", async () => {
+    const user = userEvent.setup();
+    render(<ToolCallInline {...defaultProps} />);
+    await user.click(screen.getByTestId("tool-expand-trigger"));
+
+    expect(
+      screen.getByTestId("tool-arguments").querySelector("[data-testid='json-view']"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("tool-arguments").querySelector("pre"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders tool result with JsonView instead of raw JSON", async () => {
+    const user = userEvent.setup();
+    render(<ToolCallInline {...defaultProps} />);
+    await user.click(screen.getByTestId("tool-expand-trigger"));
+
+    expect(
+      screen.getByTestId("tool-result").querySelector("[data-testid='json-view']"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("tool-result").querySelector("pre"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("accepts onToolApproval and approvalId props without error", () => {
+    const onToolApproval = vi.fn();
+    render(
+      <ToolCallInline
+        {...defaultProps}
+        approvalId="approval-1"
+        onToolApproval={onToolApproval}
+      />,
+    );
+    expect(screen.getByTestId("tool-call-inline")).toBeInTheDocument();
+  });
+});
+
+describe("approval-requested state", () => {
+  const approvalProps = {
+    name: "write_file",
+    state: "approval-requested" as const,
+    input: { path: "/memory.md", content: "Updated notes" },
+    approvalId: "approval-abc",
+    onToolApproval: vi.fn(),
+  };
+
+  it("shows approve and deny buttons when state is approval-requested", () => {
+    render(<ToolCallInline {...approvalProps} />);
+
+    expect(screen.getByRole("button", { name: /approve/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /deny/i })).toBeInTheDocument();
+  });
+
+  it("calls onToolApproval with (approvalId, true) when approve clicked", async () => {
+    const user = userEvent.setup();
+    const onToolApproval = vi.fn();
+    render(<ToolCallInline {...approvalProps} onToolApproval={onToolApproval} />);
+
+    await user.click(screen.getByRole("button", { name: /approve/i }));
+
+    expect(onToolApproval).toHaveBeenCalledWith("approval-abc", true);
+  });
+
+  it("calls onToolApproval with (approvalId, false) when deny clicked", async () => {
+    const user = userEvent.setup();
+    const onToolApproval = vi.fn();
+    render(<ToolCallInline {...approvalProps} onToolApproval={onToolApproval} />);
+
+    await user.click(screen.getByRole("button", { name: /deny/i }));
+
+    expect(onToolApproval).toHaveBeenCalledWith("approval-abc", false);
+  });
+
+  it("does not show approve/deny buttons for other states", () => {
+    render(<ToolCallInline name="search" state="output-available" input={{}} output={{}} />);
+
+    expect(screen.queryByRole("button", { name: /approve/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /deny/i })).not.toBeInTheDocument();
+  });
+
+  it("does not show buttons when onToolApproval is not provided", () => {
+    render(
+      <ToolCallInline
+        name="write_file"
+        state="approval-requested"
+        input={{}}
+        approvalId="approval-1"
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /approve/i })).not.toBeInTheDocument();
+  });
+
+  it("shows amber pulsing dot when awaiting approval", () => {
+    render(<ToolCallInline {...approvalProps} />);
+
+    const dot = screen.getByTestId("tool-dot");
+    expect(dot.className).toMatch(/animate-pulse/);
+    expect(dot.className).toMatch(/bg-amber/);
+  });
+});
+
+describe("output-denied state", () => {
+  it("shows an orange denial indicator dot (not pulsing)", () => {
+    render(
+      <ToolCallInline
+        name="write_file"
+        state="output-denied"
+        input={{ path: "/memory.md" }}
+      />,
+    );
+
+    const dot = screen.getByTestId("tool-dot");
+    expect(dot.className).toMatch(/bg-orange/);
+    expect(dot.className).not.toMatch(/animate-pulse/);
+  });
+
+  it("shows 'Denied' label after tool name", () => {
+    render(
+      <ToolCallInline
+        name="write_file"
+        state="output-denied"
+        input={{ path: "/memory.md" }}
+      />,
+    );
+
+    expect(screen.getByText(/denied/i)).toBeInTheDocument();
+  });
+
+  it("does not show result section when denied and expanded", async () => {
+    const user = userEvent.setup();
+    render(
+      <ToolCallInline
+        name="write_file"
+        state="output-denied"
+        input={{ path: "/memory.md" }}
+      />,
+    );
+
+    await user.click(screen.getByTestId("tool-expand-trigger"));
+
+    expect(screen.getByText("Arguments")).toBeInTheDocument();
+    expect(screen.queryByText("Result")).not.toBeInTheDocument();
+  });
+
+  it("does not show approval buttons when denied", () => {
+    render(
+      <ToolCallInline
+        name="write_file"
+        state="output-denied"
+        input={{ path: "/memory.md" }}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /approve/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /deny/i })).not.toBeInTheDocument();
   });
 });

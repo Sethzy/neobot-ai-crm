@@ -24,8 +24,21 @@ vi.mock("@/components/ai-elements/reasoning", () => ({
 }));
 
 vi.mock("./tool-call-inline", () => ({
-  ToolCallInline: ({ name, state }: { name: string; state: string }) => (
-    <div data-testid="tool-call-inline" data-name={name} data-state={state}>{name}</div>
+  ToolCallInline: ({ name, state, approvalId, onToolApproval }: {
+    name: string;
+    state: string;
+    approvalId?: string;
+    onToolApproval?: unknown;
+  }) => (
+    <div
+      data-testid="tool-call-inline"
+      data-name={name}
+      data-state={state}
+      data-approval-id={approvalId}
+      data-has-approval={!!onToolApproval}
+    >
+      {name}
+    </div>
   ),
 }));
 
@@ -140,5 +153,34 @@ describe("StepsSummary", () => {
     render(<StepsSummary parts={parts} isStreaming={false} hasTextParts={false} messageId="1" />);
 
     expect(screen.getByTestId("steps-summary-trigger").className).toMatch(/text-muted-foreground/);
+  });
+
+  it("forwards onToolApproval and approval metadata to ToolCallInline", async () => {
+    const user = userEvent.setup();
+    const onToolApproval = vi.fn();
+    const approvalParts = [
+      {
+        type: "tool-write_file" as const,
+        toolCallId: "tc-1",
+        state: "approval-requested" as const,
+        input: { path: "/memory.md" },
+        approval: { id: "approval-abc" },
+      },
+    ];
+    render(
+      <StepsSummary
+        parts={approvalParts}
+        isStreaming={false}
+        hasTextParts={false}
+        messageId="1"
+        onToolApproval={onToolApproval}
+      />,
+    );
+
+    await user.click(screen.getByTestId("steps-summary-trigger"));
+
+    const toolCall = screen.getByTestId("tool-call-inline");
+    expect(toolCall).toHaveAttribute("data-has-approval", "true");
+    expect(toolCall).toHaveAttribute("data-approval-id", "approval-abc");
   });
 });

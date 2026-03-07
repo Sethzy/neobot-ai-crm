@@ -37,8 +37,8 @@ vi.mock("./tool-call-inline", () => ({
 }));
 
 vi.mock("./steps-summary", () => ({
-  StepsSummary: ({ isStreaming }: { parts: Array<{ type: string }>; isStreaming: boolean; hasTextParts: boolean; messageId: string }) => (
-    <div data-testid="steps-summary" data-streaming={isStreaming} />
+  StepsSummary: ({ isStreaming, onToolApproval }: { parts: Array<{ type: string }>; isStreaming: boolean; hasTextParts: boolean; messageId: string; onToolApproval?: unknown }) => (
+    <div data-testid="steps-summary" data-streaming={isStreaming} data-has-approval={!!onToolApproval} />
   ),
 }));
 
@@ -132,6 +132,21 @@ describe("MessageList", () => {
     render(<MessageList messages={[userMessage, assistantMessage]} status="streaming" />);
 
     expect(screen.queryByTestId("shimmer")).not.toBeInTheDocument();
+  });
+
+  it("forwards onToolApproval through to MessageBubble", () => {
+    const onToolApproval = vi.fn();
+    const withReasoning = {
+      id: "2",
+      role: "assistant" as const,
+      parts: [
+        { type: "reasoning" as const, text: "Thinking..." },
+        { type: "text" as const, text: "Answer." },
+      ],
+    };
+    render(<MessageList messages={[userMessage, withReasoning]} status="ready" onToolApproval={onToolApproval} />);
+
+    expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-has-approval", "true");
   });
 
   it("shows scroll button when user is not at bottom", () => {

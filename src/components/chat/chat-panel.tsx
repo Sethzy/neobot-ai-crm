@@ -4,10 +4,10 @@
  */
 "use client";
 
-import { DefaultChatTransport, type UIMessage } from "ai";
+import { DefaultChatTransport, type FileUIPart, type UIMessage } from "ai";
 import { useChat } from "@ai-sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle } from "@/components/icons/lucide-compat";
 import { useCallback, useMemo } from "react";
 
 import { useAutoResume } from "@/hooks/use-auto-resume";
@@ -66,7 +66,7 @@ export function ChatPanel({
     [],
   );
 
-  const { messages, sendMessage, status, error, resumeStream, setMessages } = useChat({
+  const { messages, sendMessage, status, error, stop, resumeStream, setMessages, addToolApprovalResponse } = useChat({
     id: chatId,
     messages: initialMessages,
     generateId: () => crypto.randomUUID(),
@@ -91,16 +91,33 @@ export function ChatPanel({
     setMessages,
   });
 
+  const handleToolApproval = useCallback(
+    (approvalId: string, approved: boolean) => {
+      addToolApprovalResponse({ id: approvalId, approved });
+    },
+    [addToolApprovalResponse],
+  );
+
   const isLoading = status === "submitted" || status === "streaming";
 
   const handleSubmit = useCallback(
-    (text: string) => {
-      if (text.length === 0 || isLoading) {
+    ({ text, files }: { text: string; files: FileUIPart[] }) => {
+      if ((text.length === 0 && files.length === 0) || isLoading) {
         return;
       }
 
       if (typeof window !== "undefined" && window.location.pathname === "/chat") {
         window.history.pushState({}, "", `/chat/${chatId}`);
+      }
+
+      if (files.length > 0 && text.length === 0) {
+        sendMessage({ files });
+        return;
+      }
+
+      if (files.length > 0) {
+        sendMessage({ text, files });
+        return;
       }
 
       sendMessage({ text });
@@ -117,9 +134,9 @@ export function ChatPanel({
         </div>
       ) : null}
 
-      <MessageList messages={messages} status={status} />
+      <MessageList messages={messages} status={status} onToolApproval={handleToolApproval} />
 
-      <ChatComposer status={status} onSubmit={handleSubmit} />
+      <ChatComposer status={status} onSubmit={handleSubmit} onStop={stop} />
     </div>
   );
 }

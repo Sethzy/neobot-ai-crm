@@ -12,7 +12,7 @@ const textPartSchema = z.object({
 const filePartSchema = z.object({
   type: z.literal("file"),
   url: z.string().url(),
-  name: z.string().min(1),
+  filename: z.string().min(1).optional(),
   mediaType: z.string().min(1),
 });
 
@@ -32,6 +32,7 @@ export const postRequestBodySchema = z.object({
   id: z.string().uuid(),
   message: userMessageSchema.optional(),
   messages: z.array(continuationMessageSchema).optional(),
+  crmMode: z.enum(["normal", "setup"]).optional(),
 });
 
 export type PostRequestBody = z.infer<typeof postRequestBodySchema>;

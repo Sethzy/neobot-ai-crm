@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { ArrowDown, MessageCircle } from "lucide-react";
+import { ArrowDown, MessageCircle } from "@/components/icons/lucide-compat";
 
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Button } from "@/components/ui/button";
@@ -17,9 +17,11 @@ import type { ChatUIMessage } from "./message-content";
 interface MessageListProps {
   messages: ChatUIMessage[];
   status: ChatStatus;
+  /** Callback for tool approval actions. */
+  onToolApproval?: (approvalId: string, approved: boolean) => void;
 }
 
-export function MessageList({ messages, status }: MessageListProps) {
+export function MessageList({ messages, status, onToolApproval }: MessageListProps) {
   const { containerRef, endRef, isAtBottom, scrollToBottom } = useScrollToBottom();
   const hasMessages = messages.length > 0;
   const isStreaming = status === "streaming";
@@ -38,6 +40,7 @@ export function MessageList({ messages, status }: MessageListProps) {
                   key={message.id}
                   message={message}
                   isStreaming={isStreaming && isLastAssistantMessage}
+                  onToolApproval={onToolApproval}
                 />
               );
             })}

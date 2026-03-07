@@ -26,6 +26,8 @@ interface StepsSummaryProps {
   /** Whether the parent message has text parts (signals completion). */
   hasTextParts: boolean;
   messageId: string;
+  /** Callback for tool approval actions. */
+  onToolApproval?: (approvalId: string, approved: boolean) => void;
 }
 
 /**
@@ -44,7 +46,7 @@ function getActionText(parts: StepsSummaryProps["parts"]): string {
   return "Thinking...";
 }
 
-export function StepsSummary({ parts, isStreaming, hasTextParts, messageId }: StepsSummaryProps) {
+export function StepsSummary({ parts, isStreaming, hasTextParts, messageId, onToolApproval }: StepsSummaryProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   // Activity is complete when: not streaming OR text has started streaming
@@ -91,7 +93,14 @@ export function StepsSummary({ parts, isStreaming, hasTextParts, messageId }: St
             }
 
             if (part.type.startsWith("tool-")) {
-              const toolPart = part as { type: string; toolCallId: string; state: string; input: unknown; output?: unknown; errorText?: string };
+              const toolPart = part as {
+                type: string;
+                state: string;
+                input: unknown;
+                output?: unknown;
+                errorText?: string;
+                approval?: { id: string };
+              };
               const toolName = toolPart.type.replace(/^tool-/, "");
               return (
                 <ToolCallInline
@@ -101,6 +110,8 @@ export function StepsSummary({ parts, isStreaming, hasTextParts, messageId }: St
                   input={toolPart.input}
                   output={toolPart.output}
                   errorText={toolPart.errorText}
+                  approvalId={toolPart.approval?.id}
+                  onToolApproval={onToolApproval}
                 />
               );
             }

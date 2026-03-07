@@ -9,7 +9,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { BrainIcon, ChevronDownIcon } from "lucide-react";
+import { BrainIcon, ChevronDownIcon } from "@/components/icons/lucide-compat";
 import {
   createContext,
   memo,
@@ -212,7 +212,7 @@ export const ReasoningContent = memo(
       )}
       {...props}
     >
-      <Streamdown plugins={streamdownPlugins} {...props}>
+      <Streamdown plugins={streamdownPlugins}>
         {children}
       </Streamdown>
     </CollapsibleContent>

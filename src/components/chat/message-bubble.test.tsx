@@ -47,8 +47,27 @@ vi.mock("@/components/ai-elements/shimmer", () => ({
 }));
 
 vi.mock("./steps-summary", () => ({
-  StepsSummary: ({ parts, isStreaming, hasTextParts, messageId }: { parts: Array<{ type: string }>; isStreaming: boolean; hasTextParts: boolean; messageId: string }) => (
-    <div data-testid="steps-summary" data-parts-count={parts.length} data-streaming={isStreaming} data-has-text-parts={hasTextParts} data-message-id={messageId} />
+  StepsSummary: ({ parts, isStreaming, hasTextParts, messageId, onToolApproval }: {
+    parts: Array<{ type: string }>;
+    isStreaming: boolean;
+    hasTextParts: boolean;
+    messageId: string;
+    onToolApproval?: unknown;
+  }) => (
+    <div
+      data-testid="steps-summary"
+      data-parts-count={parts.length}
+      data-streaming={isStreaming}
+      data-has-text-parts={hasTextParts}
+      data-message-id={messageId}
+      data-has-approval={!!onToolApproval}
+    />
+  ),
+}));
+
+vi.mock("./preview-attachment", () => ({
+  PreviewAttachment: ({ attachment }: { attachment: { filename: string } }) => (
+    <div data-testid="preview-attachment">{attachment.filename}</div>
   ),
 }));
 
@@ -89,6 +108,29 @@ describe("MessageBubble — user messages", () => {
     expect(screen.queryByTestId("reasoning-block")).not.toBeInTheDocument();
     expect(screen.queryByTestId("tool-call-inline")).not.toBeInTheDocument();
     expect(screen.queryByTestId("steps-summary")).not.toBeInTheDocument();
+  });
+
+  it("renders file parts above user text", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "10",
+          role: "user",
+          parts: [
+            {
+              type: "file",
+              filename: "screenshot.png",
+              mediaType: "image/png",
+              url: "https://storage.example.com/screenshot.png",
+            },
+            { type: "text", text: "What is shown here?" },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("preview-attachment")).toHaveTextContent("screenshot.png");
+    expect(screen.getByText("What is shown here?")).toBeInTheDocument();
   });
 });
 
@@ -302,5 +344,49 @@ describe("MessageBubble — assistant messages", () => {
     );
 
     expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-message-id", "msg-42");
+  });
+
+  it("forwards onToolApproval to StepsSummary", () => {
+    const onToolApproval = vi.fn();
+    render(
+      <MessageBubble
+        message={{
+          id: "3",
+          role: "assistant",
+          parts: [
+            { type: "reasoning", text: "..." },
+            { type: "text", text: "Answer." },
+          ],
+        }}
+        onToolApproval={onToolApproval}
+      />,
+    );
+
+    expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-has-approval", "true");
+  });
+
+  it("renders file parts for assistant messages without including them in StepsSummary", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "11",
+          role: "assistant",
+          parts: [
+            {
+              type: "file",
+              filename: "report.png",
+              mediaType: "image/png",
+              url: "https://storage.example.com/report.png",
+            },
+            { type: "reasoning", text: "Reviewing the screenshot..." },
+            { type: "text", text: "This shows the current pipeline." },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("preview-attachment")).toHaveTextContent("report.png");
+    expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-parts-count", "1");
+    expect(screen.getByText("This shows the current pipeline.")).toBeInTheDocument();
   });
 });

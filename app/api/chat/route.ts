@@ -11,6 +11,7 @@ import { resolveClientId } from "@/lib/chat/client-id";
 import { generateTitleFromUserMessage } from "@/lib/ai/title";
 import { clearActiveStreamId, setActiveStreamId } from "@/lib/redis";
 import { runAgent } from "@/lib/runner/run-agent";
+import type { RunnerFilePart } from "@/lib/runner/schemas";
 import { createClient } from "@/lib/supabase/server";
 import { type PostRequestBody, postRequestBodySchema } from "./schema";
 
@@ -29,25 +30,6 @@ function jsonError(message: string, status: number): Response {
   return Response.json({ error: message }, { status });
 }
 
-function getTextFromMessage(message: UIMessage): string | null {
-  const legacyContent = "content" in message && typeof message.content === "string"
-    ? message.content.trim()
-    : "";
-  if (legacyContent.length > 0) {
-    return legacyContent;
-  }
-
-  const parts = Array.isArray(message.parts) ? message.parts : [];
-  const text = parts
-    .filter((part): part is { type: "text"; text: string } => part.type === "text")
-    .map((part) => part.text.trim())
-    .filter((part) => part.length > 0)
-    .join("\n")
-    .trim();
-
-  return text.length > 0 ? text : null;
-}
-
 function getTextFromUnknownParts(parts: unknown[]): string | null {
   const text = parts
     .filter((part): part is { type: string; text?: unknown } =>
@@ -64,7 +46,28 @@ function getTextFromUnknownParts(parts: unknown[]): string | null {
   return text.length > 0 ? text : null;
 }
 
-function getLatestUserInput(messages: PostRequestBody["messages"]): string | null {
+function getFilePartsFromUnknownParts(parts: unknown[]): RunnerFilePart[] {
+  return parts
+    .filter((part): part is { type: string; url?: unknown; filename?: unknown; mediaType?: unknown } =>
+      typeof part === "object" && part !== null && "type" in part
+    )
+    .filter((part): part is RunnerFilePart =>
+      part.type === "file" &&
+      typeof part.url === "string" &&
+      typeof part.mediaType === "string" &&
+      (part.filename === undefined || typeof part.filename === "string"),
+    )
+    .map((part) => ({
+      type: "file",
+      url: part.url,
+      mediaType: part.mediaType,
+      ...(part.filename ? { filename: part.filename } : {}),
+    }));
+}
+
+function getLatestUserMessage(
+  messages: PostRequestBody["messages"],
+): NonNullable<PostRequestBody["messages"]>[number] | null {
   if (!Array.isArray(messages) || messages.length === 0) {
     return null;
   }
@@ -74,11 +77,7 @@ function getLatestUserInput(messages: PostRequestBody["messages"]): string | nul
     if (message?.role !== "user") {
       continue;
     }
-
-    const text = getTextFromUnknownParts(message.parts);
-    if (text) {
-      return text;
-    }
+    return message;
   }
 
   return null;
@@ -98,11 +97,17 @@ export async function POST(request: Request): Promise<Response> {
 
   const threadId = body.id;
 
-  const input = body.message
-    ? getTextFromMessage(body.message as UIMessage)
-    : getLatestUserInput(body.messages);
+  const latestUserMessage = body.message?.role === "user"
+    ? body.message
+    : getLatestUserMessage(body.messages);
+  const input = latestUserMessage
+    ? getTextFromUnknownParts(latestUserMessage.parts) ?? ""
+    : null;
+  const fileParts = latestUserMessage
+    ? getFilePartsFromUnknownParts(latestUserMessage.parts)
+    : [];
 
-  if (!input) {
+  if (input === null || (input.length === 0 && fileParts.length === 0)) {
     return jsonError("Invalid request body: could not resolve latest user message text.", 400);
   }
 
@@ -153,6 +158,8 @@ export async function POST(request: Request): Promise<Response> {
         threadId,
         triggerType: "chat",
         input,
+        ...(fileParts.length > 0 ? { fileParts } : {}),
+        crmMode: body.crmMode,
       },
       supabase,
     );
@@ -161,7 +168,7 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ status: "queued" }, { status: 202 });
     }
 
-    const titlePromise = isNewThread
+    const titlePromise = isNewThread && input.length > 0
       ? generateTitleFromUserMessage(input)
       : null;
 

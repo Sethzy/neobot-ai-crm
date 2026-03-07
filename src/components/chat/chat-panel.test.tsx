@@ -19,9 +19,18 @@ const { mockSetDataStream } = vi.hoisted(() => ({
 const { mockInvalidateQueries } = vi.hoisted(() => ({
   mockInvalidateQueries: vi.fn(),
 }));
+const { mockToastError } = vi.hoisted(() => ({
+  mockToastError: vi.fn(),
+}));
 
 vi.mock("react-markdown", () => ({
   default: ({ children }: { children: string }) => <div>{children}</div>,
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: mockToastError,
+  },
 }));
 
 vi.mock("@/hooks/use-scroll-to-bottom", () => ({
@@ -57,6 +66,12 @@ vi.mock("@tanstack/react-query", () => ({
   }),
 }));
 
+vi.mock("./steps-summary", () => ({
+  StepsSummary: ({ isStreaming, onToolApproval }: { parts: Array<{ type: string }>; isStreaming: boolean; hasTextParts: boolean; messageId: string; onToolApproval?: unknown }) => (
+    <div data-testid="steps-summary" data-streaming={isStreaming} data-has-approval={!!onToolApproval} />
+  ),
+}));
+
 vi.mock("./data-stream-provider", () => ({
   useDataStream: () => ({
     dataStream: [],
@@ -65,11 +80,14 @@ vi.mock("./data-stream-provider", () => ({
 }));
 
 describe("ChatPanel", () => {
+  const mockFetch = vi.fn();
   const sendMessage = vi.fn(async () => {});
   const setMessages = vi.fn();
+  const stop = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal("fetch", mockFetch);
 
     mockUseChat.mockReturnValue({
       id: "thread-1",
@@ -80,7 +98,7 @@ describe("ChatPanel", () => {
       setMessages,
       regenerate: vi.fn(),
       clearError: vi.fn(),
-      stop: vi.fn(),
+      stop,
       resumeStream: vi.fn(),
       addToolResult: vi.fn(),
       addToolOutput: vi.fn(),
@@ -236,7 +254,9 @@ describe("ChatPanel", () => {
     expect(screen.getByPlaceholderText(/send a message/i)).toHaveValue("");
   });
 
-  it("disables composer while submitted or streaming", () => {
+  it("keeps the stop button enabled while streaming", async () => {
+    const user = userEvent.setup();
+
     mockUseChat.mockReturnValue({
       id: "thread-1",
       messages: [],
@@ -246,7 +266,7 @@ describe("ChatPanel", () => {
       setMessages,
       regenerate: vi.fn(),
       clearError: vi.fn(),
-      stop: vi.fn(),
+      stop,
       resumeStream: vi.fn(),
       addToolResult: vi.fn(),
       addToolOutput: vi.fn(),
@@ -256,7 +276,11 @@ describe("ChatPanel", () => {
     render(<ChatPanel chatId="thread-1" />);
 
     expect(screen.getByPlaceholderText(/send a message/i)).toBeDisabled();
-    expect(screen.getByRole("button", { name: /stop/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /stop/i })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: /stop/i }));
+
+    expect(stop).toHaveBeenCalledTimes(1);
   });
 
   it("renders API errors", () => {
@@ -315,6 +339,40 @@ describe("ChatPanel", () => {
     expect(screen.queryByText(/start a conversation/i)).not.toBeInTheDocument();
   });
 
+  it("wires addToolApprovalResponse from useChat to MessageList as onToolApproval", () => {
+    const mockAddToolApproval = vi.fn();
+    mockUseChat.mockReturnValue({
+      id: "thread-1",
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            { type: "reasoning", text: "Thinking..." },
+            { type: "text", text: "Done." },
+          ],
+        },
+      ],
+      status: "ready",
+      error: undefined,
+      sendMessage,
+      setMessages,
+      regenerate: vi.fn(),
+      clearError: vi.fn(),
+      stop: vi.fn(),
+      resumeStream: vi.fn(),
+      addToolResult: vi.fn(),
+      addToolOutput: vi.fn(),
+      addToolApprovalResponse: mockAddToolApproval,
+    });
+
+    render(<ChatPanel chatId="thread-1" />);
+
+    // The steps-summary should have data-has-approval="true" because
+    // ChatPanel wires addToolApprovalResponse → MessageList → MessageBubble → StepsSummary
+    expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-has-approval", "true");
+  });
+
   it("pushes /chat/{id} before sending from the draft route", async () => {
     const user = userEvent.setup();
     const pushStateSpy = vi.spyOn(window.history, "pushState");
@@ -331,5 +389,48 @@ describe("ChatPanel", () => {
     });
 
     pushStateSpy.mockRestore();
+  });
+
+  it("sends file-only messages via the AI SDK files shortcut", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          url: "https://storage.example.com/chat-attachments/client-1/photo.png",
+          pathname: "photo.png",
+          contentType: "image/png",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+
+    render(<ChatPanel chatId="thread-1" />);
+
+    await user.upload(
+      screen.getByLabelText(/upload attachments/i),
+      new File(["image-data"], "photo.png", { type: "image/png" }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("photo.png")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /submit/i }));
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith({
+        files: [
+          {
+            type: "file",
+            url: "https://storage.example.com/chat-attachments/client-1/photo.png",
+            filename: "photo.png",
+            mediaType: "image/png",
+          },
+        ],
+      });
+    });
   });
 });
