@@ -18,6 +18,8 @@ import {
 } from "@/lib/auth/browser-redirect";
 import { supabase } from "@/lib/supabase";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -58,8 +60,7 @@ export default function RegisterPage() {
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!EMAIL_REGEX.test(email)) {
       setError("Please enter a valid email address");
       setIsLoading(false);
       return;

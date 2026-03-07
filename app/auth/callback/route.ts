@@ -4,15 +4,8 @@
  */
 import { NextResponse } from "next/server";
 
+import { getSafeNextPath } from "@/lib/auth/browser-redirect";
 import { createClient } from "@/lib/supabase/server";
-
-function getSafeNextPath(nextPath: string | null): string {
-  if (!nextPath || !nextPath.startsWith("/")) {
-    return "/chat";
-  }
-
-  return nextPath;
-}
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
