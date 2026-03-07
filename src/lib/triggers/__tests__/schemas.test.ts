@@ -26,12 +26,17 @@ describe("triggerRowSchema", () => {
     name: "Daily briefing",
     cron_expression: "0 9 * * *",
     instruction_path: "state/triggers/daily-briefing.md",
-    payload: {},
+    payload: {
+      timezone: "Asia/Singapore",
+    },
     enabled: true,
     current_run_id: null,
     next_fire_at: "2026-03-07T09:00:00.000Z",
     last_fired_at: null,
     last_status: null,
+    retry_count: 0,
+    webhook_secret: null,
+    invocation_message: "Run the daily briefing",
     created_at: "2026-03-06T00:00:00.000Z",
     updated_at: "2026-03-06T00:00:00.000Z",
   };
@@ -76,6 +81,7 @@ describe("triggerDispatchPayloadSchema", () => {
     triggerName: "Daily briefing",
     instructionPath: "state/triggers/daily-briefing.md",
     triggerPayload: { source: "cron" },
+    invocationMessage: "Run the daily briefing",
     nextFireAt: "2026-03-07T09:00:00.000Z",
   };
 
@@ -112,6 +118,7 @@ describe("triggerDispatchPayloadSchema", () => {
         ...validPayload,
         triggerType: "pulse",
         instructionPath: "autopilot/pulse",
+        invocationMessage: null,
       }).success,
     ).toBe(true);
   });

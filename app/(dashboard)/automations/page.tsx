@@ -1,9 +1,64 @@
-export default function DashboardPage() {
+/**
+ * Automations page for browsing and enabling/disabling user-created triggers.
+ * @module app/(dashboard)/automations/page
+ */
+"use client";
+
+import { AppIcon } from "@/components/icons/app-icons";
+import { AutomationsTable } from "@/components/automations/automations-table";
+import { Button } from "@/components/ui/button";
+import { useSetTriggerEnabled, useTriggers } from "@/hooks/use-triggers";
+
+export default function AutomationsPage() {
+  const { data: triggers = [], isLoading, isError, refetch } = useTriggers();
+  const setTriggerEnabled = useSetTriggerEnabled();
+  const pendingTriggerId = setTriggerEnabled.variables?.triggerId ?? null;
+
   return (
-    <div className="flex flex-1 items-center justify-center p-8">
-      <div className="text-center">
-        <h1 className="text-2xl font-semibold">Coming soon</h1>
-        <p className="mt-2 text-muted-foreground">This section is under construction.</p>
+    <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Automations</h1>
+        <p className="mt-2 text-sm text-muted-foreground/80">
+          Review scheduled jobs, inbound webhooks, and RSS monitors created from chat.
+        </p>
+      </div>
+
+      <div className="mt-6">
+        {isLoading ? (
+          <div className="animate-pulse space-y-3">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="h-14 rounded-lg bg-muted/30" />
+            ))}
+          </div>
+        ) : isError ? (
+          <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-6">
+            <p className="text-sm text-destructive">Unable to load automations</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => {
+                void refetch();
+              }}
+            >
+              Retry
+            </Button>
+          </div>
+        ) : triggers.length === 0 ? (
+          <div className="rounded-xl border border-border/40 bg-card p-10 text-center shadow-sm md:p-20">
+            <AppIcon name="automations" className="mx-auto h-12 w-12 text-muted-foreground/40" />
+            <p className="mt-6 text-muted-foreground">No automations yet</p>
+          </div>
+        ) : (
+          <AutomationsTable
+            triggers={triggers}
+            pendingTriggerId={pendingTriggerId}
+            onToggleEnabled={(triggerId, enabled) => {
+              setTriggerEnabled.mutate({ triggerId, enabled });
+            }}
+          />
+        )}
       </div>
     </div>
   );

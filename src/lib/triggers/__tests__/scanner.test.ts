@@ -22,6 +22,7 @@ const {
 vi.mock("../cron-utils", () => ({
   computeNextFireAt: mockComputeNextFireAt,
   InvalidCronExpressionError: MockInvalidCronExpressionError,
+  normalizeTriggerTimezone: (timezone?: string | null) => timezone?.trim() || "Asia/Singapore",
 }));
 
 import { runScan } from "../scanner";
@@ -35,12 +36,17 @@ function makeTriggerRow(overrides: Partial<TriggerRow> = {}): TriggerRow {
     name: "Daily briefing",
     cron_expression: "0 9 * * *",
     instruction_path: "state/triggers/daily-briefing.md",
-    payload: {},
+    payload: {
+      timezone: "Asia/Singapore",
+    },
     enabled: true,
     current_run_id: "880e8400-e29b-41d4-a716-446655440000",
     next_fire_at: "2026-03-06T09:00:00.000Z",
     last_fired_at: "2026-03-06T09:00:00.000Z",
     last_status: null,
+    retry_count: 0,
+    webhook_secret: null,
+    invocation_message: "Run the daily briefing",
     created_at: "2026-03-05T00:00:00.000Z",
     updated_at: "2026-03-05T00:00:00.000Z",
     ...overrides,
@@ -147,6 +153,7 @@ describe("runScan", () => {
     expect(mockComputeNextFireAt).toHaveBeenCalledWith(
       "0 9 * * *",
       new Date("2026-03-06T09:00:00.000Z"),
+      "Asia/Singapore",
     );
     expect(mockSupabase.mockUpdate).not.toHaveBeenCalled();
     expect(mockDispatch).toHaveBeenCalledWith(
@@ -193,6 +200,7 @@ describe("runScan", () => {
     expect(mockSupabase.mockUpdate).not.toHaveBeenCalled();
     expect(mockSupabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
       p_next_fire_at: null,
+      p_advance_next_fire_at: false,
       p_trigger_id: trigger.id,
       p_run_id: trigger.current_run_id,
       p_status: "dispatch_failed",
@@ -237,6 +245,7 @@ describe("runScan", () => {
     });
     expect(mockSupabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
       p_next_fire_at: null,
+      p_advance_next_fire_at: false,
       p_trigger_id: trigger.id,
       p_run_id: trigger.current_run_id,
       p_status: "invalid_cron",
@@ -421,6 +430,7 @@ describe("runScan", () => {
     expect(mockDispatch).not.toHaveBeenCalled();
     expect(mockSupabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
       p_next_fire_at: "2026-03-06T12:00:00.000Z",
+      p_advance_next_fire_at: true,
       p_trigger_id: trigger.id,
       p_run_id: trigger.current_run_id,
       p_status: "skipped_quiet_hours",
@@ -472,11 +482,144 @@ describe("runScan", () => {
     expect(mockDispatch).not.toHaveBeenCalled();
     expect(mockSupabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
       p_next_fire_at: "2026-03-06T18:00:00.000Z",
+      p_advance_next_fire_at: true,
       p_trigger_id: trigger.id,
       p_run_id: trigger.current_run_id,
       p_status: "skipped_quiet_hours",
     });
     expect(result.dispatched).toBe(0);
     expect(result.errors).toEqual([]);
+  });
+
+  it("does not retry pulse dispatch failures and advances to the next scheduled slot", async () => {
+    const trigger = makeTriggerRow({
+      trigger_type: "pulse",
+      cron_expression: "0 */6 * * *",
+      payload: {},
+    });
+
+    mockSupabase.rpc.mockImplementation((name: string) => {
+      if (name === "claim_due_triggers") {
+        return Promise.resolve({ data: [trigger], error: null });
+      }
+
+      if (name === "release_trigger_claim") {
+        return Promise.resolve({ data: true, error: null });
+      }
+
+      if (name === "release_stale_trigger_claims") {
+        return Promise.resolve({ data: 0, error: null });
+      }
+
+      return Promise.resolve({ data: null, error: null });
+    });
+    mockComputeNextFireAt.mockReturnValueOnce(new Date("2026-03-06T12:00:00.000Z"));
+    mockDispatch.mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      error: "Autopilot worker unavailable",
+    });
+
+    const result = await runScan({
+      supabase: mockSupabase as never,
+      dispatch: mockDispatch,
+      now: new Date("2026-03-06T14:00:00+08:00"),
+    });
+
+    expect(mockSupabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
+      p_next_fire_at: "2026-03-06T12:00:00.000Z",
+      p_advance_next_fire_at: true,
+      p_trigger_id: trigger.id,
+      p_run_id: trigger.current_run_id,
+      p_status: "dispatch_failed",
+    });
+    expect(result.dispatched).toBe(0);
+    expect(result.errors).toEqual([
+      `${trigger.id}: dispatch returned 503 (Autopilot worker unavailable)`,
+    ]);
+  });
+
+  it("marks exhausted user-created trigger retries as failed_permanent", async () => {
+    const trigger = makeTriggerRow({
+      retry_count: 2,
+    });
+
+    mockSupabase.rpc.mockImplementation((name: string) => {
+      if (name === "claim_due_triggers") {
+        return Promise.resolve({ data: [trigger], error: null });
+      }
+
+      if (name === "release_trigger_claim") {
+        return Promise.resolve({ data: true, error: null });
+      }
+
+      if (name === "release_stale_trigger_claims") {
+        return Promise.resolve({ data: 0, error: null });
+      }
+
+      return Promise.resolve({ data: null, error: null });
+    });
+    mockDispatch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      error: "Runner crashed",
+    });
+
+    const result = await runScan({
+      supabase: mockSupabase as never,
+      dispatch: mockDispatch,
+    });
+
+    expect(mockSupabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
+      p_next_fire_at: null,
+      p_advance_next_fire_at: false,
+      p_trigger_id: trigger.id,
+      p_run_id: trigger.current_run_id,
+      p_status: "failed_permanent",
+    });
+    expect(result.errors).toEqual([`${trigger.id}: dispatch returned 500 (Runner crashed)`]);
+  });
+
+  it("disables invalid rss configurations before dispatching", async () => {
+    const trigger = makeTriggerRow({
+      trigger_type: "rss",
+      cron_expression: "*/15 * * * *",
+      payload: {},
+    });
+
+    mockSupabase.rpc.mockImplementation((name: string) => {
+      if (name === "claim_due_triggers") {
+        return Promise.resolve({ data: [trigger], error: null });
+      }
+
+      if (name === "release_trigger_claim") {
+        return Promise.resolve({ data: true, error: null });
+      }
+
+      if (name === "release_stale_trigger_claims") {
+        return Promise.resolve({ data: 0, error: null });
+      }
+
+      return Promise.resolve({ data: null, error: null });
+    });
+
+    const result = await runScan({
+      supabase: mockSupabase as never,
+      dispatch: mockDispatch,
+    });
+
+    expect(mockSupabase.mockUpdate).toHaveBeenCalledWith({
+      enabled: false,
+      last_status: "invalid_rss_config",
+    });
+    expect(mockSupabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
+      p_next_fire_at: null,
+      p_advance_next_fire_at: false,
+      p_trigger_id: trigger.id,
+      p_run_id: trigger.current_run_id,
+      p_status: "invalid_rss_config",
+    });
+    expect(mockDispatch).not.toHaveBeenCalled();
+    expect(result.errors).toEqual([`${trigger.id}: invalid rss config`]);
   });
 });

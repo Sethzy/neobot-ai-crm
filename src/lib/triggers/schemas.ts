@@ -30,6 +30,9 @@ export const triggerRowSchema = z.object({
   next_fire_at: z.string().datetime({ offset: true }).nullable(),
   last_fired_at: z.string().datetime({ offset: true }).nullable(),
   last_status: z.string().nullable(),
+  retry_count: z.number().int().nonnegative(),
+  webhook_secret: z.string().nullable(),
+  invocation_message: z.string().nullable(),
   created_at: z.string().datetime({ offset: true }),
   updated_at: z.string().datetime({ offset: true }),
 });
@@ -44,6 +47,7 @@ export const triggerDispatchPayloadSchema = z.object({
   triggerName: z.string().min(1),
   instructionPath: z.string().min(1),
   triggerPayload: jsonObjectSchema.default({}),
+  invocationMessage: z.string().min(1).max(200).nullable().optional(),
   nextFireAt: z.string().datetime({ offset: true }).optional(),
 });
 

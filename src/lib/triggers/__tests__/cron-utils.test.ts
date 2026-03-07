@@ -55,6 +55,17 @@ describe("computeNextFireAt", () => {
     expect(nextFireAt.toISOString()).toBe("2026-03-07T09:00:00.000Z");
   });
 
+  it("computes the next schedule in the supplied timezone", () => {
+    const referenceTime = new Date("2026-03-06T00:30:00.000Z");
+    const nextFireAt = computeNextFireAt(
+      "0 9 * * *",
+      referenceTime,
+      "Asia/Singapore",
+    );
+
+    expect(nextFireAt.toISOString()).toBe("2026-03-06T01:00:00.000Z");
+  });
+
   it("throws for an invalid cron expression", () => {
     expect(() => computeNextFireAt("bad", new Date())).toThrow(InvalidCronExpressionError);
   });

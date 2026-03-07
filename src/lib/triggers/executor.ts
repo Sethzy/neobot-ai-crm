@@ -5,11 +5,14 @@
 import { createMessage } from "@/lib/chat/messages";
 import { runAgent } from "@/lib/runner/run-agent";
 import { runAutopilot } from "@/lib/runner/run-autopilot";
-import { escapeXml } from "@/lib/runner/system-reminder";
+import { createAgentFileClient } from "@/lib/storage/agent-files";
 
+import { collectNewRssItems } from "./rss";
 import type { TriggerDispatchPayload, TriggerSupabaseClient } from "./schemas";
+import { buildTriggerEventMessage } from "./trigger-event";
 
 const CRON_RUN_NUDGE = "Process the most recent trigger event for this thread.";
+const MAX_USER_CREATED_RETRIES = 2;
 
 export interface ExecuteTriggerInput {
   supabase: TriggerSupabaseClient;
@@ -20,29 +23,25 @@ export interface ExecuteTriggerResult {
   status: "completed" | "failed" | "claim_mismatch" | "queued" | "skipped_busy";
 }
 
-function buildTriggerEventMessage(payload: TriggerDispatchPayload): string {
-  const serializedPayload = JSON.stringify(payload.triggerPayload);
-  const firedAt = new Date().toISOString();
-
-  return [
-    "<trigger-event>",
-    `trigger_instance_id: ${payload.triggerId}`,
-    `trigger_type: ${payload.triggerType}`,
-    `fired_at: ${firedAt}`,
-    `trigger_name: ${escapeXml(payload.triggerName)}`,
-    `instruction_path: ${escapeXml(payload.instructionPath)}`,
-    `payload: ${escapeXml(serializedPayload)}`,
-    "</trigger-event>",
-  ].join("\n");
-}
-
 async function releaseClaim(
   supabase: TriggerSupabaseClient,
   payload: TriggerDispatchPayload,
-  status: ExecuteTriggerResult["status"] | "skipped_thread_busy",
+  status:
+    | ExecuteTriggerResult["status"]
+    | "skipped_thread_busy"
+    | "failed_permanent",
+  options?: {
+    nextFireAt?: string | null;
+    advanceNextFireAt?: boolean;
+  },
 ): Promise<void> {
+  const nextFireAt = options && "nextFireAt" in options
+    ? options.nextFireAt ?? null
+    : payload.nextFireAt ?? null;
+
   const { data, error } = await supabase.rpc("release_trigger_claim", {
-    p_next_fire_at: payload.nextFireAt ?? null,
+    p_next_fire_at: nextFireAt,
+    p_advance_next_fire_at: options?.advanceNextFireAt ?? true,
     p_trigger_id: payload.triggerId,
     p_run_id: payload.currentRunId,
     p_status: status,
@@ -66,7 +65,7 @@ export async function executeTrigger({
 }: ExecuteTriggerInput): Promise<ExecuteTriggerResult> {
   const { data: trigger, error } = await supabase
     .from("agent_triggers")
-    .select("id, current_run_id")
+    .select("id, current_run_id, retry_count")
     .eq("id", payload.triggerId)
     .single();
 
@@ -78,6 +77,9 @@ export async function executeTrigger({
     return { status: "claim_mismatch" };
   }
 
+  const hasExhaustedRetries =
+    payload.triggerType !== "pulse" && trigger.retry_count >= MAX_USER_CREATED_RETRIES;
+
   if (payload.triggerType === "pulse") {
     try {
       const runResult = await runAutopilot({
@@ -87,25 +89,84 @@ export async function executeTrigger({
       });
 
       if (runResult.status === "skipped_busy") {
-        await releaseClaim(supabase, payload, "skipped_thread_busy");
+        await releaseClaim(supabase, payload, "skipped_thread_busy", {
+          advanceNextFireAt: true,
+        });
         return { status: "skipped_busy" };
       }
 
       if (runResult.status === "failed") {
-        await releaseClaim(supabase, payload, "failed");
+        await releaseClaim(supabase, payload, "failed", {
+          advanceNextFireAt: true,
+        });
         return { status: "failed" };
       }
 
-      await releaseClaim(supabase, payload, "completed");
+      await releaseClaim(supabase, payload, "completed", {
+        advanceNextFireAt: true,
+      });
       return { status: "completed" };
     } catch (error) {
       console.error("[executor] pulse trigger failed:", error);
-      await releaseClaim(supabase, payload, "failed");
+      await releaseClaim(supabase, payload, "failed", {
+        advanceNextFireAt: true,
+      });
       return { status: "failed" };
     }
   }
 
-  const triggerEventMessage = buildTriggerEventMessage(payload);
+  let triggerEventPayload = payload.triggerPayload;
+
+  if (payload.triggerType === "rss") {
+    try {
+      const fileClient = createAgentFileClient(supabase, payload.clientId);
+      const feedUrl = typeof payload.triggerPayload.feed_url === "string"
+        ? payload.triggerPayload.feed_url
+        : "";
+
+      const rssResult = await collectNewRssItems({
+        fileClient,
+        triggerId: payload.triggerId,
+        feedUrl,
+      });
+
+      if (rssResult.newItems.length === 0) {
+        await releaseClaim(supabase, payload, "completed", {
+          advanceNextFireAt: true,
+        });
+        return { status: "completed" };
+      }
+
+      triggerEventPayload = {
+        feed_url: feedUrl,
+        feed_title: rssResult.feed.title,
+        new_item_count: rssResult.newItems.length,
+        new_items: rssResult.newItems,
+        seen_state_path: rssResult.statePath,
+      };
+    } catch (error) {
+      console.error("[executor] rss trigger failed:", error);
+      await releaseClaim(
+        supabase,
+        payload,
+        hasExhaustedRetries ? "failed_permanent" : "failed",
+        {
+          nextFireAt: null,
+          advanceNextFireAt: false,
+        },
+      );
+      return { status: "failed" };
+    }
+  }
+
+  const triggerEventMessage = buildTriggerEventMessage({
+    triggerId: payload.triggerId,
+    triggerType: payload.triggerType,
+    triggerName: payload.triggerName,
+    instructionPath: payload.instructionPath,
+    triggerPayload: triggerEventPayload,
+    invocationMessage: payload.invocationMessage,
+  });
 
   await createMessage(supabase, {
     thread_id: payload.threadId,
@@ -125,15 +186,27 @@ export async function executeTrigger({
     );
 
     if (runResult.status === "queued") {
-      await releaseClaim(supabase, payload, "queued");
+      await releaseClaim(supabase, payload, "queued", {
+        advanceNextFireAt: true,
+      });
       return { status: "queued" };
     }
 
-    await releaseClaim(supabase, payload, "completed");
+    await releaseClaim(supabase, payload, "completed", {
+      advanceNextFireAt: true,
+    });
     return { status: "completed" };
   } catch (error) {
     console.error("[executor] schedule trigger failed:", error);
-    await releaseClaim(supabase, payload, "failed");
+    await releaseClaim(
+      supabase,
+      payload,
+      hasExhaustedRetries ? "failed_permanent" : "failed",
+      {
+        nextFireAt: null,
+        advanceNextFireAt: false,
+      },
+    );
     return { status: "failed" };
   }
 }
