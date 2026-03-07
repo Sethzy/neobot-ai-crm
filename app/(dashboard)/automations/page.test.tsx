@@ -15,10 +15,6 @@ vi.mock("@/hooks/use-triggers", () => ({
   useSetTriggerEnabled: () => mockUseSetTriggerEnabled(),
 }));
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
-}));
-
 describe("AutomationsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -85,7 +81,7 @@ describe("AutomationsPage", () => {
     expect(screen.getByText("No automations yet")).toBeInTheDocument();
   });
 
-  it("renders suggested templates section when no automations exist", () => {
+  it("renders a 'New automation' link that points to /chat", () => {
     mockUseTriggers.mockReturnValue({
       data: [],
       isLoading: false,
@@ -99,40 +95,7 @@ describe("AutomationsPage", () => {
 
     render(<AutomationsPage />);
 
-    expect(screen.getByText("Suggested")).toBeInTheDocument();
-    expect(screen.getByText("Morning CRM briefing")).toBeInTheDocument();
-  });
-
-  it("renders suggested templates section below triggers table when automations exist", () => {
-    const mutate = vi.fn();
-    mockUseTriggers.mockReturnValue({
-      data: [
-        {
-          id: "trigger-1",
-          thread_id: "thread-1",
-          name: "Test trigger",
-          trigger_type: "schedule",
-          cron_expression: "0 8 * * *",
-          payload: null,
-          enabled: true,
-          next_fire_at: "2026-03-08T00:00:00.000Z",
-          last_fired_at: null,
-          last_status: null,
-          invocation_message: null,
-        },
-      ],
-      isLoading: false,
-      isError: false,
-      refetch: vi.fn(),
-    });
-    mockUseSetTriggerEnabled.mockReturnValue({
-      mutate,
-      variables: null,
-    });
-
-    render(<AutomationsPage />);
-
-    expect(screen.getByText("Test trigger")).toBeInTheDocument();
-    expect(screen.getByText("Suggested")).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /new automation/i });
+    expect(link).toHaveAttribute("href", "/chat");
   });
 });

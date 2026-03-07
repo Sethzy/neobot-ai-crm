@@ -29,10 +29,12 @@ interface ChatSubmitInput {
 
 interface ChatComposerProps {
   status: ChatStatus;
+  /** Current text value of the composer (controlled). */
+  value: string;
+  /** Called when the composer text changes (typing, clearing on submit). */
+  onValueChange: (value: string) => void;
   onSubmit: (message: ChatSubmitInput) => void;
   onStop: () => void;
-  /** Optional initial value to pre-fill the textarea (e.g. from template prompt). */
-  initialValue?: string;
 }
 
 function toFilePart(attachment: Attachment): FileUIPart {
@@ -62,8 +64,7 @@ function removeQueuedFilenames(currentQueue: string[], filenamesToRemove: string
   });
 }
 
-export function ChatComposer({ status, onSubmit, onStop, initialValue = "" }: ChatComposerProps) {
-  const [value, setValue] = useState(initialValue);
+export function ChatComposer({ status, value, onValueChange, onSubmit, onStop }: ChatComposerProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -164,9 +165,9 @@ export function ChatComposer({ status, onSubmit, onStop, initialValue = "" }: Ch
       files: attachments.map(toFilePart),
     });
 
-    setValue("");
+    onValueChange("");
     setAttachments([]);
-  }, [attachments, isGenerating, onSubmit, uploadQueue.length]);
+  }, [attachments, isGenerating, onSubmit, onValueChange, uploadQueue.length]);
 
   return (
     <div className="px-4 pb-4">
@@ -213,7 +214,7 @@ export function ChatComposer({ status, onSubmit, onStop, initialValue = "" }: Ch
           <PromptInputTextarea
             placeholder="Send a message..."
             value={value}
-            onChange={(event) => setValue(event.currentTarget.value)}
+            onChange={(event) => onValueChange(event.currentTarget.value)}
             onPaste={handlePaste}
             disabled={isGenerating}
           />

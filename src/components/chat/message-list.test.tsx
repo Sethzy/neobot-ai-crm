@@ -181,16 +181,20 @@ describe("MessageList", () => {
     expect(screen.getByRole("button", { name: /scroll to bottom/i })).toBeInTheDocument();
   });
 
-  it("renders suggestion chips in empty state", () => {
+  it("renders template cards with title and description in empty state", () => {
     const onSuggestionClick = vi.fn();
     render(<MessageList messages={[]} status="ready" onSuggestionClick={onSuggestionClick} />);
 
+    // Cards should show both title and description
     expect(screen.getByText("Morning briefing")).toBeInTheDocument();
+    expect(screen.getByText("Daily summary")).toBeInTheDocument();
     expect(screen.getByText("Follow-up sweep")).toBeInTheDocument();
+    expect(screen.getByText("Check stale leads")).toBeInTheDocument();
     expect(screen.getByText("Pipeline summary")).toBeInTheDocument();
+    expect(screen.getByText("Weekly recap")).toBeInTheDocument();
   });
 
-  it("calls onSuggestionClick with the template prompt when a chip is clicked", async () => {
+  it("calls onSuggestionClick with the template prompt when a card is clicked", async () => {
     const user = userEvent.setup();
     const onSuggestionClick = vi.fn();
     render(<MessageList messages={[]} status="ready" onSuggestionClick={onSuggestionClick} />);
@@ -200,7 +204,7 @@ describe("MessageList", () => {
     expect(onSuggestionClick).toHaveBeenCalledWith("Set up morning briefing");
   });
 
-  it("does not render suggestion chips when messages exist", () => {
+  it("does not render template cards when messages exist", () => {
     const onSuggestionClick = vi.fn();
     render(
       <MessageList

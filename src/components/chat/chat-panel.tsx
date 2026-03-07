@@ -8,7 +8,7 @@ import { DefaultChatTransport, type FileUIPart, type UIMessage } from "ai";
 import { useChat } from "@ai-sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle } from "@/components/icons/lucide-compat";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { useAutoResume } from "@/hooks/use-auto-resume";
 import { threadKeys } from "@/hooks/use-threads";
@@ -44,6 +44,7 @@ export function ChatPanel({
   autoResume = false,
   initialPrompt,
 }: ChatPanelProps) {
+  const [composerValue, setComposerValue] = useState(initialPrompt ?? "");
   const { setDataStream } = useDataStream();
   const queryClient = useQueryClient();
   const transport = useMemo(
@@ -148,10 +149,9 @@ export function ChatPanel({
 
   const handleSuggestionClick = useCallback(
     (prompt: string) => {
-      if (isLoading) return;
-      handleSubmit({ text: prompt, files: [] });
+      setComposerValue(prompt);
     },
-    [handleSubmit, isLoading],
+    [],
   );
 
   return (
@@ -165,7 +165,7 @@ export function ChatPanel({
 
       <MessageList messages={messages} status={status} onToolApproval={handleToolApproval} onSuggestionClick={handleSuggestionClick} onQuestionSubmit={handleQuestionSubmit} />
 
-      <ChatComposer status={status} onSubmit={handleSubmit} onStop={stop} initialValue={initialPrompt} />
+      <ChatComposer status={status} value={composerValue} onValueChange={setComposerValue} onSubmit={handleSubmit} onStop={stop} />
     </div>
   );
 }

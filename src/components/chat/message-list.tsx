@@ -75,15 +75,18 @@ export function MessageList({ messages, status, onToolApproval, onSuggestionClic
             </div>
 
             {onSuggestionClick ? (
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <div className="mt-6 grid w-full max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">
                 {AUTOMATION_TEMPLATES.slice(0, 4).map((template) => (
                   <button
                     key={template.id}
                     type="button"
                     onClick={() => onSuggestionClick(template.prompt)}
-                    className="rounded-full border border-border/50 bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-secondary/30 hover:text-foreground"
+                    className="flex flex-col items-start rounded-xl border border-border/40 bg-card p-4 text-left shadow-sm transition-colors hover:border-border hover:bg-secondary/30"
                   >
-                    {template.title}
+                    <span className="text-sm font-semibold text-foreground">{template.title}</span>
+                    <span className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      {template.description}
+                    </span>
                   </button>
                 ))}
               </div>

@@ -23,6 +23,8 @@ describe("ChatComposer", () => {
 
   const baseProps = {
     status: "ready" as const,
+    value: "",
+    onValueChange: vi.fn(),
     onSubmit: vi.fn(),
     onStop: vi.fn(),
   };
@@ -40,12 +42,11 @@ describe("ChatComposer", () => {
     expect(screen.getByRole("button", { name: /submit/i })).toBeInTheDocument();
   });
 
-  it("submits trimmed text with no files on send button click", async () => {
+  it("submits trimmed value on send button click", async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
 
-    render(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
-    await user.type(screen.getByPlaceholderText(/send a message/i), "  Hello  ");
+    render(<ChatComposer {...baseProps} value="  Hello  " onSubmit={onSubmit} />);
     await user.click(screen.getByRole("button", { name: /submit/i }));
 
     expect(onSubmit).toHaveBeenCalledWith({
@@ -58,8 +59,8 @@ describe("ChatComposer", () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
 
-    render(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
-    await user.type(screen.getByPlaceholderText(/send a message/i), "Hello{Enter}");
+    render(<ChatComposer {...baseProps} value="Hello" onSubmit={onSubmit} />);
+    await user.type(screen.getByPlaceholderText(/send a message/i), "{Enter}");
 
     expect(onSubmit).toHaveBeenCalledWith({
       text: "Hello",
@@ -195,20 +196,31 @@ describe("ChatComposer", () => {
     expect(screen.getByRole("button", { name: /submit/i })).toBeDisabled();
   });
 
-  it("pre-fills the textarea when initialValue is provided", () => {
-    render(<ChatComposer {...baseProps} initialValue="Set up a morning briefing" />);
+  it("displays the controlled value in the textarea", () => {
+    render(<ChatComposer {...baseProps} value="Set up a morning briefing" />);
 
     expect(screen.getByPlaceholderText(/send a message/i)).toHaveValue(
       "Set up a morning briefing",
     );
   });
 
-  it("submits the pre-filled initialValue on send", async () => {
+  it("calls onValueChange when the user types", async () => {
+    const onValueChange = vi.fn();
+    const user = userEvent.setup();
+
+    render(<ChatComposer {...baseProps} onValueChange={onValueChange} />);
+    await user.type(screen.getByPlaceholderText(/send a message/i), "H");
+
+    expect(onValueChange).toHaveBeenCalledWith("H");
+  });
+
+  it("calls onValueChange with empty string on submit to clear the composer", async () => {
+    const onValueChange = vi.fn();
     const onSubmit = vi.fn();
     const user = userEvent.setup();
 
     render(
-      <ChatComposer {...baseProps} onSubmit={onSubmit} initialValue="Set up a morning briefing" />,
+      <ChatComposer {...baseProps} value="Set up a morning briefing" onValueChange={onValueChange} onSubmit={onSubmit} />,
     );
 
     await user.click(screen.getByRole("button", { name: /submit/i }));
@@ -217,5 +229,6 @@ describe("ChatComposer", () => {
       text: "Set up a morning briefing",
       files: [],
     });
+    expect(onValueChange).toHaveBeenCalledWith("");
   });
 });

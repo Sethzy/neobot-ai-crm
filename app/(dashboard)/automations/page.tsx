@@ -4,9 +4,11 @@
  */
 "use client";
 
+import Link from "next/link";
+
 import { AppIcon } from "@/components/icons/app-icons";
+import { Plus } from "@/components/icons/lucide-compat";
 import { AutomationsTable } from "@/components/automations/automations-table";
-import { SuggestedTemplates } from "@/components/automations/suggested-templates";
 import { Button } from "@/components/ui/button";
 import { useSetTriggerEnabled, useTriggers } from "@/hooks/use-triggers";
 
@@ -17,11 +19,19 @@ export default function AutomationsPage() {
 
   return (
     <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Automations</h1>
-        <p className="mt-2 text-sm text-muted-foreground/80">
-          Review scheduled jobs, inbound webhooks, and RSS monitors created from chat.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Automations</h1>
+          <p className="mt-2 text-sm text-muted-foreground/80">
+            Review scheduled jobs, inbound webhooks, and RSS monitors created from chat.
+          </p>
+        </div>
+        <Button asChild size="sm">
+          <Link href="/chat">
+            <Plus className="mr-1.5 h-4 w-4" />
+            New automation
+          </Link>
+        </Button>
       </div>
 
       <div className="mt-6">
@@ -62,11 +72,6 @@ export default function AutomationsPage() {
         )}
       </div>
 
-      {!isLoading && !isError ? (
-        <div className="mt-10">
-          <SuggestedTemplates />
-        </div>
-      ) : null}
     </div>
   );
 }

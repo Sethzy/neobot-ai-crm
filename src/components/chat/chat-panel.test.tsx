@@ -320,7 +320,7 @@ describe("ChatPanel", () => {
     expect(screen.getByText(/gateway timeout/i)).toBeInTheDocument();
   });
 
-  it("renders suggestion chips in empty state and sends message on click", async () => {
+  it("pre-fills composer when a template card is clicked instead of sending", async () => {
     const user = userEvent.setup();
     render(<ChatPanel chatId="thread-1" />);
 
@@ -329,9 +329,10 @@ describe("ChatPanel", () => {
 
     await user.click(screen.getByText("Morning CRM briefing"));
 
-    await waitFor(() => {
-      expect(sendMessage).toHaveBeenCalled();
-    });
+    // Should pre-fill the composer, NOT send immediately
+    expect(sendMessage).not.toHaveBeenCalled();
+    const textarea = screen.getByPlaceholderText(/send a message/i) as HTMLTextAreaElement;
+    expect(textarea.value).toContain("Set up a daily morning briefing automation.");
   });
 
   it("does not render empty-state copy when messages exist", () => {
