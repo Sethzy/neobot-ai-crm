@@ -22,9 +22,11 @@ interface MessageListProps {
   onToolApproval?: (approvalId: string, approved: boolean) => void;
   /** Called when user clicks a suggestion chip in the empty state. Receives the prompt text. */
   onSuggestionClick?: (prompt: string) => void;
+  /** Called when user selects an option from an ask_user_question tool call. Only wired to the last assistant message. */
+  onQuestionSubmit?: (text: string) => void;
 }
 
-export function MessageList({ messages, status, onToolApproval, onSuggestionClick }: MessageListProps) {
+export function MessageList({ messages, status, onToolApproval, onSuggestionClick, onQuestionSubmit }: MessageListProps) {
   const { containerRef, endRef, isAtBottom, scrollToBottom } = useScrollToBottom();
   const hasMessages = messages.length > 0;
   const isStreaming = status === "streaming";
@@ -44,6 +46,7 @@ export function MessageList({ messages, status, onToolApproval, onSuggestionClic
                   message={message}
                   isStreaming={isStreaming && isLastAssistantMessage}
                   onToolApproval={onToolApproval}
+                  onQuestionSubmit={isLastAssistantMessage ? onQuestionSubmit : undefined}
                 />
               );
             })}

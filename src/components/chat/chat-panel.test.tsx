@@ -72,6 +72,21 @@ vi.mock("./steps-summary", () => ({
   ),
 }));
 
+vi.mock("./ask-user-question-inline", () => ({
+  AskUserQuestionInline: ({ questions, onSubmit, disabled }: {
+    questions: Array<{ question: string }>;
+    onSubmit: (text: string) => void;
+    disabled?: boolean;
+  }) => (
+    <div
+      data-testid="ask-user-question-inline"
+      data-question-count={questions.length}
+      data-disabled={!!disabled}
+      onClick={() => onSubmit("Option A")}
+    />
+  ),
+}));
+
 vi.mock("./data-stream-provider", () => ({
   useDataStream: () => ({
     dataStream: [],
@@ -443,6 +458,99 @@ describe("ChatPanel", () => {
           },
         ],
       });
+    });
+  });
+
+  it("configures sendAutomaticallyWhen for auto-resume after tool approval", () => {
+    render(<ChatPanel chatId="thread-1" />);
+
+    const options = mockUseChat.mock.calls[0][0] as {
+      sendAutomaticallyWhen?: (ctx: { messages: UIMessage[] }) => boolean;
+    };
+
+    expect(typeof options.sendAutomaticallyWhen).toBe("function");
+
+    // Should return false for normal messages
+    expect(
+      options.sendAutomaticallyWhen?.({
+        messages: [
+          { id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] } as UIMessage,
+        ],
+      }),
+    ).toBe(false);
+
+    // Should return true when last message has an approved tool approval
+    expect(
+      options.sendAutomaticallyWhen?.({
+        messages: [
+          {
+            id: "u1",
+            role: "user",
+            parts: [
+              { type: "tool-write_file", state: "approval-responded", approval: { approved: true } },
+            ],
+          } as UIMessage,
+        ],
+      }),
+    ).toBe(true);
+
+    // Should return false when tool approval was denied
+    expect(
+      options.sendAutomaticallyWhen?.({
+        messages: [
+          {
+            id: "u1",
+            role: "user",
+            parts: [
+              { type: "tool-write_file", state: "approval-responded", approval: { approved: false } },
+            ],
+          } as UIMessage,
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it("wires onQuestionSubmit to send user answer via sendMessage", async () => {
+    const user = userEvent.setup();
+
+    mockUseChat.mockReturnValue({
+      id: "thread-1",
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-ask_user_question",
+              toolCallId: "tc-ask-1",
+              state: "output-available",
+              input: { questions: [{ question: "Pick?", header: "Pick", options: [{ label: "Option A", description: "First" }], multiSelect: false }] },
+              output: { questions: [{ question: "Pick?", header: "Pick", options: [{ label: "Option A", description: "First" }], multiSelect: false }], status: "awaiting_response" },
+            },
+            { type: "text", text: "Choose one:" },
+          ],
+        },
+      ],
+      status: "ready",
+      error: undefined,
+      sendMessage,
+      setMessages,
+      regenerate: vi.fn(),
+      clearError: vi.fn(),
+      stop: vi.fn(),
+      resumeStream: vi.fn(),
+      addToolResult: vi.fn(),
+      addToolOutput: vi.fn(),
+      addToolApprovalResponse: vi.fn(),
+    });
+
+    render(<ChatPanel chatId="thread-1" />);
+
+    // The mock AskUserQuestionInline calls onSubmit("Option A") on click
+    await user.click(screen.getByTestId("ask-user-question-inline"));
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith({ text: "Option A" });
     });
   });
 });

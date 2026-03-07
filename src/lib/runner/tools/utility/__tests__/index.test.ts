@@ -17,6 +17,7 @@ describe("createUtilityTools", () => {
     const tools = createUtilityTools(supabase as never, CLIENT_ID, THREAD_ID);
 
     expect(Object.keys(tools).sort()).toEqual([
+      "ask_user_question",
       "get_agent_db_schema",
       "list_todo",
       "manage_todo",

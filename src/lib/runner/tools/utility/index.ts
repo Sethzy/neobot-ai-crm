@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database";
 
+import { createAskUserQuestionTool } from "./ask-user-question";
 import { createRenameChatTool } from "./rename-chat";
 import { createSendMessageTool } from "./send-message";
 import { createSqlTools } from "./sql";
@@ -19,12 +20,14 @@ export function createUtilityTools(
   clientId: string,
   threadId: string,
 ) {
+  const askUserQuestionTool = createAskUserQuestionTool();
   const todoTools = createTodoTools(supabase, clientId, threadId);
   const renameChatTool = createRenameChatTool(supabase, clientId, threadId);
   const sendMessageTool = createSendMessageTool();
   const sqlTools = createSqlTools(supabase);
 
   return {
+    ...askUserQuestionTool,
     ...todoTools,
     ...renameChatTool,
     ...sendMessageTool,

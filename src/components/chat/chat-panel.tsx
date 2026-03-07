@@ -75,6 +75,16 @@ export function ChatPanel({
     generateId: () => crypto.randomUUID(),
     experimental_throttle: STREAM_UI_THROTTLE_MS,
     transport,
+    sendAutomaticallyWhen: ({ messages: currentMessages }) => {
+      const lastMessage = currentMessages.at(-1);
+      return lastMessage?.parts?.some(
+        (part) =>
+          "state" in part &&
+          part.state === "approval-responded" &&
+          "approval" in part &&
+          (part.approval as { approved?: boolean })?.approved === true,
+      ) ?? false;
+    },
     onData: (dataPart) => {
       if (!shouldStoreDataPartForClient(dataPart)) {
         return;
@@ -128,6 +138,14 @@ export function ChatPanel({
     [chatId, isLoading, sendMessage],
   );
 
+  const handleQuestionSubmit = useCallback(
+    (text: string) => {
+      if (isLoading) return;
+      handleSubmit({ text, files: [] });
+    },
+    [handleSubmit, isLoading],
+  );
+
   const handleSuggestionClick = useCallback(
     (prompt: string) => {
       if (isLoading) return;
@@ -145,7 +163,7 @@ export function ChatPanel({
         </div>
       ) : null}
 
-      <MessageList messages={messages} status={status} onToolApproval={handleToolApproval} onSuggestionClick={handleSuggestionClick} />
+      <MessageList messages={messages} status={status} onToolApproval={handleToolApproval} onSuggestionClick={handleSuggestionClick} onQuestionSubmit={handleQuestionSubmit} />
 
       <ChatComposer status={status} onSubmit={handleSubmit} onStop={stop} initialValue={initialPrompt} />
     </div>

@@ -14,6 +14,7 @@ import {
 } from "@/components/ai-elements/message";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { cn } from "@/lib/utils";
+import { AskUserQuestionInline, type AskUserQuestion } from "./ask-user-question-inline";
 import { getMessageText, type ChatUIMessage } from "./message-content";
 import { PreviewAttachment } from "./preview-attachment";
 import { StepsSummary } from "./steps-summary";
@@ -23,18 +24,29 @@ interface MessageBubbleProps {
   isStreaming?: boolean;
   /** Callback for tool approval actions. */
   onToolApproval?: (approvalId: string, approved: boolean) => void;
+  /** Callback when user selects an option from an ask_user_question tool call. */
+  onQuestionSubmit?: (text: string) => void;
 }
 
-export function MessageBubble({ message, isStreaming = false, onToolApproval }: MessageBubbleProps) {
+export function MessageBubble({ message, isStreaming = false, onToolApproval, onQuestionSubmit }: MessageBubbleProps) {
   const isUserMessage = message.role === "user";
   const fileParts = message.parts.filter(
     (part): part is Extract<ChatUIMessage["parts"][number], { type: "file" }> => part.type === "file",
   );
   const textParts = message.parts.filter((p) => p.type === "text");
-  const intermediateParts = message.parts.filter(
+
+  // Extract ask_user_question tool parts — these render inline (not collapsed in StepsSummary)
+  const allIntermediateParts = message.parts.filter(
     (p) => p.type === "reasoning" || p.type.startsWith("tool-"),
   );
-  const hasParts = fileParts.length > 0 || intermediateParts.length > 0 || textParts.length > 0;
+  const askQuestionParts = allIntermediateParts.filter(
+    (p) => p.type === "tool-ask_user_question" && (p as { state?: string }).state === "output-available",
+  );
+  const intermediateParts = allIntermediateParts.filter(
+    (p) => p.type !== "tool-ask_user_question",
+  );
+
+  const hasParts = fileParts.length > 0 || allIntermediateParts.length > 0 || textParts.length > 0;
 
   if (isUserMessage) {
     return (
@@ -107,6 +119,20 @@ export function MessageBubble({ message, isStreaming = false, onToolApproval }: 
             {part.text}
           </MessageResponse>
         ))}
+
+        {askQuestionParts.length > 0 &&
+          askQuestionParts.map((part, i) => {
+            const output = (part as { output?: { questions?: AskUserQuestion[] } }).output;
+            if (!output?.questions) return null;
+            return (
+              <AskUserQuestionInline
+                key={`${message.id}-ask-${i}`}
+                questions={output.questions}
+                onSubmit={onQuestionSubmit ?? (() => {})}
+                disabled={!onQuestionSubmit}
+              />
+            );
+          })}
 
       </MessageContent>
     </Message>
