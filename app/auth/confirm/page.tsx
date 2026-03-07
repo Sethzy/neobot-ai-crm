@@ -1,5 +1,9 @@
 'use client';
 
+/**
+ * Handles post-confirmation routing for email-based signups.
+ * @module app/auth/confirm/page
+ */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -30,7 +34,7 @@ export default function ConfirmPage() {
       if (session) {
         setStatus("success");
         setTimeout(() => {
-          router.push("/cases");
+          router.push("/chat");
         }, 2000);
       } else {
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
