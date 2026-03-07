@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { resolveClientId } from "@/lib/chat/client-id";
+import { getFileExtension } from "@/lib/file-utils";
 import { createClient } from "@/lib/supabase/server";
 
 const BUCKET_ID = "chat-attachments";
@@ -34,11 +35,6 @@ const fileSchema = z.object({
       message: "File type should be JPEG or PNG",
     }),
 });
-
-function getFileExtension(filename: string): string {
-  const extension = filename.split(".").pop()?.trim().toLowerCase();
-  return extension && extension.length > 0 ? extension : "jpg";
-}
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -72,7 +68,7 @@ export async function POST(request: Request) {
     const filename = typeof filenameField === "string" && filenameField.trim().length > 0
       ? filenameField.trim()
       : (formData.get("file") as File).name;
-    const fileExtension = getFileExtension(filename);
+    const fileExtension = getFileExtension(filename) || "jpg";
     const storageFilename = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${fileExtension}`;
     const storagePath = `${clientId}/${storageFilename}`;
 

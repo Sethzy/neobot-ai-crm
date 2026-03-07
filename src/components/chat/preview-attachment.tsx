@@ -56,7 +56,7 @@ export function PreviewAttachment({
       {onRemove ? (
         <Button
           aria-label={`Remove ${filename}`}
-          className="absolute right-0.5 top-0.5 size-4 rounded-full p-0 opacity-0 transition-opacity group-hover:opacity-100"
+          className="absolute right-0.5 top-0.5 size-4 rounded-full p-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
           onClick={onRemove}
           size="sm"
           type="button"
