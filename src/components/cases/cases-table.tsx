@@ -35,7 +35,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
+import { GripVertical } from "@/components/icons/lucide-compat";
 import {
   Tooltip,
   TooltipContent,

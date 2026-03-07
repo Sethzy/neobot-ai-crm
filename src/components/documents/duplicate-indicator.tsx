@@ -3,7 +3,7 @@
  * Shows status as colored icon with details on hover.
  * @module components/documents/duplicate-indicator
  */
-import { CheckCircle2, AlertTriangle } from "lucide-react";
+import { CheckCircle2, AlertTriangle } from "@/components/icons/lucide-compat";
 import {
   Tooltip,
   TooltipContent,

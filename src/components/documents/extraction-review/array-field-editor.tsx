@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { isLowConfidence } from "@/types/extraction";
 import type { Citation, FieldMetadata } from "@/types/extraction";
 import { normalizeForComparison } from "@/lib/field-utils";
-import { Filter } from "lucide-react";
+import { Filter } from "@/components/icons/lucide-compat";
 
 interface ArrayFieldEditorProps {
   fieldName: string;

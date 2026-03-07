@@ -3,7 +3,7 @@
  * Displayed in empty state to help users get started quickly.
  * @module components/analyst/quick-action-cards
  */
-import { Link, BarChart3, AlertTriangle } from 'lucide-react';
+import { Link, BarChart3, AlertTriangle } from '@/components/icons/lucide-compat';
 import { cn } from '@/lib/utils';
 
 /** Quick action definition with icon and template prompt */

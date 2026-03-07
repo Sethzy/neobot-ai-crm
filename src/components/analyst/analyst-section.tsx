@@ -5,7 +5,7 @@
  * @module components/analyst/analyst-section
  */
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { AlertTriangle, ArrowDown } from 'lucide-react';
+import { AlertTriangle, ArrowDown } from '@/components/icons/lucide-compat';
 import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -317,7 +317,7 @@ interface EmptyStateProps {
   onSelectAction: (prompt: string) => void;
 }
 
-import { Sparkles } from 'lucide-react';
+import { Sparkles } from '@/components/icons/lucide-compat';
 
 /** Empty state with quick action cards and prompt */
 function EmptyState({ onSelectAction }: EmptyStateProps) {

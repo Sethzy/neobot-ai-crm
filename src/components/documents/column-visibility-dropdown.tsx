@@ -2,7 +2,7 @@
  * Dropdown for toggling column visibility.
  * @module components/documents/column-visibility-dropdown
  */
-import { Settings2 } from "lucide-react";
+import { Settings2 } from "@/components/icons/lucide-compat";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,

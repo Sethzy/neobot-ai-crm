@@ -4,7 +4,7 @@
  * @module components/documents/upload-progress-panel
  */
 import { useState } from "react";
-import { X, Check, Loader2, AlertCircle, ChevronUp, ChevronDown, Download, FileSpreadsheet } from "lucide-react";
+import { X, Check, Loader2, AlertCircle, ChevronUp, ChevronDown, Download, FileSpreadsheet } from "@/components/icons/lucide-compat";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";

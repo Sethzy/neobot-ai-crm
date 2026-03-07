@@ -2,7 +2,7 @@
  * @file Multi-select field filter dropdown
  * @description Filter extraction fields by low confidence, needs review, or non-null status
  */
-import { Filter } from "lucide-react";
+import { Filter } from "@/components/icons/lucide-compat";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";

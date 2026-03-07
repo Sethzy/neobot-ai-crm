@@ -9,7 +9,7 @@ import { getClientConfig } from "@/config/loader";
 import type { TagDefinition, ValidationFailure } from "@/config/types";
 import type { SplitExtraction } from "@/types/extraction";
 import type { Document } from "@/types/documents";
-import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info } from "@/components/icons/lucide-compat";
 import {
   Accordion,
   AccordionContent,

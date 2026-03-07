@@ -7,7 +7,7 @@
 
 import { useCallback, useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, Search, Download } from "lucide-react";
+import { Upload, Search, Download } from "@/components/icons/lucide-compat";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { VisibilityState } from "@tanstack/react-table";

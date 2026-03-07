@@ -3,7 +3,7 @@
  * Displayed in the sticky footer above the input area.
  * @module components/analyst/session-controls
  */
-import { Download, Loader2, RotateCcw } from 'lucide-react';
+import { Download, Loader2, RotateCcw } from '@/components/icons/lucide-compat';
 import { Button } from '@/components/ui/button';
 import { StaleIndicator } from './stale-indicator';
 import { ToolsDropdown } from './tools-dropdown';

@@ -12,9 +12,9 @@ import {
   useReactTable,
   type SortingState,
 } from "@tanstack/react-table";
-import { Download } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { AppIcon } from "@/components/icons/app-icons";
 import type { VaultFile } from "@/lib/knowledge/schemas";
 import { supabase } from "@/lib/supabase";
 
@@ -124,7 +124,7 @@ export function VaultFilesTable({ files }: VaultFilesTableProps) {
               })();
             }}
           >
-            <Download className="h-4 w-4" />
+            <AppIcon name="download" className="h-4 w-4" />
           </button>
         ),
       }),

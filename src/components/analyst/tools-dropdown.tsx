@@ -1,5 +1,5 @@
 
-import { Blocks, FileSpreadsheet, Building2, FileText, ChevronDown, Presentation, FileType, PenTool, Database } from 'lucide-react';
+import { Blocks, FileSpreadsheet, Building2, FileText, ChevronDown, Presentation, FileType, PenTool, Database } from '@/components/icons/lucide-compat';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useState } from 'react';

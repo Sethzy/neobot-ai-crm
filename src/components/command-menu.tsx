@@ -4,10 +4,10 @@
  */
 "use client";
 
-import { CheckSquare, Handshake, MessageCircle, User } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, type ElementType } from "react";
+import { useCallback, useMemo, useState } from "react";
 
+import { AppIcon, type AppIconName } from "@/components/icons/app-icons";
 import {
   Command,
   CommandDialog,
@@ -27,11 +27,11 @@ interface CommandMenuProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const typeIconMap: Record<SearchResult["type"], ElementType> = {
-  contact: User,
-  deal: Handshake,
-  task: CheckSquare,
-  thread: MessageCircle,
+const typeIconMap: Record<SearchResult["type"], AppIconName> = {
+  contact: "contacts",
+  deal: "deals",
+  task: "tasks",
+  thread: "chat",
 };
 
 const typeLabelMap: Record<SearchResult["type"], string> = {
@@ -49,17 +49,15 @@ const typeRouteMap: Record<SearchResult["type"], (id: string) => string> = {
 };
 
 export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
+  return <CommandMenuContent key={open ? "command-open" : "command-closed"} open={open} onOpenChange={onOpenChange} />;
+}
+
+function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 300);
   const { data: results = [], isLoading, isError } = useSearchRecords(debouncedQuery);
   const hasActiveQuery = query.trim().length >= 2;
-
-  useEffect(() => {
-    if (!open && query.length > 0) {
-      setQuery("");
-    }
-  }, [open, query]);
 
   const groupedResults = useMemo(() => {
     const groups = new Map<SearchResult["type"], SearchResult[]>();
@@ -108,11 +106,12 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
                 return (
                   <CommandGroup key={type} heading={typeLabelMap[type]}>
                     {items.map((result) => {
-                      const Icon = typeIconMap[type];
-
                       return (
                         <CommandItem key={`${type}-${result.id}`} onSelect={() => handleSelect(result)}>
-                          <Icon className="mr-2 h-4 w-4 text-muted-foreground" />
+                          <AppIcon
+                            name={typeIconMap[type]}
+                            className="mr-2 h-4 w-4 text-muted-foreground"
+                          />
                           <span>{result.title}</span>
                           {result.subtitle ? (
                             <span className="ml-2 text-xs text-muted-foreground">{result.subtitle}</span>

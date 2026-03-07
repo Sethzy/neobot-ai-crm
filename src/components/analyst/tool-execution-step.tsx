@@ -5,7 +5,7 @@
  */
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronRight, Loader2, Check, X, Copy, SquareTerminal } from 'lucide-react';
+import { ChevronRight, Loader2, Check, X, Copy, SquareTerminal } from '@/components/icons/lucide-compat';
 
 /** AI SDK dynamic-tool part states */
 type ToolState =

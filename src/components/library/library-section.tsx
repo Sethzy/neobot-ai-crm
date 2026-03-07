@@ -4,7 +4,7 @@
  * @module components/library/library-section
  */
 import { useMemo, useState } from "react";
-import { FileSpreadsheet, Search, LayoutGrid, List } from "lucide-react";
+import { FileSpreadsheet, Search, LayoutGrid, List } from "@/components/icons/lucide-compat";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

@@ -14,7 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Calendar as CalendarIcon, Pencil } from "lucide-react";
+import { Calendar as CalendarIcon, Pencil } from "@/components/icons/lucide-compat";
 import { cn } from "@/lib/utils";
 import type { Case, UpdateCaseInput } from "@/types/cases";
 import { useDocumentsWithStatus } from "@/hooks/use-documents";

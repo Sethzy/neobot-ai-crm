@@ -3,16 +3,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, Briefcase, Home, MapPin, Users } from "lucide-react";
+import { AppIcon, type AppIconName } from "@/components/icons/app-icons";
 import { Logo } from "@/components/landing/Logo";
 
 const NAV_ITEMS = [
-  { href: "/market/agents", label: "Agents", icon: Users },
-  { href: "/market/properties", label: "Properties", icon: Building2 },
-  { href: "/market/hdb", label: "HDB", icon: Home },
-  { href: "/market/agencies", label: "Agencies", icon: Briefcase },
-  { href: "/market/areas", label: "Areas", icon: MapPin },
-] as const;
+  { href: "/market/agents", label: "Agents", icon: "contacts" },
+  { href: "/market/properties", label: "Properties", icon: "property" },
+  { href: "/market/hdb", label: "HDB", icon: "home" },
+  { href: "/market/agencies", label: "Agencies", icon: "agency" },
+  { href: "/market/areas", label: "Areas", icon: "area" },
+] as const satisfies ReadonlyArray<{ href: string; label: string; icon: AppIconName }>;
 
 export function MarketSubNav() {
   const pathname = usePathname();
@@ -29,7 +29,7 @@ export function MarketSubNav() {
         </Link>
 
         <div className="flex items-center gap-1 overflow-x-auto">
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+          {NAV_ITEMS.map(({ href, label, icon }) => {
             const isActive =
               currentPath === href || currentPath.startsWith(`${href}/`);
 
@@ -43,7 +43,7 @@ export function MarketSubNav() {
                     : "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700"
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <AppIcon name={icon} className="h-4 w-4" />
                 {label}
               </Link>
             );

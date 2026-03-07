@@ -1,7 +1,6 @@
 /** Clickable category card for the /market hub page. */
 import Link from "next/link";
-import type { ReactNode } from "react";
-import { ArrowRight } from "lucide-react";
+import { AppIcon, type AppIconName } from "@/components/icons/app-icons";
 
 type MarketCategoryCardProps = {
   href: string;
@@ -9,7 +8,7 @@ type MarketCategoryCardProps = {
   description: string;
   count: string;
   countLabel?: string;
-  icon: ReactNode;
+  icon: AppIconName;
 };
 
 export function MarketCategoryCard({
@@ -27,9 +26,12 @@ export function MarketCategoryCard({
     >
       <div className="flex items-center justify-between">
         <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-sunder-green/10 text-sunder-green ring-1 ring-sunder-green/10">
-          {icon}
+          <AppIcon name={icon} className="h-6 w-6" />
         </span>
-        <ArrowRight className="h-4 w-4 text-zinc-400 transition group-hover:translate-x-0.5 group-hover:text-sunder-green" />
+        <AppIcon
+          name="arrowRight"
+          className="h-4 w-4 text-zinc-400 transition group-hover:translate-x-0.5 group-hover:text-sunder-green"
+        />
       </div>
       <h3 className="mt-4 text-lg font-semibold text-zinc-900">{title}</h3>
       <p className="mt-1 text-sm text-zinc-600">{description}</p>

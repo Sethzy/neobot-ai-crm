@@ -7,7 +7,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon } from "@/components/icons/lucide-compat";
 import { useCreateCase } from "@/hooks/use-cases";
 import { CreateCaseSchema } from "@/types/cases";
 import { cn } from "@/lib/utils";

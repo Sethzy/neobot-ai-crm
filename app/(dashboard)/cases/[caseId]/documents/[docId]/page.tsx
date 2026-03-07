@@ -4,7 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter, useParams } from "next/navigation";
 import { useState, useCallback, useEffect } from "react";
-import { ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, CheckCircle, Loader2 } from "@/components/icons/lucide-compat";
 import { Button } from "@/components/ui/button";
 import { SplitResultsPane } from "@/components/documents/split-results-pane";
 import {

@@ -4,7 +4,7 @@
  * @module components/library/library-file-card
  */
 import { memo, type ComponentType } from "react";
-import { Download } from "lucide-react";
+import { Download } from "@/components/icons/lucide-compat";
 import { FaFileExcel, FaFilePdf, FaFileWord, FaFilePowerpoint, FaFileCsv, FaFile } from "react-icons/fa";
 import type { IconBaseProps } from "react-icons";
 import { format } from "date-fns";

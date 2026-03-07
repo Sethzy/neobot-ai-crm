@@ -2,7 +2,7 @@
  * Individual report card component for sidebar display.
  * @module components/analyst/report-item
  */
-import { FileSpreadsheet } from 'lucide-react';
+import { FileSpreadsheet } from '@/components/icons/lucide-compat';
 import { format } from 'date-fns';
 import type { ReportHistoryItem } from '@/components/docgen/report-history';
 

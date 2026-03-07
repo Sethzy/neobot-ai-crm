@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, X } from "lucide-react";
+import { AppIcon } from "@/components/icons/app-icons";
 
 type Suggestion = {
   label: string;
@@ -154,7 +154,10 @@ export function MarketSearchBox({
   return (
     <div className="mt-6">
       <div className="relative mx-auto max-w-2xl">
-        <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+        <AppIcon
+          name="search"
+          className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+        />
         <input
           ref={inputRef}
           type="search"
@@ -175,7 +178,7 @@ export function MarketSearchBox({
             onClick={handleClear}
             className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-zinc-400 transition hover:text-zinc-600"
           >
-            <X className="h-4 w-4" />
+            <AppIcon name="close" className="h-4 w-4" />
           </button>
         )}
 

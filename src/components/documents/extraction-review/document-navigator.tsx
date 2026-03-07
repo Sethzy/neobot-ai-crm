@@ -3,7 +3,7 @@
  * @description Lists all splits with type + page range. Click to navigate.
  */
 import { useState } from "react";
-import { FileText, ChevronDown, AlertTriangle } from "lucide-react";
+import { FileText, ChevronDown, AlertTriangle } from "@/components/icons/lucide-compat";
 import { formatDuplicateDescription } from "@/components/documents/duplicate-indicator";
 import {
   Popover,

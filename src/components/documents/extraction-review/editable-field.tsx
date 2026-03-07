@@ -13,7 +13,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon } from "@/components/icons/lucide-compat";
 import { cn } from "@/lib/utils";
 
 /** Supported field types for editing */

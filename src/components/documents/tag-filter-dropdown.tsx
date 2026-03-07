@@ -2,7 +2,7 @@
  * Dropdown for filtering documents by tag.
  * @module components/documents/tag-filter-dropdown
  */
-import { ChevronDown } from "lucide-react";
+import { ChevronDown } from "@/components/icons/lucide-compat";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,

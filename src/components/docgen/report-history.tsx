@@ -6,7 +6,7 @@ import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, FileSpreadsheet } from "lucide-react";
+import { Download, FileSpreadsheet } from "@/components/icons/lucide-compat";
 import { useDownloadReport } from "@/hooks/use-docgen";
 import { useClientConfigId } from "@/hooks/use-client-config";
 import { getClientConfig } from "@/config/loader";

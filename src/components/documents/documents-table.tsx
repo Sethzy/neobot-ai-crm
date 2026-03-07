@@ -16,7 +16,7 @@ import {
   type Header,
   type SortingState,
 } from "@tanstack/react-table";
-import { ExternalLink, Download, Trash2, GripVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ExternalLink, Download, Trash2, GripVertical, ArrowUpDown, ArrowUp, ArrowDown } from "@/components/icons/lucide-compat";
 import {
   DndContext,
   closestCenter,

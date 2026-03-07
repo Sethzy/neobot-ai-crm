@@ -2,7 +2,7 @@
  * Right pane showing list of document splits.
  * @module components/documents/split-results-pane
  */
-import { AlertTriangle, ArrowLeft, FileText } from "lucide-react";
+import { AlertTriangle, ArrowLeft, FileText } from "@/components/icons/lucide-compat";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,

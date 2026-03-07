@@ -8,7 +8,7 @@ import Image from "next/image";
 import type { UIMessage } from '@/hooks/use-analyst-chat';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import { cn } from '@/lib/utils';
-import { Brain, ChevronDown } from 'lucide-react';
+import { Brain, ChevronDown } from '@/components/icons/lucide-compat';
 import { FileDownload } from './file-download';
 import { ToolExecutionStep } from './tool-execution-step';
 

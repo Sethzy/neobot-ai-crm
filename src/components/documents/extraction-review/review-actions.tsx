@@ -3,7 +3,7 @@
  * @description Simple toggle button to mark/unmark document as reviewed
  */
 import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
+import { Check } from "@/components/icons/lucide-compat";
 
 interface ReviewActionsProps {
   /** Whether document is currently reviewed */

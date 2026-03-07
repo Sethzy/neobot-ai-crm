@@ -5,7 +5,7 @@
  * @module components/analyst/template-upload-button
  */
 import { useRef } from 'react';
-import { FileText, X, Lock } from 'lucide-react';
+import { FileText, X, Lock } from '@/components/icons/lucide-compat';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,

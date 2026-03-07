@@ -3,7 +3,7 @@
  * @description Displays split header and all extraction fields with metadata
  */
 import { useCallback, memo, useMemo } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "@/components/icons/lucide-compat";
 import { useSetHighlights } from "@/contexts/highlight-context";
 import {
   Tooltip,

@@ -4,7 +4,7 @@
  * @module components/analyst/chat-input
  */
 import { memo, useEffect, useRef, useState } from 'react';
-import { Send, ChevronDown, Lock, Folder, X, Plus, Paperclip, FileText } from 'lucide-react';
+import { Send, ChevronDown, Lock, Folder, X, Plus, Paperclip, FileText } from '@/components/icons/lucide-compat';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {

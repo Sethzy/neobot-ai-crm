@@ -1,13 +1,13 @@
 /** Soft CTA banner for /market profile pages. */
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { AppIcon } from "@/components/icons/app-icons";
 
 export function MarketCta() {
   return (
     <div className="rounded-2xl border border-zinc-200/70 bg-zinc-50/50 p-6 sm:p-8">
       <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-zinc-400" />
+          <AppIcon name="outputs" className="mt-0.5 h-5 w-5 shrink-0 text-zinc-400" />
           <div>
             <p className="font-semibold text-zinc-900">
               Need this data in your next proposal?

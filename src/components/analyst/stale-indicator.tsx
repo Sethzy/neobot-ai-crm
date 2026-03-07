@@ -3,7 +3,7 @@
  * Shows amber warning icon with tooltip explaining how to access new data.
  * @module components/analyst/stale-indicator
  */
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from '@/components/icons/lucide-compat';
 import {
   Tooltip,
   TooltipContent,

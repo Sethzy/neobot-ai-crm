@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { isLowConfidence, type Citation, type FieldMetadata } from "@/types/extraction";
 import { normalizeForComparison } from "@/lib/field-utils";
-import { Filter } from "lucide-react";
+import { Filter } from "@/components/icons/lucide-compat";
 
 interface PrimitiveArrayEditorProps {
   fieldName: string;

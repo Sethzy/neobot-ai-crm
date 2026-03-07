@@ -3,7 +3,7 @@
  * @module components/documents/split-card
  */
 import { useState } from "react";
-import { AlertTriangle, ChevronRight, ChevronDown } from "lucide-react";
+import { AlertTriangle, ChevronRight, ChevronDown } from "@/components/icons/lucide-compat";
 import {
   Tooltip,
   TooltipContent,

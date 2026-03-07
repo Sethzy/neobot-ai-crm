@@ -2,7 +2,7 @@
  * @file Single extraction field display with optional editing
  * @description Shows field value with confidence badge, reasoning, citations, and hover support
  */
-import { Lightbulb, X } from "lucide-react";
+import { Lightbulb, X } from "@/components/icons/lucide-compat";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import {

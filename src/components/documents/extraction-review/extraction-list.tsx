@@ -3,7 +3,7 @@
  * @description Scrollable list of extraction cards with document type navigator and field filters
  */
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { Layers } from "lucide-react";
+import { Layers } from "@/components/icons/lucide-compat";
 import { Button } from "@/components/ui/button";
 import { DocumentNavigator } from "./document-navigator";
 import { FieldFilter } from "./field-filter";

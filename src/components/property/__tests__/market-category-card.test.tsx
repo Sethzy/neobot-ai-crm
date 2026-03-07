@@ -1,6 +1,5 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { Users } from "lucide-react";
 import { MarketCategoryCard } from "../market-category-card";
 
 describe("MarketCategoryCard", () => {
@@ -11,7 +10,7 @@ describe("MarketCategoryCard", () => {
         title="Agent Profiles"
         description="Search CEA-registered agent transaction histories"
         count="42,000+"
-        icon={<Users className="h-6 w-6" />}
+        icon="contacts"
       />
     );
 
@@ -27,7 +26,7 @@ describe("MarketCategoryCard", () => {
         title="Agent Profiles"
         description="Search CEA agent histories"
         count="42,000+"
-        icon={<Users className="h-6 w-6" />}
+        icon="contacts"
       />
     );
 

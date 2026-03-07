@@ -21,7 +21,7 @@ const preloadAnalyst = () => void import("@/components/analyst/analyst-section")
 const preloadLibrary = () => void import("@/components/library");
 
 import { useReportHistory } from "@/hooks/use-docgen";
-import { Sparkle } from "lucide-react";
+import { Sparkle } from "@/components/icons/lucide-compat";
 
 export default function CaseDetailPage() {
   const params = useParams<{ caseId: string }>();

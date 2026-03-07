@@ -10,24 +10,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback } from "react";
 import { toast } from "sonner";
-import {
-  MessageCircle,
-  Gauge,
-  CheckSquare,
-  Zap,
-  Brain,
-  Users,
-  BookOpen,
-  FileText,
-  Radio,
-  Search,
-  Settings,
-  LogOut,
-  ChevronsUpDown,
-  MoreHorizontal,
-  Archive,
-} from "lucide-react";
 import { Logo } from "@/components/landing/Logo";
+import { AppIcon, type AppIconName } from "@/components/icons/app-icons";
 import { useSession } from "@/hooks/use-session";
 import { supabase } from "@/lib/supabase";
 import {
@@ -53,21 +37,27 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+interface NavigationItem {
+  label: string;
+  href: string;
+  icon: AppIconName;
+}
+
 /** AGENT section — primary operating surfaces */
-const agentNavItems = [
-  { label: "Chat", href: "/chat", icon: MessageCircle },
-  { label: "Mission Control", href: "/mission-control", icon: Gauge },
-  { label: "Tasks", href: "/tasks", icon: CheckSquare },
-  { label: "Automations", href: "/automations", icon: Zap },
-  { label: "Memory", href: "/memory", icon: Brain },
+const agentNavItems: NavigationItem[] = [
+  { label: "Chat", href: "/chat", icon: "chat" },
+  { label: "Mission Control", href: "/mission-control", icon: "missionControl" },
+  { label: "Tasks", href: "/tasks", icon: "tasks" },
+  { label: "Automations", href: "/automations", icon: "automations" },
+  { label: "Memory", href: "/memory", icon: "memory" },
 ];
 
 /** DATABASE section — data-centric surfaces */
-const databaseNavItems = [
-  { label: "CRM", href: "/crm", icon: Users },
-  { label: "Knowledge", href: "/knowledge", icon: BookOpen },
-  { label: "Workspace", href: "/cases", icon: FileText },
-  { label: "Channels", href: "/channels", icon: Radio },
+const databaseNavItems: NavigationItem[] = [
+  { label: "CRM", href: "/crm", icon: "crm" },
+  { label: "Knowledge", href: "/knowledge", icon: "knowledge" },
+  { label: "Workspace", href: "/cases", icon: "workspace" },
+  { label: "Channels", href: "/channels", icon: "channels" },
 ];
 
 interface AppSidebarProps {
@@ -123,13 +113,12 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
     [archiveThread, pathname, router, threads],
   );
 
-  const renderNavItems = (items: typeof agentNavItems) =>
+  const renderNavItems = (items: NavigationItem[]) =>
     items.map((item) => {
       const isActive =
         item.href === "/cases"
           ? pathname.startsWith("/cases")
           : pathname.startsWith(item.href);
-      const Icon = item.icon;
 
       return (
         <SidebarMenuItem key={item.label}>
@@ -140,7 +129,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
             className="hover:bg-muted/50 data-[active=true]:bg-muted/60 data-[active=true]:text-foreground data-[active=true]:font-medium data-[active=true]:hover:bg-muted/70 transition-colors"
           >
             <Link href={item.href} onClick={() => isMobile && setOpenMobile(false)}>
-              <Icon className="h-4 w-4" />
+              <AppIcon name={item.icon} className="h-4 w-4" />
               <span>{item.label}</span>
             </Link>
           </SidebarMenuButton>
@@ -165,7 +154,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                 closeMobileSidebar();
               }}
             >
-              <Search className="h-4 w-4" />
+              <AppIcon name="search" className="h-4 w-4" />
             </Button>
           ) : null}
         </div>
@@ -217,12 +206,12 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                         aria-label={`More actions for ${thread.title}`}
                         className="opacity-0 group-hover/thread:opacity-100 transition-opacity"
                       >
-                        <MoreHorizontal className="h-4 w-4" />
+                        <AppIcon name="more" className="h-4 w-4" />
                       </SidebarMenuAction>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent side="right" align="start">
                       <DropdownMenuItem onClick={() => handleArchiveThread(thread.id)}>
-                        <Archive className="h-4 w-4 mr-2" />
+                        <AppIcon name="archive" className="mr-2 h-4 w-4" />
                         Archive
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -245,7 +234,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
               className="hover:bg-muted/50 data-[active=true]:bg-muted/60 data-[active=true]:text-foreground data-[active=true]:font-medium transition-colors"
             >
               <Link href="/settings" onClick={() => isMobile && setOpenMobile(false)}>
-                <Settings className="h-4 w-4" />
+                <AppIcon name="settings" className="h-4 w-4" />
                 <span>Settings</span>
               </Link>
             </SidebarMenuButton>
@@ -265,7 +254,10 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                   <span className="truncate text-sm text-foreground/80">
                     {user?.email}
                   </span>
-                  <ChevronsUpDown className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+                  <AppIcon
+                    name="selector"
+                    className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground/50"
+                  />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -278,7 +270,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut}>
-                  <LogOut className="h-4 w-4 mr-2" />
+                  <AppIcon name="logout" className="mr-2 h-4 w-4" />
                   Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>

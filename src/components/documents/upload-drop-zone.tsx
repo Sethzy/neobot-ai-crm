@@ -4,7 +4,7 @@
  * @module components/documents/upload-drop-zone
  */
 import { useState, useRef, useCallback, type DragEvent } from "react";
-import { Upload } from "lucide-react";
+import { Upload } from "@/components/icons/lucide-compat";
 import { cn } from "@/lib/utils";
 import {
   ALLOWED_FILE_EXTENSIONS,

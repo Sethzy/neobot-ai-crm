@@ -1,9 +1,9 @@
 import * as React from "react"
 import { Dialog as DialogPrimitive } from "radix-ui"
+import { TbX } from "react-icons/tb"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { XIcon } from "lucide-react"
 
 function Dialog({
   ...props
@@ -72,8 +72,7 @@ function DialogContent({
               className="absolute top-4 right-4"
               size="icon-sm"
             >
-              <XIcon
-              />
+              <TbX />
               <span className="sr-only">Close</span>
             </Button>
           </DialogPrimitive.Close>

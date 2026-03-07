@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "@/components/icons/lucide-compat";
 
 /** Skeleton shown while /cases/[caseId]/documents/[docId] route loads. */
 export default function DocumentDetailLoading() {
