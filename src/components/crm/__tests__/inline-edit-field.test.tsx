@@ -111,4 +111,14 @@ describe("InlineEditField", () => {
 
     expect(screen.getByText("10 Mar 2026")).toBeInTheDocument();
   });
+
+  it("renders a numeric editor for type=number", async () => {
+    const user = userEvent.setup();
+
+    render(<InlineEditField label="Coverage Amount" value="250000" type="number" onSave={onSave} />);
+
+    await user.click(screen.getByText("250000"));
+
+    expect(screen.getByRole("spinbutton")).toHaveValue(250000);
+  });
 });

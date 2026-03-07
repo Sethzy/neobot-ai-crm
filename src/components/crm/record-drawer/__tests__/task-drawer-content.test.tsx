@@ -3,7 +3,7 @@
  * @module components/crm/record-drawer/__tests__/task-drawer-content
  */
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TaskDrawerContent } from "../task-drawer-content";
 
@@ -26,6 +26,7 @@ vi.mock("@/hooks/use-crm-tasks", () => ({
       description: "Call about Sunday viewing.",
       status: "open",
       due_date: "2026-03-10T00:00:00+08:00",
+      custom_fields: { priority_note: "Call after 6pm" },
       created_at: "2026-03-01T00:00:00+08:00",
       updated_at: "2026-03-04T00:00:00+08:00",
       contacts: { first_name: "Sarah", last_name: "Tan" },
@@ -42,11 +43,34 @@ vi.mock("@/hooks/use-update-crm-task", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-crm-config", () => ({
+  useCrmConfig: () => ({
+    data: {
+      config: {
+        deal_label: "Policy",
+        deal_stages: ["lead", "quoted", "bound"],
+        contact_types: ["prospect", "client"],
+        interaction_types: ["call", "email"],
+        deal_contact_roles: ["insured", "owner"],
+        deal_custom_fields: [],
+        contact_custom_fields: [],
+        task_custom_fields: [
+          { key: "priority_note", label: "Priority Note", type: "text", required: false },
+        ],
+      },
+    },
+  }),
+}));
+
 vi.mock("@/components/crm/inline-edit-field", () => ({
   InlineEditField: (props: { label: string; value: string | null; type?: string }) => inlineFieldSpy(props),
 }));
 
 describe("TaskDrawerContent", () => {
+  beforeEach(() => {
+    inlineFieldSpy.mockClear();
+  });
+
   it("renders inline-edit fields for editable task details", () => {
     render(<TaskDrawerContent taskId="t-1" />);
 
@@ -68,5 +92,17 @@ describe("TaskDrawerContent", () => {
 
     expect(screen.getByText("Sarah Tan")).toBeInTheDocument();
     expect(screen.getByText("Bishan St 22")).toBeInTheDocument();
+  });
+
+  it("renders task custom fields from the CRM config", () => {
+    render(<TaskDrawerContent taskId="t-1" />);
+
+    expect(screen.getByTestId("inline-Priority Note")).toBeInTheDocument();
+
+    const customFieldCall = inlineFieldSpy.mock.calls.find(([props]) => props.label === "Priority Note")?.[0];
+    expect(customFieldCall).toMatchObject({
+      value: "Call after 6pm",
+      type: "text",
+    });
   });
 });

@@ -120,6 +120,34 @@ describe("useRealtimeTable", () => {
     expect(mockSubscribe).toHaveBeenCalledTimes(1);
   });
 
+  test("supports agent_triggers subscriptions", () => {
+    const { wrapper } = createWrapper();
+
+    renderHook(
+      () =>
+        useRealtimeTable({
+          table: "agent_triggers",
+          filter: "client_id=eq.client-1",
+          queryKeys: [["triggers", "list"]],
+        }),
+      { wrapper },
+    );
+
+    expect(mockChannelName).toHaveBeenCalledWith(
+      "realtime:agent_triggers:client_id=eq.client-1",
+    );
+    expect(mockOn).toHaveBeenCalledWith(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "agent_triggers",
+        filter: "client_id=eq.client-1",
+      },
+      expect.any(Function),
+    );
+  });
+
   test("removes the active channel on unmount", () => {
     const { wrapper } = createWrapper();
 

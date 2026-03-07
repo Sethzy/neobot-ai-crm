@@ -1,0 +1,219 @@
+/**
+ * Tests for CRM configurability helpers and schemas.
+ * @module lib/crm/__tests__/config
+ */
+import { describe, expect, it } from "vitest";
+
+import { createMockSupabase } from "@/lib/runner/tools/crm/__tests__/mock-supabase";
+
+import {
+  buildCustomFieldsSchema,
+  CRM_DEFAULTS,
+  customFieldDefinitionSchema,
+  loadCrmConfig,
+  resolveCrmConfig,
+  type CustomFieldDefinition,
+  type CrmConfigRow,
+} from "../config";
+
+const CLIENT_ID = "660e8400-e29b-41d4-a716-446655440000";
+
+describe("customFieldDefinitionSchema", () => {
+  it("accepts valid text fields", () => {
+    const field = { key: "policy_number", label: "Policy Number", type: "text" } as const;
+
+    expect(customFieldDefinitionSchema.parse(field)).toEqual(field);
+  });
+
+  it("requires non-empty options for select fields", () => {
+    const field = {
+      key: "priority",
+      label: "Priority",
+      type: "select",
+      options: ["low", "high"],
+    } as const;
+
+    expect(customFieldDefinitionSchema.parse(field)).toEqual(field);
+    expect(() =>
+      customFieldDefinitionSchema.parse({
+        key: "priority",
+        label: "Priority",
+        type: "select",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects invalid field types", () => {
+    expect(() =>
+      customFieldDefinitionSchema.parse({
+        key: "test",
+        label: "Test",
+        type: "boolean",
+      }),
+    ).toThrow();
+  });
+});
+
+describe("resolveCrmConfig", () => {
+  it("returns defaults when row is null", () => {
+    expect(resolveCrmConfig(null)).toEqual(CRM_DEFAULTS);
+  });
+
+  it("uses configured values and falls back for null columns", () => {
+    const row: CrmConfigRow = {
+      deal_label: "Policy",
+      deal_stages: ["lead", "quoted", "bound", "lost"],
+      contact_types: ["prospect", "client"],
+      interaction_types: null,
+      deal_contact_roles: null,
+      deal_custom_fields: [{ key: "policy_number", label: "Policy Number", type: "text" }],
+      contact_custom_fields: [],
+      task_custom_fields: [],
+    };
+
+    const config = resolveCrmConfig(row);
+
+    expect(config.deal_label).toBe("Policy");
+    expect(config.deal_stages).toEqual(["lead", "quoted", "bound", "lost"]);
+    expect(config.contact_types).toEqual(["prospect", "client"]);
+    expect(config.interaction_types).toEqual(CRM_DEFAULTS.interaction_types);
+    expect(config.deal_contact_roles).toEqual(CRM_DEFAULTS.deal_contact_roles);
+  });
+
+  it("normalizes legacy object-array vocab shapes and deduplicates string values", () => {
+    const row: CrmConfigRow = {
+      deal_label: "Deal",
+      deal_stages: [
+        { id: "leads", name: "Leads" },
+        { id: "closing", name: "Closing" },
+        "leads",
+      ],
+      contact_types: ["buyer", "buyer", "seller"],
+      interaction_types: [{ id: "call", name: "Call" }],
+      deal_contact_roles: null,
+      deal_custom_fields: [],
+      contact_custom_fields: [],
+      task_custom_fields: [],
+    };
+
+    const config = resolveCrmConfig(row);
+
+    expect(config.deal_stages).toEqual(["leads", "closing"]);
+    expect(config.contact_types).toEqual(["buyer", "seller"]);
+    expect(config.interaction_types).toEqual(["call"]);
+  });
+
+  it("filters invalid custom field definitions and keeps the last duplicate key", () => {
+    const row: CrmConfigRow = {
+      deal_label: "Deal",
+      deal_stages: null,
+      contact_types: null,
+      interaction_types: null,
+      deal_contact_roles: null,
+      deal_custom_fields: [
+        { key: "coverage", label: "Coverage", type: "number" },
+        { key: "", label: "Broken", type: "text" },
+        { key: "coverage", label: "Coverage Amount", type: "currency" },
+      ] as CustomFieldDefinition[],
+      contact_custom_fields: [],
+      task_custom_fields: [],
+    };
+
+    const config = resolveCrmConfig(row);
+
+    expect(config.deal_custom_fields).toHaveLength(1);
+    expect(config.deal_custom_fields[0]).toMatchObject({
+      key: "coverage",
+      label: "Coverage Amount",
+      type: "currency",
+    });
+  });
+});
+
+describe("buildCustomFieldsSchema", () => {
+  it("rejects unknown fields when no definitions exist", () => {
+    const schema = buildCustomFieldsSchema([]);
+
+    expect(schema.parse({})).toEqual({});
+    expect(() => schema.parse({ anything: "goes" })).toThrow();
+  });
+
+  it("validates configured custom fields in create mode", () => {
+    const schema = buildCustomFieldsSchema([
+      { key: "policy_number", label: "Policy Number", type: "text", required: true },
+      { key: "coverage", label: "Coverage", type: "number" },
+      { key: "priority", label: "Priority", type: "select", options: ["low", "high"] },
+      { key: "expiry_date", label: "Expiry Date", type: "date" },
+    ]);
+
+    expect(
+      schema.parse({
+        policy_number: "POL-001",
+        coverage: 50000,
+        priority: "low",
+        expiry_date: "2026-12-31",
+      }),
+    ).toEqual({
+      policy_number: "POL-001",
+      coverage: 50000,
+      priority: "low",
+      expiry_date: "2026-12-31",
+    });
+
+    expect(() => schema.parse({ coverage: 50000 })).toThrow();
+    expect(() => schema.parse({ policy_number: "POL-001", coverage: "50000" })).toThrow();
+    expect(() => schema.parse({ policy_number: "POL-001", priority: "urgent" })).toThrow();
+  });
+
+  it("allows partial updates in update mode", () => {
+    const schema = buildCustomFieldsSchema(
+      [{ key: "policy_number", label: "Policy Number", type: "text", required: true }],
+      "update",
+    );
+
+    expect(schema.parse({})).toEqual({});
+    expect(schema.parse({ policy_number: "POL-002" })).toEqual({ policy_number: "POL-002" });
+  });
+});
+
+describe("loadCrmConfig", () => {
+  it("returns defaults with hasConfig false when no row exists", async () => {
+    const { client, builders } = createMockSupabase({
+      crm_config: { data: null, error: null },
+    });
+
+    const result = await loadCrmConfig(client, CLIENT_ID);
+
+    expect(result).toEqual({
+      config: CRM_DEFAULTS,
+      hasConfig: false,
+    });
+    expect(builders.crm_config.select).toHaveBeenCalled();
+    expect(builders.crm_config.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
+  });
+
+  it("returns resolved config with hasConfig true when a row exists", async () => {
+    const { client } = createMockSupabase({
+      crm_config: {
+        data: {
+          deal_label: "Policy",
+          deal_stages: ["lead", "quoted", "bound"],
+          contact_types: ["prospect", "client"],
+          interaction_types: ["call"],
+          deal_contact_roles: ["client", "broker"],
+          deal_custom_fields: [{ key: "policy_number", label: "Policy Number", type: "text" }],
+          contact_custom_fields: [],
+          task_custom_fields: [],
+        },
+        error: null,
+      },
+    });
+
+    const result = await loadCrmConfig(client, CLIENT_ID);
+
+    expect(result.hasConfig).toBe(true);
+    expect(result.config.deal_label).toBe("Policy");
+    expect(result.config.deal_stages).toEqual(["lead", "quoted", "bound"]);
+    expect(result.config.deal_contact_roles).toEqual(["client", "broker"]);
+  });
+});

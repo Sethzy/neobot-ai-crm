@@ -1,0 +1,173 @@
+/**
+ * Tests CRM-config-aware runner orchestration.
+ * @module lib/runner/__tests__/run-agent-crm-config
+ */
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { CRM_DEFAULTS } from "@/lib/crm/config";
+import type { RunnerPayload } from "../schemas";
+
+const {
+  mockStreamText,
+  mockStepCountIs,
+  mockGateway,
+  mockAssembleContext,
+  mockCreateRun,
+  mockMarkStaleRunsFailed,
+  mockCreateCrmTools,
+  mockCreateStorageTools,
+  mockCreateWebTools,
+  mockCreateUtilityTools,
+  mockCreateTriggerTools,
+  mockCreateMessages,
+  mockLoadCrmConfig,
+  mockFinalizeRun,
+} = vi.hoisted(() => ({
+  mockStreamText: vi.fn(),
+  mockStepCountIs: vi.fn(() => vi.fn(() => true)),
+  mockGateway: vi.fn(() => "mock-model"),
+  mockAssembleContext: vi.fn(),
+  mockCreateRun: vi.fn(),
+  mockMarkStaleRunsFailed: vi.fn(),
+  mockCreateCrmTools: vi.fn(),
+  mockCreateStorageTools: vi.fn(),
+  mockCreateWebTools: vi.fn(),
+  mockCreateUtilityTools: vi.fn(),
+  mockCreateTriggerTools: vi.fn(),
+  mockCreateMessages: vi.fn(),
+  mockLoadCrmConfig: vi.fn(),
+  mockFinalizeRun: vi.fn(),
+}));
+
+vi.mock("ai", () => ({
+  streamText: mockStreamText,
+  stepCountIs: mockStepCountIs,
+}));
+
+vi.mock("@/lib/ai/gateway", () => ({
+  gateway: mockGateway,
+  TIER_1_MODEL: "google/gemini-3-flash",
+}));
+
+vi.mock("@/lib/crm/config", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/crm/config")>();
+  return {
+    ...actual,
+    loadCrmConfig: mockLoadCrmConfig,
+  };
+});
+
+vi.mock("@/lib/runner/context", () => ({
+  assembleContext: mockAssembleContext,
+}));
+
+vi.mock("@/lib/runner/run-lifecycle", () => ({
+  createRun: mockCreateRun,
+  completeRun: vi.fn(),
+  markStaleRunsFailed: mockMarkStaleRunsFailed,
+}));
+
+vi.mock("@/lib/runner/run-persistence", () => ({
+  finalizeRun: mockFinalizeRun,
+}));
+
+vi.mock("@/lib/runner/thread-queue", () => ({
+  enqueueMessage: vi.fn(),
+}));
+
+vi.mock("@/lib/runner/tools", () => ({
+  createCrmTools: mockCreateCrmTools,
+  createStorageTools: mockCreateStorageTools,
+  createWebTools: mockCreateWebTools,
+  createUtilityTools: mockCreateUtilityTools,
+  createTriggerTools: mockCreateTriggerTools,
+}));
+
+vi.mock("@/lib/chat/messages", () => ({
+  createMessages: (...args: unknown[]) => mockCreateMessages(...args),
+}));
+
+import { runAgent } from "../run-agent";
+
+const validPayload: RunnerPayload = {
+  clientId: "550e8400-e29b-41d4-a716-446655440000",
+  threadId: "660e8400-e29b-41d4-a716-446655440000",
+  triggerType: "chat",
+  input: "Hello, Sunder!",
+};
+
+describe("runAgent CRM configuration", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockMarkStaleRunsFailed.mockResolvedValue(0);
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+    mockLoadCrmConfig.mockResolvedValue({
+      config: {
+        ...CRM_DEFAULTS,
+        deal_label: "Policy",
+        deal_stages: ["lead", "quoted", "bound"],
+      },
+      hasConfig: false,
+    });
+    mockCreateCrmTools.mockReturnValue({ search_contacts: { description: "tool" } });
+    mockCreateStorageTools.mockReturnValue({ read_file: { description: "storage" } });
+    mockCreateWebTools.mockReturnValue({ web_search: { description: "web" } });
+    mockCreateUtilityTools.mockReturnValue({ manage_todo: { description: "utility" } });
+    mockCreateTriggerTools.mockReturnValue({ search_triggers: { description: "trigger" } });
+    mockAssembleContext.mockResolvedValue({
+      system: "system",
+      messages: [{ role: "user", content: "Hello, Sunder!" }],
+    });
+    mockCreateMessages.mockResolvedValue([]);
+    mockStreamText.mockReturnValue({ toUIMessageStream: vi.fn(() => new ReadableStream()) });
+  });
+
+  it("loads CRM config once and stays in normal mode when no config row exists", async () => {
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    expect(mockLoadCrmConfig).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+    );
+    expect(mockAssembleContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        crmMode: "normal",
+        crmConfig: expect.objectContaining({
+          deal_label: "Policy",
+          deal_stages: ["lead", "quoted", "bound"],
+        }),
+      }),
+    );
+    expect(mockCreateCrmTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      expect.objectContaining({
+        allowWriteTools: true,
+        mode: "normal",
+        config: expect.objectContaining({
+          deal_label: "Policy",
+          deal_stages: ["lead", "quoted", "bound"],
+        }),
+      }),
+    );
+  });
+
+  it("uses explicit setup mode instead of heuristics", async () => {
+    await runAgent(
+      {
+        ...validPayload,
+        crmMode: "setup",
+      } as RunnerPayload,
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockAssembleContext).toHaveBeenCalledWith(
+      expect.objectContaining({ crmMode: "setup" }),
+    );
+    expect(mockCreateCrmTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      expect.objectContaining({ mode: "setup" }),
+    );
+  });
+});

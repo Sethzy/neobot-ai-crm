@@ -4,8 +4,7 @@
  */
 "use client";
 
-import { StickyNote } from "lucide-react";
-
+import { AppIcon } from "@/components/icons/app-icons";
 import { interactionTypeIconMap } from "@/components/crm/interaction-timeline";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -61,12 +60,12 @@ export function ContactTimeline({ contactId }: ContactTimelineProps) {
   return (
     <div className="space-y-4">
       {interactions.map((interaction) => {
-        const Icon = interactionTypeIconMap[interaction.type] ?? StickyNote;
+        const iconName = interactionTypeIconMap[interaction.type] ?? "note";
 
         return (
           <div key={interaction.interaction_id} className="flex gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/40">
-              <Icon className="h-4 w-4 text-muted-foreground" />
+              <AppIcon name={iconName} className="h-4 w-4 text-muted-foreground" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">

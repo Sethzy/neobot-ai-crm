@@ -3,7 +3,7 @@
  * @module components/crm/record-drawer/__tests__/deal-drawer-content
  */
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DealDrawerContent } from "../deal-drawer-content";
 
@@ -24,6 +24,7 @@ vi.mock("@/hooks/use-deals", () => ({
       stage: "offer",
       price: 1200000,
       notes: "Awaiting valuation report.",
+      custom_fields: { policy_number: "P-123", coverage_amount: 250000 },
       created_at: "2026-03-01T00:00:00+08:00",
       updated_at: "2026-03-04T00:00:00+08:00",
       deal_contacts: [
@@ -54,11 +55,35 @@ vi.mock("@/hooks/use-update-deal", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-crm-config", () => ({
+  useCrmConfig: () => ({
+    data: {
+      config: {
+        deal_label: "Policy",
+        deal_stages: ["lead", "quoted", "bound"],
+        contact_types: ["prospect", "client"],
+        interaction_types: ["call", "email"],
+        deal_contact_roles: ["insured", "owner"],
+        deal_custom_fields: [
+          { key: "policy_number", label: "Policy Number", type: "text", required: false },
+          { key: "coverage_amount", label: "Coverage Amount", type: "currency", required: false },
+        ],
+        contact_custom_fields: [],
+        task_custom_fields: [],
+      },
+    },
+  }),
+}));
+
 vi.mock("@/components/crm/inline-edit-field", () => ({
   InlineEditField: (props: { label: string; value: string | null; type?: string }) => inlineFieldSpy(props),
 }));
 
 describe("DealDrawerContent", () => {
+  beforeEach(() => {
+    inlineFieldSpy.mockClear();
+  });
+
   it("renders inline-edit fields for editable deal details", () => {
     render(<DealDrawerContent dealId="d-1" />);
 
@@ -83,5 +108,26 @@ describe("DealDrawerContent", () => {
     expect(screen.getByText("Details")).toBeInTheDocument();
     expect(screen.getByText("Contacts")).toBeInTheDocument();
     expect(screen.getByText("Activity")).toBeInTheDocument();
+  });
+
+  it("uses config-driven stages and renders deal custom fields in the drawer", () => {
+    render(<DealDrawerContent dealId="d-1" />);
+
+    expect(screen.getByTestId("inline-Policy Number")).toBeInTheDocument();
+    expect(screen.getByTestId("inline-Coverage Amount")).toBeInTheDocument();
+
+    const stageCall = inlineFieldSpy.mock.calls.find(([props]) => props.label === "Stage")?.[0];
+    expect(stageCall.options).toEqual([
+      { value: "lead", label: "Lead" },
+      { value: "quoted", label: "Quoted" },
+      { value: "bound", label: "Bound" },
+      { value: "offer", label: "Offer" },
+    ]);
+
+    const coverageCall = inlineFieldSpy.mock.calls.find(([props]) => props.label === "Coverage Amount")?.[0];
+    expect(coverageCall).toMatchObject({
+      value: "250000",
+      type: "number",
+    });
   });
 });

@@ -2,22 +2,20 @@
  * Read-only timeline list for deal interactions.
  * @module components/crm/interaction-timeline
  */
-import { Calendar, Eye, Mail, MessageCircle, Phone, StickyNote } from "lucide-react";
-import type { ElementType } from "react";
-
+import { AppIcon, type AppIconName } from "@/components/icons/app-icons";
 import { Badge } from "@/components/ui/badge";
 import { formatContactFullName, formatCrmDateTime } from "@/lib/crm/display";
 import type { InteractionWithContact } from "@/hooks/use-contact-relations";
 import type { Interaction } from "@/lib/crm/schemas";
 
-/** Maps interaction types to Lucide icon components. Shared by timeline variants. */
-export const interactionTypeIconMap: Record<Interaction["type"], ElementType> = {
-  call: Phone,
-  meeting: Calendar,
-  email: Mail,
-  message: MessageCircle,
-  viewing: Eye,
-  note: StickyNote,
+/** Maps interaction types to semantic app icons. Shared by timeline variants. */
+export const interactionTypeIconMap: Record<Interaction["type"], AppIconName> = {
+  call: "phone",
+  meeting: "meeting",
+  email: "email",
+  message: "message",
+  viewing: "viewing",
+  note: "note",
 };
 
 const interactionTypeLabelMap: Record<Interaction["type"], string> = {
@@ -44,13 +42,13 @@ export function InteractionTimeline({ interactions }: InteractionTimelineProps) 
   return (
     <div className="space-y-4">
       {interactions.map((interaction) => {
-        const Icon = interactionTypeIconMap[interaction.type] ?? StickyNote;
+        const iconName = interactionTypeIconMap[interaction.type] ?? "note";
         const contactName = interaction.contacts ? formatContactFullName(interaction.contacts) : null;
 
         return (
           <div key={interaction.interaction_id} className="flex gap-3 rounded-xl border border-border/40 bg-card p-4 shadow-sm">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/40">
-              <Icon className="h-4 w-4 text-muted-foreground" />
+              <AppIcon name={iconName} className="h-4 w-4 text-muted-foreground" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">

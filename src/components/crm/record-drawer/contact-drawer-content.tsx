@@ -10,11 +10,20 @@ import { StageBadge } from "@/components/crm/stage-badge";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useContactDeals } from "@/hooks/use-contact-relations";
+import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useContact } from "@/hooks/use-contacts";
 import { useUpdateContact } from "@/hooks/use-update-contact";
-import { contactTypeBadgeVariantMap, formatContactFullName, toNullableValue } from "@/lib/crm/display";
+import {
+  buildCrmSelectOptions,
+  contactTypeBadgeVariantMap,
+  formatContactFullName,
+  formatCrmEnumLabel,
+  parseCustomFieldInputValue,
+  toNullableValue,
+} from "@/lib/crm/display";
 import { contactTypeValues, type Contact } from "@/lib/crm/schemas";
 
+import { CustomFieldEditors } from "./custom-field-editors";
 import { DrawerSection } from "./drawer-section";
 
 interface ContactDrawerContentProps {
@@ -28,6 +37,7 @@ interface ContactDrawerContentProps {
 export function ContactDrawerContent({ contactId }: ContactDrawerContentProps) {
   const { data: contact, isLoading, isError } = useContact(contactId);
   const { data: linkedDeals = [] } = useContactDeals(contactId);
+  const { data: crmConfigResult } = useCrmConfig();
   const updateContact = useUpdateContact(contactId);
 
   if (isLoading) {
@@ -44,11 +54,19 @@ export function ContactDrawerContent({ contactId }: ContactDrawerContentProps) {
     return <div className="p-6 text-sm text-destructive">Failed to load contact.</div>;
   }
 
+  const contactTypeOptions = buildCrmSelectOptions(
+    crmConfigResult?.config.contact_types ?? contactTypeValues,
+    contact.type,
+  );
+  const contactCustomFields = crmConfigResult?.config.contact_custom_fields ?? [];
+
   return (
     <div className="space-y-6 overflow-y-auto p-6">
       <header className="space-y-1">
         <h2 className="text-lg font-semibold">{formatContactFullName(contact)}</h2>
-        <Badge variant={contactTypeBadgeVariantMap[contact.type]}>{contact.type}</Badge>
+        <Badge variant={contactTypeBadgeVariantMap[contact.type] ?? "secondary"}>
+          {formatCrmEnumLabel(contact.type)}
+        </Badge>
       </header>
 
       <DrawerSection title="Details">
@@ -71,10 +89,7 @@ export function ContactDrawerContent({ contactId }: ContactDrawerContentProps) {
             label="Type"
             value={contact.type}
             type="select"
-            options={contactTypeValues.map((contactType) => ({
-              value: contactType,
-              label: contactType,
-            }))}
+            options={contactTypeOptions}
             onSave={async (nextValue) => {
               await updateContact.mutateAsync({ type: nextValue as Contact["type"] });
             }}
@@ -89,6 +104,22 @@ export function ContactDrawerContent({ contactId }: ContactDrawerContentProps) {
           />
         </div>
       </DrawerSection>
+
+      {contactCustomFields.length > 0 ? (
+        <DrawerSection title="Custom Fields">
+          <CustomFieldEditors
+            definitions={contactCustomFields}
+            values={(contact.custom_fields as Record<string, unknown> | null | undefined) ?? {}}
+            onSaveField={async (definition, nextValue) => {
+              await updateContact.mutateAsync({
+                custom_fields: {
+                  [definition.key]: parseCustomFieldInputValue(definition.type, nextValue),
+                },
+              });
+            }}
+          />
+        </DrawerSection>
+      ) : null}
 
       <DrawerSection title="Deals">
         {linkedDeals.length === 0 ? (

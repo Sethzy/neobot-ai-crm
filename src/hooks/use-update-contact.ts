@@ -6,12 +6,13 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { mergeCustomFieldPatch } from "@/hooks/crm-custom-fields";
 import { contactKeys } from "@/hooks/use-contacts";
 import { type Contact } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
 type ContactUpdate = Partial<
-  Pick<Contact, "first_name" | "last_name" | "phone" | "email" | "type" | "notes">
+  Pick<Contact, "first_name" | "last_name" | "phone" | "email" | "type" | "notes" | "custom_fields">
 >;
 
 /**
@@ -22,7 +23,17 @@ export function useUpdateContact(contactId: string) {
 
   return useMutation({
     mutationFn: async (updates: ContactUpdate) => {
-      const { error } = await supabase.from("contacts").update(updates).eq("contact_id", contactId);
+      const mergedUpdates = await mergeCustomFieldPatch({
+        table: "contacts",
+        idColumn: "contact_id",
+        recordId: contactId,
+        updates,
+      });
+
+      const { error } = await supabase
+        .from("contacts")
+        .update(mergedUpdates)
+        .eq("contact_id", contactId);
 
       if (error) {
         throw error;

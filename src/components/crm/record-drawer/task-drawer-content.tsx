@@ -7,11 +7,17 @@
 import { InlineEditField } from "@/components/crm/inline-edit-field";
 import { TaskStatusBadge } from "@/components/crm/task-status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useCrmTask } from "@/hooks/use-crm-tasks";
 import { useUpdateCrmTask } from "@/hooks/use-update-crm-task";
-import { formatContactFullName, toNullableValue } from "@/lib/crm/display";
+import {
+  parseCustomFieldInputValue,
+  formatContactFullName,
+  toNullableValue,
+} from "@/lib/crm/display";
 import { crmTaskStatusValues, type CrmTask } from "@/lib/crm/schemas";
 
+import { CustomFieldEditors } from "./custom-field-editors";
 import { DrawerSection } from "./drawer-section";
 
 interface TaskDrawerContentProps {
@@ -24,6 +30,7 @@ interface TaskDrawerContentProps {
  */
 export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
   const { data: task, isLoading, isError } = useCrmTask(taskId);
+  const { data: crmConfigResult } = useCrmConfig();
   const updateTask = useUpdateCrmTask(taskId);
 
   const toTitleCase = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
@@ -40,6 +47,8 @@ export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
   if (isError || !task) {
     return <div className="p-6 text-sm text-destructive">Failed to load task.</div>;
   }
+
+  const taskCustomFields = crmConfigResult?.config.task_custom_fields ?? [];
 
   return (
     <div className="space-y-6 overflow-y-auto p-6">
@@ -84,6 +93,22 @@ export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
           />
         </div>
       </DrawerSection>
+
+      {taskCustomFields.length > 0 ? (
+        <DrawerSection title="Custom Fields">
+          <CustomFieldEditors
+            definitions={taskCustomFields}
+            values={(task.custom_fields as Record<string, unknown> | null | undefined) ?? {}}
+            onSaveField={async (definition, nextValue) => {
+              await updateTask.mutateAsync({
+                custom_fields: {
+                  [definition.key]: parseCustomFieldInputValue(definition.type, nextValue),
+                },
+              });
+            }}
+          />
+        </DrawerSection>
+      ) : null}
 
       {(task.contacts || task.deals) && (
         <DrawerSection title="Linked Records">

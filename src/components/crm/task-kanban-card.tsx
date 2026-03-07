@@ -3,8 +3,7 @@
  * Styled to match Twenty CRM card layout with avatar initials.
  * @module components/crm/task-kanban-card
  */
-import { Building2, CalendarClock, User } from "lucide-react";
-
+import { AppIcon } from "@/components/icons/app-icons";
 import type { CrmTaskWithRelations } from "@/hooks/use-crm-tasks";
 import { formatContactFullName, formatCrmDate, getAvatarColor } from "@/lib/crm/display";
 
@@ -37,19 +36,19 @@ export function TaskKanbanCard({ task }: TaskKanbanCardProps) {
       <div className="space-y-1 text-xs text-muted-foreground">
         {task.due_date ? (
           <div className="flex items-center gap-1.5">
-            <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+            <AppIcon name="schedule" className="h-3.5 w-3.5 shrink-0" />
             <span>{formatCrmDate(task.due_date)}</span>
           </div>
         ) : null}
         {task.deals?.address ? (
           <div className="flex items-center gap-1.5">
-            <Building2 className="h-3.5 w-3.5 shrink-0" />
+            <AppIcon name="building" className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">{task.deals.address}</span>
           </div>
         ) : null}
         {contactName ? (
           <div className="flex items-center gap-1.5">
-            <User className="h-3.5 w-3.5 shrink-0" />
+            <AppIcon name="person" className="h-3.5 w-3.5 shrink-0" />
             <span className="inline-flex items-center gap-1.5 truncate">
               <span
                 className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[8px] font-medium text-white ${getAvatarColor(contactName)}`}

@@ -17,6 +17,7 @@ export type RealtimeTableName =
   | "deal_contacts"
   | "interactions"
   | "crm_tasks"
+  | "agent_triggers"
   | "vault_files";
 
 export interface UseRealtimeTableOptions {

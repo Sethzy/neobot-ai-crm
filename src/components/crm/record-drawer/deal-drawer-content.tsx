@@ -9,11 +9,20 @@ import { InlineEditField } from "@/components/crm/inline-edit-field";
 import { StageBadge } from "@/components/crm/stage-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDealInteractions } from "@/hooks/use-contact-relations";
+import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useDeal } from "@/hooks/use-deals";
 import { useUpdateDeal } from "@/hooks/use-update-deal";
-import { formatContactFullName, formatCrmPrice, toNullableValue } from "@/lib/crm/display";
+import {
+  buildCrmSelectOptions,
+  formatContactFullName,
+  formatCrmEnumLabel,
+  formatCrmPrice,
+  parseCustomFieldInputValue,
+  toNullableValue,
+} from "@/lib/crm/display";
 import { dealStageValues, type Deal } from "@/lib/crm/schemas";
 
+import { CustomFieldEditors } from "./custom-field-editors";
 import { DrawerSection } from "./drawer-section";
 
 interface DealDrawerContentProps {
@@ -27,9 +36,8 @@ interface DealDrawerContentProps {
 export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
   const { data: deal, isLoading, isError } = useDeal(dealId);
   const { data: interactions = [] } = useDealInteractions(dealId);
+  const { data: crmConfigResult } = useCrmConfig();
   const updateDeal = useUpdateDeal(dealId);
-
-  const toTitleCase = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
   if (isLoading) {
     return (
@@ -43,6 +51,12 @@ export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
   if (isError || !deal) {
     return <div className="p-6 text-sm text-destructive">Failed to load deal.</div>;
   }
+
+  const dealStageOptions = buildCrmSelectOptions(
+    crmConfigResult?.config.deal_stages ?? dealStageValues,
+    deal.stage,
+  );
+  const dealCustomFields = crmConfigResult?.config.deal_custom_fields ?? [];
 
   return (
     <div className="space-y-6 overflow-y-auto p-6">
@@ -64,7 +78,7 @@ export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
             label="Stage"
             value={deal.stage}
             type="select"
-            options={dealStageValues.map((stage) => ({ value: stage, label: toTitleCase(stage) }))}
+            options={dealStageOptions}
             onSave={async (nextValue) => {
               await updateDeal.mutateAsync({ stage: nextValue as Deal["stage"] });
             }}
@@ -98,6 +112,22 @@ export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
         </div>
       </DrawerSection>
 
+      {dealCustomFields.length > 0 ? (
+        <DrawerSection title="Custom Fields">
+          <CustomFieldEditors
+            definitions={dealCustomFields}
+            values={(deal.custom_fields as Record<string, unknown> | null | undefined) ?? {}}
+            onSaveField={async (definition, nextValue) => {
+              await updateDeal.mutateAsync({
+                custom_fields: {
+                  [definition.key]: parseCustomFieldInputValue(definition.type, nextValue),
+                },
+              });
+            }}
+          />
+        </DrawerSection>
+      ) : null}
+
       <DrawerSection title="Contacts">
         {deal.deal_contacts.length === 0 ? (
           <p className="text-sm text-muted-foreground">No linked contacts.</p>
@@ -111,7 +141,7 @@ export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
                 <span className="font-medium text-foreground/90">
                   {dealContact.contacts ? formatContactFullName(dealContact.contacts) : "—"}
                 </span>
-                <span className="text-xs text-muted-foreground">{dealContact.role}</span>
+                <span className="text-xs text-muted-foreground">{formatCrmEnumLabel(dealContact.role)}</span>
               </div>
             ))}
           </div>

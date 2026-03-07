@@ -4,8 +4,7 @@
  */
 "use client";
 
-import { Columns3, LayoutGrid, type LucideIcon } from "lucide-react";
-
+import { AppIcon, type AppIconName } from "@/components/icons/app-icons";
 import type { ViewType } from "@/hooks/use-view-preference";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,9 +18,9 @@ interface ViewToggleProps {
   onChange: (view: ViewType) => void;
 }
 
-const viewIconMap: Record<ViewType, LucideIcon> = {
-  table: LayoutGrid,
-  kanban: Columns3,
+const viewIconMap: Record<ViewType, AppIconName> = {
+  table: "table",
+  kanban: "kanban",
 };
 
 const viewLabelMap: Record<ViewType, string> = {
@@ -33,7 +32,6 @@ export function ViewToggle({ current, views, onChange }: ViewToggleProps) {
   return (
     <div className="flex items-center gap-0.5 rounded-lg border border-border/40 bg-muted/20 p-0.5">
       {views.map((view) => {
-        const Icon = viewIconMap[view];
         const isActive = view === current;
 
         return (
@@ -47,7 +45,7 @@ export function ViewToggle({ current, views, onChange }: ViewToggleProps) {
             className={cn(isActive ? "bg-background shadow-sm" : "text-muted-foreground")}
             onClick={() => onChange(view)}
           >
-            <Icon className="h-3.5 w-3.5" />
+            <AppIcon name={viewIconMap[view]} className="h-3.5 w-3.5" />
           </Button>
         );
       })}

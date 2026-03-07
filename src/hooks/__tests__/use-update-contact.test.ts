@@ -11,6 +11,9 @@ import { contactKeys } from "@/hooks/use-contacts";
 import { useUpdateContact } from "@/hooks/use-update-contact";
 
 const mockFrom = vi.fn();
+const mockSelect = vi.fn();
+const mockSelectEq = vi.fn();
+const mockSingle = vi.fn();
 const mockUpdate = vi.fn();
 const mockEq = vi.fn();
 
@@ -28,6 +31,9 @@ function createWrapper(queryClient: QueryClient) {
 describe("useUpdateContact", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSingle.mockResolvedValue({ data: { custom_fields: {} }, error: null });
+    mockSelectEq.mockReturnValue({ single: mockSingle });
+    mockSelect.mockReturnValue({ eq: mockSelectEq });
     mockEq.mockResolvedValue({ error: null });
     mockUpdate.mockReturnValue({ eq: mockEq });
     mockFrom.mockReturnValue({ update: mockUpdate });
@@ -70,5 +76,42 @@ describe("useUpdateContact", () => {
     });
 
     await expect(result.current.mutateAsync({ phone: "+6591112222" })).rejects.toEqual(error);
+  });
+
+  it("merges custom_fields patches with the latest stored value before updating", async () => {
+    mockFrom.mockReset();
+    mockFrom
+      .mockImplementationOnce(() => ({ select: mockSelect }))
+      .mockImplementationOnce(() => ({ update: mockUpdate }));
+    mockSingle.mockResolvedValue({
+      data: { custom_fields: { segment: "vip", preferred_channel: "whatsapp" } },
+      error: null,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    const { result } = renderHook(() => useUpdateContact("contact-1"), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await result.current.mutateAsync({
+      custom_fields: { segment: "standard" },
+    });
+
+    expect(mockFrom).toHaveBeenNthCalledWith(1, "contacts");
+    expect(mockSelect).toHaveBeenCalledWith("custom_fields");
+    expect(mockSelectEq).toHaveBeenCalledWith("contact_id", "contact-1");
+    expect(mockFrom).toHaveBeenNthCalledWith(2, "contacts");
+    expect(mockUpdate).toHaveBeenCalledWith({
+      custom_fields: {
+        segment: "standard",
+        preferred_channel: "whatsapp",
+      },
+    });
   });
 });

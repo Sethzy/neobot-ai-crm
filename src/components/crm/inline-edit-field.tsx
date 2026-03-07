@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { Check, CalendarIcon, Loader2, Pencil } from "lucide-react";
+import { Check, CalendarIcon, Loader2, Pencil } from "@/components/icons/lucide-compat";
 import { format } from "date-fns";
 import {
   type KeyboardEvent,
@@ -31,7 +31,7 @@ interface SelectOption {
   label: string;
 }
 
-type InlineEditType = "text" | "textarea" | "select" | "date";
+type InlineEditType = "text" | "textarea" | "select" | "date" | "number";
 
 interface InlineEditFieldProps {
   /** Field label rendered on the left side. */
@@ -94,7 +94,7 @@ export function InlineEditField({
   }, [currentValue, isEditing]);
 
   useEffect(() => {
-    if (isEditing && (type === "text" || type === "textarea")) {
+    if (isEditing && (type === "text" || type === "textarea" || type === "number")) {
       inputRef.current?.focus();
       inputRef.current?.select();
     }
@@ -302,6 +302,8 @@ export function InlineEditField({
     return (
       <Input
         ref={inputElementRef as RefObject<HTMLInputElement>}
+        type={type === "number" ? "number" : "text"}
+        inputMode={type === "number" ? "decimal" : undefined}
         value={draft}
         disabled={isSaving}
         className="h-8 w-[220px]"

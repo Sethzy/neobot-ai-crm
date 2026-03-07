@@ -11,6 +11,9 @@ import { dealKeys } from "@/hooks/use-deals";
 import { useUpdateDeal } from "@/hooks/use-update-deal";
 
 const mockFrom = vi.fn();
+const mockSelect = vi.fn();
+const mockSelectEq = vi.fn();
+const mockSingle = vi.fn();
 const mockUpdate = vi.fn();
 const mockEq = vi.fn();
 
@@ -28,6 +31,9 @@ function createWrapper(queryClient: QueryClient) {
 describe("useUpdateDeal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSingle.mockResolvedValue({ data: { custom_fields: {} }, error: null });
+    mockSelectEq.mockReturnValue({ single: mockSingle });
+    mockSelect.mockReturnValue({ eq: mockSelectEq });
     mockEq.mockResolvedValue({ error: null });
     mockUpdate.mockReturnValue({ eq: mockEq });
     mockFrom.mockReturnValue({ update: mockUpdate });
@@ -70,5 +76,42 @@ describe("useUpdateDeal", () => {
     });
 
     await expect(result.current.mutateAsync({ stage: "offer" })).rejects.toEqual(error);
+  });
+
+  it("merges deal custom_fields patches with the latest stored value before updating", async () => {
+    mockFrom.mockReset();
+    mockFrom
+      .mockImplementationOnce(() => ({ select: mockSelect }))
+      .mockImplementationOnce(() => ({ update: mockUpdate }));
+    mockSingle.mockResolvedValue({
+      data: { custom_fields: { policy_number: "P-123", coverage_amount: 250000 } },
+      error: null,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    const { result } = renderHook(() => useUpdateDeal("deal-1"), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await result.current.mutateAsync({
+      custom_fields: { coverage_amount: 300000 },
+    });
+
+    expect(mockFrom).toHaveBeenNthCalledWith(1, "deals");
+    expect(mockSelect).toHaveBeenCalledWith("custom_fields");
+    expect(mockSelectEq).toHaveBeenCalledWith("deal_id", "deal-1");
+    expect(mockFrom).toHaveBeenNthCalledWith(2, "deals");
+    expect(mockUpdate).toHaveBeenCalledWith({
+      custom_fields: {
+        policy_number: "P-123",
+        coverage_amount: 300000,
+      },
+    });
   });
 });

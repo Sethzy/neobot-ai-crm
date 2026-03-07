@@ -33,4 +33,12 @@ describe("StageBadge", () => {
     const badge = container.querySelector("[data-slot='badge']");
     expect(badge).toHaveAttribute("data-variant", "success");
   });
+
+  it("falls back gracefully for custom stages", () => {
+    const { container } = render(<StageBadge stage="underwriting" />);
+
+    expect(screen.getByText("Underwriting")).toBeInTheDocument();
+    const badge = container.querySelector("[data-slot='badge']");
+    expect(badge).toHaveAttribute("data-variant", "secondary");
+  });
 });

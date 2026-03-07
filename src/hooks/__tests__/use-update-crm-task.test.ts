@@ -11,6 +11,9 @@ import { crmTaskKeys } from "@/hooks/use-crm-tasks";
 import { useUpdateCrmTask } from "@/hooks/use-update-crm-task";
 
 const mockFrom = vi.fn();
+const mockSelect = vi.fn();
+const mockSelectEq = vi.fn();
+const mockSingle = vi.fn();
 const mockUpdate = vi.fn();
 const mockEq = vi.fn();
 
@@ -28,6 +31,9 @@ function createWrapper(queryClient: QueryClient) {
 describe("useUpdateCrmTask", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSingle.mockResolvedValue({ data: { custom_fields: {} }, error: null });
+    mockSelectEq.mockReturnValue({ single: mockSingle });
+    mockSelect.mockReturnValue({ eq: mockSelectEq });
     mockEq.mockResolvedValue({ error: null });
     mockUpdate.mockReturnValue({ eq: mockEq });
     mockFrom.mockReturnValue({ update: mockUpdate });
@@ -70,5 +76,42 @@ describe("useUpdateCrmTask", () => {
     });
 
     await expect(result.current.mutateAsync({ title: "Follow up" })).rejects.toEqual(error);
+  });
+
+  it("merges task custom_fields patches with the latest stored value before updating", async () => {
+    mockFrom.mockReset();
+    mockFrom
+      .mockImplementationOnce(() => ({ select: mockSelect }))
+      .mockImplementationOnce(() => ({ update: mockUpdate }));
+    mockSingle.mockResolvedValue({
+      data: { custom_fields: { priority_note: "Call after 6pm", owner: "Seth" } },
+      error: null,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    const { result } = renderHook(() => useUpdateCrmTask("task-1"), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await result.current.mutateAsync({
+      custom_fields: { priority_note: "Call before 6pm" },
+    });
+
+    expect(mockFrom).toHaveBeenNthCalledWith(1, "crm_tasks");
+    expect(mockSelect).toHaveBeenCalledWith("custom_fields");
+    expect(mockSelectEq).toHaveBeenCalledWith("task_id", "task-1");
+    expect(mockFrom).toHaveBeenNthCalledWith(2, "crm_tasks");
+    expect(mockUpdate).toHaveBeenCalledWith({
+      custom_fields: {
+        priority_note: "Call before 6pm",
+        owner: "Seth",
+      },
+    });
   });
 });
