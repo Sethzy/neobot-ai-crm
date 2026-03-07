@@ -1,6 +1,7 @@
 /**
  * ask_user_question tool for structured user input during agent runs.
  * Surfaces 2-4 options mid-task; the user picks one and the agent continues.
+ * Constrained to one question per call to match the "one follow-up at a time" rule.
  * The execute function echoes questions back — the UI renders interactive buttons.
  * @module lib/runner/tools/utility/ask-user-question
  */
@@ -47,7 +48,7 @@ export function createAskUserQuestionTool() {
       "Present 2-4 concrete options. Users can always select 'Other' to type a custom response. " +
       "If you recommend an option, put it first and add '(Recommended)' to the label.",
     inputSchema: z.object({
-      questions: z.array(questionSchema).min(1).max(4),
+      questions: z.array(questionSchema).min(1).max(1),
     }),
     execute: async ({ questions }) => {
       // Echo questions back as output — the UI renders them as interactive buttons.

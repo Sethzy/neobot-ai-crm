@@ -66,7 +66,11 @@ function QuestionCard({
 
   const handleMultiDone = () => {
     if (selected.size === 0) return;
-    onSubmit(Array.from(selected).join(", "));
+    // Preserve display order (not click order) by filtering from the original options
+    const ordered = question.options
+      .filter((o) => selected.has(o.label))
+      .map((o) => o.label);
+    onSubmit(ordered.join(", "));
   };
 
   const handleOtherSubmit = () => {
@@ -152,6 +156,7 @@ function QuestionCard({
           <button
             type="button"
             data-testid="ask-question-other-trigger"
+            aria-label="Provide a custom response"
             className="rounded-md border border-dashed border-border/50 px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:border-border hover:text-foreground"
             onClick={() => setShowOther(true)}
           >

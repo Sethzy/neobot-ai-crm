@@ -239,6 +239,27 @@ describe("AskUserQuestionInline", () => {
     expect(onSubmit).toHaveBeenCalledWith("Email alerts");
   });
 
+  it("preserves display order in multi-select regardless of click order", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(
+      <AskUserQuestionInline
+        questions={[multiSelectQuestion]}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    const options = screen.getAllByTestId("ask-question-option");
+    // Click in reverse order: second option first, then first option
+    await user.click(options[1]);
+    await user.click(options[0]);
+    await user.click(screen.getByTestId("ask-question-done"));
+
+    // Should be display order (CRM sync first), not click order (Email alerts first)
+    expect(onSubmit).toHaveBeenCalledWith("CRM sync, Email alerts");
+  });
+
   it("renders multiple questions", () => {
     render(
       <AskUserQuestionInline
