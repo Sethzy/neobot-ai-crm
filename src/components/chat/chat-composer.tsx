@@ -136,6 +136,10 @@ export function ChatComposer({ status, value, onValueChange, onSubmit, onStop }:
     await uploadFiles(files);
   }, [uploadFiles]);
 
+  const handleChange = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    onValueChange(event.currentTarget.value);
+  }, [onValueChange]);
+
   const handlePaste = useCallback((event: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const imageFiles = Array.from(event.clipboardData?.items ?? [])
       .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
@@ -214,7 +218,7 @@ export function ChatComposer({ status, value, onValueChange, onSubmit, onStop }:
           <PromptInputTextarea
             placeholder="Send a message..."
             value={value}
-            onChange={(event) => onValueChange(event.currentTarget.value)}
+            onChange={handleChange}
             onPaste={handlePaste}
             disabled={isGenerating}
           />

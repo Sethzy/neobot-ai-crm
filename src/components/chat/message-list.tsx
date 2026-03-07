@@ -8,6 +8,8 @@ import { ArrowDown, MessageCircle } from "@/components/icons/lucide-compat";
 
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Button } from "@/components/ui/button";
+import { memo } from "react";
+
 import { useScrollToBottom } from "@/hooks/use-scroll-to-bottom";
 import { AUTOMATION_TEMPLATES } from "@/lib/automations/templates";
 import type { ChatStatus } from "@/types/chat";
@@ -26,7 +28,7 @@ interface MessageListProps {
   onQuestionSubmit?: (text: string) => void;
 }
 
-export function MessageList({ messages, status, onToolApproval, onSuggestionClick, onQuestionSubmit }: MessageListProps) {
+export const MessageList = memo(function MessageList({ messages, status, onToolApproval, onSuggestionClick, onQuestionSubmit }: MessageListProps) {
   const { containerRef, endRef, isAtBottom, scrollToBottom } = useScrollToBottom();
   const hasMessages = messages.length > 0;
   const isStreaming = status === "streaming";
@@ -113,4 +115,4 @@ export function MessageList({ messages, status, onToolApproval, onSuggestionClic
       ) : null}
     </div>
   );
-}
+});
