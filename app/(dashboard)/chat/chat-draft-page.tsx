@@ -15,7 +15,7 @@ interface ChatDraftPageProps {
 
 export function ChatDraftPage({ id }: ChatDraftPageProps) {
   const searchParams = useSearchParams();
-  const initialPrompt = searchParams.get("prompt") ?? undefined;
+  const initialPrompt = searchParams?.get("prompt") ?? undefined;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

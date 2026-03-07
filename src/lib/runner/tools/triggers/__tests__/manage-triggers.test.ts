@@ -68,6 +68,28 @@ describe("createManageTriggersTool", () => {
     mockCreateMessage.mockResolvedValue({ message_id: "message-1" });
   });
 
+  it("limits read-only mode to list and view actions", () => {
+    const supabase = createMockSupabase();
+    const { manage_active_triggers } = createManageTriggersTool(
+      supabase as never,
+      CLIENT_ID,
+      { readOnly: true },
+    );
+
+    expect(
+      manage_active_triggers.inputSchema.safeParse({
+        action: "view",
+        trigger_instance_id: "11111111-1111-4111-8111-111111111111",
+      }).success,
+    ).toBe(true);
+    expect(
+      manage_active_triggers.inputSchema.safeParse({
+        action: "delete",
+        trigger_instance_id: "11111111-1111-4111-8111-111111111111",
+      }).success,
+    ).toBe(false);
+  });
+
   it("lists non-pulse triggers with tasklet-style fields", async () => {
     const supabase = createMockSupabase();
     supabase.chain.then = (resolve: (value: unknown) => void) =>
@@ -141,6 +163,40 @@ describe("createManageTriggersTool", () => {
         timezone: "Asia/Singapore",
       },
     });
+  });
+
+  it("ignores non-object payload values when formatting trigger arguments", async () => {
+    const supabase = createMockSupabase();
+    supabase.chain.single.mockResolvedValueOnce({
+      data: {
+        id: "trigger-1",
+        name: "Daily briefing",
+        trigger_type: "schedule",
+        thread_id: "thread-1",
+        instruction_path: "subagents/triggers/daily-briefing.md",
+        cron_expression: "0 9 * * *",
+        payload: ["Asia/Singapore"],
+        invocation_message: "Check listings",
+      },
+      error: null,
+    });
+    const { manage_active_triggers } = createManageTriggersTool(supabase as never, CLIENT_ID);
+
+    const result = await manage_active_triggers.execute(
+      {
+        action: "view",
+        trigger_instance_id: "trigger-1",
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.trigger).toMatchObject({
+      arguments: {
+        cron_expression: "0 9 * * *",
+      },
+    });
+    expect(result.trigger.arguments).not.toHaveProperty("0");
   });
 
   it("deletes a trigger for the current client", async () => {

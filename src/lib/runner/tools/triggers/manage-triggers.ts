@@ -24,15 +24,22 @@ const READ_ONLY_ACTIONS = ["list", "view"] as const;
 
 type TriggerRow = Database["public"]["Tables"]["agent_triggers"]["Row"];
 type TriggerUpdate = Database["public"]["Tables"]["agent_triggers"]["Update"];
+type TriggerAction = (typeof TRIGGER_ACTIONS)[number];
 
 export interface CreateManageTriggersToolOptions {
   readOnly?: boolean;
 }
 
 function formatTriggerArguments(trigger: Pick<TriggerRow, "cron_expression" | "payload">) {
+  const payloadArguments = typeof trigger.payload === "object" &&
+    trigger.payload &&
+    !Array.isArray(trigger.payload)
+    ? trigger.payload
+    : {};
+
   return {
     cron_expression: trigger.cron_expression,
-    ...(typeof trigger.payload === "object" && trigger.payload ? trigger.payload : {}),
+    ...payloadArguments,
   };
 }
 
@@ -172,11 +179,13 @@ export function createManageTriggersTool(
       payload: z.record(z.string(), z.unknown()).optional(),
     }),
     execute: async (input) => {
-      if (input.action !== "list" && !input.trigger_instance_id) {
+      const action = input.action as TriggerAction;
+
+      if (action !== "list" && !input.trigger_instance_id) {
         return { success: false as const, error: "trigger_instance_id is required." };
       }
 
-      switch (input.action) {
+      switch (action) {
         case "list": {
           const { data, error } = await supabase
             .from("agent_triggers")
