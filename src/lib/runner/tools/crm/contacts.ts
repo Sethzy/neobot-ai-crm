@@ -11,13 +11,13 @@ import {
   CRM_DEFAULTS,
   type CrmVocabConfig,
 } from "@/lib/crm/config";
-import type { Database, Json } from "@/types/database";
+import type { Database, JsonObject } from "@/types/database";
 
+import { mergeCustomFields } from "./custom-fields";
 import { buildIlikePattern, buildSearchExpression, DEFAULT_CRM_RESULT_LIMIT } from "./filter-utils";
 
 const CONTACT_SEARCH_COLUMNS = ["first_name", "last_name", "email", "phone"];
 type ContactUpdate = Database["public"]["Tables"]["contacts"]["Update"];
-type JsonObject = { [key: string]: Json | undefined };
 
 /**
  * Searches for existing contacts matching first_name AND last_name (case-insensitive).
@@ -186,23 +186,12 @@ export function createContactTools(
       }
 
       if ("custom_fields" in updates) {
-        const { data: existing, error: existingError } = await supabase
-          .from("contacts")
-          .select("custom_fields")
-          .eq("contact_id", contact_id)
-          .eq("client_id", clientId)
-          .single();
-
-        if (existingError) {
-          return { success: false as const, error: existingError.message };
-        }
-
-        const nextCustomFields = {
-          ...((existing?.custom_fields as JsonObject | null) ?? {}),
-          ...((updates.custom_fields as JsonObject | undefined) ?? {}),
-        } satisfies JsonObject;
-
-        updates.custom_fields = nextCustomFields;
+        const result = await mergeCustomFields(
+          supabase, "contacts", "contact_id", contact_id, clientId,
+          (updates.custom_fields as JsonObject | undefined) ?? {},
+        );
+        if (result.error) return { success: false as const, error: result.error };
+        updates.custom_fields = result.merged;
       }
 
       const { data, error } = await supabase

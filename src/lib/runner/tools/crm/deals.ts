@@ -11,13 +11,13 @@ import {
   CRM_DEFAULTS,
   type CrmVocabConfig,
 } from "@/lib/crm/config";
-import type { Database, Json } from "@/types/database";
+import type { Database, JsonObject } from "@/types/database";
 
+import { mergeCustomFields } from "./custom-fields";
 import { buildIlikePattern, buildSearchExpression, DEFAULT_CRM_RESULT_LIMIT } from "./filter-utils";
 
 const DEAL_SEARCH_COLUMNS = ["address", "notes"];
 type DealUpdate = Database["public"]["Tables"]["deals"]["Update"];
-type JsonObject = { [key: string]: Json | undefined };
 
 /**
  * Searches for existing deals matching address (case-insensitive).
@@ -176,23 +176,12 @@ export function createDealTools(
       }
 
       if ("custom_fields" in updates) {
-        const { data: existing, error: existingError } = await supabase
-          .from("deals")
-          .select("custom_fields")
-          .eq("deal_id", deal_id)
-          .eq("client_id", clientId)
-          .single();
-
-        if (existingError) {
-          return { success: false as const, error: existingError.message };
-        }
-
-        const nextCustomFields = {
-          ...((existing?.custom_fields as JsonObject | null) ?? {}),
-          ...((updates.custom_fields as JsonObject | undefined) ?? {}),
-        } satisfies JsonObject;
-
-        updates.custom_fields = nextCustomFields;
+        const result = await mergeCustomFields(
+          supabase, "deals", "deal_id", deal_id, clientId,
+          (updates.custom_fields as JsonObject | undefined) ?? {},
+        );
+        if (result.error) return { success: false as const, error: result.error };
+        updates.custom_fields = result.merged;
       }
 
       const { data, error } = await supabase

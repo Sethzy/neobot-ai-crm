@@ -12,8 +12,9 @@ import {
   type CrmVocabConfig,
 } from "@/lib/crm/config";
 import { crmTaskStatusValues } from "@/lib/crm/schemas";
-import type { Database, Json } from "@/types/database";
+import type { Database, JsonObject } from "@/types/database";
 
+import { mergeCustomFields } from "./custom-fields";
 import { DEFAULT_CRM_RESULT_LIMIT, flexibleTimestampSchema, normalizeDateString } from "./filter-utils";
 
 /**
@@ -22,7 +23,6 @@ import { DEFAULT_CRM_RESULT_LIMIT, flexibleTimestampSchema, normalizeDateString 
  * These tools target `crm_tasks` (not `agent_tasks`).
  */
 type CrmTaskUpdate = Database["public"]["Tables"]["crm_tasks"]["Update"];
-type JsonObject = { [key: string]: Json | undefined };
 
 export function createTaskTools(
   supabase: SupabaseClient<Database>,
@@ -157,23 +157,12 @@ export function createTaskTools(
       }
 
       if ("custom_fields" in updates) {
-        const { data: existing, error: existingError } = await supabase
-          .from("crm_tasks")
-          .select("custom_fields")
-          .eq("task_id", task_id)
-          .eq("client_id", clientId)
-          .single();
-
-        if (existingError) {
-          return { success: false as const, error: existingError.message };
-        }
-
-        const nextCustomFields = {
-          ...((existing?.custom_fields as JsonObject | null) ?? {}),
-          ...((updates.custom_fields as JsonObject | undefined) ?? {}),
-        } satisfies JsonObject;
-
-        updates.custom_fields = nextCustomFields;
+        const result = await mergeCustomFields(
+          supabase, "crm_tasks", "task_id", task_id, clientId,
+          (updates.custom_fields as JsonObject | undefined) ?? {},
+        );
+        if (result.error) return { success: false as const, error: result.error };
+        updates.custom_fields = result.merged;
       }
 
       const { data, error } = await supabase
