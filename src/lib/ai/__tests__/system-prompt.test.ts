@@ -85,6 +85,13 @@ describe("SYSTEM_PROMPT", () => {
     );
     expect(SYSTEM_PROMPT).toContain("When a trigger event includes an instruction_path");
   });
+
+  it("includes connection-first guidance for external tools", () => {
+    expect(SYSTEM_PROMPT).toContain("<connections>");
+    expect(SYSTEM_PROMPT).toContain("Active connections:");
+    expect(SYSTEM_PROMPT).toContain("Settings");
+    expect(SYSTEM_PROMPT).toContain("Never try to create or manage connections yourself");
+  });
 });
 
 describe("SYSTEM_PROMPT memory instructions", () => {

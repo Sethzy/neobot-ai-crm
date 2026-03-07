@@ -22,6 +22,8 @@ const {
   mockCreateMessages,
   mockLoadCrmConfig,
   mockFinalizeRun,
+  mockGetActiveToolkitSlugs,
+  mockLoadComposioTools,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
@@ -37,6 +39,8 @@ const {
   mockCreateMessages: vi.fn(),
   mockLoadCrmConfig: vi.fn(),
   mockFinalizeRun: vi.fn(),
+  mockGetActiveToolkitSlugs: vi.fn(),
+  mockLoadComposioTools: vi.fn(),
 }));
 
 vi.mock("ai", () => ({
@@ -87,6 +91,14 @@ vi.mock("@/lib/chat/messages", () => ({
   createMessages: (...args: unknown[]) => mockCreateMessages(...args),
 }));
 
+vi.mock("@/lib/connections/queries", () => ({
+  getActiveToolkitSlugs: (...args: unknown[]) => mockGetActiveToolkitSlugs(...args),
+}));
+
+vi.mock("@/lib/composio", () => ({
+  loadComposioTools: (...args: unknown[]) => mockLoadComposioTools(...args),
+}));
+
 import { runAgent } from "../run-agent";
 
 const validPayload: RunnerPayload = {
@@ -119,6 +131,8 @@ describe("runAgent CRM configuration", () => {
       messages: [{ role: "user", content: "Hello, Sunder!" }],
     });
     mockCreateMessages.mockResolvedValue([]);
+    mockGetActiveToolkitSlugs.mockResolvedValue([]);
+    mockLoadComposioTools.mockResolvedValue({});
     mockStreamText.mockReturnValue({ toUIMessageStream: vi.fn(() => new ReadableStream()) });
   });
 

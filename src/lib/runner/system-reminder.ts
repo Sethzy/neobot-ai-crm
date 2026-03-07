@@ -14,6 +14,7 @@ const systemReminderContextSchema = z.object({
   open_todo_count: z.number().int().nonnegative(),
   memory_file_count: z.number().int().nonnegative(),
   active_trigger_count: z.number().int().nonnegative(),
+  active_connection_toolkits: z.array(z.string()),
 });
 
 type SystemReminderContext = z.infer<typeof systemReminderContextSchema>;
@@ -25,6 +26,7 @@ const FALLBACK_CONTEXT: SystemReminderContext = {
   open_todo_count: 0,
   memory_file_count: 0,
   active_trigger_count: 0,
+  active_connection_toolkits: [],
 };
 
 export function escapeXml(value: string): string {
@@ -63,6 +65,7 @@ async function fetchReminderContext(
     open_todo_count: parsedResult.data.open_todo_count ?? 0,
     memory_file_count: parsedResult.data.memory_file_count ?? 0,
     active_trigger_count: parsedResult.data.active_trigger_count ?? 0,
+    active_connection_toolkits: parsedResult.data.active_connection_toolkits ?? [],
   };
 }
 
@@ -95,6 +98,13 @@ export async function buildSystemReminder(
   reminderLines.push(`Open todos: ${context.open_todo_count}`);
   reminderLines.push(`Memory files: ${context.memory_file_count}`);
   reminderLines.push(`Active triggers: ${context.active_trigger_count}`);
+  reminderLines.push(
+    `Active connections: ${
+      context.active_connection_toolkits.length > 0
+        ? context.active_connection_toolkits.map((toolkitSlug) => escapeXml(toolkitSlug)).join(", ")
+        : "none"
+    }`,
+  );
 
   if (context.days_since_signup !== null) {
     reminderLines.push(`Days since signup: ${context.days_since_signup}`);

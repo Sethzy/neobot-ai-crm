@@ -367,6 +367,19 @@ const streamResult = streamText({
 
 **Key design:** Composio tools are spread alongside existing runner tools. They're loaded per-run based on DB state, not hardcoded.
 
+Wrap the connections lookup + Composio load in a local fallback so transient `connections` table issues do not fail the entire run:
+
+```typescript
+let composioTools: ToolSet = {};
+
+try {
+  const activeToolkits = await getActiveToolkitSlugs(supabase, clientId);
+  composioTools = await loadComposioTools(clientId, activeToolkits);
+} catch (error) {
+  console.error("[composio] Failed to resolve active connections for runner.", error);
+}
+```
+
 If TypeScript needs it, widen the local `tools` type with `ToolSet` rather than changing the existing `createRunnerTools()` API.
 
 **TDD:** Test that:
@@ -424,7 +437,7 @@ If TypeScript needs it, widen the local `tools` type with `ToolSet` rather than 
 <connections>
 Before using any external service tool (Gmail, Calendar, Slack, etc.), check the "Active connections:" line in your system reminder.
 - If the needed service is connected: proceed with the tool call.
-- If the needed service is NOT connected: tell the user to connect it in Settings → Connections. Do NOT attempt to use tools for unconnected services.
+- If the needed service is NOT connected: tell the user to connect it in Settings. Do NOT attempt to use tools for unconnected services.
 - Never try to create or manage connections yourself — connections are managed by the user in Settings.
 </connections>
 ```
@@ -456,7 +469,8 @@ Before using any external service tool (Gmail, Calendar, Slack, etc.), check the
 2. Resolve `clientId` from session
 3. Check for an existing active DB connection for the toolkit; if one exists, return `409`
 4. Resolve an auth config for the toolkit:
-   - `composio.authConfigs.list({ toolkit })`
+   - `composio.authConfigs.list({ toolkit, isComposioManaged: true })`
+   - Reuse the first `ENABLED` config only
    - If none exists, create one with managed auth
 5. Build an explicit callback URL pointing to `/api/connections/callback`
 6. Call `composio.connectedAccounts.link(clientId, authConfigId, { callbackUrl })`
@@ -470,8 +484,12 @@ if (existingConnection) {
   return jsonError("Service already connected.", 409);
 }
 
-const authConfigs = await composio.authConfigs.list({ toolkit });
-const authConfigId = authConfigs.items[0]?.id
+const authConfigs = await composio.authConfigs.list({
+  toolkit,
+  isComposioManaged: true,
+});
+const reusableAuthConfig = authConfigs.items.find((authConfig) => authConfig.status === "ENABLED");
+const authConfigId = reusableAuthConfig?.id
   ?? (await composio.authConfigs.create(toolkit, {
     type: "use_composio_managed_auth",
     name: `${toolkit} Auth Config`,
@@ -509,20 +527,25 @@ return NextResponse.json({ redirectUrl: connectionRequest.redirectUrl });
 **Flow:**
 1. Receive callback from Composio after user completes OAuth
 2. Authenticate the returning browser session and resolve `clientId`
-3. Extract `connectedAccountId` and `connectionStatus` from query params
-4. Reject if required params are missing or `connectionStatus` is not active/success
+3. Extract callback params from the query string:
+   - Official Composio params: `status` and `connected_account_id`
+   - Optional defensive aliases: `connectionStatus` and `connectedAccountId`
+4. Reject if required params are missing or `status` is not `success`/`active`
 5. Call `composio.connectedAccounts.get(connectedAccountId)` to verify the account is ACTIVE
-6. Upsert into our `connections` table:
+6. Verify the callback account belongs to the current `clientId`:
+   - `composio.connectedAccounts.list({ userIds: [clientId], statuses: ["ACTIVE"], toolkitSlugs: [connectedAccount.toolkit.slug], limit: 100 })`
+   - Confirm the callback `connectedAccountId` is present before persisting
+7. Upsert into our `connections` table:
    ```typescript
    await upsertConnection(supabase, {
      client_id: clientId,
      composio_connected_account_id: connectedAccount.id,
      toolkit_slug: connectedAccount.toolkit.slug,
-     display_name: connectedAccount.toolkit.name,
+     display_name: null,
      status: "active",
    });
    ```
-7. Redirect to success page (e.g. `/settings/connections?connected=true`)
+8. Redirect to success page (e.g. `/settings?connection=success&toolkit=gmail`)
 
 **TDD:** Test that:
 - Redirects to an error state if the browser session is unauthenticated
@@ -543,7 +566,7 @@ return NextResponse.json({ redirectUrl: connectionRequest.redirectUrl });
 - Modify: `src/types/database.ts`
 
 **Steps:**
-1. Regenerate types from Supabase: `pnpm supabase gen types typescript --local > src/types/database.ts`
+1. Add the `connections` table entry to `src/types/database.ts` with `Row`, `Insert`, `Update`, and `Relationships`
 2. Verify `connections` table types are present
 3. Verify `get_system_reminder_context` return type includes `active_connection_toolkits`
 

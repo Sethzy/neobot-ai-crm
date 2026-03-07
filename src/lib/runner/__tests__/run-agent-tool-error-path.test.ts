@@ -22,6 +22,8 @@ const {
   mockCreateMessages,
   mockMaybeCompactThread,
   mockTruncateOversizedParts,
+  mockGetActiveToolkitSlugs,
+  mockLoadComposioTools,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
@@ -40,6 +42,8 @@ const {
   mockCreateMessages: vi.fn(),
   mockMaybeCompactThread: vi.fn(),
   mockTruncateOversizedParts: vi.fn(),
+  mockGetActiveToolkitSlugs: vi.fn(),
+  mockLoadComposioTools: vi.fn(),
 }));
 
 vi.mock("ai", () => ({
@@ -100,6 +104,14 @@ vi.mock("@/lib/runner/tools", () => ({
   createTriggerTools: mockCreateTriggerTools,
 }));
 
+vi.mock("@/lib/connections/queries", () => ({
+  getActiveToolkitSlugs: (...args: unknown[]) => mockGetActiveToolkitSlugs(...args),
+}));
+
+vi.mock("@/lib/composio", () => ({
+  loadComposioTools: (...args: unknown[]) => mockLoadComposioTools(...args),
+}));
+
 import type { RunnerPayload } from "../schemas";
 import { runAgent } from "../run-agent";
 
@@ -131,6 +143,8 @@ describe("runAgent tool-error completion path", () => {
       parts,
       recoveryPaths: [],
     }));
+    mockGetActiveToolkitSlugs.mockResolvedValue([]);
+    mockLoadComposioTools.mockResolvedValue({});
     mockStreamText.mockReturnValue({
       toUIMessageStreamResponse: vi.fn(() => new Response("streamed")),
     });

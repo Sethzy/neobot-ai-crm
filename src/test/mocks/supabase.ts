@@ -26,6 +26,7 @@ type Operation = "select" | "insert" | "update" | "delete";
 interface ChainableQuery {
   select: (...args: unknown[]) => ChainableQuery;
   insert: (...args: unknown[]) => ChainableQuery;
+  upsert: (...args: unknown[]) => ChainableQuery;
   update: (...args: unknown[]) => ChainableQuery;
   delete: (...args: unknown[]) => ChainableQuery;
   eq: (...args: unknown[]) => ChainableQuery;
@@ -99,6 +100,11 @@ export function createMockSupabaseClient(config: MockSupabaseConfig = {}): MockS
         },
         insert: (...args: unknown[]) => {
           calls.methods.push({ method: "insert", args });
+          operation = "insert";
+          return query;
+        },
+        upsert: (...args: unknown[]) => {
+          calls.methods.push({ method: "upsert", args });
           operation = "insert";
           return query;
         },

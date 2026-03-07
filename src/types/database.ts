@@ -965,6 +965,47 @@ export type Database = {
           },
         ]
       }
+      connections: {
+        Row: {
+          client_id: string
+          composio_connected_account_id: string
+          created_at: string
+          display_name: string | null
+          id: string
+          status: string
+          toolkit_slug: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          composio_connected_account_id: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          status?: string
+          toolkit_slug: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          composio_connected_account_id?: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          status?: string
+          toolkit_slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connections_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
       agent_triggers: {
         Row: {
           client_id: string
@@ -1403,7 +1444,15 @@ export type Database = {
       get_my_client_id: { Args: never; Returns: string }
       get_system_reminder_context: {
         Args: { p_client_id: string; p_thread_id: string }
-        Returns: Json
+        Returns: {
+          active_connection_toolkits: string[]
+          active_trigger_count: number
+          days_since_signup: number | null
+          display_name: string | null
+          memory_file_count: number
+          open_todo_count: number
+          user_email: string | null
+        }
       }
       mark_stale_runs_failed: {
         Args: { p_stale_minutes?: number; p_thread_id?: string | null }

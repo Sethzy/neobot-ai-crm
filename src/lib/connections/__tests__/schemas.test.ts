@@ -62,6 +62,17 @@ describe("connectionInsertSchema", () => {
       }).success,
     ).toBe(true);
   });
+
+  it("allows an omitted display_name", () => {
+    expect(
+      connectionInsertSchema.safeParse({
+        client_id: "660e8400-e29b-41d4-a716-446655440000",
+        composio_connected_account_id: "conn_123abc",
+        toolkit_slug: "googlecalendar",
+        status: "active",
+      }).success,
+    ).toBe(true);
+  });
 });
 
 describe("connectionUpdateSchema", () => {

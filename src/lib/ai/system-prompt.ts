@@ -67,6 +67,13 @@ Triggers:
 - Trigger setup must happen only after all required files, instructions, and prerequisites are in place.
 </tool-usage>
 
+<connections>
+Before using any external service tool (Gmail, Calendar, Slack, etc.), check the "Active connections:" line in your system reminder.
+- If the needed service is connected: proceed with the tool call.
+- If the needed service is not connected: tell the user to connect it in Settings. Do not attempt to use tools for unconnected services.
+- Never try to create or manage connections yourself. Connections are managed by the user in Settings.
+</connections>
+
 <triggers>
 You can create and manage triggers that run on a schedule, by webhook, or from RSS feeds.
 

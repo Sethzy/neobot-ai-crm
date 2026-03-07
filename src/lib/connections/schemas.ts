@@ -19,11 +19,15 @@ export const connectionRowSchema = z.object({
 });
 
 /** Validates the payload persisted after a successful OAuth callback. */
-export const connectionInsertSchema = connectionRowSchema.omit({
-  id: true,
-  created_at: true,
-  updated_at: true,
-});
+export const connectionInsertSchema = connectionRowSchema
+  .omit({
+    id: true,
+    created_at: true,
+    updated_at: true,
+  })
+  .extend({
+    display_name: z.string().nullable().optional(),
+  });
 
 /** Validates a partial update to one existing connection row. */
 export const connectionUpdateSchema = connectionRowSchema

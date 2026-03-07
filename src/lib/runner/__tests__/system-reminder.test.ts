@@ -17,6 +17,7 @@ const BASE_CONTEXT = {
   open_todo_count: 0,
   memory_file_count: 7,
   active_trigger_count: 0,
+  active_connection_toolkits: [] as string[],
 };
 
 function createReminderSupabase(
@@ -92,6 +93,26 @@ describe("buildSystemReminder", () => {
     const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);
 
     expect(result).toContain("Active triggers: 4");
+  });
+
+  it("includes active connection toolkits when present", async () => {
+    const supabase = createReminderSupabase({
+      active_connection_toolkits: ["gmail", "googlecalendar"],
+    });
+
+    const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);
+
+    expect(result).toContain("Active connections: gmail, googlecalendar");
+  });
+
+  it("renders active connections as none when there are no active toolkits", async () => {
+    const supabase = createReminderSupabase({
+      active_connection_toolkits: [],
+    });
+
+    const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);
+
+    expect(result).toContain("Active connections: none");
   });
 
   it("escapes XML-reserved characters from user fields", async () => {

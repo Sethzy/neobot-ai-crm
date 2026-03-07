@@ -2,11 +2,13 @@
  * Runner core loop entrypoint for streaming model calls.
  * @module lib/runner/run-agent
  */
-import { stepCountIs, streamText } from "ai";
+import { stepCountIs, streamText, type ToolSet } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
 import { createMessages } from "@/lib/chat/messages";
+import { loadComposioTools } from "@/lib/composio";
+import { getActiveToolkitSlugs } from "@/lib/connections/queries";
 import { loadCrmConfig } from "@/lib/crm/config";
 import { assembleContext } from "@/lib/runner/context";
 import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
@@ -30,7 +32,8 @@ type RunnerTools = ReturnType<typeof createCrmTools> &
   ReturnType<typeof createTriggerTools> &
   ReturnType<typeof createUtilityTools> &
   ReturnType<typeof createWebTools>;
-type StreamResult = ReturnType<typeof streamText<RunnerTools>>;
+type CombinedRunnerTools = RunnerTools & ToolSet;
+type StreamResult = ReturnType<typeof streamText<CombinedRunnerTools>>;
 
 export type RunAgentResult =
   | { status: "streaming"; streamResult: StreamResult }
@@ -139,11 +142,24 @@ export async function runAgent(
       crmConfig,
       crmMode,
     });
-    const tools = createRunnerTools(supabase, clientId, threadId, {
+    const runnerTools = createRunnerTools(supabase, clientId, threadId, {
       allowTriggerMutations: payload.triggerType === "chat",
       crmMode,
       crmConfig,
     });
+    let composioTools: ToolSet = {};
+
+    try {
+      const activeToolkits = await getActiveToolkitSlugs(supabase, clientId);
+      composioTools = await loadComposioTools(clientId, activeToolkits);
+    } catch (error) {
+      console.error("[composio] Failed to resolve active connections for runner.", error);
+    }
+
+    const tools: CombinedRunnerTools = {
+      ...runnerTools,
+      ...composioTools,
+    };
 
     const streamResult = streamText({
       model: gateway(modelId),
