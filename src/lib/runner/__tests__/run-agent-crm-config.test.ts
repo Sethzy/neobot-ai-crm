@@ -15,6 +15,7 @@ const {
   mockCreateRun,
   mockMarkStaleRunsFailed,
   mockCreateCrmTools,
+  mockCreateConnectionTools,
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
@@ -32,6 +33,7 @@ const {
   mockCreateRun: vi.fn(),
   mockMarkStaleRunsFailed: vi.fn(),
   mockCreateCrmTools: vi.fn(),
+  mockCreateConnectionTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
@@ -81,6 +83,7 @@ vi.mock("@/lib/runner/thread-queue", () => ({
 
 vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
+  createConnectionTools: mockCreateConnectionTools,
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
@@ -122,6 +125,7 @@ describe("runAgent CRM configuration", () => {
       hasConfig: false,
     });
     mockCreateCrmTools.mockReturnValue({ search_contacts: { description: "tool" } });
+    mockCreateConnectionTools.mockReturnValue({});
     mockCreateStorageTools.mockReturnValue({ read_file: { description: "storage" } });
     mockCreateWebTools.mockReturnValue({ web_search: { description: "web" } });
     mockCreateUtilityTools.mockReturnValue({ manage_todo: { description: "utility" } });

@@ -15,11 +15,14 @@ const {
   mockMarkStaleRunsFailed,
   mockEnqueueMessage,
   mockCreateCrmTools,
+  mockCreateConnectionTools,
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
   mockCreateTriggerTools,
   mockCreateMessages,
+  mockGetActiveToolkitSlugs,
+  mockLoadComposioTools,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
@@ -31,11 +34,14 @@ const {
   mockMarkStaleRunsFailed: vi.fn(),
   mockEnqueueMessage: vi.fn(),
   mockCreateCrmTools: vi.fn(),
+  mockCreateConnectionTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
   mockCreateTriggerTools: vi.fn(),
   mockCreateMessages: vi.fn(),
+  mockGetActiveToolkitSlugs: vi.fn(),
+  mockLoadComposioTools: vi.fn(),
 }));
 
 vi.mock("ai", () => ({ streamText: mockStreamText, stepCountIs: mockStepCountIs }));
@@ -66,10 +72,17 @@ vi.mock("@/lib/runner/thread-queue", () => ({
 }));
 vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
+  createConnectionTools: mockCreateConnectionTools,
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
   createTriggerTools: mockCreateTriggerTools,
+}));
+vi.mock("@/lib/connections/queries", () => ({
+  getActiveToolkitSlugs: (...args: unknown[]) => mockGetActiveToolkitSlugs(...args),
+}));
+vi.mock("@/lib/composio", () => ({
+  loadComposioTools: (...args: unknown[]) => mockLoadComposioTools(...args),
 }));
 
 import { runAgent } from "../run-agent";
@@ -87,6 +100,7 @@ describe("per-thread serialization", () => {
     mockCreateCrmTools.mockReturnValue({
       search_contacts: { description: "tool" },
     });
+    mockCreateConnectionTools.mockReturnValue({});
     mockCreateStorageTools.mockReturnValue({
       read_file: { description: "storage-tool" },
       write_file: { description: "storage-tool" },
@@ -111,6 +125,8 @@ describe("per-thread serialization", () => {
       system: "prompt",
       messages: [{ role: "user", content: "test" }],
     });
+    mockGetActiveToolkitSlugs.mockResolvedValue([]);
+    mockLoadComposioTools.mockResolvedValue({});
     mockStreamText.mockReturnValue({
       toUIMessageStreamResponse: vi.fn(() => new Response("streamed")),
     });

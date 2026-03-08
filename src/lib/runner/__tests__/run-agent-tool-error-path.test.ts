@@ -15,6 +15,7 @@ const {
   mockMarkStaleRunsFailed,
   mockDrainAndContinue,
   mockCreateCrmTools,
+  mockCreateConnectionTools,
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
@@ -35,6 +36,7 @@ const {
   mockMarkStaleRunsFailed: vi.fn(),
   mockDrainAndContinue: vi.fn(),
   mockCreateCrmTools: vi.fn(),
+  mockCreateConnectionTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
@@ -98,6 +100,7 @@ vi.mock("@/lib/runner/toolcall-artifacts", () => ({
 
 vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
+  createConnectionTools: mockCreateConnectionTools,
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
@@ -134,6 +137,7 @@ describe("runAgent tool-error completion path", () => {
       messages: [{ role: "user", content: "Please use failing_tool" }],
     });
     mockCreateCrmTools.mockReturnValue({});
+    mockCreateConnectionTools.mockReturnValue({});
     mockCreateStorageTools.mockReturnValue({});
     mockCreateWebTools.mockReturnValue({});
     mockCreateUtilityTools.mockReturnValue({});

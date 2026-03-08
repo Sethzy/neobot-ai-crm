@@ -8,6 +8,7 @@ const {
   mockStreamText,
   mockStepCountIs,
   mockGateway,
+  mockLoadCrmConfig,
   mockAssembleContext,
   mockCreateRun,
   mockCompleteRun,
@@ -15,15 +16,19 @@ const {
   mockEnqueueMessage,
   mockDrainAndContinue,
   mockCreateCrmTools,
+  mockCreateConnectionTools,
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
   mockCreateTriggerTools,
   mockCreateMessages,
+  mockGetActiveToolkitSlugs,
+  mockLoadComposioTools,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
   mockGateway: vi.fn(() => "mock-model"),
+  mockLoadCrmConfig: vi.fn(),
   mockAssembleContext: vi.fn(),
   mockCreateRun: vi.fn(),
   mockCompleteRun: vi.fn(),
@@ -31,11 +36,14 @@ const {
   mockEnqueueMessage: vi.fn(),
   mockDrainAndContinue: vi.fn(),
   mockCreateCrmTools: vi.fn(),
+  mockCreateConnectionTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
   mockCreateTriggerTools: vi.fn(),
   mockCreateMessages: vi.fn(),
+  mockGetActiveToolkitSlugs: vi.fn(),
+  mockLoadComposioTools: vi.fn(),
 }));
 
 vi.mock("ai", () => ({ streamText: mockStreamText, stepCountIs: mockStepCountIs }));
@@ -46,6 +54,13 @@ vi.mock("@/lib/ai/gateway", () => ({
   gateway: mockGateway,
   TIER_1_MODEL: "google/gemini-3-flash",
 }));
+vi.mock("@/lib/crm/config", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/crm/config")>();
+  return {
+    ...actual,
+    loadCrmConfig: mockLoadCrmConfig,
+  };
+});
 vi.mock("@/lib/runner/context", () => ({
   assembleContext: mockAssembleContext,
 }));
@@ -62,10 +77,17 @@ vi.mock("@/lib/runner/drain-and-continue", () => ({
 }));
 vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
+  createConnectionTools: mockCreateConnectionTools,
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
   createTriggerTools: mockCreateTriggerTools,
+}));
+vi.mock("@/lib/connections/queries", () => ({
+  getActiveToolkitSlugs: (...args: unknown[]) => mockGetActiveToolkitSlugs(...args),
+}));
+vi.mock("@/lib/composio", () => ({
+  loadComposioTools: (...args: unknown[]) => mockLoadComposioTools(...args),
 }));
 
 import { runAgent } from "../run-agent";
@@ -74,10 +96,12 @@ describe("stale run cleanup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockMarkStaleRunsFailed.mockResolvedValue(0);
+    mockLoadCrmConfig.mockResolvedValue({ config: {}, hasConfig: false });
     mockCreateMessages.mockResolvedValue([]);
     mockCreateCrmTools.mockReturnValue({
       search_contacts: { description: "tool" },
     });
+    mockCreateConnectionTools.mockReturnValue({});
     mockCreateStorageTools.mockReturnValue({
       read_file: { description: "storage-tool" },
       write_file: { description: "storage-tool" },
@@ -102,6 +126,8 @@ describe("stale run cleanup", () => {
       system: "prompt",
       messages: [{ role: "user", content: "test" }],
     });
+    mockGetActiveToolkitSlugs.mockResolvedValue([]);
+    mockLoadComposioTools.mockResolvedValue({});
     mockStreamText.mockReturnValue({
       toUIMessageStreamResponse: vi.fn(() => new Response("streamed")),
     });

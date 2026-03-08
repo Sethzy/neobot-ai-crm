@@ -62,6 +62,7 @@ export async function runAutopilot({
       stopWhen: stepCountIs(MAX_STEPS_AUTOPILOT),
       tools: createRunnerTools(supabase, clientId, threadId, {
         allowTriggerMutations: false,
+        allowConnectionMutations: false,
       }),
       prepareStep: buildPrepareStep(modelId, MAX_STEPS_AUTOPILOT),
     });

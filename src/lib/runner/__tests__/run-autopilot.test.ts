@@ -14,6 +14,7 @@ const {
   mockMarkStaleRunsFailed,
   mockDrainAndContinue,
   mockCreateCrmTools,
+  mockCreateConnectionTools,
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
@@ -33,6 +34,7 @@ const {
   mockMarkStaleRunsFailed: vi.fn(),
   mockDrainAndContinue: vi.fn(),
   mockCreateCrmTools: vi.fn(),
+  mockCreateConnectionTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
@@ -70,6 +72,7 @@ vi.mock("@/lib/runner/drain-and-continue", () => ({
 
 vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
+  createConnectionTools: mockCreateConnectionTools,
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
@@ -100,6 +103,12 @@ describe("runAutopilot", () => {
     vi.clearAllMocks();
     mockMarkStaleRunsFailed.mockResolvedValue(0);
     mockCreateCrmTools.mockReturnValue({ search_tasks: { description: "tool" } });
+    mockCreateConnectionTools.mockReturnValue({
+      list_users_connections: { description: "connection-tool" },
+      get_details_for_connections: { description: "connection-tool" },
+      search_for_integrations: { description: "connection-tool" },
+      get_integrations_capabilities: { description: "connection-tool" },
+    });
     mockCreateStorageTools.mockReturnValue({ read_file: { description: "tool" } });
     mockCreateWebTools.mockReturnValue({ web_search: { description: "tool" } });
     mockCreateUtilityTools.mockReturnValue({ list_todo: { description: "tool" } });
@@ -147,6 +156,10 @@ describe("runAutopilot", () => {
         tools: expect.objectContaining({
           search_triggers: { description: "tool" },
           manage_active_triggers: { description: "tool" },
+          list_users_connections: { description: "connection-tool" },
+          get_details_for_connections: { description: "connection-tool" },
+          search_for_integrations: { description: "connection-tool" },
+          get_integrations_capabilities: { description: "connection-tool" },
         }),
       }),
     );
@@ -154,6 +167,11 @@ describe("runAutopilot", () => {
       "supabase",
       "550e8400-e29b-41d4-a716-446655440000",
       "660e8400-e29b-41d4-a716-446655440000",
+      { allowMutations: false },
+    );
+    expect(mockCreateConnectionTools).toHaveBeenCalledWith(
+      "supabase",
+      "550e8400-e29b-41d4-a716-446655440000",
       { allowMutations: false },
     );
   });

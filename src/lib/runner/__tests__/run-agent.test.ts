@@ -15,6 +15,7 @@ const {
   mockEnqueueMessage,
   mockDrainAndContinue,
   mockCreateCrmTools,
+  mockCreateConnectionTools,
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
@@ -36,6 +37,7 @@ const {
   mockEnqueueMessage: vi.fn(),
   mockDrainAndContinue: vi.fn(),
   mockCreateCrmTools: vi.fn(),
+  mockCreateConnectionTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
@@ -77,6 +79,7 @@ vi.mock("@/lib/runner/drain-and-continue", () => ({
 }));
 vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
+  createConnectionTools: mockCreateConnectionTools,
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
@@ -139,6 +142,12 @@ describe("runAgent", () => {
       create_task: { description: "tool" },
       update_task: { description: "tool" },
       create_interaction: { description: "tool" },
+    });
+    mockCreateConnectionTools.mockReturnValue({
+      list_users_connections: { description: "connection-tool" },
+      get_details_for_connections: { description: "connection-tool" },
+      search_for_integrations: { description: "connection-tool" },
+      get_integrations_capabilities: { description: "connection-tool" },
     });
     mockCreateStorageTools.mockReturnValue({
       read_file: { description: "storage-tool" },
@@ -227,6 +236,10 @@ describe("runAgent", () => {
           search_triggers: { description: "trigger-tool" },
           setup_trigger: { description: "trigger-tool" },
           manage_active_triggers: { description: "trigger-tool" },
+          list_users_connections: { description: "connection-tool" },
+          get_details_for_connections: { description: "connection-tool" },
+          search_for_integrations: { description: "connection-tool" },
+          get_integrations_capabilities: { description: "connection-tool" },
         },
       }),
     );
@@ -253,6 +266,11 @@ describe("runAgent", () => {
       "mock-supabase-client",
       validPayload.clientId,
       validPayload.threadId,
+      { allowMutations: true },
+    );
+    expect(mockCreateConnectionTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
       { allowMutations: true },
     );
   });

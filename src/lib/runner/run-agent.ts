@@ -15,6 +15,7 @@ import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-li
 import { finalizeRun } from "@/lib/runner/run-persistence";
 import type { RunnerPayload } from "@/lib/runner/schemas";
 import {
+  createConnectionTools,
   createCrmTools,
   createStorageTools,
   createTriggerTools,
@@ -28,6 +29,7 @@ const MAX_STEPS_TIER_1 = 9;
 
 type ChatSupabaseClient = SupabaseClient<Database>;
 type RunnerTools = ReturnType<typeof createCrmTools> &
+  ReturnType<typeof createConnectionTools> &
   ReturnType<typeof createStorageTools> &
   ReturnType<typeof createTriggerTools> &
   ReturnType<typeof createUtilityTools> &
@@ -48,6 +50,7 @@ export function createRunnerTools(
   threadId: string,
   options?: {
     allowTriggerMutations?: boolean;
+    allowConnectionMutations?: boolean;
     crmMode?: "normal" | "setup";
     crmConfig?: Awaited<ReturnType<typeof loadCrmConfig>>["config"];
   },
@@ -63,6 +66,9 @@ export function createRunnerTools(
   const triggerTools = createTriggerTools(supabase, clientId, threadId, {
     allowMutations: options?.allowTriggerMutations ?? true,
   });
+  const connectionTools = createConnectionTools(supabase, clientId, {
+    allowMutations: options?.allowConnectionMutations ?? true,
+  });
 
   return {
     ...crmTools,
@@ -70,6 +76,7 @@ export function createRunnerTools(
     ...webTools,
     ...utilityTools,
     ...triggerTools,
+    ...connectionTools,
   };
 }
 
