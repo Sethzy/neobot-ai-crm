@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 
-export const connectionStatusValues = ["active", "inactive", "error"] as const;
+export const connectionStatusValues = ["active", "inactive", "error", "pending"] as const;
 
 /** Validates one `connections` table row returned from Supabase. */
 export const connectionRowSchema = z.object({
@@ -13,7 +13,10 @@ export const connectionRowSchema = z.object({
   composio_connected_account_id: z.string().min(1),
   toolkit_slug: z.string().min(1),
   display_name: z.string().nullable(),
+  account_identifier: z.string().nullable().default(null),
   status: z.enum(connectionStatusValues),
+  activated_tools: z.array(z.string()).default([]),
+  tool_count: z.number().int().nonnegative().default(0),
   created_at: z.string().datetime({ offset: true }),
   updated_at: z.string().datetime({ offset: true }),
 });
@@ -27,21 +30,22 @@ export const connectionInsertSchema = connectionRowSchema
   })
   .extend({
     display_name: z.string().nullable().optional(),
+    account_identifier: z.string().nullable().optional(),
+    activated_tools: z.array(z.string()).optional().default([]),
+    tool_count: z.number().int().nonnegative().optional().default(0),
   });
 
 /** Validates a partial update to one existing connection row. */
-export const connectionUpdateSchema = connectionRowSchema
-  .omit({
-    client_id: true,
-    composio_connected_account_id: true,
-    toolkit_slug: true,
-    created_at: true,
-    updated_at: true,
-  })
-  .partial()
-  .extend({
-    id: z.string().uuid(),
-  });
+export const connectionUpdateSchema = z.object({
+  id: z.string().uuid(),
+  composio_connected_account_id: z.string().min(1).optional(),
+  toolkit_slug: z.string().min(1).optional(),
+  display_name: z.string().nullable().optional(),
+  account_identifier: z.string().nullable().optional(),
+  status: z.enum(connectionStatusValues).optional(),
+  activated_tools: z.array(z.string()).optional(),
+  tool_count: z.number().int().nonnegative().optional(),
+});
 
 export type ConnectionRow = z.infer<typeof connectionRowSchema>;
 export type ConnectionInsert = z.infer<typeof connectionInsertSchema>;

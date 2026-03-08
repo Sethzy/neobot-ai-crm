@@ -7,11 +7,13 @@ import { z } from "zod";
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { getComposio } from "@/lib/composio";
-import { getActiveConnectionByToolkit } from "@/lib/connections/queries";
+import { insertConnection } from "@/lib/connections/queries";
 
 const initiateConnectionBodySchema = z.object({
   toolkit: z.string().trim().min(1).transform((toolkit) => toolkit.toLowerCase()),
 });
+
+const PENDING_CONNECTION_TTL_MS = 15 * 60 * 1000;
 
 /**
  * Returns a hosted Composio OAuth redirect URL for the requested toolkit.
@@ -42,14 +44,42 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const clientId = await resolveClientId(supabase, userId);
     const { toolkit } = bodyResult.data;
-    const existingConnection = await getActiveConnectionByToolkit(
-      supabase,
-      clientId,
-      toolkit,
-    );
+    const { data: pendingConnection, error: pendingConnectionError } = await supabase
+      .from("connections")
+      .select("id, created_at")
+      .eq("client_id", clientId)
+      .eq("toolkit_slug", toolkit)
+      .eq("status", "pending")
+      .maybeSingle();
 
-    if (existingConnection) {
-      return jsonError("Service already connected.", 409);
+    if (pendingConnectionError) {
+      throw new Error(
+        `Failed to check pending connection state: ${pendingConnectionError.message}`,
+      );
+    }
+
+    if (pendingConnection) {
+      const pendingStartedAt = typeof pendingConnection.created_at === "string"
+        ? Date.parse(pendingConnection.created_at)
+        : Number.NaN;
+      const isPendingConnectionExpired = Number.isFinite(pendingStartedAt)
+        && Date.now() - pendingStartedAt > PENDING_CONNECTION_TTL_MS;
+
+      if (!isPendingConnectionExpired) {
+        return jsonError("An OAuth flow for this service is already in progress.", 409);
+      }
+
+      const { error: stalePendingDeleteError } = await supabase
+        .from("connections")
+        .delete()
+        .eq("client_id", clientId)
+        .eq("id", pendingConnection.id);
+
+      if (stalePendingDeleteError) {
+        throw new Error(
+          `Failed to clear stale pending connection: ${stalePendingDeleteError.message}`,
+        );
+      }
     }
 
     const composio = getComposio();
@@ -65,14 +95,24 @@ export async function POST(request: Request): Promise<Response> {
           name: `${toolkit} Auth Config`,
         })
       ).id;
-    const callbackUrl = new URL("/api/connections/callback", request.url).toString();
+    const callbackUrl = new URL("/api/connections/callback", request.url);
+    callbackUrl.searchParams.set("toolkit", toolkit);
     const connectionRequest = await composio.connectedAccounts.link(clientId, authConfigId, {
-      callbackUrl,
+      callbackUrl: callbackUrl.toString(),
     });
 
     if (!connectionRequest.redirectUrl) {
       throw new Error("Composio did not return a redirect URL.");
     }
+
+    await insertConnection(supabase, {
+      client_id: clientId,
+      composio_connected_account_id: `pending:${crypto.randomUUID()}`,
+      toolkit_slug: toolkit,
+      display_name: null,
+      account_identifier: null,
+      status: "pending",
+    });
 
     return Response.json({ redirectUrl: connectionRequest.redirectUrl });
   } catch (error) {

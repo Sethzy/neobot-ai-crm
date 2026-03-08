@@ -970,32 +970,41 @@ export type Database = {
       }
       connections: {
         Row: {
+          account_identifier: string | null
+          activated_tools: string[]
           client_id: string
           composio_connected_account_id: string
           created_at: string
           display_name: string | null
           id: string
-          status: string
+          status: "active" | "inactive" | "error" | "pending"
+          tool_count: number
           toolkit_slug: string
           updated_at: string
         }
         Insert: {
+          account_identifier?: string | null
+          activated_tools?: string[]
           client_id: string
           composio_connected_account_id: string
           created_at?: string
           display_name?: string | null
           id?: string
-          status?: string
+          status?: "active" | "inactive" | "error" | "pending"
+          tool_count?: number
           toolkit_slug: string
           updated_at?: string
         }
         Update: {
+          account_identifier?: string | null
+          activated_tools?: string[]
           client_id?: string
           composio_connected_account_id?: string
           created_at?: string
           display_name?: string | null
           id?: string
-          status?: string
+          status?: "active" | "inactive" | "error" | "pending"
+          tool_count?: number
           toolkit_slug?: string
           updated_at?: string
         }

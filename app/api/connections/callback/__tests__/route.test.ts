@@ -6,13 +6,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   mockAuthenticateRequest,
+  mockDeleteConnection,
+  mockGetConnectionByConnectedAccountId,
+  mockGetPendingConnectionByToolkit,
   mockResolveClientId,
-  mockUpsertConnection,
+  mockInsertConnection,
+  mockUpdateConnection,
   mockGetComposio,
 } = vi.hoisted(() => ({
   mockAuthenticateRequest: vi.fn(),
+  mockDeleteConnection: vi.fn(),
+  mockGetConnectionByConnectedAccountId: vi.fn(),
+  mockGetPendingConnectionByToolkit: vi.fn(),
   mockResolveClientId: vi.fn(),
-  mockUpsertConnection: vi.fn(),
+  mockInsertConnection: vi.fn(),
+  mockUpdateConnection: vi.fn(),
   mockGetComposio: vi.fn(),
 }));
 
@@ -25,7 +33,12 @@ vi.mock("@/lib/chat/client-id", () => ({
 }));
 
 vi.mock("@/lib/connections/queries", () => ({
-  upsertConnection: (...args: unknown[]) => mockUpsertConnection(...args),
+  deleteConnection: (...args: unknown[]) => mockDeleteConnection(...args),
+  getConnectionByConnectedAccountId: (...args: unknown[]) =>
+    mockGetConnectionByConnectedAccountId(...args),
+  getPendingConnectionByToolkit: (...args: unknown[]) => mockGetPendingConnectionByToolkit(...args),
+  insertConnection: (...args: unknown[]) => mockInsertConnection(...args),
+  updateConnection: (...args: unknown[]) => mockUpdateConnection(...args),
 }));
 
 vi.mock("@/lib/composio", () => ({
@@ -43,13 +56,32 @@ describe("GET /api/connections/callback", () => {
       userId: "user-1",
     });
     mockResolveClientId.mockResolvedValue("client-1");
-    mockUpsertConnection.mockResolvedValue({
+    mockDeleteConnection.mockResolvedValue(undefined);
+    mockGetConnectionByConnectedAccountId.mockResolvedValue(null);
+    mockGetPendingConnectionByToolkit.mockResolvedValue(null);
+    mockInsertConnection.mockResolvedValue({
       id: "row-1",
       client_id: "client-1",
       composio_connected_account_id: "conn_123",
       toolkit_slug: "gmail",
       display_name: null,
+      account_identifier: null,
       status: "active",
+      activated_tools: [],
+      tool_count: 0,
+      created_at: "2026-03-07T00:00:00.000Z",
+      updated_at: "2026-03-07T00:00:00.000Z",
+    });
+    mockUpdateConnection.mockResolvedValue({
+      id: "row-1",
+      client_id: "client-1",
+      composio_connected_account_id: "conn_123",
+      toolkit_slug: "gmail",
+      display_name: null,
+      account_identifier: null,
+      status: "active",
+      activated_tools: [],
+      tool_count: 0,
       created_at: "2026-03-07T00:00:00.000Z",
       updated_at: "2026-03-07T00:00:00.000Z",
     });
@@ -86,20 +118,51 @@ describe("GET /api/connections/callback", () => {
   });
 
   it("redirects to settings error when callback params are missing", async () => {
+    mockGetPendingConnectionByToolkit.mockResolvedValue({
+      id: "pending-row-1",
+      client_id: "client-1",
+      composio_connected_account_id: "pending:test",
+      toolkit_slug: "gmail",
+      display_name: null,
+      account_identifier: null,
+      status: "pending",
+      activated_tools: [],
+      tool_count: 0,
+      created_at: "2026-03-07T00:00:00.000Z",
+      updated_at: "2026-03-07T00:00:00.000Z",
+    });
     const response = await GET(
-      new Request("http://localhost/api/connections/callback?status=success"),
+      new Request("http://localhost/api/connections/callback?status=success&toolkit=gmail"),
     );
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
       "http://localhost/settings?connection=error&reason=invalid_callback",
     );
+    expect(mockDeleteConnection).toHaveBeenCalledWith(
+      { marker: "server-client" },
+      "client-1",
+      "pending-row-1",
+    );
   });
 
   it("redirects to settings error when Composio reports a failed callback status", async () => {
+    mockGetPendingConnectionByToolkit.mockResolvedValue({
+      id: "pending-row-1",
+      client_id: "client-1",
+      composio_connected_account_id: "pending:test",
+      toolkit_slug: "gmail",
+      display_name: null,
+      account_identifier: null,
+      status: "pending",
+      activated_tools: [],
+      tool_count: 0,
+      created_at: "2026-03-07T00:00:00.000Z",
+      updated_at: "2026-03-07T00:00:00.000Z",
+    });
     const response = await GET(
       new Request(
-        "http://localhost/api/connections/callback?status=failed&connected_account_id=conn_123",
+        "http://localhost/api/connections/callback?status=failed&connected_account_id=conn_123&toolkit=gmail",
       ),
     );
 
@@ -107,9 +170,14 @@ describe("GET /api/connections/callback", () => {
     expect(response.headers.get("location")).toBe(
       "http://localhost/settings?connection=error&reason=failed",
     );
+    expect(mockDeleteConnection).toHaveBeenCalledWith(
+      { marker: "server-client" },
+      "client-1",
+      "pending-row-1",
+    );
   });
 
-  it("accepts the official callback params, verifies the account, upserts the row, and redirects to settings success", async () => {
+  it("finalizes a matching pending row and redirects to settings success", async () => {
     const getConnectedAccount = vi.fn().mockResolvedValue({
       id: "conn_123",
       status: "ACTIVE",
@@ -117,6 +185,19 @@ describe("GET /api/connections/callback", () => {
     });
     const listOwnedConnections = vi.fn().mockResolvedValue({
       items: [{ id: "conn_123" }],
+    });
+    mockGetPendingConnectionByToolkit.mockResolvedValue({
+      id: "pending-row-1",
+      client_id: "client-1",
+      composio_connected_account_id: "pending:test",
+      toolkit_slug: "gmail",
+      display_name: null,
+      account_identifier: null,
+      status: "pending",
+      activated_tools: [],
+      tool_count: 0,
+      created_at: "2026-03-07T00:00:00.000Z",
+      updated_at: "2026-03-07T00:00:00.000Z",
     });
     mockGetComposio.mockReturnValue({
       connectedAccounts: {
@@ -143,13 +224,26 @@ describe("GET /api/connections/callback", () => {
       toolkitSlugs: ["gmail"],
       limit: 100,
     });
-    expect(mockUpsertConnection).toHaveBeenCalledWith({ marker: "server-client" }, {
-      client_id: "client-1",
+    expect(mockGetConnectionByConnectedAccountId).toHaveBeenCalledWith(
+      { marker: "server-client" },
+      "client-1",
+      "conn_123",
+    );
+    expect(mockGetPendingConnectionByToolkit).toHaveBeenCalledWith(
+      { marker: "server-client" },
+      "client-1",
+      "gmail",
+    );
+    expect(mockUpdateConnection).toHaveBeenCalledWith({ marker: "server-client" }, "client-1", {
+      id: "pending-row-1",
       composio_connected_account_id: "conn_123",
       toolkit_slug: "gmail",
       display_name: null,
+      account_identifier: null,
       status: "active",
     });
+    expect(mockDeleteConnection).not.toHaveBeenCalled();
+    expect(mockInsertConnection).not.toHaveBeenCalled();
   });
 
   it("also accepts camelCase callback aliases defensively", async () => {
@@ -166,6 +260,19 @@ describe("GET /api/connections/callback", () => {
   });
 
   it("redirects to settings error when the callback account does not belong to the current client", async () => {
+    mockGetPendingConnectionByToolkit.mockResolvedValue({
+      id: "pending-row-1",
+      client_id: "client-1",
+      composio_connected_account_id: "pending:test",
+      toolkit_slug: "gmail",
+      display_name: null,
+      account_identifier: null,
+      status: "pending",
+      activated_tools: [],
+      tool_count: 0,
+      created_at: "2026-03-07T00:00:00.000Z",
+      updated_at: "2026-03-07T00:00:00.000Z",
+    });
     mockGetComposio.mockReturnValue({
       connectedAccounts: {
         get: vi.fn().mockResolvedValue({
@@ -189,10 +296,97 @@ describe("GET /api/connections/callback", () => {
     expect(response.headers.get("location")).toBe(
       "http://localhost/settings?connection=error&reason=ownership",
     );
-    expect(mockUpsertConnection).not.toHaveBeenCalled();
+    expect(mockDeleteConnection).toHaveBeenCalledWith(
+      { marker: "server-client" },
+      "client-1",
+      "pending-row-1",
+    );
+    expect(mockInsertConnection).not.toHaveBeenCalled();
+  });
+
+  it("reconciles an existing connected-account row instead of inserting a duplicate", async () => {
+    mockGetPendingConnectionByToolkit.mockResolvedValue({
+      id: "pending-row-1",
+      client_id: "client-1",
+      composio_connected_account_id: "pending:test",
+      toolkit_slug: "gmail",
+      display_name: null,
+      account_identifier: null,
+      status: "pending",
+      activated_tools: [],
+      tool_count: 0,
+      created_at: "2026-03-07T00:00:00.000Z",
+      updated_at: "2026-03-07T00:00:00.000Z",
+    });
+    mockGetConnectionByConnectedAccountId.mockResolvedValue({
+      id: "row-1",
+      client_id: "client-1",
+      composio_connected_account_id: "conn_123",
+      toolkit_slug: "gmail",
+      display_name: null,
+      account_identifier: null,
+      status: "inactive",
+      activated_tools: [],
+      tool_count: 0,
+      created_at: "2026-03-07T00:00:00.000Z",
+      updated_at: "2026-03-07T00:00:00.000Z",
+    });
+
+    const response = await GET(
+      new Request(
+        "http://localhost/api/connections/callback?status=success&connected_account_id=conn_123",
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(mockUpdateConnection).toHaveBeenCalledWith({ marker: "server-client" }, "client-1", {
+      id: "row-1",
+      composio_connected_account_id: "conn_123",
+      toolkit_slug: "gmail",
+      display_name: null,
+      account_identifier: null,
+      status: "active",
+    });
+    expect(mockDeleteConnection).toHaveBeenCalledWith(
+      { marker: "server-client" },
+      "client-1",
+      "pending-row-1",
+    );
+    expect(mockInsertConnection).not.toHaveBeenCalled();
+  });
+
+  it("inserts a new active row when no pending or existing row exists", async () => {
+    const response = await GET(
+      new Request(
+        "http://localhost/api/connections/callback?status=success&connected_account_id=conn_123",
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(mockInsertConnection).toHaveBeenCalledWith({ marker: "server-client" }, {
+      client_id: "client-1",
+      composio_connected_account_id: "conn_123",
+      toolkit_slug: "gmail",
+      display_name: null,
+      account_identifier: null,
+      status: "active",
+    });
   });
 
   it("redirects to settings error when the connected account is not active", async () => {
+    mockGetPendingConnectionByToolkit.mockResolvedValue({
+      id: "pending-row-1",
+      client_id: "client-1",
+      composio_connected_account_id: "pending:test",
+      toolkit_slug: "gmail",
+      display_name: null,
+      account_identifier: null,
+      status: "pending",
+      activated_tools: [],
+      tool_count: 0,
+      created_at: "2026-03-07T00:00:00.000Z",
+      updated_at: "2026-03-07T00:00:00.000Z",
+    });
     mockGetComposio.mockReturnValue({
       connectedAccounts: {
         get: vi.fn().mockResolvedValue({
@@ -213,10 +407,28 @@ describe("GET /api/connections/callback", () => {
     expect(response.headers.get("location")).toBe(
       "http://localhost/settings?connection=error&reason=inactive",
     );
-    expect(mockUpsertConnection).not.toHaveBeenCalled();
+    expect(mockDeleteConnection).toHaveBeenCalledWith(
+      { marker: "server-client" },
+      "client-1",
+      "pending-row-1",
+    );
+    expect(mockInsertConnection).not.toHaveBeenCalled();
   });
 
   it("redirects to settings error when callback verification throws", async () => {
+    mockGetPendingConnectionByToolkit.mockResolvedValue({
+      id: "pending-row-1",
+      client_id: "client-1",
+      composio_connected_account_id: "pending:test",
+      toolkit_slug: "gmail",
+      display_name: null,
+      account_identifier: null,
+      status: "pending",
+      activated_tools: [],
+      tool_count: 0,
+      created_at: "2026-03-07T00:00:00.000Z",
+      updated_at: "2026-03-07T00:00:00.000Z",
+    });
     mockGetComposio.mockReturnValue({
       connectedAccounts: {
         get: vi.fn().mockRejectedValue(new Error("boom")),
@@ -225,13 +437,18 @@ describe("GET /api/connections/callback", () => {
 
     const response = await GET(
       new Request(
-        "http://localhost/api/connections/callback?status=success&connected_account_id=conn_123",
+        "http://localhost/api/connections/callback?status=success&connected_account_id=conn_123&toolkit=gmail",
       ),
     );
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
       "http://localhost/settings?connection=error&reason=callback_failed",
+    );
+    expect(mockDeleteConnection).toHaveBeenCalledWith(
+      { marker: "server-client" },
+      "client-1",
+      "pending-row-1",
     );
   });
 });

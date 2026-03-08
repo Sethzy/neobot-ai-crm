@@ -7,7 +7,13 @@ import { NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { getComposio } from "@/lib/composio";
-import { upsertConnection } from "@/lib/connections/queries";
+import {
+  deleteConnection,
+  getConnectionByConnectedAccountId,
+  getPendingConnectionByToolkit,
+  insertConnection,
+  updateConnection,
+} from "@/lib/connections/queries";
 
 function buildSettingsRedirect(
   request: Request,
@@ -60,6 +66,7 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const requestUrl = new URL(request.url);
+  const callbackToolkit = getFirstSearchParam(requestUrl.searchParams, ["toolkit"]);
   const callbackStatus = getFirstSearchParam(requestUrl.searchParams, [
     "status",
     "connectionStatus",
@@ -68,8 +75,37 @@ export async function GET(request: Request): Promise<Response> {
     "connected_account_id",
     "connectedAccountId",
   ]);
+  const { supabase, userId } = authResult;
+  let cachedClientId: string | null = null;
+
+  async function getClientId(): Promise<string> {
+    if (!cachedClientId) {
+      cachedClientId = await resolveClientId(supabase, userId);
+    }
+
+    return cachedClientId;
+  }
+
+  async function clearPendingConnection(toolkitSlug: string | null): Promise<void> {
+    if (!toolkitSlug) {
+      return;
+    }
+
+    const clientId = await getClientId();
+    const pendingConnection = await getPendingConnectionByToolkit(supabase, clientId, toolkitSlug);
+
+    if (pendingConnection) {
+      await deleteConnection(supabase, clientId, pendingConnection.id);
+    }
+  }
 
   if (!callbackStatus || !connectedAccountId) {
+    try {
+      await clearPendingConnection(callbackToolkit);
+    } catch (error) {
+      console.error("Failed to clear pending connection after invalid callback.", error);
+    }
+
     return buildSettingsRedirect(request, {
       connection: "error",
       reason: "invalid_callback",
@@ -77,20 +113,28 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   if (!isSuccessfulCallbackStatus(callbackStatus)) {
+    try {
+      await clearPendingConnection(callbackToolkit);
+    } catch (error) {
+      console.error("Failed to clear pending connection after failed callback.", error);
+    }
+
     return buildSettingsRedirect(request, {
       connection: "error",
       reason: "failed",
     });
   }
-
-  const { supabase, userId } = authResult;
+  let verifiedToolkitSlug: string | null = callbackToolkit;
 
   try {
-    const clientId = await resolveClientId(supabase, userId);
+    const clientId = await getClientId();
     const composio = getComposio();
     const connectedAccount = await composio.connectedAccounts.get(connectedAccountId);
+    verifiedToolkitSlug = connectedAccount.toolkit.slug;
 
     if (connectedAccount.status !== "ACTIVE") {
+      await clearPendingConnection(verifiedToolkitSlug);
+
       return buildSettingsRedirect(request, {
         connection: "error",
         reason: "inactive",
@@ -108,25 +152,65 @@ export async function GET(request: Request): Promise<Response> {
     );
 
     if (!isOwnedByClient) {
+      await clearPendingConnection(verifiedToolkitSlug);
+
       return buildSettingsRedirect(request, {
         connection: "error",
         reason: "ownership",
       });
     }
-
-    await upsertConnection(supabase, {
-      client_id: clientId,
+    const nextConnectionState = {
       composio_connected_account_id: connectedAccount.id,
       toolkit_slug: connectedAccount.toolkit.slug,
       display_name: null,
-      status: "active",
-    });
+      account_identifier: null,
+      status: "active" as const,
+    };
+    const pendingConnection = await getPendingConnectionByToolkit(
+      supabase,
+      clientId,
+      connectedAccount.toolkit.slug,
+    );
+    const existingConnection = await getConnectionByConnectedAccountId(
+      supabase,
+      clientId,
+      connectedAccount.id,
+    );
+
+    if (existingConnection) {
+      await updateConnection(supabase, clientId, {
+        id: existingConnection.id,
+        ...nextConnectionState,
+      });
+
+      if (pendingConnection) {
+        await deleteConnection(supabase, clientId, pendingConnection.id);
+      }
+    } else {
+      if (pendingConnection) {
+        await updateConnection(supabase, clientId, {
+          id: pendingConnection.id,
+          ...nextConnectionState,
+        });
+      } else {
+        await insertConnection(supabase, {
+          client_id: clientId,
+          ...nextConnectionState,
+        });
+      }
+    }
 
     return buildSettingsRedirect(request, {
       connection: "success",
       toolkit: connectedAccount.toolkit.slug,
     });
   } catch (error) {
+    try {
+      await clearPendingConnection(verifiedToolkitSlug);
+    } catch (cleanupError) {
+      console.error("Failed to clear pending connection after callback error.", cleanupError);
+    }
+
     console.error("Failed to finalize Composio connection callback.", error);
     return buildSettingsRedirect(request, {
       connection: "error",

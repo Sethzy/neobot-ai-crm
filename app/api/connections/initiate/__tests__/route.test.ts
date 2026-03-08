@@ -2,17 +2,19 @@
  * Tests for the OAuth initiate route.
  * @module app/api/connections/initiate/__tests__/route
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
 const {
   mockAuthenticateRequest,
+  mockInsertConnection,
   mockResolveClientId,
-  mockGetActiveConnectionByToolkit,
   mockGetComposio,
 } = vi.hoisted(() => ({
   mockAuthenticateRequest: vi.fn(),
+  mockInsertConnection: vi.fn(),
   mockResolveClientId: vi.fn(),
-  mockGetActiveConnectionByToolkit: vi.fn(),
   mockGetComposio: vi.fn(),
 }));
 
@@ -26,8 +28,7 @@ vi.mock("@/lib/chat/client-id", () => ({
 }));
 
 vi.mock("@/lib/connections/queries", () => ({
-  getActiveConnectionByToolkit: (...args: unknown[]) =>
-    mockGetActiveConnectionByToolkit(...args),
+  insertConnection: (...args: unknown[]) => mockInsertConnection(...args),
 }));
 
 vi.mock("@/lib/composio", () => ({
@@ -37,15 +38,32 @@ vi.mock("@/lib/composio", () => ({
 import { POST } from "../route";
 
 describe("POST /api/connections/initiate", () => {
+  let mockSupabase: ReturnType<typeof createMockSupabaseClient>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSupabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
     mockAuthenticateRequest.mockResolvedValue({
       kind: "ok",
-      supabase: { marker: "server-client" },
+      supabase: mockSupabase,
       userId: "user-1",
     });
+    mockInsertConnection.mockResolvedValue({
+      id: "pending-row-1",
+      client_id: "client-1",
+      composio_connected_account_id: "pending:test",
+      toolkit_slug: "gmail",
+      display_name: null,
+      account_identifier: null,
+      status: "pending",
+      activated_tools: [],
+      tool_count: 0,
+      created_at: "2026-03-07T00:00:00.000Z",
+      updated_at: "2026-03-07T00:00:00.000Z",
+    });
     mockResolveClientId.mockResolvedValue("client-1");
-    mockGetActiveConnectionByToolkit.mockResolvedValue(null);
     mockGetComposio.mockReturnValue({
       authConfigs: {
         list: vi.fn().mockResolvedValue({
@@ -59,6 +77,10 @@ describe("POST /api/connections/initiate", () => {
         }),
       },
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("returns the auth error response when unauthenticated", async () => {
@@ -105,16 +127,19 @@ describe("POST /api/connections/initiate", () => {
     await expect(response.json()).resolves.toEqual({ error: "Invalid request body." });
   });
 
-  it("returns 409 when the toolkit is already connected", async () => {
-    mockGetActiveConnectionByToolkit.mockResolvedValue({
-      id: "row-1",
-      client_id: "client-1",
-      composio_connected_account_id: "conn_existing",
-      toolkit_slug: "gmail",
-      display_name: "Gmail",
-      status: "active",
-      created_at: "2026-03-07T00:00:00.000Z",
-      updated_at: "2026-03-07T00:00:00.000Z",
+  it("returns 409 when a pending OAuth flow already exists", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-09T04:00:00.000Z"));
+    mockSupabase = createMockSupabaseClient({
+      selectResult: {
+        data: [{ id: "pending-row-1", created_at: "2026-03-09T03:55:00.000Z" }],
+        error: null,
+      },
+    });
+    mockAuthenticateRequest.mockResolvedValue({
+      kind: "ok",
+      supabase: mockSupabase,
+      userId: "user-1",
     });
 
     const response = await POST(
@@ -126,7 +151,61 @@ describe("POST /api/connections/initiate", () => {
     );
 
     expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toEqual({ error: "Service already connected." });
+    await expect(response.json()).resolves.toEqual({
+      error: "An OAuth flow for this service is already in progress.",
+    });
+  });
+
+  it("checks only for pending duplicates before starting a new flow", async () => {
+    await POST(
+      new Request("http://localhost/api/connections/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toolkit: "gmail" }),
+      }),
+    );
+
+    expect(mockSupabase.calls.from).toContain("connections");
+    expect(mockSupabase.calls.methods).toContainEqual({
+      method: "eq",
+      args: ["status", "pending"],
+    });
+    expect(mockSupabase.calls.methods).toContainEqual({ method: "maybeSingle", args: [] });
+  });
+
+  it("clears a stale pending row and allows the user to retry the OAuth flow", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-09T04:30:00.000Z"));
+    mockSupabase = createMockSupabaseClient({
+      selectResult: {
+        data: [{ id: "pending-row-1", created_at: "2026-03-09T04:00:00.000Z" }],
+        error: null,
+      },
+      deleteResult: { data: null, error: null },
+    });
+    mockAuthenticateRequest.mockResolvedValue({
+      kind: "ok",
+      supabase: mockSupabase,
+      userId: "user-1",
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/connections/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toolkit: "gmail" }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockSupabase.calls.methods).toContainEqual(
+      expect.objectContaining({ method: "delete" }),
+    );
+    expect(mockSupabase.calls.methods).toContainEqual({
+      method: "eq",
+      args: ["id", "pending-row-1"],
+    });
+    expect(mockInsertConnection).toHaveBeenCalledTimes(1);
   });
 
   it("reuses an existing auth config and returns the redirect URL", async () => {
@@ -159,19 +238,22 @@ describe("POST /api/connections/initiate", () => {
     await expect(response.json()).resolves.toEqual({
       redirectUrl: "https://composio.example.com/oauth",
     });
-    expect(mockResolveClientId).toHaveBeenCalledWith({ marker: "server-client" }, "user-1");
-    expect(mockGetActiveConnectionByToolkit).toHaveBeenCalledWith(
-      { marker: "server-client" },
-      "client-1",
-      "gmail",
-    );
+    expect(mockResolveClientId).toHaveBeenCalledWith(mockSupabase, "user-1");
     expect(authConfigList).toHaveBeenCalledWith({
       toolkit: "gmail",
       isComposioManaged: true,
     });
     expect(authConfigCreate).not.toHaveBeenCalled();
     expect(link).toHaveBeenCalledWith("client-1", "auth_existing", {
-      callbackUrl: "http://localhost/api/connections/callback",
+      callbackUrl: "http://localhost/api/connections/callback?toolkit=gmail",
+    });
+    expect(mockInsertConnection).toHaveBeenCalledWith(mockSupabase, {
+      client_id: "client-1",
+      composio_connected_account_id: expect.stringMatching(/^pending:/),
+      toolkit_slug: "gmail",
+      display_name: null,
+      account_identifier: null,
+      status: "pending",
     });
   });
 
@@ -205,7 +287,7 @@ describe("POST /api/connections/initiate", () => {
 
     expect(response.status).toBe(200);
     expect(link).toHaveBeenCalledWith("client-1", "auth_enabled", {
-      callbackUrl: "http://localhost/api/connections/callback",
+      callbackUrl: "http://localhost/api/connections/callback?toolkit=gmail",
     });
   });
 
@@ -239,7 +321,28 @@ describe("POST /api/connections/initiate", () => {
       name: "googlecalendar Auth Config",
     });
     expect(link).toHaveBeenCalledWith("client-1", "auth_created", {
-      callbackUrl: "http://localhost/api/connections/callback",
+      callbackUrl: "http://localhost/api/connections/callback?toolkit=googlecalendar",
+    });
+  });
+
+  it("persists a pending connection row before returning the redirect URL", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/connections/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toolkit: "gmail" }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockInsertConnection).toHaveBeenCalledTimes(1);
+    expect(mockInsertConnection).toHaveBeenCalledWith(mockSupabase, {
+      client_id: "client-1",
+      composio_connected_account_id: expect.stringMatching(/^pending:/),
+      toolkit_slug: "gmail",
+      display_name: null,
+      account_identifier: null,
+      status: "pending",
     });
   });
 
@@ -263,9 +366,22 @@ describe("POST /api/connections/initiate", () => {
     );
 
     expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({
-      error: "Failed to initiate connection.",
-    });
+    await expect(response.json()).resolves.toEqual({ error: "Failed to initiate connection." });
+  });
+
+  it("returns 500 when pending-row persistence fails", async () => {
+    mockInsertConnection.mockRejectedValue(new Error("insert failed"));
+
+    const response = await POST(
+      new Request("http://localhost/api/connections/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toolkit: "gmail" }),
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({ error: "Failed to initiate connection." });
   });
 
   it("returns 500 when Composio does not return a redirect URL", async () => {
@@ -290,8 +406,7 @@ describe("POST /api/connections/initiate", () => {
     );
 
     expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({
-      error: "Failed to initiate connection.",
-    });
+    await expect(response.json()).resolves.toEqual({ error: "Failed to initiate connection." });
+    expect(mockInsertConnection).not.toHaveBeenCalled();
   });
 });
