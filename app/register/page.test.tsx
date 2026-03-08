@@ -32,7 +32,7 @@ describe("/register page", () => {
   it("submits a simplified full-name signup form with display metadata", async () => {
     render(<RegisterPage />);
 
-    expect(screen.getByRole("heading", { name: /welcome to sunder!/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /get started for free/i })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/full name/i), {
       target: { value: "Seth Lim" },
@@ -43,7 +43,7 @@ describe("/register page", () => {
     fireEvent.change(screen.getByLabelText(/^password$/i), {
       target: { value: "secret123" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^sign up$/i }));
 
     await waitFor(() => {
       expect(mockSignUp).toHaveBeenCalledWith({

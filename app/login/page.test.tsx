@@ -44,7 +44,7 @@ describe("/login page", () => {
       await Promise.resolve();
     });
 
-    expect(await screen.findByRole("heading", { name: /welcome back!/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /sign in to your account/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /sign in with google/i }));
 
@@ -74,7 +74,7 @@ describe("/login page", () => {
     fireEvent.change(screen.getByLabelText(/^password$/i), {
       target: { value: "secret123" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
 
     await waitFor(() => {
       expect(mockSignInWithPassword).toHaveBeenCalledWith({
