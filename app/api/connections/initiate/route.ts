@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
-import { getComposio } from "@/lib/composio";
+import { initiateOAuthFlow } from "@/lib/composio/connection-flow";
 import { insertConnection } from "@/lib/connections/queries";
 
 const initiateConnectionBodySchema = z.object({
@@ -82,28 +82,13 @@ export async function POST(request: Request): Promise<Response> {
       }
     }
 
-    const composio = getComposio();
-    const authConfigs = await composio.authConfigs.list({
-      toolkit,
-      isComposioManaged: true,
-    });
-    const reusableAuthConfig = authConfigs.items.find((authConfig) => authConfig.status === "ENABLED");
-    const authConfigId = reusableAuthConfig?.id
-      ?? (
-        await composio.authConfigs.create(toolkit, {
-          type: "use_composio_managed_auth",
-          name: `${toolkit} Auth Config`,
-        })
-      ).id;
     const callbackUrl = new URL("/api/connections/callback", request.url);
     callbackUrl.searchParams.set("toolkit", toolkit);
-    const connectionRequest = await composio.connectedAccounts.link(clientId, authConfigId, {
+    const { redirectUrl } = await initiateOAuthFlow({
+      composioUserId: clientId,
+      toolkitSlug: toolkit,
       callbackUrl: callbackUrl.toString(),
     });
-
-    if (!connectionRequest.redirectUrl) {
-      throw new Error("Composio did not return a redirect URL.");
-    }
 
     await insertConnection(supabase, {
       client_id: clientId,
@@ -114,7 +99,7 @@ export async function POST(request: Request): Promise<Response> {
       status: "pending",
     });
 
-    return Response.json({ redirectUrl: connectionRequest.redirectUrl });
+    return Response.json({ redirectUrl });
   } catch (error) {
     console.error("Failed to initiate Composio connection.", error);
     return jsonError("Failed to initiate connection.", 500);

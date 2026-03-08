@@ -8,14 +8,14 @@ import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
 const {
   mockAuthenticateRequest,
+  mockInitiateOAuthFlow,
   mockInsertConnection,
   mockResolveClientId,
-  mockGetComposio,
 } = vi.hoisted(() => ({
   mockAuthenticateRequest: vi.fn(),
+  mockInitiateOAuthFlow: vi.fn(),
   mockInsertConnection: vi.fn(),
   mockResolveClientId: vi.fn(),
-  mockGetComposio: vi.fn(),
 }));
 
 vi.mock("@/lib/api/route-helpers", () => ({
@@ -27,12 +27,12 @@ vi.mock("@/lib/chat/client-id", () => ({
   resolveClientId: (...args: unknown[]) => mockResolveClientId(...args),
 }));
 
-vi.mock("@/lib/connections/queries", () => ({
-  insertConnection: (...args: unknown[]) => mockInsertConnection(...args),
+vi.mock("@/lib/composio/connection-flow", () => ({
+  initiateOAuthFlow: (...args: unknown[]) => mockInitiateOAuthFlow(...args),
 }));
 
-vi.mock("@/lib/composio", () => ({
-  getComposio: (...args: unknown[]) => mockGetComposio(...args),
+vi.mock("@/lib/connections/queries", () => ({
+  insertConnection: (...args: unknown[]) => mockInsertConnection(...args),
 }));
 
 import { POST } from "../route";
@@ -50,6 +50,10 @@ describe("POST /api/connections/initiate", () => {
       supabase: mockSupabase,
       userId: "user-1",
     });
+    mockInitiateOAuthFlow.mockResolvedValue({
+      redirectUrl: "https://composio.example.com/oauth",
+      connectedAccountId: "connected-account-123",
+    });
     mockInsertConnection.mockResolvedValue({
       id: "pending-row-1",
       client_id: "client-1",
@@ -64,19 +68,6 @@ describe("POST /api/connections/initiate", () => {
       updated_at: "2026-03-07T00:00:00.000Z",
     });
     mockResolveClientId.mockResolvedValue("client-1");
-    mockGetComposio.mockReturnValue({
-      authConfigs: {
-        list: vi.fn().mockResolvedValue({
-          items: [{ id: "auth_existing", status: "ENABLED", isComposioManaged: true }],
-        }),
-        create: vi.fn(),
-      },
-      connectedAccounts: {
-        link: vi.fn().mockResolvedValue({
-          redirectUrl: "https://composio.example.com/oauth",
-        }),
-      },
-    });
   });
 
   afterEach(() => {
@@ -154,6 +145,7 @@ describe("POST /api/connections/initiate", () => {
     await expect(response.json()).resolves.toEqual({
       error: "An OAuth flow for this service is already in progress.",
     });
+    expect(mockInitiateOAuthFlow).not.toHaveBeenCalled();
   });
 
   it("checks only for pending duplicates before starting a new flow", async () => {
@@ -205,27 +197,10 @@ describe("POST /api/connections/initiate", () => {
       method: "eq",
       args: ["id", "pending-row-1"],
     });
-    expect(mockInsertConnection).toHaveBeenCalledTimes(1);
+    expect(mockInitiateOAuthFlow).toHaveBeenCalledTimes(1);
   });
 
-  it("reuses an existing auth config and returns the redirect URL", async () => {
-    const authConfigList = vi.fn().mockResolvedValue({
-      items: [{ id: "auth_existing", status: "ENABLED", isComposioManaged: true }],
-    });
-    const authConfigCreate = vi.fn();
-    const link = vi.fn().mockResolvedValue({
-      redirectUrl: "https://composio.example.com/oauth",
-    });
-    mockGetComposio.mockReturnValue({
-      authConfigs: {
-        list: authConfigList,
-        create: authConfigCreate,
-      },
-      connectedAccounts: {
-        link,
-      },
-    });
-
+  it("delegates OAuth initiation to the shared helper and returns the redirect URL", async () => {
     const response = await POST(
       new Request("http://localhost/api/connections/initiate", {
         method: "POST",
@@ -239,89 +214,10 @@ describe("POST /api/connections/initiate", () => {
       redirectUrl: "https://composio.example.com/oauth",
     });
     expect(mockResolveClientId).toHaveBeenCalledWith(mockSupabase, "user-1");
-    expect(authConfigList).toHaveBeenCalledWith({
-      toolkit: "gmail",
-      isComposioManaged: true,
-    });
-    expect(authConfigCreate).not.toHaveBeenCalled();
-    expect(link).toHaveBeenCalledWith("client-1", "auth_existing", {
+    expect(mockInitiateOAuthFlow).toHaveBeenCalledWith({
+      composioUserId: "client-1",
+      toolkitSlug: "gmail",
       callbackUrl: "http://localhost/api/connections/callback?toolkit=gmail",
-    });
-    expect(mockInsertConnection).toHaveBeenCalledWith(mockSupabase, {
-      client_id: "client-1",
-      composio_connected_account_id: expect.stringMatching(/^pending:/),
-      toolkit_slug: "gmail",
-      display_name: null,
-      account_identifier: null,
-      status: "pending",
-    });
-  });
-
-  it("skips disabled managed auth configs and reuses the first enabled one", async () => {
-    const authConfigList = vi.fn().mockResolvedValue({
-      items: [
-        { id: "auth_disabled", status: "DISABLED", isComposioManaged: true },
-        { id: "auth_enabled", status: "ENABLED", isComposioManaged: true },
-      ],
-    });
-    const link = vi.fn().mockResolvedValue({
-      redirectUrl: "https://composio.example.com/oauth",
-    });
-    mockGetComposio.mockReturnValue({
-      authConfigs: {
-        list: authConfigList,
-        create: vi.fn(),
-      },
-      connectedAccounts: {
-        link,
-      },
-    });
-
-    const response = await POST(
-      new Request("http://localhost/api/connections/initiate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toolkit: "gmail" }),
-      }),
-    );
-
-    expect(response.status).toBe(200);
-    expect(link).toHaveBeenCalledWith("client-1", "auth_enabled", {
-      callbackUrl: "http://localhost/api/connections/callback?toolkit=gmail",
-    });
-  });
-
-  it("creates a managed auth config when one does not already exist", async () => {
-    const authConfigList = vi.fn().mockResolvedValue({ items: [] });
-    const authConfigCreate = vi.fn().mockResolvedValue({ id: "auth_created" });
-    const link = vi.fn().mockResolvedValue({
-      redirectUrl: "https://composio.example.com/oauth",
-    });
-    mockGetComposio.mockReturnValue({
-      authConfigs: {
-        list: authConfigList,
-        create: authConfigCreate,
-      },
-      connectedAccounts: {
-        link,
-      },
-    });
-
-    const response = await POST(
-      new Request("http://localhost/api/connections/initiate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toolkit: "googlecalendar" }),
-      }),
-    );
-
-    expect(response.status).toBe(200);
-    expect(authConfigCreate).toHaveBeenCalledWith("googlecalendar", {
-      type: "use_composio_managed_auth",
-      name: "googlecalendar Auth Config",
-    });
-    expect(link).toHaveBeenCalledWith("client-1", "auth_created", {
-      callbackUrl: "http://localhost/api/connections/callback?toolkit=googlecalendar",
     });
   });
 
@@ -346,16 +242,8 @@ describe("POST /api/connections/initiate", () => {
     });
   });
 
-  it("returns 500 when Composio initiate fails", async () => {
-    mockGetComposio.mockReturnValue({
-      authConfigs: {
-        list: vi.fn().mockRejectedValue(new Error("boom")),
-        create: vi.fn(),
-      },
-      connectedAccounts: {
-        link: vi.fn(),
-      },
-    });
+  it("returns 500 when the shared OAuth helper throws", async () => {
+    mockInitiateOAuthFlow.mockRejectedValue(new Error("boom"));
 
     const response = await POST(
       new Request("http://localhost/api/connections/initiate", {
@@ -382,31 +270,5 @@ describe("POST /api/connections/initiate", () => {
 
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({ error: "Failed to initiate connection." });
-  });
-
-  it("returns 500 when Composio does not return a redirect URL", async () => {
-    mockGetComposio.mockReturnValue({
-      authConfigs: {
-        list: vi.fn().mockResolvedValue({
-          items: [{ id: "auth_existing", status: "ENABLED", isComposioManaged: true }],
-        }),
-        create: vi.fn(),
-      },
-      connectedAccounts: {
-        link: vi.fn().mockResolvedValue({ redirectUrl: "" }),
-      },
-    });
-
-    const response = await POST(
-      new Request("http://localhost/api/connections/initiate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toolkit: "gmail" }),
-      }),
-    );
-
-    expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({ error: "Failed to initiate connection." });
-    expect(mockInsertConnection).not.toHaveBeenCalled();
   });
 });
