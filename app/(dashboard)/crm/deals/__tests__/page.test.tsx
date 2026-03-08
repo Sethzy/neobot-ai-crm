@@ -6,10 +6,15 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CRM_DEFAULTS } from "@/lib/crm/config";
 import DealsPage from "../page";
 
 vi.mock("@/hooks/use-deals", () => ({
   useDeals: vi.fn(),
+}));
+
+vi.mock("@/hooks/use-crm-config", () => ({
+  useCrmConfig: vi.fn(),
 }));
 
 vi.mock("@/components/crm/deals-table", () => ({
@@ -28,6 +33,15 @@ vi.mock("@/hooks/use-record-drawer", () => ({
 describe("DealsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    void import("@/hooks/use-crm-config").then(({ useCrmConfig }) => {
+      vi.mocked(useCrmConfig).mockReturnValue({
+        data: {
+          hasConfig: false,
+          config: CRM_DEFAULTS,
+        },
+      } as never);
+    });
   });
 
   it("shows error state and retries when deals query fails", async () => {

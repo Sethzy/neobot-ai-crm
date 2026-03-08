@@ -21,6 +21,11 @@ export const contactTypeBadgeVariantMap: Record<Contact["type"], BadgeVariant> =
   other: "secondary",
 };
 
+/** Returns a safe badge variant for configured or default contact types. */
+export function getContactTypeBadgeVariant(type: Contact["type"]): BadgeVariant {
+  return contactTypeBadgeVariantMap[type] ?? "secondary";
+}
+
 /** Badge variants for deal stages used in the linked deals table. */
 export const dealStageBadgeVariantMap: Record<Deal["stage"], BadgeVariant> = {
   leads: "secondary",
@@ -29,6 +34,20 @@ export const dealStageBadgeVariantMap: Record<Deal["stage"], BadgeVariant> = {
   closing: "success",
   lost: "destructive",
 };
+
+const defaultDealStageLabelMap = {
+  leads: "Leads",
+  negotiation: "Negotiation",
+  offer: "Offer",
+  closing: "Closing",
+  lost: "Lost",
+} as const;
+
+/** Formats default or configured deal stages with a safe fallback. */
+export function formatDealStageLabel(stage: Deal["stage"]): string {
+  return defaultDealStageLabelMap[stage as keyof typeof defaultDealStageLabelMap]
+    ?? formatCrmEnumLabel(stage);
+}
 
 /** Formats an ISO timestamp as `2 Mar 2026`. */
 export function formatCrmDate(dateString: string | null): string {
@@ -171,6 +190,12 @@ export const dealStageToneClassMap: Record<(typeof dealStageValues)[number], str
   lost: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300",
 };
 
+/** Returns a safe kanban tone class for default or configured deal stages. */
+export function getDealStageToneClass(stage: Deal["stage"]): string {
+  return dealStageToneClassMap[stage as keyof typeof dealStageToneClassMap]
+    ?? "bg-muted text-foreground/80";
+}
+
 /** Kanban column top-border classes per deal stage. */
 export const dealStageTopBorderMap: Record<(typeof dealStageValues)[number], string> = {
   leads: "border-t-amber-400",
@@ -179,6 +204,12 @@ export const dealStageTopBorderMap: Record<(typeof dealStageValues)[number], str
   closing: "border-t-emerald-400",
   lost: "border-t-rose-400",
 };
+
+/** Returns a safe kanban border class for default or configured deal stages. */
+export function getDealStageTopBorderClass(stage: Deal["stage"]): string {
+  return dealStageTopBorderMap[stage as keyof typeof dealStageTopBorderMap]
+    ?? "border-t-border";
+}
 
 /** Kanban chip background/text classes per task status. */
 export const taskStatusToneClassMap: Record<(typeof crmTaskStatusValues)[number], string> = {

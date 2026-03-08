@@ -47,8 +47,8 @@ describe("ContactsTable", () => {
     expect(screen.getByText("Sarah Lee")).toBeInTheDocument();
     expect(screen.getByText("john@example.com")).toBeInTheDocument();
     expect(screen.getByText("+6591234567")).toBeInTheDocument();
-    expect(screen.getByText("buyer")).toBeInTheDocument();
-    expect(screen.getByText("seller")).toBeInTheDocument();
+    expect(screen.getByText("Buyer")).toBeInTheDocument();
+    expect(screen.getByText("Seller")).toBeInTheDocument();
   });
 
   test("renders email and phone values as actionable links", () => {
@@ -96,5 +96,20 @@ describe("ContactsTable", () => {
     render(<ContactsTable contacts={[]} />);
 
     expect(screen.getByText(/no contacts yet/i)).toBeInTheDocument();
+  });
+
+  test("formats configured contact types with a safe fallback badge variant", () => {
+    const contactsWithConfiguredType = [
+      {
+        ...sampleContacts[0],
+        type: "first_time_buyer" as const,
+      },
+    ];
+
+    const { container } = render(<ContactsTable contacts={contactsWithConfiguredType} />);
+
+    expect(screen.getByText("First Time Buyer")).toBeInTheDocument();
+    const badge = container.querySelector("[data-slot='badge']");
+    expect(badge).toHaveAttribute("data-variant", "secondary");
   });
 });

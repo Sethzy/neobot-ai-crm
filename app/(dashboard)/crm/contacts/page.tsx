@@ -12,8 +12,10 @@ import { ContactsTable } from "@/components/crm/contacts-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useContacts, type ContactType } from "@/hooks/use-contacts";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
+import { formatCrmEnumLabel } from "@/lib/crm/display";
 import { contactTypeValues } from "@/lib/crm/schemas";
 
 const allContactTypes = "all";
@@ -22,6 +24,9 @@ export default function ContactsPage() {
   const [search, setSearch] = useState("");
   const [contactTypeFilter, setContactTypeFilter] = useState<string>(allContactTypes);
   const { isOpen, recordId, open, close } = useRecordDrawer();
+  const { data: crmConfigResult } = useCrmConfig();
+
+  const contactTypeOptions = crmConfigResult?.config.contact_types ?? contactTypeValues;
 
   const contactFilters = useMemo(() => {
     const normalizedSearch = search.trim();
@@ -63,9 +68,9 @@ export default function ContactsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={allContactTypes}>All types</SelectItem>
-            {contactTypeValues.map((contactType) => (
+            {contactTypeOptions.map((contactType) => (
               <SelectItem key={contactType} value={contactType}>
-                {contactType}
+                {formatCrmEnumLabel(contactType)}
               </SelectItem>
             ))}
           </SelectContent>

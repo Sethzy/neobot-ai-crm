@@ -9,10 +9,10 @@ import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query"
 import { useClientId } from "@/hooks/use-client-id";
 import { useRealtimeTable } from "@/hooks/use-realtime";
 import { buildSearchExpression } from "@/lib/crm/postgrest-filters";
-import { contactTypeValues, type Contact } from "@/lib/crm/schemas";
+import { type Contact } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
-export type ContactType = (typeof contactTypeValues)[number];
+export type ContactType = Contact["type"];
 
 export interface ContactFilters {
   search?: string;

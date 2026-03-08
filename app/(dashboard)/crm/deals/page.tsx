@@ -11,33 +11,38 @@ import { DealKanbanCard } from "@/components/crm/deal-kanban-card";
 import { DealsTable } from "@/components/crm/deals-table";
 import { KanbanBoard } from "@/components/crm/kanban-board";
 import { RecordDrawer } from "@/components/crm/record-drawer";
-import { dealStageLabelMap } from "@/components/crm/stage-badge";
 import { ViewToggle } from "@/components/crm/view-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCrmConfig } from "@/hooks/use-crm-config";
 import type { DealWithContact } from "@/hooks/use-deals";
 import { useDeals } from "@/hooks/use-deals";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
 import { useViewPreference } from "@/hooks/use-view-preference";
 import {
-  dealStageTopBorderMap,
-  dealStageToneClassMap,
   formatCompactCurrency,
+  formatDealStageLabel,
+  getDealStageTopBorderClass,
+  getDealStageToneClass,
 } from "@/lib/crm/display";
 import { dealStageValues } from "@/lib/crm/schemas";
-
-/** Static kanban column definitions for deal stages (all inputs are module-level constants). */
-const dealStageColumns = dealStageValues.map((stage) => ({
-  key: stage,
-  label: dealStageLabelMap[stage],
-  toneClassName: dealStageToneClassMap[stage],
-  topBorderClassName: dealStageTopBorderMap[stage],
-}));
 
 export default function DealsPage() {
   const [search, setSearch] = useState("");
   const { isOpen, recordId, open, close } = useRecordDrawer();
   const { view, setView } = useViewPreference("deals");
+  const { data: crmConfigResult } = useCrmConfig();
+
+  const dealStageColumns = useMemo(() => {
+    const stages = crmConfigResult?.config.deal_stages ?? dealStageValues;
+
+    return stages.map((stage) => ({
+      key: stage,
+      label: formatDealStageLabel(stage),
+      toneClassName: getDealStageToneClass(stage),
+      topBorderClassName: getDealStageTopBorderClass(stage),
+    }));
+  }, [crmConfigResult?.config.deal_stages]);
 
   const filters = useMemo(() => {
     const normalizedSearch = search.trim();

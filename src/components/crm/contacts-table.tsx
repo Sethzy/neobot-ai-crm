@@ -8,7 +8,12 @@ import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, use
 import { useMemo, useState, type MouseEvent } from "react";
 
 import { Badge } from "@/components/ui/badge";
-import { contactTypeBadgeVariantMap, formatContactFullName, formatCrmDate } from "@/lib/crm/display";
+import {
+  formatContactFullName,
+  formatCrmDate,
+  formatCrmEnumLabel,
+  getContactTypeBadgeVariant,
+} from "@/lib/crm/display";
 import type { Contact } from "@/lib/crm/schemas";
 
 const columnHelper = createColumnHelper<Contact>();
@@ -76,7 +81,7 @@ export function ContactsTable({ contacts, onRowClick }: ContactsTableProps) {
         header: "Type",
         cell: (info) => {
           const type = info.getValue();
-          return <Badge variant={contactTypeBadgeVariantMap[type]}>{type}</Badge>;
+          return <Badge variant={getContactTypeBadgeVariant(type)}>{formatCrmEnumLabel(type)}</Badge>;
         },
       }),
       columnHelper.accessor("updated_at", {

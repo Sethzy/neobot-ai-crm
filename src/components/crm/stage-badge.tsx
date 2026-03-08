@@ -3,16 +3,8 @@
  * @module components/crm/stage-badge
  */
 import { Badge } from "@/components/ui/badge";
-import { dealStageBadgeVariantMap, formatCrmEnumLabel } from "@/lib/crm/display";
+import { dealStageBadgeVariantMap, formatDealStageLabel } from "@/lib/crm/display";
 import type { Deal } from "@/lib/crm/schemas";
-
-export const dealStageLabelMap: Record<Deal["stage"], string> = {
-  leads: "Leads",
-  negotiation: "Negotiation",
-  offer: "Offer",
-  closing: "Closing",
-  lost: "Lost",
-};
 
 interface StageBadgeProps {
   stage: Deal["stage"];
@@ -24,7 +16,7 @@ interface StageBadgeProps {
 export function StageBadge({ stage }: StageBadgeProps) {
   return (
     <Badge variant={dealStageBadgeVariantMap[stage] ?? "secondary"}>
-      {dealStageLabelMap[stage] ?? formatCrmEnumLabel(stage)}
+      {formatDealStageLabel(stage)}
     </Badge>
   );
 }
