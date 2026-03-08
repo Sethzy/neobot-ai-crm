@@ -9,11 +9,12 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 
+import { CompanyDrawerContent } from "./company-drawer-content";
 import { ContactDrawerContent } from "./contact-drawer-content";
 import { DealDrawerContent } from "./deal-drawer-content";
 import { TaskDrawerContent } from "./task-drawer-content";
 
-export type RecordObjectType = "contact" | "deal" | "task";
+export type RecordObjectType = "contact" | "deal" | "company" | "task";
 
 interface RecordDrawerProps {
   /** Whether the drawer should currently be open. */
@@ -49,6 +50,7 @@ export function RecordDrawer({ isOpen, recordId, objectType, onClose }: RecordDr
           <>
             {objectType === "contact" ? <ContactDrawerContent contactId={recordId} /> : null}
             {objectType === "deal" ? <DealDrawerContent dealId={recordId} /> : null}
+            {objectType === "company" ? <CompanyDrawerContent companyId={recordId} /> : null}
             {objectType === "task" ? <TaskDrawerContent taskId={recordId} /> : null}
           </>
         ) : null}
@@ -56,4 +58,3 @@ export function RecordDrawer({ isOpen, recordId, objectType, onClose }: RecordDr
     </Sheet>
   );
 }
-

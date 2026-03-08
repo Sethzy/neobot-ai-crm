@@ -37,15 +37,20 @@ function uniqueKeyCustomFieldsSchema(pathLabel: string) {
 
 const dealCustomFieldsSchema = uniqueKeyCustomFieldsSchema("deal_custom_fields");
 const contactCustomFieldsSchema = uniqueKeyCustomFieldsSchema("contact_custom_fields");
+const companyCustomFieldsSchema = uniqueKeyCustomFieldsSchema("company_custom_fields");
 const taskCustomFieldsSchema = uniqueKeyCustomFieldsSchema("task_custom_fields");
 
 const inputSchema = z.object({
   deal_label: z.string().trim().min(1).optional()
     .describe("Display label for deals such as Policy, Opportunity, or Deal."),
+  company_label: z.string().trim().min(1).optional()
+    .describe("Display label for companies such as Company, Account, or Brokerage."),
   deal_stages: vocabularyFieldSchema.optional()
     .describe("Ordered deal stages such as lead, quoted, bound, lost."),
   contact_types: vocabularyFieldSchema.optional()
     .describe("Available contact classifications such as buyer, seller, prospect."),
+  company_industries: vocabularyFieldSchema.optional()
+    .describe("Available company classifications such as developer, bank, or law_firm."),
   interaction_types: vocabularyFieldSchema.optional()
     .describe("Available interaction types such as call, meeting, email, note."),
   deal_contact_roles: vocabularyFieldSchema.optional()
@@ -54,6 +59,8 @@ const inputSchema = z.object({
     .describe("Custom field definitions for deals."),
   contact_custom_fields: contactCustomFieldsSchema.optional()
     .describe("Custom field definitions for contacts."),
+  company_custom_fields: companyCustomFieldsSchema.optional()
+    .describe("Custom field definitions for companies."),
   task_custom_fields: taskCustomFieldsSchema.optional()
     .describe("Custom field definitions for CRM tasks."),
   confirm_removals: z.boolean().optional()
@@ -63,6 +70,7 @@ const inputSchema = z.object({
 const vocabularyEntityMap = {
   deal_stages: { table: "deals", column: "stage" },
   contact_types: { table: "contacts", column: "type" },
+  company_industries: { table: "companies", column: "industry" },
   interaction_types: { table: "interactions", column: "type" },
   deal_contact_roles: { table: "deal_contacts", column: "role" },
 } as const;
@@ -70,6 +78,7 @@ const vocabularyEntityMap = {
 const customFieldEntityMap = {
   deal_custom_fields: "deals",
   contact_custom_fields: "contacts",
+  company_custom_fields: "companies",
   task_custom_fields: "crm_tasks",
 } as const;
 
@@ -260,7 +269,7 @@ export function createConfigureCrmTool(
           { onConflict: "client_id" },
         )
         .select(
-          "deal_label, deal_stages, contact_types, interaction_types, deal_contact_roles, deal_custom_fields, contact_custom_fields, task_custom_fields",
+          "deal_label, company_label, deal_stages, contact_types, interaction_types, deal_contact_roles, company_industries, deal_custom_fields, contact_custom_fields, company_custom_fields, task_custom_fields",
         )
         .single();
 

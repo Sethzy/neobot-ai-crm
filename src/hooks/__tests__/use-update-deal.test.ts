@@ -60,6 +60,23 @@ describe("useUpdateDeal", () => {
     expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: dealKeys.all });
   });
 
+  it("supports updating company_id on a deal", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    const { result } = renderHook(() => useUpdateDeal("deal-1"), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await result.current.mutateAsync({ company_id: "company-1" });
+
+    expect(mockUpdate).toHaveBeenCalledWith({ company_id: "company-1" });
+  });
+
   it("throws when Supabase returns an update error", async () => {
     const error = { message: "update failed" };
     mockEq.mockResolvedValue({ error });

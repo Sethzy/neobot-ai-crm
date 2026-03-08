@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 export type RealtimeTableName =
   | "conversation_threads"
   | "conversation_messages"
+  | "companies"
   | "contacts"
   | "deals"
   | "deal_contacts"

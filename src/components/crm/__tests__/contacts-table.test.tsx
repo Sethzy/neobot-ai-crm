@@ -17,6 +17,7 @@ const sampleContacts = [
     email: "john@example.com",
     phone: "+6591234567",
     type: "buyer" as const,
+    companies: { company_id: "co-1", name: "PropNex" },
     notes: null,
     created_at: "2026-02-01T00:00:00+08:00",
     updated_at: "2026-03-01T00:00:00+08:00",
@@ -29,6 +30,7 @@ const sampleContacts = [
     email: null,
     phone: null,
     type: "seller" as const,
+    companies: null,
     notes: "Interested in Bukit Timah",
     created_at: "2026-02-15T00:00:00+08:00",
     updated_at: "2026-02-28T00:00:00+08:00",
@@ -49,6 +51,7 @@ describe("ContactsTable", () => {
     expect(screen.getByText("+6591234567")).toBeInTheDocument();
     expect(screen.getByText("Buyer")).toBeInTheDocument();
     expect(screen.getByText("Seller")).toBeInTheDocument();
+    expect(screen.getByText("PropNex")).toBeInTheDocument();
   });
 
   test("renders email and phone values as actionable links", () => {

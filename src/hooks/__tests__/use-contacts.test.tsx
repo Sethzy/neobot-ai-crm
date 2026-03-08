@@ -99,7 +99,7 @@ describe("useContacts", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockFrom).toHaveBeenCalledWith("contacts");
-    expect(builder.select).toHaveBeenCalledWith("*");
+    expect(builder.select).toHaveBeenCalledWith("*, companies!contacts_company_id_fkey(company_id, name)");
     expect(builder.order).toHaveBeenCalledWith("updated_at", { ascending: false });
   });
 
@@ -131,6 +131,29 @@ describe("useContacts", () => {
     expect(builder.eq).toHaveBeenCalledWith("type", "buyer");
   });
 
+  it("wires realtime invalidation for contacts and companies tables", async () => {
+    const builder = createThenableBuilder([]);
+    mockFrom.mockReturnValue(builder);
+
+    const { result } = renderHook(() => useContacts({}), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockUseRealtimeTable).toHaveBeenCalledWith({
+      table: "contacts",
+      filter: "client_id=eq.client-1",
+      queryKeys: [contactKeys.all],
+      enabled: true,
+    });
+    expect(mockUseRealtimeTable).toHaveBeenCalledWith({
+      table: "companies",
+      filter: "client_id=eq.client-1",
+      queryKeys: [contactKeys.all],
+      enabled: true,
+    });
+  });
+
   it("surfaces Supabase errors", async () => {
     const builder = createThenableBuilder([], { message: "RLS denied" });
     mockFrom.mockReturnValue(builder);
@@ -159,6 +182,7 @@ describe("useContact", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(builder.select).toHaveBeenCalledWith("*, companies!contacts_company_id_fkey(company_id, name)");
     expect(builder.eq).toHaveBeenCalledWith("contact_id", "contact-1");
     expect(builder.single).toHaveBeenCalled();
   });

@@ -553,6 +553,7 @@ export type Database = {
       contacts: {
         Row: {
           client_id: string
+          company_id: string | null
           contact_id: string
           created_at: string
           custom_fields: Json
@@ -566,6 +567,7 @@ export type Database = {
         }
         Insert: {
           client_id: string
+          company_id?: string | null
           contact_id?: string
           created_at?: string
           custom_fields?: Json
@@ -579,6 +581,7 @@ export type Database = {
         }
         Update: {
           client_id?: string
+          company_id?: string | null
           contact_id?: string
           created_at?: string
           custom_fields?: Json
@@ -598,11 +601,74 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["client_id"]
           },
+          {
+            foreignKeyName: "contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      companies: {
+        Row: {
+          address: string | null
+          client_id: string
+          company_id: string
+          created_at: string
+          custom_fields: Json
+          email: string | null
+          industry: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          client_id: string
+          company_id?: string
+          created_at?: string
+          custom_fields?: Json
+          email?: string | null
+          industry?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          client_id?: string
+          company_id?: string
+          created_at?: string
+          custom_fields?: Json
+          email?: string | null
+          industry?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "companies_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
         ]
       }
       crm_config: {
         Row: {
           client_id: string
+          company_custom_fields: Json
+          company_industries: Json | null
+          company_label: string
           config_id: string
           contact_custom_fields: Json
           contact_types: Json | null
@@ -618,6 +684,9 @@ export type Database = {
         }
         Insert: {
           client_id: string
+          company_custom_fields?: Json
+          company_industries?: Json | null
+          company_label?: string
           config_id?: string
           contact_custom_fields?: Json
           contact_types?: Json | null
@@ -633,6 +702,9 @@ export type Database = {
         }
         Update: {
           client_id?: string
+          company_custom_fields?: Json
+          company_industries?: Json | null
+          company_label?: string
           config_id?: string
           contact_custom_fields?: Json
           contact_types?: Json | null
@@ -776,6 +848,7 @@ export type Database = {
         Row: {
           address: string
           client_id: string
+          company_id: string | null
           created_at: string
           custom_fields: Json
           deal_id: string
@@ -787,6 +860,7 @@ export type Database = {
         Insert: {
           address: string
           client_id: string
+          company_id?: string | null
           created_at?: string
           custom_fields?: Json
           deal_id?: string
@@ -798,6 +872,7 @@ export type Database = {
         Update: {
           address?: string
           client_id?: string
+          company_id?: string | null
           created_at?: string
           custom_fields?: Json
           deal_id?: string
@@ -813,6 +888,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "deals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["company_id"]
           },
         ]
       }

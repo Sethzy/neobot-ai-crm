@@ -9,10 +9,13 @@ import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query"
 import { useClientId } from "@/hooks/use-client-id";
 import { useRealtimeTable } from "@/hooks/use-realtime";
 import { buildSearchExpression } from "@/lib/crm/postgrest-filters";
-import { type Contact } from "@/lib/crm/schemas";
+import { type Company, type Contact } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
 export type ContactType = Contact["type"];
+export type ContactWithCompany = Contact & {
+  companies: Pick<Company, "company_id" | "name"> | null;
+};
 
 export interface ContactFilters {
   search?: string;
@@ -30,8 +33,11 @@ export const contactKeys = {
   detail: (contactId: string) => [...contactKeys.details(), contactId] as const,
 };
 
-async function fetchContacts({ search, type }: ContactFilters): Promise<Contact[]> {
-  let query = supabase.from("contacts").select("*").order("updated_at", { ascending: false });
+async function fetchContacts({ search, type }: ContactFilters): Promise<ContactWithCompany[]> {
+  let query = supabase
+    .from("contacts")
+    .select("*, companies!contacts_company_id_fkey(company_id, name)")
+    .order("updated_at", { ascending: false });
 
   if (search?.trim()) {
     query = query.or(buildSearchExpression(search, ["first_name", "last_name", "email", "phone"]));
@@ -47,7 +53,7 @@ async function fetchContacts({ search, type }: ContactFilters): Promise<Contact[
     throw error;
   }
 
-  return (data ?? []) as Contact[];
+  return (data ?? []) as ContactWithCompany[];
 }
 
 export function contactsQueryOptions(filters: ContactFilters) {
@@ -63,7 +69,7 @@ export function contactDetailQueryOptions(contactId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contacts")
-        .select("*")
+        .select("*, companies!contacts_company_id_fkey(company_id, name)")
         .eq("contact_id", contactId)
         .single();
 
@@ -71,7 +77,7 @@ export function contactDetailQueryOptions(contactId: string) {
         throw error;
       }
 
-      return data as Contact;
+      return data as ContactWithCompany;
     },
   });
 }
@@ -89,6 +95,13 @@ export function useContacts(filters: ContactFilters) {
     enabled: Boolean(clientId),
   });
 
+  useRealtimeTable({
+    table: "companies",
+    filter: clientId ? `client_id=eq.${clientId}` : undefined,
+    queryKeys: [contactKeys.all],
+    enabled: Boolean(clientId),
+  });
+
   return useQuery({
     ...contactsQueryOptions(filters),
     placeholderData: keepPreviousData,
@@ -99,6 +112,22 @@ export function useContacts(filters: ContactFilters) {
  * Returns a single contact by id.
  */
 export function useContact(contactId: string) {
+  const { data: clientId } = useClientId();
+
+  useRealtimeTable({
+    table: "contacts",
+    filter: clientId ? `client_id=eq.${clientId}` : undefined,
+    queryKeys: [contactKeys.detail(contactId)],
+    enabled: Boolean(clientId && contactId),
+  });
+
+  useRealtimeTable({
+    table: "companies",
+    filter: clientId ? `client_id=eq.${clientId}` : undefined,
+    queryKeys: [contactKeys.detail(contactId)],
+    enabled: Boolean(clientId && contactId),
+  });
+
   return useQuery({
     ...contactDetailQueryOptions(contactId),
     enabled: Boolean(contactId),

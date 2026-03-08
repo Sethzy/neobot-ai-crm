@@ -10,6 +10,7 @@ import { StageBadge } from "@/components/crm/stage-badge";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useContactDeals } from "@/hooks/use-contact-relations";
+import { useCompanies } from "@/hooks/use-companies";
 import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useContact } from "@/hooks/use-contacts";
 import { useUpdateContact } from "@/hooks/use-update-contact";
@@ -37,6 +38,7 @@ interface ContactDrawerContentProps {
 export function ContactDrawerContent({ contactId }: ContactDrawerContentProps) {
   const { data: contact, isLoading, isError } = useContact(contactId);
   const { data: linkedDeals = [] } = useContactDeals(contactId);
+  const { data: companies = [] } = useCompanies({});
   const { data: crmConfigResult } = useCrmConfig();
   const updateContact = useUpdateContact(contactId);
 
@@ -58,6 +60,13 @@ export function ContactDrawerContent({ contactId }: ContactDrawerContentProps) {
     crmConfigResult?.config.contact_types ?? contactTypeValues,
     contact.type,
   );
+  const companyOptions = [
+    { value: "__none__", label: "No company" },
+    ...companies.map((company) => ({
+      value: company.company_id,
+      label: company.name,
+    })),
+  ];
   const contactCustomFields = crmConfigResult?.config.contact_custom_fields ?? [];
 
   return (
@@ -83,6 +92,17 @@ export function ContactDrawerContent({ contactId }: ContactDrawerContentProps) {
             value={contact.email}
             onSave={async (nextValue) => {
               await updateContact.mutateAsync({ email: toNullableValue(nextValue) });
+            }}
+          />
+          <InlineEditField
+            label="Company"
+            value={contact.company_id}
+            type="select"
+            options={companyOptions}
+            onSave={async (nextValue) => {
+              await updateContact.mutateAsync({
+                company_id: nextValue === "__none__" ? null : nextValue,
+              });
             }}
           />
           <InlineEditField

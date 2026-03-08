@@ -5,6 +5,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  companyInsertSchema,
+  companySchema,
   contactInsertSchema,
   contactSchema,
   crmConfigInsertSchema,
@@ -26,6 +28,7 @@ describe("configurable CRM entity schemas", () => {
     expect(contactSchema.parse({
       contact_id: "550e8400-e29b-41d4-a716-446655440000",
       client_id: "660e8400-e29b-41d4-a716-446655440000",
+      company_id: null,
       first_name: "Jamie",
       last_name: "Lim",
       email: null,
@@ -40,6 +43,7 @@ describe("configurable CRM entity schemas", () => {
     expect(dealSchema.parse({
       deal_id: "750e8400-e29b-41d4-a716-446655440000",
       client_id: "660e8400-e29b-41d4-a716-446655440000",
+      company_id: null,
       address: "123 Orchard Road",
       stage: "underwriting",
       price: 1500000,
@@ -75,6 +79,7 @@ describe("configurable CRM entity schemas", () => {
   it("accepts custom_fields on contacts, deals, and crm tasks", () => {
     expect(contactInsertSchema.parse({
       client_id: "660e8400-e29b-41d4-a716-446655440000",
+      company_id: null,
       first_name: "Jamie",
       last_name: "Lim",
       type: "prospect",
@@ -83,6 +88,7 @@ describe("configurable CRM entity schemas", () => {
 
     expect(dealInsertSchema.parse({
       client_id: "660e8400-e29b-41d4-a716-446655440000",
+      company_id: null,
       address: "123 Orchard Road",
       stage: "underwriting",
       custom_fields: { policy_number: "POL-1" },
@@ -109,18 +115,45 @@ describe("configurable CRM entity schemas", () => {
     }).custom_fields).toEqual({ priority_score: 3 });
   });
 
+  it("accepts company rows and inserts with configurable industry strings", () => {
+    expect(companySchema.parse({
+      company_id: "150e8400-e29b-41d4-a716-446655440000",
+      client_id: "660e8400-e29b-41d4-a716-446655440000",
+      name: "Acme Realty",
+      industry: "mortgage_broker",
+      website: "https://acme.example",
+      phone: "+6591234567",
+      email: "hello@acme.example",
+      address: "123 Orchard Road",
+      notes: null,
+      custom_fields: { tier: "a" },
+      created_at: ISO,
+      updated_at: ISO,
+    }).industry).toBe("mortgage_broker");
+
+    expect(companyInsertSchema.parse({
+      client_id: "660e8400-e29b-41d4-a716-446655440000",
+      name: "Acme Realty",
+      industry: "mortgage_broker",
+      custom_fields: { tier: "a" },
+    }).industry).toBe("mortgage_broker");
+  });
+
   it("accepts the extended crm_config shape", () => {
     const row = {
       config_id: "a50e8400-e29b-41d4-a716-446655440000",
       client_id: "660e8400-e29b-41d4-a716-446655440000",
       deal_label: "Policy",
+      company_label: "Brokerage",
       deal_stages: ["lead", "quoted", "bound"],
       contact_types: ["prospect", "client"],
       interaction_types: ["call", "email"],
       deal_contact_roles: ["client", "broker"],
+      company_industries: ["property_agency", "developer"],
       task_types: null,
       deal_custom_fields: [{ key: "policy_number", label: "Policy Number", type: "text" }],
       contact_custom_fields: [],
+      company_custom_fields: [{ key: "tier", label: "Tier", type: "text" }],
       task_custom_fields: [],
       created_at: ISO,
       updated_at: ISO,
@@ -130,12 +163,15 @@ describe("configurable CRM entity schemas", () => {
     expect(crmConfigInsertSchema.parse({
       client_id: row.client_id,
       deal_label: "Policy",
+      company_label: "Brokerage",
       deal_stages: ["lead", "quoted"],
       contact_types: ["prospect"],
       interaction_types: ["call"],
       deal_contact_roles: ["broker"],
+      company_industries: ["property_agency"],
       deal_custom_fields: [],
       contact_custom_fields: [],
+      company_custom_fields: [],
       task_custom_fields: [],
     }).deal_label).toBe("Policy");
   });

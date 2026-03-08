@@ -24,6 +24,8 @@ vi.mock("@/hooks/use-contacts", () => ({
       last_name: "Tan",
       email: "sarah@example.com",
       phone: "+6598765432",
+      company_id: "co-1",
+      companies: { company_id: "co-1", name: "PropNex" },
       type: "seller",
       notes: "Prefers evening calls.",
       custom_fields: { segment: "vip" },
@@ -49,6 +51,15 @@ vi.mock("@/hooks/use-update-contact", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-companies", () => ({
+  useCompanies: () => ({
+    data: [
+      { company_id: "co-1", name: "PropNex" },
+      { company_id: "co-2", name: "ERA" },
+    ],
+  }),
+}));
+
 vi.mock("@/hooks/use-crm-config", () => ({
   useCrmConfig: () => ({
     data: {
@@ -56,8 +67,10 @@ vi.mock("@/hooks/use-crm-config", () => ({
         deal_label: "Policy",
         deal_stages: ["lead", "quoted", "bound"],
         contact_types: ["prospect", "client"],
+        company_label: "Company",
         interaction_types: ["call", "email"],
         deal_contact_roles: ["insured", "owner"],
+        company_industries: ["property_agency", "developer"],
         deal_custom_fields: [],
         contact_custom_fields: [
           {
@@ -68,6 +81,7 @@ vi.mock("@/hooks/use-crm-config", () => ({
             required: false,
           },
         ],
+        company_custom_fields: [],
         task_custom_fields: [],
       },
     },
@@ -88,6 +102,7 @@ describe("ContactDrawerContent", () => {
 
     expect(screen.getByTestId("inline-Phone")).toBeInTheDocument();
     expect(screen.getByTestId("inline-Email")).toBeInTheDocument();
+    expect(screen.getByTestId("inline-Company")).toBeInTheDocument();
     expect(screen.getByTestId("inline-Type")).toBeInTheDocument();
     expect(screen.getByTestId("inline-Notes")).toBeInTheDocument();
   });
@@ -115,10 +130,16 @@ describe("ContactDrawerContent", () => {
     expect(screen.getByTestId("inline-Segment")).toBeInTheDocument();
 
     const typeCall = inlineFieldSpy.mock.calls.find(([props]) => props.label === "Type")?.[0];
+    const companyCall = inlineFieldSpy.mock.calls.find(([props]) => props.label === "Company")?.[0];
     expect(typeCall.options).toEqual([
       { value: "prospect", label: "Prospect" },
       { value: "client", label: "Client" },
       { value: "seller", label: "Seller" },
+    ]);
+    expect(companyCall.options).toEqual([
+      { value: "__none__", label: "No company" },
+      { value: "co-1", label: "PropNex" },
+      { value: "co-2", label: "ERA" },
     ]);
 
     const customFieldCall = inlineFieldSpy.mock.calls.find(([props]) => props.label === "Segment")?.[0];

@@ -8,18 +8,23 @@ import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, use
 import { useMemo, useState, type MouseEvent } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import type { Company, Contact } from "@/lib/crm/schemas";
 import {
   formatContactFullName,
   formatCrmDate,
   formatCrmEnumLabel,
   getContactTypeBadgeVariant,
 } from "@/lib/crm/display";
-import type { Contact } from "@/lib/crm/schemas";
 
-const columnHelper = createColumnHelper<Contact>();
+interface ContactTableRow
+  extends Pick<Contact, "contact_id" | "first_name" | "last_name" | "email" | "phone" | "type" | "updated_at"> {
+  companies?: Pick<Company, "company_id" | "name"> | null;
+}
+
+const columnHelper = createColumnHelper<ContactTableRow>();
 
 interface ContactsTableProps {
-  contacts: Contact[];
+  contacts: ContactTableRow[];
   /** Called when a user clicks a row outside inline link/button controls. */
   onRowClick?: (contactId: string) => void;
 }
@@ -75,6 +80,20 @@ export function ContactsTable({ contacts, onRowClick }: ContactsTableProps) {
               {phone}
             </a>
           );
+        },
+      }),
+      columnHelper.display({
+        id: "company",
+        header: "Company",
+        enableSorting: false,
+        cell: ({ row }) => {
+          const companyName = row.original.companies?.name;
+
+          if (!companyName) {
+            return <span className="text-muted-foreground">—</span>;
+          }
+
+          return companyName;
         },
       }),
       columnHelper.accessor("type", {

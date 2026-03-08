@@ -16,6 +16,7 @@ const sampleDeals = [
     stage: "negotiation" as const,
     price: 1500000,
     notes: "Hot lead",
+    companies: { company_id: "co-1", name: "PropNex" },
     created_at: "2026-02-01T00:00:00+08:00",
     updated_at: "2026-03-01T00:00:00+08:00",
     deal_contacts: [
@@ -29,6 +30,7 @@ const sampleDeals = [
     stage: "lost" as const,
     price: null,
     notes: null,
+    companies: null,
     created_at: "2026-02-15T00:00:00+08:00",
     updated_at: "2026-02-28T00:00:00+08:00",
     deal_contacts: [],
@@ -48,6 +50,7 @@ describe("DealsTable", () => {
     expect(screen.getByText("Negotiation")).toBeInTheDocument();
     expect(screen.getByText("Lost")).toBeInTheDocument();
     expect(screen.getByText("John Smith")).toBeInTheDocument();
+    expect(screen.getByText("PropNex")).toBeInTheDocument();
     expect(screen.getByText(/1,500,000/)).toBeInTheDocument();
   });
 

@@ -16,6 +16,7 @@ export default function CrmLayout({ children }: CrmLayoutProps) {
   const pathname = usePathname() ?? "";
   const isContactsActive = pathname.startsWith("/crm/contacts");
   const isDealsActive = pathname.startsWith("/crm/deals");
+  const isCompaniesActive = pathname.startsWith("/crm/companies");
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
@@ -42,6 +43,17 @@ export default function CrmLayout({ children }: CrmLayoutProps) {
             ].join(" ")}
           >
             Deals
+          </Link>
+          <Link
+            href="/crm/companies"
+            className={[
+              "border-b-2 px-1 pb-2 text-sm transition-colors",
+              isCompaniesActive
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            ].join(" ")}
+          >
+            Companies
           </Link>
         </nav>
       </div>

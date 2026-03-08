@@ -19,7 +19,7 @@ describe("CrmLayout", () => {
     mockUsePathname.mockReturnValue("/crm/contacts");
   });
 
-  it("renders contacts and deals tabs around child content", () => {
+  it("renders contacts, deals, and companies tabs around child content", () => {
     render(
       <CrmLayout>
         <div>CRM Child Content</div>
@@ -33,6 +33,10 @@ describe("CrmLayout", () => {
     expect(screen.getByRole("link", { name: /deals/i })).toHaveAttribute(
       "href",
       "/crm/deals",
+    );
+    expect(screen.getByRole("link", { name: /companies/i })).toHaveAttribute(
+      "href",
+      "/crm/companies",
     );
     expect(screen.getByText("CRM Child Content")).toBeInTheDocument();
   });

@@ -49,6 +49,7 @@ const configurableVocabularySchema = z.string().min(1);
 export const contactSchema = z.object({
   contact_id: z.string().uuid(),
   client_id: z.string().uuid(),
+  company_id: z.string().uuid().nullable(),
   first_name: z.string().min(1),
   last_name: z.string().min(1),
   email: z.string().nullable(),
@@ -63,6 +64,7 @@ export const contactSchema = z.object({
 /** Insert payload validator for `contacts` (id/timestamps omitted). */
 export const contactInsertSchema = z.object({
   client_id: z.string().uuid(),
+  company_id: z.string().uuid().nullable().optional(),
   first_name: z.string().min(1),
   last_name: z.string().min(1),
   email: z.string().nullable().optional(),
@@ -84,10 +86,43 @@ export const dealStageValues = [
   "lost",
 ] as const;
 
+/** Full `companies` row validator. */
+export const companySchema = z.object({
+  company_id: z.string().uuid(),
+  client_id: z.string().uuid(),
+  name: z.string().min(1),
+  industry: configurableVocabularySchema.nullable(),
+  website: z.string().nullable(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
+  address: z.string().nullable(),
+  notes: z.string().nullable(),
+  custom_fields: jsonObjectSchema,
+  created_at: isoDateTimeSchema,
+  updated_at: isoDateTimeSchema,
+});
+
+/** Insert payload validator for `companies` (id/timestamps omitted). */
+export const companyInsertSchema = z.object({
+  client_id: z.string().uuid(),
+  name: z.string().min(1),
+  industry: configurableVocabularySchema.nullable().optional(),
+  website: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  email: z.string().nullable().optional(),
+  address: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  custom_fields: jsonObjectSchema.optional(),
+});
+
+export type Company = z.infer<typeof companySchema>;
+export type CompanyInsert = z.infer<typeof companyInsertSchema>;
+
 /** Full `deals` row validator. */
 export const dealSchema = z.object({
   deal_id: z.string().uuid(),
   client_id: z.string().uuid(),
+  company_id: z.string().uuid().nullable(),
   address: z.string().min(1),
   stage: configurableVocabularySchema,
   price: z.number().int().nonnegative().nullable(),
@@ -100,6 +135,7 @@ export const dealSchema = z.object({
 /** Insert payload validator for `deals` (id/timestamps omitted). */
 export const dealInsertSchema = z.object({
   client_id: z.string().uuid(),
+  company_id: z.string().uuid().nullable().optional(),
   address: z.string().min(1),
   stage: configurableVocabularySchema.optional(),
   price: z.number().int().nonnegative().nullable().optional(),
@@ -217,13 +253,16 @@ export const crmConfigSchema = z.object({
   config_id: z.string().uuid(),
   client_id: z.string().uuid(),
   deal_label: z.string(),
+  company_label: z.string(),
   deal_stages: jsonValueSchema.nullable(),
   contact_types: jsonValueSchema.nullable(),
   task_types: jsonValueSchema.nullable(),
   interaction_types: jsonValueSchema.nullable(),
   deal_contact_roles: jsonValueSchema.nullable(),
+  company_industries: jsonValueSchema.nullable(),
   deal_custom_fields: z.array(customFieldDefinitionSchema),
   contact_custom_fields: z.array(customFieldDefinitionSchema),
+  company_custom_fields: z.array(customFieldDefinitionSchema),
   task_custom_fields: z.array(customFieldDefinitionSchema),
   created_at: isoDateTimeSchema,
   updated_at: isoDateTimeSchema,
@@ -233,13 +272,16 @@ export const crmConfigSchema = z.object({
 export const crmConfigInsertSchema = z.object({
   client_id: z.string().uuid(),
   deal_label: z.string().optional(),
+  company_label: z.string().optional(),
   deal_stages: jsonValueSchema.nullable().optional(),
   contact_types: jsonValueSchema.nullable().optional(),
   task_types: jsonValueSchema.nullable().optional(),
   interaction_types: jsonValueSchema.nullable().optional(),
   deal_contact_roles: jsonValueSchema.nullable().optional(),
+  company_industries: jsonValueSchema.nullable().optional(),
   deal_custom_fields: z.array(customFieldDefinitionSchema).optional(),
   contact_custom_fields: z.array(customFieldDefinitionSchema).optional(),
+  company_custom_fields: z.array(customFieldDefinitionSchema).optional(),
   task_custom_fields: z.array(customFieldDefinitionSchema).optional(),
 });
 

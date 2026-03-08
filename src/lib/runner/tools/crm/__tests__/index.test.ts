@@ -19,30 +19,39 @@ describe("createCrmTools", () => {
 
     expect(Object.keys(tools).sort()).toEqual([
       "get_deal_contacts",
+      "search_companies",
       "search_contacts",
       "search_deals",
       "search_tasks",
     ]);
   });
 
-  it("returns all 15 expected CRM tools when writes are enabled", () => {
+  it("returns all 23 expected CRM tools when writes are enabled", () => {
     const { client } = createMockSupabase();
 
     const tools = createCrmTools(client, CLIENT_ID, { allowWriteTools: true });
 
     expect(Object.keys(tools).sort()).toEqual([
+      "batch_create_companies",
       "batch_create_contacts",
       "batch_create_deals",
+      "create_company",
       "create_contact",
       "create_deal",
       "create_interaction",
       "create_task",
       "get_deal_contacts",
+      "link_contact_to_company",
       "link_contact_to_deal",
+      "link_deal_to_company",
+      "search_companies",
       "search_contacts",
       "search_deals",
       "search_tasks",
+      "unlink_contact_from_company",
       "unlink_contact_from_deal",
+      "unlink_deal_from_company",
+      "update_company",
       "update_contact",
       "update_deal",
       "update_task",
@@ -77,6 +86,8 @@ describe("createCrmTools", () => {
         ...CRM_DEFAULTS,
         deal_label: "Policy",
         deal_stages: ["lead", "underwriting", "bound"],
+        company_label: "Brokerage",
+        company_industries: ["property_agency", "mortgage_broker"],
       },
     });
 
@@ -84,6 +95,9 @@ describe("createCrmTools", () => {
     expect(tools.search_deals.description).toContain("Policy");
     expect(tools.search_deals.inputSchema.safeParse({ stage: "underwriting" }).success).toBe(true);
     expect(tools.search_deals.inputSchema.safeParse({ stage: "offer" }).success).toBe(false);
+    expect(tools.search_companies.description).toContain("Brokerage");
+    expect(tools.search_companies.inputSchema.safeParse({ industry: "mortgage_broker" }).success).toBe(true);
+    expect(tools.search_companies.inputSchema.safeParse({ industry: "bank" }).success).toBe(false);
     expect(tools).not.toHaveProperty("configure_crm");
   });
 });

@@ -59,6 +59,12 @@ vi.mock("../deal-drawer-content", () => ({
   DealDrawerContent: ({ dealId }: { dealId: string }) => <div data-testid="deal-content">{dealId}</div>,
 }));
 
+vi.mock("../company-drawer-content", () => ({
+  CompanyDrawerContent: ({ companyId }: { companyId: string }) => (
+    <div data-testid="company-content">{companyId}</div>
+  ),
+}));
+
 vi.mock("../task-drawer-content", () => ({
   TaskDrawerContent: ({ taskId }: { taskId: string }) => <div data-testid="task-content">{taskId}</div>,
 }));
@@ -80,11 +86,14 @@ describe("RecordDrawer", () => {
     expect(screen.getByTestId("contact-content")).toHaveTextContent("c-1");
   });
 
-  it("renders deal and task variants by object type", () => {
+  it("renders deal, company, and task variants by object type", () => {
     const { rerender } = render(
       <RecordDrawer isOpen={true} recordId="d-1" objectType="deal" onClose={vi.fn()} />,
     );
     expect(screen.getByTestId("deal-content")).toHaveTextContent("d-1");
+
+    rerender(<RecordDrawer isOpen={true} recordId="co-1" objectType="company" onClose={vi.fn()} />);
+    expect(screen.getByTestId("company-content")).toHaveTextContent("co-1");
 
     rerender(<RecordDrawer isOpen={true} recordId="t-1" objectType="task" onClose={vi.fn()} />);
     expect(screen.getByTestId("task-content")).toHaveTextContent("t-1");
@@ -110,4 +119,3 @@ describe("RecordDrawer", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
-

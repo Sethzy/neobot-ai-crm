@@ -11,7 +11,9 @@ import { dealKeys } from "@/hooks/use-deals";
 import { type Deal } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
-type DealUpdate = Partial<Pick<Deal, "address" | "stage" | "price" | "notes" | "custom_fields">>;
+type DealUpdate = Partial<
+  Pick<Deal, "address" | "stage" | "price" | "notes" | "company_id" | "custom_fields">
+>;
 
 /**
  * Returns a mutation for updating one deal row.

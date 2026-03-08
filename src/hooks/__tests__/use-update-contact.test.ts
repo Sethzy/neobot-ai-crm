@@ -60,6 +60,23 @@ describe("useUpdateContact", () => {
     expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: contactKeys.all });
   });
 
+  it("supports updating company_id on a contact", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    const { result } = renderHook(() => useUpdateContact("contact-1"), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await result.current.mutateAsync({ company_id: "company-1" });
+
+    expect(mockUpdate).toHaveBeenCalledWith({ company_id: "company-1" });
+  });
+
   it("throws when Supabase returns an update error", async () => {
     const error = { message: "permission denied" };
     mockEq.mockResolvedValue({ error });

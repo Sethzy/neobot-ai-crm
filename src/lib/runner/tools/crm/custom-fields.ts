@@ -13,7 +13,7 @@ import type { Database, JsonObject } from "@/types/database";
  */
 export async function mergeCustomFields(
   supabase: SupabaseClient<Database>,
-  table: "contacts" | "deals" | "crm_tasks",
+  table: "contacts" | "companies" | "deals" | "crm_tasks",
   idColumn: string,
   recordId: string,
   clientId: string,

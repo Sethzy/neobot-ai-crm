@@ -1,6 +1,6 @@
 /**
- * CRM deals table with sortable columns and row navigation.
- * @module components/crm/deals-table
+ * CRM companies table with sortable columns and row navigation.
+ * @module components/crm/companies-table
  */
 "use client";
 
@@ -14,66 +14,58 @@ import {
 } from "@tanstack/react-table";
 import { useMemo, useState, type MouseEvent } from "react";
 
-import { StageBadge } from "@/components/crm/stage-badge";
-import { formatContactFullName, formatCrmDate, formatCrmPrice } from "@/lib/crm/display";
-import type { DealWithContact } from "@/hooks/use-deals";
+import { Badge } from "@/components/ui/badge";
+import { formatCrmDate, formatCrmEnumLabel } from "@/lib/crm/display";
+import type { Company } from "@/lib/crm/schemas";
 
-const columnHelper = createColumnHelper<DealWithContact>();
-
-interface DealsTableProps {
-  deals: DealWithContact[];
-  /** Called when a user clicks a row outside inline link/button controls. */
-  onRowClick?: (dealId: string) => void;
+export interface CompanyTableRow
+  extends Pick<
+    Company,
+    "company_id" | "name" | "industry" | "website" | "phone" | "email" | "address" | "updated_at"
+  > {
+  contactCount: number;
+  dealCount: number;
 }
 
-export function DealsTable({ deals, onRowClick }: DealsTableProps) {
+const columnHelper = createColumnHelper<CompanyTableRow>();
+
+interface CompaniesTableProps {
+  companies: CompanyTableRow[];
+  /** Called when a user clicks a row outside inline link/button controls. */
+  onRowClick?: (companyId: string) => void;
+}
+
+export function CompaniesTable({ companies, onRowClick }: CompaniesTableProps) {
   const [sorting, setSorting] = useState<SortingState>([{ id: "updated_at", desc: true }]);
 
   const columns = useMemo(
     () => [
-      columnHelper.accessor("address", {
-        header: "Address",
+      columnHelper.accessor("name", {
+        header: "Name",
         cell: (info) => <span className="font-medium text-foreground/90">{info.getValue()}</span>,
       }),
-      columnHelper.accessor("stage", {
-        header: "Stage",
-        cell: (info) => <StageBadge stage={info.getValue()} />,
-      }),
-      columnHelper.accessor("price", {
-        header: "Price",
-        cell: (info) => <span className="tabular-nums text-foreground/80">{formatCrmPrice(info.getValue())}</span>,
-      }),
-      columnHelper.display({
-        id: "contact",
-        header: "Contact",
-        enableSorting: false,
-        cell: ({ row }) => {
-          const primary = row.original.deal_contacts?.find((dc) => dc.is_primary)
-            ?? row.original.deal_contacts?.[0];
+      columnHelper.accessor("industry", {
+        header: "Industry",
+        cell: (info) => {
+          const industry = info.getValue();
 
-          if (!primary?.contacts) {
+          if (!industry) {
             return <span className="text-muted-foreground">—</span>;
           }
 
-          return formatContactFullName(primary.contacts);
+          return <Badge variant="secondary">{formatCrmEnumLabel(industry)}</Badge>;
         },
       }),
-      columnHelper.display({
-        id: "company",
-        header: "Company",
-        enableSorting: false,
-        cell: ({ row }) => {
-          const companyName = row.original.companies?.name;
-
-          if (!companyName) {
-            return <span className="text-muted-foreground">—</span>;
-          }
-
-          return companyName;
-        },
+      columnHelper.accessor("contactCount", {
+        header: "Contacts",
+        cell: (info) => <span className="tabular-nums text-foreground/80">{info.getValue()}</span>,
+      }),
+      columnHelper.accessor("dealCount", {
+        header: "Deals",
+        cell: (info) => <span className="tabular-nums text-foreground/80">{info.getValue()}</span>,
       }),
       columnHelper.accessor("updated_at", {
-        header: "Updated",
+        header: "Last Updated",
         cell: (info) => (
           <span className="whitespace-nowrap text-muted-foreground">{formatCrmDate(info.getValue())}</span>
         ),
@@ -83,7 +75,7 @@ export function DealsTable({ deals, onRowClick }: DealsTableProps) {
   );
 
   const table = useReactTable({
-    data: deals,
+    data: companies,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
@@ -91,18 +83,18 @@ export function DealsTable({ deals, onRowClick }: DealsTableProps) {
     getSortedRowModel: getSortedRowModel(),
   });
 
-  const handleRowClick = (event: MouseEvent<HTMLTableRowElement>, dealId: string) => {
+  const handleRowClick = (event: MouseEvent<HTMLTableRowElement>, companyId: string) => {
     if ((event.target as HTMLElement).closest("a,button,[role='button']")) {
       return;
     }
 
-    onRowClick?.(dealId);
+    onRowClick?.(companyId);
   };
 
-  if (deals.length === 0) {
+  if (companies.length === 0) {
     return (
       <div className="rounded-xl border border-border/40 bg-card p-10 text-center shadow-sm">
-        <p className="text-muted-foreground">No deals yet</p>
+        <p className="text-muted-foreground">No companies yet</p>
       </div>
     );
   }
@@ -133,7 +125,7 @@ export function DealsTable({ deals, onRowClick }: DealsTableProps) {
             <tr
               key={row.id}
               className="cursor-pointer border-t border-border/30 transition-colors hover:bg-muted/40"
-              onClick={(event) => handleRowClick(event, row.original.deal_id)}
+              onClick={(event) => handleRowClick(event, row.original.company_id)}
             >
               {row.getVisibleCells().map((cell) => (
                 <td key={cell.id} className="px-3 py-3 text-[13px] text-foreground/80 md:px-5 md:py-4">

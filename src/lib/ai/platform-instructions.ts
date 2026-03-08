@@ -51,6 +51,7 @@ function formatCustomFieldDefinitionSummary(config: CrmVocabConfig) {
   const collections = [
     ["Deal custom fields", config.deal_custom_fields],
     ["Contact custom fields", config.contact_custom_fields],
+    ["Company custom fields", config.company_custom_fields],
     ["Task custom fields", config.task_custom_fields],
   ] as const;
 
@@ -78,8 +79,10 @@ function formatCustomFieldDefinitionSummary(config: CrmVocabConfig) {
 function buildCrmVocabularyBlock(config: CrmVocabConfig) {
   return `<crm-vocabulary>
 Deal label: ${escapeXml(config.deal_label)}
+Company label: ${escapeXml(config.company_label)}
 Deal stages: ${config.deal_stages.map(escapeXml).join(", ")}
 Contact types: ${config.contact_types.map(escapeXml).join(", ")}
+Company industries: ${config.company_industries.map(escapeXml).join(", ")}
 Interaction types: ${config.interaction_types.map(escapeXml).join(", ")}
 Deal contact roles: ${config.deal_contact_roles.map(escapeXml).join(", ")}
 ${formatCustomFieldDefinitionSummary(config)}

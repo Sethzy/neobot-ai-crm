@@ -38,36 +38,52 @@ export type CustomFieldDefinition = z.infer<typeof customFieldDefinitionSchema>;
 /** Fully resolved CRM vocabulary + custom-field config used at runtime. */
 export interface CrmVocabConfig {
   deal_label: string;
+  company_label: string;
   deal_stages: string[];
   contact_types: string[];
   interaction_types: string[];
   deal_contact_roles: string[];
+  company_industries: string[];
   deal_custom_fields: CustomFieldDefinition[];
   contact_custom_fields: CustomFieldDefinition[];
+  company_custom_fields: CustomFieldDefinition[];
   task_custom_fields: CustomFieldDefinition[];
 }
 
 /** Loose DB row shape for crm_config before runtime normalization. */
 export interface CrmConfigRow {
   deal_label: string | null;
+  company_label: string | null;
   deal_stages: unknown;
   contact_types: unknown;
   interaction_types: unknown;
   deal_contact_roles: unknown;
+  company_industries: unknown;
   deal_custom_fields: unknown;
   contact_custom_fields: unknown;
+  company_custom_fields: unknown;
   task_custom_fields: unknown;
 }
 
 /** Real-estate defaults used when a client has not configured CRM vocab yet. */
 export const CRM_DEFAULTS: CrmVocabConfig = {
   deal_label: "Deal",
+  company_label: "Company",
   deal_stages: ["leads", "negotiation", "offer", "closing", "lost"],
   contact_types: ["buyer", "seller", "landlord", "tenant", "agent", "other"],
   interaction_types: ["call", "meeting", "email", "message", "viewing", "note"],
   deal_contact_roles: ["buyer", "seller", "agent", "other"],
+  company_industries: [
+    "property_agency",
+    "developer",
+    "law_firm",
+    "bank",
+    "government",
+    "other",
+  ],
   deal_custom_fields: [],
   contact_custom_fields: [],
+  company_custom_fields: [],
   task_custom_fields: [],
 };
 
@@ -134,12 +150,15 @@ export function resolveCrmConfig(row: CrmConfigRow | null): CrmVocabConfig {
 
   return {
     deal_label: row.deal_label?.trim() || CRM_DEFAULTS.deal_label,
+    company_label: row.company_label?.trim() || CRM_DEFAULTS.company_label,
     deal_stages: parseStringArray(row.deal_stages) ?? CRM_DEFAULTS.deal_stages,
     contact_types: parseStringArray(row.contact_types) ?? CRM_DEFAULTS.contact_types,
     interaction_types: parseStringArray(row.interaction_types) ?? CRM_DEFAULTS.interaction_types,
     deal_contact_roles: parseStringArray(row.deal_contact_roles) ?? CRM_DEFAULTS.deal_contact_roles,
+    company_industries: parseStringArray(row.company_industries) ?? CRM_DEFAULTS.company_industries,
     deal_custom_fields: parseCustomFields(row.deal_custom_fields),
     contact_custom_fields: parseCustomFields(row.contact_custom_fields),
+    company_custom_fields: parseCustomFields(row.company_custom_fields),
     task_custom_fields: parseCustomFields(row.task_custom_fields),
   };
 }
@@ -203,7 +222,7 @@ export async function loadCrmConfig(
   const { data, error } = await supabase
     .from("crm_config")
     .select(
-      "deal_label, deal_stages, contact_types, interaction_types, deal_contact_roles, deal_custom_fields, contact_custom_fields, task_custom_fields",
+      "deal_label, company_label, deal_stages, contact_types, interaction_types, deal_contact_roles, company_industries, deal_custom_fields, contact_custom_fields, company_custom_fields, task_custom_fields",
     )
     .eq("client_id", clientId)
     .maybeSingle();

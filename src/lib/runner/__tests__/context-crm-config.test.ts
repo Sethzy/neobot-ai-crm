@@ -70,12 +70,22 @@ describe("assembleContext CRM configuration", () => {
       crmConfig: {
         ...CRM_DEFAULTS,
         deal_label: 'Policy <Line>',
+        company_label: 'Brokerage <Firm>',
         deal_stages: ["lead & quoted", "bound"],
+        company_industries: ["property_agency", 'law_firm "partner"'],
         deal_custom_fields: [
           {
             key: "coverage_amount",
             label: 'Coverage "Amount"',
             type: "currency",
+          },
+        ],
+        company_custom_fields: [
+          {
+            key: "tier",
+            label: 'Tier "Band"',
+            type: "select",
+            options: ["a", "b"],
           },
         ],
       },
@@ -85,7 +95,10 @@ describe("assembleContext CRM configuration", () => {
     expect(result.system).toContain("configure_crm");
     expect(result.system).toContain("<crm-vocabulary>");
     expect(result.system).toContain("Policy &lt;Line&gt;");
+    expect(result.system).toContain("Brokerage &lt;Firm&gt;");
     expect(result.system).toContain("lead &amp; quoted");
+    expect(result.system).toContain("law_firm &quot;partner&quot;");
     expect(result.system).toContain("Coverage &quot;Amount&quot;");
+    expect(result.system).toContain("Tier &quot;Band&quot;");
   });
 });

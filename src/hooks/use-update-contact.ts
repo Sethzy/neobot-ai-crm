@@ -12,7 +12,10 @@ import { type Contact } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
 type ContactUpdate = Partial<
-  Pick<Contact, "first_name" | "last_name" | "phone" | "email" | "type" | "notes" | "custom_fields">
+  Pick<
+    Contact,
+    "first_name" | "last_name" | "phone" | "email" | "type" | "notes" | "company_id" | "custom_fields"
+  >
 >;
 
 /**

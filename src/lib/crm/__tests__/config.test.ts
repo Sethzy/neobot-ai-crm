@@ -55,6 +55,21 @@ describe("customFieldDefinitionSchema", () => {
 });
 
 describe("resolveCrmConfig", () => {
+  it("includes company defaults in the resolved config", () => {
+    expect(CRM_DEFAULTS).toMatchObject({
+      company_label: "Company",
+      company_industries: [
+        "property_agency",
+        "developer",
+        "law_firm",
+        "bank",
+        "government",
+        "other",
+      ],
+      company_custom_fields: [],
+    });
+  });
+
   it("returns defaults when row is null", () => {
     expect(resolveCrmConfig(null)).toEqual(CRM_DEFAULTS);
   });
@@ -66,8 +81,11 @@ describe("resolveCrmConfig", () => {
       contact_types: ["prospect", "client"],
       interaction_types: null,
       deal_contact_roles: null,
+      company_label: "Brokerage",
+      company_industries: ["property_agency", "developer"],
       deal_custom_fields: [{ key: "policy_number", label: "Policy Number", type: "text" }],
       contact_custom_fields: [],
+      company_custom_fields: [{ key: "tier", label: "Tier", type: "select", options: ["a", "b"] }],
       task_custom_fields: [],
     };
 
@@ -78,6 +96,11 @@ describe("resolveCrmConfig", () => {
     expect(config.contact_types).toEqual(["prospect", "client"]);
     expect(config.interaction_types).toEqual(CRM_DEFAULTS.interaction_types);
     expect(config.deal_contact_roles).toEqual(CRM_DEFAULTS.deal_contact_roles);
+    expect(config.company_label).toBe("Brokerage");
+    expect(config.company_industries).toEqual(["property_agency", "developer"]);
+    expect(config.company_custom_fields).toEqual([
+      { key: "tier", label: "Tier", type: "select", options: ["a", "b"] },
+    ]);
   });
 
   it("normalizes legacy object-array vocab shapes and deduplicates string values", () => {
@@ -91,8 +114,15 @@ describe("resolveCrmConfig", () => {
       contact_types: ["buyer", "buyer", "seller"],
       interaction_types: [{ id: "call", name: "Call" }],
       deal_contact_roles: null,
+      company_label: "Company",
+      company_industries: [
+        { id: "property_agency", name: "Property Agency" },
+        "developer",
+        "property_agency",
+      ],
       deal_custom_fields: [],
       contact_custom_fields: [],
+      company_custom_fields: [],
       task_custom_fields: [],
     };
 
@@ -101,6 +131,7 @@ describe("resolveCrmConfig", () => {
     expect(config.deal_stages).toEqual(["leads", "closing"]);
     expect(config.contact_types).toEqual(["buyer", "seller"]);
     expect(config.interaction_types).toEqual(["call"]);
+    expect(config.company_industries).toEqual(["property_agency", "developer"]);
   });
 
   it("filters invalid custom field definitions and keeps the last duplicate key", () => {
@@ -110,12 +141,19 @@ describe("resolveCrmConfig", () => {
       contact_types: null,
       interaction_types: null,
       deal_contact_roles: null,
+      company_label: "Company",
+      company_industries: null,
       deal_custom_fields: [
         { key: "coverage", label: "Coverage", type: "number" },
         { key: "", label: "Broken", type: "text" },
         { key: "coverage", label: "Coverage Amount", type: "currency" },
       ] as CustomFieldDefinition[],
       contact_custom_fields: [],
+      company_custom_fields: [
+        { key: "tier", label: "Tier", type: "text" },
+        { key: "", label: "Broken", type: "text" },
+        { key: "tier", label: "Tier Level", type: "select", options: ["a", "b"] },
+      ] as CustomFieldDefinition[],
       task_custom_fields: [],
     };
 
@@ -126,6 +164,13 @@ describe("resolveCrmConfig", () => {
       key: "coverage",
       label: "Coverage Amount",
       type: "currency",
+    });
+    expect(config.company_custom_fields).toHaveLength(1);
+    expect(config.company_custom_fields[0]).toMatchObject({
+      key: "tier",
+      label: "Tier Level",
+      type: "select",
+      options: ["a", "b"],
     });
   });
 });
@@ -201,8 +246,11 @@ describe("loadCrmConfig", () => {
           contact_types: ["prospect", "client"],
           interaction_types: ["call"],
           deal_contact_roles: ["client", "broker"],
+          company_label: "Brokerage",
+          company_industries: ["property_agency", "developer"],
           deal_custom_fields: [{ key: "policy_number", label: "Policy Number", type: "text" }],
           contact_custom_fields: [],
+          company_custom_fields: [{ key: "tier", label: "Tier", type: "text" }],
           task_custom_fields: [],
         },
         error: null,
@@ -215,5 +263,10 @@ describe("loadCrmConfig", () => {
     expect(result.config.deal_label).toBe("Policy");
     expect(result.config.deal_stages).toEqual(["lead", "quoted", "bound"]);
     expect(result.config.deal_contact_roles).toEqual(["client", "broker"]);
+    expect(result.config.company_label).toBe("Brokerage");
+    expect(result.config.company_industries).toEqual(["property_agency", "developer"]);
+    expect(result.config.company_custom_fields).toEqual([
+      { key: "tier", label: "Tier", type: "text" },
+    ]);
   });
 });

@@ -9,7 +9,7 @@ import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query"
 import { useClientId } from "@/hooks/use-client-id";
 import { useRealtimeTable } from "@/hooks/use-realtime";
 import { buildSearchExpression } from "@/lib/crm/postgrest-filters";
-import { type Contact, type Deal, type DealContact } from "@/lib/crm/schemas";
+import { type Company, type Contact, type Deal, type DealContact } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
 export type DealContactJoin = Pick<DealContact, "contact_id" | "role" | "is_primary"> & {
@@ -18,6 +18,7 @@ export type DealContactJoin = Pick<DealContact, "contact_id" | "role" | "is_prim
 
 export type DealWithContact = Deal & {
   deal_contacts: DealContactJoin[];
+  companies: Pick<Company, "company_id" | "name"> | null;
 };
 
 export interface DealFilters {
@@ -42,7 +43,7 @@ export const dealKeys = {
 async function fetchDeals(filters: DealFilters): Promise<DealWithContact[]> {
   let query = supabase
     .from("deals")
-    .select("*, deal_contacts!deal_contacts_deal_id_fkey(contact_id, role, is_primary, contacts!deal_contacts_contact_id_fkey(first_name, last_name))")
+    .select("*, deal_contacts!deal_contacts_deal_id_fkey(contact_id, role, is_primary, contacts!deal_contacts_contact_id_fkey(first_name, last_name)), companies!deals_company_id_fkey(company_id, name)")
     .order("updated_at", { ascending: false });
 
   if (filters.search?.trim()) {
@@ -68,7 +69,7 @@ async function fetchDeals(filters: DealFilters): Promise<DealWithContact[]> {
 async function fetchDeal(dealId: string): Promise<DealWithContact> {
   const { data, error } = await supabase
     .from("deals")
-    .select("*, deal_contacts!deal_contacts_deal_id_fkey(contact_id, role, is_primary, contacts!deal_contacts_contact_id_fkey(first_name, last_name))")
+    .select("*, deal_contacts!deal_contacts_deal_id_fkey(contact_id, role, is_primary, contacts!deal_contacts_contact_id_fkey(first_name, last_name)), companies!deals_company_id_fkey(company_id, name)")
     .eq("deal_id", dealId)
     .single();
 
@@ -114,6 +115,13 @@ export function useDeals(filters: DealFilters) {
     enabled: Boolean(clientId),
   });
 
+  useRealtimeTable({
+    table: "companies",
+    filter: realtimeFilter,
+    queryKeys: [dealKeys.all],
+    enabled: Boolean(clientId),
+  });
+
   return useQuery({
     ...dealsQueryOptions(filters),
     placeholderData: keepPreviousData,
@@ -136,6 +144,13 @@ export function useDeal(dealId: string) {
 
   useRealtimeTable({
     table: "deal_contacts",
+    filter: realtimeFilter,
+    queryKeys: [dealKeys.detail(dealId)],
+    enabled: Boolean(clientId && dealId),
+  });
+
+  useRealtimeTable({
+    table: "companies",
     filter: realtimeFilter,
     queryKeys: [dealKeys.detail(dealId)],
     enabled: Boolean(clientId && dealId),

@@ -104,7 +104,7 @@ describe("useDeals", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockFrom).toHaveBeenCalledWith("deals");
-    expect(builder.select).toHaveBeenCalledWith("*, deal_contacts!deal_contacts_deal_id_fkey(contact_id, role, is_primary, contacts!deal_contacts_contact_id_fkey(first_name, last_name))");
+    expect(builder.select).toHaveBeenCalledWith("*, deal_contacts!deal_contacts_deal_id_fkey(contact_id, role, is_primary, contacts!deal_contacts_contact_id_fkey(first_name, last_name)), companies!deals_company_id_fkey(company_id, name)");
     expect(builder.order).toHaveBeenCalledWith("updated_at", { ascending: false });
   });
 
@@ -151,6 +151,12 @@ describe("useDeals", () => {
     });
     expect(mockUseRealtimeTable).toHaveBeenCalledWith({
       table: "deal_contacts",
+      filter: "client_id=eq.client-1",
+      queryKeys: [dealKeys.all],
+      enabled: true,
+    });
+    expect(mockUseRealtimeTable).toHaveBeenCalledWith({
+      table: "companies",
       filter: "client_id=eq.client-1",
       queryKeys: [dealKeys.all],
       enabled: true,
@@ -202,6 +208,12 @@ describe("useDeal", () => {
       queryKeys: [dealKeys.detail("deal-1")],
       enabled: true,
     });
+    expect(mockUseRealtimeTable).toHaveBeenCalledWith({
+      table: "companies",
+      filter: "client_id=eq.client-1",
+      queryKeys: [dealKeys.detail("deal-1")],
+      enabled: true,
+    });
   });
 
   it("fetches one deal by deal_id", async () => {
@@ -220,6 +232,7 @@ describe("useDeal", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(builder.select).toHaveBeenCalledWith("*, deal_contacts!deal_contacts_deal_id_fkey(contact_id, role, is_primary, contacts!deal_contacts_contact_id_fkey(first_name, last_name)), companies!deals_company_id_fkey(company_id, name)");
     expect(builder.eq).toHaveBeenCalledWith("deal_id", "deal-1");
     expect(builder.single).toHaveBeenCalled();
   });

@@ -9,6 +9,7 @@ import { InlineEditField } from "@/components/crm/inline-edit-field";
 import { StageBadge } from "@/components/crm/stage-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDealInteractions } from "@/hooks/use-contact-relations";
+import { useCompanies } from "@/hooks/use-companies";
 import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useDeal } from "@/hooks/use-deals";
 import { useUpdateDeal } from "@/hooks/use-update-deal";
@@ -36,6 +37,7 @@ interface DealDrawerContentProps {
 export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
   const { data: deal, isLoading, isError } = useDeal(dealId);
   const { data: interactions = [] } = useDealInteractions(dealId);
+  const { data: companies = [] } = useCompanies({});
   const { data: crmConfigResult } = useCrmConfig();
   const updateDeal = useUpdateDeal(dealId);
 
@@ -56,6 +58,13 @@ export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
     crmConfigResult?.config.deal_stages ?? dealStageValues,
     deal.stage,
   );
+  const companyOptions = [
+    { value: "__none__", label: "No company" },
+    ...companies.map((company) => ({
+      value: company.company_id,
+      label: company.name,
+    })),
+  ];
   const dealCustomFields = crmConfigResult?.config.deal_custom_fields ?? [];
 
   return (
@@ -81,6 +90,17 @@ export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
             options={dealStageOptions}
             onSave={async (nextValue) => {
               await updateDeal.mutateAsync({ stage: nextValue as Deal["stage"] });
+            }}
+          />
+          <InlineEditField
+            label="Company"
+            value={deal.company_id}
+            type="select"
+            options={companyOptions}
+            onSave={async (nextValue) => {
+              await updateDeal.mutateAsync({
+                company_id: nextValue === "__none__" ? null : nextValue,
+              });
             }}
           />
           <InlineEditField

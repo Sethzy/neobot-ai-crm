@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { CRM_DEFAULTS } from "@/lib/crm/config";
 
+import { createCompanyTools } from "../companies";
 import { createDealContactTools } from "../deal-contacts";
 import { createDealTools } from "../deals";
 import { createInteractionTools } from "../interactions";
@@ -21,9 +22,14 @@ const INSURANCE_CONFIG = {
   deal_stages: ["lead", "quoted", "underwriting", "bound", "lost"],
   interaction_types: ["call", "email", "site_visit"],
   deal_contact_roles: ["client", "broker"],
+  company_label: "Brokerage",
+  company_industries: ["property_agency", "developer", "mortgage_broker"],
   deal_custom_fields: [
     { key: "policy_number", label: "Policy Number", type: "text" as const, required: true },
     { key: "coverage", label: "Coverage", type: "number" as const },
+  ],
+  company_custom_fields: [
+    { key: "tier", label: "Tier", type: "select" as const, options: ["a", "b"] },
   ],
   task_custom_fields: [
     { key: "priority", label: "Priority", type: "select" as const, options: ["low", "high"] },
@@ -106,6 +112,51 @@ describe("deal tools configurable vocab", () => {
     expect(result).toEqual({ success: true, deal: updated });
     expect(builderHistory.deals[1].update).toHaveBeenCalledWith(expect.objectContaining({
       custom_fields: { policy_number: "POL-1", coverage: 75000 },
+    }));
+  });
+});
+
+describe("company tools configurable vocab", () => {
+  it("uses config-driven company labels, industries, and custom fields", async () => {
+    const created = {
+      company_id: "650e8400-e29b-41d4-a716-446655440000",
+      client_id: CLIENT_ID,
+      name: "Acme Brokerage",
+      industry: "mortgage_broker",
+      website: null,
+      phone: null,
+      email: null,
+      address: null,
+      notes: null,
+      custom_fields: { tier: "a" },
+      created_at: "2026-03-01T00:00:00Z",
+      updated_at: "2026-03-01T00:00:00Z",
+    };
+    const { client, builderHistory } = createMockSupabase({
+      companies: [
+        { data: [], error: null },
+        { data: created, error: null },
+      ],
+    });
+    const tools = createCompanyTools(client, CLIENT_ID, INSURANCE_CONFIG);
+
+    expect(tools.create_company.description).toContain("Brokerage");
+    expect(tools.search_companies.inputSchema.safeParse({
+      industry: "mortgage_broker",
+    }).success).toBe(true);
+    expect(tools.search_companies.inputSchema.safeParse({
+      industry: "bank",
+    }).success).toBe(false);
+
+    const result = await tools.create_company.execute({
+      name: "Acme Brokerage",
+      industry: "mortgage_broker",
+      custom_fields: { tier: "a" },
+    }, EXECUTION_OPTIONS);
+
+    expect(result).toEqual({ success: true, company: created });
+    expect(builderHistory.companies[1].insert).toHaveBeenCalledWith(expect.objectContaining({
+      custom_fields: { tier: "a" },
     }));
   });
 });
