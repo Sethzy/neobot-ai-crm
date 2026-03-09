@@ -1123,7 +1123,8 @@
           ],
           "testCriteria": [
             "Long conversation with 50+ messages still works correctly after compaction"
-          ]
+          ],
+          "simplified": true
         },
         {
           "pr": 19,
