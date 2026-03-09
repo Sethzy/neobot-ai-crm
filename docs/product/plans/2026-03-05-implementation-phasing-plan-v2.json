@@ -10,7 +10,7 @@
     "estimatedPRs": 35,
     "keptPRs": 22,
     "cutPRs": 19,
-    "donePRs": 22,
+    "donePRs": 23,
     "statusOptions": [
       "pending",
       "in_progress",
@@ -984,7 +984,7 @@
         {
           "pr": "15e",
           "title": "CRM read parity + schema introspection",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [
             "TOOL-01",
             "TOOL-02",
@@ -1003,37 +1003,37 @@
             {
               "id": "PR15e-1",
               "task": "Implement search_interactions tool — free-text query on summary plus filters for type, contact_id, deal_id, occurred_after, occurred_before, and limit. Sort by occurred_at DESC so recent activity is easiest to inspect.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15e-2",
               "task": "Implement describe_crm_schema tool — return resolved runtime crm_config (deal/company labels, vocab arrays, and custom-field definitions for contact/company/deal/task). Close over already-loaded config; do not add an extra DB round-trip.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15e-3",
               "task": "Implement get_contact_deals tool — given contact_id, return linked deals with deal_contact role/is_primary metadata and basic deal fields. This is the inverse of get_deal_contacts and fixes relationship read asymmetry.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15e-4",
               "task": "Implement get_company_contacts and get_company_deals tools — given company_id, return related contacts or deals using the direct FK added in PR15d. Keep them separate for explicitness and smaller schemas.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15e-5",
               "task": "Extend existing search tools for shipped company linkage and task usability: search_contacts gains company_id filter, search_deals gains company_id filter, and search_tasks gains optional free-text query over title/description while preserving current status/contact/deal filters.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15e-6",
               "task": "Wire new tools into createCrmTools and keep setup mode unchanged (configure_crm only). Update any platform-instruction or tool registry docs needed so the model has clear read-before-write guidance for activity and relationship lookups.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15e-7",
               "task": "Tests: add focused runner tool tests for interaction search, schema introspection, contact→deals, company→contacts/deals, and extended search filters. Include setup-mode regression so PR15e tools are absent in crmMode=setup.",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -1529,7 +1529,7 @@
         {
           "pr": 29,
           "title": "Subagents",
-          "status": "pending",
+          "status": "in_progress",
           "decisions": [
             "RUNNER-06",
             "RUNNER-07"
