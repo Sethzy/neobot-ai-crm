@@ -1429,7 +1429,8 @@
             "Compaction summary uses structured ## sections, not free-form narrative",
             "Trigger events in compacted range appear as mechanical title+source list, not LLM-summarized",
             "appendArtifactRecoveryNote removed with no regression in agent recovery capability"
-          ]
+          ],
+          "simplified": true
         },
         {
           "pr": "22d",
