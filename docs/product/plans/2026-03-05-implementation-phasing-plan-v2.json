@@ -1636,7 +1636,8 @@
             "Agent uses Composio action to read user's calendar",
             "Agent creates connection, activates subset of tools, writes skill file",
             "System-reminder shows active connections with tool counts after connecting a service"
-          ]
+          ],
+          "simplified": true
         },
         {
           "pr": "26a",
