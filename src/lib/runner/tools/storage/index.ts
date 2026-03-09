@@ -9,11 +9,14 @@ import { z } from "zod";
 
 import { createAgentFileClient, normalizeWorkspacePath } from "@/lib/storage/agent-files";
 import { toModelPath, toStoragePath } from "@/lib/storage/agent-paths";
+import { getSystemSkillContent, isSystemSkillPath } from "@/lib/runner/skills/system-skills";
 import type { Database } from "@/types/database";
 
 const KNOWLEDGE_SEARCH_MAX_RESULTS = 5;
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp"]);
 const IMAGE_MAX_DIMENSION = 1568;
+const PDF_EXTENSIONS = new Set(["pdf"]);
+const PDF_MAX_SIZE_BYTES = 10 * 1024 * 1024;
 
 const searchKnowledgeInputSchema = z.object({
   query: z.string().describe("Free-text search query for Knowledge Base files."),
@@ -62,7 +65,7 @@ export function createStorageTools(
 
   const read_file = tool({
     description:
-      "Reads the contents of a file or directory by its path. If the path is a directory, returns a recursive tree-style listing of its contents. Image files are displayed directly. Specify optional start_line/end_line for large text files. Use negative indices to count from the end.",
+      "Reads the contents of a file or directory by its path. If the path is a directory, returns a recursive tree-style listing of its contents. Image files and PDFs are displayed directly. Specify optional start_line/end_line for large text files. Use negative indices to count from the end.",
     inputSchema: readFileInputSchema,
     execute: async ({ path, start_line, end_line }) => {
       assertValidReadLineBounds(start_line, end_line);
@@ -82,6 +85,19 @@ export function createStorageTools(
         return { success: true as const, path: modelPath, type: "image" as const, ...image };
       }
 
+      if (fileType === "pdf") {
+        const { buffer } = await fileClient.downloadBinary(internalPath);
+        if (buffer.byteLength > PDF_MAX_SIZE_BYTES) {
+          const sizeMb = (buffer.byteLength / (1024 * 1024)).toFixed(1);
+          throw new Error(
+            `PDF "${internalPath}" exceeds 10 MB size limit (${sizeMb} MB). ` +
+            "Ask the user for a smaller file or a specific section.",
+          );
+        }
+        const data = Buffer.from(buffer).toString("base64");
+        return { success: true as const, path: modelPath, type: "pdf" as const, data, mediaType: "application/pdf" as const };
+      }
+
       try {
         const rawContent = await fileClient.downloadFile(internalPath);
         const storedImageArtifact = parseStoredImageArtifact(internalPath, rawContent);
@@ -94,6 +110,13 @@ export function createStorageTools(
       } catch (fileError) {
         if (!shouldFallbackToDirectory(fileError)) {
           throw fileError;
+        }
+
+        if (isSystemSkillPath(internalPath)) {
+          const bundledContent = await getSystemSkillContent(internalPath);
+          if (bundledContent !== null) {
+            return { success: true as const, path: modelPath, content: bundledContent };
+          }
         }
 
         try {
@@ -109,6 +132,13 @@ export function createStorageTools(
         return {
           type: "content" as const,
           value: [{ type: "image-data" as const, data: output.data, mediaType: output.mediaType }],
+        };
+      }
+
+      if (isPdfReadResult(output)) {
+        return {
+          type: "content" as const,
+          value: [{ type: "file-data" as const, data: output.data, mediaType: output.mediaType }],
         };
       }
 
@@ -271,12 +301,15 @@ function getFileExtension(path: string): string {
  *
  * @param path - Relative file or directory path in the client workspace.
  */
-function classifyFileType(path: string): "directory" | "image" | "text" {
+function classifyFileType(path: string): "directory" | "image" | "pdf" | "text" {
   if (path === "" || path.endsWith("/")) {
     return "directory";
   }
 
-  return IMAGE_EXTENSIONS.has(getFileExtension(path)) ? "image" : "text";
+  const ext = getFileExtension(path);
+  if (IMAGE_EXTENSIONS.has(ext)) return "image";
+  if (PDF_EXTENSIONS.has(ext)) return "pdf";
+  return "text";
 }
 
 /**
@@ -334,6 +367,26 @@ function isImageReadResult(
     "data" in value &&
     "mediaType" in value &&
     (value as { type?: unknown }).type === "image" &&
+    typeof (value as { data?: unknown }).data === "string" &&
+    typeof (value as { mediaType?: unknown }).mediaType === "string"
+  );
+}
+
+/**
+ * Narrows a `read_file` output to the PDF result variant used by `toModelOutput`.
+ *
+ * @param value - Unknown tool output from the AI SDK callback.
+ */
+function isPdfReadResult(
+  value: unknown,
+): value is { type: "pdf"; data: string; mediaType: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "type" in value &&
+    "data" in value &&
+    "mediaType" in value &&
+    (value as { type?: unknown }).type === "pdf" &&
     typeof (value as { data?: unknown }).data === "string" &&
     typeof (value as { mediaType?: unknown }).mediaType === "string"
   );

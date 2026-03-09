@@ -109,10 +109,10 @@ describe("createStorageTools", () => {
     expect(tools.write_file).toBeDefined();
   });
 
-  it("describes image reads and negative line indices to the model", () => {
+  it("describes image/PDF reads and negative line indices to the model", () => {
     const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
 
-    expect(tools.read_file.description).toContain("Image files are displayed directly");
+    expect(tools.read_file.description).toContain("Image files and PDFs are displayed directly");
     expect(tools.read_file.description).toContain("negative");
   });
 
@@ -719,6 +719,91 @@ describe("createStorageTools", () => {
       ],
     });
   });
+
+  it("falls back to bundled system skill when storage returns not-found for skills/system/ path", async () => {
+    mockFileClient.downloadFile.mockRejectedValue(
+      new Error("Failed to read file: Object not found"),
+    );
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute(
+      { path: "/agent/skills/system/creating-connections/SKILL.md" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      path: "/agent/skills/system/creating-connections/SKILL.md",
+    });
+    expect(result.content).toContain("# Creating New Connections");
+  });
+
+  it("falls back to bundled content for the direct API connection guide", async () => {
+    mockFileClient.downloadFile.mockRejectedValue(
+      new Error("Failed to read file: Object not found"),
+    );
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute(
+      { path: "/agent/skills/system/creating-connections/create-direct-api-connection.md" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      path: "/agent/skills/system/creating-connections/create-direct-api-connection.md",
+    });
+    expect(result.content).toContain("Direct API");
+  });
+
+  it("does NOT fall back for non-system-skill paths", async () => {
+    mockFileClient.downloadFile.mockRejectedValue(
+      new Error("Failed to read file: Object not found"),
+    );
+    mockFileClient.listDirectory.mockRejectedValue(
+      new Error("Failed to read file: Object not found"),
+    );
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    await expect(
+      tools.read_file.execute(
+        { path: "/agent/memory/nonexistent.md" },
+        EXECUTION_OPTIONS,
+      ),
+    ).rejects.toThrow("Object not found");
+  });
+
+  it("prefers storage content over bundled fallback for system skill paths", async () => {
+    mockFileClient.downloadFile.mockResolvedValue("# Custom override from storage");
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute(
+      { path: "/agent/skills/system/creating-connections/SKILL.md" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      content: "# Custom override from storage",
+    });
+  });
+
+  it("returns not-found error when system skill path has no bundled file", async () => {
+    mockFileClient.downloadFile.mockRejectedValue(
+      new Error("Failed to read file: Object not found"),
+    );
+    mockFileClient.listDirectory.mockRejectedValue(
+      new Error("Failed to read file: Object not found"),
+    );
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    await expect(
+      tools.read_file.execute(
+        { path: "/agent/skills/system/nonexistent/SKILL.md" },
+        EXECUTION_OPTIONS,
+      ),
+    ).rejects.toThrow("Object not found");
+  });
 });
 
 describe("read_file toModelOutput", () => {
@@ -791,6 +876,125 @@ describe("read_file toModelOutput", () => {
         path: "memory/",
         content: "preferences.md",
       },
+    });
+  });
+});
+
+describe("read_file PDF support", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCreateAgentFileClient.mockReturnValue(mockFileClient);
+  });
+
+  it("returns pdf result for .pdf files", async () => {
+    const pdfBuffer = new ArrayBuffer(64);
+    mockFileClient.downloadBinary.mockResolvedValue({
+      buffer: pdfBuffer,
+      mimeType: "application/pdf",
+    });
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute({ path: "vault/report.pdf" }, EXECUTION_OPTIONS);
+
+    expect(mockFileClient.downloadBinary).toHaveBeenCalledWith("vault/report.pdf");
+    expect(result).toMatchObject({
+      success: true,
+      type: "pdf",
+      path: "/agent/vault/report.pdf",
+      mediaType: "application/pdf",
+    });
+    expect(result).toHaveProperty("data");
+    expect(typeof result.data).toBe("string");
+  });
+
+  it("detects .pdf extension case-insensitively", async () => {
+    const pdfBuffer = new ArrayBuffer(64);
+    mockFileClient.downloadBinary.mockResolvedValue({
+      buffer: pdfBuffer,
+      mimeType: "application/pdf",
+    });
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute({ path: "vault/Report.PDF" }, EXECUTION_OPTIONS);
+
+    expect(result).toMatchObject({ success: true, type: "pdf" });
+  });
+
+  it("rejects PDFs over 10 MB", async () => {
+    const oversizedBuffer = new ArrayBuffer(11 * 1024 * 1024);
+    mockFileClient.downloadBinary.mockResolvedValue({
+      buffer: oversizedBuffer,
+      mimeType: "application/pdf",
+    });
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    await expect(
+      tools.read_file.execute({ path: "vault/huge.pdf" }, EXECUTION_OPTIONS),
+    ).rejects.toThrow("10 MB");
+  });
+
+  it("allows PDFs exactly at 10 MB", async () => {
+    const exactBuffer = new ArrayBuffer(10 * 1024 * 1024);
+    mockFileClient.downloadBinary.mockResolvedValue({
+      buffer: exactBuffer,
+      mimeType: "application/pdf",
+    });
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute({ path: "vault/exact.pdf" }, EXECUTION_OPTIONS);
+
+    expect(result).toMatchObject({ success: true, type: "pdf" });
+  });
+
+  it("strips /agent/ prefix for PDF paths", async () => {
+    const pdfBuffer = new ArrayBuffer(64);
+    mockFileClient.downloadBinary.mockResolvedValue({
+      buffer: pdfBuffer,
+      mimeType: "application/pdf",
+    });
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute(
+      { path: "/agent/vault/report.pdf" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(mockFileClient.downloadBinary).toHaveBeenCalledWith("vault/report.pdf");
+    expect(result).toMatchObject({
+      success: true,
+      type: "pdf",
+      path: "/agent/vault/report.pdf",
+    });
+  });
+});
+
+describe("read_file toModelOutput for PDFs", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCreateAgentFileClient.mockReturnValue(mockFileClient);
+  });
+
+  it("converts pdf result to file-data content part", async () => {
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+    const toModelOutput = tools.read_file.toModelOutput!;
+
+    const pdfOutput = {
+      success: true,
+      type: "pdf" as const,
+      path: "/agent/vault/report.pdf",
+      data: "base64pdfdata",
+      mediaType: "application/pdf",
+    };
+
+    const result = await toModelOutput({
+      toolCallId: "call-pdf",
+      input: { path: "vault/report.pdf" },
+      output: pdfOutput,
+    });
+
+    expect(result).toEqual({
+      type: "content",
+      value: [{ type: "file-data", data: "base64pdfdata", mediaType: "application/pdf" }],
     });
   });
 });
