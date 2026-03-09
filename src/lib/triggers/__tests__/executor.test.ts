@@ -139,6 +139,9 @@ describe("executeTrigger", () => {
     expect(persistedMessage.content).toContain("trigger_instance_id");
     expect(persistedMessage.content).toContain("trigger_type: schedule");
     expect(persistedMessage.content).toContain(
+      "instruction_path: /agent/state/triggers/daily-briefing.md",
+    );
+    expect(persistedMessage.content).toContain(
       "invocation_message: Run the daily briefing",
     );
     expect(persistedMessage.content).toContain("&lt;briefing&gt;");

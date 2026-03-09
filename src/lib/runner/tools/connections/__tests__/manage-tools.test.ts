@@ -132,7 +132,7 @@ describe("createManageToolsTool", () => {
       EXECUTION_OPTIONS,
     );
 
-    expect(result.connections[0].skills).toContain("skills/connections/conn-1/SKILL.md");
+    expect(result.connections[0].skills).toContain("/agent/skills/connections/conn-1/SKILL.md");
     expect(result.connections[0].skills).toContain("not all connections have one");
   });
 

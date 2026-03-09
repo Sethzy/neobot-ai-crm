@@ -54,7 +54,12 @@ describe("createSetupTriggerTool", () => {
   it("creates a schedule trigger with runnable schedule fields", async () => {
     const supabase = createMockSupabase();
     supabase.chain.single.mockResolvedValueOnce({
-      data: { id: "trigger-1", trigger_type: "schedule", name: "Daily briefing" },
+      data: {
+        id: "trigger-1",
+        trigger_type: "schedule",
+        name: "Daily briefing",
+        instruction_path: "subagents/triggers/daily-briefing.md",
+      },
       error: null,
     });
     const { setup_trigger } = createSetupTriggerTool(supabase as never, CLIENT_ID, THREAD_ID);
@@ -93,12 +98,83 @@ describe("createSetupTriggerTool", () => {
         },
       }),
     );
+    expect(result).toMatchObject({
+      trigger: {
+        instruction_path: "/agent/subagents/triggers/daily-briefing.md",
+      },
+    });
+  });
+
+  it("strips /agent/ prefix from instruction_path before DB insert", async () => {
+    const supabase = createMockSupabase();
+    supabase.chain.single.mockResolvedValueOnce({
+      data: {
+        id: "trigger-absolute",
+        trigger_type: "schedule",
+        name: "Daily briefing",
+        instruction_path: "memory/briefing-instructions.md",
+      },
+      error: null,
+    });
+    const { setup_trigger } = createSetupTriggerTool(supabase as never, CLIENT_ID, THREAD_ID);
+
+    await setup_trigger.execute(
+      {
+        trigger_id: "schedule",
+        name: "Daily briefing",
+        instruction_path: "/agent/memory/briefing-instructions.md",
+        params: { cron: "0 9 * * *" },
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(supabase.chain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        instruction_path: "memory/briefing-instructions.md",
+      }),
+    );
+  });
+
+  it("returns canonical /agent/ prefixed instruction_path in success responses", async () => {
+    const supabase = createMockSupabase();
+    supabase.chain.single.mockResolvedValueOnce({
+      data: {
+        id: "trigger-canonical",
+        trigger_type: "schedule",
+        name: "Daily briefing",
+        instruction_path: "memory/briefing-instructions.md",
+      },
+      error: null,
+    });
+    const { setup_trigger } = createSetupTriggerTool(supabase as never, CLIENT_ID, THREAD_ID);
+
+    const result = await setup_trigger.execute(
+      {
+        trigger_id: "schedule",
+        name: "Daily briefing",
+        instruction_path: "memory/briefing-instructions.md",
+        params: { cron: "0 9 * * *" },
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      trigger: {
+        instruction_path: "/agent/memory/briefing-instructions.md",
+      },
+    });
   });
 
   it("defaults schedule timezone to Asia/Singapore", async () => {
     const supabase = createMockSupabase();
     supabase.chain.single.mockResolvedValueOnce({
-      data: { id: "trigger-2", trigger_type: "schedule", name: "Morning check" },
+      data: {
+        id: "trigger-2",
+        trigger_type: "schedule",
+        name: "Morning check",
+        instruction_path: "subagents/triggers/morning-check.md",
+      },
       error: null,
     });
     const { setup_trigger } = createSetupTriggerTool(supabase as never, CLIENT_ID, THREAD_ID);
@@ -126,7 +202,12 @@ describe("createSetupTriggerTool", () => {
   it("creates a webhook trigger and returns the public webhook URL", async () => {
     const supabase = createMockSupabase();
     supabase.chain.single.mockResolvedValueOnce({
-      data: { id: "trigger-3", trigger_type: "webhook", name: "Inbound leads" },
+      data: {
+        id: "trigger-3",
+        trigger_type: "webhook",
+        name: "Inbound leads",
+        instruction_path: "subagents/triggers/inbound-leads.md",
+      },
       error: null,
     });
     const { setup_trigger } = createSetupTriggerTool(supabase as never, CLIENT_ID, THREAD_ID);
@@ -164,7 +245,12 @@ describe("createSetupTriggerTool", () => {
   it("creates an rss trigger with a derived polling schedule", async () => {
     const supabase = createMockSupabase();
     supabase.chain.single.mockResolvedValueOnce({
-      data: { id: "trigger-4", trigger_type: "rss", name: "PropertyGuru feed" },
+      data: {
+        id: "trigger-4",
+        trigger_type: "rss",
+        name: "PropertyGuru feed",
+        instruction_path: "subagents/triggers/propertyguru-feed.md",
+      },
       error: null,
     });
     const { setup_trigger } = createSetupTriggerTool(supabase as never, CLIENT_ID, THREAD_ID);

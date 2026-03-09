@@ -123,7 +123,11 @@ describe("createStorageTools", () => {
     const result = await tools.read_file.execute({ path: "MEMORY.md" }, EXECUTION_OPTIONS);
 
     expect(mockFileClient.downloadFile).toHaveBeenCalledWith("MEMORY.md");
-    expect(result).toEqual({ success: true, path: "MEMORY.md", content: "line1\nline2\nline3" });
+    expect(result).toEqual({
+      success: true,
+      path: "/agent/MEMORY.md",
+      content: "line1\nline2\nline3",
+    });
   });
 
   it("read_file reads directory tree for paths ending with /", async () => {
@@ -135,7 +139,7 @@ describe("createStorageTools", () => {
     expect(mockFileClient.listDirectory).toHaveBeenCalledWith("memory");
     expect(result).toEqual({
       success: true,
-      path: "memory/",
+      path: "/agent/memory/",
       content: "preferences.md\npatterns.md",
     });
   });
@@ -149,7 +153,7 @@ describe("createStorageTools", () => {
       EXECUTION_OPTIONS,
     );
 
-    expect(result).toEqual({ success: true, path: "MEMORY.md", content: "b\nc" });
+    expect(result).toEqual({ success: true, path: "/agent/MEMORY.md", content: "b\nc" });
   });
 
   it("read_file rejects start_line: 0", async () => {
@@ -194,7 +198,7 @@ describe("createStorageTools", () => {
     expect(mockFileClient.listDirectory).toHaveBeenCalledWith("memory");
     expect(result).toEqual({
       success: true,
-      path: "memory",
+      path: "/agent/memory",
       content: "preferences.md\npatterns.md",
     });
   });
@@ -207,6 +211,75 @@ describe("createStorageTools", () => {
       tools.read_file.execute({ path: "MEMORY.md" }, EXECUTION_OPTIONS),
     ).rejects.toThrow("Permission denied");
     expect(mockFileClient.listDirectory).not.toHaveBeenCalled();
+  });
+
+  it("strips /agent/ prefix before reading text files and returns canonical output paths", async () => {
+    mockFileClient.downloadFile.mockResolvedValue("content");
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute(
+      { path: "/agent/memory/MEMORY.md" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(mockFileClient.downloadFile).toHaveBeenCalledWith("memory/MEMORY.md");
+    expect(result).toMatchObject({
+      success: true,
+      path: "/agent/memory/MEMORY.md",
+      content: "content",
+    });
+  });
+
+  it("strips /agent/ prefix for directory paths", async () => {
+    mockFileClient.listDirectory.mockResolvedValue("preferences.md\npatterns.md");
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute(
+      { path: "/agent/memory/" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(mockFileClient.listDirectory).toHaveBeenCalledWith("memory");
+    expect(result).toMatchObject({
+      success: true,
+      path: "/agent/memory/",
+      content: "preferences.md\npatterns.md",
+    });
+  });
+
+  it("strips /agent/ prefix for image paths", async () => {
+    mockFileClient.downloadBinary.mockResolvedValue({
+      buffer: toArrayBuffer(TINY_TRANSPARENT_PNG_BASE64),
+      mimeType: "image/png",
+    });
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute(
+      { path: "/agent/vault/photo.png" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(mockFileClient.downloadBinary).toHaveBeenCalledWith("vault/photo.png");
+    expect(result).toMatchObject({
+      success: true,
+      type: "image",
+      path: "/agent/vault/photo.png",
+    });
+  });
+
+  it("returns canonical /agent/ paths even when given a relative read input", async () => {
+    mockFileClient.downloadFile.mockResolvedValue("content");
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute(
+      { path: "memory/MEMORY.md" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      path: "/agent/memory/MEMORY.md",
+    });
   });
 
   it("write_file write op uploads content", async () => {
@@ -225,7 +298,7 @@ describe("createStorageTools", () => {
     expect(result).toEqual({
       success: true,
       op: "write",
-      path: "memory/preferences.md",
+      path: "/agent/memory/preferences.md",
       path_kind: "general",
     });
   });
@@ -249,7 +322,7 @@ describe("createStorageTools", () => {
     expect(result).toEqual({
       success: true,
       op: "edit",
-      path: "notes.md",
+      path: "/agent/notes.md",
       content: "updated",
       path_kind: "general",
     });
@@ -268,8 +341,105 @@ describe("createStorageTools", () => {
     expect(result).toEqual({
       success: true,
       op: "delete",
-      path: "memory/old.md",
+      path: "/agent/memory/old.md",
       path_kind: "general",
+    });
+  });
+
+  it("strips /agent/ prefix before storage writes and returns canonical paths", async () => {
+    mockFileClient.uploadFile.mockResolvedValue(undefined);
+    const { supabase } = createSupabaseMock();
+    const tools = createStorageTools(supabase as never, CLIENT_ID);
+
+    const result = await tools.write_file.execute(
+      {
+        op: "write",
+        path: "/agent/memory/preferences.md",
+        content: "prefers short replies",
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(mockFileClient.uploadFile).toHaveBeenCalledWith(
+      "memory/preferences.md",
+      "prefers short replies",
+    );
+    expect(result).toMatchObject({
+      success: true,
+      op: "write",
+      path: "/agent/memory/preferences.md",
+    });
+  });
+
+  it("returns canonical /agent/ paths for vault write ops", async () => {
+    mockFileClient.uploadFile.mockResolvedValue(undefined);
+    const { supabase } = createSupabaseMock();
+    const tools = createStorageTools(supabase as never, CLIENT_ID);
+
+    const result = await tools.write_file.execute(
+      { op: "write", path: "/agent/vault/notes.md", content: "vault content" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(mockFileClient.uploadFile).toHaveBeenCalledWith("vault/notes.md", "vault content");
+    expect(result).toMatchObject({
+      success: true,
+      path: "/agent/vault/notes.md",
+      path_kind: "vault",
+    });
+  });
+
+  it("returns canonical /agent/ paths for edit ops", async () => {
+    mockFileClient.editFile.mockResolvedValue("updated content");
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.write_file.execute(
+      {
+        op: "edit",
+        path: "/agent/MEMORY.md",
+        old_string: "old",
+        new_string: "new",
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(mockFileClient.editFile).toHaveBeenCalledWith("MEMORY.md", "old", "new", false);
+    expect(result).toMatchObject({
+      success: true,
+      op: "edit",
+      path: "/agent/MEMORY.md",
+    });
+  });
+
+  it("returns canonical /agent/ paths for delete ops", async () => {
+    mockFileClient.deleteFile.mockResolvedValue(undefined);
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.write_file.execute(
+      { op: "delete", path: "/agent/state/draft.md" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(mockFileClient.deleteFile).toHaveBeenCalledWith("state/draft.md");
+    expect(result).toMatchObject({
+      success: true,
+      op: "delete",
+      path: "/agent/state/draft.md",
+    });
+  });
+
+  it("returns canonical /agent/ paths even when given relative write input", async () => {
+    mockFileClient.uploadFile.mockResolvedValue(undefined);
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.write_file.execute(
+      { op: "write", path: "memory/preferences.md", content: "content" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      path: "/agent/memory/preferences.md",
     });
   });
 
@@ -290,13 +460,13 @@ describe("createStorageTools", () => {
     expect(vaultResult).toEqual({
       success: true,
       op: "write",
-      path: "vault/lead-notes.md",
+      path: "/agent/vault/lead-notes.md",
       path_kind: "vault",
     });
     expect(skillResult).toEqual({
       success: true,
       op: "write",
-      path: "skills/gmail/SKILL.md",
+      path: "/agent/skills/gmail/SKILL.md",
       path_kind: "skills",
     });
   });
@@ -369,7 +539,7 @@ describe("createStorageTools", () => {
     ).resolves.toEqual({
       success: true,
       op: "write",
-      path: "vault/lead-notes.md",
+      path: "/agent/vault/lead-notes.md",
       path_kind: "vault",
     });
 
@@ -416,7 +586,7 @@ describe("createStorageTools", () => {
     expect(result).toMatchObject({
       success: true,
       type: "image",
-      path: "vault/photo.png",
+      path: "/agent/vault/photo.png",
     });
     expect(result).toHaveProperty("data");
     expect(result).toHaveProperty("mediaType");
@@ -436,7 +606,7 @@ describe("createStorageTools", () => {
     expect(result).toMatchObject({
       success: true,
       type: "image",
-      path: "vault/PHOTO.PNG",
+      path: "/agent/vault/PHOTO.PNG",
     });
   });
 
@@ -452,7 +622,7 @@ describe("createStorageTools", () => {
     expect(result).toMatchObject({
       success: true,
       type: "image",
-      path: "vault/photo.jpg",
+      path: "/agent/vault/photo.jpg",
       mediaType: "image/jpeg",
     });
   });
@@ -469,7 +639,7 @@ describe("createStorageTools", () => {
     expect(result).toMatchObject({
       success: true,
       type: "image",
-      path: "vault/photo.jpg",
+      path: "/agent/vault/photo.jpg",
       mediaType: "image/jpeg",
     });
 
@@ -498,10 +668,55 @@ describe("createStorageTools", () => {
 
     expect(result).toEqual({
       success: true,
-      path: "vault/photo.png",
+      path: "/agent/vault/photo.png",
       type: "image",
       data: TINY_TRANSPARENT_PNG_BASE64,
       mediaType: "image/png",
+    });
+  });
+
+  it("prefixes search_knowledge storage_path values with /agent/", async () => {
+    const mockSearchSupabase = {
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            textSearch: vi.fn(() => ({
+              limit: vi.fn(() =>
+                Promise.resolve({
+                  data: [
+                    {
+                      filename: "notes.md",
+                      storage_path: "vault/notes.md",
+                      title: "notes",
+                      summary: "Some notes",
+                    },
+                  ],
+                  error: null,
+                })
+              ),
+            })),
+          })),
+        })),
+      })),
+    };
+    const tools = createStorageTools(mockSearchSupabase as never, CLIENT_ID);
+
+    const result = await tools.search_knowledge.execute(
+      { query: "notes" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({
+      success: true,
+      query: "notes",
+      results: [
+        {
+          filename: "notes.md",
+          storage_path: "/agent/vault/notes.md",
+          title: "notes",
+          summary: "Some notes",
+        },
+      ],
     });
   });
 });
@@ -595,7 +810,7 @@ describe("read_file negative line indices", () => {
       EXECUTION_OPTIONS,
     );
 
-    expect(result).toEqual({ success: true, path: "file.txt", content: "c\nd\ne" });
+    expect(result).toEqual({ success: true, path: "/agent/file.txt", content: "c\nd\ne" });
   });
 
   it("supports mixed positive and negative line indices", async () => {
@@ -607,7 +822,7 @@ describe("read_file negative line indices", () => {
       EXECUTION_OPTIONS,
     );
 
-    expect(result).toEqual({ success: true, path: "file.txt", content: "b\nc\nd\ne" });
+    expect(result).toEqual({ success: true, path: "/agent/file.txt", content: "b\nc\nd\ne" });
   });
 
   it("supports selecting only the last line", async () => {
@@ -619,7 +834,7 @@ describe("read_file negative line indices", () => {
       EXECUTION_OPTIONS,
     );
 
-    expect(result).toEqual({ success: true, path: "file.txt", content: "third" });
+    expect(result).toEqual({ success: true, path: "/agent/file.txt", content: "third" });
   });
 
   it("rejects end_line: 0", async () => {

@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { createAgentFileClient, normalizeWorkspacePath } from "@/lib/storage/agent-files";
+import { toModelPath, toStoragePath } from "@/lib/storage/agent-paths";
 import type { Database } from "@/types/database";
 
 const KNOWLEDGE_SEARCH_MAX_RESULTS = 5;
@@ -19,7 +20,9 @@ const searchKnowledgeInputSchema = z.object({
 });
 
 const readFileInputSchema = z.object({
-  path: z.string().describe("Relative file or directory path in the client workspace."),
+  path: z.string().describe(
+    "Absolute path to the file or directory (for example '/agent/memory/MEMORY.md' or '/agent/vault/').",
+  ),
   start_line: z
     .number()
     .int()
@@ -34,7 +37,9 @@ const readFileInputSchema = z.object({
 
 const writeFileInputSchema = z.object({
   op: z.enum(["write", "edit", "delete"]),
-  path: z.string().describe("Relative file path in the client workspace."),
+  path: z.string().describe(
+    "Absolute path to the file (for example '/agent/memory/topic.md' or '/agent/vault/notes.md').",
+  ),
   content: z.string().optional().describe("Required for write operations."),
   old_string: z.string().optional().describe("Required for edit operations."),
   new_string: z.string().optional().describe("Required for edit operations."),
@@ -61,37 +66,39 @@ export function createStorageTools(
     inputSchema: readFileInputSchema,
     execute: async ({ path, start_line, end_line }) => {
       assertValidReadLineBounds(start_line, end_line);
-      const fileType = classifyFileType(path);
+      const internalPath = toStoragePath(path);
+      const modelPath = toModelPath(internalPath);
+      const fileType = classifyFileType(internalPath);
 
       if (fileType === "directory") {
-        const directoryPath = path.replace(/\/+$/, "");
+        const directoryPath = internalPath.replace(/\/+$/, "");
         const content = await fileClient.listDirectory(directoryPath);
-        return { success: true as const, path, content };
+        return { success: true as const, path: modelPath, content };
       }
 
       if (fileType === "image") {
-        const { buffer } = await fileClient.downloadBinary(path);
+        const { buffer } = await fileClient.downloadBinary(internalPath);
         const image = await resizeForModel(buffer);
-        return { success: true as const, path, type: "image" as const, ...image };
+        return { success: true as const, path: modelPath, type: "image" as const, ...image };
       }
 
       try {
-        const rawContent = await fileClient.downloadFile(path);
-        const storedImageArtifact = parseStoredImageArtifact(path, rawContent);
+        const rawContent = await fileClient.downloadFile(internalPath);
+        const storedImageArtifact = parseStoredImageArtifact(internalPath, rawContent);
         if (storedImageArtifact) {
           return storedImageArtifact;
         }
         const slicedContent = applyLineRange(rawContent, start_line, end_line);
 
-        return { success: true as const, path, content: slicedContent };
+        return { success: true as const, path: modelPath, content: slicedContent };
       } catch (fileError) {
         if (!shouldFallbackToDirectory(fileError)) {
           throw fileError;
         }
 
         try {
-          const content = await fileClient.listDirectory(path);
-          return { success: true as const, path, content };
+          const content = await fileClient.listDirectory(internalPath);
+          return { success: true as const, path: modelPath, content };
         } catch {
           throw fileError;
         }
@@ -116,8 +123,11 @@ export function createStorageTools(
     description: "Write, edit, or delete files in the client workspace.",
     inputSchema: writeFileInputSchema,
     execute: async ({ op, path, content, old_string, new_string, replace_all }) => {
-      const normalizedPath = normalizeWorkspacePath(path, false);
+      const internalPath = toStoragePath(path);
+      const normalizedPath = normalizeWorkspacePath(internalPath, false);
+      const modelPath = toModelPath(normalizedPath);
       const pathKind = classifyStoragePath(normalizedPath);
+      const shouldReplaceAll = replace_all ?? false;
 
       switch (op) {
         case "write": {
@@ -134,7 +144,7 @@ export function createStorageTools(
             supabase,
             clientId,
           });
-          return { success: true as const, op, path: normalizedPath, path_kind: pathKind };
+          return { success: true as const, op, path: modelPath, path_kind: pathKind };
         }
 
         case "edit": {
@@ -146,7 +156,7 @@ export function createStorageTools(
             normalizedPath,
             old_string,
             new_string,
-            replace_all,
+            shouldReplaceAll,
           );
           await runPathAwareSync({
             op,
@@ -159,7 +169,7 @@ export function createStorageTools(
           return {
             success: true as const,
             op,
-            path: normalizedPath,
+            path: modelPath,
             content: updatedContent,
             path_kind: pathKind,
           };
@@ -168,7 +178,7 @@ export function createStorageTools(
         case "delete": {
           await fileClient.deleteFile(normalizedPath);
           await runPathAwareSync({ op, path: normalizedPath, pathKind, supabase, clientId });
-          return { success: true as const, op, path: normalizedPath, path_kind: pathKind };
+          return { success: true as const, op, path: modelPath, path_kind: pathKind };
         }
       }
     },
@@ -191,7 +201,14 @@ export function createStorageTools(
         throw new Error(`Knowledge search failed: ${error.message}`);
       }
 
-      return { success: true as const, query, results: data ?? [] };
+      return {
+        success: true as const,
+        query,
+        results: (data ?? []).map((result) => ({
+          ...result,
+          storage_path: toModelPath(result.storage_path),
+        })),
+      };
     },
   });
 
@@ -344,7 +361,7 @@ function parseStoredImageArtifact(
     }
 
     const parsedPath = (parsed as { path?: unknown }).path;
-    const outputPath = typeof parsedPath === "string" ? parsedPath : path;
+    const outputPath = typeof parsedPath === "string" ? toModelPath(parsedPath) : toModelPath(path);
 
     return {
       success: true,

@@ -37,6 +37,14 @@ describe("createCreateConnectionTool", () => {
     process.env.NEXT_PUBLIC_APP_URL = ORIGINAL_APP_URL;
   });
 
+  it("references the canonical /agent/ skill path in the tool description", () => {
+    const { create_new_connections } = createCreateConnectionTool({} as never, CLIENT_ID);
+
+    expect(create_new_connections.description).toContain(
+      "/agent/skills/system/creating-connections/SKILL.md",
+    );
+  });
+
   it("creates a pending integration connection and returns the redirect URL", async () => {
     vi.mocked(getActiveConnectionsByToolkit).mockResolvedValue([]);
     vi.mocked(initiateOAuthFlow).mockResolvedValue({

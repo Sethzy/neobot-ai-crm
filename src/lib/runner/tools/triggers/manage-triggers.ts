@@ -6,6 +6,7 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { createMessage } from "@/lib/chat/messages";
+import { toModelPath } from "@/lib/storage/agent-paths";
 import {
   computeNextFireAt,
   normalizeTriggerTimezone,
@@ -47,6 +48,7 @@ function formatTriggerForResponse(trigger: TriggerRow) {
   const { webhook_secret: _secret, ...rest } = trigger;
   return {
     ...rest,
+    instruction_path: toModelPath(trigger.instruction_path),
     title: trigger.trigger_type,
     invocationMessage: trigger.invocation_message,
     arguments: formatTriggerArguments(trigger),
@@ -202,6 +204,7 @@ export function createManageTriggersTool(
             id: trigger.id,
             name: trigger.name,
             title: trigger.trigger_type,
+            instruction_path: toModelPath(trigger.instruction_path),
             invocationMessage: trigger.invocation_message,
             arguments: formatTriggerArguments(trigger),
           }));
@@ -303,7 +306,7 @@ export function createManageTriggersTool(
               triggerId: trigger.id,
               triggerType: trigger.trigger_type,
               triggerName: trigger.name,
-              instructionPath: trigger.instruction_path,
+              instructionPath: toModelPath(trigger.instruction_path),
               invocationMessage: trigger.invocation_message,
               triggerPayload: input.payload,
             }),

@@ -6,6 +6,7 @@ import { createMessage } from "@/lib/chat/messages";
 import { runAgent } from "@/lib/runner/run-agent";
 import { runAutopilot } from "@/lib/runner/run-autopilot";
 import { createAgentFileClient } from "@/lib/storage/agent-files";
+import { toModelPath } from "@/lib/storage/agent-paths";
 
 import { collectNewRssItems } from "./rss";
 import { CRON_RUN_NUDGE, MAX_USER_CREATED_RETRIES, type TriggerDispatchPayload, type TriggerSupabaseClient } from "./schemas";
@@ -160,7 +161,7 @@ export async function executeTrigger({
     triggerId: payload.triggerId,
     triggerType: payload.triggerType,
     triggerName: payload.triggerName,
-    instructionPath: payload.instructionPath,
+    instructionPath: toModelPath(payload.instructionPath),
     triggerPayload: triggerEventPayload,
     invocationMessage: payload.invocationMessage,
   });

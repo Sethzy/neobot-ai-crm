@@ -5,6 +5,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 
+import { toModelPath, toStoragePath } from "@/lib/storage/agent-paths";
 import {
   computeNextFireAt,
   normalizeTriggerTimezone,
@@ -171,6 +172,7 @@ export function createSetupTriggerTool(
       invocation_message,
     }) => {
       try {
+        const internalInstructionPath = toStoragePath(instruction_path);
         let insertRow: AgentTriggerInsert;
 
         switch (trigger_id) {
@@ -179,7 +181,7 @@ export function createSetupTriggerTool(
               clientId,
               threadId,
               name,
-              instructionPath: instruction_path,
+              instructionPath: internalInstructionPath,
               params,
               invocationMessage: invocation_message,
             });
@@ -189,7 +191,7 @@ export function createSetupTriggerTool(
               clientId,
               threadId,
               name,
-              instructionPath: instruction_path,
+              instructionPath: internalInstructionPath,
               params,
               invocationMessage: invocation_message,
             });
@@ -199,7 +201,7 @@ export function createSetupTriggerTool(
               clientId,
               threadId,
               name,
-              instructionPath: instruction_path,
+              instructionPath: internalInstructionPath,
               params,
               invocationMessage: invocation_message,
             });
@@ -230,6 +232,7 @@ export function createSetupTriggerTool(
           success: true as const,
           trigger: {
             ...data,
+            instruction_path: toModelPath(data.instruction_path),
             webhook_url: webhookBaseUrl
               ? `${webhookBaseUrl}/api/trigger/webhook/${data.id}`
               : null,

@@ -104,7 +104,7 @@ export function createManageToolsTool(
             },
             skills:
               connection.activated_tools.length === 0 && activatedTools.length > 0
-                ? `Check for a connection skill file at: skills/connections/${connection.id}/SKILL.md - not all connections have one.`
+                ? `Check for a connection skill file at: /agent/skills/connections/${connection.id}/SKILL.md - not all connections have one.`
                 : undefined,
           });
         }

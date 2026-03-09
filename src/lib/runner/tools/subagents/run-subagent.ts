@@ -13,6 +13,7 @@ import { completeRun, createSubagentRun } from "@/lib/runner/run-lifecycle";
 import { createRunnerTools } from "@/lib/runner/tool-registry";
 import { saveToolcallBlock } from "@/lib/runner/toolcall-artifacts";
 import { createAgentFileClient } from "@/lib/storage/agent-files";
+import { toStoragePath } from "@/lib/storage/agent-paths";
 import type { Database } from "@/types/database";
 
 const MAX_SUBAGENT_STEPS = 9;
@@ -63,11 +64,12 @@ export function createSubagentTool(
         });
 
         try {
+          const internalPath = toStoragePath(path);
           const fileClient = createAgentFileClient(supabase, clientId);
           let instructionMarkdown: string;
 
           try {
-            instructionMarkdown = await fileClient.downloadFile(path);
+            instructionMarkdown = await fileClient.downloadFile(internalPath);
           } catch {
             throw new Error(`Instruction file not found: ${path}`);
           }

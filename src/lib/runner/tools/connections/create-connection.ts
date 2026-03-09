@@ -67,7 +67,7 @@ export function createCreateConnectionTool(
   return {
     create_new_connections: tool({
       description:
-        "Creates new connections to external services. For integrations, initiates OAuth and returns a redirect URL for the user to complete authorization. If skills/system/creating-connections/SKILL.md exists, you MUST read it before using this tool.",
+        "Creates new connections to external services. For integrations, initiates OAuth and returns a redirect URL for the user to complete authorization. If /agent/skills/system/creating-connections/SKILL.md exists, you MUST read it before using this tool.",
       inputSchema: createConnectionInputSchema,
       execute: async ({ connection }) => {
         if (connection.type === "mcp") {

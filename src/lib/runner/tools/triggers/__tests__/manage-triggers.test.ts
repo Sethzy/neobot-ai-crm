@@ -99,6 +99,7 @@ describe("createManageTriggersTool", () => {
             id: "trigger-1",
             name: "Daily briefing",
             trigger_type: "schedule",
+            instruction_path: "memory/briefing.md",
             cron_expression: "0 9 * * *",
             payload: { timezone: "Asia/Singapore" },
             invocation_message: "Check listings",
@@ -120,6 +121,7 @@ describe("createManageTriggersTool", () => {
         id: "trigger-1",
         name: "Daily briefing",
         title: "schedule",
+        instruction_path: "/agent/memory/briefing.md",
         invocationMessage: "Check listings",
         arguments: {
           cron_expression: "0 9 * * *",
@@ -157,6 +159,7 @@ describe("createManageTriggersTool", () => {
     expect(result.success).toBe(true);
     expect(result.trigger).toMatchObject({
       id: "trigger-1",
+      instruction_path: "/agent/subagents/triggers/daily-briefing.md",
       invocationMessage: "Check listings",
       arguments: {
         cron_expression: "0 9 * * *",
@@ -234,8 +237,17 @@ describe("createManageTriggersTool", () => {
       .mockResolvedValueOnce({
         data: {
           id: "trigger-1",
+          client_id: CLIENT_ID,
           trigger_type: "schedule",
           cron_expression: "0 8 * * *",
+          name: "Daily briefing",
+          thread_id: "thread-1",
+          instruction_path: "subagents/triggers/daily-briefing.md",
+          payload: {
+            cron: "0 8 * * *",
+            timezone: "Asia/Singapore",
+          },
+          invocation_message: null,
           next_fire_at: "2026-03-07T01:00:00.000Z",
           retry_count: 0,
         },
@@ -296,9 +308,14 @@ describe("createManageTriggersTool", () => {
       .mockResolvedValueOnce({
         data: {
           id: "trigger-1",
+          client_id: CLIENT_ID,
           trigger_type: "webhook",
+          name: "Inbound leads",
+          thread_id: "thread-1",
+          instruction_path: "state/triggers/inbound-leads.md",
           payload: {},
           webhook_secret: "new-secret",
+          invocation_message: "Review inbound leads",
         },
         error: null,
       });
@@ -359,6 +376,10 @@ describe("createManageTriggersTool", () => {
         role: "system",
         content: expect.stringContaining("<trigger-event>"),
       }),
+    );
+    const persistedMessage = mockCreateMessage.mock.calls[0]?.[1];
+    expect(persistedMessage.content).toContain(
+      "instruction_path: /agent/subagents/triggers/daily-briefing.md",
     );
     expect(mockRunAgent).toHaveBeenCalledWith(
       {

@@ -168,6 +168,32 @@ describe("createSubagentTool", () => {
     );
   });
 
+  it("strips /agent/ prefix before downloading the instruction file", async () => {
+    const downloadFile = vi.fn().mockResolvedValue("# Briefing\n\nSummarize the lead.");
+    mockCreateAgentFileClient.mockReturnValue({ downloadFile });
+
+    const { run_subagent } = createSubagentTool(
+      "supabase" as never,
+      CLIENT_ID,
+      THREAD_ID,
+      {
+        parentRunId: PARENT_RUN_ID,
+      },
+    );
+
+    await run_subagent.execute(
+      {
+        action_pending: "Preparing briefing…",
+        action_finished: "Briefing ready",
+        action_error: "Briefing failed",
+        path: "/agent/skills/connections/conn-1/SKILL.md",
+      },
+      { abortSignal: new AbortController().signal } as never,
+    );
+
+    expect(downloadFile).toHaveBeenCalledWith("skills/connections/conn-1/SKILL.md");
+  });
+
   it("creates a child run and logs completion with total usage", async () => {
     const { run_subagent } = createSubagentTool(
       "supabase" as never,
