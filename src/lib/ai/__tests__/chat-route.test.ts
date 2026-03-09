@@ -390,7 +390,11 @@ describe("POST /api/chat", () => {
     const wrappedStream = new ReadableStream();
     mockCreateUIMessageStream.mockReturnValue(wrappedStream);
     mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
-    mockResolveApprovalEvent.mockResolvedValue({ success: true });
+    mockResolveApprovalEvent.mockResolvedValue({
+      success: true,
+      status: "updated",
+      event: { status: "approved" },
+    });
     mockRunAgent.mockResolvedValue({
       status: "streaming",
       streamResult: {
@@ -433,6 +437,40 @@ describe("POST /api/chat", () => {
     mockResolveApprovalEvent.mockResolvedValue({
       success: false,
       error: "update failed",
+    });
+
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-delete_contact",
+                toolCallId: "tool-call-1",
+                state: "approval-responded",
+                approval: { id: "approval-1", approved: true },
+              },
+            ],
+          },
+          { id: "u1", role: "user", parts: [{ type: "text", text: "Proceed." }] },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      error: "Failed to process chat request.",
+    });
+    expect(mockRunAgent).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 when approval resolution returns an unexpected success status", async () => {
+    mockResolveApprovalEvent.mockResolvedValue({
+      success: true,
+      status: "unknown",
     });
 
     const response = await POST(

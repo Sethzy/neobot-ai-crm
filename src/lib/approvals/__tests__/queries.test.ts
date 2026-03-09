@@ -39,7 +39,7 @@ describe("createApprovalEvent", () => {
       approvalId: row.approval_id,
     });
 
-    expect(result).toEqual({ success: true, event: row });
+    expect(result).toEqual({ success: true, status: "created", event: row });
     expect(supabase.calls.from).toEqual(["approval_events"]);
     expect(supabase.calls.methods).toContainEqual({
       method: "insert",
@@ -54,7 +54,7 @@ describe("createApprovalEvent", () => {
     });
   });
 
-  it("returns the insert error message", async () => {
+  it("treats duplicate inserts as an idempotent no-op", async () => {
     const supabase = createMockSupabaseClient({
       insertResult: { data: null, error: { message: "duplicate key" } },
     });
@@ -68,7 +68,24 @@ describe("createApprovalEvent", () => {
       approvalId: "approval-1",
     });
 
-    expect(result).toEqual({ success: false, error: "duplicate key" });
+    expect(result).toEqual({ success: true, status: "duplicate", event: null });
+  });
+
+  it("returns the insert error message for non-duplicate failures", async () => {
+    const supabase = createMockSupabaseClient({
+      insertResult: { data: null, error: { message: "connection reset" } },
+    });
+
+    const result = await createApprovalEvent(supabase as never, {
+      clientId: "550e8400-e29b-41d4-a716-446655440000",
+      threadId: "660e8400-e29b-41d4-a716-446655440000",
+      runId: "770e8400-e29b-41d4-a716-446655440000",
+      toolName: "delete_contact",
+      toolInput: {},
+      approvalId: "approval-1",
+    });
+
+    expect(result).toEqual({ success: false, status: "error", error: "connection reset" });
   });
 });
 
@@ -89,7 +106,7 @@ describe("resolveApprovalEvent", () => {
       approved: true,
     });
 
-    expect(result).toEqual({ success: true, event: row });
+    expect(result).toEqual({ success: true, status: "updated", event: row });
     expect(supabase.calls.from).toEqual(["approval_events"]);
     expect(supabase.calls.methods).toContainEqual({
       method: "update",
@@ -121,12 +138,13 @@ describe("resolveApprovalEvent", () => {
       approved: false,
     });
 
-    expect(result).toEqual({ success: true, event: row });
+    expect(result).toEqual({ success: true, status: "updated", event: row });
   });
 
-  it("only updates pending approvals so repeated continuations are idempotent", async () => {
+  it("returns already_resolved when the approval was already processed earlier", async () => {
     const supabase = createMockSupabaseClient({
       updateResult: { data: null, error: null },
+      selectResult: { data: { status: "approved" }, error: null },
     });
 
     const result = await resolveApprovalEvent(supabase as never, {
@@ -135,7 +153,11 @@ describe("resolveApprovalEvent", () => {
       approved: true,
     });
 
-    expect(result).toEqual({ success: true, event: null });
+    expect(result).toEqual({
+      success: true,
+      status: "already_resolved",
+      event: { status: "approved" },
+    });
     expect(supabase.calls.methods).toContainEqual({
       method: "eq",
       args: ["status", "pending"],
@@ -143,6 +165,25 @@ describe("resolveApprovalEvent", () => {
     expect(supabase.calls.methods).toContainEqual({
       method: "maybeSingle",
       args: [],
+    });
+  });
+
+  it("returns missing when no approval event row exists", async () => {
+    const supabase = createMockSupabaseClient({
+      updateResult: { data: null, error: null },
+      selectResult: { data: null, error: null },
+    });
+
+    const result = await resolveApprovalEvent(supabase as never, {
+      clientId: "550e8400-e29b-41d4-a716-446655440000",
+      approvalId: "approval-1",
+      approved: true,
+    });
+
+    expect(result).toEqual({
+      success: false,
+      status: "missing",
+      error: "Approval event not found.",
     });
   });
 });

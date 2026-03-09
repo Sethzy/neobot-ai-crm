@@ -200,7 +200,11 @@ export async function POST(request: Request): Promise<Response> {
         approved: approvalResponse.approved,
       });
 
-      if (!resolutionResult.success) {
+      if (
+        !resolutionResult.success ||
+        (resolutionResult.status !== "updated" &&
+          resolutionResult.status !== "already_resolved")
+      ) {
         return jsonError("Failed to process chat request.", 500);
       }
     }

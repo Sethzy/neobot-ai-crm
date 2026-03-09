@@ -78,6 +78,11 @@ function createDeferredPromise<T>() {
 describe("finalizeRun block storage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCreateApprovalEvent.mockResolvedValue({
+      success: true,
+      status: "created",
+      event: {},
+    });
   });
 
   it("calls saveToolcallBlock for every tool part with output-available state", async () => {
@@ -224,6 +229,46 @@ describe("finalizeRun block storage", () => {
     expect(mockCreateApprovalEvent.mock.invocationCallOrder[0]).toBeLessThan(
       mockCompleteRun.mock.invocationCallOrder[0],
     );
+  });
+
+  it("marks the run partial and skips draining when approval event persistence fails", async () => {
+    const parts: PersistedPart[] = [
+      { type: "step-start" },
+      {
+        type: "tool-delete_contact",
+        toolCallId: "call-approval",
+        state: "approval-requested",
+        input: { contact_id: "contact-1" },
+        approval: { id: "approval-1" },
+      },
+      { type: "text", text: "Waiting for approval." },
+    ];
+
+    mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
+    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+    mockGetAssistantTextFromParts.mockReturnValue("Waiting for approval.");
+    mockCreateApprovalEvent.mockResolvedValue({
+      success: false,
+      status: "error",
+      error: "insert failed",
+    });
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await finalizeRun(makeInput());
+
+    expect(mockCompleteRun).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        runId: RUN_ID,
+        status: "partial",
+      }),
+    );
+    expect(mockDrainAndContinue).not.toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "[test] approval event persistence failed:",
+      "insert failed",
+    );
+    consoleSpy.mockRestore();
   });
 });
 

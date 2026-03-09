@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/types/database";
 
 type ApprovalSupabaseClient = SupabaseClient<Database>;
+type ApprovalEventRow = Database["public"]["Tables"]["approval_events"]["Row"];
 
 interface CreateApprovalEventInput {
   clientId: string;
@@ -21,6 +22,18 @@ interface ResolveApprovalEventInput {
   clientId: string;
   approvalId: string;
   approved: boolean;
+}
+
+function isDuplicateApprovalEventError(error: { message?: string; code?: string | null } | null) {
+  if (!error) {
+    return false;
+  }
+
+  if (error.code === "23505") {
+    return true;
+  }
+
+  return error.message?.toLowerCase().includes("duplicate") ?? false;
 }
 
 /**
@@ -44,10 +57,14 @@ export async function createApprovalEvent(
     .single();
 
   if (error) {
-    return { success: false as const, error: error.message };
+    if (isDuplicateApprovalEventError(error)) {
+      return { success: true as const, status: "duplicate" as const, event: null };
+    }
+
+    return { success: false as const, status: "error" as const, error: error.message };
   }
 
-  return { success: true as const, event: data };
+  return { success: true as const, status: "created" as const, event: data };
 }
 
 /**
@@ -70,10 +87,45 @@ export async function resolveApprovalEvent(
     .maybeSingle();
 
   if (error) {
-    return { success: false as const, error: error.message };
+    return { success: false as const, status: "error" as const, error: error.message };
   }
 
-  return { success: true as const, event: data };
+  if (data) {
+    return { success: true as const, status: "updated" as const, event: data };
+  }
+
+  const { data: existingEvent, error: existingEventError } = await supabase
+    .from("approval_events")
+    .select("status")
+    .eq("client_id", input.clientId)
+    .eq("approval_id", input.approvalId)
+    .maybeSingle();
+
+  if (existingEventError) {
+    return {
+      success: false as const,
+      status: "error" as const,
+      error: existingEventError.message,
+    };
+  }
+
+  if (
+    existingEvent &&
+    typeof (existingEvent as ApprovalEventRow | Pick<ApprovalEventRow, "status">).status === "string" &&
+    (existingEvent as ApprovalEventRow | Pick<ApprovalEventRow, "status">).status !== "pending"
+  ) {
+    return {
+      success: true as const,
+      status: "already_resolved" as const,
+      event: existingEvent,
+    };
+  }
+
+  return {
+    success: false as const,
+    status: "missing" as const,
+    error: "Approval event not found.",
+  };
 }
 
 /**

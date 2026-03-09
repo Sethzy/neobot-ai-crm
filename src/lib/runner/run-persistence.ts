@@ -151,7 +151,7 @@ export async function finalizeRun({
 
   const approvalRequests = extractApprovalRequests(parts);
   if (approvalRequests.length > 0) {
-    await Promise.all(
+    const approvalResults = await Promise.all(
       approvalRequests.map((request) =>
         createApprovalEvent(supabase, {
           clientId,
@@ -163,6 +163,26 @@ export async function finalizeRun({
         }),
       ),
     );
+
+    const approvalPersistenceFailure = approvalResults.find(
+      (result) => !result.success && result.status === "error",
+    );
+
+    if (approvalPersistenceFailure) {
+      console.error(
+        `[${logLabel}] approval event persistence failed:`,
+        approvalPersistenceFailure.error,
+      );
+      await completeRun(supabase, {
+        runId,
+        status: "partial",
+        model: modelId,
+        tokensIn: totalUsage.inputTokens ?? 0,
+        tokensOut: totalUsage.outputTokens ?? 0,
+        stepCount: steps.length,
+      });
+      return;
+    }
   }
 
   await completeRun(supabase, {
