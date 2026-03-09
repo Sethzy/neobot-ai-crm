@@ -8,9 +8,9 @@ import { supabase } from "@/lib/supabase";
 
 interface MergeCustomFieldPatchParams<TUpdates extends Record<string, unknown>> {
   /** CRM table name to read the existing `custom_fields` JSONB document from. */
-  table: "contacts" | "deals" | "crm_tasks";
+  table: "contacts" | "companies" | "deals" | "crm_tasks";
   /** Primary key column used for the targeted record. */
-  idColumn: "contact_id" | "deal_id" | "task_id";
+  idColumn: "contact_id" | "company_id" | "deal_id" | "task_id";
   /** Primary key value for the targeted record. */
   recordId: string;
   /** Update payload that may contain a partial `custom_fields` patch. */
