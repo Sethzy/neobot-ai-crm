@@ -1480,7 +1480,8 @@
             "Directory read_file responses keep the existing { success, path, content } shape",
             "toModelOutput returns explicit json for non-image outputs and image-data for image outputs",
             "Negative line indices work for trailing slices and invalid normalized ranges still error"
-          ]
+          ],
+          "simplified": true
         },
         {
           "pr": "22e",
