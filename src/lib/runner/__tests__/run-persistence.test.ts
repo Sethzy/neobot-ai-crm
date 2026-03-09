@@ -1,0 +1,151 @@
+/**
+ * Tests for run persistence — block storage wiring in finalizeRun.
+ * @module lib/runner/__tests__/run-persistence
+ */
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { PersistedPart } from "@/lib/runner/message-utils";
+import type { Json } from "@/types/database";
+
+// --- Mocks for downstream modules ---
+const mockCreateMessages = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/lib/chat/messages", () => ({ createMessages: (...args: unknown[]) => mockCreateMessages(...args) }));
+
+const mockCompleteRun = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/lib/runner/run-lifecycle", () => ({ completeRun: (...args: unknown[]) => mockCompleteRun(...args) }));
+
+const mockDrainAndContinue = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/lib/runner/drain-and-continue", () => ({ drainAndContinue: (...args: unknown[]) => mockDrainAndContinue(...args) }));
+
+const mockMaybeCompactThread = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/lib/runner/compaction", () => ({
+  maybeCompactThread: (...args: unknown[]) => mockMaybeCompactThread(...args),
+  ARTIFACT_SIZE_THRESHOLD_BYTES: 5_000,
+}));
+
+const mockSaveToolcallBlock = vi.fn().mockResolvedValue(undefined);
+const mockTruncateOversizedParts = vi.fn();
+vi.mock("@/lib/runner/toolcall-artifacts", () => ({
+  saveToolcallBlock: (...args: unknown[]) => mockSaveToolcallBlock(...args),
+  truncateOversizedParts: (...args: unknown[]) => mockTruncateOversizedParts(...args),
+}));
+
+const mockBuildAssistantPartsFromSteps = vi.fn();
+const mockGetAssistantTextFromParts = vi.fn();
+vi.mock("@/lib/runner/message-utils", () => ({
+  buildAssistantPartsFromSteps: (...args: unknown[]) => mockBuildAssistantPartsFromSteps(...args),
+  getAssistantTextFromParts: (...args: unknown[]) => mockGetAssistantTextFromParts(...args),
+}));
+
+// Import module under test after all mocks
+const { finalizeRun } = await import("@/lib/runner/run-persistence");
+
+const CLIENT_ID = "550e8400-e29b-41d4-a716-446655440000";
+const THREAD_ID = "thread-001";
+const RUN_ID = "run-001";
+
+function makeInput(overrides: Partial<Parameters<typeof finalizeRun>[0]> = {}) {
+  return {
+    supabase: {} as never,
+    clientId: CLIENT_ID,
+    threadId: THREAD_ID,
+    runId: RUN_ID,
+    modelId: "gemini-2.5-flash",
+    steps: [],
+    text: "",
+    totalUsage: { inputTokens: 100, outputTokens: 50 },
+    logLabel: "test",
+    ...overrides,
+  };
+}
+
+describe("finalizeRun block storage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls saveToolcallBlock for every tool part with output-available state", async () => {
+    const parts: PersistedPart[] = [
+      { type: "step-start" },
+      { type: "tool-search_contacts", toolCallId: "call-1", state: "output-available", input: { query: "John" }, output: { success: true, contacts: [] } },
+      { type: "text", text: "Found nothing." },
+      { type: "tool-search_deals", toolCallId: "call-2", state: "output-available", input: { query: "Bishan" }, output: { success: true, deals: [{ id: 1 }] } },
+    ];
+
+    mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
+    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+    mockGetAssistantTextFromParts.mockReturnValue("Found nothing.");
+
+    await finalizeRun(makeInput());
+
+    expect(mockSaveToolcallBlock).toHaveBeenCalledTimes(2);
+    expect(mockSaveToolcallBlock).toHaveBeenCalledWith(
+      expect.anything(),
+      CLIENT_ID,
+      "call-1",
+      { query: "John" },
+      { success: true, contacts: [] },
+    );
+    expect(mockSaveToolcallBlock).toHaveBeenCalledWith(
+      expect.anything(),
+      CLIENT_ID,
+      "call-2",
+      { query: "Bishan" },
+      { success: true, deals: [{ id: 1 }] },
+    );
+  });
+
+  it("skips non-tool parts and tool parts without output-available state", async () => {
+    const parts: PersistedPart[] = [
+      { type: "step-start" },
+      { type: "text", text: "Hello" },
+      { type: "tool-create_contact", toolCallId: "call-3", state: "input-available", input: { name: "Alice" } },
+      { type: "reasoning", text: "thinking..." },
+    ];
+
+    mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
+    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+    mockGetAssistantTextFromParts.mockReturnValue("Hello");
+
+    await finalizeRun(makeInput());
+
+    expect(mockSaveToolcallBlock).not.toHaveBeenCalled();
+  });
+
+  it("does not block persistence when saveToolcallBlock fails", async () => {
+    const parts: PersistedPart[] = [
+      { type: "tool-search_contacts", toolCallId: "call-fail", state: "output-available", input: { q: "x" }, output: { success: true } },
+    ];
+
+    mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
+    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+    mockGetAssistantTextFromParts.mockReturnValue("");
+    mockSaveToolcallBlock.mockRejectedValue(new Error("storage down"));
+
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // Should not throw
+    await finalizeRun(makeInput({ text: "Done" }));
+
+    // Message persistence and run completion should still happen
+    expect(mockCreateMessages).toHaveBeenCalled();
+    expect(mockCompleteRun).toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+
+  it("includes tool-error parts for block storage with null result", async () => {
+    const parts: PersistedPart[] = [
+      { type: "tool-web_scrape", toolCallId: "call-err", state: "output-error", input: { url: "https://x.com" }, errorText: "timeout" },
+    ];
+
+    mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
+    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+    mockGetAssistantTextFromParts.mockReturnValue("");
+
+    await finalizeRun(makeInput({ text: "Error occurred" }));
+
+    // output-error parts should NOT trigger block storage (no successful output)
+    expect(mockSaveToolcallBlock).not.toHaveBeenCalled();
+  });
+});

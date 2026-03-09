@@ -88,6 +88,7 @@ vi.mock("@/lib/runner/compaction", () => ({
 }));
 
 vi.mock("@/lib/runner/toolcall-artifacts", () => ({
+  saveToolcallBlock: vi.fn().mockResolvedValue(undefined),
   truncateOversizedParts: (...args: unknown[]) => mockTruncateOversizedParts(...args),
 }));
 

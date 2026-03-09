@@ -109,6 +109,7 @@ vi.mock("@/lib/runner/compaction", () => ({
 }));
 
 vi.mock("@/lib/runner/toolcall-artifacts", () => ({
+  saveToolcallBlock: vi.fn().mockResolvedValue(undefined),
   truncateOversizedParts: (...args: unknown[]) => mockTruncateOversizedParts(...args),
 }));
 
@@ -787,7 +788,7 @@ describe("runAgent", () => {
           toolCallId: "call-1",
           state: "output-available",
           output:
-            '<context-removed path="toolcalls/call-1/result.json" reason="Result exceeded size threshold (6200 bytes). Use read_file to recover the full content." />',
+            "<context-removed>Data truncated: 6KB -> 5KB. path: toolcalls/call-1/result.json</context-removed>",
         },
         { type: "text", text: "I found the contacts." },
       ],
@@ -851,15 +852,12 @@ describe("runAgent", () => {
             toolCallId: "call-1",
             state: "output-available",
             output:
-              '<context-removed path="toolcalls/call-1/result.json" reason="Result exceeded size threshold (6200 bytes). Use read_file to recover the full content." />',
+              "<context-removed>Data truncated: 6KB -> 5KB. path: toolcalls/call-1/result.json</context-removed>",
           },
           { type: "text", text: "I found the contacts." },
         ],
       }),
     ]);
-    expect(mockCreateMessages.mock.calls[1]?.[1]?.[0]?.content).toContain(
-      "toolcalls/call-1/result.json",
-    );
   });
 
   it("falls back to raw parts when toolcall artifact persistence fails", async () => {

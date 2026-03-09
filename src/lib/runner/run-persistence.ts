@@ -16,7 +16,10 @@ import {
   type PersistedPart,
 } from "@/lib/runner/message-utils";
 import { completeRun } from "@/lib/runner/run-lifecycle";
-import { truncateOversizedParts } from "@/lib/runner/toolcall-artifacts";
+import {
+  saveToolcallBlock,
+  truncateOversizedParts,
+} from "@/lib/runner/toolcall-artifacts";
 import type { Database, Json } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
@@ -42,29 +45,6 @@ export interface FinalizeRunInput {
 }
 
 /**
- * Appends a recovery note listing truncated artifact paths.
- */
-export function appendArtifactRecoveryNote(
-  contentText: string,
-  recoveryPaths: string[],
-): string {
-  if (recoveryPaths.length === 0) {
-    return contentText;
-  }
-
-  const recoveryNote = [
-    "Full tool results were truncated from persisted context. Recover them with read_file if needed:",
-    ...recoveryPaths.map((path) => `- ${path}`),
-  ].join("\n");
-
-  return [contentText, recoveryNote]
-    .map((value) => value.trim())
-    .filter((value) => value.length > 0)
-    .join("\n\n")
-    .trim();
-}
-
-/**
  * Shared post-inference persistence: build parts, truncate oversized outputs,
  * persist the assistant message, complete the run, drain queue, and compact.
  */
@@ -80,23 +60,42 @@ export async function finalizeRun({
   logLabel,
 }: FinalizeRunInput): Promise<void> {
   const rawParts = buildAssistantPartsFromSteps(steps);
+
+  // Block storage: save ALL tool call args + results to storage (fire-and-forget).
+  // Matches Tasklet's pattern where every tool call is always recoverable from storage.
+  const toolParts = rawParts.filter(
+    (part) =>
+      part.state === "output-available" &&
+      typeof part.toolCallId === "string",
+  );
+  if (toolParts.length > 0) {
+    Promise.all(
+      toolParts.map((part) =>
+        saveToolcallBlock(
+          supabase,
+          clientId,
+          part.toolCallId as string,
+          part.input ?? null,
+          part.output ?? null,
+        ),
+      ),
+    ).catch((blockStorageError) => {
+      console.error(`[${logLabel}] block storage failed:`, blockStorageError);
+    });
+  }
+
   let parts: PersistedPart[] = rawParts;
-  let recoveryPaths: string[] = [];
 
   try {
     const truncatedResult = await truncateOversizedParts(supabase, clientId, rawParts);
     parts = truncatedResult.parts;
-    recoveryPaths = truncatedResult.recoveryPaths;
   } catch (artifactError) {
     console.error(`[${logLabel}] toolcall artifact persistence failed:`, artifactError);
   }
 
   const contentTextFromParts = getAssistantTextFromParts(parts);
   const fallbackContentText = typeof text === "string" ? text.trim() : "";
-  const contentText = appendArtifactRecoveryNote(
-    contentTextFromParts.length > 0 ? contentTextFromParts : fallbackContentText,
-    recoveryPaths,
-  );
+  const contentText = contentTextFromParts.length > 0 ? contentTextFromParts : fallbackContentText;
   const hasNonStepParts = parts.some((part) => part.type !== "step-start");
 
   if (hasNonStepParts || contentText.length > 0) {

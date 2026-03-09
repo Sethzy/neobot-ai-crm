@@ -29,13 +29,16 @@ import {
   COMPACTION_KEEP_RECENT,
   COMPACTION_MESSAGE_THRESHOLD,
   CRM_COMPACTION_INSTRUCTIONS,
+  STRUCTURED_SUMMARY_INSTRUCTIONS,
   SUMMARIZATION_PROMPT,
   SUMMARY_PREFIX,
   fetchThreadCompactionState,
   generateCompactionSummary,
   isSummaryMessage,
+  isTriggerEventMessage,
   maybeCompactThread,
   persistThreadCompactionState,
+  pruneTriggerEvents,
   threadCompactionStateSchema,
 } from "../compaction";
 
@@ -186,6 +189,90 @@ describe("SUMMARY_PREFIX", () => {
   it("contains the Codex handoff framing", () => {
     expect(SUMMARY_PREFIX).toContain("Another language model");
     expect(SUMMARY_PREFIX).toContain("avoid duplicating work");
+  });
+});
+
+describe("STRUCTURED_SUMMARY_INSTRUCTIONS", () => {
+  it("requires four structured sections", () => {
+    expect(STRUCTURED_SUMMARY_INSTRUCTIONS).toContain("## User Instructions");
+    expect(STRUCTURED_SUMMARY_INSTRUCTIONS).toContain("## Workflow");
+    expect(STRUCTURED_SUMMARY_INSTRUCTIONS).toContain("## Resources");
+    expect(STRUCTURED_SUMMARY_INSTRUCTIONS).toContain("## Current Focus");
+  });
+
+  it("contains CRM-specific preservation guidance", () => {
+    expect(STRUCTURED_SUMMARY_INSTRUCTIONS).toContain("deal names");
+    expect(STRUCTURED_SUMMARY_INSTRUCTIONS).toContain("contact names");
+    expect(STRUCTURED_SUMMARY_INSTRUCTIONS).toContain("task statuses");
+  });
+});
+
+describe("isTriggerEventMessage", () => {
+  it("returns true for messages starting with <trigger-event>", () => {
+    const message = [
+      "<trigger-event>",
+      "trigger_instance_id: abc-123",
+      "trigger_type: rss",
+      "trigger_name: PropertyGuru Monitor",
+      "payload: {}",
+      "</trigger-event>",
+    ].join("\n");
+
+    expect(isTriggerEventMessage(message)).toBe(true);
+  });
+
+  it("returns false for regular user messages", () => {
+    expect(isTriggerEventMessage("Call John Tan back")).toBe(false);
+  });
+
+  it("returns false for empty strings", () => {
+    expect(isTriggerEventMessage("")).toBe(false);
+  });
+});
+
+describe("pruneTriggerEvents", () => {
+  it("extracts trigger name and type into a <context-removed> summary", () => {
+    const triggerMessages = [
+      {
+        role: "system",
+        content: [
+          "<trigger-event>",
+          "trigger_instance_id: abc-123",
+          "trigger_type: rss",
+          "fired_at: 2026-03-06T10:00:00.000Z",
+          "trigger_name: PropertyGuru Monitor",
+          "instruction_path: triggers/abc-123/instructions.md",
+          'payload: {"new_items":[{"title":"3BR condo at Tampines"}]}',
+          "</trigger-event>",
+        ].join("\n"),
+      },
+      {
+        role: "system",
+        content: [
+          "<trigger-event>",
+          "trigger_instance_id: def-456",
+          "trigger_type: schedule",
+          "fired_at: 2026-03-06T16:00:00.000Z",
+          "trigger_name: Daily CRM check",
+          "instruction_path: triggers/def-456/instructions.md",
+          "payload: {}",
+          "</trigger-event>",
+        ].join("\n"),
+      },
+    ];
+
+    const result = pruneTriggerEvents(triggerMessages);
+
+    expect(result).toContain("<context-removed>");
+    expect(result).toContain("Omitted 2 trigger invocation(s)");
+    expect(result).toContain("PropertyGuru Monitor (rss)");
+    expect(result).toContain("Daily CRM check (schedule)");
+    expect(result).toContain("</context-removed>");
+    expect(result).not.toContain("3BR condo");
+  });
+
+  it("returns empty string when given no trigger messages", () => {
+    expect(pruneTriggerEvents([])).toBe("");
   });
 });
 
@@ -386,9 +473,9 @@ describe("generateCompactionSummary", () => {
     expect(mockGenerateText).not.toHaveBeenCalled();
   });
 
-  it("calls generateText with COMPACTION_MODEL and combined Codex plus CRM instructions", async () => {
+  it("calls generateText with COMPACTION_MODEL and structured summary instructions", async () => {
     mockGenerateText.mockResolvedValue({
-      text: "Compacted summary",
+      text: "## User Instructions\nNone\n## Workflow\nDiscussed deals\n## Resources\nNone\n## Current Focus\nFollow up",
       usage: { totalTokens: 222 },
     });
 
@@ -401,17 +488,17 @@ describe("generateCompactionSummary", () => {
     });
 
     expect(result).toEqual({
-      summaryText: "Compacted summary",
+      summaryText: "## User Instructions\nNone\n## Workflow\nDiscussed deals\n## Resources\nNone\n## Current Focus\nFollow up",
       tokensUsed: 222,
       model: "google/gemini-2.5-flash-lite",
     });
     expect(mockGateway).toHaveBeenCalledWith("google/gemini-2.5-flash-lite");
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
       model: "mock-model",
-      system: expect.stringContaining("CONTEXT CHECKPOINT COMPACTION"),
+      system: expect.stringContaining("## User Instructions"),
     }));
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
-      system: expect.stringContaining(CRM_COMPACTION_INSTRUCTIONS),
+      system: expect.stringContaining("## Current Focus"),
       prompt: expect.stringContaining("Earlier summary block"),
     }));
     expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
@@ -500,6 +587,64 @@ describe("maybeCompactThread", () => {
           args: [expect.objectContaining({
             compaction_summary: `${SUMMARY_PREFIX}\nCompacted summary`,
             compaction_compacted_through_message_id: createUuid(lastCompactedMessageNumber),
+          })],
+        },
+      ]),
+    );
+  });
+
+  it("partitions trigger events from conversation and prunes them mechanically", async () => {
+    mockGenerateText.mockResolvedValue({
+      text: "## User Instructions\nNone\n## Workflow\nDiscussed deals\n## Resources\nNone\n## Current Focus\nFollow up",
+      usage: { totalTokens: 100 },
+    });
+
+    const messageRows = createMessageRows(COMPACTION_MESSAGE_THRESHOLD + 10);
+    messageRows[5] = {
+      ...messageRows[5],
+      role: "system",
+      content: "<trigger-event>\ntrigger_instance_id: t1\ntrigger_type: rss\ntrigger_name: PropertyGuru\npayload: {}\n</trigger-event>",
+    };
+    messageRows[10] = {
+      ...messageRows[10],
+      role: "system",
+      content: "<trigger-event>\ntrigger_instance_id: t2\ntrigger_type: schedule\ntrigger_name: Daily Check\npayload: {}\n</trigger-event>",
+    };
+
+    const supabase = createCompactionSupabaseMock({
+      threadRow: {
+        thread_id: createUuid(90),
+        client_id: createUuid(91),
+        compaction_summary: null,
+        compaction_compacted_through_at: null,
+        compaction_compacted_through_message_id: null,
+        compaction_summary_model: null,
+        compaction_summary_tokens_used: null,
+      },
+      messageRows,
+    });
+
+    await maybeCompactThread(
+      supabase.client as never,
+      createUuid(91),
+      createUuid(90),
+    );
+
+    // Trigger events should NOT be in the LLM summarizer prompt
+    expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
+      prompt: expect.not.stringContaining("<trigger-event>"),
+    }));
+    expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
+      prompt: expect.not.stringContaining("PropertyGuru"),
+    }));
+
+    // But the persisted summary should contain the pruned trigger summary
+    expect(supabase.calls.methods).toEqual(
+      expect.arrayContaining([
+        {
+          method: "update",
+          args: [expect.objectContaining({
+            compaction_summary: expect.stringContaining("Omitted 2 trigger invocation(s)"),
           })],
         },
       ]),

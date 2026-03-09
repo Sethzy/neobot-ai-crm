@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildContextRemovedMarker,
   saveToolcallArtifact,
+  saveToolcallBlock,
   shouldTruncateToolResult,
   truncateOversizedParts,
 } from "../toolcall-artifacts";
@@ -89,12 +90,98 @@ describe("saveToolcallArtifact", () => {
 });
 
 describe("buildContextRemovedMarker", () => {
-  it("includes the recovery path and reason", () => {
-    const marker = buildContextRemovedMarker("toolcalls/call-123/result.json", 6_200);
+  it("produces a context-removed marker with size info and path", () => {
+    const marker = buildContextRemovedMarker("toolcalls/call-abc/result.json", 50_000);
 
-    expect(marker).toContain("<context-removed");
-    expect(marker).toContain('path="toolcalls/call-123/result.json"');
-    expect(marker).toContain("6200 bytes");
+    expect(marker).toContain("<context-removed>");
+    expect(marker).toContain("</context-removed>");
+    expect(marker).toContain("Data truncated: 49KB -> 5KB");
+    expect(marker).toContain("path: toolcalls/call-abc/result.json");
+  });
+});
+
+describe("saveToolcallBlock", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("uploads both args.json and result.json to the toolcalls directory", async () => {
+    const supabase = createStorageSupabaseMock();
+    supabase.upload.mockResolvedValue({ data: { path: "ignored" }, error: null });
+
+    await saveToolcallBlock(
+      supabase.client as never,
+      "550e8400-e29b-41d4-a716-446655440000",
+      "call-abc",
+      { query: "John" },
+      { success: true, contacts: [{ name: "John Tan" }] },
+    );
+
+    expect(supabase.upload).toHaveBeenCalledTimes(2);
+    expect(supabase.upload).toHaveBeenCalledWith(
+      "550e8400-e29b-41d4-a716-446655440000/toolcalls/call-abc/args.json",
+      expect.any(String),
+      expect.objectContaining({ upsert: true }),
+    );
+    expect(supabase.upload).toHaveBeenCalledWith(
+      "550e8400-e29b-41d4-a716-446655440000/toolcalls/call-abc/result.json",
+      expect.any(String),
+      expect.objectContaining({ upsert: true }),
+    );
+  });
+
+  it("skips args upload when args is nullish", async () => {
+    const supabase = createStorageSupabaseMock();
+    supabase.upload.mockResolvedValue({ data: { path: "ignored" }, error: null });
+
+    await saveToolcallBlock(
+      supabase.client as never,
+      "550e8400-e29b-41d4-a716-446655440000",
+      "call-abc",
+      null,
+      { success: true },
+    );
+
+    expect(supabase.upload).toHaveBeenCalledTimes(1);
+    expect(supabase.upload).toHaveBeenCalledWith(
+      expect.stringContaining("result.json"),
+      expect.any(String),
+      expect.any(Object),
+    );
+  });
+
+  it("skips result upload when result is nullish", async () => {
+    const supabase = createStorageSupabaseMock();
+    supabase.upload.mockResolvedValue({ data: { path: "ignored" }, error: null });
+
+    await saveToolcallBlock(
+      supabase.client as never,
+      "550e8400-e29b-41d4-a716-446655440000",
+      "call-abc",
+      { query: "John" },
+      null,
+    );
+
+    expect(supabase.upload).toHaveBeenCalledTimes(1);
+    expect(supabase.upload).toHaveBeenCalledWith(
+      expect.stringContaining("args.json"),
+      expect.any(String),
+      expect.any(Object),
+    );
+  });
+
+  it("does nothing when both args and result are nullish", async () => {
+    const supabase = createStorageSupabaseMock();
+
+    await saveToolcallBlock(
+      supabase.client as never,
+      "550e8400-e29b-41d4-a716-446655440000",
+      "call-abc",
+      null,
+      null,
+    );
+
+    expect(supabase.upload).not.toHaveBeenCalled();
   });
 });
 
@@ -154,7 +241,7 @@ describe("truncateOversizedParts", () => {
       type: "tool-search_contacts",
       toolCallId: "call-large",
       state: "output-available",
-      output: expect.stringContaining('path="toolcalls/call-large/result.json"'),
+      output: expect.stringContaining("path: toolcalls/call-large/result.json"),
     }));
     expect(parts[0]).toEqual(expect.objectContaining({
       output: {

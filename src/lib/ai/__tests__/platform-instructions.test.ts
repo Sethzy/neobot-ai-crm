@@ -22,6 +22,22 @@ describe("buildPlatformInstructions", () => {
     expect(instructions).toContain("Deal stages: lead, quoted, bound");
   });
 
+  it("includes <context-management> instructions with recovery guidance", () => {
+    const instructions = buildPlatformInstructions();
+
+    expect(instructions).toContain("<context-management>");
+    expect(instructions).toContain("</context-management>");
+    expect(instructions).toContain("You MUST read the full untruncated data");
+    expect(instructions).toContain("Data truncated:");
+    expect(instructions).toContain("<context-removed>");
+    expect(instructions).toContain("read_file");
+    expect(instructions).toContain("toolcalls/");
+    expect(instructions).toContain("result.json");
+    expect(instructions).toContain("args.json");
+    expect(instructions).toContain("trigger invocation");
+    expect(instructions).toContain("Omitted");
+  });
+
   it("escapes config-derived values before injecting them into XML-like instructions", () => {
     const instructions = buildPlatformInstructions({
       ...CRM_DEFAULTS,

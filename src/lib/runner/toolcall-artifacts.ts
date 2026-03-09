@@ -47,12 +47,67 @@ export function shouldTruncateToolResult(output: unknown): boolean {
 
 /**
  * Produces the inline marker stored in the persisted tool part after truncation.
+ * Format matches what `<context-management>` instructions describe to the agent.
  */
 export function buildContextRemovedMarker(
   storagePath: string,
   originalSizeBytes: number,
 ): string {
-  return `<context-removed path="${storagePath}" reason="Result exceeded size threshold (${originalSizeBytes} bytes). Use read_file to recover the full content." />`;
+  const originalKB = Math.round(originalSizeBytes / 1024);
+  const thresholdKB = Math.round(ARTIFACT_SIZE_THRESHOLD_BYTES / 1024);
+  return `<context-removed>Data truncated: ${originalKB}KB -> ${thresholdKB}KB. path: ${storagePath}</context-removed>`;
+}
+
+/**
+ * Stores both the tool call arguments and result to the tenant workspace.
+ * Called for EVERY tool call regardless of size — matches Tasklet's block storage pattern
+ * where all tool data is always recoverable from storage.
+ *
+ * Skips upload for nullish args or result individually.
+ * If both are nullish, does nothing.
+ */
+export async function saveToolcallBlock(
+  supabase: ChatSupabaseClient,
+  clientId: string,
+  toolCallId: string,
+  args: unknown,
+  result: unknown,
+): Promise<void> {
+  const uploads: Promise<void>[] = [];
+
+  const argsContent = getSerializedArtifact(args);
+  if (argsContent != null) {
+    uploads.push(
+      supabase.storage
+        .from(AGENT_FILES_BUCKET_ID)
+        .upload(
+          `${clientId}/toolcalls/${toolCallId}/args.json`,
+          argsContent,
+          { upsert: true, contentType: "application/json; charset=utf-8" },
+        )
+        .then(({ error }) => {
+          if (error) throw new Error(error.message);
+        }),
+    );
+  }
+
+  const resultContent = getSerializedArtifact(result);
+  if (resultContent != null) {
+    uploads.push(
+      supabase.storage
+        .from(AGENT_FILES_BUCKET_ID)
+        .upload(
+          `${clientId}/toolcalls/${toolCallId}/result.json`,
+          resultContent,
+          { upsert: true, contentType: "application/json; charset=utf-8" },
+        )
+        .then(({ error }) => {
+          if (error) throw new Error(error.message);
+        }),
+    );
+  }
+
+  await Promise.all(uploads);
 }
 
 /**

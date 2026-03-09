@@ -33,7 +33,11 @@ export const SUMMARIZATION_PROMPT = [
 export const SUMMARY_PREFIX =
   "Another language model started to solve this problem and produced a summary of its thinking process. You also have access to the state of the tools that were used by that language model. Use this to build on the work that has already been done and avoid duplicating work. Here is the summary produced by the other language model, use the information in this summary to assist with your own analysis:";
 
-/** Tool results at or above this persisted size are stored as artifacts instead. */
+/**
+ * Tool results at or above this persisted size are stored as artifacts instead.
+ * Matches Tasklet's ~5KB inline retention threshold (empirically verified: a 617KB
+ * scrape was truncated to ~5KB inline with a permanent `<context-removed>` marker).
+ */
 export const ARTIFACT_SIZE_THRESHOLD_BYTES = 5_000;
 
 /** Uncompacted message windows above this count should be summarized. */
@@ -45,6 +49,7 @@ export const COMPACTION_KEEP_RECENT = 50;
 /**
  * CRM-tuned instructions for summary generation.
  * Preserve concrete business state so future runs can recover thread context safely.
+ * @deprecated Replaced by STRUCTURED_SUMMARY_INSTRUCTIONS. Kept for backward compatibility.
  */
 export const CRM_COMPACTION_INSTRUCTIONS = [
   "Summarize older CRM conversation context for future agent runs.",
@@ -53,6 +58,36 @@ export const CRM_COMPACTION_INSTRUCTIONS = [
   "Preserve task statuses, deadlines, commitments, and follow-up obligations.",
   "Omit filler, but keep concrete facts that affect future work.",
 ].join(" ");
+
+/**
+ * Structured compaction summary instructions matching Tasklet's 4-section format.
+ * Replaces the free-form SUMMARIZATION_PROMPT + CRM_COMPACTION_INSTRUCTIONS combo.
+ */
+export const STRUCTURED_SUMMARY_INSTRUCTIONS = [
+  "You are performing a CONTEXT CHECKPOINT COMPACTION for a real estate CRM agent.",
+  "Create a structured handoff summary for another LLM that will resume the work.",
+  "",
+  "You MUST use exactly these four sections:",
+  "",
+  "## User Instructions",
+  "Explicit user preferences, boundaries, communication style, and standing orders.",
+  "Include any constraints the user has stated.",
+  "",
+  "## Workflow",
+  "Current progress, key decisions made, and what remains to be done.",
+  "Preserve deal names, deal stages, prices, and rationale.",
+  "Preserve contact names, phone numbers, emails, and relationship context.",
+  "Preserve task statuses, deadlines, commitments, and follow-up obligations.",
+  "",
+  "## Resources",
+  "Important data, file paths, references, trigger configurations, and connection state.",
+  "Include any tool call IDs or storage paths the agent may need to recover data from.",
+  "",
+  "## Current Focus",
+  "Clear next steps for the resuming LLM. What should it do first?",
+  "",
+  "Be concise. Omit filler. Keep concrete facts that affect future work.",
+].join("\n");
 
 const uuidSchema = z.string().uuid();
 const isoDateTimeSchema = z.string().datetime({ offset: true });
@@ -107,6 +142,39 @@ interface CompactionMessageRow {
  */
 export function isSummaryMessage(message: string): boolean {
   return message.startsWith(`${SUMMARY_PREFIX}\n`);
+}
+
+/**
+ * Returns true when the message content is a trigger-event envelope
+ * injected by the trigger executor (not user conversation).
+ */
+export function isTriggerEventMessage(content: string): boolean {
+  return content.trimStart().startsWith("<trigger-event>");
+}
+
+/**
+ * Mechanically prunes trigger-event messages into a compact `<context-removed>` summary.
+ * Only preserves trigger name and type — full payloads are discarded during compaction.
+ */
+export function pruneTriggerEvents(
+  triggerMessages: Array<{ role: string; content: string }>,
+): string {
+  if (triggerMessages.length === 0) return "";
+
+  const entries = triggerMessages.map((msg) => {
+    const nameMatch = msg.content.match(/trigger_name:\s*(.+)/);
+    const typeMatch = msg.content.match(/trigger_type:\s*(.+)/);
+    const name = nameMatch?.[1]?.trim() ?? "unknown";
+    const type = typeMatch?.[1]?.trim() ?? "unknown";
+    return `${name} (${type})`;
+  });
+
+  return [
+    "<context-removed>",
+    `Omitted ${triggerMessages.length} trigger invocation(s) to reduce context size:`,
+    ...entries.map((entry) => `- ${entry}`),
+    "</context-removed>",
+  ].join("\n");
 }
 
 function addSummaryPrefix(message: string): string {
@@ -249,7 +317,7 @@ export async function generateCompactionSummary(
 
   const result = await generateText({
     model: gateway(COMPACTION_MODEL),
-    system: `${SUMMARIZATION_PROMPT}\n\n${CRM_COMPACTION_INSTRUCTIONS}`,
+    system: STRUCTURED_SUMMARY_INSTRUCTIONS,
     prompt,
   });
 
@@ -307,21 +375,32 @@ export async function maybeCompactThread(
     return false;
   }
 
+  const allMessages = rowsToCompact
+    .map((row) => ({
+      role: row.role,
+      content: row.content ?? getTextFromParts(row.parts),
+    }))
+    .filter((row) => row.content.trim().length > 0);
+
+  const triggerMessages = allMessages.filter((msg) => isTriggerEventMessage(msg.content));
+  const conversationMessages = allMessages.filter((msg) => !isTriggerEventMessage(msg.content));
+
   const summary = await generateCompactionSummary({
     existingSummary: compactionState?.compaction_summary ?? "",
-    messages: rowsToCompact
-      .map((row) => ({
-        role: row.role,
-        content: row.content ?? getTextFromParts(row.parts),
-      }))
-      .filter((row) => row.content.trim().length > 0),
+    messages: conversationMessages,
   });
 
-  if (summary.summaryText.trim().length === 0) {
+  const prunedTriggerSummary = pruneTriggerEvents(triggerMessages);
+
+  const combinedSummary = [summary.summaryText, prunedTriggerSummary]
+    .filter((s) => s.trim().length > 0)
+    .join("\n\n");
+
+  if (combinedSummary.trim().length === 0) {
     return false;
   }
 
-  const prefixedSummary = addSummaryPrefix(summary.summaryText);
+  const prefixedSummary = addSummaryPrefix(combinedSummary);
 
   await persistThreadCompactionState(supabase, {
     threadId,

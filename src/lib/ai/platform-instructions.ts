@@ -43,6 +43,31 @@ Thread titles are usually auto-generated after the first user message.
 Use rename_chat only when the current title is untitled/generic and you can provide a better concise title.
 Do not rename threads that already have a meaningful specific title.
 </thread-naming>
+
+<context-management>
+To keep your context size manageable, some tool call data may be truncated or removed.
+Context that has been truncated or removed will be marked by a <context-removed> tag.
+
+You MUST read the full untruncated data from storage using read_file if you need
+the information to complete your work.
+
+Tool call results that exceeded the size threshold have been truncated inline.
+You will see a note like:
+<context-removed>Data truncated: 50KB -> 5KB. path: toolcalls/{toolCallId}/result.json</context-removed>
+
+To read the full arguments and results for a tool call, use the toolCallId:
+read_file(path: "toolcalls/{toolCallId}/result.json")
+read_file(path: "toolcalls/{toolCallId}/args.json")
+
+Sometimes entire sequences of trigger invocations may be pruned during compaction.
+You will see a summary like:
+<context-removed>
+Omitted N trigger invocation(s) to reduce context size:
+- TriggerName (type)
+</context-removed>
+
+You do not need to recover pruned trigger events unless specifically asked about them.
+</context-management>
 </platform-instructions>`;
 
 function formatCustomFieldDefinitionSummary(config: CrmVocabConfig) {

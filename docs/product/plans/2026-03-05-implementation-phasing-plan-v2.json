@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-07",
+    "updated": "2026-03-09",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -31,7 +31,10 @@
       "2026-03-07: Generative UI approach decision. PR 42a rewritten: catalog-based JSON view specs (inspired by Vercel Labs json-render) replaces sandboxed iframe approach. Agent outputs JSON conforming to a Zod component catalog, frontend renders deterministically \u2014 no sandbox, no CSP, no bridge API. Moved PR 42a from Phase 5 to Phase 3 (no longer blocked by EXEC-04 sandbox). Added PR 42b as deferred Phase 5 escape hatch for full Tasklet-style sandboxed code gen if catalog proves insufficient. Added architecture decision UX-10.",
       "2026-03-07: Added PR 22a (multimodal chat \u2014 image attachments) and PR 22b (tool output rendering \u2014 json-render + tool approval UI) to Phase 2. Both follow vercel/chatbot patterns with minimal drift. PR 22a: file upload via Supabase Storage, PreviewAttachment component, parts-based messaging, stop button. PR 22b: json-render for tool output display, addToolApprovalResponse wiring with approve/deny buttons. Reference docs in roadmap docs/Sunder - Source of Truth/references/vercel-chatbot/.",
       "2026-03-07: Added PR 20a (Suggested automations \u2014 template prompt cards) to Phase 2 after PR 20. KISS approach following Tasklet pattern: a template is just a pre-filled chat message. Hardcoded TS array of { id, title, description, category, icon, prompt }. Cards shown on /automations page + suggestion chips in chat empty state. Click \u2192 navigate to /chat with prompt pre-filled \u2192 agent handles setup conversationally. No template engine, no activation flow, no special UI. Reference: roadmap docs/Sunder - Source of Truth/references/template-automations.md.",
-      "2026-03-07: Out-of-plan extension of PR 22 (done): PR 22c \u2014 Block Storage + Context Management Alignment. Adds block index utilities for compaction summaries (DATA-10), stores ALL tool call args+results to storage, embeds mechanical block index in compaction summaries for post-compaction recovery (SESSION-07), adds <context-management> and <autonomous-mode> instructions. Tasklist: docs/product/tasks/2026-03-07-pr22c-block-storage-context-management-tasklist.md."
+      "2026-03-09: Expanded PR 38 onboarding with conversational bootstrap pattern inspired by OpenClaw's BOOTSTRAP.md. Replaced single PR38-8 task with 6 tasks (PR38-8 through PR38-13). Core principle: 'Don't interrogate. Don't be robotic. Just talk.' The first conversation IS the product. Full comparison doc: docs/product/references/2026-03-09-openclaw-onboarding-comparison.md.",
+      "2026-03-09: Resolved 4 onboarding design decisions after OpenClaw verbatim comparison. (1) Explicit preferences, not inferred — follow OpenClaw: agent explicitly asks about boundaries, communication style, preferences collaboratively. (2) Pre-structured USER.md + SOUL.md templates with clear fields — follow OpenClaw. (3) Explicit completion moment — follow OpenClaw: agent acknowledges transition warmly, not a silent DB flag. (4) Channel setup for existing users via natural conversation, not re-onboarding — follow OpenClaw: onboarding is a one-time ritual. Agent name 'Sunder' is fixed; everything else co-created. System prompt injection (KISS) instead of BOOTSTRAP.md file in storage.",
+      "2026-03-07: Out-of-plan extension of PR 22 (done): PR 22c \u2014 Block Storage + Context Management Alignment. Adds block index utilities for compaction summaries (DATA-10), stores ALL tool call args+results to storage, embeds mechanical block index in compaction summaries for post-compaction recovery (SESSION-07), adds <context-management> and <autonomous-mode> instructions. Tasklist: docs/product/tasks/2026-03-07-pr22c-block-storage-context-management-tasklist.md.",
+      "2026-03-09: PR 22c scope rewrite for zero Tasklet drift. Removed block index (YAGNI \u2014 agent recovers via read_file, not index lookup). Confirmed persistence-time truncation is correct (Tasklet does the same \u2014 fixed size threshold, permanent marker, not budget-based). Scope is now 6 tasks: (1) store ALL tool call args+results to block storage regardless of size, (2) trigger event pruning during compaction (mechanical title+source extraction, separate from LLM summarization), (3) structured compaction summary format (## User Instructions / ## Workflow / ## Resources / ## Current Focus), (4) <context-management> instructions in platform-instructions.ts, (5) remove appendArtifactRecoveryNote hack, (6) threshold review (5KB vs Tasklet's ~100KB). Formalized as PR entry in Phase 2 after PR 22b. Tasklist rewritten: docs/product/tasks/2026-03-09-pr22c-context-management-alignment-tasklist.md."
     ]
   },
   "phases": [
@@ -1170,7 +1173,7 @@
         {
           "pr": "20a",
           "title": "Suggested automations \u2014 template prompt cards",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [
             "TRIG-03"
           ],
@@ -1209,7 +1212,7 @@
         {
           "pr": "22a",
           "title": "Multimodal chat \u2014 image attachments",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [],
           "tasklist": "docs/product/tasks/2026-03-07-pr22a-multimodal-chat-tasklist.md",
           "note": "Follows vercel/chatbot multimodal pattern exactly. Only drift: Supabase Storage instead of Vercel Blob. Reference: roadmap docs/Sunder - Source of Truth/references/vercel-chatbot/multimodal-reference.md",
@@ -1217,37 +1220,37 @@
             {
               "id": "PR22a-1",
               "task": "Create file upload API route (app/api/files/upload/route.ts) \u2014 Supabase Storage, Zod validation (5MB, JPEG/PNG), returns { url, pathname, contentType }",
-              "done": false
+              "done": true
             },
             {
               "id": "PR22a-2",
               "task": "Create PreviewAttachment component (src/components/chat/preview-attachment.tsx) \u2014 copy from vercel/chatbot, reusable in input + message rendering",
-              "done": false
+              "done": true
             },
             {
               "id": "PR22a-3",
               "task": "Add multimodal to ChatComposer \u2014 attachments state, uploadQueue state, uploadFile() callback, handleFileChange(), handlePaste() with addEventListener, hidden file input, paperclip button, preview area",
-              "done": false
+              "done": true
             },
             {
               "id": "PR22a-4",
               "task": "Update ChatPanel.handleSubmit \u2014 switch from sendMessage({ text }) to sendMessage({ role: 'user', parts: [...fileParts, { type: 'text', text }] })",
-              "done": false
+              "done": true
             },
             {
               "id": "PR22a-5",
               "task": "Update MessageBubble \u2014 filter message.parts for type==='file', render PreviewAttachment for each",
-              "done": false
+              "done": true
             },
             {
               "id": "PR22a-6",
               "task": "Extend runAgent to accept file parts \u2014 forward to streamText via convertToModelMessages() so images reach the model",
-              "done": false
+              "done": true
             },
             {
               "id": "PR22a-7",
               "task": "Add stop button to ChatComposer \u2014 wire useChat stop() when status === 'submitted' or 'streaming'",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -1303,6 +1306,55 @@
             "Clicking approve continues the agent run",
             "Clicking deny shows denied state and stops tool execution",
             "JsonView handles nested objects, arrays, and primitives cleanly"
+          ]
+        },
+        {
+          "pr": "22c",
+          "title": "Block storage + context management alignment (zero Tasklet drift)",
+          "status": "done",
+          "decisions": [
+            "DATA-10",
+            "SESSION-07"
+          ],
+          "note": "Extends PR 22 (done). Aligns Sunder's context management with Tasklet's proven production patterns for permanent sessions. Two separate layers: (1) size-based truncation at persistence time with block storage for all tool calls, (2) trigger event pruning + structured summary at compaction time. Confirmed via empirical Tasklet testing: truncation is persistence-time, fixed threshold, permanent. Recovery always through block storage. No block index needed \u2014 agent uses read_file with deterministic paths.",
+          "tasks": [
+            {
+              "id": "PR22c-1",
+              "task": "Block storage: save ALL tool call args + results to Supabase Storage on every run, regardless of size. Fire-and-forget. Keep 5KB threshold for inline truncation only.",
+              "done": true
+            },
+            {
+              "id": "PR22c-2",
+              "task": "Trigger event pruning: during compaction, partition trigger-fired messages from conversation. Mechanically extract title + source name into <context-removed> block. LLM summarizer only sees conversation messages.",
+              "done": true
+            },
+            {
+              "id": "PR22c-3",
+              "task": "Structured compaction summary: change summarizer prompt from free-form narrative to sectioned format (## User Instructions, ## Workflow, ## Resources, ## Current Focus). Matches Tasklet's 'Previous conversation summary' format.",
+              "done": true
+            },
+            {
+              "id": "PR22c-4",
+              "task": "Add <context-management> section to platform-instructions.ts. Tells agent about <context-removed> markers, read_file('toolcalls/{id}/result.json') recovery, and omitted trigger event blocks. Forked from Tasklet's verbatim <context-management>.",
+              "done": true
+            },
+            {
+              "id": "PR22c-5",
+              "task": "Remove appendArtifactRecoveryNote from run-persistence.ts. Replaced by <context-management> platform instructions.",
+              "done": true
+            },
+            {
+              "id": "PR22c-6",
+              "task": "Threshold review: evaluate 5KB vs Tasklet's ~100KB inline ceiling. Decide and document final threshold in ARTIFACT_SIZE_THRESHOLD_BYTES.",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "All tool call args + results stored to Supabase Storage regardless of size",
+            "Agent sees <context-management> instructions and can recover truncated data via read_file",
+            "Compaction summary uses structured ## sections, not free-form narrative",
+            "Trigger events in compacted range appear as mechanical title+source list, not LLM-summarized",
+            "appendArtifactRecoveryNote removed with no regression in agent recovery capability"
           ]
         }
       ]
@@ -1657,7 +1709,7 @@
             "UX-09",
             "DATA-08"
           ],
-          "note": "v2 simplification: bootstrap files + first chat only. Skip guided interview and deep profile phase. Auth funnel work can land ahead of the rest of onboarding: dedicated login/signup pages, Google-first Supabase auth, unified post-auth redirect to /chat, and a display_name fallback fix so OAuth users bootstrap cleanly into clients.",
+          "note": "v2 simplification: bootstrap files + first chat only. Skip guided interview and deep profile phase. Auth funnel work can land ahead of the rest of onboarding: dedicated login/signup pages, Google-first Supabase auth, unified post-auth redirect to /chat, and a display_name fallback fix so OAuth users bootstrap cleanly into clients. Conversational onboarding inspired by OpenClaw's BOOTSTRAP.md pattern: agent's first message is warm and personal ('Hey, I just came online — who am I working with?'), co-discovers user context through natural chat rather than a form wizard, and writes findings to USER.md + SOUL.md in real time. No interrogation, no robotic checklist — just talk. The first conversation itself is the product.",
           "tasks": [
             {
               "id": "PR38-1",
@@ -1696,7 +1748,32 @@
             },
             {
               "id": "PR38-8",
-              "task": "First-chat experience: agent introduces itself, asks basic preferences, populates USER.md",
+              "task": "Bootstrap system prompt injection: conditional block appended to system prompt on first chat (when setup_progress incomplete). Contains conversational first-run instructions inspired by OpenClaw BOOTSTRAP.md. Agent's opening message is warm and personal. No interrogation, no form wizard — just talk. KISS: no extra file in storage, no deletion ritual. Injection removed after completion. Fallback heuristic: if USER.md has been modified from template, treat as onboarded even if setup_progress wasn't marked.",
+              "done": false
+            },
+            {
+              "id": "PR38-9",
+              "task": "First-chat co-discovery flow (OpenClaw-style explicit, not inferred): agent explicitly asks about user's name, agency/brokerage, specializations (HDB/condo/landed/commercial), years of experience, market areas, and communication style preferences. Also explicitly asks about boundaries and preferences ('What matters to you? How do you want me to communicate? Anything I should never do?'). Agent writes findings to USER.md in real time via write_file. Prerequisite: USER.md template must have pre-structured fields (name, preferred name, agency, specializations, market areas, experience, communication style, context section).",
+              "done": false
+            },
+            {
+              "id": "PR38-10",
+              "task": "SOUL.md co-creation (OpenClaw-style collaborative, not auto-calibrated): agent and user discuss together how the agent should behave — tone, proactivity, briefing detail, boundaries. Agent name 'Sunder' is fixed; everything else is co-created. Agent writes to SOUL.md via write_file. Prerequisite: SOUL.md template must have structured sections (voice, working style, boundaries, communication preferences) with enough body for co-creation to feel real. Default SOUL.md is a sensible starting point, first chat refines it collaboratively.",
+              "done": false
+            },
+            {
+              "id": "PR38-11",
+              "task": "Bootstrap completion with closing moment (OpenClaw-style ritual): after first conversation, agent acknowledges the transition with a warm closing ('I've got everything I need. From here on, I'll just be myself. Let's get to work.'). System marks onboarding complete in setup_progress. Subsequent sessions skip bootstrap injection and load normal SOUL.md + USER.md context. One-time ritual, never re-triggers. When Telegram ships (Phase 5), existing users get a mention in natural conversation — not a re-onboarding.",
+              "done": false
+            },
+            {
+              "id": "PR38-12",
+              "task": "First useful output within the onboarding chat: agent demonstrates value immediately — e.g. creates a CRM contact from something the user mentioned, drafts a brief market note, or sets up a task. The first conversation is productive, not just setup.",
+              "done": false
+            },
+            {
+              "id": "PR38-13",
+              "task": "Chat welcome state for new users: when a brand-new user lands on /chat with no threads, show a warm welcome card with the agent's first message pre-loaded (not a blank chat). Returning users see the normal chat empty state with template cards.",
               "done": false
             }
           ],
@@ -1704,6 +1781,10 @@
             "New user can sign up with Google or email, lands in /chat, and sees the dedicated auth funnel instead of placeholder auth pages",
             "OAuth users create clients rows with a human-friendly display_name derived from provider metadata when available",
             "Hosted launch checklist is explicit: redirect URLs, Google provider credentials, migration apply, and required Supabase permissions are documented before domain cutover",
+            "New user lands on /chat, agent greets them warmly and starts a natural conversation — no forms, no wizards",
+            "By end of first conversation, USER.md and SOUL.md contain real user context learned through chat",
+            "Agent demonstrates value during onboarding chat (creates a contact, sets a task, or drafts something useful)",
+            "Second session loads normally with personalized SOUL.md — bootstrap does not re-trigger",
             "New user goes through onboarding, first useful output in <10 min"
           ]
         }
