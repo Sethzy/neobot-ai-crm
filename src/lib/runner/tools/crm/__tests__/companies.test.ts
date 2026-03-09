@@ -48,6 +48,7 @@ describe("search_companies", () => {
     );
 
     expect(result).toEqual({ success: true, companies, count: 1 });
+    expect(builders.companies.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
     expect(builders.companies.or).toHaveBeenCalledWith(
       expect.stringContaining("PropNex"),
     );
@@ -129,6 +130,7 @@ describe("create_company", () => {
       "name",
       "%ERA Realty%",
     );
+    expect(builderHistory.companies[0].eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
     expect(builderHistory.companies[1].insert).toHaveBeenCalledWith(
       expect.objectContaining({
         client_id: CLIENT_ID,

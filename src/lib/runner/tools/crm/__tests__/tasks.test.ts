@@ -33,6 +33,17 @@ describe("search_tasks", () => {
     expect(result).toEqual({ success: true, tasks, count: 1 });
   });
 
+  it("scopes reads to the current client", async () => {
+    const { client, builders } = createMockSupabase({
+      crm_tasks: { data: [], error: null },
+    });
+    const tools = createTaskTools(client, CLIENT_ID);
+
+    await tools.search_tasks.execute({}, EXECUTION_OPTIONS);
+
+    expect(builders.crm_tasks.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
+  });
+
   it("filters by status", async () => {
     const { client, builders } = createMockSupabase({
       crm_tasks: { data: [], error: null },
@@ -100,6 +111,50 @@ describe("search_tasks", () => {
     const result = await tools.search_tasks.execute({}, EXECUTION_OPTIONS);
 
     expect(result).toEqual({ success: false, error: "timeout" });
+  });
+
+  it("searches title and description with free-text query", async () => {
+    const tasks = [
+      {
+        task_id: "t-1",
+        title: "Follow up with John",
+        description: "Call about pricing",
+        status: "open",
+        due_date: "2026-03-05T00:00:00Z",
+      },
+    ];
+    const { client, builders } = createMockSupabase({
+      crm_tasks: { data: tasks, error: null },
+    });
+    const tools = createTaskTools(client, CLIENT_ID);
+
+    const result = await tools.search_tasks.execute(
+      { query: "pricing" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, tasks, count: 1 });
+    expect(builders.crm_tasks.or).toHaveBeenCalledWith(
+      expect.stringContaining("pricing"),
+    );
+  });
+
+  it("combines query with existing filters", async () => {
+    const { client, builders } = createMockSupabase({
+      crm_tasks: { data: [], error: null },
+    });
+    const tools = createTaskTools(client, CLIENT_ID);
+
+    await tools.search_tasks.execute(
+      { query: "follow up", status: "open", contact_id: "c-1" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(builders.crm_tasks.or).toHaveBeenCalledWith(
+      expect.stringContaining("follow up"),
+    );
+    expect(builders.crm_tasks.eq).toHaveBeenCalledWith("status", "open");
+    expect(builders.crm_tasks.eq).toHaveBeenCalledWith("contact_id", "c-1");
   });
 });
 

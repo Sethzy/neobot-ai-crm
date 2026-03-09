@@ -14,6 +14,7 @@ import { createConfigureCrmTool } from "./configure-crm";
 import { createDealContactTools } from "./deal-contacts";
 import { createDealTools } from "./deals";
 import { createInteractionTools } from "./interactions";
+import { createSchemaTools } from "./schema";
 import { createTaskTools } from "./tasks";
 
 interface CreateCrmToolsOptions {
@@ -52,14 +53,20 @@ export function createCrmTools(
   const dealTools = createDealTools(supabase, clientId, config);
   const dealContactTools = createDealContactTools(supabase, clientId, config);
   const interactionTools = createInteractionTools(supabase, clientId, config);
+  const schemaTools = createSchemaTools(config);
   const taskTools = createTaskTools(supabase, clientId, config);
 
   const readTools = {
     search_companies: companyTools.search_companies,
     search_contacts: contactTools.search_contacts,
     search_deals: dealTools.search_deals,
+    search_interactions: interactionTools.search_interactions,
     search_tasks: taskTools.search_tasks,
+    describe_crm_schema: schemaTools.describe_crm_schema,
     get_deal_contacts: dealContactTools.get_deal_contacts,
+    get_contact_deals: dealContactTools.get_contact_deals,
+    get_company_contacts: companyLinkTools.get_company_contacts,
+    get_company_deals: companyLinkTools.get_company_deals,
   };
 
   if (!allowWriteTools) {

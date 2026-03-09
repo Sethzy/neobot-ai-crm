@@ -152,6 +152,21 @@ describe("get_deal_contacts", () => {
     });
   });
 
+  it("scopes deal contact reads to the current client", async () => {
+    const { client, builders } = createMockSupabase({
+      deal_contacts: { data: [], error: null },
+    });
+    const tools = createDealContactTools(client, CLIENT_ID);
+
+    await tools.get_deal_contacts.execute(
+      { deal_id: "d-1" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(builders.deal_contacts.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
+    expect(builders.deal_contacts.eq).toHaveBeenCalledWith("deal_id", "d-1");
+  });
+
   it("returns errors from Supabase", async () => {
     const { client } = createMockSupabase({
       deal_contacts: { data: null, error: { message: "timeout" } },
@@ -164,5 +179,110 @@ describe("get_deal_contacts", () => {
     );
 
     expect(result).toEqual({ success: false, error: "timeout" });
+  });
+});
+
+describe("get_contact_deals", () => {
+  it("returns deals linked to a contact with role and is_primary", async () => {
+    const links = [
+      {
+        deal_contact_id: "dc-1",
+        deal_id: "d-1",
+        contact_id: "c-1",
+        role: "buyer",
+        is_primary: true,
+        deals: { deal_id: "d-1", address: "123 Orchard Rd", stage: "offer", price: 1200000 },
+      },
+      {
+        deal_contact_id: "dc-2",
+        deal_id: "d-2",
+        contact_id: "c-1",
+        role: "seller",
+        is_primary: false,
+        deals: { deal_id: "d-2", address: "456 Marina Bay", stage: "leads", price: null },
+      },
+    ];
+    const { client } = createMockSupabase({
+      deal_contacts: { data: links, error: null },
+    });
+    const tools = createDealContactTools(client, CLIENT_ID);
+
+    const result = await tools.get_contact_deals.execute(
+      { contact_id: "c-1" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({
+      success: true,
+      contact_deals: links,
+      count: 2,
+    });
+  });
+
+  it("queries deal_contacts by contact_id with deal join", async () => {
+    const { client, builders } = createMockSupabase({
+      deal_contacts: { data: [], error: null },
+    });
+    const tools = createDealContactTools(client, CLIENT_ID);
+
+    await tools.get_contact_deals.execute(
+      { contact_id: "c-1" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(builders.deal_contacts.select).toHaveBeenCalledWith(
+      "*, deals(deal_id, address, stage, price)",
+    );
+    expect(builders.deal_contacts.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
+    expect(builders.deal_contacts.eq).toHaveBeenCalledWith("contact_id", "c-1");
+  });
+
+  it("sorts primary links first", async () => {
+    const { client, builders } = createMockSupabase({
+      deal_contacts: { data: [], error: null },
+    });
+    const tools = createDealContactTools(client, CLIENT_ID);
+
+    await tools.get_contact_deals.execute(
+      { contact_id: "c-1" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(builders.deal_contacts.order).toHaveBeenCalledWith(
+      "is_primary",
+      { ascending: false },
+    );
+  });
+
+  it("returns empty array when contact has no linked deals", async () => {
+    const { client } = createMockSupabase({
+      deal_contacts: { data: [], error: null },
+    });
+    const tools = createDealContactTools(client, CLIENT_ID);
+
+    const result = await tools.get_contact_deals.execute(
+      { contact_id: "c-99" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({
+      success: true,
+      contact_deals: [],
+      count: 0,
+    });
+  });
+
+  it("returns errors from Supabase", async () => {
+    const { client } = createMockSupabase({
+      deal_contacts: { data: null, error: { message: "connection reset" } },
+    });
+    const tools = createDealContactTools(client, CLIENT_ID);
+
+    const result = await tools.get_contact_deals.execute(
+      { contact_id: "c-1" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: false, error: "connection reset" });
   });
 });

@@ -18,15 +18,20 @@ describe("createCrmTools", () => {
     const tools = createCrmTools(client, CLIENT_ID, { allowWriteTools: false });
 
     expect(Object.keys(tools).sort()).toEqual([
+      "describe_crm_schema",
+      "get_company_contacts",
+      "get_company_deals",
+      "get_contact_deals",
       "get_deal_contacts",
       "search_companies",
       "search_contacts",
       "search_deals",
+      "search_interactions",
       "search_tasks",
     ]);
   });
 
-  it("returns all 23 expected CRM tools when writes are enabled", () => {
+  it("returns all 28 expected CRM tools when writes are enabled", () => {
     const { client } = createMockSupabase();
 
     const tools = createCrmTools(client, CLIENT_ID, { allowWriteTools: true });
@@ -40,6 +45,10 @@ describe("createCrmTools", () => {
       "create_deal",
       "create_interaction",
       "create_task",
+      "describe_crm_schema",
+      "get_company_contacts",
+      "get_company_deals",
+      "get_contact_deals",
       "get_deal_contacts",
       "link_contact_to_company",
       "link_contact_to_deal",
@@ -47,6 +56,7 @@ describe("createCrmTools", () => {
       "search_companies",
       "search_contacts",
       "search_deals",
+      "search_interactions",
       "search_tasks",
       "unlink_contact_from_company",
       "unlink_contact_from_deal",

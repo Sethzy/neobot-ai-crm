@@ -25,11 +25,13 @@ type DealUpdate = Database["public"]["Tables"]["deals"]["Update"];
  */
 async function findDuplicateDeals(
   supabase: SupabaseClient<Database>,
+  clientId: string,
   address: string,
 ): Promise<unknown[] | null> {
   const { data, error } = await supabase
     .from("deals")
     .select("*")
+    .eq("client_id", clientId)
     .ilike("address", buildIlikePattern(address))
     .limit(10);
 
@@ -62,6 +64,7 @@ export function createDealTools(
     inputSchema: z.object({
       query: z.string().trim().min(1).optional().describe("Search term for address and notes. Omit to list all deals."),
       stage: dealStageEnum.optional().describe(`Deal pipeline stage filter (${dealStageList}).`),
+      company_id: z.string().uuid().optional().describe("Filter by company UUID. Use search_companies to find this."),
       limit: z
         .number()
         .int()
@@ -70,9 +73,12 @@ export function createDealTools(
         .optional()
         .describe("Maximum results to return. Defaults to 20."),
     }),
-    execute: async ({ query, stage, limit }) => {
+    execute: async ({ query, stage, company_id, limit }) => {
       const maxResults = limit ?? DEFAULT_CRM_RESULT_LIMIT;
-      let queryBuilder = supabase.from("deals").select("*");
+      let queryBuilder = supabase
+        .from("deals")
+        .select("*")
+        .eq("client_id", clientId);
 
       if (query) {
         queryBuilder = queryBuilder.or(buildSearchExpression(query, DEAL_SEARCH_COLUMNS));
@@ -80,6 +86,10 @@ export function createDealTools(
 
       if (stage) {
         queryBuilder = queryBuilder.eq("stage", stage);
+      }
+
+      if (company_id) {
+        queryBuilder = queryBuilder.eq("company_id", company_id);
       }
 
       const { data, error } = await queryBuilder.limit(maxResults);
@@ -117,7 +127,7 @@ export function createDealTools(
     execute: async ({ address, stage, price, notes, custom_fields, force_create }) => {
       // Dedup check (best-effort — search failure falls through to insert)
       if (!force_create) {
-        const duplicates = await findDuplicateDeals(supabase, address);
+        const duplicates = await findDuplicateDeals(supabase, clientId, address);
         if (duplicates && duplicates.length > 0) {
           return {
             success: false as const,

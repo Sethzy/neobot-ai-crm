@@ -15,7 +15,7 @@ import { crmTaskStatusValues } from "@/lib/crm/schemas";
 import type { Database, JsonObject } from "@/types/database";
 
 import { mergeCustomFields } from "./custom-fields";
-import { DEFAULT_CRM_RESULT_LIMIT, flexibleTimestampSchema, normalizeDateString } from "./filter-utils";
+import { buildSearchExpression, DEFAULT_CRM_RESULT_LIMIT, flexibleTimestampSchema, normalizeDateString } from "./filter-utils";
 
 /**
  * Creates CRM task-related tools.
@@ -35,6 +35,7 @@ export function createTaskTools(
       "Results are sorted by due date (earliest first). " +
       "Use this to find tasks before updating them.",
     inputSchema: z.object({
+      query: z.string().trim().min(1).optional().describe("Free-text search on title and description."),
       status: z.enum(crmTaskStatusValues).optional().describe("Task status filter (open, completed)."),
       contact_id: z.string().uuid().optional().describe("Filter by contact UUID. Use search_contacts to find this."),
       deal_id: z.string().uuid().optional().describe("Filter by deal UUID. Use search_deals to find this."),
@@ -46,9 +47,16 @@ export function createTaskTools(
         .optional()
         .describe("Maximum results to return. Defaults to 20."),
     }),
-    execute: async ({ status, contact_id, deal_id, limit }) => {
+    execute: async ({ query, status, contact_id, deal_id, limit }) => {
       const maxResults = limit ?? DEFAULT_CRM_RESULT_LIMIT;
-      let queryBuilder = supabase.from("crm_tasks").select("*");
+      let queryBuilder = supabase
+        .from("crm_tasks")
+        .select("*")
+        .eq("client_id", clientId);
+
+      if (query) {
+        queryBuilder = queryBuilder.or(buildSearchExpression(query, ["title", "description"]));
+      }
 
       if (status) {
         queryBuilder = queryBuilder.eq("status", status);

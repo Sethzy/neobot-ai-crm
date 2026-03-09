@@ -34,6 +34,7 @@ describe("search_contacts", () => {
     );
 
     expect(result).toEqual({ success: true, contacts, count: 1 });
+    expect(builders.contacts.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
     expect(builders.contacts.or).toHaveBeenCalledWith(expect.stringContaining("John"));
   });
 
@@ -93,6 +94,36 @@ describe("search_contacts", () => {
     expect(orExpression).toContain("email.ilike.\"%John, (Doe)\\%\\_");
     expect(orExpression).toContain("VIP");
   });
+
+  it("filters by company_id when provided", async () => {
+    const { client, builders } = createMockSupabase({
+      contacts: { data: [], error: null },
+    });
+    const tools = createContactTools(client, CLIENT_ID);
+
+    await tools.search_contacts.execute(
+      { company_id: "comp-1" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(builders.contacts.eq).toHaveBeenCalledWith("company_id", "comp-1");
+  });
+
+  it("combines company_id with other filters", async () => {
+    const { client, builders } = createMockSupabase({
+      contacts: { data: [], error: null },
+    });
+    const tools = createContactTools(client, CLIENT_ID);
+
+    await tools.search_contacts.execute(
+      { query: "Alice", type: "buyer", company_id: "comp-1" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(builders.contacts.or).toHaveBeenCalledWith(expect.stringContaining("Alice"));
+    expect(builders.contacts.eq).toHaveBeenCalledWith("type", "buyer");
+    expect(builders.contacts.eq).toHaveBeenCalledWith("company_id", "comp-1");
+  });
 });
 
 describe("create_contact", () => {
@@ -132,6 +163,7 @@ describe("create_contact", () => {
     // First call: dedup search
     expect(builderHistory.contacts[0].ilike).toHaveBeenCalledWith("first_name", "%Jane%");
     expect(builderHistory.contacts[0].ilike).toHaveBeenCalledWith("last_name", "%Doe%");
+    expect(builderHistory.contacts[0].eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
     // Second call: insert
     expect(builderHistory.contacts[1].insert).toHaveBeenCalledWith(
       expect.objectContaining({

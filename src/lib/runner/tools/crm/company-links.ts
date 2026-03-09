@@ -8,6 +8,8 @@ import { z } from "zod";
 
 import type { Database } from "@/types/database";
 
+import { DEFAULT_CRM_RESULT_LIMIT } from "./filter-utils";
+
 /**
  * Creates company-link tools for direct contact/deal foreign keys.
  */
@@ -113,10 +115,88 @@ export function createCompanyLinkTools(
     },
   });
 
+  const get_company_contacts = tool({
+    description:
+      "Get all contacts linked to a company. " +
+      "Use this to see which contacts belong to a company.",
+    inputSchema: z.object({
+      company_id: z.string().uuid().describe("UUID of the company."),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(50)
+        .optional()
+        .describe("Maximum results to return. Defaults to 20."),
+    }),
+    execute: async ({ company_id, limit }) => {
+      const maxResults = limit ?? DEFAULT_CRM_RESULT_LIMIT;
+
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("*")
+        .eq("client_id", clientId)
+        .eq("company_id", company_id)
+        .limit(maxResults);
+
+      if (error) {
+        return { success: false as const, error: error.message };
+      }
+
+      const contacts = data ?? [];
+
+      return {
+        success: true as const,
+        contacts,
+        count: contacts.length,
+      };
+    },
+  });
+
+  const get_company_deals = tool({
+    description:
+      "Get all deals linked to a company. " +
+      "Use this to see which deals belong to a company.",
+    inputSchema: z.object({
+      company_id: z.string().uuid().describe("UUID of the company."),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(50)
+        .optional()
+        .describe("Maximum results to return. Defaults to 20."),
+    }),
+    execute: async ({ company_id, limit }) => {
+      const maxResults = limit ?? DEFAULT_CRM_RESULT_LIMIT;
+
+      const { data, error } = await supabase
+        .from("deals")
+        .select("*")
+        .eq("client_id", clientId)
+        .eq("company_id", company_id)
+        .limit(maxResults);
+
+      if (error) {
+        return { success: false as const, error: error.message };
+      }
+
+      const deals = data ?? [];
+
+      return {
+        success: true as const,
+        deals,
+        count: deals.length,
+      };
+    },
+  });
+
   return {
     link_contact_to_company,
     unlink_contact_from_company,
     link_deal_to_company,
     unlink_deal_from_company,
+    get_company_contacts,
+    get_company_deals,
   };
 }

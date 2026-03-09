@@ -25,12 +25,14 @@ type ContactUpdate = Database["public"]["Tables"]["contacts"]["Update"];
  */
 async function findDuplicateContacts(
   supabase: SupabaseClient<Database>,
+  clientId: string,
   firstName: string,
   lastName: string,
 ): Promise<unknown[] | null> {
   const { data, error } = await supabase
     .from("contacts")
     .select("*")
+    .eq("client_id", clientId)
     .ilike("first_name", buildIlikePattern(firstName))
     .ilike("last_name", buildIlikePattern(lastName))
     .limit(10);
@@ -62,6 +64,7 @@ export function createContactTools(
     inputSchema: z.object({
       query: z.string().trim().min(1).optional().describe("Search term for name, email, or phone. Omit to list all contacts."),
       type: contactTypeEnum.optional().describe(`Contact type filter (${contactTypeList}).`),
+      company_id: z.string().uuid().optional().describe("Filter by company UUID. Use search_companies to find this."),
       limit: z
         .number()
         .int()
@@ -70,12 +73,13 @@ export function createContactTools(
         .optional()
         .describe("Maximum results to return. Defaults to 20."),
     }),
-    execute: async ({ query, type, limit }) => {
+    execute: async ({ query, type, company_id, limit }) => {
       const maxResults = limit ?? DEFAULT_CRM_RESULT_LIMIT;
 
       let queryBuilder = supabase
         .from("contacts")
-        .select("*");
+        .select("*")
+        .eq("client_id", clientId);
 
       if (query) {
         queryBuilder = queryBuilder.or(buildSearchExpression(query, CONTACT_SEARCH_COLUMNS));
@@ -83,6 +87,10 @@ export function createContactTools(
 
       if (type) {
         queryBuilder = queryBuilder.eq("type", type);
+      }
+
+      if (company_id) {
+        queryBuilder = queryBuilder.eq("company_id", company_id);
       }
 
       const { data, error } = await queryBuilder.limit(maxResults);
@@ -122,7 +130,12 @@ export function createContactTools(
     execute: async ({ first_name, last_name, email, phone, type, notes, custom_fields, force_create }) => {
       // Dedup check (best-effort — search failure falls through to insert)
       if (!force_create) {
-        const duplicates = await findDuplicateContacts(supabase, first_name, last_name);
+        const duplicates = await findDuplicateContacts(
+          supabase,
+          clientId,
+          first_name,
+          last_name,
+        );
         if (duplicates && duplicates.length > 0) {
           return {
             success: false as const,
@@ -264,7 +277,12 @@ export function createContactTools(
         // Check each entry against existing records
         const allDuplicates: Array<{ input: { first_name: string; last_name: string }; existing: unknown[] }> = [];
         for (const contact of contacts) {
-          const duplicates = await findDuplicateContacts(supabase, contact.first_name, contact.last_name);
+          const duplicates = await findDuplicateContacts(
+            supabase,
+            clientId,
+            contact.first_name,
+            contact.last_name,
+          );
           if (duplicates && duplicates.length > 0) {
             allDuplicates.push({ input: { first_name: contact.first_name, last_name: contact.last_name }, existing: duplicates });
           }

@@ -107,6 +107,7 @@ export function createDealContactTools(
       const { data, error } = await supabase
         .from("deal_contacts")
         .select("*, contacts(first_name, last_name, email, phone)")
+        .eq("client_id", clientId)
         .eq("deal_id", deal_id);
 
       if (error) {
@@ -123,9 +124,40 @@ export function createDealContactTools(
     },
   });
 
+  const get_contact_deals = tool({
+    description:
+      "Get all deals linked to a contact with their roles and primary status. " +
+      "Returns deal details (address, stage, price) for each link. " +
+      "This is the inverse of get_deal_contacts.",
+    inputSchema: z.object({
+      contact_id: z.string().uuid().describe("UUID of the contact."),
+    }),
+    execute: async ({ contact_id }) => {
+      const { data, error } = await supabase
+        .from("deal_contacts")
+        .select("*, deals(deal_id, address, stage, price)")
+        .eq("client_id", clientId)
+        .eq("contact_id", contact_id)
+        .order("is_primary", { ascending: false });
+
+      if (error) {
+        return { success: false as const, error: error.message };
+      }
+
+      const contact_deals = data ?? [];
+
+      return {
+        success: true as const,
+        contact_deals,
+        count: contact_deals.length,
+      };
+    },
+  });
+
   return {
     link_contact_to_deal,
     unlink_contact_from_deal,
     get_deal_contacts,
+    get_contact_deals,
   };
 }

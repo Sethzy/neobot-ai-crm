@@ -29,3 +29,15 @@ export function normalizeDateString(value: string | null | undefined): string | 
 
   return value.length === 10 ? `${value}T00:00:00Z` : value;
 }
+
+/**
+ * Normalizes a date-only upper bound to the end of the UTC day.
+ * Passes through full timestamps and null/undefined unchanged.
+ */
+export function normalizeDateUpperBound(value: string | null | undefined): string | null | undefined {
+  if (value === undefined || value === null) {
+    return value;
+  }
+
+  return value.length === 10 ? `${value}T23:59:59.999Z` : value;
+}

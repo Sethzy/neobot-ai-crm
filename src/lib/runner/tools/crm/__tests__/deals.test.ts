@@ -32,6 +32,7 @@ describe("search_deals", () => {
     );
 
     expect(result).toEqual({ success: true, deals, count: 1 });
+    expect(builders.deals.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
     expect(builders.deals.or).toHaveBeenCalledWith(expect.stringContaining("Orchard"));
   });
 
@@ -72,6 +73,36 @@ describe("search_deals", () => {
       expect.stringContaining("address.ilike.\"%Blk 123, #08-01 (A)\\_\\%%\""),
     );
   });
+
+  it("filters by company_id when provided", async () => {
+    const { client, builders } = createMockSupabase({
+      deals: { data: [], error: null },
+    });
+    const tools = createDealTools(client, CLIENT_ID);
+
+    await tools.search_deals.execute(
+      { company_id: "comp-1" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(builders.deals.eq).toHaveBeenCalledWith("company_id", "comp-1");
+  });
+
+  it("combines company_id with other filters", async () => {
+    const { client, builders } = createMockSupabase({
+      deals: { data: [], error: null },
+    });
+    const tools = createDealTools(client, CLIENT_ID);
+
+    await tools.search_deals.execute(
+      { query: "Orchard", stage: "offer", company_id: "comp-1" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(builders.deals.or).toHaveBeenCalledWith(expect.stringContaining("Orchard"));
+    expect(builders.deals.eq).toHaveBeenCalledWith("stage", "offer");
+    expect(builders.deals.eq).toHaveBeenCalledWith("company_id", "comp-1");
+  });
 });
 
 describe("create_deal", () => {
@@ -107,6 +138,7 @@ describe("create_deal", () => {
     expect(result).toEqual({ success: true, deal: created });
     // First call: dedup search
     expect(builderHistory.deals[0].ilike).toHaveBeenCalledWith("address", "%456 Marina Bay%");
+    expect(builderHistory.deals[0].eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
     // Second call: insert
     expect(builderHistory.deals[1].insert).toHaveBeenCalledWith(
       expect.objectContaining({

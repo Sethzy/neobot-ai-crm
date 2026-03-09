@@ -29,11 +29,13 @@ type CompanyUpdate = Database["public"]["Tables"]["companies"]["Update"];
  */
 async function findDuplicateCompanies(
   supabase: SupabaseClient<Database>,
+  clientId: string,
   name: string,
 ): Promise<unknown[] | null> {
   const { data, error } = await supabase
     .from("companies")
     .select("*")
+    .eq("client_id", clientId)
     .ilike("name", buildIlikePattern(name))
     .limit(10);
 
@@ -77,7 +79,10 @@ export function createCompanyTools(
     }),
     execute: async ({ query, industry, limit }) => {
       const maxResults = limit ?? DEFAULT_CRM_RESULT_LIMIT;
-      let queryBuilder = supabase.from("companies").select("*");
+      let queryBuilder = supabase
+        .from("companies")
+        .select("*")
+        .eq("client_id", clientId);
 
       if (query) {
         queryBuilder = queryBuilder.or(buildSearchExpression(query, COMPANY_SEARCH_COLUMNS));
@@ -134,7 +139,7 @@ export function createCompanyTools(
       force_create,
     }) => {
       if (!force_create) {
-        const duplicates = await findDuplicateCompanies(supabase, name);
+        const duplicates = await findDuplicateCompanies(supabase, clientId, name);
         if (duplicates && duplicates.length > 0) {
           return {
             success: false as const,
