@@ -1379,7 +1379,8 @@
             "Clicking approve continues the agent run",
             "Clicking deny shows denied state and stops tool execution",
             "JsonView handles nested objects, arrays, and primitives cleanly"
-          ]
+          ],
+          "simplified": true
         },
         {
           "pr": "22c",
