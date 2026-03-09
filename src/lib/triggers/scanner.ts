@@ -11,6 +11,7 @@ import {
 } from "./cron-utils";
 import {
   MAX_USER_CREATED_RETRIES,
+  releaseTriggerClaim,
   type ScanResult,
   type TriggerDispatchPayload,
   type TriggerRow,
@@ -56,21 +57,7 @@ async function releaseClaim(
     throw new Error(`Claimed trigger ${trigger.id} is missing current_run_id.`);
   }
 
-  const { data, error } = await supabase.rpc("release_trigger_claim", {
-    p_next_fire_at: options?.nextFireAt ?? null,
-    p_advance_next_fire_at: options?.advanceNextFireAt ?? true,
-    p_trigger_id: trigger.id,
-    p_run_id: trigger.current_run_id,
-    p_status: status,
-  });
-
-  if (error) {
-    throw new Error(`Failed to release trigger claim: ${error.message}`);
-  }
-
-  if (!data) {
-    throw new Error(`Failed to release trigger claim for ${trigger.id}.`);
-  }
+  await releaseTriggerClaim(supabase, trigger.id, trigger.current_run_id, status, options);
 }
 
 async function updateTrigger(

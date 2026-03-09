@@ -66,5 +66,36 @@ export type ScanResult = z.infer<typeof scanResultSchema>;
 /** Maximum retries for user-created (non-pulse) triggers before permanent failure. */
 export const MAX_USER_CREATED_RETRIES = 2;
 
+/**
+ * Releases a trigger claim via the `release_trigger_claim` RPC.
+ * Shared by both the scanner and executor to avoid duplicating the RPC call.
+ */
+export async function releaseTriggerClaim(
+  supabase: TriggerSupabaseClient,
+  triggerId: string,
+  runId: string,
+  status: string,
+  options?: {
+    nextFireAt?: string | null;
+    advanceNextFireAt?: boolean;
+  },
+): Promise<void> {
+  const { data, error } = await supabase.rpc("release_trigger_claim", {
+    p_next_fire_at: options?.nextFireAt ?? null,
+    p_advance_next_fire_at: options?.advanceNextFireAt ?? true,
+    p_trigger_id: triggerId,
+    p_run_id: runId,
+    p_status: status,
+  });
+
+  if (error) {
+    throw new Error(`Failed to release trigger claim: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error(`Failed to release trigger claim for ${triggerId}.`);
+  }
+}
+
 /** Default nudge message inserted as input when executing a cron-dispatched run. */
 export const CRON_RUN_NUDGE = "Process the most recent trigger event for this thread.";

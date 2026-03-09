@@ -180,6 +180,7 @@ export function createManageTriggersTool(
       invocation_message: z.string().min(1).max(200).nullable().optional(),
       payload: z.record(z.string(), z.unknown()).optional(),
     }),
+    ...(readOnly ? {} : { needsApproval: ({ action }: { action: TriggerAction }) => action === "delete" }),
     execute: async (input) => {
       const action = input.action as TriggerAction;
 
@@ -191,7 +192,7 @@ export function createManageTriggersTool(
         case "list": {
           const { data, error } = await supabase
             .from("agent_triggers")
-            .select("*")
+            .select("id, name, trigger_type, instruction_path, invocation_message, cron_expression, payload")
             .eq("client_id", clientId)
             .neq("trigger_type", "pulse")
             .order("created_at", { ascending: false });
@@ -200,7 +201,7 @@ export function createManageTriggersTool(
             return { success: false as const, error: error.message };
           }
 
-          const triggers = ((data as TriggerRow[] | null) ?? []).map((trigger) => ({
+          const triggers = (data ?? []).map((trigger) => ({
             id: trigger.id,
             name: trigger.name,
             title: trigger.trigger_type,

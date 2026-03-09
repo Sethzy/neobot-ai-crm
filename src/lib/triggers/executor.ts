@@ -9,7 +9,7 @@ import { createAgentFileClient } from "@/lib/storage/agent-files";
 import { toModelPath } from "@/lib/storage/agent-paths";
 
 import { collectNewRssItems } from "./rss";
-import { CRON_RUN_NUDGE, MAX_USER_CREATED_RETRIES, type TriggerDispatchPayload, type TriggerSupabaseClient } from "./schemas";
+import { CRON_RUN_NUDGE, MAX_USER_CREATED_RETRIES, releaseTriggerClaim, type TriggerDispatchPayload, type TriggerSupabaseClient } from "./schemas";
 import { buildTriggerEventMessage } from "./trigger-event";
 
 export interface ExecuteTriggerInput {
@@ -37,21 +37,10 @@ async function releaseClaim(
     ? options.nextFireAt ?? null
     : payload.nextFireAt ?? null;
 
-  const { data, error } = await supabase.rpc("release_trigger_claim", {
-    p_next_fire_at: nextFireAt,
-    p_advance_next_fire_at: options?.advanceNextFireAt ?? true,
-    p_trigger_id: payload.triggerId,
-    p_run_id: payload.currentRunId,
-    p_status: status,
+  await releaseTriggerClaim(supabase, payload.triggerId, payload.currentRunId, status, {
+    nextFireAt,
+    advanceNextFireAt: options?.advanceNextFireAt,
   });
-
-  if (error) {
-    throw new Error(`Failed to release trigger claim: ${error.message}`);
-  }
-
-  if (!data) {
-    throw new Error(`Failed to release trigger claim for ${payload.triggerId}.`);
-  }
 }
 
 /**

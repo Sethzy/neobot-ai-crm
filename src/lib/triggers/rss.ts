@@ -282,12 +282,14 @@ export async function collectNewRssItems({
     fetchRssFeed(feedUrl, fetchImpl),
     loadSeenGuids(fileClient, triggerId),
   ]);
-  const currentIds = dedupeSeenGuids(feed.items.map((item) => item.id));
   const seenSet = new Set(seenState.seenGuids);
   const newItems = seenState.isFirstSync
     ? []
     : feed.items.filter((item) => !seenSet.has(item.id));
-  const nextSeenGuids = dedupeSeenGuids([...currentIds, ...seenState.seenGuids]);
+  const nextSeenGuids = dedupeSeenGuids([
+    ...feed.items.map((item) => item.id),
+    ...seenState.seenGuids,
+  ]);
 
   await persistSeenGuids(fileClient, triggerId, nextSeenGuids);
 

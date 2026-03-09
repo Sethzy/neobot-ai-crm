@@ -3,10 +3,11 @@
  * @module lib/triggers/trigger-event
  */
 import { escapeXml } from "@/lib/runner/system-reminder";
+import type { triggerTypeValues } from "@/lib/triggers/schemas";
 
 export interface TriggerEventMessageInput {
   triggerId: string;
-  triggerType: string;
+  triggerType: (typeof triggerTypeValues)[number];
   triggerName: string;
   instructionPath: string;
   triggerPayload: Record<string, unknown>;
