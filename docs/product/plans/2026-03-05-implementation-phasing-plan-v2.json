@@ -7,10 +7,10 @@
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md §17",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
     "totalPhases": 5,
-    "estimatedPRs": 36,
+    "estimatedPRs": 37,
     "keptPRs": 23,
     "cutPRs": 19,
-    "donePRs": 24,
+    "donePRs": 32,
     "statusOptions": [
       "pending",
       "in_progress",
@@ -35,7 +35,9 @@
       "2026-03-09: Resolved 4 onboarding design decisions after OpenClaw verbatim comparison. (1) Explicit preferences, not inferred — follow OpenClaw: agent explicitly asks about boundaries, communication style, preferences collaboratively. (2) Pre-structured USER.md + SOUL.md templates with clear fields — follow OpenClaw. (3) Explicit completion moment — follow OpenClaw: agent acknowledges transition warmly, not a silent DB flag. (4) Channel setup for existing users via natural conversation, not re-onboarding — follow OpenClaw: onboarding is a one-time ritual. Agent name 'Sunder' is fixed; everything else co-created. System prompt injection (KISS) instead of BOOTSTRAP.md file in storage.",
       "2026-03-07: Out-of-plan extension of PR 22 (done): PR 22c — Block Storage + Context Management Alignment. Adds block index utilities for compaction summaries (DATA-10), stores ALL tool call args+results to storage, embeds mechanical block index in compaction summaries for post-compaction recovery (SESSION-07), adds <context-management> and <autonomous-mode> instructions. Tasklist: docs/product/tasks/2026-03-07-pr22c-block-storage-context-management-tasklist.md.",
       "2026-03-09: PR 22c scope rewrite for zero Tasklet drift. Removed block index (YAGNI — agent recovers via read_file, not index lookup). Confirmed persistence-time truncation is correct (Tasklet does the same — fixed size threshold, permanent marker, not budget-based). Scope is now 6 tasks: (1) store ALL tool call args+results to block storage regardless of size, (2) trigger event pruning during compaction (mechanical title+source extraction, separate from LLM summarization), (3) structured compaction summary format (## User Instructions / ## Workflow / ## Resources / ## Current Focus), (4) <context-management> instructions in platform-instructions.ts, (5) remove appendArtifactRecoveryNote hack, (6) threshold review (5KB vs Tasklet's ~100KB). Formalized as PR entry in Phase 2 after PR 22b. Tasklist rewritten: docs/product/tasks/2026-03-09-pr22c-context-management-alignment-tasklist.md.",
-      "2026-03-09: Added PR 22d (read_file image support + negative line indices) to Phase 2 as an explicit scope exception after review. Scope is intentionally narrow: image files only, explicit AI SDK toModelOutput JSON/image-data handling, negative line indices, preserve existing text/directory read_file contract, PDFs deferred."
+      "2026-03-09: Added PR 22d (read_file image support + negative line indices) to Phase 2 as an explicit scope exception after review. Scope is intentionally narrow: image files only, explicit AI SDK toModelOutput JSON/image-data handling, negative line indices, preserve existing text/directory read_file contract, PDFs deferred.",
+      "2026-03-09: Added PR 22e (Absolute agent paths — /agent/ prefix). Model-boundary-only refactor: all model-facing paths become absolute /agent/ paths. Internal storage, DB, frontend, API routes unchanged. Thin toStoragePath/toModelPath conversion at tool boundary (~9 files). Validated with Tasklet developer. Design doc: docs/designs/absolute-agent-paths.md.",
+      "2026-03-10: Added PR 26a (System skill files — bundled fallback). Verbatim Tasklet creating-connections skill + direct-api-connection guide, stored as static .md files in codebase, served via read_file fallback for skills/system/ paths. No per-client seeding, no skill_registry. System prompt + tool descriptions already reference these paths (wired in PRs 25-26). SKILL-05 pattern adapted for system skills: bundled in code instead of per-client storage."
     ]
   },
   "phases": [
@@ -1471,6 +1473,55 @@
             "toModelOutput returns explicit json for non-image outputs and image-data for image outputs",
             "Negative line indices work for trailing slices and invalid normalized ranges still error"
           ]
+        },
+        {
+          "pr": "22e",
+          "title": "Absolute agent paths (/agent/ prefix)",
+          "status": "done",
+          "simplified": false,
+          "decisions": [
+            "TOOL-01",
+            "TASKLET-01"
+          ],
+          "designDoc": "docs/designs/absolute-agent-paths.md",
+          "tasklist": "docs/tasks/2026-03-09-absolute-agent-paths-tasklist.md",
+          "note": "Model-boundary-only refactor. All model-facing paths become absolute /agent/ paths. Internal storage, DB, frontend, API routes stay relative. Thin toStoragePath/toModelPath conversion at tool boundary (~13 files). Permissive input, canonical output: every tool response path uses toModelPath(). Validated with Tasklet developer.",
+          "tasks": [
+            {
+              "id": "PR22e-1",
+              "task": "Create src/lib/storage/agent-paths.ts with AGENT_ROOT, toStoragePath(), toModelPath(). Full unit tests.",
+              "done": false
+            },
+            {
+              "id": "PR22e-2",
+              "task": "Update all tool boundary files: storage tools (read_file, write_file, search_knowledge), trigger tools (setup-trigger, manage-triggers), connection tools (manage-tools, create-connection), subagent tools (run-subagent), trigger executor. Strip /agent/ on input via toStoragePath(), canonicalize all output paths via toModelPath().",
+              "done": false
+            },
+            {
+              "id": "PR22e-3",
+              "task": "Update all prompt/context surfaces: system-prompt, system-reminder, platform-instructions, toolcall-artifacts, autopilot/constants. All model-facing path references get /agent/ prefix.",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "toStoragePath strips /agent/ prefix from absolute paths",
+            "toStoragePath passes through relative paths unchanged (backwards compat)",
+            "toModelPath adds /agent/ prefix to relative paths",
+            "toModelPath is idempotent on already-absolute /agent/ paths",
+            "read_file accepts /agent/memory/MEMORY.md and resolves to internal memory/MEMORY.md",
+            "read_file returns canonical /agent/ path in response (not echo of input)",
+            "write_file accepts /agent/vault/notes.md and stores at internal vault/notes.md",
+            "write_file returns canonical /agent/ path in response for all ops (write, edit, delete)",
+            "search_knowledge results include /agent/ prefix in storage_path",
+            "setup_trigger strips /agent/ from instruction_path before DB insert",
+            "manage_active_triggers returns /agent/ prefixed instruction_path in all responses (list, view, edit, simulate)",
+            "Trigger executor wraps instruction_path with toModelPath() before building trigger event message",
+            "run_subagent strips /agent/ from path before downloading instruction file",
+            "System prompt contains /agent/ prefix on all file path references (SOUL.md, USER.md, MEMORY.md, memory/, vault/, skills/)",
+            "System-reminder skill paths use /agent/skills/connections/ prefix",
+            "Platform instructions use /agent/state/ and /agent/toolcalls/ prefixes",
+            "Autopilot constants use /agent/ prefix on all memory file references"
+          ]
         }
       ]
     },
@@ -1578,9 +1629,40 @@
           ]
         },
         {
+          "pr": "26a",
+          "title": "System skill files (bundled fallback)",
+          "status": "done",
+          "decisions": [
+            "SKILL-05",
+            "CONN-03"
+          ],
+          "tasks": [
+            {
+              "id": "PR26a-1",
+              "task": "Create bundled system skill markdown files in codebase (creating-connections/SKILL.md, creating-connections/create-direct-api-connection.md) — verbatim Tasklet content adapted for Composio",
+              "done": true
+            },
+            {
+              "id": "PR26a-2",
+              "task": "Create getSystemSkillContent() utility that resolves skills/system/ paths to bundled .md content",
+              "done": true
+            },
+            {
+              "id": "PR26a-3",
+              "task": "Wire fallback into read_file: if storage returns 'not found' for a skills/system/ path, serve bundled content instead",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "read_file('/agent/skills/system/creating-connections/SKILL.md') returns the bundled creating-connections skill content for any client",
+            "read_file('/agent/skills/system/creating-connections/create-direct-api-connection.md') returns the bundled direct API connection guide",
+            "read_file for non-system skill paths still hits Supabase Storage as before (no fallback)"
+          ]
+        },
+        {
           "pr": 29,
           "title": "Subagents",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [
             "RUNNER-06",
             "RUNNER-07"
@@ -1720,7 +1802,7 @@
         {
           "pr": 33,
           "title": "Approval system — gate implementation",
-          "status": "pending",
+          "status": "in_progress",
           "decisions": [
             "SAFETY-01",
             "SAFETY-02"
@@ -1760,7 +1842,7 @@
         {
           "pr": 34,
           "title": "Approval system — events + UI",
-          "status": "pending",
+          "status": "in_progress",
           "decisions": [
             "SAFETY-02",
             "SAFETY-04"
@@ -1789,8 +1871,8 @@
         },
         {
           "pr": 35,
-          "title": "Mission Control — status summary",
-          "status": "pending",
+          "title": "Mission Control — status summary — DEFERRED",
+          "status": "deferred",
           "decisions": [
             "UX-03"
           ],

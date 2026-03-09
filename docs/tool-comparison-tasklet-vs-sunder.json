@@ -3,7 +3,7 @@
     "description": "Side-by-side comparison of Tasklet v2 (31 tools) vs Sunder equivalents",
     "generated": "2026-03-09",
     "purpose": "Walk through each tool to align Sunder's wording/schema with Tasklet's battle-tested definitions",
-    "resume_note": "PAUSED at Tool 4 (read_file). Tools 1-3 decided. Tool 4 pending — read_file multimodal PR in progress (docs/tasks/2026-03-09-read-file-multimodal-tasklist.md). Resume after that PR lands, then re-evaluate Tool 4 diffs with new capabilities. Continue from Tool 5 (write_file) onwards."
+    "resume_note": "ALL 31 tools reviewed. 5 PAUSED: Tool 4 (read_file) — multimodal PR, Tool 5 (write_file) — absolute paths PR, Tools 9-10 (run_agent_memory_sql, get_agent_db_schema) — CRM schema decisions, Tool 11 (send_email) — Resend integration. 10 DEFERRED (not in v1 scope): Tools 3, 12-14, 26-30. Remaining 16 tools all DECIDED. Next: revisit paused tools as their blocking PRs land, then address Sunder-only tools (search_knowledge, ask_user_question, 28 CRM tools)."
   },
   "tools": [
     {
@@ -127,7 +127,19 @@
         { "field": "params.start_line", "tasklet": "Supports negative indices (-1 = last line)", "sunder": "min(1) only, no negative indices", "note": "Sunder doesn't support negative line indices" },
         { "field": "params.pdf_*", "tasklet": "Has pdf_start_page, pdf_end_page, pdf_format", "sunder": "N/A", "note": "Sunder has no PDF support" }
       ],
-      "status": "EXISTS_NEEDS_ALIGNMENT"
+      "status": "DECIDED",
+      "decision": {
+        "action": "UPDATE_DESCRIPTION_AND_PARAMS",
+        "keep_name": "read_file",
+        "new_description": "Reads the contents of a file or directory by its path. If the path is a directory, returns a recursive tree-style listing of its contents. Image files and PDFs are displayed directly. Specify optional start_line/end_line for large text files. Use negative indices to count from the end (e.g., start_line: -10, end_line: -1 reads the last 10 lines).",
+        "param_changes": [
+          { "param": "path", "action": "KEEP_SUNDER — absolute path examples are better than Tasklet's generic wording" },
+          { "param": "start_line", "new_describe": "For text files only. The line to start reading from (1-indexed). Use negative numbers to count from the end (-1 = last line, -10 = 10th from last). Defaults to 1 if not specified." },
+          { "param": "end_line", "new_describe": "For text files only. The line to stop reading at (1-indexed, inclusive). Use negative numbers to count from the end (-1 = last line). Defaults to end of file if not specified." },
+          { "param": "pdf_*", "action": "SKIP — Sunder sends whole PDF as raw bytes, no page-level control or text extraction mode" }
+        ],
+        "rationale": "Copy Tasklet description but drop format='text' and start_page/end_page sentences (Sunder sends whole PDF as bytes). Keep Sunder's path description (absolute path examples). Copy Tasklet's richer start_line/end_line descriptions with negative index examples."
+      }
     },
     {
       "id": 5,
@@ -164,7 +176,22 @@
         { "field": "params.action_*", "tasklet": "Has action_pending, action_finished, action_error (required)", "sunder": "N/A", "note": "Sunder has no UI status params. These are Tasklet's streaming UI feature." },
         { "field": "params.old_string.minLength", "tasklet": "minLength: 1", "sunder": "no minLength", "note": "Tasklet prevents empty string matches" }
       ],
-      "status": "EXISTS_NEEDS_ALIGNMENT"
+      "status": "DECIDED",
+      "decision": {
+        "action": "UPDATE_DESCRIPTION_AND_PARAMS",
+        "keep_name": "write_file",
+        "new_description": "Creates, edits, or deletes a file in the filesystem. Supports three operations: write (create or overwrite), edit (find and replace text), and delete.",
+        "param_changes": [
+          { "param": "action_*", "action": "SKIP — no streaming UI" },
+          { "param": "op", "add_describe": "The operation type" },
+          { "param": "path", "action": "KEEP_SUNDER — absolute path examples are better than Tasklet's generic 'Path for the file'" },
+          { "param": "content", "new_describe": "File content, overwrites existing content (required for write op)" },
+          { "param": "old_string", "new_describe": "Exact text to find and replace in the file (required for edit op)", "add_validation": ".min(1) to prevent empty string matches" },
+          { "param": "new_string", "new_describe": "Replacement text, can be empty to delete old_string (required for edit op)" },
+          { "param": "replace_all", "new_describe": "If true, replace all occurrences. If false (default), fails on multiple matches." }
+        ],
+        "rationale": "Copy Tasklet description verbatim. Copy all param descriptions from Tasklet except path (keep Sunder's absolute path examples). Skip action_* params. Add .min(1) to old_string."
+      }
     },
     {
       "id": 6,
@@ -183,7 +210,20 @@
       "diffs": [
         { "field": "tool", "note": "NOT IMPLEMENTED. Subagent infrastructure planned for later phases." }
       ],
-      "status": "NOT_IMPLEMENTED"
+      "status": "DECIDED",
+      "decision": {
+        "action": "UPDATE_DESCRIPTION_AND_PARAMS",
+        "keep_name": "run_subagent",
+        "new_description": "Runs a subagent to handle work efficiently outside of your main context. Returns the final message from the subagent as its result.\nRunning subagents reduces costs and keeps your context focused. This is especially useful when you are doing similar work multiple times.\n\nThe subagent receives the content of the markdown file followed by any payload data you provide in the first user message.\n\nBefore running a subagent, consider whether the subagent's approach still fits the current situation - you can always update its file with write_file if needed.",
+        "param_changes": [
+          { "param": "action_pending", "add_describe": "Custom UI status text shown while running. IMPORTANT: Output these three action_ parameters before all other parameters." },
+          { "param": "action_finished", "add_describe": "Custom UI status text shown on success." },
+          { "param": "action_error", "add_describe": "Custom UI status text shown on failure." },
+          { "param": "path", "add_describe": "Full path to the subagent markdown file (e.g., \"/agent/subagents/email_processor.md\")" },
+          { "param": "payload", "add_describe": "Optional data to pass to the subagent that will be added after the subagent's instructions in the first user message. This allows the same subagent to process different inputs." }
+        ],
+        "rationale": "Sunder has the right skeleton but zero param descriptions. Copy Tasklet's full description and all param descriptions verbatim."
+      }
     },
     {
       "id": 7,
@@ -226,7 +266,20 @@
         { "field": "params.operations[].taskId vs todo_id", "tasklet": "taskId", "sunder": "todo_id", "note": "Different ID field name" },
         { "field": "params.operations max", "tasklet": "no max", "sunder": "max(20)", "note": "Sunder caps batch at 20" }
       ],
-      "status": "EXISTS_NEEDS_ALIGNMENT"
+      "status": "DECIDED",
+      "decision": {
+        "action": "UPDATE_DESCRIPTION_AND_PARAMS",
+        "keep_name": "manage_todo",
+        "new_description": "Manage todo items for this agent. Supports batch operations for efficiency.\n\nOperations:\n- add: Create a new todo with a title and optional payload. todo_id MUST NOT be set.\n- update: Modify an existing todo's title or payload. todo_id is REQUIRED.\n- delete: Remove a todo to mark it as done. todo_id is REQUIRED.\n\nYou can perform multiple operations in a single call (e.g., add multiple todos, update several at once, or mix different operations).\n\nNote: All current todos are visible in the agent's synced state.",
+        "param_changes": [
+          { "param": "operations", "new_describe": "Array of todo operations to perform. You can add, update, or delete multiple todos in a single call." },
+          { "param": "operations[].op", "new_describe": "The operation to perform: add (create new todo, todo_id must NOT be set), update (modify existing todo), delete (remove todo to mark it as done)" },
+          { "param": "operations[].todo_id", "new_describe": "The ID of the todo. REQUIRED for update and delete operations. MUST NOT be set for add operation." },
+          { "param": "operations[].title", "new_describe": "The title of the todo (required for add, optional for update)" },
+          { "param": "operations[].payload", "new_describe": "Optional JSON payload attached to the todo for additional information in addition to the title" }
+        ],
+        "rationale": "Copy Tasklet verbatim with find-replace: taskId→todo_id, task→todo, operation→op. Keep manage_todo name to avoid confusion with CRM tasks."
+      }
     },
     {
       "id": 8,
@@ -250,7 +303,16 @@
         { "field": "description", "tasklet": "List tasks for this agent. Can optionally filter by specific task IDs.", "sunder": "List open todos for the current thread.", "note": "Sunder scopes to thread, Tasklet to agent" },
         { "field": "params.taskIds vs ids", "tasklet": "taskIds", "sunder": "ids" }
       ],
-      "status": "EXISTS_NEEDS_ALIGNMENT"
+      "status": "DECIDED",
+      "decision": {
+        "action": "UPDATE_DESCRIPTION_AND_PARAMS",
+        "keep_name": "list_todo",
+        "new_description": "List todos for this agent. Can optionally filter by specific todo IDs.",
+        "param_changes": [
+          { "param": "ids", "new_describe": "Optional array of todo IDs to filter. If not provided, returns all todos." }
+        ],
+        "rationale": "Copy Tasklet verbatim with task→todo, taskIds→ids name swap."
+      }
     },
     {
       "id": 9,
@@ -274,7 +336,11 @@
         { "field": "description", "tasklet": "Runs a SQL query against the agent's SQL database.", "sunder": "Run a single read-only SQL query against client-accessible tables. Use get_agent_db_schema first to inspect available schema.", "note": "Sunder adds read-only constraint and cross-references get_agent_db_schema. Tasklet's is generic (doesn't say read-only)." },
         { "field": "params.query.description", "tasklet": "The SQL query to execute. Must be a single SQL statement.", "sunder": "SQL SELECT/CTE query to execute.", "note": "Sunder explicitly restricts to SELECT/CTE. Tasklet says 'single statement' (implies any DML?)." }
       ],
-      "status": "EXISTS_CLOSE_MATCH"
+      "status": "PAUSED",
+      "decision": {
+        "action": "PAUSED_PENDING_CRM",
+        "rationale": "CRM tool schema still being decided. SQL tool description depends on what tables/access model we land on. Resume after CRM tool pruning decisions."
+      }
     },
     {
       "id": 10,
@@ -293,7 +359,11 @@
         { "field": "name", "note": "IDENTICAL" },
         { "field": "description", "tasklet": "Retrieves the complete schema of the agent's SQL database, including all table definitions, column types, and row counts.", "sunder": "Get available tables, columns, and row counts for the agent SQL workspace.", "note": "Tasklet slightly more precise ('complete schema', 'column types')" }
       ],
-      "status": "EXISTS_CLOSE_MATCH"
+      "status": "PAUSED",
+      "decision": {
+        "action": "PAUSED_PENDING_CRM",
+        "rationale": "Tied to CRM schema decisions. Resume with Tool 9."
+      }
     },
     {
       "id": 11,
@@ -324,7 +394,11 @@
         { "field": "params.to.description", "tasklet": "Detailed: cannot mix email and text recipients", "sunder": "Minimal", "note": "Sunder should add the mixing constraint" },
         { "field": "params.subject", "tasklet": "Required for email, disallowed for others", "sunder": "Just 'Email subject'", "note": "Tasklet clarifies when subject is required vs disallowed" }
       ],
-      "status": "EXISTS_STUB"
+      "status": "PAUSED",
+      "decision": {
+        "action": "PAUSED_PENDING_RESEND",
+        "rationale": "Stub tool — need to wire Resend for email delivery first. After that: copy Tasklet's description and all param descriptions verbatim, drop stub warning."
+      }
     },
     {
       "id": 12,
@@ -341,7 +415,11 @@
       "diffs": [
         { "field": "tool", "note": "NOT IMPLEMENTED. Depends on messaging infrastructure (Phase 3+)." }
       ],
-      "status": "NOT_IMPLEMENTED"
+      "status": "DECIDED",
+      "decision": {
+        "action": "DEFERRED_PENDING_RESEND",
+        "rationale": "Depends on Resend/messaging infra. Build when send_message gets wired."
+      }
     },
     {
       "id": 13,
@@ -354,7 +432,11 @@
       "diffs": [
         { "field": "tool", "note": "NOT IMPLEMENTED. Depends on messaging infrastructure." }
       ],
-      "status": "NOT_IMPLEMENTED"
+      "status": "DECIDED",
+      "decision": {
+        "action": "DEFERRED_PENDING_RESEND",
+        "rationale": "Depends on Resend/messaging infra. Build when send_message gets wired."
+      }
     },
     {
       "id": 14,
@@ -371,7 +453,11 @@
       "diffs": [
         { "field": "tool", "note": "NOT IMPLEMENTED. Depends on messaging infrastructure." }
       ],
-      "status": "NOT_IMPLEMENTED"
+      "status": "DECIDED",
+      "decision": {
+        "action": "DEFERRED_PENDING_RESEND",
+        "rationale": "Depends on Resend/messaging infra. Build when send_message gets wired."
+      }
     },
     {
       "id": 15,
@@ -394,7 +480,16 @@
         { "field": "name", "note": "IDENTICAL" },
         { "field": "description", "tasklet": "Multi-line with workflow guidance: discover before setup, setupSchema explains params, editSchema for manage_active_triggers", "sunder": "Single line: 'Search available trigger types by keyword and return the setup schema and edit schema for each match.'", "note": "Tasklet's description guides the agent through the full trigger workflow. Sunder's is minimal." }
       ],
-      "status": "EXISTS_NEEDS_ALIGNMENT"
+      "status": "DECIDED",
+      "decision": {
+        "action": "UPDATE_DESCRIPTION_AND_PARAMS",
+        "keep_name": "search_triggers",
+        "new_description": "Search for available triggers by keywords.\nReturns a list of trigger types that match the search criteria, along with their setup schemas and any prerequisites.\n\nUse this tool to discover what triggers are available before setting one up.\n\nThe setupSchema field of each returned trigger describes the schema of the params object that should be passed into the setup_trigger tool.\n\nTriggers that support editing will include an editSchema field describing the parameters for the edit action in manage_active_triggers.",
+        "param_changes": [
+          { "param": "keywords", "new_describe": "One or more keywords to search for available triggers (e.g., [\"email\", \"schedule\"])" }
+        ],
+        "rationale": "Copy Tasklet verbatim. Full workflow guidance for the model."
+      }
     },
     {
       "id": 16,
@@ -425,7 +520,20 @@
         { "field": "params.name", "tasklet": "N/A", "sunder": "REQUIRED", "note": "Sunder has extra 'name' param Tasklet doesn't" },
         { "field": "params.instruction_path", "tasklet": "N/A", "sunder": "REQUIRED", "note": "Sunder has extra 'instruction_path' param Tasklet doesn't — ties trigger to a file with instructions" }
       ],
-      "status": "EXISTS_NEEDS_ALIGNMENT"
+      "status": "DECIDED",
+      "decision": {
+        "action": "UPDATE_DESCRIPTION_AND_PARAMS",
+        "keep_name": "setup_trigger",
+        "new_description": "Set up a new trigger instance. First use search_triggers to find available triggers and their setup schemas, then call this tool with the trigger ID and required parameters.\nOn completion, shows the user a UI card with the trigger details.",
+        "param_changes": [
+          { "param": "trigger_id", "new_describe": "The ID of the trigger type to set up (e.g., \"schedule\", \"webhook\", \"rss\")" },
+          { "param": "name", "new_describe": "A human-readable name for this trigger instance." },
+          { "param": "instruction_path", "new_describe": "Path to the instruction file the agent should follow when this trigger fires." },
+          { "param": "params", "new_describe": "Setup parameters as defined by the trigger's setupSchema" },
+          { "param": "invocation_message", "new_describe": "Optional short message that is included each time this trigger runs. Max 200 characters." }
+        ],
+        "rationale": "Copy Tasklet description verbatim. Add descriptions to all params including Sunder-only ones (name, instruction_path)."
+      }
     },
     {
       "id": 17,
@@ -457,7 +565,13 @@
         { "field": "description", "tasklet": "Multi-line with per-action docs and requirements", "sunder": "Single line summary", "note": "Tasklet's per-action documentation is much more instructive for the model" },
         { "field": "params", "note": "Schema is functionally equivalent. Sunder uses z.string().uuid() for trigger_instance_id (stricter)." }
       ],
-      "status": "EXISTS_NEEDS_ALIGNMENT"
+      "status": "DECIDED",
+      "decision": {
+        "action": "UPDATE_DESCRIPTION_ONLY",
+        "keep_name": "manage_active_triggers",
+        "new_description": "Manage the agent's active triggers.\n\nActions:\n- list: Returns all active triggers with their IDs, names, titles, invocationMessage, and arguments.\n- view: Shows detailed information for a specific trigger. Requires trigger_instance_id.\n- delete: Removes an active trigger. Requires trigger_instance_id. This is destructive.\n- simulate: Fires a test event on a trigger to test the agent's response. Requires trigger_instance_id and payload.\n- edit: Modifies an existing trigger's configuration. Requires trigger_instance_id. Use edit_params to modify trigger configuration (matching editSchema, not supported by all triggers) and/or invocation_message to set or clear the invocation title override.\n\nUse list first to see available triggers and get their instance IDs.",
+        "rationale": "Copy Tasklet verbatim. Per-action docs are critical for the model. Params already equivalent."
+      }
     },
     {
       "id": 18,
@@ -476,7 +590,11 @@
         { "field": "name", "note": "IDENTICAL" },
         { "field": "description", "note": "Nearly identical. Sunder adds 'active, inactive, error, and pending' status clarification." }
       ],
-      "status": "EXISTS_CLOSE_MATCH"
+      "status": "DECIDED",
+      "decision": {
+        "action": "NO_CHANGES",
+        "rationale": "Sunder's description is already good — slightly better than Tasklet's with status types."
+      }
     },
     {
       "id": 19,
@@ -501,7 +619,13 @@
         { "field": "name", "note": "IDENTICAL" },
         { "field": "description", "tasklet": "Includes 3-bullet 'Use this to' guide", "sunder": "Single 'Use this to' sentence", "note": "Tasklet more instructive with specific use cases" }
       ],
-      "status": "EXISTS_CLOSE_MATCH"
+      "status": "DECIDED",
+      "decision": {
+        "action": "UPDATE_DESCRIPTION_ONLY",
+        "keep_name": "get_details_for_connections",
+        "new_description": "Gets detailed information for the listed connections.\nReturns a full list of tools, including both activated and deactivated tools, for each connection, including full detailed descriptions and arguments if requested.\nAlso returns connectionId, serviceName, description, accountName, connectionType, toolCount, and other connection-specific details.\n\nUse this to:\n- Discover what actions you can perform with a connection before activating it\n- Check which tools are already activated for a connection\n- Verify exact tool names before activating connections",
+        "rationale": "Copy Tasklet verbatim. 3-bullet use-case guide helps the model know when to reach for this tool."
+      }
     },
     {
       "id": 20,
@@ -524,7 +648,13 @@
         { "field": "name", "note": "IDENTICAL" },
         { "field": "description", "tasklet": "Enumerates quality levels: GREAT, GOOD, OK, LIMITED, UNKNOWN", "sunder": "Just says 'quality information'", "note": "Minor — Tasklet spells out the quality levels" }
       ],
-      "status": "EXISTS_CLOSE_MATCH"
+      "status": "DECIDED",
+      "decision": {
+        "action": "UPDATE_DESCRIPTION_ONLY",
+        "keep_name": "get_integrations_capabilities",
+        "new_description": "Lists the capabilities available via the given integrations, including tools (if available), quality information (GREAT, GOOD, OK, LIMITED, and UNKNOWN), and notes.",
+        "rationale": "Copy Tasklet verbatim. Quality levels are real values in the response."
+      }
     },
     {
       "id": 21,
@@ -547,7 +677,14 @@
         { "field": "name", "note": "IDENTICAL" },
         { "field": "description", "tasklet": "References Pipedream and get_integrations_capabilities cross-ref", "sunder": "Lists return fields explicitly, has NEVER mention rule", "note": "Both have the NEVER mention rule. Tasklet adds cross-reference to get_integrations_capabilities. Sunder references Composio catalog instead of Pipedream." }
       ],
-      "status": "EXISTS_CLOSE_MATCH"
+      "status": "DECIDED",
+      "decision": {
+        "action": "COPY_TASKLET_VERBATIM",
+        "keep_name": "search_for_integrations",
+        "new_description": "Lists integrations that match one or more given keywords. Keywords are single words.\nSearches integrations built by the Sunder team as well as integrations from Composio (over 3000 total).\n\nNEVER mention integration quality scores or who built the integrations unless the user specifically asks.\n\nOnce you have the integration ID you can get more info using get_integrations_capabilities.",
+        "param_changes": "none",
+        "rationale": "Copy Tasklet verbatim with brand swaps: 'Tasklet team' → 'Sunder team', 'Pipedream' → 'Composio'. Keep cross-reference to get_integrations_capabilities and NEVER-mention rule."
+      }
     },
     {
       "id": 22,
@@ -585,7 +722,14 @@
         { "field": "name", "note": "IDENTICAL" },
         { "field": "description", "tasklet": "Mentions user approval UI card, MUST read skills file, return shape", "sunder": "Simpler, cross-references get_details_for_connections", "note": "Tasklet has important skill file MUST-read instruction. Sunder's version auto-hints skill file in response only when first tools are activated." }
       ],
-      "status": "EXISTS_NEEDS_ALIGNMENT"
+      "status": "DECIDED",
+      "decision": {
+        "action": "COPY_TASKLET_VERBATIM",
+        "keep_name": "manage_activated_tools_for_connections",
+        "new_description": "Activates or deactivates tools for connections.\nChanging activation status of tools requires the user to approve the permission changes, so a UI card will be displayed to the user where they can approve or reject the changes.\nThe tool will return after the user approves or rejects the permission changes.\n\nReturns an array of objects for each connection:\n- connectionId: the connection ID\n- userAction: 'approved' if user approved the changes, 'skipped' if user rejected\n- tools: { activated: string[], deactivated: string[] } - lists of tool names currently activated/deactivated for the connection\n- skills: (optional) instructions to read the skills file for this connection.\n\nActivated tools will then become available to use and will appear in your tool context with the tool name prefixed by the connection ID. For example, the search_for_info tool on connection Id conn_1234 will appear as conn_1234__search_for_info in your prompt. If you don't see the tool you need try activating it first.\nTo discover the full set of tools that are available for each connection before activating them call get_details_for_connections.\n\nIf your connection has an associated skills file you MUST read and follow the instructions in the skills file before using any tools from that connection.",
+        "param_changes": "none",
+        "rationale": "Copy Tasklet verbatim. UI approval card, return shape docs, concrete prefix example, and mandatory skills-file instruction are all high-value model guidance."
+      }
     },
     {
       "id": 23,
@@ -608,7 +752,14 @@
         { "field": "name", "note": "IDENTICAL" },
         { "field": "description", "tasklet": "Includes 'if and only if auth errors' guard and 'cannot change account' warning", "sunder": "Focuses on implementation (silent refresh fallback)", "note": "Tasklet's behavioral guardrails are more important for the model than implementation details" }
       ],
-      "status": "EXISTS_NEEDS_ALIGNMENT"
+      "status": "DECIDED",
+      "decision": {
+        "action": "COPY_TASKLET_VERBATIM",
+        "keep_name": "reauthorize_connection",
+        "new_description": "Re-authorizes an existing connection that has expired or needs new permissions. Displays a UI card where the user can complete the auth flow to re-authorize the connection.\n\nUse this tool if and only if there were authorization errors with a connection or the user explicitly asks you to.\nThe connection must already exist in the user's account.\nRe-authorizing cannot change which account the connection is logged into in the external service.",
+        "param_changes": "none",
+        "rationale": "Copy Tasklet verbatim. Behavioral guardrails ('if and only if', 'cannot change account') prevent misuse. Sunder's implementation details (silent refresh) don't help the model."
+      }
     },
     {
       "id": 24,
@@ -631,7 +782,14 @@
         { "field": "name", "note": "IDENTICAL" },
         { "field": "description", "tasklet": "CAPS WARNING, 'destructive and cannot be undone', explicit DO NOT use + redirect", "sunder": "Calmer wording, same semantic", "note": "Tasklet's aggressive warning style is intentional for model safety. Sunder should adopt the stronger wording." }
       ],
-      "status": "EXISTS_NEEDS_ALIGNMENT"
+      "status": "DECIDED",
+      "decision": {
+        "action": "COPY_TASKLET_VERBATIM",
+        "keep_name": "delete_connection",
+        "new_description": "PERMANENTLY DELETES a connection from the user's account. Displays a confirmation UI showing all agents that use this connection before deletion. This destroys the stored credentials and cannot be undone.\n\nWARNING: This is a destructive action. Only use when the user explicitly wants to DELETE the connection itself (e.g., \"delete this connection\", \"remove from my account\").\nDO NOT use this tool if the user wants to remove or deactivate tools from a connection (e.g., \"remove {connection name}\") → use manage_activated_tools_for_connections instead",
+        "param_changes": "none",
+        "rationale": "Copy Tasklet verbatim. CAPS WARNING, concrete examples, and explicit redirect to manage_activated_tools_for_connections are intentional safety guardrails for the model."
+      }
     },
     {
       "id": 25,
@@ -662,7 +820,14 @@
         { "field": "description", "tasklet": "References absolute skill path, mentions all 4 types", "sunder": "Conditional skill read ('if exists'), focuses on integrations", "note": "Both have MUST read skill file. Sunder's conditional is weaker." },
         { "field": "implementation", "note": "Sunder stubs out mcp, direct_api, computer_use — only integrations works" }
       ],
-      "status": "EXISTS_NEEDS_ALIGNMENT"
+      "status": "DECIDED",
+      "decision": {
+        "action": "COPY_TASKLET_VERBATIM",
+        "keep_name": "create_new_connections",
+        "new_description": "Creates new connections to external services.\nDisplays a UI card where the user can choose to create each connection or skip it.\nCreating a connection will authenticate the user to the service and then save the connection to the user's account so they can use it in other agents in the future.\n\nIMPORTANT: You MUST read /agent/skills/system/creating-connections/SKILL.md for detailed setup instructions before using this tool.\n\nSupports the creation of 4 different types of connections: pre-built integrations, custom MCP, Direct API (HTTP) and Computer Use.\nFor pre-built integrations supports the creation of multiple connections at once. All others support only one connection creation at a time.\n\nFor each connection creation request returns:\n- userAction: 'created' if user authorized, 'skipped' if user declined.\n\nIf successfully created, also returns:\n- connectionId: the new connection ID. Don't mention the connectionId to the user.\n- tools: { activated: string[], deactivated: string[] } - list of all connection tool names by activation state\n- connection-specific details",
+        "param_changes": "none",
+        "rationale": "Copy Tasklet verbatim. Unconditional MUST-read, all 4 types documented, return shape. mcp/direct_api/computer_use are stubs in Sunder but keeping full description doesn't hurt — stubs return helpful errors."
+      }
     },
     {
       "id": 26,
@@ -681,7 +846,11 @@
       "diffs": [
         { "field": "tool", "note": "NOT IMPLEMENTED. Preview panel is a Tasklet UI feature not in Sunder's v1 scope." }
       ],
-      "status": "NOT_IMPLEMENTED"
+      "status": "DECIDED",
+      "decision": {
+        "action": "DEFERRED",
+        "rationale": "Preview panel is a Tasklet UI feature not in Sunder's v1 scope."
+      }
     },
     {
       "id": 27,
@@ -694,7 +863,11 @@
       "diffs": [
         { "field": "tool", "note": "NOT IMPLEMENTED. Depends on show_user_preview." }
       ],
-      "status": "NOT_IMPLEMENTED"
+      "status": "DECIDED",
+      "decision": {
+        "action": "DEFERRED",
+        "rationale": "Depends on show_user_preview. Not in v1 scope."
+      }
     },
     {
       "id": 28,
@@ -711,7 +884,11 @@
       "diffs": [
         { "field": "tool", "note": "NOT IMPLEMENTED. Instant apps are a Tasklet premium feature not in Sunder's scope." }
       ],
-      "status": "NOT_IMPLEMENTED"
+      "status": "DECIDED",
+      "decision": {
+        "action": "DEFERRED",
+        "rationale": "Instant apps are a Tasklet premium feature not in Sunder's v1 scope."
+      }
     },
     {
       "id": 29,
@@ -727,7 +904,11 @@
       "diffs": [
         { "field": "tool", "note": "NOT IMPLEMENTED. Depends on instant apps." }
       ],
-      "status": "NOT_IMPLEMENTED"
+      "status": "DECIDED",
+      "decision": {
+        "action": "DEFERRED",
+        "rationale": "Depends on instant apps. Not in v1 scope."
+      }
     },
     {
       "id": 30,
@@ -743,7 +924,11 @@
       "diffs": [
         { "field": "tool", "note": "NOT IMPLEMENTED. Sunder uses single-tier model routing in v1 (Gemini Flash). Multi-tier deferred." }
       ],
-      "status": "NOT_IMPLEMENTED"
+      "status": "DECIDED",
+      "decision": {
+        "action": "DEFERRED",
+        "rationale": "Single-tier model routing in v1. Multi-tier deferred."
+      }
     },
     {
       "id": 31,
@@ -766,7 +951,14 @@
         { "field": "name", "note": "IDENTICAL" },
         { "field": "description", "tasklet": "Renames the chat. Titles should be a concise 3-5 word summary that captures the goal and key tools. If the user requests a specific name, use that name.", "sunder": "Rename the current conversation thread to a concise, descriptive title.", "note": "Tasklet adds specific guidance: '3-5 word summary', 'captures goal and key tools', 'user override'" }
       ],
-      "status": "EXISTS_NEEDS_ALIGNMENT"
+      "status": "DECIDED",
+      "decision": {
+        "action": "COPY_TASKLET_VERBATIM",
+        "keep_name": "rename_chat",
+        "new_description": "Renames the chat. Titles should be a concise 3-5 word summary that captures the goal and key tools. If the user requests a specific name, use that name.",
+        "param_changes": "none",
+        "rationale": "Copy Tasklet verbatim. Specific '3-5 word' target and 'goal and key tools' instruction produce better titles than Sunder's vague 'concise, descriptive'."
+      }
     }
   ],
   "sunder_only_tools": {
