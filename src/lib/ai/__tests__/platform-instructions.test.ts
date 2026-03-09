@@ -86,4 +86,22 @@ describe("buildPlatformInstructions", () => {
     );
     expect(instructions).toContain("Company custom fields: none");
   });
+
+  it("uses /agent/ prefixes for state and toolcall paths", () => {
+    const instructions = buildPlatformInstructions();
+
+    expect(instructions).toContain("/agent/state/");
+    expect(instructions).toContain("/agent/state/draft-email.md");
+    expect(instructions).toContain("/agent/state/research-notes.md");
+    expect(instructions).toContain("/agent/toolcalls/");
+    expect(instructions).toContain('/agent/toolcalls/{toolCallId}/result.json');
+    expect(instructions).toContain('/agent/toolcalls/{toolCallId}/args.json');
+  });
+
+  it("does not contain bare state or toolcalls directory references", () => {
+    const instructions = buildPlatformInstructions();
+
+    expect(instructions.match(/(?<!\/agent\/)state\//g) ?? []).toHaveLength(0);
+    expect(instructions.match(/(?<!\/agent\/)toolcalls\//g) ?? []).toHaveLength(0);
+  });
 });

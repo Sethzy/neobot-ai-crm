@@ -29,13 +29,13 @@ Prefer CRM search tools for simple lookups; use sql for aggregations, joins, and
 </sql-db>
 
 <state-directory>
-Use the state/ directory for ephemeral working files during multi-step workflows.
+Use the /agent/state/ directory for ephemeral working files during multi-step workflows.
 
 Examples:
-- state/draft-email.md
-- state/research-notes.md
+- /agent/state/draft-email.md
+- /agent/state/research-notes.md
 
-Clean up state/ files after the work is complete.
+Clean up /agent/state/ files after the work is complete.
 </state-directory>
 
 <thread-naming>
@@ -53,11 +53,11 @@ the information to complete your work.
 
 Tool call results that exceeded the size threshold have been truncated inline.
 You will see a note like:
-<context-removed>Data truncated: 50KB -> 5KB. path: toolcalls/{toolCallId}/result.json</context-removed>
+<context-removed>Data truncated: 50KB -> 5KB. path: /agent/toolcalls/{toolCallId}/result.json</context-removed>
 
 To read the full arguments and results for a tool call, use the toolCallId:
-read_file(path: "toolcalls/{toolCallId}/result.json")
-read_file(path: "toolcalls/{toolCallId}/args.json")
+read_file(path: "/agent/toolcalls/{toolCallId}/result.json")
+read_file(path: "/agent/toolcalls/{toolCallId}/args.json")
 
 Sometimes entire sequences of trigger invocations may be pruned during compaction.
 You will see a summary like:

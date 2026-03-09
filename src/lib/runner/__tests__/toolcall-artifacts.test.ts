@@ -96,7 +96,14 @@ describe("buildContextRemovedMarker", () => {
     expect(marker).toContain("<context-removed>");
     expect(marker).toContain("</context-removed>");
     expect(marker).toContain("Data truncated: 49KB -> 5KB");
-    expect(marker).toContain("path: toolcalls/call-abc/result.json");
+    expect(marker).toContain("path: /agent/toolcalls/call-abc/result.json");
+  });
+
+  it("does not double-prefix already-absolute /agent/ paths", () => {
+    const marker = buildContextRemovedMarker("/agent/toolcalls/call-abc/result.json", 50_000);
+
+    expect(marker).toContain("path: /agent/toolcalls/call-abc/result.json");
+    expect(marker).not.toContain("/agent//agent/");
   });
 });
 
@@ -241,7 +248,7 @@ describe("truncateOversizedParts", () => {
       type: "tool-search_contacts",
       toolCallId: "call-large",
       state: "output-available",
-      output: expect.stringContaining("path: toolcalls/call-large/result.json"),
+      output: expect.stringContaining("path: /agent/toolcalls/call-large/result.json"),
     }));
     expect(parts[0]).toEqual(expect.objectContaining({
       output: {
@@ -276,7 +283,7 @@ describe("truncateOversizedParts", () => {
 
     // Should still have the context-removed marker with recovery path
     expect(truncatedOutput).toContain("<context-removed>");
-    expect(truncatedOutput).toContain("path: toolcalls/call-scrape/result.json");
+    expect(truncatedOutput).toContain("path: /agent/toolcalls/call-scrape/result.json");
 
     // The HEAD portion should be roughly 5KB — at least 4KB but not the full 6KB
     const markerStart = truncatedOutput.indexOf("<context-removed>");
@@ -317,6 +324,6 @@ describe("truncateOversizedParts", () => {
 
     // Should end with the truncation marker
     expect(truncatedOutput).toContain("<context-removed>");
-    expect(truncatedOutput).toContain("path: toolcalls/call-json/result.json");
+    expect(truncatedOutput).toContain("path: /agent/toolcalls/call-json/result.json");
   });
 });

@@ -44,12 +44,12 @@ PRIORITY (work the highest-priority actionable item):
 3. Review monitored CRM state via search_deals() or run_agent_memory_sql().
 4. Follow up on unanswered questions in this thread.
 5. Research or prepare for upcoming work.
-6. If USER.md is sparse, leave one concise question in the thread.
+6. If /agent/USER.md is sparse, leave one concise question in the thread.
 7. Engage the user: pending approval reminder, concrete insight, or useful nudge.
 8. Propose new CRM tasks with create_task() or internal follow-ups with manage_todo().
 9. Create momentum — break stalled work into smaller next steps.
 
-AFTER ACTING: Update MEMORY.md with a timestamped summary of what you did and learned this pulse. Stable new facts go to the relevant memory file (USER.md, memory/preferences.md, memory/patterns.md).
+AFTER ACTING: Update /agent/MEMORY.md with a timestamped summary of what you did and learned this pulse. Stable new facts go to the relevant memory file (/agent/USER.md, /agent/memory/preferences.md, /agent/memory/patterns.md).
 
 HARD RULES:
 - Always do at least one meaningful action. Never end without a concrete next action.

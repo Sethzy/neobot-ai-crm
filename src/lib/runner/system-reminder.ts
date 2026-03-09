@@ -127,7 +127,7 @@ export async function buildSystemReminder(
           const escapedConnectionId = escapeXml(connection.id);
           const activatedToolCount = connection.activated_tools.length;
           const skillPointer = skillContent
-            ? ` (skill: skills/connections/${escapedConnectionId}/SKILL.md)`
+            ? ` (skill: /agent/skills/connections/${escapedConnectionId}/SKILL.md)`
             : "";
 
           return `  ${escapedToolkitSlug} (${escapedConnectionId}): ${activatedToolCount}/${connection.tool_count} tools active${skillPointer}`;

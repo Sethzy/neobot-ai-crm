@@ -55,6 +55,19 @@ describe("autopilot constants", () => {
     expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("create_task");
     expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("MUST still describe and defer");
   });
+
+  test("uses /agent/ prefixes for memory file references", () => {
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("/agent/MEMORY.md");
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("/agent/USER.md");
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("/agent/memory/preferences.md");
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("/agent/memory/patterns.md");
+  });
+
+  test("does not contain bare memory file references without /agent/", () => {
+    expect(AUTOPILOT_INSTRUCTION_PROMPT.match(/(?<!\/agent\/)MEMORY\.md/g) ?? []).toHaveLength(0);
+    expect(AUTOPILOT_INSTRUCTION_PROMPT.match(/(?<!\/agent\/)USER\.md/g) ?? []).toHaveLength(0);
+    expect(AUTOPILOT_INSTRUCTION_PROMPT.match(/(?<!\/agent\/)memory\//g) ?? []).toHaveLength(0);
+  });
 });
 
 describe("autopilotConfigSchema", () => {

@@ -124,7 +124,7 @@ describe("SYSTEM_PROMPT", () => {
   });
 
   it("instructs the agent to read the creating-connections skill if it exists", () => {
-    expect(SYSTEM_PROMPT).toContain("If skills/system/creating-connections/SKILL.md exists");
+    expect(SYSTEM_PROMPT).toContain("If /agent/skills/system/creating-connections/SKILL.md exists");
     expect(SYSTEM_PROMPT).toContain("MUST read it");
   });
 
@@ -190,7 +190,22 @@ describe("SYSTEM_PROMPT memory instructions", () => {
   });
 
   it("documents how to discover topic files", () => {
-    expect(SYSTEM_PROMPT).toContain('read_file("memory/")');
+    expect(SYSTEM_PROMPT).toContain('read_file("/agent/memory/")');
+  });
+
+  it("uses /agent/ prefixes on all model-facing path references", () => {
+    expect(SYSTEM_PROMPT).toContain("/agent/SOUL.md");
+    expect(SYSTEM_PROMPT).toContain("/agent/USER.md");
+    expect(SYSTEM_PROMPT).toContain("/agent/MEMORY.md");
+    expect(SYSTEM_PROMPT).toContain("/agent/memory/preferences.md");
+    expect(SYSTEM_PROMPT).toContain("/agent/vault/");
+    expect(SYSTEM_PROMPT).toContain("/agent/skills/");
+  });
+
+  it("does not contain bare model-facing path references without /agent/", () => {
+    expect(SYSTEM_PROMPT.match(/(?<!\/agent\/)SOUL\.md/g) ?? []).toHaveLength(0);
+    expect(SYSTEM_PROMPT.match(/(?<!\/agent\/)memory\//g) ?? []).toHaveLength(0);
+    expect(SYSTEM_PROMPT.match(/(?<!\/agent\/)vault\//g) ?? []).toHaveLength(0);
   });
 });
 

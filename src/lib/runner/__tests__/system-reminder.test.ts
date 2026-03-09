@@ -161,7 +161,7 @@ describe("buildSystemReminder", () => {
     const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);
 
     expect(result).toContain(
-      "gmail (conn-abc): 3/45 tools active (skill: skills/connections/conn-abc/SKILL.md)",
+      "gmail (conn-abc): 3/45 tools active (skill: /agent/skills/connections/conn-abc/SKILL.md)",
     );
   });
 

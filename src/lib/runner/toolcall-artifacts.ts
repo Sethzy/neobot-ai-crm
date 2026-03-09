@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { ARTIFACT_SIZE_THRESHOLD_BYTES } from "@/lib/runner/compaction";
 import type { PersistedPart } from "@/lib/runner/message-utils";
+import { toModelPath } from "@/lib/storage/agent-paths";
 import type { Database } from "@/types/database";
 
 const AGENT_FILES_BUCKET_ID = "agent-files";
@@ -55,7 +56,7 @@ export function buildContextRemovedMarker(
 ): string {
   const originalKB = Math.round(originalSizeBytes / 1024);
   const thresholdKB = Math.round(ARTIFACT_SIZE_THRESHOLD_BYTES / 1024);
-  return `<context-removed>Data truncated: ${originalKB}KB -> ${thresholdKB}KB. path: ${storagePath}</context-removed>`;
+  return `<context-removed>Data truncated: ${originalKB}KB -> ${thresholdKB}KB. path: ${toModelPath(storagePath)}</context-removed>`;
 }
 
 /**
