@@ -1,0 +1,803 @@
+{
+  "_meta": {
+    "description": "Side-by-side comparison of Tasklet v2 (31 tools) vs Sunder equivalents",
+    "generated": "2026-03-09",
+    "purpose": "Walk through each tool to align Sunder's wording/schema with Tasklet's battle-tested definitions",
+    "resume_note": "PAUSED at Tool 4 (read_file). Tools 1-3 decided. Tool 4 pending — read_file multimodal PR in progress (docs/tasks/2026-03-09-read-file-multimodal-tasklist.md). Resume after that PR lands, then re-evaluate Tool 4 diffs with new capabilities. Continue from Tool 5 (write_file) onwards."
+  },
+  "tools": [
+    {
+      "id": 1,
+      "tasklet": {
+        "name": "web_scrape_website",
+        "description": "Reads a single webpage and extracts its content as markdown",
+        "params": {
+          "url": { "type": "string", "required": true, "description": "The URL of the webpage to scrape. Must be either a http:// or https:// URL." }
+        }
+      },
+      "sunder": {
+        "name": "web_scrape",
+        "file": "src/lib/runner/tools/web/scrape.ts",
+        "description": "Read a webpage and extract its text content. Use this to read articles, documentation, or any web page.",
+        "params": {
+          "url": { "type": "z.string().url().refine(http/https)", "required": true, "description": "The URL of the webpage to read. Must be http:// or https://." }
+        }
+      },
+      "diffs": [
+        { "field": "name", "tasklet": "web_scrape_website", "sunder": "web_scrape", "note": "Sunder shorter name" },
+        { "field": "description", "tasklet": "Reads a single webpage and extracts its content as markdown", "sunder": "Read a webpage and extract its text content. Use this to read articles, documentation, or any web page.", "note": "Tasklet is more precise ('as markdown'). Sunder adds usage guidance ('Use this to...')" },
+        { "field": "params.url.description", "tasklet": "The URL of the webpage to scrape. Must be either a http:// or https:// URL.", "sunder": "The URL of the webpage to read. Must be http:// or https://.", "note": "Nearly identical" }
+      ],
+      "status": "DECIDED",
+      "decision": {
+        "action": "UPDATE_DESCRIPTION_ONLY",
+        "keep_name": "web_scrape",
+        "new_description": "Reads a single webpage and extracts its content as markdown",
+        "param_changes": "none",
+        "rationale": "Adopt Tasklet's precise description ('as markdown'). Drop 'Use this to...' hand-holding. Keep shorter name."
+      }
+    },
+    {
+      "id": 2,
+      "tasklet": {
+        "name": "web_search_web",
+        "description": "Searches the web for relevant content based on a query",
+        "params": {
+          "query": { "type": "string", "required": true, "description": "The search query to use for web search" },
+          "limit": { "type": "number", "min": 1, "max": 100, "description": "Maximum number of results to return (default: 10, max: 100)" },
+          "location": { "type": "string", "description": "Geographic location for search results. Examples: \"Germany\", \"San Francisco,California,United States\". Default: \"US\"" },
+          "tbs": { "type": "string", "description": "Time-based search parameter. Use predefined values: qdr:h (hour), qdr:d (day), qdr:w (week), qdr:m (month), qdr:y (year). Or custom date range: cdr:1,cd_min:MM/DD/YYYY,cd_max:MM/DD/YYYY" }
+        }
+      },
+      "sunder": {
+        "name": "web_search",
+        "file": "src/lib/runner/tools/web/search.ts",
+        "description": "Search the web for current information. Returns titles, URLs, and snippets.",
+        "params": {
+          "query": { "type": "z.string().trim().min(1)", "required": true, "description": "The search query." },
+          "limit": { "type": "z.number().int().min(1).max(20)", "description": "Maximum results to return. Defaults to 10, max 20." },
+          "location": { "type": "z.string()", "description": "Country code to target results. Supported: AR, AU, AT, BE, BR, CA, CL, CN, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, PH, PL, PT, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US. Omit for global results." },
+          "tbs": { "type": "z.string()", "description": "Time filter shortcuts: qdr:h, qdr:d, qdr:w, qdr:m, qdr:y." }
+        }
+      },
+      "diffs": [
+        { "field": "name", "tasklet": "web_search_web", "sunder": "web_search", "note": "Sunder shorter name" },
+        { "field": "description", "tasklet": "Searches the web for relevant content based on a query", "sunder": "Search the web for current information. Returns titles, URLs, and snippets.", "note": "Sunder adds return shape guidance" },
+        { "field": "params.limit.max", "tasklet": 100, "sunder": 20, "note": "Sunder caps at 20 (Brave API limit). Tasklet allows 100." },
+        { "field": "params.location", "tasklet": "Free-text geographic ('Germany', 'San Francisco,California,United States')", "sunder": "Country codes only (AR, AU, ...)", "note": "Different location format due to different search backends" },
+        { "field": "params.tbs", "tasklet": "Includes custom date range: cdr:1,cd_min:MM/DD/YYYY,cd_max:MM/DD/YYYY", "sunder": "Only shortcut values: qdr:h/d/w/m/y", "note": "Sunder missing custom date range param docs" }
+      ],
+      "status": "DECIDED",
+      "decision": {
+        "action": "NO_CHANGES",
+        "keep_name": "web_search",
+        "rationale": "Sunder's description is arguably better (tells model what comes back). All param diffs are backend-driven (Brave API constraints), not wording issues."
+      }
+    },
+    {
+      "id": 3,
+      "tasklet": {
+        "name": "run_command",
+        "description": "Executes shell commands in the sandbox environment.",
+        "params": {
+          "action_pending": { "type": "string", "required": true, "description": "Custom UI status text shown while running." },
+          "action_finished": { "type": "string", "required": true, "description": "Custom UI status text shown on success." },
+          "action_error": { "type": "string", "required": true, "description": "Custom UI status text shown on failure." },
+          "command": { "type": "string", "required": true, "description": "The shell command to execute in the sandbox environment." },
+          "timeout": { "type": "number", "max": 300, "description": "Timeout in seconds. Defaults to 60." }
+        }
+      },
+      "sunder": null,
+      "diffs": [
+        { "field": "tool", "note": "NOT IMPLEMENTED. Sunder has no sandbox/shell execution tool. Planned for v2 plan Phase 3+." }
+      ],
+      "status": "DECIDED",
+      "decision": {
+        "action": "DEFERRED",
+        "rationale": "Sandbox/shell execution is Phase 3+. Nothing to align now."
+      }
+    },
+    {
+      "id": 4,
+      "tasklet": {
+        "name": "read_file",
+        "description": "Reads the contents of a file or directory by its path. If the path is a directory, returns a recursive tree-style listing of its contents. Image files are displayed directly. For PDF files, returns pages as images by default to preserve visual layout, formatting, and diagrams. Use format='text' to extract text content only. Specify optional start_line/end_line or start_page/end_page for large files. Use negative indices to count from the end (e.g., start_line: -10, end_line: -1 reads the last 10 lines).",
+        "params": {
+          "path": { "type": "string", "required": true, "description": "Absolute path to the file or directory to view (e.g., '/agent/home' or '/tmp/file.txt')" },
+          "start_line": { "type": "number", "description": "For text files only. The line to start reading from (1-indexed). Use negative numbers to count from the end." },
+          "end_line": { "type": "number", "description": "For text files only. The line to stop reading at (1-indexed, inclusive). Use negative numbers to count from the end." },
+          "pdf_start_page": { "type": "number", "description": "For PDF files only. The page to start reading from (1-indexed)." },
+          "pdf_end_page": { "type": "number", "description": "For PDF files only. The page to stop reading at (1-indexed, inclusive)." },
+          "pdf_format": { "type": "string", "enum": ["image", "text"], "description": "For PDF files only. Specifies whether to return pages as images or text. Defaults to 'image'." }
+        }
+      },
+      "sunder": {
+        "name": "read_file",
+        "file": "src/lib/runner/tools/storage/index.ts",
+        "description": "Read file content or list a directory tree. Use directory paths (e.g. memory/) for discovery.",
+        "params": {
+          "path": { "type": "z.string()", "required": true, "description": "Relative file or directory path in the client workspace." },
+          "start_line": { "type": "z.number().int().min(1)", "description": "Optional 1-indexed start line." },
+          "end_line": { "type": "z.number().int().min(1)", "description": "Optional 1-indexed end line (inclusive)." }
+        }
+      },
+      "diffs": [
+        { "field": "description", "tasklet": "(long, feature-rich description covering directories, images, PDFs, negative indices)", "sunder": "Read file content or list a directory tree. Use directory paths (e.g. memory/) for discovery.", "note": "Sunder description is minimal. Tasklet's is much more instructive about capabilities." },
+        { "field": "params.path", "tasklet": "Absolute path (/agent/home)", "sunder": "Relative path in client workspace", "note": "Different path semantics — Tasklet uses absolute, Sunder uses workspace-relative" },
+        { "field": "params.start_line", "tasklet": "Supports negative indices (-1 = last line)", "sunder": "min(1) only, no negative indices", "note": "Sunder doesn't support negative line indices" },
+        { "field": "params.pdf_*", "tasklet": "Has pdf_start_page, pdf_end_page, pdf_format", "sunder": "N/A", "note": "Sunder has no PDF support" }
+      ],
+      "status": "EXISTS_NEEDS_ALIGNMENT"
+    },
+    {
+      "id": 5,
+      "tasklet": {
+        "name": "write_file",
+        "description": "Creates, edits, or deletes a file in the filesystem. Supports three operations: write (create or overwrite), edit (find and replace text), and delete.",
+        "params": {
+          "action_pending": { "type": "string", "required": true, "description": "Custom UI status text shown while running." },
+          "action_finished": { "type": "string", "required": true, "description": "Custom UI status text shown on success." },
+          "action_error": { "type": "string", "required": true, "description": "Custom UI status text shown on failure." },
+          "op": { "type": "string", "enum": ["write", "edit", "delete"], "required": true },
+          "path": { "type": "string", "required": true },
+          "content": { "type": "string", "description": "File content (required for write op)" },
+          "old_string": { "type": "string", "minLength": 1, "description": "Exact text to find (required for edit op)" },
+          "new_string": { "type": "string", "description": "Replacement text (required for edit op)" },
+          "replace_all": { "type": "boolean", "description": "If true, replace all occurrences." }
+        }
+      },
+      "sunder": {
+        "name": "write_file",
+        "file": "src/lib/runner/tools/storage/index.ts",
+        "description": "Write, edit, or delete files in the client workspace.",
+        "params": {
+          "op": { "type": "z.enum(['write', 'edit', 'delete'])", "required": true },
+          "path": { "type": "z.string()", "required": true, "description": "Relative file path in the client workspace." },
+          "content": { "type": "z.string().optional()", "description": "Required for write operations." },
+          "old_string": { "type": "z.string().optional()", "description": "Required for edit operations." },
+          "new_string": { "type": "z.string().optional()", "description": "Required for edit operations." },
+          "replace_all": { "type": "z.boolean().optional().default(false)" }
+        }
+      },
+      "diffs": [
+        { "field": "description", "tasklet": "Creates, edits, or deletes a file in the filesystem. Supports three operations: write (create or overwrite), edit (find and replace text), and delete.", "sunder": "Write, edit, or delete files in the client workspace.", "note": "Tasklet more descriptive about what each op does" },
+        { "field": "params.action_*", "tasklet": "Has action_pending, action_finished, action_error (required)", "sunder": "N/A", "note": "Sunder has no UI status params. These are Tasklet's streaming UI feature." },
+        { "field": "params.old_string.minLength", "tasklet": "minLength: 1", "sunder": "no minLength", "note": "Tasklet prevents empty string matches" }
+      ],
+      "status": "EXISTS_NEEDS_ALIGNMENT"
+    },
+    {
+      "id": 6,
+      "tasklet": {
+        "name": "run_subagent",
+        "description": "Runs a subagent to handle work efficiently outside of your main context. Returns the final message from the subagent as its result.\nRunning subagents reduces costs and keeps your context focused. This is especially useful when you are doing similar work multiple times.\n\nThe subagent receives the content of the markdown file followed by any payload data you provide in the first user message.\n\nBefore running a subagent, consider whether the subagent's approach still fits the current situation - you can always update its file with write_file if needed.",
+        "params": {
+          "action_pending": { "type": "string", "required": true },
+          "action_finished": { "type": "string", "required": true },
+          "action_error": { "type": "string", "required": true },
+          "path": { "type": "string", "required": true, "description": "Full path to the subagent markdown file" },
+          "payload": { "type": "string", "description": "Optional data to pass to the subagent" }
+        }
+      },
+      "sunder": null,
+      "diffs": [
+        { "field": "tool", "note": "NOT IMPLEMENTED. Subagent infrastructure planned for later phases." }
+      ],
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "id": 7,
+      "tasklet": {
+        "name": "manage_tasks",
+        "description": "Manage task items for this agent. Supports batch operations for efficiency.\n\nOperations:\n- add: Create a new task with a title and optional payload. taskId MUST NOT be set.\n- update: Modify an existing task's title or payload. taskId is REQUIRED.\n- delete: Remove a task to mark it as done. taskId is REQUIRED.\n\nYou can perform multiple operations in a single call (e.g., add multiple tasks, update several at once, or mix different operations).\n\nNote: All current tasks are visible in the agent's synced state.",
+        "params": {
+          "operations": {
+            "type": "array",
+            "required": true,
+            "items": {
+              "operation": { "enum": ["add", "update", "delete"] },
+              "taskId": { "type": "string", "description": "Required for update/delete, MUST NOT be set for add" },
+              "title": { "type": "string" },
+              "payload": { "description": "Optional JSON payload" }
+            }
+          }
+        }
+      },
+      "sunder": {
+        "name": "manage_todo",
+        "file": "src/lib/runner/tools/utility/todo.ts",
+        "description": "Manage thread-scoped scratchpad todos. Supports add, update, and delete operations in one call.",
+        "params": {
+          "operations": {
+            "type": "z.array(discriminatedUnion('op'))",
+            "items": {
+              "op": { "enum": ["add", "update", "delete"], "note": "Sunder uses 'op', Tasklet uses 'operation'" },
+              "todo_id": { "type": "z.string().uuid()", "note": "Sunder uses 'todo_id', Tasklet uses 'taskId'" },
+              "title": { "type": "z.string().min(1)" },
+              "payload": { "type": "z.record()" }
+            }
+          }
+        }
+      },
+      "diffs": [
+        { "field": "name", "tasklet": "manage_tasks", "sunder": "manage_todo", "note": "Different name — 'tasks' vs 'todo'" },
+        { "field": "description", "tasklet": "Rich description with operation docs, batch guidance, and synced state note", "sunder": "Manage thread-scoped scratchpad todos. Supports add, update, and delete operations in one call.", "note": "Tasklet much more instructive" },
+        { "field": "params.operations[].operation vs op", "tasklet": "operation", "sunder": "op", "note": "Different field name for the operation type" },
+        { "field": "params.operations[].taskId vs todo_id", "tasklet": "taskId", "sunder": "todo_id", "note": "Different ID field name" },
+        { "field": "params.operations max", "tasklet": "no max", "sunder": "max(20)", "note": "Sunder caps batch at 20" }
+      ],
+      "status": "EXISTS_NEEDS_ALIGNMENT"
+    },
+    {
+      "id": 8,
+      "tasklet": {
+        "name": "list_tasks",
+        "description": "List tasks for this agent. Can optionally filter by specific task IDs.",
+        "params": {
+          "taskIds": { "type": "array of strings", "description": "Optional array of task IDs to filter." }
+        }
+      },
+      "sunder": {
+        "name": "list_todo",
+        "file": "src/lib/runner/tools/utility/todo.ts",
+        "description": "List open todos for the current thread.",
+        "params": {
+          "ids": { "type": "z.array(z.string().uuid())", "description": "Optional list of todo UUIDs to include." }
+        }
+      },
+      "diffs": [
+        { "field": "name", "tasklet": "list_tasks", "sunder": "list_todo" },
+        { "field": "description", "tasklet": "List tasks for this agent. Can optionally filter by specific task IDs.", "sunder": "List open todos for the current thread.", "note": "Sunder scopes to thread, Tasklet to agent" },
+        { "field": "params.taskIds vs ids", "tasklet": "taskIds", "sunder": "ids" }
+      ],
+      "status": "EXISTS_NEEDS_ALIGNMENT"
+    },
+    {
+      "id": 9,
+      "tasklet": {
+        "name": "run_agent_memory_sql",
+        "description": "Runs a SQL query against the agent's SQL database.",
+        "params": {
+          "query": { "type": "string", "required": true, "description": "The SQL query to execute. Must be a single SQL statement." }
+        }
+      },
+      "sunder": {
+        "name": "run_agent_memory_sql",
+        "file": "src/lib/runner/tools/utility/sql.ts",
+        "description": "Run a single read-only SQL query against client-accessible tables. Use get_agent_db_schema first to inspect available schema.",
+        "params": {
+          "query": { "type": "z.string().min(1)", "required": true, "description": "SQL SELECT/CTE query to execute." }
+        }
+      },
+      "diffs": [
+        { "field": "name", "note": "IDENTICAL" },
+        { "field": "description", "tasklet": "Runs a SQL query against the agent's SQL database.", "sunder": "Run a single read-only SQL query against client-accessible tables. Use get_agent_db_schema first to inspect available schema.", "note": "Sunder adds read-only constraint and cross-references get_agent_db_schema. Tasklet's is generic (doesn't say read-only)." },
+        { "field": "params.query.description", "tasklet": "The SQL query to execute. Must be a single SQL statement.", "sunder": "SQL SELECT/CTE query to execute.", "note": "Sunder explicitly restricts to SELECT/CTE. Tasklet says 'single statement' (implies any DML?)." }
+      ],
+      "status": "EXISTS_CLOSE_MATCH"
+    },
+    {
+      "id": 10,
+      "tasklet": {
+        "name": "get_agent_db_schema",
+        "description": "Retrieves the complete schema of the agent's SQL database, including all table definitions, column types, and row counts.",
+        "params": {}
+      },
+      "sunder": {
+        "name": "get_agent_db_schema",
+        "file": "src/lib/runner/tools/utility/sql.ts",
+        "description": "Get available tables, columns, and row counts for the agent SQL workspace.",
+        "params": {}
+      },
+      "diffs": [
+        { "field": "name", "note": "IDENTICAL" },
+        { "field": "description", "tasklet": "Retrieves the complete schema of the agent's SQL database, including all table definitions, column types, and row counts.", "sunder": "Get available tables, columns, and row counts for the agent SQL workspace.", "note": "Tasklet slightly more precise ('complete schema', 'column types')" }
+      ],
+      "status": "EXISTS_CLOSE_MATCH"
+    },
+    {
+      "id": 11,
+      "tasklet": {
+        "name": "send_message",
+        "description": "Send a message to the user or other verified contact methods via:\n- Email\n- Text\n\nMessages will come from an email address or phone number associated with this agent.\n\nUse 'owner' as the recipient to send to the user's primary email (always available). For other addresses, they must be verified first using add_contact_method.\n\nFor replies to existing threads, use reply_message instead.",
+        "params": {
+          "to": { "type": "array of strings", "required": true, "description": "Recipients. Use 'owner' for account owner's primary email. Cannot mix email and text." },
+          "body": { "type": "string", "required": true, "description": "Message body. Supports markdown for email." },
+          "subject": { "type": "string", "description": "Required for email, disallowed for others." },
+          "attachments": { "type": "array of strings", "description": "File paths in /agent/ to attach." }
+        }
+      },
+      "sunder": {
+        "name": "send_message",
+        "file": "src/lib/runner/tools/utility/send-message.ts",
+        "description": "Send a message to the user or another verified contact method. Use 'owner' to target the account owner's primary email. This environment currently logs the intent but does not deliver the message.",
+        "params": {
+          "to": { "type": "z.array(z.string().min(1)).min(1)", "required": true, "description": "Recipients. Use 'owner' for the primary user email." },
+          "body": { "type": "z.string().min(1)", "required": true, "description": "Message body. Supports markdown for email." },
+          "subject": { "type": "z.string().min(1).optional()", "description": "Email subject." },
+          "attachments": { "type": "z.array(z.string().min(1)).optional()", "description": "Attachment file paths." }
+        }
+      },
+      "diffs": [
+        { "field": "name", "note": "IDENTICAL" },
+        { "field": "description", "tasklet": "Rich multi-line with channel types, owner shortcut, verification note, and reply_message cross-ref", "sunder": "Shorter, includes stub warning 'does not deliver the message'", "note": "Sunder is a stub. When delivery is wired, should adopt Tasklet's full description." },
+        { "field": "params.to.description", "tasklet": "Detailed: cannot mix email and text recipients", "sunder": "Minimal", "note": "Sunder should add the mixing constraint" },
+        { "field": "params.subject", "tasklet": "Required for email, disallowed for others", "sunder": "Just 'Email subject'", "note": "Tasklet clarifies when subject is required vs disallowed" }
+      ],
+      "status": "EXISTS_STUB"
+    },
+    {
+      "id": 12,
+      "tasklet": {
+        "name": "reply_message",
+        "description": "Reply to an existing message thread. For email, this sends a reply-all. For text, this continues the same conversation.",
+        "params": {
+          "messageId": { "type": "string", "required": true, "description": "The message ID to reply to." },
+          "body": { "type": "string", "required": true },
+          "attachments": { "type": "array of strings" }
+        }
+      },
+      "sunder": null,
+      "diffs": [
+        { "field": "tool", "note": "NOT IMPLEMENTED. Depends on messaging infrastructure (Phase 3+)." }
+      ],
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "id": 13,
+      "tasklet": {
+        "name": "list_contact_methods",
+        "description": "List all available contact methods. Returns the user's primary email (use 'owner' as recipient) and any verified additional contact methods.",
+        "params": {}
+      },
+      "sunder": null,
+      "diffs": [
+        { "field": "tool", "note": "NOT IMPLEMENTED. Depends on messaging infrastructure." }
+      ],
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "id": 14,
+      "tasklet": {
+        "name": "add_contact_method",
+        "description": "Add a new contact method. Supported types: Email, Text. Contact methods must be verified before sending. Verification: Email clicks link, Text sends a message. Owner's email always available without verification.",
+        "params": {
+          "type": { "type": "string", "enum": ["email", "text"], "required": true },
+          "value": { "type": "string", "required": true, "description": "Email address or E.164 phone number" },
+          "name": { "type": "string", "required": true, "description": "Label for this contact method, used as sender name" }
+        }
+      },
+      "sunder": null,
+      "diffs": [
+        { "field": "tool", "note": "NOT IMPLEMENTED. Depends on messaging infrastructure." }
+      ],
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "id": 15,
+      "tasklet": {
+        "name": "search_triggers",
+        "description": "Search for available triggers by keywords.\nReturns a list of trigger types that match the search criteria, along with their setup schemas and any prerequisites.\n\nUse this tool to discover what triggers are available before setting one up.\n\nThe setupSchema field of each returned trigger describes the schema of the params object that should be passed into the setup_trigger tool.\n\nTriggers that support editing will include an editSchema field describing the parameters for the edit action in manage_active_triggers.",
+        "params": {
+          "keywords": { "type": "array of strings", "required": true, "description": "One or more keywords to search for available triggers" }
+        }
+      },
+      "sunder": {
+        "name": "search_triggers",
+        "file": "src/lib/runner/tools/triggers/search-triggers.ts",
+        "description": "Search available trigger types by keyword and return the setup schema and edit schema for each match.",
+        "params": {
+          "keywords": { "type": "z.array(z.string().min(1)).min(1)", "required": true }
+        }
+      },
+      "diffs": [
+        { "field": "name", "note": "IDENTICAL" },
+        { "field": "description", "tasklet": "Multi-line with workflow guidance: discover before setup, setupSchema explains params, editSchema for manage_active_triggers", "sunder": "Single line: 'Search available trigger types by keyword and return the setup schema and edit schema for each match.'", "note": "Tasklet's description guides the agent through the full trigger workflow. Sunder's is minimal." }
+      ],
+      "status": "EXISTS_NEEDS_ALIGNMENT"
+    },
+    {
+      "id": 16,
+      "tasklet": {
+        "name": "setup_trigger",
+        "description": "Set up a new trigger instance. First use search_triggers to find available triggers and their setup schemas, then call this tool with the trigger ID and required parameters.\nOn completion, shows the user a UI card with the trigger details.",
+        "params": {
+          "trigger_id": { "type": "string", "required": true, "description": "The ID of the trigger type to set up" },
+          "params": { "type": "object", "required": true, "description": "Setup parameters as defined by the trigger's setupSchema" },
+          "invocation_message": { "type": "string", "maxLength": 200, "description": "Optional short message included each time trigger runs" }
+        }
+      },
+      "sunder": {
+        "name": "setup_trigger",
+        "file": "src/lib/runner/tools/triggers/setup-trigger.ts",
+        "description": "Create a new trigger instance for the current thread using the trigger ID and params returned by search_triggers.",
+        "params": {
+          "trigger_id": { "type": "z.string().min(1)", "required": true },
+          "name": { "type": "z.string().min(1)", "required": true, "note": "EXTRA: Sunder requires a name field Tasklet doesn't" },
+          "instruction_path": { "type": "z.string().min(1)", "required": true, "note": "EXTRA: Sunder requires instruction_path Tasklet doesn't" },
+          "params": { "type": "z.record(z.string(), z.unknown())", "required": true },
+          "invocation_message": { "type": "z.string().min(1).max(200).optional()" }
+        }
+      },
+      "diffs": [
+        { "field": "name", "note": "IDENTICAL" },
+        { "field": "description", "tasklet": "Includes workflow guidance and UI card mention", "sunder": "Simpler wording", "note": "Tasklet cross-references search_triggers" },
+        { "field": "params.name", "tasklet": "N/A", "sunder": "REQUIRED", "note": "Sunder has extra 'name' param Tasklet doesn't" },
+        { "field": "params.instruction_path", "tasklet": "N/A", "sunder": "REQUIRED", "note": "Sunder has extra 'instruction_path' param Tasklet doesn't — ties trigger to a file with instructions" }
+      ],
+      "status": "EXISTS_NEEDS_ALIGNMENT"
+    },
+    {
+      "id": 17,
+      "tasklet": {
+        "name": "manage_active_triggers",
+        "description": "Manage the agent's active triggers.\n\nActions:\n- list: Returns all active triggers\n- view: Shows detailed info. Requires trigger_instance_id.\n- delete: Removes a trigger. Destructive.\n- simulate: Fires a test event. Requires payload.\n- edit: Modifies config. Requires edit_params and/or invocation_message.",
+        "params": {
+          "action": { "type": "string", "enum": ["list", "view", "delete", "simulate", "edit"], "required": true },
+          "trigger_instance_id": { "type": "string", "description": "Required for view/delete/simulate/edit" },
+          "edit_params": { "type": "object" },
+          "invocation_message": { "type": "string|null", "maxLength": 200 },
+          "payload": { "type": "object", "description": "Required for simulate" }
+        }
+      },
+      "sunder": {
+        "name": "manage_active_triggers",
+        "file": "src/lib/runner/tools/triggers/manage-triggers.ts",
+        "description": "List, inspect, edit, delete, or simulate active user-created triggers for the current client.",
+        "params": {
+          "action": { "type": "z.enum(['list', 'view', 'delete', 'simulate', 'edit'])", "required": true },
+          "trigger_instance_id": { "type": "z.string().uuid().optional()" },
+          "edit_params": { "type": "z.record(z.string(), z.unknown()).optional()" },
+          "invocation_message": { "type": "z.string().min(1).max(200).nullable().optional()" },
+          "payload": { "type": "z.record(z.string(), z.unknown()).optional()" }
+        }
+      },
+      "diffs": [
+        { "field": "name", "note": "IDENTICAL" },
+        { "field": "description", "tasklet": "Multi-line with per-action docs and requirements", "sunder": "Single line summary", "note": "Tasklet's per-action documentation is much more instructive for the model" },
+        { "field": "params", "note": "Schema is functionally equivalent. Sunder uses z.string().uuid() for trigger_instance_id (stricter)." }
+      ],
+      "status": "EXISTS_NEEDS_ALIGNMENT"
+    },
+    {
+      "id": 18,
+      "tasklet": {
+        "name": "list_users_connections",
+        "description": "Lists all connections to external services that the user has already created in their account.\nReturns connectionId, serviceName, description, accountName, connectionType, and connection-specific details for each connection.",
+        "params": {}
+      },
+      "sunder": {
+        "name": "list_users_connections",
+        "file": "src/lib/runner/tools/connections/list-connections.ts",
+        "description": "Lists all connections to external services that the user has already created in their account. Returns active, inactive, error, and pending connections with connectionId, serviceName, description, accountName, connectionType, and connection-specific details.",
+        "params": {}
+      },
+      "diffs": [
+        { "field": "name", "note": "IDENTICAL" },
+        { "field": "description", "note": "Nearly identical. Sunder adds 'active, inactive, error, and pending' status clarification." }
+      ],
+      "status": "EXISTS_CLOSE_MATCH"
+    },
+    {
+      "id": 19,
+      "tasklet": {
+        "name": "get_details_for_connections",
+        "description": "Gets detailed information for the listed connections.\nReturns a full list of tools, including both activated and deactivated tools, for each connection, including full detailed descriptions and arguments if requested.\nAlso returns connectionId, serviceName, description, accountName, connectionType, toolCount, and other connection-specific details.\n\nUse this to:\n- Discover what actions you can perform with a connection before activating it\n- Check which tools are already activated for a connection\n- Verify exact tool names before activating connections",
+        "params": {
+          "connectionIds": { "type": "array of strings", "required": true },
+          "includeToolDetails": { "type": "boolean", "required": true, "description": "Pass true to include detailed descriptions and arguments" }
+        }
+      },
+      "sunder": {
+        "name": "get_details_for_connections",
+        "file": "src/lib/runner/tools/connections/get-connection-details.ts",
+        "description": "Gets detailed information for the listed connections. Returns a full list of tools, including both activated and deactivated tools, for each connection, including full descriptions and arguments if requested. Use this to discover what actions are available before activating tools.",
+        "params": {
+          "connectionIds": { "type": "z.array(z.string().min(1))", "required": true },
+          "includeToolDetails": { "type": "z.boolean()", "required": true }
+        }
+      },
+      "diffs": [
+        { "field": "name", "note": "IDENTICAL" },
+        { "field": "description", "tasklet": "Includes 3-bullet 'Use this to' guide", "sunder": "Single 'Use this to' sentence", "note": "Tasklet more instructive with specific use cases" }
+      ],
+      "status": "EXISTS_CLOSE_MATCH"
+    },
+    {
+      "id": 20,
+      "tasklet": {
+        "name": "get_integrations_capabilities",
+        "description": "Lists the capabilities available via the given integrations, including tools (if available), quality information (GREAT, GOOD, OK, LIMITED, and UNKNOWN), and notes.",
+        "params": {
+          "integrationIds": { "type": "array of strings", "required": true }
+        }
+      },
+      "sunder": {
+        "name": "get_integrations_capabilities",
+        "file": "src/lib/runner/tools/connections/get-integration-capabilities.ts",
+        "description": "Lists the capabilities available via the given integrations, including tools, quality information, and notes.",
+        "params": {
+          "integrationIds": { "type": "z.array(z.string().min(1))", "required": true }
+        }
+      },
+      "diffs": [
+        { "field": "name", "note": "IDENTICAL" },
+        { "field": "description", "tasklet": "Enumerates quality levels: GREAT, GOOD, OK, LIMITED, UNKNOWN", "sunder": "Just says 'quality information'", "note": "Minor — Tasklet spells out the quality levels" }
+      ],
+      "status": "EXISTS_CLOSE_MATCH"
+    },
+    {
+      "id": 21,
+      "tasklet": {
+        "name": "search_for_integrations",
+        "description": "Lists integrations that match one or more given keywords. Keywords are single words.\nSearches integrations built by the Tasklet team as well as integrations from Pipedream (over 3000 total).\n\nNEVER mention integration quality scores or who built the integrations unless the user specifically asks.\n\nOnce you have the integration ID you can get more info using get_integrations_capabilities.",
+        "params": {
+          "keywords": { "type": "array of strings", "required": true, "description": "Single-word keywords. Verify exact tool names by calling get_integrations_capabilities first." }
+        }
+      },
+      "sunder": {
+        "name": "search_for_integrations",
+        "file": "src/lib/runner/tools/connections/search-integrations.ts",
+        "description": "Lists integrations that match one or more given keywords. Keywords are single words like email, billing, tasks, Gmail, or Slack. Returns integration ID, name, description, quality score, builder, and context. NEVER mention quality or builder unless the user specifically asks.",
+        "params": {
+          "keywords": { "type": "z.array(z.string().min(1))", "required": true }
+        }
+      },
+      "diffs": [
+        { "field": "name", "note": "IDENTICAL" },
+        { "field": "description", "tasklet": "References Pipedream and get_integrations_capabilities cross-ref", "sunder": "Lists return fields explicitly, has NEVER mention rule", "note": "Both have the NEVER mention rule. Tasklet adds cross-reference to get_integrations_capabilities. Sunder references Composio catalog instead of Pipedream." }
+      ],
+      "status": "EXISTS_CLOSE_MATCH"
+    },
+    {
+      "id": 22,
+      "tasklet": {
+        "name": "manage_activated_tools_for_connections",
+        "description": "Activates or deactivates tools for connections.\nChanging activation status requires user approval via UI card.\nReturns connectionId, userAction, tools {activated, deactivated}, and optional skills instructions.\n\nActivated tools appear prefixed by connection ID. If you don't see the tool you need try activating it first.\nMUST read skills file before using connection tools.",
+        "params": {
+          "connections": {
+            "type": "array",
+            "required": true,
+            "items": {
+              "connectionId": { "type": "string", "required": true },
+              "activate": { "type": "array of strings", "required": true },
+              "deactivate": { "type": "array of strings", "required": true }
+            }
+          }
+        }
+      },
+      "sunder": {
+        "name": "manage_activated_tools_for_connections",
+        "file": "src/lib/runner/tools/connections/manage-tools.ts",
+        "description": "Activates or deactivates tools for existing connections. Activated tools become available with names prefixed by the connection ID. Use get_details_for_connections first if you need the exact tool names.",
+        "params": {
+          "connections": {
+            "type": "z.array",
+            "items": {
+              "connectionId": { "type": "z.string().trim().min(1)" },
+              "activate": { "type": "z.array(z.string().trim().min(1))" },
+              "deactivate": { "type": "z.array(z.string().trim().min(1))" }
+            }
+          }
+        }
+      },
+      "diffs": [
+        { "field": "name", "note": "IDENTICAL" },
+        { "field": "description", "tasklet": "Mentions user approval UI card, MUST read skills file, return shape", "sunder": "Simpler, cross-references get_details_for_connections", "note": "Tasklet has important skill file MUST-read instruction. Sunder's version auto-hints skill file in response only when first tools are activated." }
+      ],
+      "status": "EXISTS_NEEDS_ALIGNMENT"
+    },
+    {
+      "id": 23,
+      "tasklet": {
+        "name": "reauthorize_connection",
+        "description": "Re-authorizes an existing connection that has expired or needs new permissions. Displays a UI card where the user can complete the auth flow.\n\nUse this tool if and only if there were authorization errors or the user explicitly asks.\nRe-authorizing cannot change which account the connection is logged into.",
+        "params": {
+          "connectionId": { "type": "string", "required": true }
+        }
+      },
+      "sunder": {
+        "name": "reauthorize_connection",
+        "file": "src/lib/runner/tools/connections/reauthorize-connection.ts",
+        "description": "Re-authorizes an existing connection that has expired or needs refreshed permissions. Attempts silent refresh first, then falls back to a user-facing re-authorization URL if required.",
+        "params": {
+          "connectionId": { "type": "z.string().trim().min(1)", "required": true }
+        }
+      },
+      "diffs": [
+        { "field": "name", "note": "IDENTICAL" },
+        { "field": "description", "tasklet": "Includes 'if and only if auth errors' guard and 'cannot change account' warning", "sunder": "Focuses on implementation (silent refresh fallback)", "note": "Tasklet's behavioral guardrails are more important for the model than implementation details" }
+      ],
+      "status": "EXISTS_NEEDS_ALIGNMENT"
+    },
+    {
+      "id": 24,
+      "tasklet": {
+        "name": "delete_connection",
+        "description": "PERMANENTLY DELETES a connection from the user's account. Displays a confirmation UI. This is destructive and cannot be undone.\n\nWARNING: Only use when user explicitly wants to DELETE the connection itself.\nDO NOT use if user wants to remove/deactivate tools → use manage_activated_tools_for_connections instead.",
+        "params": {
+          "connectionId": { "type": "string", "required": true }
+        }
+      },
+      "sunder": {
+        "name": "delete_connection",
+        "file": "src/lib/runner/tools/connections/delete-connection.ts",
+        "description": "Permanently deletes a connection from the user's account. Use this only when the user explicitly wants the connection itself removed, not when they only want tools deactivated.",
+        "params": {
+          "connectionId": { "type": "z.string().trim().min(1)", "required": true }
+        }
+      },
+      "diffs": [
+        { "field": "name", "note": "IDENTICAL" },
+        { "field": "description", "tasklet": "CAPS WARNING, 'destructive and cannot be undone', explicit DO NOT use + redirect", "sunder": "Calmer wording, same semantic", "note": "Tasklet's aggressive warning style is intentional for model safety. Sunder should adopt the stronger wording." }
+      ],
+      "status": "EXISTS_NEEDS_ALIGNMENT"
+    },
+    {
+      "id": 25,
+      "tasklet": {
+        "name": "create_new_connections",
+        "description": "Creates new connections to external services. Displays UI card for user authorization.\n\nIMPORTANT: MUST read /agent/skills/system/creating-connections/SKILL.md before using.\n\nSupports 4 types: integrations, MCP, Direct API (HTTP), Computer Use.\n\nReturns userAction, connectionId, tools list, and connection details.",
+        "params": {
+          "connection": {
+            "type": "discriminatedUnion on 'type'",
+            "variants": ["integrations", "mcp", "direct_api", "computer_use"]
+          }
+        }
+      },
+      "sunder": {
+        "name": "create_new_connections",
+        "file": "src/lib/runner/tools/connections/create-connection.ts",
+        "description": "Creates new connections to external services. For integrations, initiates OAuth and returns a redirect URL for the user to complete authorization. If skills/system/creating-connections/SKILL.md exists, you MUST read it before using this tool.",
+        "params": {
+          "connection": {
+            "type": "z.discriminatedUnion('type')",
+            "variants": ["integrations", "mcp", "direct_api", "computer_use"],
+            "note": "mcp, direct_api, computer_use all return stub errors"
+          }
+        }
+      },
+      "diffs": [
+        { "field": "name", "note": "IDENTICAL" },
+        { "field": "description", "tasklet": "References absolute skill path, mentions all 4 types", "sunder": "Conditional skill read ('if exists'), focuses on integrations", "note": "Both have MUST read skill file. Sunder's conditional is weaker." },
+        { "field": "implementation", "note": "Sunder stubs out mcp, direct_api, computer_use — only integrations works" }
+      ],
+      "status": "EXISTS_NEEDS_ALIGNMENT"
+    },
+    {
+      "id": 26,
+      "tasklet": {
+        "name": "show_user_preview",
+        "description": "Opens the preview panel on the right side of the user's screen and displays the file or computer use content specified.",
+        "params": {
+          "kind": { "type": "string", "enum": ["computer", "file", "app"], "required": true },
+          "filepath": { "type": "string", "description": "Required when kind is file" },
+          "title": { "type": "string", "description": "Required when kind is file" },
+          "rootPath": { "type": "string", "description": "Required when kind is app" },
+          "connectionId": { "type": "string", "description": "Required when kind is computer" }
+        }
+      },
+      "sunder": null,
+      "diffs": [
+        { "field": "tool", "note": "NOT IMPLEMENTED. Preview panel is a Tasklet UI feature not in Sunder's v1 scope." }
+      ],
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "id": 27,
+      "tasklet": {
+        "name": "close_user_preview",
+        "description": "Closes the right-side preview panel.",
+        "params": {}
+      },
+      "sunder": null,
+      "diffs": [
+        { "field": "tool", "note": "NOT IMPLEMENTED. Depends on show_user_preview." }
+      ],
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "id": 28,
+      "tasklet": {
+        "name": "create_instant_app",
+        "description": "Scaffolds a new multi-file TSX instant app under /agent/home/apps/<name>/ with a working hello world, DaisyUI styling, and typed bridge wrappers.",
+        "params": {
+          "name": { "type": "string", "required": true },
+          "displayName": { "type": "string", "required": true },
+          "description": { "type": "string", "required": true }
+        }
+      },
+      "sunder": null,
+      "diffs": [
+        { "field": "tool", "note": "NOT IMPLEMENTED. Instant apps are a Tasklet premium feature not in Sunder's scope." }
+      ],
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "id": 29,
+      "tasklet": {
+        "name": "toggle_pin_app",
+        "description": "Pins or unpins an app in the user's sidebar. Only call when user explicitly asks.",
+        "params": {
+          "rootPath": { "type": "string", "required": true },
+          "pinned": { "type": "boolean", "required": true }
+        }
+      },
+      "sunder": null,
+      "diffs": [
+        { "field": "tool", "note": "NOT IMPLEMENTED. Depends on instant apps." }
+      ],
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "id": 30,
+      "tasklet": {
+        "name": "suggest_intelligence_level_change",
+        "description": "Shows a UI prompt asking the user whether to change intelligence. Only use when user explicitly asks or a skill instructs you to.",
+        "params": {
+          "suggestedIntelligence": { "type": "string", "enum": ["standard", "advanced", "expert", "genius"], "required": true },
+          "message": { "type": "string", "required": true }
+        }
+      },
+      "sunder": null,
+      "diffs": [
+        { "field": "tool", "note": "NOT IMPLEMENTED. Sunder uses single-tier model routing in v1 (Gemini Flash). Multi-tier deferred." }
+      ],
+      "status": "NOT_IMPLEMENTED"
+    },
+    {
+      "id": 31,
+      "tasklet": {
+        "name": "rename_chat",
+        "description": "Renames the chat. Titles should be a concise 3-5 word summary that captures the goal and key tools. If the user requests a specific name, use that name.",
+        "params": {
+          "new_title": { "type": "string", "required": true, "description": "The new title for the chat." }
+        }
+      },
+      "sunder": {
+        "name": "rename_chat",
+        "file": "src/lib/runner/tools/utility/rename-chat.ts",
+        "description": "Rename the current conversation thread to a concise, descriptive title.",
+        "params": {
+          "new_title": { "type": "z.string().min(1).max(200)", "required": true, "description": "New title for this conversation." }
+        }
+      },
+      "diffs": [
+        { "field": "name", "note": "IDENTICAL" },
+        { "field": "description", "tasklet": "Renames the chat. Titles should be a concise 3-5 word summary that captures the goal and key tools. If the user requests a specific name, use that name.", "sunder": "Rename the current conversation thread to a concise, descriptive title.", "note": "Tasklet adds specific guidance: '3-5 word summary', 'captures goal and key tools', 'user override'" }
+      ],
+      "status": "EXISTS_NEEDS_ALIGNMENT"
+    }
+  ],
+  "sunder_only_tools": {
+    "description": "Tools Sunder has that Tasklet does NOT have",
+    "tools": [
+      {
+        "name": "search_knowledge",
+        "file": "src/lib/runner/tools/storage/index.ts",
+        "description": "Search Knowledge Base files by keyword. Returns matching filenames and summaries.",
+        "note": "Sunder-specific. Tasklet has no equivalent — their agents use read_file + grep via run_command for discovery."
+      },
+      {
+        "name": "ask_user_question",
+        "file": "src/lib/runner/tools/utility/ask-user-question.ts",
+        "description": "Ask the user a question with structured options (2-4 choices).",
+        "note": "Sunder-specific structured input tool. Tasklet has no equivalent — their agents just ask in prose."
+      },
+      {
+        "name": "CRM tools (28 total)",
+        "note": "10 read + 18 write tools across contacts, companies, deals, tasks, interactions, custom fields, and postgrest query. Tasklet has ZERO domain-specific tools — all CRM work goes through SQL or connections. This is the primary tool-count gap (28 of the 21-tool delta)."
+      }
+    ]
+  },
+  "summary": {
+    "total_tasklet_tools": 31,
+    "total_sunder_tools": 52,
+    "matching_tools": 20,
+    "close_match": 6,
+    "needs_alignment": 10,
+    "sunder_stubs": 1,
+    "not_implemented": 10,
+    "sunder_only": 31
+  }
+}
