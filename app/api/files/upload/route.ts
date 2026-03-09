@@ -3,12 +3,11 @@
  * Returns the reference-compatible metadata payload used by the chat composer.
  * @module app/api/files/upload/route
  */
-import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { getFileExtension } from "@/lib/file-utils";
-import { createClient } from "@/lib/supabase/server";
 
 const BUCKET_ID = "chat-attachments";
 
@@ -37,15 +36,9 @@ const fileSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResult = await authenticateRequest();
+  if (authResult.kind === "error") return authResult.response;
+  const { supabase, userId } = authResult;
 
   try {
     const formData = await request.formData();
@@ -53,21 +46,21 @@ export async function POST(request: Request) {
     const filenameField = formData.get("filename");
 
     if (fileEntry === null || typeof fileEntry === "string") {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+      return jsonError("No file uploaded", 400);
     }
 
     const validatedFile = fileSchema.safeParse({ file: fileEntry });
     if (!validatedFile.success) {
-      return NextResponse.json(
-        { error: validatedFile.error.issues.map((issue) => issue.message).join(", ") },
-        { status: 400 },
+      return jsonError(
+        validatedFile.error.issues.map((issue) => issue.message).join(", "),
+        400,
       );
     }
 
-    const clientId = await resolveClientId(supabase, user.id);
+    const clientId = await resolveClientId(supabase, userId);
     const filename = typeof filenameField === "string" && filenameField.trim().length > 0
       ? filenameField.trim()
-      : (formData.get("file") as File).name;
+      : (fileEntry as File).name;
     const fileExtension = getFileExtension(filename) || "jpg";
     const storageFilename = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${fileExtension}`;
     const storagePath = `${clientId}/${storageFilename}`;
@@ -80,19 +73,19 @@ export async function POST(request: Request) {
       });
 
     if (uploadError) {
-      return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+      return jsonError("Upload failed", 500);
     }
 
     const {
       data: { publicUrl },
     } = supabase.storage.from(BUCKET_ID).getPublicUrl(storagePath);
 
-    return NextResponse.json({
+    return Response.json({
       url: publicUrl,
       pathname: filename,
       contentType: fileEntry.type,
     });
   } catch {
-    return NextResponse.json({ error: "Failed to process request" }, { status: 500 });
+    return jsonError("Failed to process request", 500);
   }
 }

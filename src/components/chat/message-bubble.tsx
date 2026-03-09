@@ -7,6 +7,8 @@
  */
 "use client";
 
+import { memo } from "react";
+
 import {
   Message,
   MessageContent,
@@ -16,7 +18,7 @@ import { Shimmer } from "@/components/ai-elements/shimmer";
 import { cn } from "@/lib/utils";
 import { AskUserQuestionInline, type AskUserQuestion } from "./ask-user-question-inline";
 import { getMessageText, type ChatUIMessage } from "./message-content";
-import { PreviewAttachment } from "./preview-attachment";
+import { PreviewAttachment, type Attachment } from "./preview-attachment";
 import { StepsSummary } from "./steps-summary";
 
 interface MessageBubbleProps {
@@ -28,7 +30,11 @@ interface MessageBubbleProps {
   onQuestionSubmit?: (text: string) => void;
 }
 
-export function MessageBubble({ message, isStreaming = false, onToolApproval, onQuestionSubmit }: MessageBubbleProps) {
+function filePartToAttachment(part: { filename?: string; url: string; mediaType: string }): Attachment {
+  return { filename: part.filename ?? "file", url: part.url, contentType: part.mediaType };
+}
+
+export const MessageBubble = memo(function MessageBubble({ message, isStreaming = false, onToolApproval, onQuestionSubmit }: MessageBubbleProps) {
   const isUserMessage = message.role === "user";
   const fileParts = message.parts.filter(
     (part): part is Extract<ChatUIMessage["parts"][number], { type: "file" }> => part.type === "file",
@@ -59,11 +65,7 @@ export function MessageBubble({ message, isStreaming = false, onToolApproval, on
             <div className="flex flex-wrap justify-end gap-2">
               {fileParts.map((part, index) => (
                 <PreviewAttachment
-                  attachment={{
-                    filename: part.filename ?? "file",
-                    url: part.url,
-                    contentType: part.mediaType,
-                  }}
+                  attachment={filePartToAttachment(part)}
                   key={`${message.id}-file-${index}`}
                 />
               ))}
@@ -137,4 +139,4 @@ export function MessageBubble({ message, isStreaming = false, onToolApproval, on
       </MessageContent>
     </Message>
   );
-}
+});

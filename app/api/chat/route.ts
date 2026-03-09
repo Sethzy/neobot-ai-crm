@@ -7,12 +7,12 @@ import { createUIMessageStream, createUIMessageStreamResponse, generateId } from
 import { after } from "next/server";
 import { createResumableStreamContext } from "resumable-stream";
 
+import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { generateTitleFromUserMessage } from "@/lib/ai/title";
 import { clearActiveStreamId, setActiveStreamId } from "@/lib/redis";
 import { runAgent } from "@/lib/runner/run-agent";
 import type { RunnerFilePart } from "@/lib/runner/schemas";
-import { createClient } from "@/lib/supabase/server";
 import { type PostRequestBody, postRequestBodySchema } from "./schema";
 
 /** Allows longer streaming runs on Vercel functions. */
@@ -24,10 +24,6 @@ function getStreamContext() {
   } catch (_) {
     return null;
   }
-}
-
-function jsonError(message: string, status: number): Response {
-  return Response.json({ error: message }, { status });
 }
 
 function getTextFromUnknownParts(parts: unknown[]): string | null {
@@ -111,18 +107,12 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError("Invalid request body: could not resolve latest user message text.", 400);
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return jsonError("Unauthorized.", 401);
-  }
+  const authResult = await authenticateRequest();
+  if (authResult.kind === "error") return authResult.response;
+  const { supabase, userId } = authResult;
 
   try {
-    const clientId = await resolveClientId(supabase, user.id);
+    const clientId = await resolveClientId(supabase, userId);
     const { data: thread, error: threadLookupError } = await supabase
       .from("conversation_threads")
       .select("thread_id")

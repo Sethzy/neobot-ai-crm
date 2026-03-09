@@ -69,7 +69,7 @@ describe("POST /api/files/upload", () => {
     );
 
     expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toEqual({ error: "Unauthorized" });
+    await expect(response.json()).resolves.toEqual({ error: "Unauthorized." });
   });
 
   it("returns 400 when no file is provided", async () => {
