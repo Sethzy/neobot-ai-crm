@@ -1487,7 +1487,7 @@
           "pr": "22e",
           "title": "Absolute agent paths (/agent/ prefix)",
           "status": "done",
-          "simplified": false,
+          "simplified": true,
           "decisions": [
             "TOOL-01",
             "TASKLET-01"
