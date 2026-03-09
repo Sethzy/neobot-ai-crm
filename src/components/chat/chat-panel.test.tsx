@@ -257,6 +257,24 @@ describe("ChatPanel", () => {
   it("sends trimmed text via sendMessage", async () => {
     const user = userEvent.setup();
 
+    mockUseChat.mockReturnValue({
+      id: "thread-1",
+      messages: [
+        { id: "u1", role: "user", parts: [{ type: "text", text: "Hi" }] },
+      ],
+      status: "ready",
+      error: undefined,
+      sendMessage,
+      setMessages,
+      regenerate: vi.fn(),
+      clearError: vi.fn(),
+      stop,
+      resumeStream: vi.fn(),
+      addToolResult: vi.fn(),
+      addToolOutput: vi.fn(),
+      addToolApprovalResponse: vi.fn(),
+    });
+
     render(<ChatPanel chatId="thread-1" />);
 
     await user.type(screen.getByPlaceholderText(/send a message/i), "  Hello there  ");
@@ -274,7 +292,9 @@ describe("ChatPanel", () => {
 
     mockUseChat.mockReturnValue({
       id: "thread-1",
-      messages: [],
+      messages: [
+        { id: "u1", role: "user", parts: [{ type: "text", text: "Hi" }] },
+      ],
       status: "streaming",
       error: undefined,
       sendMessage,
@@ -324,14 +344,14 @@ describe("ChatPanel", () => {
     const user = userEvent.setup();
     render(<ChatPanel chatId="thread-1" />);
 
-    expect(screen.getByText(/start a conversation/i)).toBeInTheDocument();
+    expect(screen.getByText(/what can i do for you/i)).toBeInTheDocument();
     expect(screen.getByText("Morning CRM briefing")).toBeInTheDocument();
 
     await user.click(screen.getByText("Morning CRM briefing"));
 
     // Should pre-fill the composer, NOT send immediately
     expect(sendMessage).not.toHaveBeenCalled();
-    const textarea = screen.getByPlaceholderText(/send a message/i) as HTMLTextAreaElement;
+    const textarea = screen.getByPlaceholderText(/describe a task/i) as HTMLTextAreaElement;
     expect(textarea.value).toContain("Set up a daily morning briefing automation.");
   });
 
@@ -356,7 +376,7 @@ describe("ChatPanel", () => {
 
     render(<ChatPanel chatId="thread-1" />);
 
-    expect(screen.queryByText(/start a conversation/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/what can i do for you/i)).not.toBeInTheDocument();
   });
 
   it("wires addToolApprovalResponse from useChat to MessageList as onToolApproval", () => {
@@ -400,7 +420,7 @@ describe("ChatPanel", () => {
 
     render(<ChatPanel chatId="thread-1" />);
 
-    await user.type(screen.getByPlaceholderText(/send a message/i), "Hello from draft");
+    await user.type(screen.getByPlaceholderText(/describe a task/i), "Hello from draft");
     await user.click(screen.getByRole("button", { name: /submit/i }));
 
     await waitFor(() => {
@@ -414,7 +434,7 @@ describe("ChatPanel", () => {
   it("passes initialPrompt through to ChatComposer as initialValue", () => {
     render(<ChatPanel chatId="thread-1" initialPrompt="Set up a daily briefing" />);
 
-    expect(screen.getByPlaceholderText(/send a message/i)).toHaveValue(
+    expect(screen.getByPlaceholderText(/describe a task/i)).toHaveValue(
       "Set up a daily briefing",
     );
   });

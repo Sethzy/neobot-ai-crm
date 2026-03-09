@@ -4,7 +4,6 @@
  */
 import type React from "react";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MessageList } from "./message-list";
@@ -60,15 +59,6 @@ vi.mock("./ask-user-question-inline", () => ({
 let isAtBottom = true;
 const scrollToBottom = vi.fn();
 
-vi.mock("@/lib/automations/templates", () => ({
-  AUTOMATION_TEMPLATES: [
-    { id: "t1", title: "Morning briefing", description: "Daily summary", category: "sales", prompt: "Set up morning briefing" },
-    { id: "t2", title: "Follow-up sweep", description: "Check stale leads", category: "sales", prompt: "Set up follow-up sweep" },
-    { id: "t3", title: "Pipeline summary", description: "Weekly recap", category: "sales", prompt: "Set up pipeline summary" },
-    { id: "t4", title: "Listing monitor", description: "Watch feeds", category: "research", prompt: "Set up listing monitor" },
-  ],
-}));
-
 vi.mock("@/hooks/use-scroll-to-bottom", () => ({
   useScrollToBottom: () => ({
     containerRef: { current: null },
@@ -95,18 +85,10 @@ describe("MessageList", () => {
     isAtBottom = true;
   });
 
-  it("keeps the scroll container mounted for empty-state transitions", () => {
+  it("keeps the scroll container mounted even with no messages", () => {
     render(<MessageList messages={[]} status="ready" />);
 
     expect(screen.getByTestId("message-scroll-container")).toBeInTheDocument();
-    expect(screen.getByTestId("empty-chat")).toBeInTheDocument();
-  });
-
-  it("renders empty state when there are no messages", () => {
-    render(<MessageList messages={[]} status="ready" />);
-
-    expect(screen.getByTestId("empty-chat")).toBeInTheDocument();
-    expect(screen.getByText(/start a conversation/i)).toBeInTheDocument();
   });
 
   it("renders message bubbles when messages exist", () => {
@@ -114,7 +96,6 @@ describe("MessageList", () => {
 
     expect(screen.getByText("Hello")).toBeInTheDocument();
     expect(screen.getByText("Hi there!")).toBeInTheDocument();
-    expect(screen.queryByTestId("empty-chat")).not.toBeInTheDocument();
   });
 
   it("marks the last assistant message as streaming when status is streaming", () => {
@@ -181,38 +162,8 @@ describe("MessageList", () => {
     expect(screen.getByRole("button", { name: /scroll to bottom/i })).toBeInTheDocument();
   });
 
-  it("renders template cards with title and description in empty state", () => {
-    const onSuggestionClick = vi.fn();
-    render(<MessageList messages={[]} status="ready" onSuggestionClick={onSuggestionClick} />);
-
-    // Cards should show both title and description
-    expect(screen.getByText("Morning briefing")).toBeInTheDocument();
-    expect(screen.getByText("Daily summary")).toBeInTheDocument();
-    expect(screen.getByText("Follow-up sweep")).toBeInTheDocument();
-    expect(screen.getByText("Check stale leads")).toBeInTheDocument();
-    expect(screen.getByText("Pipeline summary")).toBeInTheDocument();
-    expect(screen.getByText("Weekly recap")).toBeInTheDocument();
-  });
-
-  it("calls onSuggestionClick with the template prompt when a card is clicked", async () => {
-    const user = userEvent.setup();
-    const onSuggestionClick = vi.fn();
-    render(<MessageList messages={[]} status="ready" onSuggestionClick={onSuggestionClick} />);
-
-    await user.click(screen.getByText("Morning briefing"));
-
-    expect(onSuggestionClick).toHaveBeenCalledWith("Set up morning briefing");
-  });
-
-  it("does not render template cards when messages exist", () => {
-    const onSuggestionClick = vi.fn();
-    render(
-      <MessageList
-        messages={[userMessage]}
-        status="ready"
-        onSuggestionClick={onSuggestionClick}
-      />,
-    );
+  it("does not render template cards — those live in ChatWelcome", () => {
+    render(<MessageList messages={[]} status="ready" />);
 
     expect(screen.queryByText("Morning briefing")).not.toBeInTheDocument();
   });

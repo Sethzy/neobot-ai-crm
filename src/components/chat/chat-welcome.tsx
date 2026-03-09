@@ -17,7 +17,7 @@ import type { ChatStatus } from "@/types/chat";
 import { ChatComposer } from "./chat-composer";
 
 /** Tab labels mapped from template category IDs. */
-const CATEGORY_LABELS: Record<string, string> = {
+const CATEGORY_LABELS: Record<AutomationTemplate["category"], string> = {
   sales: "Sales",
   operations: "Operations",
   research: "Research",
