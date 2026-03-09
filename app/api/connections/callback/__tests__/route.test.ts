@@ -65,10 +65,10 @@ describe("GET /api/connections/callback", () => {
       composio_connected_account_id: "conn_123",
       toolkit_slug: "gmail",
       display_name: null,
-      account_identifier: null,
+      account_identifier: "owner@gmail.com",
       status: "active",
       activated_tools: [],
-      tool_count: 0,
+      tool_count: 3,
       created_at: "2026-03-07T00:00:00.000Z",
       updated_at: "2026-03-07T00:00:00.000Z",
     });
@@ -78,10 +78,10 @@ describe("GET /api/connections/callback", () => {
       composio_connected_account_id: "conn_123",
       toolkit_slug: "gmail",
       display_name: null,
-      account_identifier: null,
+      account_identifier: "owner@gmail.com",
       status: "active",
       activated_tools: [],
-      tool_count: 0,
+      tool_count: 3,
       created_at: "2026-03-07T00:00:00.000Z",
       updated_at: "2026-03-07T00:00:00.000Z",
     });
@@ -91,10 +91,19 @@ describe("GET /api/connections/callback", () => {
           id: "conn_123",
           status: "ACTIVE",
           toolkit: { slug: "gmail" },
+          data: { email: "owner@gmail.com" },
+          params: {},
         }),
         list: vi.fn().mockResolvedValue({
           items: [{ id: "conn_123" }],
         }),
+      },
+      tools: {
+        getRawComposioTools: vi.fn().mockResolvedValue([
+          { slug: "GMAIL_SEND_EMAIL" },
+          { slug: "GMAIL_READ_EMAIL" },
+          { slug: "GMAIL_DELETE_EMAIL" },
+        ]),
       },
     });
   });
@@ -182,19 +191,26 @@ describe("GET /api/connections/callback", () => {
       id: "conn_123",
       status: "ACTIVE",
       toolkit: { slug: "gmail" },
+      data: { email: "owner@gmail.com" },
+      params: {},
     });
     const listOwnedConnections = vi.fn().mockResolvedValue({
       items: [{ id: "conn_123" }],
     });
-    mockGetPendingConnectionByToolkit.mockResolvedValue({
+    const getRawComposioTools = vi.fn().mockResolvedValue([
+      { slug: "GMAIL_SEND_EMAIL" },
+      { slug: "GMAIL_READ_EMAIL" },
+      { slug: "GMAIL_DELETE_EMAIL" },
+    ]);
+    mockGetConnectionByConnectedAccountId.mockResolvedValue({
       id: "pending-row-1",
       client_id: "client-1",
-      composio_connected_account_id: "pending:test",
+      composio_connected_account_id: "conn_123",
       toolkit_slug: "gmail",
       display_name: null,
       account_identifier: null,
       status: "pending",
-      activated_tools: [],
+      activated_tools: ["GMAIL_SEND_EMAIL"],
       tool_count: 0,
       created_at: "2026-03-07T00:00:00.000Z",
       updated_at: "2026-03-07T00:00:00.000Z",
@@ -203,6 +219,9 @@ describe("GET /api/connections/callback", () => {
       connectedAccounts: {
         get: getConnectedAccount,
         list: listOwnedConnections,
+      },
+      tools: {
+        getRawComposioTools,
       },
     });
 
@@ -224,23 +243,22 @@ describe("GET /api/connections/callback", () => {
       toolkitSlugs: ["gmail"],
       limit: 100,
     });
+    expect(getRawComposioTools).toHaveBeenCalledWith({
+      toolkits: ["gmail"],
+    });
     expect(mockGetConnectionByConnectedAccountId).toHaveBeenCalledWith(
       { marker: "server-client" },
       "client-1",
       "conn_123",
-    );
-    expect(mockGetPendingConnectionByToolkit).toHaveBeenCalledWith(
-      { marker: "server-client" },
-      "client-1",
-      "gmail",
     );
     expect(mockUpdateConnection).toHaveBeenCalledWith({ marker: "server-client" }, "client-1", {
       id: "pending-row-1",
       composio_connected_account_id: "conn_123",
       toolkit_slug: "gmail",
       display_name: null,
-      account_identifier: null,
+      account_identifier: "owner@gmail.com",
       status: "active",
+      tool_count: 3,
     });
     expect(mockDeleteConnection).not.toHaveBeenCalled();
     expect(mockInsertConnection).not.toHaveBeenCalled();
@@ -279,6 +297,8 @@ describe("GET /api/connections/callback", () => {
           id: "conn_123",
           status: "ACTIVE",
           toolkit: { slug: "gmail" },
+          data: { email: "owner@gmail.com" },
+          params: {},
         }),
         list: vi.fn().mockResolvedValue({
           items: [{ id: "conn_other" }],
@@ -324,10 +344,10 @@ describe("GET /api/connections/callback", () => {
       composio_connected_account_id: "conn_123",
       toolkit_slug: "gmail",
       display_name: null,
-      account_identifier: null,
+      account_identifier: "owner@gmail.com",
       status: "inactive",
       activated_tools: [],
-      tool_count: 0,
+      tool_count: 3,
       created_at: "2026-03-07T00:00:00.000Z",
       updated_at: "2026-03-07T00:00:00.000Z",
     });
@@ -344,8 +364,9 @@ describe("GET /api/connections/callback", () => {
       composio_connected_account_id: "conn_123",
       toolkit_slug: "gmail",
       display_name: null,
-      account_identifier: null,
+      account_identifier: "owner@gmail.com",
       status: "active",
+      tool_count: 3,
     });
     expect(mockDeleteConnection).toHaveBeenCalledWith(
       { marker: "server-client" },
@@ -368,8 +389,52 @@ describe("GET /api/connections/callback", () => {
       composio_connected_account_id: "conn_123",
       toolkit_slug: "gmail",
       display_name: null,
-      account_identifier: null,
+      account_identifier: "owner@gmail.com",
       status: "active",
+      activated_tools: [],
+      tool_count: 3,
+    });
+  });
+
+  it("falls back to connected account params.email when data.email is absent", async () => {
+    mockGetComposio.mockReturnValue({
+      connectedAccounts: {
+        get: vi.fn().mockResolvedValue({
+          id: "conn_123",
+          status: "ACTIVE",
+          toolkit: { slug: "gmail" },
+          data: {},
+          params: { email: "params@gmail.com" },
+        }),
+        list: vi.fn().mockResolvedValue({
+          items: [{ id: "conn_123" }],
+        }),
+      },
+      tools: {
+        getRawComposioTools: vi.fn().mockResolvedValue([
+          { slug: "GMAIL_SEND_EMAIL" },
+          { slug: "GMAIL_READ_EMAIL" },
+          { slug: "GMAIL_DELETE_EMAIL" },
+        ]),
+      },
+    });
+
+    const response = await GET(
+      new Request(
+        "http://localhost/api/connections/callback?status=success&connected_account_id=conn_123",
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(mockInsertConnection).toHaveBeenCalledWith({ marker: "server-client" }, {
+      client_id: "client-1",
+      composio_connected_account_id: "conn_123",
+      toolkit_slug: "gmail",
+      display_name: null,
+      account_identifier: "params@gmail.com",
+      status: "active",
+      activated_tools: [],
+      tool_count: 3,
     });
   });
 
@@ -393,7 +458,12 @@ describe("GET /api/connections/callback", () => {
           id: "conn_123",
           status: "INITIATED",
           toolkit: { slug: "gmail" },
+          data: {},
+          params: {},
         }),
+      },
+      tools: {
+        getRawComposioTools: vi.fn(),
       },
     });
 

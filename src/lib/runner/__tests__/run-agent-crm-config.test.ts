@@ -23,8 +23,8 @@ const {
   mockCreateMessages,
   mockLoadCrmConfig,
   mockFinalizeRun,
-  mockGetActiveToolkitSlugs,
-  mockLoadComposioTools,
+  mockGetActiveConnections,
+  mockLoadActivatedConnectionTools,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
@@ -41,8 +41,8 @@ const {
   mockCreateMessages: vi.fn(),
   mockLoadCrmConfig: vi.fn(),
   mockFinalizeRun: vi.fn(),
-  mockGetActiveToolkitSlugs: vi.fn(),
-  mockLoadComposioTools: vi.fn(),
+  mockGetActiveConnections: vi.fn(),
+  mockLoadActivatedConnectionTools: vi.fn(),
 }));
 
 vi.mock("ai", () => ({
@@ -95,11 +95,12 @@ vi.mock("@/lib/chat/messages", () => ({
 }));
 
 vi.mock("@/lib/connections/queries", () => ({
-  getActiveToolkitSlugs: (...args: unknown[]) => mockGetActiveToolkitSlugs(...args),
+  getActiveConnections: (...args: unknown[]) => mockGetActiveConnections(...args),
 }));
 
 vi.mock("@/lib/composio", () => ({
-  loadComposioTools: (...args: unknown[]) => mockLoadComposioTools(...args),
+  loadActivatedConnectionTools: (...args: unknown[]) =>
+    mockLoadActivatedConnectionTools(...args),
 }));
 
 import { runAgent } from "../run-agent";
@@ -135,8 +136,8 @@ describe("runAgent CRM configuration", () => {
       messages: [{ role: "user", content: "Hello, Sunder!" }],
     });
     mockCreateMessages.mockResolvedValue([]);
-    mockGetActiveToolkitSlugs.mockResolvedValue([]);
-    mockLoadComposioTools.mockResolvedValue({});
+    mockGetActiveConnections.mockResolvedValue([]);
+    mockLoadActivatedConnectionTools.mockResolvedValue({});
     mockStreamText.mockReturnValue({ toUIMessageStream: vi.fn(() => new ReadableStream()) });
   });
 

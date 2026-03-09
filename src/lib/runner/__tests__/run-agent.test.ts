@@ -24,8 +24,8 @@ const {
   mockMaybeCompactThread,
   mockTruncateOversizedParts,
   mockLoadCrmConfig,
-  mockGetActiveToolkitSlugs,
-  mockLoadComposioTools,
+  mockGetActiveConnections,
+  mockLoadActivatedConnectionTools,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
@@ -46,8 +46,8 @@ const {
   mockMaybeCompactThread: vi.fn(),
   mockTruncateOversizedParts: vi.fn(),
   mockLoadCrmConfig: vi.fn(),
-  mockGetActiveToolkitSlugs: vi.fn(),
-  mockLoadComposioTools: vi.fn(),
+  mockGetActiveConnections: vi.fn(),
+  mockLoadActivatedConnectionTools: vi.fn(),
 }));
 
 vi.mock("ai", () => ({
@@ -91,11 +91,12 @@ vi.mock("@/lib/crm/config", () => ({
 }));
 
 vi.mock("@/lib/connections/queries", () => ({
-  getActiveToolkitSlugs: (...args: unknown[]) => mockGetActiveToolkitSlugs(...args),
+  getActiveConnections: (...args: unknown[]) => mockGetActiveConnections(...args),
 }));
 
 vi.mock("@/lib/composio", () => ({
-  loadComposioTools: (...args: unknown[]) => mockLoadComposioTools(...args),
+  loadActivatedConnectionTools: (...args: unknown[]) =>
+    mockLoadActivatedConnectionTools(...args),
 }));
 
 vi.mock("@/lib/chat/messages", () => ({
@@ -192,8 +193,8 @@ describe("runAgent", () => {
       },
     });
     mockMaybeCompactThread.mockResolvedValue(false);
-    mockGetActiveToolkitSlugs.mockResolvedValue([]);
-    mockLoadComposioTools.mockResolvedValue({});
+    mockGetActiveConnections.mockResolvedValue([]);
+    mockLoadActivatedConnectionTools.mockResolvedValue({});
     mockStreamText.mockReturnValue({
       toUIMessageStreamResponse: vi.fn(() => new Response("streamed")),
     });
@@ -466,42 +467,46 @@ describe("runAgent", () => {
     );
   });
 
-  it("loads Composio tools from active connection toolkits and merges them into the runner toolset", async () => {
+  it("loads activated Composio tools from active connections and merges them into the runner toolset", async () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
-    mockGetActiveToolkitSlugs.mockResolvedValue(["gmail"]);
-    mockLoadComposioTools.mockResolvedValue({
-      GMAIL_FETCH_EMAILS: { description: "composio-tool" },
+    mockGetActiveConnections.mockResolvedValue([{ id: "conn-1" }]);
+    mockLoadActivatedConnectionTools.mockResolvedValue({
+      "conn-1__GMAIL_FETCH_EMAILS": { description: "composio-tool" },
     });
 
     await runAgent(validPayload, "mock-supabase-client" as never);
 
-    expect(mockGetActiveToolkitSlugs).toHaveBeenCalledWith(
+    expect(mockGetActiveConnections).toHaveBeenCalledWith(
       "mock-supabase-client",
       validPayload.clientId,
     );
-    expect(mockLoadComposioTools).toHaveBeenCalledWith(validPayload.clientId, ["gmail"]);
+    expect(mockLoadActivatedConnectionTools).toHaveBeenCalledWith(validPayload.clientId, [
+      { id: "conn-1" },
+    ]);
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
         tools: expect.objectContaining({
           search_contacts: { description: "tool" },
-          GMAIL_FETCH_EMAILS: { description: "composio-tool" },
+          "conn-1__GMAIL_FETCH_EMAILS": { description: "composio-tool" },
         }),
       }),
     );
   });
 
-  it("keeps the runner toolset unchanged when Composio tools resolve to an empty object", async () => {
+  it("keeps the runner toolset unchanged when activated Composio tools resolve to an empty object", async () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
-    mockGetActiveToolkitSlugs.mockResolvedValue(["gmail"]);
-    mockLoadComposioTools.mockResolvedValue({});
+    mockGetActiveConnections.mockResolvedValue([{ id: "conn-1" }]);
+    mockLoadActivatedConnectionTools.mockResolvedValue({});
 
     await runAgent(validPayload, "mock-supabase-client" as never);
 
-    expect(mockLoadComposioTools).toHaveBeenCalledWith(validPayload.clientId, ["gmail"]);
+    expect(mockLoadActivatedConnectionTools).toHaveBeenCalledWith(validPayload.clientId, [
+      { id: "conn-1" },
+    ]);
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
         tools: expect.not.objectContaining({
-          GMAIL_FETCH_EMAILS: expect.anything(),
+          "conn-1__GMAIL_FETCH_EMAILS": expect.anything(),
         }),
       }),
     );
@@ -509,11 +514,11 @@ describe("runAgent", () => {
 
   it("falls back to the base runner tools when active connection lookup fails", async () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
-    mockGetActiveToolkitSlugs.mockRejectedValue(new Error("connections unavailable"));
+    mockGetActiveConnections.mockRejectedValue(new Error("connections unavailable"));
 
     await runAgent(validPayload, "mock-supabase-client" as never);
 
-    expect(mockLoadComposioTools).not.toHaveBeenCalled();
+    expect(mockLoadActivatedConnectionTools).not.toHaveBeenCalled();
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
         tools: expect.objectContaining({

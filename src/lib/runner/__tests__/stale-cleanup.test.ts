@@ -22,8 +22,8 @@ const {
   mockCreateUtilityTools,
   mockCreateTriggerTools,
   mockCreateMessages,
-  mockGetActiveToolkitSlugs,
-  mockLoadComposioTools,
+  mockGetActiveConnections,
+  mockLoadActivatedConnectionTools,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
@@ -42,8 +42,8 @@ const {
   mockCreateUtilityTools: vi.fn(),
   mockCreateTriggerTools: vi.fn(),
   mockCreateMessages: vi.fn(),
-  mockGetActiveToolkitSlugs: vi.fn(),
-  mockLoadComposioTools: vi.fn(),
+  mockGetActiveConnections: vi.fn(),
+  mockLoadActivatedConnectionTools: vi.fn(),
 }));
 
 vi.mock("ai", () => ({ streamText: mockStreamText, stepCountIs: mockStepCountIs }));
@@ -84,10 +84,11 @@ vi.mock("@/lib/runner/tools", () => ({
   createTriggerTools: mockCreateTriggerTools,
 }));
 vi.mock("@/lib/connections/queries", () => ({
-  getActiveToolkitSlugs: (...args: unknown[]) => mockGetActiveToolkitSlugs(...args),
+  getActiveConnections: (...args: unknown[]) => mockGetActiveConnections(...args),
 }));
 vi.mock("@/lib/composio", () => ({
-  loadComposioTools: (...args: unknown[]) => mockLoadComposioTools(...args),
+  loadActivatedConnectionTools: (...args: unknown[]) =>
+    mockLoadActivatedConnectionTools(...args),
 }));
 
 import { runAgent } from "../run-agent";
@@ -126,8 +127,8 @@ describe("stale run cleanup", () => {
       system: "prompt",
       messages: [{ role: "user", content: "test" }],
     });
-    mockGetActiveToolkitSlugs.mockResolvedValue([]);
-    mockLoadComposioTools.mockResolvedValue({});
+    mockGetActiveConnections.mockResolvedValue([]);
+    mockLoadActivatedConnectionTools.mockResolvedValue({});
     mockStreamText.mockReturnValue({
       toUIMessageStreamResponse: vi.fn(() => new Response("streamed")),
     });

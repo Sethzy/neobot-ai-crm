@@ -51,6 +51,20 @@ function isSuccessfulCallbackStatus(status: string | null): boolean {
   return ["success", "active"].includes(status.toLowerCase());
 }
 
+function getAccountIdentifier(connectedAccount: {
+  data?: Record<string, unknown> | null;
+  params?: Record<string, unknown> | null;
+}): string | null {
+  const dataEmail = connectedAccount.data?.email;
+
+  if (typeof dataEmail === "string" && dataEmail.length > 0) {
+    return dataEmail;
+  }
+
+  const paramsEmail = connectedAccount.params?.email;
+  return typeof paramsEmail === "string" && paramsEmail.length > 0 ? paramsEmail : null;
+}
+
 /**
  * Verifies the callback result with Composio, persists the active connection row,
  * and redirects the browser back to Settings.
@@ -159,12 +173,16 @@ export async function GET(request: Request): Promise<Response> {
         reason: "ownership",
       });
     }
+    const rawTools = await composio.tools.getRawComposioTools({
+      toolkits: [connectedAccount.toolkit.slug],
+    });
     const nextConnectionState = {
       composio_connected_account_id: connectedAccount.id,
       toolkit_slug: connectedAccount.toolkit.slug,
       display_name: null,
-      account_identifier: null,
+      account_identifier: getAccountIdentifier(connectedAccount),
       status: "active" as const,
+      tool_count: rawTools.length,
     };
     const pendingConnection = await getPendingConnectionByToolkit(
       supabase,
@@ -183,7 +201,7 @@ export async function GET(request: Request): Promise<Response> {
         ...nextConnectionState,
       });
 
-      if (pendingConnection) {
+      if (pendingConnection && pendingConnection.id !== existingConnection.id) {
         await deleteConnection(supabase, clientId, pendingConnection.id);
       }
     } else {
@@ -196,6 +214,7 @@ export async function GET(request: Request): Promise<Response> {
         await insertConnection(supabase, {
           client_id: clientId,
           ...nextConnectionState,
+          activated_tools: [],
         });
       }
     }

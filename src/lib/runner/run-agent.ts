@@ -7,8 +7,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
 import { createMessages } from "@/lib/chat/messages";
-import { loadComposioTools } from "@/lib/composio";
-import { getActiveToolkitSlugs } from "@/lib/connections/queries";
+import { loadActivatedConnectionTools } from "@/lib/composio";
+import { getActiveConnections } from "@/lib/connections/queries";
 import { loadCrmConfig } from "@/lib/crm/config";
 import { assembleContext } from "@/lib/runner/context";
 import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
@@ -157,10 +157,10 @@ export async function runAgent(
     let composioTools: ToolSet = {};
 
     try {
-      const activeToolkits = await getActiveToolkitSlugs(supabase, clientId);
-      composioTools = await loadComposioTools(clientId, activeToolkits);
+      const connections = await getActiveConnections(supabase, clientId);
+      composioTools = await loadActivatedConnectionTools(clientId, connections);
     } catch (error) {
-      console.error("[composio] Failed to resolve active connections for runner.", error);
+      console.error("[composio] Failed to load activated connection tools for runner.", error);
     }
 
     const tools: CombinedRunnerTools = {

@@ -24,6 +24,8 @@ const {
   mockTruncateOversizedParts,
   mockBuildAssistantPartsFromSteps,
   mockGetAssistantTextFromParts,
+  mockGetActiveConnections,
+  mockLoadActivatedConnectionTools,
 } = vi.hoisted(() => ({
   mockGenerateText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
@@ -44,6 +46,8 @@ const {
   mockTruncateOversizedParts: vi.fn(),
   mockBuildAssistantPartsFromSteps: vi.fn(),
   mockGetAssistantTextFromParts: vi.fn(),
+  mockGetActiveConnections: vi.fn(),
+  mockLoadActivatedConnectionTools: vi.fn(),
 }));
 
 vi.mock("ai", () => ({
@@ -96,6 +100,13 @@ vi.mock("@/lib/runner/message-utils", () => ({
   buildAssistantPartsFromSteps: (...args: unknown[]) => mockBuildAssistantPartsFromSteps(...args),
   getAssistantTextFromParts: (...args: unknown[]) => mockGetAssistantTextFromParts(...args),
 }));
+vi.mock("@/lib/connections/queries", () => ({
+  getActiveConnections: (...args: unknown[]) => mockGetActiveConnections(...args),
+}));
+vi.mock("@/lib/composio", () => ({
+  loadActivatedConnectionTools: (...args: unknown[]) =>
+    mockLoadActivatedConnectionTools(...args),
+}));
 
 import { runAutopilot } from "../run-autopilot";
 
@@ -126,6 +137,8 @@ describe("runAutopilot", () => {
     mockTruncateOversizedParts.mockResolvedValue({ parts: [], recoveryPaths: [] });
     mockMaybeCompactThread.mockResolvedValue(false);
     mockCreateMessages.mockResolvedValue([]);
+    mockGetActiveConnections.mockResolvedValue([]);
+    mockLoadActivatedConnectionTools.mockResolvedValue({});
   });
 
   it("injects autopilot instructions and executes generateText with tool-loop settings", async () => {

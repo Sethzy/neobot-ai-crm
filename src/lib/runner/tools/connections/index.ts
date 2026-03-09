@@ -6,9 +6,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database";
 
+import { createCreateConnectionTool } from "./create-connection";
+import { createDeleteConnectionTool } from "./delete-connection";
 import { createGetConnectionDetailsTool } from "./get-connection-details";
 import { createGetIntegrationCapabilitiesTool } from "./get-integration-capabilities";
 import { createListConnectionsTool } from "./list-connections";
+import { createManageToolsTool } from "./manage-tools";
+import { createReauthorizeConnectionTool } from "./reauthorize-connection";
 import { createSearchIntegrationsTool } from "./search-integrations";
 
 export interface CreateConnectionToolsOptions {
@@ -25,7 +29,7 @@ export function createConnectionTools(
 ) {
   const allowMutations = options?.allowMutations ?? true;
 
-  const readOnlyTools = {
+  const readTools = {
     ...createListConnectionsTool(supabase, clientId),
     ...createGetConnectionDetailsTool(supabase, clientId),
     ...createSearchIntegrationsTool(),
@@ -33,8 +37,14 @@ export function createConnectionTools(
   };
 
   if (!allowMutations) {
-    return readOnlyTools;
+    return readTools;
   }
 
-  return readOnlyTools;
+  return {
+    ...readTools,
+    ...createCreateConnectionTool(supabase, clientId),
+    ...createManageToolsTool(supabase, clientId),
+    ...createReauthorizeConnectionTool(supabase, clientId),
+    ...createDeleteConnectionTool(supabase, clientId),
+  };
 }

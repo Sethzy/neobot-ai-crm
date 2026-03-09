@@ -2,11 +2,13 @@
  * Autonomous autopilot pulse runner.
  * @module lib/runner/run-autopilot
  */
-import { generateText, stepCountIs } from "ai";
+import { generateText, stepCountIs, type ToolSet } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
 import { AUTOPILOT_INSTRUCTION_PROMPT } from "@/lib/autopilot/constants";
+import { loadActivatedConnectionTools } from "@/lib/composio";
+import { getActiveConnections } from "@/lib/connections/queries";
 import { assembleContext } from "@/lib/runner/context";
 import { buildPrepareStep, createRunnerTools } from "@/lib/runner/run-agent";
 import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
@@ -54,16 +56,28 @@ export async function runAutopilot({
       clientId,
       instructions: AUTOPILOT_INSTRUCTION_PROMPT,
     });
+    const runnerTools = createRunnerTools(supabase, clientId, threadId, {
+      allowTriggerMutations: false,
+      allowConnectionMutations: false,
+    });
+    let composioTools: ToolSet = {};
+
+    try {
+      const connections = await getActiveConnections(supabase, clientId);
+      composioTools = await loadActivatedConnectionTools(clientId, connections);
+    } catch (error) {
+      console.error("[composio] Failed to load activated connection tools for autopilot.", error);
+    }
 
     const result = await generateText({
       model: gateway(modelId),
       system,
       messages,
       stopWhen: stepCountIs(MAX_STEPS_AUTOPILOT),
-      tools: createRunnerTools(supabase, clientId, threadId, {
-        allowTriggerMutations: false,
-        allowConnectionMutations: false,
-      }),
+      tools: {
+        ...runnerTools,
+        ...composioTools,
+      },
       prepareStep: buildPrepareStep(modelId, MAX_STEPS_AUTOPILOT),
     });
 

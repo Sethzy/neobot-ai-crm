@@ -2,7 +2,11 @@
  * Tests for the connection tool barrel.
  * @module lib/runner/tools/connections/__tests__/index
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/composio/client", () => ({
+  getComposio: vi.fn(),
+}));
 
 import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
@@ -25,16 +29,20 @@ describe("createConnectionTools", () => {
     ]);
   });
 
-  it("returns the same tool set when mutations are enabled before PR26d", () => {
+  it("returns all eight tools when mutations are enabled", () => {
     const supabase = createMockSupabaseClient();
     const tools = createConnectionTools(supabase as never, CLIENT_ID, {
       allowMutations: true,
     });
 
     expect(Object.keys(tools).sort()).toEqual([
+      "create_new_connections",
+      "delete_connection",
       "get_details_for_connections",
       "get_integrations_capabilities",
       "list_users_connections",
+      "manage_activated_tools_for_connections",
+      "reauthorize_connection",
       "search_for_integrations",
     ]);
   });
