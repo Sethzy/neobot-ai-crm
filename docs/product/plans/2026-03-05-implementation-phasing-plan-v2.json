@@ -1,16 +1,16 @@
 {
   "meta": {
-    "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
+    "title": "Sunder Implementation Phasing Plan v2 — Scope Cut",
     "created": "2026-03-05",
     "updated": "2026-03-09",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
-    "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
+    "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md §17",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
     "totalPhases": 5,
     "estimatedPRs": 35,
     "keptPRs": 22,
     "cutPRs": 19,
-    "donePRs": 20,
+    "donePRs": 22,
     "statusOptions": [
       "pending",
       "in_progress",
@@ -18,23 +18,23 @@
       "blocked",
       "cut"
     ],
-    "scopeDecision": "Simplified to: AI CRM + autopilot + connections + email + Telegram + agent-generated views. Cut skills system, sandbox, scraping lanes, scaling infra, voice, eval, model routing, structured AI input. Restored CRM configurability (PR 15a). Agent-generated views (PR 42a) moved to Phase 3 using catalog-based JSON spec approach (json-render pattern) \u2014 no sandbox needed. Sandboxed code-gen views (Tasklet instant-app pattern) deferred to PR 42b.",
+    "scopeDecision": "Simplified to: AI CRM + autopilot + connections + email + Telegram + agent-generated views. Cut skills system, sandbox, scraping lanes, scaling infra, voice, eval, model routing, structured AI input. Restored CRM configurability (PR 15a). Agent-generated views (PR 42a) moved to Phase 3 using catalog-based JSON spec approach (json-render pattern) — no sandbox needed. Sandboxed code-gen views (Tasklet instant-app pattern) deferred to PR 42b.",
     "changelog": [
-      "2026-03-05: v2 created \u2014 scope cut from 48 PRs to 30 (13 done + 17 to build). Reordered into new phases. Original plan preserved at 2026-03-01-implementation-phasing-plan.json.",
-      "2026-03-05: Removed PR 19a (Agent tasks). (Superseded by entry 6 \u2014 reverted to dedicated agent_todo table.)",
+      "2026-03-05: v2 created — scope cut from 48 PRs to 30 (13 done + 17 to build). Reordered into new phases. Original plan preserved at 2026-03-01-implementation-phasing-plan.json.",
+      "2026-03-05: Removed PR 19a (Agent tasks). (Superseded by entry 6 — reverted to dedicated agent_todo table.)",
       "2026-03-05: Restored PR 22 (Context recovery + thread compaction) into Phase 2. Required for autopilot thread which accumulates messages every 6h.",
       "2026-03-05: Explicitly cut goals table (goals written to MEMORY.md). Confirmed per-thread approval discovery (no Queue tab). Autopilot priority order rewritten for simplified crm_tasks model.",
-      "2026-03-05: Tasklet gap analysis fixes \u2014 PR 15: user email in system-reminder, connection state slot, state/ directory convention in platform instructions. PR 20: webhook + RSS trigger types. PR 26: wire connection state into system-reminder.",
+      "2026-03-05: Tasklet gap analysis fixes — PR 15: user email in system-reminder, connection state slot, state/ directory convention in platform instructions. PR 20: webhook + RSS trigger types. PR 26: wire connection state into system-reminder.",
       "2026-03-05: Split agent todo from CRM tasks. Reverted unified task model (source+payload on crm_tasks). Added dedicated agent_todo table + manage_todo/list_todo tools in PR 15 (Tasklet-parity, minimal schema: title+payload, exists-or-deleted). CRM task tools unchanged. Updated autopilot pulse prompt (PR 19-5) to use list_todo() for agent work + search_tasks() for CRM work.",
-      "2026-03-05: CRM tool review vs Attio MCP + HubSpot MCP. Added PR 15a (CRM configurability \u2014 dynamic vocabulary + custom fields) in Phase 2 after PR 15. Restored from cut PR 38a with expanded scope: Layer 1 (vocabulary from crm_config) + Layer 2 (custom fields via JSONB). Added PR 42a (agent-generated views) as exploratory Phase 5 placeholder inspired by Tasklet instant apps. Removed PR 38a from cutPRs list.",
+      "2026-03-05: CRM tool review vs Attio MCP + HubSpot MCP. Added PR 15a (CRM configurability — dynamic vocabulary + custom fields) in Phase 2 after PR 15. Restored from cut PR 38a with expanded scope: Layer 1 (vocabulary from crm_config) + Layer 2 (custom fields via JSONB). Added PR 42a (agent-generated views) as exploratory Phase 5 placeholder inspired by Tasklet instant apps. Removed PR 38a from cutPRs list.",
       "2026-03-06: Expanded PR 38 onboarding scope to capture the auth funnel shipped ahead of full onboarding: dedicated /login + /register pages, Supabase Google OAuth callback flow, unified /chat post-auth redirect, display_name fallback fix for OAuth users, and the remaining hosted Supabase/Google setup checklist needed before launch.",
-      "2026-03-07: Generative UI approach decision. PR 42a rewritten: catalog-based JSON view specs (inspired by Vercel Labs json-render) replaces sandboxed iframe approach. Agent outputs JSON conforming to a Zod component catalog, frontend renders deterministically \u2014 no sandbox, no CSP, no bridge API. Moved PR 42a from Phase 5 to Phase 3 (no longer blocked by EXEC-04 sandbox). Added PR 42b as deferred Phase 5 escape hatch for full Tasklet-style sandboxed code gen if catalog proves insufficient. Added architecture decision UX-10.",
-      "2026-03-07: Added PR 22a (multimodal chat \u2014 image attachments) and PR 22b (tool output rendering \u2014 json-render + tool approval UI) to Phase 2. Both follow vercel/chatbot patterns with minimal drift. PR 22a: file upload via Supabase Storage, PreviewAttachment component, parts-based messaging, stop button. PR 22b: json-render for tool output display, addToolApprovalResponse wiring with approve/deny buttons. Reference docs in roadmap docs/Sunder - Source of Truth/references/vercel-chatbot/.",
-      "2026-03-07: Added PR 20a (Suggested automations \u2014 template prompt cards) to Phase 2 after PR 20. KISS approach following Tasklet pattern: a template is just a pre-filled chat message. Hardcoded TS array of { id, title, description, category, icon, prompt }. Cards shown on /automations page + suggestion chips in chat empty state. Click \u2192 navigate to /chat with prompt pre-filled \u2192 agent handles setup conversationally. No template engine, no activation flow, no special UI. Reference: roadmap docs/Sunder - Source of Truth/references/template-automations.md.",
+      "2026-03-07: Generative UI approach decision. PR 42a rewritten: catalog-based JSON view specs (inspired by Vercel Labs json-render) replaces sandboxed iframe approach. Agent outputs JSON conforming to a Zod component catalog, frontend renders deterministically — no sandbox, no CSP, no bridge API. Moved PR 42a from Phase 5 to Phase 3 (no longer blocked by EXEC-04 sandbox). Added PR 42b as deferred Phase 5 escape hatch for full Tasklet-style sandboxed code gen if catalog proves insufficient. Added architecture decision UX-10.",
+      "2026-03-07: Added PR 22a (multimodal chat — image attachments) and PR 22b (tool output rendering — json-render + tool approval UI) to Phase 2. Both follow vercel/chatbot patterns with minimal drift. PR 22a: file upload via Supabase Storage, PreviewAttachment component, parts-based messaging, stop button. PR 22b: json-render for tool output display, addToolApprovalResponse wiring with approve/deny buttons. Reference docs in roadmap docs/Sunder - Source of Truth/references/vercel-chatbot/.",
+      "2026-03-07: Added PR 20a (Suggested automations — template prompt cards) to Phase 2 after PR 20. KISS approach following Tasklet pattern: a template is just a pre-filled chat message. Hardcoded TS array of { id, title, description, category, icon, prompt }. Cards shown on /automations page + suggestion chips in chat empty state. Click → navigate to /chat with prompt pre-filled → agent handles setup conversationally. No template engine, no activation flow, no special UI. Reference: roadmap docs/Sunder - Source of Truth/references/template-automations.md.",
       "2026-03-09: Expanded PR 38 onboarding with conversational bootstrap pattern inspired by OpenClaw's BOOTSTRAP.md. Replaced single PR38-8 task with 6 tasks (PR38-8 through PR38-13). Core principle: 'Don't interrogate. Don't be robotic. Just talk.' The first conversation IS the product. Full comparison doc: docs/product/references/2026-03-09-openclaw-onboarding-comparison.md.",
       "2026-03-09: Resolved 4 onboarding design decisions after OpenClaw verbatim comparison. (1) Explicit preferences, not inferred — follow OpenClaw: agent explicitly asks about boundaries, communication style, preferences collaboratively. (2) Pre-structured USER.md + SOUL.md templates with clear fields — follow OpenClaw. (3) Explicit completion moment — follow OpenClaw: agent acknowledges transition warmly, not a silent DB flag. (4) Channel setup for existing users via natural conversation, not re-onboarding — follow OpenClaw: onboarding is a one-time ritual. Agent name 'Sunder' is fixed; everything else co-created. System prompt injection (KISS) instead of BOOTSTRAP.md file in storage.",
-      "2026-03-07: Out-of-plan extension of PR 22 (done): PR 22c \u2014 Block Storage + Context Management Alignment. Adds block index utilities for compaction summaries (DATA-10), stores ALL tool call args+results to storage, embeds mechanical block index in compaction summaries for post-compaction recovery (SESSION-07), adds <context-management> and <autonomous-mode> instructions. Tasklist: docs/product/tasks/2026-03-07-pr22c-block-storage-context-management-tasklist.md.",
-      "2026-03-09: PR 22c scope rewrite for zero Tasklet drift. Removed block index (YAGNI \u2014 agent recovers via read_file, not index lookup). Confirmed persistence-time truncation is correct (Tasklet does the same \u2014 fixed size threshold, permanent marker, not budget-based). Scope is now 6 tasks: (1) store ALL tool call args+results to block storage regardless of size, (2) trigger event pruning during compaction (mechanical title+source extraction, separate from LLM summarization), (3) structured compaction summary format (## User Instructions / ## Workflow / ## Resources / ## Current Focus), (4) <context-management> instructions in platform-instructions.ts, (5) remove appendArtifactRecoveryNote hack, (6) threshold review (5KB vs Tasklet's ~100KB). Formalized as PR entry in Phase 2 after PR 22b. Tasklist rewritten: docs/product/tasks/2026-03-09-pr22c-context-management-alignment-tasklist.md."
+      "2026-03-07: Out-of-plan extension of PR 22 (done): PR 22c — Block Storage + Context Management Alignment. Adds block index utilities for compaction summaries (DATA-10), stores ALL tool call args+results to storage, embeds mechanical block index in compaction summaries for post-compaction recovery (SESSION-07), adds <context-management> and <autonomous-mode> instructions. Tasklist: docs/product/tasks/2026-03-07-pr22c-block-storage-context-management-tasklist.md.",
+      "2026-03-09: PR 22c scope rewrite for zero Tasklet drift. Removed block index (YAGNI — agent recovers via read_file, not index lookup). Confirmed persistence-time truncation is correct (Tasklet does the same — fixed size threshold, permanent marker, not budget-based). Scope is now 6 tasks: (1) store ALL tool call args+results to block storage regardless of size, (2) trigger event pruning during compaction (mechanical title+source extraction, separate from LLM summarization), (3) structured compaction summary format (## User Instructions / ## Workflow / ## Resources / ## Current Focus), (4) <context-management> instructions in platform-instructions.ts, (5) remove appendArtifactRecoveryNote hack, (6) threshold review (5KB vs Tasklet's ~100KB). Formalized as PR entry in Phase 2 after PR 22b. Tasklist rewritten: docs/product/tasks/2026-03-09-pr22c-context-management-alignment-tasklist.md."
     ]
   },
   "phases": [
@@ -43,8 +43,8 @@
       "title": "Chat + CRM + Basic Tools",
       "status": "done",
       "goal": "User can chat with an AI agent that reads/writes CRM data, searches the web, and reads/writes files. Read-only CRM pages let the user verify what the agent did.",
-      "demoMoment": "\"I met John Smith at 123 Oak St\" \u2192 agent creates contact + deal, user sees it in CRM page",
-      "endState": "User logs in \u2192 sees chat \u2192 talks to agent \u2192 agent creates CRM data \u2192 user verifies in CRM pages. Existing document processing untouched.",
+      "demoMoment": "\"I met John Smith at 123 Oak St\" → agent creates contact + deal, user sees it in CRM page",
+      "endState": "User logs in → sees chat → talks to agent → agent creates CRM data → user verifies in CRM pages. Existing document processing untouched.",
       "alreadyDone": [
         "Auth + middleware (DATA-08)",
         "Supabase project + deployment (FOUND-02)",
@@ -92,7 +92,7 @@
             },
             {
               "id": "PR1-6",
-              "task": "No tools yet \u2014 just streaming text responses",
+              "task": "No tools yet — just streaming text responses",
               "done": true
             }
           ],
@@ -157,7 +157,7 @@
             },
             {
               "id": "PR3-2",
-              "task": "Migration: database trigger on auth.users INSERT \u2192 auto-creates clients row",
+              "task": "Migration: database trigger on auth.users INSERT → auto-creates clients row",
               "done": true
             },
             {
@@ -192,7 +192,7 @@
             }
           ],
           "testCriteria": [
-            "Create thread, send messages, refresh page \u2014 conversation persists"
+            "Create thread, send messages, refresh page — conversation persists"
           ]
         },
         {
@@ -211,12 +211,12 @@
           "tasks": [
             {
               "id": "PR4-1",
-              "task": "Create src/lib/runner/run-agent.ts \u2014 single runAgent() function",
+              "task": "Create src/lib/runner/run-agent.ts — single runAgent() function",
               "done": true
             },
             {
               "id": "PR4-2",
-              "task": "Context assembly skeleton: system prompt + thread message history (RUNNER-03 \u2014 full 7-layer assembly in Phase 2)",
+              "task": "Context assembly skeleton: system prompt + thread message history (RUNNER-03 — full 7-layer assembly in Phase 2)",
               "done": true
             },
             {
@@ -267,7 +267,7 @@
           ],
           "testCriteria": [
             "Chat works exactly as before but goes through runner",
-            "Send two messages fast \u2014 second gets queued, processed after first completes"
+            "Send two messages fast — second gets queued, processed after first completes"
           ]
         },
         {
@@ -386,7 +386,7 @@
             }
           ],
           "testCriteria": [
-            "Ask agent 'create a contact for John Smith, phone 555-1234' \u2192 contact appears in DB"
+            "Ask agent 'create a contact for John Smith, phone 555-1234' → contact appears in DB"
           ]
         },
         {
@@ -407,7 +407,7 @@
             },
             {
               "id": "PR7-2",
-              "task": "Implement read_file tool (file path \u2192 content, directory path \u2192 tree listing)",
+              "task": "Implement read_file tool (file path → content, directory path → tree listing)",
               "done": true
             },
             {
@@ -427,12 +427,12 @@
             },
             {
               "id": "PR7-6",
-              "task": "Accept no file versioning in v1 \u2014 Supabase Storage trade-off (DATA-05)",
+              "task": "Accept no file versioning in v1 — Supabase Storage trade-off (DATA-05)",
               "done": true
             }
           ],
           "testCriteria": [
-            "Ask agent 'write a note about today's showing' \u2192 file appears in Storage"
+            "Ask agent 'write a note about today's showing' → file appears in Storage"
           ]
         },
         {
@@ -457,12 +457,12 @@
             },
             {
               "id": "PR8-3",
-              "task": "Implement web_scrape tool (fetch URL \u2192 extract text content)",
+              "task": "Implement web_scrape tool (fetch URL → extract text content)",
               "done": true
             }
           ],
           "testCriteria": [
-            "Ask agent 'search for recent home sales in Austin TX' \u2192 returns real results"
+            "Ask agent 'search for recent home sales in Austin TX' → returns real results"
           ]
         },
         {
@@ -490,7 +490,7 @@
             }
           ],
           "testCriteria": [
-            "Have agent create a contact while CRM page is open in another tab \u2192 appears without refresh"
+            "Have agent create a contact while CRM page is open in another tab → appears without refresh"
           ]
         },
         {
@@ -605,7 +605,7 @@
             "SERVICE-02",
             "DATA-09"
           ],
-          "note": "Added in audit \u2014 Knowledge Base was entirely missing from original plan despite vault_files being a v1 table (DATA-09) and Knowledge appearing in nav structure (\u00a714.1).",
+          "note": "Added in audit — Knowledge Base was entirely missing from original plan despite vault_files being a v1 table (DATA-09) and Knowledge appearing in nav structure (§14.1).",
           "tasks": [
             {
               "id": "PR12a-1",
@@ -727,7 +727,7 @@
             },
             {
               "id": "PR14-4",
-              "task": "Memory files are storage-only \u2014 discovered via directory listing (DATA-06)",
+              "task": "Memory files are storage-only — discovered via directory listing (DATA-06)",
               "done": false
             },
             {
@@ -742,7 +742,7 @@
             },
             {
               "id": "PR14-7",
-              "task": "Memory page at /memory \u2014 read-only viewer for SOUL.md, USER.md, MEMORY.md, and memory/*.md files. User can view current contents and edit inline. Uses read_file/write_file via API routes to Supabase Storage.",
+              "task": "Memory page at /memory — read-only viewer for SOUL.md, USER.md, MEMORY.md, and memory/*.md files. User can view current contents and edit inline. Uses read_file/write_file via API routes to Supabase Storage.",
               "done": false
             }
           ],
@@ -770,7 +770,7 @@
             },
             {
               "id": "PR15-2",
-              "task": "Platform instructions layer (position #0 in context assembly) \u2014 forked from Tasklet, adapted for Sunder",
+              "task": "Platform instructions layer (position #0 in context assembly) — forked from Tasklet, adapted for Sunder",
               "done": false
             },
             {
@@ -780,17 +780,17 @@
             },
             {
               "id": "PR15-4",
-              "task": "Implement rename_chat tool \u2014 agent sets thread title (concise 3-5 word summaries)",
+              "task": "Implement rename_chat tool — agent sets thread title (concise 3-5 word summaries)",
               "done": false
             },
             {
               "id": "PR15-5",
-              "task": "Implement run_agent_memory_sql tool \u2014 read-only SQL queries against all client-accessible tables (CRM, vault_files, agent_triggers, etc.). Platform instructions document available schemas including vault_files.fts for full-text knowledge base search.",
+              "task": "Implement run_agent_memory_sql tool — read-only SQL queries against all client-accessible tables (CRM, vault_files, agent_triggers, etc.). Platform instructions document available schemas including vault_files.fts for full-text knowledge base search.",
               "done": false
             },
             {
               "id": "PR15-6",
-              "task": "Implement get_agent_db_schema tool \u2014 introspect available tables, columns, row counts",
+              "task": "Implement get_agent_db_schema tool — introspect available tables, columns, row counts",
               "done": false
             },
             {
@@ -800,12 +800,12 @@
             },
             {
               "id": "PR15-8",
-              "task": "Implement manage_todo tool \u2014 Tasklet-parity batch operations (add/update/delete). Add: creates todo with title + optional payload, scoped to current thread. Update: modify title/payload by id. Delete: remove todo (= mark done). Supports multiple operations in one call.",
+              "task": "Implement manage_todo tool — Tasklet-parity batch operations (add/update/delete). Add: creates todo with title + optional payload, scoped to current thread. Update: modify title/payload by id. Delete: remove todo (= mark done). Supports multiple operations in one call.",
               "done": false
             },
             {
               "id": "PR15-9",
-              "task": "Implement list_todo tool \u2014 returns all todos for current thread, optional filter by IDs. Schema: { id, title, payload, created_at }",
+              "task": "Implement list_todo tool — returns all todos for current thread, optional filter by IDs. Schema: { id, title, payload, created_at }",
               "done": false
             },
             {
@@ -815,7 +815,7 @@
             },
             {
               "id": "PR15-11",
-              "task": "Platform instructions: document state/ directory convention \u2014 agent writes JSON files to /{clientId}/state/ for cross-run tracking (dedup sets, counters, progress markers). Zero new infra, uses existing read_file/write_file.",
+              "task": "Platform instructions: document state/ directory convention — agent writes JSON files to /{clientId}/state/ for cross-run tracking (dedup sets, counters, progress markers). Zero new infra, uses existing read_file/write_file.",
               "done": false
             }
           ],
@@ -830,7 +830,7 @@
         },
         {
           "pr": "15c",
-          "title": "CRM configurability \u2014 dynamic vocabulary + custom fields",
+          "title": "CRM configurability — dynamic vocabulary + custom fields",
           "status": "done",
           "decisions": [
             "TOOL-01",
@@ -853,69 +853,69 @@
             {
               "id": "PR15c-1",
               "task": "Migration: add custom_fields JSONB DEFAULT '{}' to contacts, deals, crm_tasks tables",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15c-2",
               "task": "Define crm_config Zod schema: deal_label, deal_stages, contact_types, interaction_types, deal_contact_roles, deal_custom_fields, contact_custom_fields (each field: key, label, type text|number|currency|date|select, options?, required?)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15c-3",
               "task": "load_crm_config helper: reads crm_config for clientId, returns typed config with real-estate defaults as fallback. Called once at runner start, passed into tool factories",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15c-4",
               "task": "Dynamic Zod schemas: tool parameter schemas for stage, contact type, interaction type, deal-contact role pull from config instead of hardcoded enums",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15c-5",
-              "task": "Dynamic tool descriptions: .describe() strings template from config \u2014 'Create a new {deal_label}' with valid enum values listed",
-              "done": false
+              "task": "Dynamic tool descriptions: .describe() strings template from config — 'Create a new {deal_label}' with valid enum values listed",
+              "done": true
             },
             {
               "id": "PR15c-6",
               "task": "Custom fields in create/update tools: create_contact, update_contact, create_deal, update_deal, create_task, update_task accept optional custom_fields object, validated against config schema at runtime",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15c-7",
               "task": "Custom fields in search results: search_contacts, search_deals, search_tasks return custom_fields in response",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15c-8",
               "task": "configure_crm tool: agent writes to crm_config table. Accepts partial updates. Validates against PR15a-2 schema. Returns updated config",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15c-9",
-              "task": "Platform instructions template CRM vocab: inject current vocabulary into platform instructions layer \u2014 entity labels, stages, custom field definitions \u2014 so LLM knows valid values without tool calls",
-              "done": false
+              "task": "Platform instructions template CRM vocab: inject current vocabulary into platform instructions layer — entity labels, stages, custom field definitions — so LLM knows valid values without tool calls",
+              "done": true
             },
             {
               "id": "PR15c-10",
-              "task": "CRM pages: dynamic labels + columns \u2014 Contact/Deal/Task pages read crm_config via API route. PR15c ships custom fields in drawers only; dynamic custom-field table columns move to PR15d or a standalone micro-PR. Stage filter uses config values. Entity labels pulled from config",
-              "done": false
+              "task": "CRM pages: dynamic labels + columns — Contact/Deal/Task pages read crm_config via API route. PR15c ships custom fields in drawers only; dynamic custom-field table columns move to PR15d or a standalone micro-PR. Stage filter uses config values. Entity labels pulled from config",
+              "done": true
             },
             {
               "id": "PR15c-11",
               "task": "Fallback defaults: if crm_config is empty/missing, fall back to current real-estate vocabulary. Zero-config for real estate users",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
-            "User tells agent 'I sell insurance, my stages are lead/quoted/underwriting/bound/lost' \u2192 agent calls configure_crm \u2192 all tools and UI reflect new vocabulary immediately",
-            "User says 'I need to track policy number and coverage amount on deals' \u2192 agent adds custom fields \u2192 create_deal accepts them \u2192 deal/contact/task drawers show the new fields; table columns are deferred",
+            "User tells agent 'I sell insurance, my stages are lead/quoted/underwriting/bound/lost' → agent calls configure_crm → all tools and UI reflect new vocabulary immediately",
+            "User says 'I need to track policy number and coverage amount on deals' → agent adds custom fields → create_deal accepts them → deal/contact/task drawers show the new fields; table columns are deferred",
             "Default real-estate vocabulary works with zero configuration (no crm_config row)",
             "configure_crm partial update: change only deal_stages without affecting contact_types"
           ]
         },
         {
           "pr": "15d",
-          "title": "Company object \u2014 complete the CRM triad",
+          "title": "Company object — complete the CRM triad",
           "status": "done",
           "decisions": [],
           "dependsOn": [
@@ -928,53 +928,53 @@
             {
               "id": "PR15d-1",
               "task": "Migration: CREATE TABLE companies (company_id, client_id, name, industry, website, phone, email, address, notes, custom_fields JSONB). ADD COLUMN company_id UUID FK on contacts and deals (ON DELETE SET NULL). RLS + indexes. Extend crm_config with company_industries, company_custom_fields, company_label",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15d-2",
               "task": "Regenerate database.ts. Add companySchema + companyInsertSchema to schemas.ts. Add company fields to CrmVocabConfig/CRM_DEFAULTS (company_industries, company_custom_fields, company_label)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15d-3",
               "task": "createCompanyTools factory: search_companies, create_company (with duplicate detection by name), update_company, batch_create_companies. Follow existing factory pattern with config param and dynamic schemas",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15d-4",
               "task": "link_contact_to_company / unlink_contact_from_company tools: UPDATE contacts SET company_id. link_deal_to_company / unlink_deal_from_company: UPDATE deals SET company_id",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15d-5",
               "task": "Wire company tools into createCrmTools index barrel. Update configure_crm to accept company_industries, company_custom_fields, company_label",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15d-6",
-              "task": "Companies list page at /crm/companies \u2014 table with name, industry, phone, website, contact count, deal count. Industry filter from config. Search by name",
-              "done": false
+              "task": "Companies list page at /crm/companies — table with name, industry, phone, website, contact count, deal count. Industry filter from config. Search by name",
+              "done": true
             },
             {
               "id": "PR15d-7",
               "task": "Company drawer: name, industry badge, website, phone, email, address, notes, custom fields. Related contacts list. Related deals list",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15d-8",
               "task": "Update contact drawer and deal drawer: add Company field (select from existing companies). Update contacts and deals table columns to show Company name",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15d-9",
               "task": "Tests: company tool tests, config extension tests, link/unlink tests. Seed data with sample companies",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
-            "Agent creates a company via chat \u2192 appears in /crm/companies page",
-            "Agent links a contact to a company \u2192 contact drawer shows company, company drawer shows contact",
-            "Agent links a deal to a company \u2192 deal drawer shows company, company drawer shows deal",
+            "Agent creates a company via chat → appears in /crm/companies page",
+            "Agent links a contact to a company → contact drawer shows company, company drawer shows contact",
+            "Agent links a deal to a company → deal drawer shows company, company drawer shows deal",
             "search_companies by name and industry filter work correctly",
             "Company industries configurable via configure_crm tool",
             "Default real-estate industries work with zero configuration",
@@ -1155,12 +1155,12 @@
             },
             {
               "id": "PR19-5",
-              "task": "Autopilot system prompt with simplified priority order adapted from \u00a77.2 (TRIG-08). Two surfaces: agent_todo (list_todo for interrupted agent work with resume payload) and crm_tasks (search_tasks for CRM follow-ups). Priority: 1-resume interrupted work (list_todo, read payload for next step) \u2192 2-check overdue CRM tasks (search_tasks where due_date < now) \u2192 3-act on monitored triggers (deal changes, inbound) \u2192 4-follow up with user on unanswered questions \u2192 5-handle stale CRM tasks (open too long) \u2192 6-research/prepare for upcoming tasks \u2192 7-get to know user (sparse USER.md) \u2192 8-engage user (nudge, pending approvals) \u2192 9-propose new CRM tasks (create_task) or self-todos (manage_todo add) \u2192 10-create momentum (break large work into smaller pieces)",
+              "task": "Autopilot system prompt with simplified priority order adapted from §7.2 (TRIG-08). Two surfaces: agent_todo (list_todo for interrupted agent work with resume payload) and crm_tasks (search_tasks for CRM follow-ups). Priority: 1-resume interrupted work (list_todo, read payload for next step) → 2-check overdue CRM tasks (search_tasks where due_date < now) → 3-act on monitored triggers (deal changes, inbound) → 4-follow up with user on unanswered questions → 5-handle stale CRM tasks (open too long) → 6-research/prepare for upcoming tasks → 7-get to know user (sparse USER.md) → 8-engage user (nudge, pending approvals) → 9-propose new CRM tasks (create_task) or self-todos (manage_todo add) → 10-create momentum (break large work into smaller pieces)",
               "done": false
             },
             {
               "id": "PR19-6",
-              "task": "Bootstrap requirement: autopilot MUST call tools for live state before acting (thread history \u2260 current truth)",
+              "task": "Bootstrap requirement: autopilot MUST call tools for live state before acting (thread history ≠ current truth)",
               "done": false
             },
             {
@@ -1170,7 +1170,7 @@
             },
             {
               "id": "PR19-8",
-              "task": "Email notifications for autopilot results via platform send_message \u2014 stub until PR 32a implements tool (TRIG-06b)",
+              "task": "Email notifications for autopilot results via platform send_message — stub until PR 32a implements tool (TRIG-06b)",
               "done": false
             }
           ],
@@ -1192,17 +1192,17 @@
           "tasks": [
             {
               "id": "PR20-1",
-              "task": "Implement search_triggers tool \u2014 search available trigger types by keyword",
+              "task": "Implement search_triggers tool — search available trigger types by keyword",
               "done": true
             },
             {
               "id": "PR20-2",
-              "task": "Implement setup_trigger tool \u2014 create new trigger with schedule/type/config. Supported types: schedule (cron expression), webhook (generates unique URL), rss (feed URL + polling interval)",
+              "task": "Implement setup_trigger tool — create new trigger with schedule/type/config. Supported types: schedule (cron expression), webhook (generates unique URL), rss (feed URL + polling interval)",
               "done": true
             },
             {
               "id": "PR20-3",
-              "task": "Implement manage_active_triggers tool \u2014 list/view/delete/simulate active triggers",
+              "task": "Implement manage_active_triggers tool — list/view/delete/simulate active triggers",
               "done": true
             },
             {
@@ -1212,7 +1212,7 @@
             },
             {
               "id": "PR20-5",
-              "task": "Webhook trigger endpoint: /api/trigger/webhook/[triggerId] \u2014 POST fires a run in the trigger's thread. Optional webhook_secret column on agent_triggers for HMAC validation.",
+              "task": "Webhook trigger endpoint: /api/trigger/webhook/[triggerId] — POST fires a run in the trigger's thread. Optional webhook_secret column on agent_triggers for HMAC validation.",
               "done": true
             },
             {
@@ -1222,12 +1222,12 @@
             },
             {
               "id": "PR20-7",
-              "task": "Automations page at /automations \u2014 list active triggers with name, type (schedule/webhook/RSS), schedule/config, last_run_at, next_run_at, status. Enable/disable toggle per trigger. Links to trigger's thread for run history.",
+              "task": "Automations page at /automations — list active triggers with name, type (schedule/webhook/RSS), schedule/config, last_run_at, next_run_at, status. Enable/disable toggle per trigger. Links to trigger's thread for run history.",
               "done": true
             }
           ],
           "testCriteria": [
-            "Ask agent to 'check PropertyGuru every morning' \u2192 trigger created and fires on schedule",
+            "Ask agent to 'check PropertyGuru every morning' → trigger created and fires on schedule",
             "User can list and delete active triggers via chat",
             "Webhook trigger: POST to /api/trigger/webhook/{id} fires a run with the POST body as payload",
             "RSS trigger: fires only for new items, deduplicates via state file",
@@ -1236,46 +1236,46 @@
         },
         {
           "pr": "20a",
-          "title": "Suggested automations \u2014 template prompt cards",
+          "title": "Suggested automations — template prompt cards",
           "status": "done",
           "decisions": [
             "TRIG-03"
           ],
-          "note": "Solves the blank-canvas problem. Follows Tasklet pattern exactly: a template is just a pre-filled chat message. User clicks a card \u2192 navigates to /chat with the prompt text pre-filled \u2192 sends it \u2192 agent handles everything conversationally (asks clarifying questions, writes subagent .md to storage, creates trigger via setup_trigger). No template engine, no activation flow, no special UI beyond the cards themselves. Templates are a hardcoded TS array \u2014 each is just { id, title, description, category, icon, prompt }. Chat empty state also shows a few suggestion chips pulling from the same catalog.",
+          "note": "Solves the blank-canvas problem. Follows Tasklet pattern exactly: a template is just a pre-filled chat message. User clicks a card → navigates to /chat with the prompt text pre-filled → sends it → agent handles everything conversationally (asks clarifying questions, writes subagent .md to storage, creates trigger via setup_trigger). No template engine, no activation flow, no special UI beyond the cards themselves. Templates are a hardcoded TS array — each is just { id, title, description, category, icon, prompt }. Chat empty state also shows a few suggestion chips pulling from the same catalog.",
           "referenceDoc": "roadmap docs/Sunder - Source of Truth/references/template-automations.md",
           "tasks": [
             {
               "id": "PR20a-1",
-              "task": "Create automation template catalog \u2014 hardcoded TS array in src/lib/automations/templates.ts. Each entry: { id, title, description, category, icon, prompt }. 6-8 real estate agent templates: Morning CRM briefing, New listing alert monitor (RSS), Daily follow-up reminder sweep, Weekly pipeline summary, Post-viewing follow-up drafter, Inbound lead qualification, Birthday/anniversary reminder",
-              "done": false
+              "task": "Create automation template catalog — hardcoded TS array in src/lib/automations/templates.ts. Each entry: { id, title, description, category, icon, prompt }. 6-8 real estate agent templates: Morning CRM briefing, New listing alert monitor (RSS), Daily follow-up reminder sweep, Weekly pipeline summary, Post-viewing follow-up drafter, Inbound lead qualification, Birthday/anniversary reminder",
+              "done": true
             },
             {
               "id": "PR20a-2",
-              "task": "Add 'Suggested' section to /automations page below the trigger table (and in empty state). Card grid using existing QuickActionCards pattern. Each card shows icon, title, description. Click \u2192 navigates to /chat?prompt={encodeURIComponent(template.prompt)} to pre-fill a new thread.",
-              "done": false
+              "task": "Add 'Suggested' section to /automations page below the trigger table (and in empty state). Card grid using existing QuickActionCards pattern. Each card shows icon, title, description. Click → navigates to /chat?prompt={encodeURIComponent(template.prompt)} to pre-fill a new thread.",
+              "done": true
             },
             {
               "id": "PR20a-3",
-              "task": "Wire /chat prompt pre-fill \u2014 read ?prompt query param in ChatPanel, set it as the initial composer value. On send, creates a new thread as normal. Clear the query param after send.",
-              "done": false
+              "task": "Wire /chat prompt pre-fill — read ?prompt query param in ChatPanel, set it as the initial composer value. On send, creates a new thread as normal. Clear the query param after send.",
+              "done": true
             },
             {
               "id": "PR20a-4",
-              "task": "Add suggestion chips to chat empty state (message-list.tsx) \u2014 show 3-4 top templates as pill buttons using existing Suggestion component. Click \u2192 pre-fills composer with template prompt.",
-              "done": false
+              "task": "Add suggestion chips to chat empty state (message-list.tsx) — show 3-4 top templates as pill buttons using existing Suggestion component. Click → pre-fills composer with template prompt.",
+              "done": true
             }
           ],
           "testCriteria": [
             "User opens /automations (empty or with triggers), sees Suggested cards below",
-            "User clicks a template card \u2192 lands on /chat with prompt pre-filled in composer",
-            "User sends the pre-filled message \u2192 new thread created, agent starts setting up the automation conversationally",
+            "User clicks a template card → lands on /chat with prompt pre-filled in composer",
+            "User sends the pre-filled message → new thread created, agent starts setting up the automation conversationally",
             "Chat empty state shows suggestion chips, clicking one pre-fills composer",
             "Agent uses setup_trigger + write_file to complete the automation setup from the conversation"
           ]
         },
         {
           "pr": "22a",
-          "title": "Multimodal chat \u2014 image attachments",
+          "title": "Multimodal chat — image attachments",
           "status": "done",
           "decisions": [],
           "tasklist": "docs/product/tasks/2026-03-07-pr22a-multimodal-chat-tasklist.md",
@@ -1283,37 +1283,37 @@
           "tasks": [
             {
               "id": "PR22a-1",
-              "task": "Create file upload API route (app/api/files/upload/route.ts) \u2014 Supabase Storage, Zod validation (5MB, JPEG/PNG), returns { url, pathname, contentType }",
+              "task": "Create file upload API route (app/api/files/upload/route.ts) — Supabase Storage, Zod validation (5MB, JPEG/PNG), returns { url, pathname, contentType }",
               "done": true
             },
             {
               "id": "PR22a-2",
-              "task": "Create PreviewAttachment component (src/components/chat/preview-attachment.tsx) \u2014 copy from vercel/chatbot, reusable in input + message rendering",
+              "task": "Create PreviewAttachment component (src/components/chat/preview-attachment.tsx) — copy from vercel/chatbot, reusable in input + message rendering",
               "done": true
             },
             {
               "id": "PR22a-3",
-              "task": "Add multimodal to ChatComposer \u2014 attachments state, uploadQueue state, uploadFile() callback, handleFileChange(), handlePaste() with addEventListener, hidden file input, paperclip button, preview area",
+              "task": "Add multimodal to ChatComposer — attachments state, uploadQueue state, uploadFile() callback, handleFileChange(), handlePaste() with addEventListener, hidden file input, paperclip button, preview area",
               "done": true
             },
             {
               "id": "PR22a-4",
-              "task": "Update ChatPanel.handleSubmit \u2014 switch from sendMessage({ text }) to sendMessage({ role: 'user', parts: [...fileParts, { type: 'text', text }] })",
+              "task": "Update ChatPanel.handleSubmit — switch from sendMessage({ text }) to sendMessage({ role: 'user', parts: [...fileParts, { type: 'text', text }] })",
               "done": true
             },
             {
               "id": "PR22a-5",
-              "task": "Update MessageBubble \u2014 filter message.parts for type==='file', render PreviewAttachment for each",
+              "task": "Update MessageBubble — filter message.parts for type==='file', render PreviewAttachment for each",
               "done": true
             },
             {
               "id": "PR22a-6",
-              "task": "Extend runAgent to accept file parts \u2014 forward to streamText via convertToModelMessages() so images reach the model",
+              "task": "Extend runAgent to accept file parts — forward to streamText via convertToModelMessages() so images reach the model",
               "done": true
             },
             {
               "id": "PR22a-7",
-              "task": "Add stop button to ChatComposer \u2014 wire useChat stop() when status === 'submitted' or 'streaming'",
+              "task": "Add stop button to ChatComposer — wire useChat stop() when status === 'submitted' or 'streaming'",
               "done": true
             }
           ],
@@ -1328,10 +1328,10 @@
         },
         {
           "pr": "22b",
-          "title": "Tool output rendering \u2014 json-render + tool approval UI",
+          "title": "Tool output rendering — json-render + tool approval UI",
           "status": "done",
           "decisions": [],
-          "note": "Two improvements to tool display in chat: (1) Replace raw JSON.stringify in ToolCallInline with custom zero-dep JsonView component for readable tool output (pivoted from @vercel-labs/json-render \u2014 that package is a generative UI framework, not a JSON viewer). (2) Wire addToolApprovalResponse with approve/deny buttons for tools with approval-requested state. Reference: roadmap docs/Sunder - Source of Truth/references/vercel-chatbot/generative-ui-hooks-reference.md",
+          "note": "Two improvements to tool display in chat: (1) Replace raw JSON.stringify in ToolCallInline with custom zero-dep JsonView component for readable tool output (pivoted from @vercel-labs/json-render — that package is a generative UI framework, not a JSON viewer). (2) Wire addToolApprovalResponse with approve/deny buttons for tools with approval-requested state. Reference: roadmap docs/Sunder - Source of Truth/references/vercel-chatbot/generative-ui-hooks-reference.md",
           "tasks": [
             {
               "id": "PR22b-1",
@@ -1350,12 +1350,12 @@
             },
             {
               "id": "PR22b-4",
-              "task": "Wire addToolApprovalResponse from useChat \u2014 destructure in ChatPanel, pass through to MessageBubble",
+              "task": "Wire addToolApprovalResponse from useChat — destructure in ChatPanel, pass through to MessageBubble",
               "done": true
             },
             {
               "id": "PR22b-5",
-              "task": "Add approve/deny buttons in message rendering when tool part state === 'approval-requested' \u2014 follows vercel/chatbot pattern exactly",
+              "task": "Add approve/deny buttons in message rendering when tool part state === 'approval-requested' — follows vercel/chatbot pattern exactly",
               "done": true
             },
             {
@@ -1380,7 +1380,7 @@
             "DATA-10",
             "SESSION-07"
           ],
-          "note": "Extends PR 22 (done). Aligns Sunder's context management with Tasklet's proven production patterns for permanent sessions. Two separate layers: (1) size-based truncation at persistence time with block storage for all tool calls, (2) trigger event pruning + structured summary at compaction time. Confirmed via empirical Tasklet testing: truncation is persistence-time, fixed threshold, permanent. Recovery always through block storage. No block index needed \u2014 agent uses read_file with deterministic paths.",
+          "note": "Extends PR 22 (done). Aligns Sunder's context management with Tasklet's proven production patterns for permanent sessions. Two separate layers: (1) size-based truncation at persistence time with block storage for all tool calls, (2) trigger event pruning + structured summary at compaction time. Confirmed via empirical Tasklet testing: truncation is persistence-time, fixed threshold, permanent. Recovery always through block storage. No block index needed — agent uses read_file with deterministic paths.",
           "tasks": [
             {
               "id": "PR22c-1",
@@ -1428,12 +1428,12 @@
       "title": "Connections + Email + Subagents + Agent-Generated Views",
       "status": "pending",
       "goal": "Agent connects to external services via OAuth. Can send emails. Subagents handle heavy research in isolation. Agent generates custom views from chat that users can pin.",
-      "demoMoment": "User connects Gmail, agent drafts follow-up and sends after approval. User says 'show me my deals as a kanban' \u2192 agent generates and displays an interactive board. User pins it to sidebar.",
+      "demoMoment": "User connects Gmail, agent drafts follow-up and sends after approval. User says 'show me my deals as a kanban' → agent generates and displays an interactive board. User pins it to sidebar.",
       "prs": [
         {
           "pr": 25,
           "title": "Composio connections + OAuth",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [
             "CONN-01",
             "CONN-02",
@@ -1443,22 +1443,22 @@
             {
               "id": "PR25-1",
               "task": "Migration: connections table",
-              "done": false
+              "done": true
             },
             {
               "id": "PR25-2",
               "task": "Composio SDK integration for OAuth flows",
-              "done": false
+              "done": true
             },
             {
               "id": "PR25-3",
               "task": "Connection-first behavior: agent checks existing before proposing new (CONN-03)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR25-4",
               "task": "One-shot OAuth setup with token refresh",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -1468,7 +1468,7 @@
         {
           "pr": 26,
           "title": "Connection tools",
-          "status": "pending",
+          "status": "done",
           "decisions": [
             "TOOL-04",
             "TOOL-06"
@@ -1477,47 +1477,47 @@
             {
               "id": "PR26-1",
               "task": "Implement list_users_connections tool",
-              "done": false
+              "done": true
             },
             {
               "id": "PR26-2",
               "task": "Implement get_details_for_connections tool",
-              "done": false
+              "done": true
             },
             {
               "id": "PR26-3",
               "task": "Implement search_for_integrations tool (Composio catalog)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR26-4",
               "task": "Implement create_new_connections tool (OAuth flow initiation)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR26-5",
               "task": "Implement manage_activated_tools_for_connections tool (activate/deactivate per-connection tools)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR26-6",
               "task": "Implement reauthorize_connection tool",
-              "done": false
+              "done": true
             },
             {
               "id": "PR26-7",
               "task": "Implement delete_connection tool",
-              "done": false
+              "done": true
             },
             {
               "id": "PR26-8",
-              "task": "Write connection skill files to storage on connection creation (Tasklet pattern \u2014 lazy-loaded instructions for service quirks)",
-              "done": false
+              "task": "Write connection skill files to storage on connection creation (Tasklet pattern — lazy-loaded instructions for service quirks)",
+              "done": true
             },
             {
               "id": "PR26-9",
               "task": "Wire connection state into system-reminder slot (from PR 15): active connections with tool counts + skill file pointers, inactive connection count. e.g. 'Gmail: 12/45 tools active (skill: connections/gmail.md)'",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -1570,16 +1570,16 @@
           "dependsOn": [
             "15a"
           ],
-          "note": "Layer 3 of CRM configurability stack. Agent generates views by outputting a JSON spec conforming to a Zod-defined component catalog \u2014 not arbitrary code. Frontend renders specs deterministically via a <ViewRenderer> component using existing React components and TanStack Query data layer. No sandbox, no iframe, no bridge API needed. Inspired by Vercel Labs json-render pattern. Covers the real estate vertical's predictable view needs (kanban, table, chart, timeline, priority list). Saved specs become pinnable persistent views. Tasklet-style sandboxed code gen deferred to PR 42b as an escape hatch if catalog coverage proves insufficient.",
+          "note": "Layer 3 of CRM configurability stack. Agent generates views by outputting a JSON spec conforming to a Zod-defined component catalog — not arbitrary code. Frontend renders specs deterministically via a <ViewRenderer> component using existing React components and TanStack Query data layer. No sandbox, no iframe, no bridge API needed. Inspired by Vercel Labs json-render pattern. Covers the real estate vertical's predictable view needs (kanban, table, chart, timeline, priority list). Saved specs become pinnable persistent views. Tasklet-style sandboxed code gen deferred to PR 42b as an escape hatch if catalog coverage proves insufficient.",
           "tasks": [
             {
               "id": "PR42a-1",
-              "task": "Define component catalog: Zod schemas for view components (kanban board, data table, chart, timeline, priority list, stat card). Each schema defines valid props \u2014 the LLM can only produce components in this catalog.",
+              "task": "Define component catalog: Zod schemas for view components (kanban board, data table, chart, timeline, priority list, stat card). Each schema defines valid props — the LLM can only produce components in this catalog.",
               "done": false
             },
             {
               "id": "PR42a-2",
-              "task": "Build <ViewRenderer> component \u2014 takes a JSON view spec, validates against catalog schemas, renders the matching React component. Streaming/progressive rendering support.",
+              "task": "Build <ViewRenderer> component — takes a JSON view spec, validates against catalog schemas, renders the matching React component. Streaming/progressive rendering support.",
               "done": false
             },
             {
@@ -1594,13 +1594,13 @@
             },
             {
               "id": "PR42a-5",
-              "task": "Wire saved views into sidebar navigation \u2014 pinned views appear as nav items, clicking renders the saved spec via <ViewRenderer>.",
+              "task": "Wire saved views into sidebar navigation — pinned views appear as nav items, clicking renders the saved spec via <ViewRenderer>.",
               "done": false
             }
           ],
           "testCriteria": [
-            "User says 'show me a kanban of my deals grouped by stage' \u2192 agent outputs JSON spec \u2192 ViewRenderer displays interactive board with live CRM data",
-            "User pins the view \u2192 it appears in sidebar \u2192 clicking it re-renders the saved spec with fresh data",
+            "User says 'show me a kanban of my deals grouped by stage' → agent outputs JSON spec → ViewRenderer displays interactive board with live CRM data",
+            "User pins the view → it appears in sidebar → clicking it re-renders the saved spec with fresh data",
             "Generated view includes custom fields from PR 15a",
             "Agent cannot produce components outside the defined catalog (Zod validation rejects invalid specs)"
           ]
@@ -1668,7 +1668,7 @@
       "prs": [
         {
           "pr": 33,
-          "title": "Approval system \u2014 gate implementation",
+          "title": "Approval system — gate implementation",
           "status": "pending",
           "decisions": [
             "SAFETY-01",
@@ -1692,7 +1692,7 @@
             },
             {
               "id": "PR33-4",
-              "task": "User says yes \u2192 agent continues. No \u2192 run cancelled.",
+              "task": "User says yes → agent continues. No → run cancelled.",
               "done": false
             },
             {
@@ -1704,17 +1704,17 @@
           "testCriteria": [
             "Agent tries to send email, pauses for approval, continues after yes"
           ],
-          "note": "Tool approval UI (approve/deny buttons, denial state, prop drilling ChatPanel\u2192ToolCallInline) already shipped in PR 22b. This PR adds the backend gate logic (two-tier safety model, which tools require approval)."
+          "note": "Tool approval UI (approve/deny buttons, denial state, prop drilling ChatPanel→ToolCallInline) already shipped in PR 22b. This PR adds the backend gate logic (two-tier safety model, which tools require approval)."
         },
         {
           "pr": 34,
-          "title": "Approval system \u2014 events + UI",
+          "title": "Approval system — events + UI",
           "status": "pending",
           "decisions": [
             "SAFETY-02",
             "SAFETY-04"
           ],
-          "note": "v2 simplification: pending approvals visible in chat thread, skip separate queue UI. Tool approval UI components already shipped in PR 22b \u2014 this PR adds the approval_events table and trigger-thread integration.",
+          "note": "v2 simplification: pending approvals visible in chat thread, skip separate queue UI. Tool approval UI components already shipped in PR 22b — this PR adds the approval_events table and trigger-thread integration.",
           "tasks": [
             {
               "id": "PR34-1",
@@ -1738,7 +1738,7 @@
         },
         {
           "pr": 35,
-          "title": "Mission Control \u2014 status summary",
+          "title": "Mission Control — status summary",
           "status": "pending",
           "decisions": [
             "UX-03"
@@ -1797,7 +1797,7 @@
             },
             {
               "id": "PR38-5",
-              "task": "Update clients bootstrap/display_name fallback for social sign-in metadata: prefer display_name \u2192 full_name \u2192 name \u2192 email so Google users do not default to raw email when profile data is available",
+              "task": "Update clients bootstrap/display_name fallback for social sign-in metadata: prefer display_name → full_name → name → email so Google users do not default to raw email when profile data is available",
               "done": true
             },
             {
@@ -1863,7 +1863,7 @@
       "prs": [
         {
           "pr": 41,
-          "title": "Telegram integration \u2014 bot setup",
+          "title": "Telegram integration — bot setup",
           "status": "pending",
           "decisions": [
             "GAP-09",
@@ -1892,7 +1892,7 @@
         },
         {
           "pr": 42,
-          "title": "Telegram integration \u2014 approvals + features",
+          "title": "Telegram integration — approvals + features",
           "status": "pending",
           "decisions": [
             "UX-07"
@@ -1916,7 +1916,7 @@
         },
         {
           "pr": "42b",
-          "title": "Sandboxed code-gen views (Tasklet instant-app pattern) \u2014 DEFERRED",
+          "title": "Sandboxed code-gen views (Tasklet instant-app pattern) — DEFERRED",
           "status": "pending",
           "decisions": [
             "UX-10",
@@ -1939,7 +1939,7 @@
             },
             {
               "id": "PR42b-3",
-              "task": "Agent tool: create_app (scaffolds multi-file TSX app) \u2014 Tasklet create_instant_app equivalent",
+              "task": "Agent tool: create_app (scaffolds multi-file TSX app) — Tasklet create_instant_app equivalent",
               "done": false
             }
           ],
@@ -2001,7 +2001,7 @@
       },
       {
         "pr": 23,
-        "title": "Skill system \u2014 registry",
+        "title": "Skill system — registry",
         "reason": "Skills are just markdown files in Supabase Storage. No DB registry needed. Agent reads them with read_file().",
         "decisions": [
           "SKILL-01",
@@ -2012,7 +2012,7 @@
       },
       {
         "pr": 24,
-        "title": "Skill system \u2014 loading + custom skills",
+        "title": "Skill system — loading + custom skills",
         "reason": "No guided interview UI. Agent writes skill files directly via write_file.",
         "decisions": [
           "SKILL-05",
@@ -2023,7 +2023,7 @@
       },
       {
         "pr": 27,
-        "title": "Vercel Sandbox integration \u2014 setup",
+        "title": "Vercel Sandbox integration — setup",
         "reason": "No code execution for v1. CRM autopilot doesn't need sandbox.",
         "decisions": [
           "EXEC-04",
@@ -2033,7 +2033,7 @@
       },
       {
         "pr": 28,
-        "title": "Vercel Sandbox integration \u2014 artifacts",
+        "title": "Vercel Sandbox integration — artifacts",
         "reason": "No CMA generation or artifact rendering for v1.",
         "decisions": [
           "EXEC-07",
@@ -2075,8 +2075,8 @@
       },
       {
         "pr": 36,
-        "title": "Mission Control \u2014 Queue tab + Tasks UI",
-        "reason": "CRM tasks page already exists. Agent todos are per-thread (visible in system-reminder, not a dedicated page). Goals view cut (goals written to MEMORY.md instead). Approval discovery is per-thread only \u2014 KISS.",
+        "title": "Mission Control — Queue tab + Tasks UI",
+        "reason": "CRM tasks page already exists. Agent todos are per-thread (visible in system-reminder, not a dedicated page). Goals view cut (goals written to MEMORY.md instead). Approval discovery is per-thread only — KISS.",
         "decisions": [
           "TASKLET-05",
           "UX-04"
@@ -2147,7 +2147,7 @@
     ]
   },
   "crossPhaseDependencies": {
-    "description": "Phase 1 (done) \u2192 Phase 2 \u2192 Phase 3 \u2192 Phase 4 \u2192 Phase 5. Phase 4 can start in parallel with Phase 3 (approval gates don't depend on connections).",
+    "description": "Phase 1 (done) → Phase 2 → Phase 3 → Phase 4 → Phase 5. Phase 4 can start in parallel with Phase 3 (approval gates don't depend on connections).",
     "graph": {
       "phase1": [
         "phase2"
