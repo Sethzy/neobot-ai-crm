@@ -10,14 +10,18 @@ import { getComposio } from "@/lib/composio/client";
 import { getConnectionById, updateConnectionStatus } from "@/lib/connections/queries";
 import type { Database } from "@/types/database";
 
-function getCallbackUrl(): string {
+function getCallbackUrl(toolkitSlug: string): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
 
   if (!appUrl) {
     throw new Error("NEXT_PUBLIC_APP_URL is required to reauthorize connections.");
   }
 
-  return new URL("/api/connections/callback", appUrl).toString();
+  const callbackUrl = new URL("/api/connections/callback", appUrl);
+  callbackUrl.searchParams.set("toolkit", toolkitSlug);
+  callbackUrl.searchParams.set("reason", "reauth");
+
+  return callbackUrl.toString();
 }
 
 /**
@@ -76,9 +80,16 @@ export function createReauthorizeConnectionTool(
         const refreshResult = await composio.connectedAccounts.refresh(
           connection.composio_connected_account_id,
           {
-            redirectUrl: getCallbackUrl(),
+            redirectUrl: getCallbackUrl(connection.toolkit_slug),
           },
         );
+
+        if (!refreshResult.redirect_url) {
+          return {
+            success: false,
+            error: "Composio did not return a re-authorization URL.",
+          };
+        }
 
         await updateConnectionStatus(supabase, clientId, connection.id, "pending");
 

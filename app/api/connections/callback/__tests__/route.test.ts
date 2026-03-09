@@ -186,6 +186,38 @@ describe("GET /api/connections/callback", () => {
     );
   });
 
+  it("marks reauthorization rows as error instead of deleting them on failed callbacks", async () => {
+    mockGetPendingConnectionByToolkit.mockResolvedValue({
+      id: "conn-1",
+      client_id: "client-1",
+      composio_connected_account_id: "conn_123",
+      toolkit_slug: "gmail",
+      display_name: "Gmail",
+      account_identifier: "owner@gmail.com",
+      status: "pending",
+      activated_tools: ["GMAIL_SEND_EMAIL"],
+      tool_count: 3,
+      created_at: "2026-03-07T00:00:00.000Z",
+      updated_at: "2026-03-07T00:00:00.000Z",
+    });
+
+    const response = await GET(
+      new Request(
+        "http://localhost/api/connections/callback?status=failed&connected_account_id=conn_123&toolkit=gmail&reason=reauth",
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "http://localhost/settings?connection=error&reason=failed",
+    );
+    expect(mockUpdateConnection).toHaveBeenCalledWith({ marker: "server-client" }, "client-1", {
+      id: "conn-1",
+      status: "error",
+    });
+    expect(mockDeleteConnection).not.toHaveBeenCalled();
+  });
+
   it("finalizes a matching pending row and redirects to settings success", async () => {
     const getConnectedAccount = vi.fn().mockResolvedValue({
       id: "conn_123",
@@ -520,5 +552,42 @@ describe("GET /api/connections/callback", () => {
       "client-1",
       "pending-row-1",
     );
+  });
+
+  it("marks reauthorization rows as error when callback verification throws", async () => {
+    mockGetPendingConnectionByToolkit.mockResolvedValue({
+      id: "conn-1",
+      client_id: "client-1",
+      composio_connected_account_id: "conn_123",
+      toolkit_slug: "gmail",
+      display_name: "Gmail",
+      account_identifier: "owner@gmail.com",
+      status: "pending",
+      activated_tools: ["GMAIL_SEND_EMAIL"],
+      tool_count: 3,
+      created_at: "2026-03-07T00:00:00.000Z",
+      updated_at: "2026-03-07T00:00:00.000Z",
+    });
+    mockGetComposio.mockReturnValue({
+      connectedAccounts: {
+        get: vi.fn().mockRejectedValue(new Error("boom")),
+      },
+    });
+
+    const response = await GET(
+      new Request(
+        "http://localhost/api/connections/callback?status=success&connected_account_id=conn_123&toolkit=gmail&reason=reauth",
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "http://localhost/settings?connection=error&reason=callback_failed",
+    );
+    expect(mockUpdateConnection).toHaveBeenCalledWith({ marker: "server-client" }, "client-1", {
+      id: "conn-1",
+      status: "error",
+    });
+    expect(mockDeleteConnection).not.toHaveBeenCalled();
   });
 });

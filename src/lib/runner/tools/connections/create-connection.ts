@@ -10,14 +10,17 @@ import { initiateOAuthFlow } from "@/lib/composio/connection-flow";
 import { getActiveConnectionsByToolkit, insertConnection } from "@/lib/connections/queries";
 import type { Database } from "@/types/database";
 
-function getCallbackUrl(): string {
+function getCallbackUrl(toolkitSlug: string): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
 
   if (!appUrl) {
     throw new Error("NEXT_PUBLIC_APP_URL is required to create new connections.");
   }
 
-  return new URL("/api/connections/callback", appUrl).toString();
+  const callbackUrl = new URL("/api/connections/callback", appUrl);
+  callbackUrl.searchParams.set("toolkit", toolkitSlug);
+
+  return callbackUrl.toString();
 }
 
 const createConnectionInputSchema = z.object({
@@ -88,7 +91,6 @@ export function createCreateConnectionTool(
           };
         }
 
-        const callbackUrl = getCallbackUrl();
         const results: Array<{
           integrationId: string;
           connectionStatus: "pending_auth";
@@ -99,6 +101,7 @@ export function createCreateConnectionTool(
         }> = [];
 
         for (const integration of connection.integrations) {
+          const callbackUrl = getCallbackUrl(integration.integrationId);
           const existingConnections = await getActiveConnectionsByToolkit(
             supabase,
             clientId,

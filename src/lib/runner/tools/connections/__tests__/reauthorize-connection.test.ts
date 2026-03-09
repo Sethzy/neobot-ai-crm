@@ -105,7 +105,7 @@ describe("createReauthorizeConnectionTool", () => {
 
     expect(refresh).toHaveBeenCalledTimes(2);
     expect(refresh).toHaveBeenLastCalledWith("composio-1", {
-      redirectUrl: "https://app.sunder.local/api/connections/callback",
+      redirectUrl: "https://app.sunder.local/api/connections/callback?toolkit=gmail&reason=reauth",
     });
     expect(updateConnectionStatus).toHaveBeenCalledWith(
       {} as never,
@@ -119,6 +119,34 @@ describe("createReauthorizeConnectionTool", () => {
       status: "pending_reauth",
       redirectUrl: "https://composio.dev/oauth/reauth",
       message: expect.stringContaining("re-authorization"),
+    });
+  });
+
+  it("returns an error when Composio does not return a redirect URL", async () => {
+    const refresh = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Token expired"))
+      .mockResolvedValueOnce({
+        redirect_url: undefined,
+      });
+    vi.mocked(getConnectionById).mockResolvedValue(MOCK_CONNECTION as never);
+    vi.mocked(getComposio).mockReturnValue({
+      connectedAccounts: {
+        refresh,
+        get: vi.fn(),
+      },
+    } as never);
+
+    const { reauthorize_connection } = createReauthorizeConnectionTool({} as never, CLIENT_ID);
+    const result = await reauthorize_connection.execute(
+      { connectionId: "conn-1" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(updateConnectionStatus).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      success: false,
+      error: "Composio did not return a re-authorization URL.",
     });
   });
 

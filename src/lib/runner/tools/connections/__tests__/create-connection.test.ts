@@ -64,7 +64,7 @@ describe("createCreateConnectionTool", () => {
     expect(initiateOAuthFlow).toHaveBeenCalledWith({
       composioUserId: CLIENT_ID,
       toolkitSlug: "gmail",
-      callbackUrl: "https://app.sunder.local/api/connections/callback",
+      callbackUrl: "https://app.sunder.local/api/connections/callback?toolkit=gmail",
     });
     expect(insertConnection).toHaveBeenCalledWith(
       {} as never,
@@ -160,6 +160,11 @@ describe("createCreateConnectionTool", () => {
     expect(result.results[1]).toMatchObject({
       integrationId: "slack",
       existingConnections: undefined,
+    });
+    expect(initiateOAuthFlow).toHaveBeenNthCalledWith(2, {
+      composioUserId: CLIENT_ID,
+      toolkitSlug: "slack",
+      callbackUrl: "https://app.sunder.local/api/connections/callback?toolkit=slack",
     });
     expect(insertConnection).toHaveBeenCalledTimes(2);
   });
