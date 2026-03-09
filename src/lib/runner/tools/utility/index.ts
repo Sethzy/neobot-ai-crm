@@ -30,20 +30,12 @@ export function createUtilityTools(
 ) {
   const isSubagent = options?.isSubagent ?? false;
   const includeSendMessage = options?.includeSendMessage ?? !isSubagent;
-  const todoTools = createTodoTools(supabase, clientId, threadId);
-  const sqlTools = createSqlTools(supabase);
-  const tools = {
-    ...todoTools,
-    ...sqlTools,
+
+  return {
+    ...createTodoTools(supabase, clientId, threadId),
+    ...createSqlTools(supabase),
+    ...(!isSubagent ? createAskUserQuestionTool() : {}),
+    ...(!isSubagent ? createRenameChatTool(supabase, clientId, threadId) : {}),
+    ...(includeSendMessage ? createSendMessageTool() : {}),
   };
-
-  if (!isSubagent) {
-    Object.assign(tools, createAskUserQuestionTool(), createRenameChatTool(supabase, clientId, threadId));
-  }
-
-  if (includeSendMessage) {
-    Object.assign(tools, createSendMessageTool());
-  }
-
-  return tools;
 }

@@ -31,8 +31,6 @@ export type RunAgentResult =
   | { status: "streaming"; streamResult: StreamResult }
   | { status: "queued" };
 
-export { createRunnerTools } from "@/lib/runner/tool-registry";
-
 /**
  * Builds per-step overrides for the active model.
  * The only current override is disabling tools on the final allowed step.

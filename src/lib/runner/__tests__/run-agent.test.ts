@@ -118,7 +118,8 @@ vi.mock("@/lib/runner/toolcall-artifacts", () => ({
 }));
 
 import type { RunnerPayload } from "../schemas";
-import { buildPrepareStep, createRunnerTools, runAgent } from "../run-agent";
+import { buildPrepareStep, runAgent } from "../run-agent";
+import { createRunnerTools } from "../tool-registry";
 
 const validPayload: RunnerPayload = {
   clientId: "550e8400-e29b-41d4-a716-446655440000",

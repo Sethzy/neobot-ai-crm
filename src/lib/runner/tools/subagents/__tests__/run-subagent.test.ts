@@ -122,9 +122,7 @@ describe("createSubagentTool", () => {
 
     const result = await run_subagent.execute(
       {
-        action_pending: "Preparing briefing…",
-        action_finished: "Briefing ready",
-        action_error: "Briefing failed",
+
         path: "subagents/triggers/morning-briefing.md",
         payload: '{"invitee":"Jane Chen"}',
       },
@@ -183,9 +181,7 @@ describe("createSubagentTool", () => {
 
     await run_subagent.execute(
       {
-        action_pending: "Preparing briefing…",
-        action_finished: "Briefing ready",
-        action_error: "Briefing failed",
+
         path: "/agent/skills/connections/conn-1/SKILL.md",
       },
       { abortSignal: new AbortController().signal } as never,
@@ -206,9 +202,7 @@ describe("createSubagentTool", () => {
 
     await run_subagent.execute(
       {
-        action_pending: "Preparing briefing…",
-        action_finished: "Briefing ready",
-        action_error: "Briefing failed",
+
         path: "subagents/triggers/morning-briefing.md",
       },
       { abortSignal: new AbortController().signal } as never,
@@ -241,9 +235,7 @@ describe("createSubagentTool", () => {
 
     await run_subagent.execute(
       {
-        action_pending: "Preparing briefing…",
-        action_finished: "Briefing ready",
-        action_error: "Briefing failed",
+
         path: "subagents/triggers/morning-briefing.md",
       },
       { abortSignal: new AbortController().signal } as never,

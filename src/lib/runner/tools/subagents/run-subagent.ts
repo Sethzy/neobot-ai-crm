@@ -11,6 +11,7 @@ import type { CrmVocabConfig } from "@/lib/crm/config";
 import { assembleSystemOnly } from "@/lib/runner/context";
 import { completeRun, createSubagentRun } from "@/lib/runner/run-lifecycle";
 import { createRunnerTools } from "@/lib/runner/tool-registry";
+import type { StepLike } from "@/lib/runner/message-utils";
 import { saveToolcallBlock } from "@/lib/runner/toolcall-artifacts";
 import { createAgentFileClient } from "@/lib/storage/agent-files";
 import { toStoragePath } from "@/lib/storage/agent-paths";
@@ -23,9 +24,6 @@ const SUBAGENT_STEP_TIMEOUT_MS = 30_000;
 type ChatSupabaseClient = SupabaseClient<Database>;
 
 const runSubagentInputSchema = z.object({
-  action_pending: z.string().min(1),
-  action_finished: z.string().min(1),
-  action_error: z.string().min(1),
   path: z.string().min(1),
   payload: z.string().optional(),
 });
@@ -34,11 +32,6 @@ interface CreateSubagentToolOptions {
   parentRunId: string;
   crmConfig?: CrmVocabConfig;
   crmMode?: "normal" | "setup";
-}
-
-interface StepLike {
-  toolCalls?: ReadonlyArray<Record<string, unknown>>;
-  toolResults?: ReadonlyArray<Record<string, unknown>>;
 }
 
 /**
@@ -66,25 +59,23 @@ export function createSubagentTool(
         try {
           const internalPath = toStoragePath(path);
           const fileClient = createAgentFileClient(supabase, clientId);
-          let instructionMarkdown: string;
 
-          try {
-            instructionMarkdown = await fileClient.downloadFile(internalPath);
-          } catch {
-            throw new Error(`Instruction file not found: ${path}`);
-          }
+          const [instructionMarkdown, system] = await Promise.all([
+            fileClient.downloadFile(internalPath).catch(() => {
+              throw new Error(`Instruction file not found: ${path}`);
+            }),
+            assembleSystemOnly({
+              supabase,
+              clientId,
+              threadId,
+              crmConfig: options.crmConfig,
+              crmMode: options.crmMode ?? "normal",
+            }),
+          ]);
 
           if (instructionMarkdown.trim().length === 0) {
             throw new Error(`Instruction file is empty: ${path}`);
           }
-
-          const system = await assembleSystemOnly({
-            supabase,
-            clientId,
-            threadId,
-            crmConfig: options.crmConfig,
-            crmMode: options.crmMode ?? "normal",
-          });
           const tools = createRunnerTools(supabase, clientId, threadId, {
             allowTriggerMutations: false,
             allowConnectionMutations: false,

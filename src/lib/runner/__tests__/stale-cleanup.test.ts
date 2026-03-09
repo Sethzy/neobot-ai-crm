@@ -162,7 +162,6 @@ describe("stale run cleanup", () => {
     expect(order).toEqual(["markStale", "createRun"]);
     expect(mockMarkStaleRunsFailed).toHaveBeenCalledWith("supabase", {
       threadId: "ttt00000-0000-0000-0000-000000000000",
-      staleMinutes: 15,
     });
   });
 });
