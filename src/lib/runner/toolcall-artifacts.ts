@@ -30,22 +30,6 @@ function getSerializedArtifact(output: unknown): string | null {
   return JSON.stringify(output, null, 2);
 }
 
-function getSerializedSizeBytes(output: unknown): number {
-  const serialized = getSerializedArtifact(output);
-  return serialized == null ? 0 : new TextEncoder().encode(serialized).length;
-}
-
-/**
- * Returns true when a tool result should be saved as a separate artifact.
- */
-export function shouldTruncateToolResult(output: unknown): boolean {
-  if (output == null) {
-    return false;
-  }
-
-  return getSerializedSizeBytes(output) >= ARTIFACT_SIZE_THRESHOLD_BYTES;
-}
-
 /** Serializes output and returns the string and its byte length in one pass. */
 function serializeWithSize(output: unknown): { serialized: string; sizeBytes: number } | null {
   const serialized = getSerializedArtifact(output);

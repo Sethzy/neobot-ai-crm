@@ -8,7 +8,6 @@ import {
   buildContextRemovedMarker,
   saveToolcallArtifact,
   saveToolcallBlock,
-  shouldTruncateToolResult,
   truncateOversizedParts,
 } from "../toolcall-artifacts";
 
@@ -26,22 +25,6 @@ function createStorageSupabaseMock() {
     from,
   };
 }
-
-describe("shouldTruncateToolResult", () => {
-  it("returns false for nullish values", () => {
-    expect(shouldTruncateToolResult(null)).toBe(false);
-    expect(shouldTruncateToolResult(undefined)).toBe(false);
-  });
-
-  it("returns false for small string and object payloads", () => {
-    expect(shouldTruncateToolResult("short")).toBe(false);
-    expect(shouldTruncateToolResult({ ok: true, contacts: [] })).toBe(false);
-  });
-
-  it("returns true when a payload reaches the artifact threshold", () => {
-    expect(shouldTruncateToolResult("x".repeat(5_000))).toBe(true);
-  });
-});
 
 describe("saveToolcallArtifact", () => {
   beforeEach(() => {
