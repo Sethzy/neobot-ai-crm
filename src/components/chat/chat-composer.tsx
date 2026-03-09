@@ -18,6 +18,7 @@ import {
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input";
 import { Paperclip } from "@/components/icons/lucide-compat";
+import { cn } from "@/lib/utils";
 import type { ChatStatus } from "@/types/chat";
 
 import { PreviewAttachment, type Attachment } from "./preview-attachment";
@@ -35,6 +36,12 @@ interface ChatComposerProps {
   onValueChange: (value: string) => void;
   onSubmit: (message: ChatSubmitInput) => void;
   onStop: () => void;
+  /** Optional CSS class for the outer wrapper div. */
+  className?: string;
+  /** Optional CSS class for the inner max-width container. */
+  innerClassName?: string;
+  /** Custom placeholder text for the textarea. */
+  placeholder?: string;
 }
 
 function toFilePart(attachment: Attachment): FileUIPart {
@@ -64,7 +71,7 @@ function removeQueuedFilenames(currentQueue: string[], filenamesToRemove: string
   });
 }
 
-export function ChatComposer({ status, value, onValueChange, onSubmit, onStop }: ChatComposerProps) {
+export function ChatComposer({ status, value, onValueChange, onSubmit, onStop, className, innerClassName, placeholder }: ChatComposerProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -174,8 +181,8 @@ export function ChatComposer({ status, value, onValueChange, onSubmit, onStop }:
   }, [attachments, isGenerating, onSubmit, onValueChange, uploadQueue.length]);
 
   return (
-    <div className="px-4 pb-4">
-      <div className="mx-auto max-w-2xl space-y-2">
+    <div className={cn("px-4 pb-4", className)}>
+      <div className={cn("mx-auto max-w-2xl space-y-2", innerClassName)}>
         {(attachments.length > 0 || uploadQueue.length > 0) ? (
           <div className="flex flex-wrap gap-2" data-testid="composer-attachments">
             {attachments.map((attachment) => (
@@ -216,7 +223,7 @@ export function ChatComposer({ status, value, onValueChange, onSubmit, onStop }:
 
         <PromptInput disableAttachments onSubmit={handleSubmit}>
           <PromptInputTextarea
-            placeholder="Send a message..."
+            placeholder={placeholder ?? "Send a message..."}
             value={value}
             onChange={handleChange}
             onPaste={handlePaste}

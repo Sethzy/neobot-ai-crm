@@ -13,6 +13,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useAutoResume } from "@/hooks/use-auto-resume";
 import { threadKeys } from "@/hooks/use-threads";
 import { ChatComposer } from "./chat-composer";
+import { ChatWelcome } from "./chat-welcome";
 import { useDataStream } from "./data-stream-provider";
 import { MessageList } from "./message-list";
 
@@ -147,12 +148,7 @@ export function ChatPanel({
     [handleSubmit, isLoading],
   );
 
-  const handleSuggestionClick = useCallback(
-    (prompt: string) => {
-      setComposerValue(prompt);
-    },
-    [],
-  );
+  const hasMessages = messages.length > 0;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -163,9 +159,20 @@ export function ChatPanel({
         </div>
       ) : null}
 
-      <MessageList messages={messages} status={status} onToolApproval={handleToolApproval} onSuggestionClick={handleSuggestionClick} onQuestionSubmit={handleQuestionSubmit} />
-
-      <ChatComposer status={status} value={composerValue} onValueChange={setComposerValue} onSubmit={handleSubmit} onStop={stop} />
+      {hasMessages ? (
+        <>
+          <MessageList messages={messages} status={status} onToolApproval={handleToolApproval} onQuestionSubmit={handleQuestionSubmit} />
+          <ChatComposer status={status} value={composerValue} onValueChange={setComposerValue} onSubmit={handleSubmit} onStop={stop} />
+        </>
+      ) : (
+        <ChatWelcome
+          status={status}
+          composerValue={composerValue}
+          onComposerValueChange={setComposerValue}
+          onSubmit={handleSubmit}
+          onStop={stop}
+        />
+      )}
     </div>
   );
 }

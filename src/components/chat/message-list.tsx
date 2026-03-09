@@ -4,14 +4,13 @@
  */
 "use client";
 
-import { ArrowDown, MessageCircle } from "@/components/icons/lucide-compat";
+import { ArrowDown } from "@/components/icons/lucide-compat";
 
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Button } from "@/components/ui/button";
 import { memo } from "react";
 
 import { useScrollToBottom } from "@/hooks/use-scroll-to-bottom";
-import { AUTOMATION_TEMPLATES } from "@/lib/automations/templates";
 import type { ChatStatus } from "@/types/chat";
 
 import { MessageBubble } from "./message-bubble";
@@ -22,84 +21,44 @@ interface MessageListProps {
   status: ChatStatus;
   /** Callback for tool approval actions. */
   onToolApproval?: (approvalId: string, approved: boolean) => void;
-  /** Called when user clicks a suggestion chip in the empty state. Receives the prompt text. */
-  onSuggestionClick?: (prompt: string) => void;
   /** Called when user selects an option from an ask_user_question tool call. Only wired to the last assistant message. */
   onQuestionSubmit?: (text: string) => void;
 }
 
-export const MessageList = memo(function MessageList({ messages, status, onToolApproval, onSuggestionClick, onQuestionSubmit }: MessageListProps) {
+export const MessageList = memo(function MessageList({ messages, status, onToolApproval, onQuestionSubmit }: MessageListProps) {
   const { containerRef, endRef, isAtBottom, scrollToBottom } = useScrollToBottom();
-  const hasMessages = messages.length > 0;
   const isStreaming = status === "streaming";
 
   return (
     <div className="relative flex-1 min-h-0">
       <div ref={containerRef} data-testid="message-scroll-container" className="h-full overflow-y-auto px-4 py-6">
-        {hasMessages ? (
-          <div className="mx-auto max-w-2xl space-y-3">
-            {messages.map((message, index) => {
-              const isLastMessage = index === messages.length - 1;
-              const isLastAssistantMessage = isLastMessage && message.role === "assistant";
+        <div className="mx-auto max-w-2xl space-y-3">
+          {messages.map((message, index) => {
+            const isLastMessage = index === messages.length - 1;
+            const isLastAssistantMessage = isLastMessage && message.role === "assistant";
 
-              return (
-                <MessageBubble
-                  key={message.id}
-                  message={message}
-                  isStreaming={isStreaming && isLastAssistantMessage}
-                  onToolApproval={onToolApproval}
-                  onQuestionSubmit={isLastAssistantMessage ? onQuestionSubmit : undefined}
-                />
-              );
-            })}
+            return (
+              <MessageBubble
+                key={message.id}
+                message={message}
+                isStreaming={isStreaming && isLastAssistantMessage}
+                onToolApproval={onToolApproval}
+                onQuestionSubmit={isLastAssistantMessage ? onQuestionSubmit : undefined}
+              />
+            );
+          })}
 
-            {status === "submitted" && (
-              <Shimmer as="span" className="text-xs text-muted-foreground" duration={2}>
-                Thinking...
-              </Shimmer>
-            )}
+          {status === "submitted" && (
+            <Shimmer as="span" className="text-xs text-muted-foreground" duration={2}>
+              Thinking...
+            </Shimmer>
+          )}
 
-            <div ref={endRef} />
-          </div>
-        ) : (
-          <div
-            data-testid="empty-chat"
-            className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center"
-          >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-              <MessageCircle className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-foreground">Start a conversation</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Ask your agent anything, and responses will stream in real time.
-              </p>
-            </div>
-
-            {onSuggestionClick ? (
-              <div className="mt-6 grid w-full max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">
-                {AUTOMATION_TEMPLATES.slice(0, 4).map((template) => (
-                  <button
-                    key={template.id}
-                    type="button"
-                    onClick={() => onSuggestionClick(template.prompt)}
-                    className="flex flex-col items-start rounded-xl border border-border/40 bg-card p-4 text-left shadow-sm transition-colors hover:border-border hover:bg-secondary/30"
-                  >
-                    <span className="text-sm font-semibold text-foreground">{template.title}</span>
-                    <span className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      {template.description}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
-            <div ref={endRef} />
-          </div>
-        )}
+          <div ref={endRef} />
+        </div>
       </div>
 
-      {!isAtBottom && hasMessages ? (
+      {!isAtBottom ? (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
           <Button
             type="button"
