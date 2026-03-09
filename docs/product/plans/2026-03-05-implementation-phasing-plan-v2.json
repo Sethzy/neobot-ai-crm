@@ -1668,7 +1668,8 @@
             "read_file('/agent/skills/system/creating-connections/SKILL.md') returns the bundled creating-connections skill content for any client",
             "read_file('/agent/skills/system/creating-connections/create-direct-api-connection.md') returns the bundled direct API connection guide",
             "read_file for non-system skill paths still hits Supabase Storage as before (no fallback)"
-          ]
+          ],
+          "simplified": true
         },
         {
           "pr": 29,
