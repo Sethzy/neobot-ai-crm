@@ -831,7 +831,7 @@
         {
           "pr": "15c",
           "title": "CRM configurability \u2014 dynamic vocabulary + custom fields",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [
             "TOOL-01",
             "TOOL-02",
@@ -916,14 +916,14 @@
         {
           "pr": "15d",
           "title": "Company object \u2014 complete the CRM triad",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [],
           "dependsOn": [
             5,
             6,
             "15c"
           ],
-          "note": "Adds Company as the third standard CRM object, completing the universal Company-Contact-Deal triad (matches Twenty, Attio, HubSpot, Salesforce). Direct FK on contacts and deals (company_id, ON DELETE SET NULL). Configurable company_industries vocabulary via crm_config. Extends TAM beyond real estate to insurance, consulting, property management, and any B2B service. Reference: roadmap docs/Sunder - Source of Truth/references/twenty-crm/company-object-reference.md",
+          "note": "Adds Company as the third standard CRM object, completing the universal Company-Contact-Deal triad (matches Twenty, Attio, HubSpot, Salesforce). Direct FK on contacts and deals (company_id, ON DELETE SET NULL). Configurable company_industries vocabulary via crm_config. Extends TAM beyond real estate to insurance, consulting, property management, and any B2B service. Shipped in commit 257a9ac. Reference: roadmap docs/Sunder - Source of Truth/references/twenty-crm/company-object-reference.md",
           "tasks": [
             {
               "id": "PR15d-1",
@@ -979,6 +979,70 @@
             "Company industries configurable via configure_crm tool",
             "Default real-estate industries work with zero configuration",
             "Deleting a company SET NULLs company_id on related contacts and deals"
+          ]
+        },
+        {
+          "pr": "15e",
+          "title": "CRM read parity + schema introspection",
+          "status": "in_progress",
+          "decisions": [
+            "TOOL-01",
+            "TOOL-02",
+            "TOOL-03",
+            "RUNNER-03",
+            "DATA-01"
+          ],
+          "dependsOn": [
+            5,
+            6,
+            "15c",
+            "15d"
+          ],
+          "note": "Small follow-up after shipped PR15d. Improves agent read-side parity versus Attio MCP (schema introspection) and HubSpot MCP (activity retrieval) without introducing a generic record abstraction. Keep tools explicit and per-entity. Focus on agent navigation of the CRM it can already mutate: interaction history, schema discovery, and relationship reads across contacts, deals, and companies.",
+          "tasks": [
+            {
+              "id": "PR15e-1",
+              "task": "Implement search_interactions tool — free-text query on summary plus filters for type, contact_id, deal_id, occurred_after, occurred_before, and limit. Sort by occurred_at DESC so recent activity is easiest to inspect.",
+              "done": false
+            },
+            {
+              "id": "PR15e-2",
+              "task": "Implement describe_crm_schema tool — return resolved runtime crm_config (deal/company labels, vocab arrays, and custom-field definitions for contact/company/deal/task). Close over already-loaded config; do not add an extra DB round-trip.",
+              "done": false
+            },
+            {
+              "id": "PR15e-3",
+              "task": "Implement get_contact_deals tool — given contact_id, return linked deals with deal_contact role/is_primary metadata and basic deal fields. This is the inverse of get_deal_contacts and fixes relationship read asymmetry.",
+              "done": false
+            },
+            {
+              "id": "PR15e-4",
+              "task": "Implement get_company_contacts and get_company_deals tools — given company_id, return related contacts or deals using the direct FK added in PR15d. Keep them separate for explicitness and smaller schemas.",
+              "done": false
+            },
+            {
+              "id": "PR15e-5",
+              "task": "Extend existing search tools for shipped company linkage and task usability: search_contacts gains company_id filter, search_deals gains company_id filter, and search_tasks gains optional free-text query over title/description while preserving current status/contact/deal filters.",
+              "done": false
+            },
+            {
+              "id": "PR15e-6",
+              "task": "Wire new tools into createCrmTools and keep setup mode unchanged (configure_crm only). Update any platform-instruction or tool registry docs needed so the model has clear read-before-write guidance for activity and relationship lookups.",
+              "done": false
+            },
+            {
+              "id": "PR15e-7",
+              "task": "Tests: add focused runner tool tests for interaction search, schema introspection, contact→deals, company→contacts/deals, and extended search filters. Include setup-mode regression so PR15e tools are absent in crmMode=setup.",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "User asks 'what fields do I track on companies?' → agent can call describe_crm_schema and see company_label, company_industries, and company_custom_fields",
+            "User asks 'what was the last interaction with Alice Tan?' → agent can search contacts then use search_interactions to inspect recent activity",
+            "User asks 'show me all deals for this contact' → get_contact_deals returns linked deals with role and primary status",
+            "User asks 'show me all contacts and deals for PropNex' → agent can search_companies then use get_company_contacts and get_company_deals",
+            "search_contacts and search_deals can filter by company_id",
+            "search_tasks supports free-text lookup by task title/description"
           ]
         },
         {
@@ -2172,6 +2236,46 @@
         "tool": "update_task",
         "pr": 6,
         "category": "CRM"
+      },
+      {
+        "tool": "search_companies",
+        "pr": "15d",
+        "category": "CRM"
+      },
+      {
+        "tool": "create_company",
+        "pr": "15d",
+        "category": "CRM"
+      },
+      {
+        "tool": "update_company",
+        "pr": "15d",
+        "category": "CRM"
+      },
+      {
+        "tool": "batch_create_companies",
+        "pr": "15d",
+        "category": "CRM"
+      },
+      {
+        "tool": "link_contact_to_company",
+        "pr": "15d",
+        "category": "CRM"
+      },
+      {
+        "tool": "unlink_contact_from_company",
+        "pr": "15d",
+        "category": "CRM"
+      },
+      {
+        "tool": "link_deal_to_company",
+        "pr": "15d",
+        "category": "CRM"
+      },
+      {
+        "tool": "unlink_deal_from_company",
+        "pr": "15d",
+        "category": "CRM"
       }
     ],
     "building": [
@@ -2253,6 +2357,31 @@
       {
         "tool": "configure_crm",
         "pr": "15a",
+        "category": "CRM"
+      },
+      {
+        "tool": "search_interactions",
+        "pr": "15e",
+        "category": "CRM"
+      },
+      {
+        "tool": "describe_crm_schema",
+        "pr": "15e",
+        "category": "CRM"
+      },
+      {
+        "tool": "get_contact_deals",
+        "pr": "15e",
+        "category": "CRM"
+      },
+      {
+        "tool": "get_company_contacts",
+        "pr": "15e",
+        "category": "CRM"
+      },
+      {
+        "tool": "get_company_deals",
+        "pr": "15e",
         "category": "CRM"
       },
       {
