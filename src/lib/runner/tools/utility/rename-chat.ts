@@ -6,6 +6,7 @@ import { tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
+import { updateThreadTitle } from "@/lib/chat/threads";
 import type { Database } from "@/types/database";
 
 /**
@@ -13,7 +14,7 @@ import type { Database } from "@/types/database";
  */
 export function createRenameChatTool(
   supabase: SupabaseClient<Database>,
-  clientId: string,
+  _clientId: string,
   threadId: string,
 ) {
   const rename_chat = tool({
@@ -23,42 +24,13 @@ export function createRenameChatTool(
       new_title: z.string().min(1).max(200).describe("New title for this conversation."),
     }),
     execute: async ({ new_title }) => {
-      const { data: thread, error: threadError } = await supabase
-        .from("conversation_threads")
-        .select("thread_id, is_pinned")
-        .eq("thread_id", threadId)
-        .eq("client_id", clientId)
-        .maybeSingle();
-
-      if (threadError) {
-        return { success: false as const, error: threadError.message };
+      try {
+        await updateThreadTitle(supabase, threadId, new_title);
+        return { success: true as const, title: new_title };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to rename thread";
+        return { success: false as const, error: message };
       }
-
-      if (!thread) {
-        return { success: false as const, error: "Thread not found or access denied" };
-      }
-
-      if (thread.is_pinned) {
-        return { success: false as const, error: "Pinned threads cannot be renamed" };
-      }
-
-      const { data, error } = await supabase
-        .from("conversation_threads")
-        .update({ title: new_title })
-        .eq("thread_id", threadId)
-        .eq("client_id", clientId)
-        .select("thread_id")
-        .maybeSingle();
-
-      if (error) {
-        return { success: false as const, error: error.message };
-      }
-
-      if (!data) {
-        return { success: false as const, error: "Thread not found or access denied" };
-      }
-
-      return { success: true as const, title: new_title };
     },
   });
 

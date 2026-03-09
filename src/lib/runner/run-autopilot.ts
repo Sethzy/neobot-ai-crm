@@ -10,7 +10,8 @@ import { AUTOPILOT_INSTRUCTION_PROMPT } from "@/lib/autopilot/constants";
 import { loadActivatedConnectionTools } from "@/lib/composio";
 import { getActiveConnections } from "@/lib/connections/queries";
 import { assembleContext } from "@/lib/runner/context";
-import { buildPrepareStep, createRunnerTools } from "@/lib/runner/run-agent";
+import { buildPrepareStep } from "@/lib/runner/run-agent";
+import { createRunnerTools } from "@/lib/runner/tool-registry";
 import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
 import { finalizeRun } from "@/lib/runner/run-persistence";
 import { createSubagentTool } from "@/lib/runner/tools";
@@ -42,7 +43,7 @@ export async function runAutopilot({
 }: RunAutopilotInput): Promise<RunAutopilotResult> {
   const modelId = TIER_1_MODEL;
 
-  await markStaleRunsFailed(supabase, { threadId, staleMinutes: 15 });
+  await markStaleRunsFailed(supabase, { threadId });
 
   const lockResult = await createRun(supabase, { threadId, clientId, runType: "autopilot" });
   if (!lockResult.created) {

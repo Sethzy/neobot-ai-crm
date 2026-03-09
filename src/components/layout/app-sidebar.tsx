@@ -128,7 +128,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
             tooltip={item.label}
             className="hover:bg-muted/50 data-[active=true]:bg-muted/60 data-[active=true]:text-foreground data-[active=true]:font-medium data-[active=true]:hover:bg-muted/70 transition-colors"
           >
-            <Link href={item.href} onClick={() => isMobile && setOpenMobile(false)}>
+            <Link href={item.href} onClick={closeMobileSidebar}>
               <AppIcon name={item.icon} className="h-4 w-4" />
               <span>{item.label}</span>
             </Link>
@@ -233,7 +233,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
               tooltip="Settings"
               className="hover:bg-muted/50 data-[active=true]:bg-muted/60 data-[active=true]:text-foreground data-[active=true]:font-medium transition-colors"
             >
-              <Link href="/settings" onClick={() => isMobile && setOpenMobile(false)}>
+              <Link href="/settings" onClick={closeMobileSidebar}>
                 <AppIcon name="settings" className="h-4 w-4" />
                 <span>Settings</span>
               </Link>

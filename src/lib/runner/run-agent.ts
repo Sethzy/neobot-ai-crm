@@ -64,7 +64,7 @@ export async function runAgent(
     ? "autopilot"
     : payload.triggerType;
 
-  await markStaleRunsFailed(supabase, { threadId, staleMinutes: 15 });
+  await markStaleRunsFailed(supabase, { threadId });
 
   const lockResult = await createRun(supabase, { threadId, clientId, runType });
   if (!lockResult.created) {

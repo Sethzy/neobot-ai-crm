@@ -106,7 +106,7 @@ describe("rename_chat", () => {
 
     expect(result).toEqual({
       success: false,
-      error: "Thread not found or access denied",
+      error: "Thread not found",
     });
   });
 
