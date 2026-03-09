@@ -57,6 +57,14 @@ describe("autopilot constants", () => {
     expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("Do not use destructive tools");
   });
 
+  test("still defers non-destructive CRM record mutations during autonomous pulses", () => {
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("MUST still describe and defer");
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("creating or updating contacts");
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("creating or updating deals");
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("linking contacts to deals");
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("batch operations");
+  });
+
   test("uses /agent/ prefixes for memory file references", () => {
     expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("/agent/MEMORY.md");
     expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("/agent/USER.md");
