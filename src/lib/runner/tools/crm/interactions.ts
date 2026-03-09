@@ -150,6 +150,7 @@ export function createInteractionTools(
     inputSchema: z.object({
       interaction_id: z.string().uuid().describe("UUID of the interaction to delete."),
     }),
+    needsApproval: true,
     execute: async ({ interaction_id }) => {
       const { data, error } = await supabase
         .from("interactions")

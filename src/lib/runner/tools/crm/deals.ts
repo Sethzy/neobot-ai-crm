@@ -271,6 +271,7 @@ export function createDealTools(
     inputSchema: z.object({
       deal_id: z.string().uuid().describe("UUID of the deal to delete."),
     }),
+    needsApproval: true,
     execute: async ({ deal_id }) => {
       const { data, error } = await supabase
         .from("deals")

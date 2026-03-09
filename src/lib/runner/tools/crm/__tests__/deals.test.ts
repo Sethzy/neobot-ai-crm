@@ -362,3 +362,48 @@ describe("batch_create_deals", () => {
     expect(result).toEqual({ success: false, error: "batch insert failed" });
   });
 });
+
+describe("delete_deal", () => {
+  it("deletes a deal by id and returns the deleted record", async () => {
+    const deleted = {
+      deal_id: "550e8400-e29b-41d4-a716-446655440099",
+      address: "123 Bishan Street 12",
+      title: "Bishan Condo",
+    };
+    const { client, builders } = createMockSupabase({
+      deals: { data: deleted, error: null },
+    });
+    const tools = createDealTools(client, CLIENT_ID);
+
+    const result = await tools.delete_deal.execute(
+      { deal_id: deleted.deal_id },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, deal: deleted });
+    expect(builders.deals.delete).toHaveBeenCalled();
+    expect(builders.deals.eq).toHaveBeenCalledWith("deal_id", deleted.deal_id);
+    expect(builders.deals.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
+  });
+
+  it("returns error when deal not found", async () => {
+    const { client } = createMockSupabase({
+      deals: { data: null, error: { message: "Row not found" } },
+    });
+    const tools = createDealTools(client, CLIENT_ID);
+
+    const result = await tools.delete_deal.execute(
+      { deal_id: "00000000-0000-0000-0000-000000000000" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: false, error: "Row not found" });
+  });
+
+  it("has needsApproval set to true", () => {
+    const { client } = createMockSupabase();
+    const tools = createDealTools(client, CLIENT_ID);
+
+    expect(tools.delete_deal).toHaveProperty("needsApproval", true);
+  });
+});

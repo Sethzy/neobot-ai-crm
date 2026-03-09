@@ -199,6 +199,7 @@ export function createTaskTools(
     inputSchema: z.object({
       task_id: z.string().uuid().describe("UUID of the task to delete."),
     }),
+    needsApproval: true,
     execute: async ({ task_id }) => {
       const { data, error } = await supabase
         .from("crm_tasks")

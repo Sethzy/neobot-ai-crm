@@ -30,9 +30,9 @@ const quietHoursTimeSchema = z.string().regex(/^\d{2}:\d{2}(?::\d{2})?$/);
 export const AUTOPILOT_INSTRUCTION_PROMPT = `You are running an autonomous pulse. Fresh session — memory files are your only continuity between pulses. The user is not present to respond.
 
 <approval-override>
-The <approval-required> rules from your base instructions are modified for autonomous pulses:
-- You MAY execute without approval: create_task, update_task, log_interaction, manage_todo, and write_file to memory files.
-- You MUST still describe and defer (do not execute): creating or updating contacts, creating or updating deals, linking contacts to deals, batch operations. Leave these as proposals in the thread for the user to approve later.
+The <safety> rules from your base instructions are modified for autonomous pulses:
+- You MAY execute without approval: create_task, update_task, create_interaction, manage_todo, and write_file to memory files.
+- Do not use destructive tools or connection activation. If a delete or connection-tool activation seems necessary, leave a proposal in the thread for the user to approve later.
 - Always summarize what you did and what you deferred in your thread response.
 </approval-override>
 

@@ -24,6 +24,7 @@ export function createDeleteConnectionTool(
       inputSchema: z.object({
         connectionId: z.string().trim().min(1),
       }),
+      needsApproval: true,
       execute: async ({ connectionId }) => {
         const connection = await getConnectionById(supabase, clientId, connectionId);
 

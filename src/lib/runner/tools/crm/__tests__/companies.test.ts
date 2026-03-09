@@ -313,3 +313,47 @@ describe("batch_create_companies", () => {
     );
   });
 });
+
+describe("delete_company", () => {
+  it("deletes a company by id and returns the deleted record", async () => {
+    const deleted = {
+      company_id: "550e8400-e29b-41d4-a716-446655440099",
+      name: "PropNex Realty",
+    };
+    const { client, builders } = createMockSupabase({
+      companies: { data: deleted, error: null },
+    });
+    const tools = createCompanyTools(client, CLIENT_ID);
+
+    const result = await tools.delete_company.execute(
+      { company_id: deleted.company_id },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, company: deleted });
+    expect(builders.companies.delete).toHaveBeenCalled();
+    expect(builders.companies.eq).toHaveBeenCalledWith("company_id", deleted.company_id);
+    expect(builders.companies.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
+  });
+
+  it("returns error when company not found", async () => {
+    const { client } = createMockSupabase({
+      companies: { data: null, error: { message: "Row not found" } },
+    });
+    const tools = createCompanyTools(client, CLIENT_ID);
+
+    const result = await tools.delete_company.execute(
+      { company_id: "00000000-0000-0000-0000-000000000000" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: false, error: "Row not found" });
+  });
+
+  it("has needsApproval set to true", () => {
+    const { client } = createMockSupabase();
+    const tools = createCompanyTools(client, CLIENT_ID);
+
+    expect(tools.delete_company).toHaveProperty("needsApproval", true);
+  });
+});

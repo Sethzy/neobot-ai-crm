@@ -308,3 +308,51 @@ describe("search_interactions", () => {
     expect(result).toEqual({ success: false, error: "timeout" });
   });
 });
+
+describe("delete_interaction", () => {
+  it("deletes an interaction by id and returns the deleted record", async () => {
+    const deleted = {
+      interaction_id: "550e8400-e29b-41d4-a716-446655440099",
+      interaction_type: "meeting",
+      notes: "Met at the showing",
+    };
+    const { client, builders } = createMockSupabase({
+      interactions: { data: deleted, error: null },
+    });
+    const tools = createInteractionTools(client, CLIENT_ID);
+
+    const result = await tools.delete_interaction.execute(
+      { interaction_id: deleted.interaction_id },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, interaction: deleted });
+    expect(builders.interactions.delete).toHaveBeenCalled();
+    expect(builders.interactions.eq).toHaveBeenCalledWith(
+      "interaction_id",
+      deleted.interaction_id,
+    );
+    expect(builders.interactions.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
+  });
+
+  it("returns error when interaction not found", async () => {
+    const { client } = createMockSupabase({
+      interactions: { data: null, error: { message: "Row not found" } },
+    });
+    const tools = createInteractionTools(client, CLIENT_ID);
+
+    const result = await tools.delete_interaction.execute(
+      { interaction_id: "00000000-0000-0000-0000-000000000000" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: false, error: "Row not found" });
+  });
+
+  it("has needsApproval set to true", () => {
+    const { client } = createMockSupabase();
+    const tools = createInteractionTools(client, CLIENT_ID);
+
+    expect(tools.delete_interaction).toHaveProperty("needsApproval", true);
+  });
+});

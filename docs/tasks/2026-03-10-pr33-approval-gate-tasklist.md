@@ -2,21 +2,23 @@
 
 **PR:** 33
 
-**Goal:** Wire `needsApproval: true` on destructive tools so the AI SDK pauses for user approval before executing. Swap the system prompt's `<approval-required>` section. Strip delete tools from subagents. Add minimal delete-tool smoke tests.
+**Goal:** Wire approval-gated destructive actions end-to-end: add `needsApproval` to destructive tools plus connection tool activation, swap the stale prompt copy, strip approval-gated delete tools from subagents, and add focused approval + delete smoke tests.
 
 **Design doc:** `docs/designs/approval-system-pr33-34-35.md`
 **Handover:** `docs/designs/pr33-approval-gate-handover.md`
 
 **Approved scope:**
-- Add `needsApproval: true` to 7 tools (5 CRM deletes + `delete_trigger` action in `manage_active_triggers` + `manage_activated_tools_for_connections`)
+- Add `needsApproval` to 7 tool definitions covering 8 approval-gated surfaces:
+  5 CRM delete tools, `delete_connection`, `manage_activated_tools_for_connections`, and the `delete` action inside `manage_active_triggers`
 - Replace `<approval-required>` system prompt block with slim `<safety>` note
-- Strip delete tools from subagent tool registry
-- Minimal delete tool smoke tests (success + error per tool, ~10 tests)
+- Update stale connection + autopilot prompt references to match the mechanical gate
+- Strip approval-gated delete tools from subagent tool registry
+- Minimal delete-tool smoke tests plus focused `needsApproval` assertions
 
 **Non-goals:**
 - No `approval_events` table (PR 34)
 - No Mission Control dashboard (PR 35)
-- No autopilot changes (autopilot doesn't delete things)
+- No autopilot behavior changes beyond prompt copy cleanup
 - No refactoring of delete tools — they're intentionally minimal
 
 ## Relevant Files
@@ -34,10 +36,12 @@
 | `src/lib/runner/tools/crm/interactions.ts` | Modify: add `needsApproval: true` to delete_interaction |
 | `src/lib/runner/tools/crm/tasks.ts` | Modify: add `needsApproval: true` to delete_task |
 | `src/lib/runner/tools/connections/manage-tools.ts` | Modify: add `needsApproval: true` |
-| `src/lib/runner/tools/triggers/manage-triggers.ts` | Modify: add `needsApproval: true` (conditional — only for mutating mode) |
+| `src/lib/runner/tools/connections/delete-connection.ts` | Modify: add `needsApproval: true` |
+| `src/lib/runner/tools/triggers/manage-triggers.ts` | Modify: gate only the `delete` action with a predicate |
 | `src/lib/ai/system-prompt.ts` | Modify: replace `<approval-required>` block with `<safety>` |
+| `src/lib/autopilot/constants.ts` | Modify: refresh stale `<approval-override>` wording |
 | `src/lib/runner/tool-registry.ts` | Modify: strip delete tools from subagent path |
-| `src/lib/runner/tools/crm/index.ts` | Modify: export helper for read+write-no-delete tools |
+| `src/lib/runner/tools/crm/index.ts` | Modify: support read+write-no-delete CRM registry |
 | `src/lib/runner/tools/crm/__tests__/index.test.ts` | Modify: add subagent tool-set assertion |
 
 ## Implementation Rules
@@ -49,7 +53,7 @@
    - Implement the minimum code to pass
    - Re-run the focused tests
 3. Stage only touched files if committing. Never use `git add -A` in this repo.
-4. `needsApproval` is a first-class AI SDK v6 property on `tool()` — no custom wrappers needed.
+4. `needsApproval` is a first-class AI SDK v6 property on `tool()` — no custom wrappers needed. Use a predicate for `manage_active_triggers` so only `action === "delete"` is gated.
 
 ---
 
@@ -58,7 +62,7 @@
 **Files:**
 - Modify: `src/lib/runner/tools/crm/__tests__/contacts.test.ts`
 
-These tests cover the already-implemented `delete_contact` tool. No production code changes needed — tests should pass immediately against existing code. This is a coverage-gap task, not a TDD-from-scratch task.
+These tests cover the already-implemented `delete_contact` tool. No production code changes needed — tests should pass immediately against existing code. This is a coverage-gap task, not TDD-from-scratch.
 
 ### Step 1 — RED: Write delete_contact success test
 
@@ -248,12 +252,13 @@ Expected: All pass, 5 new `needsApproval` tests added.
 
 ---
 
-## Task 4: Add `needsApproval: true` to `manage_activated_tools_for_connections`
+## Task 4: Add `needsApproval: true` to connection activation and deletion
 
 **Files:**
 - Modify: `src/lib/runner/tools/connections/manage-tools.ts`
+- Modify: `src/lib/runner/tools/connections/delete-connection.ts`
 
-### Step 1 — Add needsApproval
+### Step 1 — Add needsApproval to connection tool activation
 
 Add `needsApproval: true` to the `manage_activated_tools_for_connections` tool definition in `createManageToolsTool`:
 
@@ -266,18 +271,24 @@ manage_activated_tools_for_connections: tool({
 }),
 ```
 
-No test for this one — the Composio mock is heavyweight and the property is trivial. Covered by manual verification.
+Add a unit assertion in `src/lib/runner/tools/connections/__tests__/manage-tools.test.ts` that verifies the tool exposes `needsApproval: true`.
+
+### Step 2 — Add needsApproval to connection deletion
+
+In `src/lib/runner/tools/connections/delete-connection.ts`, add `needsApproval: true` to the `delete_connection` tool definition.
+
+Add a unit assertion in `src/lib/runner/tools/connections/__tests__/delete-connection.test.ts` that verifies the tool exposes `needsApproval: true`.
 
 ---
 
-## Task 5: Add `needsApproval: true` to `manage_active_triggers` (mutating mode only)
+## Task 5: Gate only trigger deletion in `manage_active_triggers`
 
 **Files:**
 - Modify: `src/lib/runner/tools/triggers/manage-triggers.ts`
 
-### Step 1 — Add needsApproval
+### Step 1 — Add a delete-only approval predicate
 
-`manage_active_triggers` already has a `readOnly` mode that restricts to list/view. Add `needsApproval: true` only when NOT in read-only mode:
+`manage_active_triggers` already has a `readOnly` mode that restricts to list/view. Add a `needsApproval` predicate only when NOT in read-only mode:
 
 ```typescript
 const manage_active_triggers = tool({
@@ -285,14 +296,14 @@ const manage_active_triggers = tool({
     ? "List and inspect active user-created triggers..."
     : "List, inspect, edit, delete, or simulate active user-created triggers...",
   inputSchema: z.object({ ... }),
-  ...(readOnly ? {} : { needsApproval: true }),
+  ...(readOnly ? {} : {
+    needsApproval: ({ action }) => action === "delete",
+  }),
   execute: async (input) => { ... },
 });
 ```
 
-This means listing/viewing triggers in read-only subagent mode won't prompt for approval, but the full mutating version will.
-
-Note: This gates ALL mutating trigger actions (edit, delete, simulate), not just delete. This is acceptable — trigger mutations are significant actions.
+This means listing, viewing, editing, and simulating stay auto-run, while destructive deletion pauses for approval.
 
 ---
 
@@ -386,7 +397,7 @@ const crmTools = createCrmTools(supabase, clientId, {
 });
 ```
 
-This strips delete tools from subagents since they can't present approval UI.
+This strips approval-gated delete tools from subagents since they can't present approval UI. Document it as a deliberate RUNNER-06 exception in code comments.
 
 ### Checkpoint
 
@@ -395,25 +406,28 @@ Expected: All pass. Existing "returns all 33 expected CRM tools" test still pass
 
 ---
 
-## Task 7: Replace system prompt `<approval-required>` with `<safety>`
+## Task 7: Replace system prompt `<approval-required>` with `<safety>` and clean stale references
 
 **Files:**
 - Modify: `src/lib/ai/system-prompt.ts`
 
-### Step 1 — Replace the block
+### Step 1 — Replace the block and align connection wording
 
 Replace lines 121-144 (the `<approval-required>...</approval-required>` block) with:
 
 ```markdown
 <safety>
-Destructive tools (deletes, connection activation) will pause for user approval
+Destructive tools (deletes) and connection tool activation will pause for user approval
 before executing — the user sees an approve/deny card in chat.
-Before invoking a destructive tool, briefly describe what will be deleted and why.
-All other tools (creates, updates, reads, searches, tasks, memory) run immediately.
+Before invoking one of these tools, briefly describe what will change and why.
+All other tools (creates, updates, reads, searches, tasks, memory, and unlinks) run immediately.
 </safety>
 ```
 
-Also update the module-level JSDoc (lines 10-13) — remove the reference to "interim approval instructions" and note that the mechanical gate is now active.
+Also update:
+- the module-level JSDoc — remove the reference to "interim approval instructions" and note that the mechanical gate is now active
+- the connection section copy so it no longer claims approval cards do not exist in v1
+- `src/lib/autopilot/constants.ts` so `<approval-override>` references `<safety>` instead of the removed `<approval-required>` block
 
 ### Checkpoint
 

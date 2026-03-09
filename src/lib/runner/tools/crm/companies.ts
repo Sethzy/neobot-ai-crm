@@ -301,6 +301,7 @@ export function createCompanyTools(
     inputSchema: z.object({
       company_id: z.string().uuid().describe("UUID of the company to delete."),
     }),
+    needsApproval: true,
     execute: async ({ company_id }) => {
       const { data, error } = await supabase
         .from("companies")

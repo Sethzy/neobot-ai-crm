@@ -328,3 +328,48 @@ describe("update_task", () => {
     );
   });
 });
+
+describe("delete_task", () => {
+  it("deletes a task by id and returns the deleted record", async () => {
+    const deleted = {
+      task_id: "550e8400-e29b-41d4-a716-446655440099",
+      title: "Follow up with John",
+      status: "open",
+    };
+    const { client, builders } = createMockSupabase({
+      crm_tasks: { data: deleted, error: null },
+    });
+    const tools = createTaskTools(client, CLIENT_ID);
+
+    const result = await tools.delete_task.execute(
+      { task_id: deleted.task_id },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, task: deleted });
+    expect(builders.crm_tasks.delete).toHaveBeenCalled();
+    expect(builders.crm_tasks.eq).toHaveBeenCalledWith("task_id", deleted.task_id);
+    expect(builders.crm_tasks.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
+  });
+
+  it("returns error when task not found", async () => {
+    const { client } = createMockSupabase({
+      crm_tasks: { data: null, error: { message: "Row not found" } },
+    });
+    const tools = createTaskTools(client, CLIENT_ID);
+
+    const result = await tools.delete_task.execute(
+      { task_id: "00000000-0000-0000-0000-000000000000" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: false, error: "Row not found" });
+  });
+
+  it("has needsApproval set to true", () => {
+    const { client } = createMockSupabase();
+    const tools = createTaskTools(client, CLIENT_ID);
+
+    expect(tools.delete_task).toHaveProperty("needsApproval", true);
+  });
+});

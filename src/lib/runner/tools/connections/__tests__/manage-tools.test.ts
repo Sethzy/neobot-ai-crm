@@ -63,6 +63,15 @@ describe("createManageToolsTool", () => {
     vi.clearAllMocks();
   });
 
+  it("has needsApproval set to true", () => {
+    const { manage_activated_tools_for_connections } = createManageToolsTool(
+      {} as never,
+      CLIENT_ID,
+    );
+
+    expect(manage_activated_tools_for_connections).toHaveProperty("needsApproval", true);
+  });
+
   it("activates and deactivates tools per connection", async () => {
     mockComposioCatalog();
     vi.mocked(getConnectionById).mockResolvedValue(MOCK_CONNECTION as never);

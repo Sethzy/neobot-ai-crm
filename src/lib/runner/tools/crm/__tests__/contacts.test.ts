@@ -515,3 +515,52 @@ describe("batch_create_contacts", () => {
     expect(result).toEqual({ success: false, error: "batch insert failed" });
   });
 });
+
+describe("delete_contact", () => {
+  it("deletes a contact by id and returns the deleted record", async () => {
+    const deleted = {
+      contact_id: "550e8400-e29b-41d4-a716-446655440000",
+      first_name: "John",
+      last_name: "Smith",
+      email: "john@example.com",
+    };
+    const { client, builders } = createMockSupabase({
+      contacts: { data: deleted, error: null },
+    });
+    const tools = createContactTools(client, CLIENT_ID);
+
+    const result = await tools.delete_contact.execute(
+      { contact_id: "550e8400-e29b-41d4-a716-446655440000" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, contact: deleted });
+    expect(builders.contacts.delete).toHaveBeenCalled();
+    expect(builders.contacts.eq).toHaveBeenCalledWith(
+      "contact_id",
+      "550e8400-e29b-41d4-a716-446655440000",
+    );
+    expect(builders.contacts.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
+  });
+
+  it("returns error when contact not found", async () => {
+    const { client } = createMockSupabase({
+      contacts: { data: null, error: { message: "Row not found" } },
+    });
+    const tools = createContactTools(client, CLIENT_ID);
+
+    const result = await tools.delete_contact.execute(
+      { contact_id: "00000000-0000-0000-0000-000000000000" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: false, error: "Row not found" });
+  });
+
+  it("has needsApproval set to true", () => {
+    const { client } = createMockSupabase();
+    const tools = createContactTools(client, CLIENT_ID);
+
+    expect(tools.delete_contact).toHaveProperty("needsApproval", true);
+  });
+});

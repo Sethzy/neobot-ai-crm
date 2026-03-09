@@ -32,6 +32,7 @@ export function createManageToolsTool(
       description:
         "Activates or deactivates tools for existing connections. Activated tools become available with names prefixed by the connection ID. Use get_details_for_connections first if you need the exact tool names.",
       inputSchema: manageToolsInputSchema,
+      needsApproval: true,
       execute: async ({ connections: connectionRequests }) => {
         const composio = getComposio();
         const results: Array<

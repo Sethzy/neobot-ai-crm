@@ -38,6 +38,7 @@ export function createRunnerTools(
   const isSubagent = options?.isSubagent ?? false;
   const crmTools = createCrmTools(supabase, clientId, {
     allowWriteTools: true,
+    allowDeleteTools: !isSubagent,
     mode: options?.crmMode ?? "normal",
     config: options?.crmConfig,
   });

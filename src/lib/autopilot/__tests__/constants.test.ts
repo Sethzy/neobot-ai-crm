@@ -51,9 +51,10 @@ describe("autopilot constants", () => {
 
   test("overrides approval rules for autonomous execution", () => {
     expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("<approval-override>");
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("The <safety> rules");
     expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("MAY execute without approval");
     expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("create_task");
-    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("MUST still describe and defer");
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("Do not use destructive tools");
   });
 
   test("uses /agent/ prefixes for memory file references", () => {

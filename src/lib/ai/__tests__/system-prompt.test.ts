@@ -27,12 +27,15 @@ describe("SYSTEM_PROMPT", () => {
     expect(lower).toContain("practical");
   });
 
-  it("includes CRM mutation approval instructions", () => {
-    expect(SYSTEM_PROMPT).toContain("ask the user for confirmation");
+  it("includes mechanical safety guidance for approval-gated tools", () => {
+    expect(SYSTEM_PROMPT).toContain("<safety>");
+    expect(SYSTEM_PROMPT).toContain("Destructive tools");
+    expect(SYSTEM_PROMPT).toContain("run immediately");
   });
 
-  it("includes example approval interaction", () => {
-    expect(SYSTEM_PROMPT).toContain("Shall I go ahead?");
+  it("removes the old manual approval example block", () => {
+    expect(SYSTEM_PROMPT).not.toContain("<approval-required>");
+    expect(SYSTEM_PROMPT).not.toContain("Shall I go ahead?");
   });
 
   it("mentions all three tool categories", () => {
@@ -63,14 +66,10 @@ describe("SYSTEM_PROMPT", () => {
     );
   });
 
-  it("covers approval for all write action categories", () => {
+  it("does not tell the agent to manually gate all CRM writes", () => {
     const lower = SYSTEM_PROMPT.toLowerCase();
-    expect(lower).toContain("creating or updating contacts");
-    expect(lower).toContain("creating or updating deals");
-    expect(lower).toContain("logging interactions");
-    expect(lower).toContain("creating or updating tasks");
-    expect(lower).toContain("linking or unlinking contacts");
-    expect(lower).toContain("batch-creating");
+    expect(lower).not.toContain("before creating or updating any crm record");
+    expect(lower).not.toContain("logging interactions");
   });
 
   it("includes trigger safety guidance", () => {
@@ -117,10 +116,11 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT).toContain("manage_activated_tools_for_connections");
   });
 
-  it("requires chat approval before connection mutation tools", () => {
-    expect(SYSTEM_PROMPT).toContain("Before calling any connection mutation tool");
-    expect(SYSTEM_PROMPT).toContain("wait for the user's confirmation in chat");
-    expect(SYSTEM_PROMPT).toContain("These tools do not show approval cards in v1");
+  it("describes approval cards for connection activation and deletion", () => {
+    expect(SYSTEM_PROMPT).toContain("manage_activated_tools_for_connections");
+    expect(SYSTEM_PROMPT).toContain("delete_connection");
+    expect(SYSTEM_PROMPT).toContain("show approval cards in chat");
+    expect(SYSTEM_PROMPT).not.toContain("These tools do not show approval cards in v1");
   });
 
   it("instructs the agent to read the creating-connections skill if it exists", () => {

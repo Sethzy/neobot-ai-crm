@@ -256,6 +256,7 @@ describe("runAgent", () => {
       "mock-supabase-client",
       validPayload.clientId,
       {
+        allowDeleteTools: true,
         allowWriteTools: true,
         mode: "normal",
         config: expect.objectContaining({ deal_label: "Policy" }),
@@ -328,6 +329,15 @@ describe("runAgent", () => {
       validPayload.clientId,
       { allowMutations: false },
     );
+    expect(mockCreateCrmTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      expect.objectContaining({
+        allowWriteTools: true,
+        allowDeleteTools: false,
+        mode: "normal",
+      }),
+    );
   });
 
   it("always enables CRM write tools regardless of environment", async () => {
@@ -339,7 +349,11 @@ describe("runAgent", () => {
     expect(mockCreateCrmTools).toHaveBeenCalledWith(
       "mock-supabase-client",
       validPayload.clientId,
-      expect.objectContaining({ allowWriteTools: true, mode: "normal" }),
+      expect.objectContaining({
+        allowWriteTools: true,
+        allowDeleteTools: true,
+        mode: "normal",
+      }),
     );
   });
 

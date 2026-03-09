@@ -68,6 +68,37 @@ describe("createManageTriggersTool", () => {
     mockCreateMessage.mockResolvedValue({ message_id: "message-1" });
   });
 
+  it("requires approval only for delete actions when mutations are allowed", async () => {
+    const supabase = createMockSupabase();
+    const { manage_active_triggers } = createManageTriggersTool(
+      supabase as never,
+      CLIENT_ID,
+    );
+
+    const needsApproval = (
+      manage_active_triggers as {
+        needsApproval?: (input: { action: string }) => boolean | Promise<boolean>;
+      }
+    ).needsApproval;
+
+    expect(typeof needsApproval).toBe("function");
+    expect(await needsApproval?.({ action: "delete" })).toBe(true);
+    expect(await needsApproval?.({ action: "edit" })).toBe(false);
+    expect(await needsApproval?.({ action: "simulate" })).toBe(false);
+    expect(await needsApproval?.({ action: "list" })).toBe(false);
+  });
+
+  it("does not add approval gating in read-only mode", () => {
+    const supabase = createMockSupabase();
+    const { manage_active_triggers } = createManageTriggersTool(
+      supabase as never,
+      CLIENT_ID,
+      { readOnly: true },
+    );
+
+    expect(manage_active_triggers).not.toHaveProperty("needsApproval");
+  });
+
   it("limits read-only mode to list and view actions", () => {
     const supabase = createMockSupabase();
     const { manage_active_triggers } = createManageTriggersTool(

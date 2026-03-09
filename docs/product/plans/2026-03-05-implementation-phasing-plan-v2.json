@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 — Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-09",
+    "updated": "2026-03-10",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md §17",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -37,7 +37,8 @@
       "2026-03-09: PR 22c scope rewrite for zero Tasklet drift. Removed block index (YAGNI — agent recovers via read_file, not index lookup). Confirmed persistence-time truncation is correct (Tasklet does the same — fixed size threshold, permanent marker, not budget-based). Scope is now 6 tasks: (1) store ALL tool call args+results to block storage regardless of size, (2) trigger event pruning during compaction (mechanical title+source extraction, separate from LLM summarization), (3) structured compaction summary format (## User Instructions / ## Workflow / ## Resources / ## Current Focus), (4) <context-management> instructions in platform-instructions.ts, (5) remove appendArtifactRecoveryNote hack, (6) threshold review (5KB vs Tasklet's ~100KB). Formalized as PR entry in Phase 2 after PR 22b. Tasklist rewritten: docs/product/tasks/2026-03-09-pr22c-context-management-alignment-tasklist.md.",
       "2026-03-09: Added PR 22d (read_file image support + negative line indices) to Phase 2 as an explicit scope exception after review. Scope is intentionally narrow: image files only, explicit AI SDK toModelOutput JSON/image-data handling, negative line indices, preserve existing text/directory read_file contract, PDFs deferred.",
       "2026-03-09: Added PR 22e (Absolute agent paths — /agent/ prefix). Model-boundary-only refactor: all model-facing paths become absolute /agent/ paths. Internal storage, DB, frontend, API routes unchanged. Thin toStoragePath/toModelPath conversion at tool boundary (~9 files). Validated with Tasklet developer. Design doc: docs/designs/absolute-agent-paths.md.",
-      "2026-03-10: Added PR 26a (System skill files — bundled fallback). Verbatim Tasklet creating-connections skill + direct-api-connection guide, stored as static .md files in codebase, served via read_file fallback for skills/system/ paths. No per-client seeding, no skill_registry. System prompt + tool descriptions already reference these paths (wired in PRs 25-26). SKILL-05 pattern adapted for system skills: bundled in code instead of per-client storage."
+      "2026-03-10: Added PR 26a (System skill files — bundled fallback). Verbatim Tasklet creating-connections skill + direct-api-connection guide, stored as static .md files in codebase, served via read_file fallback for skills/system/ paths. No per-client seeding, no skill_registry. System prompt + tool descriptions already reference these paths (wired in PRs 25-26). SKILL-05 pattern adapted for system skills: bundled in code instead of per-client storage.",
+      "2026-03-10: PR 33 approval scope clarified after implementation review. Mechanical gate now targets destructive actions plus connection tool activation: CRM deletes, delete_connection, manage_activated_tools_for_connections, and the delete action inside manage_active_triggers. Non-destructive CRM writes, links, and unlinks stay auto-run. Future outbound send tools adopt the same gate when those tool surfaces ship."
     ]
   },
   "phases": [
@@ -1128,6 +1129,7 @@
           "pr": 19,
           "title": "Autopilot thread + pulse",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "TRIG-06b",
             "TRIG-07",
@@ -1187,6 +1189,7 @@
           "pr": 20,
           "title": "Trigger tools + user-created triggers",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "TRIG-03",
             "TRIG-12"
@@ -1810,34 +1813,34 @@
           "tasks": [
             {
               "id": "PR33-1",
-              "task": "Two-tier safety model: auto-run internal, approval for external",
+              "task": "Mechanical approval gate for destructive actions plus connection tool activation",
               "done": false
             },
             {
               "id": "PR33-2",
-              "task": "Approval gate as chat interaction (not special UI)",
+              "task": "Approval gate remains an in-thread chat interaction via AI SDK approval cards",
               "done": false
             },
             {
               "id": "PR33-3",
-              "task": "Agent presents action in plain language, waits for user reply",
+              "task": "Agent briefly describes destructive or activation actions before invoking approval-gated tools",
               "done": false
             },
             {
               "id": "PR33-4",
-              "task": "User says yes → agent continues. No → run cancelled.",
+              "task": "Approved actions continue on the follow-up run; denied actions do not execute and return denial state",
               "done": false
             },
             {
               "id": "PR33-5",
-              "task": "Works identically in chat and trigger threads",
+              "task": "Delete tools excluded from subagents; trigger delete gated via predicate; works in chat and trigger threads",
               "done": false
             }
           ],
           "testCriteria": [
-            "Agent tries to send email, pauses for approval, continues after yes"
+            "Agent tries to delete a contact or delete a connection, sees an approval card, and continues only after approval"
           ],
-          "note": "Tool approval UI (approve/deny buttons, denial state, prop drilling ChatPanel→ToolCallInline) already shipped in PR 22b. This PR adds the backend gate logic (two-tier safety model, which tools require approval)."
+          "note": "Tool approval UI (approve/deny buttons, denial state, prop drilling ChatPanel→ToolCallInline) already shipped in PR 22b. This PR adds the backend gate logic for the current narrowed scope: destructive actions plus connection tool activation. Future outbound send tools will adopt the same gate when those tool surfaces ship."
         },
         {
           "pr": 34,

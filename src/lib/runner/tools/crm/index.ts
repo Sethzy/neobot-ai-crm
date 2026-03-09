@@ -23,10 +23,14 @@ interface CreateCrmToolsOptions {
   /** Runtime CRM vocabulary/custom-field config for normal mode. */
   config?: CrmVocabConfig;
   /**
-   * Enables mutating CRM tools. Always true in v1; prompt-level approval
-   * provides interim safety until the PR 33 approval gate ships.
+   * Enables mutating CRM tools for the active run.
    */
   allowWriteTools?: boolean;
+  /**
+   * Deliberate RUNNER-06 exception: subagents cannot surface approval cards,
+   * so approval-gated delete tools can be withheld from their registry.
+   */
+  allowDeleteTools?: boolean;
 }
 
 /**
@@ -39,6 +43,7 @@ export function createCrmTools(
 ) {
   const {
     allowWriteTools = true,
+    allowDeleteTools = true,
     mode = "normal",
     config = CRM_DEFAULTS,
   } = options ?? {};
@@ -78,15 +83,12 @@ export function createCrmTools(
     create_company: companyTools.create_company,
     update_company: companyTools.update_company,
     batch_create_companies: companyTools.batch_create_companies,
-    delete_company: companyTools.delete_company,
     create_contact: contactTools.create_contact,
     update_contact: contactTools.update_contact,
     batch_create_contacts: contactTools.batch_create_contacts,
-    delete_contact: contactTools.delete_contact,
     create_deal: dealTools.create_deal,
     update_deal: dealTools.update_deal,
     batch_create_deals: dealTools.batch_create_deals,
-    delete_deal: dealTools.delete_deal,
     link_contact_to_company: companyLinkTools.link_contact_to_company,
     unlink_contact_from_company: companyLinkTools.unlink_contact_from_company,
     link_deal_to_company: companyLinkTools.link_deal_to_company,
@@ -94,9 +96,14 @@ export function createCrmTools(
     link_contact_to_deal: dealContactTools.link_contact_to_deal,
     unlink_contact_from_deal: dealContactTools.unlink_contact_from_deal,
     create_interaction: interactionTools.create_interaction,
-    delete_interaction: interactionTools.delete_interaction,
     create_task: taskTools.create_task,
     update_task: taskTools.update_task,
-    delete_task: taskTools.delete_task,
+    ...(allowDeleteTools ? {
+      delete_company: companyTools.delete_company,
+      delete_contact: contactTools.delete_contact,
+      delete_deal: dealTools.delete_deal,
+      delete_interaction: interactionTools.delete_interaction,
+      delete_task: taskTools.delete_task,
+    } : {}),
   };
 }

@@ -17,24 +17,25 @@ Add `needsApproval: true` to these tools (and only these):
 | `delete_company` | `src/lib/runner/tools/crm/companies.ts` |
 | `delete_interaction` | `src/lib/runner/tools/crm/interactions.ts` |
 | `delete_task` | `src/lib/runner/tools/crm/tasks.ts` |
-| `delete_trigger` | `src/lib/runner/tools/trigger-tools.ts` |
+| `delete_connection` | `src/lib/runner/tools/connections/delete-connection.ts` |
 | `manage_activated_tools_for_connections` | `src/lib/runner/tools/connections/manage-tools.ts` |
+| `manage_active_triggers` delete action | `src/lib/runner/tools/triggers/manage-triggers.ts` |
 
-Everything else auto-runs. No registry abstraction — just add `needsApproval: true` inline on each tool definition.
+Everything else auto-runs. No registry abstraction — just add `needsApproval` inline on each tool definition. For triggers, use a predicate so only `action === "delete"` is gated.
 
 ### Other PR 33 tasks
 
 1. **System prompt:** Replace the `<approval-required>` block in `src/lib/ai/system-prompt.ts` (lines 121-144) with:
    ```markdown
    <safety>
-   Destructive tools (deletes, connection activation) will pause for user approval
+   Destructive tools (deletes) and connection tool activation will pause for user approval
    before executing — the user sees an approve/deny card in chat.
-   Before invoking a destructive tool, briefly describe what will be deleted and why.
-   All other tools (creates, updates, reads, searches, tasks, memory) run immediately.
+   Before invoking one of these tools, briefly describe what will change and why.
+   All other tools (creates, updates, reads, searches, tasks, memory, and unlinks) run immediately.
    </safety>
    ```
-2. **Subagents:** Strip delete tools from the subagent tool registry in `src/lib/runner/run-subagent.ts`. Subagents can't use `needsApproval` (no user present).
-3. **Autopilot:** No changes needed — autopilot doesn't delete things.
+2. **Subagents:** Strip approval-gated delete tools from the subagent tool registry in `src/lib/runner/tool-registry.ts` via the CRM factory option in `src/lib/runner/tools/crm/index.ts`. Subagents can't use `needsApproval` (no user present), so this is a deliberate RUNNER-06 exception.
+3. **Autopilot:** No behavior change, but refresh the stale `<approval-override>` copy in `src/lib/autopilot/constants.ts` so it references `<safety>` and forbids destructive tools plus connection activation.
 4. **Final step:** Review tool matrix with user, confirm nothing's missing.
 
 ## Key files to read first
@@ -47,11 +48,12 @@ Everything else auto-runs. No registry abstraction — just add `needsApproval: 
 
 ## How to verify
 
-1. Add `needsApproval: true` to the 7 tools listed above
+1. Add approval gating to the 8 approval-gated surfaces listed above
 2. In chat, ask the agent to delete a contact → should see approval card, not immediate execution
 3. Click Approve → tool executes, agent confirms deletion
 4. Click Deny → agent acknowledges, does not delete
-5. Non-delete tools (create, update, search) should still auto-run with no approval card
+5. Ask the agent to delete a connection → should also show approval card
+6. Non-delete tools (create, update, search, link, unlink) should still auto-run with no approval card
 
 ## What comes after (PR 34, 35)
 

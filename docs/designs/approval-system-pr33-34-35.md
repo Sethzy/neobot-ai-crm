@@ -8,7 +8,7 @@
 
 ## 1. Context
 
-Sunder's safety model (SAFETY-01) has two tiers: internal work auto-runs, external/destructive actions require approval. Today this is enforced via **prompt-only** — the `<approval-required>` system prompt section tells the agent to describe actions and wait for the user to type "yes". There is no mechanical gate.
+Sunder's safety model (SAFETY-01) has two tiers: non-destructive internal work auto-runs, while destructive or capability-expanding actions require approval. Today this is enforced via **prompt-only** — the `<approval-required>` system prompt section tells the agent to describe actions and wait for the user to type "yes". There is no mechanical gate.
 
 ### Design principle (decided 2026-03-09)
 
@@ -33,7 +33,7 @@ The AI SDK integration and UI scaffolding is **already shipped**:
 
 ## 2. AI SDK v6 `needsApproval` Pattern
 
-AI SDK v6 provides a first-class `needsApproval` property on tools. The tool keeps its `execute` function — the SDK pauses execution until the user approves.
+AI SDK v6 provides a first-class `needsApproval` property on tools. The tool keeps its `execute` function, but `streamText()` / `generateText()` do not literally pause mid-call. Instead, the first call returns `tool-approval-request` parts; a second call with the user's approval response either executes the tool or delivers the denial to the model.
 
 ```typescript
 const deleteDeal = tool({
@@ -65,14 +65,14 @@ Only destructive actions are gated. Everything else auto-runs.
 
 | Category | `needsApproval` | Tools |
 |----------|----------------|-------|
-| **Auto-run** | `false` (default) | All reads, searches, creates, updates, links, unlinking, tasks, interactions, todos, memory, file tools, web search, triggers (create/update/list/get), subagent delegation |
-| **Approval required** | `true` | CRM delete tools (contacts, deals, companies, interactions, tasks), `delete_trigger`, `manage_activated_tools_for_connections` |
+| **Auto-run** | `false` (default) | All reads, searches, creates, updates, links, unlinking, tasks, interactions, todos, memory, file tools, web search, triggers (create/update/list/get/simulate), subagent delegation |
+| **Approval required** | `true` | CRM delete tools (contacts, deals, companies, interactions, tasks), `delete_connection`, `manage_activated_tools_for_connections`, and the `delete` action inside `manage_active_triggers` |
 
-> **Note:** `manage_activated_tools_for_connections` already has its own Tasklet-style UI approval card (user approves permission changes). Adding `needsApproval` provides a mechanical gate in addition to the UI card. Future external sends (`send_email`, `send_telegram`) will be added to the approval list when PR 32a ships.
+> **Note:** `manage_activated_tools_for_connections` already has its own Tasklet-style permission UX. Adding `needsApproval` provides the mechanical gate that keeps activation inside the in-thread approval flow. Future outbound send tools (`send_email`, `send_telegram`) will join the same approval list when those tool surfaces ship.
 
 ### 3.2 Implementation
 
-Add `needsApproval: true` directly on each gated tool definition. No registry abstraction needed — the list is short (~8 tools) and unlikely to change often.
+Add `needsApproval: true` directly on each gated tool definition. No registry abstraction needed — the list is short and unlikely to change often. For `manage_active_triggers`, use a predicate so only `action === "delete"` is gated.
 
 ```typescript
 // Example: src/lib/runner/tools/crm/contacts.ts
@@ -86,8 +86,8 @@ delete_contact: tool({
 
 ### 3.3 Autopilot & Subagents
 
-- **Autopilot:** Won't hit approval gates in practice — autopilot doesn't delete records. The `<approval-override>` prompt stays as-is. No factory flag changes needed.
-- **Subagents:** System prompt already says "Do not delegate anything that requires direct user interaction or approval-gated external actions" (`system-prompt.ts:117`). Subagents cannot use `needsApproval` (no user present). For safety, **strip delete tools from subagent tool registries** — don't give them tools they can't use.
+- **Autopilot:** The runtime behavior stays the same, but the stale `<approval-override>` wording must be updated so it references the new `<safety>` block and explicitly forbids destructive tools plus connection activation.
+- **Subagents:** System prompt already says "Do not delegate anything that requires direct user interaction or approval-gated external actions" (`system-prompt.ts:117`). Subagents cannot use `needsApproval` (no user present). For safety, **strip approval-gated delete tools from subagent tool registries** via `tool-registry.ts` + `crm/index.ts`. This is a deliberate RUNNER-06 exception and should be documented inline.
 - **Dynamically loaded Composio tools:** Once activated, connection tools auto-run. The gate is on `manage_activated_tools_for_connections` (activating them), not on individual activated tools. When external sends ship (PR 32a), we'll add `needsApproval` to send-type connection actions.
 
 ### 3.4 System Prompt Update
@@ -96,10 +96,10 @@ Replace the verbose `<approval-required>` section (lines 121-144) with a slim no
 
 ```markdown
 <safety>
-Destructive tools (deletes, connection activation) will pause for user approval
+Destructive tools (deletes) and connection tool activation will pause for user approval
 before executing — the user sees an approve/deny card in chat.
-Before invoking a destructive tool, briefly describe what will be deleted and why.
-All other tools (creates, updates, reads, searches, tasks, memory) run immediately.
+Before invoking one of these tools, briefly describe what will change and why.
+All other tools (creates, updates, reads, searches, tasks, memory, and unlinks) run immediately.
 </safety>
 ```
 
@@ -112,16 +112,19 @@ All other tools (creates, updates, reads, searches, tasks, memory) run immediate
 | `src/lib/runner/tools/crm/companies.ts` | Add `needsApproval: true` to `delete_company` |
 | `src/lib/runner/tools/crm/interactions.ts` | Add `needsApproval: true` to `delete_interaction` |
 | `src/lib/runner/tools/crm/tasks.ts` | Add `needsApproval: true` to `delete_task` |
-| `src/lib/runner/tools/trigger-tools.ts` | Add `needsApproval: true` to `delete_trigger` |
+| `src/lib/runner/tools/connections/delete-connection.ts` | Add `needsApproval: true` to `delete_connection` |
+| `src/lib/runner/tools/triggers/manage-triggers.ts` | Add `needsApproval` predicate for `action === "delete"` |
 | `src/lib/runner/tools/connections/manage-tools.ts` | Add `needsApproval: true` to `manage_activated_tools_for_connections` |
 | `src/lib/ai/system-prompt.ts` | Replace `<approval-required>` with slim `<safety>` note |
-| `src/lib/runner/run-subagent.ts` | Strip delete tools from subagent tool registry |
+| `src/lib/autopilot/constants.ts` | Refresh stale `<approval-override>` wording |
+| `src/lib/runner/tool-registry.ts` | Strip delete tools from subagent tool registry |
+| `src/lib/runner/tools/crm/index.ts` | Support subagent registry without delete tools |
 | **Final step** | Review tool matrix with user, confirm nothing's missing |
 
 ### 3.6 What We DON'T Build
 
 - No approval registry abstraction (list is short, just set `needsApproval` inline)
-- No autopilot factory flag changes (autopilot doesn't delete things)
+- No autopilot behavior changes beyond prompt copy cleanup
 - No custom middleware or interceptor (SDK handles it)
 - No changes to message-utils, chat-panel, or tool-call-inline (already done in PR 22b)
 - No gating of Composio activated tools (gate is on activation, not usage)
@@ -179,10 +182,10 @@ create index idx_approval_events_pending
 ### 4.3 Trigger Thread Integration
 
 When a trigger/cron run hits an approval-gated tool (unlikely for deletes, but possible for future sends):
-1. Run pauses (SDK stops after emitting approval request)
+1. First run returns a `tool-approval-request` part
 2. `approval_events` row created with `status: 'pending'`
 3. Thread shows pending tool call with approve/deny buttons (PR 22b UI)
-4. User opens trigger thread → approves/denies → `sendAutomaticallyWhen` continues
+4. User opens trigger thread → approves/denies → `sendAutomaticallyWhen` starts the follow-up run
 
 **Known limitation:** Trigger thread approval continuation may need a server-side resume path since trigger runs don't persist a user message. This is deferred — unlikely to trigger in v1 since autopilot doesn't delete. Will address when external sends (PR 32a) make trigger-thread approvals realistic.
 
@@ -274,13 +277,13 @@ PR 33 (gate)  ──→  PR 34 (events table)  ──→  PR 35 (Mission Control
 
 | # | Question | Decision |
 |---|----------|----------|
-| 1 | Which tools are gated? | Only destructive: CRM deletes, `delete_trigger`, `manage_activated_tools_for_connections`. Everything else auto-runs. |
+| 1 | Which tools are gated? | Only destructive or capability-expanding actions: CRM deletes, `delete_connection`, `manage_activated_tools_for_connections`, and the `delete` action inside `manage_active_triggers`. Everything else auto-runs. |
 | 2 | Composio activated tools? | Auto-run once activated. Gate is on activation (`manage_activated_tools_for_connections`), not on individual tool usage. Future sends get `needsApproval` when PR 32a ships. |
-| 3 | Subagents? | Strip delete tools from subagent registries. Subagents can't use `needsApproval` (no user). |
+| 3 | Subagents? | Strip approval-gated delete tools from subagent registries. Subagents can't use `needsApproval` (no user). |
 | 4 | Trigger thread resume? | Deferred — autopilot won't hit deletes. Address when external sends make it realistic. |
 | 5 | `write_file` gating? | Fully auto-run. No path-aware split in v1. |
 | 6 | Schema patterns? | Fixed: `clients(client_id)`, `conversation_threads(thread_id)`, `runs(run_id)`, `get_my_client_id()` RLS, unique `(client_id, approval_id)`. |
-| 7 | Prompt cleanup? | Keep slim `<safety>` instruction — agent describes destructive action before invoking. Don't remove conversational explanation entirely. |
+| 7 | Prompt cleanup? | Keep slim `<safety>` instruction — agent describes the destructive or activation action before invoking. Don't remove conversational explanation entirely. |
 | 8 | PR 32a dependency? | Decoupled. Validate on CRM deletes + connection activation. |
 
 ---

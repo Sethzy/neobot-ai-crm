@@ -424,30 +424,29 @@ Compounding value curve:
 
 ### 9.1 Two-Tier Model (`SAFETY-01`)
 
-One rule: **if it leaves the system or is visible to someone other than the user, it needs approval.**
+One rule: **if it is destructive or irreversible, expands the agent's external capabilities, or sends something outside the system, it needs approval.**
 
 **Auto-run (internal work):**
-- CRM reads (search contacts, view deals)
+- CRM reads plus non-destructive CRM writes (create/update contacts, deals, interactions, tasks, plus link/unlink actions)
 - Memory reads/writes
 - Generate drafts (CMA, email, notes)
 - Web search/research
-- Create/update internal tasks
 - Write to thread (responses, summaries)
 - Read knowledge base
 
-**Approval required (external-facing):**
+**Approval required:**
+- Activate tools on an existing connection
+- Delete any record or connection
 - Send email
 - Send Telegram (v2), WhatsApp/SMS (v3)
-- Create/update client-facing CRM records
 - Schedule meetings on user's calendar
-- Delete anything
 - Publish artifacts (share links externally)
 
 No per-action granularity, no configurable matrix in v1. One rule, two columns. (`SAFETY-04`)
 
 ### 9.2 Approval Gate (`SAFETY-02`)
 
-The approval gate is a chat interaction, not a special UI. Agent hits a high-risk tool call → instead of executing, presents the action in plain language in the thread → waits for user reply. User says yes → agent continues. User says no → run ends as cancelled.
+The approval gate is an in-thread chat interaction using AI SDK approval cards. Agent hits an approval-gated tool call → the first run returns an approve/deny card in the thread instead of executing → the user approves or denies in-thread → a follow-up run either executes the tool or handles the denial.
 
 Works identically in chat and trigger threads. Trigger thread shows the pending action; user opens thread to respond.
 

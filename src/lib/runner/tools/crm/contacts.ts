@@ -336,6 +336,7 @@ export function createContactTools(
     inputSchema: z.object({
       contact_id: z.string().uuid().describe("UUID of the contact to delete."),
     }),
+    needsApproval: true,
     execute: async ({ contact_id }) => {
       const { data, error } = await supabase
         .from("contacts")
