@@ -14,6 +14,7 @@ import {
   buildAssistantPartsFromSteps,
   getAssistantTextFromParts,
   type PersistedPart,
+  type StepLike,
 } from "@/lib/runner/message-utils";
 import { completeRun } from "@/lib/runner/run-lifecycle";
 import {
@@ -23,14 +24,6 @@ import {
 import type { Database, Json } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
-
-interface StepLike {
-  content?: ReadonlyArray<unknown>;
-  text?: string;
-  reasoningText?: string;
-  toolCalls?: ReadonlyArray<unknown>;
-  toolResults?: ReadonlyArray<unknown>;
-}
 
 export interface FinalizeRunInput {
   supabase: ChatSupabaseClient;

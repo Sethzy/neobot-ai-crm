@@ -11,22 +11,6 @@ import { getCompactionTextFromParts } from "@/lib/runner/message-utils";
 import type { Database, Json } from "@/types/database";
 
 /**
- * Base compaction prompt copied from Codex's local compaction flow.
- * It frames the summarization step as a handoff checkpoint for a future run.
- */
-export const SUMMARIZATION_PROMPT = [
-  "You are performing a CONTEXT CHECKPOINT COMPACTION. Create a handoff summary for another LLM that will resume the task.",
-  "",
-  "Include:",
-  "- Current progress and key decisions made",
-  "- Important context, constraints, or user preferences",
-  "- What remains to be done (clear next steps)",
-  "- Any critical data, examples, or references needed to continue",
-  "",
-  "Be concise, structured, and focused on helping the next LLM seamlessly continue the work.",
-].join("\n");
-
-/**
  * Prefix prepended to compacted summaries so later runs can recognize the
  * stored text as a prior-model handoff instead of an ordinary user message.
  */
@@ -45,19 +29,6 @@ export const COMPACTION_MESSAGE_THRESHOLD = 200;
 
 /** The newest messages that always remain verbatim after each compaction pass. */
 export const COMPACTION_KEEP_RECENT = 50;
-
-/**
- * CRM-tuned instructions for summary generation.
- * Preserve concrete business state so future runs can recover thread context safely.
- * @deprecated Replaced by STRUCTURED_SUMMARY_INSTRUCTIONS. Kept for backward compatibility.
- */
-export const CRM_COMPACTION_INSTRUCTIONS = [
-  "Summarize older CRM conversation context for future agent runs.",
-  "Preserve deal names, deal stages, prices, and any decisions or rationale.",
-  "Preserve contact names, phone numbers, email addresses, and relationship context.",
-  "Preserve task statuses, deadlines, commitments, and follow-up obligations.",
-  "Omit filler, but keep concrete facts that affect future work.",
-].join(" ");
 
 /**
  * Structured compaction summary instructions matching Tasklet's 4-section format.
@@ -107,6 +78,16 @@ export const threadCompactionStateSchema = z.object({
 export type ThreadCompactionState = z.infer<typeof threadCompactionStateSchema>;
 
 type ChatSupabaseClient = SupabaseClient<Database>;
+
+const COMPACTION_STATE_COLUMNS = [
+  "thread_id",
+  "client_id",
+  "compaction_summary",
+  "compaction_compacted_through_at",
+  "compaction_compacted_through_message_id",
+  "compaction_summary_model",
+  "compaction_summary_tokens_used",
+].join(", ");
 
 export interface PersistThreadCompactionStateInput {
   threadId: string;
@@ -212,15 +193,7 @@ export async function fetchThreadCompactionState(
 ): Promise<ThreadCompactionState | null> {
   const { data, error } = await supabase
     .from("conversation_threads")
-    .select([
-      "thread_id",
-      "client_id",
-      "compaction_summary",
-      "compaction_compacted_through_at",
-      "compaction_compacted_through_message_id",
-      "compaction_summary_model",
-      "compaction_summary_tokens_used",
-    ].join(", "))
+    .select(COMPACTION_STATE_COLUMNS)
     .eq("thread_id", threadId)
     .maybeSingle();
 
@@ -251,15 +224,7 @@ export async function persistThreadCompactionState(
     })
     .eq("thread_id", input.threadId)
     .eq("client_id", input.clientId)
-    .select([
-      "thread_id",
-      "client_id",
-      "compaction_summary",
-      "compaction_compacted_through_at",
-      "compaction_compacted_through_message_id",
-      "compaction_summary_model",
-      "compaction_summary_tokens_used",
-    ].join(", "))
+    .select(COMPACTION_STATE_COLUMNS)
     .single();
 
   if (error || !data) {

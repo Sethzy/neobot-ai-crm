@@ -46,6 +46,13 @@ export function shouldTruncateToolResult(output: unknown): boolean {
   return getSerializedSizeBytes(output) >= ARTIFACT_SIZE_THRESHOLD_BYTES;
 }
 
+/** Serializes output and returns the string and its byte length in one pass. */
+function serializeWithSize(output: unknown): { serialized: string; sizeBytes: number } | null {
+  const serialized = getSerializedArtifact(output);
+  if (serialized == null) return null;
+  return { serialized, sizeBytes: new TextEncoder().encode(serialized).length };
+}
+
 /**
  * Produces the inline marker stored in the persisted tool part after truncation.
  * Format matches what `<context-management>` instructions describe to the agent.
@@ -113,14 +120,16 @@ export async function saveToolcallBlock(
 
 /**
  * Saves a full tool result to the tenant workspace and returns the workspace-relative recovery path.
+ * Accepts an optional pre-serialized string to avoid redundant serialization.
  */
 export async function saveToolcallArtifact(
   supabase: ChatSupabaseClient,
   clientId: string,
   toolCallId: string,
   output: unknown,
+  preSerialized?: string,
 ): Promise<string> {
-  const artifactContent = getSerializedArtifact(output);
+  const artifactContent = preSerialized ?? getSerializedArtifact(output);
   if (artifactContent == null) {
     throw new Error("Cannot save an empty toolcall artifact.");
   }
@@ -151,6 +160,8 @@ export async function truncateOversizedParts(
   clientId: string,
   parts: ReadonlyArray<PersistedPart>,
 ): Promise<TruncateOversizedPartsResult> {
+  const recoveryPaths: string[] = [];
+
   const truncatedParts = await Promise.all(parts.map(async (part) => {
     if (
       part.state !== "output-available" ||
@@ -160,45 +171,28 @@ export async function truncateOversizedParts(
       return part;
     }
 
-    const output = part.output;
-    if (!shouldTruncateToolResult(output)) {
+    const result = serializeWithSize(part.output);
+    if (!result || result.sizeBytes < ARTIFACT_SIZE_THRESHOLD_BYTES) {
       return part;
     }
 
-    const serialized = getSerializedArtifact(output) ?? "";
-    const originalSizeBytes = new TextEncoder().encode(serialized).length;
     const recoveryPath = await saveToolcallArtifact(
       supabase,
       clientId,
       part.toolCallId,
-      output,
+      part.output,
+      result.serialized,
     );
+    recoveryPaths.push(recoveryPath);
 
-    const head = serialized.slice(0, ARTIFACT_SIZE_THRESHOLD_BYTES);
-    const marker = buildContextRemovedMarker(recoveryPath, originalSizeBytes);
+    const head = result.serialized.slice(0, ARTIFACT_SIZE_THRESHOLD_BYTES);
+    const marker = buildContextRemovedMarker(recoveryPath, result.sizeBytes);
 
     return {
       ...part,
       output: `${head}\n\n${marker}`,
-      recoveryPath,
     };
   }));
 
-  const recoveryPaths = truncatedParts
-    .filter(
-      (part): part is PersistedPart & { recoveryPath: string } =>
-        typeof part.recoveryPath === "string",
-    )
-    .map((part) => part.recoveryPath);
-
-  return {
-    parts: truncatedParts.map((part) => (
-      typeof part.recoveryPath !== "string"
-        ? part
-        : Object.fromEntries(
-          Object.entries(part).filter(([key]) => key !== "recoveryPath"),
-        )
-    )),
-    recoveryPaths,
-  };
+  return { parts: truncatedParts, recoveryPaths };
 }

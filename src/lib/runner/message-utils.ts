@@ -13,7 +13,7 @@ type ToolPartState =
 
 export type PersistedPart = Record<string, unknown>;
 
-interface StepLike {
+export interface StepLike {
   content?: ReadonlyArray<unknown>;
   text?: string;
   reasoningText?: string;

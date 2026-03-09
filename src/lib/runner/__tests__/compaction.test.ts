@@ -28,9 +28,7 @@ import {
   ARTIFACT_SIZE_THRESHOLD_BYTES,
   COMPACTION_KEEP_RECENT,
   COMPACTION_MESSAGE_THRESHOLD,
-  CRM_COMPACTION_INSTRUCTIONS,
   STRUCTURED_SUMMARY_INSTRUCTIONS,
-  SUMMARIZATION_PROMPT,
   SUMMARY_PREFIX,
   fetchThreadCompactionState,
   generateCompactionSummary,
@@ -169,20 +167,6 @@ describe("compaction constants", () => {
     expect(COMPACTION_MESSAGE_THRESHOLD).toBeGreaterThan(COMPACTION_KEEP_RECENT);
   });
 
-  it("includes CRM preservation guidance in the compaction instructions", () => {
-    expect(CRM_COMPACTION_INSTRUCTIONS).toContain("deal names");
-    expect(CRM_COMPACTION_INSTRUCTIONS).toContain("contact");
-    expect(CRM_COMPACTION_INSTRUCTIONS).toContain("task statuses");
-    expect(CRM_COMPACTION_INSTRUCTIONS.trim().length).toBeGreaterThan(0);
-  });
-});
-
-describe("SUMMARIZATION_PROMPT", () => {
-  it("contains the Codex checkpoint-compaction framing", () => {
-    expect(SUMMARIZATION_PROMPT).toContain("CONTEXT CHECKPOINT COMPACTION");
-    expect(SUMMARIZATION_PROMPT).toContain("handoff summary");
-    expect(SUMMARIZATION_PROMPT).toContain("Current progress");
-  });
 });
 
 describe("SUMMARY_PREFIX", () => {
