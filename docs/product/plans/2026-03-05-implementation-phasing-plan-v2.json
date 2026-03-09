@@ -660,37 +660,37 @@
             {
               "id": "PR13-1",
               "task": "Bootstrap /{clientId}/SOUL.md on first login",
-              "done": false
+              "done": true
             },
             {
               "id": "PR13-2",
               "task": "Bootstrap /{clientId}/USER.md on first login",
-              "done": false
+              "done": true
             },
             {
               "id": "PR13-3",
               "task": "Bootstrap /{clientId}/MEMORY.md on first login (working notebook)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR13-4",
               "task": "Default SOUL.md: real estate agent personality template",
-              "done": false
+              "done": true
             },
             {
               "id": "PR13-5",
               "task": "Default USER.md: empty, agent populates during conversations",
-              "done": false
+              "done": true
             },
             {
               "id": "PR13-6",
               "task": "Default MEMORY.md: empty, agent writes working notes (first 200 lines loaded every run at context position #3)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR13-7",
               "task": "Runner reads SOUL.md + USER.md + MEMORY.md (first 200 lines) at context assembly time (RUNNER-03 becomes real)",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -713,37 +713,37 @@
             {
               "id": "PR14-1",
               "task": "Seed /{clientId}/memory/ directory with 4 starter files: preferences.md, growth-plan.md, patterns.md, key-decisions.md (MEM-03/MEM-04 taxonomy)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR14-2",
               "task": "Agent reads memory files during context assembly (on-demand via read_file)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR14-3",
               "task": "Agent auto-writes to memory during runs per MEM-05 rules (preferences: immediate on lasting preference, patterns: after 3+ instances, key-decisions: on significant decisions)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR14-4",
               "task": "Memory files are storage-only — discovered via directory listing (DATA-06)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR14-5",
               "task": "Memory shared across all threads (MEM-06)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR14-6",
               "task": "Agent can create new memory files via write_file when observation doesn't fit existing files",
-              "done": false
+              "done": true
             },
             {
               "id": "PR14-7",
               "task": "Memory page at /memory — read-only viewer for SOUL.md, USER.md, MEMORY.md, and memory/*.md files. User can view current contents and edit inline. Uses read_file/write_file via API routes to Supabase Storage.",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -766,57 +766,57 @@
             {
               "id": "PR15-1",
               "task": "Full 7-layer context assembly order (RUNNER-03): 0-Platform instructions, 1-System prompt, 2-SOUL.md, 3-USER.md, 4-MEMORY.md first 200 lines, 5-Thread compaction summary, 6-Recent messages, 7-Current message",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15-2",
               "task": "Platform instructions layer (position #0 in context assembly) — forked from Tasklet, adapted for Sunder",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15-3",
               "task": "System-reminder injection per turn (~130 tokens): current time, user display name + email, open todos count (from agent_todo scoped to thread_id), memory file count, days since signup. Trigger count, approval count, and connection state are wired in by their respective PRs (PR 18, PR 34, PR 26) when those tables are created (RUNNER-04)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15-4",
               "task": "Implement rename_chat tool — agent sets thread title (concise 3-5 word summaries)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15-5",
               "task": "Implement run_agent_memory_sql tool — read-only SQL queries against all client-accessible tables (CRM, vault_files, agent_triggers, etc.). Platform instructions document available schemas including vault_files.fts for full-text knowledge base search.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15-6",
               "task": "Implement get_agent_db_schema tool — introspect available tables, columns, row counts",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15-7",
               "task": "Migration: CREATE TABLE agent_todo (id UUID PK, client_id TEXT NOT NULL, thread_id UUID NOT NULL, title TEXT NOT NULL, payload JSONB DEFAULT '{}', created_at TIMESTAMPTZ DEFAULT now()) + RLS policy on client_id",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15-8",
               "task": "Implement manage_todo tool — Tasklet-parity batch operations (add/update/delete). Add: creates todo with title + optional payload, scoped to current thread. Update: modify title/payload by id. Delete: remove todo (= mark done). Supports multiple operations in one call.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15-9",
               "task": "Implement list_todo tool — returns all todos for current thread, optional filter by IDs. Schema: { id, title, payload, created_at }",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15-10",
               "task": "Wire agent_todo count into system-reminder: 'Open todos: N' (SELECT count(*) FROM agent_todo WHERE client_id = $1 AND thread_id = $2)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR15-11",
               "task": "Platform instructions: document state/ directory convention — agent writes JSON files to /{clientId}/state/ for cross-run tracking (dedup sets, counters, progress markers). Zero new infra, uses existing read_file/write_file.",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -1059,27 +1059,27 @@
             {
               "id": "PR18-1",
               "task": "Migration: agent_triggers table schema",
-              "done": false
+              "done": true
             },
             {
               "id": "PR18-2",
               "task": "Create /api/cron/scan route (Vercel cron, 1 min)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR18-3",
               "task": "Scanner queries next_run_at, fires /api/trigger/run",
-              "done": false
+              "done": true
             },
             {
               "id": "PR18-4",
               "task": "Atomic claim via UPDATE ... SET status = 'running' WHERE status = 'active' RETURNING *",
-              "done": false
+              "done": true
             },
             {
               "id": "PR18-5",
               "task": "Per-thread serialization for trigger runs (TRIG-06)",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -1136,42 +1136,42 @@
             {
               "id": "PR19-1",
               "task": "Pre-installed 'Sunder Autopilot' pinned thread on signup",
-              "done": false
+              "done": true
             },
             {
               "id": "PR19-2",
               "task": "Autopilot trigger auto-created (6h default pulse)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR19-3",
               "task": "Migration: autopilot_config table (config_id, client_id, pulse_interval enum [1h/2h/6h/12h], quiet_hours_start, quiet_hours_end, enabled boolean)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR19-4",
               "task": "Autopilot runs in trigger mode (generateText, not streamText)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR19-5",
               "task": "Autopilot system prompt with simplified priority order adapted from §7.2 (TRIG-08). Two surfaces: agent_todo (list_todo for interrupted agent work with resume payload) and crm_tasks (search_tasks for CRM follow-ups). Priority: 1-resume interrupted work (list_todo, read payload for next step) → 2-check overdue CRM tasks (search_tasks where due_date < now) → 3-act on monitored triggers (deal changes, inbound) → 4-follow up with user on unanswered questions → 5-handle stale CRM tasks (open too long) → 6-research/prepare for upcoming tasks → 7-get to know user (sparse USER.md) → 8-engage user (nudge, pending approvals) → 9-propose new CRM tasks (create_task) or self-todos (manage_todo add) → 10-create momentum (break large work into smaller pieces)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR19-6",
               "task": "Bootstrap requirement: autopilot MUST call tools for live state before acting (thread history ≠ current truth)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR19-7",
               "task": "Noise suppression: lower frequency + prompt instructions to avoid low-value pulses (TRIG-09)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR19-8",
               "task": "Email notifications for autopilot results via platform send_message — stub until PR 32a implements tool (TRIG-06b)",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
