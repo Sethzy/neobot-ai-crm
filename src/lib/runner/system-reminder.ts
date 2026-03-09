@@ -101,14 +101,28 @@ export async function buildSystemReminder(
   reminderLines.push(`Memory files: ${context.memory_file_count}`);
   reminderLines.push(`Active triggers: ${context.active_trigger_count}`);
 
+  let connections: Awaited<ReturnType<typeof getAllConnections>> | null = null;
+
   try {
-    const connections = await getAllConnections(supabase, clientId);
+    connections = await getAllConnections(supabase, clientId);
+  } catch {
+    reminderLines.push("Active connections: none");
+  }
+
+  if (connections) {
     const activeConnections = connections.filter((connection) => connection.status === "active");
 
     if (activeConnections.length > 0) {
       const activeConnectionLines = await Promise.all(
         activeConnections.map(async (connection) => {
-          const skillContent = await getConnectionSkillContent(supabase, clientId, connection.id);
+          let skillContent: string | null = null;
+
+          try {
+            skillContent = await getConnectionSkillContent(supabase, clientId, connection.id);
+          } catch {
+            skillContent = null;
+          }
+
           const escapedToolkitSlug = escapeXml(connection.toolkit_slug);
           const escapedConnectionId = escapeXml(connection.id);
           const activatedToolCount = connection.activated_tools.length;
@@ -132,8 +146,6 @@ export async function buildSystemReminder(
     if (inactiveConnectionCount > 0) {
       reminderLines.push(`Inactive connections: ${inactiveConnectionCount}`);
     }
-  } catch {
-    reminderLines.push("Active connections: none");
   }
 
   if (context.days_since_signup !== null) {

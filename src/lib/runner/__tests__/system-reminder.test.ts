@@ -175,6 +175,21 @@ describe("buildSystemReminder", () => {
     expect(result).not.toContain("(skill:");
   });
 
+  it("keeps active connection lines when one skill lookup fails", async () => {
+    const supabase = createReminderSupabase();
+    mockGetAllConnections.mockResolvedValue([MOCK_GMAIL_CONNECTION, MOCK_CALENDAR_CONNECTION]);
+    mockGetSkillContent
+      .mockRejectedValueOnce(new Error("storage down"))
+      .mockResolvedValueOnce(null);
+
+    const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);
+
+    expect(result).toContain("Active connections:");
+    expect(result).toContain("gmail (conn-abc): 3/45 tools active");
+    expect(result).toContain("googlecalendar (conn-def): 2/20 tools active");
+    expect(result).not.toContain("Active connections: none");
+  });
+
   it("shows inactive connection count when inactive connections exist", async () => {
     const supabase = createReminderSupabase();
     mockGetAllConnections.mockResolvedValue([

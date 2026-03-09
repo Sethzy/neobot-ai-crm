@@ -103,6 +103,12 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT).toContain("manage_activated_tools_for_connections");
   });
 
+  it("requires chat approval before connection mutation tools", () => {
+    expect(SYSTEM_PROMPT).toContain("Before calling any connection mutation tool");
+    expect(SYSTEM_PROMPT).toContain("wait for the user's confirmation in chat");
+    expect(SYSTEM_PROMPT).toContain("These tools do not show approval cards in v1");
+  });
+
   it("instructs the agent to read the creating-connections skill if it exists", () => {
     expect(SYSTEM_PROMPT).toContain("If skills/system/creating-connections/SKILL.md exists");
     expect(SYSTEM_PROMPT).toContain("MUST read it");
@@ -125,6 +131,10 @@ describe("SYSTEM_PROMPT", () => {
 
   it("does not contain the old passive connections guidance", () => {
     expect(SYSTEM_PROMPT).not.toContain("Never try to create or manage connections yourself");
+  });
+
+  it("does not claim that connection activation prompts the user automatically", () => {
+    expect(SYSTEM_PROMPT).not.toContain("This will prompt the user to grant permissions");
   });
 });
 
