@@ -7,6 +7,7 @@ import sharp from "sharp";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
+import { getFileExtension } from "@/lib/file-utils";
 import { createAgentFileClient, normalizeWorkspacePath } from "@/lib/storage/agent-files";
 import { toModelPath, toStoragePath } from "@/lib/storage/agent-paths";
 import { getSystemSkillContent, isSystemSkillPath } from "@/lib/runner/skills/system-skills";
@@ -283,20 +284,6 @@ function applyLineRange(content: string, startLine?: number, endLine?: number): 
 }
 
 /**
- * Extracts the lowercase file extension from a workspace path.
- *
- * @param path - Relative file or directory path in the client workspace.
- */
-function getFileExtension(path: string): string {
-  const dotIndex = path.lastIndexOf(".");
-  if (dotIndex < 0 || dotIndex === path.length - 1) {
-    return "";
-  }
-
-  return path.slice(dotIndex + 1).toLowerCase();
-}
-
-/**
  * Classifies a workspace path so `read_file` can choose the correct read flow.
  *
  * @param path - Relative file or directory path in the client workspace.
@@ -352,44 +339,29 @@ function assertValidReadLineBounds(startLine?: number, endLine?: number): void {
   }
 }
 
-/**
- * Narrows a `read_file` output to the image result variant used by `toModelOutput`.
- *
- * @param value - Unknown tool output from the AI SDK callback.
- */
-function isImageReadResult(
+/** Narrows a `read_file` output to a binary result variant (image or pdf) used by `toModelOutput`. */
+function isBinaryReadResult(
   value: unknown,
-): value is { type: "image"; data: string; mediaType: string } {
+  expectedType: "image" | "pdf",
+): value is { type: string; data: string; mediaType: string } {
   return (
     typeof value === "object" &&
     value !== null &&
     "type" in value &&
     "data" in value &&
     "mediaType" in value &&
-    (value as { type?: unknown }).type === "image" &&
+    (value as { type?: unknown }).type === expectedType &&
     typeof (value as { data?: unknown }).data === "string" &&
     typeof (value as { mediaType?: unknown }).mediaType === "string"
   );
 }
 
-/**
- * Narrows a `read_file` output to the PDF result variant used by `toModelOutput`.
- *
- * @param value - Unknown tool output from the AI SDK callback.
- */
-function isPdfReadResult(
-  value: unknown,
-): value is { type: "pdf"; data: string; mediaType: string } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "type" in value &&
-    "data" in value &&
-    "mediaType" in value &&
-    (value as { type?: unknown }).type === "pdf" &&
-    typeof (value as { data?: unknown }).data === "string" &&
-    typeof (value as { mediaType?: unknown }).mediaType === "string"
-  );
+function isImageReadResult(value: unknown): value is { type: "image"; data: string; mediaType: string } {
+  return isBinaryReadResult(value, "image");
+}
+
+function isPdfReadResult(value: unknown): value is { type: "pdf"; data: string; mediaType: string } {
+  return isBinaryReadResult(value, "pdf");
 }
 
 /**
