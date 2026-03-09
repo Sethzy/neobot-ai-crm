@@ -59,6 +59,17 @@ function makeInput(overrides: Partial<Parameters<typeof finalizeRun>[0]> = {}) {
   };
 }
 
+function createDeferredPromise<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((innerResolve, innerReject) => {
+    resolve = innerResolve;
+    reject = innerReject;
+  });
+
+  return { promise, resolve, reject };
+}
+
 describe("finalizeRun block storage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -110,6 +121,29 @@ describe("finalizeRun block storage", () => {
     await finalizeRun(makeInput());
 
     expect(mockSaveToolcallBlock).not.toHaveBeenCalled();
+  });
+
+  it("waits for block storage to finish before persisting the assistant message", async () => {
+    const deferred = createDeferredPromise<void>();
+    const parts: PersistedPart[] = [
+      { type: "tool-search_contacts", toolCallId: "call-wait", state: "output-available", input: { q: "x" }, output: { success: true } },
+      { type: "text", text: "Done" },
+    ];
+
+    mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
+    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+    mockGetAssistantTextFromParts.mockReturnValue("Done");
+    mockSaveToolcallBlock.mockImplementation(() => deferred.promise);
+
+    const finalizePromise = finalizeRun(makeInput());
+    await Promise.resolve();
+
+    expect(mockCreateMessages).not.toHaveBeenCalled();
+
+    deferred.resolve();
+    await finalizePromise;
+
+    expect(mockCreateMessages).toHaveBeenCalledTimes(1);
   });
 
   it("does not block persistence when saveToolcallBlock fails", async () => {

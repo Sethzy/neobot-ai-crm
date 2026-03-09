@@ -164,7 +164,8 @@ export async function truncateOversizedParts(
       return part;
     }
 
-    const originalSizeBytes = getSerializedSizeBytes(output);
+    const serialized = getSerializedArtifact(output) ?? "";
+    const originalSizeBytes = new TextEncoder().encode(serialized).length;
     const recoveryPath = await saveToolcallArtifact(
       supabase,
       clientId,
@@ -172,9 +173,12 @@ export async function truncateOversizedParts(
       output,
     );
 
+    const head = serialized.slice(0, ARTIFACT_SIZE_THRESHOLD_BYTES);
+    const marker = buildContextRemovedMarker(recoveryPath, originalSizeBytes);
+
     return {
       ...part,
-      output: buildContextRemovedMarker(recoveryPath, originalSizeBytes),
+      output: `${head}\n\n${marker}`,
       recoveryPath,
     };
   }));

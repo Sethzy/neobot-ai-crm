@@ -369,6 +369,46 @@ export function getTextFromParts(parts: Json | null): string {
 }
 
 /**
+ * Returns compaction-safe text from persisted parts.
+ * Includes normal assistant text plus truncated tool-result markers so
+ * compaction summaries can preserve recovery paths after old messages roll up.
+ */
+export function getCompactionTextFromParts(parts: Json | null): string {
+  if (!Array.isArray(parts)) {
+    return "";
+  }
+
+  const lines = parts.flatMap((part) => {
+    if (typeof part !== "object" || part === null || !("type" in part)) {
+      return [];
+    }
+
+    if (part.type === "text" && typeof part.text === "string") {
+      const text = part.text.trim();
+      return text.length > 0 ? [text] : [];
+    }
+
+    if (
+      typeof part.toolCallId === "string" &&
+      part.state === "output-available"
+    ) {
+      if (typeof part.output === "string" && part.output.includes("<context-removed>")) {
+        return [`Tool call ${part.toolCallId}: ${part.output}`];
+      }
+
+      const toolName = typeof part.type === "string"
+        ? part.type.replace(/^tool-/, "")
+        : "unknown";
+      return [`Tool call ${part.toolCallId} (${toolName}): [result in storage]`];
+    }
+
+    return [];
+  });
+
+  return lines.join("\n").trim();
+}
+
+/**
  * Returns newline-joined text content from assistant UI message parts.
  */
 export function getAssistantTextFromParts(parts: ReadonlyArray<PersistedPart>): string {

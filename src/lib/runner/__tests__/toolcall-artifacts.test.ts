@@ -249,4 +249,74 @@ describe("truncateOversizedParts", () => {
       },
     }));
   });
+
+  it("keeps the first ~5KB of content inline before the truncation marker (HEAD truncation)", async () => {
+    const supabase = createStorageSupabaseMock();
+    supabase.upload.mockResolvedValue({ data: { path: "ignored" }, error: null });
+    const oversizedContent = "LINE_" + "x".repeat(6_000);
+    const parts = [
+      {
+        type: "tool-web_scrape",
+        toolCallId: "call-scrape",
+        state: "output-available",
+        output: oversizedContent,
+      },
+    ];
+
+    const result = await truncateOversizedParts(
+      supabase.client as never,
+      "550e8400-e29b-41d4-a716-446655440000",
+      parts,
+    );
+
+    const truncatedOutput = result.parts[0].output as string;
+
+    // Should contain the start of the original content (HEAD preserved)
+    expect(truncatedOutput).toContain("LINE_");
+
+    // Should still have the context-removed marker with recovery path
+    expect(truncatedOutput).toContain("<context-removed>");
+    expect(truncatedOutput).toContain("path: toolcalls/call-scrape/result.json");
+
+    // The HEAD portion should be roughly 5KB — at least 4KB but not the full 6KB
+    const markerStart = truncatedOutput.indexOf("<context-removed>");
+    const headPortion = truncatedOutput.slice(0, markerStart);
+    expect(headPortion.length).toBeGreaterThanOrEqual(4_000);
+    expect(headPortion.length).toBeLessThanOrEqual(5_100);
+  });
+
+  it("HEAD truncation works with JSON object outputs", async () => {
+    const supabase = createStorageSupabaseMock();
+    supabase.upload.mockResolvedValue({ data: { path: "ignored" }, error: null });
+    const parts = [
+      {
+        type: "tool-search_contacts",
+        toolCallId: "call-json",
+        state: "output-available",
+        output: {
+          success: true,
+          contacts: Array.from({ length: 200 }, (_, i) => ({
+            name: `Contact ${i}`,
+            phone: `+6591234${String(i).padStart(3, "0")}`,
+          })),
+        },
+      },
+    ];
+
+    const result = await truncateOversizedParts(
+      supabase.client as never,
+      "550e8400-e29b-41d4-a716-446655440000",
+      parts,
+    );
+
+    const truncatedOutput = result.parts[0].output as string;
+
+    // Should contain the beginning of the JSON (HEAD preserved)
+    expect(truncatedOutput).toContain('"success": true');
+    expect(truncatedOutput).toContain("Contact 0");
+
+    // Should end with the truncation marker
+    expect(truncatedOutput).toContain("<context-removed>");
+    expect(truncatedOutput).toContain("path: toolcalls/call-json/result.json");
+  });
 });

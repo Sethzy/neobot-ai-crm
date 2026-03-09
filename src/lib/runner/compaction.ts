@@ -7,7 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { COMPACTION_MODEL, gateway } from "@/lib/ai/gateway";
-import { getTextFromParts } from "@/lib/runner/message-utils";
+import { getCompactionTextFromParts } from "@/lib/runner/message-utils";
 import type { Database, Json } from "@/types/database";
 
 /**
@@ -135,6 +135,14 @@ interface CompactionMessageRow {
   role: string;
   content: string | null;
   parts: Json | null;
+}
+
+function getCompactionContentFromRow(row: CompactionMessageRow): string {
+  if (Array.isArray(row.parts) && row.parts.length > 0) {
+    return getCompactionTextFromParts(row.parts);
+  }
+
+  return row.content ?? "";
 }
 
 /**
@@ -378,12 +386,16 @@ export async function maybeCompactThread(
   const allMessages = rowsToCompact
     .map((row) => ({
       role: row.role,
-      content: row.content ?? getTextFromParts(row.parts),
+      content: getCompactionContentFromRow(row),
     }))
     .filter((row) => row.content.trim().length > 0);
 
-  const triggerMessages = allMessages.filter((msg) => isTriggerEventMessage(msg.content));
-  const conversationMessages = allMessages.filter((msg) => !isTriggerEventMessage(msg.content));
+  const triggerMessages = allMessages.filter(
+    (msg) => msg.role === "system" && isTriggerEventMessage(msg.content),
+  );
+  const conversationMessages = allMessages.filter(
+    (msg) => msg.role !== "system" || !isTriggerEventMessage(msg.content),
+  );
 
   const summary = await generateCompactionSummary({
     existingSummary: compactionState?.compaction_summary ?? "",

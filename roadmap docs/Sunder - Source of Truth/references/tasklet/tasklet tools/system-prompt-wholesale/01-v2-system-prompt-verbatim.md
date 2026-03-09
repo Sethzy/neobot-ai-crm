@@ -346,3 +346,77 @@ When the user asks you to create, read, modify, or manipulate PDF files, you MUS
 </output-guidance>
 
 Answer the user's request using at most one relevant tool, if they are available. Check that the all required parameters for each tool call is provided or can reasonably be inferred from context. IF there are no relevant tools or there are missing values for required parameters, ask the user to supply these values; otherwise proceed with the tool calls. If the user provides a specific value for a parameter (for example provided in quotes), make sure to use that value EXACTLY. DO NOT make up values for or ask about optional parameters.
+
+---
+
+# Sunder Reference Notes — Context Management Verification
+
+**Date:** March 9, 2026
+**Purpose:** Empirical verification of Tasklet's context management behavior against Sunder's planned implementation. This section is a Sunder-specific annotation — not part of Tasklet's verbatim prompt.
+
+## Verification Summary
+
+All 6 planned Sunder context management changes were verified against live Tasklet behavior:
+
+| # | Change | Matches Tasklet? | Notes |
+|---|--------|-----------------|-------|
+| 1 | Block storage for ALL tool calls | Yes | Even 71-byte results get full blocks (args, result, info) |
+| 2 | Trigger event pruning (mechanical, no LLM) | Yes | Title + source name only, never LLM-summarized |
+| 3 | Structured compaction summary (4 sections) | Exact match | User Instructions, Workflow, Resources, Current Focus |
+| 4 | `<context-management>` in system prompt | Yes | See lines 31-51 above for verbatim |
+| 5 | No block index | Yes | Breadcrumbs on each tool result serve as distributed "index" |
+| 6 | Two separate layers (persistence-time truncation + compaction-time summarization) | Yes | Independent systems, no interaction |
+
+## Key Findings
+
+### Block Storage (lines 70-84 `<blocks>`)
+- **Every** tool call gets block storage — no size threshold for storage, only for inline truncation.
+- Block structure: `args`, `result`, `info` (metadata: toolName, startTime), plus optional file attachments.
+- Sunder simplification: skip `info` file initially, add later if debugging needs it. Skip attachments subdirectory.
+
+### Context Removal Patterns (lines 31-51 `<context-management>`)
+- **Two distinct removal types** the agent is taught about:
+  1. **Partial truncation** — large results trimmed inline (e.g., `Data truncated: 16KB -> 5KB`). Happens at persistence time.
+  2. **Full message removal** — entire tool call blocks removed during compaction (e.g., `Omitted 2 tool call(s)`).
+- Sunder's initial `<context-management>` draft only covered truncation — must also cover full removal.
+- The `blockId` breadcrumb (appended to every tool result) is how the agent knows which block to look up.
+
+### Trigger Pruning Format (observed in compacted context)
+```
+<context-removed>
+Omitted 34 trigger invocations & responses to reduce context size:
+- New RSS item: [title]: Monitor [source name]
+- ...
+...and 24 more trigger events
+</context-removed>
+```
+- Mechanical extraction, completely separate from LLM summarizer.
+- No outcomes included (→ emailed / → skipped). **Sunder improvement opportunity:** add outcomes for CRM triggers where actions have real consequences.
+
+### Structured Summary Format (observed in compacted context)
+```markdown
+Previous conversation summary:
+
+## User Instructions
+[Primary goal + key directives with direct quotes]
+
+## Workflow
+[Process flow, monitored sources, system descriptions]
+
+## Resources
+**External:** [URLs, email addresses]
+**Internal:** [/agent/home/... file paths, /agent/subagents/... paths]
+
+## Current Focus
+[What was in progress when compaction happened]
+```
+- `## Resources` capturing internal file paths is critical — this is how the agent recovers knowledge of its own filesystem state after compaction wipes original messages.
+
+### Threshold Correction
+- Tasklet's inline retention target is **~5KB** (not ~100KB as previously speculated). Sunder's 5KB threshold matches exactly.
+
+## Sunder's Deliberate Simplifications (verified safe)
+- No `info` or attachments subdirectories in block storage — low risk
+- No assembly-time "unshrink" logic — Tasklet doesn't do this either
+- 5KB threshold — matches Tasklet's actual behavior
+- Path convention `toolcalls/{toolCallId}/` instead of `/agent/blocks/{blockId}/` — fine, just be consistent in `<context-management>` instructions

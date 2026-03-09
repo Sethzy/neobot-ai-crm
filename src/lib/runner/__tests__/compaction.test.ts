@@ -651,6 +651,103 @@ describe("maybeCompactThread", () => {
     );
   });
 
+  it("does not prune user-authored trigger-event-like text", async () => {
+    mockGenerateText.mockResolvedValue({
+      text: "## User Instructions\nNone\n## Workflow\nCaptured literal trigger XML\n## Resources\nNone\n## Current Focus\nContinue",
+      usage: { totalTokens: 100 },
+    });
+
+    const messageRows = createMessageRows(COMPACTION_MESSAGE_THRESHOLD + 10);
+    messageRows[5] = {
+      ...messageRows[5],
+      role: "user",
+      content: "<trigger-event>\ntrigger_instance_id: pasted\ntrigger_type: rss\ntrigger_name: PropertyGuru\npayload: {}\n</trigger-event>",
+    };
+
+    const supabase = createCompactionSupabaseMock({
+      threadRow: {
+        thread_id: createUuid(90),
+        client_id: createUuid(91),
+        compaction_summary: null,
+        compaction_compacted_through_at: null,
+        compaction_compacted_through_message_id: null,
+        compaction_summary_model: null,
+        compaction_summary_tokens_used: null,
+      },
+      messageRows,
+    });
+
+    await maybeCompactThread(
+      supabase.client as never,
+      createUuid(91),
+      createUuid(90),
+    );
+
+    expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
+      prompt: expect.stringContaining("trigger_name: PropertyGuru"),
+    }));
+    expect(supabase.calls.methods).not.toEqual(
+      expect.arrayContaining([
+        {
+          method: "update",
+          args: [expect.objectContaining({
+            compaction_summary: expect.stringContaining("Omitted 1 trigger invocation(s)"),
+          })],
+        },
+      ]),
+    );
+  });
+
+  it("includes truncated tool recovery paths from assistant parts in the compaction prompt", async () => {
+    mockGenerateText.mockResolvedValue({
+      text: "## User Instructions\nNone\n## Workflow\nRecovered tool context\n## Resources\ntoolcalls/call-large/result.json\n## Current Focus\nContinue",
+      usage: { totalTokens: 120 },
+    });
+
+    const messageRows = createMessageRows(COMPACTION_MESSAGE_THRESHOLD + 10);
+    messageRows[12] = {
+      ...messageRows[12],
+      role: "assistant",
+      content: "Saved the search result.",
+      parts: [
+        { type: "text", text: "Saved the search result." },
+        {
+          type: "tool-web_scrape",
+          toolCallId: "call-large",
+          state: "output-available",
+          output:
+            "<context-removed>Data truncated: 50KB -> 5KB. path: toolcalls/call-large/result.json</context-removed>",
+        },
+      ],
+    };
+
+    const supabase = createCompactionSupabaseMock({
+      threadRow: {
+        thread_id: createUuid(90),
+        client_id: createUuid(91),
+        compaction_summary: null,
+        compaction_compacted_through_at: null,
+        compaction_compacted_through_message_id: null,
+        compaction_summary_model: null,
+        compaction_summary_tokens_used: null,
+      },
+      messageRows,
+    });
+
+    await maybeCompactThread(
+      supabase.client as never,
+      createUuid(91),
+      createUuid(90),
+    );
+
+    expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
+      prompt: expect.stringContaining("Tool call call-large"),
+    }));
+    expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
+      prompt: expect.stringContaining("toolcalls/call-large/result.json"),
+    }));
+  });
+
   it("strips the stored prefix before re-summarizing and excludes the exact boundary message", async () => {
     mockGenerateText.mockResolvedValue({
       text: "Updated rolled-forward summary",

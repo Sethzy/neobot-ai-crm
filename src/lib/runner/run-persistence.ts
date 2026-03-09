@@ -61,15 +61,16 @@ export async function finalizeRun({
 }: FinalizeRunInput): Promise<void> {
   const rawParts = buildAssistantPartsFromSteps(steps);
 
-  // Block storage: save ALL tool call args + results to storage (fire-and-forget).
-  // Matches Tasklet's pattern where every tool call is always recoverable from storage.
+  // Block storage: save ALL tool call args + results to storage.
+  // Start early so uploads overlap with truncation work, but await completion
+  // before finalizeRun returns so recovery data is actually durable.
   const toolParts = rawParts.filter(
     (part) =>
       part.state === "output-available" &&
       typeof part.toolCallId === "string",
   );
-  if (toolParts.length > 0) {
-    Promise.all(
+  const blockStoragePromise = toolParts.length > 0
+    ? Promise.all(
       toolParts.map((part) =>
         saveToolcallBlock(
           supabase,
@@ -79,10 +80,8 @@ export async function finalizeRun({
           part.output ?? null,
         ),
       ),
-    ).catch((blockStorageError) => {
-      console.error(`[${logLabel}] block storage failed:`, blockStorageError);
-    });
-  }
+    )
+    : null;
 
   let parts: PersistedPart[] = rawParts;
 
@@ -91,6 +90,14 @@ export async function finalizeRun({
     parts = truncatedResult.parts;
   } catch (artifactError) {
     console.error(`[${logLabel}] toolcall artifact persistence failed:`, artifactError);
+  }
+
+  if (blockStoragePromise) {
+    try {
+      await blockStoragePromise;
+    } catch (blockStorageError) {
+      console.error(`[${logLabel}] block storage failed:`, blockStorageError);
+    }
   }
 
   const contentTextFromParts = getAssistantTextFromParts(parts);

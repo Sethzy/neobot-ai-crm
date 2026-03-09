@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildAssistantPartsFromSteps,
   getAssistantTextFromParts,
+  getCompactionTextFromParts,
 } from "../message-utils";
 
 describe("buildAssistantPartsFromSteps", () => {
@@ -165,5 +166,65 @@ describe("getAssistantTextFromParts", () => {
     ]);
 
     expect(text).toBe("First line\nSecond line");
+  });
+});
+
+describe("getCompactionTextFromParts", () => {
+  it("includes toolCallId for truncated tool parts (existing behavior)", () => {
+    const text = getCompactionTextFromParts([
+      {
+        type: "tool-web_scrape",
+        toolCallId: "call-scrape",
+        state: "output-available",
+        output: '<context-removed>Data truncated: 90KB -> 5KB. path: toolcalls/call-scrape/result.json</context-removed>',
+      },
+    ]);
+
+    expect(text).toContain("call-scrape");
+    expect(text).toContain("<context-removed>");
+  });
+
+  it("includes toolCallId and tool name for non-truncated tool parts (breadcrumb)", () => {
+    const text = getCompactionTextFromParts([
+      {
+        type: "tool-search_contacts",
+        toolCallId: "call-abc",
+        state: "output-available",
+        output: { success: true, contacts: [{ name: "John Tan" }] },
+      },
+    ]);
+
+    // The compaction text must include the toolCallId so the summarizer can preserve it
+    expect(text).toContain("call-abc");
+    // Should include the tool name for context
+    expect(text).toContain("search_contacts");
+  });
+
+  it("still includes text parts alongside tool breadcrumbs", () => {
+    const text = getCompactionTextFromParts([
+      { type: "text", text: "Found 3 contacts." },
+      {
+        type: "tool-search_contacts",
+        toolCallId: "call-xyz",
+        state: "output-available",
+        output: { success: true },
+      },
+    ]);
+
+    expect(text).toContain("Found 3 contacts.");
+    expect(text).toContain("call-xyz");
+  });
+
+  it("skips tool parts without output (input-available state)", () => {
+    const text = getCompactionTextFromParts([
+      {
+        type: "tool-search_contacts",
+        toolCallId: "call-pending",
+        state: "input-available",
+        input: { query: "John" },
+      },
+    ]);
+
+    expect(text).toBe("");
   });
 });

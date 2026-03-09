@@ -9,6 +9,12 @@ import { z } from "zod";
 import { createAgentFileClient, normalizeWorkspacePath } from "@/lib/storage/agent-files";
 import type { Database } from "@/types/database";
 
+const KNOWLEDGE_SEARCH_MAX_RESULTS = 5;
+
+const searchKnowledgeInputSchema = z.object({
+  query: z.string().describe("Free-text search query for Knowledge Base files."),
+});
+
 const readFileInputSchema = z.object({
   path: z.string().describe("Relative file or directory path in the client workspace."),
   start_line: z.number().int().min(1).optional().describe("Optional 1-indexed start line."),
@@ -133,9 +139,31 @@ export function createStorageTools(
     },
   });
 
+  /** Searches Knowledge Base files using Postgres full-text search on the vault_files table. */
+  const search_knowledge = tool({
+    description:
+      "Search Knowledge Base files by keyword. Returns matching filenames and summaries. Use this before read_file when looking for specific information in the Knowledge Base.",
+    inputSchema: searchKnowledgeInputSchema,
+    execute: async ({ query }) => {
+      const { data, error } = await supabase
+        .from("vault_files")
+        .select("filename, storage_path, title, summary")
+        .eq("client_id", clientId)
+        .textSearch("fts", query, { type: "websearch" })
+        .limit(KNOWLEDGE_SEARCH_MAX_RESULTS);
+
+      if (error) {
+        throw new Error(`Knowledge search failed: ${error.message}`);
+      }
+
+      return { success: true as const, query, results: data ?? [] };
+    },
+  });
+
   return {
     read_file,
     write_file,
+    search_knowledge,
   };
 }
 
