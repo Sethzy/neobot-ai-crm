@@ -1332,7 +1332,8 @@
             "Model receives image and responds about its content",
             "User can remove attachment before sending",
             "Stop button cancels streaming response"
-          ]
+          ],
+          "simplified": true
         },
         {
           "pr": "22b",
