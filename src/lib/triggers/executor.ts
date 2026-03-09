@@ -129,7 +129,7 @@ export async function executeTrigger({
         feed_title: rssResult.feed.title,
         new_item_count: rssResult.newItems.length,
         new_items: rssResult.newItems,
-        seen_state_path: rssResult.statePath,
+        seen_state_path: toModelPath(rssResult.statePath),
       };
     } catch (error) {
       console.error("[executor] rss trigger failed:", error);

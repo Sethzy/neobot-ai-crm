@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { getAllConnections } from "@/lib/connections/queries";
+import { toModelPath } from "@/lib/storage/agent-paths";
 import { getConnectionSkillContent } from "@/lib/storage/skill-files";
 import type { Database } from "@/types/database";
 
@@ -133,7 +134,7 @@ export async function buildSystemReminder(
           const escapedConnectionId = escapeXml(connection.id);
           const activatedToolCount = connection.activated_tools.length;
           const skillPointer = skillContent
-            ? ` (skill: /agent/skills/connections/${escapedConnectionId}/SKILL.md)`
+            ? ` (skill: ${toModelPath(`skills/connections/${escapedConnectionId}/SKILL.md`)})`
             : "";
 
           return `  ${escapedToolkitSlug} (${escapedConnectionId}): ${activatedToolCount}/${connection.tool_count} tools active${skillPointer}`;
