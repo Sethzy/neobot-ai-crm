@@ -263,10 +263,36 @@ export function createDealTools(
     },
   });
 
+  const delete_deal = tool({
+    description:
+      "Permanently delete a deal by id. This cannot be undone. " +
+      "Use search_deals to find the deal first. " +
+      "Associated contact links and interactions are also removed.",
+    inputSchema: z.object({
+      deal_id: z.string().uuid().describe("UUID of the deal to delete."),
+    }),
+    execute: async ({ deal_id }) => {
+      const { data, error } = await supabase
+        .from("deals")
+        .delete()
+        .eq("deal_id", deal_id)
+        .eq("client_id", clientId)
+        .select()
+        .single();
+
+      if (error) {
+        return { success: false as const, error: error.message };
+      }
+
+      return { success: true as const, deal: data };
+    },
+  });
+
   return {
     search_deals,
     create_deal,
     update_deal,
     batch_create_deals,
+    delete_deal,
   };
 }

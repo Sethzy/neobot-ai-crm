@@ -192,9 +192,34 @@ export function createTaskTools(
     },
   });
 
+  const delete_task = tool({
+    description:
+      "Permanently delete a CRM task by id. This cannot be undone. " +
+      "Use search_tasks to find the task first.",
+    inputSchema: z.object({
+      task_id: z.string().uuid().describe("UUID of the task to delete."),
+    }),
+    execute: async ({ task_id }) => {
+      const { data, error } = await supabase
+        .from("crm_tasks")
+        .delete()
+        .eq("task_id", task_id)
+        .eq("client_id", clientId)
+        .select()
+        .single();
+
+      if (error) {
+        return { success: false as const, error: error.message };
+      }
+
+      return { success: true as const, task: data };
+    },
+  });
+
   return {
     search_tasks,
     create_task,
     update_task,
+    delete_task,
   };
 }

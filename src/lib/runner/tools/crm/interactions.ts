@@ -143,8 +143,33 @@ export function createInteractionTools(
     },
   });
 
+  const delete_interaction = tool({
+    description:
+      "Permanently delete an interaction by id. This cannot be undone. " +
+      "Use search_interactions to find the interaction first.",
+    inputSchema: z.object({
+      interaction_id: z.string().uuid().describe("UUID of the interaction to delete."),
+    }),
+    execute: async ({ interaction_id }) => {
+      const { data, error } = await supabase
+        .from("interactions")
+        .delete()
+        .eq("interaction_id", interaction_id)
+        .eq("client_id", clientId)
+        .select()
+        .single();
+
+      if (error) {
+        return { success: false as const, error: error.message };
+      }
+
+      return { success: true as const, interaction: data };
+    },
+  });
+
   return {
     create_interaction,
     search_interactions,
+    delete_interaction,
   };
 }

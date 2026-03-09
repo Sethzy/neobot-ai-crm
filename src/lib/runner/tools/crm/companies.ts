@@ -293,10 +293,36 @@ export function createCompanyTools(
     },
   });
 
+  const delete_company = tool({
+    description:
+      "Permanently delete a company by id. This cannot be undone. " +
+      "Use search_companies to find the company first. " +
+      "Contacts and deals linked to this company are unlinked but not deleted.",
+    inputSchema: z.object({
+      company_id: z.string().uuid().describe("UUID of the company to delete."),
+    }),
+    execute: async ({ company_id }) => {
+      const { data, error } = await supabase
+        .from("companies")
+        .delete()
+        .eq("company_id", company_id)
+        .eq("client_id", clientId)
+        .select()
+        .single();
+
+      if (error) {
+        return { success: false as const, error: error.message };
+      }
+
+      return { success: true as const, company: data };
+    },
+  });
+
   return {
     search_companies,
     create_company,
     update_company,
     batch_create_companies,
+    delete_company,
   };
 }

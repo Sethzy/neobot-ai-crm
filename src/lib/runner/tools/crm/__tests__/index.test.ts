@@ -31,7 +31,7 @@ describe("createCrmTools", () => {
     ]);
   });
 
-  it("returns all 28 expected CRM tools when writes are enabled", () => {
+  it("returns all 33 expected CRM tools when writes are enabled", () => {
     const { client } = createMockSupabase();
 
     const tools = createCrmTools(client, CLIENT_ID, { allowWriteTools: true });
@@ -45,6 +45,11 @@ describe("createCrmTools", () => {
       "create_deal",
       "create_interaction",
       "create_task",
+      "delete_company",
+      "delete_contact",
+      "delete_deal",
+      "delete_interaction",
+      "delete_task",
       "describe_crm_schema",
       "get_company_contacts",
       "get_company_deals",
@@ -66,6 +71,25 @@ describe("createCrmTools", () => {
       "update_deal",
       "update_task",
     ]);
+  });
+
+  it("excludes delete tools when allowDeleteTools is false", () => {
+    const { client } = createMockSupabase();
+
+    const tools = createCrmTools(client, CLIENT_ID, {
+      allowWriteTools: true,
+      allowDeleteTools: false,
+    } as never);
+
+    const toolNames = Object.keys(tools).sort();
+
+    expect(toolNames).not.toContain("delete_company");
+    expect(toolNames).not.toContain("delete_contact");
+    expect(toolNames).not.toContain("delete_deal");
+    expect(toolNames).not.toContain("delete_interaction");
+    expect(toolNames).not.toContain("delete_task");
+    expect(toolNames).toContain("create_contact");
+    expect(toolNames).toContain("update_contact");
   });
 
   it("returns tool objects with execute functions", () => {

@@ -328,10 +328,36 @@ export function createContactTools(
     },
   });
 
+  const delete_contact = tool({
+    description:
+      "Permanently delete a contact by id. This cannot be undone. " +
+      "Use search_contacts to find the contact first. " +
+      "Associated deal links and interactions are also removed.",
+    inputSchema: z.object({
+      contact_id: z.string().uuid().describe("UUID of the contact to delete."),
+    }),
+    execute: async ({ contact_id }) => {
+      const { data, error } = await supabase
+        .from("contacts")
+        .delete()
+        .eq("contact_id", contact_id)
+        .eq("client_id", clientId)
+        .select()
+        .single();
+
+      if (error) {
+        return { success: false as const, error: error.message };
+      }
+
+      return { success: true as const, contact: data };
+    },
+  });
+
   return {
     search_contacts,
     create_contact,
     update_contact,
     batch_create_contacts,
+    delete_contact,
   };
 }
