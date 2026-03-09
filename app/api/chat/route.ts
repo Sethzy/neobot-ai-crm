@@ -194,11 +194,15 @@ export async function POST(request: Request): Promise<Response> {
 
     const approvalResponses = getApprovalResponses(body.messages);
     for (const approvalResponse of approvalResponses) {
-      await resolveApprovalEvent(supabase, {
+      const resolutionResult = await resolveApprovalEvent(supabase, {
         clientId,
         approvalId: approvalResponse.approvalId,
         approved: approvalResponse.approved,
       });
+
+      if (!resolutionResult.success) {
+        return jsonError("Failed to process chat request.", 500);
+      }
     }
 
     const result = await runAgent(

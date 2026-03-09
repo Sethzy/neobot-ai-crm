@@ -429,6 +429,40 @@ describe("POST /api/chat", () => {
     );
   });
 
+  it("returns 500 without continuing the run when approval event resolution fails", async () => {
+    mockResolveApprovalEvent.mockResolvedValue({
+      success: false,
+      error: "update failed",
+    });
+
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-delete_contact",
+                toolCallId: "tool-call-1",
+                state: "approval-responded",
+                approval: { id: "approval-1", approved: true },
+              },
+            ],
+          },
+          { id: "u1", role: "user", parts: [{ type: "text", text: "Proceed." }] },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      error: "Failed to process chat request.",
+    });
+    expect(mockRunAgent).not.toHaveBeenCalled();
+  });
+
   it("returns 202 queued when runner cannot acquire thread lock", async () => {
     mockRunAgent.mockResolvedValue({ status: "queued" });
 
