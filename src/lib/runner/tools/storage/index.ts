@@ -109,15 +109,18 @@ export function createStorageTools(
 
         return { success: true as const, path: modelPath, content: slicedContent };
       } catch (fileError) {
-        if (!shouldFallbackToDirectory(fileError)) {
-          throw fileError;
-        }
-
+        // Try bundled system skill fallback for any storage error (the fs
+        // read returns null when the bundled file doesn't exist, so this is
+        // always safe and avoids coupling to specific error message strings).
         if (isSystemSkillPath(internalPath)) {
           const bundledContent = await getSystemSkillContent(internalPath);
           if (bundledContent !== null) {
             return { success: true as const, path: modelPath, content: bundledContent };
           }
+        }
+
+        if (!shouldFallbackToDirectory(fileError)) {
+          throw fileError;
         }
 
         try {
