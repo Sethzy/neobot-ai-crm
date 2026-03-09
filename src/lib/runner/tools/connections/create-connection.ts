@@ -6,22 +6,9 @@ import { tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import { initiateOAuthFlow } from "@/lib/composio/connection-flow";
+import { getCallbackUrl, initiateOAuthFlow } from "@/lib/composio/connection-flow";
 import { getActiveConnectionsByToolkit, insertConnection } from "@/lib/connections/queries";
 import type { Database } from "@/types/database";
-
-function getCallbackUrl(toolkitSlug: string): string {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-
-  if (!appUrl) {
-    throw new Error("NEXT_PUBLIC_APP_URL is required to create new connections.");
-  }
-
-  const callbackUrl = new URL("/api/connections/callback", appUrl);
-  callbackUrl.searchParams.set("toolkit", toolkitSlug);
-
-  return callbackUrl.toString();
-}
 
 const createConnectionInputSchema = z.object({
   connection: z.discriminatedUnion("type", [

@@ -7,22 +7,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { getComposio } from "@/lib/composio/client";
+import { getCallbackUrl } from "@/lib/composio/connection-flow";
 import { getConnectionById, updateConnectionStatus } from "@/lib/connections/queries";
 import type { Database } from "@/types/database";
-
-function getCallbackUrl(toolkitSlug: string): string {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-
-  if (!appUrl) {
-    throw new Error("NEXT_PUBLIC_APP_URL is required to reauthorize connections.");
-  }
-
-  const callbackUrl = new URL("/api/connections/callback", appUrl);
-  callbackUrl.searchParams.set("toolkit", toolkitSlug);
-  callbackUrl.searchParams.set("reason", "reauth");
-
-  return callbackUrl.toString();
-}
 
 /**
  * Creates the reauthorize_connection tool.
@@ -80,7 +67,7 @@ export function createReauthorizeConnectionTool(
         const refreshResult = await composio.connectedAccounts.refresh(
           connection.composio_connected_account_id,
           {
-            redirectUrl: getCallbackUrl(connection.toolkit_slug),
+            redirectUrl: getCallbackUrl(connection.toolkit_slug, "reauth"),
           },
         );
 

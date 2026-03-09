@@ -4,7 +4,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/composio/connection-flow", () => ({
+vi.mock("@/lib/composio/connection-flow", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/composio/connection-flow")>()),
   initiateOAuthFlow: vi.fn(),
 }));
 
