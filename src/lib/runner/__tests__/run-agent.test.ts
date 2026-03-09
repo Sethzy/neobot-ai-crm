@@ -20,6 +20,7 @@ const {
   mockCreateWebTools,
   mockCreateUtilityTools,
   mockCreateTriggerTools,
+  mockCreateSubagentTool,
   mockCreateMessages,
   mockMaybeCompactThread,
   mockTruncateOversizedParts,
@@ -42,6 +43,7 @@ const {
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
   mockCreateTriggerTools: vi.fn(),
+  mockCreateSubagentTool: vi.fn(),
   mockCreateMessages: vi.fn(),
   mockMaybeCompactThread: vi.fn(),
   mockTruncateOversizedParts: vi.fn(),
@@ -81,6 +83,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createConnectionTools: mockCreateConnectionTools,
   createStorageTools: mockCreateStorageTools,
+  createSubagentTool: mockCreateSubagentTool,
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
   createTriggerTools: mockCreateTriggerTools,
@@ -115,7 +118,7 @@ vi.mock("@/lib/runner/toolcall-artifacts", () => ({
 }));
 
 import type { RunnerPayload } from "../schemas";
-import { buildPrepareStep, runAgent } from "../run-agent";
+import { buildPrepareStep, createRunnerTools, runAgent } from "../run-agent";
 
 const validPayload: RunnerPayload = {
   clientId: "550e8400-e29b-41d4-a716-446655440000",
@@ -170,6 +173,9 @@ describe("runAgent", () => {
       search_triggers: { description: "trigger-tool" },
       setup_trigger: { description: "trigger-tool" },
       manage_active_triggers: { description: "trigger-tool" },
+    });
+    mockCreateSubagentTool.mockReturnValue({
+      run_subagent: { description: "subagent-tool" },
     });
     mockAssembleContext.mockResolvedValue({
       system: "You are Sunder.",
@@ -238,6 +244,7 @@ describe("runAgent", () => {
           search_triggers: { description: "trigger-tool" },
           setup_trigger: { description: "trigger-tool" },
           manage_active_triggers: { description: "trigger-tool" },
+          run_subagent: { description: "subagent-tool" },
           list_users_connections: { description: "connection-tool" },
           get_details_for_connections: { description: "connection-tool" },
           search_for_integrations: { description: "connection-tool" },
@@ -263,6 +270,10 @@ describe("runAgent", () => {
       "mock-supabase-client",
       validPayload.clientId,
       validPayload.threadId,
+      {
+        isSubagent: false,
+        includeSendMessage: true,
+      },
     );
     expect(mockCreateTriggerTools).toHaveBeenCalledWith(
       "mock-supabase-client",
@@ -274,6 +285,48 @@ describe("runAgent", () => {
       "mock-supabase-client",
       validPayload.clientId,
       { allowMutations: true },
+    );
+  });
+
+  it("passes the persisted run type when claiming a chat run", async () => {
+    mockCreateRun.mockResolvedValue({ created: false });
+
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    expect(mockCreateRun).toHaveBeenCalledWith("mock-supabase-client", {
+      threadId: validPayload.threadId,
+      clientId: validPayload.clientId,
+      runType: "chat",
+    });
+  });
+
+  it("builds a restricted tool registry for subagents", () => {
+    const tools = createRunnerTools(
+      "mock-supabase-client" as never,
+      validPayload.clientId,
+      validPayload.threadId,
+      {
+        isSubagent: true,
+      },
+    );
+
+    expect(tools).not.toHaveProperty("search_triggers");
+    expect(tools).not.toHaveProperty("setup_trigger");
+    expect(tools).not.toHaveProperty("manage_active_triggers");
+    expect(mockCreateTriggerTools).not.toHaveBeenCalled();
+    expect(mockCreateUtilityTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      validPayload.threadId,
+      {
+        isSubagent: true,
+        includeSendMessage: false,
+      },
+    );
+    expect(mockCreateConnectionTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      { allowMutations: false },
     );
   });
 

@@ -20,6 +20,7 @@ const {
   mockCreateWebTools,
   mockCreateUtilityTools,
   mockCreateTriggerTools,
+  mockCreateSubagentTool,
   mockCreateMessages,
   mockLoadCrmConfig,
   mockFinalizeRun,
@@ -38,6 +39,7 @@ const {
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
   mockCreateTriggerTools: vi.fn(),
+  mockCreateSubagentTool: vi.fn(),
   mockCreateMessages: vi.fn(),
   mockLoadCrmConfig: vi.fn(),
   mockFinalizeRun: vi.fn(),
@@ -88,6 +90,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
   createTriggerTools: mockCreateTriggerTools,
+  createSubagentTool: mockCreateSubagentTool,
 }));
 
 vi.mock("@/lib/chat/messages", () => ({
@@ -131,6 +134,7 @@ describe("runAgent CRM configuration", () => {
     mockCreateWebTools.mockReturnValue({ web_search: { description: "web" } });
     mockCreateUtilityTools.mockReturnValue({ manage_todo: { description: "utility" } });
     mockCreateTriggerTools.mockReturnValue({ search_triggers: { description: "trigger" } });
+    mockCreateSubagentTool.mockReturnValue({});
     mockAssembleContext.mockResolvedValue({
       system: "system",
       messages: [{ role: "user", content: "Hello, Sunder!" }],

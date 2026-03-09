@@ -13,27 +13,17 @@ import { loadCrmConfig } from "@/lib/crm/config";
 import { assembleContext } from "@/lib/runner/context";
 import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
 import { finalizeRun } from "@/lib/runner/run-persistence";
+import type { RunType } from "@/lib/runner/run-types";
 import type { RunnerPayload } from "@/lib/runner/schemas";
-import {
-  createConnectionTools,
-  createCrmTools,
-  createStorageTools,
-  createTriggerTools,
-  createUtilityTools,
-  createWebTools,
-} from "@/lib/runner/tools";
+import { createRunnerTools } from "@/lib/runner/tool-registry";
+import { createSubagentTool } from "@/lib/runner/tools";
 import { enqueueMessage } from "@/lib/runner/thread-queue";
 import type { Database, Json } from "@/types/database";
 
 const MAX_STEPS_TIER_1 = 9;
 
 type ChatSupabaseClient = SupabaseClient<Database>;
-type RunnerTools = ReturnType<typeof createCrmTools> &
-  ReturnType<typeof createConnectionTools> &
-  ReturnType<typeof createStorageTools> &
-  ReturnType<typeof createTriggerTools> &
-  ReturnType<typeof createUtilityTools> &
-  ReturnType<typeof createWebTools>;
+type RunnerTools = ReturnType<typeof createRunnerTools>;
 type CombinedRunnerTools = RunnerTools & ToolSet;
 type StreamResult = ReturnType<typeof streamText<CombinedRunnerTools>>;
 
@@ -41,44 +31,7 @@ export type RunAgentResult =
   | { status: "streaming"; streamResult: StreamResult }
   | { status: "queued" };
 
-/**
- * Creates the full tool registry for one runner invocation.
- */
-export function createRunnerTools(
-  supabase: ChatSupabaseClient,
-  clientId: string,
-  threadId: string,
-  options?: {
-    allowTriggerMutations?: boolean;
-    allowConnectionMutations?: boolean;
-    crmMode?: "normal" | "setup";
-    crmConfig?: Awaited<ReturnType<typeof loadCrmConfig>>["config"];
-  },
-) {
-  const crmTools = createCrmTools(supabase, clientId, {
-    allowWriteTools: true,
-    mode: options?.crmMode ?? "normal",
-    config: options?.crmConfig,
-  });
-  const storageTools = createStorageTools(supabase, clientId);
-  const webTools = createWebTools();
-  const utilityTools = createUtilityTools(supabase, clientId, threadId);
-  const triggerTools = createTriggerTools(supabase, clientId, threadId, {
-    allowMutations: options?.allowTriggerMutations ?? true,
-  });
-  const connectionTools = createConnectionTools(supabase, clientId, {
-    allowMutations: options?.allowConnectionMutations ?? true,
-  });
-
-  return {
-    ...crmTools,
-    ...storageTools,
-    ...webTools,
-    ...utilityTools,
-    ...triggerTools,
-    ...connectionTools,
-  };
-}
+export { createRunnerTools } from "@/lib/runner/tool-registry";
 
 /**
  * Builds per-step overrides for the active model.
@@ -107,9 +60,13 @@ export async function runAgent(
   const modelId = TIER_1_MODEL;
   const crmMode = payload.crmMode ?? "normal";
 
+  const runType: RunType = payload.triggerType === "pulse"
+    ? "autopilot"
+    : payload.triggerType;
+
   await markStaleRunsFailed(supabase, { threadId, staleMinutes: 15 });
 
-  const lockResult = await createRun(supabase, { threadId, clientId });
+  const lockResult = await createRun(supabase, { threadId, clientId, runType });
   if (!lockResult.created) {
     await enqueueMessage(supabase, {
       threadId,
@@ -154,6 +111,11 @@ export async function runAgent(
       crmMode,
       crmConfig,
     });
+    const subagentTools = createSubagentTool(supabase, clientId, threadId, {
+      parentRunId: lockResult.runId,
+      crmConfig,
+      crmMode,
+    });
     let composioTools: ToolSet = {};
 
     try {
@@ -165,6 +127,7 @@ export async function runAgent(
 
     const tools: CombinedRunnerTools = {
       ...runnerTools,
+      ...subagentTools,
       ...composioTools,
     };
 

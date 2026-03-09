@@ -27,6 +27,20 @@ describe("createUtilityTools", () => {
     ]);
   });
 
+  it("excludes user-facing and outbound tools for subagents", () => {
+    const supabase = createMockSupabaseClient();
+    const tools = createUtilityTools(supabase as never, CLIENT_ID, THREAD_ID, {
+      isSubagent: true,
+    });
+
+    expect(Object.keys(tools).sort()).toEqual([
+      "get_agent_db_schema",
+      "list_todo",
+      "manage_todo",
+      "run_agent_memory_sql",
+    ]);
+  });
+
   it("ensures each tool has an execute function", () => {
     const supabase = createMockSupabaseClient();
     const tools = createUtilityTools(supabase as never, CLIENT_ID, THREAD_ID);

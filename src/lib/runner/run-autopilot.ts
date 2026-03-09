@@ -13,6 +13,7 @@ import { assembleContext } from "@/lib/runner/context";
 import { buildPrepareStep, createRunnerTools } from "@/lib/runner/run-agent";
 import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
 import { finalizeRun } from "@/lib/runner/run-persistence";
+import { createSubagentTool } from "@/lib/runner/tools";
 import type { Database } from "@/types/database";
 
 const MAX_STEPS_AUTOPILOT = 9;
@@ -43,7 +44,7 @@ export async function runAutopilot({
 
   await markStaleRunsFailed(supabase, { threadId, staleMinutes: 15 });
 
-  const lockResult = await createRun(supabase, { threadId, clientId });
+  const lockResult = await createRun(supabase, { threadId, clientId, runType: "autopilot" });
   if (!lockResult.created) {
     return { status: "skipped_busy" };
   }
@@ -59,6 +60,9 @@ export async function runAutopilot({
     const runnerTools = createRunnerTools(supabase, clientId, threadId, {
       allowTriggerMutations: false,
       allowConnectionMutations: false,
+    });
+    const subagentTools = createSubagentTool(supabase, clientId, threadId, {
+      parentRunId: lockResult.runId,
     });
     let composioTools: ToolSet = {};
 
@@ -76,6 +80,7 @@ export async function runAutopilot({
       stopWhen: stepCountIs(MAX_STEPS_AUTOPILOT),
       tools: {
         ...runnerTools,
+        ...subagentTools,
         ...composioTools,
       },
       prepareStep: buildPrepareStep(modelId, MAX_STEPS_AUTOPILOT),

@@ -1306,7 +1306,9 @@ export type Database = {
           completed_at: string | null
           created_at: string
           model: string | null
+          parent_run_id: string | null
           run_id: string
+          run_type: string
           status: Database["public"]["Enums"]["run_status"]
           step_count: number | null
           thread_id: string
@@ -1318,7 +1320,9 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           model?: string | null
+          parent_run_id?: string | null
           run_id?: string
+          run_type?: string
           status?: Database["public"]["Enums"]["run_status"]
           step_count?: number | null
           thread_id: string
@@ -1330,7 +1334,9 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           model?: string | null
+          parent_run_id?: string | null
           run_id?: string
+          run_type?: string
           status?: Database["public"]["Enums"]["run_status"]
           step_count?: number | null
           thread_id?: string
@@ -1344,6 +1350,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "runs_parent_run_id_fkey"
+            columns: ["parent_run_id"]
+            isOneToOne: false
+            referencedRelation: "runs"
+            referencedColumns: ["run_id"]
           },
           {
             foreignKeyName: "runs_thread_id_fkey"
@@ -1519,7 +1532,7 @@ export type Database = {
         }[]
       }
       create_run_if_idle: {
-        Args: { p_client_id: string; p_thread_id: string }
+        Args: { p_client_id: string; p_run_type?: string; p_thread_id: string }
         Returns: string | null
       }
       drain_thread_queue: {

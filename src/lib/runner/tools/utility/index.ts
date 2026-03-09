@@ -12,6 +12,13 @@ import { createSendMessageTool } from "./send-message";
 import { createSqlTools } from "./sql";
 import { createTodoTools } from "./todo";
 
+export interface CreateUtilityToolsOptions {
+  /** Removes user-facing tools that a subagent cannot safely use. */
+  isSubagent?: boolean;
+  /** Allows explicit control over whether outbound messaging is included. */
+  includeSendMessage?: boolean;
+}
+
 /**
  * Creates all utility tools for a specific client/thread run context.
  */
@@ -19,18 +26,24 @@ export function createUtilityTools(
   supabase: SupabaseClient<Database>,
   clientId: string,
   threadId: string,
+  options?: CreateUtilityToolsOptions,
 ) {
-  const askUserQuestionTool = createAskUserQuestionTool();
+  const isSubagent = options?.isSubagent ?? false;
+  const includeSendMessage = options?.includeSendMessage ?? !isSubagent;
   const todoTools = createTodoTools(supabase, clientId, threadId);
-  const renameChatTool = createRenameChatTool(supabase, clientId, threadId);
-  const sendMessageTool = createSendMessageTool();
   const sqlTools = createSqlTools(supabase);
-
-  return {
-    ...askUserQuestionTool,
+  const tools = {
     ...todoTools,
-    ...renameChatTool,
-    ...sendMessageTool,
     ...sqlTools,
   };
+
+  if (!isSubagent) {
+    Object.assign(tools, createAskUserQuestionTool(), createRenameChatTool(supabase, clientId, threadId));
+  }
+
+  if (includeSendMessage) {
+    Object.assign(tools, createSendMessageTool());
+  }
+
+  return tools;
 }

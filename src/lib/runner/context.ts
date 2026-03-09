@@ -43,6 +43,16 @@ interface AssembledContext {
   messages: ModelMessage[];
 }
 
+interface AssembleSystemOnlyParams {
+  supabase: ChatSupabaseClient;
+  threadId: string;
+  clientId?: string;
+  crmConfig?: CrmVocabConfig;
+  crmMode?: "normal" | "setup";
+  platformInstructions?: string;
+  systemPrompt?: string;
+}
+
 interface HistoryRow {
   message_id: string;
   created_at: string;
@@ -132,6 +142,73 @@ function buildUiMessageParts(row: HistoryRow): UIMessage["parts"] | null {
   return [{ type: "text", text: fallbackText }];
 }
 
+async function loadSystemPromptState({
+  supabase,
+  threadId,
+  clientId,
+  includeCompactionState = true,
+}: Pick<AssembleContextParams, "supabase" | "threadId" | "clientId"> & {
+  includeCompactionState?: boolean;
+}): Promise<{
+  memoryContext?: MemoryContext;
+  systemReminder?: string;
+  compactionState: ThreadCompactionState | null;
+}> {
+  let memoryContext: MemoryContext | undefined;
+  let systemReminder: string | undefined;
+  let compactionState: ThreadCompactionState | null = null;
+
+  if (!clientId) {
+    return { memoryContext, systemReminder, compactionState };
+  }
+
+  const reminderPromise = buildSystemReminder(supabase, clientId, threadId);
+  const compactionPromise = includeCompactionState
+    ? fetchThreadCompactionState(supabase, threadId)
+    : Promise.resolve(null);
+
+  await bootstrapMemoryFiles(supabase, clientId);
+  [memoryContext, systemReminder, compactionState] = await Promise.all([
+    loadMemoryContext(supabase, clientId),
+    reminderPromise,
+    compactionPromise,
+  ]);
+
+  return { memoryContext, systemReminder, compactionState };
+}
+
+/**
+ * Builds only the reusable system layers for an isolated subagent call.
+ * Excludes thread history, compaction summary, and parent-specific instructions.
+ */
+export async function assembleSystemOnly({
+  supabase,
+  threadId,
+  clientId,
+  crmConfig,
+  crmMode = "normal",
+  platformInstructions,
+  systemPrompt,
+}: AssembleSystemOnlyParams): Promise<string> {
+  const { memoryContext, systemReminder } = await loadSystemPromptState({
+    supabase,
+    threadId,
+    clientId,
+    includeCompactionState: false,
+  });
+
+  return buildSystemPrompt({
+    memory: memoryContext,
+    systemReminder,
+    platformInstructions: platformInstructions ?? (crmConfig
+      ? buildPlatformInstructions(crmConfig)
+      : PLATFORM_INSTRUCTIONS),
+    systemPrompt: systemPrompt ?? (crmMode === "setup"
+      ? CRM_SETUP_SYSTEM_PROMPT
+      : SYSTEM_PROMPT),
+  });
+}
+
 /**
  * Builds the runner context from persisted thread history plus the inbound message.
  */
@@ -146,23 +223,11 @@ export async function assembleContext({
   platformInstructions,
   systemPrompt,
 }: AssembleContextParams): Promise<AssembledContext> {
-  let memoryContext: MemoryContext | undefined;
-  let systemReminder: string | undefined;
-  let compactionState: ThreadCompactionState | null = null;
-
-  if (clientId) {
-    // Bootstrap must complete before loadMemoryContext reads the files it seeds.
-    // buildSystemReminder and fetchThreadCompactionState are independent — start them early.
-    const reminderPromise = buildSystemReminder(supabase, clientId, threadId);
-    const compactionPromise = fetchThreadCompactionState(supabase, threadId);
-
-    await bootstrapMemoryFiles(supabase, clientId);
-    [memoryContext, systemReminder, compactionState] = await Promise.all([
-      loadMemoryContext(supabase, clientId),
-      reminderPromise,
-      compactionPromise,
-    ]);
-  }
+  const { memoryContext, systemReminder, compactionState } = await loadSystemPromptState({
+    supabase,
+    threadId,
+    clientId,
+  });
 
   let historyQuery = supabase
     .from("conversation_messages")

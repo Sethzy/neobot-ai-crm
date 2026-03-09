@@ -20,6 +20,7 @@ const {
   mockCreateWebTools,
   mockCreateUtilityTools,
   mockCreateTriggerTools,
+  mockCreateSubagentTool,
   mockCreateMessages,
   mockGetActiveConnections,
   mockLoadActivatedConnectionTools,
@@ -39,6 +40,7 @@ const {
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
   mockCreateTriggerTools: vi.fn(),
+  mockCreateSubagentTool: vi.fn(),
   mockCreateMessages: vi.fn(),
   mockGetActiveConnections: vi.fn(),
   mockLoadActivatedConnectionTools: vi.fn(),
@@ -77,6 +79,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
   createTriggerTools: mockCreateTriggerTools,
+  createSubagentTool: mockCreateSubagentTool,
 }));
 vi.mock("@/lib/connections/queries", () => ({
   getActiveConnections: (...args: unknown[]) => mockGetActiveConnections(...args),
@@ -122,6 +125,7 @@ describe("per-thread serialization", () => {
       setup_trigger: { description: "trigger-tool" },
       manage_active_triggers: { description: "trigger-tool" },
     });
+    mockCreateSubagentTool.mockReturnValue({});
     mockAssembleContext.mockResolvedValue({
       system: "prompt",
       messages: [{ role: "user", content: "test" }],

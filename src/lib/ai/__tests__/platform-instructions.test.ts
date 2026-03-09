@@ -65,4 +65,25 @@ describe("buildPlatformInstructions", () => {
     expect(instructions).toContain("Property &lt;General&gt;");
     expect(instructions).not.toContain(`Policy & Claim <Case>`);
   });
+
+  it("falls back to CRM defaults when callers pass a partial runtime config", () => {
+    const instructions = buildPlatformInstructions({
+      deal_label: "Policy",
+      deal_stages: ["lead", "quoted", "bound"],
+      contact_types: ["prospect", "policy_holder"],
+      interaction_types: ["call", "email"],
+      deal_contact_roles: ["insured", "owner"],
+      deal_custom_fields: [],
+      contact_custom_fields: [],
+      task_custom_fields: [],
+    });
+
+    expect(instructions).toContain("<crm-vocabulary>");
+    expect(instructions).toContain("Deal label: Policy");
+    expect(instructions).toContain(`Company label: ${CRM_DEFAULTS.company_label}`);
+    expect(instructions).toContain(
+      `Company industries: ${CRM_DEFAULTS.company_industries.join(", ")}`,
+    );
+    expect(instructions).toContain("Company custom fields: none");
+  });
 });

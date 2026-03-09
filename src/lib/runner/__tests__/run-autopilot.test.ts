@@ -19,6 +19,7 @@ const {
   mockCreateWebTools,
   mockCreateUtilityTools,
   mockCreateTriggerTools,
+  mockCreateSubagentTool,
   mockCreateMessages,
   mockMaybeCompactThread,
   mockTruncateOversizedParts,
@@ -41,6 +42,7 @@ const {
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
   mockCreateTriggerTools: vi.fn(),
+  mockCreateSubagentTool: vi.fn(),
   mockCreateMessages: vi.fn(),
   mockMaybeCompactThread: vi.fn(),
   mockTruncateOversizedParts: vi.fn(),
@@ -78,6 +80,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createConnectionTools: mockCreateConnectionTools,
   createStorageTools: mockCreateStorageTools,
+  createSubagentTool: mockCreateSubagentTool,
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
   createTriggerTools: mockCreateTriggerTools,
@@ -128,6 +131,9 @@ describe("runAutopilot", () => {
       search_triggers: { description: "tool" },
       manage_active_triggers: { description: "tool" },
     });
+    mockCreateSubagentTool.mockReturnValue({
+      run_subagent: { description: "subagent-tool" },
+    });
     mockAssembleContext.mockResolvedValue({
       system: "system prompt",
       messages: [{ role: "assistant", content: "Previous autopilot update" }],
@@ -170,6 +176,7 @@ describe("runAutopilot", () => {
         tools: expect.objectContaining({
           search_triggers: { description: "tool" },
           manage_active_triggers: { description: "tool" },
+          run_subagent: { description: "subagent-tool" },
           list_users_connections: { description: "connection-tool" },
           get_details_for_connections: { description: "connection-tool" },
           search_for_integrations: { description: "connection-tool" },
@@ -188,6 +195,30 @@ describe("runAutopilot", () => {
       "550e8400-e29b-41d4-a716-446655440000",
       { allowMutations: false },
     );
+    expect(mockCreateSubagentTool).toHaveBeenCalledWith(
+      "supabase",
+      "550e8400-e29b-41d4-a716-446655440000",
+      "660e8400-e29b-41d4-a716-446655440000",
+      expect.objectContaining({
+        parentRunId: "run-1",
+      }),
+    );
+  });
+
+  it("passes the persisted autopilot run type when claiming a lock", async () => {
+    mockCreateRun.mockResolvedValue({ created: false });
+
+    await runAutopilot({
+      clientId: "550e8400-e29b-41d4-a716-446655440000",
+      threadId: "660e8400-e29b-41d4-a716-446655440000",
+      supabase: "supabase" as never,
+    });
+
+    expect(mockCreateRun).toHaveBeenCalledWith("supabase", {
+      threadId: "660e8400-e29b-41d4-a716-446655440000",
+      clientId: "550e8400-e29b-41d4-a716-446655440000",
+      runType: "autopilot",
+    });
   });
 
   it("does not enqueue or create a synthetic user message when the thread is busy", async () => {

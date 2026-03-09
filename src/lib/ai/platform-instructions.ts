@@ -2,7 +2,7 @@
  * Platform-level operational instructions for the runner.
  * @module lib/ai/platform-instructions
  */
-import type { CrmVocabConfig } from "@/lib/crm/config";
+import { CRM_DEFAULTS, type CrmVocabConfig } from "@/lib/crm/config";
 import { escapeXml } from "@/lib/runner/system-reminder";
 
 const BASE_PLATFORM_INSTRUCTIONS = `<platform-instructions>
@@ -70,6 +70,24 @@ You do not need to recover pruned trigger events unless specifically asked about
 </context-management>
 </platform-instructions>`;
 
+type PartialCrmVocabularyConfig = Partial<CrmVocabConfig>;
+
+function normalizeCrmVocabularyConfig(config: PartialCrmVocabularyConfig): CrmVocabConfig {
+  return {
+    deal_label: config.deal_label ?? CRM_DEFAULTS.deal_label,
+    company_label: config.company_label ?? CRM_DEFAULTS.company_label,
+    deal_stages: config.deal_stages ?? CRM_DEFAULTS.deal_stages,
+    contact_types: config.contact_types ?? CRM_DEFAULTS.contact_types,
+    interaction_types: config.interaction_types ?? CRM_DEFAULTS.interaction_types,
+    deal_contact_roles: config.deal_contact_roles ?? CRM_DEFAULTS.deal_contact_roles,
+    company_industries: config.company_industries ?? CRM_DEFAULTS.company_industries,
+    deal_custom_fields: config.deal_custom_fields ?? CRM_DEFAULTS.deal_custom_fields,
+    contact_custom_fields: config.contact_custom_fields ?? CRM_DEFAULTS.contact_custom_fields,
+    company_custom_fields: config.company_custom_fields ?? CRM_DEFAULTS.company_custom_fields,
+    task_custom_fields: config.task_custom_fields ?? CRM_DEFAULTS.task_custom_fields,
+  };
+}
+
 function formatCustomFieldDefinitionSummary(config: CrmVocabConfig) {
   const lines: string[] = [];
 
@@ -101,23 +119,25 @@ function formatCustomFieldDefinitionSummary(config: CrmVocabConfig) {
   return lines.join("\n");
 }
 
-function buildCrmVocabularyBlock(config: CrmVocabConfig) {
+function buildCrmVocabularyBlock(config: PartialCrmVocabularyConfig) {
+  const normalizedConfig = normalizeCrmVocabularyConfig(config);
+
   return `<crm-vocabulary>
-Deal label: ${escapeXml(config.deal_label)}
-Company label: ${escapeXml(config.company_label)}
-Deal stages: ${config.deal_stages.map(escapeXml).join(", ")}
-Contact types: ${config.contact_types.map(escapeXml).join(", ")}
-Company industries: ${config.company_industries.map(escapeXml).join(", ")}
-Interaction types: ${config.interaction_types.map(escapeXml).join(", ")}
-Deal contact roles: ${config.deal_contact_roles.map(escapeXml).join(", ")}
-${formatCustomFieldDefinitionSummary(config)}
+Deal label: ${escapeXml(normalizedConfig.deal_label)}
+Company label: ${escapeXml(normalizedConfig.company_label)}
+Deal stages: ${normalizedConfig.deal_stages.map(escapeXml).join(", ")}
+Contact types: ${normalizedConfig.contact_types.map(escapeXml).join(", ")}
+Company industries: ${normalizedConfig.company_industries.map(escapeXml).join(", ")}
+Interaction types: ${normalizedConfig.interaction_types.map(escapeXml).join(", ")}
+Deal contact roles: ${normalizedConfig.deal_contact_roles.map(escapeXml).join(", ")}
+${formatCustomFieldDefinitionSummary(normalizedConfig)}
 </crm-vocabulary>`;
 }
 
 /**
  * Builds platform instructions, optionally appending CRM vocabulary for the active client.
  */
-export function buildPlatformInstructions(config?: CrmVocabConfig) {
+export function buildPlatformInstructions(config?: PartialCrmVocabularyConfig) {
   if (!config) {
     return BASE_PLATFORM_INSTRUCTIONS;
   }

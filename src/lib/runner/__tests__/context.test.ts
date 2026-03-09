@@ -9,7 +9,7 @@ import { SETUP_SYSTEM_PROMPT, SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
 import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
 import { SUMMARY_PREFIX } from "../compaction";
-import { assembleContext } from "../context";
+import { assembleContext, assembleSystemOnly } from "../context";
 
 const {
   mockBootstrapMemoryFiles,
@@ -642,5 +642,50 @@ describe("assembleContext", () => {
         currentMessage: "Hello!",
       }),
     ).rejects.toThrow("Failed to load thread history: connection refused");
+  });
+});
+
+describe("assembleSystemOnly", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("builds the system layers without loading thread history", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: {
+        data: [
+          { role: "user", content: "Do not include me", parts: null },
+        ],
+        error: null,
+      },
+    });
+
+    const system = await assembleSystemOnly({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      clientId: "client-123",
+    });
+
+    expect(system).toContain("<platform-instructions>");
+    expect(system).toContain("<system-reminder>");
+    expect(system).toContain("<soul>");
+    expect(system).not.toContain("Do not include me");
+    expect(system).not.toContain("<compaction-summary>");
+    expect(supabase.calls.from).not.toContain("conversation_messages");
+    expect(mockFetchThreadCompactionState).not.toHaveBeenCalled();
+  });
+
+  it("does not inject parent-specific runtime instructions", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const system = await assembleSystemOnly({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      clientId: "client-123",
+    });
+
+    expect(system).not.toContain("Custom autopilot instructions");
   });
 });

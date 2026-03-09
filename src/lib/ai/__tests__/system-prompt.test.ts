@@ -86,6 +86,20 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT).toContain("When a trigger event includes an instruction_path");
   });
 
+  it("includes subagent delegation guidance with isolated context", () => {
+    expect(SYSTEM_PROMPT).toContain("<subagents>");
+    expect(SYSTEM_PROMPT).toContain("</subagents>");
+    expect(SYSTEM_PROMPT).toContain("run_subagent");
+    expect(SYSTEM_PROMPT).toContain("single request-response cycle");
+    expect(SYSTEM_PROMPT).toContain("cannot access conversation history");
+  });
+
+  it("prefers subagents for reusable instruction files without making them mandatory", () => {
+    expect(SYSTEM_PROMPT).toContain("prefer run_subagent");
+    expect(SYSTEM_PROMPT).toContain("clean isolated context");
+    expect(SYSTEM_PROMPT).toContain("Simple trigger work can stay inline");
+  });
+
   it("includes external-connections section with 3 sub-sections", () => {
     expect(SYSTEM_PROMPT).toContain("<external-connections>");
     expect(SYSTEM_PROMPT).toContain("</external-connections>");

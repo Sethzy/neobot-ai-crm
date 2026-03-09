@@ -6,7 +6,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
-import { completeRun, createRun, markStaleRunsFailed } from "../run-lifecycle";
+import {
+  completeRun,
+  createRun,
+  createSubagentRun,
+  markStaleRunsFailed,
+} from "../run-lifecycle";
 
 describe("createRun", () => {
   it("returns created run id when lock can be claimed", async () => {
@@ -20,6 +25,7 @@ describe("createRun", () => {
       createRun(client as never, {
         threadId: "thread-1",
         clientId: "client-1",
+        runType: "chat",
       }),
     ).resolves.toEqual({ created: true, runId: "run-1" });
   });
@@ -35,6 +41,7 @@ describe("createRun", () => {
       createRun(client as never, {
         threadId: "thread-1",
         clientId: "client-1",
+        runType: "cron",
       }),
     ).resolves.toEqual({ created: false });
   });
@@ -50,8 +57,94 @@ describe("createRun", () => {
       createRun(client as never, {
         threadId: "thread-1",
         clientId: "client-1",
+        runType: "webhook",
       }),
     ).rejects.toThrow("Failed to create run: rpc failed");
+  });
+
+  it("passes the run type to create_run_if_idle", async () => {
+    const client = createMockSupabaseClient({
+      rpcResults: {
+        create_run_if_idle: { data: "run-1", error: null },
+      },
+    });
+
+    await createRun(client as never, {
+      threadId: "thread-1",
+      clientId: "client-1",
+      runType: "autopilot",
+    });
+
+    expect(client.calls.rpc).toContainEqual({
+      fn: "create_run_if_idle",
+      args: {
+        p_thread_id: "thread-1",
+        p_client_id: "client-1",
+        p_run_type: "autopilot",
+      },
+    });
+  });
+});
+
+describe("createSubagentRun", () => {
+  it("inserts a child run linked to its parent", async () => {
+    const client = createMockSupabaseClient({
+      insertResult: {
+        data: [{ run_id: "sub-run-1" }],
+        error: null,
+      },
+    });
+
+    await expect(
+      createSubagentRun(client as never, {
+        threadId: "thread-1",
+        clientId: "client-1",
+        parentRunId: "parent-run-1",
+      }),
+    ).resolves.toEqual({ runId: "sub-run-1" });
+
+    expect(client.calls.from).toContain("runs");
+    expect(client.calls.methods).toEqual(
+      expect.arrayContaining([
+        {
+          method: "insert",
+          args: [
+            expect.objectContaining({
+              thread_id: "thread-1",
+              client_id: "client-1",
+              parent_run_id: "parent-run-1",
+              run_type: "subagent",
+              status: "running",
+            }),
+          ],
+        },
+        {
+          method: "select",
+          args: ["run_id"],
+        },
+        {
+          method: "single",
+          args: [],
+        },
+      ]),
+    );
+  });
+
+  it("throws when child run insert fails", async () => {
+    const client = createMockSupabaseClient({
+      insertResult: {
+        data: null,
+        error: { message: "insert failed" },
+      },
+    });
+
+    await expect(
+      createSubagentRun(client as never, {
+        threadId: "thread-1",
+        clientId: "client-1",
+        parentRunId: "parent-run-1",
+      }),
+    ).rejects.toThrow("Failed to create subagent run: insert failed");
   });
 });
 

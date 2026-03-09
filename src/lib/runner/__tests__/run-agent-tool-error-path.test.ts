@@ -20,6 +20,7 @@ const {
   mockCreateWebTools,
   mockCreateUtilityTools,
   mockCreateTriggerTools,
+  mockCreateSubagentTool,
   mockCreateMessages,
   mockMaybeCompactThread,
   mockTruncateOversizedParts,
@@ -41,6 +42,7 @@ const {
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
   mockCreateTriggerTools: vi.fn(),
+  mockCreateSubagentTool: vi.fn(),
   mockCreateMessages: vi.fn(),
   mockMaybeCompactThread: vi.fn(),
   mockTruncateOversizedParts: vi.fn(),
@@ -106,6 +108,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
   createTriggerTools: mockCreateTriggerTools,
+  createSubagentTool: mockCreateSubagentTool,
 }));
 
 vi.mock("@/lib/connections/queries", () => ({
@@ -144,6 +147,7 @@ describe("runAgent tool-error completion path", () => {
     mockCreateWebTools.mockReturnValue({});
     mockCreateUtilityTools.mockReturnValue({});
     mockCreateTriggerTools.mockReturnValue({});
+    mockCreateSubagentTool.mockReturnValue({});
     mockMaybeCompactThread.mockResolvedValue(false);
     mockTruncateOversizedParts.mockImplementation(async (_supabase, _clientId, parts) => ({
       parts,

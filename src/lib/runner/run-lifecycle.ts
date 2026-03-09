@@ -4,17 +4,26 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import type { RunType } from "@/lib/runner/run-types";
 import type { Database } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
 type SupabaseMutationError = { message: string; code?: string | null };
+type RunInsert = Database["public"]["Tables"]["runs"]["Insert"];
 
 export interface CreateRunInput {
   threadId: string;
   clientId: string;
+  runType: RunType;
 }
 
 export type CreateRunResult = { created: true; runId: string } | { created: false };
+
+export interface CreateSubagentRunInput {
+  threadId: string;
+  clientId: string;
+  parentRunId: string;
+}
 
 export interface CompleteRunInput {
   runId: string;
@@ -50,11 +59,12 @@ function isMissingStepCountColumnError(error: SupabaseMutationError | null): boo
  */
 export async function createRun(
   supabase: ChatSupabaseClient,
-  { threadId, clientId }: CreateRunInput,
+  { threadId, clientId, runType }: CreateRunInput,
 ): Promise<CreateRunResult> {
   const { data, error } = await supabase.rpc("create_run_if_idle", {
     p_thread_id: threadId,
     p_client_id: clientId,
+    p_run_type: runType,
   });
 
   if (error) {
@@ -66,6 +76,34 @@ export async function createRun(
   }
 
   return { created: true, runId: String(data) };
+}
+
+/**
+ * Creates a child run row for one subagent execution linked to a parent run.
+ */
+export async function createSubagentRun(
+  supabase: ChatSupabaseClient,
+  { threadId, clientId, parentRunId }: CreateSubagentRunInput,
+): Promise<{ runId: string }> {
+  const insertPayload: RunInsert = {
+    thread_id: threadId,
+    client_id: clientId,
+    parent_run_id: parentRunId,
+    run_type: "subagent",
+    status: "running",
+  };
+
+  const { data, error } = await supabase
+    .from("runs")
+    .insert(insertPayload)
+    .select("run_id")
+    .single();
+
+  if (error || !data || typeof data.run_id !== "string") {
+    throw new Error(`Failed to create subagent run: ${error?.message ?? "missing run id"}`);
+  }
+
+  return { runId: data.run_id };
 }
 
 /**
