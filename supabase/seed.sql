@@ -4,6 +4,9 @@
 DO $$
 DECLARE
   v_client_id UUID;
+  v_company_propnex UUID := 'c0000000-0000-0000-0000-000000000001';
+  v_company_era UUID := 'c0000000-0000-0000-0000-000000000002';
+  v_company_uob UUID := 'c0000000-0000-0000-0000-000000000003';
   v_contact_john UUID := 'a0000000-0000-0000-0000-000000000001';
   v_contact_jane UUID := 'a0000000-0000-0000-0000-000000000002';
   v_contact_ahmad UUID := 'a0000000-0000-0000-0000-000000000003';
@@ -21,22 +24,38 @@ BEGIN
     RETURN;
   END IF;
 
-  INSERT INTO public.contacts (contact_id, client_id, first_name, last_name, email, phone, type, notes)
+  INSERT INTO public.companies (company_id, client_id, name, industry, website, phone, email, address, notes, custom_fields)
   VALUES
-    (v_contact_john, v_client_id, 'John', 'Tan', 'john.tan@email.com', '+6591234567', 'buyer', 'Looking for 3BR condo in D15. Budget 1.5-2M.'),
-    (v_contact_jane, v_client_id, 'Jane', 'Lim', 'jane.lim@company.com', '+6598765432', 'seller', 'Selling HDB in Toa Payoh. Upgrading to condo.'),
-    (v_contact_ahmad, v_client_id, 'Ahmad', 'Ibrahim', 'ahmad.i@email.com', '+6590001111', 'landlord', 'Owns 2 condos in Marine Parade. Looking for tenants.'),
-    (v_contact_mei, v_client_id, 'Mei Ling', 'Wong', NULL, '+6592223333', 'tenant', 'Corporate relocation from HK. Budget $5k/mo.'),
-    (v_contact_david, v_client_id, 'David', 'Chen', 'david.chen@realty.sg', '+6594445555', 'agent', 'Co-broke partner at ERA. Specializes in D10.')
+    (v_company_propnex, v_client_id, 'PropNex Realty', 'property_agency', 'https://www.propnex.com', '+6562201000', 'info@propnex.com', '480 Lorong 6 Toa Payoh, Singapore 319349', 'Primary brokerage partner for resale and condo leads.', '{"tier": "a"}'::jsonb),
+    (v_company_era, v_client_id, 'ERA Singapore', 'property_agency', 'https://www.era.com.sg', '+6562255333', 'hello@era.com.sg', '450 Lorong 6 Toa Payoh, Singapore 319394', 'Co-broke agency with strong D10 coverage.', '{"tier": "b"}'::jsonb),
+    (v_company_uob, v_client_id, 'UOB Home Loans', 'bank', 'https://www.uob.com.sg', '+6562202121', 'homeloans@uobgroup.com', '80 Raffles Place, Singapore 048624', 'Mortgage partner for financing referrals.', '{"tier": "a"}'::jsonb)
+  ON CONFLICT (company_id) DO NOTHING;
+
+  INSERT INTO public.contacts (contact_id, client_id, company_id, first_name, last_name, email, phone, type, notes)
+  VALUES
+    (v_contact_john, v_client_id, v_company_propnex, 'John', 'Tan', 'john.tan@email.com', '+6591234567', 'buyer', 'Looking for 3BR condo in D15. Budget 1.5-2M.'),
+    (v_contact_jane, v_client_id, v_company_propnex, 'Jane', 'Lim', 'jane.lim@company.com', '+6598765432', 'seller', 'Selling HDB in Toa Payoh. Upgrading to condo.'),
+    (v_contact_ahmad, v_client_id, v_company_era, 'Ahmad', 'Ibrahim', 'ahmad.i@email.com', '+6590001111', 'landlord', 'Owns 2 condos in Marine Parade. Looking for tenants.'),
+    (v_contact_mei, v_client_id, NULL, 'Mei Ling', 'Wong', NULL, '+6592223333', 'tenant', 'Corporate relocation from HK. Budget $5k/mo.'),
+    (v_contact_david, v_client_id, v_company_era, 'David', 'Chen', 'david.chen@realty.sg', '+6594445555', 'agent', 'Co-broke partner at ERA. Specializes in D10.')
   ON CONFLICT (contact_id) DO NOTHING;
 
-  INSERT INTO public.deals (deal_id, client_id, contact_id, address, stage, price, notes)
+  INSERT INTO public.deals (deal_id, client_id, company_id, address, stage, price, notes)
   VALUES
-    (v_deal_orchard, v_client_id, v_contact_john, '88 Orchard Boulevard, #12-05', 'negotiation', 1800000, 'Scheduled 2 viewings. Client likes the layout.'),
-    (v_deal_bukit, v_client_id, v_contact_jane, '456 Bukit Timah Road, #04-12', 'leads', 850000, 'HDB valuation pending. Seller motivated.'),
-    (v_deal_marine, v_client_id, v_contact_ahmad, '10 Marine Parade Road, #08-03', 'offer', 4500, 'Rental listing. Tenant interested at asking price.'),
-    (v_deal_tanjong, v_client_id, v_contact_john, '22 Tanjong Rhu Road, #15-01', 'negotiation', 2200000, 'Counter-offer at 2.1M. Seller wants 2.25M.')
+    (v_deal_orchard, v_client_id, v_company_propnex, '88 Orchard Boulevard, #12-05', 'negotiation', 1800000, 'Scheduled 2 viewings. Client likes the layout.'),
+    (v_deal_bukit, v_client_id, v_company_propnex, '456 Bukit Timah Road, #04-12', 'leads', 850000, 'HDB valuation pending. Seller motivated.'),
+    (v_deal_marine, v_client_id, v_company_era, '10 Marine Parade Road, #08-03', 'offer', 4500, 'Rental listing. Tenant interested at asking price.'),
+    (v_deal_tanjong, v_client_id, v_company_uob, '22 Tanjong Rhu Road, #15-01', 'negotiation', 2200000, 'Counter-offer at 2.1M. Seller wants 2.25M.')
   ON CONFLICT (deal_id) DO NOTHING;
+
+  INSERT INTO public.deal_contacts (client_id, deal_id, contact_id, role, is_primary)
+  VALUES
+    (v_client_id, v_deal_orchard, v_contact_john, 'buyer', true),
+    (v_client_id, v_deal_bukit, v_contact_jane, 'seller', true),
+    (v_client_id, v_deal_marine, v_contact_ahmad, 'other', true),
+    (v_client_id, v_deal_tanjong, v_contact_john, 'buyer', true),
+    (v_client_id, v_deal_tanjong, v_contact_david, 'agent', false)
+  ON CONFLICT (deal_id, contact_id) DO NOTHING;
 
   INSERT INTO public.interactions (client_id, contact_id, deal_id, type, summary, occurred_at)
   VALUES
@@ -56,23 +75,29 @@ BEGIN
   INSERT INTO public.crm_config (
     client_id,
     deal_label,
+    company_label,
     deal_stages,
     contact_types,
     interaction_types,
     deal_contact_roles,
+    company_industries,
     deal_custom_fields,
     contact_custom_fields,
+    company_custom_fields,
     task_custom_fields
   )
   VALUES (
     v_client_id,
     'Deal',
+    'Brokerage',
     '["leads", "negotiation", "offer", "closing", "lost"]'::jsonb,
     '["buyer", "seller", "landlord", "tenant", "agent", "other"]'::jsonb,
     '["call", "meeting", "email", "message", "viewing", "note"]'::jsonb,
     '["buyer", "seller", "agent", "other"]'::jsonb,
+    '["property_agency", "developer", "bank"]'::jsonb,
     '[]'::jsonb,
     '[]'::jsonb,
+    '[{"key":"tier","label":"Tier","type":"select","options":["a","b","c"]}]'::jsonb,
     '[]'::jsonb
   )
   ON CONFLICT (client_id) DO NOTHING;

@@ -26,6 +26,21 @@ export function getContactTypeBadgeVariant(type: Contact["type"]): BadgeVariant 
   return contactTypeBadgeVariantMap[type] ?? "secondary";
 }
 
+/** Badge variants for default company industries used in CRM company surfaces. */
+export const companyIndustryBadgeVariantMap = {
+  property_agency: "info",
+  developer: "warning",
+  law_firm: "outline",
+  bank: "success",
+  government: "secondary",
+  other: "secondary",
+} as const satisfies Record<string, BadgeVariant>;
+
+/** Returns a safe badge variant for configured or default company industries. */
+export function getCompanyIndustryBadgeVariant(industry: string): BadgeVariant {
+  return companyIndustryBadgeVariantMap[industry] ?? "secondary";
+}
+
 /** Badge variants for deal stages used in the linked deals table. */
 export const dealStageBadgeVariantMap: Record<Deal["stage"], BadgeVariant> = {
   leads: "secondary",

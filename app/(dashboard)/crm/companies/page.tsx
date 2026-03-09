@@ -12,12 +12,23 @@ import { RecordDrawer } from "@/components/crm/record-drawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CRM_DEFAULTS } from "@/lib/crm/config";
 import { useCompanies } from "@/hooks/use-companies";
 import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
 import { formatCrmEnumLabel } from "@/lib/crm/display";
 
 const allCompanyIndustries = "all";
+
+function pluralizeLabel(label: string) {
+  const trimmedLabel = label.trim();
+
+  if (trimmedLabel.endsWith("y")) {
+    return `${trimmedLabel.slice(0, -1)}ies`;
+  }
+
+  return `${trimmedLabel}s`;
+}
 
 export default function CompaniesPage() {
   const [search, setSearch] = useState("");
@@ -34,7 +45,11 @@ export default function CompaniesPage() {
     };
   }, [industryFilter, search]);
 
-  const companyIndustryOptions = crmConfigResult?.config.company_industries ?? [];
+  const companyLabel = crmConfigResult?.config.company_label ?? CRM_DEFAULTS.company_label;
+  const companyLabelPlural = pluralizeLabel(companyLabel);
+  const companyIndustryOptions = crmConfigResult?.config.company_industries?.length
+    ? crmConfigResult.config.company_industries
+    : CRM_DEFAULTS.company_industries;
   const { data: companies = [], isLoading, isError, refetch } = useCompanies(companyFilters);
 
   const tableCompanies = useMemo(
@@ -50,9 +65,9 @@ export default function CompaniesPage() {
   return (
     <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Companies</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">{companyLabelPlural}</h1>
         <p className="mt-2 text-sm text-muted-foreground/80">
-          Browse and inspect companies created by your AI agent.
+          {`Browse and inspect ${companyLabelPlural.toLowerCase()} created by your AI agent.`}
         </p>
       </div>
 

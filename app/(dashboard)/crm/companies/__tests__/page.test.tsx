@@ -149,4 +149,30 @@ describe("CompaniesPage", () => {
       industry: "mortgage_broker",
     });
   });
+
+  it("uses default industries and config-driven page copy when no explicit config exists", async () => {
+    const { useCompanies } = await import("@/hooks/use-companies");
+    const { useCrmConfig } = await import("@/hooks/use-crm-config");
+
+    vi.mocked(useCompanies).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    } as never);
+    vi.mocked(useCrmConfig).mockReturnValue({
+      data: {
+        hasConfig: false,
+        config: {
+          ...CRM_DEFAULTS,
+          company_label: "Brokerage",
+        },
+      },
+    } as never);
+
+    render(<CompaniesPage />);
+
+    expect(screen.getByRole("heading", { name: "Brokerages" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /company industry filter/i })).toHaveTextContent("Property Agency");
+    expect(screen.getByRole("combobox", { name: /company industry filter/i })).toHaveTextContent("Developer");
+  });
 });

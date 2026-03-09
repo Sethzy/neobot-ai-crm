@@ -48,15 +48,20 @@ describe("CompaniesTable", () => {
     vi.clearAllMocks();
   });
 
-  it("renders company rows with counts and industry labels", () => {
+  it("renders company rows with phone, website, counts, and industry labels", () => {
     render(<CompaniesTable companies={sampleCompanies} />);
 
+    expect(screen.getByRole("columnheader", { name: "Phone" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Website" })).toBeInTheDocument();
     expect(screen.getByText("PropNex Realty")).toBeInTheDocument();
     expect(screen.getByText("Acme Partners")).toBeInTheDocument();
     expect(screen.getByText("Property Agency")).toBeInTheDocument();
     expect(screen.getByText("Mortgage Broker")).toBeInTheDocument();
+    expect(screen.getByText("+6562201000")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "propnex.com" })).toHaveAttribute("href", "https://propnex.com");
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Last Updated" })).not.toBeInTheDocument();
   });
 
   it("calls onRowClick with company id when clicking a row", async () => {
@@ -81,5 +86,12 @@ describe("CompaniesTable", () => {
 
     const badge = container.querySelector("[data-slot='badge']");
     expect(badge).toHaveAttribute("data-variant", "secondary");
+  });
+
+  it("uses mapped badge variants for default industries", () => {
+    const { container } = render(<CompaniesTable companies={[sampleCompanies[0]]} />);
+
+    const badge = container.querySelector("[data-slot='badge']");
+    expect(badge).toHaveAttribute("data-variant", "info");
   });
 });

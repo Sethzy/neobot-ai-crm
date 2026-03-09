@@ -11,10 +11,12 @@ import { useCompanyContacts, useCompanyDeals } from "@/hooks/use-company-relatio
 import { useCompany } from "@/hooks/use-companies";
 import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useUpdateCompany } from "@/hooks/use-update-company";
+import { CRM_DEFAULTS } from "@/lib/crm/config";
 import {
   buildCrmSelectOptions,
   formatContactFullName,
   formatCrmEnumLabel,
+  getCompanyIndustryBadgeVariant,
   parseCustomFieldInputValue,
   toNullableValue,
 } from "@/lib/crm/display";
@@ -51,17 +53,21 @@ export function CompanyDrawerContent({ companyId }: CompanyDrawerContentProps) {
     return <div className="p-6 text-sm text-destructive">Failed to load company.</div>;
   }
 
-  const companyIndustryOptions = buildCrmSelectOptions(
-    crmConfigResult?.config.company_industries ?? [],
-    company.industry,
-  );
+  const companyIndustryValues = crmConfigResult?.config.company_industries?.length
+    ? crmConfigResult.config.company_industries
+    : CRM_DEFAULTS.company_industries;
+  const companyIndustryOptions = buildCrmSelectOptions(companyIndustryValues, company.industry);
   const companyCustomFields = crmConfigResult?.config.company_custom_fields ?? [];
 
   return (
     <div className="space-y-6 overflow-y-auto p-6">
       <header className="space-y-1">
         <h2 className="text-lg font-semibold">{company.name}</h2>
-        {company.industry ? <Badge variant="secondary">{formatCrmEnumLabel(company.industry)}</Badge> : null}
+        {company.industry ? (
+          <Badge variant={getCompanyIndustryBadgeVariant(company.industry)}>
+            {formatCrmEnumLabel(company.industry)}
+          </Badge>
+        ) : null}
       </header>
 
       <DrawerSection title="Details">

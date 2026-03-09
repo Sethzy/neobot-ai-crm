@@ -15,7 +15,10 @@ import {
 import { useMemo, useState, type MouseEvent } from "react";
 
 import { Badge } from "@/components/ui/badge";
-import { formatCrmDate, formatCrmEnumLabel } from "@/lib/crm/display";
+import {
+  formatCrmEnumLabel,
+  getCompanyIndustryBadgeVariant,
+} from "@/lib/crm/display";
 import type { Company } from "@/lib/crm/schemas";
 
 export interface CompanyTableRow
@@ -36,7 +39,7 @@ interface CompaniesTableProps {
 }
 
 export function CompaniesTable({ companies, onRowClick }: CompaniesTableProps) {
-  const [sorting, setSorting] = useState<SortingState>([{ id: "updated_at", desc: true }]);
+  const [sorting, setSorting] = useState<SortingState>([]);
 
   const columns = useMemo(
     () => [
@@ -53,7 +56,51 @@ export function CompaniesTable({ companies, onRowClick }: CompaniesTableProps) {
             return <span className="text-muted-foreground">—</span>;
           }
 
-          return <Badge variant="secondary">{formatCrmEnumLabel(industry)}</Badge>;
+          return <Badge variant={getCompanyIndustryBadgeVariant(industry)}>{formatCrmEnumLabel(industry)}</Badge>;
+        },
+      }),
+      columnHelper.accessor("phone", {
+        header: "Phone",
+        cell: (info) => {
+          const phone = info.getValue();
+
+          if (!phone) {
+            return <span className="text-muted-foreground">—</span>;
+          }
+
+          return (
+            <a
+              href={`tel:${phone}`}
+              className="text-foreground/80 hover:underline"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {phone}
+            </a>
+          );
+        },
+      }),
+      columnHelper.accessor("website", {
+        header: "Website",
+        cell: (info) => {
+          const website = info.getValue();
+
+          if (!website) {
+            return <span className="text-muted-foreground">—</span>;
+          }
+
+          const websiteLabel = website.replace(/^https?:\/\//, "").replace(/\/$/, "");
+
+          return (
+            <a
+              href={website}
+              className="text-foreground/80 hover:underline"
+              onClick={(event) => event.stopPropagation()}
+              rel="noreferrer"
+              target="_blank"
+            >
+              {websiteLabel}
+            </a>
+          );
         },
       }),
       columnHelper.accessor("contactCount", {
@@ -63,12 +110,6 @@ export function CompaniesTable({ companies, onRowClick }: CompaniesTableProps) {
       columnHelper.accessor("dealCount", {
         header: "Deals",
         cell: (info) => <span className="tabular-nums text-foreground/80">{info.getValue()}</span>,
-      }),
-      columnHelper.accessor("updated_at", {
-        header: "Last Updated",
-        cell: (info) => (
-          <span className="whitespace-nowrap text-muted-foreground">{formatCrmDate(info.getValue())}</span>
-        ),
       }),
     ],
     [],

@@ -5,6 +5,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CRM_DEFAULTS } from "@/lib/crm/config";
 import { CompanyDrawerContent } from "../company-drawer-content";
 
 const inlineFieldSpy = vi.fn(
@@ -14,6 +15,7 @@ const inlineFieldSpy = vi.fn(
     </div>
   ),
 );
+const mockUseCrmConfig = vi.fn();
 
 vi.mock("@/hooks/use-companies", () => ({
   useCompany: () => ({
@@ -52,25 +54,7 @@ vi.mock("@/hooks/use-update-company", () => ({
 }));
 
 vi.mock("@/hooks/use-crm-config", () => ({
-  useCrmConfig: () => ({
-    data: {
-      config: {
-        deal_label: "Deal",
-        company_label: "Brokerage",
-        deal_stages: ["lead", "quoted", "offer"],
-        contact_types: ["buyer", "seller"],
-        interaction_types: ["call", "email"],
-        deal_contact_roles: ["buyer", "seller"],
-        company_industries: ["property_agency", "developer"],
-        deal_custom_fields: [],
-        contact_custom_fields: [],
-        company_custom_fields: [
-          { key: "tier", label: "Tier", type: "select", options: ["a", "b"] },
-        ],
-        task_custom_fields: [],
-      },
-    },
-  }),
+  useCrmConfig: () => mockUseCrmConfig(),
 }));
 
 vi.mock("@/components/crm/inline-edit-field", () => ({
@@ -80,6 +64,18 @@ vi.mock("@/components/crm/inline-edit-field", () => ({
 describe("CompanyDrawerContent", () => {
   beforeEach(() => {
     inlineFieldSpy.mockClear();
+    mockUseCrmConfig.mockReturnValue({
+      data: {
+        config: {
+          ...CRM_DEFAULTS,
+          company_label: "Brokerage",
+          company_industries: ["property_agency", "developer"],
+          company_custom_fields: [
+            { key: "tier", label: "Tier", type: "select", options: ["a", "b"] },
+          ],
+        },
+      },
+    });
   });
 
   it("renders inline-edit fields for company details", () => {
@@ -110,5 +106,23 @@ describe("CompanyDrawerContent", () => {
       { value: "property_agency", label: "Property Agency" },
       { value: "developer", label: "Developer" },
     ]);
+  });
+
+  it("falls back to default company industries when config industries are absent", () => {
+    mockUseCrmConfig.mockReturnValue({
+      data: {
+        config: {
+          ...CRM_DEFAULTS,
+          company_industries: [],
+          company_custom_fields: [],
+        },
+      },
+    });
+
+    render(<CompanyDrawerContent companyId="co-1" />);
+
+    const industryCall = inlineFieldSpy.mock.calls.find(([props]) => props.label === "Industry")?.[0];
+    expect(industryCall.options).toContainEqual({ value: "property_agency", label: "Property Agency" });
+    expect(industryCall.options).toContainEqual({ value: "developer", label: "Developer" });
   });
 });
