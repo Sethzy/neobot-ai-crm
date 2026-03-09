@@ -11,9 +11,18 @@ import { useState } from "react";
 import { JsonView } from "@/components/ui/json-view";
 import { cn } from "@/lib/utils";
 
+export type ToolPartState =
+  | "input-streaming"
+  | "input-available"
+  | "approval-requested"
+  | "approval-responded"
+  | "output-available"
+  | "output-denied"
+  | "output-error";
+
 interface ToolCallInlineProps {
   name: string;
-  state: string;
+  state: ToolPartState;
   input: unknown;
   output?: unknown;
   errorText?: string;

@@ -17,7 +17,7 @@ import {
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning";
 
-import { ToolCallInline } from "./tool-call-inline";
+import { ToolCallInline, type ToolPartState } from "./tool-call-inline";
 
 interface StepsSummaryProps {
   /** Intermediate parts only (reasoning + tool-*). */
@@ -95,7 +95,7 @@ export function StepsSummary({ parts, isStreaming, hasTextParts, messageId, onTo
             if (part.type.startsWith("tool-")) {
               const toolPart = part as {
                 type: string;
-                state: string;
+                state: ToolPartState;
                 input: unknown;
                 output?: unknown;
                 errorText?: string;
