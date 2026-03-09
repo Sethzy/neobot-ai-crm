@@ -17,6 +17,7 @@ const {
   }),
   mockFileClient: {
     downloadFile: vi.fn(),
+    downloadBinary: vi.fn(),
     listDirectory: vi.fn(),
     uploadFile: vi.fn(),
     editFile: vi.fn(),
@@ -33,6 +34,13 @@ import { createStorageTools } from "../index";
 
 const CLIENT_ID = "660e8400-e29b-41d4-a716-446655440000";
 const EXECUTION_OPTIONS = { toolCallId: "tool-call", messages: [] } as never;
+const TINY_TRANSPARENT_PNG_BASE64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
+
+function toArrayBuffer(base64: string): ArrayBuffer {
+  const bytes = Buffer.from(base64, "base64");
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+}
 
 function createSupabaseMock() {
   const upsert = vi.fn().mockResolvedValue({ data: null, error: null });
@@ -105,13 +113,13 @@ describe("createStorageTools", () => {
     expect(result).toEqual({ success: true, path: "MEMORY.md", content: "b\nc" });
   });
 
-  it("read_file rejects non-positive line numbers", async () => {
+  it("read_file rejects start_line: 0", async () => {
     mockFileClient.downloadFile.mockResolvedValue("a\nb\nc\nd");
     const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
 
     await expect(
       tools.read_file.execute({ path: "MEMORY.md", start_line: 0 }, EXECUTION_OPTIONS),
-    ).rejects.toThrow("start_line must be >= 1");
+    ).rejects.toThrow("start_line cannot be 0");
   });
 
   it("read_file falls back to directory listing for bare directory paths", async () => {
@@ -332,5 +340,181 @@ describe("createStorageTools", () => {
     await expect(
       tools.write_file.execute({ op: "write", path: "SOUL.md", content: "hack" }, EXECUTION_OPTIONS),
     ).rejects.toThrow("read-only");
+  });
+
+  it("read_file returns an image result for .png paths", async () => {
+    mockFileClient.downloadBinary.mockResolvedValue({
+      buffer: toArrayBuffer(TINY_TRANSPARENT_PNG_BASE64),
+      mimeType: "image/png",
+    });
+    mockFileClient.downloadFile.mockResolvedValue("not-image-content");
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute({ path: "vault/photo.png" }, EXECUTION_OPTIONS);
+
+    expect(mockFileClient.downloadBinary).toHaveBeenCalledWith("vault/photo.png");
+    expect(result).toMatchObject({
+      success: true,
+      type: "image",
+      path: "vault/photo.png",
+    });
+    expect(result).toHaveProperty("data");
+    expect(result).toHaveProperty("mediaType");
+  });
+
+  it("read_file detects image extensions case-insensitively", async () => {
+    mockFileClient.downloadBinary.mockResolvedValue({
+      buffer: toArrayBuffer(TINY_TRANSPARENT_PNG_BASE64),
+      mimeType: "image/png",
+    });
+    mockFileClient.downloadFile.mockResolvedValue("not-image-content");
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute({ path: "vault/PHOTO.PNG" }, EXECUTION_OPTIONS);
+
+    expect(mockFileClient.downloadBinary).toHaveBeenCalledWith("vault/PHOTO.PNG");
+    expect(result).toMatchObject({
+      success: true,
+      type: "image",
+      path: "vault/PHOTO.PNG",
+    });
+  });
+});
+
+describe("read_file toModelOutput", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCreateAgentFileClient.mockReturnValue(mockFileClient);
+  });
+
+  it("returns image-data content for image outputs", async () => {
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.toModelOutput?.({
+      toolCallId: "call-1",
+      input: { path: "vault/photo.png" },
+      output: {
+        success: true,
+        type: "image",
+        path: "vault/photo.png",
+        data: "base64encodeddata",
+        mediaType: "image/png",
+      },
+    });
+
+    expect(result).toEqual({
+      type: "content",
+      value: [{ type: "image-data", data: "base64encodeddata", mediaType: "image/png" }],
+    });
+  });
+
+  it("returns explicit json output for text results", async () => {
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.toModelOutput?.({
+      toolCallId: "call-2",
+      input: { path: "MEMORY.md" },
+      output: {
+        success: true,
+        path: "MEMORY.md",
+        content: "hello",
+      },
+    });
+
+    expect(result).toEqual({
+      type: "json",
+      value: {
+        success: true,
+        path: "MEMORY.md",
+        content: "hello",
+      },
+    });
+  });
+
+  it("returns explicit json output for directory results", async () => {
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.toModelOutput?.({
+      toolCallId: "call-3",
+      input: { path: "memory/" },
+      output: {
+        success: true,
+        path: "memory/",
+        content: "preferences.md",
+      },
+    });
+
+    expect(result).toEqual({
+      type: "json",
+      value: {
+        success: true,
+        path: "memory/",
+        content: "preferences.md",
+      },
+    });
+  });
+});
+
+describe("read_file negative line indices", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCreateAgentFileClient.mockReturnValue(mockFileClient);
+  });
+
+  it("reads the last 3 lines when start_line is negative", async () => {
+    mockFileClient.downloadFile.mockResolvedValue("a\nb\nc\nd\ne");
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute(
+      { path: "file.txt", start_line: -3 },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, path: "file.txt", content: "c\nd\ne" });
+  });
+
+  it("supports mixed positive and negative line indices", async () => {
+    mockFileClient.downloadFile.mockResolvedValue("a\nb\nc\nd\ne");
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute(
+      { path: "file.txt", start_line: 2, end_line: -1 },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, path: "file.txt", content: "b\nc\nd\ne" });
+  });
+
+  it("supports selecting only the last line", async () => {
+    mockFileClient.downloadFile.mockResolvedValue("first\nsecond\nthird");
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute(
+      { path: "file.txt", start_line: -1, end_line: -1 },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, path: "file.txt", content: "third" });
+  });
+
+  it("rejects end_line: 0", async () => {
+    mockFileClient.downloadFile.mockResolvedValue("a\nb");
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    await expect(
+      tools.read_file.execute({ path: "file.txt", end_line: 0 }, EXECUTION_OPTIONS),
+    ).rejects.toThrow("end_line cannot be 0");
+  });
+
+  it("rejects ranges where normalized end_line is before start_line", async () => {
+    mockFileClient.downloadFile.mockResolvedValue("a\nb\nc\nd\ne");
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    await expect(
+      tools.read_file.execute(
+        { path: "file.txt", start_line: -1, end_line: -2 },
+        EXECUTION_OPTIONS,
+      ),
+    ).rejects.toThrow("end_line must be greater than or equal to start_line");
   });
 });

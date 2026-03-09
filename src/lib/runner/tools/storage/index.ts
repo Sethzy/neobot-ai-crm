@@ -3,6 +3,7 @@
  * @module lib/runner/tools/storage
  */
 import { tool } from "ai";
+import sharp from "sharp";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
@@ -10,6 +11,8 @@ import { createAgentFileClient, normalizeWorkspacePath } from "@/lib/storage/age
 import type { Database } from "@/types/database";
 
 const KNOWLEDGE_SEARCH_MAX_RESULTS = 5;
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp"]);
+const IMAGE_MAX_DIMENSION = 1568;
 
 const searchKnowledgeInputSchema = z.object({
   query: z.string().describe("Free-text search query for Knowledge Base files."),
@@ -17,8 +20,16 @@ const searchKnowledgeInputSchema = z.object({
 
 const readFileInputSchema = z.object({
   path: z.string().describe("Relative file or directory path in the client workspace."),
-  start_line: z.number().int().min(1).optional().describe("Optional 1-indexed start line."),
-  end_line: z.number().int().min(1).optional().describe("Optional 1-indexed end line (inclusive)."),
+  start_line: z
+    .number()
+    .int()
+    .optional()
+    .describe("Optional 1-indexed start line. Use negative values to count from the end."),
+  end_line: z
+    .number()
+    .int()
+    .optional()
+    .describe("Optional 1-indexed end line (inclusive). Use negative values to count from the end."),
 });
 
 const writeFileInputSchema = z.object({
@@ -49,12 +60,18 @@ export function createStorageTools(
       "Read file content or list a directory tree. Use directory paths (e.g. memory/) for discovery.",
     inputSchema: readFileInputSchema,
     execute: async ({ path, start_line, end_line }) => {
-      const isDirectoryPath = path === "" || path.endsWith("/");
+      const fileType = classifyFileType(path);
 
-      if (isDirectoryPath) {
+      if (fileType === "directory") {
         const directoryPath = path.replace(/\/+$/, "");
         const content = await fileClient.listDirectory(directoryPath);
         return { success: true as const, path, content };
+      }
+
+      if (fileType === "image") {
+        const { buffer } = await fileClient.downloadBinary(path);
+        const image = await resizeForModel(buffer);
+        return { success: true as const, path, type: "image" as const, ...image };
       }
 
       try {
@@ -74,6 +91,19 @@ export function createStorageTools(
           throw fileError;
         }
       }
+    },
+    toModelOutput({ output }) {
+      if (isImageReadResult(output)) {
+        return {
+          type: "content" as const,
+          value: [{ type: "image-data" as const, data: output.data, mediaType: output.mediaType }],
+        };
+      }
+
+      return {
+        type: "json" as const,
+        value: output,
+      };
     },
   });
 
@@ -177,30 +207,105 @@ function applyLineRange(content: string, startLine?: number, endLine?: number): 
     return content;
   }
 
-  if (startLine !== undefined && startLine < 1) {
-    throw new Error("start_line must be >= 1.");
+  if (startLine === 0) {
+    throw new Error("start_line cannot be 0.");
   }
 
-  if (endLine !== undefined && endLine < 1) {
-    throw new Error("end_line must be >= 1.");
-  }
-
-  if (startLine !== undefined && endLine !== undefined && endLine < startLine) {
-    throw new Error("end_line must be greater than or equal to start_line.");
+  if (endLine === 0) {
+    throw new Error("end_line cannot be 0.");
   }
 
   const lines = content.split("\n");
   const totalLines = lines.length;
 
-  const toIndex = (value: number, isEnd = false): number => {
-    const fromStart = value - 1 + (isEnd ? 1 : 0);
-    return Math.max(0, fromStart);
+  const toZeroIndex = (value: number): number => {
+    if (value > 0) {
+      return value - 1;
+    }
+
+    return Math.max(0, totalLines + value);
   };
 
-  const startIndex = startLine === undefined ? 0 : toIndex(startLine);
-  const endIndex = endLine === undefined ? totalLines : toIndex(endLine, true);
+  const startIndex = startLine === undefined ? 0 : toZeroIndex(startLine);
+  const endIndex = endLine === undefined ? totalLines - 1 : toZeroIndex(endLine);
 
-  return lines.slice(startIndex, endIndex).join("\n");
+  if (startLine !== undefined && endLine !== undefined && endIndex < startIndex) {
+    throw new Error("end_line must be greater than or equal to start_line.");
+  }
+
+  return lines.slice(startIndex, endIndex + 1).join("\n");
+}
+
+/**
+ * Extracts the lowercase file extension from a workspace path.
+ *
+ * @param path - Relative file or directory path in the client workspace.
+ */
+function getFileExtension(path: string): string {
+  const dotIndex = path.lastIndexOf(".");
+  if (dotIndex < 0 || dotIndex === path.length - 1) {
+    return "";
+  }
+
+  return path.slice(dotIndex + 1).toLowerCase();
+}
+
+/**
+ * Classifies a workspace path so `read_file` can choose the correct read flow.
+ *
+ * @param path - Relative file or directory path in the client workspace.
+ */
+function classifyFileType(path: string): "directory" | "image" | "text" {
+  if (path === "" || path.endsWith("/")) {
+    return "directory";
+  }
+
+  return IMAGE_EXTENSIONS.has(getFileExtension(path)) ? "image" : "text";
+}
+
+/**
+ * Resizes and re-encodes an image for model consumption.
+ *
+ * Images are capped to a 1568px longest side. Alpha images stay PNG to preserve
+ * transparency; opaque images are converted to JPEG to reduce payload size.
+ *
+ * @param buffer - Raw image bytes from storage.
+ */
+async function resizeForModel(buffer: ArrayBuffer): Promise<{ data: string; mediaType: string }> {
+  const input = Buffer.from(buffer);
+  const metadata = await sharp(input).metadata();
+  const pipeline = sharp(input).resize(IMAGE_MAX_DIMENSION, IMAGE_MAX_DIMENSION, {
+    fit: "inside",
+    withoutEnlargement: true,
+  });
+
+  if (metadata.hasAlpha) {
+    const output = await pipeline.png().toBuffer();
+    return { data: output.toString("base64"), mediaType: "image/png" };
+  }
+
+  const output = await pipeline.jpeg({ quality: 85 }).toBuffer();
+  return { data: output.toString("base64"), mediaType: "image/jpeg" };
+}
+
+/**
+ * Narrows a `read_file` output to the image result variant used by `toModelOutput`.
+ *
+ * @param value - Unknown tool output from the AI SDK callback.
+ */
+function isImageReadResult(
+  value: unknown,
+): value is { type: "image"; data: string; mediaType: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "type" in value &&
+    "data" in value &&
+    "mediaType" in value &&
+    (value as { type?: unknown }).type === "image" &&
+    typeof (value as { data?: unknown }).data === "string" &&
+    typeof (value as { mediaType?: unknown }).mediaType === "string"
+  );
 }
 
 function shouldFallbackToDirectory(error: unknown): boolean {

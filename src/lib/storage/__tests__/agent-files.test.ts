@@ -20,6 +20,15 @@ function createDownloadPayload(content: string) {
   };
 }
 
+function createBinaryDownloadPayload(bytes: Uint8Array, mimeType: string) {
+  return {
+    arrayBuffer: vi.fn().mockResolvedValue(
+      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    ),
+    type: mimeType,
+  };
+}
+
 function createMockSupabase() {
   const mockDownload = vi.fn();
   const mockList = vi.fn();
@@ -81,6 +90,33 @@ describe("createAgentFileClient", () => {
     await client.downloadFile("/memory/preferences.md");
 
     expect(supabase.mockDownload).toHaveBeenCalledWith(`${CLIENT_ID}/memory/preferences.md`);
+  });
+
+  it("downloads binary content from the client-scoped path", async () => {
+    const bytes = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]);
+    supabase.mockDownload.mockResolvedValue({
+      data: createBinaryDownloadPayload(bytes, "image/png"),
+      error: null,
+    });
+    const client = createAgentFileClient(supabase.client, CLIENT_ID);
+
+    const result = await client.downloadBinary("vault/photo.png");
+
+    expect(result.mimeType).toBe("image/png");
+    expect(Array.from(new Uint8Array(result.buffer))).toEqual(Array.from(bytes));
+    expect(supabase.mockDownload).toHaveBeenCalledWith(`${CLIENT_ID}/vault/photo.png`);
+  });
+
+  it("surfaces storage download errors for binary files", async () => {
+    supabase.mockDownload.mockResolvedValue({
+      data: null,
+      error: { message: "Object not found" },
+    });
+    const client = createAgentFileClient(supabase.client, CLIENT_ID);
+
+    await expect(client.downloadBinary("vault/missing.png")).rejects.toThrow(
+      'Failed to read file "vault/missing.png": Object not found',
+    );
   });
 
   it("rejects traversal attempts in any operation path", async () => {

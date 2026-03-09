@@ -65,25 +65,24 @@ const read_file = tool({
   inputSchema: readFileInputSchema,
   execute: async ({ path, ... }) => {
     // returns { success, type: "image", data: base64, mediaType: "image/png" }
-    // OR { success, type: "text", content: "..." }
+    // OR { success, path, content: "..." } for text/directory reads
   },
   toModelOutput: ({ output }) => {
     if (output.type === "image") {
       return {
         type: "content",
-        value: [{ type: "media", mediaType: output.mediaType, data: output.data }],
+        value: [{ type: "image-data", mediaType: output.mediaType, data: output.data }],
       };
     }
     if (output.type === "pdf_images") {
       return {
         type: "content",
         value: output.pages.map(page => ({
-          type: "media", mediaType: "image/png", data: page.data,
+          type: "image-data", mediaType: "image/png", data: page.data,
         })),
       };
     }
-    // text/directory: default behavior (AI SDK serializes result as JSON text)
-    return undefined;
+    return { type: "json", value: output };
   },
 });
 ```
@@ -163,7 +162,7 @@ function classifyFileType(path: string): "image" | "pdf" | "text" | "directory" 
 2. **Add file type detection** — extension-based classification
 3. **Add image resize/compress** — cap 1568px longest side, JPEG compression for non-transparent images (using `sharp`)
 4. **Update `read_file` execute** — branch on file type, return typed result
-5. **Add `toModelOutput`** — convert image results to AI SDK media content parts
+5. **Add `toModelOutput`** — convert image results to AI SDK image-data parts and return explicit JSON for non-image reads
 6. **Update description** — match Tasklet's wording for what we support
 7. **Update `applyLineRange()`** — support negative indices (tiny change)
 8. **Tests** — unit tests for detection, resize, binary download mock, toModelOutput
@@ -203,7 +202,7 @@ Final description after Phase 2 (full Tasklet parity):
 ## Resolved questions (from Tasklet dev review)
 
 1. **Image size limits** — Yes: cap at **1568px longest side**. Compress non-transparent images to JPEG. ✅ Added to Phase 1 scope.
-2. **Base64 vs URL** — Base64 data (via `toModelOutput` media content parts).
+2. **Base64 vs URL** — Base64 data (via `toModelOutput` image-data parts).
 3. **MIME type source** — Extension-based detection is fine. No magic bytes needed.
 4. **PDF library** — TBD for Phase 2. `pdfjs-dist` is the likely choice (runs in Node serverless).
 5. **PDF page limit** — Yes: **default 20 pages max**. Agent paginates with `pdf_start_page`/`pdf_end_page`. ✅ Added to Phase 2 scope.

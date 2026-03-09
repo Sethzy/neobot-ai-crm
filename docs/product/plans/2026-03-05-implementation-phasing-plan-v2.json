@@ -7,10 +7,10 @@
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md §17",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
     "totalPhases": 5,
-    "estimatedPRs": 35,
-    "keptPRs": 22,
+    "estimatedPRs": 36,
+    "keptPRs": 23,
     "cutPRs": 19,
-    "donePRs": 23,
+    "donePRs": 24,
     "statusOptions": [
       "pending",
       "in_progress",
@@ -34,7 +34,8 @@
       "2026-03-09: Expanded PR 38 onboarding with conversational bootstrap pattern inspired by OpenClaw's BOOTSTRAP.md. Replaced single PR38-8 task with 6 tasks (PR38-8 through PR38-13). Core principle: 'Don't interrogate. Don't be robotic. Just talk.' The first conversation IS the product. Full comparison doc: docs/product/references/2026-03-09-openclaw-onboarding-comparison.md.",
       "2026-03-09: Resolved 4 onboarding design decisions after OpenClaw verbatim comparison. (1) Explicit preferences, not inferred — follow OpenClaw: agent explicitly asks about boundaries, communication style, preferences collaboratively. (2) Pre-structured USER.md + SOUL.md templates with clear fields — follow OpenClaw. (3) Explicit completion moment — follow OpenClaw: agent acknowledges transition warmly, not a silent DB flag. (4) Channel setup for existing users via natural conversation, not re-onboarding — follow OpenClaw: onboarding is a one-time ritual. Agent name 'Sunder' is fixed; everything else co-created. System prompt injection (KISS) instead of BOOTSTRAP.md file in storage.",
       "2026-03-07: Out-of-plan extension of PR 22 (done): PR 22c — Block Storage + Context Management Alignment. Adds block index utilities for compaction summaries (DATA-10), stores ALL tool call args+results to storage, embeds mechanical block index in compaction summaries for post-compaction recovery (SESSION-07), adds <context-management> and <autonomous-mode> instructions. Tasklist: docs/product/tasks/2026-03-07-pr22c-block-storage-context-management-tasklist.md.",
-      "2026-03-09: PR 22c scope rewrite for zero Tasklet drift. Removed block index (YAGNI — agent recovers via read_file, not index lookup). Confirmed persistence-time truncation is correct (Tasklet does the same — fixed size threshold, permanent marker, not budget-based). Scope is now 6 tasks: (1) store ALL tool call args+results to block storage regardless of size, (2) trigger event pruning during compaction (mechanical title+source extraction, separate from LLM summarization), (3) structured compaction summary format (## User Instructions / ## Workflow / ## Resources / ## Current Focus), (4) <context-management> instructions in platform-instructions.ts, (5) remove appendArtifactRecoveryNote hack, (6) threshold review (5KB vs Tasklet's ~100KB). Formalized as PR entry in Phase 2 after PR 22b. Tasklist rewritten: docs/product/tasks/2026-03-09-pr22c-context-management-alignment-tasklist.md."
+      "2026-03-09: PR 22c scope rewrite for zero Tasklet drift. Removed block index (YAGNI — agent recovers via read_file, not index lookup). Confirmed persistence-time truncation is correct (Tasklet does the same — fixed size threshold, permanent marker, not budget-based). Scope is now 6 tasks: (1) store ALL tool call args+results to block storage regardless of size, (2) trigger event pruning during compaction (mechanical title+source extraction, separate from LLM summarization), (3) structured compaction summary format (## User Instructions / ## Workflow / ## Resources / ## Current Focus), (4) <context-management> instructions in platform-instructions.ts, (5) remove appendArtifactRecoveryNote hack, (6) threshold review (5KB vs Tasklet's ~100KB). Formalized as PR entry in Phase 2 after PR 22b. Tasklist rewritten: docs/product/tasks/2026-03-09-pr22c-context-management-alignment-tasklist.md.",
+      "2026-03-09: Added PR 22d (read_file image support + negative line indices) to Phase 2 as an explicit scope exception after review. Scope is intentionally narrow: image files only, explicit AI SDK toModelOutput JSON/image-data handling, negative line indices, preserve existing text/directory read_file contract, PDFs deferred."
     ]
   },
   "phases": [
@@ -1419,6 +1420,56 @@
             "Compaction summary uses structured ## sections, not free-form narrative",
             "Trigger events in compacted range appear as mechanical title+source list, not LLM-summarized",
             "appendArtifactRecoveryNote removed with no regression in agent recovery capability"
+          ]
+        },
+        {
+          "pr": "22d",
+          "title": "read_file image support + negative line indices",
+          "status": "done",
+          "decisions": [
+            "TOOL-01",
+            "TOOL-03"
+          ],
+          "tasklist": "docs/tasks/2026-03-09-read-file-multimodal-tasklist.md",
+          "note": "Explicitly scoped to images only. Preserve existing read_file text/directory result contract. AI SDK toModelOutput must return explicit ToolResultOutput objects: image-data for image reads, json for text/directory reads. PDFs stay deferred to the separate document-processing track.",
+          "tasks": [
+            {
+              "id": "PR22d-1",
+              "task": "Add sharp via pnpm for server-side image resize/compression. Do not add @types/sharp.",
+              "done": true
+            },
+            {
+              "id": "PR22d-2",
+              "task": "Add downloadBinary() to the agent file client with real unit coverage in src/lib/storage/__tests__/agent-files.test.ts. Prefer a tiny shared download helper over duplicated Supabase download plumbing.",
+              "done": true
+            },
+            {
+              "id": "PR22d-3",
+              "task": "Add read_file image-path tests using valid tiny image buffers. Verify case-insensitive extension detection and keep existing text/directory result shapes unchanged.",
+              "done": true
+            },
+            {
+              "id": "PR22d-4",
+              "task": "Implement read_file image branch with resizeForModel(), returning an image-only result variant while preserving existing text/directory responses.",
+              "done": true
+            },
+            {
+              "id": "PR22d-5",
+              "task": "Add explicit toModelOutput handling: image reads return content/image-data; text and directory reads return explicit json outputs.",
+              "done": true
+            },
+            {
+              "id": "PR22d-6",
+              "task": "Add negative line index support in applyLineRange() while preserving validation for invalid normalized ranges.",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Agent can call read_file on a stored image path and the model receives image data",
+            "Text-file read_file responses keep the existing { success, path, content } shape",
+            "Directory read_file responses keep the existing { success, path, content } shape",
+            "toModelOutput returns explicit json for non-image outputs and image-data for image outputs",
+            "Negative line indices work for trailing slices and invalid normalized ranges still error"
           ]
         }
       ]

@@ -62,17 +62,28 @@ function assertWritable(inputPath: string): void {
  */
 export function createAgentFileClient(supabase: SupabaseClient, clientId: string) {
   /**
-   * Downloads a text file from the client workspace.
+   * Downloads the raw storage object for a client-scoped workspace path.
    *
    * @param path - Relative workspace file path.
    */
-  async function downloadFile(path: string): Promise<string> {
+  async function downloadObject(path: string): Promise<Blob | string> {
     const storagePath = resolveStoragePath(clientId, path);
     const { data, error } = await supabase.storage.from(BUCKET_ID).download(storagePath);
 
     if (error || !data) {
       throw new Error(`Failed to read file "${path}": ${error?.message ?? "unknown error"}`);
     }
+
+    return data as Blob | string;
+  }
+
+  /**
+   * Downloads a text file from the client workspace.
+   *
+   * @param path - Relative workspace file path.
+   */
+  async function downloadFile(path: string): Promise<string> {
+    const data = await downloadObject(path);
 
     if (typeof data === "string") {
       return data;
@@ -85,6 +96,35 @@ export function createAgentFileClient(supabase: SupabaseClient, clientId: string
     if (typeof (data as { arrayBuffer?: () => Promise<ArrayBuffer> }).arrayBuffer === "function") {
       const buffer = await (data as { arrayBuffer: () => Promise<ArrayBuffer> }).arrayBuffer();
       return new TextDecoder().decode(buffer);
+    }
+
+    throw new Error(`Failed to read file "${path}": unsupported response payload.`);
+  }
+
+  /**
+   * Downloads a binary file from the client workspace.
+   *
+   * @param path - Relative workspace file path.
+   */
+  async function downloadBinary(path: string): Promise<{ buffer: ArrayBuffer; mimeType: string }> {
+    const data = await downloadObject(path);
+
+    if (typeof data === "string") {
+      const encoded = new TextEncoder().encode(data);
+      return {
+        buffer: encoded.buffer.slice(
+          encoded.byteOffset,
+          encoded.byteOffset + encoded.byteLength,
+        ),
+        mimeType: "text/plain; charset=utf-8",
+      };
+    }
+
+    if (typeof (data as { arrayBuffer?: () => Promise<ArrayBuffer> }).arrayBuffer === "function") {
+      return {
+        buffer: await (data as { arrayBuffer: () => Promise<ArrayBuffer> }).arrayBuffer(),
+        mimeType: data.type || "application/octet-stream",
+      };
     }
 
     throw new Error(`Failed to read file "${path}": unsupported response payload.`);
@@ -219,6 +259,7 @@ export function createAgentFileClient(supabase: SupabaseClient, clientId: string
 
   return {
     downloadFile,
+    downloadBinary,
     listDirectory,
     uploadFile,
     editFile,
