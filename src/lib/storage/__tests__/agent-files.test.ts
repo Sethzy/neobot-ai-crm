@@ -196,12 +196,23 @@ describe("createAgentFileClient", () => {
     expect(supabase.mockRemove).toHaveBeenCalledWith([`${CLIENT_ID}/memory/old.md`]);
   });
 
-  it("blocks write, edit, delete for root SOUL.md only", async () => {
+  it("blocks write, edit, delete for root SOUL.md", async () => {
     const client = createAgentFileClient(supabase.client, CLIENT_ID);
 
     await expect(client.uploadFile("SOUL.md", "overwrite")).rejects.toThrow("read-only");
     await expect(client.editFile("SOUL.md", "a", "b")).rejects.toThrow("read-only");
     await expect(client.deleteFile("SOUL.md")).rejects.toThrow("read-only");
+  });
+
+  it("blocks writes to skills paths", async () => {
+    const client = createAgentFileClient(supabase.client, CLIENT_ID);
+
+    await expect(
+      client.uploadFile("skills/connections/conn-1/SKILL.md", "overwrite"),
+    ).rejects.toThrow("read-only");
+    await expect(
+      client.uploadFile("skills/system/creating-connections/SKILL.md", "overwrite"),
+    ).rejects.toThrow("read-only");
   });
 
   it("does not block similarly named nested files", async () => {

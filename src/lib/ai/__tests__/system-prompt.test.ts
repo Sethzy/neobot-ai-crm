@@ -86,11 +86,45 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT).toContain("When a trigger event includes an instruction_path");
   });
 
-  it("includes connection-first guidance for external tools", () => {
-    expect(SYSTEM_PROMPT).toContain("<connections>");
-    expect(SYSTEM_PROMPT).toContain("Active connections:");
-    expect(SYSTEM_PROMPT).toContain("Settings");
-    expect(SYSTEM_PROMPT).toContain("Never try to create or manage connections yourself");
+  it("includes external-connections section with 3 sub-sections", () => {
+    expect(SYSTEM_PROMPT).toContain("<external-connections>");
+    expect(SYSTEM_PROMPT).toContain("</external-connections>");
+    expect(SYSTEM_PROMPT).toContain("<using-existing-connections>");
+    expect(SYSTEM_PROMPT).toContain("</using-existing-connections>");
+    expect(SYSTEM_PROMPT).toContain("<creating-new-connections>");
+    expect(SYSTEM_PROMPT).toContain("</creating-new-connections>");
+    expect(SYSTEM_PROMPT).toContain("<using-connection-tools>");
+    expect(SYSTEM_PROMPT).toContain("</using-connection-tools>");
+  });
+
+  it("includes agent-driven connection lifecycle guidance", () => {
+    expect(SYSTEM_PROMPT).toContain("list_users_connections");
+    expect(SYSTEM_PROMPT).toContain("create_new_connections");
+    expect(SYSTEM_PROMPT).toContain("manage_activated_tools_for_connections");
+  });
+
+  it("instructs the agent to read the creating-connections skill if it exists", () => {
+    expect(SYSTEM_PROMPT).toContain("If skills/system/creating-connections/SKILL.md exists");
+    expect(SYSTEM_PROMPT).toContain("MUST read it");
+  });
+
+  it("includes connection-ID-prefixed tool naming guidance", () => {
+    expect(SYSTEM_PROMPT).toContain("conn_1234__search_for_info");
+  });
+
+  it("instructs the agent to read connection skill files before using tools", () => {
+    expect(SYSTEM_PROMPT).toContain(
+      "MUST read and follow the instructions in the skills file",
+    );
+  });
+
+  it("qualifies non-integration connection types as not yet available in v1", () => {
+    expect(SYSTEM_PROMPT).toContain("not yet available in v1");
+    expect(SYSTEM_PROMPT).toContain("only Composio OAuth integrations are supported");
+  });
+
+  it("does not contain the old passive connections guidance", () => {
+    expect(SYSTEM_PROMPT).not.toContain("Never try to create or manage connections yourself");
   });
 });
 

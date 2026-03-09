@@ -5,6 +5,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
+import { getAllConnections } from "@/lib/connections/queries";
+import { getConnectionSkillContent } from "@/lib/storage/skill-files";
 import type { Database } from "@/types/database";
 
 const systemReminderContextSchema = z.object({
@@ -98,13 +100,41 @@ export async function buildSystemReminder(
   reminderLines.push(`Open todos: ${context.open_todo_count}`);
   reminderLines.push(`Memory files: ${context.memory_file_count}`);
   reminderLines.push(`Active triggers: ${context.active_trigger_count}`);
-  reminderLines.push(
-    `Active connections: ${
-      context.active_connection_toolkits.length > 0
-        ? context.active_connection_toolkits.map((toolkitSlug) => escapeXml(toolkitSlug)).join(", ")
-        : "none"
-    }`,
-  );
+
+  try {
+    const connections = await getAllConnections(supabase, clientId);
+    const activeConnections = connections.filter((connection) => connection.status === "active");
+
+    if (activeConnections.length > 0) {
+      const activeConnectionLines = await Promise.all(
+        activeConnections.map(async (connection) => {
+          const skillContent = await getConnectionSkillContent(supabase, clientId, connection.id);
+          const escapedToolkitSlug = escapeXml(connection.toolkit_slug);
+          const escapedConnectionId = escapeXml(connection.id);
+          const activatedToolCount = connection.activated_tools.length;
+          const skillPointer = skillContent
+            ? ` (skill: skills/connections/${escapedConnectionId}/SKILL.md)`
+            : "";
+
+          return `  ${escapedToolkitSlug} (${escapedConnectionId}): ${activatedToolCount}/${connection.tool_count} tools active${skillPointer}`;
+        }),
+      );
+
+      reminderLines.push(`Active connections:\n${activeConnectionLines.join("\n")}`);
+    } else {
+      reminderLines.push("Active connections: none");
+    }
+
+    const inactiveConnectionCount = connections.filter(
+      (connection) => connection.status !== "active" && connection.status !== "pending",
+    ).length;
+
+    if (inactiveConnectionCount > 0) {
+      reminderLines.push(`Inactive connections: ${inactiveConnectionCount}`);
+    }
+  } catch {
+    reminderLines.push("Active connections: none");
+  }
 
   if (context.days_since_signup !== null) {
     reminderLines.push(`Days since signup: ${context.days_since_signup}`);
