@@ -1703,7 +1703,8 @@
           ],
           "testCriteria": [
             "Agent spawns subagent for research, results appear in main thread"
-          ]
+          ],
+          "simplified": true
         },
         {
           "pr": "42a",
