@@ -57,9 +57,10 @@ export function createStorageTools(
 
   const read_file = tool({
     description:
-      "Read file content or list a directory tree. Use directory paths (e.g. memory/) for discovery.",
+      "Reads the contents of a file or directory by its path. If the path is a directory, returns a recursive tree-style listing of its contents. Image files are displayed directly. Specify optional start_line/end_line for large text files. Use negative indices to count from the end.",
     inputSchema: readFileInputSchema,
     execute: async ({ path, start_line, end_line }) => {
+      assertValidReadLineBounds(start_line, end_line);
       const fileType = classifyFileType(path);
 
       if (fileType === "directory") {
@@ -76,6 +77,10 @@ export function createStorageTools(
 
       try {
         const rawContent = await fileClient.downloadFile(path);
+        const storedImageArtifact = parseStoredImageArtifact(path, rawContent);
+        if (storedImageArtifact) {
+          return storedImageArtifact;
+        }
         const slicedContent = applyLineRange(rawContent, start_line, end_line);
 
         return { success: true as const, path, content: slicedContent };
@@ -207,13 +212,7 @@ function applyLineRange(content: string, startLine?: number, endLine?: number): 
     return content;
   }
 
-  if (startLine === 0) {
-    throw new Error("start_line cannot be 0.");
-  }
-
-  if (endLine === 0) {
-    throw new Error("end_line cannot be 0.");
-  }
+  assertValidReadLineBounds(startLine, endLine);
 
   const lines = content.split("\n");
   const totalLines = lines.length;
@@ -274,7 +273,7 @@ function classifyFileType(path: string): "directory" | "image" | "text" {
 async function resizeForModel(buffer: ArrayBuffer): Promise<{ data: string; mediaType: string }> {
   const input = Buffer.from(buffer);
   const metadata = await sharp(input).metadata();
-  const pipeline = sharp(input).resize(IMAGE_MAX_DIMENSION, IMAGE_MAX_DIMENSION, {
+  const pipeline = sharp(input).autoOrient().resize(IMAGE_MAX_DIMENSION, IMAGE_MAX_DIMENSION, {
     fit: "inside",
     withoutEnlargement: true,
   });
@@ -286,6 +285,21 @@ async function resizeForModel(buffer: ArrayBuffer): Promise<{ data: string; medi
 
   const output = await pipeline.jpeg({ quality: 85 }).toBuffer();
   return { data: output.toString("base64"), mediaType: "image/jpeg" };
+}
+
+/**
+ * Rejects `0` for line bounds before the read flow branches by file type.
+ *
+ * `start_line` / `end_line` are 1-indexed and may be negative, but `0` is never valid.
+ */
+function assertValidReadLineBounds(startLine?: number, endLine?: number): void {
+  if (startLine === 0) {
+    throw new Error("start_line cannot be 0.");
+  }
+
+  if (endLine === 0) {
+    throw new Error("end_line cannot be 0.");
+  }
 }
 
 /**
@@ -306,6 +320,42 @@ function isImageReadResult(
     typeof (value as { data?: unknown }).data === "string" &&
     typeof (value as { mediaType?: unknown }).mediaType === "string"
   );
+}
+
+/**
+ * Restores persisted image tool artifacts so `read_file("toolcalls/{id}/result.json")`
+ * can recover the original image for the model after truncation.
+ *
+ * @param path - Workspace-relative path being read.
+ * @param content - Raw file contents returned by storage.
+ */
+function parseStoredImageArtifact(
+  path: string,
+  content: string,
+): { success: true; path: string; type: "image"; data: string; mediaType: string } | null {
+  if (!/^toolcalls\/[^/]+\/result\.json$/u.test(path)) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(content) as unknown;
+    if (!isImageReadResult(parsed)) {
+      return null;
+    }
+
+    const parsedPath = (parsed as { path?: unknown }).path;
+    const outputPath = typeof parsedPath === "string" ? parsedPath : path;
+
+    return {
+      success: true,
+      path: outputPath,
+      type: "image",
+      data: parsed.data,
+      mediaType: parsed.mediaType,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function shouldFallbackToDirectory(error: unknown): boolean {

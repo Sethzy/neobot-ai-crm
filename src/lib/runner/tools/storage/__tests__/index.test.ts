@@ -2,6 +2,7 @@
  * Tests for runner storage tools.
  * @module lib/runner/tools/storage/__tests__/index
  */
+import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -42,6 +43,37 @@ function toArrayBuffer(base64: string): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
 }
 
+async function createExifRotatedJpegArrayBuffer(): Promise<ArrayBuffer> {
+  const bytes = await sharp({
+    create: {
+      width: 2,
+      height: 1,
+      channels: 3,
+      background: { r: 255, g: 0, b: 0 },
+    },
+  })
+    .jpeg()
+    .withMetadata({ orientation: 6 })
+    .toBuffer();
+
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+}
+
+async function createOpaqueJpegArrayBuffer(): Promise<ArrayBuffer> {
+  const bytes = await sharp({
+    create: {
+      width: 1,
+      height: 1,
+      channels: 3,
+      background: { r: 0, g: 0, b: 255 },
+    },
+  })
+    .jpeg()
+    .toBuffer();
+
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+}
+
 function createSupabaseMock() {
   const upsert = vi.fn().mockResolvedValue({ data: null, error: null });
   const deleteBuilder = {
@@ -75,6 +107,13 @@ describe("createStorageTools", () => {
     expect(mockCreateAgentFileClient).toHaveBeenCalledWith("mock-supabase", CLIENT_ID);
     expect(tools.read_file).toBeDefined();
     expect(tools.write_file).toBeDefined();
+  });
+
+  it("describes image reads and negative line indices to the model", () => {
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    expect(tools.read_file.description).toContain("Image files are displayed directly");
+    expect(tools.read_file.description).toContain("negative");
   });
 
   it("read_file reads file content by default", async () => {
@@ -120,6 +159,27 @@ describe("createStorageTools", () => {
     await expect(
       tools.read_file.execute({ path: "MEMORY.md", start_line: 0 }, EXECUTION_OPTIONS),
     ).rejects.toThrow("start_line cannot be 0");
+  });
+
+  it("read_file rejects start_line: 0 for directory reads", async () => {
+    mockFileClient.listDirectory.mockResolvedValue("preferences.md");
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    await expect(
+      tools.read_file.execute({ path: "memory/", start_line: 0 }, EXECUTION_OPTIONS),
+    ).rejects.toThrow("start_line cannot be 0");
+  });
+
+  it("read_file rejects end_line: 0 for image reads", async () => {
+    mockFileClient.downloadBinary.mockResolvedValue({
+      buffer: toArrayBuffer(TINY_TRANSPARENT_PNG_BASE64),
+      mimeType: "image/png",
+    });
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    await expect(
+      tools.read_file.execute({ path: "vault/photo.png", end_line: 0 }, EXECUTION_OPTIONS),
+    ).rejects.toThrow("end_line cannot be 0");
   });
 
   it("read_file falls back to directory listing for bare directory paths", async () => {
@@ -377,6 +437,71 @@ describe("createStorageTools", () => {
       success: true,
       type: "image",
       path: "vault/PHOTO.PNG",
+    });
+  });
+
+  it("read_file re-encodes opaque image inputs as jpeg", async () => {
+    mockFileClient.downloadBinary.mockResolvedValue({
+      buffer: await createOpaqueJpegArrayBuffer(),
+      mimeType: "image/jpeg",
+    });
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute({ path: "vault/photo.jpg" }, EXECUTION_OPTIONS);
+
+    expect(result).toMatchObject({
+      success: true,
+      type: "image",
+      path: "vault/photo.jpg",
+      mediaType: "image/jpeg",
+    });
+  });
+
+  it("read_file auto-orients exif-rotated images before returning them to the model", async () => {
+    mockFileClient.downloadBinary.mockResolvedValue({
+      buffer: await createExifRotatedJpegArrayBuffer(),
+      mimeType: "image/jpeg",
+    });
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute({ path: "vault/photo.jpg" }, EXECUTION_OPTIONS);
+
+    expect(result).toMatchObject({
+      success: true,
+      type: "image",
+      path: "vault/photo.jpg",
+      mediaType: "image/jpeg",
+    });
+
+    const metadata = await sharp(Buffer.from(result.data, "base64")).metadata();
+
+    expect(metadata.width).toBe(1);
+    expect(metadata.height).toBe(2);
+  });
+
+  it("read_file recovers stored image tool artifacts as image outputs", async () => {
+    mockFileClient.downloadFile.mockResolvedValue(
+      JSON.stringify({
+        success: true,
+        path: "vault/photo.png",
+        type: "image",
+        data: TINY_TRANSPARENT_PNG_BASE64,
+        mediaType: "image/png",
+      }),
+    );
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    const result = await tools.read_file.execute(
+      { path: "toolcalls/call-1/result.json" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({
+      success: true,
+      path: "vault/photo.png",
+      type: "image",
+      data: TINY_TRANSPARENT_PNG_BASE64,
+      mediaType: "image/png",
     });
   });
 });
