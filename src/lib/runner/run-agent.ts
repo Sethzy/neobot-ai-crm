@@ -120,7 +120,7 @@ export async function runAgent(
 
     try {
       const connections = await getActiveConnections(supabase, clientId);
-      composioTools = await loadActivatedConnectionTools(clientId, connections);
+      composioTools = await loadActivatedConnectionTools(connections);
     } catch (error) {
       console.error("[composio] Failed to load activated connection tools for runner.", error);
     }

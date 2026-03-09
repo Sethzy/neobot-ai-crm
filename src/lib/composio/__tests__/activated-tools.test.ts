@@ -14,8 +14,6 @@ import { loadActivatedConnectionTools } from "../activated-tools";
 
 import type { ConnectionRow } from "@/lib/connections/schemas";
 
-const COMPOSIO_USER_ID = "client-123";
-
 function createMockConnection(
   overrides: Partial<ConnectionRow> & { id: string; toolkit_slug: string },
 ): ConnectionRow {
@@ -60,7 +58,7 @@ describe("loadActivatedConnectionTools", () => {
   });
 
   it("returns an empty ToolSet when no active connections have activated tools", async () => {
-    const result = await loadActivatedConnectionTools(COMPOSIO_USER_ID, [
+    const result = await loadActivatedConnectionTools([
       createMockConnection({
         id: "550e8400-e29b-41d4-a716-446655440001",
         toolkit_slug: "gmail",
@@ -96,7 +94,7 @@ describe("loadActivatedConnectionTools", () => {
       ],
     ]);
 
-    const result = await loadActivatedConnectionTools(COMPOSIO_USER_ID, [
+    const result = await loadActivatedConnectionTools([
       createMockConnection({
         id: "550e8400-e29b-41d4-a716-446655440003",
         toolkit_slug: "gmail",
@@ -128,7 +126,7 @@ describe("loadActivatedConnectionTools", () => {
       ],
     ]);
 
-    const result = await loadActivatedConnectionTools(COMPOSIO_USER_ID, [
+    const result = await loadActivatedConnectionTools([
       createMockConnection({
         id: "550e8400-e29b-41d4-a716-446655440004",
         toolkit_slug: "gmail",
@@ -158,7 +156,7 @@ describe("loadActivatedConnectionTools", () => {
       ],
     ]);
 
-    await loadActivatedConnectionTools(COMPOSIO_USER_ID, [
+    await loadActivatedConnectionTools([
       createMockConnection({
         id: "550e8400-e29b-41d4-a716-446655440006",
         toolkit_slug: "gmail",
@@ -189,7 +187,7 @@ describe("loadActivatedConnectionTools", () => {
       ],
     ]);
 
-    const result = await loadActivatedConnectionTools(COMPOSIO_USER_ID, [
+    const result = await loadActivatedConnectionTools([
       createMockConnection({
         id: "550e8400-e29b-41d4-a716-446655440007",
         toolkit_slug: "gmail",
@@ -239,7 +237,7 @@ describe("loadActivatedConnectionTools", () => {
     };
     vi.mocked(getComposio).mockReturnValue(mockComposio as never);
 
-    const result = await loadActivatedConnectionTools(COMPOSIO_USER_ID, [
+    const result = await loadActivatedConnectionTools([
       createMockConnection({
         id: "550e8400-e29b-41d4-a716-446655440008",
         toolkit_slug: "gmail",
@@ -258,7 +256,7 @@ describe("loadActivatedConnectionTools", () => {
   });
 
   it("skips pending connections", async () => {
-    const result = await loadActivatedConnectionTools(COMPOSIO_USER_ID, [
+    const result = await loadActivatedConnectionTools([
       createMockConnection({
         id: "550e8400-e29b-41d4-a716-446655440010",
         toolkit_slug: "gmail",

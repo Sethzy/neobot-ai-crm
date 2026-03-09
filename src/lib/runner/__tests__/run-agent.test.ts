@@ -547,7 +547,7 @@ describe("runAgent", () => {
       "mock-supabase-client",
       validPayload.clientId,
     );
-    expect(mockLoadActivatedConnectionTools).toHaveBeenCalledWith(validPayload.clientId, [
+    expect(mockLoadActivatedConnectionTools).toHaveBeenCalledWith([
       { id: "conn-1" },
     ]);
     expect(mockStreamText).toHaveBeenCalledWith(
@@ -567,7 +567,7 @@ describe("runAgent", () => {
 
     await runAgent(validPayload, "mock-supabase-client" as never);
 
-    expect(mockLoadActivatedConnectionTools).toHaveBeenCalledWith(validPayload.clientId, [
+    expect(mockLoadActivatedConnectionTools).toHaveBeenCalledWith([
       { id: "conn-1" },
     ]);
     expect(mockStreamText).toHaveBeenCalledWith(

@@ -20,7 +20,6 @@ const EMPTY_TOOL_INPUT_SCHEMA = {
  * tool name with the connection id so multi-connection tool routing stays unambiguous.
  */
 export async function loadActivatedConnectionTools(
-  _composioUserId: string,
   connections: ConnectionRow[],
 ): Promise<ToolSet> {
   const activeConnections = connections.filter(
