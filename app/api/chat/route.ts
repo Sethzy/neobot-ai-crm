@@ -7,6 +7,7 @@ import { createUIMessageStream, createUIMessageStreamResponse, generateId } from
 import { after } from "next/server";
 import { createResumableStreamContext } from "resumable-stream";
 
+import { resolveApprovalEvent } from "@/lib/approvals/queries";
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { generateTitleFromUserMessage } from "@/lib/ai/title";
@@ -79,6 +80,55 @@ function getLatestUserMessage(
   return null;
 }
 
+interface ApprovalResponse {
+  approvalId: string;
+  approved: boolean;
+}
+
+function getApprovalResponses(
+  messages: PostRequestBody["messages"],
+): ApprovalResponse[] {
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return [];
+  }
+
+  const approvalsById = new Map<string, boolean>();
+
+  for (const message of messages) {
+    if (!Array.isArray(message?.parts)) {
+      continue;
+    }
+
+    for (const part of message.parts) {
+      if (typeof part !== "object" || part === null) {
+        continue;
+      }
+
+      const state = "state" in part ? part.state : undefined;
+      const approval = "approval" in part ? part.approval : undefined;
+      const approvalRecord = typeof approval === "object" && approval !== null
+        ? approval as Record<string, unknown>
+        : null;
+
+      if (
+        state !== "approval-responded" ||
+        !approvalRecord ||
+        typeof approvalRecord.id !== "string" ||
+        typeof approvalRecord.approved !== "boolean"
+      ) {
+        continue;
+      }
+
+      approvalsById.set(approvalRecord.id, approvalRecord.approved);
+    }
+  }
+
+  return [...approvalsById.entries()].map(([approvalId, approved]) => ({
+    approvalId,
+    approved,
+  }));
+}
+
 export async function POST(request: Request): Promise<Response> {
   if (!process.env.AI_GATEWAY_API_KEY) {
     return jsonError("Server misconfiguration: AI_GATEWAY_API_KEY is required.", 500);
@@ -140,6 +190,15 @@ export async function POST(request: Request): Promise<Response> {
       }
 
       isNewThread = true;
+    }
+
+    const approvalResponses = getApprovalResponses(body.messages);
+    for (const approvalResponse of approvalResponses) {
+      await resolveApprovalEvent(supabase, {
+        clientId,
+        approvalId: approvalResponse.approvalId,
+        approved: approvalResponse.approved,
+      });
     }
 
     const result = await runAgent(

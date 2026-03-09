@@ -26,6 +26,7 @@ const BASE_CONTEXT = {
   open_todo_count: 0,
   memory_file_count: 7,
   active_trigger_count: 0,
+  pending_approval_count: 0,
   active_connection_toolkits: [] as string[],
 };
 const mockGetAllConnections = vi.mocked(getAllConnections);
@@ -132,6 +133,16 @@ describe("buildSystemReminder", () => {
     const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);
 
     expect(result).toContain("Active triggers: 4");
+  });
+
+  it("includes pending approval count when approvals are waiting", async () => {
+    const supabase = createReminderSupabase({
+      pending_approval_count: 2,
+    });
+
+    const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);
+
+    expect(result).toContain("Pending approvals: 2");
   });
 
   it("shows per-connection format with tool counts for active connections", async () => {

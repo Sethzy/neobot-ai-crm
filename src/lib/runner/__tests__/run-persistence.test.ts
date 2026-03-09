@@ -30,6 +30,11 @@ vi.mock("@/lib/runner/toolcall-artifacts", () => ({
   truncateOversizedParts: (...args: unknown[]) => mockTruncateOversizedParts(...args),
 }));
 
+const mockCreateApprovalEvent = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/lib/approvals/queries", () => ({
+  createApprovalEvent: (...args: unknown[]) => mockCreateApprovalEvent(...args),
+}));
+
 const mockBuildAssistantPartsFromSteps = vi.fn();
 const mockGetAssistantTextFromParts = vi.fn();
 vi.mock("@/lib/runner/message-utils", () => ({
@@ -38,7 +43,7 @@ vi.mock("@/lib/runner/message-utils", () => ({
 }));
 
 // Import module under test after all mocks
-const { finalizeRun } = await import("@/lib/runner/run-persistence");
+const { extractApprovalRequests, finalizeRun } = await import("@/lib/runner/run-persistence");
 
 const CLIENT_ID = "550e8400-e29b-41d4-a716-446655440000";
 const THREAD_ID = "thread-001";
@@ -181,5 +186,74 @@ describe("finalizeRun block storage", () => {
 
     // output-error parts should NOT trigger block storage (no successful output)
     expect(mockSaveToolcallBlock).not.toHaveBeenCalled();
+  });
+
+  it("writes approval events for approval-requested tool parts before completing the run", async () => {
+    const parts: PersistedPart[] = [
+      { type: "step-start" },
+      {
+        type: "tool-delete_contact",
+        toolCallId: "call-approval",
+        state: "approval-requested",
+        input: { contact_id: "contact-1" },
+        approval: { id: "approval-1" },
+      },
+      { type: "text", text: "Waiting for approval." },
+    ];
+
+    mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
+    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+    mockGetAssistantTextFromParts.mockReturnValue("Waiting for approval.");
+
+    await finalizeRun(makeInput());
+
+    expect(mockCreateApprovalEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        clientId: CLIENT_ID,
+        threadId: THREAD_ID,
+        runId: RUN_ID,
+        toolName: "delete_contact",
+        toolInput: { contact_id: "contact-1" },
+        approvalId: "approval-1",
+      },
+    );
+    expect(mockCreateMessages.mock.invocationCallOrder[0]).toBeLessThan(
+      mockCreateApprovalEvent.mock.invocationCallOrder[0],
+    );
+    expect(mockCreateApprovalEvent.mock.invocationCallOrder[0]).toBeLessThan(
+      mockCompleteRun.mock.invocationCallOrder[0],
+    );
+  });
+});
+
+describe("extractApprovalRequests", () => {
+  it("returns approval-requested tool parts with approval id and tool name", () => {
+    const parts: PersistedPart[] = [
+      { type: "step-start" },
+      { type: "text", text: "I can delete that contact." },
+      {
+        type: "tool-delete_contact",
+        toolCallId: "tool-call-1",
+        state: "approval-requested",
+        input: { contact_id: "contact-1" },
+        approval: { id: "approval-1" },
+      },
+      {
+        type: "tool-search_contacts",
+        toolCallId: "tool-call-2",
+        state: "output-available",
+        input: { query: "John" },
+        output: { contacts: [] },
+      },
+    ];
+
+    expect(extractApprovalRequests(parts)).toEqual([
+      {
+        approvalId: "approval-1",
+        toolName: "delete_contact",
+        toolInput: { contact_id: "contact-1" },
+      },
+    ]);
   });
 });

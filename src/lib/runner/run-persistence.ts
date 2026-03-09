@@ -7,6 +7,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { createApprovalEvent } from "@/lib/approvals/queries";
 import { createMessages } from "@/lib/chat/messages";
 import { maybeCompactThread } from "@/lib/runner/compaction";
 import { drainAndContinue } from "@/lib/runner/drain-and-continue";
@@ -25,6 +26,12 @@ import type { Database, Json } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
 
+export interface ApprovalRequest {
+  approvalId: string;
+  toolName: string;
+  toolInput: Record<string, unknown>;
+}
+
 export interface FinalizeRunInput {
   supabase: ChatSupabaseClient;
   clientId: string;
@@ -35,6 +42,37 @@ export interface FinalizeRunInput {
   text: string;
   totalUsage: { inputTokens?: number; outputTokens?: number };
   logLabel: string;
+}
+
+/**
+ * Extracts approval-gated tool requests from normalized assistant parts.
+ */
+export function extractApprovalRequests(
+  parts: ReadonlyArray<PersistedPart>,
+): ApprovalRequest[] {
+  return parts.flatMap((part) => {
+    if (part.state !== "approval-requested") {
+      return [];
+    }
+
+    const approval = typeof part.approval === "object" && part.approval !== null
+      ? part.approval as { id?: unknown }
+      : null;
+    const approvalId = typeof approval?.id === "string" ? approval.id : null;
+    const partType = typeof part.type === "string" ? part.type : "";
+
+    if (!approvalId || !partType.startsWith("tool-")) {
+      return [];
+    }
+
+    return [{
+      approvalId,
+      toolName: partType.slice(5),
+      toolInput: typeof part.input === "object" && part.input !== null
+        ? part.input as Record<string, unknown>
+        : {},
+    }];
+  });
 }
 
 /**
@@ -109,6 +147,22 @@ export async function finalizeRun({
           : ([{ type: "text", text: contentText }] as Json),
       },
     ]);
+  }
+
+  const approvalRequests = extractApprovalRequests(parts);
+  if (approvalRequests.length > 0) {
+    await Promise.all(
+      approvalRequests.map((request) =>
+        createApprovalEvent(supabase, {
+          clientId,
+          threadId,
+          runId,
+          toolName: request.toolName,
+          toolInput: request.toolInput,
+          approvalId: request.approvalId,
+        }),
+      ),
+    );
   }
 
   await completeRun(supabase, {

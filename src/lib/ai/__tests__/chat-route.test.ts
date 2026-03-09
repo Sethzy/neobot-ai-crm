@@ -16,6 +16,7 @@ const {
   mockClearActiveStreamId,
   mockCreateNewResumableStream,
   mockCreateResumableStreamContext,
+  mockResolveApprovalEvent,
 } = vi.hoisted(() => ({
   mockRunAgent: vi.fn(),
   mockCreateClient: vi.fn(),
@@ -28,6 +29,7 @@ const {
   mockClearActiveStreamId: vi.fn(),
   mockCreateNewResumableStream: vi.fn(),
   mockCreateResumableStreamContext: vi.fn(),
+  mockResolveApprovalEvent: vi.fn(),
 }));
 
 vi.mock("@/lib/runner/run-agent", () => ({
@@ -40,6 +42,10 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/lib/chat/client-id", () => ({
   resolveClientId: mockResolveClientId,
+}));
+
+vi.mock("@/lib/approvals/queries", () => ({
+  resolveApprovalEvent: mockResolveApprovalEvent,
 }));
 
 vi.mock("ai", () => ({
@@ -375,6 +381,52 @@ describe("POST /api/chat", () => {
       mockSupabase,
     );
     expect(response).toBe(streamResponse);
+  });
+
+  it("resolves approval events from approval-responded message parts before continuing the run", async () => {
+    const streamResponse = new Response("streamed", {
+      headers: { "Content-Type": "text/event-stream" },
+    });
+    const wrappedStream = new ReadableStream();
+    mockCreateUIMessageStream.mockReturnValue(wrappedStream);
+    mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
+    mockResolveApprovalEvent.mockResolvedValue({ success: true });
+    mockRunAgent.mockResolvedValue({
+      status: "streaming",
+      streamResult: {
+        toUIMessageStream: vi.fn(() => new ReadableStream()),
+      },
+    });
+
+    await POST(
+      createJsonRequest({
+        id: threadId,
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-delete_contact",
+                toolCallId: "tool-call-1",
+                state: "approval-responded",
+                approval: { id: "approval-1", approved: true },
+              },
+            ],
+          },
+          { id: "u1", role: "user", parts: [{ type: "text", text: "Proceed." }] },
+        ],
+      }),
+    );
+
+    expect(mockResolveApprovalEvent).toHaveBeenCalledWith(mockSupabase, {
+      clientId: "client-456",
+      approvalId: "approval-1",
+      approved: true,
+    });
+    expect(mockResolveApprovalEvent.mock.invocationCallOrder[0]).toBeLessThan(
+      mockRunAgent.mock.invocationCallOrder[0],
+    );
   });
 
   it("returns 202 queued when runner cannot acquire thread lock", async () => {

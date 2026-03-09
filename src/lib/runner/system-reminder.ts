@@ -16,6 +16,7 @@ const systemReminderContextSchema = z.object({
   open_todo_count: z.number().int().nonnegative(),
   memory_file_count: z.number().int().nonnegative(),
   active_trigger_count: z.number().int().nonnegative(),
+  pending_approval_count: z.number().int().nonnegative(),
   active_connection_toolkits: z.array(z.string()),
 });
 
@@ -28,6 +29,7 @@ const FALLBACK_CONTEXT: SystemReminderContext = {
   open_todo_count: 0,
   memory_file_count: 0,
   active_trigger_count: 0,
+  pending_approval_count: 0,
   active_connection_toolkits: [],
 };
 
@@ -67,6 +69,7 @@ async function fetchReminderContext(
     open_todo_count: parsedResult.data.open_todo_count ?? 0,
     memory_file_count: parsedResult.data.memory_file_count ?? 0,
     active_trigger_count: parsedResult.data.active_trigger_count ?? 0,
+    pending_approval_count: parsedResult.data.pending_approval_count ?? 0,
     active_connection_toolkits: parsedResult.data.active_connection_toolkits ?? [],
   };
 }
@@ -100,6 +103,9 @@ export async function buildSystemReminder(
   reminderLines.push(`Open todos: ${context.open_todo_count}`);
   reminderLines.push(`Memory files: ${context.memory_file_count}`);
   reminderLines.push(`Active triggers: ${context.active_trigger_count}`);
+  if (context.pending_approval_count > 0) {
+    reminderLines.push(`Pending approvals: ${context.pending_approval_count}`);
+  }
 
   let connections: Awaited<ReturnType<typeof getAllConnections>> | null = null;
 

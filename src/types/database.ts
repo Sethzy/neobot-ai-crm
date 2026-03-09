@@ -550,6 +550,67 @@ export type Database = {
           },
         ]
       }
+      approval_events: {
+        Row: {
+          approval_id: string
+          client_id: string
+          created_at: string
+          id: string
+          resolved_at: string | null
+          run_id: string | null
+          status: string
+          thread_id: string
+          tool_input: Json
+          tool_name: string
+        }
+        Insert: {
+          approval_id: string
+          client_id: string
+          created_at?: string
+          id?: string
+          resolved_at?: string | null
+          run_id?: string | null
+          status?: string
+          thread_id: string
+          tool_input?: Json
+          tool_name: string
+        }
+        Update: {
+          approval_id?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          resolved_at?: string | null
+          run_id?: string | null
+          status?: string
+          thread_id?: string
+          tool_input?: Json
+          tool_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_events_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "approval_events_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "runs"
+            referencedColumns: ["run_id"]
+          },
+          {
+            foreignKeyName: "approval_events_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           client_id: string
@@ -1558,6 +1619,7 @@ export type Database = {
           display_name: string | null
           memory_file_count: number
           open_todo_count: number
+          pending_approval_count: number
           user_email: string | null
         }
       }
