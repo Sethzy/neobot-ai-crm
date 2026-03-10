@@ -394,10 +394,12 @@
         { "field": "params.to.description", "tasklet": "Detailed: cannot mix email and text recipients", "sunder": "Minimal", "note": "Sunder should add the mixing constraint" },
         { "field": "params.subject", "tasklet": "Required for email, disallowed for others", "sunder": "Just 'Email subject'", "note": "Tasklet clarifies when subject is required vs disallowed" }
       ],
-      "status": "PAUSED",
+      "status": "DECIDED",
       "decision": {
-        "action": "PAUSED_PENDING_RESEND",
-        "rationale": "Stub tool — need to wire Resend for email delivery first. After that: copy Tasklet's description and all param descriptions verbatim, drop stub warning."
+        "action": "DEFERRED_TO_PR32a",
+        "rationale": "Stub tool — Resend integration is PR 32a (Phase 3). When building PR 32a: (1) wire Resend SDK, (2) align send_message tool description with Tasklet verbatim (copy full description + all param descriptions, drop stub warning), (3) also align reply_message (Tool 12), list_contact_methods (Tool 13), add_contact_method (Tool 14) descriptions with Tasklet at the same time.",
+        "v2_plan_ref": "PR 32a tasks PR32a-1 through PR32a-7",
+        "note_for_pr32a": "PR 32a already covers Resend SDK + tool implementation. ALSO align all 4 messaging tool descriptions (send_message, reply_message, list_contact_methods, add_contact_method) with Tasklet verbatim when building these tools."
       }
     },
     {
