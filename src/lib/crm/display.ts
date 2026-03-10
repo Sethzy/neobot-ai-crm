@@ -38,7 +38,7 @@ export const companyIndustryBadgeVariantMap = {
 
 /** Returns a safe badge variant for configured or default company industries. */
 export function getCompanyIndustryBadgeVariant(industry: string): BadgeVariant {
-  return companyIndustryBadgeVariantMap[industry] ?? "secondary";
+  return companyIndustryBadgeVariantMap[industry as keyof typeof companyIndustryBadgeVariantMap] ?? "secondary";
 }
 
 /** Badge variants for deal stages used in the linked deals table. */

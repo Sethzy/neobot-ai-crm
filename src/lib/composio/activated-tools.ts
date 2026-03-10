@@ -42,9 +42,10 @@ export async function loadActivatedConnectionTools(
       for (const rawTool of rawTools) {
         loadedTools[`${connection.id}__${rawTool.slug}`] = tool({
           description: rawTool.description ?? rawTool.slug,
-          inputSchema: jsonSchemaToZodSchema<z.ZodTypeAny>(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- bridge Zod v3 (composio) → v4
+          inputSchema: jsonSchemaToZodSchema(
             rawTool.inputParameters ?? EMPTY_TOOL_INPUT_SCHEMA,
-          ),
+          ) as any,
           execute: async (args) =>
             composio.tools.execute(rawTool.slug, {
               connectedAccountId: connection.composio_connected_account_id,

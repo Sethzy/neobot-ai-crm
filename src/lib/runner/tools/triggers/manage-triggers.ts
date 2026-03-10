@@ -15,7 +15,7 @@ import {
   DEFAULT_RSS_POLLING_INTERVAL_MINUTES,
   deriveRssCronExpression,
 } from "@/lib/triggers/rss-schedule";
-import { CRON_RUN_NUDGE, type TriggerSupabaseClient } from "@/lib/triggers/schemas";
+import { CRON_RUN_NUDGE, type TriggerSupabaseClient, type triggerTypeValues } from "@/lib/triggers/schemas";
 import { buildTriggerEventMessage } from "@/lib/triggers/trigger-event";
 import { runAgent } from "@/lib/runner/run-agent";
 import type { Database, Json } from "@/types/database";
@@ -305,7 +305,7 @@ export function createManageTriggersTool(
             role: "system",
             content: buildTriggerEventMessage({
               triggerId: trigger.id,
-              triggerType: trigger.trigger_type,
+              triggerType: trigger.trigger_type as (typeof triggerTypeValues)[number],
               triggerName: trigger.name,
               instructionPath: toModelPath(trigger.instruction_path),
               invocationMessage: trigger.invocation_message,

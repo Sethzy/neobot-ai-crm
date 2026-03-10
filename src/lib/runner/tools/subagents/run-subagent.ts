@@ -138,7 +138,8 @@ async function persistSubagentBlocks(
 
   for (const step of steps) {
     const toolResultMap = new Map(
-      (step.toolResults ?? []).flatMap((toolResult) => {
+      (step.toolResults ?? []).flatMap((raw) => {
+        const toolResult = raw as Record<string, unknown>;
         const toolCallId = typeof toolResult.toolCallId === "string"
           ? toolResult.toolCallId
           : null;
@@ -151,7 +152,8 @@ async function persistSubagentBlocks(
       }),
     );
 
-    for (const toolCall of step.toolCalls ?? []) {
+    for (const raw of step.toolCalls ?? []) {
+      const toolCall = raw as Record<string, unknown>;
       const toolCallId = typeof toolCall.toolCallId === "string"
         ? toolCall.toolCallId
         : null;

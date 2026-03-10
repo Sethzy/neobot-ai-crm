@@ -24,7 +24,7 @@ const CATEGORY_LABELS: Record<AutomationTemplate["category"], string> = {
   marketing: "Marketing",
 };
 
-const CATEGORIES = Object.keys(CATEGORY_LABELS);
+const CATEGORIES = Object.keys(CATEGORY_LABELS) as Array<AutomationTemplate["category"]>;
 
 interface ChatWelcomeProps {
   status: ChatStatus;
