@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sunder — Contact Detail (Full-Page) Mockup</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        background: 'hsl(0 0% 3.9%)',
+        foreground: 'hsl(0 0% 98%)',
+        card: 'hsl(0 0% 6%)',
+        'card-foreground': 'hsl(0 0% 98%)',
+        muted: 'hsl(0 0% 14.9%)',
+        'muted-foreground': 'hsl(0 0% 63.9%)',
+        border: 'hsl(0 0% 14.9%)',
+        primary: 'hsl(0 0% 98%)',
+        'primary-foreground': 'hsl(0 0% 9%)',
+        accent: 'hsl(0 0% 14.9%)',
+        destructive: 'hsl(0 84.2% 60.2%)',
+        ring: 'hsl(0 0% 83.1%)',
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
+  .tab-active { border-color: hsl(0 0% 98%); color: hsl(0 0% 98%); }
+  .tab-inactive { border-color: transparent; color: hsl(0 0% 63.9%); }
+  .tab-inactive:hover { color: hsl(0 0% 85%); }
+  .inline-edit:hover .edit-icon { opacity: 1; }
+  .edit-icon { opacity: 0; transition: opacity 150ms; }
+  .highlight-card:hover { background: hsl(0 0% 12%); }
+
+  /* Active view toggle */
+  .view-current { background: hsl(0 0% 14.9%); color: hsl(0 0% 98%); }
+  .view-other { color: hsl(0 0% 63.9%); }
+  .view-other:hover { color: hsl(0 0% 85%); }
+
+  /* Comparison panel */
+  .comparison-panel { display: none; }
+  .comparison-panel.active { display: block; }
+</style>
+</head>
+<body class="dark bg-background text-foreground min-h-screen">
+
+<!-- COMPARISON TOGGLE -->
+<div style="position:fixed;top:16px;right:16px;z-index:50;display:flex;gap:8px;">
+  <button onclick="showView('proposed')" id="btn-proposed" class="px-3 py-1.5 rounded-md text-xs font-medium view-current" style="border:1px solid hsl(0 0% 14.9%)">
+    Proposed: Full-Page Detail
+  </button>
+  <button onclick="showView('current')" id="btn-current" class="px-3 py-1.5 rounded-md text-xs font-medium view-other" style="border:1px solid hsl(0 0% 14.9%)">
+    Current: Drawer
+  </button>
+</div>
+
+<!-- ============================================ -->
+<!-- PROPOSED VIEW: Full-Page Contact Detail      -->
+<!-- ============================================ -->
+<div id="view-proposed" class="comparison-panel active">
+<div class="flex min-h-screen">
+
+  <!-- Sidebar (collapsed representation) -->
+  <aside class="w-14 border-r border-border flex flex-col items-center py-4 gap-4 shrink-0">
+    <div class="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">S</div>
+    <div class="flex-1 flex flex-col gap-3 mt-4">
+      <div class="w-8 h-8 rounded-md bg-muted/50 flex items-center justify-center">
+        <svg class="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+      </div>
+      <div class="w-8 h-8 rounded-md flex items-center justify-center" style="background:hsl(0 0% 14.9%)">
+        <svg class="w-4 h-4 text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </div>
+      <div class="w-8 h-8 rounded-md bg-muted/50 flex items-center justify-center">
+        <svg class="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="flex-1 max-w-5xl mx-auto px-6 py-6 space-y-8">
+
+    <!-- ===== HEADER / HIGHLIGHTS ===== -->
+    <div class="space-y-6">
+
+      <!-- Back nav + actions -->
+      <div class="flex items-center justify-between">
+        <a href="#" class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          Back to Contacts
+        </a>
+        <div class="flex items-center gap-2">
+          <button class="px-3 py-1.5 rounded-md text-xs border border-border text-muted-foreground hover:text-foreground transition-colors">
+            <svg class="w-3.5 h-3.5 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            History
+          </button>
+          <button class="px-3 py-1.5 rounded-md text-xs bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors">
+            Delete
+          </button>
+        </div>
+      </div>
+
+      <!-- Name (editable inline) -->
+      <div class="inline-edit group">
+        <h1 class="text-2xl font-semibold tracking-tight flex items-center gap-2">
+          Sarah Chen
+          <svg class="w-4 h-4 text-muted-foreground edit-icon cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+        </h1>
+      </div>
+
+      <!-- Company card -->
+      <div class="highlight-card rounded-lg border border-border bg-muted/30 p-3 cursor-pointer transition-colors max-w-md group">
+        <div class="flex items-start justify-between gap-3">
+          <div class="space-y-1">
+            <p class="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+              Company
+            </p>
+            <span class="text-sm text-foreground group-hover:underline">PropNex Realty Pte Ltd</span>
+          </div>
+          <svg class="w-4 h-4 text-muted-foreground edit-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+        </div>
+      </div>
+
+      <!-- Highlight fields: 4-col grid -->
+      <div class="grid gap-4 grid-cols-2 xl:grid-cols-4">
+        <!-- Email -->
+        <div class="inline-edit group space-y-1 rounded-lg border border-border p-3 highlight-card transition-colors cursor-pointer">
+          <p class="text-xs uppercase tracking-wide text-muted-foreground">Email</p>
+          <p class="text-sm flex items-center gap-2">
+            sarah.chen@propnex.com
+            <svg class="w-3.5 h-3.5 text-muted-foreground edit-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+          </p>
+        </div>
+        <!-- Phone -->
+        <div class="inline-edit group space-y-1 rounded-lg border border-border p-3 highlight-card transition-colors cursor-pointer">
+          <p class="text-xs uppercase tracking-wide text-muted-foreground">Phone</p>
+          <p class="text-sm flex items-center gap-2">
+            +65 9123 4567
+            <svg class="w-3.5 h-3.5 text-muted-foreground edit-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+          </p>
+        </div>
+        <!-- Status -->
+        <div class="inline-edit group space-y-1 rounded-lg border border-border p-3 highlight-card transition-colors cursor-pointer">
+          <p class="text-xs uppercase tracking-wide text-muted-foreground">Status</p>
+          <p class="text-sm flex items-center gap-2">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              Active
+            </span>
+            <svg class="w-3.5 h-3.5 text-muted-foreground edit-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+          </p>
+        </div>
+        <!-- Next Interaction -->
+        <div class="inline-edit group space-y-1 rounded-lg border border-border p-3 highlight-card transition-colors cursor-pointer">
+          <p class="text-xs uppercase tracking-wide text-muted-foreground">Next Interaction</p>
+          <p class="text-sm flex items-center gap-2">
+            <span class="text-amber-400">Mar 15 &mdash; Follow-up call</span>
+            <svg class="w-3.5 h-3.5 text-muted-foreground edit-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TABS ===== -->
+    <div class="space-y-4">
+      <!-- Tab bar -->
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <nav class="flex items-center gap-4 text-sm" role="tablist">
+          <button onclick="switchTab('notes')" id="tab-notes" class="tab-active border-b-2 pb-1 px-0 font-medium transition-colors" role="tab">Notes</button>
+          <button onclick="switchTab('activities')" id="tab-activities" class="tab-inactive border-b-2 pb-1 px-0 font-medium transition-colors" role="tab">Activities</button>
+          <button onclick="switchTab('deals')" id="tab-deals" class="tab-inactive border-b-2 pb-1 px-0 font-medium transition-colors" role="tab">Deals</button>
+          <button onclick="switchTab('tasks')" id="tab-tasks" class="tab-inactive border-b-2 pb-1 px-0 font-medium transition-colors" role="tab">Tasks</button>
+        </nav>
+        <button id="section-action" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs bg-foreground text-background font-medium hover:bg-foreground/90 transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          <span id="action-label">Add Note</span>
+        </button>
+      </div>
+
+      <!-- Tab content: Notes -->
+      <div id="panel-notes" class="tab-panel">
+        <div class="space-y-3">
+          <!-- Note 1 -->
+          <div class="rounded-lg border border-border p-4 space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-bold text-white">Y</div>
+                <span class="text-sm font-medium">You</span>
+                <span class="text-xs text-muted-foreground">2 hours ago</span>
+              </div>
+              <button class="text-muted-foreground hover:text-foreground">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/></svg>
+              </button>
+            </div>
+            <p class="text-sm text-foreground/90">Called Sarah regarding the Bishan St 22 unit. She's interested but wants to view again this weekend. Mentioned budget flexibility up to $1.85M. Husband will join the second viewing.</p>
+          </div>
+          <!-- Note 2 -->
+          <div class="rounded-lg border border-border p-4 space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded-full bg-violet-600 flex items-center justify-center text-[10px] font-bold text-white">A</div>
+                <span class="text-sm font-medium">Agent</span>
+                <span class="text-xs text-muted-foreground">Yesterday</span>
+              </div>
+            </div>
+            <p class="text-sm text-foreground/90">Auto-generated briefing: Sarah viewed 3 properties last month. Her search criteria: 3-bed condo near Bishan MRT, $1.5-1.8M budget. Pre-approved for $1.6M loan from DBS.</p>
+          </div>
+          <!-- Note 3 -->
+          <div class="rounded-lg border border-border p-4 space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-bold text-white">Y</div>
+                <span class="text-sm font-medium">You</span>
+                <span class="text-xs text-muted-foreground">3 days ago</span>
+              </div>
+            </div>
+            <p class="text-sm text-foreground/90">Initial meeting at office. Sarah is relocating from Toa Payoh, wants to upgrade. Two kids (primary school age). Prefers high floor with unblocked view.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab content: Activities -->
+      <div id="panel-activities" class="tab-panel hidden">
+        <div class="space-y-3">
+          <div class="flex items-start gap-3 rounded-lg border border-border p-4">
+            <div class="w-8 h-8 rounded-full bg-emerald-600/20 flex items-center justify-center shrink-0 mt-0.5">
+              <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+            </div>
+            <div class="flex-1 space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium">Phone Call</span>
+                <span class="text-xs text-muted-foreground">Today, 10:30 AM</span>
+              </div>
+              <p class="text-sm text-muted-foreground">Discussed Bishan viewing schedule. Confirmed Saturday 2 PM.</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3 rounded-lg border border-border p-4">
+            <div class="w-8 h-8 rounded-full bg-blue-600/20 flex items-center justify-center shrink-0 mt-0.5">
+              <svg class="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            </div>
+            <div class="flex-1 space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium">Email Sent</span>
+                <span class="text-xs text-muted-foreground">Yesterday, 3:15 PM</span>
+              </div>
+              <p class="text-sm text-muted-foreground">Sent property brochure for Bishan St 22 #18-05</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3 rounded-lg border border-border p-4">
+            <div class="w-8 h-8 rounded-full bg-amber-600/20 flex items-center justify-center shrink-0 mt-0.5">
+              <svg class="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </div>
+            <div class="flex-1 space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium">Property Viewing</span>
+                <span class="text-xs text-muted-foreground">Mar 5, 11:00 AM</span>
+              </div>
+              <p class="text-sm text-muted-foreground">Viewed 3-bed at Bishan St 22. Positive reaction, requested second viewing.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab content: Deals -->
+      <div id="panel-deals" class="tab-panel hidden">
+        <div class="space-y-3">
+          <div class="rounded-lg border border-border p-4 space-y-2 cursor-pointer highlight-card transition-colors">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium">Bishan St 22 #18-05</span>
+              <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-400">Viewing</span>
+            </div>
+            <div class="flex items-center gap-4 text-xs text-muted-foreground">
+              <span>$1,750,000</span>
+              <span>60% probability</span>
+              <span>Close: Apr 2026</span>
+            </div>
+          </div>
+          <div class="rounded-lg border border-border p-4 space-y-2 cursor-pointer highlight-card transition-colors">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium">Toa Payoh Lor 1 #12-08</span>
+              <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">Lost</span>
+            </div>
+            <div class="flex items-center gap-4 text-xs text-muted-foreground">
+              <span>$1,250,000</span>
+              <span>0% probability</span>
+              <span>Closed: Feb 2026</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab content: Tasks -->
+      <div id="panel-tasks" class="tab-panel hidden">
+        <div class="space-y-3">
+          <div class="flex items-center gap-3 rounded-lg border border-border p-4">
+            <input type="checkbox" class="w-4 h-4 rounded border-border accent-foreground">
+            <div class="flex-1">
+              <p class="text-sm font-medium">Schedule second viewing at Bishan St 22</p>
+              <p class="text-xs text-muted-foreground">Due: Mar 14 &middot; High priority</p>
+            </div>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-amber-500/20 text-amber-400">Pending</span>
+          </div>
+          <div class="flex items-center gap-3 rounded-lg border border-border p-4">
+            <input type="checkbox" class="w-4 h-4 rounded border-border accent-foreground" checked>
+            <div class="flex-1">
+              <p class="text-sm font-medium line-through text-muted-foreground">Send property brochure</p>
+              <p class="text-xs text-muted-foreground">Completed: Mar 9</p>
+            </div>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-400">Done</span>
+          </div>
+          <div class="flex items-center gap-3 rounded-lg border border-border p-4">
+            <input type="checkbox" class="w-4 h-4 rounded border-border accent-foreground">
+            <div class="flex-1">
+              <p class="text-sm font-medium">Prepare comparative market analysis</p>
+              <p class="text-xs text-muted-foreground">Due: Mar 20 &middot; Medium priority</p>
+            </div>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-amber-500/20 text-amber-400">Pending</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== DETAIL FIELDS ===== -->
+    <div class="space-y-6">
+      <div class="space-y-3">
+        <h2 class="text-sm font-semibold">Details</h2>
+        <div class="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+          <!-- Field rows -->
+          <div class="inline-edit group space-y-1 cursor-pointer">
+            <p class="text-xs text-muted-foreground">Display Name</p>
+            <p class="text-sm flex items-center gap-2">Sarah Chen <svg class="w-3 h-3 text-muted-foreground edit-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></p>
+          </div>
+          <div class="inline-edit group space-y-1 cursor-pointer">
+            <p class="text-xs text-muted-foreground">First Name</p>
+            <p class="text-sm flex items-center gap-2">Sarah <svg class="w-3 h-3 text-muted-foreground edit-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></p>
+          </div>
+          <div class="inline-edit group space-y-1 cursor-pointer">
+            <p class="text-xs text-muted-foreground">Last Name</p>
+            <p class="text-sm flex items-center gap-2">Chen <svg class="w-3 h-3 text-muted-foreground edit-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></p>
+          </div>
+          <div class="inline-edit group space-y-1 cursor-pointer">
+            <p class="text-xs text-muted-foreground">Contact Type</p>
+            <p class="text-sm flex items-center gap-2">
+              <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-500"></span>Buyer</span>
+              <svg class="w-3 h-3 text-muted-foreground edit-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+            </p>
+          </div>
+          <div class="inline-edit group space-y-1 cursor-pointer">
+            <p class="text-xs text-muted-foreground">Lifecycle Stage</p>
+            <p class="text-sm flex items-center gap-2">
+              <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span>Opportunity</span>
+              <svg class="w-3 h-3 text-muted-foreground edit-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+            </p>
+          </div>
+          <div class="inline-edit group space-y-1 cursor-pointer">
+            <p class="text-xs text-muted-foreground">Source</p>
+            <p class="text-sm flex items-center gap-2">Referral <svg class="w-3 h-3 text-muted-foreground edit-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></p>
+          </div>
+          <div class="inline-edit group space-y-1 cursor-pointer sm:col-span-2 xl:col-span-3">
+            <p class="text-xs text-muted-foreground">Notes</p>
+            <p class="text-sm text-foreground/90 flex items-start gap-2">
+              Relocating from Toa Payoh. Two kids in primary school. Prefers high floor with unblocked view. Budget flexible up to $1.85M.
+              <svg class="w-3 h-3 text-muted-foreground edit-icon shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tags -->
+      <div class="space-y-3">
+        <h2 class="text-sm font-semibold">Tags</h2>
+        <div class="flex flex-wrap gap-2">
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs bg-muted text-foreground">
+            Buyer
+            <svg class="w-3 h-3 text-muted-foreground hover:text-foreground cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs bg-muted text-foreground">
+            High Value
+            <svg class="w-3 h-3 text-muted-foreground hover:text-foreground cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs bg-muted text-foreground">
+            Bishan Area
+            <svg class="w-3 h-3 text-muted-foreground hover:text-foreground cursor-pointer" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </span>
+          <button class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors">
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Add tag
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+</div>
+
+<!-- ============================================ -->
+<!-- CURRENT VIEW: Drawer (simplified comparison) -->
+<!-- ============================================ -->
+<div id="view-current" class="comparison-panel">
+<div class="flex min-h-screen">
+
+  <!-- Sidebar -->
+  <aside class="w-14 border-r border-border flex flex-col items-center py-4 gap-4 shrink-0">
+    <div class="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">S</div>
+  </aside>
+
+  <!-- Main content: contacts list behind drawer -->
+  <main class="flex-1 relative">
+    <!-- Simulated table behind -->
+    <div class="px-6 py-6 opacity-40">
+      <h1 class="text-lg font-semibold mb-4">Contacts</h1>
+      <div class="space-y-2">
+        <div class="h-10 rounded bg-muted/30 border border-border"></div>
+        <div class="h-10 rounded bg-muted/50 border border-foreground/20"></div>
+        <div class="h-10 rounded bg-muted/30 border border-border"></div>
+        <div class="h-10 rounded bg-muted/30 border border-border"></div>
+        <div class="h-10 rounded bg-muted/30 border border-border"></div>
+        <div class="h-10 rounded bg-muted/30 border border-border"></div>
+      </div>
+    </div>
+
+    <!-- Drawer overlay -->
+    <div class="absolute inset-0 bg-black/40"></div>
+
+    <!-- Drawer -->
+    <div class="absolute top-0 right-0 bottom-0 w-[420px] bg-card border-l border-border overflow-y-auto">
+      <div class="p-5 space-y-5">
+        <!-- Header -->
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Sarah Chen</h2>
+          <button class="text-muted-foreground hover:text-foreground">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-500/20 text-blue-400">Buyer</span>
+
+        <!-- Fields (cramped in 420px) -->
+        <div class="space-y-3 text-sm">
+          <div class="space-y-1">
+            <label class="text-xs text-muted-foreground">Phone</label>
+            <p>+65 9123 4567</p>
+          </div>
+          <div class="space-y-1">
+            <label class="text-xs text-muted-foreground">Email</label>
+            <p>sarah.chen@propnex.com</p>
+          </div>
+          <div class="space-y-1">
+            <label class="text-xs text-muted-foreground">Company</label>
+            <p>PropNex Realty</p>
+          </div>
+          <div class="space-y-1">
+            <label class="text-xs text-muted-foreground">Type</label>
+            <p>Buyer</p>
+          </div>
+          <div class="space-y-1">
+            <label class="text-xs text-muted-foreground">Notes</label>
+            <p class="text-foreground/80">Relocating from Toa Payoh. Two kids in primary school...</p>
+          </div>
+        </div>
+
+        <hr class="border-border">
+
+        <!-- Deals (squished) -->
+        <div class="space-y-2">
+          <h3 class="text-xs font-semibold uppercase text-muted-foreground">Linked Deals</h3>
+          <div class="text-sm space-y-2">
+            <div class="p-2 rounded border border-border">
+              <p class="font-medium text-xs">Bishan St 22 #18-05</p>
+              <p class="text-xs text-muted-foreground">$1.75M &middot; Viewing</p>
+            </div>
+          </div>
+        </div>
+
+        <hr class="border-border">
+
+        <!-- Timeline (minimal) -->
+        <div class="space-y-2">
+          <h3 class="text-xs font-semibold uppercase text-muted-foreground">Activity</h3>
+          <div class="text-xs space-y-2 text-muted-foreground">
+            <p>Phone call &middot; Today 10:30 AM</p>
+            <p>Email sent &middot; Yesterday 3:15 PM</p>
+            <p>Viewing &middot; Mar 5</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Annotation -->
+<div class="fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-muted border border-border text-xs text-muted-foreground max-w-md text-center">
+  Current: 420px drawer. Limited space for notes, activities, deals, tasks. No tabs. Everything stacked vertically.
+</div>
+</div>
+
+<script>
+function switchTab(tabId) {
+  const allTabs = ['notes', 'activities', 'deals', 'tasks'];
+  const actionLabels = {
+    notes: 'Add Note',
+    activities: 'Log Activity',
+    deals: 'Link Deal',
+    tasks: 'Add Task',
+  };
+  allTabs.forEach(id => {
+    document.getElementById('tab-' + id).className = id === tabId
+      ? 'tab-active border-b-2 pb-1 px-0 font-medium transition-colors'
+      : 'tab-inactive border-b-2 pb-1 px-0 font-medium transition-colors';
+    const panel = document.getElementById('panel-' + id);
+    if (panel) panel.classList.toggle('hidden', id !== tabId);
+  });
+  document.getElementById('action-label').textContent = actionLabels[tabId] || 'Add';
+}
+
+function showView(viewId) {
+  document.getElementById('view-proposed').classList.toggle('active', viewId === 'proposed');
+  document.getElementById('view-current').classList.toggle('active', viewId === 'current');
+  document.getElementById('btn-proposed').className = viewId === 'proposed'
+    ? 'px-3 py-1.5 rounded-md text-xs font-medium view-current'
+    : 'px-3 py-1.5 rounded-md text-xs font-medium view-other';
+  document.getElementById('btn-current').className = viewId === 'current'
+    ? 'px-3 py-1.5 rounded-md text-xs font-medium view-current'
+    : 'px-3 py-1.5 rounded-md text-xs font-medium view-other';
+  document.getElementById('btn-proposed').style.border = '1px solid hsl(0 0% 14.9%)';
+  document.getElementById('btn-current').style.border = '1px solid hsl(0 0% 14.9%)';
+}
+</script>
+
+</body>
+</html>
