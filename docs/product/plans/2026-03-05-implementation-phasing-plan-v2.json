@@ -2,15 +2,15 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-10 (reorg)",
+    "updated": "2026-03-11 (billing pulled forward)",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
     "totalPhases": 5,
-    "estimatedPRs": 37,
-    "keptPRs": 23,
+    "estimatedPRs": 38,
+    "keptPRs": 25,
     "cutPRs": 19,
-    "donePRs": 32,
+    "donePRs": 34,
     "statusOptions": [
       "pending",
       "in_progress",
@@ -18,7 +18,7 @@
       "blocked",
       "cut"
     ],
-    "scopeDecision": "Simplified to: AI CRM + autopilot + connections + email + Telegram + agent-generated views. Cut skills system, sandbox, scraping lanes, scaling infra, voice, eval, model routing, structured AI input. Restored CRM configurability (PR 15a). Agent-generated views (PR 42a) moved to Phase 3 using catalog-based JSON spec approach (json-render pattern) \u2014 no sandbox needed. Sandboxed code-gen views (Tasklet instant-app pattern) deferred to PR 42b.",
+    "scopeDecision": "Simplified to: AI CRM + autopilot + connections + email + Telegram + agent-generated views. Cut skills system, sandbox, scraping lanes, scaling infra, voice, eval, model routing, structured AI input. Restored CRM configurability (PR 15a). Agent-generated views (PR 42a) moved to Phase 3 using catalog-based JSON spec approach (json-render pattern) \u2014 no sandbox needed. Sandboxed code-gen views (Tasklet instant-app pattern) deferred to PR 42b. Added Stripe billing as a Phase 4 scope exception using hosted Checkout + Customer Portal + webhook sync onto the clients table.",
     "changelog": [
       "2026-03-05: v2 created \u2014 scope cut from 48 PRs to 30 (13 done + 17 to build). Reordered into new phases. Original plan preserved at 2026-03-01-implementation-phasing-plan.json.",
       "2026-03-05: Removed PR 19a (Agent tasks). (Superseded by entry 6 \u2014 reverted to dedicated agent_todo table.)",
@@ -40,7 +40,9 @@
       "2026-03-09: Added PR 22e (Absolute agent paths \u2014 /agent/ prefix). Model-boundary-only refactor: all model-facing paths become absolute /agent/ paths. Internal storage, DB, frontend, API routes unchanged. Thin toStoragePath/toModelPath conversion at tool boundary (~9 files). Validated with Tasklet developer. Design doc: docs/designs/absolute-agent-paths.md.",
       "2026-03-10: Added PR 26a (System skill files \u2014 bundled fallback). Verbatim Tasklet creating-connections skill + direct-api-connection guide, stored as static .md files in codebase, served via read_file fallback for skills/system/ paths. No per-client seeding, no skill_registry. System prompt + tool descriptions already reference these paths (wired in PRs 25-26). SKILL-05 pattern adapted for system skills: bundled in code instead of per-client storage.",
       "2026-03-10: PR 33 approval scope clarified after implementation review. Mechanical gate now targets destructive actions plus connection tool activation: CRM deletes, delete_connection, manage_activated_tools_for_connections, and the delete action inside manage_active_triggers. Non-destructive CRM writes, links, and unlinks stay auto-run. Future outbound send tools adopt the same gate when those tool surfaces ship.",
-      "2026-03-10 (reorg): Added 5 previously untracked Phase 1 entries: p1-crm-tool-consolidation, p1-crm-ux, p1-chat-sdk-convergence, p1-chatbot-zero-drift (all done), p1-whatsapp-spike (cut). Added note to PR 26 about sub-PRs 26b-26e."
+      "2026-03-10 (reorg): Added 5 previously untracked Phase 1 entries: p1-crm-tool-consolidation, p1-crm-ux, p1-chat-sdk-convergence, p1-chatbot-zero-drift (all done), p1-whatsapp-spike (cut). Added note to PR 26 about sub-PRs 26b-26e.",
+      "2026-03-10: Added PR 8a (Google Maps drive-time tool) as a narrow Phase 1 scope exception. Rationale: Chief of Staff transit automations need real drive times, direct_api is still a v1 stub, and a small built-in read-only tool is the minimal path.",
+      "2026-03-11: Pulled FOUND-07 forward into Phase 4 as PR 38b (Stripe billing + settings surface). Implementation uses hosted Stripe Checkout, Stripe Customer Portal, and webhook-driven sync onto the clients table, following current Stripe webhook guidance instead of the earlier two-event draft."
     ]
   },
   "phases": [
@@ -469,6 +471,41 @@
           ],
           "testCriteria": [
             "Ask agent 'search for recent home sales in Austin TX' \u2192 returns real results"
+          ]
+        },
+        {
+          "pr": "8a",
+          "title": "Google Maps drive-time tool",
+          "status": "done",
+          "decisions": [
+            "SERVICE-03",
+            "TOOL-03"
+          ],
+          "note": "Narrow Phase 1 scope exception. Small built-in read-only tool for single origin \u2192 destination drive-time lookups via Google Maps Routes API. Chosen over broadening direct_api because the current v1 connection surface still returns a manual-setup stub for direct_api.",
+          "tasks": [
+            {
+              "id": "PR8a-1",
+              "task": "Implement calculate_drive_time tool using Google Maps Routes API with traffic-aware driving",
+              "done": true
+            },
+            {
+              "id": "PR8a-2",
+              "task": "Input: origin, destination, optional departure_time. Output: duration minutes/display, distance km/display, and traffic-aware metadata",
+              "done": true
+            },
+            {
+              "id": "PR8a-3",
+              "task": "Register tool in createWebTools and document GOOGLE_MAPS_API_KEY in .env.example",
+              "done": true
+            },
+            {
+              "id": "PR8a-4",
+              "task": "Add unit tests for request shape, parsing, input validation, missing key, API errors, timeouts, and web barrel registration",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Ask agent 'how long does it take to drive from Marina Bay Sands to Changi Airport right now?' \u2192 returns a real Google Maps drive-time estimate"
           ]
         },
         {
@@ -1757,7 +1794,7 @@
         {
           "pr": "42a",
           "title": "Agent-generated views (inline, json-render)",
-          "status": "in_progress",
+          "status": "deferred",
           "simplified": true,
           "decisions": [
             "UX-10"
@@ -1867,10 +1904,10 @@
     },
     {
       "phase": 4,
-      "title": "Safety + Polish + Onboarding",
+      "title": "Safety + Polish + Onboarding + Billing",
       "status": "pending",
-      "goal": "Approval gates for external actions. Mission Control dashboard. Onboarding flow.",
-      "demoMoment": "Agent asks permission before sending email. New user onboards in <10 min. Mission Control shows agent status.",
+      "goal": "Approval gates for external actions. Mission Control dashboard. Onboarding flow. Stripe-hosted billing for paid plans.",
+      "demoMoment": "Agent asks permission before sending email. New user onboards in <10 min. User can upgrade in /pricing and manage billing from /settings.",
       "prs": [
         {
           "pr": 33,
@@ -2058,6 +2095,53 @@
             "Agent demonstrates value during onboarding chat (creates a contact, sets a task, or drafts something useful)",
             "Second session loads normally with personalized SOUL.md \u2014 bootstrap does not re-trigger",
             "New user goes through onboarding, first useful output in <10 min"
+          ]
+        },
+        {
+          "pr": "38b",
+          "title": "Stripe billing + settings surface",
+          "status": "done",
+          "decisions": [
+            "FOUND-07"
+          ],
+          "note": "Scope exception pulled forward on 2026-03-11. Uses hosted Stripe Checkout and Customer Portal, but keeps Sunder's simpler data model by mirroring current billing state onto the clients row instead of adopting the full historical products/prices/subscriptions schema from the old nextjs-subscription-payments starter.",
+          "tasks": [
+            {
+              "id": "PR38b-1",
+              "task": "Migration: add stripe_customer_id, stripe_subscription_id, stripe_product_id, plan_name, and subscription_status to clients",
+              "done": true
+            },
+            {
+              "id": "PR38b-2",
+              "task": "Create server-side Stripe helpers for Checkout, Customer Portal, and client-row billing state sync",
+              "done": true
+            },
+            {
+              "id": "PR38b-3",
+              "task": "Webhook endpoint follows Stripe's current hosted subscription guidance: checkout.session.completed, invoice.paid, invoice.payment_failed, customer.subscription.updated, customer.subscription.deleted",
+              "done": true
+            },
+            {
+              "id": "PR38b-4",
+              "task": "Pricing page renders Free, Pro, and Max from a local plan catalog plus live Stripe paid-plan configuration",
+              "done": true
+            },
+            {
+              "id": "PR38b-5",
+              "task": "Settings page exposes current billing state and a Stripe Customer Portal entry point",
+              "done": true
+            },
+            {
+              "id": "PR38b-6",
+              "task": "Document Stripe setup, webhook forwarding, and dashboard portal configuration in source-of-truth docs",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Free user can visit /pricing and start Pro or Max via hosted Stripe Checkout",
+            "Successful checkout syncs the client row and redirects back to /settings with a billing success state",
+            "Existing paid user sees billing details in /settings and can open the Stripe Customer Portal",
+            "Stripe webhook delivery keeps client billing state synced even if the user never returns from Checkout"
           ]
         }
       ]

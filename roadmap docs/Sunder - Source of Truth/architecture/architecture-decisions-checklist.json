@@ -56,8 +56,8 @@
       "category": "1-foundational-infrastructure",
       "description": "Billing via Stripe with subscription management",
       "approved": true,
-      "decision": "Stripe confirmed as billing provider. Implementation deferred — v1 is pilot/invite-only with no self-serve billing.",
-      "reasoning": "Stripe is the boring default for SaaS billing. No reason to evaluate alternatives (Lemon Squeezy, Paddle) — merchant-of-record benefits not needed. Fintool serves enterprise (likely annual contracts, not self-serve). Tasklet is platform-level billing (opaque). YAGNI: building Stripe integration before having paying users is premature. Ship billing when transitioning from pilot to paid. Schema should reserve a subscription_status column on the client/workspace table so RLS can gate features by tier when billing ships."
+      "decision": "Stripe confirmed as billing provider and pulled into active scope. v1 billing uses hosted Stripe Checkout, Stripe Customer Portal, and webhook-driven synchronization of current billing state onto the clients table.",
+      "reasoning": "Stripe remains the boring default for SaaS billing. The implementation now follows the official Stripe hosted-subscription guidance and Vercel's starter patterns where they fit: Checkout starts new paid subscriptions, the Customer Portal is the canonical surface for upgrades/downgrades/cancellations, and webhooks remain the source of truth for provisioning and lifecycle sync. Sunder deliberately keeps the data model simpler than the historical nextjs-subscription-payments starter by mirroring only the current customer/subscription/product/status fields onto clients instead of introducing separate products/prices/subscriptions tables. This preserves YAGNI for a single-user workspace product while still keeping billing robust, self-serve, and compatible with future tier gating."
     },
     {
       "id": "LLM-01",
