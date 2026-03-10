@@ -1,23 +1,38 @@
 /**
- * Tests for Stripe billing sync helpers.
+ * Tests for Stripe billing sync helpers and server-side billing entry points.
  * @module lib/stripe/stripe.test
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  BillingFlowError,
+  billingErrorCodes,
+} from "./billing-errors";
+
 const {
+  mockBillingPortalCreate,
+  mockCheckoutCreate,
+  mockCheckoutRetrieve,
   mockCreateAdminClient,
   mockCreateClient,
+  mockCustomersCreate,
+  mockPricesRetrieve,
   mockRedirect,
   mockResolveClientId,
+  mockSubscriptionsList,
   mockSubscriptionsRetrieve,
-  mockCheckoutRetrieve,
 } = vi.hoisted(() => ({
+  mockBillingPortalCreate: vi.fn(),
+  mockCheckoutCreate: vi.fn(),
+  mockCheckoutRetrieve: vi.fn(),
   mockCreateAdminClient: vi.fn(),
   mockCreateClient: vi.fn(),
+  mockCustomersCreate: vi.fn(),
+  mockPricesRetrieve: vi.fn(),
   mockRedirect: vi.fn(),
   mockResolveClientId: vi.fn(),
+  mockSubscriptionsList: vi.fn(),
   mockSubscriptionsRetrieve: vi.fn(),
-  mockCheckoutRetrieve: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({
@@ -40,13 +55,26 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("stripe", () => {
   const MockStripe = function MockStripe() {
     return {
-      subscriptions: {
-        retrieve: (...args: unknown[]) => mockSubscriptionsRetrieve(...args),
+      billingPortal: {
+        sessions: {
+          create: (...args: unknown[]) => mockBillingPortalCreate(...args),
+        },
       },
       checkout: {
         sessions: {
+          create: (...args: unknown[]) => mockCheckoutCreate(...args),
           retrieve: (...args: unknown[]) => mockCheckoutRetrieve(...args),
         },
+      },
+      customers: {
+        create: (...args: unknown[]) => mockCustomersCreate(...args),
+      },
+      prices: {
+        retrieve: (...args: unknown[]) => mockPricesRetrieve(...args),
+      },
+      subscriptions: {
+        list: (...args: unknown[]) => mockSubscriptionsList(...args),
+        retrieve: (...args: unknown[]) => mockSubscriptionsRetrieve(...args),
       },
     };
   };
@@ -101,11 +129,71 @@ function createMockAdminClient(args: {
   };
 }
 
+function createMockSessionClient(args: {
+  client: MockClientRow;
+  email?: string | null;
+  userId?: string;
+}) {
+  return {
+    auth: {
+      getUser: async () => ({
+        data: {
+          user: {
+            email: args.email ?? "seth@example.com",
+            id: args.userId ?? "user-1",
+          },
+        },
+        error: null,
+      }),
+    },
+    from: () => ({
+      select: () => ({
+        eq: (_column: string, value: string) => ({
+          single: async () => ({
+            data: value === args.client.client_id ? args.client : null,
+            error:
+              value === args.client.client_id
+                ? null
+                : { message: "missing client" },
+          }),
+        }),
+      }),
+    }),
+  };
+}
+
+function createConfiguredStripePrice(args: {
+  planName: "Pro" | "Max";
+  priceId: string;
+  productId: string;
+  unitAmount: number;
+}) {
+  return {
+    active: true,
+    currency: "sgd",
+    id: args.priceId,
+    product: {
+      active: true,
+      id: args.productId,
+      name: args.planName,
+    },
+    recurring: {
+      interval: "month",
+    },
+    unit_amount: args.unitAmount,
+  };
+}
+
 describe("lib/stripe/stripe", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
+    process.env.NEXT_PUBLIC_APP_URL = "https://app.trysunder.com";
     process.env.STRIPE_SECRET_KEY = "sk_test_123";
+    process.env.STRIPE_PRO_PRICE_ID = "price_pro";
+    process.env.STRIPE_MAX_PRICE_ID = "price_max";
+    mockResolveClientId.mockResolvedValue("client-1");
+    mockSubscriptionsList.mockResolvedValue({ data: [] });
   });
 
   it("syncs an active subscription onto the matching client row", async () => {
@@ -134,6 +222,7 @@ describe("lib/stripe/stripe", () => {
         data: [
           {
             price: {
+              id: "price_pro",
               product: {
                 active: true,
                 id: "prod_pro",
@@ -243,6 +332,7 @@ describe("lib/stripe/stripe", () => {
         data: [
           {
             price: {
+              id: "price_max",
               product: {
                 active: true,
                 id: "prod_max",
@@ -277,5 +367,199 @@ describe("lib/stripe/stripe", () => {
         },
       },
     ]);
+  });
+
+  it("blocks duplicate checkout when Stripe already has a live subscription", async () => {
+    const updates: Array<{ clientId: string; update: Record<string, unknown> }> = [];
+    const client = {
+      client_id: "client-1",
+      display_name: "Seth",
+      plan_name: null,
+      stripe_customer_id: "cus_123",
+      stripe_product_id: null,
+      stripe_subscription_id: null,
+      subscription_status: null,
+    } satisfies MockClientRow;
+
+    mockCreateClient.mockResolvedValue(createMockSessionClient({ client }));
+    mockCreateAdminClient.mockResolvedValue(
+      createMockAdminClient({
+        customerLookup: client,
+        metadataLookup: client,
+        updates,
+      }),
+    );
+    mockPricesRetrieve.mockResolvedValue(
+      createConfiguredStripePrice({
+        planName: "Pro",
+        priceId: "price_pro",
+        productId: "prod_pro",
+        unitAmount: 2500,
+      }),
+    );
+    mockSubscriptionsList.mockResolvedValue({
+      data: [{ id: "sub_live", status: "active" }],
+    });
+    mockSubscriptionsRetrieve.mockResolvedValue({
+      customer: "cus_123",
+      id: "sub_live",
+      items: {
+        data: [
+          {
+            price: {
+              id: "price_pro",
+              product: {
+                active: true,
+                id: "prod_pro",
+                name: "Pro",
+              },
+            },
+          },
+        ],
+      },
+      metadata: {
+        clientId: "client-1",
+      },
+      status: "active",
+    });
+
+    const { createCheckoutSession } = await import("./stripe");
+
+    await expect(createCheckoutSession("price_pro")).rejects.toMatchObject({
+      code: billingErrorCodes.alreadySubscribed,
+    });
+    expect(mockSubscriptionsList).toHaveBeenCalledWith({
+      customer: "cus_123",
+      limit: 10,
+      status: "all",
+    });
+    expect(mockCheckoutCreate).not.toHaveBeenCalled();
+    expect(updates).toEqual([
+      {
+        clientId: "client-1",
+        update: {
+          plan_name: "Pro",
+          stripe_customer_id: "cus_123",
+          stripe_product_id: "prod_pro",
+          stripe_subscription_id: "sub_live",
+          subscription_status: "active",
+        },
+      },
+    ]);
+  });
+
+  it("creates a hosted checkout session for a configured paid plan", async () => {
+    const updates: Array<{ clientId: string; update: Record<string, unknown> }> = [];
+    const client = {
+      client_id: "client-1",
+      display_name: "Seth",
+      plan_name: null,
+      stripe_customer_id: null,
+      stripe_product_id: null,
+      stripe_subscription_id: null,
+      subscription_status: null,
+    } satisfies MockClientRow;
+
+    mockCreateClient.mockResolvedValue(createMockSessionClient({ client }));
+    mockCreateAdminClient.mockResolvedValue(
+      createMockAdminClient({
+        customerLookup: null,
+        metadataLookup: client,
+        updates,
+      }),
+    );
+    mockPricesRetrieve.mockResolvedValue(
+      createConfiguredStripePrice({
+        planName: "Max",
+        priceId: "price_max",
+        productId: "prod_max",
+        unitAmount: 9900,
+      }),
+    );
+    mockCustomersCreate.mockResolvedValue({ id: "cus_new" });
+    mockCheckoutCreate.mockResolvedValue({
+      url: "https://checkout.stripe.com/c/pay_123",
+    });
+
+    const { createCheckoutSession } = await import("./stripe");
+
+    await expect(createCheckoutSession("price_max")).resolves.toBe(
+      "https://checkout.stripe.com/c/pay_123",
+    );
+    expect(mockCustomersCreate).toHaveBeenCalledWith({
+      email: "seth@example.com",
+      metadata: {
+        clientId: "client-1",
+      },
+      name: "Seth",
+    });
+    expect(mockCheckoutCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cancel_url: "https://app.trysunder.com/pricing?billing=canceled",
+        client_reference_id: "client-1",
+        customer: "cus_new",
+        line_items: [{ price: "price_max", quantity: 1 }],
+        mode: "subscription",
+        success_url:
+          "https://app.trysunder.com/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}",
+      }),
+    );
+    expect(updates).toEqual([
+      {
+        clientId: "client-1",
+        update: {
+          stripe_customer_id: "cus_new",
+        },
+      },
+    ]);
+  });
+
+  it("creates a Stripe Customer Portal session for the current client", async () => {
+    const client = {
+      client_id: "client-1",
+      display_name: "Seth",
+      plan_name: "Pro",
+      stripe_customer_id: "cus_123",
+      stripe_product_id: "prod_pro",
+      stripe_subscription_id: "sub_123",
+      subscription_status: "active",
+    } satisfies MockClientRow;
+
+    mockCreateClient.mockResolvedValue(createMockSessionClient({ client }));
+    mockBillingPortalCreate.mockResolvedValue({
+      url: "https://billing.stripe.com/p/session_123",
+    });
+
+    const { createCustomerPortalSession } = await import("./stripe");
+
+    await expect(createCustomerPortalSession()).resolves.toBe(
+      "https://billing.stripe.com/p/session_123",
+    );
+    expect(mockBillingPortalCreate).toHaveBeenCalledWith({
+      customer: "cus_123",
+      return_url: "https://app.trysunder.com/settings",
+    });
+  });
+
+  it("rejects checkout for an unconfigured Stripe price id", async () => {
+    const client = {
+      client_id: "client-1",
+      display_name: "Seth",
+      plan_name: null,
+      stripe_customer_id: null,
+      stripe_product_id: null,
+      stripe_subscription_id: null,
+      subscription_status: null,
+    } satisfies MockClientRow;
+
+    mockCreateClient.mockResolvedValue(createMockSessionClient({ client }));
+
+    const { createCheckoutSession } = await import("./stripe");
+
+    await expect(createCheckoutSession("price_legacy")).rejects.toMatchObject({
+      code: billingErrorCodes.invalidPlan,
+      message: "The selected billing plan is not configured for Checkout.",
+    });
+    expect(mockPricesRetrieve).not.toHaveBeenCalled();
   });
 });

@@ -27,6 +27,7 @@ This design reflects the billing system currently wired into the app. If impleme
 - Stripe remains the canonical billing source of truth.
 - Sunder mirrors only the current billing state onto `public.clients`.
 - Sunder does not maintain separate normalized Stripe mirror tables for products, prices, customers, or subscriptions.
+- Paid plan mapping is pinned to explicit Stripe price ids, not mutable dashboard product names.
 - Subscription creation happens in hosted Stripe Checkout.
 - Subscription changes happen in the Stripe Customer Portal.
 
@@ -52,7 +53,7 @@ This is intentionally the smallest shape that supports gating, settings UI, and 
   - Declares the internal billing catalog (`Free`, `Pro`, `Max`)
 - `src/lib/stripe/stripe.ts`
   - Stripe client bootstrap
-  - plan discovery from live Stripe prices
+  - plan discovery from configured live Stripe price ids
   - checkout session creation
   - customer portal session creation
   - webhook sync helpers back into Supabase
@@ -76,6 +77,8 @@ This is intentionally the smallest shape that supports gating, settings UI, and 
 5. The fallback route attempts a direct sync and redirects the user to `/settings?billing=success`.
 6. Webhooks remain the canonical billing sync path even if the fallback route succeeds.
 
+Before creating Checkout, Sunder queries live Stripe subscriptions for the current customer. If Stripe already has a non-terminal subscription, Sunder resyncs local billing state and routes the user back to the billing UI instead of opening a second Checkout session.
+
 ## Webhook Contract
 
 The webhook endpoint subscribes to:
@@ -98,6 +101,7 @@ Behavior:
   - Syncs upgrades, downgrades, trial transitions, and other state changes
 - `customer.subscription.deleted`
   - Clears paid subscription fields while retaining the Stripe customer id
+- If no client can be resolved from the Stripe customer id or metadata, the webhook path fails closed so Stripe retries delivery
 
 ## UI Behavior
 
@@ -105,6 +109,7 @@ Behavior:
 
 - Shows `Free`, `Pro`, and `Max`
 - Reads live paid pricing from Stripe
+- Reads those paid prices from explicitly configured Stripe price ids
 - Blocks duplicate paid checkout if a live paid subscription already exists
 - Sends paid users to the Stripe Customer Portal instead of opening another checkout session
 
@@ -119,6 +124,8 @@ Behavior:
 
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRO_PRICE_ID`
+- `STRIPE_MAX_PRICE_ID`
 - `NEXT_PUBLIC_APP_URL`
 - `NEXT_PUBLIC_SITE_URL` as fallback
 - `SUPABASE_SERVICE_ROLE_KEY`
@@ -133,7 +140,9 @@ Create recurring monthly prices in `sgd` for:
 Configure:
 
 - 7-day trial for both paid plans
-- Stripe Customer Portal
+- Stripe Customer Portal with subscription cancellation, payment-method management, and plan switching enabled
+- Authenticated portal sessions from Sunder rather than the standalone Stripe portal login link
+- Checkout set to limit customers to one subscription and redirect existing subscribers to the Customer Portal
 - Webhook endpoint at `/api/stripe/webhook`
 - The five event types listed above
 

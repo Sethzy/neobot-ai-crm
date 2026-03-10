@@ -7,6 +7,11 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import {
+  billingErrorCodes,
+  isBillingFlowError,
+  isNextRedirectError,
+} from "./billing-errors";
 import { createCheckoutSession, createCustomerPortalSession } from "./stripe";
 
 const checkoutActionSchema = z.object({
@@ -23,11 +28,22 @@ export async function checkoutAction(formData: FormData): Promise<void> {
   });
 
   if (!parsedInput.success) {
-    throw new Error("Invalid billing plan selection.");
+    redirect(`/pricing?billing=${billingErrorCodes.invalidPlan}`);
   }
 
-  const checkoutUrl = await createCheckoutSession(parsedInput.data.priceId);
-  redirect(checkoutUrl);
+  try {
+    const checkoutUrl = await createCheckoutSession(parsedInput.data.priceId);
+    redirect(checkoutUrl);
+  } catch (error) {
+    if (isNextRedirectError(error)) {
+      throw error;
+    }
+
+    const billingCode = isBillingFlowError(error)
+      ? error.code
+      : billingErrorCodes.error;
+    redirect(`/pricing?billing=${billingCode}`);
+  }
 }
 
 /**
@@ -35,6 +51,14 @@ export async function checkoutAction(formData: FormData): Promise<void> {
  * and redirects the browser to the hosted portal.
  */
 export async function customerPortalAction(): Promise<void> {
-  const portalUrl = await createCustomerPortalSession();
-  redirect(portalUrl);
+  try {
+    const portalUrl = await createCustomerPortalSession();
+    redirect(portalUrl);
+  } catch (error) {
+    if (isNextRedirectError(error)) {
+      throw error;
+    }
+
+    redirect(`/settings?billing=${billingErrorCodes.portalError}`);
+  }
 }

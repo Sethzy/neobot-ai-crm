@@ -57,19 +57,35 @@ function renderConnectionAlert(
 }
 
 function renderBillingAlert(billingParam: string | string[] | undefined) {
-  if (billingParam !== "success") {
+  if (billingParam === "success") {
+    return (
+      <Alert>
+        <CheckCircle className="h-4 w-4" />
+        <AlertTitle>Billing updated.</AlertTitle>
+        <AlertDescription>
+          Stripe confirmed the checkout and Sunder synced the latest subscription state.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (billingParam === "portal-error") {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Billing portal unavailable.</AlertTitle>
+        <AlertDescription>
+          Sunder could not open the Stripe Customer Portal right now. Try again in a moment.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (typeof billingParam !== "string") {
     return null;
   }
 
-  return (
-    <Alert>
-      <CheckCircle className="h-4 w-4" />
-      <AlertTitle>Billing updated.</AlertTitle>
-      <AlertDescription>
-        Stripe confirmed the checkout and Sunder synced the latest subscription state.
-      </AlertDescription>
-    </Alert>
-  );
+  return null;
 }
 
 function getStatusVariant(status: string | null) {

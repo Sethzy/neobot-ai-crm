@@ -133,4 +133,29 @@ describe("POST /api/stripe/webhook", () => {
       deletedSubscription,
     );
   });
+
+  it("returns 500 when Stripe billing sync fails so Stripe can retry", async () => {
+    const { POST } = await import("./route");
+
+    mockConstructEvent.mockReturnValue({
+      type: "customer.subscription.updated",
+      data: { object: { id: "sub_retry" } },
+    });
+    mockSyncBillingStateFromSubscriptionId.mockRejectedValueOnce(
+      new Error("No matching client found."),
+    );
+
+    const response = await POST(
+      new Request("http://localhost/api/stripe/webhook", {
+        body: "{}",
+        headers: { "stripe-signature": "sig_retry" },
+        method: "POST",
+      }) as never,
+    );
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      error: "No matching client found.",
+    });
+  });
 });

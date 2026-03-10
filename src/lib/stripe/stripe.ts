@@ -11,9 +11,16 @@ import { createAdminClient, createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 
 import {
+  BillingFlowError,
+  billingErrorCodes,
+} from "./billing-errors";
+import {
   billingPlanCatalog,
   billingPlanNames,
+  getBillingPlanPriceId,
+  getPaidBillingPlanNameForPriceId,
   isPaidBillingPlanName,
+  paidBillingPlanNames,
   type BillingPlanName,
   type PaidBillingPlanName,
 } from "./plans";
@@ -38,6 +45,7 @@ export interface PricingPlan {
   isFree: boolean;
   isConfigured: boolean;
   priceId: string | null;
+  productId: string | null;
 }
 
 export interface StripePlanSummary {
@@ -60,7 +68,7 @@ export interface BillingSummary {
 const clientBillingSelect =
   "client_id, display_name, plan_name, stripe_customer_id, stripe_product_id, stripe_subscription_id, subscription_status";
 
-const cacheKey = ["stripe-pricing-plans-v1"];
+const cacheKey = ["stripe-pricing-plans-v2"];
 const supportedCurrency = "sgd";
 const terminalStatuses = new Set<Stripe.Subscription.Status>([
   "canceled",
@@ -157,38 +165,59 @@ function getExpandedProduct(
   return product;
 }
 
-function getPlanNameFromProduct(
-  product: string | Stripe.Product | Stripe.DeletedProduct | null,
-): PaidBillingPlanName | null {
-  const expandedProduct = getExpandedProduct(product);
+async function getConfiguredRecurringPrice(
+  planName: PaidBillingPlanName,
+): Promise<Stripe.Price | null> {
+  const priceId = getBillingPlanPriceId(planName);
 
-  if (!expandedProduct) {
+  if (!priceId) {
     return null;
   }
 
-  return isPaidBillingPlanName(expandedProduct.name) ? expandedProduct.name : null;
+  const price = await getStripeClient().prices.retrieve(priceId, {
+    expand: ["product"],
+  });
+  const product = getExpandedProduct(price.product);
+
+  if (!price.active || !product?.active) {
+    throw new Error(`Configured Stripe price for ${planName} is not active.`);
+  }
+
+  if (!price.recurring || price.recurring.interval !== "month") {
+    throw new Error(
+      `Configured Stripe price for ${planName} must be a monthly recurring price.`,
+    );
+  }
+
+  if (price.currency !== supportedCurrency) {
+    throw new Error(
+      `Configured Stripe price for ${planName} must use ${supportedCurrency.toUpperCase()}.`,
+    );
+  }
+
+  return price;
 }
 
 async function getValidatedRecurringPrice(priceId: string): Promise<{
   planName: PaidBillingPlanName;
   price: Stripe.Price;
 }> {
-  const price = await getStripeClient().prices.retrieve(priceId, {
-    expand: ["product"],
-  });
-  const product = getExpandedProduct(price.product);
-  const planName = getPlanNameFromProduct(price.product);
+  const planName = getPaidBillingPlanNameForPriceId(priceId);
 
-  if (!price.active || !product?.active || !planName) {
-    throw new Error("The selected billing plan is not active in Stripe.");
+  if (!planName) {
+    throw new BillingFlowError(
+      billingErrorCodes.invalidPlan,
+      "The selected billing plan is not configured for Checkout.",
+    );
   }
 
-  if (!price.recurring || price.recurring.interval !== "month") {
-    throw new Error("Only monthly recurring Stripe prices are supported.");
-  }
+  const price = await getConfiguredRecurringPrice(planName);
 
-  if (price.currency !== supportedCurrency) {
-    throw new Error("Only SGD recurring Stripe prices are supported.");
+  if (!price) {
+    throw new BillingFlowError(
+      billingErrorCodes.invalidPlan,
+      "The selected billing plan is not configured for Checkout.",
+    );
   }
 
   return { planName, price };
@@ -226,30 +255,19 @@ async function ensureStripeCustomerId(args: {
 
 const loadPricingPlans = unstable_cache(
   async (): Promise<PricingPlan[]> => {
-    const { data: prices } = await getStripeClient().prices.list({
-      active: true,
-      currency: supportedCurrency,
-      type: "recurring",
-      limit: 100,
-      expand: ["data.product"],
-    });
-
-    const priceByPlanName = new Map<PaidBillingPlanName, Stripe.Price>();
-
-    prices.forEach((price) => {
-      if (!price.recurring || price.recurring.interval !== "month") {
-        return;
-      }
-
-      const product = getExpandedProduct(price.product);
-      const planName = getPlanNameFromProduct(price.product);
-
-      if (!product?.active || !planName || priceByPlanName.has(planName)) {
-        return;
-      }
-
-      priceByPlanName.set(planName, price);
-    });
+    const configuredPaidPrices = await Promise.all(
+      paidBillingPlanNames.map(
+        async (planName) =>
+          [planName, await getConfiguredRecurringPrice(planName)] as const,
+      ),
+    );
+    const priceByPlanName = new Map<PaidBillingPlanName, Stripe.Price>(
+      configuredPaidPrices.filter(
+        (
+          entry,
+        ): entry is readonly [PaidBillingPlanName, Stripe.Price] => entry[1] !== null,
+      ),
+    );
 
     return billingPlanNames.map((name) => {
       const definition = billingPlanCatalog[name];
@@ -259,16 +277,21 @@ const loadPricingPlans = unstable_cache(
           ...definition,
           isConfigured: true,
           priceId: null,
+          productId: null,
         };
       }
 
       const configuredPrice = priceByPlanName.get(name as PaidBillingPlanName);
+      const configuredProduct = getExpandedProduct(configuredPrice?.product ?? null);
 
       return {
         ...definition,
-        monthlyPriceSgd: configuredPrice ? getPriceAmount(configuredPrice) : definition.monthlyPriceSgd,
+        monthlyPriceSgd: configuredPrice
+          ? getPriceAmount(configuredPrice)
+          : definition.monthlyPriceSgd,
         isConfigured: Boolean(configuredPrice),
         priceId: configuredPrice?.id ?? null,
+        productId: configuredProduct?.id ?? null,
       };
     });
   },
@@ -316,25 +339,48 @@ export async function listStripePlans(): Promise<StripePlanSummary[]> {
       interval: "month",
       name: plan.name,
       priceId: plan.priceId,
-      productId: null,
+      productId: plan.productId,
     }));
+}
+
+async function findLiveSubscriptionForCustomer(
+  customerId: string,
+): Promise<Stripe.Subscription | null> {
+  const subscriptions = await getStripeClient().subscriptions.list({
+    customer: customerId,
+    limit: 10,
+    status: "all",
+  });
+
+  return (
+    subscriptions.data.find(
+      (subscription) => !terminalStatuses.has(subscription.status),
+    ) ?? null
+  );
 }
 
 export async function createCheckoutSession(priceId: string): Promise<string> {
   const context = await requireCurrentClientContext();
-
-  if (
-    context.client.stripe_subscription_id
-    && context.client.plan_name
-    && !terminalStatuses.has(
-      (context.client.subscription_status ?? "active") as Stripe.Subscription.Status,
-    )
-  ) {
-    throw new Error("Active paid subscriptions must be managed through the billing portal.");
-  }
-
   const { planName, price } = await getValidatedRecurringPrice(priceId);
   const stripeCustomerId = await ensureStripeCustomerId(context);
+  const liveSubscription = await findLiveSubscriptionForCustomer(stripeCustomerId);
+
+  if (liveSubscription) {
+    try {
+      await syncBillingStateFromSubscriptionId(liveSubscription.id);
+    } catch {
+      throw new BillingFlowError(
+        billingErrorCodes.error,
+        "Stripe already has a live subscription for this workspace, but Sunder could not resynchronize its local billing state.",
+      );
+    }
+
+    throw new BillingFlowError(
+      billingErrorCodes.alreadySubscribed,
+      "Active paid subscriptions must be managed through the billing portal.",
+    );
+  }
+
   const baseUrl = resolveAppBaseUrl();
 
   const session = await getStripeClient().checkout.sessions.create({
@@ -465,7 +511,9 @@ export async function syncBillingStateFromSubscriptionId(subscriptionId: string)
     typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
   const primaryPrice = subscription.items.data[0]?.price ?? null;
   const primaryProduct = getExpandedProduct(primaryPrice?.product ?? null);
-  const planName = getPlanNameFromProduct(primaryPrice?.product ?? null);
+  const planName = primaryPrice?.id
+    ? getPaidBillingPlanNameForPriceId(primaryPrice.id)
+    : null;
   const client = await findClientForSubscription({
     customerId,
     metadataClientId: subscription.metadata.clientId,
@@ -476,11 +524,9 @@ export async function syncBillingStateFromSubscriptionId(subscriptionId: string)
   }
 
   if (!client) {
-    console.error("[stripe] No matching client found for subscription sync.", {
-      customerId,
-      subscriptionId,
-    });
-    return;
+    throw new Error(
+      `No matching client found for Stripe subscription sync (${subscriptionId}).`,
+    );
   }
 
   const update = buildBillingUpdateFromSubscription({
@@ -508,11 +554,9 @@ export async function syncBillingStateFromDeletedSubscription(
   });
 
   if (!client) {
-    console.error("[stripe] No matching client found for deleted subscription.", {
-      customerId,
-      subscriptionId: subscription.id,
-    });
-    return;
+    throw new Error(
+      `No matching client found for deleted Stripe subscription (${subscription.id}).`,
+    );
   }
 
   await persistBillingUpdate(client.client_id, {

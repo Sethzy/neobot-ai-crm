@@ -3,6 +3,7 @@
  * @module app/(dashboard)/pricing/page
  */
 import { checkoutAction, customerPortalAction } from "@/lib/stripe/actions";
+import { billingPlanCatalog, billingPlanNames } from "@/lib/stripe/plans";
 import { getBillingSummary, listStripePlans } from "@/lib/stripe/stripe";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -16,36 +17,6 @@ import {
 } from "@/components/ui/card";
 
 import { SubmitButton } from "./submit-button";
-
-const PLAN_COPY = {
-  Free: {
-    description: "For invite-only pilots and agents validating the workflow.",
-    features: [
-      "Web chat with memory and CRM tools",
-      "Manual approval for external-facing actions",
-      "Best for getting the setup and data model right",
-    ],
-    trialLabel: "Included",
-  },
-  Pro: {
-    description: "For solo agents running day-to-day CRM follow-up with Sunder.",
-    features: [
-      "7-day trial before the first charge",
-      "Stripe-hosted billing and customer portal",
-      "Recommended default for production use",
-    ],
-    trialLabel: "7-day trial",
-  },
-  Max: {
-    description: "For heavier daily usage and agents who want more headroom.",
-    features: [
-      "7-day trial before the first charge",
-      "Same workflow surface with more room to grow",
-      "Use when Pro becomes your default daily operator",
-    ],
-    trialLabel: "7-day trial",
-  },
-} as const;
 
 function normalizeSearchParam(value: string | string[] | undefined): string | null {
   if (Array.isArray(value)) {
@@ -95,6 +66,13 @@ function getBillingNotice(status: string | null): {
         title: "Invalid plan selection.",
         variant: "destructive",
       };
+    case "already-subscribed":
+      return {
+        description:
+          "Stripe already has a live subscription for this workspace. Use the billing portal instead of starting another checkout.",
+        title: "Billing is already active.",
+        variant: "default",
+      };
     default:
       return null;
   }
@@ -116,7 +94,6 @@ export default async function PricingPage({
   });
 
   const paidPlanMap = new Map(paidPlans.map((plan) => [plan.name, plan]));
-  const planNames = ["Free", "Pro", "Max"] as const;
 
   return (
     <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
@@ -167,12 +144,19 @@ export default async function PricingPage({
         ) : null}
 
         <div className="mt-8 grid gap-4 lg:grid-cols-3">
-          {planNames.map((planName) => {
-            const copy = PLAN_COPY[planName];
-            const isFreePlan = planName === "Free";
-            const stripePlan = isFreePlan ? undefined : paidPlanMap.get(planName);
+          {billingPlanNames.map((planName) => {
+            const planDefinition = billingPlanCatalog[planName];
+            const isFreePlan = planDefinition.isFree;
+            const stripePlan =
+              planName === "Free" ? undefined : paidPlanMap.get(planName);
             const isCurrentPlan = billingSummary.currentPlanName === planName;
-            const canCheckout = !isFreePlan && Boolean(stripePlan?.priceId) && !billingSummary.hasPaidSubscription;
+            const trialLabel = isFreePlan
+              ? "Included"
+              : `${planDefinition.trialDays}-day trial`;
+            const canCheckout =
+              !isFreePlan &&
+              Boolean(stripePlan?.priceId) &&
+              !billingSummary.hasPaidSubscription;
 
             return (
               <Card
@@ -187,7 +171,9 @@ export default async function PricingPage({
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <CardTitle>{planName}</CardTitle>
-                      <CardDescription className="mt-2">{copy.description}</CardDescription>
+                      <CardDescription className="mt-2">
+                        {planDefinition.summary}
+                      </CardDescription>
                     </div>
                     {isCurrentPlan ? <Badge variant="success">Current</Badge> : null}
                   </div>
@@ -202,11 +188,11 @@ export default async function PricingPage({
                           ? `${formatCurrency(stripePlan.amount, stripePlan.currency)}/mo`
                           : "Unavailable"}
                     </div>
-                    <p className="mt-2 text-sm text-muted-foreground">{copy.trialLabel}</p>
+                    <p className="mt-2 text-sm text-muted-foreground">{trialLabel}</p>
                   </div>
 
                   <ul className="space-y-3 text-sm text-muted-foreground">
-                    {copy.features.map((feature) => (
+                    {planDefinition.highlights.map((feature) => (
                       <li key={feature} className="flex items-start gap-2">
                         <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary/70" />
                         <span>{feature}</span>

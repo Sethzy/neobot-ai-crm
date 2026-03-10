@@ -61,3 +61,23 @@ export const paidBillingPlanNames: readonly PaidBillingPlanName[] = ["Pro", "Max
 export function isPaidBillingPlanName(value: string): value is PaidBillingPlanName {
   return paidBillingPlanNames.includes(value as PaidBillingPlanName);
 }
+
+const billingPlanPriceEnvironmentVariables: Record<PaidBillingPlanName, string> = {
+  Pro: "STRIPE_PRO_PRICE_ID",
+  Max: "STRIPE_MAX_PRICE_ID",
+};
+
+export function getBillingPlanPriceId(planName: PaidBillingPlanName): string | null {
+  const priceId = process.env[billingPlanPriceEnvironmentVariables[planName]]?.trim();
+  return priceId ? priceId : null;
+}
+
+export function getPaidBillingPlanNameForPriceId(
+  priceId: string,
+): PaidBillingPlanName | null {
+  return (
+    paidBillingPlanNames.find(
+      (planName) => getBillingPlanPriceId(planName) === priceId,
+    ) ?? null
+  );
+}

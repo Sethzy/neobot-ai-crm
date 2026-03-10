@@ -79,4 +79,26 @@ describe("/settings page", () => {
     expect(screen.getByText(/ownership/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Manage billing in Stripe/i })).toBeInTheDocument();
   });
+
+  it("shows a portal error alert when Stripe portal creation fails", async () => {
+    mockLoadCurrentBillingState.mockResolvedValue({
+      client_id: "client-123",
+      display_name: "Seth",
+      plan_name: "Pro",
+      stripe_customer_id: "cus_123",
+      stripe_product_id: "prod_123",
+      stripe_subscription_id: "sub_123",
+      subscription_status: "active",
+    });
+
+    const element = await SettingsPage({
+      searchParams: Promise.resolve({
+        billing: "portal-error",
+      }),
+    });
+
+    render(element);
+
+    expect(screen.getByText(/Billing portal unavailable/i)).toBeInTheDocument();
+  });
 });

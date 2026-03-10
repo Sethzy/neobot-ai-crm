@@ -22,6 +22,7 @@
 - Stripe is the billing source of truth.
 - Sunder mirrors only the **current** billing state onto `clients`.
 - No `products`, `prices`, `customers`, or `subscriptions` tables are introduced in Sunder.
+- Paid plan selection is pinned to explicit Stripe **price ids**, not mutable product names.
 - Checkout is only for **starting** a paid subscription.
 - Upgrades, downgrades, cancellations, and payment-method changes happen in the **Stripe Customer Portal**.
 - Webhooks are canonical. The `/api/stripe/checkout` redirect handler is only a user-facing fallback.
@@ -65,6 +66,7 @@ Behavior:
 - `invoice.payment_failed` keeps the client row aligned with payment trouble states.
 - `customer.subscription.updated` syncs plan/status changes.
 - `customer.subscription.deleted` clears paid-plan state while keeping the Stripe customer id.
+- If Sunder cannot map the Stripe event back to a client, the webhook returns `500` so Stripe retries instead of dropping the event.
 
 ## Redirect Flow
 
@@ -74,6 +76,12 @@ Behavior:
 4. Stripe redirects back to `/api/stripe/checkout?session_id=...`
 5. Fallback route syncs billing state and redirects to `/settings?billing=success`
 6. Webhooks remain the canonical background sync path
+
+Duplicate-subscription protection:
+
+- Sunder checks live Stripe subscriptions for the current customer before creating a Checkout session.
+- If Stripe already has a live subscription, Sunder resyncs local billing state and sends the user back to `/pricing?billing=already-subscribed`.
+- Stripe Checkout should also be configured to limit customers to one subscription and redirect existing subscribers to the Customer Portal as defense in depth.
 
 ## Settings Behavior
 
@@ -96,6 +104,11 @@ Trials:
 Also:
 
 - Enable **Customer Portal**
+- Allow customers to update payment methods
+- Allow customers to cancel subscriptions
+- Allow customers to switch between the configured paid products/prices
+- Use authenticated portal sessions from Sunder `/settings`; no standalone Stripe portal login page is required
+- Configure Checkout to **limit customers to one subscription** and redirect existing subscribers to the Customer Portal
 - Point the Stripe webhook endpoint at `/api/stripe/webhook`
 - Add the five event types above
 
@@ -103,6 +116,8 @@ Also:
 
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRO_PRICE_ID`
+- `STRIPE_MAX_PRICE_ID`
 - `NEXT_PUBLIC_APP_URL` preferred for app callbacks
 - `NEXT_PUBLIC_SITE_URL` fallback if needed
 - `SUPABASE_SERVICE_ROLE_KEY`
