@@ -6,7 +6,6 @@
 
 import { ArrowDown } from "@/components/icons/lucide-compat";
 
-import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Button } from "@/components/ui/button";
 import { memo } from "react";
 
@@ -15,6 +14,13 @@ import type { ChatStatus } from "@/types/chat";
 
 import { MessageBubble } from "./message-bubble";
 import type { ChatUIMessage } from "./message-content";
+
+/** Stable placeholder so the "Thinking..." shimmer renders inside the same MessageBubble DOM path as StepsSummary. */
+const thinkingPlaceholder: ChatUIMessage = {
+  id: "thinking-placeholder",
+  role: "assistant",
+  parts: [],
+};
 
 interface MessageListProps {
   messages: ChatUIMessage[];
@@ -49,9 +55,10 @@ export const MessageList = memo(function MessageList({ messages, status, onToolA
           })}
 
           {status === "submitted" && (
-            <Shimmer as="span" className="text-xs text-muted-foreground" duration={2}>
-              Thinking...
-            </Shimmer>
+            <MessageBubble
+              message={thinkingPlaceholder}
+              isStreaming
+            />
           )}
 
           <div ref={endRef} />

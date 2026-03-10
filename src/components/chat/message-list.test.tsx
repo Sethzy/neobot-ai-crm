@@ -126,17 +126,34 @@ describe("MessageList", () => {
     expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-streaming", "false");
   });
 
-  it("shows thinking shimmer when status is submitted", () => {
+  it("shows thinking shimmer inside a MessageBubble when status is submitted", () => {
     render(<MessageList messages={[userMessage]} status="submitted" />);
 
-    expect(screen.getByTestId("shimmer")).toBeInTheDocument();
-    expect(screen.getByText("Thinking...")).toBeInTheDocument();
+    // "Thinking..." should render via a placeholder MessageBubble (inside ai-message wrapper),
+    // not as a standalone shimmer sibling — this prevents vertical position shift on transition.
+    const shimmer = screen.getByTestId("shimmer");
+    expect(shimmer).toBeInTheDocument();
+    expect(shimmer).toHaveTextContent("Thinking...");
+
+    // Verify it's inside the assistant message wrapper (MessageBubble path)
+    const messageBubbles = screen.getAllByTestId("message-bubble");
+    const placeholderBubble = messageBubbles.find((el) => el.querySelector("[data-testid='shimmer']"));
+    expect(placeholderBubble).toBeDefined();
   });
 
-  it("hides thinking shimmer when status is streaming", () => {
+  it("does not render placeholder bubble when status is streaming", () => {
     render(<MessageList messages={[userMessage, assistantMessage]} status="streaming" />);
 
+    // No standalone shimmer — assistant message renders normally
     expect(screen.queryByTestId("shimmer")).not.toBeInTheDocument();
+  });
+
+  it("does not render placeholder bubble when status is ready", () => {
+    render(<MessageList messages={[userMessage]} status="ready" />);
+
+    // Only the user message bubble, no placeholder
+    const messageBubbles = screen.getAllByTestId("message-bubble");
+    expect(messageBubbles).toHaveLength(1);
   });
 
   it("forwards onToolApproval through to MessageBubble", () => {
