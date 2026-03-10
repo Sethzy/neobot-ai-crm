@@ -1,0 +1,177 @@
+# QA Surface 4: CRM Pages
+
+> **PRs covered:** 10 (contacts page), 11 (deals + tasks pages), 15c (dynamic labels + custom fields in drawers), 15d (companies page + drawers)
+> **Dogfoodable:** Yes — primary dogfood target
+> **Time estimate:** 20-25 min manual
+
+---
+
+## Prerequisites
+
+- CRM has test data (run Surface 3 first, or seed via Supabase)
+- At least: 3 contacts, 3 deals, 2 tasks, 2 companies with some linked relationships
+- At least one contact linked to a company, one deal linked to a company
+
+---
+
+## Dogfood Checklist (automated browser pass)
+
+- [ ] `/crm` redirects or renders the tabbed CRM section
+- [ ] Contacts tab: table loads with data, columns visible (name, email, phone, type, company)
+- [ ] Deals tab: table loads with stage badges, price formatting
+- [ ] Tasks tab: table loads with status, due date, linked contact/deal
+- [ ] Companies tab: table loads with name, industry, contact count, deal count
+- [ ] All tables have search/filter functionality
+- [ ] Clicking a row opens a drawer (not a new page)
+- [ ] Drawers render without console errors
+- [ ] Responsive: tables work on tablet (768px) and mobile (375px)
+- [ ] No layout overflow or horizontal scroll issues on tables
+- [ ] Sidebar nav has CRM section with correct links
+
+---
+
+## Manual QA Scenarios
+
+### 4.1 Contacts list page
+
+1. Navigate to `/crm` → Contacts tab
+2. **Expected:** TanStack Table with columns: name, email, phone, type, company
+3. Search for "Sarah" in the search box
+4. **Expected:** Filter narrows to Sarah Lim
+5. Filter by contact type (e.g., "buyer")
+6. **Expected:** Only buyers shown
+7. Clear filters
+8. **Expected:** All contacts visible again
+
+**Notes / failures:**
+
+---
+
+### 4.2 Contact drawer
+
+1. Click on Sarah Lim's row
+2. **Expected:** Drawer opens showing:
+   - Name, email, phone, type
+   - Company field (if linked via 3.5)
+   - Custom fields (if any configured in 3.7)
+   - Linked deals section
+   - Interaction timeline (most recent first)
+3. **Verify:** Linked deals match what was created in Surface 3
+4. **Verify:** Interactions show the phone call from 3.6
+5. Close drawer
+6. **Expected:** Returns to contacts list, no state corruption
+
+**Notes / failures:**
+
+---
+
+### 4.3 Deals list page
+
+1. Navigate to Deals tab
+2. **Expected:** Table with columns: address, stage (badge), price (formatted), contact, company
+3. **Expected:** Stage badges use color coding
+4. Filter by stage (e.g., "negotiation")
+5. **Expected:** Only deals in that stage shown
+6. If CRM was reconfigured (3.7), stage filter options should reflect new config
+
+**Notes / failures:**
+
+---
+
+### 4.4 Deal drawer
+
+1. Click on a deal row
+2. **Expected:** Drawer shows:
+   - Address, stage badge, price
+   - Linked contact(s) with role
+   - Linked company (if any)
+   - Custom fields (if configured — e.g., policy_number)
+   - Interaction timeline for this deal
+3. **Verify:** All relationships are correct
+
+**Notes / failures:**
+
+---
+
+### 4.5 Tasks list page
+
+1. Navigate to Tasks tab
+2. **Expected:** Table with columns: title, status, due date, linked contact, linked deal
+3. **Expected:** Overdue tasks are visually distinct (color/badge)
+4. Filter by status
+5. **Expected:** Correct filtering
+
+**Notes / failures:**
+
+---
+
+### 4.6 Companies list page (PR 15d)
+
+1. Navigate to Companies tab
+2. **Expected:** Table with columns: name, industry, phone, website, contact count, deal count
+3. Search for "PropNex"
+4. **Expected:** Filter works
+5. Filter by industry
+6. **Expected:** Industry options come from crm_config (or real estate defaults)
+
+**Notes / failures:**
+
+---
+
+### 4.7 Company drawer (PR 15d)
+
+1. Click on PropNex row
+2. **Expected:** Drawer shows:
+   - Name, industry badge, website, phone, email, address, notes
+   - Custom fields (if configured)
+   - Related contacts list (Sarah Lim if linked in 3.5)
+   - Related deals list (Tanjong Pagar deal if linked in 3.5)
+3. **Verify:** Contact and deal counts in the table match the drawer lists
+
+**Notes / failures:**
+
+---
+
+### 4.8 Dynamic labels (PR 15c)
+
+1. If CRM was reconfigured in 3.7 (insurance mode):
+   - **Expected:** "Deals" tab might show as "Policies" (if label propagates to tab name)
+   - **Expected:** Stage filter shows insurance stages (lead, quoted, underwriting, bound, lost)
+   - **Expected:** Drawers show custom fields (policy_number, coverage_amount)
+2. If still in real estate mode:
+   - **Expected:** Default labels and stages
+
+**Notes / failures:**
+
+---
+
+### 4.9 Cross-entity navigation
+
+1. Open a contact drawer → click on a linked deal
+2. **Expected:** Navigates to deal drawer or deal detail
+3. Open a company drawer → click on a related contact
+4. **Expected:** Navigates to contact detail
+5. Open a deal drawer → click on linked company
+6. **Expected:** Navigates to company detail
+
+**Notes / failures:**
+
+---
+
+## Edge Cases
+
+- [ ] Empty CRM (no data) — tables show empty state, not error
+- [ ] Contact with no linked deals — drawer shows empty deals section gracefully
+- [ ] Deal with no linked contact — drawer handles null contact
+- [ ] Company with no contacts or deals — counts show 0, drawer shows empty lists
+- [ ] Very long notes in drawer — text wraps, no overflow
+- [ ] 100+ contacts — table pagination or virtual scroll works
+- [ ] Table sort by column — click column header, data reorders
+- [ ] Drawer on mobile — renders as full-screen sheet or modal
+
+---
+
+## Pass / Fail Criteria
+
+- **Pass:** All CRM entity pages render correctly with data from agent-created records. Drawers show accurate relationships and custom fields. Search/filter works. Dynamic labels reflect CRM config.
+- **Fail:** Tables crash with no data, drawers show wrong relationships, custom fields missing from drawers, filters don't work, dynamic labels not applied.
