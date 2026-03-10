@@ -1,5 +1,7 @@
 /**
  * Route-level loading fallback for chat thread transitions.
+ * Skeleton shapes match the real message layout: right-aligned user bubble,
+ * flat left-aligned assistant text lines (no bubble).
  * @module app/(dashboard)/chat/[threadId]/loading
  */
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,28 +14,22 @@ export default function Loading() {
       aria-busy="true"
       aria-live="polite"
     >
-      <div className="flex-1 min-h-0 overflow-hidden px-3 py-5 sm:px-4 sm:py-6">
-        <div
-          className="mx-auto max-w-2xl space-y-2.5 sm:space-y-3"
-          data-testid="chat-thread-loading-message-skeletons"
-        >
-          <div className="flex items-end gap-2">
-            <Skeleton className="h-6 w-6 shrink-0 rounded-full bg-muted/60" />
-            <Skeleton
-              className="h-14 w-[80%] max-w-[28rem] rounded-2xl bg-muted/50 sm:w-[66%]"
-              style={{ animationDelay: "50ms" }}
-            />
+      <div className="relative flex-1 min-h-0 overflow-hidden px-4 py-6">
+        <div className="mx-auto max-w-2xl space-y-3">
+          {/* User message skeleton — right-aligned bubble */}
+          <div className="flex justify-end">
+            <Skeleton className="h-10 w-[45%] max-w-[18rem] rounded-2xl rounded-br-md bg-muted/40" />
           </div>
-          <Skeleton
-            className="ml-auto h-11 w-[72%] max-w-[20rem] rounded-2xl bg-muted/40 sm:w-[54%]"
-            style={{ animationDelay: "130ms" }}
-          />
-          <div className="flex items-end gap-2">
-            <Skeleton className="h-6 w-6 shrink-0 rounded-full bg-muted/60" />
-            <Skeleton
-              className="h-20 w-[88%] max-w-[30rem] rounded-2xl bg-muted/45 sm:w-[74%]"
-              style={{ animationDelay: "210ms" }}
-            />
+
+          {/* Assistant message skeleton — flat text lines, no bubble */}
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-4 w-4 rounded bg-muted/50" />
+              <Skeleton className="h-3 w-14 bg-muted/50" />
+            </div>
+            <Skeleton className="h-3 w-[85%] bg-muted/40" style={{ animationDelay: "50ms" }} />
+            <Skeleton className="h-3 w-[90%] bg-muted/40" style={{ animationDelay: "100ms" }} />
+            <Skeleton className="h-3 w-[40%] bg-muted/40" style={{ animationDelay: "150ms" }} />
           </div>
         </div>
       </div>
