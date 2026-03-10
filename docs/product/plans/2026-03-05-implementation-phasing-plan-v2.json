@@ -10,7 +10,7 @@
     "estimatedPRs": 37,
     "keptPRs": 23,
     "cutPRs": 19,
-    "donePRs": 32,
+    "donePRs": 34,
     "statusOptions": [
       "pending",
       "in_progress",
@@ -38,7 +38,9 @@
       "2026-03-09: Added PR 22d (read_file image support + negative line indices) to Phase 2 as an explicit scope exception after review. Scope is intentionally narrow: image files only, explicit AI SDK toModelOutput JSON/image-data handling, negative line indices, preserve existing text/directory read_file contract, PDFs deferred.",
       "2026-03-09: Added PR 22e (Absolute agent paths \u2014 /agent/ prefix). Model-boundary-only refactor: all model-facing paths become absolute /agent/ paths. Internal storage, DB, frontend, API routes unchanged. Thin toStoragePath/toModelPath conversion at tool boundary (~9 files). Validated with Tasklet developer. Design doc: docs/designs/absolute-agent-paths.md.",
       "2026-03-10: Added PR 26a (System skill files \u2014 bundled fallback). Verbatim Tasklet creating-connections skill + direct-api-connection guide, stored as static .md files in codebase, served via read_file fallback for skills/system/ paths. No per-client seeding, no skill_registry. System prompt + tool descriptions already reference these paths (wired in PRs 25-26). SKILL-05 pattern adapted for system skills: bundled in code instead of per-client storage.",
-      "2026-03-10: PR 33 approval scope clarified after implementation review. Mechanical gate now targets destructive actions plus connection tool activation: CRM deletes, delete_connection, manage_activated_tools_for_connections, and the delete action inside manage_active_triggers. Non-destructive CRM writes, links, and unlinks stay auto-run. Future outbound send tools adopt the same gate when those tool surfaces ship."
+      "2026-03-10: PR 33 approval scope clarified after implementation review. Mechanical gate now targets destructive actions plus connection tool activation: CRM deletes, delete_connection, manage_activated_tools_for_connections, and the delete action inside manage_active_triggers. Non-destructive CRM writes, links, and unlinks stay auto-run. Future outbound send tools adopt the same gate when those tool surfaces ship.",
+      "2026-03-10: PR 33 marked done — approval gate shipped for destructive actions plus connection tool activation, prompt/autopilot copy aligned, and subagents strip approval-gated delete tools.",
+      "2026-03-10: PR 34 marked done — approval_events persistence shipped end-to-end, trigger-thread approvals resolve in chat, pending approval count added to system-reminder, and follow-up hardening enforces durable approval state before continuation."
     ]
   },
   "phases": [
@@ -1815,7 +1817,7 @@
         {
           "pr": 33,
           "title": "Approval system \u2014 gate implementation",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [
             "SAFETY-01",
             "SAFETY-02"
@@ -1824,27 +1826,27 @@
             {
               "id": "PR33-1",
               "task": "Mechanical approval gate for destructive actions plus connection tool activation",
-              "done": false
+              "done": true
             },
             {
               "id": "PR33-2",
               "task": "Approval gate remains an in-thread chat interaction via AI SDK approval cards",
-              "done": false
+              "done": true
             },
             {
               "id": "PR33-3",
               "task": "Agent briefly describes destructive or activation actions before invoking approval-gated tools",
-              "done": false
+              "done": true
             },
             {
               "id": "PR33-4",
               "task": "Approved actions continue on the follow-up run; denied actions do not execute and return denial state",
-              "done": false
+              "done": true
             },
             {
               "id": "PR33-5",
               "task": "Delete tools excluded from subagents; trigger delete gated via predicate; works in chat and trigger threads",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -1855,7 +1857,7 @@
         {
           "pr": 34,
           "title": "Approval system \u2014 events + UI",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [
             "SAFETY-02",
             "SAFETY-04"
@@ -1865,17 +1867,17 @@
             {
               "id": "PR34-1",
               "task": "Migration: approval_events table",
-              "done": false
+              "done": true
             },
             {
               "id": "PR34-2",
               "task": "Trigger thread shows pending action, user opens thread to respond",
-              "done": false
+              "done": true
             },
             {
               "id": "PR34-3",
               "task": "No per-action granularity, no configurable matrix in v1 (SAFETY-04)",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
