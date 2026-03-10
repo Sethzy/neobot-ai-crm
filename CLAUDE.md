@@ -58,7 +58,7 @@ All Tasklet reference material lives in `roadmap docs/Sunder - Source of Truth/r
 - **YAGNI ruthlessly** — Remove unnecessary features from all designs.
 - **Verify and Question**. No performative agreement. Technical rigor always. Prefer technical correctness over social comfort.
 - **Session Boundaries:** If the user's request isn't directly related to the current context and can be safely started in a fresh session, suggest starting from scratch to avoid context confusion.
-- **Commit after each PR.** When executing tasklists from `docs/tasks/`, commit all work for a PR before moving to the next one. Use the PR number in the commit message (e.g., `feat(pr11): CRM deals and tasks pages`).
+- **Commit after each PR.** When executing tasklists from `docs/product/tasks/`, commit all work for a PR before moving to the next one. Use the PR number in the commit message (e.g., `feat(pr11): CRM deals and tasks pages`).
 
 ## TypeScript Usage
 

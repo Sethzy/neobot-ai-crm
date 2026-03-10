@@ -1,6 +1,6 @@
 ---
 name: executing-plans
-description: Only use when user explicitly asks to execute a plan/tasklist file located in docs/tasks/*.md with batched checkpoints (project)
+description: Only use when user explicitly asks to execute a plan/tasklist file located in docs/product/tasks/*.md with batched checkpoints (project)
 ---
 
 # Executing Plans
