@@ -1,36 +1,38 @@
 # docs/
 
-Working documents for active implementation, split by workstream. For product specs and architecture decisions, see `roadmap docs/Sunder - Source of Truth/`.
+Working documents for active implementation. For product specs and architecture decisions, see `roadmap docs/Sunder - Source of Truth/`.
+
+## Source of Truth
+
+> **`docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json`** — The canonical PR-by-PR execution checklist (30 PRs, 5 phases). This wins on scope, implementation details, and phasing. Check here first for what to build and what's done.
 
 ## Structure
 
 ```
 docs/
 ├── product/                 ← Sunder AI agent (the SaaS product)
-│   ├── plans/
-│   │   ├── ...implementation-phasing-plan.json   ← Checkable task list (48 PRs, 5 phases)
-│   │   └── ...implementation-phasing-plan.md     ← Prose version (superseded by JSON)
-│   └── tasks/               ← (future product task lists go here)
+│   ├── plans/               ← Phasing plans
+│   │   └── 2026-03-05-implementation-phasing-plan-v2.json  ← SOURCE OF TRUTH
+│   ├── tasks/               ← All PR tasklists
+│   │   ├── phase-1/         ← PRs 1–12a (done)
+│   │   ├── phase-2/         ← PRs 13–20 (done)
+│   │   └── *.md             ← Phase 3+ tasklists (in progress / upcoming)
+│   ├── designs/             ← Design docs and handover notes per PR
+│   ├── references/          ← Architecture comparisons, tool inventories
+│   └── reviews/             ← Code reviews
 │
 ├── landing/                 ← Public site: property pages, marketing, data pipeline
 │   ├── plans/
-│   │   ├── property-data-plan.md                 ← Data pipeline (CEA, HDB, URA ingestion)
-│   │   └── property-ui-handover.md               ← Property pages polish spec
 │   ├── tasks/
-│   │   ├── 2026-03-01-market-data-hub-tasklist.md ← Market hub restructure
-│   │   └── 2026-02-25-nextjs-performance-optimization-tasklist.md
-│   ├── competitor-reference/                     ← OpenAgent.sg feature parity targets
-│   └── ux-audit/                                 ← Current UI state screenshots
+│   ├── competitor-reference/
+│   └── ux-audit/
 │
-└── README.md               ← You are here
+└── qa/                      ← Manual QA checklists
 ```
 
-## How this relates to `roadmap docs/`
+## Authority Chain
 
-| Folder | Purpose | Audience |
-|--------|---------|----------|
-| `roadmap docs/Sunder - Source of Truth/` | Product spec, architecture decisions, reference materials | Product + architecture decisions |
-| `docs/product/` | Sunder AI implementation plans and task lists | Day-to-day product dev |
-| `docs/landing/` | Property pages, marketing site, data pipeline | Day-to-day landing page dev |
-
-Authority chain: App Spec > Architecture Decisions JSON > Implementation Plan > Everything else. See `roadmap docs/Sunder - Source of Truth/00-START-HERE (PM-Friendly).md` for the full read order.
+1. **v2 phasing plan** (`docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json`) — wins on scope and implementation
+2. **App Spec** (`roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md`) — product vision/rationale
+3. **Architecture Decisions JSON** (`roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json`) — technical rationale
+4. **Tasklet reference** (`roadmap docs/Sunder - Source of Truth/references/tasklet/`) — default patterns when plan is silent

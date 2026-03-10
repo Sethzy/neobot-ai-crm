@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-10",
+    "updated": "2026-03-10 (reorg)",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -39,7 +39,8 @@
       "2026-03-10: Expanded PR 22d scope to include PDF support. AI SDK v6 file-data content part lets models read raw PDF bytes natively (Anthropic + Gemini). No rendering library needed. Added 10 MB file size guard. toModelOutput now returns image-data for images, file-data for PDFs, json for text/directory. Title updated to 'read_file multimodal (images + PDFs) + negative line indices'.",
       "2026-03-09: Added PR 22e (Absolute agent paths \u2014 /agent/ prefix). Model-boundary-only refactor: all model-facing paths become absolute /agent/ paths. Internal storage, DB, frontend, API routes unchanged. Thin toStoragePath/toModelPath conversion at tool boundary (~9 files). Validated with Tasklet developer. Design doc: docs/designs/absolute-agent-paths.md.",
       "2026-03-10: Added PR 26a (System skill files \u2014 bundled fallback). Verbatim Tasklet creating-connections skill + direct-api-connection guide, stored as static .md files in codebase, served via read_file fallback for skills/system/ paths. No per-client seeding, no skill_registry. System prompt + tool descriptions already reference these paths (wired in PRs 25-26). SKILL-05 pattern adapted for system skills: bundled in code instead of per-client storage.",
-      "2026-03-10: PR 33 approval scope clarified after implementation review. Mechanical gate now targets destructive actions plus connection tool activation: CRM deletes, delete_connection, manage_activated_tools_for_connections, and the delete action inside manage_active_triggers. Non-destructive CRM writes, links, and unlinks stay auto-run. Future outbound send tools adopt the same gate when those tool surfaces ship."
+      "2026-03-10: PR 33 approval scope clarified after implementation review. Mechanical gate now targets destructive actions plus connection tool activation: CRM deletes, delete_connection, manage_activated_tools_for_connections, and the delete action inside manage_active_triggers. Non-destructive CRM writes, links, and unlinks stay auto-run. Future outbound send tools adopt the same gate when those tool surfaces ship.",
+      "2026-03-10 (reorg): Added 5 previously untracked Phase 1 entries: p1-crm-tool-consolidation, p1-crm-ux, p1-chat-sdk-convergence, p1-chatbot-zero-drift (all done), p1-whatsapp-spike (cut). Added note to PR 26 about sub-PRs 26b-26e."
     ]
   },
   "phases": [
@@ -641,6 +642,44 @@
           "testCriteria": [
             "Upload a document to Knowledge Base, search for it by content, agent can reference it"
           ]
+        },
+        {
+          "pr": "p1-crm-tool-consolidation",
+          "title": "CRM tool consolidation (untracked cleanup)",
+          "status": "done",
+          "note": "Phase 1 cleanup pass — consolidated CRM tools into cleaner factory pattern. Design: docs/product/designs/crm-tool-consolidation.md.",
+          "tasks": []
+        },
+        {
+          "pr": "p1-crm-ux",
+          "title": "CRM UX upgrade (untracked polish)",
+          "status": "done",
+          "note": "Phase 1 polish pass — CRM table UX, deal-contact linking, tool description improvements. Design: docs/product/designs/2026-03-04-crm-ux-upgrade-design.md.",
+          "tasklist": "docs/product/tasks/phase-2/2026-03-04-crm-ux-upgrade-tasklist.md",
+          "tasks": []
+        },
+        {
+          "pr": "p1-chat-sdk-convergence",
+          "title": "Chat SDK convergence (untracked alignment)",
+          "status": "done",
+          "note": "Phase 1/2 transition — aligned chat implementation with Vercel chatbot reference patterns before Phase 2 memory work.",
+          "tasklist": "docs/product/tasks/phase-2/2026-03-04-chat-sdk-convergence-staged-tasklist.md",
+          "tasks": []
+        },
+        {
+          "pr": "p1-chatbot-zero-drift",
+          "title": "Chatbot reference zero drift (untracked alignment)",
+          "status": "done",
+          "note": "Phase 1/2 transition — eliminated remaining drift from Vercel chatbot reference before memory system work began.",
+          "tasklist": "docs/product/tasks/phase-2/2026-03-05-chatbot-reference-zero-drift-tasklist.md",
+          "tasks": []
+        },
+        {
+          "pr": "p1-whatsapp-spike",
+          "title": "WhatsApp sales bot (design spike, cut)",
+          "status": "cut",
+          "note": "Design spike from 2026-03-03 — WhatsApp inbound bot for lead capture. Cut, not in v2 scope. Design preserved at docs/product/plans/2026-03-03-whatsapp-sales-bot-design.md.",
+          "tasks": []
         }
       ]
     },
@@ -1645,6 +1684,7 @@
             "Agent creates connection, activates subset of tools, writes skill file",
             "System-reminder shows active connections with tool counts after connecting a service"
           ],
+          "note": "Delivered as sub-PRs: 26b (Composio helpers), 26c (read-only connection tools), 26d (mutation connection tools), 26e (system-prompt + connection reminder). All sub-PRs done. Tasklists in docs/product/tasks/.",
           "simplified": true
         },
         {
@@ -1716,47 +1756,59 @@
         },
         {
           "pr": "42a",
-          "title": "Agent-generated views (catalog-based, json-render pattern)",
-          "status": "pending",
+          "title": "Agent-generated views (inline, json-render)",
+          "status": "in_progress",
+          "simplified": true,
           "decisions": [
             "UX-10"
           ],
           "dependsOn": [
             "15a"
           ],
-          "note": "Layer 3 of CRM configurability stack. Agent generates views by outputting a JSON spec conforming to a Zod-defined component catalog \u2014 not arbitrary code. Frontend renders specs deterministically via a <ViewRenderer> component using existing React components and TanStack Query data layer. No sandbox, no iframe, no bridge API needed. Inspired by Vercel Labs json-render pattern. Covers the real estate vertical's predictable view needs (kanban, table, chart, timeline, priority list). Saved specs become pinnable persistent views. Tasklet-style sandboxed code gen deferred to PR 42b as an escape hatch if catalog coverage proves insufficient.",
+          "note": "Agent can respond with visual components (stat cards, tables, kanban boards, charts) rendered inline in chat using Vercel Labs json-render. Uses @json-render/shadcn for 36 pre-built ShadCN components plus 4 custom CRM components (StatMetric, DealCard, ContactCard, TaskItem). Tool-based approach: agent calls show_view tool which outputs a JSON spec + pre-computed state. Frontend detects the tool output in ToolCallInline and renders via json-render's Renderer + StateProvider. No saved/pinned views, no DB migration, no sidebar changes, no live data layer. Views live in chat only — user asks again for fresh data. Design doc: docs/product/designs/pr31-agent-generated-views.md",
           "tasks": [
             {
               "id": "PR42a-1",
-              "task": "Define component catalog: Zod schemas for view components (kanban board, data table, chart, timeline, priority list, stat card). Each schema defines valid props \u2014 the LLM can only produce components in this catalog.",
+              "task": "Install @json-render/core, @json-render/react, @json-render/shadcn dependencies.",
               "done": false
             },
             {
               "id": "PR42a-2",
-              "task": "Build <ViewRenderer> component \u2014 takes a JSON view spec, validates against catalog schemas, renders the matching React component. Streaming/progressive rendering support.",
+              "task": "Define json-render catalog (src/lib/views/catalog.ts) with ShadCN components + 4 CRM-specific components (StatMetric, DealCard, ContactCard, TaskItem). Define registry (src/lib/views/registry.tsx) mapping catalog to React implementations.",
               "done": false
             },
             {
               "id": "PR42a-3",
-              "task": "Agent tool: create_view (generates JSON spec via structured output) + show_view (displays in preview/split panel). View specs read live CRM data including custom fields from PR 15a via existing TanStack Query hooks.",
+              "task": "Build 4 custom CRM components: StatMetric (~30 lines), DealCard (extract from deals kanban page), ContactCard (extract from contacts page), TaskItem (extract from tasks page). Register in catalog.",
               "done": false
             },
             {
               "id": "PR42a-4",
-              "task": "Migration: saved_views table (id, client_id, spec JSONB, display_name, pinned boolean, created_at, updated_at). Pin/unpin views to sidebar or CRM pages.",
+              "task": "Build show_view agent tool (src/lib/runner/tools/views/show-view.ts). Parameters: spec (json-render spec with root + elements) + state (pre-computed data). Validates spec against catalog. Register in run-agent.ts.",
               "done": false
             },
             {
               "id": "PR42a-5",
-              "task": "Wire saved views into sidebar navigation \u2014 pinned views appear as nav items, clicking renders the saved spec via <ViewRenderer>.",
+              "task": "Build ViewCard component (src/components/views/view-card.tsx) — wraps json-render Renderer + StateProvider for inline chat rendering.",
+              "done": false
+            },
+            {
+              "id": "PR42a-6",
+              "task": "Modify ToolCallInline (src/components/chat/tool-call-inline.tsx) to detect tool-show_view parts and render ViewCard instead of JsonView.",
               "done": false
             }
           ],
           "testCriteria": [
-            "User says 'show me a kanban of my deals grouped by stage' \u2192 agent outputs JSON spec \u2192 ViewRenderer displays interactive board with live CRM data",
-            "User pins the view \u2192 it appears in sidebar \u2192 clicking it re-renders the saved spec with fresh data",
-            "Generated view includes custom fields from PR 15a",
-            "Agent cannot produce components outside the defined catalog (Zod validation rejects invalid specs)"
+            "User says 'show me my deals pipeline' — agent queries CRM tools, calls show_view — chat renders stat cards + kanban board inline",
+            "User says 'what tasks are overdue' — agent calls show_view — chat renders a task list with due dates",
+            "Agent cannot produce components outside the catalog (json-render Zod validation rejects invalid specs, agent retries)",
+            "View renders correctly on both desktop and mobile widths"
+          ],
+          "cut": [
+            "Pinned/saved views (no saved_views table, no sidebar VIEWS section, no /views/[viewId] route)",
+            "Live data fetching layer (no useViewData hook — agent pre-computes state)",
+            "Streaming progressive rendering (tool-based approach, render on completion)",
+            "Chat Mode integration with pipeJsonRender (tool-based is simpler)"
           ]
         },
         {
@@ -2158,7 +2210,8 @@
       {
         "pr": 23,
         "title": "Skill system \u2014 registry",
-        "reason": "Skills are just markdown files in Supabase Storage. No DB registry needed. Agent reads them with read_file().",
+        "status": "deferred",
+        "reason": "Skills are just markdown files in Supabase Storage. No DB registry needed for now. Agent reads them with read_file(). Will extend when skill discovery/management needs grow.",
         "decisions": [
           "SKILL-01",
           "SKILL-02",
@@ -2169,7 +2222,8 @@
       {
         "pr": 24,
         "title": "Skill system \u2014 loading + custom skills",
-        "reason": "No guided interview UI. Agent writes skill files directly via write_file.",
+        "status": "deferred",
+        "reason": "No guided interview UI needed yet. Agent writes skill files directly via write_file. Will extend when custom skill workflows are needed.",
         "decisions": [
           "SKILL-05",
           "SKILL-06",
