@@ -123,6 +123,28 @@ export function ChatPanel({
 
       if (typeof window !== "undefined" && window.location.pathname === "/chat") {
         window.history.pushState({}, "", `/chat/${chatId}`);
+
+        // Optimistic: make the new thread appear in the sidebar immediately
+        // instead of waiting for Supabase Realtime to deliver the INSERT event.
+        const now = new Date().toISOString();
+        queryClient.setQueriesData<Array<Record<string, unknown>>>(
+          { queryKey: threadKeys.all },
+          (old) => {
+            if (!old) return old;
+            return [
+              {
+                thread_id: chatId,
+                client_id: "",
+                title: null,
+                is_pinned: false,
+                is_archived: false,
+                created_at: now,
+                updated_at: now,
+              },
+              ...old,
+            ];
+          },
+        );
       }
 
       if (files.length > 0 && text.length === 0) {
@@ -137,7 +159,7 @@ export function ChatPanel({
 
       sendMessage({ text });
     },
-    [chatId, isLoading, sendMessage],
+    [chatId, isLoading, queryClient, sendMessage],
   );
 
   const handleQuestionSubmit = useCallback(

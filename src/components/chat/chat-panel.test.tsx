@@ -16,8 +16,9 @@ const { mockTransportConstructor } = vi.hoisted(() => ({
 const { mockSetDataStream } = vi.hoisted(() => ({
   mockSetDataStream: vi.fn(),
 }));
-const { mockInvalidateQueries } = vi.hoisted(() => ({
+const { mockInvalidateQueries, mockSetQueriesData } = vi.hoisted(() => ({
   mockInvalidateQueries: vi.fn(),
+  mockSetQueriesData: vi.fn(),
 }));
 const { mockToastError } = vi.hoisted(() => ({
   mockToastError: vi.fn(),
@@ -63,6 +64,7 @@ vi.mock("@ai-sdk/react", () => ({
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({
     invalidateQueries: mockInvalidateQueries,
+    setQueriesData: mockSetQueriesData,
   }),
 }));
 
@@ -429,6 +431,66 @@ describe("ChatPanel", () => {
     });
 
     pushStateSpy.mockRestore();
+  });
+
+  it("optimistically adds thread to cache when sending from draft route", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState({}, "", "/chat");
+
+    render(<ChatPanel chatId="thread-1" />);
+
+    await user.type(screen.getByPlaceholderText(/describe a task/i), "Hello");
+    await user.click(screen.getByRole("button", { name: /submit/i }));
+
+    await waitFor(() => {
+      expect(mockSetQueriesData).toHaveBeenCalledWith(
+        { queryKey: threadKeys.all },
+        expect.any(Function),
+      );
+    });
+
+    // Verify the updater function prepends the new thread
+    const updater = mockSetQueriesData.mock.calls[0][1] as (old: unknown[] | undefined) => unknown;
+    const result = updater([{ thread_id: "existing", title: "Old" }]) as Array<{ thread_id: string }>;
+    expect(result[0].thread_id).toBe("thread-1");
+    expect(result).toHaveLength(2);
+
+    // Returns undefined for empty cache (no-op)
+    expect(updater(undefined)).toBeUndefined();
+  });
+
+  it("does not optimistically add thread when sending from existing thread route", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState({}, "", "/chat/thread-1");
+
+    mockUseChat.mockReturnValue({
+      id: "thread-1",
+      messages: [
+        { id: "u1", role: "user", parts: [{ type: "text", text: "Hi" }] },
+      ],
+      status: "ready",
+      error: undefined,
+      sendMessage,
+      setMessages,
+      regenerate: vi.fn(),
+      clearError: vi.fn(),
+      stop,
+      resumeStream: vi.fn(),
+      addToolResult: vi.fn(),
+      addToolOutput: vi.fn(),
+      addToolApprovalResponse: vi.fn(),
+    });
+
+    render(<ChatPanel chatId="thread-1" />);
+
+    await user.type(screen.getByPlaceholderText(/send a message/i), "Follow up");
+    await user.click(screen.getByRole("button", { name: /submit/i }));
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalled();
+    });
+
+    expect(mockSetQueriesData).not.toHaveBeenCalled();
   });
 
   it("passes initialPrompt through to ChatComposer as initialValue", () => {
