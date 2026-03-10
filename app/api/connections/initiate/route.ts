@@ -97,6 +97,8 @@ export async function POST(request: Request): Promise<Response> {
       display_name: null,
       account_identifier: null,
       status: "pending",
+      activated_tools: [],
+      tool_count: 0,
     });
 
     return Response.json({ redirectUrl });
