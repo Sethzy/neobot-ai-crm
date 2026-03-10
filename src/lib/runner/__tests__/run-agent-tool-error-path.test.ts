@@ -91,8 +91,6 @@ vi.mock("@/lib/chat/messages", () => ({
 }));
 
 vi.mock("@/lib/runner/compaction", () => ({
-  CRM_COMPACTION_INSTRUCTIONS:
-    "Preserve deal names, contact details, task statuses, and decisions made.",
   maybeCompactThread: (...args: unknown[]) => mockMaybeCompactThread(...args),
 }));
 

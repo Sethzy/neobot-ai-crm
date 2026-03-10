@@ -9,6 +9,9 @@ import type { Database, Json } from "@/types/database";
 type ApprovalSupabaseClient = SupabaseClient<Database>;
 type ApprovalEventRow = Database["public"]["Tables"]["approval_events"]["Row"];
 
+/** Mirrors the CHECK constraint in the approval_events migration. */
+type ApprovalEventStatus = "pending" | "approved" | "denied" | "expired";
+
 interface CreateApprovalEventInput {
   clientId: string;
   threadId: string;
@@ -77,7 +80,7 @@ export async function resolveApprovalEvent(
   const { data, error } = await supabase
     .from("approval_events")
     .update({
-      status: input.approved ? "approved" : "denied",
+      status: (input.approved ? "approved" : "denied") satisfies ApprovalEventStatus,
       resolved_at: new Date().toISOString(),
     })
     .eq("client_id", input.clientId)
@@ -109,11 +112,7 @@ export async function resolveApprovalEvent(
     };
   }
 
-  if (
-    existingEvent &&
-    typeof (existingEvent as ApprovalEventRow | Pick<ApprovalEventRow, "status">).status === "string" &&
-    (existingEvent as ApprovalEventRow | Pick<ApprovalEventRow, "status">).status !== "pending"
-  ) {
+  if (existingEvent && existingEvent.status !== "pending") {
     return {
       success: true as const,
       status: "already_resolved" as const,
@@ -126,24 +125,4 @@ export async function resolveApprovalEvent(
     status: "missing" as const,
     error: "Approval event not found.",
   };
-}
-
-/**
- * Returns the current number of pending approvals for the client.
- */
-export async function getPendingApprovalCount(
-  supabase: ApprovalSupabaseClient,
-  clientId: string,
-): Promise<number> {
-  const { count, error } = await supabase
-    .from("approval_events")
-    .select("*", { count: "exact", head: true })
-    .eq("client_id", clientId)
-    .eq("status", "pending");
-
-  if (error) {
-    return 0;
-  }
-
-  return count ?? 0;
 }

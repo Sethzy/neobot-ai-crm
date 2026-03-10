@@ -149,6 +149,14 @@ export async function finalizeRun({
     ]);
   }
 
+  const baseRunCompletion = {
+    runId,
+    model: modelId,
+    tokensIn: totalUsage.inputTokens ?? 0,
+    tokensOut: totalUsage.outputTokens ?? 0,
+    stepCount: steps.length,
+  };
+
   const approvalRequests = extractApprovalRequests(parts);
   if (approvalRequests.length > 0) {
     const approvalResults = await Promise.all(
@@ -173,26 +181,12 @@ export async function finalizeRun({
         `[${logLabel}] approval event persistence failed:`,
         approvalPersistenceFailure.error,
       );
-      await completeRun(supabase, {
-        runId,
-        status: "partial",
-        model: modelId,
-        tokensIn: totalUsage.inputTokens ?? 0,
-        tokensOut: totalUsage.outputTokens ?? 0,
-        stepCount: steps.length,
-      });
+      await completeRun(supabase, { ...baseRunCompletion, status: "partial" });
       return;
     }
   }
 
-  await completeRun(supabase, {
-    runId,
-    status: "completed",
-    model: modelId,
-    tokensIn: totalUsage.inputTokens ?? 0,
-    tokensOut: totalUsage.outputTokens ?? 0,
-    stepCount: steps.length,
-  });
+  await completeRun(supabase, { ...baseRunCompletion, status: "completed" });
 
   // Drain any queued messages that arrived while this run was active.
   await drainAndContinue(supabase, { clientId, threadId });

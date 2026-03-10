@@ -10,6 +10,7 @@ import { toModelPath } from "@/lib/storage/agent-paths";
 import type { Database } from "@/types/database";
 
 const AGENT_FILES_BUCKET_ID = "agent-files";
+const TEXT_ENCODER = new TextEncoder();
 
 type ChatSupabaseClient = SupabaseClient<Database>;
 
@@ -34,7 +35,7 @@ function getSerializedArtifact(output: unknown): string | null {
 function serializeWithSize(output: unknown): { serialized: string; sizeBytes: number } | null {
   const serialized = getSerializedArtifact(output);
   if (serialized == null) return null;
-  return { serialized, sizeBytes: new TextEncoder().encode(serialized).length };
+  return { serialized, sizeBytes: TEXT_ENCODER.encode(serialized).length };
 }
 
 /**

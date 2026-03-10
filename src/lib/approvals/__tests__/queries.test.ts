@@ -8,7 +8,6 @@ import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
 import {
   createApprovalEvent,
-  getPendingApprovalCount,
   resolveApprovalEvent,
 } from "../queries";
 
@@ -188,30 +187,3 @@ describe("resolveApprovalEvent", () => {
   });
 });
 
-describe("getPendingApprovalCount", () => {
-  it("returns the pending count for a client", async () => {
-    const supabase = createMockSupabaseClient({
-      selectResult: { data: null, error: null, count: 3 } as never,
-    });
-
-    const result = await getPendingApprovalCount(
-      supabase as never,
-      "550e8400-e29b-41d4-a716-446655440000",
-    );
-
-    expect(result).toBe(3);
-    expect(supabase.calls.from).toEqual(["approval_events"]);
-    expect(supabase.calls.methods).toContainEqual({
-      method: "select",
-      args: ["*", { count: "exact", head: true }],
-    });
-    expect(supabase.calls.methods).toContainEqual({
-      method: "eq",
-      args: ["client_id", "550e8400-e29b-41d4-a716-446655440000"],
-    });
-    expect(supabase.calls.methods).toContainEqual({
-      method: "eq",
-      args: ["status", "pending"],
-    });
-  });
-});

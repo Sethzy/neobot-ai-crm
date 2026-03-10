@@ -79,7 +79,7 @@ describe("createCrmTools", () => {
     const tools = createCrmTools(client, CLIENT_ID, {
       allowWriteTools: true,
       allowDeleteTools: false,
-    } as never);
+    });
 
     const toolNames = Object.keys(tools).sort();
 

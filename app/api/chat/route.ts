@@ -92,9 +92,12 @@ function getApprovalResponses(
     return [];
   }
 
+  // Approval-responded parts only appear on the most recent assistant message,
+  // so scan in reverse and stop after the first message with approvals.
   const approvalsById = new Map<string, boolean>();
 
-  for (const message of messages) {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const message = messages[i];
     if (!Array.isArray(message?.parts)) {
       continue;
     }
@@ -121,6 +124,8 @@ function getApprovalResponses(
 
       approvalsById.set(approvalRecord.id, approvalRecord.approved);
     }
+
+    if (approvalsById.size > 0) break;
   }
 
   return [...approvalsById.entries()].map(([approvalId, approved]) => ({
@@ -193,18 +198,21 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     const approvalResponses = getApprovalResponses(body.messages);
-    for (const approvalResponse of approvalResponses) {
-      const resolutionResult = await resolveApprovalEvent(supabase, {
-        clientId,
-        approvalId: approvalResponse.approvalId,
-        approved: approvalResponse.approved,
-      });
+    if (approvalResponses.length > 0) {
+      const resolutionResults = await Promise.all(
+        approvalResponses.map((response) =>
+          resolveApprovalEvent(supabase, {
+            clientId,
+            approvalId: response.approvalId,
+            approved: response.approved,
+          }),
+        ),
+      );
 
-      if (
-        !resolutionResult.success ||
-        (resolutionResult.status !== "updated" &&
-          resolutionResult.status !== "already_resolved")
-      ) {
+      const failed = resolutionResults.find(
+        (r) => !r.success || (r.status !== "updated" && r.status !== "already_resolved"),
+      );
+      if (failed) {
         return jsonError("Failed to process chat request.", 500);
       }
     }
