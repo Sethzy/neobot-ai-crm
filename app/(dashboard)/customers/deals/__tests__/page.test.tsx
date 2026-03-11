@@ -3,7 +3,7 @@
  * @module app/(dashboard)/customers/deals/__tests__/page
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -144,5 +144,34 @@ describe("DealsPage", () => {
     expect(screen.getByText(/move deals forward from the board/i)).toBeInTheDocument();
     expect(screen.queryByText(/drag them between lanes/i)).not.toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /sort deals/i })).toBeInTheDocument();
+  });
+
+  it("only enables the active view query", async () => {
+    const user = userEvent.setup();
+    const { useDeals, usePaginatedDeals } = await import("@/hooks/use-deals");
+
+    render(<DealsPage />, { wrapper: createWrapper() });
+
+    expect(vi.mocked(usePaginatedDeals)).toHaveBeenLastCalledWith(
+      expect.any(Object),
+      { enabled: true },
+    );
+    expect(vi.mocked(useDeals)).toHaveBeenLastCalledWith(
+      expect.any(Object),
+      { enabled: false },
+    );
+
+    await user.click(screen.getByRole("button", { name: /board/i }));
+
+    await waitFor(() => {
+      expect(vi.mocked(usePaginatedDeals)).toHaveBeenLastCalledWith(
+        expect.any(Object),
+        { enabled: false },
+      );
+      expect(vi.mocked(useDeals)).toHaveBeenLastCalledWith(
+        expect.any(Object),
+        { enabled: true },
+      );
+    });
   });
 });

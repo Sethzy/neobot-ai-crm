@@ -199,6 +199,7 @@ export default function DealsPage() {
 
   const rawViewParam = searchParams?.get("view") ?? null;
   const queryView = normalizeDealsView(rawViewParam);
+  const activeView = queryView ?? (view === "kanban" ? "kanban" : "table");
 
   useEffect(() => {
     if (!queryView) {
@@ -258,13 +259,13 @@ export default function DealsPage() {
     isLoading: isTableLoading,
     isError: isTableError,
     refetch: refetchTable,
-  } = usePaginatedDeals(tableFilters);
+  } = usePaginatedDeals(tableFilters, { enabled: activeView === "table" });
   const {
     data: boardData = [],
     isLoading: isBoardLoading,
     isError: isBoardError,
     refetch: refetchBoard,
-  } = useDeals(sharedFilters);
+  } = useDeals(sharedFilters, { enabled: activeView === "kanban" });
 
   const deleteDeal = useMutation({
     mutationFn: async ({ dealId }: { dealId: string }) => {
@@ -356,7 +357,7 @@ export default function DealsPage() {
     [stages],
   );
 
-  const isBoardView = view === "kanban";
+  const isBoardView = activeView === "kanban";
   const activeRefetch = isBoardView ? refetchBoard : refetchTable;
 
   return (
@@ -399,7 +400,7 @@ export default function DealsPage() {
               >
                 <RefreshCw className="h-4 w-4" />
               </Button>
-              <ViewToggle current={view} views={["table", "kanban"]} onChange={(nextView) => {
+              <ViewToggle current={activeView} views={["table", "kanban"]} onChange={(nextView) => {
                 setView(nextView);
                 router.replace(buildDealsHref(searchParams, nextView));
               }} />

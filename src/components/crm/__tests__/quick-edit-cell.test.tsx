@@ -115,4 +115,31 @@ describe("QuickEditCell", () => {
     expect(screen.queryByText("sarah@example.com")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /edit email/i })).toBeInTheDocument();
   });
+
+  it("lets desktop select editors cancel without saving", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <QuickEditCell
+        ariaLabel="Status"
+        value="open"
+        type="select"
+        options={[
+          { value: "open", label: "Open" },
+          { value: "completed", label: "Completed" },
+        ]}
+        onSave={onSave}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /edit status/i }));
+    expect(screen.getByRole("combobox", { name: /status/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /cancel/i }));
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.queryByRole("combobox", { name: /status/i })).not.toBeInTheDocument();
+    expect(screen.getByText("Open")).toBeInTheDocument();
+  });
 });

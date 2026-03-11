@@ -141,4 +141,16 @@ describe("CompaniesPage", () => {
     expect(mockMutateAsync).toHaveBeenCalledWith({ phone: "+6590000000" });
     expect(mockPush).not.toHaveBeenCalled();
   });
+
+  it("normalizes bare website domains before saving", async () => {
+    const user = userEvent.setup();
+
+    render(<CompaniesPage />, { wrapper: createWrapper() });
+
+    await user.click(screen.getByRole("button", { name: /edit website/i }));
+    await user.clear(screen.getByRole("textbox", { name: /website/i }));
+    await user.type(screen.getByRole("textbox", { name: /website/i }), "acme.example{Enter}");
+
+    expect(mockMutateAsync).toHaveBeenCalledWith({ website: "https://acme.example" });
+  });
 });

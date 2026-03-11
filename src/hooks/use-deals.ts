@@ -46,6 +46,10 @@ export interface PaginatedDealsResult {
   pageSize: number;
 }
 
+interface DealQueryOptions {
+  enabled?: boolean;
+}
+
 /**
  * Query key factory for CRM deals list/detail queries.
  */
@@ -157,33 +161,35 @@ export function dealDetailQueryOptions(dealId: string) {
 /**
  * Returns deals list query state and subscribes to deals realtime invalidation.
  */
-export function useDeals(filters: DealFilters) {
+export function useDeals(filters: DealFilters, options: DealQueryOptions = {}) {
   const { data: clientId } = useClientId();
+  const { enabled = true } = options;
   const realtimeFilter = clientId ? `client_id=eq.${clientId}` : undefined;
 
   useRealtimeTable({
     table: "deals",
     filter: realtimeFilter,
     queryKeys: [dealKeys.all],
-    enabled: Boolean(clientId),
+    enabled: Boolean(clientId) && enabled,
   });
 
   useRealtimeTable({
     table: "deal_contacts",
     filter: realtimeFilter,
     queryKeys: [dealKeys.all],
-    enabled: Boolean(clientId),
+    enabled: Boolean(clientId) && enabled,
   });
 
   useRealtimeTable({
     table: "companies",
     filter: realtimeFilter,
     queryKeys: [dealKeys.all],
-    enabled: Boolean(clientId),
+    enabled: Boolean(clientId) && enabled,
   });
 
   return useQuery({
     ...dealsQueryOptions(filters),
+    enabled,
     placeholderData: keepPreviousData,
   });
 }
@@ -191,33 +197,35 @@ export function useDeals(filters: DealFilters) {
 /**
  * Returns paginated deals for the customers deals list.
  */
-export function usePaginatedDeals(filters: PaginatedDealFilters) {
+export function usePaginatedDeals(filters: PaginatedDealFilters, options: DealQueryOptions = {}) {
   const { data: clientId } = useClientId();
+  const { enabled = true } = options;
   const realtimeFilter = clientId ? `client_id=eq.${clientId}` : undefined;
 
   useRealtimeTable({
     table: "deals",
     filter: realtimeFilter,
     queryKeys: [dealKeys.all],
-    enabled: Boolean(clientId),
+    enabled: Boolean(clientId) && enabled,
   });
 
   useRealtimeTable({
     table: "deal_contacts",
     filter: realtimeFilter,
     queryKeys: [dealKeys.all],
-    enabled: Boolean(clientId),
+    enabled: Boolean(clientId) && enabled,
   });
 
   useRealtimeTable({
     table: "companies",
     filter: realtimeFilter,
     queryKeys: [dealKeys.all],
-    enabled: Boolean(clientId),
+    enabled: Boolean(clientId) && enabled,
   });
 
   return useQuery({
     ...paginatedDealsQueryOptions(filters),
+    enabled,
     placeholderData: keepPreviousData,
   });
 }

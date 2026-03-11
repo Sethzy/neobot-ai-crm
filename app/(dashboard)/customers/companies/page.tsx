@@ -75,6 +75,23 @@ function getWebsiteDisplayValue(website: string) {
 }
 
 /**
+ * Ensures website links remain absolute when users enter a bare domain.
+ */
+function normalizeWebsiteValue(nextValue: string | null): string | null {
+  if (!nextValue) {
+    return null;
+  }
+
+  const normalizedValue = nextValue.trim();
+
+  if (/^[a-z][a-z\d+\-.]*:\/\//i.test(normalizedValue)) {
+    return normalizedValue;
+  }
+
+  return `https://${normalizedValue}`;
+}
+
+/**
  * Renders a read-mode link plus an explicit edit affordance for one company field.
  */
 function CompanyLinkEditCell({
@@ -166,7 +183,7 @@ function CompanyWebsiteCell({ companyId, website }: { companyId: string; website
       linkRel="noreferrer"
       displayValue={getWebsiteDisplayValue}
       onSave={async (nextValue) => {
-        await updateCompany.mutateAsync({ website: nextValue });
+        await updateCompany.mutateAsync({ website: normalizeWebsiteValue(nextValue) });
       }}
     />
   );

@@ -311,31 +311,44 @@ export function QuickEditCell({
   const renderEditor = (isDialogEditor: boolean) => {
     if (type === "select") {
       return (
-        <Select
-          value={draft || undefined}
-          onValueChange={(nextValue) => {
-            setDraft(nextValue);
+        <div className="flex items-center gap-2">
+          <Select
+            value={draft || undefined}
+            onValueChange={(nextValue) => {
+              setDraft(nextValue);
 
-            if (!isDialogEditor) {
-              void commitValue(nextValue);
-            }
-          }}
-        >
-          <SelectTrigger
-            aria-label={ariaLabel}
-            className="w-full"
-            onClick={stopEventPropagation}
+              if (!isDialogEditor) {
+                void commitValue(nextValue);
+              }
+            }}
           >
-            <SelectValue placeholder={`Select ${ariaLabel.toLowerCase()}`} />
-          </SelectTrigger>
-          <SelectContent>
-            {options.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <SelectTrigger
+              aria-label={ariaLabel}
+              className="w-full"
+              onClick={stopEventPropagation}
+              onKeyDown={(event) => {
+                if (event.key === "Escape" && !isDialogEditor) {
+                  event.preventDefault();
+                  cancelEditing();
+                }
+              }}
+            >
+              <SelectValue placeholder={`Select ${ariaLabel.toLowerCase()}`} />
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {!isDialogEditor ? (
+            <Button type="button" variant="ghost" size="sm" onClick={cancelEditing}>
+              Cancel
+            </Button>
+          ) : null}
+        </div>
       );
     }
 
