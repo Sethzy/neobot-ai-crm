@@ -15,6 +15,7 @@ export interface BillingPlanDefinition {
   isFree: boolean;
   summary: string;
   highlights: string[];
+  monthlyMessageLimit: number;
 }
 
 export const billingPlanCatalog: Record<BillingPlanName, BillingPlanDefinition> = {
@@ -23,6 +24,7 @@ export const billingPlanCatalog: Record<BillingPlanName, BillingPlanDefinition> 
     monthlyPriceSgd: 0,
     trialDays: 0,
     isFree: true,
+    monthlyMessageLimit: 100,
     summary: "Use chat, CRM, and memory without a Stripe subscription.",
     highlights: [
       "Chat with Sunder from day one",
@@ -35,6 +37,7 @@ export const billingPlanCatalog: Record<BillingPlanName, BillingPlanDefinition> 
     monthlyPriceSgd: 25,
     trialDays: 7,
     isFree: false,
+    monthlyMessageLimit: 500,
     summary: "For individual agents who want dependable daily execution.",
     highlights: [
       "7-day trial before the first charge",
@@ -47,6 +50,7 @@ export const billingPlanCatalog: Record<BillingPlanName, BillingPlanDefinition> 
     monthlyPriceSgd: 99,
     trialDays: 7,
     isFree: false,
+    monthlyMessageLimit: 2000,
     summary: "For heavier automation volume and a wider operating envelope.",
     highlights: [
       "Everything in Pro with more headroom",
@@ -80,4 +84,14 @@ export function getPaidBillingPlanNameForPriceId(
       (planName) => getBillingPlanPriceId(planName) === priceId,
     ) ?? null
   );
+}
+
+export function getBillingPlanMessageLimit(
+  planName: string | null | undefined,
+): number {
+  if (planName && planName in billingPlanCatalog) {
+    return billingPlanCatalog[planName as BillingPlanName].monthlyMessageLimit;
+  }
+
+  return billingPlanCatalog.Free.monthlyMessageLimit;
 }

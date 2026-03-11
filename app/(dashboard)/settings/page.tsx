@@ -10,7 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { customerPortalAction } from "@/lib/stripe/actions";
+import { getBillingPlanMessageLimit } from "@/lib/stripe/plans";
 import { loadCurrentBillingState } from "@/lib/stripe/stripe";
+import { formatMessageQuotaResetDate } from "@/lib/usage/message-quota";
+import { loadCurrentMessageQuota } from "@/lib/usage/message-quota-server";
 
 import { SubmitButton } from "../pricing/submit-button";
 
@@ -108,6 +111,7 @@ function getStatusVariant(status: string | null) {
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const client = await loadCurrentBillingState();
+  const messageQuota = await loadCurrentMessageQuota();
   const connectionAlert = renderConnectionAlert(
     resolvedSearchParams.connection,
     resolvedSearchParams.reason,
@@ -116,6 +120,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   const currentPlanName = client.plan_name ?? "Free";
   const statusLabel = client.subscription_status?.replace(/_/g, " ") ?? "free";
   const hasPortal = Boolean(client.stripe_customer_id);
+  const monthlyMessageLimit = messageQuota?.monthlyMessageLimit ??
+    getBillingPlanMessageLimit(currentPlanName);
 
   return (
     <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
@@ -184,6 +190,37 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                   </p>
                 </div>
               </div>
+
+              <div className="grid gap-3 rounded-xl border border-border/60 bg-background/80 p-4 sm:grid-cols-3">
+                <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">
+                    Monthly cap
+                  </p>
+                  <p className="font-medium text-foreground">{monthlyMessageLimit}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">
+                    Used this month
+                  </p>
+                  <p className="font-medium text-foreground">
+                    {messageQuota?.messagesUsed ?? 0}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">
+                    Remaining
+                  </p>
+                  <p className="font-medium text-foreground">
+                    {messageQuota?.messagesRemaining ?? monthlyMessageLimit}
+                  </p>
+                </div>
+              </div>
+
+              {messageQuota ? (
+                <p className="text-sm">
+                  Resets {formatMessageQuotaResetDate(messageQuota.nextResetDate)} (Asia/Singapore).
+                </p>
+              ) : null}
             </CardContent>
 
             <CardFooter className="flex flex-col items-stretch gap-3 border-t sm:flex-row sm:items-center sm:justify-between">

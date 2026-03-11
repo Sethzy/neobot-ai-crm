@@ -8,7 +8,7 @@
 
 ## Grounding
 
-- **Source of truth scope:** `docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json` (`PR 38b`)
+- **Source of truth scope:** `docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json` (`PR 38b`, `PR 38c`)
 - **Architecture decision:** `roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json` (`FOUND-07`)
 - **Design doc:** `docs/product/designs/stripe-billing-integration.md`
 - **Official Stripe guidance:** hosted Checkout + Customer Portal + webhook provisioning/lifecycle sync
@@ -38,6 +38,12 @@
 - `app/(dashboard)/pricing/page.tsx`
 - `app/(dashboard)/pricing/submit-button.tsx`
 - `app/(dashboard)/settings/page.tsx`
+- `supabase/migrations/20260311010000_create_message_quota.sql`
+- `src/lib/usage/message-quota.ts`
+- `src/lib/usage/message-quota-server.ts`
+- `src/hooks/use-message-quota.ts`
+- `src/components/chat/chat-panel.tsx`
+- `src/components/chat/chat-composer.tsx`
 
 ## Clients Table Fields
 
@@ -48,6 +54,29 @@
 - `subscription_status`
 
 This is intentionally a lightweight mirror of the current paid state for one-client-per-user Sunder.
+
+## Message Quota Model
+
+- Message caps are app-enforced, not Stripe-metered.
+- Stripe still decides the current plan via `clients.plan_name`.
+- Supabase stores monthly aggregate usage in `client_message_usage_monthly`.
+- Caps are:
+  - `Free` — `100` messages / month
+  - `Pro` — `500` messages / month
+  - `Max` — `2,000` messages / month
+- Reset boundary is the first day of the calendar month in `Asia/Singapore`.
+- Count exactly one unit for each brand-new inbound user-authored chat turn.
+- Do not count:
+  - assistant replies
+  - approval continuations
+  - queued replays
+  - tool calls
+  - pulse/cron runs
+
+Quota RPCs:
+
+- `get_message_quota_status`
+- `consume_message_quota`
 
 ## Webhook Contract
 
@@ -86,8 +115,17 @@ Duplicate-subscription protection:
 ## Settings Behavior
 
 - `/settings` shows the current mirrored billing state
+- `/settings` shows the current monthly cap, used count, remaining count, and reset date
 - `/settings` opens the Stripe Customer Portal if `stripe_customer_id` exists
 - Free users are sent to `/pricing` to start a paid subscription
+
+## Chat Gating Behavior
+
+- `/chat` and `/chat/[threadId]` load the current quota server-side and refresh it client-side
+- The composer always shows current monthly usage when quota state is available
+- At zero remaining messages, the composer disables new sends and attachment uploads
+- The composer links the user to `/pricing` to upgrade
+- If the user hits the cap during send, `/api/chat` returns a structured `402` payload and the chat UI surfaces a friendly quota error message
 
 ## Stripe Dashboard Setup
 
@@ -126,9 +164,12 @@ Also:
 
 - Free user sees `Free` as current plan in `/pricing`
 - Paid plans render from live Stripe pricing data
+- `/pricing` shows plan caps and the current plan's live used/remaining counts
 - Starting `Pro` or `Max` redirects to hosted Checkout
 - Successful Checkout syncs `clients` and redirects to `/settings?billing=success`
 - `/settings` shows current plan and opens the Customer Portal
+- `/settings` shows monthly cap, used count, remaining count, and reset date
+- `/chat` disables the composer at zero remaining quota and links to `/pricing`
 - `stripe trigger checkout.session.completed` updates billing state
 - `stripe trigger invoice.paid` updates billing state
 - `stripe trigger invoice.payment_failed` updates billing state

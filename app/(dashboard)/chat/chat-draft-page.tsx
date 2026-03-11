@@ -8,18 +8,26 @@
 import { useSearchParams } from "next/navigation";
 
 import { ChatPanel } from "@/components/chat/chat-panel";
+import type { MessageQuotaStatus } from "@/lib/usage/message-quota";
 
 interface ChatDraftPageProps {
   id: string;
+  initialQuota?: MessageQuotaStatus | null;
 }
 
-export function ChatDraftPage({ id }: ChatDraftPageProps) {
+export function ChatDraftPage({ id, initialQuota = null }: ChatDraftPageProps) {
   const searchParams = useSearchParams();
   const initialPrompt = searchParams?.get("prompt") ?? undefined;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ChatPanel chatId={id} initialMessages={[]} autoResume={false} initialPrompt={initialPrompt} />
+      <ChatPanel
+        chatId={id}
+        initialMessages={[]}
+        initialQuota={initialQuota}
+        autoResume={false}
+        initialPrompt={initialPrompt}
+      />
     </div>
   );
 }

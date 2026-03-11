@@ -492,21 +492,68 @@ export type Database = {
           client_id: string
           created_at: string
           display_name: string | null
+          plan_name: string | null
+          stripe_customer_id: string | null
+          stripe_product_id: string | null
+          stripe_subscription_id: string | null
+          subscription_status: string | null
           user_id: string
         }
         Insert: {
           client_id?: string
           created_at?: string
           display_name?: string | null
+          plan_name?: string | null
+          stripe_customer_id?: string | null
+          stripe_product_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
           user_id: string
         }
         Update: {
           client_id?: string
           created_at?: string
           display_name?: string | null
+          plan_name?: string | null
+          stripe_customer_id?: string | null
+          stripe_product_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
           user_id?: string
         }
         Relationships: []
+      }
+      client_message_usage_monthly: {
+        Row: {
+          client_id: string
+          created_at: string
+          messages_used: number
+          period_start: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          messages_used?: number
+          period_start: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          messages_used?: number
+          period_start?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_message_usage_monthly_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
       }
       agent_todo: {
         Row: {
@@ -1592,6 +1639,19 @@ export type Database = {
           webhook_secret: string | null
         }[]
       }
+      consume_message_quota: {
+        Args: { p_client_id: string }
+        Returns: {
+          allowed: boolean
+          client_id: string
+          messages_remaining: number
+          messages_used: number
+          monthly_message_limit: number
+          next_reset_date: string
+          period_start: string
+          plan_name: string
+        }[]
+      }
       create_run_if_idle: {
         Args: { p_client_id: string; p_run_type?: string; p_thread_id: string }
         Returns: string | null
@@ -1607,6 +1667,18 @@ export type Database = {
       get_client_accessible_schema: {
         Args: never
         Returns: Json
+      }
+      get_message_quota_status: {
+        Args: { p_client_id: string }
+        Returns: {
+          client_id: string
+          messages_remaining: number
+          messages_used: number
+          monthly_message_limit: number
+          next_reset_date: string
+          period_start: string
+          plan_name: string
+        }[]
       }
       get_my_client_config: { Args: never; Returns: string }
       get_my_client_id: { Args: never; Returns: string }

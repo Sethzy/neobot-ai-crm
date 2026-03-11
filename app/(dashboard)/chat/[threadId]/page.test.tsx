@@ -14,6 +14,7 @@ const MISSING_THREAD_ID = "22222222-2222-4222-8222-222222222222";
 const mockCreateClient = vi.fn();
 const mockResolveClientId = vi.fn();
 const mockListMessages = vi.fn();
+const mockLoadCurrentMessageQuota = vi.fn();
 
 vi.mock("next/navigation", () => ({
   redirect: vi.fn(),
@@ -31,13 +32,19 @@ vi.mock("@/lib/chat/messages", () => ({
   listMessages: (...args: unknown[]) => mockListMessages(...args),
 }));
 
+vi.mock("@/lib/usage/message-quota-server", () => ({
+  loadCurrentMessageQuota: (...args: unknown[]) => mockLoadCurrentMessageQuota(...args),
+}));
+
 vi.mock("./chat-thread-page-client", () => ({
   ChatThreadPageClient: ({
     threadId,
     initialMessages,
+    initialQuota,
   }: {
     threadId: string;
     initialMessages: Array<{ id: string; role: string; parts: unknown[] }>;
+    initialQuota?: { messagesRemaining: number } | null;
   }) => (
     <div>
       <div data-testid="thread-id">{threadId}</div>
@@ -45,6 +52,7 @@ vi.mock("./chat-thread-page-client", () => ({
       <div data-testid="first-message-text">
         {String((initialMessages[0]?.parts?.[0] as { text?: string } | undefined)?.text ?? "")}
       </div>
+      <div data-testid="quota-remaining">{String(initialQuota?.messagesRemaining ?? "none")}</div>
     </div>
   ),
 }));
@@ -75,6 +83,15 @@ function createThreadLookupSupabase(options: {
 describe("/chat/[threadId] page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockLoadCurrentMessageQuota.mockResolvedValue({
+      clientId: "client-123",
+      planName: "Free",
+      monthlyMessageLimit: 100,
+      messagesUsed: 20,
+      messagesRemaining: 80,
+      periodStart: "2026-03-01",
+      nextResetDate: "2026-04-01",
+    });
   });
 
   it("loads thread messages server-side and passes mapped initialMessages to client page", async () => {
@@ -98,6 +115,7 @@ describe("/chat/[threadId] page", () => {
     expect(screen.getByTestId("thread-id")).toHaveTextContent(VALID_THREAD_ID);
     expect(screen.getByTestId("initial-message-count")).toHaveTextContent("1");
     expect(screen.getByTestId("first-message-text")).toHaveTextContent("Loaded from server");
+    expect(screen.getByTestId("quota-remaining")).toHaveTextContent("80");
     expect(screen.getByTestId("data-stream-handler")).toBeInTheDocument();
     expect(mockListMessages).toHaveBeenCalledWith(supabase, VALID_THREAD_ID);
   });

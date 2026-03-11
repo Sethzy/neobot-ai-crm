@@ -8,6 +8,7 @@ const {
   mockStreamText,
   mockStepCountIs,
   mockGateway,
+  mockCaptureServerEvent,
   mockAssembleContext,
   mockCreateRun,
   mockCompleteRun,
@@ -27,10 +28,13 @@ const {
   mockLoadCrmConfig,
   mockGetActiveConnections,
   mockLoadActivatedConnectionTools,
+  mockConsumeMessageQuota,
+  mockCreateAdminClient,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
   mockGateway: vi.fn(() => "mock-model"),
+  mockCaptureServerEvent: vi.fn(),
   mockAssembleContext: vi.fn(),
   mockCreateRun: vi.fn(),
   mockCompleteRun: vi.fn(),
@@ -50,6 +54,8 @@ const {
   mockLoadCrmConfig: vi.fn(),
   mockGetActiveConnections: vi.fn(),
   mockLoadActivatedConnectionTools: vi.fn(),
+  mockConsumeMessageQuota: vi.fn(),
+  mockCreateAdminClient: vi.fn(),
 }));
 
 vi.mock("ai", () => ({
@@ -60,6 +66,10 @@ vi.mock("ai", () => ({
 vi.mock("@/lib/ai/gateway", () => ({
   gateway: mockGateway,
   TIER_1_MODEL: "google/gemini-3-flash",
+}));
+
+vi.mock("@/lib/analytics/posthog-server", () => ({
+  captureServerEvent: (...args: unknown[]) => mockCaptureServerEvent(...args),
 }));
 
 vi.mock("@/lib/runner/context", () => ({
@@ -100,6 +110,29 @@ vi.mock("@/lib/connections/queries", () => ({
 vi.mock("@/lib/composio", () => ({
   loadActivatedConnectionTools: (...args: unknown[]) =>
     mockLoadActivatedConnectionTools(...args),
+}));
+
+vi.mock("@/lib/supabase/server", () => ({
+  createAdminClient: (...args: unknown[]) => mockCreateAdminClient(...args),
+}));
+
+vi.mock("@/lib/usage/message-quota", () => ({
+  consumeMessageQuota: (...args: unknown[]) => mockConsumeMessageQuota(...args),
+  messageQuotaErrorCodes: {
+    limitReached: "message-quota-exceeded",
+    loadFailed: "message-quota-load-failed",
+  },
+  MessageQuotaError: class MessageQuotaError extends Error {
+    code: string;
+    quota: unknown;
+
+    constructor(code: string, message: string, options?: { quota?: unknown }) {
+      super(message);
+      this.name = "MessageQuotaError";
+      this.code = code;
+      this.quota = options?.quota ?? null;
+    }
+  },
 }));
 
 vi.mock("@/lib/chat/messages", () => ({
@@ -200,6 +233,35 @@ describe("runAgent", () => {
     mockMaybeCompactThread.mockResolvedValue(false);
     mockGetActiveConnections.mockResolvedValue([]);
     mockLoadActivatedConnectionTools.mockResolvedValue({});
+    mockConsumeMessageQuota.mockResolvedValue({
+      allowed: true,
+      clientId: validPayload.clientId,
+      planName: "Free",
+      monthlyMessageLimit: 100,
+      messagesUsed: 1,
+      messagesRemaining: 99,
+      periodStart: "2026-03-01",
+      nextResetDate: "2026-04-01",
+    });
+    mockCreateAdminClient.mockResolvedValue({
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: { messages_used: 1 },
+                error: null,
+              }),
+            })),
+          })),
+        })),
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          })),
+        })),
+      })),
+    });
     mockStreamText.mockReturnValue({
       toUIMessageStreamResponse: vi.fn(() => new Response("streamed")),
     });
@@ -438,6 +500,118 @@ describe("runAgent", () => {
       channel: "web",
     });
     expect(mockStreamText).not.toHaveBeenCalled();
+    expect(mockConsumeMessageQuota).not.toHaveBeenCalled();
+  });
+
+  it("consumes quota for direct chat sends before attempting the run", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(
+      {
+        ...validPayload,
+        consumeMessageQuota: true,
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockConsumeMessageQuota).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+    );
+  });
+
+  it("throws a structured error before locking when the monthly cap is exhausted", async () => {
+    mockConsumeMessageQuota.mockResolvedValue({
+      allowed: false,
+      clientId: validPayload.clientId,
+      planName: "Free",
+      monthlyMessageLimit: 100,
+      messagesUsed: 100,
+      messagesRemaining: 0,
+      periodStart: "2026-03-01",
+      nextResetDate: "2026-04-01",
+    });
+
+    await expect(
+      runAgent(
+        {
+          ...validPayload,
+          consumeMessageQuota: true,
+        },
+        "mock-supabase-client" as never,
+      ),
+    ).rejects.toMatchObject({
+      code: "message-quota-exceeded",
+      quota: expect.objectContaining({
+        messagesRemaining: 0,
+        messagesUsed: 100,
+      }),
+    });
+
+    expect(mockCreateRun).not.toHaveBeenCalled();
+    expect(mockCreateMessages).not.toHaveBeenCalled();
+  });
+
+  it("counts busy-thread direct chat sends once before queueing them", async () => {
+    mockCreateRun.mockResolvedValue({ created: false });
+
+    const result = await runAgent(
+      {
+        ...validPayload,
+        consumeMessageQuota: true,
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(result).toEqual({ status: "queued" });
+    expect(mockConsumeMessageQuota).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+    );
+    expect(mockEnqueueMessage).toHaveBeenCalledWith("mock-supabase-client", {
+      threadId: validPayload.threadId,
+      clientId: validPayload.clientId,
+      content: validPayload.input,
+      channel: "web",
+    });
+  });
+
+  it("refunds consumed quota when the direct user input fails before persistence", async () => {
+    const adminClient = {
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: { messages_used: 1 },
+                error: null,
+              }),
+            })),
+          })),
+        })),
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          })),
+        })),
+      })),
+    };
+    mockCreateAdminClient.mockResolvedValue(adminClient);
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+    mockCreateMessages.mockRejectedValue(new Error("insert failed"));
+
+    await expect(
+      runAgent(
+        {
+          ...validPayload,
+          consumeMessageQuota: true,
+        },
+        "mock-supabase-client" as never,
+      ),
+    ).rejects.toThrow("insert failed");
+
+    expect(mockCreateAdminClient).toHaveBeenCalledTimes(1);
+    expect(adminClient.from).toHaveBeenCalledWith("client_message_usage_monthly");
   });
 
   it("preserves cron trigger metadata when queueing a busy trigger run", async () => {
@@ -1035,6 +1209,68 @@ describe("runAgent", () => {
       tokensIn: 0,
       tokensOut: 0,
     });
+    expect(mockCaptureServerEvent).toHaveBeenCalledWith({
+      distinctId: validPayload.clientId,
+      event: "agent_run_failed",
+      properties: {
+        run_id: "run-1",
+        thread_id: validPayload.threadId,
+        error: "Model API error",
+      },
+    });
+  });
+
+  it("records stream errors through onError and skips completion analytics afterwards", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    const streamCall = mockStreamText.mock.calls[0]?.[0];
+    expect(typeof streamCall.onError).toBe("function");
+    expect(typeof streamCall.onFinish).toBe("function");
+
+    await streamCall.onError({
+      error: new Error("Tool execution failed"),
+    });
+    await streamCall.onFinish({
+      text: "Assistant response",
+      steps: [],
+      totalUsage: {
+        inputTokens: 100,
+        inputTokenDetails: {
+          noCacheTokens: undefined,
+          cacheReadTokens: undefined,
+          cacheWriteTokens: undefined,
+        },
+        outputTokens: 50,
+        outputTokenDetails: {
+          textTokens: undefined,
+          reasoningTokens: undefined,
+        },
+        totalTokens: 150,
+      },
+    });
+
+    expect(mockCompleteRun).toHaveBeenCalledTimes(1);
+    expect(mockCompleteRun).toHaveBeenCalledWith("mock-supabase-client", {
+      runId: "run-1",
+      status: "failed",
+      model: "google/gemini-3-flash",
+      tokensIn: 0,
+      tokensOut: 0,
+    });
+    expect(mockCaptureServerEvent).toHaveBeenCalledWith({
+      distinctId: validPayload.clientId,
+      event: "agent_run_failed",
+      properties: {
+        run_id: "run-1",
+        thread_id: validPayload.threadId,
+        error: "Tool execution failed",
+      },
+    });
+    expect(mockCaptureServerEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ event: "agent_run_completed" }),
+    );
   });
 
   it("completes run and attempts queue drain when onFinish executes", async () => {

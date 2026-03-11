@@ -7,6 +7,10 @@ import { createUIMessageStream, createUIMessageStreamResponse, generateId } from
 import { after } from "next/server";
 import { createResumableStreamContext } from "resumable-stream";
 
+import {
+  captureServerEvent,
+  captureServerEvents,
+} from "@/lib/analytics/posthog-server";
 import { resolveApprovalEvent } from "@/lib/approvals/queries";
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
@@ -14,6 +18,10 @@ import { generateTitleFromUserMessage } from "@/lib/ai/title";
 import { clearActiveStreamId, setActiveStreamId } from "@/lib/redis";
 import { runAgent } from "@/lib/runner/run-agent";
 import type { RunnerFilePart } from "@/lib/runner/schemas";
+import {
+  isMessageQuotaError,
+  messageQuotaErrorCodes,
+} from "@/lib/usage/message-quota";
 import { type PostRequestBody, postRequestBodySchema } from "./schema";
 
 /** Allows longer streaming runs on Vercel functions. */
@@ -147,6 +155,12 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const threadId = body.id;
+  const approvalResponses = getApprovalResponses(body.messages);
+  const isApprovalContinuation = !body.message && approvalResponses.length > 0;
+
+  if (!body.message && Array.isArray(body.messages) && !isApprovalContinuation) {
+    return jsonError("Invalid request body: normal user turns must use `message`.", 400);
+  }
 
   const latestUserMessage = body.message?.role === "user"
     ? body.message
@@ -197,7 +211,6 @@ export async function POST(request: Request): Promise<Response> {
       isNewThread = true;
     }
 
-    const approvalResponses = getApprovalResponses(body.messages);
     if (approvalResponses.length > 0) {
       const resolutionResults = await Promise.all(
         approvalResponses.map((response) =>
@@ -215,6 +228,24 @@ export async function POST(request: Request): Promise<Response> {
       if (failed) {
         return jsonError("Failed to process chat request.", 500);
       }
+
+      await captureServerEvents(
+        resolutionResults.flatMap((result, index) => {
+          if (!result.success || result.status !== "updated" || !("event" in result)) {
+            return [];
+          }
+
+          return [{
+            distinctId: clientId,
+            event: "approval_resolved",
+            properties: {
+              tool_name: result.event.tool_name,
+              approval_id: approvalResponses[index]?.approvalId,
+              outcome: approvalResponses[index]?.approved ? "approved" : "denied",
+            },
+          }];
+        }),
+      );
     }
 
     const result = await runAgent(
@@ -222,6 +253,7 @@ export async function POST(request: Request): Promise<Response> {
         clientId,
         threadId,
         triggerType: "chat",
+        consumeMessageQuota: body.message?.role === "user",
         input,
         ...(fileParts.length > 0 ? { fileParts } : {}),
         crmMode: body.crmMode,
@@ -231,6 +263,19 @@ export async function POST(request: Request): Promise<Response> {
 
     if (result.status === "queued") {
       return Response.json({ status: "queued" }, { status: 202 });
+    }
+
+    if (body.message?.role === "user") {
+      await captureServerEvent({
+        distinctId: clientId,
+        event: "chat_message_sent",
+        properties: {
+          thread_id: threadId,
+          is_new_thread: isNewThread,
+          has_files: fileParts.length > 0,
+          file_count: fileParts.length,
+        },
+      });
     }
 
     const titlePromise = isNewThread && input.length > 0
@@ -288,7 +333,21 @@ export async function POST(request: Request): Promise<Response> {
         }
       },
     });
-  } catch {
+  } catch (error) {
+    if (
+      isMessageQuotaError(error) &&
+      error.code === messageQuotaErrorCodes.limitReached
+    ) {
+      return Response.json(
+        {
+          error: error.message,
+          code: error.code,
+          quota: error.quota,
+        },
+        { status: 402 },
+      );
+    }
+
     return jsonError("Failed to process chat request.", 500);
   }
 }

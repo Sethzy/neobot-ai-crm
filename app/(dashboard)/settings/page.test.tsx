@@ -8,6 +8,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { mockLoadCurrentBillingState } = vi.hoisted(() => ({
   mockLoadCurrentBillingState: vi.fn(),
 }));
+const { mockLoadCurrentMessageQuota } = vi.hoisted(() => ({
+  mockLoadCurrentMessageQuota: vi.fn(),
+}));
 
 vi.mock("@/lib/stripe/actions", () => ({
   customerPortalAction: vi.fn(),
@@ -15,6 +18,10 @@ vi.mock("@/lib/stripe/actions", () => ({
 
 vi.mock("@/lib/stripe/stripe", () => ({
   loadCurrentBillingState: mockLoadCurrentBillingState,
+}));
+
+vi.mock("@/lib/usage/message-quota-server", () => ({
+  loadCurrentMessageQuota: (...args: unknown[]) => mockLoadCurrentMessageQuota(...args),
 }));
 
 vi.mock("../pricing/submit-button", () => ({
@@ -26,6 +33,15 @@ import SettingsPage from "./page";
 describe("/settings page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockLoadCurrentMessageQuota.mockResolvedValue({
+      clientId: "client-123",
+      planName: "Free",
+      monthlyMessageLimit: 100,
+      messagesUsed: 12,
+      messagesRemaining: 88,
+      periodStart: "2026-03-01",
+      nextResetDate: "2026-04-01",
+    });
   });
 
   it("renders free plan guidance when no Stripe customer exists yet", async () => {
@@ -51,6 +67,8 @@ describe("/settings page", () => {
     expect(
       screen.getByText(/Upgrade from the pricing page to create a Stripe billing profile/i),
     ).toBeInTheDocument();
+    expect(screen.getByText("12")).toBeInTheDocument();
+    expect(screen.getByText("88")).toBeInTheDocument();
   });
 
   it("shows billing and connection alerts from the query string", async () => {

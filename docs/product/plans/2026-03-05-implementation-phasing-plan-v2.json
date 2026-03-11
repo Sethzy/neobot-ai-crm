@@ -2,15 +2,15 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-11 (billing pulled forward)",
+    "updated": "2026-03-11 (Excalidraw diagram tool, message quota PR 38c)",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
     "totalPhases": 5,
-    "estimatedPRs": 38,
-    "keptPRs": 25,
+    "estimatedPRs": 40,
+    "keptPRs": 26,
     "cutPRs": 19,
-    "donePRs": 34,
+    "donePRs": 35,
     "statusOptions": [
       "pending",
       "in_progress",
@@ -18,7 +18,7 @@
       "blocked",
       "cut"
     ],
-    "scopeDecision": "Simplified to: AI CRM + autopilot + connections + email + Telegram + agent-generated views. Cut skills system, sandbox, scraping lanes, scaling infra, voice, eval, model routing, structured AI input. Restored CRM configurability (PR 15a). Agent-generated views (PR 42a) moved to Phase 3 using catalog-based JSON spec approach (json-render pattern) \u2014 no sandbox needed. Sandboxed code-gen views (Tasklet instant-app pattern) deferred to PR 42b. Added Stripe billing as a Phase 4 scope exception using hosted Checkout + Customer Portal + webhook sync onto the clients table.",
+    "scopeDecision": "Simplified to: AI CRM + autopilot + connections + email + Telegram + agent-generated views. Cut skills system, sandbox, scraping lanes, scaling infra, voice, eval, model routing, structured AI input. Restored CRM configurability (PR 15a). Agent-generated views (PR 42a) moved to Phase 3 using catalog-based JSON spec approach (json-render pattern) \u2014 no sandbox needed. Sandboxed code-gen views (Tasklet instant-app pattern) deferred to PR 42b. Added Stripe billing as a Phase 4 scope exception using hosted Checkout + Customer Portal + webhook sync onto the clients table. Added PR 38c for app-enforced monthly message caps keyed off the mirrored client plan.",
     "changelog": [
       "2026-03-05: v2 created \u2014 scope cut from 48 PRs to 30 (13 done + 17 to build). Reordered into new phases. Original plan preserved at 2026-03-01-implementation-phasing-plan.json.",
       "2026-03-05: Removed PR 19a (Agent tasks). (Superseded by entry 6 \u2014 reverted to dedicated agent_todo table.)",
@@ -42,7 +42,9 @@
       "2026-03-10: PR 33 approval scope clarified after implementation review. Mechanical gate now targets destructive actions plus connection tool activation: CRM deletes, delete_connection, manage_activated_tools_for_connections, and the delete action inside manage_active_triggers. Non-destructive CRM writes, links, and unlinks stay auto-run. Future outbound send tools adopt the same gate when those tool surfaces ship.",
       "2026-03-10 (reorg): Added 5 previously untracked Phase 1 entries: p1-crm-tool-consolidation, p1-crm-ux, p1-chat-sdk-convergence, p1-chatbot-zero-drift (all done), p1-whatsapp-spike (cut). Added note to PR 26 about sub-PRs 26b-26e.",
       "2026-03-10: Added PR 8a (Google Maps drive-time tool) as a narrow Phase 1 scope exception. Rationale: Chief of Staff transit automations need real drive times, direct_api is still a v1 stub, and a small built-in read-only tool is the minimal path.",
-      "2026-03-11: Pulled FOUND-07 forward into Phase 4 as PR 38b (Stripe billing + settings surface). Implementation uses hosted Stripe Checkout, Stripe Customer Portal, and webhook-driven sync onto the clients table, following current Stripe webhook guidance instead of the earlier two-event draft."
+      "2026-03-11: Pulled FOUND-07 forward into Phase 4 as PR 38b (Stripe billing + settings surface). Implementation uses hosted Stripe Checkout, Stripe Customer Portal, and webhook-driven sync onto the clients table, following current Stripe webhook guidance instead of the earlier two-event draft.",
+      "2026-03-11: Added PR 8b (Excalidraw diagram tool) to Phase 3. Small built-in tool (sibling to PR 8a drive-time). Agent creates hand-drawn diagrams via the free Excalidraw MCP server. Two tools: get_diagram_reference + create_diagram. No auth, no cost, no DB migration. Chat UI renders URLs as iframe embeds. Reference: Services §14.",
+      "2026-03-11: Added PR 38c (Message usage caps + quota UX) to Phase 4. Quotas are app-enforced monthly message counters in Supabase, keyed off clients.plan_name rather than Stripe metered billing. Count only brand-new user-authored inbound chat turns. Free = 100/month, Pro = 500/month, Max = 2,000/month. UI surfaces live in /pricing, /settings, and chat; get_user_quota_status remains omitted as an agent-facing tool."
     ]
   },
   "phases": [
@@ -1794,7 +1796,7 @@
         {
           "pr": "42a",
           "title": "Agent-generated views (inline, json-render)",
-          "status": "deferred",
+          "status": "pending",
           "simplified": true,
           "decisions": [
             "UX-10"
@@ -1899,6 +1901,49 @@
             "Duplicate send attempt is caught by idempotency check",
             "User can add and verify new contact methods"
           ]
+        },
+        {
+          "pr": "8b",
+          "title": "Excalidraw diagram tool (MCP-backed)",
+          "status": "deferred",
+          "decisions": [
+            "TOOL-03",
+            "SERVICE-03"
+          ],
+          "note": "Small built-in tool (sibling to PR 8a drive-time). Agent creates hand-drawn style diagrams via the free Excalidraw MCP server (mcp.excalidraw.com). Two tools: get_diagram_reference (cached element format guide) and create_diagram (generates Excalidraw elements → exports to shareable URL → saves JSON to Supabase Storage). No auth, no cost, no DB migration. Chat UI renders excalidraw.com URLs as iframe embed cards. Reference: roadmap docs/Sunder - Source of Truth/services/01-Built-In Services §14.",
+          "tasks": [
+            {
+              "id": "PR8b-1",
+              "task": "Excalidraw MCP HTTP client: callExcalidrawMcp() for JSON-RPC over Streamable HTTP, getElementReference() with in-memory cache, exportDiagram() returning shareable URL",
+              "done": false
+            },
+            {
+              "id": "PR8b-2",
+              "task": "Diagram tool factory: get_diagram_reference tool (returns cached element format) and create_diagram tool (elements JSON + title → export to URL + save to Supabase Storage)",
+              "done": false
+            },
+            {
+              "id": "PR8b-3",
+              "task": "Register diagram tools in barrel export and tool-registry.ts. Add Diagrams section to system prompt",
+              "done": false
+            },
+            {
+              "id": "PR8b-4",
+              "task": "Chat UI: detect excalidraw.com URLs in agent messages and render as iframe embed card with Open in Excalidraw link",
+              "done": false
+            },
+            {
+              "id": "PR8b-5",
+              "task": "Unit tests for MCP client (mock fetch), tool factory (mock client), and URL detection in chat renderer",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Ask agent 'draw me a transaction timeline for a deal closing May 10' → agent calls get_diagram_reference then create_diagram → returns interactive excalidraw.com URL",
+            "Diagram URL renders as an iframe embed card in the chat UI with Open in Excalidraw link",
+            "Diagram JSON is persisted to Supabase Storage under /agent/diagrams/",
+            "get_diagram_reference returns cached result on second call (no duplicate MCP fetch)"
+          ]
         }
       ]
     },
@@ -1906,8 +1951,8 @@
       "phase": 4,
       "title": "Safety + Polish + Onboarding + Billing",
       "status": "pending",
-      "goal": "Approval gates for external actions. Mission Control dashboard. Onboarding flow. Stripe-hosted billing for paid plans.",
-      "demoMoment": "Agent asks permission before sending email. New user onboards in <10 min. User can upgrade in /pricing and manage billing from /settings.",
+      "goal": "Approval gates for external actions. Mission Control dashboard. Onboarding flow. Stripe-hosted billing plus monthly message caps for plan gating.",
+      "demoMoment": "Agent asks permission before sending email. New user onboards in <10 min. User can upgrade in /pricing, see remaining monthly messages in chat/settings, and gets an upgrade CTA at the cap.",
       "prs": [
         {
           "pr": 33,
@@ -2013,7 +2058,7 @@
         {
           "pr": 38,
           "title": "Onboarding flow",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [
             "UX-09",
             "DATA-08"
@@ -2038,7 +2083,7 @@
             {
               "id": "PR38-4",
               "task": "Migration: setup_progress table",
-              "done": false
+              "done": true
             },
             {
               "id": "PR38-5",
@@ -2058,27 +2103,27 @@
             {
               "id": "PR38-8",
               "task": "Bootstrap system prompt injection: conditional block appended to system prompt on first chat (when setup_progress incomplete). Contains conversational first-run instructions inspired by OpenClaw BOOTSTRAP.md. Agent's opening message is warm and personal. No interrogation, no form wizard \u2014 just talk. KISS: no extra file in storage, no deletion ritual. Injection removed after completion. Fallback heuristic: if USER.md has been modified from template, treat as onboarded even if setup_progress wasn't marked.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR38-9",
               "task": "First-chat co-discovery flow (OpenClaw-style explicit, not inferred): agent explicitly asks about user's name, agency/brokerage, specializations (HDB/condo/landed/commercial), years of experience, market areas, and communication style preferences. Also explicitly asks about boundaries and preferences ('What matters to you? How do you want me to communicate? Anything I should never do?'). Agent writes findings to USER.md in real time via write_file. Prerequisite: USER.md template must have pre-structured fields (name, preferred name, agency, specializations, market areas, experience, communication style, context section).",
-              "done": false
+              "done": true
             },
             {
               "id": "PR38-10",
               "task": "SOUL.md co-creation (OpenClaw-style collaborative, not auto-calibrated): agent and user discuss together how the agent should behave \u2014 tone, proactivity, briefing detail, boundaries. Agent name 'Sunder' is fixed; everything else is co-created. Agent writes to SOUL.md via write_file. Prerequisite: SOUL.md template must have structured sections (voice, working style, boundaries, communication preferences) with enough body for co-creation to feel real. Default SOUL.md is a sensible starting point, first chat refines it collaboratively.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR38-11",
               "task": "Bootstrap completion with closing moment (OpenClaw-style ritual): after first conversation, agent acknowledges the transition with a warm closing ('I've got everything I need. From here on, I'll just be myself. Let's get to work.'). System marks onboarding complete in setup_progress. Subsequent sessions skip bootstrap injection and load normal SOUL.md + USER.md context. One-time ritual, never re-triggers. When Telegram ships (Phase 5), existing users get a mention in natural conversation \u2014 not a re-onboarding.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR38-12",
               "task": "First useful output within the onboarding chat: agent demonstrates value immediately \u2014 e.g. creates a CRM contact from something the user mentioned, drafts a brief market note, or sets up a task. The first conversation is productive, not just setup.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR38-13",
@@ -2142,6 +2187,56 @@
             "Successful checkout syncs the client row and redirects back to /settings with a billing success state",
             "Existing paid user sees billing details in /settings and can open the Stripe Customer Portal",
             "Stripe webhook delivery keeps client billing state synced even if the user never returns from Checkout"
+          ]
+        },
+        {
+          "pr": "38c",
+          "title": "Message usage caps + quota UX",
+          "status": "in_progress",
+          "decisions": [
+            "FOUND-07",
+            "LLM-10",
+            "DATA-09",
+            "GAP-07"
+          ],
+          "note": "Adds app-enforced monthly message caps on top of PR 38b's mirrored plan state. Stripe remains the source of truth for which plan the client is on; usage accounting lives in Supabase and is enforced before run creation. Count only brand-new user-authored inbound chat turns. Approval continuations, assistant replies, tool calls, queue replays, and pulse/cron runs do not consume quota. Free = 100 messages/month, Pro = 500 messages/month, Max = 2,000 messages/month. Reset cadence follows Asia/Singapore calendar months.",
+          "tasks": [
+            {
+              "id": "PR38c-1",
+              "task": "Extend the billing plan catalog with explicit monthly message caps (Free 100, Pro 500, Max 2,000) so pricing, enforcement, and UI all read the same constants",
+              "done": false
+            },
+            {
+              "id": "PR38c-2",
+              "task": "Migration: client_message_usage_monthly table plus get_message_quota_status and consume_message_quota RPCs using Asia/Singapore month buckets",
+              "done": false
+            },
+            {
+              "id": "PR38c-3",
+              "task": "Create typed Supabase quota helpers and enforce quota in /api/chat for brand-new user-authored turns before run creation",
+              "done": false
+            },
+            {
+              "id": "PR38c-4",
+              "task": "Pricing and settings surfaces show plan caps, used/remaining counts, and the next monthly reset date",
+              "done": false
+            },
+            {
+              "id": "PR38c-5",
+              "task": "Chat UI shows remaining quota, disables the composer at zero remaining, and links the user to /pricing to upgrade",
+              "done": false
+            },
+            {
+              "id": "PR38c-6",
+              "task": "Document quota rules: what counts as a message, which flows are exempt, and how the monthly reset works",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Free user at 99/100 messages can send once more; the next brand-new user-authored message is rejected before run creation with an upgrade prompt",
+            "Approval continuations, assistant replies, queued replays, and pulse/cron runs do not consume quota",
+            "Pricing and settings show the current plan's monthly cap plus used/remaining counts and the next reset date",
+            "Chat composer hard-stops at zero remaining messages, surfaces an upgrade CTA, and re-enables automatically after the Asia/Singapore month rolls over"
           ]
         }
       ]
@@ -2731,7 +2826,7 @@
       },
       {
         "tool": "get_user_quota_status",
-        "reason": "No quota system"
+        "reason": "No agent-facing quota tool. Product quota state ships via app UI/API gating in PR 38c."
       }
     ]
   }

@@ -4,10 +4,17 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  MessageQuotaError,
+  messageQuotaErrorCodes,
+} from "@/lib/usage/message-quota";
+
 const {
   mockRunAgent,
   mockCreateClient,
   mockResolveClientId,
+  mockCaptureServerEvent,
+  mockCaptureServerEvents,
   mockCreateUIMessageStream,
   mockCreateUIMessageStreamResponse,
   mockGenerateId,
@@ -21,6 +28,8 @@ const {
   mockRunAgent: vi.fn(),
   mockCreateClient: vi.fn(),
   mockResolveClientId: vi.fn(),
+  mockCaptureServerEvent: vi.fn(),
+  mockCaptureServerEvents: vi.fn(),
   mockCreateUIMessageStream: vi.fn(),
   mockCreateUIMessageStreamResponse: vi.fn(),
   mockGenerateId: vi.fn(),
@@ -42,6 +51,11 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/lib/chat/client-id", () => ({
   resolveClientId: mockResolveClientId,
+}));
+
+vi.mock("@/lib/analytics/posthog-server", () => ({
+  captureServerEvent: (...args: unknown[]) => mockCaptureServerEvent(...args),
+  captureServerEvents: (...args: unknown[]) => mockCaptureServerEvents(...args),
 }));
 
 vi.mock("@/lib/approvals/queries", () => ({
@@ -168,10 +182,11 @@ describe("POST /api/chat", () => {
     const response = await POST(
       createJsonRequest({
         id: threadId,
-        messages: [
-          { id: "a1", role: "assistant", parts: [{ type: "text", text: "How can I help?" }] },
-          { id: "u1", role: "user", parts: [{ type: "text", text: "Hello, Sunder!" }] },
-        ],
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Hello, Sunder!" }],
+        },
       }),
     );
 
@@ -181,17 +196,16 @@ describe("POST /api/chat", () => {
         clientId: "client-456",
         threadId,
         triggerType: "chat",
+        consumeMessageQuota: true,
         input: "Hello, Sunder!",
+        crmMode: undefined,
       },
       mockSupabase,
     );
     expect(mockCreateUIMessageStream).toHaveBeenCalledWith(
       expect.objectContaining({
         execute: expect.any(Function),
-        originalMessages: [
-          { id: "a1", role: "assistant", parts: [{ type: "text", text: "How can I help?" }] },
-          { id: "u1", role: "user", parts: [{ type: "text", text: "Hello, Sunder!" }] },
-        ],
+        originalMessages: undefined,
       }),
     );
     const execute = mockCreateUIMessageStream.mock.calls[0][0].execute as (args: {
@@ -253,7 +267,9 @@ describe("POST /api/chat", () => {
         clientId: "client-456",
         threadId,
         triggerType: "chat",
+        consumeMessageQuota: true,
         input: "Hello from message payload",
+        crmMode: undefined,
       },
       mockSupabase,
     );
@@ -262,6 +278,16 @@ describe("POST /api/chat", () => {
         originalMessages: undefined,
       }),
     );
+    expect(mockCaptureServerEvent).toHaveBeenCalledWith({
+      distinctId: "client-456",
+      event: "chat_message_sent",
+      properties: {
+        thread_id: threadId,
+        is_new_thread: false,
+        has_files: false,
+        file_count: 0,
+      },
+    });
     expect(response).toBe(streamResponse);
   });
 
@@ -284,9 +310,11 @@ describe("POST /api/chat", () => {
       createJsonRequest({
         id: threadId,
         crmMode: "setup",
-        messages: [
-          { id: "u1", role: "user", parts: [{ type: "text", text: "Reconfigure my CRM" }] },
-        ],
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Reconfigure my CRM" }],
+        },
       }),
     );
 
@@ -317,9 +345,11 @@ describe("POST /api/chat", () => {
       createJsonRequest({
         id: threadId,
         crmMode: "setup",
-        messages: [
-          { id: "u1", role: "user", parts: [{ type: "text", text: "Configure my CRM" }] },
-        ],
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Configure my CRM" }],
+        },
       }),
     );
 
@@ -368,6 +398,7 @@ describe("POST /api/chat", () => {
         clientId: "client-456",
         threadId,
         triggerType: "chat",
+        consumeMessageQuota: true,
         input: "",
         fileParts: [
           {
@@ -377,6 +408,7 @@ describe("POST /api/chat", () => {
             url: "https://storage.example.com/chat-attachments/client-1/screenshot.png",
           },
         ],
+        crmMode: undefined,
       },
       mockSupabase,
     );
@@ -393,7 +425,7 @@ describe("POST /api/chat", () => {
     mockResolveApprovalEvent.mockResolvedValue({
       success: true,
       status: "updated",
-      event: { status: "approved" },
+      event: { status: "approved", tool_name: "delete_contact" },
     });
     mockRunAgent.mockResolvedValue({
       status: "streaming",
@@ -428,6 +460,20 @@ describe("POST /api/chat", () => {
       approvalId: "approval-1",
       approved: true,
     });
+    expect(mockCaptureServerEvents).toHaveBeenCalledWith([
+      {
+        distinctId: "client-456",
+        event: "approval_resolved",
+        properties: {
+          tool_name: "delete_contact",
+          approval_id: "approval-1",
+          outcome: "approved",
+        },
+      },
+    ]);
+    expect(mockCaptureServerEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ event: "chat_message_sent" }),
+    );
     expect(mockResolveApprovalEvent.mock.invocationCallOrder[0]).toBeLessThan(
       mockRunAgent.mock.invocationCallOrder[0],
     );
@@ -507,7 +553,11 @@ describe("POST /api/chat", () => {
     const response = await POST(
       createJsonRequest({
         id: threadId,
-        messages: [{ id: "u1", role: "user", parts: [{ type: "text", text: "Follow up" }] }],
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Follow up" }],
+        },
       }),
     );
 
@@ -555,7 +605,9 @@ describe("POST /api/chat", () => {
         clientId: "client-456",
         threadId,
         triggerType: "chat",
+        consumeMessageQuota: true,
         input: "Create lazily",
+        crmMode: undefined,
       },
       mockSupabase,
     );
@@ -623,7 +675,11 @@ describe("POST /api/chat", () => {
   it("returns 400 when thread id is missing", async () => {
     const response = await POST(
       createJsonRequest({
-        messages: [{ id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] }],
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Hello" }],
+        },
       }),
     );
 
@@ -660,7 +716,7 @@ describe("POST /api/chat", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({
-      error: "Invalid request body: could not resolve latest user message text.",
+      error: "Invalid request body: normal user turns must use `message`.",
     });
     expect(mockRunAgent).not.toHaveBeenCalled();
   });
@@ -674,7 +730,11 @@ describe("POST /api/chat", () => {
     const response = await POST(
       createJsonRequest({
         id: threadId,
-        messages: [{ id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] }],
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Hello" }],
+        },
       }),
     );
 
@@ -688,7 +748,21 @@ describe("POST /api/chat", () => {
     const response = await POST(
       createJsonRequest({
         id: threadId,
-        messages: [{ id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] }],
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-delete_contact",
+                toolCallId: "tool-call-1",
+                state: "approval-responded",
+                approval: { id: "approval-1", approved: true },
+              },
+            ],
+          },
+          { id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] },
+        ],
       }),
     );
 
@@ -706,7 +780,11 @@ describe("POST /api/chat", () => {
     const response = await POST(
       createJsonRequest({
         id: threadId,
-        messages: [{ id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] }],
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Hello" }],
+        },
       }),
     );
 
@@ -734,7 +812,11 @@ describe("POST /api/chat", () => {
     const response = await POST(
       createJsonRequest({
         id: threadId,
-        messages: [{ id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] }],
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Hello" }],
+        },
       }),
     );
 
@@ -748,7 +830,11 @@ describe("POST /api/chat", () => {
     const response = await POST(
       createJsonRequest({
         id: "thread-not-uuid",
-        messages: [{ id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] }],
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Hello" }],
+        },
       }),
     );
 
@@ -765,11 +851,63 @@ describe("POST /api/chat", () => {
     const response = await POST(
       createJsonRequest({
         id: threadId,
-        messages: [{ id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] }],
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Hello" }],
+        },
       }),
     );
 
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({ error: "Failed to process chat request." });
+  });
+
+  it("returns 402 with structured quota payload when the monthly message cap is reached", async () => {
+    mockRunAgent.mockRejectedValue(
+      new MessageQuotaError(
+        messageQuotaErrorCodes.limitReached,
+        "Monthly message limit reached.",
+        {
+          quota: {
+            allowed: false,
+            clientId: "client-456",
+            planName: "Free",
+            monthlyMessageLimit: 100,
+            messagesUsed: 100,
+            messagesRemaining: 0,
+            periodStart: "2026-03-01",
+            nextResetDate: "2026-04-01",
+          },
+        },
+      ),
+    );
+
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Hello" }],
+        },
+      }),
+    );
+
+    expect(response.status).toBe(402);
+    expect(await response.json()).toEqual({
+      error: "Monthly message limit reached.",
+      code: "message-quota-exceeded",
+      quota: {
+        allowed: false,
+        clientId: "client-456",
+        planName: "Free",
+        monthlyMessageLimit: 100,
+        messagesUsed: 100,
+        messagesRemaining: 0,
+        periodStart: "2026-03-01",
+        nextResetDate: "2026-04-01",
+      },
+    });
   });
 });

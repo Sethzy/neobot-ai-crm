@@ -8,7 +8,7 @@ This design reflects the billing system currently wired into the app. If impleme
 
 ## Source Of Truth
 
-- `docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json` (`PR 38b`)
+- `docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json` (`PR 38b`, `PR 38c`)
 - `roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json` (`FOUND-07`)
 - `docs/product/handovers/stripe-billing-handover.md`
 
@@ -67,6 +67,42 @@ This is intentionally the smallest shape that supports gating, settings UI, and 
   - Authenticated pricing surface
 - `app/(dashboard)/settings/page.tsx`
   - Billing summary and portal access
+- `src/lib/usage/message-quota.ts`
+  - Shared RPC wrappers for message quota status/consumption
+- `src/lib/usage/message-quota-server.ts`
+  - Server-side quota loader for pricing, settings, and chat
+- `src/hooks/use-message-quota.ts`
+  - Client-side TanStack Query hook for live quota refresh
+
+## Message Usage Caps
+
+- Stripe still decides which plan the client is on.
+- Message usage accounting lives in Supabase, not Stripe metered billing.
+- Monthly caps are:
+  - `Free`: `100`
+  - `Pro`: `500`
+  - `Max`: `2,000`
+- The month boundary is `Asia/Singapore`.
+- A billable message is one brand-new inbound user-authored chat turn.
+- Do not count:
+  - assistant replies
+  - approval continuations
+  - queued replays
+  - tool calls
+  - pulse/cron runs
+
+Migration:
+
+- `supabase/migrations/20260311010000_create_message_quota.sql`
+
+Data model:
+
+- `public.client_message_usage_monthly`
+  - keyed by `client_id` + Singapore `period_start`
+  - stores `messages_used`
+- RPCs:
+  - `get_message_quota_status`
+  - `consume_message_quota`
 
 ## Checkout Flow
 
@@ -110,15 +146,26 @@ Behavior:
 - Shows `Free`, `Pro`, and `Max`
 - Reads live paid pricing from Stripe
 - Reads those paid prices from explicitly configured Stripe price ids
+- Shows each plan's monthly message cap
+- Shows the current plan's used/remaining quota plus reset date when quota is available
 - Blocks duplicate paid checkout if a live paid subscription already exists
 - Sends paid users to the Stripe Customer Portal instead of opening another checkout session
 
 ### Settings
 
 - Shows current mirrored plan state from `clients`
+- Shows monthly message cap, used count, remaining count, and reset date
 - Shows Stripe customer and subscription identifiers for support/debug visibility
 - Opens Stripe Customer Portal when a Stripe customer exists
 - Shows a billing success alert after the checkout fallback redirect completes
+
+### Chat
+
+- `/chat` and `/chat/[threadId]` hydrate the current quota server-side for fast first paint
+- The composer shows current usage and a reset date
+- When remaining quota reaches `0`, the composer disables new sends and attachments
+- The upgrade path is `/pricing`
+- If the user hits the cap on send, the API returns a structured `402` payload and the chat UI surfaces a friendly quota error instead of raw JSON
 
 ## Environment
 
@@ -150,10 +197,13 @@ Configure:
 
 - `/pricing` renders `Free`, `Pro`, and `Max`
 - Paid prices load from live Stripe data
+- `/pricing` shows plan caps and current usage state
 - Checkout redirects to Stripe-hosted billing
 - Successful checkout lands on `/settings?billing=success`
 - `public.clients` syncs current Stripe state
+- `client_message_usage_monthly` enforces Singapore-month message quotas
 - Customer Portal opens from `/settings`
+- `/chat` disables new sends at zero remaining quota and links to `/pricing`
 - Stripe CLI event replay updates mirrored billing state correctly
 
 ## Deliberate Non-Goals

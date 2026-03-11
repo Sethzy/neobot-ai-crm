@@ -5,6 +5,8 @@
 import { checkoutAction, customerPortalAction } from "@/lib/stripe/actions";
 import { billingPlanCatalog, billingPlanNames } from "@/lib/stripe/plans";
 import { getBillingSummary, listStripePlans } from "@/lib/stripe/stripe";
+import { formatMessageQuotaResetDate } from "@/lib/usage/message-quota";
+import { loadCurrentMessageQuota } from "@/lib/usage/message-quota-server";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -85,6 +87,7 @@ export default async function PricingPage({
 }) {
   const { billing } = await searchParams;
   const billingSummary = await getBillingSummary();
+  const messageQuota = await loadCurrentMessageQuota();
   const billingNotice = getBillingNotice(normalizeSearchParam(billing));
 
   let pricingError: string | null = null;
@@ -189,6 +192,15 @@ export default async function PricingPage({
                           : "Unavailable"}
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">{trialLabel}</p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {planDefinition.monthlyMessageLimit} messages / month
+                    </p>
+                    {isCurrentPlan && messageQuota ? (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {messageQuota.messagesUsed} used · {messageQuota.messagesRemaining}{" "}
+                        remaining · resets {formatMessageQuotaResetDate(messageQuota.nextResetDate)}
+                      </p>
+                    ) : null}
                   </div>
 
                   <ul className="space-y-3 text-sm text-muted-foreground">

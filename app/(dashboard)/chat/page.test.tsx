@@ -15,9 +15,13 @@ vi.mock("@/components/chat/data-stream-handler", () => ({
   DataStreamHandler: () => <div data-testid="data-stream-handler" />,
 }));
 
+vi.mock("@/lib/usage/message-quota-server", () => ({
+  loadCurrentMessageQuota: vi.fn().mockResolvedValue(null),
+}));
+
 describe("/chat page", () => {
-  it("renders draft page with a generated UUID id", () => {
-    render(<ChatPage />);
+  it("renders draft page with a generated UUID id", async () => {
+    render(await ChatPage());
 
     const id = screen.getByTestId("draft-id").textContent ?? "";
     expect(id).toMatch(

@@ -18,6 +18,7 @@ export const runnerPayloadSchema = z.object({
   clientId: z.string().uuid(),
   threadId: z.string().uuid(),
   triggerType: z.enum(triggerTypeValues),
+  consumeMessageQuota: z.boolean().optional(),
   input: z.string(),
   fileParts: z.array(runnerFilePartSchema).optional(),
   crmMode: z.enum(["normal", "setup"]).optional(),

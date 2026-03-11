@@ -11,6 +11,7 @@ import { DataStreamHandler } from "@/components/chat/data-stream-handler";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { listMessages } from "@/lib/chat/messages";
 import { createClient } from "@/lib/supabase/server";
+import { loadCurrentMessageQuota } from "@/lib/usage/message-quota-server";
 import type { Json } from "@/types/database";
 
 import { ChatThreadPageClient } from "./chat-thread-page-client";
@@ -84,12 +85,14 @@ export default async function ChatThreadPage({ params }: ChatThreadPageProps) {
 
   const persistedMessages = await listMessages(supabase, threadId);
   const initialMessages = persistedMessages.map(mapDbMessageToUiMessage);
+  const initialQuota = await loadCurrentMessageQuota();
 
   return (
     <>
       <ChatThreadPageClient
         threadId={threadId}
         initialMessages={initialMessages}
+        initialQuota={initialQuota}
       />
       <DataStreamHandler />
     </>

@@ -10,11 +10,13 @@ const {
   mockCustomerPortalAction,
   mockGetBillingSummary,
   mockListStripePlans,
+  mockLoadCurrentMessageQuota,
 } = vi.hoisted(() => ({
   mockCheckoutAction: vi.fn(),
   mockCustomerPortalAction: vi.fn(),
   mockGetBillingSummary: vi.fn(),
   mockListStripePlans: vi.fn(),
+  mockLoadCurrentMessageQuota: vi.fn(),
 }));
 
 vi.mock("@/lib/stripe/actions", () => ({
@@ -25,6 +27,10 @@ vi.mock("@/lib/stripe/actions", () => ({
 vi.mock("@/lib/stripe/stripe", () => ({
   getBillingSummary: (...args: unknown[]) => mockGetBillingSummary(...args),
   listStripePlans: (...args: unknown[]) => mockListStripePlans(...args),
+}));
+
+vi.mock("@/lib/usage/message-quota-server", () => ({
+  loadCurrentMessageQuota: (...args: unknown[]) => mockLoadCurrentMessageQuota(...args),
 }));
 
 describe("/pricing page", () => {
@@ -64,6 +70,15 @@ describe("/pricing page", () => {
         productId: "prod_max",
       },
     ]);
+    mockLoadCurrentMessageQuota.mockResolvedValue({
+      clientId: "client-1",
+      planName: "Free",
+      monthlyMessageLimit: 100,
+      messagesUsed: 12,
+      messagesRemaining: 88,
+      periodStart: "2026-03-01",
+      nextResetDate: "2026-04-01",
+    });
   });
 
   it("renders trial CTA buttons for free users", async () => {
@@ -72,6 +87,8 @@ describe("/pricing page", () => {
 
     expect(screen.getByText("Plans & Billing")).toBeInTheDocument();
     expect(screen.getByText("Current plan: Free")).toBeInTheDocument();
+    expect(screen.getByText("100 messages / month")).toBeInTheDocument();
+    expect(screen.getByText(/12 used · 88 remaining/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Pro trial" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start Max trial" })).toBeInTheDocument();
   });

@@ -23,6 +23,9 @@ const { mockInvalidateQueries, mockSetQueriesData } = vi.hoisted(() => ({
 const { mockToastError } = vi.hoisted(() => ({
   mockToastError: vi.fn(),
 }));
+const { mockUseMessageQuota } = vi.hoisted(() => ({
+  mockUseMessageQuota: vi.fn(),
+}));
 
 vi.mock("react-markdown", () => ({
   default: ({ children }: { children: string }) => <div>{children}</div>,
@@ -66,6 +69,14 @@ vi.mock("@tanstack/react-query", () => ({
     invalidateQueries: mockInvalidateQueries,
     setQueriesData: mockSetQueriesData,
   }),
+}));
+
+vi.mock("@/hooks/use-message-quota", () => ({
+  messageQuotaKeys: {
+    all: ["message-quota"],
+    current: ["message-quota", "current"],
+  },
+  useMessageQuota: (...args: unknown[]) => mockUseMessageQuota(...args),
 }));
 
 vi.mock("./steps-summary", () => ({
@@ -120,6 +131,10 @@ describe("ChatPanel", () => {
       addToolResult: vi.fn(),
       addToolOutput: vi.fn(),
       addToolApprovalResponse: vi.fn(),
+    });
+    mockUseMessageQuota.mockReturnValue({
+      data: null,
+      isLoading: false,
     });
   });
 
@@ -239,6 +254,19 @@ describe("ChatPanel", () => {
     options.onFinish?.();
 
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: threadKeys.all });
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["message-quota"] });
+  });
+
+  it("invalidates quota queries when the chat request errors", () => {
+    render(<ChatPanel chatId="thread-1" />);
+
+    const options = mockUseChat.mock.calls[0][0] as {
+      onError?: (error: Error) => void;
+    };
+
+    options.onError?.(new Error("boom"));
+
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ["message-quota"] });
   });
 
   it("ignores unrelated stream data parts to avoid extra client re-renders", () => {
@@ -287,6 +315,34 @@ describe("ChatPanel", () => {
     });
 
     expect(screen.getByPlaceholderText(/send a message/i)).toHaveValue("");
+  });
+
+  it("shows a friendly quota error instead of raw json when the server rejects over-limit sends", () => {
+    mockUseChat.mockReturnValueOnce({
+      id: "thread-1",
+      messages: [],
+      status: "error",
+      error: new Error(
+        JSON.stringify({
+          error: "Monthly message limit reached.",
+          code: "message-quota-exceeded",
+        }),
+      ),
+      sendMessage,
+      setMessages,
+      regenerate: vi.fn(),
+      clearError: vi.fn(),
+      stop,
+      resumeStream: vi.fn(),
+      addToolResult: vi.fn(),
+      addToolOutput: vi.fn(),
+      addToolApprovalResponse: vi.fn(),
+    });
+
+    render(<ChatPanel chatId="thread-1" />);
+
+    expect(screen.getByText("Monthly message limit reached.")).toBeInTheDocument();
+    expect(screen.queryByText(/"message-quota-exceeded"/i)).not.toBeInTheDocument();
   });
 
   it("keeps the stop button enabled while streaming", async () => {

@@ -5,6 +5,7 @@
 import { stepCountIs, streamText, type ToolSet } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
 import { createMessages } from "@/lib/chat/messages";
 import { loadActivatedConnectionTools } from "@/lib/composio";
@@ -18,6 +19,13 @@ import type { RunnerPayload } from "@/lib/runner/schemas";
 import { createRunnerTools } from "@/lib/runner/tool-registry";
 import { createSubagentTool } from "@/lib/runner/tools";
 import { enqueueMessage } from "@/lib/runner/thread-queue";
+import { createAdminClient } from "@/lib/supabase/server";
+import {
+  type ConsumedMessageQuota,
+  consumeMessageQuota,
+  MessageQuotaError,
+  messageQuotaErrorCodes,
+} from "@/lib/usage/message-quota";
 import type { Database, Json } from "@/types/database";
 
 const MAX_STEPS_TIER_1 = 9;
@@ -47,6 +55,66 @@ export function buildPrepareStep(_modelId: string, maxSteps = MAX_STEPS_TIER_1) 
   };
 }
 
+function extractUniqueToolNames(steps: ReadonlyArray<{
+  toolCalls?: ReadonlyArray<unknown>;
+  toolResults?: ReadonlyArray<unknown>;
+}>): string[] {
+  const toolNames = new Set<string>();
+
+  for (const step of steps) {
+    for (const item of [...(step.toolCalls ?? []), ...(step.toolResults ?? [])]) {
+      if (
+        typeof item === "object" &&
+        item !== null &&
+        "toolName" in item &&
+        typeof item.toolName === "string" &&
+        item.toolName.length > 0
+      ) {
+        toolNames.add(item.toolName);
+      }
+    }
+  }
+
+  return [...toolNames];
+}
+
+function getTotalTokenCount(totalUsage: {
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+}): number {
+  if (typeof totalUsage.totalTokens === "number") {
+    return totalUsage.totalTokens;
+  }
+
+  return (totalUsage.inputTokens ?? 0) + (totalUsage.outputTokens ?? 0);
+}
+
+async function releaseConsumedMessageQuota(
+  quota: ConsumedMessageQuota,
+): Promise<void> {
+  const supabaseAdmin = await createAdminClient();
+  const { data: usageRow, error: usageLookupError } = await supabaseAdmin
+    .from("client_message_usage_monthly")
+    .select("messages_used")
+    .eq("client_id", quota.clientId)
+    .eq("period_start", quota.periodStart)
+    .maybeSingle();
+
+  if (usageLookupError || !usageRow || usageRow.messages_used <= 0) {
+    return;
+  }
+
+  await supabaseAdmin
+    .from("client_message_usage_monthly")
+    .update({
+      messages_used: usageRow.messages_used - 1,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("client_id", quota.clientId)
+    .eq("period_start", quota.periodStart);
+}
+
 /**
  * Executes one thread run if no active run exists, otherwise queues the input.
  */
@@ -61,23 +129,74 @@ export async function runAgent(
   const runType: RunType = payload.triggerType === "pulse"
     ? "autopilot"
     : payload.triggerType;
+  const shouldConsumeMessageQuota =
+    payload.consumeMessageQuota === true && payload.triggerType === "chat";
+  let consumedQuota: ConsumedMessageQuota | null = null;
+  let shouldReleaseConsumedQuota = false;
 
-  await markStaleRunsFailed(supabase, { threadId });
+  if (shouldConsumeMessageQuota) {
+    const quota = await consumeMessageQuota(supabase, clientId);
 
-  const lockResult = await createRun(supabase, { threadId, clientId, runType });
-  if (!lockResult.created) {
-    await enqueueMessage(supabase, {
-      threadId,
-      clientId,
-      content: input,
-      fileParts: payload.fileParts,
-      channel: "web",
-      ...(payload.triggerType === "chat" ? {} : { triggerType: payload.triggerType }),
-    });
-    return { status: "queued" };
+    if (!quota.allowed) {
+      throw new MessageQuotaError(
+        messageQuotaErrorCodes.limitReached,
+        "Monthly message limit reached.",
+        { quota },
+      );
+    }
+
+    consumedQuota = quota;
+    shouldReleaseConsumedQuota = true;
   }
 
+  let lockResult: Awaited<ReturnType<typeof createRun>> | null = null;
+  const startedAt = Date.now();
+  let hasRecordedTerminalState = false;
+
+  const recordFailedRun = async (error: unknown) => {
+    if (hasRecordedTerminalState || !lockResult?.created) {
+      return;
+    }
+
+    hasRecordedTerminalState = true;
+
+    await completeRun(supabase, {
+      runId: lockResult.runId,
+      status: "failed",
+      model: modelId,
+      tokensIn: 0,
+      tokensOut: 0,
+    });
+
+    await captureServerEvent({
+      distinctId: clientId,
+      event: "agent_run_failed",
+      properties: {
+        run_id: lockResult.runId,
+        thread_id: threadId,
+        error: error instanceof Error ? error.message : "Unknown runner error",
+      },
+    });
+  };
+
   try {
+    await markStaleRunsFailed(supabase, { threadId });
+
+    lockResult = await createRun(supabase, { threadId, clientId, runType });
+    if (!lockResult.created) {
+      await enqueueMessage(supabase, {
+        threadId,
+        clientId,
+        content: input,
+        fileParts: payload.fileParts,
+        channel: "web",
+        ...(payload.triggerType === "chat" ? {} : { triggerType: payload.triggerType }),
+      });
+      shouldReleaseConsumedQuota = false;
+      return { status: "queued" };
+    }
+    const runId = lockResult.runId;
+
     if (payload.triggerType !== "cron") {
       const userMessageParts = [
         ...(payload.fileParts ?? []),
@@ -92,6 +211,7 @@ export async function runAgent(
           parts: userMessageParts as Json,
         },
       ]);
+      shouldReleaseConsumedQuota = false;
     }
 
     const { config: crmConfig } = await loadCrmConfig(supabase, clientId);
@@ -136,30 +256,55 @@ export async function runAgent(
       stopWhen: stepCountIs(MAX_STEPS_TIER_1),
       tools,
       prepareStep: buildPrepareStep(modelId),
+      onError: async ({ error }) => {
+        await recordFailedRun(error);
+      },
       onFinish: async ({ text, steps, totalUsage }) => {
+        if (hasRecordedTerminalState) {
+          return;
+        }
+
+        hasRecordedTerminalState = true;
+
         await finalizeRun({
           supabase,
           clientId,
           threadId,
-          runId: lockResult.runId,
+          runId,
           modelId,
           steps,
           text,
           totalUsage,
           logLabel: "runner",
         });
+
+        await captureServerEvent({
+          distinctId: clientId,
+          event: "agent_run_completed",
+          properties: {
+            run_id: runId,
+            thread_id: threadId,
+            trigger_type: payload.triggerType,
+            duration_ms: Date.now() - startedAt,
+            steps: steps.length,
+            total_tokens: getTotalTokenCount(totalUsage),
+            tools_called: extractUniqueToolNames(steps),
+          },
+        });
       },
     });
 
     return { status: "streaming", streamResult };
   } catch (error) {
-    await completeRun(supabase, {
-      runId: lockResult.runId,
-      status: "failed",
-      model: modelId,
-      tokensIn: 0,
-      tokensOut: 0,
-    });
+    if (shouldReleaseConsumedQuota && consumedQuota) {
+      try {
+        await releaseConsumedMessageQuota(consumedQuota);
+      } catch (releaseError) {
+        console.error("[quota] Failed to release consumed message quota.", releaseError);
+      }
+    }
+
+    await recordFailedRun(error);
     throw error;
   }
 }

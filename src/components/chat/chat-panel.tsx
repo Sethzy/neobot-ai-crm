@@ -11,7 +11,9 @@ import { AlertCircle } from "@/components/icons/lucide-compat";
 import { useCallback, useMemo, useState } from "react";
 
 import { useAutoResume } from "@/hooks/use-auto-resume";
+import { messageQuotaKeys, useMessageQuota } from "@/hooks/use-message-quota";
 import { threadKeys } from "@/hooks/use-threads";
+import type { MessageQuotaStatus } from "@/lib/usage/message-quota";
 import { ChatComposer } from "./chat-composer";
 import { ChatWelcome } from "./chat-welcome";
 import { useDataStream } from "./data-stream-provider";
@@ -33,21 +35,45 @@ interface ChatPanelProps {
   chatId: string;
   /** Initial persisted messages loaded server-side for this thread route. */
   initialMessages?: UIMessage[];
+  /** Initial quota snapshot loaded server-side for fast first paint. */
+  initialQuota?: MessageQuotaStatus | null;
   /** Enables one-time stream resumption for existing threads. */
   autoResume?: boolean;
   /** Pre-filled prompt text for the composer (e.g. from ?prompt= query param). */
   initialPrompt?: string;
 }
 
+function getChatErrorMessage(error: Error | undefined): string | null {
+  if (!error) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(error.message) as { error?: unknown };
+    if (typeof parsed.error === "string" && parsed.error.trim().length > 0) {
+      return parsed.error;
+    }
+  } catch {
+    // Non-JSON error payloads should fall back to the plain message.
+  }
+
+  return error.message;
+}
+
 export function ChatPanel({
   chatId,
   initialMessages = [],
+  initialQuota = null,
   autoResume = false,
   initialPrompt,
 }: ChatPanelProps) {
   const [composerValue, setComposerValue] = useState(initialPrompt ?? "");
   const { setDataStream } = useDataStream();
   const queryClient = useQueryClient();
+  const { data: messageQuota } = useMessageQuota(initialQuota);
+  const refreshQuota = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: messageQuotaKeys.all });
+  }, [queryClient]);
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
@@ -96,6 +122,10 @@ export function ChatPanel({
     },
     onFinish: () => {
       queryClient.invalidateQueries({ queryKey: threadKeys.all });
+      refreshQuota();
+    },
+    onError: () => {
+      refreshQuota();
     },
   });
 
@@ -114,9 +144,10 @@ export function ChatPanel({
   );
 
   const isLoading = status === "submitted" || status === "streaming";
+  const errorMessage = useMemo(() => getChatErrorMessage(error), [error]);
 
   const handleSubmit = useCallback(
-    ({ text, files }: { text: string; files: FileUIPart[] }) => {
+    async ({ text, files }: { text: string; files: FileUIPart[] }) => {
       if ((text.length === 0 && files.length === 0) || isLoading) {
         return;
       }
@@ -147,25 +178,29 @@ export function ChatPanel({
         );
       }
 
-      if (files.length > 0 && text.length === 0) {
-        sendMessage({ files });
-        return;
-      }
+      try {
+        if (files.length > 0 && text.length === 0) {
+          await sendMessage({ files });
+          return;
+        }
 
-      if (files.length > 0) {
-        sendMessage({ text, files });
-        return;
-      }
+        if (files.length > 0) {
+          await sendMessage({ text, files });
+          return;
+        }
 
-      sendMessage({ text });
+        await sendMessage({ text });
+      } finally {
+        refreshQuota();
+      }
     },
-    [chatId, isLoading, queryClient, sendMessage],
+    [chatId, isLoading, queryClient, refreshQuota, sendMessage],
   );
 
   const handleQuestionSubmit = useCallback(
     (text: string) => {
       if (isLoading) return;
-      handleSubmit({ text, files: [] });
+      void handleSubmit({ text, files: [] });
     },
     [handleSubmit, isLoading],
   );
@@ -177,14 +212,21 @@ export function ChatPanel({
       {error ? (
         <div className="mx-auto mt-3 flex w-full max-w-2xl items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           <AlertCircle className="h-4 w-4" />
-          <p>{error.message}</p>
+          <p>{errorMessage}</p>
         </div>
       ) : null}
 
       {hasMessages ? (
         <>
           <MessageList messages={messages} status={status} onToolApproval={handleToolApproval} onQuestionSubmit={handleQuestionSubmit} />
-          <ChatComposer status={status} value={composerValue} onValueChange={setComposerValue} onSubmit={handleSubmit} onStop={stop} />
+          <ChatComposer
+            status={status}
+            value={composerValue}
+            onValueChange={setComposerValue}
+            onSubmit={handleSubmit}
+            onStop={stop}
+            messageQuota={messageQuota}
+          />
         </>
       ) : (
         <ChatWelcome
@@ -193,6 +235,7 @@ export function ChatPanel({
           onComposerValueChange={setComposerValue}
           onSubmit={handleSubmit}
           onStop={stop}
+          messageQuota={messageQuota}
         />
       )}
     </div>

@@ -5,6 +5,7 @@
 "use client";
 
 import type { FileUIPart } from "ai";
+import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -18,6 +19,10 @@ import {
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input";
 import { Paperclip } from "@/components/icons/lucide-compat";
+import {
+  formatMessageQuotaResetDate,
+  type MessageQuotaStatus,
+} from "@/lib/usage/message-quota";
 import { cn } from "@/lib/utils";
 import type { ChatStatus } from "@/types/chat";
 
@@ -42,6 +47,8 @@ interface ChatComposerProps {
   innerClassName?: string;
   /** Custom placeholder text for the textarea. */
   placeholder?: string;
+  /** Current monthly quota state when available. */
+  messageQuota?: MessageQuotaStatus | null;
 }
 
 function toFilePart(attachment: Attachment): FileUIPart {
@@ -71,14 +78,31 @@ function removeQueuedFilenames(currentQueue: string[], filenamesToRemove: string
   });
 }
 
-export function ChatComposer({ status, value, onValueChange, onSubmit, onStop, className, innerClassName, placeholder }: ChatComposerProps) {
+export function ChatComposer({
+  status,
+  value,
+  onValueChange,
+  onSubmit,
+  onStop,
+  className,
+  innerClassName,
+  placeholder,
+  messageQuota = null,
+}: ChatComposerProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const isGenerating = status === "submitted" || status === "streaming";
+  const isQuotaExhausted = (messageQuota?.messagesRemaining ?? 1) <= 0;
   const hasContent = value.trim().length > 0 || attachments.length > 0;
-  const isSubmitDisabled = uploadQueue.length > 0 || (!isGenerating && !hasContent);
+  const isSubmitDisabled =
+    uploadQueue.length > 0 ||
+    (!isGenerating && !hasContent) ||
+    (!isGenerating && isQuotaExhausted);
+  const quotaResetLabel = messageQuota
+    ? formatMessageQuotaResetDate(messageQuota.nextResetDate)
+    : null;
 
   const uploadFile = useCallback(async (file: File): Promise<Attachment | null> => {
     const formData = new FormData();
@@ -162,7 +186,7 @@ export function ChatComposer({ status, value, onValueChange, onSubmit, onStop, c
   }, [uploadFiles]);
 
   const handleSubmit = useCallback((message: PromptInputMessage) => {
-    if (isGenerating || uploadQueue.length > 0) {
+    if (isGenerating || uploadQueue.length > 0 || isQuotaExhausted) {
       return;
     }
 
@@ -178,11 +202,51 @@ export function ChatComposer({ status, value, onValueChange, onSubmit, onStop, c
 
     onValueChange("");
     setAttachments([]);
-  }, [attachments, isGenerating, onSubmit, onValueChange, uploadQueue.length]);
+  }, [
+    attachments,
+    isGenerating,
+    isQuotaExhausted,
+    onSubmit,
+    onValueChange,
+    uploadQueue.length,
+  ]);
 
   return (
     <div className={cn("px-4 pb-4", className)}>
       <div className={cn("mx-auto max-w-2xl space-y-2", innerClassName)}>
+        {messageQuota ? (
+          <div
+            className={cn(
+              "flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm",
+              isQuotaExhausted
+                ? "border-destructive/40 bg-destructive/10 text-destructive"
+                : "border-border/60 bg-muted/20 text-muted-foreground",
+            )}
+          >
+            <div className="space-y-0.5">
+              <p className={cn("font-medium", !isQuotaExhausted && "text-foreground")}>
+                {messageQuota.messagesUsed} / {messageQuota.monthlyMessageLimit} messages used this
+                {" "}month
+              </p>
+              <p>
+                {isQuotaExhausted
+                  ? `Monthly message limit reached. Resets ${quotaResetLabel}.`
+                  : `${messageQuota.messagesRemaining} remaining. Resets ${quotaResetLabel}.`}
+              </p>
+            </div>
+
+            <Link
+              className={cn(
+                "text-sm font-medium underline underline-offset-4",
+                isQuotaExhausted ? "text-destructive" : "text-primary",
+              )}
+              href="/pricing"
+            >
+              Upgrade plan
+            </Link>
+          </div>
+        ) : null}
+
         {(attachments.length > 0 || uploadQueue.length > 0) ? (
           <div className="flex flex-wrap gap-2" data-testid="composer-attachments">
             {attachments.map((attachment) => (
@@ -227,14 +291,14 @@ export function ChatComposer({ status, value, onValueChange, onSubmit, onStop, c
             value={value}
             onChange={handleChange}
             onPaste={handlePaste}
-            disabled={isGenerating}
+            disabled={isGenerating || isQuotaExhausted}
           />
 
           <PromptInputFooter className="items-center">
             <PromptInputTools>
               <PromptInputButton
                 aria-label="Attach files"
-                disabled={isGenerating}
+                disabled={isGenerating || isQuotaExhausted}
                 onClick={() => fileInputRef.current?.click()}
                 variant="ghost"
               >

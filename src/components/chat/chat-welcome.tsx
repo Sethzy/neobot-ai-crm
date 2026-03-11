@@ -10,6 +10,7 @@ import type { FileUIPart } from "ai";
 import { useCallback, useMemo, useState } from "react";
 
 import { Sparkles } from "@/components/icons/lucide-compat";
+import type { MessageQuotaStatus } from "@/lib/usage/message-quota";
 import { cn } from "@/lib/utils";
 import { AUTOMATION_TEMPLATES, type AutomationTemplate } from "@/lib/automations/templates";
 import type { ChatStatus } from "@/types/chat";
@@ -32,6 +33,7 @@ interface ChatWelcomeProps {
   onComposerValueChange: (value: string) => void;
   onSubmit: (message: { text: string; files: FileUIPart[] }) => void;
   onStop: () => void;
+  messageQuota?: MessageQuotaStatus | null;
 }
 
 export function ChatWelcome({
@@ -40,6 +42,7 @@ export function ChatWelcome({
   onComposerValueChange,
   onSubmit,
   onStop,
+  messageQuota,
 }: ChatWelcomeProps) {
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0]);
 
@@ -70,6 +73,7 @@ export function ChatWelcome({
           onValueChange={onComposerValueChange}
           onSubmit={onSubmit}
           onStop={onStop}
+          messageQuota={messageQuota}
           className="px-0 pb-0"
           innerClassName="max-w-none"
           placeholder="Describe a task or responsibility"

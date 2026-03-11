@@ -5,16 +5,18 @@
 import { Suspense } from "react";
 
 import { DataStreamHandler } from "@/components/chat/data-stream-handler";
+import { loadCurrentMessageQuota } from "@/lib/usage/message-quota-server";
 import { ChatDraftPage } from "./chat-draft-page";
 
 export const dynamic = "force-dynamic";
 
-export default function ChatPage() {
+export default async function ChatPage() {
   const id = crypto.randomUUID();
+  const initialQuota = await loadCurrentMessageQuota();
   return (
     <>
       <Suspense>
-        <ChatDraftPage id={id} />
+        <ChatDraftPage id={id} initialQuota={initialQuota} />
       </Suspense>
       <DataStreamHandler />
     </>
