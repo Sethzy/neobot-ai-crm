@@ -20,6 +20,7 @@ import { AskUserQuestionInline, type AskUserQuestion } from "./ask-user-question
 import { getMessageText, type ChatUIMessage } from "./message-content";
 import { PreviewAttachment, type Attachment } from "./preview-attachment";
 import { StepsSummary } from "./steps-summary";
+import { ToolCallInline, type ToolPartState } from "./tool-call-inline";
 
 interface MessageBubbleProps {
   message: ChatUIMessage;
@@ -48,8 +49,13 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
   const askQuestionParts = allIntermediateParts.filter(
     (p) => p.type === "tool-ask_user_question" && (p as { state?: string }).state === "output-available",
   );
+  const showViewParts = allIntermediateParts.filter(
+    (p) => p.type === "tool-show_view" && (p as { state?: string }).state === "output-available",
+  );
   const intermediateParts = allIntermediateParts.filter(
-    (p) => p.type !== "tool-ask_user_question",
+    (p) =>
+      p.type !== "tool-ask_user_question" &&
+      !(p.type === "tool-show_view" && (p as { state?: string }).state === "output-available"),
   );
 
   const hasParts = fileParts.length > 0 || allIntermediateParts.length > 0 || textParts.length > 0;
@@ -121,6 +127,30 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
             {part.text}
           </MessageResponse>
         ))}
+
+        {showViewParts.map((part, i) => {
+          const toolPart = part as {
+            type: string;
+            state: ToolPartState;
+            input: unknown;
+            output?: unknown;
+            errorText?: string;
+            approval?: { id: string };
+          };
+
+          return (
+            <ToolCallInline
+              key={`${message.id}-show-view-${i}`}
+              name="show_view"
+              state={toolPart.state}
+              input={toolPart.input}
+              output={toolPart.output}
+              errorText={toolPart.errorText}
+              approvalId={toolPart.approval?.id}
+              onToolApproval={onToolApproval}
+            />
+          );
+        })}
 
         {askQuestionParts.length > 0 &&
           askQuestionParts.map((part, i) => {

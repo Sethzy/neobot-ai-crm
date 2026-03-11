@@ -8,6 +8,7 @@ import {
   buildContextRemovedMarker,
   saveToolcallArtifact,
   saveToolcallBlock,
+  serializeToolOutput,
   truncateOversizedParts,
 } from "../toolcall-artifacts";
 
@@ -69,6 +70,18 @@ describe("saveToolcallArtifact", () => {
         { success: true },
       ),
     ).rejects.toThrow("upload failed");
+  });
+});
+
+describe("serializeToolOutput", () => {
+  it("pretty prints object payloads with stable indentation", () => {
+    expect(serializeToolOutput({ success: true, deals: [] })).toBe(
+      JSON.stringify({ success: true, deals: [] }, null, 2),
+    );
+  });
+
+  it("passes string payloads through unchanged", () => {
+    expect(serializeToolOutput("hello")).toBe("hello");
   });
 });
 

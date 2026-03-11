@@ -78,6 +78,12 @@ function createDeferredPromise<T>() {
 describe("finalizeRun block storage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSaveToolcallBlock.mockResolvedValue(undefined);
+    mockCreateMessages.mockResolvedValue(undefined);
+    mockCompleteRun.mockResolvedValue(undefined);
+    mockDrainAndContinue.mockResolvedValue(undefined);
+    mockMaybeCompactThread.mockResolvedValue(undefined);
+    mockTruncateOversizedParts.mockReset();
     mockCreateApprovalEvent.mockResolvedValue({
       success: true,
       status: "created",
@@ -176,6 +182,61 @@ describe("finalizeRun block storage", () => {
     expect(mockCompleteRun).toHaveBeenCalled();
 
     consoleSpy.mockRestore();
+  });
+
+  it("persists compact show_view outputs intact for reload", async () => {
+    const showViewOutput = {
+      success: true,
+      spec: {
+        root: "metric",
+        elements: {
+          metric: {
+            type: "StatMetric",
+            props: { label: "Deals", value: 29 },
+            children: [],
+          },
+        },
+      },
+      state: { stats: { deals: 29 } },
+    } as const;
+    const parts: PersistedPart[] = [
+      {
+        type: "tool-show_view",
+        toolCallId: "call-view",
+        state: "output-available",
+        input: {
+          spec: showViewOutput.spec,
+          state: showViewOutput.state,
+        },
+        output: showViewOutput,
+      },
+      { type: "text", text: "Here is the snapshot." },
+    ];
+
+    mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
+    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+    mockGetAssistantTextFromParts.mockReturnValue("Here is the snapshot.");
+
+    await finalizeRun(makeInput());
+
+    expect(mockSaveToolcallBlock).toHaveBeenCalledWith(
+      expect.anything(),
+      CLIENT_ID,
+      "call-view",
+      {
+        spec: showViewOutput.spec,
+        state: showViewOutput.state,
+      },
+      showViewOutput,
+    );
+    expect(mockCreateMessages).toHaveBeenCalledWith(
+      expect.anything(),
+      [
+        expect.objectContaining({
+          parts,
+        }),
+      ],
+    );
   });
 
   it("includes tool-error parts for block storage with null result", async () => {

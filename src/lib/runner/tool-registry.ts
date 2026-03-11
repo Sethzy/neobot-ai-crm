@@ -11,6 +11,7 @@ import {
   createStorageTools,
   createTriggerTools,
   createUtilityTools,
+  createViewTools,
   createWebTools,
 } from "@/lib/runner/tools";
 import type { Database } from "@/types/database";
@@ -65,6 +66,7 @@ export function createRunnerTools(
   const triggerTools = createTriggerTools(supabase, clientId, threadId, {
     allowMutations: options?.allowTriggerMutations ?? true,
   });
+  const viewTools = createViewTools();
 
   return {
     ...crmTools,
@@ -73,5 +75,6 @@ export function createRunnerTools(
     ...utilityTools,
     ...triggerTools,
     ...connectionTools,
+    ...viewTools,
   };
 }

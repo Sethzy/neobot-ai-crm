@@ -19,7 +19,7 @@ export interface TruncateOversizedPartsResult {
   recoveryPaths: string[];
 }
 
-function getSerializedArtifact(output: unknown): string | null {
+export function serializeToolOutput(output: unknown): string | null {
   if (output == null) {
     return null;
   }
@@ -33,7 +33,7 @@ function getSerializedArtifact(output: unknown): string | null {
 
 /** Serializes output and returns the string and its byte length in one pass. */
 function serializeWithSize(output: unknown): { serialized: string; sizeBytes: number } | null {
-  const serialized = getSerializedArtifact(output);
+  const serialized = serializeToolOutput(output);
   if (serialized == null) return null;
   return { serialized, sizeBytes: TEXT_ENCODER.encode(serialized).length };
 }
@@ -68,7 +68,7 @@ export async function saveToolcallBlock(
 ): Promise<void> {
   const uploads: Promise<void>[] = [];
 
-  const argsContent = getSerializedArtifact(args);
+  const argsContent = serializeToolOutput(args);
   if (argsContent != null) {
     uploads.push(
       supabase.storage
@@ -84,7 +84,7 @@ export async function saveToolcallBlock(
     );
   }
 
-  const resultContent = getSerializedArtifact(result);
+  const resultContent = serializeToolOutput(result);
   if (resultContent != null) {
     uploads.push(
       supabase.storage
@@ -114,7 +114,7 @@ export async function saveToolcallArtifact(
   output: unknown,
   preSerialized?: string,
 ): Promise<string> {
-  const artifactContent = preSerialized ?? getSerializedArtifact(output);
+  const artifactContent = preSerialized ?? serializeToolOutput(output);
   if (artifactContent == null) {
     throw new Error("Cannot save an empty toolcall artifact.");
   }

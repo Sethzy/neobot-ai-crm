@@ -6,6 +6,16 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("./show-view-inline", () => ({
+  ShowViewInline: ({ spec, state }: { spec: unknown; state: unknown }) => (
+    <div
+      data-testid="view-card"
+      data-spec={JSON.stringify(spec)}
+      data-state={JSON.stringify(state)}
+    />
+  ),
+}));
+
 import { ToolCallInline } from "./tool-call-inline";
 
 describe("ToolCallInline", () => {
@@ -219,6 +229,54 @@ describe("approval-requested state", () => {
     const dot = screen.getByTestId("tool-dot");
     expect(dot.className).toMatch(/animate-pulse/);
     expect(dot.className).toMatch(/bg-amber/);
+  });
+});
+
+describe("show_view rendering", () => {
+  it("renders ViewCard inline for successful show_view output", () => {
+    render(
+      <ToolCallInline
+        name="show_view"
+        state="output-available"
+        input={{}}
+        output={{
+          success: true,
+          spec: {
+            root: "metric",
+            elements: {
+              metric: {
+                type: "StatMetric",
+                props: { label: "Deals", value: 29 },
+                children: [],
+              },
+            },
+          },
+          state: { stats: { deals: 29 } },
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("view-card")).toBeInTheDocument();
+    expect(screen.queryByTestId("tool-expand-trigger")).not.toBeInTheDocument();
+  });
+
+  it("falls back to the normal tool renderer when show_view output is not renderable", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ToolCallInline
+        name="show_view"
+        state="output-available"
+        input={{}}
+        output={{ success: false, error: "View payload is too large." }}
+      />,
+    );
+
+    expect(screen.queryByTestId("view-card")).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("tool-expand-trigger"));
+
+    expect(screen.getByTestId("tool-result")).toBeInTheDocument();
   });
 });
 

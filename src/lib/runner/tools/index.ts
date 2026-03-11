@@ -8,4 +8,5 @@ export { createStorageTools } from "./storage";
 export { createSubagentTool } from "./subagents";
 export { createTriggerTools } from "./triggers";
 export { createUtilityTools } from "./utility";
+export { createViewTools } from "./views";
 export { createWebTools } from "./web";

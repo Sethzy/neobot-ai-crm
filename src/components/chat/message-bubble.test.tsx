@@ -506,3 +506,53 @@ describe("MessageBubble — ask_user_question", () => {
     expect(screen.queryByTestId("ask-user-question-inline")).not.toBeInTheDocument();
   });
 });
+
+describe("MessageBubble — show_view", () => {
+  it("renders show_view after assistant text and before ask_user_question", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "show-view-1",
+          role: "assistant",
+          parts: [
+            { type: "reasoning", text: "Preparing the snapshot..." },
+            {
+              type: "tool-show_view" as const,
+              toolCallId: "tc-show-view-1",
+              state: "output-available" as const,
+              input: {},
+              output: {
+                success: true,
+                spec: { root: "metric", elements: {} },
+                state: {},
+              },
+            },
+            { type: "text", text: "Here is the latest snapshot." },
+            {
+              type: "tool-ask_user_question" as const,
+              toolCallId: "tc-ask-4",
+              state: "output-available" as const,
+              input: { questions: [] },
+              output: { questions: [], status: "awaiting_response" },
+            },
+          ],
+        }}
+        onQuestionSubmit={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-parts-count", "1");
+    expect(screen.getByTestId("tool-call-inline")).toHaveAttribute("data-name", "show_view");
+
+    const childOrder = Array.from(
+      screen.getByTestId("ai-message-content").children,
+    ).map((child) => child.getAttribute("data-testid"));
+
+    expect(childOrder).toEqual([
+      "steps-summary",
+      "message-response",
+      "tool-call-inline",
+      "ask-user-question-inline",
+    ]);
+  });
+});

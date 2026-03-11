@@ -150,6 +150,14 @@ describe("SYSTEM_PROMPT", () => {
   it("does not claim that connection activation prompts the user automatically", () => {
     expect(SYSTEM_PROMPT).not.toContain("This will prompt the user to grant permissions");
   });
+
+  it("includes show_view guidance for structured inline views", () => {
+    expect(SYSTEM_PROMPT).toContain("<view-guidance>");
+    expect(SYSTEM_PROMPT).toContain("</view-guidance>");
+    expect(SYSTEM_PROMPT).toContain("show_view");
+    expect(SYSTEM_PROMPT).toContain("repeat + $item");
+    expect(SYSTEM_PROMPT.toLowerCase()).toContain("snapshot-only");
+  });
 });
 
 describe("SYSTEM_PROMPT memory instructions", () => {

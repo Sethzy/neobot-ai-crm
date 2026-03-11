@@ -7,9 +7,11 @@
 "use client";
 
 import { useState } from "react";
+import type { Spec, StateModel } from "@json-render/react";
 
 import { JsonView } from "@/components/ui/json-view";
 import { cn } from "@/lib/utils";
+import { ShowViewInline } from "./show-view-inline";
 
 export type ToolPartState =
   | "input-streaming"
@@ -32,12 +34,43 @@ interface ToolCallInlineProps {
   onToolApproval?: (approvalId: string, approved: boolean) => void;
 }
 
+function isRenderableShowViewOutput(
+  output: unknown,
+): output is { success: true; spec: Spec; state: StateModel } {
+  if (typeof output !== "object" || output === null) {
+    return false;
+  }
+
+  const candidate = output as {
+    success?: unknown;
+    spec?: unknown;
+    state?: unknown;
+  };
+
+  return (
+    candidate.success === true &&
+    typeof candidate.spec === "object" &&
+    candidate.spec !== null &&
+    typeof candidate.state === "object" &&
+    candidate.state !== null &&
+    !Array.isArray(candidate.state)
+  );
+}
+
 export function ToolCallInline({ name, state, input, output, errorText, approvalId, onToolApproval }: ToolCallInlineProps) {
   const [isOpen, setIsOpen] = useState(false);
   const isRunning = state === "input-available" || state === "input-streaming";
   const isAwaitingApproval = state === "approval-requested";
   const isDenied = state === "output-denied";
   const hasError = state === "output-error";
+
+  if (
+    name === "show_view" &&
+    state === "output-available" &&
+    isRenderableShowViewOutput(output)
+  ) {
+    return <ShowViewInline spec={output.spec} state={output.state} />;
+  }
 
   return (
     <div data-testid="tool-call-inline">
