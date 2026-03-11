@@ -15,34 +15,52 @@ describe("ViewToggle", () => {
     vi.clearAllMocks();
   });
 
-  it("renders two buttons", () => {
+  it("renders labelled buttons for table, board, and calendar", () => {
     render(
-      <ViewToggle current="table" views={["table", "kanban"]} onChange={onChange} />,
+      <ViewToggle
+        current="table"
+        views={["table", "kanban", "calendar"]}
+        onChange={onChange}
+      />,
     );
 
-    expect(screen.getAllByRole("button")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: /table/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /board/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /calendar/i })).toBeInTheDocument();
   });
 
   it("marks the active view", () => {
     render(
-      <ViewToggle current="kanban" views={["table", "kanban"]} onChange={onChange} />,
+      <ViewToggle
+        current="kanban"
+        views={["table", "kanban", "calendar"]}
+        onChange={onChange}
+      />,
     );
 
-    const buttons = screen.getAllByRole("button");
-    expect(buttons[1]).toHaveAttribute("data-active", "true");
-    expect(buttons[0]).toHaveAttribute("data-active", "false");
+    expect(screen.getByRole("button", { name: /board/i })).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: /table/i })).toHaveAttribute(
+      "data-active",
+      "false",
+    );
   });
 
   it("calls onChange when clicking a different view", async () => {
     const user = userEvent.setup();
 
     render(
-      <ViewToggle current="table" views={["table", "kanban"]} onChange={onChange} />,
+      <ViewToggle
+        current="table"
+        views={["table", "kanban", "calendar"]}
+        onChange={onChange}
+      />,
     );
 
-    const buttons = screen.getAllByRole("button");
-    await user.click(buttons[1]);
+    await user.click(screen.getByRole("button", { name: /calendar/i }));
 
-    expect(onChange).toHaveBeenCalledWith("kanban");
+    expect(onChange).toHaveBeenCalledWith("calendar");
   });
 });

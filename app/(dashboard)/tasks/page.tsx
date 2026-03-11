@@ -7,6 +7,7 @@
 import { useMemo, useState } from "react";
 
 import { AppIcon } from "@/components/icons/app-icons";
+import { CrmTasksCalendar } from "@/components/crm/crm-tasks-calendar";
 import { CrmTasksTable } from "@/components/crm/crm-tasks-table";
 import { KanbanBoard } from "@/components/crm/kanban-board";
 import { RecordDrawer } from "@/components/crm/record-drawer";
@@ -52,7 +53,7 @@ export default function TasksPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Tasks</h1>
         <p className="mt-2 text-sm text-muted-foreground/80">
-          Browse and inspect CRM follow-ups created by your AI agent.
+          Review follow-ups in a table, board, or calendar without leaving the workspace.
         </p>
       </div>
 
@@ -70,7 +71,7 @@ export default function TasksPage() {
           />
         </div>
 
-        <ViewToggle current={view} views={["table", "kanban"]} onChange={setView} />
+        <ViewToggle current={view} views={["table", "kanban", "calendar"]} onChange={setView} />
       </div>
 
       <div className="mt-6">
@@ -104,6 +105,8 @@ export default function TasksPage() {
           </div>
         ) : view === "table" ? (
           <CrmTasksTable tasks={tasks} onRowClick={open} />
+        ) : view === "calendar" ? (
+          <CrmTasksCalendar tasks={tasks} onTaskClick={open} />
         ) : (
           <KanbanBoard
             boardLabel="By Status"

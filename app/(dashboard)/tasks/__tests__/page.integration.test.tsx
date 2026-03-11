@@ -12,6 +12,12 @@ vi.mock("@/hooks/use-crm-tasks", () => ({
   useCrmTasks: vi.fn(),
 }));
 
+vi.mock("@/hooks/use-update-crm-task", () => ({
+  useUpdateCrmTask: vi.fn(() => ({
+    mutateAsync: vi.fn().mockResolvedValue(undefined),
+  })),
+}));
+
 vi.mock("@/hooks/use-record-drawer", () => ({
   useRecordDrawer: () => ({
     isOpen: false,
@@ -58,7 +64,7 @@ describe("TasksPage integration", () => {
     expect(screen.getByText("123 Orchard Road")).toBeInTheDocument();
   });
 
-  it("switches between table and kanban views", async () => {
+  it("switches between table, board, and calendar views", async () => {
     const { useCrmTasks } = await import("@/hooks/use-crm-tasks");
     const user = userEvent.setup();
 
@@ -78,6 +84,20 @@ describe("TasksPage integration", () => {
           contacts: { first_name: "John", last_name: "Smith" },
           deals: { address: "123 Orchard Road" },
         },
+        {
+          task_id: "t-2",
+          client_id: "cl-1",
+          contact_id: null,
+          deal_id: null,
+          title: "Prepare viewing notes",
+          description: null,
+          status: "completed",
+          due_date: "2026-03-08T00:00:00+08:00",
+          created_at: "2026-03-01T00:00:00+08:00",
+          updated_at: "2026-03-01T00:00:00+08:00",
+          contacts: null,
+          deals: null,
+        },
       ],
       isLoading: false,
       isError: false,
@@ -86,7 +106,10 @@ describe("TasksPage integration", () => {
     render(<TasksPage />);
 
     expect(screen.getByRole("button", { name: "Table view" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Kanban view" }));
+    await user.click(screen.getByRole("button", { name: "Board view" }));
     expect(screen.getByText("Open")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Calendar view" }));
+    expect(screen.getByText(/scheduled tasks/i)).toBeInTheDocument();
+    expect(screen.getByText("Follow up with John")).toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 /**
- * Compact icon-based toggle for CRM table/kanban views.
+ * Compact labelled toggle for CRM table, board, and calendar views.
  * @module components/crm/view-toggle
  */
 "use client";
@@ -21,11 +21,13 @@ interface ViewToggleProps {
 const viewIconMap: Record<ViewType, AppIconName> = {
   table: "table",
   kanban: "kanban",
+  calendar: "calendar",
 };
 
 const viewLabelMap: Record<ViewType, string> = {
-  table: "Table view",
-  kanban: "Kanban view",
+  table: "Table",
+  kanban: "Board",
+  calendar: "Calendar",
 };
 
 export function ViewToggle({ current, views, onChange }: ViewToggleProps) {
@@ -39,13 +41,18 @@ export function ViewToggle({ current, views, onChange }: ViewToggleProps) {
             key={view}
             type="button"
             variant="ghost"
-            size="icon-xs"
+            size="xs"
             data-active={isActive}
-            aria-label={viewLabelMap[view]}
-            className={cn(isActive ? "bg-background shadow-sm" : "text-muted-foreground")}
+            aria-label={`${viewLabelMap[view]} view`}
+            aria-pressed={isActive}
+            className={cn(
+              "gap-1.5 px-2.5",
+              isActive ? "bg-background shadow-sm" : "text-muted-foreground",
+            )}
             onClick={() => onChange(view)}
           >
             <AppIcon name={viewIconMap[view]} className="h-3.5 w-3.5" />
+            <span>{viewLabelMap[view]}</span>
           </Button>
         );
       })}

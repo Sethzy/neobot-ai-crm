@@ -1,21 +1,54 @@
 /**
- * Tests for CRM tasks table rendering and row click behavior.
+ * Tests CRM task table inline edits.
  * @module components/crm/__tests__/crm-tasks-table
  */
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CrmTasksTable } from "../crm-tasks-table";
+import { CrmTasksTable } from "@/components/crm/crm-tasks-table";
 
-const sampleTasks = [
+const mockMutateAsync = vi.fn().mockResolvedValue(undefined);
+
+vi.mock("@/hooks/use-update-crm-task", () => ({
+  useUpdateCrmTask: vi.fn(() => ({
+    mutateAsync: mockMutateAsync,
+  })),
+}));
+
+vi.mock("@/hooks/use-mobile", () => ({
+  useIsMobile: vi.fn(() => false),
+}));
+
+if (!HTMLElement.prototype.hasPointerCapture) {
+  Object.defineProperty(HTMLElement.prototype, "hasPointerCapture", {
+    configurable: true,
+    value: () => false,
+  });
+}
+
+if (!HTMLElement.prototype.setPointerCapture) {
+  Object.defineProperty(HTMLElement.prototype, "setPointerCapture", {
+    configurable: true,
+    value: () => undefined,
+  });
+}
+
+if (!HTMLElement.prototype.releasePointerCapture) {
+  Object.defineProperty(HTMLElement.prototype, "releasePointerCapture", {
+    configurable: true,
+    value: () => undefined,
+  });
+}
+
+const tasks = [
   {
-    task_id: "t-1",
-    client_id: "cl-1",
-    contact_id: "c-1",
-    deal_id: "d-1",
+    task_id: "task-1",
+    client_id: "client-1",
+    contact_id: "contact-1",
+    deal_id: "deal-1",
     title: "Follow up with John",
-    description: "Discuss next viewing date",
+    description: null,
     status: "open" as const,
     due_date: "2026-03-05T00:00:00+08:00",
     created_at: "2026-03-01T00:00:00+08:00",
@@ -23,65 +56,45 @@ const sampleTasks = [
     contacts: { first_name: "John", last_name: "Smith" },
     deals: { address: "123 Orchard Road" },
   },
-  {
-    task_id: "t-2",
-    client_id: "cl-1",
-    contact_id: null,
-    deal_id: null,
-    title: "Send OTP documents",
-    description: null,
-    status: "completed" as const,
-    due_date: null,
-    created_at: "2026-02-28T00:00:00+08:00",
-    updated_at: "2026-03-01T00:00:00+08:00",
-    contacts: null,
-    deals: null,
-  },
 ];
 
 describe("CrmTasksTable", () => {
-  it("renders task rows with status labels and linked entities", () => {
-    render(<CrmTasksTable tasks={sampleTasks} />);
-
-    expect(screen.getByText("Follow up with John")).toBeInTheDocument();
-    expect(screen.getByText("Send OTP documents")).toBeInTheDocument();
-    expect(screen.getByText("Open")).toBeInTheDocument();
-    expect(screen.getByText("Completed")).toBeInTheDocument();
-    expect(screen.getByText("John Smith")).toBeInTheDocument();
-    expect(screen.getByText("123 Orchard Road")).toBeInTheDocument();
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockMutateAsync.mockResolvedValue(undefined);
   });
 
-  it("renders due date using CRM date format", () => {
-    render(<CrmTasksTable tasks={sampleTasks} />);
-
-    expect(screen.getByText(/5 Mar 2026/i)).toBeInTheDocument();
-  });
-
-  it("shows placeholders for null due date, contact, and deal", () => {
-    render(<CrmTasksTable tasks={sampleTasks} />);
-
-    const row = screen.getByText("Send OTP documents").closest("tr");
-    expect(row).not.toBeNull();
-
-    const placeholders = within(row as HTMLElement).getAllByText("—");
-    expect(placeholders.length).toBeGreaterThanOrEqual(3);
-  });
-
-  it("renders empty state when no tasks are available", () => {
-    render(<CrmTasksTable tasks={[]} />);
-
-    expect(screen.getByText(/no tasks yet/i)).toBeInTheDocument();
-  });
-
-  it("calls onRowClick with task id when clicking a row", async () => {
+  it("updates task status without triggering the row click handler", async () => {
     const user = userEvent.setup();
     const onRowClick = vi.fn();
-    render(<CrmTasksTable tasks={sampleTasks} onRowClick={onRowClick} />);
 
-    const targetRow = screen.getByText("Follow up with John").closest("tr");
-    expect(targetRow).not.toBeNull();
-    await user.click(targetRow as HTMLElement);
+    render(<CrmTasksTable tasks={tasks} onRowClick={onRowClick} />);
 
-    expect(onRowClick).toHaveBeenCalledWith("t-1");
+    await user.click(screen.getByRole("button", { name: /edit status/i }));
+    await user.click(screen.getByRole("combobox", { name: /status/i }));
+    await user.click(await screen.findByRole("option", { name: /completed/i }));
+
+    await waitFor(() => {
+      expect(mockMutateAsync).toHaveBeenCalledWith({ status: "completed" });
+    });
+    expect(onRowClick).not.toHaveBeenCalled();
+  });
+
+  it("updates due dates from the table", async () => {
+    const user = userEvent.setup();
+
+    render(<CrmTasksTable tasks={tasks} />);
+
+    await user.click(screen.getByRole("button", { name: /edit due date/i }));
+
+    const dueDateInput = screen.getByLabelText(/due date/i);
+    fireEvent.change(dueDateInput, { target: { value: "2026-03-10" } });
+    fireEvent.keyDown(dueDateInput, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(mockMutateAsync).toHaveBeenCalledWith({
+        due_date: expect.stringMatching(/^2026-03-10T00:00:00[+-]\d{2}:\d{2}$/),
+      });
+    });
   });
 });

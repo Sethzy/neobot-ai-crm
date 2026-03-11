@@ -29,6 +29,17 @@ describe("useViewPreference", () => {
     expect(localStorage.getItem("view-deals")).toBe("kanban");
   });
 
+  it("persists calendar as a valid view", () => {
+    const { result } = renderHook(() => useViewPreference("tasks"));
+
+    act(() => {
+      result.current.setView("calendar");
+    });
+
+    expect(result.current.view).toBe("calendar");
+    expect(localStorage.getItem("view-tasks")).toBe("calendar");
+  });
+
   it("ignores invalid localStorage values", () => {
     localStorage.setItem("view-deals", "invalid");
 

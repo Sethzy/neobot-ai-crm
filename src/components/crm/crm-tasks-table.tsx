@@ -14,11 +14,61 @@ import {
 } from "@tanstack/react-table";
 import { useMemo, useState, type MouseEvent } from "react";
 
+import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { TaskStatusBadge } from "@/components/crm/task-status-badge";
-import { formatContactFullName, formatCrmDate } from "@/lib/crm/display";
+import { useUpdateCrmTask } from "@/hooks/use-update-crm-task";
+import { formatContactFullName, formatCrmDate, formatCrmEnumLabel } from "@/lib/crm/display";
 import type { CrmTaskWithRelations } from "@/hooks/use-crm-tasks";
+import { crmTaskStatusValues, type CrmTask } from "@/lib/crm/schemas";
 
 const columnHelper = createColumnHelper<CrmTaskWithRelations>();
+const taskStatusOptions = crmTaskStatusValues.map((status) => ({
+  value: status,
+  label: formatCrmEnumLabel(status),
+}));
+
+function TaskStatusCell({ taskId, status }: { taskId: string; status: CrmTask["status"] }) {
+  const updateTask = useUpdateCrmTask(taskId);
+
+  return (
+    <div className="flex min-w-0 items-center gap-2" onClick={(event) => event.stopPropagation()}>
+      <TaskStatusBadge status={status} />
+      <QuickEditCell
+        ariaLabel="Status"
+        value={status}
+        hideDisplayValue
+        type="select"
+        options={taskStatusOptions}
+        onSave={async (nextValue) => {
+          if (typeof nextValue !== "string") {
+            return;
+          }
+
+          await updateTask.mutateAsync({ status: nextValue as CrmTask["status"] });
+        }}
+      />
+    </div>
+  );
+}
+
+function TaskDueDateCell({ taskId, dueDate }: { taskId: string; dueDate: string | null }) {
+  const updateTask = useUpdateCrmTask(taskId);
+
+  return (
+    <div className="flex min-w-0 items-center gap-2" onClick={(event) => event.stopPropagation()}>
+      <span className="whitespace-nowrap text-muted-foreground">{formatCrmDate(dueDate)}</span>
+      <QuickEditCell
+        ariaLabel="Due Date"
+        value={dueDate}
+        hideDisplayValue
+        type="date"
+        onSave={async (nextValue) => {
+          await updateTask.mutateAsync({ due_date: typeof nextValue === "string" ? nextValue : null });
+        }}
+      />
+    </div>
+  );
+}
 
 interface CrmTasksTableProps {
   tasks: CrmTaskWithRelations[];
@@ -37,11 +87,15 @@ export function CrmTasksTable({ tasks, onRowClick }: CrmTasksTableProps) {
       }),
       columnHelper.accessor("status", {
         header: "Status",
-        cell: (info) => <TaskStatusBadge status={info.getValue()} />,
+        cell: (info) => (
+          <TaskStatusCell taskId={info.row.original.task_id} status={info.getValue()} />
+        ),
       }),
       columnHelper.accessor("due_date", {
         header: "Due Date",
-        cell: (info) => <span className="whitespace-nowrap text-muted-foreground">{formatCrmDate(info.getValue())}</span>,
+        cell: (info) => (
+          <TaskDueDateCell taskId={info.row.original.task_id} dueDate={info.getValue()} />
+        ),
       }),
       columnHelper.accessor("contacts", {
         id: "contact",

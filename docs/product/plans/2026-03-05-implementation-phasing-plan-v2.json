@@ -2,13 +2,13 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-11 (Excalidraw diagram tool, message quota PR 38c)",
+    "updated": "2026-03-11 (Excalidraw diagram tool, message quota PR 38c, PR 42a snapshot charts, PR 46 CRM working surfaces)",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
     "totalPhases": 5,
-    "estimatedPRs": 40,
-    "keptPRs": 26,
+    "estimatedPRs": 41,
+    "keptPRs": 27,
     "cutPRs": 19,
     "donePRs": 35,
     "statusOptions": [
@@ -44,7 +44,9 @@
       "2026-03-10: Added PR 8a (Google Maps drive-time tool) as a narrow Phase 1 scope exception. Rationale: Chief of Staff transit automations need real drive times, direct_api is still a v1 stub, and a small built-in read-only tool is the minimal path.",
       "2026-03-11: Pulled FOUND-07 forward into Phase 4 as PR 38b (Stripe billing + settings surface). Implementation uses hosted Stripe Checkout, Stripe Customer Portal, and webhook-driven sync onto the clients table, following current Stripe webhook guidance instead of the earlier two-event draft.",
       "2026-03-11: Added PR 8b (Excalidraw diagram tool) to Phase 3. Small built-in tool (sibling to PR 8a drive-time). Agent creates hand-drawn diagrams via the free Excalidraw MCP server. Two tools: get_diagram_reference + create_diagram. No auth, no cost, no DB migration. Chat UI renders URLs as iframe embeds. Reference: Services §14.",
-      "2026-03-11: Added PR 38c (Message usage caps + quota UX) to Phase 4. Quotas are app-enforced monthly message counters in Supabase, keyed off clients.plan_name rather than Stripe metered billing. Count only brand-new user-authored inbound chat turns. Free = 100/month, Pro = 500/month, Max = 2,000/month. UI surfaces live in /pricing, /settings, and chat; get_user_quota_status remains omitted as an agent-facing tool."
+      "2026-03-11: Added PR 38c (Message usage caps + quota UX) to Phase 4. Quotas are app-enforced monthly message counters in Supabase, keyed off clients.plan_name rather than Stripe metered billing. Count only brand-new user-authored inbound chat turns. Free = 100/month, Pro = 500/month, Max = 2,000/month. UI surfaces live in /pricing, /settings, and chat; get_user_quota_status remains omitted as an agent-facing tool.",
+      "2026-03-11: Clarified PR 42a scope to include compact snapshot charts (bar, donut, funnel) inside show_view, using narrow custom chart components rendered through json-render. This intentionally stops short of live analytics/reporting: no query-backed refresh, no filters, no pinning, no workspace report surface.",
+      "2026-03-11: Added PR 46 (CRM working surfaces) to Phase 4 as an explicit out-of-plan polish item. Scope: unify Deals into one table/board workspace, add a Tasks calendar, add narrow quick edit on high-value CRM surfaces, preserve full detail pages, and keep saved views/reporting out of scope. Naming intentionally avoids collision with PR 42a agent-generated views."
     ]
   },
   "phases": [
@@ -1804,7 +1806,7 @@
           "dependsOn": [
             "15a"
           ],
-          "note": "Agent can respond with visual components (stat cards, tables, kanban boards, charts) rendered inline in chat using Vercel Labs json-render. Uses @json-render/shadcn for 36 pre-built ShadCN components plus 4 custom CRM components (StatMetric, DealCard, ContactCard, TaskItem). Tool-based approach: agent calls show_view tool which outputs a JSON spec + pre-computed state. Frontend detects the tool output in ToolCallInline and renders via json-render's Renderer + StateProvider. No saved/pinned views, no DB migration, no sidebar changes, no live data layer. Views live in chat only — user asks again for fresh data. Design doc: docs/product/designs/pr31-agent-generated-views.md",
+          "note": "Agent can respond with visual components (stat cards, tables, kanban boards, compact snapshot charts) rendered inline in chat using Vercel Labs json-render. Uses a narrow catalog of documented @json-render/shadcn components plus 7 custom CRM/view components (StatMetric, DealCard, ContactCard, TaskItem, BarChartPanel, DonutChartPanel, FunnelChartPanel). Tool-based approach: agent calls show_view tool which outputs a JSON spec + pre-computed state. Frontend detects the tool output in the chat UI and renders via json-render's Renderer + StateProvider. No saved/pinned views, no DB migration, no sidebar changes, and no live analytics/reporting layer. Views live in chat only — user asks again for fresh data. Design doc: docs/product/designs/pr31-agent-generated-views.md",
           "tasks": [
             {
               "id": "PR42a-1",
@@ -1813,39 +1815,47 @@
             },
             {
               "id": "PR42a-2",
-              "task": "Define json-render catalog (src/lib/views/catalog.ts) with ShadCN components + 4 CRM-specific components (StatMetric, DealCard, ContactCard, TaskItem). Define registry (src/lib/views/registry.tsx) mapping catalog to React implementations.",
+              "task": "Define json-render catalog (src/lib/views/catalog.ts) with a narrow allowlist: documented ShadCN layout/content components + 7 custom CRM/view components (StatMetric, DealCard, ContactCard, TaskItem, BarChartPanel, DonutChartPanel, FunnelChartPanel). Define registry (src/lib/views/registry.tsx) mapping catalog to React implementations.",
               "done": false
             },
             {
               "id": "PR42a-3",
-              "task": "Build 4 custom CRM components: StatMetric (~30 lines), DealCard (extract from deals kanban page), ContactCard (extract from contacts page), TaskItem (extract from tasks page). Register in catalog.",
+              "task": "Build 7 custom CRM/view components: StatMetric, DealCard, ContactCard, TaskItem, and 3 compact snapshot chart panels (bar, donut, funnel) using the existing recharts dependency. Register all in the catalog.",
               "done": false
             },
             {
               "id": "PR42a-4",
-              "task": "Build show_view agent tool (src/lib/runner/tools/views/show-view.ts). Parameters: spec (json-render spec with root + elements) + state (pre-computed data). Validates spec against catalog. Register in run-agent.ts.",
+              "task": "Build show_view agent tool (src/lib/runner/tools/views/show-view.ts). Parameters: spec (json-render spec with root + elements) + state (pre-computed data). Validates spec against catalog, enforces compact snapshot payloads, and guides chart usage toward aggregated non-live data.",
               "done": false
             },
             {
               "id": "PR42a-5",
-              "task": "Build ViewCard component (src/components/views/view-card.tsx) — wraps json-render Renderer + StateProvider for inline chat rendering.",
+              "task": "Build ViewCard component (src/components/views/view-card.tsx) — wraps json-render Renderer + StateProvider for inline chat rendering with report-like snapshot presentation.",
               "done": false
             },
             {
               "id": "PR42a-6",
-              "task": "Modify ToolCallInline (src/components/chat/tool-call-inline.tsx) to detect tool-show_view parts and render ViewCard instead of JsonView.",
+              "task": "Modify message-bubble + ToolCallInline to detect tool-show_view parts, render ViewCard inline outside the accordion, and keep a ViewCard fallback inside the expanded tool details.",
+              "done": false
+            },
+            {
+              "id": "PR42a-7",
+              "task": "Add system prompt guidance for when to use show_view for snapshot charts vs plain text, including explicit non-goals: no live filters, no refresh, no pinning, no fake 'live' analytics affordances.",
               "done": false
             }
           ],
           "testCriteria": [
             "User says 'show me my deals pipeline' — agent queries CRM tools, calls show_view — chat renders stat cards + kanban board inline",
+            "User says 'show me pipeline analytics for the last 30 days' — agent queries CRM tools, calls show_view — chat renders compact bar/donut/funnel snapshot panels inline",
             "User says 'what tasks are overdue' — agent calls show_view — chat renders a task list with due dates",
             "Agent cannot produce components outside the catalog (json-render Zod validation rejects invalid specs, agent retries)",
+            "Snapshot chart views do not pretend to be live analytics dashboards: no refresh button, filter chips, pinned report affordance, or 'live' badge",
             "View renders correctly on both desktop and mobile widths"
           ],
           "cut": [
             "Pinned/saved views (no saved_views table, no sidebar VIEWS section, no /views/[viewId] route)",
             "Live data fetching layer (no useViewData hook — agent pre-computes state)",
+            "Live analytics/reporting surface (no query-backed refresh, filters, pinning, or workspace report viewer)",
             "Streaming progressive rendering (tool-based approach, render on completion)",
             "Chat Mode integration with pipeJsonRender (tool-based is simpler)"
           ]
@@ -2237,6 +2247,62 @@
             "Approval continuations, assistant replies, queued replays, and pulse/cron runs do not consume quota",
             "Pricing and settings show the current plan's monthly cap plus used/remaining counts and the next reset date",
             "Chat composer hard-stops at zero remaining messages, surfaces an upgrade CTA, and re-enables automatically after the Asia/Singapore month rolls over"
+          ]
+        },
+        {
+          "pr": 46,
+          "title": "CRM working surfaces (views + direct editing)",
+          "status": "in_progress",
+          "simplified": true,
+          "decisions": [
+            "FOUND-05",
+            "DATA-01",
+            "DATA-07",
+            "DATA-09",
+            "UX-02",
+            "TASKLET-01"
+          ],
+          "note": "Explicit out-of-plan addition formalized on 2026-03-11. Scope: one Deals workspace with table + board, Tasks calendar view, narrow quick edit for high-value People/Companies/Deals/Tasks fields, and preservation of existing full detail pages. Intentionally excludes saved views, report surfaces, generic all-object view architecture, and spreadsheet-style bulk editing. If drag-and-drop slips, board copy must not promise it.",
+          "tasklist": "docs/product/tasks/2026-03-11-pr46-crm-working-surfaces-tasklist.md",
+          "tasks": [
+            {
+              "id": "PR46-1",
+              "task": "Shared workspace primitives: labelled view switcher (table/board/calendar), shared header treatment, and URL/local preference handling for multi-view CRM surfaces",
+              "done": false
+            },
+            {
+              "id": "PR46-2",
+              "task": "Deals workspace unification: one /customers/deals surface with table + board, backward-compatible /customers/deals/pipeline redirect, and stage movement from the board",
+              "done": false
+            },
+            {
+              "id": "PR46-3",
+              "task": "High-value quick edit on current surfaces: deals table (stage, price), people list (phone, email, type, company), companies list (phone, email, website, industry), and tasks surfaces (status, due date, title where appropriate)",
+              "done": false
+            },
+            {
+              "id": "PR46-4",
+              "task": "Tasks calendar view with month navigation, day drill-down, and quick status/due-date changes without leaving /tasks",
+              "done": false
+            },
+            {
+              "id": "PR46-5",
+              "task": "Preserve full detail pages for deeper work and align save/error feedback across list, board, calendar, and detail editing surfaces",
+              "done": false
+            },
+            {
+              "id": "PR46-6",
+              "task": "Tests + QA docs for view switching, quick edit success/failure, board stage movement, calendar interactions, mobile-safe behavior, and stale copy cleanup",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "User can switch between table and board inside /customers/deals without losing page identity, search, or filters",
+            "User can move a deal forward from the board and sees the updated stage reflected in both board and table",
+            "User can correct common People and Company fields directly from list surfaces without opening the full record page",
+            "User can use /tasks as table, board, or calendar and can change due date/status from the current surface",
+            "Full detail pages remain available for larger edits; quick-edit failures are visible and do not silently swallow errors",
+            "No saved views, report surfaces, or spreadsheet-style bulk editing are introduced"
           ]
         }
       ]
