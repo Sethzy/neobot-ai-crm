@@ -52,7 +52,7 @@ export function WhatsAppCard({ messages, width, height, className, scale = 1, sh
         </div>
       )}
 
-      {/* Background pattern — uses the whatsapp-chat-bg class from index.css */}
+      {/* Background pattern — uses the whatsapp-chat-bg class from globals.css */}
       <div className="absolute inset-0 whatsapp-chat-bg" />
 
       <div className="relative z-10 flex-1 p-4 md:p-6 lg:p-8 flex flex-col gap-2 md:gap-3">

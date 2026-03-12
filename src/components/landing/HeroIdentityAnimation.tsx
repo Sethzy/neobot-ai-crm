@@ -66,6 +66,16 @@ const LETTER_BOUNCE_TRANSITION = {
   mass: 0.7,
 }
 
+const HERO_LETTER_STYLE: React.CSSProperties = {
+  fontSize: 'clamp(4rem, 8vw, 7rem)',
+  fontWeight: 900,
+  lineHeight: 0.88,
+  letterSpacing: '-0.06em',
+  textShadow: '0 12px 24px rgba(26, 26, 26, 0.06)',
+}
+
+const HERO_LETTER_CLASS = 'font-sans uppercase text-lp-dark'
+
 const SEQUENCE: SequenceFrame[] = [
   // Frame 0: empty
   {
@@ -307,30 +317,33 @@ function getSlotVisualName(slotVisual: SlotVisual) {
 
 function HeroLetter({ value }: { value: LetterKind }) {
   return (
-    <span
-      className="font-sans uppercase text-lp-dark"
-      style={{
-        fontSize: 'clamp(4rem, 8vw, 7rem)',
-        fontWeight: 900,
-        lineHeight: 0.88,
-        letterSpacing: '-0.06em',
-        textShadow: '0 12px 24px rgba(26, 26, 26, 0.06)',
-      }}
-    >
+    <span className={HERO_LETTER_CLASS} style={HERO_LETTER_STYLE}>
       {value}
     </span>
+  )
+}
+
+function TokenShell({ gradient, shadow, children }: {
+  gradient: string
+  shadow: string
+  children: React.ReactNode
+}) {
+  return (
+    <div
+      className="flex aspect-square h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] border-white sm:h-[4.5rem] sm:w-[4.5rem]"
+      style={{ background: gradient, boxShadow: shadow }}
+    >
+      {children}
+    </div>
   )
 }
 
 /** Schedule/automation token — green with solid calendar icon. */
 function ScheduleToken() {
   return (
-    <div
-      className="flex aspect-square h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] border-white sm:h-[4.5rem] sm:w-[4.5rem]"
-      style={{
-        background: 'linear-gradient(180deg, #9EEFD0 0%, #86DDB8 100%)',
-        boxShadow: '0 12px 30px rgba(73, 138, 108, 0.16)',
-      }}
+    <TokenShell
+      gradient="linear-gradient(180deg, #9EEFD0 0%, #86DDB8 100%)"
+      shadow="0 12px 30px rgba(73, 138, 108, 0.16)"
     >
       <svg aria-hidden="true" viewBox="0 0 32 32" className="h-7 w-7 sm:h-8 sm:w-8" fill="none">
         <rect x="7" y="8" width="18" height="18" rx="3" fill="#1A3A2A" />
@@ -340,19 +353,16 @@ function ScheduleToken() {
         <path d="M20 5v5" stroke="#1A3A2A" strokeWidth="2.5" strokeLinecap="round" />
         <text x="16" y="23.5" textAnchor="middle" fill="white" fontSize="11" fontWeight="700" fontFamily="sans-serif">15</text>
       </svg>
-    </div>
+    </TokenShell>
   )
 }
 
 /** Messaging/follow-ups token — blue with solid chat bubble icon. */
 function MessagingToken() {
   return (
-    <div
-      className="flex aspect-square h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] border-white sm:h-[4.5rem] sm:w-[4.5rem]"
-      style={{
-        background: 'linear-gradient(180deg, #B7BEFF 0%, #A3ABFF 100%)',
-        boxShadow: '0 12px 30px rgba(83, 92, 181, 0.16)',
-      }}
+    <TokenShell
+      gradient="linear-gradient(180deg, #B7BEFF 0%, #A3ABFF 100%)"
+      shadow="0 12px 30px rgba(83, 92, 181, 0.16)"
     >
       <svg aria-hidden="true" viewBox="0 0 32 32" className="h-7 w-7 sm:h-8 sm:w-8" fill="none">
         <path d="M7 10a3 3 0 013-3h12a3 3 0 013 3v8a3 3 0 01-3 3h-3l-4 4v-4h-5a3 3 0 01-3-3v-8z" fill="#2A2A5A" />
@@ -360,25 +370,22 @@ function MessagingToken() {
         <circle cx="16" cy="14" r="1.3" fill="white" />
         <circle cx="19.5" cy="14" r="1.3" fill="white" />
       </svg>
-    </div>
+    </TokenShell>
   )
 }
 
 /** Contacts/leads token — warm amber with solid person silhouette icon. */
 function ContactsToken() {
   return (
-    <div
-      className="flex aspect-square h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] border-white sm:h-[4.5rem] sm:w-[4.5rem]"
-      style={{
-        background: 'linear-gradient(180deg, #F0C99A 0%, #E0B07A 100%)',
-        boxShadow: '0 12px 30px rgba(160, 110, 70, 0.16)',
-      }}
+    <TokenShell
+      gradient="linear-gradient(180deg, #F0C99A 0%, #E0B07A 100%)"
+      shadow="0 12px 30px rgba(160, 110, 70, 0.16)"
     >
       <svg aria-hidden="true" viewBox="0 0 32 32" className="h-7 w-7 sm:h-8 sm:w-8" fill="#5C3D1E">
         <circle cx="16" cy="11.5" r="5" />
         <path d="M7 27a9 9 0 0118 0" />
       </svg>
-    </div>
+    </TokenShell>
   )
 }
 
@@ -454,16 +461,7 @@ export function HeroIdentityAnimation({
 
       {shouldReduceMotion ? (
         <div className="relative flex items-center justify-center">
-          <span
-            className="font-sans uppercase text-lp-dark"
-            style={{
-              fontSize: 'clamp(4rem, 8vw, 7rem)',
-              fontWeight: 900,
-              lineHeight: 0.88,
-              letterSpacing: '-0.06em',
-              textShadow: '0 12px 24px rgba(26, 26, 26, 0.06)',
-            }}
-          >
+          <span className={HERO_LETTER_CLASS} style={HERO_LETTER_STYLE}>
             NEO
           </span>
         </div>

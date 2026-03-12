@@ -1,7 +1,7 @@
 'use client';
 
 /** Pipeline board animation for the ProductShowcase hero section. */
-import { useEffect, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { AppIcon, type AppIconName } from '@/components/icons/app-icons'
 
@@ -188,7 +188,7 @@ const CYCLE_ORDER: [col: number, card: number][] = [
 
 const CYCLE_MS = 2500
 
-function Card({
+const Card = memo(function Card({
   card,
   isActive,
   glowColor,
@@ -247,7 +247,7 @@ function Card({
       </div>
     </div>
   )
-}
+})
 
 /** Same heavy spring as UseCases cards. */
 const columnSpring = { type: 'spring' as const, stiffness: 35, damping: 14, mass: 2.4 }
