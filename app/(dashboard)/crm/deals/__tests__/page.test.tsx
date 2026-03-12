@@ -1,95 +1,25 @@
 /**
- * Tests for CRM deals list page states and search wiring.
+ * Tests the legacy deals list route redirect behavior.
  * @module app/(dashboard)/crm/deals/__tests__/page
  */
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { CRM_DEFAULTS } from "@/lib/crm/config";
-import DealsPage from "../page";
+const mockRedirect = vi.fn();
 
-vi.mock("@/hooks/use-deals", () => ({
-  useDeals: vi.fn(),
+vi.mock("next/navigation", () => ({
+  redirect: (...args: unknown[]) => mockRedirect(...args),
 }));
 
-vi.mock("@/hooks/use-crm-config", () => ({
-  useCrmConfig: vi.fn(),
-}));
+describe("DealsRedirectPage", () => {
+  it("redirects to /customers/deals", async () => {
+    const module = await import("../page");
 
-vi.mock("@/components/crm/deals-table", () => ({
-  DealsTable: () => <div>Deals Table</div>,
-}));
+    try {
+      module.default();
+    } catch {
+      // next/navigation redirect throws to short-circuit rendering.
+    }
 
-vi.mock("@/hooks/use-record-drawer", () => ({
-  useRecordDrawer: () => ({
-    isOpen: false,
-    recordId: null,
-    open: vi.fn(),
-    close: vi.fn(),
-  }),
-}));
-
-describe("DealsPage", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-
-    void import("@/hooks/use-crm-config").then(({ useCrmConfig }) => {
-      vi.mocked(useCrmConfig).mockReturnValue({
-        data: {
-          hasConfig: false,
-          config: CRM_DEFAULTS,
-        },
-      } as never);
-    });
-  });
-
-  it("shows error state and retries when deals query fails", async () => {
-    const { useDeals } = await import("@/hooks/use-deals");
-    const mockRefetch = vi.fn();
-
-    vi.mocked(useDeals).mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isError: true,
-      refetch: mockRefetch,
-    } as never);
-
-    render(<DealsPage />);
-
-    expect(screen.getByText(/unable to load deals/i)).toBeInTheDocument();
-    screen.getByRole("button", { name: /retry/i }).click();
-    expect(mockRefetch).toHaveBeenCalled();
-  });
-
-  it("shows empty state with icon when no deals exist", async () => {
-    const { useDeals } = await import("@/hooks/use-deals");
-
-    vi.mocked(useDeals).mockReturnValue({
-      data: [],
-      isLoading: false,
-      isError: false,
-    } as never);
-
-    render(<DealsPage />);
-
-    expect(screen.getByText(/no deals yet/i)).toBeInTheDocument();
-  });
-
-  it("passes trimmed search text into the deals hook", async () => {
-    const { useDeals } = await import("@/hooks/use-deals");
-
-    vi.mocked(useDeals).mockReturnValue({
-      data: [],
-      isLoading: false,
-      isError: false,
-    } as never);
-
-    const user = userEvent.setup();
-    render(<DealsPage />);
-
-    await user.type(screen.getByPlaceholderText(/search deals/i), "  orchard  ");
-
-    expect(vi.mocked(useDeals)).toHaveBeenLastCalledWith({ search: "orchard" });
+    expect(mockRedirect).toHaveBeenCalledWith("/customers/deals");
   });
 });

@@ -13,12 +13,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("Deal detail route redirect", () => {
-  it("redirects to deals list with detail query param", async () => {
+  it("redirects to the new deal detail route", async () => {
     await DealDetailPage({
-      params: { dealId: "d-1" },
+      params: Promise.resolve({ dealId: "d-1" }),
     } as never);
 
-    expect(mockRedirect).toHaveBeenCalledWith("/crm/deals?detail=d-1");
+    expect(mockRedirect).toHaveBeenCalledWith("/customers/deals/d-1");
   });
 });
-

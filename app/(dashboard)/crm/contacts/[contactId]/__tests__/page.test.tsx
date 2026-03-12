@@ -13,12 +13,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("Contact detail route redirect", () => {
-  it("redirects to contacts list with detail query param", async () => {
+  it("redirects to the new people detail route", async () => {
     await ContactDetailPage({
-      params: { contactId: "c-1" },
+      params: Promise.resolve({ contactId: "c-1" }),
     } as never);
 
-    expect(mockRedirect).toHaveBeenCalledWith("/crm/contacts?detail=c-1");
+    expect(mockRedirect).toHaveBeenCalledWith("/customers/people/c-1");
   });
 });
-

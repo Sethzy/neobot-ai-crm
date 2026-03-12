@@ -11,7 +11,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("CrmPage", () => {
-  it("redirects to /crm/contacts", async () => {
+  it("redirects to /customers", async () => {
     const module = await import("../page");
 
     try {
@@ -20,6 +20,6 @@ describe("CrmPage", () => {
       // next/navigation redirect throws to short-circuit rendering.
     }
 
-    expect(mockRedirect).toHaveBeenCalledWith("/crm/contacts");
+    expect(mockRedirect).toHaveBeenCalledWith("/customers");
   });
 });

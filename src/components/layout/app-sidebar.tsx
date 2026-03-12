@@ -9,6 +9,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback } from "react";
+import posthog from "posthog-js";
 import { toast } from "sonner";
 import { Logo } from "@/components/landing/Logo";
 import { AppIcon, type AppIconName } from "@/components/icons/app-icons";
@@ -53,8 +54,14 @@ const agentNavItems: NavigationItem[] = [
 ];
 
 /** DATABASE section — data-centric surfaces */
+const customersNavItems: NavigationItem[] = [
+  { label: "People", href: "/customers/people", icon: "contacts" },
+  { label: "Companies", href: "/customers/companies", icon: "building" },
+  { label: "Deals", href: "/customers/deals", icon: "deals" },
+];
+
+/** DATABASE section — data-centric surfaces */
 const databaseNavItems: NavigationItem[] = [
-  { label: "CRM", href: "/crm", icon: "crm" },
   { label: "Knowledge", href: "/knowledge", icon: "knowledge" },
   { label: "Workspace", href: "/cases", icon: "workspace" },
   { label: "Channels", href: "/channels", icon: "channels" },
@@ -80,6 +87,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    posthog.reset();
     router.push("/");
   };
 
@@ -168,6 +176,14 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
             Agent
           </SidebarGroupLabel>
           <SidebarMenu>{renderNavItems(agentNavItems)}</SidebarMenu>
+        </SidebarGroup>
+
+        {/* CUSTOMERS section */}
+        <SidebarGroup className="py-1">
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold h-6">
+            Customers
+          </SidebarGroupLabel>
+          <SidebarMenu>{renderNavItems(customersNavItems)}</SidebarMenu>
         </SidebarGroup>
 
         {/* DATABASE section */}
