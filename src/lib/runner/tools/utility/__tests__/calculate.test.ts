@@ -68,6 +68,20 @@ describe("createCalculateTool", () => {
     });
   });
 
+  it("returns numeric magnitude for unit conversions", async () => {
+    const { calculate } = createCalculateTool();
+    const result = await calculate.execute(
+      { expression: "2 inch to cm" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({
+      success: true,
+      expression: "2 inch to cm",
+      result: 5.08,
+    });
+  });
+
   it("blocks the import function", async () => {
     const { calculate } = createCalculateTool();
     const result = await calculate.execute(
@@ -104,6 +118,32 @@ describe("createCalculateTool", () => {
     expect(result).toEqual({
       success: false,
       error: "Function parse is disabled",
+    });
+  });
+
+  it("blocks matrix-producing helper functions", async () => {
+    const { calculate } = createCalculateTool();
+    const result = await calculate.execute(
+      { expression: "ones(2, 2)" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Function ones is not allowed",
+    });
+  });
+
+  it("returns an error for non-scalar outputs", async () => {
+    const { calculate } = createCalculateTool();
+    const result = await calculate.execute(
+      { expression: "sqrt(-1)" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Expression must produce a single numeric value, received Complex",
     });
   });
 
