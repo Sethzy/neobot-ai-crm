@@ -13,6 +13,7 @@ import { useUpdateDeal } from "@/hooks/use-update-deal";
 const mockFrom = vi.fn();
 const mockSelect = vi.fn();
 const mockSelectEq = vi.fn();
+const mockMaybeSingle = vi.fn();
 const mockSingle = vi.fn();
 const mockUpdate = vi.fn();
 const mockEq = vi.fn();
@@ -32,6 +33,7 @@ describe("useUpdateDeal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSingle.mockResolvedValue({ data: { custom_fields: {} }, error: null });
+    mockMaybeSingle.mockResolvedValue({ data: { stage: "leads", price: 500000 }, error: null });
     mockSelectEq.mockReturnValue({ single: mockSingle });
     mockSelect.mockReturnValue({ eq: mockSelectEq });
     mockEq.mockResolvedValue({ error: null });
@@ -79,6 +81,11 @@ describe("useUpdateDeal", () => {
 
   it("throws when Supabase returns an update error", async () => {
     const error = { message: "update failed" };
+    mockFrom.mockReset();
+    mockSelectEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
+    mockFrom
+      .mockImplementationOnce(() => ({ select: mockSelect }))
+      .mockImplementationOnce(() => ({ update: mockUpdate }));
     mockEq.mockResolvedValue({ error });
 
     const queryClient = new QueryClient({

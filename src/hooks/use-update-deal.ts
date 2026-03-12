@@ -5,9 +5,10 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import posthog from "posthog-js";
 
 import { mergeCustomFieldPatch } from "@/hooks/crm-custom-fields";
-import { dealKeys } from "@/hooks/use-deals";
+import { dealKeys, type DealWithContact } from "@/hooks/use-deals";
 import { type Deal } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
@@ -23,6 +24,27 @@ export function useUpdateDeal(dealId: string) {
 
   return useMutation({
     mutationFn: async (updates: DealUpdate) => {
+      let previousStage: string | null = null;
+      let previousPrice: number | null = null;
+
+      if (updates.stage) {
+        const cachedDeal = queryClient.getQueryData<DealWithContact>(dealKeys.detail(dealId));
+
+        if (cachedDeal) {
+          previousStage = cachedDeal.stage;
+          previousPrice = cachedDeal.price;
+        } else {
+          const { data: currentDeal } = await supabase
+            .from("deals")
+            .select("stage, price")
+            .eq("deal_id", dealId)
+            .maybeSingle();
+
+          previousStage = currentDeal?.stage ?? null;
+          previousPrice = currentDeal?.price ?? null;
+        }
+      }
+
       const mergedUpdates = await mergeCustomFieldPatch({
         table: "deals",
         idColumn: "deal_id",
@@ -37,6 +59,17 @@ export function useUpdateDeal(dealId: string) {
 
       if (error) {
         throw error;
+      }
+
+      if (updates.stage && previousStage && previousStage !== updates.stage) {
+        posthog.capture("deal_stage_changed", {
+          from_stage: previousStage,
+          to_stage: updates.stage,
+          deal_value:
+            typeof mergedUpdates.price === "number"
+              ? mergedUpdates.price
+              : previousPrice,
+        });
       }
     },
     onSuccess: () => {

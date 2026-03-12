@@ -22,6 +22,27 @@ export interface ContactFilters {
   type?: ContactType;
 }
 
+export interface ContactDateRangeFilter {
+  from?: string;
+  to?: string;
+}
+
+export interface PaginatedContactFilters extends ContactFilters {
+  hasEmail?: boolean;
+  hasPhone?: boolean;
+  createdAt?: ContactDateRangeFilter;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginatedContactsResult {
+  rows: ContactWithCompany[];
+  total: number;
+  totalPages: number;
+  page: number;
+  pageSize: number;
+}
+
 /**
  * Query key factory for contact list and detail queries.
  */
@@ -29,6 +50,8 @@ export const contactKeys = {
   all: ["contacts"] as const,
   lists: () => [...contactKeys.all, "list"] as const,
   list: (filters: ContactFilters) => [...contactKeys.lists(), filters] as const,
+  paginatedList: (filters: PaginatedContactFilters) =>
+    [...contactKeys.lists(), "paginated", filters] as const,
   details: () => [...contactKeys.all, "detail"] as const,
   detail: (contactId: string) => [...contactKeys.details(), contactId] as const,
 };
@@ -56,10 +79,86 @@ async function fetchContacts({ search, type }: ContactFilters): Promise<ContactW
   return (data ?? []) as ContactWithCompany[];
 }
 
+async function fetchPaginatedContacts({
+  search,
+  type,
+  hasEmail,
+  hasPhone,
+  createdAt,
+  page = 1,
+  pageSize = 20,
+}: PaginatedContactFilters): Promise<PaginatedContactsResult> {
+  const safePage = Math.max(1, page);
+  const safePageSize = Math.max(1, pageSize);
+  const from = (safePage - 1) * safePageSize;
+  const to = from + safePageSize - 1;
+
+  let query = supabase
+    .from("contacts")
+    .select("*, companies!contacts_company_id_fkey(company_id, name)", { count: "exact" })
+    .order("updated_at", { ascending: false })
+    .range(from, to);
+
+  if (search?.trim()) {
+    query = query.or(buildSearchExpression(search, ["first_name", "last_name", "email", "phone"]));
+  }
+
+  if (type) {
+    query = query.eq("type", type);
+  }
+
+  if (hasEmail === true) {
+    query = query.not("email", "is", null);
+  }
+
+  if (hasEmail === false) {
+    query = query.is("email", null);
+  }
+
+  if (hasPhone === true) {
+    query = query.not("phone", "is", null);
+  }
+
+  if (hasPhone === false) {
+    query = query.is("phone", null);
+  }
+
+  if (createdAt?.from) {
+    query = query.gte("created_at", createdAt.from);
+  }
+
+  if (createdAt?.to) {
+    query = query.lte("created_at", createdAt.to);
+  }
+
+  const { data, count, error } = await query;
+
+  if (error) {
+    throw error;
+  }
+
+  const total = count ?? 0;
+
+  return {
+    rows: (data ?? []) as ContactWithCompany[],
+    total,
+    totalPages: total > 0 ? Math.ceil(total / safePageSize) : 1,
+    page: safePage,
+    pageSize: safePageSize,
+  };
+}
+
 export function contactsQueryOptions(filters: ContactFilters) {
   return queryOptions({
     queryKey: contactKeys.list(filters),
     queryFn: () => fetchContacts(filters),
+  });
+}
+
+export function paginatedContactsQueryOptions(filters: PaginatedContactFilters) {
+  return queryOptions({
+    queryKey: contactKeys.paginatedList(filters),
+    queryFn: () => fetchPaginatedContacts(filters),
   });
 }
 
@@ -109,6 +208,32 @@ export function useContacts(filters: ContactFilters) {
 }
 
 /**
+ * Returns paginated contacts for the customers people list.
+ */
+export function usePaginatedContacts(filters: PaginatedContactFilters) {
+  const { data: clientId } = useClientId();
+
+  useRealtimeTable({
+    table: "contacts",
+    filter: clientId ? `client_id=eq.${clientId}` : undefined,
+    queryKeys: [contactKeys.all],
+    enabled: Boolean(clientId),
+  });
+
+  useRealtimeTable({
+    table: "companies",
+    filter: clientId ? `client_id=eq.${clientId}` : undefined,
+    queryKeys: [contactKeys.all],
+    enabled: Boolean(clientId),
+  });
+
+  return useQuery({
+    ...paginatedContactsQueryOptions(filters),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
  * Returns a single contact by id.
  */
 export function useContact(contactId: string) {
@@ -133,3 +258,5 @@ export function useContact(contactId: string) {
     enabled: Boolean(contactId),
   });
 }
+
+export { fetchPaginatedContacts };

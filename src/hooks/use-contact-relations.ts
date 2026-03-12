@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useClientId } from "@/hooks/use-client-id";
 import { useRealtimeTable } from "@/hooks/use-realtime";
-import { type DealContact, type Deal, type Interaction } from "@/lib/crm/schemas";
+import { type CrmTask, type DealContact, type Deal, type Interaction } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
 export type DealContactWithDeal = DealContact & {
@@ -19,6 +19,11 @@ export type InteractionWithContact = Interaction & {
   contacts: { first_name: string; last_name: string } | null;
 };
 
+export type ContactTask = Pick<
+  CrmTask,
+  "task_id" | "title" | "status" | "due_date" | "description" | "contact_id" | "deal_id"
+>;
+
 /**
  * Query key factory for contact relation queries.
  */
@@ -27,8 +32,10 @@ export const contactRelationKeys = {
   deals: (contactId: string) => [...contactRelationKeys.all, "deals", contactId] as const,
   interactions: (contactId: string) =>
     [...contactRelationKeys.all, "interactions", contactId] as const,
+  tasks: (contactId: string) => [...contactRelationKeys.all, "tasks", contactId] as const,
   dealInteractions: (dealId: string) =>
     [...contactRelationKeys.all, "deal-interactions", dealId] as const,
+  dealTasks: (dealId: string) => [...contactRelationKeys.all, "deal-tasks", dealId] as const,
 };
 
 /**
@@ -96,6 +103,38 @@ export function useContactInteractions(contactId: string) {
 }
 
 /**
+ * Returns CRM task rows linked to a contact.
+ */
+export function useContactTasks(contactId: string) {
+  const { data: clientId } = useClientId();
+
+  useRealtimeTable({
+    table: "crm_tasks",
+    filter: clientId ? `client_id=eq.${clientId}` : undefined,
+    queryKeys: [contactRelationKeys.tasks(contactId)],
+    enabled: Boolean(clientId && contactId),
+  });
+
+  return useQuery({
+    queryKey: contactRelationKeys.tasks(contactId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("crm_tasks")
+        .select("task_id, title, status, due_date, description, contact_id, deal_id")
+        .eq("contact_id", contactId)
+        .order("due_date", { ascending: true, nullsFirst: false });
+
+      if (error) {
+        throw error;
+      }
+
+      return (data ?? []) as ContactTask[];
+    },
+    enabled: Boolean(contactId),
+  });
+}
+
+/**
  * Returns interaction rows linked to a deal with joined contact names.
  */
 export function useDealInteractions(dealId: string) {
@@ -122,6 +161,38 @@ export function useDealInteractions(dealId: string) {
       }
 
       return (data ?? []) as InteractionWithContact[];
+    },
+    enabled: Boolean(dealId),
+  });
+}
+
+/**
+ * Returns CRM task rows linked to a deal.
+ */
+export function useDealTasks(dealId: string) {
+  const { data: clientId } = useClientId();
+
+  useRealtimeTable({
+    table: "crm_tasks",
+    filter: clientId ? `client_id=eq.${clientId}` : undefined,
+    queryKeys: [contactRelationKeys.dealTasks(dealId)],
+    enabled: Boolean(clientId && dealId),
+  });
+
+  return useQuery({
+    queryKey: contactRelationKeys.dealTasks(dealId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("crm_tasks")
+        .select("task_id, title, status, due_date, description, contact_id, deal_id")
+        .eq("deal_id", dealId)
+        .order("due_date", { ascending: true, nullsFirst: false });
+
+      if (error) {
+        throw error;
+      }
+
+      return (data ?? []) as ContactTask[];
     },
     enabled: Boolean(dealId),
   });
