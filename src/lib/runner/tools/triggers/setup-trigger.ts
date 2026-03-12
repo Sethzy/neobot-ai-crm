@@ -19,11 +19,11 @@ import type { TriggerSupabaseClient } from "@/lib/triggers/schemas";
 import type { Database } from "@/types/database";
 
 const setupTriggerInputSchema = z.object({
-  trigger_id: z.string().min(1),
-  name: z.string().min(1),
-  instruction_path: z.string().min(1),
-  params: z.record(z.string(), z.unknown()),
-  invocation_message: z.string().min(1).max(200).optional(),
+  trigger_id: z.string().min(1).describe("The ID of the trigger type to set up (e.g., \"schedule\", \"webhook\", \"rss\")"),
+  name: z.string().min(1).describe("A human-readable name for this trigger instance."),
+  instruction_path: z.string().min(1).describe("Path to the instruction file the agent should follow when this trigger fires."),
+  params: z.record(z.string(), z.unknown()).describe("Setup parameters as defined by the trigger's setupSchema"),
+  invocation_message: z.string().min(1).max(200).optional().describe("Optional short message that is included each time this trigger runs. Max 200 characters."),
 });
 type AgentTriggerInsert = Database["public"]["Tables"]["agent_triggers"]["Insert"];
 
@@ -176,7 +176,7 @@ export function createSetupTriggerTool(
 ) {
   const setup_trigger = tool({
     description:
-      "Create a new trigger instance for the current thread using the trigger ID and params returned by search_triggers.",
+      "Set up a new trigger instance. First use search_triggers to find available triggers and their setup schemas, then call this tool with the trigger ID and required parameters.\nOn completion, shows the user a UI card with the trigger details.",
     inputSchema: setupTriggerInputSchema,
     execute: async ({
       trigger_id,

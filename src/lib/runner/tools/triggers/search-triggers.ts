@@ -148,9 +148,9 @@ function matchesTrigger(entry: TriggerCatalogEntry, keywords: string[]): boolean
 export function createSearchTriggersTool() {
   const search_triggers = tool({
     description:
-      "Search available trigger types by keyword and return the setup schema and edit schema for each match.",
+      "Search for available triggers by keywords.\nReturns a list of trigger types that match the search criteria, along with their setup schemas and any prerequisites.\n\nUse this tool to discover what triggers are available before setting one up.\n\nThe setupSchema field of each returned trigger describes the schema of the params object that should be passed into the setup_trigger tool.\n\nTriggers that support editing will include an editSchema field describing the parameters for the edit action in manage_active_triggers.",
     inputSchema: z.object({
-      keywords: z.array(z.string().min(1)).min(1),
+      keywords: z.array(z.string().min(1)).min(1).describe("One or more keywords to search for available triggers (e.g., [\"email\", \"schedule\"])"),
     }),
     execute: async ({ keywords }) => {
       const triggers = TRIGGER_CATALOG.filter((entry) => matchesTrigger(entry, keywords)).map(

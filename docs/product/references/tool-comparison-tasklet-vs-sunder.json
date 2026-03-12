@@ -3,7 +3,7 @@
     "description": "Side-by-side comparison of Tasklet v2 (31 tools) vs Sunder equivalents",
     "generated": "2026-03-09",
     "purpose": "Walk through each tool to align Sunder's wording/schema with Tasklet's battle-tested definitions",
-    "resume_note": "ALL 31 tools reviewed. 5 PAUSED: Tool 4 (read_file) — multimodal PR, Tool 5 (write_file) — absolute paths PR, Tools 9-10 (run_agent_memory_sql, get_agent_db_schema) — CRM schema decisions, Tool 11 (send_email) — Resend integration. 10 DEFERRED (not in v1 scope): Tools 3, 12-14, 26-30. Remaining 16 tools all DECIDED. Next: revisit paused tools as their blocking PRs land, then address Sunder-only tools (search_knowledge, ask_user_question, 28 CRM tools)."
+    "resume_note": "ALL 31 tools reviewed. 3 PAUSED: Tools 9-10 (run_agent_memory_sql, get_agent_db_schema) — CRM schema decisions, Tool 11 (send_message) — Resend integration (PR 32a). Tools 4-5 (read_file, write_file) UNBLOCKED as of PR 22d/22e — negative line indices, image/PDF support, and /agent/ absolute paths all shipped. 10 DEFERRED (not in v1 scope): Tools 3, 12-14, 26-30. Remaining 18 tools all DECIDED. Next: apply description/param updates to the 18 DECIDED tools, revisit 3 paused tools as their blocking PRs land, then address Sunder-only tools (search_knowledge, ask_user_question, 28 CRM tools → consolidation design exists)."
   },
   "tools": [
     {
@@ -28,7 +28,7 @@
         { "field": "description", "tasklet": "Reads a single webpage and extracts its content as markdown", "sunder": "Read a webpage and extract its text content. Use this to read articles, documentation, or any web page.", "note": "Tasklet is more precise ('as markdown'). Sunder adds usage guidance ('Use this to...')" },
         { "field": "params.url.description", "tasklet": "The URL of the webpage to scrape. Must be either a http:// or https:// URL.", "sunder": "The URL of the webpage to read. Must be http:// or https://.", "note": "Nearly identical" }
       ],
-      "status": "DECIDED",
+      "status": "DONE",
       "decision": {
         "action": "UPDATE_DESCRIPTION_ONLY",
         "keep_name": "web_scrape",
@@ -114,20 +114,22 @@
       "sunder": {
         "name": "read_file",
         "file": "src/lib/runner/tools/storage/index.ts",
-        "description": "Read file content or list a directory tree. Use directory paths (e.g. memory/) for discovery.",
+        "description": "Reads the contents of a file or directory by its path. If the path is a directory, returns a recursive tree-style listing of its contents. Image files and PDFs are displayed directly. Specify optional start_line/end_line for large text files. Use negative indices to count from the end.",
         "params": {
-          "path": { "type": "z.string()", "required": true, "description": "Relative file or directory path in the client workspace." },
-          "start_line": { "type": "z.number().int().min(1)", "description": "Optional 1-indexed start line." },
-          "end_line": { "type": "z.number().int().min(1)", "description": "Optional 1-indexed end line (inclusive)." }
-        }
+          "path": { "type": "z.string()", "required": true, "description": "Absolute path to the file or directory (for example '/agent/memory/MEMORY.md' or '/agent/vault/')." },
+          "start_line": { "type": "z.number().int().optional()", "description": "Optional 1-indexed start line. Use negative values to count from the end." },
+          "end_line": { "type": "z.number().int().optional()", "description": "Optional 1-indexed end line (inclusive). Use negative values to count from the end." }
+        },
+        "shipped_in": ["PR 22d (image support + negative line indices)", "PR 22e (absolute /agent/ paths)", "PR 26a (PDF read support)"]
       },
       "diffs": [
-        { "field": "description", "tasklet": "(long, feature-rich description covering directories, images, PDFs, negative indices)", "sunder": "Read file content or list a directory tree. Use directory paths (e.g. memory/) for discovery.", "note": "Sunder description is minimal. Tasklet's is much more instructive about capabilities." },
-        { "field": "params.path", "tasklet": "Absolute path (/agent/home)", "sunder": "Relative path in client workspace", "note": "Different path semantics — Tasklet uses absolute, Sunder uses workspace-relative" },
-        { "field": "params.start_line", "tasklet": "Supports negative indices (-1 = last line)", "sunder": "min(1) only, no negative indices", "note": "Sunder doesn't support negative line indices" },
-        { "field": "params.pdf_*", "tasklet": "Has pdf_start_page, pdf_end_page, pdf_format", "sunder": "N/A", "note": "Sunder has no PDF support" }
+        { "field": "description", "tasklet": "...Use negative indices to count from the end (e.g., start_line: -10, end_line: -1 reads the last 10 lines).", "sunder": "...Use negative indices to count from the end.", "note": "Only diff: Sunder is missing the trailing example. Capabilities fully match." },
+        { "field": "params.path", "tasklet": "Absolute path (/agent/home)", "sunder": "Absolute path (/agent/...)", "note": "ALIGNED — PR 22e" },
+        { "field": "params.start_line", "tasklet": "Supports negative indices", "sunder": "Supports negative indices", "note": "ALIGNED — PR 22d. Description wording is slightly shorter than Tasklet's (missing 'For text files only', concrete examples, default note)." },
+        { "field": "params.end_line", "tasklet": "Supports negative indices", "sunder": "Supports negative indices", "note": "ALIGNED — PR 22d. Same wording gap as start_line." },
+        { "field": "params.pdf_*", "tasklet": "Has pdf_start_page, pdf_end_page, pdf_format", "sunder": "N/A — PDF rendered as single blob", "note": "JUSTIFIED DRIFT — Sunder sends whole PDF, no page-level control." }
       ],
-      "status": "DECIDED",
+      "status": "DONE",
       "decision": {
         "action": "UPDATE_DESCRIPTION_AND_PARAMS",
         "keep_name": "read_file",
@@ -164,19 +166,25 @@
         "description": "Write, edit, or delete files in the client workspace.",
         "params": {
           "op": { "type": "z.enum(['write', 'edit', 'delete'])", "required": true },
-          "path": { "type": "z.string()", "required": true, "description": "Relative file path in the client workspace." },
+          "path": { "type": "z.string()", "required": true, "description": "Absolute path to the file (for example '/agent/memory/topic.md' or '/agent/vault/notes.md')." },
           "content": { "type": "z.string().optional()", "description": "Required for write operations." },
           "old_string": { "type": "z.string().optional()", "description": "Required for edit operations." },
           "new_string": { "type": "z.string().optional()", "description": "Required for edit operations." },
           "replace_all": { "type": "z.boolean().optional().default(false)" }
-        }
+        },
+        "shipped_in": ["PR 22e (absolute /agent/ paths)"]
       },
       "diffs": [
-        { "field": "description", "tasklet": "Creates, edits, or deletes a file in the filesystem. Supports three operations: write (create or overwrite), edit (find and replace text), and delete.", "sunder": "Write, edit, or delete files in the client workspace.", "note": "Tasklet more descriptive about what each op does" },
-        { "field": "params.action_*", "tasklet": "Has action_pending, action_finished, action_error (required)", "sunder": "N/A", "note": "Sunder has no UI status params. These are Tasklet's streaming UI feature." },
-        { "field": "params.old_string.minLength", "tasklet": "minLength: 1", "sunder": "no minLength", "note": "Tasklet prevents empty string matches" }
+        { "field": "description", "tasklet": "Creates, edits, or deletes a file in the filesystem. Supports three operations: write (create or overwrite), edit (find and replace text), and delete.", "sunder": "Write, edit, or delete files in the client workspace.", "note": "Sunder terse — doesn't explain what each op does" },
+        { "field": "params.path", "tasklet": "Absolute path", "sunder": "Absolute path (/agent/...)", "note": "ALIGNED — PR 22e" },
+        { "field": "params.action_*", "tasklet": "Has action_pending, action_finished, action_error (required)", "sunder": "N/A", "note": "JUSTIFIED DRIFT — Sunder has no streaming UI status feature" },
+        { "field": "params.op", "tasklet": "No description", "sunder": "No .describe()", "note": "Neither has a description — decided to add one" },
+        { "field": "params.content", "tasklet": "File content (required for write op)", "sunder": "Required for write operations.", "note": "Sunder missing 'overwrites existing content' clarification" },
+        { "field": "params.old_string", "tasklet": "minLength: 1, 'Exact text to find'", "sunder": "No minLength, 'Required for edit operations.'", "note": "Two gaps: missing .min(1) validation + terse description" },
+        { "field": "params.new_string", "tasklet": "Replacement text (required for edit op)", "sunder": "Required for edit operations.", "note": "Sunder missing 'can be empty to delete old_string'" },
+        { "field": "params.replace_all", "tasklet": "If true, replace all occurrences.", "sunder": "No .describe()", "note": "No description — decided to add one explaining failure-on-multiple semantics" }
       ],
-      "status": "DECIDED",
+      "status": "DONE",
       "decision": {
         "action": "UPDATE_DESCRIPTION_AND_PARAMS",
         "keep_name": "write_file",
@@ -210,7 +218,7 @@
       "diffs": [
         { "field": "tool", "note": "NOT IMPLEMENTED. Subagent infrastructure planned for later phases." }
       ],
-      "status": "DECIDED",
+      "status": "DONE",
       "decision": {
         "action": "UPDATE_DESCRIPTION_AND_PARAMS",
         "keep_name": "run_subagent",
@@ -266,7 +274,7 @@
         { "field": "params.operations[].taskId vs todo_id", "tasklet": "taskId", "sunder": "todo_id", "note": "Different ID field name" },
         { "field": "params.operations max", "tasklet": "no max", "sunder": "max(20)", "note": "Sunder caps batch at 20" }
       ],
-      "status": "DECIDED",
+      "status": "DONE",
       "decision": {
         "action": "UPDATE_DESCRIPTION_AND_PARAMS",
         "keep_name": "manage_todo",
@@ -303,7 +311,7 @@
         { "field": "description", "tasklet": "List tasks for this agent. Can optionally filter by specific task IDs.", "sunder": "List open todos for the current thread.", "note": "Sunder scopes to thread, Tasklet to agent" },
         { "field": "params.taskIds vs ids", "tasklet": "taskIds", "sunder": "ids" }
       ],
-      "status": "DECIDED",
+      "status": "DONE",
       "decision": {
         "action": "UPDATE_DESCRIPTION_AND_PARAMS",
         "keep_name": "list_todo",
@@ -482,7 +490,7 @@
         { "field": "name", "note": "IDENTICAL" },
         { "field": "description", "tasklet": "Multi-line with workflow guidance: discover before setup, setupSchema explains params, editSchema for manage_active_triggers", "sunder": "Single line: 'Search available trigger types by keyword and return the setup schema and edit schema for each match.'", "note": "Tasklet's description guides the agent through the full trigger workflow. Sunder's is minimal." }
       ],
-      "status": "DECIDED",
+      "status": "DONE",
       "decision": {
         "action": "UPDATE_DESCRIPTION_AND_PARAMS",
         "keep_name": "search_triggers",
@@ -522,7 +530,7 @@
         { "field": "params.name", "tasklet": "N/A", "sunder": "REQUIRED", "note": "Sunder has extra 'name' param Tasklet doesn't" },
         { "field": "params.instruction_path", "tasklet": "N/A", "sunder": "REQUIRED", "note": "Sunder has extra 'instruction_path' param Tasklet doesn't — ties trigger to a file with instructions" }
       ],
-      "status": "DECIDED",
+      "status": "DONE",
       "decision": {
         "action": "UPDATE_DESCRIPTION_AND_PARAMS",
         "keep_name": "setup_trigger",
@@ -567,7 +575,7 @@
         { "field": "description", "tasklet": "Multi-line with per-action docs and requirements", "sunder": "Single line summary", "note": "Tasklet's per-action documentation is much more instructive for the model" },
         { "field": "params", "note": "Schema is functionally equivalent. Sunder uses z.string().uuid() for trigger_instance_id (stricter)." }
       ],
-      "status": "DECIDED",
+      "status": "DONE",
       "decision": {
         "action": "UPDATE_DESCRIPTION_ONLY",
         "keep_name": "manage_active_triggers",
@@ -621,7 +629,7 @@
         { "field": "name", "note": "IDENTICAL" },
         { "field": "description", "tasklet": "Includes 3-bullet 'Use this to' guide", "sunder": "Single 'Use this to' sentence", "note": "Tasklet more instructive with specific use cases" }
       ],
-      "status": "DECIDED",
+      "status": "DONE",
       "decision": {
         "action": "UPDATE_DESCRIPTION_ONLY",
         "keep_name": "get_details_for_connections",
@@ -650,7 +658,7 @@
         { "field": "name", "note": "IDENTICAL" },
         { "field": "description", "tasklet": "Enumerates quality levels: GREAT, GOOD, OK, LIMITED, UNKNOWN", "sunder": "Just says 'quality information'", "note": "Minor — Tasklet spells out the quality levels" }
       ],
-      "status": "DECIDED",
+      "status": "DONE",
       "decision": {
         "action": "UPDATE_DESCRIPTION_ONLY",
         "keep_name": "get_integrations_capabilities",
@@ -679,7 +687,7 @@
         { "field": "name", "note": "IDENTICAL" },
         { "field": "description", "tasklet": "References Pipedream and get_integrations_capabilities cross-ref", "sunder": "Lists return fields explicitly, has NEVER mention rule", "note": "Both have the NEVER mention rule. Tasklet adds cross-reference to get_integrations_capabilities. Sunder references Composio catalog instead of Pipedream." }
       ],
-      "status": "DECIDED",
+      "status": "DONE",
       "decision": {
         "action": "COPY_TASKLET_VERBATIM",
         "keep_name": "search_for_integrations",
@@ -724,7 +732,7 @@
         { "field": "name", "note": "IDENTICAL" },
         { "field": "description", "tasklet": "Mentions user approval UI card, MUST read skills file, return shape", "sunder": "Simpler, cross-references get_details_for_connections", "note": "Tasklet has important skill file MUST-read instruction. Sunder's version auto-hints skill file in response only when first tools are activated." }
       ],
-      "status": "DECIDED",
+      "status": "DONE",
       "decision": {
         "action": "COPY_TASKLET_VERBATIM",
         "keep_name": "manage_activated_tools_for_connections",
@@ -754,7 +762,7 @@
         { "field": "name", "note": "IDENTICAL" },
         { "field": "description", "tasklet": "Includes 'if and only if auth errors' guard and 'cannot change account' warning", "sunder": "Focuses on implementation (silent refresh fallback)", "note": "Tasklet's behavioral guardrails are more important for the model than implementation details" }
       ],
-      "status": "DECIDED",
+      "status": "DONE",
       "decision": {
         "action": "COPY_TASKLET_VERBATIM",
         "keep_name": "reauthorize_connection",
@@ -784,7 +792,7 @@
         { "field": "name", "note": "IDENTICAL" },
         { "field": "description", "tasklet": "CAPS WARNING, 'destructive and cannot be undone', explicit DO NOT use + redirect", "sunder": "Calmer wording, same semantic", "note": "Tasklet's aggressive warning style is intentional for model safety. Sunder should adopt the stronger wording." }
       ],
-      "status": "DECIDED",
+      "status": "DONE",
       "decision": {
         "action": "COPY_TASKLET_VERBATIM",
         "keep_name": "delete_connection",
@@ -822,7 +830,7 @@
         { "field": "description", "tasklet": "References absolute skill path, mentions all 4 types", "sunder": "Conditional skill read ('if exists'), focuses on integrations", "note": "Both have MUST read skill file. Sunder's conditional is weaker." },
         { "field": "implementation", "note": "Sunder stubs out mcp, direct_api, computer_use — only integrations works" }
       ],
-      "status": "DECIDED",
+      "status": "DONE",
       "decision": {
         "action": "COPY_TASKLET_VERBATIM",
         "keep_name": "create_new_connections",
@@ -953,7 +961,7 @@
         { "field": "name", "note": "IDENTICAL" },
         { "field": "description", "tasklet": "Renames the chat. Titles should be a concise 3-5 word summary that captures the goal and key tools. If the user requests a specific name, use that name.", "sunder": "Rename the current conversation thread to a concise, descriptive title.", "note": "Tasklet adds specific guidance: '3-5 word summary', 'captures goal and key tools', 'user override'" }
       ],
-      "status": "DECIDED",
+      "status": "DONE",
       "decision": {
         "action": "COPY_TASKLET_VERBATIM",
         "keep_name": "rename_chat",

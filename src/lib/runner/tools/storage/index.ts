@@ -36,23 +36,23 @@ const readFileInputSchema = z.object({
     .number()
     .int()
     .optional()
-    .describe("Optional 1-indexed start line. Use negative values to count from the end."),
+    .describe("For text files only. The line to start reading from (1-indexed). Use negative numbers to count from the end (-1 = last line, -10 = 10th from last). Defaults to 1 if not specified."),
   end_line: z
     .number()
     .int()
     .optional()
-    .describe("Optional 1-indexed end line (inclusive). Use negative values to count from the end."),
+    .describe("For text files only. The line to stop reading at (1-indexed, inclusive). Use negative numbers to count from the end (-1 = last line). Defaults to end of file if not specified."),
 });
 
 const writeFileInputSchema = z.object({
-  op: z.enum(["write", "edit", "delete"]),
+  op: z.enum(["write", "edit", "delete"]).describe("The operation type"),
   path: z.string().describe(
     "Absolute path to the file (for example '/agent/memory/topic.md' or '/agent/vault/notes.md').",
   ),
-  content: z.string().optional().describe("Required for write operations."),
-  old_string: z.string().optional().describe("Required for edit operations."),
-  new_string: z.string().optional().describe("Required for edit operations."),
-  replace_all: z.boolean().optional().default(false),
+  content: z.string().optional().describe("File content, overwrites existing content (required for write op)"),
+  old_string: z.string().min(1).optional().describe("Exact text to find and replace in the file (required for edit op)"),
+  new_string: z.string().optional().describe("Replacement text, can be empty to delete old_string (required for edit op)"),
+  replace_all: z.boolean().optional().default(false).describe("If true, replace all occurrences. If false (default), fails on multiple matches."),
 });
 type StoragePathKind = "vault" | "skills" | "general";
 const VAULT_SYNC_MAX_ATTEMPTS = 3;
@@ -71,7 +71,7 @@ export function createStorageTools(
 
   const read_file = tool({
     description:
-      "Reads the contents of a file or directory by its path. If the path is a directory, returns a recursive tree-style listing of its contents. Image files and PDFs are displayed directly. Specify optional start_line/end_line for large text files. Use negative indices to count from the end.",
+      "Reads the contents of a file or directory by its path. If the path is a directory, returns a recursive tree-style listing of its contents. Image files and PDFs are displayed directly. Specify optional start_line/end_line for large text files. Use negative indices to count from the end (e.g., start_line: -10, end_line: -1 reads the last 10 lines).",
     inputSchema: readFileInputSchema,
     execute: async ({ path, start_line, end_line }) => {
       assertValidReadLineBounds(start_line, end_line);
@@ -159,7 +159,7 @@ export function createStorageTools(
   });
 
   const write_file = tool({
-    description: "Write, edit, or delete files in the client workspace.",
+    description: "Creates, edits, or deletes a file in the filesystem. Supports three operations: write (create or overwrite), edit (find and replace text), and delete.",
     inputSchema: writeFileInputSchema,
     execute: async ({ op, path, content, old_string, new_string, replace_all }) => {
       const internalPath = toStoragePath(path);

@@ -19,7 +19,7 @@ export function createRenameChatTool(
 ) {
   const rename_chat = tool({
     description:
-      "Rename the current conversation thread to a concise, descriptive title.",
+      "Renames the chat. Titles should be a concise 3-5 word summary that captures the goal and key tools. If the user requests a specific name, use that name.",
     inputSchema: z.object({
       new_title: z.string().min(1).max(200).describe("New title for this conversation."),
     }),

@@ -14,7 +14,7 @@ export function createGetIntegrationCapabilitiesTool() {
   return {
     get_integrations_capabilities: tool({
       description:
-        "Lists the capabilities available via the given integrations, including tools, quality information, and notes.",
+        "Lists the capabilities available via the given integrations, including tools (if available), quality information (GREAT, GOOD, OK, LIMITED, and UNKNOWN), and notes.",
       inputSchema: z.object({
         integrationIds: z
           .array(z.string().min(1))

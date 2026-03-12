@@ -21,7 +21,7 @@ export function createReauthorizeConnectionTool(
   return {
     reauthorize_connection: tool({
       description:
-        "Re-authorizes an existing connection that has expired or needs refreshed permissions. Attempts silent refresh first, then falls back to a user-facing re-authorization URL if required.",
+        "Re-authorizes an existing connection that has expired or needs new permissions. Displays a UI card where the user can complete the auth flow to re-authorize the connection.\n\nUse this tool if and only if there were authorization errors with a connection or the user explicitly asks you to.\nThe connection must already exist in the user's account.\nRe-authorizing cannot change which account the connection is logged into in the external service.",
       inputSchema: z.object({
         connectionId: z.string().trim().min(1),
       }),

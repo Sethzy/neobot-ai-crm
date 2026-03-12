@@ -11,27 +11,27 @@ import type { Database } from "@/types/database";
 type TodoPayload = NonNullable<Database["public"]["Tables"]["agent_todo"]["Row"]["payload"]>;
 
 const addOperationSchema = z.object({
-  op: z.literal("add"),
-  title: z.string().min(1).describe("Todo title."),
+  op: z.literal("add").describe("The operation to perform: add (create new todo, todo_id must NOT be set)"),
+  title: z.string().min(1).describe("The title of the todo (required for add)"),
   payload: z
     .record(z.string(), z.unknown())
     .optional()
-    .describe("Optional structured payload."),
+    .describe("Optional JSON payload attached to the todo for additional information in addition to the title"),
 });
 
 const updateOperationSchema = z.object({
-  op: z.literal("update"),
-  todo_id: z.string().uuid().describe("UUID of the todo to update."),
-  title: z.string().min(1).optional().describe("Updated title."),
+  op: z.literal("update").describe("The operation to perform: update (modify existing todo)"),
+  todo_id: z.string().uuid().describe("The ID of the todo. REQUIRED for update operations."),
+  title: z.string().min(1).optional().describe("The title of the todo (optional for update)"),
   payload: z
     .record(z.string(), z.unknown())
     .optional()
-    .describe("Updated structured payload."),
+    .describe("Optional JSON payload attached to the todo for additional information in addition to the title"),
 });
 
 const deleteOperationSchema = z.object({
-  op: z.literal("delete"),
-  todo_id: z.string().uuid().describe("UUID of the todo to delete."),
+  op: z.literal("delete").describe("The operation to perform: delete (remove todo to mark it as done)"),
+  todo_id: z.string().uuid().describe("The ID of the todo. REQUIRED for delete operations. MUST NOT be set for add operation."),
 });
 
 const todoOperationSchema = z.discriminatedUnion("op", [
@@ -144,14 +144,13 @@ export function createTodoTools(
 
   const manage_todo = tool({
     description:
-      "Manage thread-scoped scratchpad todos. " +
-      "Supports add, update, and delete operations in one call.",
+      "Manage todo items for this agent. Supports batch operations for efficiency.\n\nOperations:\n- add: Create a new todo with a title and optional payload. todo_id MUST NOT be set.\n- update: Modify an existing todo's title or payload. todo_id is REQUIRED.\n- delete: Remove a todo to mark it as done. todo_id is REQUIRED.\n\nYou can perform multiple operations in a single call (e.g., add multiple todos, update several at once, or mix different operations).\n\nNote: All current todos are visible in the agent's synced state.",
     inputSchema: z.object({
       operations: z
         .array(todoOperationSchema)
         .min(1)
         .max(20)
-        .describe("Batch of add/update/delete operations. Each operation runs independently."),
+        .describe("Array of todo operations to perform. You can add, update, or delete multiple todos in a single call."),
     }),
     execute: async ({ operations }) => {
       const results: TodoOperationResult[] = [];
@@ -163,9 +162,9 @@ export function createTodoTools(
   });
 
   const list_todo = tool({
-    description: "List open todos for the current thread.",
+    description: "List todos for this agent. Can optionally filter by specific todo IDs.",
     inputSchema: z.object({
-      ids: z.array(z.string().uuid()).optional().describe("Optional list of todo UUIDs to include."),
+      ids: z.array(z.string().uuid()).optional().describe("Optional array of todo IDs to filter. If not provided, returns all todos."),
     }),
     execute: async ({ ids }) => {
       let query = supabase

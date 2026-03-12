@@ -54,7 +54,7 @@ export function createCreateConnectionTool(
   return {
     create_new_connections: tool({
       description:
-        "Creates new connections to external services. For integrations, initiates OAuth and returns a redirect URL for the user to complete authorization. If /agent/skills/system/creating-connections/SKILL.md exists, you MUST read it before using this tool.",
+        "Creates new connections to external services.\nDisplays a UI card where the user can choose to create each connection or skip it.\nCreating a connection will authenticate the user to the service and then save the connection to the user's account so they can use it in other agents in the future.\n\nIMPORTANT: You MUST read /agent/skills/system/creating-connections/SKILL.md for detailed setup instructions before using this tool.\n\nSupports the creation of 4 different types of connections: pre-built integrations, custom MCP, Direct API (HTTP) and Computer Use.\nFor pre-built integrations supports the creation of multiple connections at once. All others support only one connection creation at a time.\n\nFor each connection creation request returns:\n- userAction: 'created' if user authorized, 'skipped' if user declined.\n\nIf successfully created, also returns:\n- connectionId: the new connection ID. Don't mention the connectionId to the user.\n- tools: { activated: string[], deactivated: string[] } - list of all connection tool names by activation state\n- connection-specific details",
       inputSchema: createConnectionInputSchema,
       execute: async ({ connection }) => {
         if (connection.type === "mcp") {

@@ -20,7 +20,7 @@ export function createDeleteConnectionTool(
   return {
     delete_connection: tool({
       description:
-        "Permanently deletes a connection from the user's account. Use this only when the user explicitly wants the connection itself removed, not when they only want tools deactivated.",
+        "PERMANENTLY DELETES a connection from the user's account. Displays a confirmation UI showing all agents that use this connection before deletion. This destroys the stored credentials and cannot be undone.\n\nWARNING: This is a destructive action. Only use when the user explicitly wants to DELETE the connection itself (e.g., \"delete this connection\", \"remove from my account\").\nDO NOT use this tool if the user wants to remove or deactivate tools from a connection (e.g., \"remove {connection name}\") → use manage_activated_tools_for_connections instead",
       inputSchema: z.object({
         connectionId: z.string().trim().min(1),
       }),

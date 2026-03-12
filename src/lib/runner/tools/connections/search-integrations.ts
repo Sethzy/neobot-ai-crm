@@ -14,7 +14,7 @@ export function createSearchIntegrationsTool() {
   return {
     search_for_integrations: tool({
       description:
-        "Lists integrations that match one or more given keywords. Keywords are single words like email, billing, tasks, Gmail, or Slack. Returns integration ID, name, description, quality score, builder, and context. NEVER mention quality or builder unless the user specifically asks.",
+        "Lists integrations that match one or more given keywords. Keywords are single words.\nSearches integrations built by the Sunder team as well as integrations from Composio (over 3000 total).\n\nNEVER mention integration quality scores or who built the integrations unless the user specifically asks.\n\nOnce you have the integration ID you can get more info using get_integrations_capabilities.",
       inputSchema: z.object({
         keywords: z
           .array(z.string().min(1))

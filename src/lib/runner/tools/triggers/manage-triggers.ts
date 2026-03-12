@@ -172,7 +172,7 @@ export function createManageTriggersTool(
   const manage_active_triggers = tool({
     description: readOnly
       ? "List and inspect active user-created triggers for the current client."
-      : "List, inspect, edit, delete, or simulate active user-created triggers for the current client.",
+      : "Manage the agent's active triggers.\n\nActions:\n- list: Returns all active triggers with their IDs, names, titles, invocationMessage, and arguments.\n- view: Shows detailed information for a specific trigger. Requires trigger_instance_id.\n- delete: Removes an active trigger. Requires trigger_instance_id. This is destructive.\n- simulate: Fires a test event on a trigger to test the agent's response. Requires trigger_instance_id and payload.\n- edit: Modifies an existing trigger's configuration. Requires trigger_instance_id. Use edit_params to modify trigger configuration (matching editSchema, not supported by all triggers) and/or invocation_message to set or clear the invocation title override.\n\nUse list first to see available triggers and get their instance IDs.",
     inputSchema: z.object({
       action: actionSchema,
       trigger_instance_id: z.string().uuid().optional(),

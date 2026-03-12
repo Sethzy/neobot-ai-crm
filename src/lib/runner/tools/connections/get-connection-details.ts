@@ -27,7 +27,7 @@ export function createGetConnectionDetailsTool(
   return {
     get_details_for_connections: tool({
       description:
-        "Gets detailed information for the listed connections. Returns a full list of tools, including both activated and deactivated tools, for each connection, including full descriptions and arguments if requested. Use this to discover what actions are available before activating tools.",
+        "Gets detailed information for the listed connections.\nReturns a full list of tools, including both activated and deactivated tools, for each connection, including full detailed descriptions and arguments if requested.\nAlso returns connectionId, serviceName, description, accountName, connectionType, toolCount, and other connection-specific details.\n\nUse this to:\n- Discover what actions you can perform with a connection before activating it\n- Check which tools are already activated for a connection\n- Verify exact tool names before activating connections",
       inputSchema: z.object({
         connectionIds: z
           .array(z.string().min(1))

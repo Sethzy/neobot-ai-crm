@@ -24,8 +24,8 @@ const SUBAGENT_STEP_TIMEOUT_MS = 30_000;
 type ChatSupabaseClient = SupabaseClient<Database>;
 
 const runSubagentInputSchema = z.object({
-  path: z.string().min(1),
-  payload: z.string().optional(),
+  path: z.string().min(1).describe("Full path to the subagent markdown file (e.g., \"/agent/subagents/email_processor.md\")"),
+  payload: z.string().optional().describe("Optional data to pass to the subagent that will be added after the subagent's instructions in the first user message. This allows the same subagent to process different inputs."),
 });
 
 interface CreateSubagentToolOptions {
@@ -46,8 +46,7 @@ export function createSubagentTool(
   return {
     run_subagent: tool({
       description:
-        "Runs a subagent to handle work efficiently outside of your main context. " +
-        "Returns the final message from the subagent as its result.",
+        "Runs a subagent to handle work efficiently outside of your main context. Returns the final message from the subagent as its result.\nRunning subagents reduces costs and keeps your context focused. This is especially useful when you are doing similar work multiple times.\n\nThe subagent receives the content of the markdown file followed by any payload data you provide in the first user message.\n\nBefore running a subagent, consider whether the subagent's approach still fits the current situation - you can always update its file with write_file if needed.",
       inputSchema: runSubagentInputSchema,
       execute: async ({ path, payload }, { abortSignal }) => {
         const { runId } = await createSubagentRun(supabase, {

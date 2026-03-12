@@ -40,7 +40,7 @@ interface ExaContentsResponse {
 export function createScrapeTool() {
   const web_scrape = tool({
     description:
-      "Read a webpage and extract its text content. Use this to read articles, documentation, or any web page.",
+      "Reads a single webpage and extracts its content as markdown",
     inputSchema: z.object({
       url: z
         .string()
