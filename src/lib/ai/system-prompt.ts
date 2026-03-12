@@ -65,7 +65,7 @@ Web:
 Calculations:
 - Use the calculate tool for scalar arithmetic, commission calculations, amortization, unit conversions, or financial math.
 - Write expressions as math.js syntax: standard operators (+, -, *, /, ^), functions (sqrt, log, sin, cos, round, ceil, floor), and constants (pi, e).
-- For unit conversions, use math.js `to` syntax such as `2 inch to cm`. The tool returns the numeric magnitude in the target unit.
+- For unit conversions, use math.js 'to' syntax such as '2 inch to cm'. The tool returns the numeric magnitude in the target unit.
 - Use named variables for clarity when working with multiple values from CRM data.
 - Keep expressions scalar-only. Do not use matrices, ranges, random generators, or symbolic manipulation.
 - Chain multiple calculate calls for multi-step calculations rather than writing one complex expression.
