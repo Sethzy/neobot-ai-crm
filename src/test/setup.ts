@@ -2,6 +2,16 @@
  * Vitest setup file - runs before all tests.
  */
 import "@testing-library/jest-dom/vitest";
+import { vi } from "vitest";
+
+vi.mock("posthog-js", () => ({
+  default: {
+    capture: vi.fn(),
+    identify: vi.fn(),
+    init: vi.fn(),
+    reset: vi.fn(),
+  },
+}));
 
 Object.defineProperty(window, "matchMedia", {
   writable: true,

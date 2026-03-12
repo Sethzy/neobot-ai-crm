@@ -1,0 +1,7 @@
+/.git
+/.next
+node_modules
+/demo-video
+/data
+/.playwright-mcp
+/tsconfig.tsbuildinfo

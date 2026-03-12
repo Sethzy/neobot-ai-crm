@@ -5,6 +5,9 @@ This repo is now running on Next.js App Router.
 ## Scripts
 
 - `npm run dev` starts Next.js dev server.
+- `npm run dev:turbo` starts the dev server with Turbopack explicitly enabled.
+- `npm run neo` clears `.next` and starts a fresh plain dev server.
+- `npm run neo:turbo` clears `.next` and starts a fresh Turbopack dev server.
 - `npm run build` creates a production build.
 - `npm run start` runs the production build.
 - `npm run lint` runs ESLint.

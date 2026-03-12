@@ -493,6 +493,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           plan_name: string | null
+          quota_exempt: boolean
           stripe_customer_id: string | null
           stripe_product_id: string | null
           stripe_subscription_id: string | null
@@ -504,6 +505,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           plan_name?: string | null
+          quota_exempt?: boolean
           stripe_customer_id?: string | null
           stripe_product_id?: string | null
           stripe_subscription_id?: string | null
@@ -515,6 +517,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           plan_name?: string | null
+          quota_exempt?: boolean
           stripe_customer_id?: string | null
           stripe_product_id?: string | null
           stripe_subscription_id?: string | null
@@ -1650,6 +1653,12 @@ export type Database = {
           next_reset_date: string
           period_start: string
           plan_name: string
+        }[]
+      }
+      release_message_quota: {
+        Args: { p_client_id: string; p_period_start: string }
+        Returns: {
+          released: boolean
         }[]
       }
       create_run_if_idle: {
