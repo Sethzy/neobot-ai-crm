@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-11 (Excalidraw diagram tool, message quota PR 38c, PR 42a snapshot charts, PR 46 CRM working surfaces)",
+    "updated": "2026-03-12 (PR 8c math.js calculate tool)",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -43,10 +43,11 @@
       "2026-03-10 (reorg): Added 5 previously untracked Phase 1 entries: p1-crm-tool-consolidation, p1-crm-ux, p1-chat-sdk-convergence, p1-chatbot-zero-drift (all done), p1-whatsapp-spike (cut). Added note to PR 26 about sub-PRs 26b-26e.",
       "2026-03-10: Added PR 8a (Google Maps drive-time tool) as a narrow Phase 1 scope exception. Rationale: Chief of Staff transit automations need real drive times, direct_api is still a v1 stub, and a small built-in read-only tool is the minimal path.",
       "2026-03-11: Pulled FOUND-07 forward into Phase 4 as PR 38b (Stripe billing + settings surface). Implementation uses hosted Stripe Checkout, Stripe Customer Portal, and webhook-driven sync onto the clients table, following current Stripe webhook guidance instead of the earlier two-event draft.",
-      "2026-03-11: Added PR 8b (Excalidraw diagram tool) to Phase 3. Small built-in tool (sibling to PR 8a drive-time). Agent creates hand-drawn diagrams via the free Excalidraw MCP server. Two tools: get_diagram_reference + create_diagram. No auth, no cost, no DB migration. Chat UI renders URLs as iframe embeds. Reference: Services §14.",
+      "2026-03-11: (Removed) PR 8b Excalidraw diagram tool — cut from scope.",
       "2026-03-11: Added PR 38c (Message usage caps + quota UX) to Phase 4. Quotas are app-enforced monthly message counters in Supabase, keyed off clients.plan_name rather than Stripe metered billing. Count only brand-new user-authored inbound chat turns. Free = 100/month, Pro = 500/month, Max = 2,000/month. UI surfaces live in /pricing, /settings, and chat; get_user_quota_status remains omitted as an agent-facing tool.",
       "2026-03-11: Clarified PR 42a scope to include compact snapshot charts (bar, donut, funnel) inside show_view, using narrow custom chart components rendered through json-render. This intentionally stops short of live analytics/reporting: no query-backed refresh, no filters, no pinning, no workspace report surface.",
-      "2026-03-11: Added PR 46 (CRM working surfaces) to Phase 4 as an explicit out-of-plan polish item. Scope: unify Deals into one table/board workspace, add a Tasks calendar, add narrow quick edit on high-value CRM surfaces, preserve full detail pages, and keep saved views/reporting out of scope. Naming intentionally avoids collision with PR 42a agent-generated views."
+      "2026-03-11: Added PR 46 (CRM working surfaces) to Phase 4 as an explicit out-of-plan polish item. Scope: unify Deals into one table/board workspace, add a Tasks calendar, add narrow quick edit on high-value CRM surfaces, preserve full detail pages, and keep saved views/reporting out of scope. Naming intentionally avoids collision with PR 42a agent-generated views.",
+      "2026-03-12: Added PR 8b (math.js calculate tool) to Phase 3. Small built-in tool (sibling to PR 8a drive-time). General-purpose expression evaluator using math.js — agent writes math expressions, mathjs evaluates them safely. Covers commission calculations, amortization, unit conversions, and any ad-hoc arithmetic. No sandbox needed. Hardened math.js instance disables dangerous functions (import, evaluate, parse, simplify, derivative, resolve, createUnit, reviver). Old PR 8b (Excalidraw) cut from scope."
     ]
   },
   "phases": [
@@ -1914,45 +1915,48 @@
         },
         {
           "pr": "8b",
-          "title": "Excalidraw diagram tool (MCP-backed)",
-          "status": "deferred",
+          "title": "Math.js calculate tool",
+          "status": "in_progress",
           "decisions": [
-            "TOOL-03",
-            "SERVICE-03"
+            "TOOL-03"
           ],
-          "note": "Small built-in tool (sibling to PR 8a drive-time). Agent creates hand-drawn style diagrams via the free Excalidraw MCP server (mcp.excalidraw.com). Two tools: get_diagram_reference (cached element format guide) and create_diagram (generates Excalidraw elements → exports to shareable URL → saves JSON to Supabase Storage). No auth, no cost, no DB migration. Chat UI renders excalidraw.com URLs as iframe embed cards. Reference: roadmap docs/Sunder - Source of Truth/services/01-Built-In Services §14.",
+          "note": "Small built-in tool (sibling to PR 8a drive-time). General-purpose safe expression evaluator using math.js. Agent writes math expressions, mathjs evaluates them. Covers commission, amortization, unit conversions, percentages, and arbitrary arithmetic. Hardened math.js instance disables dangerous functions. No sandbox needed.",
           "tasks": [
             {
               "id": "PR8b-1",
-              "task": "Excalidraw MCP HTTP client: callExcalidrawMcp() for JSON-RPC over Streamable HTTP, getElementReference() with in-memory cache, exportDiagram() returning shareable URL",
+              "task": "Install mathjs dependency",
               "done": false
             },
             {
               "id": "PR8b-2",
-              "task": "Diagram tool factory: get_diagram_reference tool (returns cached element format) and create_diagram tool (elements JSON + title → export to URL + save to Supabase Storage)",
+              "task": "Create hardened math.js instance with dangerous functions disabled (import, createUnit, evaluate, parse, simplify, derivative, resolve, reviver)",
               "done": false
             },
             {
               "id": "PR8b-3",
-              "task": "Register diagram tools in barrel export and tool-registry.ts. Add Diagrams section to system prompt",
+              "task": "Implement calculate tool with expression + optional variables input, returning numeric result",
               "done": false
             },
             {
               "id": "PR8b-4",
-              "task": "Chat UI: detect excalidraw.com URLs in agent messages and render as iframe embed card with Open in Excalidraw link",
+              "task": "Register tool in createUtilityTools barrel and tool-registry.ts",
               "done": false
             },
             {
               "id": "PR8b-5",
-              "task": "Unit tests for MCP client (mock fetch), tool factory (mock client), and URL detection in chat renderer",
+              "task": "Add Calculations section to system prompt tool-usage guidance",
+              "done": false
+            },
+            {
+              "id": "PR8b-6",
+              "task": "Unit tests for expression evaluation, variables, security hardening, error handling, and barrel registration",
               "done": false
             }
           ],
           "testCriteria": [
-            "Ask agent 'draw me a transaction timeline for a deal closing May 10' → agent calls get_diagram_reference then create_diagram → returns interactive excalidraw.com URL",
-            "Diagram URL renders as an iframe embed card in the chat UI with Open in Excalidraw link",
-            "Diagram JSON is persisted to Supabase Storage under /agent/diagrams/",
-            "get_diagram_reference returns cached result on second call (no duplicate MCP fetch)"
+            "Ask agent 'what is 1% commission on a $1.8M property sale with 60/40 co-broke split?' → agent calls calculate tool with correct expression → returns accurate number",
+            "Agent can chain multiple calculate calls for multi-step financial calculations",
+            "Attempting to evaluate dangerous expressions (import, parse, evaluate) returns an error, not a result"
           ]
         }
       ]
