@@ -107,6 +107,9 @@ export async function runAgent(
   const shouldConsumeMessageQuota =
     payload.consumeMessageQuota === true && payload.triggerType === "chat";
   let consumedQuota: ConsumedMessageQuota | null = null;
+  // Quota release guard: set true after consuming a quota unit, cleared to false
+  // once the unit is "settled" (user message persisted or run queued). If an error
+  // occurs while true, the catch block releases the consumed unit back.
   let shouldReleaseConsumedQuota = false;
 
   if (shouldConsumeMessageQuota) {

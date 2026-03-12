@@ -338,18 +338,18 @@ export async function POST(request: Request): Promise<Response> {
       },
     });
   } catch (error) {
+    if (didCreateThread && clientId) {
+      await supabase
+        .from("conversation_threads")
+        .delete()
+        .eq("thread_id", threadId)
+        .eq("client_id", clientId);
+    }
+
     if (
       isMessageQuotaError(error) &&
       error.code === messageQuotaErrorCodes.limitReached
     ) {
-      if (didCreateThread && clientId) {
-        await supabase
-          .from("conversation_threads")
-          .delete()
-          .eq("thread_id", threadId)
-          .eq("client_id", clientId);
-      }
-
       return Response.json(
         {
           error: error.message,
@@ -361,15 +361,6 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     console.error("[chat/route] Unhandled error:", error);
-
-    if (didCreateThread && clientId) {
-      await supabase
-        .from("conversation_threads")
-        .delete()
-        .eq("thread_id", threadId)
-        .eq("client_id", clientId);
-    }
-
     return jsonError("Failed to process chat request.", 500);
   }
 }

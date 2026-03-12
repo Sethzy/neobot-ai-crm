@@ -213,17 +213,10 @@ export function ChatPanel({
       }
 
       try {
-        if (files.length > 0 && text.length === 0) {
-          await sendMessage({ files });
-          return;
-        }
-
-        if (files.length > 0) {
-          await sendMessage({ text, files });
-          return;
-        }
-
-        await sendMessage({ text });
+        await sendMessage({
+          ...(text.length > 0 ? { text } : {}),
+          ...(files.length > 0 ? { files } : {}),
+        });
       } catch (submitError) {
         const parsedSubmitError = submitError instanceof Error
           ? parseChatError(submitError)
@@ -240,8 +233,6 @@ export function ChatPanel({
             (old) => removeOptimisticDraftThread(old, chatId),
           );
         }
-      } finally {
-        refreshQuota();
       }
     },
     [chatId, isLoading, queryClient, refreshQuota, sendMessage],

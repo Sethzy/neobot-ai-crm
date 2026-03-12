@@ -4,7 +4,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { BillingPlanName } from "@/lib/stripe/plans";
+import { billingPlanNames, type BillingPlanName } from "@/lib/stripe/plans";
 import type { Database } from "@/types/database";
 
 type QuotaSupabaseClient = Pick<SupabaseClient<Database>, "rpc">;
@@ -66,11 +66,9 @@ export class MessageQuotaError extends Error {
 }
 
 function normalizePlanName(planName: string): BillingPlanName {
-  if (planName === "Pro" || planName === "Max") {
-    return planName;
-  }
-
-  return "Free";
+  return (billingPlanNames as readonly string[]).includes(planName)
+    ? (planName as BillingPlanName)
+    : "Free";
 }
 
 function mapQuotaStatusRow(row: MessageQuotaStatusRow): MessageQuotaStatus {
@@ -167,13 +165,15 @@ export async function releaseMessageQuota(
   return row.released;
 }
 
+const sgDateFormatter = new Intl.DateTimeFormat("en-SG", {
+  day: "numeric",
+  month: "short",
+  timeZone: "Asia/Singapore",
+  year: "numeric",
+});
+
 export function formatMessageQuotaResetDate(nextResetDate: string): string {
-  return new Intl.DateTimeFormat("en-SG", {
-    day: "numeric",
-    month: "short",
-    timeZone: "Asia/Singapore",
-    year: "numeric",
-  }).format(new Date(`${nextResetDate}T00:00:00+08:00`));
+  return sgDateFormatter.format(new Date(`${nextResetDate}T00:00:00+08:00`));
 }
 
 export function isMessageQuotaError(error: unknown): error is MessageQuotaError {
