@@ -7,6 +7,7 @@ import Stripe from "stripe";
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import {
   getStripeClient,
+  resolveSubscriptionId,
   syncBillingStateFromDeletedSubscription,
   syncBillingStateFromSubscriptionId,
 } from "@/lib/stripe/stripe";
@@ -51,13 +52,8 @@ export async function POST(request: Request): Promise<Response> {
   try {
     switch (event.type) {
       case "checkout.session.completed": {
-        const session = event.data.object as Stripe.Checkout.Session & {
-          subscription?: string | { id: string } | null;
-        };
-        const subscriptionId =
-          typeof session.subscription === "string"
-            ? session.subscription
-            : session.subscription?.id ?? null;
+        const session = event.data.object as Stripe.Checkout.Session;
+        const subscriptionId = resolveSubscriptionId(session.subscription);
 
         if (subscriptionId) {
           const syncedBillingState = await syncBillingStateFromSubscriptionId(subscriptionId);
@@ -75,13 +71,10 @@ export async function POST(request: Request): Promise<Response> {
       }
       case "invoice.paid":
       case "invoice.payment_failed": {
-        const invoice = event.data.object as Stripe.Invoice & {
-          subscription?: string | { id: string } | null;
-        };
-        const subscriptionId =
-          typeof invoice.subscription === "string"
-            ? invoice.subscription
-            : invoice.subscription?.id ?? null;
+        const invoice = event.data.object as Stripe.Invoice;
+        const subscriptionId = resolveSubscriptionId(
+          invoice.parent?.subscription_details?.subscription ?? null,
+        );
 
         if (subscriptionId) {
           const syncedBillingState = await syncBillingStateFromSubscriptionId(subscriptionId);

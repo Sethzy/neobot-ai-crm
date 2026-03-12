@@ -2203,7 +2203,8 @@
             "Successful checkout syncs the client row and redirects back to /settings with a billing success state",
             "Existing paid user sees billing details in /settings and can open the Stripe Customer Portal",
             "Stripe webhook delivery keeps client billing state synced even if the user never returns from Checkout"
-          ]
+          ],
+          "simplified": true
         },
         {
           "pr": "38c",

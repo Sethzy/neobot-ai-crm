@@ -85,6 +85,28 @@ const terminalStatuses = new Set<Stripe.Subscription.Status>([
   "incomplete_expired",
 ]);
 
+/**
+ * Extracts the customer ID string from a Stripe subscription's customer field,
+ * which may be either a string or an expanded Customer/DeletedCustomer object.
+ */
+function resolveCustomerId(customer: string | Stripe.Customer | Stripe.DeletedCustomer): string {
+  return typeof customer === "string" ? customer : customer.id;
+}
+
+/**
+ * Extracts the subscription ID from a Stripe object's `subscription` field,
+ * which may be a string, an expanded Subscription object, or null/undefined.
+ */
+export function resolveSubscriptionId(
+  subscription: string | Stripe.Subscription | null | undefined,
+): string | null {
+  if (!subscription) {
+    return null;
+  }
+
+  return typeof subscription === "string" ? subscription : subscription.id;
+}
+
 let stripeClient: Stripe | null = null;
 
 function getStripeSecretKey(): string {
@@ -528,8 +550,7 @@ export async function syncBillingStateFromSubscriptionId(
   const subscription = await getStripeClient().subscriptions.retrieve(subscriptionId, {
     expand: ["items.data.price.product"],
   });
-  const customerId =
-    typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
+  const customerId = resolveCustomerId(subscription.customer);
   const primaryPrice = subscription.items.data[0]?.price ?? null;
   const primaryProduct = getExpandedProduct(primaryPrice?.product ?? null);
   const planName = primaryPrice?.id
@@ -576,8 +597,7 @@ export async function syncBillingStateFromSubscriptionId(
 export async function syncBillingStateFromDeletedSubscription(
   subscription: Stripe.Subscription,
 ): Promise<SyncedBillingState> {
-  const customerId =
-    typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
+  const customerId = resolveCustomerId(subscription.customer);
   const client = await findClientForSubscription({
     customerId,
     metadataClientId: subscription.metadata.clientId,
@@ -620,10 +640,7 @@ export async function syncBillingStateFromCheckoutSession(sessionId: string): Pr
     throw new Error("Stripe checkout session was not created in subscription mode.");
   }
 
-  const subscriptionId =
-    typeof session.subscription === "string"
-      ? session.subscription
-      : session.subscription?.id ?? null;
+  const subscriptionId = resolveSubscriptionId(session.subscription);
 
   if (!subscriptionId) {
     throw new Error("Stripe checkout session did not produce a subscription id.");
