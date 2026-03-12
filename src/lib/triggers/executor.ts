@@ -2,6 +2,7 @@
  * Trigger execution logic for cron-dispatched agent runs.
  * @module lib/triggers/executor
  */
+import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { createMessage } from "@/lib/chat/messages";
 import { runAgent } from "@/lib/runner/run-agent";
 import { runAutopilot } from "@/lib/runner/run-autopilot";
@@ -19,6 +20,39 @@ export interface ExecuteTriggerInput {
 
 export interface ExecuteTriggerResult {
   status: "completed" | "failed" | "claim_mismatch" | "queued" | "skipped_busy";
+}
+
+function toAnalyticsTriggerType(
+  triggerType: TriggerDispatchPayload["triggerType"],
+): "cron" | "webhook" | "rss" | "pulse" {
+  return triggerType === "schedule" ? "cron" : triggerType;
+}
+
+async function captureTriggerExecutionEvent(args: {
+  clientId: string;
+  threadId: string;
+  triggerId: string;
+  triggerType: TriggerDispatchPayload["triggerType"];
+  startedAt: number;
+  resultStatus:
+    | "completed"
+    | "failed"
+    | "failed_permanent"
+    | "queued"
+    | "skipped_busy";
+}): Promise<void> {
+  await captureServerEvent({
+    distinctId: args.clientId,
+    event: "trigger_executed",
+    properties: {
+      trigger_id: args.triggerId,
+      thread_id: args.threadId,
+      trigger_type: toAnalyticsTriggerType(args.triggerType),
+      result_status: args.resultStatus,
+      success: args.resultStatus === "completed",
+      duration_ms: Date.now() - args.startedAt,
+    },
+  });
 }
 
 async function releaseClaim(
@@ -50,6 +84,7 @@ export async function executeTrigger({
   supabase,
   payload,
 }: ExecuteTriggerInput): Promise<ExecuteTriggerResult> {
+  const startedAt = Date.now();
   const { data: trigger, error } = await supabase
     .from("agent_triggers")
     .select("id, current_run_id, retry_count")
@@ -79,6 +114,14 @@ export async function executeTrigger({
         await releaseClaim(supabase, payload, "skipped_thread_busy", {
           advanceNextFireAt: true,
         });
+        await captureTriggerExecutionEvent({
+          clientId: payload.clientId,
+          threadId: payload.threadId,
+          triggerId: payload.triggerId,
+          triggerType: payload.triggerType,
+          startedAt,
+          resultStatus: "skipped_busy",
+        });
         return { status: "skipped_busy" };
       }
 
@@ -86,17 +129,41 @@ export async function executeTrigger({
         await releaseClaim(supabase, payload, "failed", {
           advanceNextFireAt: true,
         });
+        await captureTriggerExecutionEvent({
+          clientId: payload.clientId,
+          threadId: payload.threadId,
+          triggerId: payload.triggerId,
+          triggerType: payload.triggerType,
+          startedAt,
+          resultStatus: "failed",
+        });
         return { status: "failed" };
       }
 
       await releaseClaim(supabase, payload, "completed", {
         advanceNextFireAt: true,
       });
+      await captureTriggerExecutionEvent({
+        clientId: payload.clientId,
+        threadId: payload.threadId,
+        triggerId: payload.triggerId,
+        triggerType: payload.triggerType,
+        startedAt,
+        resultStatus: "completed",
+      });
       return { status: "completed" };
     } catch (error) {
       console.error("[executor] pulse trigger failed:", error);
       await releaseClaim(supabase, payload, "failed", {
         advanceNextFireAt: true,
+      });
+      await captureTriggerExecutionEvent({
+        clientId: payload.clientId,
+        threadId: payload.threadId,
+        triggerId: payload.triggerId,
+        triggerType: payload.triggerType,
+        startedAt,
+        resultStatus: "failed",
       });
       return { status: "failed" };
     }
@@ -121,6 +188,14 @@ export async function executeTrigger({
         await releaseClaim(supabase, payload, "completed", {
           advanceNextFireAt: true,
         });
+        await captureTriggerExecutionEvent({
+          clientId: payload.clientId,
+          threadId: payload.threadId,
+          triggerId: payload.triggerId,
+          triggerType: payload.triggerType,
+          startedAt,
+          resultStatus: "completed",
+        });
         return { status: "completed" };
       }
 
@@ -142,6 +217,14 @@ export async function executeTrigger({
           advanceNextFireAt: false,
         },
       );
+      await captureTriggerExecutionEvent({
+        clientId: payload.clientId,
+        threadId: payload.threadId,
+        triggerId: payload.triggerId,
+        triggerType: payload.triggerType,
+        startedAt,
+        resultStatus: hasExhaustedRetries ? "failed_permanent" : "failed",
+      });
       return { status: "failed" };
     }
   }
@@ -176,11 +259,27 @@ export async function executeTrigger({
       await releaseClaim(supabase, payload, "queued", {
         advanceNextFireAt: true,
       });
+      await captureTriggerExecutionEvent({
+        clientId: payload.clientId,
+        threadId: payload.threadId,
+        triggerId: payload.triggerId,
+        triggerType: payload.triggerType,
+        startedAt,
+        resultStatus: "queued",
+      });
       return { status: "queued" };
     }
 
     await releaseClaim(supabase, payload, "completed", {
       advanceNextFireAt: true,
+    });
+    await captureTriggerExecutionEvent({
+      clientId: payload.clientId,
+      threadId: payload.threadId,
+      triggerId: payload.triggerId,
+      triggerType: payload.triggerType,
+      startedAt,
+      resultStatus: "completed",
     });
     return { status: "completed" };
   } catch (error) {
@@ -194,6 +293,14 @@ export async function executeTrigger({
         advanceNextFireAt: false,
       },
     );
+    await captureTriggerExecutionEvent({
+      clientId: payload.clientId,
+      threadId: payload.threadId,
+      triggerId: payload.triggerId,
+      triggerType: payload.triggerType,
+      startedAt,
+      resultStatus: hasExhaustedRetries ? "failed_permanent" : "failed",
+    });
     return { status: "failed" };
   }
 }

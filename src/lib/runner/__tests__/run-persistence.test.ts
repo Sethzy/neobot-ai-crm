@@ -35,6 +35,11 @@ vi.mock("@/lib/approvals/queries", () => ({
   createApprovalEvent: (...args: unknown[]) => mockCreateApprovalEvent(...args),
 }));
 
+const mockCaptureServerEvents = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/lib/analytics/posthog-server", () => ({
+  captureServerEvents: (...args: unknown[]) => mockCaptureServerEvents(...args),
+}));
+
 const mockBuildAssistantPartsFromSteps = vi.fn();
 const mockGetAssistantTextFromParts = vi.fn();
 vi.mock("@/lib/runner/message-utils", () => ({
@@ -89,6 +94,7 @@ describe("finalizeRun block storage", () => {
       status: "created",
       event: {},
     });
+    mockCaptureServerEvents.mockResolvedValue(undefined);
   });
 
   it("calls saveToolcallBlock for every tool part with output-available state", async () => {
@@ -290,6 +296,18 @@ describe("finalizeRun block storage", () => {
     expect(mockCreateApprovalEvent.mock.invocationCallOrder[0]).toBeLessThan(
       mockCompleteRun.mock.invocationCallOrder[0],
     );
+    expect(mockCaptureServerEvents).toHaveBeenCalledWith([
+      {
+        distinctId: CLIENT_ID,
+        event: "approval_requested",
+        properties: {
+          approval_id: "approval-1",
+          run_id: RUN_ID,
+          thread_id: THREAD_ID,
+          tool_name: "delete_contact",
+        },
+      },
+    ]);
   });
 
   it("marks the run partial and skips draining when approval event persistence fails", async () => {
@@ -324,6 +342,7 @@ describe("finalizeRun block storage", () => {
         status: "partial",
       }),
     );
+    expect(mockCaptureServerEvents).not.toHaveBeenCalled();
     expect(mockDrainAndContinue).not.toHaveBeenCalled();
     expect(consoleSpy).toHaveBeenCalledWith(
       "[test] approval event persistence failed:",

@@ -12,12 +12,14 @@ const {
   mockCreateMessage,
   mockCollectNewRssItems,
   mockCreateAgentFileClient,
+  mockCaptureServerEvent,
 } = vi.hoisted(() => ({
   mockRunAgent: vi.fn(),
   mockRunAutopilot: vi.fn(),
   mockCreateMessage: vi.fn(),
   mockCollectNewRssItems: vi.fn(),
   mockCreateAgentFileClient: vi.fn(),
+  mockCaptureServerEvent: vi.fn(),
 }));
 
 vi.mock("@/lib/runner/run-agent", () => ({
@@ -38,6 +40,10 @@ vi.mock("../rss", () => ({
 
 vi.mock("@/lib/storage/agent-files", () => ({
   createAgentFileClient: mockCreateAgentFileClient,
+}));
+
+vi.mock("@/lib/analytics/posthog-server", () => ({
+  captureServerEvent: (...args: unknown[]) => mockCaptureServerEvent(...args),
 }));
 
 import { executeTrigger } from "../executor";
@@ -162,6 +168,18 @@ describe("executeTrigger", () => {
       p_run_id: validPayload.currentRunId,
       p_status: "completed",
     });
+    expect(mockCaptureServerEvent).toHaveBeenCalledWith({
+      distinctId: validPayload.clientId,
+      event: "trigger_executed",
+      properties: {
+        trigger_id: validPayload.triggerId,
+        thread_id: validPayload.threadId,
+        trigger_type: "cron",
+        result_status: "completed",
+        success: true,
+        duration_ms: expect.any(Number),
+      },
+    });
     expect(result).toEqual({ status: "completed" });
   });
 
@@ -189,6 +207,17 @@ describe("executeTrigger", () => {
       p_trigger_id: validPayload.triggerId,
       p_run_id: validPayload.currentRunId,
       p_status: "failed",
+    });
+    expect(mockCaptureServerEvent).toHaveBeenCalledWith({
+      distinctId: validPayload.clientId,
+      event: "trigger_executed",
+      properties: expect.objectContaining({
+        trigger_id: validPayload.triggerId,
+        thread_id: validPayload.threadId,
+        trigger_type: "cron",
+        result_status: "failed",
+        success: false,
+      }),
     });
     expect(result).toEqual({ status: "failed" });
   });
@@ -423,6 +452,17 @@ describe("executeTrigger", () => {
       p_trigger_id: validPayload.triggerId,
       p_run_id: validPayload.currentRunId,
       p_status: "skipped_thread_busy",
+    });
+    expect(mockCaptureServerEvent).toHaveBeenCalledWith({
+      distinctId: validPayload.clientId,
+      event: "trigger_executed",
+      properties: expect.objectContaining({
+        trigger_id: validPayload.triggerId,
+        thread_id: validPayload.threadId,
+        trigger_type: "pulse",
+        result_status: "skipped_busy",
+        success: false,
+      }),
     });
     expect(result).toEqual({ status: "skipped_busy" });
   });

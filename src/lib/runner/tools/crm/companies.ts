@@ -12,6 +12,10 @@ import {
   type CrmVocabConfig,
 } from "@/lib/crm/config";
 import type { Database, JsonObject } from "@/types/database";
+import {
+  captureServerEvent,
+  captureServerEvents,
+} from "@/lib/analytics/posthog-server";
 
 import { mergeCustomFields } from "./custom-fields";
 import {
@@ -170,6 +174,15 @@ export function createCompanyTools(
         return { success: false as const, error: error.message };
       }
 
+      await captureServerEvent({
+        distinctId: clientId,
+        event: "crm_record_created",
+        properties: {
+          entity_type: "company",
+          source: "agent",
+        },
+      });
+
       return {
         success: true as const,
         company: data,
@@ -284,6 +297,17 @@ export function createCompanyTools(
       }
 
       const created = data ?? [];
+
+      await captureServerEvents(
+        created.map(() => ({
+          distinctId: clientId,
+          event: "crm_record_created",
+          properties: {
+            entity_type: "company",
+            source: "agent",
+          },
+        })),
+      );
 
       return {
         success: true as const,

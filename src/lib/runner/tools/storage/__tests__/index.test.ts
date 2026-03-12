@@ -9,6 +9,7 @@ const {
   mockCreateAgentFileClient,
   mockNormalizeWorkspacePath,
   mockFileClient,
+  mockCaptureServerEvent,
 } = vi.hoisted(() => ({
   mockCreateAgentFileClient: vi.fn(),
   mockNormalizeWorkspacePath: vi.fn((inputPath: string) => {
@@ -16,6 +17,7 @@ const {
     const segments = normalized.split("/").filter((segment) => segment.length > 0);
     return segments.join("/");
   }),
+  mockCaptureServerEvent: vi.fn(),
   mockFileClient: {
     downloadFile: vi.fn(),
     downloadBinary: vi.fn(),
@@ -29,6 +31,10 @@ const {
 vi.mock("@/lib/storage/agent-files", () => ({
   createAgentFileClient: mockCreateAgentFileClient,
   normalizeWorkspacePath: (...args: unknown[]) => mockNormalizeWorkspacePath(...args),
+}));
+
+vi.mock("@/lib/analytics/posthog-server", () => ({
+  captureServerEvent: (...args: unknown[]) => mockCaptureServerEvent(...args),
 }));
 
 import { createStorageTools } from "../index";
@@ -301,6 +307,16 @@ describe("createStorageTools", () => {
       path: "/agent/memory/preferences.md",
       path_kind: "general",
     });
+    expect(mockCaptureServerEvent).toHaveBeenCalledWith({
+      distinctId: CLIENT_ID,
+      event: "memory_file_saved",
+      properties: {
+        filename: "memory/preferences.md",
+        operation: "write",
+        size_bytes: new TextEncoder().encode("prefers short replies").byteLength,
+        source: "agent",
+      },
+    });
   });
 
   it("write_file edit op delegates to file client", async () => {
@@ -326,6 +342,7 @@ describe("createStorageTools", () => {
       content: "updated",
       path_kind: "general",
     });
+    expect(mockCaptureServerEvent).not.toHaveBeenCalled();
   });
 
   it("write_file delete op removes file", async () => {

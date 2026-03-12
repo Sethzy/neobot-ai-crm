@@ -93,6 +93,7 @@ export async function runAutopilot({
       threadId,
       runId: lockResult.runId,
       modelId,
+      triggerType: "pulse",
       steps: result.steps,
       text: result.text,
       totalUsage: result.totalUsage,

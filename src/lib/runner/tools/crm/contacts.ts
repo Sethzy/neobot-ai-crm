@@ -12,6 +12,10 @@ import {
   type CrmVocabConfig,
 } from "@/lib/crm/config";
 import type { Database, JsonObject } from "@/types/database";
+import {
+  captureServerEvent,
+  captureServerEvents,
+} from "@/lib/analytics/posthog-server";
 
 import { mergeCustomFields } from "./custom-fields";
 import { buildIlikePattern, buildSearchExpression, DEFAULT_CRM_RESULT_LIMIT } from "./filter-utils";
@@ -164,6 +168,15 @@ export function createContactTools(
       if (error) {
         return { success: false as const, error: error.message };
       }
+
+      await captureServerEvent({
+        distinctId: clientId,
+        event: "crm_record_created",
+        properties: {
+          entity_type: "contact",
+          source: "agent",
+        },
+      });
 
       return {
         success: true as const,
@@ -319,6 +332,17 @@ export function createContactTools(
       }
 
       const created = data ?? [];
+
+      await captureServerEvents(
+        created.map(() => ({
+          distinctId: clientId,
+          event: "crm_record_created",
+          properties: {
+            entity_type: "contact",
+            source: "agent",
+          },
+        })),
+      );
 
       return {
         success: true as const,

@@ -2,6 +2,7 @@
  * Web tool factory barrel for runner registration.
  * @module lib/runner/tools/web
  */
+import { createDriveTimeTool } from "./drive-time";
 import { createScrapeTool } from "./scrape";
 import { createSearchTool } from "./search";
 
@@ -10,6 +11,7 @@ import { createSearchTool } from "./search";
  */
 export function createWebTools() {
   return {
+    ...createDriveTimeTool(),
     ...createSearchTool(),
     ...createScrapeTool(),
   };

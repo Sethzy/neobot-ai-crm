@@ -19,12 +19,12 @@ import type { RunnerPayload } from "@/lib/runner/schemas";
 import { createRunnerTools } from "@/lib/runner/tool-registry";
 import { createSubagentTool } from "@/lib/runner/tools";
 import { enqueueMessage } from "@/lib/runner/thread-queue";
-import { createAdminClient } from "@/lib/supabase/server";
 import {
   type ConsumedMessageQuota,
   consumeMessageQuota,
   MessageQuotaError,
   messageQuotaErrorCodes,
+  releaseMessageQuota,
 } from "@/lib/usage/message-quota";
 import type { Database, Json } from "@/types/database";
 
@@ -90,31 +90,6 @@ function getTotalTokenCount(totalUsage: {
   return (totalUsage.inputTokens ?? 0) + (totalUsage.outputTokens ?? 0);
 }
 
-async function releaseConsumedMessageQuota(
-  quota: ConsumedMessageQuota,
-): Promise<void> {
-  const supabaseAdmin = await createAdminClient();
-  const { data: usageRow, error: usageLookupError } = await supabaseAdmin
-    .from("client_message_usage_monthly")
-    .select("messages_used")
-    .eq("client_id", quota.clientId)
-    .eq("period_start", quota.periodStart)
-    .maybeSingle();
-
-  if (usageLookupError || !usageRow || usageRow.messages_used <= 0) {
-    return;
-  }
-
-  await supabaseAdmin
-    .from("client_message_usage_monthly")
-    .update({
-      messages_used: usageRow.messages_used - 1,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("client_id", quota.clientId)
-    .eq("period_start", quota.periodStart);
-}
-
 /**
  * Executes one thread run if no active run exists, otherwise queues the input.
  */
@@ -153,7 +128,10 @@ export async function runAgent(
   const startedAt = Date.now();
   let hasRecordedTerminalState = false;
 
-  const recordFailedRun = async (error: unknown) => {
+  const recordFailedRun = async (
+    error: unknown,
+    errorStage: "startup" | "stream",
+  ) => {
     if (hasRecordedTerminalState || !lockResult?.created) {
       return;
     }
@@ -174,6 +152,11 @@ export async function runAgent(
       properties: {
         run_id: lockResult.runId,
         thread_id: threadId,
+        trigger_type: payload.triggerType,
+        run_type: runType,
+        duration_ms: Date.now() - startedAt,
+        error_stage: errorStage,
+        error_name: error instanceof Error ? error.name : "UnknownError",
         error: error instanceof Error ? error.message : "Unknown runner error",
       },
     });
@@ -257,7 +240,7 @@ export async function runAgent(
       tools,
       prepareStep: buildPrepareStep(modelId),
       onError: async ({ error }) => {
-        await recordFailedRun(error);
+        await recordFailedRun(error, "stream");
       },
       onFinish: async ({ text, steps, totalUsage }) => {
         if (hasRecordedTerminalState) {
@@ -272,6 +255,7 @@ export async function runAgent(
           threadId,
           runId,
           modelId,
+          triggerType: payload.triggerType,
           steps,
           text,
           totalUsage,
@@ -298,13 +282,13 @@ export async function runAgent(
   } catch (error) {
     if (shouldReleaseConsumedQuota && consumedQuota) {
       try {
-        await releaseConsumedMessageQuota(consumedQuota);
+        await releaseMessageQuota(supabase, consumedQuota.clientId, consumedQuota.periodStart);
       } catch (releaseError) {
         console.error("[quota] Failed to release consumed message quota.", releaseError);
       }
     }
 
-    await recordFailedRun(error);
+    await recordFailedRun(error, "startup");
     throw error;
   }
 }

@@ -5,6 +5,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 
+import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { toModelPath, toStoragePath } from "@/lib/storage/agent-paths";
 import {
   computeNextFireAt,
@@ -25,6 +26,19 @@ const setupTriggerInputSchema = z.object({
   invocation_message: z.string().min(1).max(200).optional(),
 });
 type AgentTriggerInsert = Database["public"]["Tables"]["agent_triggers"]["Insert"];
+
+function toAnalyticsTriggerType(triggerId: string): "cron" | "webhook" | "rss" | "pulse" {
+  switch (triggerId) {
+    case "schedule":
+      return "cron";
+    case "webhook":
+    case "rss":
+    case "pulse":
+      return triggerId;
+    default:
+      return "cron";
+  }
+}
 
 function resolvePublicAppBaseUrl(): string | null {
   const directBaseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").trim();
@@ -225,6 +239,14 @@ export function createSetupTriggerTool(
             error: error?.message ?? "Failed to create trigger.",
           };
         }
+
+        await captureServerEvent({
+          distinctId: clientId,
+          event: "trigger_created",
+          properties: {
+            trigger_type: toAnalyticsTriggerType(trigger_id),
+          },
+        });
 
         const webhookBaseUrl = trigger_id === "webhook" ? resolvePublicAppBaseUrl() : null;
 

@@ -30,7 +30,7 @@ const {
   mockGetActiveConnections,
   mockLoadActivatedConnectionTools,
   mockConsumeMessageQuota,
-  mockCreateAdminClient,
+  mockReleaseMessageQuota,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
@@ -57,7 +57,7 @@ const {
   mockGetActiveConnections: vi.fn(),
   mockLoadActivatedConnectionTools: vi.fn(),
   mockConsumeMessageQuota: vi.fn(),
-  mockCreateAdminClient: vi.fn(),
+  mockReleaseMessageQuota: vi.fn(),
 }));
 
 vi.mock("ai", () => ({
@@ -115,12 +115,9 @@ vi.mock("@/lib/composio", () => ({
     mockLoadActivatedConnectionTools(...args),
 }));
 
-vi.mock("@/lib/supabase/server", () => ({
-  createAdminClient: (...args: unknown[]) => mockCreateAdminClient(...args),
-}));
-
 vi.mock("@/lib/usage/message-quota", () => ({
   consumeMessageQuota: (...args: unknown[]) => mockConsumeMessageQuota(...args),
+  releaseMessageQuota: (...args: unknown[]) => mockReleaseMessageQuota(...args),
   messageQuotaErrorCodes: {
     limitReached: "message-quota-exceeded",
     loadFailed: "message-quota-load-failed",
@@ -249,25 +246,7 @@ describe("runAgent", () => {
       periodStart: "2026-03-01",
       nextResetDate: "2026-04-01",
     });
-    mockCreateAdminClient.mockResolvedValue({
-      from: vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              maybeSingle: vi.fn().mockResolvedValue({
-                data: { messages_used: 1 },
-                error: null,
-              }),
-            })),
-          })),
-        })),
-        update: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({ error: null }),
-          })),
-        })),
-      })),
-    });
+    mockReleaseMessageQuota.mockResolvedValue(true);
     mockStreamText.mockReturnValue({
       toUIMessageStreamResponse: vi.fn(() => new Response("streamed")),
     });
@@ -597,26 +576,6 @@ describe("runAgent", () => {
   });
 
   it("refunds consumed quota when the direct user input fails before persistence", async () => {
-    const adminClient = {
-      from: vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              maybeSingle: vi.fn().mockResolvedValue({
-                data: { messages_used: 1 },
-                error: null,
-              }),
-            })),
-          })),
-        })),
-        update: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({ error: null }),
-          })),
-        })),
-      })),
-    };
-    mockCreateAdminClient.mockResolvedValue(adminClient);
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
     mockCreateMessages.mockRejectedValue(new Error("insert failed"));
 
@@ -630,8 +589,11 @@ describe("runAgent", () => {
       ),
     ).rejects.toThrow("insert failed");
 
-    expect(mockCreateAdminClient).toHaveBeenCalledTimes(1);
-    expect(adminClient.from).toHaveBeenCalledWith("client_message_usage_monthly");
+    expect(mockReleaseMessageQuota).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      "2026-03-01",
+    );
   });
 
   it("preserves cron trigger metadata when queueing a busy trigger run", async () => {
@@ -775,6 +737,7 @@ describe("runAgent", () => {
   it("falls back to the base runner tools when active connection lookup fails", async () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
     mockGetActiveConnections.mockRejectedValue(new Error("connections unavailable"));
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await runAgent(validPayload, "mock-supabase-client" as never);
 
@@ -786,6 +749,8 @@ describe("runAgent", () => {
         }),
       }),
     );
+
+    consoleSpy.mockRestore();
   });
 
   it("persists the inbound user input to conversation_messages before streaming", async () => {
@@ -1235,6 +1200,11 @@ describe("runAgent", () => {
       properties: {
         run_id: "run-1",
         thread_id: validPayload.threadId,
+        trigger_type: "chat",
+        run_type: "chat",
+        duration_ms: expect.any(Number),
+        error_stage: "startup",
+        error_name: "Error",
         error: "Model API error",
       },
     });
@@ -1285,6 +1255,11 @@ describe("runAgent", () => {
       properties: {
         run_id: "run-1",
         thread_id: validPayload.threadId,
+        trigger_type: "chat",
+        run_type: "chat",
+        duration_ms: expect.any(Number),
+        error_stage: "stream",
+        error_name: "Error",
         error: "Tool execution failed",
       },
     });

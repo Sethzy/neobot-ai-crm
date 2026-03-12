@@ -13,6 +13,7 @@ import {
 } from "@/lib/crm/config";
 import { crmTaskStatusValues } from "@/lib/crm/schemas";
 import type { Database, JsonObject } from "@/types/database";
+import { captureServerEvent } from "@/lib/analytics/posthog-server";
 
 import { mergeCustomFields } from "./custom-fields";
 import { buildSearchExpression, DEFAULT_CRM_RESULT_LIMIT, flexibleTimestampSchema, normalizeDateString } from "./filter-utils";
@@ -125,6 +126,15 @@ export function createTaskTools(
       if (error) {
         return { success: false as const, error: error.message };
       }
+
+      await captureServerEvent({
+        distinctId: clientId,
+        event: "crm_record_created",
+        properties: {
+          entity_type: "task",
+          source: "agent",
+        },
+      });
 
       return {
         success: true as const,

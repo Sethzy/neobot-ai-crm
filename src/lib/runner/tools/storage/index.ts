@@ -7,7 +7,12 @@ import sharp from "sharp";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
+import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { getFileExtension } from "@/lib/file-utils";
+import {
+  MEMORY_TOPIC_PREFIX,
+  ROOT_MEMORY_FILE_SET,
+} from "@/lib/memory/constants";
 import { createAgentFileClient, normalizeWorkspacePath } from "@/lib/storage/agent-files";
 import { toModelPath, toStoragePath } from "@/lib/storage/agent-paths";
 import { getSystemSkillContent, isSystemSkillPath } from "@/lib/runner/skills/system-skills";
@@ -178,6 +183,13 @@ export function createStorageTools(
             supabase,
             clientId,
           });
+          await captureMemoryWriteEvent({
+            clientId,
+            operation: op,
+            path: normalizedPath,
+            content,
+            source: "agent",
+          });
           return { success: true as const, op, path: modelPath, path_kind: pathKind };
         }
 
@@ -199,6 +211,13 @@ export function createStorageTools(
             content: updatedContent,
             supabase,
             clientId,
+          });
+          await captureMemoryWriteEvent({
+            clientId,
+            operation: op,
+            path: normalizedPath,
+            content: updatedContent,
+            source: "agent",
           });
           return {
             success: true as const,
@@ -433,6 +452,33 @@ function classifyStoragePath(path: string): StoragePathKind {
   }
 
   return "general";
+}
+
+function isMemoryFilePath(path: string): boolean {
+  return ROOT_MEMORY_FILE_SET.has(path) || path.startsWith(MEMORY_TOPIC_PREFIX);
+}
+
+async function captureMemoryWriteEvent(params: {
+  clientId: string;
+  operation: "write" | "edit";
+  path: string;
+  content: string;
+  source: "agent" | "dashboard";
+}): Promise<void> {
+  if (!isMemoryFilePath(params.path)) {
+    return;
+  }
+
+  await captureServerEvent({
+    distinctId: params.clientId,
+    event: "memory_file_saved",
+    properties: {
+      filename: params.path,
+      operation: params.operation,
+      size_bytes: new TextEncoder().encode(params.content).byteLength,
+      source: params.source,
+    },
+  });
 }
 
 async function runPathAwareSync(params: {

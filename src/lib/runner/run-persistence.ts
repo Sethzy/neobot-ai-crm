@@ -8,6 +8,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createApprovalEvent } from "@/lib/approvals/queries";
+import { captureServerEvents } from "@/lib/analytics/posthog-server";
 import { createMessages } from "@/lib/chat/messages";
 import { maybeCompactThread } from "@/lib/runner/compaction";
 import { drainAndContinue } from "@/lib/runner/drain-and-continue";
@@ -38,6 +39,7 @@ export interface FinalizeRunInput {
   threadId: string;
   runId: string;
   modelId: string;
+  triggerType?: "chat" | "webhook" | "cron" | "pulse";
   steps: ReadonlyArray<StepLike>;
   text: string;
   totalUsage: { inputTokens?: number; outputTokens?: number };
@@ -85,6 +87,7 @@ export async function finalizeRun({
   threadId,
   runId,
   modelId,
+  triggerType,
   steps,
   text,
   totalUsage,
@@ -184,6 +187,20 @@ export async function finalizeRun({
       await completeRun(supabase, { ...baseRunCompletion, status: "partial" });
       return;
     }
+
+    await captureServerEvents(
+      approvalRequests.map((request) => ({
+        distinctId: clientId,
+        event: "approval_requested",
+        properties: {
+          approval_id: request.approvalId,
+          run_id: runId,
+          thread_id: threadId,
+          tool_name: request.toolName,
+          ...(triggerType ? { trigger_type: triggerType } : {}),
+        },
+      })),
+    );
   }
 
   await completeRun(supabase, { ...baseRunCompletion, status: "completed" });

@@ -12,6 +12,10 @@ import {
   type CrmVocabConfig,
 } from "@/lib/crm/config";
 import type { Database, JsonObject } from "@/types/database";
+import {
+  captureServerEvent,
+  captureServerEvents,
+} from "@/lib/analytics/posthog-server";
 
 import { mergeCustomFields } from "./custom-fields";
 import { buildIlikePattern, buildSearchExpression, DEFAULT_CRM_RESULT_LIMIT } from "./filter-utils";
@@ -155,6 +159,15 @@ export function createDealTools(
         return { success: false as const, error: error.message };
       }
 
+      await captureServerEvent({
+        distinctId: clientId,
+        event: "crm_record_created",
+        properties: {
+          entity_type: "deal",
+          source: "agent",
+        },
+      });
+
       return {
         success: true as const,
         deal: data,
@@ -177,6 +190,25 @@ export function createDealTools(
         .describe(`Partial custom field patch for ${config.deal_label.toLowerCase()}s.`),
     }),
     execute: async ({ deal_id, ...fields }) => {
+      let previousStage: string | null = null;
+      let previousPrice: number | null = null;
+
+      if (fields.stage) {
+        const { data: existingDeal, error: existingDealError } = await supabase
+          .from("deals")
+          .select("stage, price")
+          .eq("deal_id", deal_id)
+          .eq("client_id", clientId)
+          .maybeSingle();
+
+        if (existingDealError) {
+          return { success: false as const, error: existingDealError.message };
+        }
+
+        previousStage = existingDeal?.stage ?? null;
+        previousPrice = existingDeal?.price ?? null;
+      }
+
       const updates = Object.fromEntries(
         Object.entries(fields).filter(([, value]) => value !== undefined),
       ) as DealUpdate;
@@ -204,6 +236,21 @@ export function createDealTools(
 
       if (error) {
         return { success: false as const, error: error.message };
+      }
+
+      if (fields.stage && previousStage && previousStage !== data.stage) {
+        await captureServerEvent({
+          distinctId: clientId,
+          event: "deal_stage_changed",
+          properties: {
+            from_stage: previousStage,
+            to_stage: data.stage,
+            deal_value:
+              typeof data.price === "number"
+                ? data.price
+                : previousPrice,
+          },
+        });
       }
 
       return {
@@ -254,6 +301,17 @@ export function createDealTools(
       }
 
       const created = data ?? [];
+
+      await captureServerEvents(
+        created.map(() => ({
+          distinctId: clientId,
+          event: "crm_record_created",
+          properties: {
+            entity_type: "deal",
+            source: "agent",
+          },
+        })),
+      );
 
       return {
         success: true as const,
