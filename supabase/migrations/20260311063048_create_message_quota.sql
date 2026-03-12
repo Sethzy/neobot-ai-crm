@@ -38,6 +38,7 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+#variable_conflict use_column
 DECLARE
   v_period_start date := date_trunc('month', timezone('Asia/Singapore', now()))::date;
   v_next_reset_date date :=
@@ -77,6 +78,9 @@ BEGIN
   WHERE usage.client_id = p_client_id
     AND usage.period_start = v_period_start;
 
+  -- Guard against NULL when no usage row exists yet.
+  v_messages_used := COALESCE(v_messages_used, 0);
+
   RETURN QUERY
   SELECT
     p_client_id,
@@ -106,6 +110,7 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+#variable_conflict use_column
 DECLARE
   v_period_start date := date_trunc('month', timezone('Asia/Singapore', now()))::date;
   v_next_reset_date date :=
@@ -194,8 +199,41 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.release_message_quota(
+  p_client_id UUID,
+  p_period_start date
+)
+RETURNS TABLE (
+  released boolean
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF auth.role() <> 'service_role'
+     AND p_client_id <> public.get_my_client_id() THEN
+    RAISE EXCEPTION 'Not authorized to release this client''s message quota.';
+  END IF;
+
+  UPDATE public.client_message_usage_monthly AS usage
+  SET
+    messages_used = usage.messages_used - 1,
+    updated_at = now()
+  WHERE usage.client_id = p_client_id
+    AND usage.period_start = p_period_start
+    AND usage.messages_used > 0;
+
+  RETURN QUERY
+  SELECT FOUND;
+END;
+$$;
+
 REVOKE ALL ON FUNCTION public.get_message_quota_status(UUID) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_message_quota_status(UUID) TO authenticated, service_role;
 
 REVOKE ALL ON FUNCTION public.consume_message_quota(UUID) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.consume_message_quota(UUID) TO authenticated, service_role;
+
+REVOKE ALL ON FUNCTION public.release_message_quota(UUID, date) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.release_message_quota(UUID, date) TO authenticated, service_role;

@@ -31,6 +31,10 @@ interface ConsumeMessageQuotaRow extends MessageQuotaStatusRow {
   allowed: boolean;
 }
 
+interface ReleaseMessageQuotaRow {
+  released: boolean;
+}
+
 export interface MessageQuotaStatus {
   clientId: string;
   planName: BillingPlanName;
@@ -135,6 +139,32 @@ export async function consumeMessageQuota(
   return mapConsumedQuotaRow(
     extractSingleQuotaRow(data as ConsumeMessageQuotaRow[] | null),
   );
+}
+
+export async function releaseMessageQuota(
+  supabase: QuotaSupabaseClient,
+  clientId: string,
+  periodStart: string,
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc("release_message_quota", {
+    p_client_id: clientId,
+    p_period_start: periodStart,
+  });
+
+  if (error) {
+    throw new MessageQuotaError(messageQuotaErrorCodes.loadFailed, error.message);
+  }
+
+  const row = (data as ReleaseMessageQuotaRow[] | null)?.[0];
+
+  if (!row) {
+    throw new MessageQuotaError(
+      messageQuotaErrorCodes.loadFailed,
+      "Message quota state is unavailable.",
+    );
+  }
+
+  return row.released;
 }
 
 export function formatMessageQuotaResetDate(nextResetDate: string): string {

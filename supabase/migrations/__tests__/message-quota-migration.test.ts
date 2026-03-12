@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 
 const migrationPath = join(
   process.cwd(),
-  "supabase/migrations/20260311010000_create_message_quota.sql",
+  "supabase/migrations/20260311063048_create_message_quota.sql",
 );
 
 function readMigrationSql() {
@@ -34,6 +34,7 @@ describe("PR38c message quota migration", () => {
 
     expect(sql).toContain("CREATE OR REPLACE FUNCTION public.get_message_quota_status(");
     expect(sql).toContain("CREATE OR REPLACE FUNCTION public.consume_message_quota(");
+    expect(sql).toContain("CREATE OR REPLACE FUNCTION public.release_message_quota(");
     expect(sql).toContain("timezone('Asia/Singapore', now())");
     expect(sql).toContain("WHEN 'Pro' THEN 500");
     expect(sql).toContain("WHEN 'Max' THEN 2000");
@@ -48,5 +49,6 @@ describe("PR38c message quota migration", () => {
     expect(sql).toContain("p_client_id <> public.get_my_client_id()");
     expect(sql).toContain("GRANT EXECUTE ON FUNCTION public.get_message_quota_status(UUID) TO authenticated, service_role;");
     expect(sql).toContain("GRANT EXECUTE ON FUNCTION public.consume_message_quota(UUID) TO authenticated, service_role;");
+    expect(sql).toContain("GRANT EXECUTE ON FUNCTION public.release_message_quota(UUID, date) TO authenticated, service_role;");
   });
 });

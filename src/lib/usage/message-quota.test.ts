@@ -11,6 +11,7 @@ import {
   formatMessageQuotaResetDate,
   getMessageQuotaStatus,
   messageQuotaErrorCodes,
+  releaseMessageQuota,
 } from "./message-quota";
 
 describe("message quota helpers", () => {
@@ -80,6 +81,21 @@ describe("message quota helpers", () => {
 
   it("formats the reset date for Singapore-facing UI copy", () => {
     expect(formatMessageQuotaResetDate("2026-04-01")).toBe("1 Apr 2026");
+  });
+
+  it("releases one consumed message quota unit through the dedicated rpc", async () => {
+    const supabase = createMockSupabaseClient({
+      rpcResults: {
+        release_message_quota: {
+          data: [{ released: true }],
+          error: null,
+        },
+      },
+    });
+
+    await expect(
+      releaseMessageQuota(supabase as never, "client-1", "2026-03-01"),
+    ).resolves.toBe(true);
   });
 
   it("throws a structured error when the quota rpc fails", async () => {
