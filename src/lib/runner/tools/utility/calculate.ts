@@ -103,37 +103,43 @@ function validateExpression(expression: string) {
   let nodeCount = 0;
 
   node.traverse((currentNode) => {
+    const typedNode = currentNode as {
+      type: string;
+      op?: string;
+      fn?: { type?: string; name?: string };
+    };
+
     nodeCount += 1;
 
     if (nodeCount > MAX_NODE_COUNT) {
       throw new Error(`Expression is too complex. Limit is ${MAX_NODE_COUNT} syntax nodes.`);
     }
 
-    switch (currentNode.type) {
+    switch (typedNode.type) {
       case "ConstantNode":
       case "ParenthesisNode":
       case "SymbolNode":
         return;
       case "OperatorNode":
-        if (!ALLOWED_OPERATOR_NAMES.has(currentNode.op)) {
-          throw new Error(`Operator ${currentNode.op} is not allowed`);
+        if (!typedNode.op || !ALLOWED_OPERATOR_NAMES.has(typedNode.op)) {
+          throw new Error(`Operator ${typedNode.op ?? "unknown"} is not allowed`);
         }
         return;
       case "FunctionNode":
-        if (currentNode.fn.type !== "SymbolNode") {
+        if (typedNode.fn?.type !== "SymbolNode" || !typedNode.fn.name) {
           throw new Error("Only named functions are allowed");
         }
 
-        if (DISABLED_FUNCTION_NAMES.has(currentNode.fn.name)) {
-          throw new Error(`Function ${currentNode.fn.name} is disabled`);
+        if (DISABLED_FUNCTION_NAMES.has(typedNode.fn.name)) {
+          throw new Error(`Function ${typedNode.fn.name} is disabled`);
         }
 
-        if (!ALLOWED_FUNCTION_NAMES.has(currentNode.fn.name)) {
-          throw new Error(`Function ${currentNode.fn.name} is not allowed`);
+        if (!ALLOWED_FUNCTION_NAMES.has(typedNode.fn.name)) {
+          throw new Error(`Function ${typedNode.fn.name} is not allowed`);
         }
         return;
       default:
-        throw new Error(`${currentNode.type} is not allowed in calculate expressions`);
+        throw new Error(`${typedNode.type} is not allowed in calculate expressions`);
     }
   });
 }
