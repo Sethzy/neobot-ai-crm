@@ -152,7 +152,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
           );
         })}
 
-        {askQuestionParts.length > 0 &&
+        {!isStreaming && askQuestionParts.length > 0 &&
           askQuestionParts.map((part, i) => {
             const output = (part as { output?: { questions?: AskUserQuestion[] } }).output;
             if (!output?.questions) return null;
