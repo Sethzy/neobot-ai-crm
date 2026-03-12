@@ -229,6 +229,38 @@ describe("ChatPanel", () => {
     expect(result.body.message).toBeUndefined();
   });
 
+  it("prepareSendMessagesRequest does not treat historical approvals as a continuation", () => {
+    render(<ChatPanel chatId="thread-1" />);
+
+    const options = mockTransportConstructor.mock.calls[0][0] as {
+      prepareSendMessagesRequest: (payload: { id: string; messages: UIMessage[] }) => {
+        body: Record<string, unknown>;
+      };
+    };
+
+    const result = options.prepareSendMessagesRequest({
+      id: "thread-1",
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [{ type: "tool-write_file", state: "approval-responded", approval: { approved: true } }],
+        } as UIMessage,
+        { id: "u1", role: "user", parts: [{ type: "text", text: "Approved earlier" }] } as UIMessage,
+        { id: "a2", role: "assistant", parts: [{ type: "text", text: "Done." }] } as UIMessage,
+        { id: "u2", role: "user", parts: [{ type: "text", text: "New request" }] } as UIMessage,
+      ],
+    });
+
+    expect(result.body.id).toBe("thread-1");
+    expect(result.body.message).toEqual({
+      id: "u2",
+      role: "user",
+      parts: [{ type: "text", text: "New request" }],
+    });
+    expect(result.body.messages).toBeUndefined();
+  });
+
   it("appends incoming stream data parts to data stream context", () => {
     render(<ChatPanel chatId="thread-1" />);
 
@@ -343,6 +375,39 @@ describe("ChatPanel", () => {
 
     expect(screen.getByText("Monthly message limit reached.")).toBeInTheDocument();
     expect(screen.queryByText(/"message-quota-exceeded"/i)).not.toBeInTheDocument();
+  });
+
+  it("rolls back optimistic draft navigation when a new-thread send is rejected for quota exhaustion", async () => {
+    const user = userEvent.setup();
+    sendMessage.mockRejectedValueOnce(
+      new Error(
+        JSON.stringify({
+          error: "Monthly message limit reached.",
+          code: "message-quota-exceeded",
+        }),
+      ),
+    );
+    window.history.replaceState({}, "", "/chat");
+
+    render(<ChatPanel chatId="thread-1" />);
+
+    await user.type(screen.getByPlaceholderText(/describe a task/i), "Need help");
+    await user.click(screen.getByRole("button", { name: /submit/i }));
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith({ text: "Need help" });
+    });
+
+    expect(window.location.pathname).toBe("/chat");
+    expect(mockSetQueriesData).toHaveBeenCalledTimes(2);
+
+    const removalUpdater = mockSetQueriesData.mock.calls[1]?.[1] as (
+      old: Array<Record<string, unknown>> | undefined,
+    ) => Array<Record<string, unknown>> | undefined;
+    expect(removalUpdater([
+      { thread_id: "thread-1", title: null },
+      { thread_id: "thread-2", title: "Existing" },
+    ])).toEqual([{ thread_id: "thread-2", title: "Existing" }]);
   });
 
   it("keeps the stop button enabled while streaming", async () => {

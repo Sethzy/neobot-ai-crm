@@ -9,10 +9,15 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
 } from "react";
+import posthog from "posthog-js";
 
 import { useClientId } from "@/hooks/use-client-id";
+import { buildAnalyticsContext } from "@/lib/analytics/posthog-context";
+import { consumePendingPostHogAuthEvent } from "@/lib/analytics/posthog-auth-events";
+import { supabase } from "@/lib/supabase";
 import {
   useArchiveThread,
   useCreateThread,
@@ -40,6 +45,85 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
   } = useCreateThread(clientId);
   const { mutate: updateThreadTitleMutate } = useUpdateThreadTitle(clientId);
   const { mutateAsync: archiveThreadMutateAsync } = useArchiveThread(clientId);
+
+  useEffect(() => {
+    if (!clientId) {
+      return;
+    }
+    const resolvedClientId = clientId;
+
+    const hasSupabaseEnv = Boolean(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
+    ) && Boolean(
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY,
+    );
+
+    if (!hasSupabaseEnv) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    async function syncPostHogIdentity() {
+      try {
+        const [
+          {
+            data: { user },
+            error: authError,
+          },
+          { data: clientProfile, error: clientError },
+        ] = await Promise.all([
+          supabase.auth.getUser(),
+          supabase
+            .from("clients")
+            .select("plan_name, subscription_status")
+            .eq("client_id", resolvedClientId)
+            .maybeSingle(),
+        ]);
+
+        if (isCancelled || authError || clientError || !user) {
+          return;
+        }
+
+        const analyticsContext = buildAnalyticsContext({
+          email: user.email,
+        });
+
+        posthog.identify(resolvedClientId, {
+          email: user.email,
+          name:
+            (typeof user.user_metadata?.display_name === "string"
+              ? user.user_metadata.display_name
+              : null) ||
+            (typeof user.user_metadata?.full_name === "string"
+              ? user.user_metadata.full_name
+              : null),
+          plan_name: clientProfile?.plan_name,
+          subscription_status: clientProfile?.subscription_status,
+          ...analyticsContext,
+        });
+        posthog.register(analyticsContext);
+
+        const pendingAuthEvent = consumePendingPostHogAuthEvent();
+        if (pendingAuthEvent) {
+          posthog.capture(pendingAuthEvent.event, {
+            method: pendingAuthEvent.method,
+            ...analyticsContext,
+          });
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          console.error("[analytics] Failed to sync PostHog identity.", error);
+        }
+      }
+    }
+
+    void syncPostHogIdentity();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [clientId]);
 
   const threads = useMemo<Thread[]>(
     () =>

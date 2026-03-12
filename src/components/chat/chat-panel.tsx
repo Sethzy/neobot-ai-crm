@@ -13,7 +13,10 @@ import { useCallback, useMemo, useState } from "react";
 import { useAutoResume } from "@/hooks/use-auto-resume";
 import { messageQuotaKeys, useMessageQuota } from "@/hooks/use-message-quota";
 import { threadKeys } from "@/hooks/use-threads";
-import type { MessageQuotaStatus } from "@/lib/usage/message-quota";
+import {
+  type MessageQuotaStatus,
+  messageQuotaErrorCodes,
+} from "@/lib/usage/message-quota";
 import { ChatComposer } from "./chat-composer";
 import { ChatWelcome } from "./chat-welcome";
 import { useDataStream } from "./data-stream-provider";
@@ -43,21 +46,50 @@ interface ChatPanelProps {
   initialPrompt?: string;
 }
 
-function getChatErrorMessage(error: Error | undefined): string | null {
+interface ParsedChatError {
+  code: string | null;
+  message: string;
+}
+
+function parseChatError(error: Error | undefined): ParsedChatError | null {
   if (!error) {
     return null;
   }
 
   try {
-    const parsed = JSON.parse(error.message) as { error?: unknown };
+    const parsed = JSON.parse(error.message) as { code?: unknown; error?: unknown };
     if (typeof parsed.error === "string" && parsed.error.trim().length > 0) {
-      return parsed.error;
+      return {
+        code: typeof parsed.code === "string" ? parsed.code : null,
+        message: parsed.error,
+      };
     }
   } catch {
     // Non-JSON error payloads should fall back to the plain message.
   }
 
-  return error.message;
+  return {
+    code: null,
+    message: error.message,
+  };
+}
+
+function hasApprovalContinuationState(message: UIMessage | undefined): boolean {
+  return message?.parts?.some((part) => {
+    const state = "state" in part ? part.state : undefined;
+    return state === "approval-responded" || state === "output-denied";
+  }) ?? false;
+}
+
+function removeOptimisticDraftThread(
+  oldThreads: Array<Record<string, unknown>> | undefined,
+  chatId: string,
+): Array<Record<string, unknown>> | undefined {
+  if (!oldThreads) {
+    return oldThreads;
+  }
+
+  return oldThreads.filter((thread) => thread.thread_id !== chatId);
 }
 
 export function ChatPanel({
@@ -80,12 +112,11 @@ export function ChatPanel({
         api: "/api/chat",
         prepareSendMessagesRequest({ id, messages }) {
           const lastMessage = messages.at(-1);
-          const isToolApprovalContinuation = lastMessage?.role !== "user" || messages.some((message) =>
-            message.parts?.some((part) => {
-              const state = (part as { state?: string }).state;
-              return state === "approval-responded" || state === "output-denied";
-            })
-          );
+          const previousMessage = messages.at(-2);
+          const isToolApprovalContinuation =
+            lastMessage?.role !== "user" ||
+            hasApprovalContinuationState(lastMessage) ||
+            hasApprovalContinuationState(previousMessage);
 
           return {
             body: isToolApprovalContinuation
@@ -144,7 +175,8 @@ export function ChatPanel({
   );
 
   const isLoading = status === "submitted" || status === "streaming";
-  const errorMessage = useMemo(() => getChatErrorMessage(error), [error]);
+  const parsedError = useMemo(() => parseChatError(error), [error]);
+  const errorMessage = parsedError?.message ?? null;
 
   const handleSubmit = useCallback(
     async ({ text, files }: { text: string; files: FileUIPart[] }) => {
@@ -152,7 +184,9 @@ export function ChatPanel({
         return;
       }
 
-      if (typeof window !== "undefined" && window.location.pathname === "/chat") {
+      const isDraftThread = typeof window !== "undefined" && window.location.pathname === "/chat";
+
+      if (isDraftThread) {
         window.history.pushState({}, "", `/chat/${chatId}`);
 
         // Optimistic: make the new thread appear in the sidebar immediately
@@ -190,6 +224,22 @@ export function ChatPanel({
         }
 
         await sendMessage({ text });
+      } catch (submitError) {
+        const parsedSubmitError = submitError instanceof Error
+          ? parseChatError(submitError)
+          : null;
+
+        if (
+          isDraftThread &&
+          parsedSubmitError?.code === messageQuotaErrorCodes.limitReached &&
+          typeof window !== "undefined"
+        ) {
+          window.history.replaceState({}, "", "/chat");
+          queryClient.setQueriesData<Array<Record<string, unknown>>>(
+            { queryKey: threadKeys.all },
+            (old) => removeOptimisticDraftThread(old, chatId),
+          );
+        }
       } finally {
         refreshQuota();
       }

@@ -65,7 +65,7 @@ describe("CommandMenu", () => {
     });
   });
 
-  it("navigates to contact drawer route on contact select", async () => {
+  it("navigates to the people detail route on contact select", async () => {
     const user = userEvent.setup();
 
     render(<CommandMenu open onOpenChange={() => {}} />);
@@ -75,7 +75,20 @@ describe("CommandMenu", () => {
 
     await user.click(screen.getByText("Sarah Tan"));
 
-    expect(mockPush).toHaveBeenCalledWith("/crm/contacts?detail=c1");
+    expect(mockPush).toHaveBeenCalledWith("/customers/people/c1");
+  });
+
+  it("navigates to the deal detail route on deal select", async () => {
+    const user = userEvent.setup();
+
+    render(<CommandMenu open onOpenChange={() => {}} />);
+
+    await user.type(screen.getByRole("combobox"), "bishan");
+    await waitFor(() => expect(screen.getByText("Bishan St 22")).toBeInTheDocument());
+
+    await user.click(screen.getByText("Bishan St 22"));
+
+    expect(mockPush).toHaveBeenCalledWith("/customers/deals/d1");
   });
 
   it("navigates to thread route on thread select", async () => {

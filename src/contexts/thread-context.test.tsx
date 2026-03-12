@@ -3,7 +3,7 @@
  * @module contexts/thread-context.test
  */
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ThreadProvider, useThreads } from "./thread-context";
 
@@ -12,6 +12,12 @@ const mockUseThreadsQuery = vi.fn();
 const mockUseCreateThread = vi.fn();
 const mockUseUpdateThreadTitle = vi.fn();
 const mockUseArchiveThread = vi.fn();
+const mockPostHogIdentify = vi.fn();
+const mockPostHogRegister = vi.fn();
+const mockPostHogCapture = vi.fn();
+const mockSupabaseGetUser = vi.fn();
+const mockClientsMaybeSingle = vi.fn();
+const mockConsumePendingPostHogAuthEvent = vi.fn();
 
 vi.mock("@/hooks/use-client-id", () => ({
   useClientId: () => mockUseClientId(),
@@ -22,6 +28,33 @@ vi.mock("@/hooks/use-threads", () => ({
   useCreateThread: (...args: unknown[]) => mockUseCreateThread(...args),
   useUpdateThreadTitle: (...args: unknown[]) => mockUseUpdateThreadTitle(...args),
   useArchiveThread: (...args: unknown[]) => mockUseArchiveThread(...args),
+}));
+
+vi.mock("posthog-js", () => ({
+  default: {
+    identify: (...args: unknown[]) => mockPostHogIdentify(...args),
+    register: (...args: unknown[]) => mockPostHogRegister(...args),
+    capture: (...args: unknown[]) => mockPostHogCapture(...args),
+  },
+}));
+
+vi.mock("@/lib/supabase", () => ({
+  supabase: {
+    auth: {
+      getUser: (...args: unknown[]) => mockSupabaseGetUser(...args),
+    },
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: (...args: unknown[]) => mockClientsMaybeSingle(...args),
+        }),
+      }),
+    }),
+  },
+}));
+
+vi.mock("@/lib/analytics/posthog-auth-events", () => ({
+  consumePendingPostHogAuthEvent: () => mockConsumePendingPostHogAuthEvent(),
 }));
 
 const baseThread = {
@@ -40,6 +73,10 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe("thread context", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+    process.env.NEXT_PUBLIC_POSTHOG_ENVIRONMENT = "production";
+    process.env.NEXT_PUBLIC_POSTHOG_INTERNAL_EMAIL_DOMAINS = "sunder.com";
 
     mockUseClientId.mockReturnValue({
       data: "client-1",
@@ -64,6 +101,32 @@ describe("thread context", () => {
     mockUseArchiveThread.mockReturnValue({
       mutateAsync: vi.fn(async () => baseThread),
     });
+    mockSupabaseGetUser.mockResolvedValue({
+      data: {
+        user: {
+          email: "founder@sunder.com",
+          user_metadata: {
+            full_name: "Seth Lim",
+          },
+        },
+      },
+      error: null,
+    });
+    mockClientsMaybeSingle.mockResolvedValue({
+      data: {
+        plan_name: "Pro",
+        subscription_status: "active",
+      },
+      error: null,
+    });
+    mockConsumePendingPostHogAuthEvent.mockReturnValue(null);
+  });
+
+  afterEach(() => {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    delete process.env.NEXT_PUBLIC_POSTHOG_ENVIRONMENT;
+    delete process.env.NEXT_PUBLIC_POSTHOG_INTERNAL_EMAIL_DOMAINS;
   });
 
   it("hydrates threads from DB rows", async () => {
@@ -167,6 +230,36 @@ describe("thread context", () => {
     });
 
     expect(success).toBe(false);
+  });
+
+  it("syncs PostHog identity with environment and internal-user markers", async () => {
+    mockConsumePendingPostHogAuthEvent.mockReturnValue({
+      event: "signed_in",
+      method: "email",
+    });
+
+    renderHook(() => useThreads(), { wrapper });
+
+    await waitFor(() => {
+      expect(mockPostHogIdentify).toHaveBeenCalledWith("client-1", {
+        email: "founder@sunder.com",
+        name: "Seth Lim",
+        plan_name: "Pro",
+        subscription_status: "active",
+        environment: "production",
+        is_internal: true,
+      });
+    });
+
+    expect(mockPostHogRegister).toHaveBeenCalledWith({
+      environment: "production",
+      is_internal: true,
+    });
+    expect(mockPostHogCapture).toHaveBeenCalledWith("signed_in", {
+      method: "email",
+      environment: "production",
+      is_internal: true,
+    });
   });
 
   it("throws outside provider", () => {

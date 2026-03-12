@@ -5,7 +5,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import posthog from "posthog-js";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppIcon, type AppIconName } from "@/components/icons/app-icons";
 import {
@@ -42,8 +43,8 @@ const typeLabelMap: Record<SearchResult["type"], string> = {
 };
 
 const typeRouteMap: Record<SearchResult["type"], (id: string) => string> = {
-  contact: (id) => `/crm/contacts?detail=${id}`,
-  deal: (id) => `/crm/deals?detail=${id}`,
+  contact: (id) => `/customers/people/${id}`,
+  deal: (id) => `/customers/deals/${id}`,
   task: (id) => `/tasks?detail=${id}`,
   thread: (id) => `/chat/${id}`,
 };
@@ -58,6 +59,14 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
   const debouncedQuery = useDebouncedValue(query, 300);
   const { data: results = [], isLoading, isError } = useSearchRecords(debouncedQuery);
   const hasActiveQuery = query.trim().length >= 2;
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    posthog.capture("command_menu_opened");
+  }, [open]);
 
   const groupedResults = useMemo(() => {
     const groups = new Map<SearchResult["type"], SearchResult[]>();
