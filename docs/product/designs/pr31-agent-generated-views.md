@@ -1,5 +1,7 @@
 # PR 31: Agent-Generated Views — Design Doc
 
+> Scope note (2026-03-11): The execution scope for this feature is governed by [the v2 phasing plan](../plans/2026-03-05-implementation-phasing-plan-v2.json) and [the PR42a tasklist](../tasks/2026-03-10-agent-generated-views-tasklist.md). PR42a now includes compact snapshot charts via custom Recharts-backed panels, renders `show_view` inline from `message-bubble.tsx` with an accordion fallback, and keeps explicit non-goals: no live analytics/reporting layer, no refresh/filter controls, and no pinned/saved reports. Where this design doc's older examples differ (for example `valuePath` props or `ToolCallInline`-only rendering), the plan/tasklist win.
+
 ## Problem
 
 The user says "show me my deals pipeline" in chat and gets a text wall. They want an actual kanban board, stat cards, charts — real interactive components rendered inline in the conversation.

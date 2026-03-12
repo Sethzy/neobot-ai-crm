@@ -32,7 +32,7 @@
 |---|---|
 | `src/lib/stripe/plans.ts` | Modify: add per-plan monthly message limits + helper |
 | `src/lib/stripe/plans.test.ts` | Create: plan-limit contract tests |
-| `supabase/migrations/20260311010000_create_message_quota.sql` | Create: monthly quota table + RPCs |
+| `supabase/migrations/20260311063048_create_message_quota.sql` | Create: monthly quota table + RPCs |
 | `supabase/migrations/__tests__/message-quota-migration.test.ts` | Create: migration contract tests |
 | `src/types/database.ts` | Modify: regenerate after migration |
 | `src/lib/usage/message-quota.ts` | Create: typed RPC helpers + reset-date formatter |
@@ -169,7 +169,7 @@ git commit -m "feat(pr38c): add plan quota constants"
 ## Task 2: Add the quota table and RPCs in Supabase
 
 **Files:**
-- Create: `supabase/migrations/20260311010000_create_message_quota.sql`
+- Create: `supabase/migrations/20260311063048_create_message_quota.sql`
 - Create: `supabase/migrations/__tests__/message-quota-migration.test.ts`
 - Modify: `src/types/database.ts`
 
@@ -189,7 +189,7 @@ import { describe, expect, it } from "vitest";
 
 const migrationPath = join(
   process.cwd(),
-  "supabase/migrations/20260311010000_create_message_quota.sql",
+  "supabase/migrations/20260311063048_create_message_quota.sql",
 );
 
 function readMigrationSql() {
@@ -244,7 +244,7 @@ Expected: FAIL because the migration file does not exist yet.
 
 ### Step 3: Write the migration SQL
 
-Create `supabase/migrations/20260311010000_create_message_quota.sql` with this exact shape:
+Create `supabase/migrations/20260311063048_create_message_quota.sql` with this exact shape:
 
 ```sql
 -- PR38c: monthly message quota accounting and enforcement.
@@ -454,7 +454,7 @@ Expected: PASS
 ### Step 6: Commit
 
 ```bash
-git add supabase/migrations/20260311010000_create_message_quota.sql supabase/migrations/__tests__/message-quota-migration.test.ts src/types/database.ts
+git add supabase/migrations/20260311063048_create_message_quota.sql supabase/migrations/__tests__/message-quota-migration.test.ts src/types/database.ts
 git commit -m "feat(pr38c): add message quota migration"
 ```
 

@@ -93,7 +93,7 @@ This is intentionally the smallest shape that supports gating, settings UI, and 
 
 Migration:
 
-- `supabase/migrations/20260311010000_create_message_quota.sql`
+- `supabase/migrations/20260311063048_create_message_quota.sql`
 
 Data model:
 

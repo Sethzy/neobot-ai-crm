@@ -38,7 +38,7 @@
 - `app/(dashboard)/pricing/page.tsx`
 - `app/(dashboard)/pricing/submit-button.tsx`
 - `app/(dashboard)/settings/page.tsx`
-- `supabase/migrations/20260311010000_create_message_quota.sql`
+- `supabase/migrations/20260311063048_create_message_quota.sql`
 - `src/lib/usage/message-quota.ts`
 - `src/lib/usage/message-quota-server.ts`
 - `src/hooks/use-message-quota.ts`
