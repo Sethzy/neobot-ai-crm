@@ -181,7 +181,7 @@
 
 /* Landing Page Specific Scoped Theme */
 .landing-page {
-  --background: #F7F4ED;
+  --background: #F5EEE1;
   --foreground: var(--color-lp-dark);
   --card: theme('colors.white');
   --card-foreground: var(--color-lp-dark);
@@ -204,12 +204,7 @@
   /* --color-sunder-green: #024F46; */
   /* --color-sunder-green-light: #40916C; */
   /* --color-sunder-green-dark: #1B4332; */
-  font-family: var(--font-geist-sans), var(--font-figtree), sans-serif;
-}
-
-.landing-page .font-serif {
-  font-family: var(--font-geist-sans), var(--font-figtree), sans-serif;
-  font-variation-settings: normal;
+  font-family: var(--font-figtree), sans-serif;
 }
 
 .landing-page .grid-pattern {

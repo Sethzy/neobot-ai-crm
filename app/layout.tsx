@@ -1,19 +1,25 @@
 import type { Metadata } from "next";
-import { Figtree, Fraunces } from "next/font/google";
+import localFont from "next/font/local";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Toaster } from "sonner";
 import { Providers } from "./providers";
 import "./globals.css";
 
-const figtree = Figtree({
-  subsets: ["latin"],
+const figtree = localFont({
+  src: [
+    { path: "../public/fonts/figtree-latin-wght-normal.woff2", style: "normal" },
+    { path: "../public/fonts/figtree-latin-wght-italic.woff2", style: "italic" },
+  ],
   variable: "--font-figtree",
   display: "swap",
 });
 
-const fraunces = Fraunces({
-  subsets: ["latin"],
+const fraunces = localFont({
+  src: [
+    { path: "../public/fonts/fraunces-latin-full-normal.woff2", style: "normal" },
+    { path: "../public/fonts/fraunces-latin-full-italic.woff2", style: "italic" },
+  ],
   variable: "--font-fraunces",
   display: "swap",
 });

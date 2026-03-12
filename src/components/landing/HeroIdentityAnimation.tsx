@@ -45,21 +45,30 @@ const SLOT_IDS: SlotId[] = ['left', 'middle', 'right']
 /**
  * Delay between each sequence step. Step 0 is the empty lane.
  */
-export const HERO_IDENTITY_STEP_DELAYS_MS = [260, 210, 210, 280, 280, 280] as const
+export const HERO_IDENTITY_STEP_DELAYS_MS = [0, 450, 300, 1000, 450, 400] as const
 
 const SLOT_MOUNT_TRANSITION = {
-  duration: 0.2,
-  ease: [0.22, 1, 0.36, 1] as const,
+  duration: 0.35,
+  ease: [0.25, 0.46, 0.45, 0.94] as const,
 }
 
 const SLOT_POSITION_TRANSITION = {
   type: 'spring' as const,
-  stiffness: 280,
-  damping: 26,
-  mass: 0.82,
+  stiffness: 160,
+  damping: 24,
+  mass: 1.0,
+}
+
+/** Underdamped spring for per-letter bounce entrance (pop up from below → overshoot → settle). */
+const LETTER_BOUNCE_TRANSITION = {
+  type: 'spring' as const,
+  stiffness: 220,
+  damping: 14,
+  mass: 0.7,
 }
 
 const SEQUENCE: SequenceFrame[] = [
+  // Frame 0: empty
   {
     left: null,
     middle: null,
@@ -67,6 +76,7 @@ const SEQUENCE: SequenceFrame[] = [
     glowOpacity: 0.12,
     glowScale: 0.88,
   },
+  // Frame 1: first avatar appears
   {
     left: null,
     middle: null,
@@ -80,30 +90,32 @@ const SEQUENCE: SequenceFrame[] = [
     glowOpacity: 0.18,
     glowScale: 0.92,
   },
+  // Frame 2: second token joins
   {
     left: null,
     middle: {
       kind: 'token',
       value: 'ai-blue',
-      x: -30,
+      x: -40,
       zIndex: 2,
       key: 'ai-blue',
     },
     right: {
       kind: 'token',
       value: 'avatar',
-      x: 30,
+      x: 40,
       zIndex: 1,
       key: 'avatar',
     },
     glowOpacity: 0.24,
     glowScale: 0.97,
   },
+  // Frame 3: all three tokens at rest (linger here)
   {
     left: {
       kind: 'token',
       value: 'ai-green',
-      x: -60,
+      x: -80,
       zIndex: 3,
       key: 'ai-green',
     },
@@ -117,18 +129,19 @@ const SEQUENCE: SequenceFrame[] = [
     right: {
       kind: 'token',
       value: 'avatar',
-      x: 60,
+      x: 80,
       zIndex: 1,
       key: 'avatar',
     },
     glowOpacity: 0.32,
     glowScale: 1,
   },
+  // Frame 4: E crystallizes (center-out, middle first)
   {
     left: {
       kind: 'token',
       value: 'ai-green',
-      x: -70,
+      x: -95,
       zIndex: 1,
       key: 'ai-green',
     },
@@ -142,18 +155,19 @@ const SEQUENCE: SequenceFrame[] = [
     right: {
       kind: 'token',
       value: 'avatar',
-      x: 70,
+      x: 95,
       zIndex: 2,
       key: 'avatar',
     },
     glowOpacity: 0.4,
     glowScale: 1.04,
   },
+  // Frame 5: O crystallizes
   {
     left: {
       kind: 'token',
       value: 'ai-green',
-      x: -78,
+      x: -105,
       zIndex: 1,
       key: 'ai-green',
     },
@@ -167,18 +181,19 @@ const SEQUENCE: SequenceFrame[] = [
     right: {
       kind: 'letter',
       value: 'O',
-      x: 76,
+      x: 100,
       zIndex: 4,
       key: 'O',
     },
     glowOpacity: 0.5,
     glowScale: 1.08,
   },
+  // Frame 6: N crystallizes — final NEO
   {
     left: {
       kind: 'letter',
       value: 'N',
-      x: -86,
+      x: -110,
       zIndex: 4,
       key: 'N',
     },
@@ -192,7 +207,7 @@ const SEQUENCE: SequenceFrame[] = [
     right: {
       kind: 'letter',
       value: 'O',
-      x: 82,
+      x: 108,
       zIndex: 2,
       key: 'O',
     },
@@ -215,11 +230,11 @@ function HeroLetter({ value }: { value: LetterKind }) {
     <span
       className="font-sans uppercase text-lp-dark"
       style={{
-        fontSize: 'clamp(3rem, 5vw, 4.5rem)',
+        fontSize: 'clamp(4rem, 8vw, 7rem)',
         fontWeight: 900,
         lineHeight: 0.88,
-        letterSpacing: '-0.08em',
-        textShadow: '0 14px 28px rgba(26, 26, 26, 0.08)',
+        letterSpacing: '-0.06em',
+        textShadow: '0 12px 24px rgba(26, 26, 26, 0.06)',
       }}
     >
       {value}
@@ -233,7 +248,7 @@ function AvatarToken({
   image: StaticImageData
 }) {
   return (
-    <div className="relative h-14 w-14 overflow-hidden rounded-full border-[3px] border-white bg-[#D8C3A5] shadow-[0_12px_30px_rgba(32,24,18,0.14)] sm:h-[3.9rem] sm:w-[3.9rem]">
+    <div className="relative aspect-square h-16 w-16 shrink-0 overflow-hidden rounded-full border-[3px] border-white bg-[#D8C3A5] shadow-[0_10px_24px_rgba(32,24,18,0.13)] sm:h-[4.5rem] sm:w-[4.5rem]">
       <Image
         src={image}
         alt=""
@@ -262,7 +277,7 @@ function AiToken({
 
   return (
     <div
-      className="flex h-14 w-14 items-center justify-center rounded-full border-[3px] border-white sm:h-[3.9rem] sm:w-[3.9rem]"
+      className="flex aspect-square h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] border-white sm:h-[4.5rem] sm:w-[4.5rem]"
       style={{
         background: palette.background,
         boxShadow: palette.shadow,
@@ -335,18 +350,18 @@ export function HeroIdentityAnimation({
       aria-hidden="true"
       data-testid="hero-identity-animation"
       data-sequence-step={shouldReduceMotion ? 'reduced' : String(stepIndex)}
-      className={`pointer-events-none relative flex min-h-[90px] items-center justify-center sm:min-h-[112px] ${className ?? ''}`}
+      className={`pointer-events-none relative flex min-h-[100px] items-center justify-center sm:min-h-[130px] ${className ?? ''}`}
     >
       <motion.div
-        className="absolute h-20 w-56 rounded-full sm:h-24 sm:w-72"
+        className="absolute h-24 w-64 rounded-full sm:h-28 sm:w-80"
         initial={false}
         animate={{
           opacity: activeFrame.glowOpacity,
           scale: activeFrame.glowScale,
         }}
         transition={{
-          duration: 0.45,
-          ease: [0.22, 1, 0.36, 1],
+          duration: 0.6,
+          ease: [0.25, 0.46, 0.45, 0.94],
         }}
         style={{
           background:
@@ -360,18 +375,18 @@ export function HeroIdentityAnimation({
           <span
             className="font-sans uppercase text-lp-dark"
             style={{
-              fontSize: 'clamp(3rem, 5vw, 4.5rem)',
+              fontSize: 'clamp(4rem, 8vw, 7rem)',
               fontWeight: 900,
               lineHeight: 0.88,
-              letterSpacing: '-0.08em',
-              textShadow: '0 14px 28px rgba(26, 26, 26, 0.08)',
+              letterSpacing: '-0.06em',
+              textShadow: '0 12px 24px rgba(26, 26, 26, 0.06)',
             }}
           >
             NEO
           </span>
         </div>
       ) : (
-        <div className="relative h-[84px] w-[280px] sm:h-[100px] sm:w-[340px]">
+        <div className="relative h-[100px] w-[340px] sm:h-[130px] sm:w-[440px]">
           {SLOT_IDS.map((slotId) => {
             const slotVisual = activeFrame[slotId]
 
@@ -397,15 +412,23 @@ export function HeroIdentityAnimation({
                     scale: SLOT_MOUNT_TRANSITION,
                   }}
                 >
-                  <div className="relative flex h-[84px] w-[92px] items-center justify-center sm:h-[96px] sm:w-[104px]">
+                  <div className="relative flex h-[100px] w-[110px] items-center justify-center sm:h-[130px] sm:w-[140px]">
                     <AnimatePresence initial={false} mode="sync">
                       {slotVisual ? (
                         <motion.div
                           key={slotVisual.key}
-                          initial={{ opacity: 0, scale: 0.82, y: 8, filter: 'blur(10px)' }}
-                          animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
-                          exit={{ opacity: 0, scale: 0.82, y: -6, filter: 'blur(10px)' }}
-                          transition={SLOT_MOUNT_TRANSITION}
+                          initial={
+                            slotVisual.kind === 'letter'
+                              ? { opacity: 0, scale: 0.85, y: 24 }
+                              : { opacity: 0, scale: 0.88, y: 5 }
+                          }
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.96, y: -3 }}
+                          transition={
+                            slotVisual.kind === 'letter'
+                              ? { ...SLOT_MOUNT_TRANSITION, y: LETTER_BOUNCE_TRANSITION }
+                              : SLOT_MOUNT_TRANSITION
+                          }
                           className="absolute inset-0 flex items-center justify-center"
                         >
                           <SlotVisualContent slotVisual={slotVisual} />
