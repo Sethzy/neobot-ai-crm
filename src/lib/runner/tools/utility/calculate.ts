@@ -29,6 +29,16 @@ const ALLOWED_FUNCTION_NAMES = new Set([
 ]);
 
 const ALLOWED_OPERATOR_NAMES = new Set(["+", "-", "*", "/", "^", "to"]);
+const DISABLED_FUNCTION_NAMES = new Set([
+  "createUnit",
+  "derivative",
+  "evaluate",
+  "import",
+  "parse",
+  "resolve",
+  "reviver",
+  "simplify",
+]);
 
 /**
  * Creates a hardened math.js instance with dangerous functions disabled.
@@ -112,6 +122,10 @@ function validateExpression(expression: string) {
       case "FunctionNode":
         if (currentNode.fn.type !== "SymbolNode") {
           throw new Error("Only named functions are allowed");
+        }
+
+        if (DISABLED_FUNCTION_NAMES.has(currentNode.fn.name)) {
+          throw new Error(`Function ${currentNode.fn.name} is disabled`);
         }
 
         if (!ALLOWED_FUNCTION_NAMES.has(currentNode.fn.name)) {
