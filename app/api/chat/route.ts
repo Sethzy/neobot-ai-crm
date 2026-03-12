@@ -7,6 +7,7 @@ import { createUIMessageStream, createUIMessageStreamResponse, generateId } from
 import { after } from "next/server";
 import { createResumableStreamContext } from "resumable-stream";
 
+import { langfuseSpanProcessor } from "@/instrumentation";
 import {
   captureServerEvent,
   captureServerEvents,
@@ -315,6 +316,8 @@ export async function POST(request: Request): Promise<Response> {
         }
       },
     });
+
+    after(async () => langfuseSpanProcessor.forceFlush());
 
     return createUIMessageStreamResponse({
       stream,

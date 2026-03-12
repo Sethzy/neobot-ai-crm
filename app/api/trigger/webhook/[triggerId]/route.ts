@@ -5,6 +5,7 @@
 import { after } from "next/server";
 import { z } from "zod";
 
+import { langfuseSpanProcessor } from "@/instrumentation";
 import { createAdminClient } from "@/lib/supabase/server";
 import { executeTrigger } from "@/lib/triggers/executor";
 import type { TriggerSupabaseClient } from "@/lib/triggers/schemas";
@@ -120,6 +121,8 @@ export async function POST(
       });
     } catch (error) {
       console.error("[webhook] execution failed:", error);
+    } finally {
+      await langfuseSpanProcessor.forceFlush();
     }
   });
 

@@ -4,6 +4,7 @@
  */
 import { stepCountIs, streamText, type ToolSet } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { propagateAttributes } from "@langfuse/tracing";
 
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
@@ -235,51 +236,61 @@ export async function runAgent(
       ...composioTools,
     };
 
-    const streamResult = streamText({
-      model: gateway(modelId),
-      system,
-      messages,
-      stopWhen: stepCountIs(MAX_STEPS_TIER_1),
-      tools,
-      prepareStep: buildPrepareStep(modelId),
-      onError: async ({ error }) => {
-        await recordFailedRun(error, "stream");
+    const streamResult = await propagateAttributes(
+      {
+        traceName: `sunder-${payload.triggerType}`,
+        sessionId: threadId,
+        userId: clientId,
+        tags: [payload.triggerType],
       },
-      onFinish: async ({ text, steps, totalUsage }) => {
-        if (hasRecordedTerminalState) {
-          return;
-        }
-
-        hasRecordedTerminalState = true;
-
-        await finalizeRun({
-          supabase,
-          clientId,
-          threadId,
-          runId,
-          modelId,
-          triggerType: payload.triggerType,
-          steps,
-          text,
-          totalUsage,
-          logLabel: "runner",
-        });
-
-        await captureServerEvent({
-          distinctId: clientId,
-          event: "agent_run_completed",
-          properties: {
-            run_id: runId,
-            thread_id: threadId,
-            trigger_type: payload.triggerType,
-            duration_ms: Date.now() - startedAt,
-            steps: steps.length,
-            total_tokens: getTotalTokenCount(totalUsage),
-            tools_called: extractUniqueToolNames(steps),
+      async () =>
+        streamText({
+          model: gateway(modelId),
+          system,
+          messages,
+          stopWhen: stepCountIs(MAX_STEPS_TIER_1),
+          tools,
+          prepareStep: buildPrepareStep(modelId),
+          experimental_telemetry: { isEnabled: true },
+          onError: async ({ error }) => {
+            await recordFailedRun(error, "stream");
           },
-        });
-      },
-    });
+          onFinish: async ({ text, steps, totalUsage }) => {
+            if (hasRecordedTerminalState) {
+              return;
+            }
+
+            hasRecordedTerminalState = true;
+
+            await finalizeRun({
+              supabase,
+              clientId,
+              threadId,
+              runId,
+              modelId,
+              triggerType: payload.triggerType,
+              steps,
+              text,
+              totalUsage,
+              logLabel: "runner",
+            });
+
+            await captureServerEvent({
+              distinctId: clientId,
+              event: "agent_run_completed",
+              properties: {
+                run_id: runId,
+                thread_id: threadId,
+                trigger_type: payload.triggerType,
+                duration_ms: Date.now() - startedAt,
+                steps: steps.length,
+                total_tokens: getTotalTokenCount(totalUsage),
+                tools_called: extractUniqueToolNames(steps),
+              },
+            });
+          },
+        }),
+    );
 
     return { status: "streaming", streamResult };
   } catch (error) {

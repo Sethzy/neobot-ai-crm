@@ -97,6 +97,7 @@ export function createSubagentTool(
               totalMs: SUBAGENT_TIMEOUT_MS,
               stepMs: SUBAGENT_STEP_TIMEOUT_MS,
             },
+            experimental_telemetry: { isEnabled: true },
           });
 
           await persistSubagentBlocks(supabase, clientId, runId, path, payload, result.steps);

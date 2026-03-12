@@ -17,6 +17,7 @@ export async function generateTitleFromUserMessage(userMessage: string): Promise
     model: gateway(TIER_1_MODEL),
     system: TITLE_PROMPT,
     prompt: userMessage,
+    experimental_telemetry: { isEnabled: true },
   });
 
   return text

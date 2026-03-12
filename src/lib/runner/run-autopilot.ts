@@ -4,6 +4,7 @@
  */
 import { generateText, stepCountIs, type ToolSet } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { propagateAttributes } from "@langfuse/tracing";
 
 import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
 import { AUTOPILOT_INSTRUCTION_PROMPT } from "@/lib/autopilot/constants";
@@ -74,18 +75,28 @@ export async function runAutopilot({
       console.error("[composio] Failed to load activated connection tools for autopilot.", error);
     }
 
-    const result = await generateText({
-      model: gateway(modelId),
-      system,
-      messages,
-      stopWhen: stepCountIs(MAX_STEPS_AUTOPILOT),
-      tools: {
-        ...runnerTools,
-        ...subagentTools,
-        ...composioTools,
+    const result = await propagateAttributes(
+      {
+        traceName: "sunder-autopilot",
+        sessionId: threadId,
+        userId: clientId,
+        tags: ["pulse"],
       },
-      prepareStep: buildPrepareStep(modelId, MAX_STEPS_AUTOPILOT),
-    });
+      async () =>
+        generateText({
+          model: gateway(modelId),
+          system,
+          messages,
+          stopWhen: stepCountIs(MAX_STEPS_AUTOPILOT),
+          tools: {
+            ...runnerTools,
+            ...subagentTools,
+            ...composioTools,
+          },
+          prepareStep: buildPrepareStep(modelId, MAX_STEPS_AUTOPILOT),
+          experimental_telemetry: { isEnabled: true },
+        }),
+    );
 
     await finalizeRun({
       supabase,

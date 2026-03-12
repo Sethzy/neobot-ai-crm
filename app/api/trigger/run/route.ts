@@ -2,6 +2,7 @@
  * Internal trigger execution route called by the cron scanner.
  * @module app/api/trigger/run/route
  */
+import { langfuseSpanProcessor } from "@/instrumentation";
 import { createAdminClient } from "@/lib/supabase/server";
 import { executeTrigger } from "@/lib/triggers/executor";
 import { requireCronSecret } from "@/lib/triggers/route-auth";
@@ -47,6 +48,7 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
+    await langfuseSpanProcessor.forceFlush();
     return Response.json({ status: result.status });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown execution error";

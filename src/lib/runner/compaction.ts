@@ -292,6 +292,7 @@ export async function generateCompactionSummary(
     model: gateway(COMPACTION_MODEL),
     system: STRUCTURED_SUMMARY_INSTRUCTIONS,
     prompt,
+    experimental_telemetry: { isEnabled: true },
   });
 
   return {
