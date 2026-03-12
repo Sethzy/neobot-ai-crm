@@ -5,14 +5,11 @@
  * build tokens from right to left, then resolve them center-out into NEO.
  * @module components/landing/HeroIdentityAnimation
  */
-import Image, { type StaticImageData } from 'next/image'
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 
-import avatarImage from '@/assets/landing/avatars/avatar-1.png'
-
 type SlotId = 'left' | 'middle' | 'right'
-type TokenKind = 'ai-green' | 'ai-blue' | 'avatar'
+type TokenKind = 'tasks' | 'messaging' | 'contacts'
 type LetterKind = 'N' | 'E' | 'O'
 
 type SlotVisual =
@@ -20,6 +17,7 @@ type SlotVisual =
       kind: 'token'
       value: TokenKind
       x: number
+      y?: number
       zIndex: number
       key: string
     }
@@ -27,6 +25,7 @@ type SlotVisual =
       kind: 'letter'
       value: LetterKind
       x: number
+      y?: number
       zIndex: number
       key: string
     }
@@ -45,7 +44,7 @@ const SLOT_IDS: SlotId[] = ['left', 'middle', 'right']
 /**
  * Delay between each sequence step. Step 0 is the empty lane.
  */
-export const HERO_IDENTITY_STEP_DELAYS_MS = [0, 450, 300, 1000, 450, 400] as const
+export const HERO_IDENTITY_STEP_DELAYS_MS = [0, 450, 300, 1000, 150, 400, 150, 400, 150] as const
 
 const SLOT_MOUNT_TRANSITION = {
   duration: 0.35,
@@ -62,8 +61,8 @@ const SLOT_POSITION_TRANSITION = {
 /** Underdamped spring for per-letter bounce entrance (pop up from below → overshoot → settle). */
 const LETTER_BOUNCE_TRANSITION = {
   type: 'spring' as const,
-  stiffness: 220,
-  damping: 14,
+  stiffness: 200,
+  damping: 16,
   mass: 0.7,
 }
 
@@ -82,10 +81,10 @@ const SEQUENCE: SequenceFrame[] = [
     middle: null,
     right: {
       kind: 'token',
-      value: 'avatar',
+      value: 'contacts',
       x: 0,
       zIndex: 1,
-      key: 'avatar',
+      key: 'contacts',
     },
     glowOpacity: 0.18,
     glowScale: 0.92,
@@ -95,17 +94,17 @@ const SEQUENCE: SequenceFrame[] = [
     left: null,
     middle: {
       kind: 'token',
-      value: 'ai-blue',
-      x: -40,
+      value: 'messaging',
+      x: -50,
       zIndex: 2,
-      key: 'ai-blue',
+      key: 'messaging',
     },
     right: {
       kind: 'token',
-      value: 'avatar',
-      x: 40,
+      value: 'contacts',
+      x: 50,
       zIndex: 1,
-      key: 'avatar',
+      key: 'contacts',
     },
     glowOpacity: 0.24,
     glowScale: 0.97,
@@ -114,36 +113,116 @@ const SEQUENCE: SequenceFrame[] = [
   {
     left: {
       kind: 'token',
-      value: 'ai-green',
-      x: -80,
+      value: 'tasks',
+      x: -100,
       zIndex: 3,
-      key: 'ai-green',
+      key: 'tasks',
     },
     middle: {
       kind: 'token',
-      value: 'ai-blue',
+      value: 'messaging',
       x: 0,
       zIndex: 2,
-      key: 'ai-blue',
+      key: 'messaging',
     },
     right: {
       kind: 'token',
-      value: 'avatar',
-      x: 80,
+      value: 'contacts',
+      x: 100,
       zIndex: 1,
-      key: 'avatar',
+      key: 'contacts',
     },
     glowOpacity: 0.32,
     glowScale: 1,
   },
-  // Frame 4: E crystallizes (center-out, middle first)
+  // Frame 4: left token dips down (anticipation for N)
   {
     left: {
       kind: 'token',
-      value: 'ai-green',
-      x: -95,
+      value: 'tasks',
+      x: -100,
+      y: 18,
+      zIndex: 3,
+      key: 'tasks',
+    },
+    middle: {
+      kind: 'token',
+      value: 'messaging',
+      x: 0,
+      zIndex: 2,
+      key: 'messaging',
+    },
+    right: {
+      kind: 'token',
+      value: 'contacts',
+      x: 100,
       zIndex: 1,
-      key: 'ai-green',
+      key: 'contacts',
+    },
+    glowOpacity: 0.34,
+    glowScale: 0.98,
+  },
+  // Frame 5: N crystallizes at same x as token
+  {
+    left: {
+      kind: 'letter',
+      value: 'N',
+      x: -100,
+      zIndex: 4,
+      key: 'N',
+    },
+    middle: {
+      kind: 'token',
+      value: 'messaging',
+      x: 0,
+      zIndex: 2,
+      key: 'messaging',
+    },
+    right: {
+      kind: 'token',
+      value: 'contacts',
+      x: 100,
+      zIndex: 1,
+      key: 'contacts',
+    },
+    glowOpacity: 0.4,
+    glowScale: 1.04,
+  },
+  // Frame 6: middle token dips down (anticipation for E)
+  {
+    left: {
+      kind: 'letter',
+      value: 'N',
+      x: -100,
+      zIndex: 3,
+      key: 'N',
+    },
+    middle: {
+      kind: 'token',
+      value: 'messaging',
+      x: 0,
+      y: 18,
+      zIndex: 2,
+      key: 'messaging',
+    },
+    right: {
+      kind: 'token',
+      value: 'contacts',
+      x: 100,
+      zIndex: 1,
+      key: 'contacts',
+    },
+    glowOpacity: 0.42,
+    glowScale: 1.02,
+  },
+  // Frame 7: E crystallizes at same x as token
+  {
+    left: {
+      kind: 'letter',
+      value: 'N',
+      x: -100,
+      zIndex: 3,
+      key: 'N',
     },
     middle: {
       kind: 'letter',
@@ -154,28 +233,55 @@ const SEQUENCE: SequenceFrame[] = [
     },
     right: {
       kind: 'token',
-      value: 'avatar',
-      x: 95,
-      zIndex: 2,
-      key: 'avatar',
+      value: 'contacts',
+      x: 100,
+      zIndex: 1,
+      key: 'contacts',
     },
-    glowOpacity: 0.4,
-    glowScale: 1.04,
+    glowOpacity: 0.5,
+    glowScale: 1.08,
   },
-  // Frame 5: O crystallizes
+  // Frame 8: right token dips down (anticipation for O)
   {
     left: {
-      kind: 'token',
-      value: 'ai-green',
-      x: -105,
-      zIndex: 1,
-      key: 'ai-green',
+      kind: 'letter',
+      value: 'N',
+      x: -100,
+      zIndex: 3,
+      key: 'N',
     },
     middle: {
       kind: 'letter',
       value: 'E',
-      x: -2,
+      x: 0,
+      zIndex: 2,
+      key: 'E',
+    },
+    right: {
+      kind: 'token',
+      value: 'contacts',
+      x: 100,
+      y: 18,
+      zIndex: 1,
+      key: 'contacts',
+    },
+    glowOpacity: 0.52,
+    glowScale: 1.06,
+  },
+  // Frame 9: O crystallizes — final NEO
+  {
+    left: {
+      kind: 'letter',
+      value: 'N',
+      x: -100,
       zIndex: 3,
+      key: 'N',
+    },
+    middle: {
+      kind: 'letter',
+      value: 'E',
+      x: 0,
+      zIndex: 2,
       key: 'E',
     },
     right: {
@@ -183,32 +289,6 @@ const SEQUENCE: SequenceFrame[] = [
       value: 'O',
       x: 100,
       zIndex: 4,
-      key: 'O',
-    },
-    glowOpacity: 0.5,
-    glowScale: 1.08,
-  },
-  // Frame 6: N crystallizes — final NEO
-  {
-    left: {
-      kind: 'letter',
-      value: 'N',
-      x: -110,
-      zIndex: 4,
-      key: 'N',
-    },
-    middle: {
-      kind: 'letter',
-      value: 'E',
-      x: -2,
-      zIndex: 3,
-      key: 'E',
-    },
-    right: {
-      kind: 'letter',
-      value: 'O',
-      x: 108,
-      zIndex: 2,
       key: 'O',
     },
     glowOpacity: 0.58,
@@ -242,57 +322,61 @@ function HeroLetter({ value }: { value: LetterKind }) {
   )
 }
 
-function AvatarToken({
-  image,
-}: {
-  image: StaticImageData
-}) {
-  return (
-    <div className="relative aspect-square h-16 w-16 shrink-0 overflow-hidden rounded-full border-[3px] border-white bg-[#D8C3A5] shadow-[0_10px_24px_rgba(32,24,18,0.13)] sm:h-[4.5rem] sm:w-[4.5rem]">
-      <Image
-        src={image}
-        alt=""
-        fill
-        sizes="64px"
-        className="object-cover"
-      />
-    </div>
-  )
-}
-
-function AiToken({
-  tone,
-}: {
-  tone: 'green' | 'blue'
-}) {
-  const palette = tone === 'green'
-    ? {
-        background: 'linear-gradient(180deg, #9EEFD0 0%, #92E8C8 100%)',
-        shadow: '0 12px 30px rgba(73, 138, 108, 0.16)',
-      }
-    : {
-        background: 'linear-gradient(180deg, #B7BEFF 0%, #A8B0FF 100%)',
-        shadow: '0 12px 30px rgba(83, 92, 181, 0.16)',
-      }
-
+/** Schedule/automation token — green with solid calendar icon. */
+function ScheduleToken() {
   return (
     <div
       className="flex aspect-square h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] border-white sm:h-[4.5rem] sm:w-[4.5rem]"
       style={{
-        background: palette.background,
-        boxShadow: palette.shadow,
+        background: 'linear-gradient(180deg, #9EEFD0 0%, #86DDB8 100%)',
+        boxShadow: '0 12px 30px rgba(73, 138, 108, 0.16)',
       }}
     >
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 32 32"
-        className="h-7 w-7 sm:h-8 sm:w-8"
-      >
-        <path d="M12 10v4" stroke="#111111" strokeWidth="2.5" strokeLinecap="round" />
-        <path d="M20 10v4" stroke="#111111" strokeWidth="2.5" strokeLinecap="round" />
-        <path d="M16 12v7" stroke="#111111" strokeWidth="2.5" strokeLinecap="round" />
-        <path d="M10.5 22c1.8 1.7 9.2 1.7 11 0" stroke="#111111" strokeWidth="2.5" strokeLinecap="round" />
-        <circle cx="13" cy="19" r="1.4" fill="#111111" />
+      <svg aria-hidden="true" viewBox="0 0 32 32" className="h-7 w-7 sm:h-8 sm:w-8" fill="none">
+        <rect x="7" y="8" width="18" height="18" rx="3" fill="#1A3A2A" />
+        <rect x="7" y="8" width="18" height="7" rx="3" fill="#0F2A1E" />
+        <rect x="7" y="12" width="18" height="3" fill="#0F2A1E" />
+        <path d="M12 5v5" stroke="#1A3A2A" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M20 5v5" stroke="#1A3A2A" strokeWidth="2.5" strokeLinecap="round" />
+        <text x="16" y="23.5" textAnchor="middle" fill="white" fontSize="11" fontWeight="700" fontFamily="sans-serif">15</text>
+      </svg>
+    </div>
+  )
+}
+
+/** Messaging/follow-ups token — blue with solid chat bubble icon. */
+function MessagingToken() {
+  return (
+    <div
+      className="flex aspect-square h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] border-white sm:h-[4.5rem] sm:w-[4.5rem]"
+      style={{
+        background: 'linear-gradient(180deg, #B7BEFF 0%, #A3ABFF 100%)',
+        boxShadow: '0 12px 30px rgba(83, 92, 181, 0.16)',
+      }}
+    >
+      <svg aria-hidden="true" viewBox="0 0 32 32" className="h-7 w-7 sm:h-8 sm:w-8" fill="none">
+        <path d="M7 10a3 3 0 013-3h12a3 3 0 013 3v8a3 3 0 01-3 3h-3l-4 4v-4h-5a3 3 0 01-3-3v-8z" fill="#2A2A5A" />
+        <circle cx="12.5" cy="14" r="1.3" fill="white" />
+        <circle cx="16" cy="14" r="1.3" fill="white" />
+        <circle cx="19.5" cy="14" r="1.3" fill="white" />
+      </svg>
+    </div>
+  )
+}
+
+/** Contacts/leads token — warm amber with solid person silhouette icon. */
+function ContactsToken() {
+  return (
+    <div
+      className="flex aspect-square h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] border-white sm:h-[4.5rem] sm:w-[4.5rem]"
+      style={{
+        background: 'linear-gradient(180deg, #F0C99A 0%, #E0B07A 100%)',
+        boxShadow: '0 12px 30px rgba(160, 110, 70, 0.16)',
+      }}
+    >
+      <svg aria-hidden="true" viewBox="0 0 32 32" className="h-7 w-7 sm:h-8 sm:w-8" fill="#5C3D1E">
+        <circle cx="16" cy="11.5" r="5" />
+        <path d="M7 27a9 9 0 0118 0" />
       </svg>
     </div>
   )
@@ -307,11 +391,9 @@ function SlotVisualContent({
     return <HeroLetter value={slotVisual.value} />
   }
 
-  if (slotVisual.value === 'avatar') {
-    return <AvatarToken image={avatarImage} />
-  }
-
-  return <AiToken tone={slotVisual.value === 'ai-green' ? 'green' : 'blue'} />
+  if (slotVisual.value === 'tasks') return <ScheduleToken />
+  if (slotVisual.value === 'messaging') return <MessagingToken />
+  return <ContactsToken />
 }
 
 /**
@@ -402,31 +484,33 @@ export function HeroIdentityAnimation({
                   initial={false}
                   animate={{
                     x: slotVisual?.x ?? 0,
+                    y: slotVisual?.y ?? 0,
                     opacity: slotVisual ? 1 : 0,
                     scale: slotVisual ? 1 : 0.72,
                     zIndex: slotVisual?.zIndex ?? 0,
                   }}
                   transition={{
                     x: SLOT_POSITION_TRANSITION,
+                    y: SLOT_POSITION_TRANSITION,
                     opacity: SLOT_MOUNT_TRANSITION,
                     scale: SLOT_MOUNT_TRANSITION,
                   }}
                 >
                   <div className="relative flex h-[100px] w-[110px] items-center justify-center sm:h-[130px] sm:w-[140px]">
-                    <AnimatePresence initial={false} mode="sync">
+                    <AnimatePresence initial={false} mode="wait">
                       {slotVisual ? (
                         <motion.div
                           key={slotVisual.key}
                           initial={
                             slotVisual.kind === 'letter'
-                              ? { opacity: 0, scale: 0.85, y: 24 }
+                              ? { opacity: 1, scale: 1, y: 20 }
                               : { opacity: 0, scale: 0.88, y: 5 }
                           }
                           animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.96, y: -3 }}
+                          exit={{ opacity: 0, transition: { duration: 0 } }}
                           transition={
                             slotVisual.kind === 'letter'
-                              ? { ...SLOT_MOUNT_TRANSITION, y: LETTER_BOUNCE_TRANSITION }
+                              ? { opacity: { duration: 0 }, scale: { duration: 0 }, y: LETTER_BOUNCE_TRANSITION }
                               : SLOT_MOUNT_TRANSITION
                           }
                           className="absolute inset-0 flex items-center justify-center"
