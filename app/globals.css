@@ -181,7 +181,7 @@
 
 /* Landing Page Specific Scoped Theme */
 .landing-page {
-  --background: #F5EEE1;
+  --background: #F7F4ED;
   --foreground: var(--color-lp-dark);
   --card: theme('colors.white');
   --card-foreground: var(--color-lp-dark);
@@ -204,7 +204,12 @@
   /* --color-sunder-green: #024F46; */
   /* --color-sunder-green-light: #40916C; */
   /* --color-sunder-green-dark: #1B4332; */
-  font-family: var(--font-figtree), sans-serif;
+  font-family: var(--font-geist-sans), var(--font-figtree), sans-serif;
+}
+
+.landing-page .font-serif {
+  font-family: var(--font-geist-sans), var(--font-figtree), sans-serif;
+  font-variation-settings: normal;
 }
 
 .landing-page .grid-pattern {
@@ -215,20 +220,6 @@
 .landing-page .glow-accent {
   background: radial-gradient(circle at center, rgba(64, 145, 108, 0.12) 0%, transparent 70%);
   filter: blur(64px);
-}
-
-/* Hero watercolor — responsive mask + opacity (single image, no duplicate load) */
-.hero-watercolor {
-  opacity: 0.94;
-  mask-image: radial-gradient(ellipse 110% 80% at 50% 22%, black 28%, rgba(0,0,0,0.6) 48%, transparent 68%);
-  -webkit-mask-image: radial-gradient(ellipse 110% 80% at 50% 22%, black 28%, rgba(0,0,0,0.6) 48%, transparent 68%);
-}
-@media (min-width: 768px) {
-  .hero-watercolor {
-    opacity: 1;
-    mask-image: radial-gradient(ellipse 120% 90% at 50% 20%, black 32%, rgba(0,0,0,0.65) 55%, transparent 78%);
-    -webkit-mask-image: radial-gradient(ellipse 120% 90% at 50% 20%, black 32%, rgba(0,0,0,0.65) 55%, transparent 78%);
-  }
 }
 
 /* Desktop: skip layout/paint for below-the-fold sections until near viewport. */
