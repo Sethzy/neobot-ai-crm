@@ -1799,7 +1799,7 @@
         {
           "pr": "42a",
           "title": "Agent-generated views (inline, json-render)",
-          "status": "pending",
+          "status": "done",
           "simplified": true,
           "decisions": [
             "UX-10"
@@ -1812,37 +1812,37 @@
             {
               "id": "PR42a-1",
               "task": "Install @json-render/core, @json-render/react, @json-render/shadcn dependencies.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR42a-2",
               "task": "Define json-render catalog (src/lib/views/catalog.ts) with a narrow allowlist: documented ShadCN layout/content components + 7 custom CRM/view components (StatMetric, DealCard, ContactCard, TaskItem, BarChartPanel, DonutChartPanel, FunnelChartPanel). Define registry (src/lib/views/registry.tsx) mapping catalog to React implementations.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR42a-3",
               "task": "Build 7 custom CRM/view components: StatMetric, DealCard, ContactCard, TaskItem, and 3 compact snapshot chart panels (bar, donut, funnel) using the existing recharts dependency. Register all in the catalog.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR42a-4",
               "task": "Build show_view agent tool (src/lib/runner/tools/views/show-view.ts). Parameters: spec (json-render spec with root + elements) + state (pre-computed data). Validates spec against catalog, enforces compact snapshot payloads, and guides chart usage toward aggregated non-live data.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR42a-5",
               "task": "Build ViewCard component (src/components/views/view-card.tsx) — wraps json-render Renderer + StateProvider for inline chat rendering with report-like snapshot presentation.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR42a-6",
               "task": "Modify message-bubble + ToolCallInline to detect tool-show_view parts, render ViewCard inline outside the accordion, and keep a ViewCard fallback inside the expanded tool details.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR42a-7",
               "task": "Add system prompt guidance for when to use show_view for snapshot charts vs plain text, including explicit non-goals: no live filters, no refresh, no pinning, no fake 'live' analytics affordances.",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -1916,7 +1916,8 @@
         {
           "pr": "8b",
           "title": "Math.js calculate tool",
-          "status": "in_progress",
+          "status": "done",
+          "simplified": true,
           "decisions": [
             "TOOL-03"
           ],
@@ -1925,32 +1926,32 @@
             {
               "id": "PR8b-1",
               "task": "Install mathjs dependency",
-              "done": false
+              "done": true
             },
             {
               "id": "PR8b-2",
               "task": "Create hardened math.js instance with dangerous functions disabled (import, createUnit, evaluate, parse, simplify, derivative, resolve, reviver)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR8b-3",
               "task": "Implement calculate tool with expression + optional variables input, returning numeric result",
-              "done": false
+              "done": true
             },
             {
               "id": "PR8b-4",
               "task": "Register tool in createUtilityTools barrel and tool-registry.ts",
-              "done": false
+              "done": true
             },
             {
               "id": "PR8b-5",
               "task": "Add Calculations section to system prompt tool-usage guidance",
-              "done": false
+              "done": true
             },
             {
               "id": "PR8b-6",
               "task": "Unit tests for expression evaluation, variables, security hardening, error handling, and barrel registration",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -2206,7 +2207,7 @@
         {
           "pr": "38c",
           "title": "Message usage caps + quota UX",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [
             "FOUND-07",
             "LLM-10",
@@ -2218,32 +2219,32 @@
             {
               "id": "PR38c-1",
               "task": "Extend the billing plan catalog with explicit monthly message caps (Free 100, Pro 500, Max 2,000) so pricing, enforcement, and UI all read the same constants",
-              "done": false
+              "done": true
             },
             {
               "id": "PR38c-2",
               "task": "Migration: client_message_usage_monthly table plus get_message_quota_status and consume_message_quota RPCs using Asia/Singapore month buckets",
-              "done": false
+              "done": true
             },
             {
               "id": "PR38c-3",
               "task": "Create typed Supabase quota helpers and enforce quota in /api/chat for brand-new user-authored turns before run creation",
-              "done": false
+              "done": true
             },
             {
               "id": "PR38c-4",
               "task": "Pricing and settings surfaces show plan caps, used/remaining counts, and the next monthly reset date",
-              "done": false
+              "done": true
             },
             {
               "id": "PR38c-5",
               "task": "Chat UI shows remaining quota, disables the composer at zero remaining, and links the user to /pricing to upgrade",
-              "done": false
+              "done": true
             },
             {
               "id": "PR38c-6",
               "task": "Document quota rules: what counts as a message, which flows are exempt, and how the monthly reset works",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -2256,7 +2257,7 @@
         {
           "pr": 46,
           "title": "CRM working surfaces (views + direct editing)",
-          "status": "in_progress",
+          "status": "done",
           "simplified": true,
           "decisions": [
             "FOUND-05",
@@ -2272,32 +2273,32 @@
             {
               "id": "PR46-1",
               "task": "Shared workspace primitives: labelled view switcher (table/board/calendar), shared header treatment, and URL/local preference handling for multi-view CRM surfaces",
-              "done": false
+              "done": true
             },
             {
               "id": "PR46-2",
               "task": "Deals workspace unification: one /customers/deals surface with table + board, backward-compatible /customers/deals/pipeline redirect, and stage movement from the board",
-              "done": false
+              "done": true
             },
             {
               "id": "PR46-3",
               "task": "High-value quick edit on current surfaces: deals table (stage, price), people list (phone, email, type, company), companies list (phone, email, website, industry), and tasks surfaces (status, due date, title where appropriate)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR46-4",
               "task": "Tasks calendar view with month navigation, day drill-down, and quick status/due-date changes without leaving /tasks",
-              "done": false
+              "done": true
             },
             {
               "id": "PR46-5",
               "task": "Preserve full detail pages for deeper work and align save/error feedback across list, board, calendar, and detail editing surfaces",
-              "done": false
+              "done": true
             },
             {
               "id": "PR46-6",
               "task": "Tests + QA docs for view switching, quick edit success/failure, board stage movement, calendar interactions, mobile-safe behavior, and stale copy cleanup",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
