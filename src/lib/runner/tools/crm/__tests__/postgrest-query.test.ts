@@ -7,8 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Database } from "@/types/database";
 
-import { createContactTools } from "../contacts";
-import { createDealTools } from "../deals";
+import { createSearchCrmTool } from "../search";
 
 const CLIENT_ID = "660e8400-e29b-41d4-a716-446655440000";
 const EXECUTION_OPTIONS = { toolCallId: "tool-call", messages: [] } as never;
@@ -53,10 +52,10 @@ function createQueryCapturingClient() {
 describe("PostgREST query serialization", () => {
   it("serializes escaped contact search filters", async () => {
     const { supabase, capturedUrls } = createQueryCapturingClient();
-    const tools = createContactTools(supabase, CLIENT_ID);
+    const tools = createSearchCrmTool(supabase, CLIENT_ID);
 
-    await tools.search_contacts.execute(
-      { query: "John, (Doe)%_ \"VIP\"" },
+    await tools.search_crm.execute(
+      { entity: "contacts", query: "John, (Doe)%_ \"VIP\"" },
       EXECUTION_OPTIONS,
     );
 
@@ -72,10 +71,10 @@ describe("PostgREST query serialization", () => {
 
   it("serializes escaped deal search filters", async () => {
     const { supabase, capturedUrls } = createQueryCapturingClient();
-    const tools = createDealTools(supabase, CLIENT_ID);
+    const tools = createSearchCrmTool(supabase, CLIENT_ID);
 
-    await tools.search_deals.execute(
-      { query: "Blk 123, #08-01 (A)_%" },
+    await tools.search_crm.execute(
+      { entity: "deals", query: "Blk 123, #08-01 (A)_%" },
       EXECUTION_OPTIONS,
     );
 

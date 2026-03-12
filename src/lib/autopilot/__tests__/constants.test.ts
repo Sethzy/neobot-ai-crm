@@ -32,8 +32,7 @@ describe("autopilot constants", () => {
 
   test("references only currently-available tool surfaces for bootstrap guidance", () => {
     expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("list_todo");
-    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("search_tasks");
-    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("search_deals");
+    expect(AUTOPILOT_INSTRUCTION_PROMPT).toContain("search_crm");
     expect(AUTOPILOT_INSTRUCTION_PROMPT).not.toContain("search_interactions");
   });
 

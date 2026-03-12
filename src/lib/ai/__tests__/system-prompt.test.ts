@@ -233,8 +233,7 @@ describe("SETUP_SYSTEM_PROMPT", () => {
   });
 
   it("does not tell the model to use unavailable normal-mode CRM tools", () => {
-    expect(SETUP_SYSTEM_PROMPT).not.toContain("search_contacts");
-    expect(SETUP_SYSTEM_PROMPT).not.toContain("search_deals");
-    expect(SETUP_SYSTEM_PROMPT).not.toContain("create_contact");
+    expect(SETUP_SYSTEM_PROMPT).not.toContain("search_crm");
+    expect(SETUP_SYSTEM_PROMPT).not.toContain("create_record");
   });
 });

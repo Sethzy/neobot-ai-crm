@@ -1,0 +1,691 @@
+{
+  "_meta": {
+    "description": "Mechanical checklist for consolidating 28 CRM tools → 11. One entry per NEW tool.",
+    "generated": "2026-03-12",
+    "design_doc": "docs/product/designs/crm-tool-consolidation.md",
+    "scope": "ONLY src/lib/runner/tools/crm/. Do NOT touch non-CRM tools — those were aligned in commit 68964bb.",
+    "resume_note": "All entries start as TODO. Work through implementation_order. After each tool, run tests, mark DONE.",
+    "implementation_order": [
+      "0_passive_schema",
+      "1_search_crm",
+      "2_create_record",
+      "3_update_record",
+      "4_delete_records",
+      "5_link_records",
+      "6_crm_sql",
+      "7_rewire_index",
+      "8_update_system_prompt",
+      "9_cleanup_tests"
+    ]
+  },
+
+  "tools": [
+    {
+      "id": "0_passive_schema",
+      "action": "MOVE_TO_PASSIVE_CONTEXT",
+      "status": "DONE",
+      "summary": "Move describe_crm_schema from callable tool to system-reminder injection",
+      "kills": {
+        "tools": ["describe_crm_schema"],
+        "files_to_delete": ["src/lib/runner/tools/crm/schema.ts"],
+        "tests_to_delete": ["src/lib/runner/tools/crm/__tests__/schema.test.ts"]
+      },
+      "creates": {
+        "files": [],
+        "modifies": ["src/lib/ai/system-prompt.ts"]
+      },
+      "implementation": {
+        "what": "Inject CRM config (stages, types, roles, industries, custom fields) into the system-reminder block that's built every turn. ~200 bytes of passive context. The agent never has to decide 'should I check the schema?' — it's always there.",
+        "system_reminder_format": "CRM schema:\n- Deal stages: {config.deal_stages.join(', ')}\n- Contact types: {config.contact_types.join(', ')}\n- Interaction types: {config.interaction_types.join(', ')}\n- Deal-contact roles: {config.deal_contact_roles.join(', ')}\n- Company industries: {config.company_industries.join(', ')}\n- Custom fields: contacts({keys}), companies({keys}), deals({keys}), tasks({keys})",
+        "notes": [
+          "The CRM config is already available at runner startup (loaded from DB via CRM_DEFAULTS or client override).",
+          "The system-reminder builder is in src/lib/ai/system-prompt.ts — look for where other dynamic context (thread info, timezone, etc.) is injected.",
+          "Remove describe_crm_schema from createSchemaTools and from the readTools object in index.ts."
+        ]
+      },
+      "justification": "Vercel AGENTS.md study: passive context achieves 100% success vs 53-79% for active retrieval. Costs ~200 bytes vs ~500+ tokens when called as a tool."
+    },
+
+    {
+      "id": "1_search_crm",
+      "action": "CREATE_NEW_TOOL",
+      "status": "DONE",
+      "summary": "Unified search across all CRM entity types (9 old tools → 1)",
+      "kills": {
+        "tools": [
+          "search_contacts",
+          "search_companies",
+          "search_deals",
+          "search_interactions",
+          "search_tasks",
+          "get_deal_contacts",
+          "get_contact_deals",
+          "get_company_contacts",
+          "get_company_deals"
+        ],
+        "source_locations": {
+          "search_contacts": "contacts.ts:64-114",
+          "search_companies": "companies.ts:67-113",
+          "search_deals": "deals.ts:62-113",
+          "search_interactions": "interactions.ts:73-144",
+          "search_tasks": "tasks.ts:33-90",
+          "get_deal_contacts": "deal-contacts.ts:98-125",
+          "get_contact_deals": "deal-contacts.ts:127-155",
+          "get_company_contacts": "company-links.ts:118-154",
+          "get_company_deals": "company-links.ts:156-192"
+        },
+        "tests_to_rewrite": [
+          "src/lib/runner/tools/crm/__tests__/contacts.test.ts (search_contacts tests)",
+          "src/lib/runner/tools/crm/__tests__/companies.test.ts (search_companies tests)",
+          "src/lib/runner/tools/crm/__tests__/deals.test.ts (search_deals tests)",
+          "src/lib/runner/tools/crm/__tests__/interactions.test.ts (search_interactions tests)",
+          "src/lib/runner/tools/crm/__tests__/tasks.test.ts (search_tasks tests)",
+          "src/lib/runner/tools/crm/__tests__/deal-contacts.test.ts (get_deal_contacts, get_contact_deals tests)",
+          "src/lib/runner/tools/crm/__tests__/company-links.test.ts (get_company_contacts, get_company_deals tests)"
+        ]
+      },
+      "creates": {
+        "file": "src/lib/runner/tools/crm/search.ts",
+        "test_file": "src/lib/runner/tools/crm/__tests__/search.test.ts"
+      },
+      "new_tool": {
+        "name": "search_crm",
+        "description": "Search CRM records. Specify the entity type and optional filters. Returns matching records sorted by relevance. For relationships: use entity 'deal_contacts' with a deal_id or contact_id filter, or filter contacts/deals by company_id. Use this before creating records to check for duplicates.",
+        "params": {
+          "entity": {
+            "type": "z.enum(['contacts', 'companies', 'deals', 'interactions', 'tasks', 'deal_contacts'])",
+            "required": true,
+            "description": "CRM entity type to search."
+          },
+          "query": {
+            "type": "z.string().trim().min(1).optional()",
+            "required": false,
+            "description": "Free-text search term. Searches name/address/title/summary fields depending on entity."
+          },
+          "filters": {
+            "type": "z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional()",
+            "required": false,
+            "description": "Key-value filters applied as equality matches. Common filters: { stage: '...', type: '...', status: '...', company_id: '...', contact_id: '...', deal_id: '...' }. For date ranges on interactions: use occurred_after / occurred_before."
+          },
+          "limit": {
+            "type": "z.number().int().min(1).max(50).optional()",
+            "required": false,
+            "description": "Maximum results. Defaults to 20."
+          }
+        },
+        "response_shape": "{ success: true, records: Record[], count: number } | { success: false, error: string }"
+      },
+      "implementation": {
+        "what": "Route to the correct table based on entity. Reuse existing query-building logic from each old tool.",
+        "entity_routing": {
+          "contacts": {
+            "table": "contacts",
+            "search_columns": ["first_name", "last_name", "email", "phone"],
+            "sort": "created_at DESC",
+            "special_filters": ["type", "company_id"]
+          },
+          "companies": {
+            "table": "companies",
+            "search_columns": ["name", "website", "phone", "email", "address", "notes"],
+            "sort": "created_at DESC",
+            "special_filters": ["industry"]
+          },
+          "deals": {
+            "table": "deals",
+            "search_columns": ["address", "notes"],
+            "sort": "created_at DESC",
+            "special_filters": ["stage", "company_id"]
+          },
+          "interactions": {
+            "table": "interactions",
+            "search_columns": ["summary"],
+            "sort": "occurred_at DESC",
+            "special_filters": ["type", "contact_id", "deal_id", "occurred_after", "occurred_before"]
+          },
+          "tasks": {
+            "table": "crm_tasks",
+            "search_columns": ["title", "description"],
+            "sort": "due_date ASC",
+            "special_filters": ["status", "contact_id", "deal_id"]
+          },
+          "deal_contacts": {
+            "table": "deal_contacts",
+            "join": "contacts(first_name, last_name, email, phone) or deals(deal_id, address, stage, price) depending on which filter is provided",
+            "sort": "is_primary DESC",
+            "special_filters": ["deal_id", "contact_id"],
+            "note": "If deal_id filter → join contacts. If contact_id filter → join deals. Reuse logic from get_deal_contacts/get_contact_deals."
+          }
+        },
+        "reusable_code": [
+          "buildSearchExpression() from filter-utils.ts — builds OR'd ILIKE expressions",
+          "buildIlikePattern() from filter-utils.ts — wraps search term in %...%",
+          "normalizeDateString() / normalizeDateUpperBound() from filter-utils.ts — for occurred_after/occurred_before",
+          "DEFAULT_CRM_RESULT_LIMIT from filter-utils.ts"
+        ],
+        "notes": [
+          "Always scope by client_id (injected from closure, never in schema).",
+          "The filters record maps to .eq() calls. Special-case occurred_after → .gte('occurred_at', ...) and occurred_before → .lte('occurred_at', ...).",
+          "query maps to ILIKE search via buildSearchExpression across entity-specific columns.",
+          "Return shape is always { records, count } — normalize from entity-specific names (contacts, deals, etc.) to generic 'records'."
+        ]
+      }
+    },
+
+    {
+      "id": "2_create_record",
+      "action": "CREATE_NEW_TOOL",
+      "status": "DONE",
+      "summary": "Unified record creation with dedup + batch (6 old tools → 1)",
+      "kills": {
+        "tools": [
+          "create_contact",
+          "create_company",
+          "create_deal",
+          "batch_create_contacts",
+          "batch_create_companies",
+          "batch_create_deals"
+        ],
+        "source_locations": {
+          "create_contact": "contacts.ts:116-186",
+          "create_company": "companies.ts:115-191",
+          "create_deal": "deals.ts:115-176",
+          "batch_create_contacts": "contacts.ts:242-353",
+          "batch_create_companies": "companies.ts:254-318",
+          "batch_create_deals": "deals.ts:263-322"
+        },
+        "tests_to_rewrite": [
+          "src/lib/runner/tools/crm/__tests__/contacts.test.ts (create + batch tests)",
+          "src/lib/runner/tools/crm/__tests__/companies.test.ts (create + batch tests)",
+          "src/lib/runner/tools/crm/__tests__/deals.test.ts (create + batch tests)",
+          "src/lib/runner/tools/crm/__tests__/contacts-configurable.test.ts"
+        ]
+      },
+      "creates": {
+        "file": "src/lib/runner/tools/crm/create-record.ts",
+        "test_file": "src/lib/runner/tools/crm/__tests__/create-record.test.ts"
+      },
+      "new_tool": {
+        "name": "create_record",
+        "description": "Create one or more CRM records. Specify the entity type and field values. Has built-in duplicate detection — if matching records exist, returns possible_duplicates instead of creating. Set force_create: true to override. Supports batch creation (up to 50 records per call). Data Modification Warning: Only create records when the user has explicitly asked.",
+        "params": {
+          "entity": {
+            "type": "z.enum(['contacts', 'companies', 'deals'])",
+            "required": true,
+            "description": "CRM entity type to create."
+          },
+          "records": {
+            "type": "z.array(z.record(z.string(), z.unknown())).min(1).max(50)",
+            "required": true,
+            "description": "Array of records to create. Required fields by entity: contacts: { first_name, last_name }. companies: { name }. deals: { address }. Optional fields vary by entity — use the CRM schema in system context to see available fields, types, industries, stages, and custom fields."
+          },
+          "force_create": {
+            "type": "z.boolean().optional()",
+            "required": false,
+            "description": "Skip duplicate detection. Default false."
+          }
+        },
+        "response_shape": "{ success: true, record: Record } (single) | { success: true, records: Record[], count: number } (batch) | { success: false, reason: 'possible_duplicates', possible_duplicates: Record[], message: string } | { success: false, error: string }"
+      },
+      "implementation": {
+        "what": "Validate records array against entity-specific Zod schema at runtime, run dedup, insert.",
+        "per_entity_logic": {
+          "contacts": {
+            "required_fields": ["first_name", "last_name"],
+            "dedup_key": "first_name + last_name (case-insensitive)",
+            "dedup_function": "findDuplicateContacts() from contacts.ts",
+            "default_values": { "type": "config.contact_types.includes('other') ? 'other' : config.contact_types[0]" },
+            "enum_validation": "contactTypeEnum from config.contact_types",
+            "custom_fields_schema": "buildCustomFieldsSchema(config.contact_custom_fields)"
+          },
+          "companies": {
+            "required_fields": ["name"],
+            "dedup_key": "name (case-insensitive)",
+            "dedup_function": "findDuplicateCompanies() from companies.ts",
+            "default_values": {},
+            "enum_validation": "companyIndustryEnum from config.company_industries",
+            "custom_fields_schema": "buildCustomFieldsSchema(config.company_custom_fields)"
+          },
+          "deals": {
+            "required_fields": ["address"],
+            "dedup_key": "address (case-insensitive)",
+            "dedup_function": "findDuplicateDeals() from deals.ts",
+            "default_values": { "stage": "config.deal_stages.includes('leads') ? 'leads' : config.deal_stages[0]" },
+            "enum_validation": "dealStageEnum from config.deal_stages",
+            "custom_fields_schema": "buildCustomFieldsSchema(config.deal_custom_fields)"
+          }
+        },
+        "notes": [
+          "For batch (records.length > 1): intra-batch dedup check (same dedup key appears twice) THEN per-entry DB check. Reuse logic from batch_create_contacts.",
+          "If records.length === 1: return { record }. If > 1: return { records, count }.",
+          "captureServerEvent / captureServerEvents for analytics — reuse same event shape.",
+          "Extract findDuplicate* functions into the new file or a shared dedup-utils.ts."
+        ]
+      }
+    },
+
+    {
+      "id": "3_update_record",
+      "action": "CREATE_NEW_TOOL",
+      "status": "DONE",
+      "summary": "Unified record update with batch support (3 old tools → 1)",
+      "kills": {
+        "tools": [
+          "update_contact",
+          "update_company",
+          "update_deal"
+        ],
+        "source_locations": {
+          "update_contact": "contacts.ts:188-240",
+          "update_company": "companies.ts:193-252",
+          "update_deal": "deals.ts:178-261"
+        },
+        "tests_to_rewrite": [
+          "src/lib/runner/tools/crm/__tests__/contacts.test.ts (update tests)",
+          "src/lib/runner/tools/crm/__tests__/companies.test.ts (update tests)",
+          "src/lib/runner/tools/crm/__tests__/deals.test.ts (update tests)"
+        ]
+      },
+      "creates": {
+        "file": "src/lib/runner/tools/crm/update-record.ts",
+        "test_file": "src/lib/runner/tools/crm/__tests__/update-record.test.ts"
+      },
+      "new_tool": {
+        "name": "update_record",
+        "description": "Update one or more CRM records by ID. Only provided fields are changed. Pass null to clear a nullable field. Omit fields to leave them unchanged. Custom fields are deep-merged (existing keys not in the patch are preserved). Supports batch updates (up to 50 records per call) — all records must be the same entity type. Data Modification Warning: Only update records when the user has explicitly asked.",
+        "params": {
+          "entity": {
+            "type": "z.enum(['contacts', 'companies', 'deals'])",
+            "required": true,
+            "description": "CRM entity type to update."
+          },
+          "updates": {
+            "type": "z.array(z.object({ id: z.string().uuid(), fields: z.record(z.string(), z.unknown()) })).min(1).max(50)",
+            "required": true,
+            "description": "Array of { id, fields } patches. All must be the same entity type."
+          }
+        },
+        "response_shape": "{ success: true, record: Record } (single) | { success: true, records: Record[], count: number } (batch) | { success: false, error: string, results: Array<{ id: string, success: boolean, record?: Record, error?: string }> } (partial failure)"
+      },
+      "implementation": {
+        "what": "Route to correct table + primary key column based on entity. Validate fields, deep-merge custom fields, execute updates.",
+        "per_entity_routing": {
+          "contacts": { "table": "contacts", "pk": "contact_id" },
+          "companies": { "table": "companies", "pk": "company_id" },
+          "deals": { "table": "deals", "pk": "deal_id" }
+        },
+        "notes": [
+          "Validate each fields object against entity-specific Zod update schema at runtime.",
+          "Custom fields deep-merge: reuse mergeCustomFields() from custom-fields.ts.",
+          "Always filter by client_id (closure + RLS double-lock).",
+          "Batch updates are sequential (not transactional). If one fails mid-batch, return partial results with per-item success/error.",
+          "IMPORTANT: deals.ts update_deal has special logic for deal_stage_changed analytics event (lines 193-254). This MUST be preserved in the new tool — when stage changes, capture 'deal_stage_changed' event with from_stage, to_stage, deal_value."
+        ]
+      }
+    },
+
+    {
+      "id": "4_delete_records",
+      "action": "CREATE_NEW_TOOL",
+      "status": "DONE",
+      "summary": "Unified delete with approval gate + audit (5 old tools → 1)",
+      "kills": {
+        "tools": [
+          "delete_contact",
+          "delete_company",
+          "delete_deal",
+          "delete_interaction",
+          "delete_task"
+        ],
+        "source_locations": {
+          "delete_contact": "contacts.ts:355-379",
+          "delete_company": "companies.ts:320-344",
+          "delete_deal": "deals.ts:324-348",
+          "delete_interaction": "interactions.ts:146-169",
+          "delete_task": "tasks.ts:205-228"
+        },
+        "tests_to_rewrite": [
+          "Tests for individual delete tools in each entity test file"
+        ]
+      },
+      "creates": {
+        "file": "src/lib/runner/tools/crm/delete-records.ts",
+        "test_file": "src/lib/runner/tools/crm/__tests__/delete-records.test.ts"
+      },
+      "new_tool": {
+        "name": "delete_records",
+        "needsApproval": true,
+        "description": "Permanently delete one or more CRM records by ID. This is irreversible. Supports batch deletion (up to 50 records per call). For deal_contacts links, use link_records with action 'unlink' instead. DESTRUCTIVE: This action requires user approval before execution.",
+        "params": {
+          "entity": {
+            "type": "z.enum(['contacts', 'companies', 'deals', 'interactions', 'tasks'])",
+            "required": true,
+            "description": "CRM entity type to delete."
+          },
+          "ids": {
+            "type": "z.array(z.string().uuid()).min(1).max(50)",
+            "required": true,
+            "description": "Array of UUIDs to delete."
+          },
+          "reason": {
+            "type": "z.string()",
+            "required": true,
+            "description": "Why these records are being deleted. Logged for audit."
+          }
+        },
+        "response_shape": "{ success: true, deleted_count: number, ids: string[] } | { success: false, error: string, deleted_count: number, failed_ids: string[] }"
+      },
+      "implementation": {
+        "what": "Delete from correct table based on entity. Always filter by client_id. Log reason for audit.",
+        "entity_routing": {
+          "contacts": { "table": "contacts", "pk": "contact_id" },
+          "companies": { "table": "companies", "pk": "company_id" },
+          "deals": { "table": "deals", "pk": "deal_id" },
+          "interactions": { "table": "interactions", "pk": "interaction_id" },
+          "tasks": { "table": "crm_tasks", "pk": "task_id" }
+        },
+        "notes": [
+          "Set needsApproval: true on the tool definition (same as current per-entity delete tools).",
+          "reason field is included in the tool response for audit trail but doesn't affect execution.",
+          "Cascade behavior is handled by DB constraints (CASCADE for junction rows, SET NULL for FKs). No application logic needed.",
+          "For deal_contacts links: direct users to link_records(action: 'unlink') instead. Don't allow deleting junction rows via this tool."
+        ]
+      }
+    },
+
+    {
+      "id": "5_link_records",
+      "action": "CREATE_NEW_TOOL",
+      "status": "DONE",
+      "summary": "Unified link/unlink for all CRM relationships (6 old tools → 1)",
+      "kills": {
+        "tools": [
+          "link_contact_to_deal",
+          "unlink_contact_from_deal",
+          "link_contact_to_company",
+          "unlink_contact_from_company",
+          "link_deal_to_company",
+          "unlink_deal_from_company"
+        ],
+        "source_locations": {
+          "link_contact_to_deal": "deal-contacts.ts:29-62",
+          "unlink_contact_from_deal": "deal-contacts.ts:64-96",
+          "link_contact_to_company": "company-links.ts:20-43",
+          "unlink_contact_from_company": "company-links.ts:45-67",
+          "link_deal_to_company": "company-links.ts:69-92",
+          "unlink_deal_from_company": "company-links.ts:94-116"
+        },
+        "files_to_delete": [
+          "src/lib/runner/tools/crm/deal-contacts.ts",
+          "src/lib/runner/tools/crm/company-links.ts"
+        ],
+        "tests_to_delete": [
+          "src/lib/runner/tools/crm/__tests__/deal-contacts.test.ts",
+          "src/lib/runner/tools/crm/__tests__/company-links.test.ts"
+        ]
+      },
+      "creates": {
+        "file": "src/lib/runner/tools/crm/link-records.ts",
+        "test_file": "src/lib/runner/tools/crm/__tests__/link-records.test.ts"
+      },
+      "new_tool": {
+        "name": "link_records",
+        "description": "Create or remove a relationship between two CRM records. Supported relationships: contact↔deal (many-to-many via junction table, with role and primary flag), contact→company (FK on contact), deal→company (FK on deal). Data Modification Warning: Only link/unlink when the user has explicitly asked.",
+        "params": {
+          "action": {
+            "type": "z.enum(['link', 'unlink'])",
+            "required": true,
+            "description": "Whether to create or remove the relationship."
+          },
+          "relationship": {
+            "type": "z.enum(['contact_deal', 'contact_company', 'deal_company'])",
+            "required": true,
+            "description": "Which relationship to modify."
+          },
+          "source_id": {
+            "type": "z.string().uuid()",
+            "required": true,
+            "description": "UUID of the source record (contact_id for contact_deal and contact_company, deal_id for deal_company)."
+          },
+          "target_id": {
+            "type": "z.string().uuid().optional()",
+            "required": "Required for 'link'. Omit for 'unlink' on FK relationships.",
+            "description": "UUID of the target record (deal_id, company_id)."
+          },
+          "role": {
+            "type": "z.string().optional()",
+            "required": false,
+            "description": "Role for contact↔deal links (e.g., buyer, seller, tenant). See CRM schema for valid roles."
+          },
+          "is_primary": {
+            "type": "z.boolean().optional()",
+            "required": false,
+            "description": "Whether this is the primary contact for display. Only for contact↔deal links."
+          }
+        },
+        "response_shape": "{ success: true, link: Record } | { success: true, removed: Record } | { success: false, error: string }"
+      },
+      "implementation": {
+        "what": "Route by relationship type. Junction table ops for contact_deal, FK updates for contact_company and deal_company.",
+        "relationship_routing": {
+          "contact_deal": {
+            "link": "INSERT into deal_contacts (client_id, contact_id=source_id, deal_id=target_id, role, is_primary). Validate role against config.deal_contact_roles.",
+            "unlink": "DELETE from deal_contacts WHERE contact_id=source_id AND deal_id=target_id AND client_id. target_id IS required for unlink on junction table."
+          },
+          "contact_company": {
+            "link": "UPDATE contacts SET company_id=target_id WHERE contact_id=source_id AND client_id.",
+            "unlink": "UPDATE contacts SET company_id=NULL WHERE contact_id=source_id AND client_id. target_id not needed."
+          },
+          "deal_company": {
+            "link": "UPDATE deals SET company_id=target_id WHERE deal_id=source_id AND client_id.",
+            "unlink": "UPDATE deals SET company_id=NULL WHERE deal_id=source_id AND client_id. target_id not needed."
+          }
+        },
+        "notes": [
+          "Role defaults from config: config.deal_contact_roles.includes('buyer') ? 'buyer' : config.deal_contact_roles[0].",
+          "For contact_deal unlink: handle PGRST116 (no rows) same as current unlink_contact_from_deal.",
+          "Role/is_primary params are only meaningful for contact_deal relationship. Ignore silently for FK relationships."
+        ]
+      }
+    },
+
+    {
+      "id": "6_crm_sql",
+      "action": "CREATE_NEW_TOOL",
+      "status": "DONE",
+      "summary": "Read-only SQL escape hatch for complex CRM queries (new)",
+      "kills": {
+        "tools": [],
+        "note": "This is a new tool. Does NOT replace run_agent_memory_sql — that stays as the general utility SQL tool."
+      },
+      "creates": {
+        "file": "src/lib/runner/tools/crm/crm-sql.ts",
+        "test_file": "src/lib/runner/tools/crm/__tests__/crm-sql.test.ts"
+      },
+      "new_tool": {
+        "name": "crm_sql",
+        "description": "Run a read-only SQL query against CRM tables. Use for complex queries that search_crm cannot express: multi-table JOINs, aggregations (COUNT, SUM, AVG), GROUP BY, HAVING, subqueries, date arithmetic, complex WHERE clauses. Only SELECT and CTE (WITH) queries allowed. Available tables: contacts, companies, deals, interactions, crm_tasks, deal_contacts. All tables have client_id — RLS enforces tenant isolation automatically. Prefer search_crm for simple lookups. Use crm_sql when you need JOINs or aggregations.",
+        "params": {
+          "query": {
+            "type": "z.string().min(1)",
+            "required": true,
+            "description": "SQL SELECT/CTE query. Single statement only, no semicolons."
+          },
+          "purpose": {
+            "type": "z.string()",
+            "required": true,
+            "description": "Brief description of what this query answers. Logged for audit."
+          }
+        },
+        "response_shape": "{ success: true, rows: Record[], row_count: number } | { success: false, error: string }"
+      },
+      "implementation": {
+        "what": "CRM-scoped wrapper around the existing read-only SQL pattern from src/lib/runner/tools/utility/sql.ts.",
+        "notes": [
+          "Reuse the same run_readonly_sql RPC (or equivalent Supabase .rpc() call) used by run_agent_memory_sql.",
+          "Validate: must start with SELECT or WITH (case-insensitive), no semicolons, single statement.",
+          "purpose field is logged in response but doesn't affect execution.",
+          "RLS on all CRM tables enforces client_id scoping — no application-level filter needed for SQL queries.",
+          "Add row_count field to response for auto-verification."
+        ]
+      },
+      "justification": "Covers complex queries (JOINs, aggregations) that search_crm can't express. Read-only by construction. Separate from run_agent_memory_sql for CRM-specific description and potential future guardrails."
+    },
+
+    {
+      "id": "7_rewire_index",
+      "action": "REWRITE_FILE",
+      "status": "DONE",
+      "summary": "Rewrite index.ts factory to register new consolidated tools",
+      "target_file": "src/lib/runner/tools/crm/index.ts",
+      "test_file": "src/lib/runner/tools/crm/__tests__/index.test.ts",
+      "implementation": {
+        "what": "Replace all old tool imports and registrations with the new consolidated tools.",
+        "new_imports": [
+          "createSearchCrmTool from './search'",
+          "createCreateRecordTool from './create-record'",
+          "createUpdateRecordTool from './update-record'",
+          "createDeleteRecordsTool from './delete-records'",
+          "createLinkRecordsTool from './link-records'",
+          "createCrmSqlTool from './crm-sql'",
+          "createInteractionTools from './interactions' (create_interaction only — search_interactions removed)",
+          "createTaskTools from './tasks' (create_task + update_task only — search_tasks removed)",
+          "createConfigureCrmTool from './configure-crm' (unchanged)"
+        ],
+        "new_registry": {
+          "readTools": {
+            "search_crm": "from createSearchCrmTool",
+            "crm_sql": "from createCrmSqlTool"
+          },
+          "writeTools": {
+            "create_record": "from createCreateRecordTool",
+            "update_record": "from createUpdateRecordTool",
+            "link_records": "from createLinkRecordsTool",
+            "create_interaction": "from createInteractionTools (keep as-is)",
+            "create_task": "from createTaskTools (keep as-is)",
+            "update_task": "from createTaskTools (keep as-is)"
+          },
+          "deleteTools": {
+            "delete_records": "from createDeleteRecordsTool (gated by allowDeleteTools)"
+          }
+        },
+        "notes": [
+          "Keep the same CreateCrmToolsOptions interface (mode, config, allowWriteTools, allowDeleteTools).",
+          "Keep the setup-mode branch returning createConfigureCrmTool unchanged.",
+          "The read/write/delete gating logic stays the same — just fewer tools in each bucket.",
+          "interactions.ts and tasks.ts need minor refactors: remove search_* and delete_* exports, keep create/update exports."
+        ]
+      }
+    },
+
+    {
+      "id": "8_update_system_prompt",
+      "action": "UPDATE_REFERENCES",
+      "status": "DONE",
+      "summary": "Update system prompt and autopilot constants to reference new tool names",
+      "files_to_update": [
+        {
+          "file": "src/lib/ai/system-prompt.ts",
+          "change": "Line 31: 'search_contacts' → 'search_crm'. Also add system-reminder CRM schema injection (from step 0)."
+        },
+        {
+          "file": "src/lib/autopilot/constants.ts",
+          "change": "Line 40: 'search_tasks()' and 'search_deals()' → 'search_crm(entity: \"tasks\")' and 'search_crm(entity: \"deals\")'. Line 45: 'search_deals()' → 'search_crm(entity: \"deals\")'."
+        }
+      ],
+      "notes": [
+        "These are string references in prompts/instructions, not code imports.",
+        "Grep for any other string references to old tool names across the codebase."
+      ]
+    },
+
+    {
+      "id": "9_cleanup_tests",
+      "action": "CLEANUP",
+      "status": "DONE",
+      "summary": "Delete old test files, update integration tests referencing old tool names",
+      "files_to_delete_after_new_tests_pass": [
+        "src/lib/runner/tools/crm/__tests__/contacts.test.ts",
+        "src/lib/runner/tools/crm/__tests__/companies.test.ts",
+        "src/lib/runner/tools/crm/__tests__/deals.test.ts",
+        "src/lib/runner/tools/crm/__tests__/deal-contacts.test.ts",
+        "src/lib/runner/tools/crm/__tests__/company-links.test.ts",
+        "src/lib/runner/tools/crm/__tests__/schema.test.ts"
+      ],
+      "files_to_keep": [
+        "src/lib/runner/tools/crm/__tests__/interactions.test.ts (update: remove search_interactions tests)",
+        "src/lib/runner/tools/crm/__tests__/tasks.test.ts (update: remove search_tasks/delete_task tests)",
+        "src/lib/runner/tools/crm/__tests__/index.test.ts (rewrite for new tool registry)",
+        "src/lib/runner/tools/crm/__tests__/descriptions.test.ts (rewrite for new tool descriptions)",
+        "src/lib/runner/tools/crm/__tests__/dynamic-config.test.ts (update for new tool structure)",
+        "src/lib/runner/tools/crm/__tests__/contacts-configurable.test.ts (may merge into create-record tests)",
+        "src/lib/runner/tools/crm/__tests__/filter-utils.test.ts (keep as-is)",
+        "src/lib/runner/tools/crm/__tests__/mock-supabase.ts (keep as-is — shared test util)",
+        "src/lib/runner/tools/crm/__tests__/mock-supabase.test.ts (keep as-is)",
+        "src/lib/runner/tools/crm/__tests__/postgrest-query.test.ts (keep as-is)",
+        "src/lib/runner/tools/crm/__tests__/configure-crm.test.ts (keep as-is)"
+      ],
+      "integration_tests_to_grep": [
+        "src/lib/runner/__tests__/run-agent.test.ts",
+        "src/lib/runner/__tests__/run-autopilot.test.ts",
+        "src/lib/runner/__tests__/run-persistence.test.ts",
+        "src/lib/runner/__tests__/toolcall-artifacts.test.ts",
+        "src/lib/runner/__tests__/serialization.test.ts",
+        "src/lib/runner/__tests__/stale-cleanup.test.ts",
+        "src/lib/runner/__tests__/run-agent-crm-config.test.ts",
+        "src/lib/runner/__tests__/message-utils.test.ts",
+        "src/lib/runner/tools/subagents/__tests__/run-subagent.test.ts",
+        "src/lib/approvals/__tests__/queries.test.ts",
+        "src/lib/ai/__tests__/system-prompt.test.ts",
+        "src/lib/ai/__tests__/chat-route.test.ts",
+        "src/lib/chat/__tests__/schemas.test.ts",
+        "src/lib/autopilot/__tests__/constants.test.ts"
+      ],
+      "notes": [
+        "Run grep for ALL old tool names across src/ to catch any remaining string references.",
+        "Old source files (contacts.ts, companies.ts, deals.ts, deal-contacts.ts, company-links.ts, schema.ts) can be deleted ONLY after the new tools pass all tests and index.ts no longer imports them.",
+        "Keep: filter-utils.ts, custom-fields.ts, configure-crm.ts, interactions.ts (modified), tasks.ts (modified)."
+      ]
+    }
+  ],
+
+  "source_files_final_state": {
+    "DELETE": [
+      "src/lib/runner/tools/crm/schema.ts",
+      "src/lib/runner/tools/crm/contacts.ts",
+      "src/lib/runner/tools/crm/companies.ts",
+      "src/lib/runner/tools/crm/deals.ts",
+      "src/lib/runner/tools/crm/deal-contacts.ts",
+      "src/lib/runner/tools/crm/company-links.ts"
+    ],
+    "CREATE": [
+      "src/lib/runner/tools/crm/search.ts",
+      "src/lib/runner/tools/crm/create-record.ts",
+      "src/lib/runner/tools/crm/update-record.ts",
+      "src/lib/runner/tools/crm/delete-records.ts",
+      "src/lib/runner/tools/crm/link-records.ts",
+      "src/lib/runner/tools/crm/crm-sql.ts"
+    ],
+    "MODIFY": [
+      "src/lib/runner/tools/crm/index.ts (rewrite factory)",
+      "src/lib/runner/tools/crm/interactions.ts (remove search_interactions + delete_interaction, keep create_interaction)",
+      "src/lib/runner/tools/crm/tasks.ts (remove search_tasks + delete_task, keep create_task + update_task)",
+      "src/lib/ai/system-prompt.ts (add CRM schema to system-reminder, update tool name references)",
+      "src/lib/autopilot/constants.ts (update tool name references)"
+    ],
+    "KEEP_UNCHANGED": [
+      "src/lib/runner/tools/crm/filter-utils.ts",
+      "src/lib/runner/tools/crm/custom-fields.ts",
+      "src/lib/runner/tools/crm/configure-crm.ts"
+    ]
+  },
+
+  "safety_checklist": [
+    "All write tools include 'Data Modification Warning' in description",
+    "delete_records has needsApproval: true",
+    "All tools scope by client_id (closure injection + RLS)",
+    "create_record has duplicate detection with force_create override",
+    "crm_sql is read-only (SELECT/CTE only validation)",
+    "All mutating tools return full created/updated record for auto-verification",
+    "delete_records requires reason field for audit trail"
+  ]
+}

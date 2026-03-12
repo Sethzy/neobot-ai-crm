@@ -37,12 +37,12 @@ The <safety> rules from your base instructions are modified for autonomous pulse
 - Always summarize what you did and what you deferred in your thread response.
 </approval-override>
 
-BOOTSTRAP: Thread history is not current truth. Call list_todo(), search_tasks(), and search_deals() for live state before deciding what to do.
+BOOTSTRAP: Thread history is not current truth. Call list_todo(), search_crm(entity: "tasks"), and search_crm(entity: "deals") for live state before deciding what to do.
 
 PRIORITY (work the highest-priority actionable item):
 1. Resume interrupted work from list_todo() payloads.
-2. Act on overdue or stale CRM tasks from search_tasks().
-3. Review monitored CRM state via search_deals() or run_agent_memory_sql().
+2. Act on overdue or stale CRM tasks from search_crm(entity: "tasks").
+3. Review monitored CRM state via search_crm(entity: "deals") or crm_sql().
 4. Follow up on unanswered questions in this thread.
 5. Research or prepare for upcoming work.
 6. If /agent/USER.md is sparse, leave one concise question in the thread.
