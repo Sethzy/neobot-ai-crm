@@ -4,6 +4,7 @@
  */
 import Stripe from "stripe";
 
+import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import {
   getStripeClient,
   syncBillingStateFromDeletedSubscription,
@@ -59,7 +60,16 @@ export async function POST(request: Request): Promise<Response> {
             : session.subscription?.id ?? null;
 
         if (subscriptionId) {
-          await syncBillingStateFromSubscriptionId(subscriptionId);
+          const syncedBillingState = await syncBillingStateFromSubscriptionId(subscriptionId);
+          await captureServerEvent({
+            distinctId: syncedBillingState.clientId,
+            event: "subscription_created",
+            properties: {
+              plan_name: syncedBillingState.planName,
+              trial: syncedBillingState.trial,
+              stripe_customer_id: syncedBillingState.stripeCustomerId,
+            },
+          });
         }
         break;
       }
@@ -74,7 +84,17 @@ export async function POST(request: Request): Promise<Response> {
             : invoice.subscription?.id ?? null;
 
         if (subscriptionId) {
-          await syncBillingStateFromSubscriptionId(subscriptionId);
+          const syncedBillingState = await syncBillingStateFromSubscriptionId(subscriptionId);
+
+          if (event.type === "invoice.payment_failed") {
+            await captureServerEvent({
+              distinctId: syncedBillingState.clientId,
+              event: "payment_failed",
+              properties: {
+                plan_name: syncedBillingState.planName,
+              },
+            });
+          }
         }
         break;
       }
@@ -85,7 +105,14 @@ export async function POST(request: Request): Promise<Response> {
       }
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
-        await syncBillingStateFromDeletedSubscription(subscription);
+        const syncedBillingState = await syncBillingStateFromDeletedSubscription(subscription);
+        await captureServerEvent({
+          distinctId: syncedBillingState.clientId,
+          event: "subscription_canceled",
+          properties: {
+            plan_name: syncedBillingState.planName,
+          },
+        });
         break;
       }
       default:

@@ -6,6 +6,7 @@ import { unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
 import Stripe from "stripe";
 
+import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
@@ -63,6 +64,15 @@ export interface BillingSummary {
   currentPlanName: BillingPlanName;
   currentPlanStatus: string;
   hasPaidSubscription: boolean;
+}
+
+export interface SyncedBillingState {
+  clientId: string;
+  planName: PaidBillingPlanName | null;
+  stripeCustomerId: string;
+  subscriptionId: string | null;
+  subscriptionStatus: Stripe.Subscription.Status;
+  trial: boolean;
 }
 
 const clientBillingSelect =
@@ -406,6 +416,15 @@ export async function createCheckoutSession(priceId: string): Promise<string> {
     throw new Error("Stripe Checkout did not return a hosted session url.");
   }
 
+  await captureServerEvent({
+    distinctId: context.clientId,
+    event: "checkout_started",
+    properties: {
+      plan_name: planName,
+      billing_interval: price.recurring?.interval ?? "month",
+    },
+  });
+
   return session.url;
 }
 
@@ -503,7 +522,9 @@ async function persistBillingUpdate(
   }
 }
 
-export async function syncBillingStateFromSubscriptionId(subscriptionId: string): Promise<void> {
+export async function syncBillingStateFromSubscriptionId(
+  subscriptionId: string,
+): Promise<SyncedBillingState> {
   const subscription = await getStripeClient().subscriptions.retrieve(subscriptionId, {
     expand: ["items.data.price.product"],
   });
@@ -541,11 +562,20 @@ export async function syncBillingStateFromSubscriptionId(subscriptionId: string)
     : subscription.id;
 
   await persistBillingUpdate(client.client_id, update);
+
+  return {
+    clientId: client.client_id,
+    planName,
+    stripeCustomerId: customerId,
+    subscriptionId: update.stripe_subscription_id,
+    subscriptionStatus: subscription.status,
+    trial: subscription.status === "trialing",
+  };
 }
 
 export async function syncBillingStateFromDeletedSubscription(
   subscription: Stripe.Subscription,
-): Promise<void> {
+): Promise<SyncedBillingState> {
   const customerId =
     typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
   const client = await findClientForSubscription({
@@ -566,6 +596,19 @@ export async function syncBillingStateFromDeletedSubscription(
     plan_name: null,
     subscription_status: subscription.status,
   });
+  const previousPlanName = client.plan_name;
+
+  return {
+    clientId: client.client_id,
+    planName:
+      previousPlanName && isPaidBillingPlanName(previousPlanName)
+        ? previousPlanName
+        : null,
+    stripeCustomerId: customerId,
+    subscriptionId: null,
+    subscriptionStatus: subscription.status,
+    trial: false,
+  };
 }
 
 export async function syncBillingStateFromCheckoutSession(sessionId: string): Promise<void> {

@@ -14,6 +14,10 @@ const {
   mockSyncBillingStateFromSubscriptionId: vi.fn(),
 }));
 
+vi.mock("@/lib/analytics/posthog-server", () => ({
+  captureServerEvent: vi.fn(),
+}));
+
 vi.mock("@/lib/stripe/stripe", () => ({
   getStripeClient: () => ({
     webhooks: {
@@ -29,6 +33,22 @@ vi.mock("@/lib/stripe/stripe", () => ({
 describe("POST /api/stripe/webhook", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSyncBillingStateFromSubscriptionId.mockResolvedValue({
+      clientId: "client-123",
+      planName: "pro",
+      stripeCustomerId: "cus_123",
+      subscriptionId: "sub_123",
+      subscriptionStatus: "active",
+      trial: false,
+    });
+    mockSyncBillingStateFromDeletedSubscription.mockResolvedValue({
+      clientId: "client-123",
+      planName: "pro",
+      stripeCustomerId: "cus_123",
+      subscriptionId: null,
+      subscriptionStatus: "canceled",
+      trial: false,
+    });
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
   });
 
