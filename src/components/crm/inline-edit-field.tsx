@@ -38,10 +38,24 @@ interface InlineEditFieldProps {
   label: string;
   /** Current field value from query data. */
   value: string | null;
+  /** Optional display-only value when the edit draft should differ from the rendered label. */
+  displayValue?: string | null;
   /** Input type used when switching to edit mode. */
   type?: InlineEditType;
+  /** Optional HTML input type when `type="text"` or `type="number"`. */
+  inputType?: React.HTMLInputTypeAttribute;
   /** Select options for `type="select"`. */
   options?: SelectOption[];
+  /** Hides the label for heading-style edit surfaces. */
+  hideLabel?: boolean;
+  /** Optional className for the clickable field container. */
+  containerClassName?: string;
+  /** Optional className for the label text. */
+  labelClassName?: string;
+  /** Optional className for the rendered display value. */
+  displayClassName?: string;
+  /** Optional className for the editor wrapper width/layout. */
+  editorClassName?: string;
   /** Called after the field is committed. */
   onSave: (value: string) => Promise<void> | void;
 }
@@ -73,8 +87,15 @@ function parseDateValue(value: string): Date | null {
 export function InlineEditField({
   label,
   value,
+  displayValue,
   type = "text",
+  inputType,
   options = [],
+  hideLabel = false,
+  containerClassName,
+  labelClassName,
+  displayClassName,
+  editorClassName,
   onSave,
 }: InlineEditFieldProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -201,7 +222,12 @@ export function InlineEditField({
   const dateFromDraft = useMemo(() => (draft ? parseDateValue(draft) : null), [draft]);
   const dateFromValue = useMemo(() => (value ? parseDateValue(value) : null), [value]);
 
-  const displayValue = useMemo(() => {
+  const resolvedDisplayValue = useMemo(() => {
+    if (displayValue !== undefined) {
+      const normalizedDisplayValue = displayValue?.trim();
+      return normalizedDisplayValue && normalizedDisplayValue.length > 0 ? normalizedDisplayValue : "—";
+    }
+
     if (type === "select") {
       if (!value) {
         return "—";
@@ -220,7 +246,9 @@ export function InlineEditField({
 
     const normalizedValue = value?.trim();
     return normalizedValue && normalizedValue.length > 0 ? normalizedValue : "—";
-  }, [dateFromValue, options, type, value]);
+  }, [dateFromValue, displayValue, options, type, value]);
+
+  const isTextareaField = type === "textarea";
 
   const renderEditor = (inputElementRef: RefObject<HTMLInputElement | HTMLTextAreaElement | null>) => {
     if (type === "select") {
@@ -233,7 +261,7 @@ export function InlineEditField({
           }}
           disabled={isSaving}
         >
-          <SelectTrigger className="h-8 min-w-[150px]">
+            <SelectTrigger className="h-8 min-w-[150px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -249,12 +277,12 @@ export function InlineEditField({
 
     if (type === "textarea") {
       return (
-        <Textarea
-          ref={inputElementRef as RefObject<HTMLTextAreaElement>}
-          rows={3}
-          className="min-h-20 w-[220px]"
-          value={draft}
-          disabled={isSaving}
+          <Textarea
+            ref={inputElementRef as RefObject<HTMLTextAreaElement>}
+            rows={3}
+            className={cn("min-h-20 w-full", editorClassName)}
+            value={draft}
+            disabled={isSaving}
           onChange={(event) => setDraft(event.target.value)}
           onBlur={() => {
             void handleCommit(draft);
@@ -272,7 +300,7 @@ export function InlineEditField({
               type="button"
               variant="outline"
               size="sm"
-              className="h-8 w-[220px] justify-start text-left text-sm font-normal"
+              className={cn("h-8 w-[220px] justify-start text-left text-sm font-normal", editorClassName)}
               disabled={isSaving}
             >
               <CalendarIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
@@ -300,14 +328,14 @@ export function InlineEditField({
     }
 
     return (
-      <Input
-        ref={inputElementRef as RefObject<HTMLInputElement>}
-        type={type === "number" ? "number" : "text"}
-        inputMode={type === "number" ? "decimal" : undefined}
-        value={draft}
-        disabled={isSaving}
-        className="h-8 w-[220px]"
-        onChange={(event) => setDraft(event.target.value)}
+        <Input
+          ref={inputElementRef as RefObject<HTMLInputElement>}
+          type={inputType ?? (type === "number" ? "number" : "text")}
+          inputMode={type === "number" ? "decimal" : undefined}
+          value={draft}
+          disabled={isSaving}
+          className={cn("h-8 w-[220px]", editorClassName)}
+          onChange={(event) => setDraft(event.target.value)}
         onBlur={() => {
           void handleCommit(draft);
         }}
@@ -320,18 +348,51 @@ export function InlineEditField({
     <div
       role="button"
       tabIndex={0}
-      className="group flex items-start justify-between gap-3 rounded-md px-1 py-1.5 transition-colors hover:bg-muted/30"
+      className={cn(
+        "group flex items-start justify-between gap-3 rounded-md px-1 py-1.5 transition-colors hover:bg-muted/30",
+        hideLabel && "justify-start",
+        isTextareaField && !hideLabel && "items-start",
+        containerClassName,
+      )}
       onClick={handleStartEditing}
       onKeyDown={handleContainerKeyDown}
     >
-      <span className="text-sm text-muted-foreground">{label}</span>
+      {hideLabel ? null : (
+        <span className={cn("text-sm text-muted-foreground", labelClassName)}>{label}</span>
+      )}
 
-      <div className={cn("flex items-center gap-2", isEditing ? "max-w-[220px]" : "min-w-0 max-w-[220px]")}>
+      <div
+        className={cn(
+          "flex items-center gap-2",
+          isEditing
+            ? isTextareaField
+              ? "w-full max-w-full"
+              : "max-w-[220px]"
+            : hideLabel
+              ? "min-w-0"
+              : isTextareaField
+                ? "min-w-0 flex-1 items-start max-w-full"
+                : "min-w-0 max-w-[220px]",
+        )}
+      >
         {isEditing ? (
           renderEditor(inputRef)
         ) : (
           <>
-            <span className="truncate text-right text-sm text-foreground/80">{displayValue}</span>
+            <span
+              className={cn(
+                "text-sm text-foreground/80",
+                isTextareaField
+                  ? "line-clamp-4 w-full whitespace-pre-wrap break-words text-left"
+                  : hideLabel
+                    ? "w-full whitespace-normal break-words"
+                    : "truncate",
+                hideLabel ? "text-left" : isTextareaField ? "text-left" : "text-right",
+                displayClassName,
+              )}
+            >
+              {resolvedDisplayValue}
+            </span>
             {isSaving ? (
               <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground/60" />
             ) : isSaved ? (

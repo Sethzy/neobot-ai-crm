@@ -42,8 +42,8 @@ describe("KanbanBoard", () => {
 
     expect(openColumn).not.toBeNull();
     expect(completedColumn).not.toBeNull();
-    expect(within(openColumn as HTMLElement).getByText("2")).toBeInTheDocument();
-    expect(within(completedColumn as HTMLElement).getByText("1")).toBeInTheDocument();
+    expect(within(openColumn as HTMLElement).getByText("Deals: 2")).toBeInTheDocument();
+    expect(within(completedColumn as HTMLElement).getByText("Deals: 1")).toBeInTheDocument();
   });
 
   it("renders cards in correct columns", () => {
@@ -95,11 +95,11 @@ describe("KanbanBoard", () => {
     const blockedColumn = screen.getByText("Blocked").closest("section");
 
     expect(blockedColumn).not.toBeNull();
-    expect(within(blockedColumn as HTMLElement).getByText("0")).toBeInTheDocument();
-    expect(within(blockedColumn as HTMLElement).getByText("No items")).toBeInTheDocument();
+    expect(within(blockedColumn as HTMLElement).getByText("Deals: 0")).toBeInTheDocument();
+    expect(within(blockedColumn as HTMLElement).getByText("No items yet.")).toBeInTheDocument();
   });
 
-  it("renders board toolbar label and new-item footer rows when configured", () => {
+  it("renders board toolbar label and total item count when configured", () => {
     render(
       <KanbanBoard
         boardLabel="By Stage"
@@ -111,6 +111,6 @@ describe("KanbanBoard", () => {
     );
 
     expect(screen.getByText("By Stage")).toBeInTheDocument();
-    expect(screen.getAllByText("+ New")).toHaveLength(columns.length);
+    expect(screen.getByText(String(items.length))).toBeInTheDocument();
   });
 });

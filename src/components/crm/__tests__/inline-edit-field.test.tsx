@@ -121,4 +121,36 @@ describe("InlineEditField", () => {
 
     expect(screen.getByRole("spinbutton")).toHaveValue(250000);
   });
+
+  it("renders a formatted display value while editing the raw numeric value", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <InlineEditField
+        label="Price"
+        value="1850000"
+        displayValue="$1,850,000"
+        type="number"
+        onSave={onSave}
+      />,
+    );
+
+    await user.click(screen.getByText("$1,850,000"));
+
+    expect(screen.getByRole("spinbutton")).toHaveValue(1850000);
+  });
+
+  it("does not truncate hide-label title fields", () => {
+    render(
+      <InlineEditField
+        label="Address"
+        value="123 Bishan Street 13 #08-42"
+        hideLabel
+        onSave={onSave}
+      />,
+    );
+
+    expect(screen.getByText("123 Bishan Street 13 #08-42")).toHaveClass("whitespace-normal");
+    expect(screen.getByText("123 Bishan Street 13 #08-42")).not.toHaveClass("truncate");
+  });
 });

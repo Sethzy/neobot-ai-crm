@@ -37,6 +37,8 @@ interface KanbanBoardProps<T> {
   getItemId?: (item: T) => string;
   /** Returns a summary string (e.g. total value) for a column header. */
   getColumnSummary?: (columnKey: string, columnItems: T[]) => string | undefined;
+  /** Empty-lane copy shown when a column has no items. */
+  emptyStateMessage?: string;
 }
 
 export function KanbanBoard<T>({
@@ -48,6 +50,7 @@ export function KanbanBoard<T>({
   onCardClick,
   getItemId,
   getColumnSummary,
+  emptyStateMessage = "No items yet.",
 }: KanbanBoardProps<T>) {
   const groupedItems = new Map<string, T[]>();
 
@@ -64,84 +67,82 @@ export function KanbanBoard<T>({
   }
 
   return (
-    <div>
-      {/* Board toolbar */}
+    <div className="min-w-0">
       {boardLabel ? (
-        <div className="flex items-center justify-between pb-3">
-          <div className="flex items-center gap-1.5 text-sm">
-            <span className="font-medium text-foreground">{boardLabel}</span>
-            <span className="text-muted-foreground">{items.length}</span>
-          </div>
-          <div className="hidden items-center gap-5 text-sm text-muted-foreground sm:flex">
-            <span className="cursor-default hover:text-foreground">Filter</span>
-            <span className="cursor-default hover:text-foreground">Sort</span>
-            <span className="cursor-default hover:text-foreground">Options</span>
-          </div>
+        <div className="flex items-center gap-1.5 pb-3 text-sm">
+          <span className="font-medium text-foreground">{boardLabel}</span>
+          <span className="text-muted-foreground">{items.length}</span>
         </div>
       ) : null}
 
-      {/* Horizontal columns — fixed width per column, horizontal scroll */}
-      <div className="flex min-h-[420px] gap-3 overflow-x-auto pb-2">
-        {columns.map((column) => {
-          const columnItems = groupedItems.get(column.key) ?? [];
-          const summary = getColumnSummary?.(column.key, columnItems);
+      <div className="w-full min-w-0 overflow-x-auto pb-2">
+        <div className="flex min-h-[60vh] w-max min-w-full gap-3">
+          {columns.map((column) => {
+            const columnItems = groupedItems.get(column.key) ?? [];
+            const summary = getColumnSummary?.(column.key, columnItems);
+            const hasStyledHeader = Boolean(column.toneClassName);
 
-          return (
-            <section
-              key={column.key}
-              className={cn(
-                "flex min-w-[180px] flex-1 flex-col border-t-[2.5px]",
-                column.topBorderClassName ?? "border-t-border",
-              )}
-            >
-              {/* Column header */}
-              <div className="flex items-center gap-2 py-2.5">
-                <span
-                  className={cn(
-                    "rounded px-2 py-0.5 text-xs font-medium",
-                    column.toneClassName ?? "bg-muted text-foreground/80",
-                  )}
-                >
-                  {column.label}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {columnItems.length}
-                </span>
-                {summary ? (
-                  <span className="text-xs text-muted-foreground">{summary}</span>
-                ) : null}
-              </div>
-
-              {/* Cards */}
-              <div className="flex flex-1 flex-col gap-2">
-                {columnItems.length === 0 ? (
-                  <p className="py-8 text-center text-xs text-muted-foreground/50">
-                    No items
-                  </p>
-                ) : (
-                  columnItems.map((item, index) => {
-                    const itemId = getItemId ? getItemId(item) : undefined;
-
-                    return (
-                      <div
-                        key={itemId ?? index}
-                        className="cursor-pointer rounded-md border border-border/40 bg-card p-3 transition-colors hover:bg-accent/50"
-                        onClick={() => {
-                          if (onCardClick && itemId) {
-                            onCardClick(itemId);
-                          }
-                        }}
-                      >
-                        {renderCard(item)}
-                      </div>
-                    );
-                  })
+            return (
+              <section
+                key={column.key}
+                className={cn(
+                  "flex min-h-[60vh] w-full flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-all md:w-72 md:flex-none",
+                  column.topBorderClassName ? cn("border-t-[2.5px]", column.topBorderClassName) : "",
                 )}
-              </div>
+              >
+                <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+                  <div className="flex flex-col">
+                    {hasStyledHeader ? (
+                      <span
+                        className={cn(
+                          "inline-flex w-fit rounded px-2 py-0.5 text-xs font-medium",
+                          column.toneClassName,
+                        )}
+                      >
+                        {column.label}
+                      </span>
+                    ) : (
+                      <span className="text-sm font-semibold text-foreground">{column.label}</span>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {hasStyledHeader ? columnItems.length : `Deals: ${columnItems.length}`}
+                      {summary ? ` · ${summary}` : ""}
+                    </span>
+                  </div>
+                </div>
 
-            </section>
-          );
-        })}
+                <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
+                  {columnItems.length === 0 ? (
+                    <p className="rounded-md border border-dashed border-border bg-muted/10 p-4 text-center text-sm text-muted-foreground">
+                      {emptyStateMessage}
+                    </p>
+                  ) : (
+                    columnItems.map((item, index) => {
+                      const itemId = getItemId ? getItemId(item) : undefined;
+
+                      return (
+                        <div
+                          key={itemId ?? index}
+                          className={cn(
+                            "group rounded-md border border-border bg-background p-4 shadow-xs transition hover:shadow-sm",
+                            onCardClick && itemId ? "cursor-pointer" : "",
+                          )}
+                          onClick={() => {
+                            if (onCardClick && itemId) {
+                              onCardClick(itemId);
+                            }
+                          }}
+                        >
+                          {renderCard(item)}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </section>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
