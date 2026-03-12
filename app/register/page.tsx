@@ -17,6 +17,7 @@ import {
   buildBrowserAuthRedirectUrl,
   splitFullName,
 } from "@/lib/auth/browser-redirect";
+import { captureOrQueueEmailAuthEvent } from "@/lib/analytics/posthog-auth-events";
 import { supabase } from "@/lib/supabase";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -37,7 +38,7 @@ export default function RegisterPage() {
     const { error: authError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: buildBrowserAuthRedirectUrl("/chat"),
+        redirectTo: buildBrowserAuthRedirectUrl("/chat", "signup"),
       },
     });
 
@@ -97,6 +98,14 @@ export default function RegisterPage() {
     if (data.user?.identities?.length === 0) {
       setError("An account with this email already exists. Please sign in.");
       return;
+    }
+
+    if (data.user) {
+      await captureOrQueueEmailAuthEvent({
+        event: "signed_up",
+        supabase,
+        user: data.user,
+      });
     }
 
     setSuccess(true);

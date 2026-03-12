@@ -11,9 +11,16 @@ export function getSafeNextPath(nextPath?: string | null): string {
   return nextPath;
 }
 
-export function buildBrowserAuthRedirectUrl(nextPath?: string | null): string {
+export function buildBrowserAuthRedirectUrl(
+  nextPath?: string | null,
+  authFlow?: "signin" | "signup",
+): string {
   const callbackUrl = new URL("/auth/callback", window.location.origin);
   callbackUrl.searchParams.set("next", getSafeNextPath(nextPath));
+
+  if (authFlow) {
+    callbackUrl.searchParams.set("auth_flow", authFlow);
+  }
 
   return callbackUrl.toString();
 }

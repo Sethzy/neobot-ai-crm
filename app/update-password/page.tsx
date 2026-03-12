@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import posthog from "posthog-js";
 import { Button } from "@/components/landing/Button";
 import { Logo } from "@/components/landing/Logo";
 import { SlimLayout } from "@/components/landing/SlimLayout";
@@ -46,6 +47,7 @@ export default function UpdatePasswordPage() {
     }
 
     await supabase.auth.signOut();
+    posthog.reset();
     router.push("/login");
   };
 

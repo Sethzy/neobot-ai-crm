@@ -11,6 +11,7 @@ import LoginPage from "./page";
 const mockReplace = vi.fn();
 const mockSignInWithOAuth = vi.fn();
 const mockSignInWithPassword = vi.fn();
+const mockCaptureOrQueueEmailAuthEvent = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -27,11 +28,25 @@ vi.mock("@/lib/supabase", () => ({
   },
 }));
 
+vi.mock("@/lib/analytics/posthog-auth-events", () => ({
+  captureOrQueueEmailAuthEvent: (...args: unknown[]) => mockCaptureOrQueueEmailAuthEvent(...args),
+}));
+
 describe("/login page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSignInWithOAuth.mockResolvedValue({ data: { url: "https://accounts.google.com" }, error: null });
-    mockSignInWithPassword.mockResolvedValue({ error: null });
+    mockCaptureOrQueueEmailAuthEvent.mockResolvedValue(undefined);
+    mockSignInWithPassword.mockResolvedValue({
+      data: {
+        user: {
+          id: "user-1",
+          email: "seth@example.com",
+          user_metadata: { display_name: "Seth Lim" },
+        },
+      },
+      error: null,
+    });
   });
 
   it("starts Google OAuth from the dedicated sign-in screen", async () => {
@@ -52,7 +67,8 @@ describe("/login page", () => {
       expect(mockSignInWithOAuth).toHaveBeenCalledWith({
         provider: "google",
         options: {
-          redirectTo: "http://localhost:3000/auth/callback?next=%2Fchat",
+          redirectTo:
+            "http://localhost:3000/auth/callback?next=%2Fchat&auth_flow=signin",
         },
       });
     });
@@ -80,6 +96,15 @@ describe("/login page", () => {
       expect(mockSignInWithPassword).toHaveBeenCalledWith({
         email: "seth@example.com",
         password: "secret123",
+      });
+      expect(mockCaptureOrQueueEmailAuthEvent).toHaveBeenCalledWith({
+        event: "signed_in",
+        supabase: expect.any(Object),
+        user: {
+          id: "user-1",
+          email: "seth@example.com",
+          user_metadata: { display_name: "Seth Lim" },
+        },
       });
       expect(mockReplace).toHaveBeenCalledWith("/chat");
     });

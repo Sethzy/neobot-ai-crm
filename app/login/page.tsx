@@ -18,6 +18,7 @@ import {
   buildBrowserAuthRedirectUrl,
   getSafeNextPath,
 } from "@/lib/auth/browser-redirect";
+import { captureOrQueueEmailAuthEvent } from "@/lib/analytics/posthog-auth-events";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage({
@@ -41,7 +42,7 @@ export default function LoginPage({
     const { error: authError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: buildBrowserAuthRedirectUrl(nextPath),
+        redirectTo: buildBrowserAuthRedirectUrl(nextPath, "signin"),
       },
     });
 
@@ -57,7 +58,7 @@ export default function LoginPage({
     setError(null);
     setIsLoading(true);
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -67,6 +68,14 @@ export default function LoginPage({
     if (authError) {
       setError(authError.message);
       return;
+    }
+
+    if (data.user) {
+      await captureOrQueueEmailAuthEvent({
+        event: "signed_in",
+        supabase,
+        user: data.user,
+      });
     }
 
     router.replace(nextPath);

@@ -9,6 +9,7 @@ import RegisterPage from "./page";
 
 const mockSignInWithOAuth = vi.fn();
 const mockSignUp = vi.fn();
+const mockCaptureOrQueueEmailAuthEvent = vi.fn();
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
@@ -19,12 +20,24 @@ vi.mock("@/lib/supabase", () => ({
   },
 }));
 
+vi.mock("@/lib/analytics/posthog-auth-events", () => ({
+  captureOrQueueEmailAuthEvent: (...args: unknown[]) => mockCaptureOrQueueEmailAuthEvent(...args),
+}));
+
 describe("/register page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSignInWithOAuth.mockResolvedValue({ data: { url: "https://accounts.google.com" }, error: null });
+    mockCaptureOrQueueEmailAuthEvent.mockResolvedValue(undefined);
     mockSignUp.mockResolvedValue({
-      data: { user: { identities: [{ id: "identity-1" }] } },
+      data: {
+        user: {
+          id: "user-1",
+          email: "seth@example.com",
+          user_metadata: { display_name: "Seth Lim" },
+          identities: [{ id: "identity-1" }],
+        },
+      },
       error: null,
     });
   });
@@ -58,6 +71,16 @@ describe("/register page", () => {
           emailRedirectTo: "http://localhost:3000/auth/confirm",
         },
       });
+      expect(mockCaptureOrQueueEmailAuthEvent).toHaveBeenCalledWith({
+        event: "signed_up",
+        supabase: expect.any(Object),
+        user: {
+          id: "user-1",
+          email: "seth@example.com",
+          user_metadata: { display_name: "Seth Lim" },
+          identities: [{ id: "identity-1" }],
+        },
+      });
     });
   });
 
@@ -70,7 +93,8 @@ describe("/register page", () => {
       expect(mockSignInWithOAuth).toHaveBeenCalledWith({
         provider: "google",
         options: {
-          redirectTo: "http://localhost:3000/auth/callback?next=%2Fchat",
+          redirectTo:
+            "http://localhost:3000/auth/callback?next=%2Fchat&auth_flow=signup",
         },
       });
     });
