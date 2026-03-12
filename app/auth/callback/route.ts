@@ -22,19 +22,15 @@ export async function GET(request: Request) {
 
     if (!error) {
       try {
-        if (typeof supabase.auth.getUser !== "function") {
-          return NextResponse.redirect(new URL(nextPath, requestUrl));
-        }
-
         const {
           data: { user },
         } = await supabase.auth.getUser();
 
         if (user && (authFlow === "signin" || authFlow === "signup")) {
-          const clientId = await resolveClientId(supabase, user.id);
           const analyticsContext = buildAnalyticsContext({
             email: user.email,
           });
+          const clientId = await resolveClientId(supabase, user.id);
 
           await captureServerEvent({
             distinctId: clientId,

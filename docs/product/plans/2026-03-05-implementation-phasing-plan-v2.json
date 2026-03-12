@@ -2074,6 +2074,7 @@
           "pr": 38,
           "title": "Onboarding flow",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "UX-09",
             "DATA-08"
