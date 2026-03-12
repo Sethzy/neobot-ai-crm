@@ -2,18 +2,16 @@
  * Connection-scoped Composio tool loading.
  * @module lib/composio/activated-tools
  */
-import { jsonSchemaToZodSchema } from "@composio/core";
-import { tool, type ToolSet } from "ai";
-import { z } from "zod";
+import { jsonSchema, tool, type ToolSet } from "ai";
 
 import type { ConnectionRow } from "@/lib/connections/schemas";
 
 import { getComposio } from "./client";
 
 const EMPTY_TOOL_INPUT_SCHEMA = {
-  type: "object",
+  type: "object" as const,
   properties: {},
-} as const;
+};
 
 /**
  * Loads only the activated tools for each active connection and prefixes each
@@ -42,10 +40,9 @@ export async function loadActivatedConnectionTools(
       for (const rawTool of rawTools) {
         loadedTools[`${connection.id}__${rawTool.slug}`] = tool({
           description: rawTool.description ?? rawTool.slug,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- bridge Zod v3 (composio) → v4
-          inputSchema: jsonSchemaToZodSchema(
+          inputSchema: jsonSchema(
             rawTool.inputParameters ?? EMPTY_TOOL_INPUT_SCHEMA,
-          ) as any,
+          ),
           execute: async (args) =>
             composio.tools.execute(rawTool.slug, {
               connectedAccountId: connection.composio_connected_account_id,
