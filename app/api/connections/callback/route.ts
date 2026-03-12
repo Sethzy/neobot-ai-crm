@@ -4,6 +4,7 @@
  */
 import { NextResponse } from "next/server";
 
+import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { authenticateRequest } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { getComposio } from "@/lib/composio";
@@ -229,6 +230,14 @@ export async function GET(request: Request): Promise<Response> {
         });
       }
     }
+
+    await captureServerEvent({
+      distinctId: clientId,
+      event: "connection_completed",
+      properties: {
+        toolkit_slug: connectedAccount.toolkit.slug,
+      },
+    });
 
     return buildSettingsRedirect(request, {
       connection: "success",

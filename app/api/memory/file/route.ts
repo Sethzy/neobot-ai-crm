@@ -2,6 +2,7 @@
  * Reads and writes a single memory file for the authenticated user.
  * @module app/api/memory/file/route
  */
+import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { MEMORY_BUCKET_ID, MEMORY_TEXT_CONTENT_TYPE } from "@/lib/memory/constants";
@@ -64,6 +65,17 @@ export async function PUT(request: Request): Promise<Response> {
     if (error) {
       throw new Error(`Failed to save file: ${getStorageErrorMessage(error)}`);
     }
+
+    await captureServerEvent({
+      distinctId: clientId,
+      event: "memory_file_saved",
+      properties: {
+        filename: bodyResult.data.path,
+        operation: "write",
+        size_bytes: new TextEncoder().encode(bodyResult.data.content).byteLength,
+        source: "dashboard",
+      },
+    });
 
     return Response.json({ success: true, path: bodyResult.data.path });
   } catch (error) {

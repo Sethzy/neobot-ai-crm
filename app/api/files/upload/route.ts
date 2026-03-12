@@ -5,6 +5,7 @@
  */
 import { z } from "zod";
 
+import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { getFileExtension } from "@/lib/file-utils";
@@ -79,6 +80,15 @@ export async function POST(request: Request) {
     const {
       data: { publicUrl },
     } = supabase.storage.from(BUCKET_ID).getPublicUrl(storagePath);
+
+    await captureServerEvent({
+      distinctId: clientId,
+      event: "file_uploaded",
+      properties: {
+        file_type: fileEntry.type,
+        size_bytes: fileEntry.size,
+      },
+    });
 
     return Response.json({
       url: publicUrl,

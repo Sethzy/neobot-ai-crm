@@ -4,6 +4,7 @@
  */
 import { z } from "zod";
 
+import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { initiateOAuthFlow } from "@/lib/composio/connection-flow";
@@ -99,6 +100,14 @@ export async function POST(request: Request): Promise<Response> {
       status: "pending",
       activated_tools: [],
       tool_count: 0,
+    });
+
+    await captureServerEvent({
+      distinctId: clientId,
+      event: "connection_initiated",
+      properties: {
+        toolkit_slug: toolkit,
+      },
     });
 
     return Response.json({ redirectUrl });

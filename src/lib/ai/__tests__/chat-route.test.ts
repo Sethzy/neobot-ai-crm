@@ -132,9 +132,12 @@ describe("POST /api/chat", () => {
     const insert = vi.fn().mockResolvedValue({ error: null });
     const updateEq = vi.fn().mockResolvedValue({ error: null });
     const update = vi.fn(() => ({ eq: updateEq }));
+    const deleteClientEq = vi.fn().mockResolvedValue({ error: null });
+    const deleteThreadEq = vi.fn(() => ({ eq: deleteClientEq }));
+    const deleteRow = vi.fn(() => ({ eq: deleteThreadEq }));
 
-    const from = vi.fn(() => ({ select, insert, update }));
-    return { from, insert, update, updateEq };
+    const from = vi.fn(() => ({ select, insert, update, delete: deleteRow }));
+    return { from, insert, update, updateEq, deleteRow, deleteThreadEq, deleteClientEq };
   }
 
   const mockSupabase = {
@@ -721,6 +724,37 @@ describe("POST /api/chat", () => {
     expect(mockRunAgent).not.toHaveBeenCalled();
   });
 
+  it("returns 400 when a full messages payload only contains historical approval responses", async () => {
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-delete_contact",
+                toolCallId: "tool-call-1",
+                state: "approval-responded",
+                approval: { id: "approval-1", approved: true },
+              },
+            ],
+          },
+          { id: "u1", role: "user", parts: [{ type: "text", text: "Approved earlier" }] },
+          { id: "a2", role: "assistant", parts: [{ type: "text", text: "Done" }] },
+          { id: "u2", role: "user", parts: [{ type: "text", text: "Fresh request" }] },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "Invalid request body: normal user turns must use `message`.",
+    });
+    expect(mockRunAgent).not.toHaveBeenCalled();
+  });
+
   it("returns 401 when request is unauthenticated", async () => {
     mockSupabase.auth.getUser.mockResolvedValue({
       data: { user: null },
@@ -909,5 +943,50 @@ describe("POST /api/chat", () => {
         nextResetDate: "2026-04-01",
       },
     });
+  });
+
+  it("deletes a newly-created thread when the opening message is blocked by quota", async () => {
+    const { from, insert, deleteRow, deleteThreadEq, deleteClientEq } =
+      createMissingThreadWithInsertAndUpdate();
+    mockSupabase.from = from;
+    mockRunAgent.mockRejectedValue(
+      new MessageQuotaError(
+        messageQuotaErrorCodes.limitReached,
+        "Monthly message limit reached.",
+        {
+          quota: {
+            allowed: false,
+            clientId: "client-456",
+            planName: "Free",
+            monthlyMessageLimit: 100,
+            messagesUsed: 100,
+            messagesRemaining: 0,
+            periodStart: "2026-03-01",
+            nextResetDate: "2026-04-01",
+          },
+        },
+      ),
+    );
+
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Create lazily" }],
+        },
+      }),
+    );
+
+    expect(response.status).toBe(402);
+    expect(insert).toHaveBeenCalledWith({
+      thread_id: threadId,
+      client_id: "client-456",
+      title: null,
+    });
+    expect(deleteRow).toHaveBeenCalledTimes(1);
+    expect(deleteThreadEq).toHaveBeenCalledWith("thread_id", threadId);
+    expect(deleteClientEq).toHaveBeenCalledWith("client_id", "client-456");
   });
 });

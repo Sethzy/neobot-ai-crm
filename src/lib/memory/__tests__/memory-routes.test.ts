@@ -9,11 +9,13 @@ const {
   mockResolveClientId,
   mockListMemoryFiles,
   mockBootstrapMemoryFiles,
+  mockCaptureServerEvent,
 } = vi.hoisted(() => ({
   mockCreateClient: vi.fn(),
   mockResolveClientId: vi.fn(),
   mockListMemoryFiles: vi.fn(),
   mockBootstrapMemoryFiles: vi.fn(),
+  mockCaptureServerEvent: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -34,6 +36,10 @@ vi.mock("@/lib/memory/loader", async (importOriginal) => {
 
 vi.mock("@/lib/memory/bootstrap", () => ({
   bootstrapMemoryFiles: mockBootstrapMemoryFiles,
+}));
+
+vi.mock("@/lib/analytics/posthog-server", () => ({
+  captureServerEvent: (...args: unknown[]) => mockCaptureServerEvent(...args),
 }));
 
 import { GET as getMemoryFile } from "../../../../app/api/memory/file/route";
@@ -288,6 +294,16 @@ describe("memory routes", () => {
         contentType: "text/plain; charset=utf-8",
       },
     );
+    expect(mockCaptureServerEvent).toHaveBeenCalledWith({
+      distinctId: clientId,
+      event: "memory_file_saved",
+      properties: {
+        filename: "memory/preferences.md",
+        operation: "write",
+        size_bytes: 4,
+        source: "dashboard",
+      },
+    });
   });
 
   it("returns generic 500 when /api/memory/file PUT fails unexpectedly", async () => {

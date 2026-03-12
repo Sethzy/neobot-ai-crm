@@ -100,12 +100,14 @@ function getApprovalResponses(
     return [];
   }
 
-  // Approval-responded parts only appear on the most recent assistant message,
-  // so scan in reverse and stop after the first message with approvals.
+  // Approval continuation is only valid when the trailing interaction contains
+  // the approval response, not when an older approval exists somewhere earlier
+  // in the thread history.
+  const trailingMessages = messages.slice(-2);
   const approvalsById = new Map<string, boolean>();
 
-  for (let i = messages.length - 1; i >= 0; i -= 1) {
-    const message = messages[i];
+  for (let i = trailingMessages.length - 1; i >= 0; i -= 1) {
+    const message = trailingMessages[i];
     if (!Array.isArray(message?.parts)) {
       continue;
     }
@@ -132,8 +134,6 @@ function getApprovalResponses(
 
       approvalsById.set(approvalRecord.id, approvalRecord.approved);
     }
-
-    if (approvalsById.size > 0) break;
   }
 
   return [...approvalsById.entries()].map(([approvalId, approved]) => ({
@@ -179,14 +179,17 @@ export async function POST(request: Request): Promise<Response> {
   const authResult = await authenticateRequest();
   if (authResult.kind === "error") return authResult.response;
   const { supabase, userId } = authResult;
+  let clientId: string | null = null;
+  let didCreateThread = false;
 
   try {
-    const clientId = await resolveClientId(supabase, userId);
+    const resolvedClientId = await resolveClientId(supabase, userId);
+    clientId = resolvedClientId;
     const { data: thread, error: threadLookupError } = await supabase
       .from("conversation_threads")
       .select("thread_id")
       .eq("thread_id", threadId)
-      .eq("client_id", clientId)
+      .eq("client_id", resolvedClientId)
       .eq("is_archived", false)
       .maybeSingle();
     let isNewThread = false;
@@ -202,20 +205,21 @@ export async function POST(request: Request): Promise<Response> {
 
       const { error: insertError } = await supabase
         .from("conversation_threads")
-        .insert({ thread_id: threadId, client_id: clientId, title: null });
+        .insert({ thread_id: threadId, client_id: resolvedClientId, title: null });
 
       if (insertError) {
         return jsonError("Failed to process chat request.", 500);
       }
 
       isNewThread = true;
+      didCreateThread = true;
     }
 
     if (approvalResponses.length > 0) {
       const resolutionResults = await Promise.all(
         approvalResponses.map((response) =>
           resolveApprovalEvent(supabase, {
-            clientId,
+            clientId: resolvedClientId,
             approvalId: response.approvalId,
             approved: response.approved,
           }),
@@ -236,7 +240,7 @@ export async function POST(request: Request): Promise<Response> {
           }
 
           return [{
-            distinctId: clientId,
+            distinctId: resolvedClientId,
             event: "approval_resolved",
             properties: {
               tool_name: result.event.tool_name,
@@ -250,7 +254,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const result = await runAgent(
       {
-        clientId,
+        clientId: resolvedClientId,
         threadId,
         triggerType: "chat",
         consumeMessageQuota: body.message?.role === "user",
@@ -267,7 +271,7 @@ export async function POST(request: Request): Promise<Response> {
 
     if (body.message?.role === "user") {
       await captureServerEvent({
-        distinctId: clientId,
+        distinctId: resolvedClientId,
         event: "chat_message_sent",
         properties: {
           thread_id: threadId,
@@ -338,6 +342,14 @@ export async function POST(request: Request): Promise<Response> {
       isMessageQuotaError(error) &&
       error.code === messageQuotaErrorCodes.limitReached
     ) {
+      if (didCreateThread && clientId) {
+        await supabase
+          .from("conversation_threads")
+          .delete()
+          .eq("thread_id", threadId)
+          .eq("client_id", clientId);
+      }
+
       return Response.json(
         {
           error: error.message,
@@ -346,6 +358,16 @@ export async function POST(request: Request): Promise<Response> {
         },
         { status: 402 },
       );
+    }
+
+    console.error("[chat/route] Unhandled error:", error);
+
+    if (didCreateThread && clientId) {
+      await supabase
+        .from("conversation_threads")
+        .delete()
+        .eq("thread_id", threadId)
+        .eq("client_id", clientId);
     }
 
     return jsonError("Failed to process chat request.", 500);
