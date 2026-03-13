@@ -96,7 +96,7 @@
 
 ### 9.6 Tool approval UI (PR 22b)
 
-> Note: Full approval gate is PR 33 (in progress). This tests the UI components.
+> Note: Full approval gate shipped in PRs 33-34. This surface tests the UI components from PR 22b. For end-to-end approval testing, see [Surface 12: Approvals](12-approvals.md).
 
 1. If approval-gated tools exist: trigger one (e.g., a delete operation)
 2. **Expected:** Tool call shows approve/deny buttons instead of auto-executing

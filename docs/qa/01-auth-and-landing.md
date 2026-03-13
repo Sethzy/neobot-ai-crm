@@ -1,6 +1,6 @@
 # QA Surface 1: Auth & Landing
 
-> **PRs covered:** 38 (partial — tasks 1-3, 5-7 done)
+> **PRs covered:** 38 (tasks 1-7 — auth funnel). For conversational onboarding (tasks 8-12), see [Surface 13: Onboarding](13-onboarding.md).
 > **Dogfoodable:** Yes
 > **Time estimate:** 15-20 min manual
 

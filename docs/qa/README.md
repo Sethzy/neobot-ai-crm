@@ -1,8 +1,9 @@
 # Sunder QA Plan — Surface-Based Testing
 
 > **Created:** 2026-03-10
-> **Total surfaces:** 11
-> **Coverage:** 32 done PRs across Phases 1-3
+> **Updated:** 2026-03-12
+> **Total surfaces:** 18
+> **Coverage:** 40 done PRs across Phases 1-4
 
 ## Execution Order
 
@@ -21,8 +22,15 @@ Test in this order (dependency-safe — each surface builds on the previous):
 | 9 | Chat Advanced | [09-chat-advanced.md](09-chat-advanced.md) | Yes | 25-30 min | [ ] |
 | 10 | Connections | [10-connections.md](10-connections.md) | Partial | 20-25 min | [ ] |
 | 11 | Subagents | [11-subagents.md](11-subagents.md) | No | 15-20 min | [ ] |
+| 12 | Approvals | [12-approvals.md](12-approvals.md) | Yes | 20-25 min | [ ] |
+| 13 | Onboarding | [13-onboarding.md](13-onboarding.md) | Partial | 20-25 min | [ ] |
+| 14 | Billing (Stripe) | [14-billing.md](14-billing.md) | Partial | 20-25 min | [ ] |
+| 15 | Message Quota | [15-message-quota.md](15-message-quota.md) | Partial | 20-25 min | [ ] |
+| 16 | CRM Working Surfaces | [16-crm-working-surfaces.md](16-crm-working-surfaces.md) | Yes | 30-40 min | [ ] |
+| 17 | Calculate Tool | [17-calculate-tool.md](17-calculate-tool.md) | No | 10-15 min | [ ] |
+| 18 | Agent-Generated Views | [18-agent-views.md](18-agent-views.md) | Partial | 15-20 min | [ ] |
 
-**Total estimated manual time:** ~4-5 hours
+**Total estimated manual time:** ~6.5-7.5 hours
 
 ## How to Use
 
@@ -34,15 +42,20 @@ Walk through each "Manual QA Scenario" as a real user. Check boxes as you go. Wr
 
 ### Tips
 - **Surfaces 1-2 are gates:** If auth or chat core is broken, nothing else works. Fix those first.
-- **Surface 3 seeds data for Surface 4:** Run CRM tool tests via chat first, then check CRM pages.
+- **Surface 3 seeds data for Surfaces 4 + 16:** Run CRM tool tests via chat first, then check CRM pages and working surfaces.
 - **Surface 8 needs patience:** Triggers require waiting or manual DB manipulation to fire.
-- **Surface 11 may be incomplete:** PR 29 tasks aren't all marked done. Check implementation status first.
+- **Surface 12 depends on Surface 3:** You need existing CRM data to test delete gating.
+- **Surface 13 requires a fresh account:** Onboarding only fires once — reset `setup_progress` and delete USER.md/SOUL.md to re-test.
+- **Surface 14 requires Stripe test mode:** Have `stripe listen` running locally for webhook forwarding.
+- **Surface 15 depends on Surface 14:** Quota display references plan state from Stripe billing.
+- **Surface 16 extends Surface 4:** Test basic CRM pages first, then view switching and quick edit.
+- **Surface 18 needs CRM data:** Agent views are most useful with populated CRM. Run after Surface 3.
 
 ## PR Coverage Map
 
 | Surface | PRs Covered |
 |---------|-------------|
-| 1. Auth | 38 (partial) |
+| 1. Auth | 38 (tasks 1-7) |
 | 2. Chat Core | 1, 2, 3, 4 |
 | 3. CRM Tools | 5, 6, 15c, 15d, 15e |
 | 4. CRM Pages | 10, 11, 15c, 15d |
@@ -53,6 +66,13 @@ Walk through each "Manual QA Scenario" as a real user. Check boxes as you go. Wr
 | 9. Chat Advanced | 22, 22a, 22b, 22c, 22d, 22e |
 | 10. Connections | 25, 26, 26a |
 | 11. Subagents | 29 |
+| 12. Approvals | 33, 34 |
+| 13. Onboarding | 38 (tasks 8-12) |
+| 14. Billing | 38b |
+| 15. Message Quota | 38c |
+| 16. CRM Working Surfaces | 46 |
+| 17. Calculate Tool | 8b |
+| 18. Agent-Generated Views | 42a |
 | **Audit trail** | 12 (covered implicitly — runs table + step_count checked via Supabase in other surfaces) |
 
 ## Legacy
