@@ -3,17 +3,16 @@
  * @module lib/runner/tools/crm/disable-config-mode
  */
 import { tool } from "ai";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import type { Database } from "@/types/database";
+import { createAdminClient } from "@/lib/supabase/server";
 
 /**
  * Creates the disable_crm_config_mode tool.
  * The agent calls this to turn off config mode after finishing CRM reconfiguration.
+ * Uses an admin client because RLS on `clients` only allows SELECT for user-scoped clients.
  */
 export function createDisableConfigModeTool(
-  supabase: SupabaseClient<Database>,
   clientId: string,
 ) {
   const disable_crm_config_mode = tool({
@@ -23,7 +22,8 @@ export function createDisableConfigModeTool(
       "The user activated config mode from Settings — you should disable it when done.",
     parameters: z.object({}),
     execute: async () => {
-      const { error } = await supabase
+      const adminClient = await createAdminClient();
+      const { error } = await adminClient
         .from("clients")
         .update({ crm_config_mode_until: null })
         .eq("client_id", clientId);

@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
+import { createAdminClient } from "@/lib/supabase/server";
 
 const CRM_CONFIG_MODE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -32,7 +33,9 @@ export async function POST(request: Request): Promise<Response> {
       ? new Date(Date.now() + CRM_CONFIG_MODE_TTL_MS).toISOString()
       : null;
 
-    const { error } = await supabase
+    // Use admin client — RLS on `clients` only allows SELECT for user-scoped clients.
+    const adminClient = await createAdminClient();
+    const { error } = await adminClient
       .from("clients")
       .update({ crm_config_mode_until: configModeUntil })
       .eq("client_id", clientId);

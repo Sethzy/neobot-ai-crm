@@ -7,11 +7,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   mockAuthenticateRequest,
   mockResolveClientId,
-  mockFrom,
+  mockAdminFrom,
+  mockCreateAdminClient,
 } = vi.hoisted(() => ({
   mockAuthenticateRequest: vi.fn(),
   mockResolveClientId: vi.fn(),
-  mockFrom: vi.fn(),
+  mockAdminFrom: vi.fn(),
+  mockCreateAdminClient: vi.fn(),
 }));
 
 vi.mock("@/lib/api/route-helpers", () => ({
@@ -23,10 +25,14 @@ vi.mock("@/lib/chat/client-id", () => ({
   resolveClientId: (...args: unknown[]) => mockResolveClientId(...args),
 }));
 
+vi.mock("@/lib/supabase/server", () => ({
+  createAdminClient: () => mockCreateAdminClient(),
+}));
+
 import { POST } from "./route";
 
 function setupAuthSuccess() {
-  const supabase = { from: mockFrom };
+  const supabase = {};
   mockAuthenticateRequest.mockResolvedValue({
     kind: "ok",
     supabase,
@@ -39,7 +45,8 @@ function setupAuthSuccess() {
 function setupDbResult(result: { error: null | { message: string } }) {
   const mockEq = vi.fn().mockResolvedValue(result);
   const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq });
-  mockFrom.mockReturnValue({ update: mockUpdate });
+  mockAdminFrom.mockReturnValue({ update: mockUpdate });
+  mockCreateAdminClient.mockResolvedValue({ from: mockAdminFrom });
   return { mockUpdate, mockEq };
 }
 
@@ -110,7 +117,7 @@ describe("POST /api/settings/crm-config-mode", () => {
     expect(expiresAt).toBeLessThanOrEqual(after + oneHourMs + 1000);
 
     // Verify Supabase received a timestamp string (not null)
-    expect(mockFrom).toHaveBeenCalledWith("clients");
+    expect(mockAdminFrom).toHaveBeenCalledWith("clients");
     expect(mockUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ crm_config_mode_until: expect.any(String) }),
     );
@@ -148,7 +155,7 @@ describe("POST /api/settings/crm-config-mode", () => {
   it("returns 500 when resolveClientId throws", async () => {
     mockAuthenticateRequest.mockResolvedValue({
       kind: "ok",
-      supabase: { from: mockFrom },
+      supabase: {},
       userId: "user-1",
     });
     mockResolveClientId.mockRejectedValue(new Error("Client not found"));

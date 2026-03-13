@@ -84,7 +84,7 @@ export function createCrmTools(
     } : {}),
     ...(includeConfigTool ? {
       ...createConfigureCrmTool(supabase, clientId),
-      ...createDisableConfigModeTool(supabase, clientId),
+      ...createDisableConfigModeTool(clientId),
     } : {}),
   };
 }
