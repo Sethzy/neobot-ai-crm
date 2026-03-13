@@ -43,7 +43,7 @@ const xmlParser = new XMLParser({
   attributeNamePrefix: "@_",
   parseTagValue: false,
   trimValues: true,
-  isArray: (_tagName, jPath) => jPath.endsWith(".item") || jPath.endsWith(".entry"),
+  isArray: (_tagName, jPath) => typeof jPath === "string" && (jPath.endsWith(".item") || jPath.endsWith(".entry")),
 });
 
 function asArray<T>(value: T | T[] | null | undefined): T[] {

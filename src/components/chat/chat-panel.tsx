@@ -214,7 +214,7 @@ export function ChatPanel({
 
       try {
         await sendMessage({
-          ...(text.length > 0 ? { text } : {}),
+          text: text.length > 0 ? text : "",
           ...(files.length > 0 ? { files } : {}),
         });
       } catch (submitError) {

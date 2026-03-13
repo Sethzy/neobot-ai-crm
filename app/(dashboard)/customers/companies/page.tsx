@@ -35,7 +35,7 @@ interface CompanyLinkEditCellProps {
   ariaLabel: string;
   value: string | null;
   hrefBuilder: (value: string) => string;
-  onSave: (nextValue: string | null) => Promise<void>;
+  onSave: (nextValue: string | number | null) => void | Promise<void>;
   linkClassName: string;
   linkTarget?: string;
   linkRel?: string;
@@ -142,7 +142,8 @@ function CompanyPhoneCell({ companyId, phone }: { companyId: string; phone: stri
       hrefBuilder={(value) => `tel:${value}`}
       linkClassName="block max-w-[180px] truncate text-foreground/80 hover:underline"
       onSave={async (nextValue) => {
-        await updateCompany.mutateAsync({ phone: nextValue });
+        const val = nextValue != null ? String(nextValue) : null;
+        await updateCompany.mutateAsync({ phone: val });
       }}
     />
   );
@@ -161,7 +162,8 @@ function CompanyEmailCell({ companyId, email }: { companyId: string; email: stri
       hrefBuilder={(value) => `mailto:${value}`}
       linkClassName="block max-w-[220px] truncate text-foreground/80 hover:underline"
       onSave={async (nextValue) => {
-        await updateCompany.mutateAsync({ email: nextValue });
+        const val = nextValue != null ? String(nextValue) : null;
+        await updateCompany.mutateAsync({ email: val });
       }}
     />
   );
@@ -183,7 +185,8 @@ function CompanyWebsiteCell({ companyId, website }: { companyId: string; website
       linkRel="noreferrer"
       displayValue={getWebsiteDisplayValue}
       onSave={async (nextValue) => {
-        await updateCompany.mutateAsync({ website: normalizeWebsiteValue(nextValue) });
+        const val = nextValue != null ? String(nextValue) : null;
+        await updateCompany.mutateAsync({ website: normalizeWebsiteValue(val) });
       }}
     />
   );

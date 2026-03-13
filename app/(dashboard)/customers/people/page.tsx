@@ -36,7 +36,7 @@ interface ContactLinkEditCellProps {
   ariaLabel: string;
   value: string | null;
   hrefBuilder: (value: string) => string;
-  onSave: (nextValue: string | null) => Promise<void>;
+  onSave: (nextValue: string | number | null) => void | Promise<void>;
   linkClassName: string;
 }
 
@@ -142,7 +142,8 @@ function ContactPhoneCell({ contactId, phone }: { contactId: string; phone: stri
       hrefBuilder={(value) => `tel:${value}`}
       linkClassName="block max-w-[180px] truncate text-foreground/80 hover:underline"
       onSave={async (nextValue) => {
-        await updateContact.mutateAsync({ phone: nextValue });
+        const val = nextValue != null ? String(nextValue) : null;
+        await updateContact.mutateAsync({ phone: val });
       }}
     />
   );
@@ -161,7 +162,8 @@ function ContactEmailCell({ contactId, email }: { contactId: string; email: stri
       hrefBuilder={(value) => `mailto:${value}`}
       linkClassName="block max-w-[250px] truncate text-foreground/80 hover:underline"
       onSave={async (nextValue) => {
-        await updateContact.mutateAsync({ email: nextValue });
+        const val = nextValue != null ? String(nextValue) : null;
+        await updateContact.mutateAsync({ email: val });
       }}
     />
   );

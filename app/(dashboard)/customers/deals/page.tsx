@@ -216,7 +216,7 @@ export default function DealsPage() {
   }, [queryView, rawViewParam, router, searchParams, setView, view]);
 
   const stages = useMemo(
-    () => crmConfigResult?.config.deal_stages ?? dealStageValues,
+    () => crmConfigResult?.config.deal_stages ?? [...dealStageValues],
     [crmConfigResult?.config.deal_stages],
   );
 
