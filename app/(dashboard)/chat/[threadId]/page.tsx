@@ -10,6 +10,7 @@ import { z } from "zod";
 import { DataStreamHandler } from "@/components/chat/data-stream-handler";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { listMessages } from "@/lib/chat/messages";
+import { rehydrateSpecParts } from "@/lib/runner/message-utils";
 import { createClient } from "@/lib/supabase/server";
 import { loadCurrentMessageQuota } from "@/lib/usage/message-quota-server";
 import type { Json } from "@/types/database";
@@ -30,7 +31,9 @@ function isUiMessageRole(role: string): role is (typeof uiMessageRoles)[number] 
 
 function normalizeMessageParts(parts: Json | null, content: string | null): UIMessage["parts"] {
   if (Array.isArray(parts)) {
-    return parts as UIMessage["parts"];
+    // Re-hydrate: convert any ```spec fences inside text parts into data-spec
+    // parts so persisted messages render inline views after page reload.
+    return rehydrateSpecParts(parts as Record<string, unknown>[]) as UIMessage["parts"];
   }
 
   if (content) {

@@ -3,13 +3,14 @@
  *
  * Matches the reference ExplorerRenderer pattern from json-render/examples/chat.
  * State comes from `spec.state`, not a separate prop. Includes fallback for
- * unknown component types and loading prop for streaming.
+ * unknown component types, loading prop for streaming, and an error boundary
+ * so chart/component crashes never take down the entire chat panel.
  *
  * @module lib/views/renderer
  */
 "use client";
 
-import { type ReactNode } from "react";
+import { Component, type ErrorInfo, type ReactNode } from "react";
 import {
   Renderer,
   type ComponentRenderer,
@@ -28,6 +29,36 @@ const fallback: ComponentRenderer = ({ element }) => (
   </div>
 );
 
+/** Error boundary that catches rendering crashes inside inline views. */
+class ViewErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; errorMessage: string }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, errorMessage: "" };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, errorMessage: error.message };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[ViewRenderer] render error:", error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="rounded-lg border border-dashed border-destructive/40 bg-destructive/5 p-3 text-sm text-muted-foreground">
+          View failed to render{this.state.errorMessage ? `: ${this.state.errorMessage}` : "."}
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 interface ViewRendererProps {
   spec: Spec | null;
   loading?: boolean;
@@ -43,17 +74,19 @@ export function ViewRenderer({ spec, loading }: ViewRendererProps): ReactNode {
   if (!spec) return null;
 
   return (
-    <StateProvider initialState={spec.state ?? {}}>
-      <VisibilityProvider>
-        <ActionProvider>
-          <Renderer
-            spec={spec}
-            registry={registry}
-            fallback={fallback}
-            loading={loading}
-          />
-        </ActionProvider>
-      </VisibilityProvider>
-    </StateProvider>
+    <ViewErrorBoundary>
+      <StateProvider initialState={spec.state ?? {}}>
+        <VisibilityProvider>
+          <ActionProvider>
+            <Renderer
+              spec={spec}
+              registry={registry}
+              fallback={fallback}
+              loading={loading}
+            />
+          </ActionProvider>
+        </VisibilityProvider>
+      </StateProvider>
+    </ViewErrorBoundary>
   );
 }
