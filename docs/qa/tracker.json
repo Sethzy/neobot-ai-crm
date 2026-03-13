@@ -1,0 +1,27 @@
+{
+  "lastUpdated": "2026-03-13T00:00:00Z",
+  "surfaces": [
+    { "id": "01", "name": "Auth & Landing", "status": "pending", "lastRun": null, "report": null },
+    { "id": "02", "name": "Chat Core", "status": "warn", "lastRun": "2026-03-13T00:00:00Z", "report": "docs/qa/reports/qa-report-02-17-20260313-32ab.md" },
+    { "id": "03", "name": "CRM Tools via Chat", "status": "fail", "lastRun": "2026-03-13T00:00:00Z", "report": "docs/qa/reports/qa-report-03-05-06-20260313-bda2.md" },
+    { "id": "04", "name": "CRM Pages", "status": "pending", "lastRun": null, "report": null },
+    { "id": "05", "name": "Knowledge Base", "status": "warn", "lastRun": "2026-03-13T00:00:00Z", "report": "docs/qa/reports/qa-report-03-05-06-20260313-bda2.md" },
+    { "id": "06", "name": "File & Memory", "status": "warn", "lastRun": "2026-03-13T00:00:00Z", "report": "docs/qa/reports/qa-report-03-05-06-20260313-bda2.md" },
+    { "id": "07", "name": "Platform Intelligence", "status": "pending", "lastRun": null, "report": null },
+    { "id": "08", "name": "Triggers & Automations", "status": "pending", "lastRun": null, "report": null },
+    { "id": "09", "name": "Chat Advanced", "status": "pending", "lastRun": null, "report": null },
+    { "id": "10", "name": "Connections", "status": "pending", "lastRun": null, "report": null },
+    { "id": "11", "name": "Subagents", "status": "pending", "lastRun": null, "report": null },
+    { "id": "12", "name": "Approvals", "status": "pending", "lastRun": null, "report": null },
+    { "id": "13", "name": "Onboarding", "status": "pending", "lastRun": null, "report": null },
+    { "id": "14", "name": "Billing (Stripe)", "status": "pending", "lastRun": null, "report": null },
+    { "id": "15", "name": "Message Quota", "status": "pending", "lastRun": null, "report": null },
+    { "id": "16", "name": "CRM Working Surfaces", "status": "pending", "lastRun": null, "report": null },
+    { "id": "17", "name": "Calculate Tool", "status": "warn", "lastRun": "2026-03-13T00:00:00Z", "report": "docs/qa/reports/qa-report-02-17-20260313-32ab.md" },
+    { "id": "18", "name": "Agent-Generated Views", "status": "pending", "lastRun": null, "report": null },
+    { "id": "19", "name": "System Prompt & Reminders", "status": "pending", "lastRun": null, "report": null },
+    { "id": "20", "name": "Context & Efficiency", "status": "pending", "lastRun": null, "report": null },
+    { "id": "21", "name": "Streaming Resilience", "status": "pending", "lastRun": null, "report": null },
+    { "id": "22", "name": "Error Recovery", "status": "pending", "lastRun": null, "report": null }
+  ]
+}

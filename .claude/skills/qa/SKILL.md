@@ -197,7 +197,12 @@ curl -s -u "$LANGFUSE_PUBLIC_KEY:$LANGFUSE_SECRET_KEY" \
 6. Write a triage block for each failure (use the template format).
 7. Group infrastructure issues in the dedicated section.
 8. Update summary counts to match actual findings.
-9. Tell the user: report path, top-line pass/fail counts, cost summary, and the most critical findings.
+9. **Update `docs/qa/tracker.json`** — for each surface that was tested, set:
+   - `"status"`: `"pass"` (all scenarios pass), `"fail"` (any failures), or `"warn"` (warnings only)
+   - `"lastRun"`: ISO timestamp (e.g. `"2026-03-13T10:00:00Z"`)
+   - `"report"`: relative path to the report file (e.g. `"docs/qa/reports/qa-report-17-20260313-a3f2.md"`)
+   - `"lastUpdated"` at the top level: same ISO timestamp
+10. Tell the user: report path, top-line pass/fail counts, cost summary, and the most critical findings.
 
 ## Efficiency Interpretation
 
