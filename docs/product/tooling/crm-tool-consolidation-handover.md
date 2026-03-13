@@ -10,8 +10,8 @@
 
 Consolidate 28 CRM agent tools → 11 (9 new + `configure_crm` unchanged + `describe_crm_schema` moved to passive context). All work is in `src/lib/runner/tools/crm/`. Do NOT touch non-CRM tools (those were aligned in commit `68964bb`).
 
-**Execution checklist:** `docs/product/references/crm-tool-consolidation-checklist.json`
-**Design rationale:** `docs/product/designs/crm-tool-consolidation.md`
+**Execution checklist:** `docs/product/tooling/crm-tool-consolidation-checklist.json`
+**Design rationale:** `docs/product/tooling/crm-tool-consolidation.md`
 
 ---
 
@@ -36,7 +36,7 @@ Consolidate 28 CRM agent tools → 11 (9 new + `configure_crm` unchanged + `desc
 
 ## How to execute
 
-1. Open `docs/product/references/crm-tool-consolidation-checklist.json`
+1. Open `docs/product/tooling/crm-tool-consolidation-checklist.json`
 2. Work through `implementation_order` (0 → 9)
 3. Each entry has:
    - `kills` — exact old tool names + source file locations + test files to rewrite/delete
@@ -99,9 +99,9 @@ Consolidate 28 CRM agent tools → 11 (9 new + `configure_crm` unchanged + `desc
 ## Reference material
 
 If you need to understand *why* any decision was made:
-- **Design doc:** `docs/product/designs/crm-tool-consolidation.md` — full rationale, rejected approaches, safety analysis
+- **Design doc:** `docs/product/tooling/crm-tool-consolidation.md` — full rationale, rejected approaches, safety analysis
 - **CRM vs Tasklet drift:** `roadmap docs/Sunder - Source of Truth/tool-infrastructure-comparison/2026-03-02-pr6-crm-vs-tasklet-hubspot-drift.md`
-- **Tool comparison JSON:** `docs/product/references/tool-comparison-tasklet-vs-sunder.json` — non-CRM tools already aligned
+- **Tool comparison JSON:** `docs/product/tooling/tool-comparison-tasklet-vs-sunder.json` — non-CRM tools already aligned
 
 ---
 

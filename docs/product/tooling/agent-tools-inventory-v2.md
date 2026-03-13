@@ -1,14 +1,21 @@
-# Agent Tools Inventory — v2
+# Agent Tools Inventory — v2 (Source of Truth)
 
-**Total: 36 tools** | Read-only: 16 | Write/Mutating: 16 | Approval-gated: 4
+**Total: 35 tools** | Read-only: 15 | Write/Mutating: 16 | Approval-gated: 4
 
-**Previous version:** [agent-tools-inventory.md](agent-tools-inventory.md) (v1, 53 tools)
+**Previous version:** [agent-tools-inventory-v1.md](agent-tools-inventory-v1.md) (v1, 53 tools)
 
 **What changed (v1 → v2):**
 - CRM tools consolidated: 28 per-entity tools → 8 unified tools (search_crm, create_record, update_record, delete_records, link_records, create_interaction, create_task, update_task)
 - `crm_sql` merged into `run_sql` (single read-only SQL tool for all tables)
-- Added: `calculate` (PR 8b), `show_view` (PR 42a), `run_subagent` (PR 30)
-- Net: 53 → 36 (counting only tools present at v1 snapshot; 56 → 36 including post-v1 additions)
+- `show_view` removed (inline-mode migration — views now rendered via `pipeJsonRender()`, no tool call needed)
+- Added: `calculate` (PR 8b), `run_subagent` (PR 30)
+- Net: 53 → 35
+
+**Related docs (all in this folder):**
+- [crm-tool-consolidation.md](crm-tool-consolidation.md) — design doc for CRM 28→8 consolidation
+- [crm-tool-consolidation-checklist.json](crm-tool-consolidation-checklist.json) — 10-step execution checklist (all DONE)
+- [tool-comparison-tasklet-vs-sunder.json](tool-comparison-tasklet-vs-sunder.json) — Tasklet parity tracker
+- [tool-comparison-tasklet-vs-sunder-handover.md](tool-comparison-tasklet-vs-sunder-handover.md) — handover notes
 
 ---
 
@@ -62,8 +69,8 @@
 | # | Tool | File | Description |
 |---|------|------|-------------|
 | 16 | `ask_user_question` | `tools/utility/ask-user-question.ts` | Ask the user a structured question with 2-4 options |
-| 17 | `manage_todo` | `tools/utility/todo.ts` | Manage agent todos (add/update/delete) — internal scratchpad |
-| 18 | `list_todo` | `tools/utility/todo.ts` | List all agent todos for the current thread |
+| 17 | `manage_todo` | `tools/utility/todo.ts` | Manage agent todos (add/update/delete) — internal scratchpad (Tasklet parity: `manage_tasks`) |
+| 18 | `list_todo` | `tools/utility/todo.ts` | List all agent todos for the current thread (Tasklet parity: `list_tasks`) |
 | 19 | `rename_chat` | `tools/utility/rename-chat.ts` | Rename the current conversation thread |
 | 20 | `send_message` | `tools/utility/send-message.ts` | Send a message to the user (stub — delivery not yet implemented) |
 | 21 | `calculate` | `tools/utility/calculate.ts` | Evaluate scalar math expressions (arithmetic, trig, unit conversion) |
@@ -91,17 +98,11 @@
 | 33 | `reauthorize_connection` | `tools/connections/reauthorize-connection.ts` | No | Re-authorize an expired connection |
 | 34 | `delete_connection` | `tools/connections/delete-connection.ts` | **Yes** | Permanently delete a connection |
 
-## Views (1 tool)
-
-| # | Tool | File | Description |
-|---|------|------|-------------|
-| 35 | `show_view` | `tools/views/show-view.ts` | Generate inline structured UI views (charts, panels, tables) in chat |
-
 ## Subagents (1 tool)
 
 | # | Tool | File | Description |
 |---|------|------|-------------|
-| 36 | `run_subagent` | `tools/subagents/run-subagent.ts` | Run a subagent from a markdown instruction file with optional payload. Max 9 steps, 120s timeout. |
+| 35 | `run_subagent` | `tools/subagents/run-subagent.ts` | Run a subagent from a markdown instruction file with optional payload. Max 9 steps, 120s timeout. |
 
 ---
 
@@ -123,6 +124,15 @@
 | `manage_activated_tools_for_connections` | Always — permission changes |
 | `delete_connection` | Always — destructive account operation |
 
+## Audit Flags
+
+Tools flagged during v2 audit but kept for now:
+
+| Tool | Flag | Rationale |
+|------|------|-----------|
+| `send_message` | **Delete candidate** | Non-functional stub. Always returns error. Zero production utility. |
+| `manage_todo` + `list_todo` | **Defer removal** | Could use file-based memory instead, but deeply embedded in autopilot prompt (`AUTOPILOT_INSTRUCTION_PROMPT`). Revisit when autopilot is refactored. |
+
 ## CRM Consolidation Map (v1 → v2)
 
 | v1 Tool(s) | v2 Tool | Notes |
@@ -133,11 +143,9 @@
 | `update_contact`, `update_company`, `update_deal` | `update_record` | Entity routing + custom field merge + deal stage analytics |
 | `delete_contact`, `delete_company`, `delete_deal`, `delete_interaction`, `delete_task` | `delete_records` | Unified delete with reason field + approval gate |
 | `link_contact_to_deal`, `unlink_contact_from_deal`, `link_contact_to_company`, `unlink_contact_from_company`, `link_deal_to_company`, `unlink_deal_from_company` | `link_records` | Action + relationship routing (junction vs FK) |
+| `crm_sql` + `run_agent_memory_sql` | `run_sql` | Merged — identical RPC + validation. `purpose` field preserved as optional. |
+| `show_view` | *(removed)* | Replaced by inline-mode rendering via `pipeJsonRender()` |
 | `create_interaction` | `create_interaction` | Kept standalone — config-driven type validation |
 | `create_task`, `update_task` | `create_task`, `update_task` | Kept standalone — config-driven custom field validation |
-
-## SQL Tool Merge (v2 audit)
-
-`crm_sql` and `run_agent_memory_sql` were merged into `run_sql`. Both called the same `run_readonly_sql` RPC with identical validation logic. The `purpose` audit field from `crm_sql` is preserved as an optional parameter on `run_sql`.
 
 All tool files live under `src/lib/runner/tools/`.

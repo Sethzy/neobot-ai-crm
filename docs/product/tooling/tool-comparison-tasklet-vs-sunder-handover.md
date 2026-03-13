@@ -1,6 +1,6 @@
 # Tool Alignment Handover: Tasklet → Sunder
 
-> **Input file:** `docs/product/references/tool-comparison-tasklet-vs-sunder.json`
+> **Input file:** `docs/product/tooling/tool-comparison-tasklet-vs-sunder.json`
 > **Goal:** Zero drift between Sunder's agent tool descriptions/schemas and Tasklet's battle-tested v2 definitions.
 
 ## What this is

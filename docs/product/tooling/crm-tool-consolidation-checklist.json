@@ -2,7 +2,7 @@
   "_meta": {
     "description": "Mechanical checklist for consolidating 28 CRM tools → 11. One entry per NEW tool.",
     "generated": "2026-03-12",
-    "design_doc": "docs/product/designs/crm-tool-consolidation.md",
+    "design_doc": "docs/product/tooling/crm-tool-consolidation.md",
     "scope": "ONLY src/lib/runner/tools/crm/. Do NOT touch non-CRM tools — those were aligned in commit 68964bb.",
     "resume_note": "All entries start as TODO. Work through implementation_order. After each tool, run tests, mark DONE.",
     "implementation_order": [
