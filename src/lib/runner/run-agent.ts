@@ -7,7 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { propagateAttributes } from "@langfuse/tracing";
 
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
-import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
+import { gateway, gatewayProviderOptions, TIER_1_MODEL } from "@/lib/ai/gateway";
 import { createMessages } from "@/lib/chat/messages";
 import { loadActivatedConnectionTools } from "@/lib/composio";
 import { getActiveConnections } from "@/lib/connections/queries";
@@ -251,6 +251,7 @@ export async function runAgent(
           stopWhen: stepCountIs(MAX_STEPS_TIER_1),
           tools,
           prepareStep: buildPrepareStep(modelId),
+          providerOptions: gatewayProviderOptions,
           experimental_telemetry: { isEnabled: true },
           onError: async ({ error }) => {
             await recordFailedRun(error, "stream");

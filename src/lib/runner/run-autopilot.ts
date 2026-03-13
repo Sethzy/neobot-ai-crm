@@ -6,7 +6,7 @@ import { generateText, stepCountIs, type ToolSet } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { propagateAttributes } from "@langfuse/tracing";
 
-import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
+import { gateway, gatewayProviderOptions, TIER_1_MODEL } from "@/lib/ai/gateway";
 import { AUTOPILOT_INSTRUCTION_PROMPT } from "@/lib/autopilot/constants";
 import { loadActivatedConnectionTools } from "@/lib/composio";
 import { getActiveConnections } from "@/lib/connections/queries";
@@ -94,6 +94,7 @@ export async function runAutopilot({
             ...composioTools,
           },
           prepareStep: buildPrepareStep(modelId, MAX_STEPS_AUTOPILOT),
+          providerOptions: gatewayProviderOptions,
           experimental_telemetry: { isEnabled: true },
         }),
     );

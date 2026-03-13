@@ -3,6 +3,7 @@
  */
 
 import { createGateway } from "@ai-sdk/gateway";
+import type { GatewayProviderOptions } from "@ai-sdk/gateway";
 
 /**
  * Tier-1 model used for interactive chat and tool-calling runs.
@@ -24,3 +25,19 @@ export const COMPACTION_MODEL = "google/gemini-2.5-flash-lite";
 export const gateway = createGateway({
   apiKey: process.env.AI_GATEWAY_API_KEY,
 });
+
+/**
+ * BYOK provider options — routes requests through the gateway but bills to
+ * our own Gemini API key instead of consuming Vercel AI Gateway credits.
+ * Spread into every `streamText` / `generateText` call's options.
+ */
+export const gatewayProviderOptions: { gateway: GatewayProviderOptions } | undefined =
+  process.env.GEMINI_API_KEY
+    ? {
+        gateway: {
+          byok: {
+            google: [{ apiKey: process.env.GEMINI_API_KEY }],
+          },
+        } satisfies GatewayProviderOptions,
+      }
+    : undefined;

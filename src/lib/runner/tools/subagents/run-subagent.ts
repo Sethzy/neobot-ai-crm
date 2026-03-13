@@ -6,7 +6,7 @@ import { generateText, stepCountIs, tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import { gateway, TIER_1_MODEL } from "@/lib/ai/gateway";
+import { gateway, gatewayProviderOptions, TIER_1_MODEL } from "@/lib/ai/gateway";
 import type { CrmVocabConfig } from "@/lib/crm/config";
 import { assembleSystemOnly } from "@/lib/runner/context";
 import { completeRun, createSubagentRun } from "@/lib/runner/run-lifecycle";
@@ -97,6 +97,7 @@ export function createSubagentTool(
               totalMs: SUBAGENT_TIMEOUT_MS,
               stepMs: SUBAGENT_STEP_TIMEOUT_MS,
             },
+            providerOptions: gatewayProviderOptions,
             experimental_telemetry: { isEnabled: true },
           });
 

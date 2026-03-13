@@ -6,7 +6,7 @@ import { generateText } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import { COMPACTION_MODEL, gateway } from "@/lib/ai/gateway";
+import { COMPACTION_MODEL, gateway, gatewayProviderOptions } from "@/lib/ai/gateway";
 import { getCompactionTextFromParts } from "@/lib/runner/message-utils";
 import type { Database, Json } from "@/types/database";
 
@@ -292,6 +292,7 @@ export async function generateCompactionSummary(
     model: gateway(COMPACTION_MODEL),
     system: STRUCTURED_SUMMARY_INSTRUCTIONS,
     prompt,
+    providerOptions: gatewayProviderOptions,
     experimental_telemetry: { isEnabled: true },
   });
 
