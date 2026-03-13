@@ -11,6 +11,7 @@
     "keptPRs": 27,
     "cutPRs": 19,
     "donePRs": 36,
+    "hardeningPRs": 6,
     "statusOptions": [
       "pending",
       "in_progress",
@@ -49,7 +50,8 @@
       "2026-03-11: Added PR 46 (CRM working surfaces) to Phase 4 as an explicit out-of-plan polish item. Scope: unify Deals into one table/board workspace, add a Tasks calendar, add narrow quick edit on high-value CRM surfaces, preserve full detail pages, and keep saved views/reporting out of scope. Naming intentionally avoids collision with PR 42a agent-generated views.",
       "2026-03-12: Added PR 8b (math.js calculate tool) to Phase 3. Small built-in tool (sibling to PR 8a drive-time). General-purpose expression evaluator using math.js — agent writes math expressions, mathjs evaluates them safely. Covers commission calculations, amortization, unit conversions, and any ad-hoc arithmetic. No sandbox needed. Hardened math.js instance disables dangerous functions (import, evaluate, parse, simplify, derivative, resolve, createUnit, reviver). Old PR 8b (Excalidraw) cut from scope.",
       "2026-03-13: Added PR 42a-i (json-render inline mode migration) to Phase 3 after PR 42a. Migrates agent-generated views from show_view tool-call pattern to json-render native inline mode. LLM emits spec JSONL inside ```spec fences; pipeJsonRender() transforms stream; useJsonRenderMessage() + segment-based rendering on client. Deletes show_view tool, ViewCard, ShowViewInline. catalog.prompt({ mode: 'inline' }) replaces hand-rolled getViewCatalogPrompt(). Handover: docs/product/handovers/json-render-inline-mode-handover.md.",
-      "2026-03-13: Added PR 42a-p (view component visual polish) to Phase 4. Design polish pass for all 7 custom CRM view components (StatMetric, DealCard, ContactCard, TaskItem, BarChartPanel, DonutChartPanel, FunnelChartPanel). Tighter spacing, better card proportions, improved chart colors, responsive refinements."
+      "2026-03-13: Added PR 42a-p (view component visual polish) to Phase 4. Design polish pass for all 7 custom CRM view components (StatMetric, DealCard, ContactCard, TaskItem, BarChartPanel, DonutChartPanel, FunnelChartPanel). Tighter spacing, better card proportions, improved chart colors, responsive refinements.",
+      "2026-03-13: Added 6 production hardening PRs to Phase 4 (PR 47a-f). Pre-launch reliability and security: error boundaries, env validation, health endpoint, security headers, Sentry integration, API rate limiting. Identified during pre-prod QA audit. Can be assigned to another dev."
     ]
   },
   "phases": [
@@ -691,7 +693,7 @@
           "pr": "p1-crm-tool-consolidation",
           "title": "CRM tool consolidation (untracked cleanup)",
           "status": "done",
-          "note": "Phase 1 cleanup pass — consolidated CRM tools into cleaner factory pattern. Design: docs/product/designs/crm-tool-consolidation.md.",
+          "note": "Phase 1 cleanup pass — consolidated CRM tools into cleaner factory pattern. Design: docs/product/tooling/crm-tool-consolidation.md.",
           "tasks": []
         },
         {
@@ -2405,6 +2407,172 @@
             "All 7 custom components visually polished and consistent with ShadCN design language",
             "Components render well on both desktop and mobile chat widths",
             "No functional regressions — only visual changes"
+          ]
+        },
+        {
+          "pr": "47a",
+          "title": "Production hardening — error boundaries",
+          "status": "pending",
+          "simplified": false,
+          "decisions": [],
+          "tasks": [
+            {
+              "id": "PR47a-1",
+              "task": "Add root error boundary at app/error.tsx with user-friendly fallback UI and retry button",
+              "done": false
+            },
+            {
+              "id": "PR47a-2",
+              "task": "Add dashboard error boundary at app/(dashboard)/error.tsx to catch route-level errors without losing shell",
+              "done": false
+            },
+            {
+              "id": "PR47a-3",
+              "task": "Add chat-specific error boundary wrapping the chat panel to isolate streaming failures",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Throwing in a dashboard page shows error boundary, not white screen",
+            "Chat streaming error shows retry UI, does not crash the whole app",
+            "Error boundaries log to console with enough context to diagnose"
+          ]
+        },
+        {
+          "pr": "47b",
+          "title": "Production hardening — environment validation",
+          "status": "pending",
+          "simplified": false,
+          "decisions": [],
+          "tasks": [
+            {
+              "id": "PR47b-1",
+              "task": "Create src/lib/env.ts with Zod schema validating all required env vars at startup",
+              "done": false
+            },
+            {
+              "id": "PR47b-2",
+              "task": "Import env.ts in instrumentation.ts so validation runs on cold start",
+              "done": false
+            },
+            {
+              "id": "PR47b-3",
+              "task": "Replace raw process.env references in critical paths with validated env object",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Missing required env var causes immediate startup error with clear message",
+            "All runtime env access uses validated object, not raw process.env"
+          ]
+        },
+        {
+          "pr": "47c",
+          "title": "Production hardening — health check endpoint",
+          "status": "pending",
+          "simplified": false,
+          "decisions": [],
+          "tasks": [
+            {
+              "id": "PR47c-1",
+              "task": "Create app/api/health/route.ts returning { status: 'ok', timestamp, version }",
+              "done": false
+            },
+            {
+              "id": "PR47c-2",
+              "task": "Add Supabase connectivity check (lightweight query) with timeout",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "GET /api/health returns 200 with JSON when healthy",
+            "Returns 503 with error details when Supabase is unreachable"
+          ]
+        },
+        {
+          "pr": "47d",
+          "title": "Production hardening — security headers",
+          "status": "pending",
+          "simplified": false,
+          "decisions": [],
+          "tasks": [
+            {
+              "id": "PR47d-1",
+              "task": "Add security headers in next.config.ts: X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy",
+              "done": false
+            },
+            {
+              "id": "PR47d-2",
+              "task": "Add Content-Security-Policy header scoped to app's actual origins (Supabase, Vercel, Langfuse, Composio)",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Response headers include all security headers on every page load",
+            "CSP does not break any existing functionality (Supabase realtime, Langfuse, external scripts)"
+          ]
+        },
+        {
+          "pr": "47e",
+          "title": "Production hardening — Sentry integration",
+          "status": "pending",
+          "simplified": false,
+          "decisions": [],
+          "tasks": [
+            {
+              "id": "PR47e-1",
+              "task": "Install @sentry/nextjs, run sentry wizard for Next.js App Router setup",
+              "done": false
+            },
+            {
+              "id": "PR47e-2",
+              "task": "Configure instrumentation.ts with Sentry.init for server-side error capture",
+              "done": false
+            },
+            {
+              "id": "PR47e-3",
+              "task": "Add Sentry client config for browser-side error capture",
+              "done": false
+            },
+            {
+              "id": "PR47e-4",
+              "task": "Wire error boundaries to Sentry.captureException",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Server-side errors appear in Sentry dashboard with stack trace and request context",
+            "Client-side errors captured with component tree context",
+            "No PII leaked to Sentry (email, tokens scrubbed)"
+          ]
+        },
+        {
+          "pr": "47f",
+          "title": "Production hardening — API rate limiting",
+          "status": "pending",
+          "simplified": false,
+          "decisions": [],
+          "tasks": [
+            {
+              "id": "PR47f-1",
+              "task": "Add rate limiting middleware for /api/chat — per-user limit (e.g., 30 req/min)",
+              "done": false
+            },
+            {
+              "id": "PR47f-2",
+              "task": "Add rate limiting for webhook endpoints — per-IP limit",
+              "done": false
+            },
+            {
+              "id": "PR47f-3",
+              "task": "Return 429 with Retry-After header when limit exceeded",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Rapid-fire requests beyond limit return 429 with Retry-After header",
+            "Normal usage patterns never hit the limit",
+            "Rate limit state resets correctly after window expires"
           ]
         }
       ]
