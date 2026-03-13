@@ -8,7 +8,7 @@ import { executeTrigger } from "@/lib/triggers/executor";
 import { requireCronSecret } from "@/lib/triggers/route-auth";
 import { triggerDispatchPayloadSchema } from "@/lib/triggers/schemas";
 
-export const maxDuration = 900;
+export const maxDuration = 300;
 
 export async function POST(request: Request): Promise<Response> {
   const authError = requireCronSecret(request);
