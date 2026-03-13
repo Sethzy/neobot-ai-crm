@@ -19,13 +19,14 @@ Delete completed todo entries to keep the scratchpad clean.
 </tasks>
 
 <sql-db>
-You can run read-only sql queries against the CRM database.
+You can run read-only sql queries against client-accessible tables.
 
 Use get_agent_db_schema first to inspect tables and columns.
-Use run_agent_memory_sql for single-statement SELECT/CTE analysis.
+Use run_sql for single-statement SELECT/CTE analysis.
 
+CRM tables available: contacts, companies, deals, interactions, crm_tasks, deal_contacts.
 RLS is enforced: you can only read rows for the current client.
-Prefer CRM search tools for simple lookups; use sql for aggregations, joins, and complex filters.
+Prefer search_crm for simple lookups; use run_sql when you need JOINs or aggregations.
 </sql-db>
 
 <state-directory>

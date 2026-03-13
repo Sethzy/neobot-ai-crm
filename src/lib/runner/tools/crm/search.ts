@@ -108,11 +108,12 @@ export function createSearchCrmTool(
   return {
     search_crm: tool({
       description:
-        "Search CRM records. Specify the entity type and optional filters. " +
-        "Returns matching records sorted by relevance. " +
+        "Default tool for reading CRM data. Search any entity (contacts, companies, deals, interactions, tasks, deal_contacts) " +
+        "with free-text query and key-value filters. Returns matching records sorted by relevance. " +
         "For relationships: use entity 'deal_contacts' with a deal_id or contact_id filter, " +
         "or filter contacts/deals by company_id. " +
-        "Use this before creating records to check for duplicates.",
+        "Use this before creating records to check for duplicates. " +
+        "For JOINs, aggregations, or complex filters, escalate to run_sql.",
       inputSchema: searchInputSchema,
       execute: async ({ entity, query, filters, limit }) => {
         const maxResults = limit ?? DEFAULT_CRM_RESULT_LIMIT;

@@ -1,5 +1,5 @@
 /**
- * Tests for SQL query tools (run_agent_memory_sql, get_agent_db_schema).
+ * Tests for SQL query tools (run_sql, get_agent_db_schema).
  * @module lib/runner/tools/utility/__tests__/sql
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,18 +14,18 @@ const EXECUTION_OPTIONS = {
 } as never;
 
 describe("createSqlTools", () => {
-  it("returns run_agent_memory_sql and get_agent_db_schema tools", () => {
+  it("returns run_sql and get_agent_db_schema tools", () => {
     const supabase = createMockSupabaseClient();
     const tools = createSqlTools(supabase as never);
 
-    expect(tools).toHaveProperty("run_agent_memory_sql");
+    expect(tools).toHaveProperty("run_sql");
     expect(tools).toHaveProperty("get_agent_db_schema");
-    expect(tools.run_agent_memory_sql).toHaveProperty("execute");
+    expect(tools.run_sql).toHaveProperty("execute");
     expect(tools.get_agent_db_schema).toHaveProperty("execute");
   });
 });
 
-describe("run_agent_memory_sql", () => {
+describe("run_sql", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -43,7 +43,7 @@ describe("run_agent_memory_sql", () => {
     });
 
     const tools = createSqlTools(supabase as never);
-    const result = await tools.run_agent_memory_sql.execute(
+    const result = await tools.run_sql.execute(
       {
         query: "SELECT deal_id, title, stage FROM deals WHERE stage = 'closed_won'",
       },
@@ -53,12 +53,42 @@ describe("run_agent_memory_sql", () => {
     expect(result).toEqual({
       success: true,
       rows: mockRows,
+      row_count: 2,
     });
     expect(supabase.calls.rpc).toEqual([
       {
         fn: "run_readonly_sql",
         args: {
           query_text: "SELECT deal_id, title, stage FROM deals WHERE stage = 'closed_won'",
+        },
+      },
+    ]);
+  });
+
+  it("executes a CTE (WITH) query", async () => {
+    const mockRows = [{ count: 5 }];
+
+    const supabase = createMockSupabaseClient({
+      rpcResults: {
+        run_readonly_sql: { data: mockRows, error: null },
+      },
+    });
+
+    const tools = createSqlTools(supabase as never);
+    const result = await tools.run_sql.execute(
+      {
+        query: "WITH active AS (SELECT * FROM deals WHERE stage = 'offer') SELECT COUNT(*) FROM active",
+        purpose: "Count active deals",
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, rows: mockRows, row_count: 1 });
+    expect(supabase.calls.rpc).toEqual([
+      {
+        fn: "run_readonly_sql",
+        args: {
+          query_text: "WITH active AS (SELECT * FROM deals WHERE stage = 'offer') SELECT COUNT(*) FROM active",
         },
       },
     ]);
@@ -72,7 +102,7 @@ describe("run_agent_memory_sql", () => {
     });
 
     const tools = createSqlTools(supabase as never);
-    const result = await tools.run_agent_memory_sql.execute(
+    const result = await tools.run_sql.execute(
       { query: "SELECT * FROM massive_table" },
       EXECUTION_OPTIONS,
     );
@@ -86,7 +116,7 @@ describe("run_agent_memory_sql", () => {
   it("rejects non-read-only query shapes before RPC", async () => {
     const supabase = createMockSupabaseClient();
     const tools = createSqlTools(supabase as never);
-    const result = await tools.run_agent_memory_sql.execute(
+    const result = await tools.run_sql.execute(
       { query: "UPDATE deals SET stage = 'closed_won'" },
       EXECUTION_OPTIONS,
     );
@@ -101,7 +131,7 @@ describe("run_agent_memory_sql", () => {
   it("rejects multi-statement SQL before RPC", async () => {
     const supabase = createMockSupabaseClient();
     const tools = createSqlTools(supabase as never);
-    const result = await tools.run_agent_memory_sql.execute(
+    const result = await tools.run_sql.execute(
       { query: "SELECT * FROM deals; SELECT * FROM contacts" },
       EXECUTION_OPTIONS,
     );
@@ -111,6 +141,59 @@ describe("run_agent_memory_sql", () => {
       error: "Only single-statement SQL is allowed",
     });
     expect(supabase.calls.rpc).toEqual([]);
+  });
+
+  it("rejects empty queries", async () => {
+    const supabase = createMockSupabaseClient();
+    const tools = createSqlTools(supabase as never);
+    const result = await tools.run_sql.execute(
+      { query: "   " },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: false, error: "Query cannot be empty" });
+  });
+
+  it("returns empty rows array when data is null", async () => {
+    const supabase = createMockSupabaseClient({
+      rpcResults: {
+        run_readonly_sql: { data: null, error: null },
+      },
+    });
+
+    const tools = createSqlTools(supabase as never);
+    const result = await tools.run_sql.execute(
+      { query: "SELECT * FROM contacts WHERE 1=0" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, rows: [], row_count: 0 });
+  });
+
+  describe("schema validation", () => {
+    it("accepts query without purpose", () => {
+      const supabase = createMockSupabaseClient();
+      const tools = createSqlTools(supabase as never);
+      const parsed = tools.run_sql.inputSchema.safeParse({ query: "SELECT 1" });
+      expect(parsed.success).toBe(true);
+    });
+
+    it("accepts query with purpose", () => {
+      const supabase = createMockSupabaseClient();
+      const tools = createSqlTools(supabase as never);
+      const parsed = tools.run_sql.inputSchema.safeParse({
+        query: "SELECT 1",
+        purpose: "test query",
+      });
+      expect(parsed.success).toBe(true);
+    });
+
+    it("requires query field", () => {
+      const supabase = createMockSupabaseClient();
+      const tools = createSqlTools(supabase as never);
+      const parsed = tools.run_sql.inputSchema.safeParse({ purpose: "test" });
+      expect(parsed.success).toBe(false);
+    });
   });
 });
 

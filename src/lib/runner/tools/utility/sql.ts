@@ -9,36 +9,47 @@ import { z } from "zod";
 import type { Database } from "@/types/database";
 
 /**
- * Creates SQL helper tools backed by read-only database RPC functions.
+ * Validates that a query is read-only (SELECT/CTE, single statement, no semicolons).
+ * Returns an error message or null if valid.
  */
-function getReadOnlySqlValidationError(query: string): string | null {
-  const normalizedQuery = query.trim();
+export function getReadOnlySqlValidationError(query: string): string | null {
+  const normalized = query.trim();
 
-  if (normalizedQuery.length === 0) {
+  if (normalized.length === 0) {
     return "Query cannot be empty";
   }
 
-  if (normalizedQuery.includes(";")) {
+  if (normalized.includes(";")) {
     return "Only single-statement SQL is allowed";
   }
 
-  if (!/^(select|with)\s/i.test(normalizedQuery)) {
+  if (!/^(select|with)\s/i.test(normalized)) {
     return "Only SELECT/CTE queries are allowed";
   }
 
   return null;
 }
 
+/**
+ * Creates SQL helper tools backed by read-only database RPC functions.
+ */
 export function createSqlTools(supabase: SupabaseClient<Database>) {
 
-  const run_agent_memory_sql = tool({
+  const run_sql = tool({
     description:
-      "Run a single read-only SQL query against client-accessible tables. " +
-      "Use get_agent_db_schema first to inspect available schema.",
+      "Escape hatch for queries search_crm cannot express: multi-table JOINs, " +
+      "aggregations (COUNT, SUM, AVG), GROUP BY, subqueries, date arithmetic. " +
+      "Always try search_crm first. Read-only SELECT/CTE only. " +
+      "Use get_agent_db_schema to inspect available tables and columns.",
     inputSchema: z.object({
-      query: z.string().min(1).describe("SQL SELECT/CTE query to execute."),
+      query: z.string().min(1).describe("SQL SELECT/CTE query to execute. Single statement only, no semicolons."),
+      purpose: z
+        .string()
+        .min(1)
+        .describe("Brief description of what this query answers. Logged for audit.")
+        .optional(),
     }),
-    execute: async ({ query }) => {
+    execute: async ({ query, purpose: _purpose }) => {
       const validationError = getReadOnlySqlValidationError(query);
 
       if (validationError) {
@@ -53,7 +64,12 @@ export function createSqlTools(supabase: SupabaseClient<Database>) {
         return { success: false as const, error: error.message };
       }
 
-      return { success: true as const, rows: data };
+      const rows = (data ?? []) as Record<string, unknown>[];
+      return {
+        success: true as const,
+        rows,
+        row_count: rows.length,
+      };
     },
   });
 
@@ -72,5 +88,5 @@ export function createSqlTools(supabase: SupabaseClient<Database>) {
     },
   });
 
-  return { run_agent_memory_sql, get_agent_db_schema };
+  return { run_sql, get_agent_db_schema };
 }

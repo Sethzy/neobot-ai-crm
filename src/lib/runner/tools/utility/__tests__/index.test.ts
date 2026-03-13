@@ -23,7 +23,7 @@ describe("createUtilityTools", () => {
       "list_todo",
       "manage_todo",
       "rename_chat",
-      "run_agent_memory_sql",
+      "run_sql",
       "send_message",
     ]);
   });
@@ -39,7 +39,7 @@ describe("createUtilityTools", () => {
       "get_agent_db_schema",
       "list_todo",
       "manage_todo",
-      "run_agent_memory_sql",
+      "run_sql",
     ]);
   });
 

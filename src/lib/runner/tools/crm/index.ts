@@ -9,7 +9,6 @@ import type { Database } from "@/types/database";
 
 import { createConfigureCrmTool } from "./configure-crm";
 import { createCreateRecordTool } from "./create-record";
-import { createCrmSqlTool } from "./crm-sql";
 import { createDeleteRecordsTool } from "./delete-records";
 import { createInteractionTools } from "./interactions";
 import { createLinkRecordsTool } from "./link-records";
@@ -53,11 +52,9 @@ export function createCrmTools(
   }
 
   const searchTools = createSearchCrmTool(supabase, clientId);
-  const sqlTools = createCrmSqlTool(supabase);
 
   const readTools = {
     search_crm: searchTools.search_crm,
-    crm_sql: sqlTools.crm_sql,
   };
 
   if (!allowWriteTools) {

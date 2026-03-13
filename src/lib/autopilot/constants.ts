@@ -42,7 +42,7 @@ BOOTSTRAP: Thread history is not current truth. Call list_todo(), search_crm(ent
 PRIORITY (work the highest-priority actionable item):
 1. Resume interrupted work from list_todo() payloads.
 2. Act on overdue or stale CRM tasks from search_crm(entity: "tasks").
-3. Review monitored CRM state via search_crm(entity: "deals") or crm_sql().
+3. Review monitored CRM state via search_crm(entity: "deals") or run_sql().
 4. Follow up on unanswered questions in this thread.
 5. Research or prepare for upcoming work.
 6. If /agent/USER.md is sparse, leave one concise question in the thread.

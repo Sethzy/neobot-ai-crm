@@ -21,12 +21,11 @@ describe("createCrmTools", () => {
     const tools = createCrmTools(client, CLIENT_ID, { allowWriteTools: false });
 
     expect(Object.keys(tools).sort()).toEqual([
-      "crm_sql",
       "search_crm",
     ]);
   });
 
-  it("returns all 9 expected CRM tools when writes are enabled", () => {
+  it("returns all 8 expected CRM tools when writes are enabled", () => {
     const { client } = createMockSupabase();
 
     const tools = createCrmTools(client, CLIENT_ID, { allowWriteTools: true });
@@ -35,7 +34,6 @@ describe("createCrmTools", () => {
       "create_interaction",
       "create_record",
       "create_task",
-      "crm_sql",
       "delete_records",
       "link_records",
       "search_crm",

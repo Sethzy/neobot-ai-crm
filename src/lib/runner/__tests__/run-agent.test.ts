@@ -195,7 +195,7 @@ describe("runAgent", () => {
       manage_todo: { description: "utility-tool" },
       list_todo: { description: "utility-tool" },
       rename_chat: { description: "utility-tool" },
-      run_agent_memory_sql: { description: "utility-tool" },
+      run_sql: { description: "utility-tool" },
       get_agent_db_schema: { description: "utility-tool" },
     });
     mockCreateTriggerTools.mockReturnValue({
@@ -279,7 +279,7 @@ describe("runAgent", () => {
           manage_todo: { description: "utility-tool" },
           list_todo: { description: "utility-tool" },
           rename_chat: { description: "utility-tool" },
-          run_agent_memory_sql: { description: "utility-tool" },
+          run_sql: { description: "utility-tool" },
           get_agent_db_schema: { description: "utility-tool" },
           search_triggers: { description: "trigger-tool" },
           setup_trigger: { description: "trigger-tool" },
