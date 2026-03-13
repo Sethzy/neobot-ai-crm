@@ -23,14 +23,6 @@ const allowedComponentTypes = [
   "FunnelChartPanel",
 ] as const;
 
-const viewCatalogRules = [
-  "Use only the allowed components from this catalog.",
-  "For repeated rows, boards, and cards, prefer repeat + $item over one element per record.",
-  "Use $state for read-only bindings into pre-computed state.",
-  "Charts are snapshot-only in PR42a. Use compact aggregated data and do not imply refresh, filters, pinning, or live dashboards.",
-  "Keep the full serialized show_view result under about 4KB.",
-] as const;
-
 /** Explicit runtime allowlist used for ergonomic error messages and tests. */
 export const ALLOWED_COMPONENT_TYPES = new Set<string>(allowedComponentTypes);
 
@@ -55,6 +47,7 @@ export const catalog = defineCatalog(schema, {
       slots: [],
       description:
         "Compact metric tile for a headline CRM number. Use a resolved value or a $state binding on the value prop.",
+      example: { label: "Active Deals", value: { $state: "/stats/activeDeals" }, trend: "up" },
     },
     DealCard: {
       props: z.object({
@@ -65,6 +58,7 @@ export const catalog = defineCatalog(schema, {
       slots: [],
       description:
         "Compact CRM deal card with address, formatted price, and optional stage badge.",
+      example: { address: "10 Market Street #12-34", price: "$1,200,000", stage: "offer" },
     },
     ContactCard: {
       props: z.object({
@@ -75,6 +69,7 @@ export const catalog = defineCatalog(schema, {
       slots: [],
       description:
         "Compact CRM contact card with name, optional type badge, and optional subtitle.",
+      example: { name: "John Tan", type: "buyer", subtitle: "Looking for 3BR in Bishan" },
     },
     TaskItem: {
       props: z.object({
@@ -87,6 +82,7 @@ export const catalog = defineCatalog(schema, {
       slots: [],
       description:
         "Single CRM task row with title, due date, status, and optional contact or deal context.",
+      example: { title: "Follow up with John", dueDate: "2026-03-15", status: "open", contactName: "John Tan" },
     },
     BarChartPanel: {
       props: z.object({
@@ -100,6 +96,12 @@ export const catalog = defineCatalog(schema, {
       slots: [],
       description:
         "Compact snapshot bar chart panel for aggregated category comparisons. Use compact aggregated rows only.",
+      example: {
+        title: "Deals by Stage",
+        data: { $state: "/charts/dealsByStage" },
+        xKey: "stage",
+        yKey: "count",
+      },
     },
     DonutChartPanel: {
       props: z.object({
@@ -114,6 +116,13 @@ export const catalog = defineCatalog(schema, {
       slots: [],
       description:
         "Compact snapshot donut chart panel for aggregated share or distribution views.",
+      example: {
+        title: "Pipeline by Source",
+        data: { $state: "/charts/pipelineBySource" },
+        nameKey: "source",
+        valueKey: "count",
+        centerLabel: "Total",
+      },
     },
     FunnelChartPanel: {
       props: z.object({
@@ -128,15 +137,13 @@ export const catalog = defineCatalog(schema, {
       slots: [],
       description:
         "Compact snapshot funnel chart panel for ordered aggregated stage progressions.",
+      example: {
+        title: "Deal Funnel",
+        data: { $state: "/charts/dealFunnel" },
+        nameKey: "stage",
+        valueKey: "count",
+      },
     },
   },
   actions: {},
 });
-
-/** Builds prompt guidance from the same catalog contract enforced at runtime. */
-export function getViewCatalogPrompt() {
-  return [
-    `Allowed components: ${allowedComponentTypes.join(", ")}.`,
-    ...viewCatalogRules,
-  ].join("\n");
-}

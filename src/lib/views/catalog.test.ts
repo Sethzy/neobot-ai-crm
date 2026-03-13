@@ -4,7 +4,18 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { ALLOWED_COMPONENT_TYPES, catalog, getViewCatalogPrompt } from "./catalog";
+import { ALLOWED_COMPONENT_TYPES, catalog } from "./catalog";
+
+/** Custom component names (not from shadcn). These must have `example` fields. */
+const CUSTOM_COMPONENT_NAMES = [
+  "StatMetric",
+  "DealCard",
+  "ContactCard",
+  "TaskItem",
+  "BarChartPanel",
+  "DonutChartPanel",
+  "FunnelChartPanel",
+];
 
 describe("view catalog", () => {
   it("exposes only the approved component allowlist", () => {
@@ -16,16 +27,24 @@ describe("view catalog", () => {
     expect(ALLOWED_COMPONENT_TYPES.has("Chart")).toBe(false);
   });
 
-  it("builds prompt guidance from the catalog contract", () => {
-    const prompt = getViewCatalogPrompt();
+  it("every custom component has a non-empty example object", () => {
+    const components = (catalog.data as { components: Record<string, { example?: unknown }> }).components;
+    for (const name of CUSTOM_COMPONENT_NAMES) {
+      const def = components[name];
+      expect(def, `${name} missing from catalog`).toBeDefined();
+      expect(def.example, `${name} missing example`).toBeDefined();
+      expect(typeof def.example, `${name} example should be an object`).toBe("object");
+      expect(Object.keys(def.example as Record<string, unknown>).length, `${name} example should be non-empty`).toBeGreaterThan(0);
+    }
+  });
 
+  it("catalog.prompt({ mode: 'inline' }) returns a string containing component names", () => {
+    const prompt = catalog.prompt({ mode: "inline" });
+    expect(typeof prompt).toBe("string");
+    expect(prompt.length).toBeGreaterThan(0);
     expect(prompt).toContain("StatMetric");
     expect(prompt).toContain("DealCard");
-    expect(prompt).toContain("repeat + $item");
-    expect(prompt).toContain("4KB");
-    expect(prompt).not.toContain("You are a UI generator");
-    expect(prompt).not.toContain("JSON Patch");
-    expect(prompt.length).toBeLessThan(1_500);
+    expect(prompt).toContain("BarChartPanel");
   });
 
   it("accepts a minimal spec that binds resolved state into a custom prop", () => {
