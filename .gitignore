@@ -34,3 +34,10 @@ scripts/property-pipeline/venv/
 
 # Playwright MCP artifacts
 .playwright-mcp/
+
+# Claude Code worktrees
+.claude/worktrees/
+
+# QA run artifacts (generated)
+scripts/qa/output/
+docs/qa/reports/
