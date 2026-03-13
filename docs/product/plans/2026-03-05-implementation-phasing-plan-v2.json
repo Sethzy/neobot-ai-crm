@@ -10,7 +10,7 @@
     "estimatedPRs": 41,
     "keptPRs": 27,
     "cutPRs": 19,
-    "donePRs": 35,
+    "donePRs": 36,
     "statusOptions": [
       "pending",
       "in_progress",
@@ -47,7 +47,9 @@
       "2026-03-11: Added PR 38c (Message usage caps + quota UX) to Phase 4. Quotas are app-enforced monthly message counters in Supabase, keyed off clients.plan_name rather than Stripe metered billing. Count only brand-new user-authored inbound chat turns. Free = 100/month, Pro = 500/month, Max = 2,000/month. UI surfaces live in /pricing, /settings, and chat; get_user_quota_status remains omitted as an agent-facing tool.",
       "2026-03-11: Clarified PR 42a scope to include compact snapshot charts (bar, donut, funnel) inside show_view, using narrow custom chart components rendered through json-render. This intentionally stops short of live analytics/reporting: no query-backed refresh, no filters, no pinning, no workspace report surface.",
       "2026-03-11: Added PR 46 (CRM working surfaces) to Phase 4 as an explicit out-of-plan polish item. Scope: unify Deals into one table/board workspace, add a Tasks calendar, add narrow quick edit on high-value CRM surfaces, preserve full detail pages, and keep saved views/reporting out of scope. Naming intentionally avoids collision with PR 42a agent-generated views.",
-      "2026-03-12: Added PR 8b (math.js calculate tool) to Phase 3. Small built-in tool (sibling to PR 8a drive-time). General-purpose expression evaluator using math.js — agent writes math expressions, mathjs evaluates them safely. Covers commission calculations, amortization, unit conversions, and any ad-hoc arithmetic. No sandbox needed. Hardened math.js instance disables dangerous functions (import, evaluate, parse, simplify, derivative, resolve, createUnit, reviver). Old PR 8b (Excalidraw) cut from scope."
+      "2026-03-12: Added PR 8b (math.js calculate tool) to Phase 3. Small built-in tool (sibling to PR 8a drive-time). General-purpose expression evaluator using math.js — agent writes math expressions, mathjs evaluates them safely. Covers commission calculations, amortization, unit conversions, and any ad-hoc arithmetic. No sandbox needed. Hardened math.js instance disables dangerous functions (import, evaluate, parse, simplify, derivative, resolve, createUnit, reviver). Old PR 8b (Excalidraw) cut from scope.",
+      "2026-03-13: Added PR 42a-i (json-render inline mode migration) to Phase 3 after PR 42a. Migrates agent-generated views from show_view tool-call pattern to json-render native inline mode. LLM emits spec JSONL inside ```spec fences; pipeJsonRender() transforms stream; useJsonRenderMessage() + segment-based rendering on client. Deletes show_view tool, ViewCard, ShowViewInline. catalog.prompt({ mode: 'inline' }) replaces hand-rolled getViewCatalogPrompt(). Handover: docs/product/handovers/json-render-inline-mode-handover.md.",
+      "2026-03-13: Added PR 42a-p (view component visual polish) to Phase 4. Design polish pass for all 7 custom CRM view components (StatMetric, DealCard, ContactCard, TaskItem, BarChartPanel, DonutChartPanel, FunnelChartPanel). Tighter spacing, better card proportions, improved chart colors, responsive refinements."
     ]
   },
   "phases": [
@@ -1856,9 +1858,60 @@
           "cut": [
             "Pinned/saved views (no saved_views table, no sidebar VIEWS section, no /views/[viewId] route)",
             "Live data fetching layer (no useViewData hook — agent pre-computes state)",
-            "Live analytics/reporting surface (no query-backed refresh, filters, pinning, or workspace report viewer)",
-            "Streaming progressive rendering (tool-based approach, render on completion)",
-            "Chat Mode integration with pipeJsonRender (tool-based is simpler)"
+            "Live analytics/reporting surface (no query-backed refresh, filters, pinning, or workspace report viewer)"
+          ]
+        },
+        {
+          "pr": "42a-i",
+          "title": "json-render inline mode migration",
+          "status": "done",
+          "simplified": false,
+          "decisions": ["UX-10"],
+          "dependsOn": ["42a"],
+          "note": "Migrates agent-generated views from show_view tool-call pattern to json-render native inline mode. Zero drift from official json-render patterns except 3 justified divergences: (1) runAgent() stays (custom orchestration), (2) Sunder chat hooks stay (custom transport), (3) CRM-specific components stay in catalog. Handover: docs/product/handovers/json-render-inline-mode-handover.md. Tasklist: docs/product/tasks/json-render-inline-mode-tdd.md.",
+          "tasks": [
+            {
+              "id": "PR42ai-1",
+              "task": "Add example fields to all custom catalog components, delete getViewCatalogPrompt(), verify catalog.prompt({ mode: 'inline' }) works",
+              "done": true
+            },
+            {
+              "id": "PR42ai-2",
+              "task": "Create ViewRenderer (src/lib/views/renderer.tsx) with StateProvider > VisibilityProvider > ActionProvider > Renderer provider stack",
+              "done": true
+            },
+            {
+              "id": "PR42ai-3",
+              "task": "Replace hand-rolled VIEW_GUIDANCE_PROMPT with catalog.prompt({ mode: 'inline', customRules }) + workflow instructions in system prompt",
+              "done": true
+            },
+            {
+              "id": "PR42ai-4",
+              "task": "Wrap LLM output stream with pipeJsonRender() in app/api/chat/route.ts",
+              "done": true
+            },
+            {
+              "id": "PR42ai-5",
+              "task": "Add useJsonRenderMessage + SPEC_DATA_PART_TYPE segment-based rendering in message-bubble.tsx, replacing show_view tool detection",
+              "done": true
+            },
+            {
+              "id": "PR42ai-6",
+              "task": "Delete show_view tool, ViewCard, ShowViewInline, views/index.ts barrel. Remove show_view special-casing from tool-call-inline.tsx. Unregister from runner.",
+              "done": true
+            },
+            {
+              "id": "PR42ai-7",
+              "task": "Defensive data coercion on chart components (Array.isArray guard for $state bindings that resolve async)",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "LLM emits ```spec fences — spec renders inline in chat message at correct position",
+            "All 10 component types render correctly: StatMetric, Table, DealCard, ContactCard, TaskItem, BarChartPanel, DonutChartPanel, FunnelChartPanel, Tabs+Grid composite, Badge+Text",
+            "Chart components handle undefined data gracefully (no crash on async $state resolution)",
+            "Zero references to show_view remain in src/ (grep verified)",
+            "TypeScript compiles clean, all tests pass"
           ]
         },
         {
@@ -2311,6 +2364,47 @@
             "User can use /tasks as table, board, or calendar and can change due date/status from the current surface",
             "Full detail pages remain available for larger edits; quick-edit failures are visible and do not silently swallow errors",
             "No saved views, report surfaces, or spreadsheet-style bulk editing are introduced"
+          ]
+        },
+        {
+          "pr": "42a-p",
+          "title": "View component visual polish",
+          "status": "pending",
+          "simplified": false,
+          "decisions": ["UX-10"],
+          "dependsOn": ["42a-i"],
+          "note": "Design polish pass for all 7 custom CRM view components rendered via json-render inline mode. Tighter spacing, better card proportions, improved chart color palette, responsive refinements, consistent typography. No functional changes — purely visual.",
+          "tasks": [
+            {
+              "id": "PR42ap-1",
+              "task": "Polish StatMetric: tighter padding, better label/value hierarchy, trend indicator alignment",
+              "done": false
+            },
+            {
+              "id": "PR42ap-2",
+              "task": "Polish DealCard and ContactCard: consistent card dimensions, badge positioning, truncation for long text",
+              "done": false
+            },
+            {
+              "id": "PR42ap-3",
+              "task": "Polish TaskItem: better row density, status indicator, overdue visual treatment",
+              "done": false
+            },
+            {
+              "id": "PR42ap-4",
+              "task": "Polish chart panels (bar, donut, funnel): improved color palette, better empty states, consistent sizing",
+              "done": false
+            },
+            {
+              "id": "PR42ap-5",
+              "task": "Responsive pass: verify all components render well on mobile widths inside chat bubble",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "All 7 custom components visually polished and consistent with ShadCN design language",
+            "Components render well on both desktop and mobile chat widths",
+            "No functional regressions — only visual changes"
           ]
         }
       ]

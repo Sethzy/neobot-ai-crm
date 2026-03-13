@@ -1,107 +1,114 @@
-# Handover: CRM Tool Consolidation
+# Handover: CRM Tool Consolidation — Implementation
 
-**Date:** 2026-03-09
+**Date:** 2026-03-12 (updated from 2026-03-09 design review)
 **Author:** Seth + Claude
-**For:** Reviewer with zero context on this project
+**For:** Developer implementing this with zero prior context
 
 ---
 
-## What this is
+## TL;DR
 
-A design to consolidate 28 CRM agent tools down to 11 (10 callable + 1 moved to passive context). The agent is an AI assistant for solo real estate agents in Singapore. It has a CRM (contacts, companies, deals, tasks, interactions) and the LLM interacts with it via tools.
+Consolidate 28 CRM agent tools → 11 (9 new + `configure_crm` unchanged + `describe_crm_schema` moved to passive context). All work is in `src/lib/runner/tools/crm/`. Do NOT touch non-CRM tools (those were aligned in commit `68964bb`).
 
-The current 28 CRM tools have massive overlap — e.g., `search_companies`, `search_contacts`, `search_deals` are the same operation with different table names. This hurts model performance (more tools = more decision points = worse accuracy).
-
----
-
-## The design doc
-
-**Read this first:**
-- `docs/designs/crm-tool-consolidation.md` — full design with tool schemas, response shapes, justifications, migration map, safety analysis, and implementation order
+**Execution checklist:** `docs/product/references/crm-tool-consolidation-checklist.json`
+**Design rationale:** `docs/product/designs/crm-tool-consolidation.md`
 
 ---
 
-## Current implementation (what's being replaced)
+## What you're building
 
-All under `src/lib/runner/tools/crm/`:
+| # | New Tool | Replaces | Type |
+|---|----------|----------|------|
+| 0 | *(passive CRM schema in system-reminder)* | `describe_crm_schema` | Context injection |
+| 1 | `search_crm` | 5 search + 4 get_* tools (9 total) | Read |
+| 2 | `create_record` | 3 create + 3 batch_create (6 total) | Write |
+| 3 | `update_record` | 3 update tools | Write |
+| 4 | `delete_records` | 5 per-entity delete tools | Write (approval-gated) |
+| 5 | `link_records` | 3 link + 3 unlink tools (6 total) | Write |
+| 6 | `crm_sql` | *(new — read-only SQL escape hatch)* | Read |
+| 7 | *(rewire index.ts)* | — | Wiring |
+| 8 | *(update system prompt + autopilot refs)* | — | References |
+| 9 | *(cleanup old tests)* | — | Cleanup |
 
-| File | Tools | What it does |
-|------|-------|-------------|
-| `companies.ts` | `search_companies`, `create_company`, `update_company`, `batch_create_companies` | CRUD for companies |
-| `contacts.ts` | `search_contacts`, `create_contact`, `update_contact`, `batch_create_contacts` | CRUD for contacts, with intra-batch dedup |
-| `deals.ts` | `search_deals`, `create_deal`, `update_deal`, `batch_create_deals` | CRUD for deals |
-| `interactions.ts` | `search_interactions`, `create_interaction` | Append-only interaction log |
-| `tasks.ts` | `search_tasks`, `create_task`, `update_task` | CRM follow-up tasks |
-| `deal-contacts.ts` | `link_contact_to_deal`, `unlink_contact_from_deal`, `get_deal_contacts`, `get_contact_deals` | Many-to-many deal↔contact junction table |
-| `company-links.ts` | `link_contact_to_company`, `unlink_contact_from_company`, `link_deal_to_company`, `unlink_deal_from_company`, `get_company_contacts`, `get_company_deals` | FK-based company links |
-| `schema.ts` | `describe_crm_schema` | Returns CRM config (stages, types, custom fields) — no DB access |
-| `configure-crm.ts` | `configure_crm` | Setup-mode-only schema configuration — **untouched by this consolidation** |
-| `index.ts` | — | Factory orchestration, mode/permission gating |
-| `filter-utils.ts` | — | Shared ILIKE, date normalization, search expression builders |
-| `custom-fields.ts` | — | Deep-merge logic for custom field patches |
-
-Supporting files:
-- `src/lib/crm/config.ts` — CRM vocabulary config (stages, types, industries, custom field schemas)
-- `src/lib/crm/schemas.ts` — Zod validators for all CRM tables
-- `src/lib/crm/postgrest-filters.ts` — PostgREST ILIKE/search expression builders
-- `src/lib/runner/tools/utility/sql.ts` — existing read-only SQL tool (`run_agent_memory_sql`) — the `crm_sql` tool extends this pattern
-- `docs/agent-tools-inventory.md` — full inventory of all 52 agent tools (not just CRM)
+**Total agent tools after:** 52 → 33
 
 ---
 
-## Reference material that informed the design
+## How to execute
 
-These are the articles and analysis docs we read to arrive at the two-tier architecture. The design doc traces specific decisions back to these sources.
-
-### Vercel references (`roadmap docs/Sunder - Source of Truth/references/vercel/`)
-
-| File | Key takeaway |
-|------|-------------|
-| `00-agents-md-outperforms-skills-verbatim.md` | Passive context (AGENTS.md) achieves 100% success vs 53-79% for active skill retrieval. "No decision point" principle. → This is why `describe_crm_schema` moves to system-reminder instead of staying a tool. |
-| `01-analysis-tasklet-already-does-this.md` | Analysis of how our reference product (Tasklet) already uses the passive context pattern via system-reminders. Maps Vercel's findings to our architecture. |
-| `02-removed-80pct-agent-tools-verbatim.md` | Vercel d0 case study: removed 80% of tools → 100% success (was 80%), 3.5x faster, 37% fewer tokens. "Addition by subtraction is real." → Primary motivation for consolidation. |
-
-### Fintool / Nicolas Bustamante (`roadmap docs/Sunder - Source of Truth/references/Fintool/`)
-
-| File | Key takeaway |
-|------|-------------|
-| `nicbustamante-reverse-engineering-excel-ai-agents-FULL.md` | Reverse-engineering of Microsoft, Shortcut, and Claude Excel agents. **Critical article for the final design decision.** Findings: (1) Two-tier pattern (safe structured tools + escape hatch) is universal across all mature agents. (2) "Tool-enforced safety > behavioral safety" — if safety depends on the model choosing to do it, eventually it won't. (3) Auto-verification: bake verification data into tool responses. → This is why we use structured Tier 1 tools for writes (not raw SQL), and why `crm_sql` is read-only. |
-
-### Agent SDKs and harnesses (`roadmap docs/Sunder - Source of Truth/references/agent SDKs and harnesses/`)
-
-| File | Key takeaway |
-|------|-------------|
-| `agent-harness-is-the-real-product.md` | Survey of Claude Code (~18 tools), Cursor, Manus (~29 tools), SWE-Agent. Same model scores 42% vs 78% depending on harness. "Primitives over integrations." → Why we consolidate to fewer, more general tools. |
-| `context-engineering-landscape.md` | Manus KV-cache patterns, Cursor's 46.9% token reduction with lazy loading, the 40% context window "dumb zone" rule. → Why fewer tool definitions = better attention budget. |
-| `agent-architecture-checklist.md` | 69-item checklist. Key items: #7 (primitives over integrations), #8 (lean tools, no overlap), #9 (tool count — worry past ~25), #10 (consistent naming). → Direct checklist items that the consolidation addresses. |
-| `how-to-be-a-world-class-agentic-engineer.md` | "Less is more", context is everything, strip dependencies. |
-| `openai-harness-engineering-codex-agent-first.md` | AGENTS.md as table of contents not encyclopedia, progressive disclosure. |
-| `Harness-Model Coupling — Research and Contingency Plan.md` | Confirms Vercel AI SDK is correct for our CRM workloads. |
+1. Open `docs/product/references/crm-tool-consolidation-checklist.json`
+2. Work through `implementation_order` (0 → 9)
+3. Each entry has:
+   - `kills` — exact old tool names + source file locations + test files to rewrite/delete
+   - `creates` — new file path + test file path
+   - `new_tool` — exact name, description, params (types + descriptions), response shape
+   - `implementation` — routing logic, reusable code references, per-entity specifics, gotchas
+4. After each tool: run tests, mark `status: "DONE"` in the JSON
+5. After all tools: run full test suite, grep for any remaining old tool name references
 
 ---
 
-## Key design decisions to validate
+## Files — final state
 
-1. **28 → 11 tools via two-tier pattern.** Tier 1: structured tools with validation/dedup/custom fields. Tier 2: read-only SQL escape hatch. Is this the right split? Are there CRM operations that fall through both tiers?
+### DELETE (6 source files)
+- `schema.ts` — replaced by system-reminder injection
+- `contacts.ts` — split across `search.ts`, `create-record.ts`, `update-record.ts`, `delete-records.ts`
+- `companies.ts` — same
+- `deals.ts` — same
+- `deal-contacts.ts` — replaced by `search.ts` (get_*) + `link-records.ts` (link/unlink)
+- `company-links.ts` — replaced by `search.ts` (get_*) + `link-records.ts` (link/unlink)
 
-2. **`search_crm` replaces 9 tools.** Single tool with `entity` discriminator + `filters` record. Does the `filters: Record<string, string | number | boolean | null>` approach lose important type safety vs. per-entity typed params?
+### CREATE (6 source files)
+- `search.ts` — `search_crm`
+- `create-record.ts` — `create_record`
+- `update-record.ts` — `update_record`
+- `delete-records.ts` — `delete_records`
+- `link-records.ts` — `link_records`
+- `crm-sql.ts` — `crm_sql`
 
-3. **`create_record` and `update_record` use `z.record(z.string(), z.unknown())` for fields.** Validation happens at runtime by dispatching to entity-specific Zod schemas. This trades compile-time type safety for fewer tools. Is this acceptable?
+### MODIFY (5 files)
+- `index.ts` — rewrite factory to register new tools
+- `interactions.ts` — remove `search_interactions` + `delete_interaction`, keep `create_interaction`
+- `tasks.ts` — remove `search_tasks` + `delete_task`, keep `create_task` + `update_task`
+- `src/lib/ai/system-prompt.ts` — add CRM schema to system-reminder, update tool name strings
+- `src/lib/autopilot/constants.ts` — update tool name strings in autopilot prompt
 
-4. **`delete_records` is new (no current equivalent).** Justified by approval gates — destructive actions require user confirmation. Is the `reason` field + batch cap at 50 + approval gate sufficient safety, or do we need additional guardrails (e.g., soft-delete, undo window)?
-
-5. **`describe_crm_schema` → system-reminder passive context.** CRM config injected every turn instead of being a callable tool. This is ~200 bytes of always-on context. Is the tradeoff worth it?
-
-6. **`crm_sql` is separate from `run_agent_memory_sql`.** Could we just improve the existing SQL tool's description instead of adding a new tool? The design argues for separation (different description, `purpose` audit field, future CRM-specific guardrails). Is this justified?
-
-7. **Tasks stay as dedicated `create_task` / `update_task` instead of merging into `create_record` / `update_record`.** Rationale: tasks are the agent's most common autonomous action. Is the 2-tool overhead justified for zero-ambiguity?
+### KEEP UNCHANGED
+- `filter-utils.ts` — shared search/date utilities (used by new tools)
+- `custom-fields.ts` — deep-merge logic (used by `create-record.ts`, `update-record.ts`)
+- `configure-crm.ts` — setup-mode only, out of scope
 
 ---
 
-## Project context (if you need it)
+## Gotchas
+
+1. **`update_deal` has analytics logic.** When `stage` changes, it fires a `deal_stage_changed` PostHog event with `from_stage`, `to_stage`, `deal_value`. This MUST be preserved in `update_record`. See `deals.ts:193-254`.
+
+2. **`batch_create_contacts` has intra-batch dedup.** It checks for duplicate names within the array before hitting the DB. This must be generalized in `create_record` for all entity types.
+
+3. **`deal_contacts` is a junction table, not an FK.** `link_records` must handle two different patterns: INSERT/DELETE on `deal_contacts` (contact_deal) vs UPDATE FK on contacts/deals table (contact_company, deal_company).
+
+4. **`interactions.ts` and `tasks.ts` are partially kept.** Remove their search and delete exports, but keep create/update. Don't delete the whole file.
+
+5. **38 files reference old tool names.** The checklist JSON (entry `9_cleanup_tests`) lists all integration test files that need grep + update. The system prompt and autopilot constants are the most critical.
+
+6. **`crm_sql` is separate from `run_agent_memory_sql`.** They use the same underlying RPC but have different descriptions and the CRM version adds a `purpose` audit field. Don't merge them.
+
+---
+
+## Reference material
+
+If you need to understand *why* any decision was made:
+- **Design doc:** `docs/product/designs/crm-tool-consolidation.md` — full rationale, rejected approaches, safety analysis
+- **CRM vs Tasklet drift:** `roadmap docs/Sunder - Source of Truth/tool-infrastructure-comparison/2026-03-02-pr6-crm-vs-tasklet-hubspot-drift.md`
+- **Tool comparison JSON:** `docs/product/references/tool-comparison-tasklet-vs-sunder.json` — non-CRM tools already aligned
+
+---
+
+## Project context
 
 - **Product:** Sunder — AI orchestration SaaS for solo real estate agents in Singapore
 - **Tech stack:** Next.js 15 + Vercel AI SDK v6 + Supabase (Postgres + RLS)
 - **Source of truth:** `docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json`
 - **CLAUDE.md** at repo root has full conventions
-- **Current phase:** Phase 1 complete (13 PRs done), Phase 2 in progress
+- **Current state:** Phases 1-3 done, Phase 4 in progress

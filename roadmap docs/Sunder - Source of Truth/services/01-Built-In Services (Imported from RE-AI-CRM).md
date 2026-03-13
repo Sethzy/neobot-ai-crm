@@ -59,7 +59,7 @@ The agent comes batteries-included. One signup, one QR scan, everything works. N
 | **Document Signing** | DocuSeal | Sunder central account | Contract signing, transaction documents | Phase 3 |
 | **Document Extraction** | Gemini 2.5 Flash + ExtendAI | Sunder central account | Document Vault processing (#21), auto-CRM linking, custom schemas | MVP |
 | **Document Generation** | Custom MCP (ported from Sunder) | Custom-built | Excel reports, AI analysis, reconciliation checks | MVP |
-| **Artifact Publishing (Mini Lovable)** | Custom (frontend-design skill + browser sandbox) | Custom-built | Personalized pitch webpages, property showcases, interactive deliverables | MVP |
+| **Artifact Publishing (Mini Lovable)** | Custom (frontend-design skill + browser sandbox) + here.now (free hosting) | Custom-built | Personalized pitch webpages, property showcases, interactive deliverables | MVP |
 | **Diagramming (Excalidraw MCP)** | Excalidraw MCP (`mcp.excalidraw.com`) | Sunder central account | Visual diagrams, property comparisons, transaction timelines, process flows | MVP |
 
 ### What We DON'T Need
@@ -1622,6 +1622,11 @@ The agent uses a specialized skill for artifact generation that enforces high de
 - Deploy to Cloudflare R2 + Workers for CDN-backed hosting
 - Custom domain support per client
 
+**Alternative: here.now (free hosting)**
+- Free static hosting alternative to surge.sh — https://here.now/
+- Good fit for artifact publishing: single-file HTML deploys with zero config
+- Evaluate when sandbox/website-building features are added
+
 ### Cost Estimate
 
 | Component | Cost | Notes |
@@ -1866,6 +1871,11 @@ Composio is the universal auth adapter. Any tool the user needs to connect goes 
 > - **Postiz is not relevant here** — it's a content scheduler (Social Butler), not a lead responder.
 
 Composio's abstraction means we can add any integration without building OAuth flows. The agent gets new tools instantly.
+
+> **Alternatives to Composio (noted 2026-03-12):**
+> - **WorkOS** — https://workos.com/ — enterprise-grade auth and integrations
+> - **Paragon** — https://www.useparagon.com/pricing — embedded integration platform
+> Evaluate if Composio pricing, reliability, or coverage becomes a bottleneck.
 
 ---
 
