@@ -1,4 +1,9 @@
-# Sunder AI Agent Tools
+# Sunder AI Agent Tools (ARCHIVED — Phase 1 snapshot)
+
+> **STALE:** These docs describe the pre-consolidation 14-tool layout from Phase 1.
+> The per-entity CRM tools (`search_contacts`, `create_deal`, etc.) no longer exist.
+> For the current tool inventory (35 tools), see:
+> **`docs/product/tooling/agent-tools-inventory-v2.md`**
 
 This folder contains explicit, labeled Markdown docs for all 14 Sunder AI-agent tools as of Phase 1.
 
