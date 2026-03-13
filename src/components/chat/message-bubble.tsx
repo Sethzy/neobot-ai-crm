@@ -2,12 +2,18 @@
  * Renders one chat message with role-based layout and parts-based rendering.
  * User messages: right-aligned bubble. Assistant messages: flat layout with
  * AI Elements Message/Reasoning and compact pill-style tool calls.
- * All parts render interleaved — no container wrapper.
+ *
+ * Inline spec rendering: uses `useJsonRenderMessage` from `@json-render/react`
+ * and `SPEC_DATA_PART_TYPE` from `@json-render/core` to detect spec data parts
+ * emitted by `pipeJsonRender()` and render them inline via `ViewRenderer`.
+ *
  * @module components/chat/message-bubble
  */
 "use client";
 
 import { memo } from "react";
+import { SPEC_DATA_PART_TYPE } from "@json-render/core";
+import { useJsonRenderMessage } from "@json-render/react";
 
 import {
   Message,
@@ -15,16 +21,18 @@ import {
   MessageResponse,
 } from "@/components/ai-elements/message";
 import { Shimmer } from "@/components/ai-elements/shimmer";
+import { ViewRenderer } from "@/lib/views/renderer";
 import { cn } from "@/lib/utils";
 import { AskUserQuestionInline, type AskUserQuestion } from "./ask-user-question-inline";
 import { getMessageText, type ChatUIMessage } from "./message-content";
 import { PreviewAttachment, type Attachment } from "./preview-attachment";
 import { StepsSummary } from "./steps-summary";
-import { ToolCallInline, type ToolPartState } from "./tool-call-inline";
 
 interface MessageBubbleProps {
   message: ChatUIMessage;
   isStreaming?: boolean;
+  /** Whether this is the last message in the conversation. */
+  isLast?: boolean;
   /** Callback for tool approval actions. */
   onToolApproval?: (approvalId: string, approved: boolean) => void;
   /** Callback when user selects an option from an ask_user_question tool call. */
@@ -35,8 +43,10 @@ function filePartToAttachment(part: { filename?: string; url: string; mediaType:
   return { filename: part.filename ?? "file", url: part.url, contentType: part.mediaType };
 }
 
-export const MessageBubble = memo(function MessageBubble({ message, isStreaming = false, onToolApproval, onQuestionSubmit }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({ message, isStreaming = false, isLast = false, onToolApproval, onQuestionSubmit }: MessageBubbleProps) {
   const isUserMessage = message.role === "user";
+  const { spec, hasSpec } = useJsonRenderMessage(message.parts);
+
   const fileParts = message.parts.filter(
     (part): part is Extract<ChatUIMessage["parts"][number], { type: "file" }> => part.type === "file",
   );
@@ -49,16 +59,42 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
   const askQuestionParts = allIntermediateParts.filter(
     (p) => p.type === "tool-ask_user_question" && (p as { state?: string }).state === "output-available",
   );
-  const showViewParts = allIntermediateParts.filter(
-    (p) => p.type === "tool-show_view" && (p as { state?: string }).state === "output-available",
-  );
   const intermediateParts = allIntermediateParts.filter(
-    (p) =>
-      p.type !== "tool-ask_user_question" &&
-      !(p.type === "tool-show_view" && (p as { state?: string }).state === "output-available"),
+    (p) => p.type !== "tool-ask_user_question",
   );
 
-  const hasParts = fileParts.length > 0 || allIntermediateParts.length > 0 || textParts.length > 0;
+  // Track whether we inserted the spec inline via the segment builder.
+  // If not but hasSpec is true, we render it at the end as a fallback.
+  let specInserted = false;
+
+  /**
+   * Build ordered segments from parts: text / spec.
+   * Tool parts and reasoning go through StepsSummary separately (unchanged),
+   * but spec data parts (`SPEC_DATA_PART_TYPE`) get their own segment so the
+   * ViewRenderer appears at the exact position the LLM placed the ```spec fence.
+   */
+  const segments: Array<
+    | { kind: "text"; parts: Array<{ type: "text"; text: string }> }
+    | { kind: "spec" }
+  > = [];
+
+  for (const part of message.parts) {
+    if (part.type === "text") {
+      const lastSeg = segments[segments.length - 1];
+      if (lastSeg?.kind === "text") {
+        lastSeg.parts.push(part as { type: "text"; text: string });
+      } else {
+        segments.push({ kind: "text", parts: [part as { type: "text"; text: string }] });
+      }
+    } else if (part.type === SPEC_DATA_PART_TYPE && !specInserted) {
+      segments.push({ kind: "spec" });
+      specInserted = true;
+    }
+    // tool- and reasoning parts are handled by StepsSummary, not segments
+  }
+
+  const hasParts = fileParts.length > 0 || allIntermediateParts.length > 0 || textParts.length > 0 || hasSpec;
+  const isLoadingSpec = isLast && isStreaming;
 
   if (isUserMessage) {
     return (
@@ -122,35 +158,33 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
           />
         )}
 
-        {textParts.map((part, i) => (
-          <MessageResponse key={`${message.id}-text-${i}`}>
-            {part.text}
-          </MessageResponse>
-        ))}
-
-        {showViewParts.map((part, i) => {
-          const toolPart = part as {
-            type: string;
-            state: ToolPartState;
-            input: unknown;
-            output?: unknown;
-            errorText?: string;
-            approval?: { id: string };
-          };
-
-          return (
-            <ToolCallInline
-              key={`${message.id}-show-view-${i}`}
-              name="show_view"
-              state={toolPart.state}
-              input={toolPart.input}
-              output={toolPart.output}
-              errorText={toolPart.errorText}
-              approvalId={toolPart.approval?.id}
-              onToolApproval={onToolApproval}
-            />
-          );
+        {segments.map((seg, i) => {
+          if (seg.kind === "text") {
+            return seg.parts.map((tp, j) => (
+              <MessageResponse key={`${message.id}-text-${i}-${j}`}>
+                {tp.text}
+              </MessageResponse>
+            ));
+          }
+          if (seg.kind === "spec" && hasSpec) {
+            return (
+              <ViewRenderer
+                key={`${message.id}-spec`}
+                spec={spec}
+                loading={isLoadingSpec}
+              />
+            );
+          }
+          return null;
         })}
+
+        {/* Fallback: render spec at end if hasSpec but no inline position found */}
+        {hasSpec && !specInserted && (
+          <ViewRenderer
+            spec={spec}
+            loading={isLoadingSpec}
+          />
+        )}
 
         {!isStreaming && askQuestionParts.length > 0 &&
           askQuestionParts.map((part, i) => {

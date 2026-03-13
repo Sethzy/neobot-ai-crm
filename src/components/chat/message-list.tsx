@@ -48,6 +48,7 @@ export const MessageList = memo(function MessageList({ messages, status, onToolA
                 key={message.id}
                 message={message}
                 isStreaming={isStreaming && isLastAssistantMessage}
+                isLast={isLastMessage}
                 onToolApproval={onToolApproval}
                 onQuestionSubmit={isLastAssistantMessage ? onQuestionSubmit : undefined}
               />
@@ -58,6 +59,7 @@ export const MessageList = memo(function MessageList({ messages, status, onToolA
             <MessageBubble
               message={thinkingPlaceholder}
               isStreaming
+              isLast
             />
           )}
 
