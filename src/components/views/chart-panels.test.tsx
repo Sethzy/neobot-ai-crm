@@ -21,6 +21,7 @@ import {
   BarChartPanel,
   DonutChartPanel,
   FunnelChartPanel,
+  LineChartPanel,
 } from "./chart-panels";
 
 describe("BarChartPanel", () => {
@@ -96,5 +97,58 @@ describe("FunnelChartPanel", () => {
 
     expect(screen.getByText("Conversion funnel")).toBeInTheDocument();
     expect(screen.getByText("Overall conversion 14%")).toBeInTheDocument();
+  });
+});
+
+describe("LineChartPanel", () => {
+  it("renders the panel title and insight", () => {
+    render(
+      <LineChartPanel
+        title="Deals over time"
+        subtitle="Last 6 months"
+        insight="Steady growth in Q1."
+        data={[
+          { month: "Jan", count: 5 },
+          { month: "Feb", count: 8 },
+          { month: "Mar", count: 12 },
+        ]}
+        xKey="month"
+        yKey="count"
+      />,
+    );
+
+    expect(screen.getByText("Deals over time")).toBeInTheDocument();
+    expect(screen.getByText("Last 6 months")).toBeInTheDocument();
+    expect(screen.getByText("Steady growth in Q1.")).toBeInTheDocument();
+  });
+
+  it("renders an empty state when data is empty", () => {
+    render(
+      <LineChartPanel
+        title="Deals over time"
+        data={[]}
+        xKey="month"
+        yKey="count"
+      />,
+    );
+
+    expect(screen.getByText("No snapshot data available.")).toBeInTheDocument();
+  });
+
+  it("renders with areaFill enabled", () => {
+    render(
+      <LineChartPanel
+        title="Revenue trend"
+        data={[
+          { month: "Jan", revenue: 10000 },
+          { month: "Feb", revenue: 15000 },
+        ]}
+        xKey="month"
+        yKey="revenue"
+        areaFill
+      />,
+    );
+
+    expect(screen.getByText("Revenue trend")).toBeInTheDocument();
   });
 });

@@ -9,6 +9,8 @@ export interface StatMetricProps {
   label: string;
   value: number | string;
   trend?: "up" | "down" | "flat";
+  /** Optional trend magnitude string, e.g. "12%" or "+3". Renders next to arrow. */
+  change?: string;
 }
 
 const trendIndicatorMap = {
@@ -26,7 +28,7 @@ const trendToneMap = {
 /**
  * Renders a compact summary metric with an optional directional indicator.
  */
-export function StatMetric({ label, value, trend }: StatMetricProps) {
+export function StatMetric({ label, value, trend, change }: StatMetricProps) {
   return (
     <Card size="sm" className="h-full border-border/60 bg-card/80">
       <CardContent className="flex h-full flex-col justify-between gap-3">
@@ -41,11 +43,11 @@ export function StatMetric({ label, value, trend }: StatMetricProps) {
             <span
               data-testid="trend-indicator"
               className={cn(
-                "text-lg font-semibold leading-none",
+                "text-sm font-semibold leading-none",
                 trendToneMap[trend],
               )}
             >
-              {trendIndicatorMap[trend]}
+              {trendIndicatorMap[trend]}{change ? ` ${change}` : ""}
             </span>
           ) : null}
         </div>

@@ -26,4 +26,10 @@ describe("StatMetric", () => {
 
     expect(screen.getByTestId("trend-indicator")).toHaveTextContent("↑");
   });
+
+  it("shows trend with change magnitude", () => {
+    render(<StatMetric label="Revenue" value="$4.2M" trend="up" change="12%" />);
+
+    expect(screen.getByTestId("trend-indicator")).toHaveTextContent("↑ 12%");
+  });
 });

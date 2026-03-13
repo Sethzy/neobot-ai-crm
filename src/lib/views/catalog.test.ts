@@ -15,6 +15,7 @@ const CUSTOM_COMPONENT_NAMES = [
   "BarChartPanel",
   "DonutChartPanel",
   "FunnelChartPanel",
+  "LineChartPanel",
 ];
 
 describe("view catalog", () => {
@@ -45,6 +46,7 @@ describe("view catalog", () => {
     expect(prompt).toContain("StatMetric");
     expect(prompt).toContain("DealCard");
     expect(prompt).toContain("BarChartPanel");
+    expect(prompt).toContain("LineChartPanel");
   });
 
   it("accepts a minimal spec that binds resolved state into a custom prop", () => {

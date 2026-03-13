@@ -85,7 +85,7 @@
     "react-dom": "^19.2.0",
     "react-icons": "^5.5.0",
     "react-markdown": "^10.1.0",
-    "recharts": "^3.7.0",
+    "recharts": "^2.15.4",
     "redis": "^5.11.0",
     "remotion": "^4.0.409",
     "resumable-stream": "^2.2.10",

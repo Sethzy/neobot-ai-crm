@@ -21,6 +21,7 @@ const allowedComponentTypes = [
   "BarChartPanel",
   "DonutChartPanel",
   "FunnelChartPanel",
+  "LineChartPanel",
 ] as const;
 
 /** Explicit runtime allowlist used for ergonomic error messages and tests. */
@@ -43,11 +44,12 @@ export const catalog = defineCatalog(schema, {
         label: z.string().min(1),
         value: z.union([z.string(), z.number()]),
         trend: z.enum(["up", "down", "flat"]).nullable(),
+        change: z.string().min(1).nullable(),
       }),
       slots: [],
       description:
-        "Compact metric tile for a headline CRM number. Use a resolved value or a $state binding on the value prop.",
-      example: { label: "Active Deals", value: { $state: "/stats/activeDeals" }, trend: "up" },
+        "Compact metric tile for a headline CRM number. Use a resolved value or a $state binding on the value prop. Use the optional change prop to show trend magnitude (e.g. '12%').",
+      example: { label: "Active Deals", value: { $state: "/stats/activeDeals" }, trend: "up", change: "12%" },
     },
     DealCard: {
       props: z.object({
@@ -142,6 +144,27 @@ export const catalog = defineCatalog(schema, {
         data: { $state: "/charts/dealFunnel" },
         nameKey: "stage",
         valueKey: "count",
+      },
+    },
+    LineChartPanel: {
+      props: z.object({
+        title: z.string().min(1),
+        subtitle: z.string().min(1).nullable(),
+        insight: z.string().min(1).nullable(),
+        data: chartDataSchema,
+        xKey: z.string().min(1),
+        yKey: z.string().min(1),
+        areaFill: z.boolean().nullable(),
+      }),
+      slots: [],
+      description:
+        "Compact snapshot line chart panel for time-series trends. Use areaFill for emphasis. Use compact aggregated rows only.",
+      example: {
+        title: "Deals Over Time",
+        data: { $state: "/charts/dealsOverTime" },
+        xKey: "month",
+        yKey: "count",
+        areaFill: true,
       },
     },
   },

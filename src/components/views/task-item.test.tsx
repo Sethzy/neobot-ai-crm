@@ -24,12 +24,12 @@ describe("TaskItem", () => {
     render(
       <TaskItem
         title="Call Sarah"
-        dueDate="8 Mar 2026"
+        dueDate="2099-03-08"
         status="open"
       />,
     );
 
-    expect(screen.getByText("8 Mar 2026")).toBeInTheDocument();
+    expect(screen.getByText("2099-03-08")).toBeInTheDocument();
     expect(screen.getByTestId("task-status-badge")).toHaveTextContent("open");
   });
 
@@ -44,5 +44,29 @@ describe("TaskItem", () => {
 
     expect(screen.getByText(/John Tan/)).toBeInTheDocument();
     expect(screen.getByText(/Blk 322 Jurong/)).toBeInTheDocument();
+  });
+
+  it("shows overdue treatment for open tasks past due date", () => {
+    render(
+      <TaskItem
+        title="Old task"
+        dueDate="2020-01-01"
+        status="open"
+      />,
+    );
+
+    expect(screen.getByText(/· Overdue/)).toBeInTheDocument();
+  });
+
+  it("does not show overdue for completed tasks", () => {
+    render(
+      <TaskItem
+        title="Done task"
+        dueDate="2020-01-01"
+        status="completed"
+      />,
+    );
+
+    expect(screen.queryByText(/Overdue/)).not.toBeInTheDocument();
   });
 });

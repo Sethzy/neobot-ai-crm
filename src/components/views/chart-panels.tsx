@@ -1,20 +1,24 @@
 /**
  * Snapshot chart panels for agent-generated inline CRM views.
+ * Uses ShadCN chart primitives for themed tooltips, legends, and CSS variable colors.
  * @module components/views/chart-panels
  */
 "use client";
 
 import type { ReactNode } from "react";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
+  CartesianGrid,
   Cell,
   Funnel,
   FunnelChart,
+  Line,
+  LineChart,
   Pie,
   PieChart,
-  ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
@@ -28,11 +32,24 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  CHART_COLORS,
-  CHART_PRIMARY,
-} from "@/lib/property/chart-colors";
+  type ChartConfig,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 
 type ChartDatum = Record<string, string | number>;
+
+/** Chart color palette — maps to CSS variables --chart-1 through --chart-5. */
+const SEGMENT_COLORS = [
+  "var(--color-chart-1)",
+  "var(--color-chart-2)",
+  "var(--color-chart-3)",
+  "var(--color-chart-4)",
+  "var(--color-chart-5)",
+] as const;
 
 interface BaseChartPanelProps {
   title: string;
@@ -60,6 +77,14 @@ export interface FunnelChartPanelProps extends BaseChartPanelProps {
   footerText?: string;
 }
 
+export interface LineChartPanelProps extends BaseChartPanelProps {
+  data: ChartDatum[];
+  xKey: string;
+  yKey: string;
+  areaFill?: boolean;
+}
+
+/** Shared card wrapper for all chart panels. */
 function ChartPanelShell({
   title,
   subtitle,
@@ -95,6 +120,19 @@ function ChartEmptyState() {
   );
 }
 
+/** Builds a ChartConfig from data segments, mapping each unique name to a chart color. */
+function buildSegmentConfig(data: ChartDatum[], nameKey: string): ChartConfig {
+  const config: ChartConfig = {};
+  for (const [i, datum] of data.entries()) {
+    const key = String(datum[nameKey] ?? `segment-${i}`);
+    config[key] = {
+      label: key,
+      color: `var(--chart-${(i % 5) + 1})`,
+    };
+  }
+  return config;
+}
+
 /**
  * Renders a compact bar chart for aggregated category comparisons.
  */
@@ -107,27 +145,25 @@ export function BarChartPanel({
   yKey,
 }: BarChartPanelProps) {
   const safeData = Array.isArray(data) ? data : [];
+
+  const chartConfig = {
+    [yKey]: { label: yKey, color: "var(--chart-1)" },
+  } satisfies ChartConfig;
+
   return (
     <ChartPanelShell title={title} subtitle={subtitle} insight={insight}>
       {safeData.length === 0 ? (
         <ChartEmptyState />
       ) : (
-        <div className="h-56">
-          <ResponsiveContainer width="100%" height="100%" minWidth={240}>
-            <BarChart data={safeData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-              <XAxis dataKey={xKey} tickLine={false} axisLine={false} fontSize={11} />
-              <YAxis tickLine={false} axisLine={false} fontSize={11} allowDecimals={false} />
-              <Tooltip
-                contentStyle={{
-                  borderRadius: 12,
-                  border: "1px solid #e5e7eb",
-                  fontSize: 12,
-                }}
-              />
-              <Bar dataKey={yKey} fill={CHART_PRIMARY} radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <ChartContainer config={chartConfig} className="aspect-auto h-56 w-full">
+          <BarChart data={safeData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <CartesianGrid vertical={false} />
+            <XAxis dataKey={xKey} tickLine={false} axisLine={false} fontSize={11} />
+            <YAxis tickLine={false} axisLine={false} fontSize={11} allowDecimals={false} />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+            <Bar dataKey={yKey} fill="var(--color-chart-1)" radius={[6, 6, 0, 0]} />
+          </BarChart>
+        </ChartContainer>
       )}
     </ChartPanelShell>
   );
@@ -135,6 +171,7 @@ export function BarChartPanel({
 
 /**
  * Renders a compact donut chart for aggregated distribution snapshots.
+ * Includes a legend so segments are identifiable without hovering.
  */
 export function DonutChartPanel({
   title,
@@ -146,12 +183,20 @@ export function DonutChartPanel({
   centerLabel,
 }: DonutChartPanelProps) {
   const safeData = Array.isArray(data) ? data : [];
+  const chartConfig = buildSegmentConfig(safeData, nameKey);
+
+  /* Inject fill into each datum so Recharts picks up the color per-segment. */
+  const coloredData = safeData.map((d, i) => ({
+    ...d,
+    fill: SEGMENT_COLORS[i % SEGMENT_COLORS.length],
+  }));
+
   return (
     <ChartPanelShell title={title} subtitle={subtitle} insight={insight}>
       {safeData.length === 0 ? (
         <ChartEmptyState />
       ) : (
-        <div className="relative h-56">
+        <div className="relative">
           {centerLabel ? (
             <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
               <span className="rounded-full bg-background/90 px-3 py-1 text-sm font-semibold text-foreground shadow-xs">
@@ -159,32 +204,20 @@ export function DonutChartPanel({
               </span>
             </div>
           ) : null}
-          <ResponsiveContainer width="100%" height="100%" minWidth={240}>
+          <ChartContainer config={chartConfig} className="aspect-square h-56 w-full">
             <PieChart>
               <Pie
-                data={safeData}
+                data={coloredData}
                 dataKey={valueKey}
                 nameKey={nameKey}
-                innerRadius={54}
-                outerRadius={82}
+                innerRadius={60}
+                outerRadius={90}
                 paddingAngle={2}
-              >
-                {safeData.map((_, index) => (
-                  <Cell
-                    key={`donut-segment-${index}`}
-                    fill={CHART_COLORS[index % CHART_COLORS.length]}
-                  />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  borderRadius: 12,
-                  border: "1px solid #e5e7eb",
-                  fontSize: 12,
-                }}
               />
+              <ChartTooltip content={<ChartTooltipContent nameKey={nameKey} hideLabel />} />
+              <ChartLegend content={<ChartLegendContent nameKey={nameKey} />} />
             </PieChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         </div>
       )}
     </ChartPanelShell>
@@ -193,6 +226,7 @@ export function DonutChartPanel({
 
 /**
  * Renders a compact funnel chart for ordered stage progress snapshots.
+ * Includes a legend for stage identification.
  */
 export function FunnelChartPanel({
   title,
@@ -204,6 +238,8 @@ export function FunnelChartPanel({
   footerText,
 }: FunnelChartPanelProps) {
   const safeData = Array.isArray(data) ? data : [];
+  const chartConfig = buildSegmentConfig(safeData, nameKey);
+
   return (
     <ChartPanelShell
       title={title}
@@ -214,27 +250,86 @@ export function FunnelChartPanel({
       {safeData.length === 0 ? (
         <ChartEmptyState />
       ) : (
-        <div className="h-56">
-          <ResponsiveContainer width="100%" height="100%" minWidth={240}>
-            <FunnelChart>
-              <Tooltip
-                contentStyle={{
-                  borderRadius: 12,
-                  border: "1px solid #e5e7eb",
-                  fontSize: 12,
-                }}
+        <ChartContainer config={chartConfig} className="aspect-auto h-56 w-full">
+          <FunnelChart>
+            <ChartTooltip content={<ChartTooltipContent nameKey={nameKey} hideLabel />} />
+            <Funnel dataKey={valueKey} data={safeData} nameKey={nameKey} isAnimationActive={false}>
+              {safeData.map((_, index) => (
+                <Cell
+                  key={`funnel-segment-${index}`}
+                  fill={SEGMENT_COLORS[index % SEGMENT_COLORS.length]}
+                />
+              ))}
+            </Funnel>
+            <ChartLegend content={<ChartLegendContent nameKey={nameKey} />} />
+          </FunnelChart>
+        </ChartContainer>
+      )}
+    </ChartPanelShell>
+  );
+}
+
+/**
+ * Renders a compact line chart for time-series or trend views.
+ * Supports optional area fill for emphasis.
+ */
+export function LineChartPanel({
+  title,
+  subtitle,
+  insight,
+  data,
+  xKey,
+  yKey,
+  areaFill,
+}: LineChartPanelProps) {
+  const safeData = Array.isArray(data) ? data : [];
+
+  const chartConfig = {
+    [yKey]: { label: yKey, color: "var(--chart-1)" },
+  } satisfies ChartConfig;
+
+  return (
+    <ChartPanelShell title={title} subtitle={subtitle} insight={insight}>
+      {safeData.length === 0 ? (
+        <ChartEmptyState />
+      ) : (
+        <ChartContainer config={chartConfig} className="aspect-auto h-56 w-full">
+          {areaFill ? (
+            <AreaChart data={safeData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="var(--color-chart-1)" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="var(--color-chart-1)" stopOpacity={0.05} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey={xKey} tickLine={false} axisLine={false} fontSize={11} />
+              <YAxis tickLine={false} axisLine={false} fontSize={11} allowDecimals={false} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Area
+                type="monotone"
+                dataKey={yKey}
+                stroke="var(--color-chart-1)"
+                fill="url(#areaGradient)"
+                strokeWidth={2}
               />
-              <Funnel dataKey={valueKey} data={safeData} nameKey={nameKey} isAnimationActive={false}>
-                {safeData.map((_, index) => (
-                  <Cell
-                    key={`funnel-segment-${index}`}
-                    fill={index === 0 ? CHART_PRIMARY : CHART_COLORS[index % CHART_COLORS.length]}
-                  />
-                ))}
-              </Funnel>
-            </FunnelChart>
-          </ResponsiveContainer>
-        </div>
+            </AreaChart>
+          ) : (
+            <LineChart data={safeData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey={xKey} tickLine={false} axisLine={false} fontSize={11} />
+              <YAxis tickLine={false} axisLine={false} fontSize={11} allowDecimals={false} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Line
+                type="monotone"
+                dataKey={yKey}
+                stroke="var(--color-chart-1)"
+                strokeWidth={2}
+                dot={false}
+              />
+            </LineChart>
+          )}
+        </ChartContainer>
       )}
     </ChartPanelShell>
   );

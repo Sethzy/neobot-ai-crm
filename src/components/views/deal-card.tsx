@@ -31,7 +31,7 @@ export function DealCard({ address, price, stage }: DealCardProps) {
     <Card size="sm" className="h-full border-border/60 bg-card/80">
       <CardHeader className="gap-3">
         <div className="flex items-start justify-between gap-3">
-          <CardTitle className="text-sm font-semibold text-foreground">
+          <CardTitle className="line-clamp-1 text-sm font-semibold text-foreground">
             {address}
           </CardTitle>
           {stage

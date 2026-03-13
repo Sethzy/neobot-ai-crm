@@ -11,6 +11,7 @@ import {
   BarChartPanel,
   DonutChartPanel,
   FunnelChartPanel,
+  LineChartPanel,
 } from "@/components/views/chart-panels";
 import { ContactCard } from "@/components/views/contact-card";
 import { DealCard } from "@/components/views/deal-card";
@@ -33,5 +34,6 @@ export const { registry } = defineRegistry(catalog, {
     BarChartPanel: ({ props }) => <BarChartPanel {...props} />,
     DonutChartPanel: ({ props }) => <DonutChartPanel {...props} />,
     FunnelChartPanel: ({ props }) => <FunnelChartPanel {...props} />,
+    LineChartPanel: ({ props }) => <LineChartPanel {...props} />,
   },
 });

@@ -29,7 +29,7 @@ export function ContactCard({ name, type, subtitle }: ContactCardProps) {
     <Card size="sm" className="h-full border-border/60 bg-card/80">
       <CardHeader className="gap-3">
         <div className="flex items-start justify-between gap-3">
-          <CardTitle className="text-sm font-semibold text-foreground">
+          <CardTitle className="line-clamp-1 text-sm font-semibold text-foreground">
             {name}
           </CardTitle>
           {type ? (
@@ -41,7 +41,7 @@ export function ContactCard({ name, type, subtitle }: ContactCardProps) {
       </CardHeader>
       {subtitle ? (
         <CardContent>
-          <p className="text-sm text-muted-foreground">{subtitle}</p>
+          <p className="truncate text-sm text-muted-foreground">{subtitle}</p>
         </CardContent>
       ) : null}
     </Card>
