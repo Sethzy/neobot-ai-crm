@@ -7,6 +7,8 @@ import { createUIMessageStream, createUIMessageStreamResponse, generateId } from
 import { after } from "next/server";
 import { createResumableStreamContext } from "resumable-stream";
 
+import { pipeJsonRender } from "@json-render/core";
+
 import { langfuseSpanProcessor } from "@/instrumentation";
 import {
   captureServerEvent,
@@ -290,7 +292,7 @@ export async function POST(request: Request): Promise<Response> {
     const stream = createUIMessageStream({
       originalMessages: body.messages as UIMessage[] | undefined,
       execute: async ({ writer }) => {
-        writer.merge(result.streamResult.toUIMessageStream());
+        writer.merge(pipeJsonRender(result.streamResult.toUIMessageStream()));
 
         if (titlePromise) {
           const title = await titlePromise;
