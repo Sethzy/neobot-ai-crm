@@ -254,10 +254,12 @@ export async function runAgent(
           providerOptions: gatewayProviderOptions,
           experimental_telemetry: { isEnabled: true },
           onError: async ({ error }) => {
+            console.error(`[runner] streamText onError for thread=${threadId} run=${lockResult!.runId}:`, error);
             await recordFailedRun(error, "stream");
           },
           onFinish: async ({ text, steps, totalUsage }) => {
             if (hasRecordedTerminalState) {
+              console.warn(`[runner] onFinish skipped (terminal state already recorded) for thread=${threadId} run=${lockResult!.runId}`);
               return;
             }
 
