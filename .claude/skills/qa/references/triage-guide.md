@@ -27,6 +27,9 @@ How to diagnose LLM QA failures from Langfuse trace data. Read this before Phase
 | `cascade` | Previous sequential scenario in same surface also failed | Upstream failure caused this |
 | `slow` | `latencyMs` > 30000, verdict may be `warn` | Correct but unacceptably slow |
 | `extra-tools` | `extraTools` non-empty, `missingTools` empty | Agent called additional tools (usually benign) |
+| `output-mismatch` | `outputMatched: false` | Agent gave a wrong answer (expected output regex didn't match) |
+| `over-budget` | `tokenBudgetExceeded: true` | Scenario used more tokens than expected — investigate context bloat or unnecessary steps |
+| `regression` | `baseline.tokenDeltaPct > 30` or `baseline.latencyDeltaPct > 50` | Significant increase from baseline — something changed |
 
 ## Diagnosis Decision Tree
 
