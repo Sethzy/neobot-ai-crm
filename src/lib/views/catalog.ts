@@ -42,7 +42,7 @@ export const catalog = defineCatalog(schema, {
       props: z.object({
         label: z.string().min(1),
         value: z.union([z.string(), z.number()]),
-        trend: z.enum(["up", "down", "flat"]).optional(),
+        trend: z.enum(["up", "down", "flat"]).nullable(),
       }),
       slots: [],
       description:
@@ -53,7 +53,7 @@ export const catalog = defineCatalog(schema, {
       props: z.object({
         address: z.string().min(1),
         price: z.string().min(1),
-        stage: z.string().min(1).optional(),
+        stage: z.string().min(1).nullable(),
       }),
       slots: [],
       description:
@@ -63,8 +63,8 @@ export const catalog = defineCatalog(schema, {
     ContactCard: {
       props: z.object({
         name: z.string().min(1),
-        type: z.string().min(1).optional(),
-        subtitle: z.string().min(1).optional(),
+        type: z.string().min(1).nullable(),
+        subtitle: z.string().min(1).nullable(),
       }),
       slots: [],
       description:
@@ -74,10 +74,10 @@ export const catalog = defineCatalog(schema, {
     TaskItem: {
       props: z.object({
         title: z.string().min(1),
-        dueDate: z.string().min(1).optional(),
-        status: z.enum(["open", "completed"]).optional(),
-        contactName: z.string().min(1).optional(),
-        dealAddress: z.string().min(1).optional(),
+        dueDate: z.string().min(1).nullable(),
+        status: z.enum(["open", "completed"]).nullable(),
+        contactName: z.string().min(1).nullable(),
+        dealAddress: z.string().min(1).nullable(),
       }),
       slots: [],
       description:
@@ -87,8 +87,8 @@ export const catalog = defineCatalog(schema, {
     BarChartPanel: {
       props: z.object({
         title: z.string().min(1),
-        subtitle: z.string().min(1).optional(),
-        insight: z.string().min(1).optional(),
+        subtitle: z.string().min(1).nullable(),
+        insight: z.string().min(1).nullable(),
         data: chartDataSchema,
         xKey: z.string().min(1),
         yKey: z.string().min(1),
@@ -106,12 +106,12 @@ export const catalog = defineCatalog(schema, {
     DonutChartPanel: {
       props: z.object({
         title: z.string().min(1),
-        subtitle: z.string().min(1).optional(),
-        insight: z.string().min(1).optional(),
+        subtitle: z.string().min(1).nullable(),
+        insight: z.string().min(1).nullable(),
         data: chartDataSchema,
         nameKey: z.string().min(1),
         valueKey: z.string().min(1),
-        centerLabel: z.string().min(1).optional(),
+        centerLabel: z.string().min(1).nullable(),
       }),
       slots: [],
       description:
@@ -127,12 +127,12 @@ export const catalog = defineCatalog(schema, {
     FunnelChartPanel: {
       props: z.object({
         title: z.string().min(1),
-        subtitle: z.string().min(1).optional(),
-        insight: z.string().min(1).optional(),
+        subtitle: z.string().min(1).nullable(),
+        insight: z.string().min(1).nullable(),
         data: chartDataSchema,
         nameKey: z.string().min(1),
         valueKey: z.string().min(1),
-        footerText: z.string().min(1).optional(),
+        footerText: z.string().min(1).nullable(),
       }),
       slots: [],
       description:
