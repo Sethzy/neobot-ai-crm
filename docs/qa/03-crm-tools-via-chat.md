@@ -103,7 +103,9 @@
 
 ---
 
-### 3.7 CRM configurability (PR 15c)
+### 3.7 CRM configurability (PR 15c, PR 48)
+
+**Prerequisite:** CRM configuration mode must be activated from Settings (or via `POST /api/settings/crm-config-mode`) before the agent can use `configure_crm`. The QA runner handles this automatically for scenarios with `activateCrmConfigMode: true`.
 
 1. **Reconfigure:** "I'm actually an insurance agent. Change my deal stages to: lead, quoted, underwriting, bound, lost. And call deals 'policies'."
 2. **Expected:** `configure_crm` tool call updating deal_stages and deal_label

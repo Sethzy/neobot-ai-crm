@@ -150,6 +150,28 @@ async function buildAuthCookies(): Promise<string> {
     .join("; ");
 }
 
+// ── CRM config mode ──────────────────────────────────────────────────────────
+
+/**
+ * Activates CRM configuration mode for the QA user via the settings API.
+ * This enables the configure_crm tool in normal chat for ~1 hour.
+ */
+async function activateCrmConfigMode(cookieHeader: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/settings/crm-config-mode`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Cookie: cookieHeader,
+    },
+    body: JSON.stringify({ action: "enable" }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to activate CRM config mode: ${res.status} ${text}`);
+  }
+}
+
 // ── Chat client ──────────────────────────────────────────────────────────────
 
 /**
@@ -290,6 +312,11 @@ async function main() {
       const messageId = randomUUID();
 
       try {
+        if (scenario.activateCrmConfigMode) {
+          await activateCrmConfigMode(cookieHeader);
+          process.stdout.write("(config mode on) ");
+        }
+
         const result = await sendChatMessage(
           group.threadId,
           scenario.prompt,

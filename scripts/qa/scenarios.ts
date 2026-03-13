@@ -17,6 +17,8 @@ export interface QaScenario {
   latencyBudgetMs?: number;
   /** Regex pattern to match against the agent's text response. */
   expectedOutput?: string;
+  /** When true, the runner activates CRM config mode before sending the prompt. */
+  activateCrmConfigMode?: boolean;
 }
 
 /**
@@ -278,8 +280,9 @@ export const scenarios: QaScenario[] = [
       "Change my deal stages to: prospecting, quoted, negotiation, closed-won, closed-lost",
     expectedTools: ["configure_crm"],
     sequential: false,
+    activateCrmConfigMode: true,
     notes:
-      "configure_crm updates deal_stages in crm_config. Only available in setup mode.",
+      "configure_crm updates deal_stages in crm_config. Requires CRM config mode to be active (PR 48).",
   },
 
   // ── 05: Knowledge Base ─────────────────────────────────────────────────
