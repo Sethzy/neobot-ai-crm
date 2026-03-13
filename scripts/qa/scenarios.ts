@@ -1,5 +1,6 @@
 /**
- * QA scenarios extracted from docs/qa/*.md — chat-testable prompts only.
+ * QA scenarios — chat-testable prompts aligned to v2 tool inventory.
+ * @see docs/product/tooling/agent-tools-inventory-v2.md
  * @module scripts/qa/scenarios
  */
 
@@ -10,6 +11,32 @@ export interface QaScenario {
   expectedTools: string[];
   sequential: boolean;
   notes: string;
+  /** Override default token budget (based on tool count). */
+  tokenBudget?: number;
+  /** Override default latency budget in ms (based on tool count). */
+  latencyBudgetMs?: number;
+  /** Regex pattern to match against the agent's text response. */
+  expectedOutput?: string;
+}
+
+/**
+ * Default token budget based on expected tool count.
+ * Accounts for ~12K base context (system prompt + CRM vocabulary + memory).
+ * Each tool step roughly doubles the context (resends everything).
+ */
+export function getDefaultTokenBudget(expectedTools: string[]): number {
+  if (expectedTools.length === 0) return 15_000;
+  if (expectedTools.length === 1) return 40_000;
+  if (expectedTools.length <= 3) return 80_000;
+  return 120_000;
+}
+
+/** Default latency budget in ms based on expected tool count. */
+export function getDefaultLatencyBudgetMs(expectedTools: string[]): number {
+  if (expectedTools.length === 0) return 10_000;
+  if (expectedTools.length === 1) return 15_000;
+  if (expectedTools.length <= 3) return 25_000;
+  return 40_000;
 }
 
 /**
@@ -37,6 +64,14 @@ export const scenarios: QaScenario[] = [
     sequential: true,
     notes: "Same thread. Should demonstrate conversation continuity.",
   },
+  {
+    surface: "02-chat-core",
+    scenario: "rename-thread",
+    prompt: "Rename this chat to 'Q1 Deal Pipeline Review'",
+    expectedTools: ["rename_chat"],
+    sequential: true,
+    notes: "Agent calls rename_chat with the user's exact title.",
+  },
 
   // ── 03: CRM Tools via Chat ─────────────────────────────────────────────
   {
@@ -44,58 +79,63 @@ export const scenarios: QaScenario[] = [
     scenario: "demo-moment",
     prompt:
       "I just met Sarah Lim at 88 Tanjong Pagar. She's a buyer interested in the 2BR unit, price around $1.8M.",
-    expectedTools: ["create_contact", "create_deal", "link_contact_to_deal"],
+    expectedTools: ["create_record", "link_records"],
     sequential: false,
-    notes: "Primary demo scenario. Agent creates contact + deal + link.",
+    notes:
+      "Primary demo scenario. Agent calls create_record twice (contact + deal), then link_records. expectedTools is deduplicated.",
   },
   {
     surface: "03-crm-tools",
     scenario: "create-contact",
     prompt:
       "Add a new contact — James Tan, seller, phone 9123-4567, email james@example.com",
-    expectedTools: ["create_contact"],
+    expectedTools: ["create_record"],
     sequential: true,
-    notes: "Contact creation with multiple fields.",
+    notes: "Contact creation via create_record with entity: contacts.",
   },
   {
     surface: "03-crm-tools",
     scenario: "update-contact",
     prompt: "Update James Tan's phone to 9876-5432",
-    expectedTools: ["search_contacts", "update_contact"],
+    expectedTools: ["search_crm", "update_record"],
     sequential: true,
-    notes: "Depends on James Tan being created above.",
+    notes:
+      "Agent searches via search_crm to find contact_id, then updates via update_record.",
   },
   {
     surface: "03-crm-tools",
     scenario: "search-contacts-by-type",
     prompt: "Find all my buyer contacts",
-    expectedTools: ["search_contacts"],
+    expectedTools: ["search_crm"],
     sequential: true,
-    notes: "Should return Sarah from demo moment.",
+    notes:
+      "search_crm with entity: contacts, filters: {type: buyer}. Should return Sarah from demo moment.",
   },
   {
     surface: "03-crm-tools",
     scenario: "create-deal",
     prompt: "New deal at 42 Robertson Walk, asking $2.5M, stage is viewing",
-    expectedTools: ["create_deal"],
+    expectedTools: ["create_record"],
     sequential: true,
-    notes: "Standalone deal creation.",
+    notes: "Deal creation via create_record with entity: deals.",
   },
   {
     surface: "03-crm-tools",
     scenario: "update-deal-stage",
     prompt: "Move the Robertson Walk deal to negotiation stage",
-    expectedTools: ["search_deals", "update_deal"],
+    expectedTools: ["search_crm", "update_record"],
     sequential: true,
-    notes: "Depends on Robertson Walk deal.",
+    notes:
+      "Agent searches via search_crm, updates via update_record. May trigger deal_stage_changed analytics.",
   },
   {
     surface: "03-crm-tools",
     scenario: "search-deals-by-stage",
     prompt: "Show me all deals in negotiation",
-    expectedTools: ["search_deals"],
+    expectedTools: ["search_crm"],
     sequential: true,
-    notes: "Should return Robertson Walk deal.",
+    notes:
+      "search_crm with entity: deals, filters: {stage: negotiation}. Should return Robertson Walk deal.",
   },
   {
     surface: "03-crm-tools",
@@ -104,44 +144,44 @@ export const scenarios: QaScenario[] = [
       "Remind me to follow up with Sarah Lim next Monday about the viewing",
     expectedTools: ["create_task"],
     sequential: true,
-    notes: "Agent should link task to Sarah Lim contact.",
+    notes:
+      "create_task with title, due_date, contact_id. Agent may also call search_crm to find Sarah's ID (acceptable extra).",
   },
   {
     surface: "03-crm-tools",
     scenario: "search-tasks",
     prompt: "What tasks do I have this week?",
-    expectedTools: ["search_tasks"],
+    expectedTools: ["search_crm"],
     sequential: true,
-    notes: "Tests task filtering by date range.",
+    notes:
+      "search_crm with entity: tasks. run_sql is also acceptable for date-range task queries.",
   },
   {
     surface: "03-crm-tools",
     scenario: "update-task-status",
     prompt: "Mark the Sarah follow-up task as done",
-    expectedTools: ["search_tasks", "update_task"],
+    expectedTools: ["search_crm", "update_task"],
     sequential: true,
-    notes: "Depends on task creation above.",
+    notes:
+      "Agent searches via search_crm to find task_id, then update_task with status: completed.",
   },
   {
     surface: "03-crm-tools",
     scenario: "create-company",
     prompt:
       "Add a company — PropNex Realty, industry: real estate brokerage, website propnex.com",
-    expectedTools: ["create_company"],
+    expectedTools: ["create_record"],
     sequential: true,
-    notes: "Company creation.",
+    notes: "Company creation via create_record with entity: companies.",
   },
   {
     surface: "03-crm-tools",
     scenario: "link-contact-to-company",
     prompt: "Link Sarah Lim to PropNex",
-    expectedTools: [
-      "search_contacts",
-      "search_companies",
-      "link_contact_to_company",
-    ],
+    expectedTools: ["search_crm", "link_records"],
     sequential: true,
-    notes: "Depends on Sarah and PropNex existing.",
+    notes:
+      "Agent calls search_crm (may call once or twice for contact + company), then link_records with relationship: contact_company.",
   },
   {
     surface: "03-crm-tools",
@@ -150,31 +190,96 @@ export const scenarios: QaScenario[] = [
       "I just had a phone call with Sarah Lim about the Tanjong Pagar unit. She's very interested and wants to view this Saturday.",
     expectedTools: ["create_interaction"],
     sequential: true,
-    notes: "Links interaction to Sarah + deal.",
+    notes:
+      "create_interaction with contact_id, type (from config), summary. Agent may search_crm first (acceptable extra).",
   },
   {
     surface: "03-crm-tools",
     scenario: "search-interactions",
     prompt: "What were my last 3 interactions with Sarah?",
-    expectedTools: ["search_interactions"],
+    expectedTools: ["search_crm"],
     sequential: true,
-    notes: "Depends on interaction above.",
+    notes:
+      "search_crm with entity: interactions. Depends on interaction above.",
   },
   {
     surface: "03-crm-tools",
-    scenario: "describe-crm-schema",
+    scenario: "crm-config-from-context",
     prompt: "How is my CRM configured?",
-    expectedTools: ["describe_crm_schema"],
+    expectedTools: [],
     sequential: false,
-    notes: "Returns full CRM config.",
+    notes:
+      "CRM schema is injected passively via <crm-vocabulary> in system-reminder. Agent answers from context, no tool call needed.",
+    expectedOutput: "stage|lead|viewing|negotiation|contact|deal",
   },
   {
     surface: "03-crm-tools",
     scenario: "batch-create-companies",
     prompt: "Add these companies: ERA Realty, OrangeTee & Tie, Huttons Asia",
-    expectedTools: ["batch_create_companies"],
+    expectedTools: ["create_record"],
     sequential: false,
-    notes: "Batch company creation.",
+    notes:
+      "Batch creation via create_record with entity: companies, records array (up to 50). Built-in duplicate detection.",
+  },
+
+  // ── 03: CRM Edge Cases ────────────────────────────────────────────────
+  {
+    surface: "03-crm-tools",
+    scenario: "duplicate-detection",
+    prompt:
+      "Add a contact named Sarah Lim, phone 9999-0000",
+    expectedTools: ["create_record"],
+    sequential: true,
+    notes:
+      "Sequential after demo-moment. create_record should return possible_duplicates (Sarah Lim already exists). Agent should ask user before forcing.",
+  },
+  {
+    surface: "03-crm-tools",
+    scenario: "force-create-duplicate",
+    prompt: "Yes, create her anyway even if she's a duplicate",
+    expectedTools: ["create_record"],
+    sequential: true,
+    notes:
+      "Tests force_create: true override. Agent re-calls create_record with force_create flag.",
+  },
+  {
+    surface: "03-crm-tools",
+    scenario: "batch-create-contacts",
+    prompt:
+      "Add these contacts: Alice Tan (buyer), Bob Lee (seller), Charlie Ng (landlord)",
+    expectedTools: ["create_record"],
+    sequential: false,
+    notes:
+      "Batch creation via create_record with entity: contacts, records array of 3. Built-in intra-batch duplicate detection.",
+  },
+  {
+    surface: "03-crm-tools",
+    scenario: "custom-field-merge",
+    prompt:
+      "Update the Robertson Walk deal — add a custom field 'renovation_status' with value 'pending'",
+    expectedTools: ["search_crm", "update_record"],
+    sequential: true,
+    notes:
+      "Sequential after create-deal. update_record with custom_fields deep merge — preserves existing keys not in patch.",
+  },
+  {
+    surface: "03-crm-tools",
+    scenario: "unlink-records",
+    prompt: "Remove Sarah Lim from the Tanjong Pagar deal",
+    expectedTools: ["search_crm", "link_records"],
+    sequential: true,
+    notes:
+      "link_records with action: unlink, relationship: contact_deal. Junction table delete (not FK null).",
+  },
+  {
+    surface: "03-crm-tools",
+    scenario: "configure-crm-stages",
+    prompt:
+      "Change my deal stages to: prospecting, quoted, negotiation, closed-won, closed-lost",
+    expectedTools: ["configure_crm"],
+    sequential: false,
+    notes:
+      "configure_crm updates deal_stages in crm_config. Only available in setup mode.",
   },
 
   // ── 05: Knowledge Base ─────────────────────────────────────────────────
@@ -184,7 +289,17 @@ export const scenarios: QaScenario[] = [
     prompt: "What documents do I have in my knowledge base?",
     expectedTools: ["run_sql"],
     sequential: false,
-    notes: "Agent queries vault_files.",
+    notes:
+      "Agent queries vault_files. read_file (directory listing on /agent/vault/) is also acceptable.",
+  },
+  {
+    surface: "05-knowledge-base",
+    scenario: "search-kb-keyword",
+    prompt: "Search my knowledge base for anything about stamp duty",
+    expectedTools: ["search_knowledge"],
+    sequential: false,
+    notes:
+      "search_knowledge uses Postgres full-text search on vault_files. Returns up to 5 matching filenames and summaries.",
   },
 
   // ── 06: File & Memory ──────────────────────────────────────────────────
@@ -203,7 +318,8 @@ export const scenarios: QaScenario[] = [
       "I always prefer to communicate via WhatsApp, not email. Remember that.",
     expectedTools: ["write_file"],
     sequential: false,
-    notes: "Agent writes to memory/preferences.md.",
+    notes:
+      "Agent writes to memory file (op: write or edit). Triggers memory write analytics event.",
   },
   {
     surface: "06-file-memory",
@@ -221,7 +337,7 @@ export const scenarios: QaScenario[] = [
       "Write a note called 'showing-prep.md' with a checklist for preparing a property showing",
     expectedTools: ["write_file"],
     sequential: false,
-    notes: "Creates custom file.",
+    notes: "Creates custom file via write_file with op: write.",
   },
   {
     surface: "06-file-memory",
@@ -237,7 +353,8 @@ export const scenarios: QaScenario[] = [
     prompt: "What files do I have?",
     expectedTools: ["read_file"],
     sequential: false,
-    notes: "Agent lists file tree.",
+    notes:
+      "read_file on a directory path returns recursive tree-style listing.",
   },
 
   // ── 07: Platform Intelligence ──────────────────────────────────────────
@@ -299,11 +416,41 @@ export const scenarios: QaScenario[] = [
   },
   {
     surface: "07-platform-intel",
+    scenario: "web-search-property",
+    prompt:
+      "Search for the latest URA property transaction data for District 9",
+    expectedTools: ["web_search"],
+    sequential: false,
+    notes:
+      "web_search via Brave Search API. Returns titles, URLs, snippets. May use location: SG.",
+  },
+  {
+    surface: "07-platform-intel",
+    scenario: "web-scrape-page",
+    prompt:
+      "Read this page for me: https://www.ura.gov.sg/property-market-information/pmiResidentialTransactionSearch",
+    expectedTools: ["web_scrape"],
+    sequential: false,
+    notes:
+      "web_scrape via Exa API. Extracts markdown content, capped at 10K chars.",
+  },
+  {
+    surface: "07-platform-intel",
+    scenario: "drive-time",
+    prompt:
+      "How long to drive from Orchard Road to Changi Airport right now?",
+    expectedTools: ["calculate_drive_time"],
+    sequential: false,
+    notes:
+      "calculate_drive_time via Google Maps Routes API. Returns duration_minutes, distance_km, traffic-aware.",
+  },
+  {
+    surface: "07-platform-intel",
     scenario: "add-todo",
     prompt: "Add a todo: research comparable sales for District 10 condos",
     expectedTools: ["manage_todo"],
     sequential: false,
-    notes: "Creates thread todo.",
+    notes: "manage_todo with op: add.",
   },
   {
     surface: "07-platform-intel",
@@ -312,15 +459,17 @@ export const scenarios: QaScenario[] = [
       "Add two more todos: call the contractor about renovation, and prepare the property factsheet",
     expectedTools: ["manage_todo"],
     sequential: true,
-    notes: "Batch todo creation.",
+    notes:
+      "Batch todo creation. manage_todo supports 1-20 operations per call.",
   },
   {
     surface: "07-platform-intel",
     scenario: "list-todos",
     prompt: "What are my todos for this thread?",
-    expectedTools: ["manage_todo"],
+    expectedTools: ["list_todo"],
     sequential: true,
-    notes: "Lists all todos.",
+    notes:
+      "list_todo (separate from manage_todo in v2). Returns all todos for the thread.",
   },
   {
     surface: "07-platform-intel",
@@ -328,17 +477,38 @@ export const scenarios: QaScenario[] = [
     prompt: "Done with the contractor call",
     expectedTools: ["manage_todo"],
     sequential: true,
-    notes: "Marks todo as complete.",
+    notes: "manage_todo with op: delete to mark as done.",
+  },
+
+  {
+    surface: "07-platform-intel",
+    scenario: "agent-asks-question",
+    prompt:
+      "I want to set up my CRM but I'm not sure what stages make sense for my business",
+    expectedTools: ["ask_user_question"],
+    sequential: false,
+    notes:
+      "ask_user_question presents 2-4 structured options. Agent should ask clarifying question about industry/workflow.",
   },
 
   // ── 08: Triggers & Automations ─────────────────────────────────────────
+  {
+    surface: "08-triggers",
+    scenario: "search-trigger-types",
+    prompt: "What kinds of triggers can I set up?",
+    expectedTools: ["search_triggers"],
+    sequential: false,
+    notes:
+      "search_triggers searches the trigger catalog (schedule, webhook, rss). Returns setup schemas.",
+  },
   {
     surface: "08-triggers",
     scenario: "create-schedule-trigger",
     prompt: "Check my overdue tasks every morning at 8am",
     expectedTools: ["setup_trigger"],
     sequential: false,
-    notes: "Schedule trigger with cron expression.",
+    notes:
+      "setup_trigger with trigger_id: schedule, params with cron expression. Agent may call search_triggers first (acceptable extra).",
   },
   {
     surface: "08-triggers",
@@ -346,7 +516,7 @@ export const scenarios: QaScenario[] = [
     prompt: "Create a webhook trigger that processes inbound leads",
     expectedTools: ["setup_trigger"],
     sequential: false,
-    notes: "Webhook trigger, returns URL.",
+    notes: "Webhook trigger. Returns webhook_url in response.",
   },
   {
     surface: "08-triggers",
@@ -354,15 +524,16 @@ export const scenarios: QaScenario[] = [
     prompt: "List all my active triggers",
     expectedTools: ["manage_active_triggers"],
     sequential: false,
-    notes: "Lists all active triggers.",
+    notes: "manage_active_triggers with action: list.",
   },
   {
     surface: "08-triggers",
     scenario: "disable-trigger",
-    prompt: "Disable the overdue tasks trigger",
+    prompt: "Delete the overdue tasks trigger",
     expectedTools: ["manage_active_triggers"],
     sequential: true,
-    notes: "Disables a trigger.",
+    notes:
+      "manage_active_triggers with action: delete. Approval-gated (delete only).",
   },
 
   // ── 10: Connections ────────────────────────────────────────────────────
@@ -380,7 +551,17 @@ export const scenarios: QaScenario[] = [
     prompt: "What integrations can I connect?",
     expectedTools: ["search_for_integrations"],
     sequential: false,
-    notes: "Lists available integrations.",
+    notes:
+      "Searches Composio catalog (3000+ integrations). Returns integrationId, name, description.",
+  },
+  {
+    surface: "10-connections",
+    scenario: "integration-capabilities",
+    prompt: "What can the Google Calendar integration do?",
+    expectedTools: ["get_integrations_capabilities"],
+    sequential: false,
+    notes:
+      "get_integrations_capabilities returns tools, quality scores, and notes for given integrationIds. Agent may call search_for_integrations first (acceptable extra).",
   },
 
   // ── 11: Subagents ──────────────────────────────────────────────────────
@@ -391,7 +572,10 @@ export const scenarios: QaScenario[] = [
       "Research the latest property market trends in Singapore Districts 9, 10, and 11 — cover prices, transaction volume, and notable launches for each",
     expectedTools: ["run_subagent"],
     sequential: false,
-    notes: "Spawns subagent(s) for research. May be slow.",
+    notes:
+      "Spawns subagent(s) for research. Subagent has 9-step limit, 120s timeout. May be slow.",
+    latencyBudgetMs: 120_000,
+    tokenBudget: 80_000,
   },
   {
     surface: "11-subagents",
@@ -401,6 +585,8 @@ export const scenarios: QaScenario[] = [
     expectedTools: ["run_subagent"],
     sequential: false,
     notes: "May spawn multiple subagents in parallel.",
+    latencyBudgetMs: 120_000,
+    tokenBudget: 80_000,
   },
 
   // ── 12: Approvals ──────────────────────────────────────────────────────
@@ -408,26 +594,37 @@ export const scenarios: QaScenario[] = [
     surface: "12-approvals",
     scenario: "create-for-delete",
     prompt: "Create a contact named QA Test Delete",
-    expectedTools: ["create_contact"],
+    expectedTools: ["create_record"],
     sequential: false,
-    notes: "Setup for approval gate test.",
+    notes: "Setup for approval gate test. create_record with entity: contacts.",
   },
   {
     surface: "12-approvals",
     scenario: "delete-triggers-gate",
     prompt: "Delete the contact QA Test Delete",
-    expectedTools: ["delete_contact"],
+    expectedTools: ["delete_records"],
     sequential: true,
     notes:
-      "Approval card should appear. Runner cannot approve — just verify the gate fires.",
+      "delete_records requires entity, ids, and reason. Approval gate fires (needsApproval: true). Runner cannot approve — just verify the gate fires.",
   },
   {
     surface: "12-approvals",
     scenario: "non-destructive-bypasses-gate",
     prompt: "Create a contact named QA No Gate",
-    expectedTools: ["create_contact"],
+    expectedTools: ["create_record"],
     sequential: false,
-    notes: "Creates should auto-execute without approval.",
+    notes:
+      "create_record has no approval gate. Should auto-execute without approval.",
+  },
+
+  {
+    surface: "12-approvals",
+    scenario: "approval-denied-retry",
+    prompt: "Actually yes, go ahead and delete QA Test Keep",
+    expectedTools: ["search_crm", "delete_records"],
+    sequential: true,
+    notes:
+      "Sequential after non-destructive-bypasses-gate (creates QA Test Keep). Tests that a new approval card appears after prior denial. Runner can't approve — just verify gate fires again.",
   },
 
   // ── 17: Calculate Tool ─────────────────────────────────────────────────
@@ -439,6 +636,7 @@ export const scenarios: QaScenario[] = [
     expectedTools: ["calculate"],
     sequential: false,
     notes: "Basic commission calculation.",
+    expectedOutput: "10[,.]?800",
   },
   {
     surface: "17-calculate",
@@ -447,7 +645,7 @@ export const scenarios: QaScenario[] = [
       "I'm selling a condo for $2.5M. Commission is 2%. GST is 9% on commission. What's the net commission after GST?",
     expectedTools: ["calculate"],
     sequential: false,
-    notes: "Chained calculation.",
+    notes: "Chained calculation. May call calculate multiple times.",
   },
   {
     surface: "17-calculate",
@@ -455,7 +653,8 @@ export const scenarios: QaScenario[] = [
     prompt: "Convert 1500 square feet to square meters",
     expectedTools: ["calculate"],
     sequential: false,
-    notes: "Unit conversion.",
+    notes: "Unit conversion via math.js (e.g., '1500 sqft to m^2').",
+    expectedOutput: "139\\.\\d",
   },
   {
     surface: "17-calculate",
@@ -464,7 +663,8 @@ export const scenarios: QaScenario[] = [
       "If a $1M property appreciates at 3% per year for 5 years, what's the final value?",
     expectedTools: ["calculate"],
     sequential: false,
-    notes: "Compound growth.",
+    notes: "Compound growth. May use variables parameter.",
+    expectedOutput: "1[,.]?159[,.]?274",
   },
   {
     surface: "17-calculate",
@@ -473,7 +673,9 @@ export const scenarios: QaScenario[] = [
       "Property price is $800,000. Stamp duty is 3% on the first $180K and 4% above that. Calculate stamp duty.",
     expectedTools: ["calculate"],
     sequential: false,
-    notes: "Named variables.",
+    notes:
+      "May use variables parameter or decompose into multiple calculate calls.",
+    expectedOutput: "30[,.]?200",
   },
 
   // ── 18: Agent Views ────────────────────────────────────────────────────
@@ -481,9 +683,10 @@ export const scenarios: QaScenario[] = [
     surface: "18-agent-views",
     scenario: "deals-pipeline",
     prompt: "Show me my deals pipeline",
-    expectedTools: ["search_deals"],
+    expectedTools: ["search_crm"],
     sequential: false,
-    notes: "Inline pipeline view via ```spec fence (inline mode, no tool call).",
+    notes:
+      "search_crm with entity: deals. Inline pipeline view via ```spec fence.",
   },
   {
     surface: "18-agent-views",
@@ -498,24 +701,27 @@ export const scenarios: QaScenario[] = [
     surface: "18-agent-views",
     scenario: "deals-bar-chart",
     prompt: "Show me a breakdown of my deals by stage as a bar chart",
-    expectedTools: ["search_deals"],
+    expectedTools: ["search_crm"],
     sequential: false,
-    notes: "BarChartPanel via inline spec.",
+    notes:
+      "search_crm with entity: deals. BarChartPanel via inline spec. run_sql also acceptable.",
   },
   {
     surface: "18-agent-views",
     scenario: "contact-donut-chart",
     prompt: "Show me my contact types as a pie chart",
-    expectedTools: ["search_contacts"],
+    expectedTools: ["search_crm"],
     sequential: false,
-    notes: "DonutChartPanel via inline spec.",
+    notes:
+      "search_crm with entity: contacts. DonutChartPanel via inline spec. run_sql also acceptable.",
   },
   {
     surface: "18-agent-views",
     scenario: "overdue-tasks",
     prompt: "Show me my overdue tasks",
-    expectedTools: ["search_tasks"],
+    expectedTools: ["search_crm"],
     sequential: false,
-    notes: "TaskItem components via inline spec.",
+    notes:
+      "search_crm with entity: tasks. TaskItem components via inline spec. run_sql also acceptable.",
   },
 ];

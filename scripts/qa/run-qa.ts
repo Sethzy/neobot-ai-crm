@@ -21,7 +21,7 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 import { createClient } from "@supabase/supabase-js";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -67,7 +67,28 @@ interface ManifestEntry {
   error?: string;
   durationMs?: number;
   responseBytes?: number;
+  /** Extracted text content from the SSE stream (for output matching). */
+  responseContent?: string;
   timestamp: string;
+}
+
+/**
+ * Extracts text content from a Vercel AI SDK SSE stream.
+ * Text deltas are lines starting with `0:` followed by a JSON-encoded string.
+ */
+function extractTextFromStream(raw: string): string {
+  const lines = raw.split("\n");
+  let text = "";
+  for (const line of lines) {
+    if (line.startsWith("0:")) {
+      try {
+        text += JSON.parse(line.slice(2));
+      } catch {
+        // skip malformed lines
+      }
+    }
+  }
+  return text;
 }
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
@@ -275,6 +296,8 @@ async function main() {
           cookieHeader,
         );
 
+        const responseContent = extractTextFromStream(result.responseText);
+
         const entry: ManifestEntry = {
           surface: scenario.surface,
           scenario: scenario.scenario,
@@ -286,6 +309,7 @@ async function main() {
           httpStatus: result.httpStatus,
           durationMs: result.durationMs,
           responseBytes: Buffer.byteLength(result.responseText),
+          responseContent: responseContent || undefined,
           timestamp: new Date().toISOString(),
         };
 
@@ -324,12 +348,31 @@ async function main() {
     console.log();
   }
 
-  // Write manifest
+  // Write manifest with metadata wrapper
   const outDir = join(import.meta.dirname, "output");
   mkdirSync(outDir, { recursive: true });
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-  const manifestPath = join(outDir, `manifest-${timestamp}.json`);
-  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+
+  const surfaceLabel = SURFACE_FILTER ? SURFACE_FILTER.join("-") : "all";
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const hash = createHash("md5")
+    .update(JSON.stringify(manifest))
+    .digest("hex")
+    .slice(0, 4);
+  const manifestFile = `qa-${surfaceLabel}-${dateStr}-${hash}.json`;
+  const manifestPath = join(outDir, manifestFile);
+
+  const output = {
+    meta: {
+      surfaceLabel,
+      date: dateStr,
+      baseUrl: BASE_URL,
+      scenarioCount: manifest.length,
+      startedAt: manifest[0]?.timestamp ?? new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+    },
+    entries: manifest,
+  };
+  writeFileSync(manifestPath, JSON.stringify(output, null, 2));
 
   // Summary
   const ok = manifest.filter((m) => m.status === "ok").length;
