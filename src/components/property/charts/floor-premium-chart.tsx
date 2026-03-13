@@ -55,9 +55,9 @@ export function FloorPremiumChart({ data }: FloorPremiumChartProps) {
               border: "1px solid #e4e4e7",
               fontSize: 13,
             }}
-            formatter={(value: number | undefined, name: string | undefined) => {
-              if (name === "PSF") return [formatCompactCurrency(value ?? 0), "PSF"];
-              return [value ?? 0, "Floor"];
+            formatter={(value, name) => {
+              if (name === "PSF") return [formatCompactCurrency((value as number) ?? 0), "PSF"];
+              return [(value as number) ?? 0, "Floor"];
             }}
           />
           <Scatter

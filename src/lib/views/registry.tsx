@@ -19,6 +19,15 @@ import { StatMetric } from "@/components/views/stat-metric";
 import { TaskItem } from "@/components/views/task-item";
 import { catalog } from "@/lib/views/catalog";
 
+/** Convert all `null` values in an object to `undefined` so catalog nullable fields match component optional props. */
+function nullToUndefined<T extends Record<string, unknown>>(obj: T) {
+  const result = {} as { [K in keyof T]: Exclude<T[K], null> | (null extends T[K] ? undefined : never) };
+  for (const key in obj) {
+    (result as Record<string, unknown>)[key] = obj[key] ?? undefined;
+  }
+  return result;
+}
+
 export const { registry } = defineRegistry(catalog, {
   components: {
     Card: shadcnComponents.Card,
@@ -27,13 +36,13 @@ export const { registry } = defineRegistry(catalog, {
     Text: shadcnComponents.Text,
     Badge: shadcnComponents.Badge,
     Table: shadcnComponents.Table,
-    StatMetric: ({ props }) => <StatMetric {...props} />,
-    DealCard: ({ props }) => <DealCard {...props} />,
-    ContactCard: ({ props }) => <ContactCard {...props} />,
-    TaskItem: ({ props }) => <TaskItem {...props} />,
-    BarChartPanel: ({ props }) => <BarChartPanel {...props} />,
-    DonutChartPanel: ({ props }) => <DonutChartPanel {...props} />,
-    FunnelChartPanel: ({ props }) => <FunnelChartPanel {...props} />,
-    LineChartPanel: ({ props }) => <LineChartPanel {...props} />,
+    StatMetric: ({ props }) => <StatMetric {...nullToUndefined(props)} />,
+    DealCard: ({ props }) => <DealCard {...nullToUndefined(props)} />,
+    ContactCard: ({ props }) => <ContactCard {...nullToUndefined(props)} />,
+    TaskItem: ({ props }) => <TaskItem {...nullToUndefined(props)} />,
+    BarChartPanel: ({ props }) => <BarChartPanel {...nullToUndefined(props)} />,
+    DonutChartPanel: ({ props }) => <DonutChartPanel {...nullToUndefined(props)} />,
+    FunnelChartPanel: ({ props }) => <FunnelChartPanel {...nullToUndefined(props)} />,
+    LineChartPanel: ({ props }) => <LineChartPanel {...nullToUndefined(props)} />,
   },
 });
