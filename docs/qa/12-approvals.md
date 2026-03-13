@@ -3,6 +3,7 @@
 > **PRs covered:** 33 (gate implementation), 34 (events + UI)
 > **Dogfoodable:** Yes
 > **Time estimate:** 20-25 min manual
+> **v2 tools:** `create_record`, `delete_records`, `search_crm`, `update_record`, `manage_activated_tools_for_connections`, `delete_connection`
 
 ---
 
@@ -27,15 +28,16 @@
 
 ## Manual QA Scenarios
 
-### 12.1 Destructive action gating — delete contact (PR 33)
+### 12.1 Destructive action gating — delete record (PR 33)
 
 1. Create a test contact: "Create a contact named QA Test Delete"
-2. "Delete the contact QA Test Delete"
-3. **Expected:** Agent describes the destructive action before invoking
-4. **Expected:** Tool call shows approve/deny buttons (not auto-executed)
-5. Click "Approve"
-6. **Expected:** Contact is deleted, agent confirms
-7. **Verify in Supabase:** Contact row gone, `approval_events` row created with `approved` status
+2. **Expected:** Agent calls `create_record` (entity: contacts) — auto-executes (no gate for creates)
+3. "Delete the contact QA Test Delete"
+4. **Expected:** Agent calls `search_crm` to find the contact, then calls `delete_records` with a `reason` field (required for audit trail)
+5. **Expected:** Tool call shows approve/deny buttons (not auto-executed — `delete_records` is always approval-gated)
+6. Click "Approve"
+7. **Expected:** Contact is deleted, agent confirms
+8. **Verify in Supabase:** Contact row gone, `approval_events` row created with `approved` status
 
 **Notes / failures:**
 
@@ -44,23 +46,24 @@
 ### 12.2 Destructive action denied (PR 33)
 
 1. Create another test contact: "Create a contact named QA Test Keep"
-2. "Delete the contact QA Test Keep"
-3. **Expected:** Approval card appears
-4. Click "Deny"
-5. **Expected:** Tool shows denied state
-6. **Expected:** Agent acknowledges the denial and does NOT delete the contact
-7. **Verify in Supabase:** Contact still exists, `approval_events` row has `denied` status
+2. **Expected:** `create_record` auto-executes
+3. "Delete the contact QA Test Keep"
+4. **Expected:** `delete_records` shows approval card (reason field populated)
+5. Click "Deny"
+6. **Expected:** Tool shows denied state
+7. **Expected:** Agent acknowledges the denial and does NOT delete the contact
+8. **Verify in Supabase:** Contact still exists, `approval_events` row has `denied` status
 
 **Notes / failures:**
 
 ---
 
-### 12.3 Connection activation gating (PR 33)
+### 12.3 Connection tool activation gating (PR 33)
 
-1. Navigate to connections or ask agent to activate a connection
-2. **Expected:** Connection activation shows approval card
+1. Ask agent to activate tools for a connection (e.g., "Activate the send email tool on Gmail")
+2. **Expected:** `manage_activated_tools_for_connections` shows approval card (always approval-gated)
 3. Approve the activation
-4. **Expected:** Connection activates normally
+4. **Expected:** Tool activates normally
 
 **Notes / failures:**
 
@@ -94,11 +97,11 @@
 ### 12.6 Non-destructive actions bypass gate (PR 33)
 
 1. "Create a contact named QA No Gate"
-2. **Expected:** Tool auto-executes — no approval card (creates are not destructive)
+2. **Expected:** `create_record` auto-executes — no approval card (creates are not destructive)
 3. "List all contacts"
-4. **Expected:** Tool auto-executes — no approval card (reads are not destructive)
+4. **Expected:** `search_crm` auto-executes — no approval card (reads are not destructive)
 5. "Update QA No Gate's email to test@example.com"
-6. **Expected:** Tool auto-executes — no approval card (updates are not destructive)
+6. **Expected:** `update_record` auto-executes — no approval card (updates are not destructive)
 
 **Notes / failures:**
 
@@ -126,5 +129,5 @@
 
 ## Pass / Fail Criteria
 
-- **Pass:** Destructive actions (delete) and connection activation show approval gates. Approved actions execute; denied actions don't. `approval_events` table tracks all decisions. Non-destructive actions bypass the gate. Subagents can't access delete tools.
-- **Fail:** Destructive actions auto-execute without approval. Denied actions still execute. No `approval_events` rows. Gate triggers on non-destructive actions (false positives).
+- **Pass:** `delete_records` and `manage_activated_tools_for_connections` and `delete_connection` show approval gates. Approved actions execute; denied actions don't. `approval_events` table tracks all decisions. Non-destructive tools (`create_record`, `update_record`, `search_crm`) bypass the gate. Subagents can't access delete tools.
+- **Fail:** `delete_records` auto-executes without approval. Denied actions still execute. No `approval_events` rows. Gate triggers on non-destructive actions (false positives).

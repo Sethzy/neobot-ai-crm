@@ -1,8 +1,9 @@
 # QA Surface 18: Agent-Generated Views
 
-> **PRs covered:** 42a (inline views via json-render + show_view tool)
-> **Dogfoodable:** Partial (requires specific prompts to trigger show_view)
+> **PRs covered:** 42a (inline views via pipeJsonRender — no tool call needed)
+> **Dogfoodable:** Partial (requires specific prompts to trigger inline views)
 > **Time estimate:** 15-20 min manual
+> **v2 tools:** `search_crm`, `run_sql` (views are rendered inline via `pipeJsonRender()`, not via a `show_view` tool call)
 
 ---
 
@@ -29,8 +30,8 @@
 ### 18.1 Deals pipeline view
 
 1. In chat: "Show me my deals pipeline"
-2. **Expected:** Agent queries CRM tools, then calls `show_view`
-3. **Expected:** Inline view renders in chat with deal cards grouped by stage
+2. **Expected:** Agent calls `search_crm` (entity: deals) to fetch data
+3. **Expected:** Inline view renders in chat with deal cards grouped by stage (via ```spec fence)
 4. **Expected:** View renders outside the tool pill (not collapsed)
 5. **Expected:** Deal cards show address, price, stage
 
@@ -41,8 +42,8 @@
 ### 18.2 Stat metrics
 
 1. "Give me a quick summary of my CRM — how many contacts, deals, and tasks do I have?"
-2. **Expected:** Agent calls CRM tools, then `show_view` with StatMetric components
-3. **Expected:** Inline stat cards render with counts
+2. **Expected:** Agent calls `run_sql` (or `search_crm`) to get counts
+3. **Expected:** Inline stat cards render with counts (StatMetric components via ```spec fence)
 4. **Expected:** Clean, compact layout
 
 **Notes / failures:**
@@ -52,8 +53,8 @@
 ### 18.3 Chart panels — bar chart
 
 1. "Show me a breakdown of my deals by stage as a bar chart"
-2. **Expected:** Agent calls `show_view` with BarChartPanel
-3. **Expected:** Bar chart renders inline with stage labels and deal counts
+2. **Expected:** Agent calls `search_crm` (entity: deals) or `run_sql`
+3. **Expected:** BarChartPanel renders inline with stage labels and deal counts
 4. **Expected:** Max 8 data points (compact snapshot)
 
 **Notes / failures:**
@@ -63,8 +64,8 @@
 ### 18.4 Chart panels — donut chart
 
 1. "Show me my contact types as a pie chart"
-2. **Expected:** Agent calls `show_view` with DonutChartPanel
-3. **Expected:** Donut chart renders inline with type labels
+2. **Expected:** Agent calls `search_crm` (entity: contacts) or `run_sql`
+3. **Expected:** DonutChartPanel renders inline with type labels
 
 **Notes / failures:**
 
@@ -73,8 +74,8 @@
 ### 18.5 Chart panels — funnel
 
 1. "Show me my deals funnel — how many at each stage from prospecting to closed?"
-2. **Expected:** Agent calls `show_view` with FunnelChartPanel
-3. **Expected:** Funnel renders inline with stage progression
+2. **Expected:** Agent calls `search_crm` or `run_sql` to get stage counts
+3. **Expected:** FunnelChartPanel renders inline with stage progression
 
 **Notes / failures:**
 
@@ -83,8 +84,8 @@
 ### 18.6 Task list view
 
 1. "Show me my overdue tasks"
-2. **Expected:** Agent queries tasks, calls `show_view` with TaskItem components
-3. **Expected:** Task items render with title, due date, status
+2. **Expected:** Agent calls `search_crm` (entity: tasks) or `run_sql`
+3. **Expected:** TaskItem components render with title, due date, status
 
 **Notes / failures:**
 
@@ -93,8 +94,8 @@
 ### 18.7 Contact cards
 
 1. "Show me my top contacts"
-2. **Expected:** Agent calls `show_view` with ContactCard components
-3. **Expected:** Contact cards render with name, type, subtitle
+2. **Expected:** Agent calls `search_crm` (entity: contacts)
+3. **Expected:** ContactCard components render with name, type, subtitle
 
 **Notes / failures:**
 
@@ -105,7 +106,7 @@
 1. After generating a view (18.1-18.7), scroll up
 2. **Expected:** View still rendered (not disappeared)
 3. Refresh the page
-4. **Expected:** View re-renders from persisted tool call data
+4. **Expected:** View re-renders from persisted data
 
 **Notes / failures:**
 
@@ -114,7 +115,7 @@
 ### 18.9 Agent chooses plain text when appropriate
 
 1. "What's Sarah's phone number?"
-2. **Expected:** Agent answers in plain text (no show_view for simple lookups)
+2. **Expected:** Agent answers in plain text (no inline view for simple lookups)
 3. "How many deals do I have?"
 4. **Expected:** May use text or a simple stat — agent doesn't over-use views
 
@@ -135,5 +136,5 @@
 
 ## Pass / Fail Criteria
 
-- **Pass:** Agent generates compact CRM views inline in chat. Deal cards, stat metrics, charts, task items, and contact cards render correctly. Views bypass tool pill UI. Catalog validation prevents invalid components. Agent uses views appropriately (not for everything).
+- **Pass:** Agent generates compact CRM views inline in chat using ```spec fences after querying data via `search_crm` or `run_sql`. Deal cards, stat metrics, charts, task items, and contact cards render correctly. Catalog validation prevents invalid components. Agent uses views appropriately (not for everything).
 - **Fail:** Views render as raw JSON. Charts don't render. Views stuck inside collapsed tool pills. Agent generates views for simple text answers. Validation doesn't catch invalid specs.

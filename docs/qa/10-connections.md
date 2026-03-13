@@ -3,6 +3,7 @@
 > **PRs covered:** 25 (Composio + OAuth), 26 (connection tools), 26a (system skill files)
 > **Dogfoodable:** Partial (UI elements yes, OAuth flow requires real credentials)
 > **Time estimate:** 20-25 min manual
+> **v2 tools:** `list_users_connections`, `search_for_integrations`, `get_integrations_capabilities`, `get_details_for_connections`, `create_new_connections`, `manage_activated_tools_for_connections` (approval-gated), `reauthorize_connection`, `delete_connection` (approval-gated)
 
 ---
 
@@ -50,7 +51,19 @@
 
 ---
 
-### 10.3 Create a connection — Gmail OAuth (happy path)
+### 10.3 Integration capabilities
+
+1. "What can I do with Gmail if I connect it?"
+2. **Expected:** Agent calls `get_integrations_capabilities` for Gmail
+3. **Expected:** Returns list of available actions/capabilities (read email, send email, search, etc.)
+4. "What about Google Calendar?"
+5. **Expected:** Agent calls `get_integrations_capabilities` for Google Calendar
+
+**Notes / failures:**
+
+---
+
+### 10.4 Create a connection — Gmail OAuth (happy path)
 
 1. "Connect my Gmail"
 2. **Expected:** Agent calls `create_new_connections` for Gmail
@@ -67,7 +80,7 @@
 
 ---
 
-### 10.4 Connection details
+### 10.5 Connection details
 
 1. "Show me details about my Gmail connection"
 2. **Expected:** Agent calls `get_details_for_connections`
@@ -77,13 +90,13 @@
 
 ---
 
-### 10.5 Manage activated tools
+### 10.6 Manage activated tools
 
 1. "What Gmail tools are available?"
 2. **Expected:** Agent calls `manage_activated_tools_for_connections` (list action)
 3. **Expected:** Shows list of available Composio actions for Gmail (read email, send email, etc.)
 4. "Activate the read email and search email tools"
-5. **Expected:** `manage_activated_tools_for_connections` activates specific tools
+5. **Expected:** `manage_activated_tools_for_connections` — approval-gated (permission changes always require approval)
 6. "How many tools are active on Gmail?"
 7. **Expected:** Accurate count
 
@@ -91,7 +104,7 @@
 
 ---
 
-### 10.6 Connection-first behavior (CONN-03)
+### 10.7 Connection-first behavior (CONN-03)
 
 1. "Read my latest emails"
 2. If Gmail is connected: **Expected:** Agent uses the Composio Gmail action
@@ -101,7 +114,7 @@
 
 ---
 
-### 10.7 System-reminder connection state (PR 26)
+### 10.8 System-reminder connection state (PR 26)
 
 1. After connecting Gmail with tools activated
 2. Start a new thread
@@ -114,7 +127,7 @@
 
 ---
 
-### 10.8 Connection skill files (PR 26)
+### 10.9 Connection skill files (PR 26)
 
 1. After creating a Gmail connection
 2. **Verify in Supabase Storage:** `/{clientId}/skills/connections/gmail.md` (or similar) exists
@@ -125,7 +138,7 @@
 
 ---
 
-### 10.9 System skill files — bundled fallback (PR 26a)
+### 10.10 System skill files — bundled fallback (PR 26a)
 
 1. In chat: "Read the file at /agent/skills/system/creating-connections/SKILL.md"
 2. **Expected:** Agent calls `read_file`, gets bundled creating-connections skill content
@@ -139,7 +152,7 @@
 
 ---
 
-### 10.10 Reauthorize connection
+### 10.11 Reauthorize connection
 
 1. "Reauthorize my Gmail connection"
 2. **Expected:** Agent calls `reauthorize_connection`
@@ -151,11 +164,11 @@
 
 ---
 
-### 10.11 Delete connection
+### 10.12 Delete connection
 
 1. "Delete my Gmail connection"
-2. **Expected:** Agent calls `delete_connection`
-3. **Expected:** Connection removed
+2. **Expected:** Agent calls `delete_connection` — approval-gated (destructive account operation)
+3. **Expected:** After approval, connection removed
 4. **Verify in Supabase:** `connections` row deleted or marked inactive
 5. "What services am I connected to?"
 6. **Expected:** Gmail no longer listed

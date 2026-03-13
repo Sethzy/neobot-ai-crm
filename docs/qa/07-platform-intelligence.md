@@ -1,8 +1,9 @@
 # QA Surface 7: Platform Intelligence
 
-> **PRs covered:** 15 (platform instructions, system-reminder, rename_chat, run_agent_memory_sql, get_agent_db_schema, agent_todo, state/ directory)
+> **PRs covered:** 15 (platform instructions, system-reminder, rename_chat, run_sql, get_agent_db_schema, agent_todo, state/ directory)
 > **Dogfoodable:** No (invisible backend intelligence)
 > **Time estimate:** 25-30 min manual
+> **v2 tools:** `run_sql`, `get_agent_db_schema`, `manage_todo`, `list_todo`, `rename_chat`, `read_file`, `write_file`, `web_search`, `web_scrape`, `calculate_drive_time`
 
 ---
 
@@ -73,17 +74,18 @@ Not applicable — this surface is entirely about invisible agent intelligence. 
 
 ---
 
-### 7.5 SQL tool (run_agent_memory_sql)
+### 7.5 SQL tool (run_sql)
 
 1. "How many contacts do I have in total?"
-2. **Expected:** Agent runs `run_agent_memory_sql` with `SELECT count(*) FROM contacts WHERE client_id = ...`
-3. **Expected:** Returns accurate count
+2. **Expected:** Agent runs `run_sql` with `SELECT count(*) FROM contacts WHERE client_id = ...`
+3. **Expected:** Returns accurate count. `run_sql` is read-only (uses `execute_read_only_query` RPC).
 4. "How many deals closed this month?"
 5. **Expected:** Agent writes appropriate SQL with date filter
 6. "What's the total value of all my deals?"
 7. **Expected:** `SELECT sum(price) FROM deals WHERE client_id = ...`
 8. "Show me contacts who don't have any deals"
 9. **Expected:** Agent writes a LEFT JOIN or NOT EXISTS query
+10. **Note:** `run_sql` accepts an optional `purpose` field for audit trail (merged from v1's `crm_sql` + `run_agent_memory_sql`)
 
 **Notes / failures:**
 
@@ -101,18 +103,18 @@ Not applicable — this surface is entirely about invisible agent intelligence. 
 
 ---
 
-### 7.7 Agent todo — manage_todo
+### 7.7 Agent todo — manage_todo + list_todo
 
 1. "Add a todo: research comparable sales for District 10 condos"
-2. **Expected:** `manage_todo` tool call with add operation
+2. **Expected:** `manage_todo` tool call with add operation (supports add/update/delete)
 3. "Add two more todos: call the contractor about renovation, and prepare the property factsheet"
 4. **Expected:** `manage_todo` batch add (2 items in one call)
 5. "What are my todos for this thread?"
-6. **Expected:** `list_todo` returns all 3 items
+6. **Expected:** `list_todo` (separate read-only tool) returns all 3 items
 7. "Done with the contractor call"
 8. **Expected:** `manage_todo` delete operation (exists-or-deleted model — deleting = done)
 9. "List my remaining todos"
-10. **Expected:** 2 items remaining
+10. **Expected:** `list_todo` returns 2 items remaining
 
 **Notes / failures:**
 

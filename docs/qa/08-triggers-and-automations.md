@@ -3,6 +3,7 @@
 > **PRs covered:** 18 (cron scanner + triggers table), 19 (autopilot), 20 (trigger tools + user triggers), 20a (template prompt cards)
 > **Dogfoodable:** Yes (automations page), partial (trigger execution needs time or simulation)
 > **Time estimate:** 30-40 min manual (some waiting for triggers to fire)
+> **v2 tools:** `setup_trigger`, `manage_active_triggers`, `search_triggers`, `search_crm`, `list_todo`, `manage_todo`
 
 ---
 
@@ -60,7 +61,7 @@
 2. **Expected:** A run is created in the autopilot thread
 3. Check the autopilot thread in chat
 4. **Expected:** Agent has produced meaningful output (checked CRM state, identified work to do)
-5. **Expected:** Agent used tools (search_tasks, list_todo, etc.) — not just generic text
+5. **Expected:** Agent used tools (`search_crm` with entity: tasks, `list_todo`, etc.) — not just generic text
 6. **Verify:** `runs` table has a new run linked to the autopilot thread with `generateText` (not stream)
 
 **Notes / failures:**
@@ -85,7 +86,19 @@ Pre-condition: Create some testable state:
 
 ---
 
-### 8.5 Create a scheduled trigger via chat
+### 8.5 Search available trigger types
+
+1. "What kinds of automations can I set up?"
+2. **Expected:** Agent calls `search_triggers` to discover available trigger types
+3. **Expected:** Returns trigger types (schedule, webhook, RSS) with descriptions
+4. "Tell me about webhook triggers"
+5. **Expected:** Agent describes webhook trigger capabilities
+
+**Notes / failures:**
+
+---
+
+### 8.6 Create a scheduled trigger via chat
 
 1. In a new thread: "Check my overdue tasks every morning at 8am"
 2. **Expected:** Agent calls `setup_trigger` with:
@@ -99,7 +112,7 @@ Pre-condition: Create some testable state:
 
 ---
 
-### 8.6 Create a webhook trigger via chat
+### 8.7 Create a webhook trigger via chat
 
 1. "Create a webhook trigger that processes inbound leads"
 2. **Expected:** `setup_trigger` with type: webhook
@@ -117,7 +130,7 @@ Pre-condition: Create some testable state:
 
 ---
 
-### 8.7 Create an RSS trigger via chat
+### 8.8 Create an RSS trigger via chat
 
 1. "Monitor the PropertyGuru RSS feed for new listings in District 10"
 2. **Expected:** `setup_trigger` with type: rss, config includes feed URL
@@ -131,7 +144,7 @@ Pre-condition: Create some testable state:
 
 ---
 
-### 8.8 Manage triggers via chat
+### 8.9 Manage triggers via chat
 
 1. "List all my active triggers"
 2. **Expected:** `manage_active_triggers` with list action
@@ -139,14 +152,14 @@ Pre-condition: Create some testable state:
 4. **Expected:** `manage_active_triggers` with disable/edit action
 5. Check `/automations` — trigger shows as disabled
 6. "Delete the webhook trigger"
-7. **Expected:** `manage_active_triggers` with delete action
+7. **Expected:** `manage_active_triggers` with delete action (approval-gated — delete action requires user confirmation)
 8. **Expected:** Trigger removed from `/automations`
 
 **Notes / failures:**
 
 ---
 
-### 8.9 Automations page — trigger list
+### 8.10 Automations page — trigger list
 
 1. Navigate to `/automations`
 2. **Expected:** Table shows all triggers with:
@@ -165,7 +178,7 @@ Pre-condition: Create some testable state:
 
 ---
 
-### 8.10 Suggested automations — template cards (PR 20a)
+### 8.11 Suggested automations — template cards (PR 20a)
 
 1. Navigate to `/automations`
 2. **Expected:** "Suggested" section visible (below trigger table, or as empty state if no triggers)
@@ -187,7 +200,7 @@ Pre-condition: Create some testable state:
 
 ---
 
-### 8.11 Chat empty state suggestion chips (PR 20a)
+### 8.12 Chat empty state suggestion chips (PR 20a)
 
 1. Create a new thread (empty)
 2. **Expected:** 3-4 suggestion chips shown in the empty state
@@ -200,7 +213,7 @@ Pre-condition: Create some testable state:
 
 ---
 
-### 8.12 Autopilot configuration
+### 8.13 Autopilot configuration
 
 1. Check `autopilot_config` in Supabase — should have a row for this client
 2. Default pulse interval should be 6h

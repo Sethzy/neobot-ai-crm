@@ -2,7 +2,7 @@
 
 > **Created:** 2026-03-10
 > **Updated:** 2026-03-12
-> **Total surfaces:** 18
+> **Total surfaces:** 22
 > **Coverage:** 40 done PRs across Phases 1-4
 
 ## Execution Order
@@ -29,8 +29,12 @@ Test in this order (dependency-safe — each surface builds on the previous):
 | 16 | CRM Working Surfaces | [16-crm-working-surfaces.md](16-crm-working-surfaces.md) | Yes | 30-40 min | [ ] |
 | 17 | Calculate Tool | [17-calculate-tool.md](17-calculate-tool.md) | No | 10-15 min | [ ] |
 | 18 | Agent-Generated Views | [18-agent-views.md](18-agent-views.md) | Partial | 15-20 min | [ ] |
+| 19 | System Prompt & Reminders | [19-system-prompt-and-reminders.md](19-system-prompt-and-reminders.md) | No | 20-25 min | [ ] |
+| 20 | Context & Efficiency | [20-context-and-efficiency.md](20-context-and-efficiency.md) | No | 25-30 min | [ ] |
+| 21 | Streaming Resilience | [21-streaming-resilience.md](21-streaming-resilience.md) | Partial | 15-20 min | [ ] |
+| 22 | Error Recovery | [22-error-recovery.md](22-error-recovery.md) | No | 20-25 min | [ ] |
 
-**Total estimated manual time:** ~6.5-7.5 hours
+**Total estimated manual time:** ~8-9.5 hours
 
 ## How to Use
 
@@ -50,6 +54,7 @@ Walk through each "Manual QA Scenario" as a real user. Check boxes as you go. Wr
 - **Surface 15 depends on Surface 14:** Quota display references plan state from Stripe billing.
 - **Surface 16 extends Surface 4:** Test basic CRM pages first, then view switching and quick edit.
 - **Surface 18 needs CRM data:** Agent views are most useful with populated CRM. Run after Surface 3.
+- **Surfaces 19-22 are AI engineering tests:** These verify invisible backend behavior. Use Langfuse traces and DB inspection to validate. Surface 19 (system prompt) should pass before testing Surfaces 20-22.
 
 ## PR Coverage Map
 
@@ -73,6 +78,10 @@ Walk through each "Manual QA Scenario" as a real user. Check boxes as you go. Wr
 | 16. CRM Working Surfaces | 46 |
 | 17. Calculate Tool | 8b |
 | 18. Agent-Generated Views | 42a |
+| 19. System Prompt & Reminders | 15, 15c, 22, 22c |
+| 20. Context & Efficiency | 22, 22c, 15 |
+| 21. Streaming Resilience | 1, 4, 22, 42a-i |
+| 22. Error Recovery | 4, 38c, 33-34, 25-26 |
 | **Audit trail** | 12 (covered implicitly — runs table + step_count checked via Supabase in other surfaces) |
 
 ## Legacy

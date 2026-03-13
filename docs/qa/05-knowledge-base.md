@@ -3,6 +3,7 @@
 > **PRs covered:** 12a (vault_files schema + knowledge base pages)
 > **Dogfoodable:** Yes
 > **Time estimate:** 15 min manual
+> **v2 tools:** `search_knowledge`, `run_sql`, `read_file`
 
 ---
 
@@ -69,9 +70,9 @@
 
 1. Upload a file with specific content (e.g., a property listing sheet)
 2. In chat, ask: "What documents do I have in my knowledge base?"
-3. **Expected:** Agent uses `run_agent_memory_sql` or reads vault_files to answer
+3. **Expected:** Agent uses `run_sql` to query vault_files, or `search_knowledge` to search by keyword
 4. Ask: "Search my knowledge base for [term from the uploaded file]"
-5. **Expected:** Agent finds and references the uploaded document
+5. **Expected:** Agent calls `search_knowledge` with the keyword and finds the uploaded document
 
 **Notes / failures:**
 
