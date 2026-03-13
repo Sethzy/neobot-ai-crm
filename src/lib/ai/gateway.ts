@@ -4,6 +4,7 @@
 
 import { createGateway } from "@ai-sdk/gateway";
 import type { GatewayProviderOptions } from "@ai-sdk/gateway";
+import type { JSONValue } from "ai";
 
 /**
  * Tier-1 model used for interactive chat and tool-calling runs.
@@ -31,13 +32,14 @@ export const gateway = createGateway({
  * our own Gemini API key instead of consuming Vercel AI Gateway credits.
  * Spread into every `streamText` / `generateText` call's options.
  */
-export const gatewayProviderOptions: { gateway: GatewayProviderOptions } | undefined =
-  process.env.GEMINI_API_KEY
-    ? {
-        gateway: {
-          byok: {
-            google: [{ apiKey: process.env.GEMINI_API_KEY }],
-          },
-        } satisfies GatewayProviderOptions,
-      }
-    : undefined;
+export const gatewayProviderOptions:
+  | Record<string, Record<string, JSONValue>>
+  | undefined = process.env.GEMINI_API_KEY
+  ? ({
+      gateway: {
+        byok: {
+          google: [{ apiKey: process.env.GEMINI_API_KEY }],
+        },
+      } satisfies GatewayProviderOptions,
+    } as Record<string, Record<string, JSONValue>>)
+  : undefined;
