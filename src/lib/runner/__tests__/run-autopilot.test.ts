@@ -19,7 +19,6 @@ const {
   mockCreateWebTools,
   mockCreateUtilityTools,
   mockCreateTriggerTools,
-  mockCreateViewTools,
   mockCreateSubagentTool,
   mockCreateMessages,
   mockMaybeCompactThread,
@@ -43,7 +42,6 @@ const {
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
   mockCreateTriggerTools: vi.fn(),
-  mockCreateViewTools: vi.fn(),
   mockCreateSubagentTool: vi.fn(),
   mockCreateMessages: vi.fn(),
   mockMaybeCompactThread: vi.fn(),
@@ -86,7 +84,6 @@ vi.mock("@/lib/runner/tools", () => ({
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
   createTriggerTools: mockCreateTriggerTools,
-  createViewTools: mockCreateViewTools,
 }));
 
 vi.mock("@/lib/chat/messages", () => ({
@@ -134,9 +131,6 @@ describe("runAutopilot", () => {
       search_triggers: { description: "tool" },
       manage_active_triggers: { description: "tool" },
     });
-    mockCreateViewTools.mockReturnValue({
-      show_view: { description: "view-tool" },
-    });
     mockCreateSubagentTool.mockReturnValue({
       run_subagent: { description: "subagent-tool" },
     });
@@ -182,7 +176,6 @@ describe("runAutopilot", () => {
         tools: expect.objectContaining({
           search_triggers: { description: "tool" },
           manage_active_triggers: { description: "tool" },
-          show_view: { description: "view-tool" },
           run_subagent: { description: "subagent-tool" },
           list_users_connections: { description: "connection-tool" },
           get_details_for_connections: { description: "connection-tool" },

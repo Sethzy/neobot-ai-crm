@@ -21,7 +21,6 @@ const {
   mockCreateWebTools,
   mockCreateUtilityTools,
   mockCreateTriggerTools,
-  mockCreateViewTools,
   mockCreateSubagentTool,
   mockCreateMessages,
   mockMaybeCompactThread,
@@ -48,7 +47,6 @@ const {
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
   mockCreateTriggerTools: vi.fn(),
-  mockCreateViewTools: vi.fn(),
   mockCreateSubagentTool: vi.fn(),
   mockCreateMessages: vi.fn(),
   mockMaybeCompactThread: vi.fn(),
@@ -99,7 +97,6 @@ vi.mock("@/lib/runner/tools", () => ({
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
   createTriggerTools: mockCreateTriggerTools,
-  createViewTools: mockCreateViewTools,
 }));
 
 vi.mock("@/lib/crm/config", () => ({
@@ -206,9 +203,6 @@ describe("runAgent", () => {
       setup_trigger: { description: "trigger-tool" },
       manage_active_triggers: { description: "trigger-tool" },
     });
-    mockCreateViewTools.mockReturnValue({
-      show_view: { description: "view-tool" },
-    });
     mockCreateSubagentTool.mockReturnValue({
       run_subagent: { description: "subagent-tool" },
     });
@@ -290,7 +284,6 @@ describe("runAgent", () => {
           search_triggers: { description: "trigger-tool" },
           setup_trigger: { description: "trigger-tool" },
           manage_active_triggers: { description: "trigger-tool" },
-          show_view: { description: "view-tool" },
           run_subagent: { description: "subagent-tool" },
           list_users_connections: { description: "connection-tool" },
           get_details_for_connections: { description: "connection-tool" },
@@ -361,9 +354,7 @@ describe("runAgent", () => {
     expect(tools).not.toHaveProperty("search_triggers");
     expect(tools).not.toHaveProperty("setup_trigger");
     expect(tools).not.toHaveProperty("manage_active_triggers");
-    expect(tools).not.toHaveProperty("show_view");
     expect(mockCreateTriggerTools).not.toHaveBeenCalled();
-    expect(mockCreateViewTools).not.toHaveBeenCalled();
     expect(mockCreateUtilityTools).toHaveBeenCalledWith(
       "mock-supabase-client",
       validPayload.clientId,
@@ -387,17 +378,6 @@ describe("runAgent", () => {
         mode: "normal",
       }),
     );
-  });
-
-  it("includes show_view in the main runner tool registry", () => {
-    const tools = createRunnerTools(
-      "mock-supabase-client" as never,
-      validPayload.clientId,
-      validPayload.threadId,
-    );
-
-    expect(mockCreateViewTools).toHaveBeenCalledTimes(1);
-    expect(tools).toHaveProperty("show_view");
   });
 
   it("always enables CRM write tools regardless of environment", async () => {
