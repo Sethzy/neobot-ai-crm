@@ -12,9 +12,16 @@
  *
  * @module lib/ai/system-prompt
  */
-import { getViewCatalogPrompt } from "@/lib/views/catalog";
+import { catalog } from "@/lib/views/catalog";
 
-const VIEW_GUIDANCE_PROMPT = getViewCatalogPrompt();
+const VIEW_GUIDANCE_PROMPT = catalog.prompt({
+  mode: "inline",
+  customRules: [
+    "Charts are snapshot-only. Use compact aggregated data, do not imply refresh or live dashboards.",
+    "Keep the full UI spec under about 4KB.",
+    "For repeated rows, prefer repeat + $item over one element per record.",
+  ],
+});
 
 export const SYSTEM_PROMPT = `You are Sunder, an AI assistant for solo real estate agents in Singapore.
 
@@ -145,8 +152,15 @@ Present 2-4 concrete options rather than open-ended questions. If you recommend 
 </asking-the-user>
 
 <view-guidance>
-Use the show_view tool when a compact structured inline view will make CRM data easier to scan than plain prose.
-Do not use show_view for approvals, long reports, or fake live dashboards.
+When a compact structured inline view will make CRM data easier to scan than plain prose, emit a JSONL UI spec.
+Do not use views for approvals, long reports, or fake live dashboards.
+
+WORKFLOW for data views:
+1. Call CRM tools to gather the data.
+2. Write a brief conversational summary.
+3. Output the JSONL UI spec wrapped in a \`\`\`spec fence.
+Emit /state patches BEFORE elements that reference them.
+
 ${VIEW_GUIDANCE_PROMPT}
 </view-guidance>
 

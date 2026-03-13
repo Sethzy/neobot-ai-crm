@@ -151,12 +151,19 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT).not.toContain("This will prompt the user to grant permissions");
   });
 
-  it("includes show_view guidance for structured inline views", () => {
+  it("includes inline-mode view guidance with spec fence instructions", () => {
     expect(SYSTEM_PROMPT).toContain("<view-guidance>");
     expect(SYSTEM_PROMPT).toContain("</view-guidance>");
-    expect(SYSTEM_PROMPT).toContain("show_view");
-    expect(SYSTEM_PROMPT).toContain("repeat + $item");
-    expect(SYSTEM_PROMPT.toLowerCase()).toContain("snapshot-only");
+    // Must contain spec fence instruction from catalog.prompt({ mode: "inline" })
+    expect(SYSTEM_PROMPT).toContain("```spec");
+    // Must contain /state patch ordering instruction
+    expect(SYSTEM_PROMPT.toLowerCase()).toContain("/state");
+    expect(SYSTEM_PROMPT.toLowerCase()).toContain("before");
+    // Must NOT contain old show_view tool references
+    expect(SYSTEM_PROMPT).not.toContain("show_view");
+    // Must still contain old getViewCatalogPrompt patterns that are now in customRules
+    expect(SYSTEM_PROMPT.toLowerCase()).toContain("snapshot");
+    expect(SYSTEM_PROMPT).toContain("4KB");
   });
 });
 
