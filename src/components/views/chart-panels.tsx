@@ -106,14 +106,15 @@ export function BarChartPanel({
   xKey,
   yKey,
 }: BarChartPanelProps) {
+  const safeData = Array.isArray(data) ? data : [];
   return (
     <ChartPanelShell title={title} subtitle={subtitle} insight={insight}>
-      {data.length === 0 ? (
+      {safeData.length === 0 ? (
         <ChartEmptyState />
       ) : (
         <div className="h-56">
           <ResponsiveContainer width="100%" height="100%" minWidth={240}>
-            <BarChart data={data} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+            <BarChart data={safeData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
               <XAxis dataKey={xKey} tickLine={false} axisLine={false} fontSize={11} />
               <YAxis tickLine={false} axisLine={false} fontSize={11} allowDecimals={false} />
               <Tooltip
@@ -144,9 +145,10 @@ export function DonutChartPanel({
   valueKey,
   centerLabel,
 }: DonutChartPanelProps) {
+  const safeData = Array.isArray(data) ? data : [];
   return (
     <ChartPanelShell title={title} subtitle={subtitle} insight={insight}>
-      {data.length === 0 ? (
+      {safeData.length === 0 ? (
         <ChartEmptyState />
       ) : (
         <div className="relative h-56">
@@ -160,14 +162,14 @@ export function DonutChartPanel({
           <ResponsiveContainer width="100%" height="100%" minWidth={240}>
             <PieChart>
               <Pie
-                data={data}
+                data={safeData}
                 dataKey={valueKey}
                 nameKey={nameKey}
                 innerRadius={54}
                 outerRadius={82}
                 paddingAngle={2}
               >
-                {data.map((_, index) => (
+                {safeData.map((_, index) => (
                   <Cell
                     key={`donut-segment-${index}`}
                     fill={CHART_COLORS[index % CHART_COLORS.length]}
@@ -201,6 +203,7 @@ export function FunnelChartPanel({
   valueKey,
   footerText,
 }: FunnelChartPanelProps) {
+  const safeData = Array.isArray(data) ? data : [];
   return (
     <ChartPanelShell
       title={title}
@@ -208,7 +211,7 @@ export function FunnelChartPanel({
       insight={insight}
       footer={footerText ? <span>{footerText}</span> : undefined}
     >
-      {data.length === 0 ? (
+      {safeData.length === 0 ? (
         <ChartEmptyState />
       ) : (
         <div className="h-56">
@@ -221,8 +224,8 @@ export function FunnelChartPanel({
                   fontSize: 12,
                 }}
               />
-              <Funnel dataKey={valueKey} data={data} nameKey={nameKey} isAnimationActive={false}>
-                {data.map((_, index) => (
+              <Funnel dataKey={valueKey} data={safeData} nameKey={nameKey} isAnimationActive={false}>
+                {safeData.map((_, index) => (
                   <Cell
                     key={`funnel-segment-${index}`}
                     fill={index === 0 ? CHART_PRIMARY : CHART_COLORS[index % CHART_COLORS.length]}

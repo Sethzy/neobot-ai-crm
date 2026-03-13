@@ -57,7 +57,7 @@ export const catalog = defineCatalog(schema, {
       }),
       slots: [],
       description:
-        "Compact CRM deal card with address, formatted price, and optional stage badge.",
+        "Compact CRM deal card with address, formatted price string, and optional stage badge. The price prop must be a pre-formatted display string like \"$1,200,000\" or \"Price TBD\" — never a raw number or state pointer.",
       example: { address: "10 Market Street #12-34", price: "$1,200,000", stage: "offer" },
     },
     ContactCard: {
