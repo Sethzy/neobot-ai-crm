@@ -2,6 +2,8 @@
  * Runner utilities for normalizing assistant UI message parts for persistence.
  * @module lib/runner/message-utils
  */
+import { SPEC_DATA_PART_TYPE } from "@json-render/core";
+
 import type { Json } from "@/types/database";
 
 type ToolPartState =
@@ -50,6 +52,98 @@ function toErrorText(error: unknown): string {
   }
 
   return "Tool execution failed.";
+}
+
+const SPEC_FENCE_OPEN = "```spec";
+const SPEC_FENCE_CLOSE = "```";
+
+/**
+ * Splits raw model text containing ` ```spec ` fences into interleaved
+ * text and `data-spec` parts. Used by persistence to store spec patches
+ * as first-class parts so reloaded messages render inline views correctly.
+ *
+ * If the text has no spec fences, returns a single text part unchanged.
+ */
+export function splitTextAndSpecParts(text: string): PersistedPart[] {
+  if (!text.includes(SPEC_FENCE_OPEN)) {
+    return [{ type: "text", text }];
+  }
+
+  const parts: PersistedPart[] = [];
+  const lines = text.split("\n");
+  let inFence = false;
+  let textBuffer: string[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (!inFence && trimmed.startsWith(SPEC_FENCE_OPEN)) {
+      // Flush accumulated text before entering fence
+      const buffered = textBuffer.join("\n").trim();
+      if (buffered.length > 0) {
+        parts.push({ type: "text", text: buffered });
+      }
+      textBuffer = [];
+      inFence = true;
+      continue;
+    }
+
+    if (inFence && trimmed === SPEC_FENCE_CLOSE) {
+      inFence = false;
+      continue;
+    }
+
+    if (inFence) {
+      // Parse JSONL line as an RFC 6902 JSON Patch operation
+      if (trimmed.startsWith("{")) {
+        try {
+          const patch = JSON.parse(trimmed) as Record<string, unknown>;
+          if (typeof patch.op === "string" && patch.path !== undefined) {
+            parts.push({
+              type: SPEC_DATA_PART_TYPE,
+              data: { type: "patch", patch },
+            });
+          }
+        } catch {
+          // Malformed JSON inside fence — skip silently.
+        }
+      }
+    } else {
+      textBuffer.push(line);
+    }
+  }
+
+  // Flush any trailing text after the last fence
+  const trailing = textBuffer.join("\n").trim();
+  if (trailing.length > 0) {
+    parts.push({ type: "text", text: trailing });
+  }
+
+  return parts;
+}
+
+/**
+ * Re-hydrates persisted message parts by scanning text parts for ` ```spec `
+ * fences and converting them to `data-spec` parts. Used at load time to
+ * fix messages persisted before the spec-part persistence fix.
+ */
+export function rehydrateSpecParts(parts: ReadonlyArray<Record<string, unknown>>): Record<string, unknown>[] {
+  const result: Record<string, unknown>[] = [];
+
+  for (const part of parts) {
+    if (
+      part.type !== "text" ||
+      typeof part.text !== "string" ||
+      !part.text.includes(SPEC_FENCE_OPEN)
+    ) {
+      result.push(part);
+      continue;
+    }
+
+    result.push(...splitTextAndSpecParts(part.text));
+  }
+
+  return result;
 }
 
 function isToolErrorPayload(value: unknown): value is { type: "tool-error"; error?: unknown } {
@@ -148,7 +242,7 @@ export function buildAssistantPartsFromSteps(
 
         if (contentType === "text") {
           if (typeof contentPart.text === "string" && contentPart.text.length > 0) {
-            parts.push({ type: "text", text: contentPart.text });
+            parts.push(...splitTextAndSpecParts(contentPart.text));
             hasContentTextPart = true;
           }
           continue;
@@ -342,7 +436,7 @@ export function buildAssistantPartsFromSteps(
       typeof step.text === "string" &&
       step.text.trim().length > 0
     ) {
-      parts.push({ type: "text", text: step.text.trim() });
+      parts.push(...splitTextAndSpecParts(step.text.trim()));
     }
   }
 
