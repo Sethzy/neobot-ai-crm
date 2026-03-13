@@ -210,11 +210,13 @@ export async function runAgent(
       clientId,
       crmConfig,
       crmMode,
+      crmConfigModeActive: payload.includeConfigTool,
     });
     const runnerTools = createRunnerTools(supabase, clientId, threadId, {
       allowTriggerMutations: payload.triggerType === "chat",
       crmMode,
       crmConfig,
+      includeConfigTool: payload.includeConfigTool,
     });
     const subagentTools = createSubagentTool(supabase, clientId, threadId, {
       parentRunId: lockResult.runId,

@@ -188,6 +188,20 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const resolvedClientId = await resolveClientId(supabase, userId);
     clientId = resolvedClientId;
+
+    // Check if CRM config mode is active (non-null and not expired)
+    // TODO: Could be combined with an existing client query to avoid an extra round-trip.
+    const { data: clientRow } = await supabase
+      .from("clients")
+      .select("crm_config_mode_until")
+      .eq("client_id", resolvedClientId)
+      .single();
+
+    const isCrmConfigModeActive = Boolean(
+      clientRow?.crm_config_mode_until &&
+      new Date(clientRow.crm_config_mode_until) > new Date(),
+    );
+
     const { data: thread, error: threadLookupError } = await supabase
       .from("conversation_threads")
       .select("thread_id")
@@ -264,6 +278,7 @@ export async function POST(request: Request): Promise<Response> {
         input,
         ...(fileParts.length > 0 ? { fileParts } : {}),
         crmMode: body.crmMode,
+        ...(isCrmConfigModeActive ? { includeConfigTool: true } : {}),
       },
       supabase,
     );

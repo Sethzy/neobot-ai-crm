@@ -65,6 +65,7 @@ vi.mock("ai", () => ({
 
 vi.mock("@/lib/ai/gateway", () => ({
   gateway: mockGateway,
+  gatewayProviderOptions: {},
   TIER_1_MODEL: "google/gemini-3-flash",
 }));
 
@@ -444,13 +445,13 @@ describe("runAgent", () => {
     );
   });
 
-  it("does not enable model thought-streaming by default", async () => {
+  it("passes gatewayProviderOptions to streamText", async () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
 
     await runAgent(validPayload, "mock-supabase-client" as never);
 
     const streamCall = mockStreamText.mock.calls[0]?.[0];
-    expect(streamCall.providerOptions).toBeUndefined();
+    expect(streamCall.providerOptions).toBeDefined();
   });
 
   it("buildPrepareStep no longer injects Anthropic-native compaction edits", () => {

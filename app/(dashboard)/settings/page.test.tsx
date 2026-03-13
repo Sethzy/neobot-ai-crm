@@ -12,6 +12,22 @@ const { mockLoadCurrentMessageQuota } = vi.hoisted(() => ({
   mockLoadCurrentMessageQuota: vi.fn(),
 }));
 
+vi.mock("@/lib/chat/client-id", () => ({
+  resolveClientId: vi.fn().mockResolvedValue("client-123"),
+}));
+
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: vi.fn().mockResolvedValue({
+    from: vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+    }),
+  }),
+}));
+
 vi.mock("@/lib/stripe/actions", () => ({
   customerPortalAction: vi.fn(),
 }));

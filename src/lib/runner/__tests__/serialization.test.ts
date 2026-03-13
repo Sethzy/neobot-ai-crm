@@ -52,6 +52,7 @@ vi.mock("@/lib/chat/messages", () => ({
 }));
 vi.mock("@/lib/ai/gateway", () => ({
   gateway: mockGateway,
+  gatewayProviderOptions: {},
   TIER_1_MODEL: "google/gemini-3-flash",
 }));
 vi.mock("@/lib/crm/config", async (importOriginal) => {

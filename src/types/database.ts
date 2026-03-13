@@ -6,9 +6,6 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-/** A JSON object (non-array, non-primitive). */
-export type JsonObject = { [key: string]: Json | undefined };
-
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -17,6 +14,228 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_todo: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          payload: Json
+          thread_id: string
+          title: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          thread_id: string
+          title: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          thread_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_todo_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "agent_todo_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
+      agent_triggers: {
+        Row: {
+          client_id: string
+          created_at: string
+          cron_expression: string | null
+          current_run_id: string | null
+          enabled: boolean
+          id: string
+          instruction_path: string
+          invocation_message: string | null
+          last_fired_at: string | null
+          last_status: string | null
+          name: string
+          next_fire_at: string | null
+          payload: Json
+          retry_count: number
+          thread_id: string
+          trigger_type: string
+          updated_at: string
+          webhook_secret: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          cron_expression?: string | null
+          current_run_id?: string | null
+          enabled?: boolean
+          id?: string
+          instruction_path: string
+          invocation_message?: string | null
+          last_fired_at?: string | null
+          last_status?: string | null
+          name: string
+          next_fire_at?: string | null
+          payload?: Json
+          retry_count?: number
+          thread_id: string
+          trigger_type?: string
+          updated_at?: string
+          webhook_secret?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          cron_expression?: string | null
+          current_run_id?: string | null
+          enabled?: boolean
+          id?: string
+          instruction_path?: string
+          invocation_message?: string | null
+          last_fired_at?: string | null
+          last_status?: string | null
+          name?: string
+          next_fire_at?: string | null
+          payload?: Json
+          retry_count?: number
+          thread_id?: string
+          trigger_type?: string
+          updated_at?: string
+          webhook_secret?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_triggers_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "agent_triggers_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
+      approval_events: {
+        Row: {
+          approval_id: string
+          client_id: string
+          created_at: string
+          id: string
+          resolved_at: string | null
+          run_id: string | null
+          status: string
+          thread_id: string
+          tool_input: Json
+          tool_name: string
+        }
+        Insert: {
+          approval_id: string
+          client_id: string
+          created_at?: string
+          id?: string
+          resolved_at?: string | null
+          run_id?: string | null
+          status?: string
+          thread_id: string
+          tool_input?: Json
+          tool_name: string
+        }
+        Update: {
+          approval_id?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          resolved_at?: string | null
+          run_id?: string | null
+          status?: string
+          thread_id?: string
+          tool_input?: Json
+          tool_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_events_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "approval_events_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "runs"
+            referencedColumns: ["run_id"]
+          },
+          {
+            foreignKeyName: "approval_events_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
+      autopilot_config: {
+        Row: {
+          client_id: string
+          config_id: string
+          created_at: string
+          enabled: boolean
+          pulse_interval: string
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          config_id?: string
+          created_at?: string
+          enabled?: boolean
+          pulse_interval?: string
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          config_id?: string
+          created_at?: string
+          enabled?: boolean
+          pulse_interval?: string
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "autopilot_config_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
       cases: {
         Row: {
           case_name: string
@@ -52,6 +271,681 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      client_message_usage_monthly: {
+        Row: {
+          client_id: string
+          created_at: string
+          messages_used: number
+          period_start: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          messages_used?: number
+          period_start: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          messages_used?: number
+          period_start?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_message_usage_monthly_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          client_id: string
+          created_at: string
+          crm_config_mode_until: string | null
+          display_name: string | null
+          plan_name: string | null
+          quota_exempt: boolean
+          stripe_customer_id: string | null
+          stripe_product_id: string | null
+          stripe_subscription_id: string | null
+          subscription_status: string | null
+          user_id: string
+        }
+        Insert: {
+          client_id?: string
+          created_at?: string
+          crm_config_mode_until?: string | null
+          display_name?: string | null
+          plan_name?: string | null
+          quota_exempt?: boolean
+          stripe_customer_id?: string | null
+          stripe_product_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          crm_config_mode_until?: string | null
+          display_name?: string | null
+          plan_name?: string | null
+          quota_exempt?: boolean
+          stripe_customer_id?: string | null
+          stripe_product_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      companies: {
+        Row: {
+          address: string | null
+          client_id: string
+          company_id: string
+          created_at: string
+          custom_fields: Json
+          email: string | null
+          industry: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          client_id: string
+          company_id?: string
+          created_at?: string
+          custom_fields?: Json
+          email?: string | null
+          industry?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          client_id?: string
+          company_id?: string
+          created_at?: string
+          custom_fields?: Json
+          email?: string | null
+          industry?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "companies_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
+      connections: {
+        Row: {
+          account_identifier: string | null
+          activated_tools: string[]
+          client_id: string
+          composio_connected_account_id: string
+          created_at: string
+          display_name: string | null
+          id: string
+          status: string
+          tool_count: number
+          toolkit_slug: string
+          updated_at: string
+        }
+        Insert: {
+          account_identifier?: string | null
+          activated_tools?: string[]
+          client_id: string
+          composio_connected_account_id: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          status?: string
+          tool_count?: number
+          toolkit_slug: string
+          updated_at?: string
+        }
+        Update: {
+          account_identifier?: string | null
+          activated_tools?: string[]
+          client_id?: string
+          composio_connected_account_id?: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          status?: string
+          tool_count?: number
+          toolkit_slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connections_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          client_id: string
+          company_id: string | null
+          contact_id: string
+          created_at: string
+          custom_fields: Json
+          email: string | null
+          first_name: string
+          last_name: string
+          notes: string | null
+          phone: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          company_id?: string | null
+          contact_id?: string
+          created_at?: string
+          custom_fields?: Json
+          email?: string | null
+          first_name: string
+          last_name: string
+          notes?: string | null
+          phone?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          company_id?: string | null
+          contact_id?: string
+          created_at?: string
+          custom_fields?: Json
+          email?: string | null
+          first_name?: string
+          last_name?: string
+          notes?: string | null
+          phone?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      conversation_channel_delivery_receipts: {
+        Row: {
+          channel: string
+          client_id: string
+          created_at: string
+          delivery_id: string
+          receipt_id: string
+          thread_id: string
+        }
+        Insert: {
+          channel: string
+          client_id: string
+          created_at?: string
+          delivery_id: string
+          receipt_id?: string
+          thread_id: string
+        }
+        Update: {
+          channel?: string
+          client_id?: string
+          created_at?: string
+          delivery_id?: string
+          receipt_id?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_channel_delivery_receipts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "conversation_channel_delivery_receipts_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
+      conversation_channel_mappings: {
+        Row: {
+          channel: string
+          client_id: string
+          created_at: string
+          external_conversation_id: string
+          mapping_id: string
+          thread_id: string
+          updated_at: string
+        }
+        Insert: {
+          channel: string
+          client_id: string
+          created_at?: string
+          external_conversation_id: string
+          mapping_id?: string
+          thread_id: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          client_id?: string
+          created_at?: string
+          external_conversation_id?: string
+          mapping_id?: string
+          thread_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_channel_mappings_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "conversation_channel_mappings_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
+      conversation_messages: {
+        Row: {
+          content: string | null
+          created_at: string
+          message_id: string
+          parts: Json | null
+          role: string
+          thread_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          message_id?: string
+          parts?: Json | null
+          role: string
+          thread_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          message_id?: string
+          parts?: Json | null
+          role?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
+      conversation_threads: {
+        Row: {
+          client_id: string
+          compaction_compacted_through_at: string | null
+          compaction_compacted_through_message_id: string | null
+          compaction_summary: string | null
+          compaction_summary_model: string | null
+          compaction_summary_tokens_used: number
+          created_at: string
+          is_archived: boolean
+          is_pinned: boolean
+          thread_id: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          compaction_compacted_through_at?: string | null
+          compaction_compacted_through_message_id?: string | null
+          compaction_summary?: string | null
+          compaction_summary_model?: string | null
+          compaction_summary_tokens_used?: number
+          created_at?: string
+          is_archived?: boolean
+          is_pinned?: boolean
+          thread_id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          compaction_compacted_through_at?: string | null
+          compaction_compacted_through_message_id?: string | null
+          compaction_summary?: string | null
+          compaction_summary_model?: string | null
+          compaction_summary_tokens_used?: number
+          created_at?: string
+          is_archived?: boolean
+          is_pinned?: boolean
+          thread_id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_threads_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
+      crm_config: {
+        Row: {
+          client_id: string
+          company_custom_fields: Json
+          company_industries: Json | null
+          company_label: string
+          config_id: string
+          contact_custom_fields: Json
+          contact_types: Json | null
+          created_at: string
+          deal_contact_roles: Json | null
+          deal_custom_fields: Json
+          deal_label: string
+          deal_stages: Json | null
+          interaction_types: Json | null
+          task_custom_fields: Json
+          task_types: Json | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          company_custom_fields?: Json
+          company_industries?: Json | null
+          company_label?: string
+          config_id?: string
+          contact_custom_fields?: Json
+          contact_types?: Json | null
+          created_at?: string
+          deal_contact_roles?: Json | null
+          deal_custom_fields?: Json
+          deal_label?: string
+          deal_stages?: Json | null
+          interaction_types?: Json | null
+          task_custom_fields?: Json
+          task_types?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          company_custom_fields?: Json
+          company_industries?: Json | null
+          company_label?: string
+          config_id?: string
+          contact_custom_fields?: Json
+          contact_types?: Json | null
+          created_at?: string
+          deal_contact_roles?: Json | null
+          deal_custom_fields?: Json
+          deal_label?: string
+          deal_stages?: Json | null
+          interaction_types?: Json | null
+          task_custom_fields?: Json
+          task_types?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_config_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
+      crm_tasks: {
+        Row: {
+          client_id: string
+          contact_id: string | null
+          created_at: string
+          custom_fields: Json
+          deal_id: string | null
+          description: string | null
+          due_date: string | null
+          status: string
+          task_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          contact_id?: string | null
+          created_at?: string
+          custom_fields?: Json
+          deal_id?: string | null
+          description?: string | null
+          due_date?: string | null
+          status?: string
+          task_id?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          contact_id?: string | null
+          created_at?: string
+          custom_fields?: Json
+          deal_id?: string | null
+          description?: string | null
+          due_date?: string | null
+          status?: string
+          task_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_tasks_client_contact_tenant_fkey"
+            columns: ["client_id", "contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["client_id", "contact_id"]
+          },
+          {
+            foreignKeyName: "crm_tasks_client_deal_tenant_fkey"
+            columns: ["client_id", "deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["client_id", "deal_id"]
+          },
+          {
+            foreignKeyName: "crm_tasks_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "crm_tasks_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "crm_tasks_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["deal_id"]
+          },
+        ]
+      }
+      deal_contacts: {
+        Row: {
+          client_id: string
+          contact_id: string
+          created_at: string
+          deal_contact_id: string
+          deal_id: string
+          is_primary: boolean
+          role: string
+        }
+        Insert: {
+          client_id: string
+          contact_id: string
+          created_at?: string
+          deal_contact_id?: string
+          deal_id: string
+          is_primary?: boolean
+          role?: string
+        }
+        Update: {
+          client_id?: string
+          contact_id?: string
+          created_at?: string
+          deal_contact_id?: string
+          deal_id?: string
+          is_primary?: boolean
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_contacts_client_contact_tenant_fkey"
+            columns: ["client_id", "contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["client_id", "contact_id"]
+          },
+          {
+            foreignKeyName: "deal_contacts_client_deal_tenant_fkey"
+            columns: ["client_id", "deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["client_id", "deal_id"]
+          },
+          {
+            foreignKeyName: "deal_contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "deal_contacts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deal_contacts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["deal_id"]
+          },
+        ]
+      }
+      deals: {
+        Row: {
+          address: string
+          client_id: string
+          company_id: string | null
+          created_at: string
+          custom_fields: Json
+          deal_id: string
+          notes: string | null
+          price: number | null
+          stage: string
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          client_id: string
+          company_id?: string | null
+          created_at?: string
+          custom_fields?: Json
+          deal_id?: string
+          notes?: string | null
+          price?: number | null
+          stage?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          client_id?: string
+          company_id?: string | null
+          created_at?: string
+          custom_fields?: Json
+          deal_id?: string
+          notes?: string | null
+          price?: number | null
+          stage?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deals_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "deals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["company_id"]
+          },
+        ]
       }
       documents: {
         Row: {
@@ -145,6 +1039,78 @@ export type Database = {
           },
         ]
       }
+      interactions: {
+        Row: {
+          client_id: string
+          contact_id: string
+          created_at: string
+          deal_id: string | null
+          interaction_id: string
+          occurred_at: string
+          summary: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          contact_id: string
+          created_at?: string
+          deal_id?: string | null
+          interaction_id?: string
+          occurred_at: string
+          summary?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          contact_id?: string
+          created_at?: string
+          deal_id?: string | null
+          interaction_id?: string
+          occurred_at?: string
+          summary?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interactions_client_contact_tenant_fkey"
+            columns: ["client_id", "contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["client_id", "contact_id"]
+          },
+          {
+            foreignKeyName: "interactions_client_deal_tenant_fkey"
+            columns: ["client_id", "deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["client_id", "deal_id"]
+          },
+          {
+            foreignKeyName: "interactions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "interactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "interactions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["deal_id"]
+          },
+        ]
+      }
       report_history: {
         Row: {
           ai_summary: string | null
@@ -201,6 +1167,73 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cases"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      runs: {
+        Row: {
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          model: string | null
+          parent_run_id: string | null
+          run_id: string
+          run_type: string
+          status: Database["public"]["Enums"]["run_status"]
+          step_count: number | null
+          thread_id: string
+          tokens_in: number | null
+          tokens_out: number | null
+        }
+        Insert: {
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          model?: string | null
+          parent_run_id?: string | null
+          run_id?: string
+          run_type?: string
+          status?: Database["public"]["Enums"]["run_status"]
+          step_count?: number | null
+          thread_id: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+        }
+        Update: {
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          model?: string | null
+          parent_run_id?: string | null
+          run_id?: string
+          run_type?: string
+          status?: Database["public"]["Enums"]["run_status"]
+          step_count?: number | null
+          thread_id?: string
+          tokens_in?: number | null
+          tokens_out?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "runs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "runs_parent_run_id_fkey"
+            columns: ["parent_run_id"]
+            isOneToOne: false
+            referencedRelation: "runs"
+            referencedColumns: ["run_id"]
+          },
+          {
+            foreignKeyName: "runs_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
           },
         ]
       }
@@ -303,6 +1336,48 @@ export type Database = {
           },
         ]
       }
+      thread_queue_records: {
+        Row: {
+          channel: string
+          client_id: string
+          content: Json
+          created_at: string
+          queue_id: string
+          thread_id: string
+        }
+        Insert: {
+          channel?: string
+          client_id: string
+          content: Json
+          created_at?: string
+          queue_id?: string
+          thread_id: string
+        }
+        Update: {
+          channel?: string
+          client_id?: string
+          content?: Json
+          created_at?: string
+          queue_id?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_queue_records_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "thread_queue_records_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
       user_instructions: {
         Row: {
           case_id: string | null
@@ -337,75 +1412,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      whatsapp_contacts: {
-        Row: {
-          id: string
-          user_id: string
-          phone: string
-          is_active: boolean
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          phone: string
-          is_active?: boolean
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          phone?: string
-          is_active?: boolean
-          created_at?: string
-        }
-        Relationships: []
-      }
-      whatsapp_messages: {
-        Row: {
-          id: string
-          whatsapp_msg_id: string
-          phone: string
-          contact_id: string
-          case_id: string
-          document_id: string | null
-          message_type: string
-          message_text: string | null
-          filename: string | null
-          status: string
-          whatsapp_timestamp: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          whatsapp_msg_id: string
-          phone: string
-          contact_id: string
-          case_id: string
-          document_id?: string | null
-          message_type: string
-          message_text?: string | null
-          filename?: string | null
-          status?: string
-          whatsapp_timestamp: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          whatsapp_msg_id?: string
-          phone?: string
-          contact_id?: string
-          case_id?: string
-          document_id?: string | null
-          message_type?: string
-          message_text?: string | null
-          filename?: string | null
-          status?: string
-          whatsapp_timestamp?: string
-          created_at?: string
-        }
-        Relationships: []
       }
       user_profiles: {
         Row: {
@@ -484,1039 +1490,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["client_id"]
-          },
-        ]
-      }
-      clients: {
-        Row: {
-          client_id: string
-          created_at: string
-          display_name: string | null
-          plan_name: string | null
-          quota_exempt: boolean
-          stripe_customer_id: string | null
-          stripe_product_id: string | null
-          stripe_subscription_id: string | null
-          subscription_status: string | null
-          user_id: string
-        }
-        Insert: {
-          client_id?: string
-          created_at?: string
-          display_name?: string | null
-          plan_name?: string | null
-          quota_exempt?: boolean
-          stripe_customer_id?: string | null
-          stripe_product_id?: string | null
-          stripe_subscription_id?: string | null
-          subscription_status?: string | null
-          user_id: string
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          display_name?: string | null
-          plan_name?: string | null
-          quota_exempt?: boolean
-          stripe_customer_id?: string | null
-          stripe_product_id?: string | null
-          stripe_subscription_id?: string | null
-          subscription_status?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      client_message_usage_monthly: {
-        Row: {
-          client_id: string
-          created_at: string
-          messages_used: number
-          period_start: string
-          updated_at: string
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          messages_used?: number
-          period_start: string
-          updated_at?: string
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          messages_used?: number
-          period_start?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_message_usage_monthly_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-        ]
-      }
-      agent_todo: {
-        Row: {
-          client_id: string
-          created_at: string
-          id: string
-          payload: Json
-          thread_id: string
-          title: string
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          id?: string
-          payload?: Json
-          thread_id: string
-          title: string
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          id?: string
-          payload?: Json
-          thread_id?: string
-          title?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "agent_todo_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "agent_todo_thread_id_fkey"
-            columns: ["thread_id"]
-            isOneToOne: false
-            referencedRelation: "conversation_threads"
-            referencedColumns: ["thread_id"]
-          },
-        ]
-      }
-      approval_events: {
-        Row: {
-          approval_id: string
-          client_id: string
-          created_at: string
-          id: string
-          resolved_at: string | null
-          run_id: string | null
-          status: string
-          thread_id: string
-          tool_input: Json
-          tool_name: string
-        }
-        Insert: {
-          approval_id: string
-          client_id: string
-          created_at?: string
-          id?: string
-          resolved_at?: string | null
-          run_id?: string | null
-          status?: string
-          thread_id: string
-          tool_input?: Json
-          tool_name: string
-        }
-        Update: {
-          approval_id?: string
-          client_id?: string
-          created_at?: string
-          id?: string
-          resolved_at?: string | null
-          run_id?: string | null
-          status?: string
-          thread_id?: string
-          tool_input?: Json
-          tool_name?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "approval_events_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "approval_events_run_id_fkey"
-            columns: ["run_id"]
-            isOneToOne: false
-            referencedRelation: "runs"
-            referencedColumns: ["run_id"]
-          },
-          {
-            foreignKeyName: "approval_events_thread_id_fkey"
-            columns: ["thread_id"]
-            isOneToOne: false
-            referencedRelation: "conversation_threads"
-            referencedColumns: ["thread_id"]
-          },
-        ]
-      }
-      contacts: {
-        Row: {
-          client_id: string
-          company_id: string | null
-          contact_id: string
-          created_at: string
-          custom_fields: Json
-          email: string | null
-          first_name: string
-          last_name: string
-          notes: string | null
-          phone: string | null
-          type: string
-          updated_at: string
-        }
-        Insert: {
-          client_id: string
-          company_id?: string | null
-          contact_id?: string
-          created_at?: string
-          custom_fields?: Json
-          email?: string | null
-          first_name: string
-          last_name: string
-          notes?: string | null
-          phone?: string | null
-          type: string
-          updated_at?: string
-        }
-        Update: {
-          client_id?: string
-          company_id?: string | null
-          contact_id?: string
-          created_at?: string
-          custom_fields?: Json
-          email?: string | null
-          first_name?: string
-          last_name?: string
-          notes?: string | null
-          phone?: string | null
-          type?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "contacts_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "contacts_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["company_id"]
-          },
-        ]
-      }
-      companies: {
-        Row: {
-          address: string | null
-          client_id: string
-          company_id: string
-          created_at: string
-          custom_fields: Json
-          email: string | null
-          industry: string | null
-          name: string
-          notes: string | null
-          phone: string | null
-          updated_at: string
-          website: string | null
-        }
-        Insert: {
-          address?: string | null
-          client_id: string
-          company_id?: string
-          created_at?: string
-          custom_fields?: Json
-          email?: string | null
-          industry?: string | null
-          name: string
-          notes?: string | null
-          phone?: string | null
-          updated_at?: string
-          website?: string | null
-        }
-        Update: {
-          address?: string | null
-          client_id?: string
-          company_id?: string
-          created_at?: string
-          custom_fields?: Json
-          email?: string | null
-          industry?: string | null
-          name?: string
-          notes?: string | null
-          phone?: string | null
-          updated_at?: string
-          website?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "companies_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-        ]
-      }
-      crm_config: {
-        Row: {
-          client_id: string
-          company_custom_fields: Json
-          company_industries: Json | null
-          company_label: string
-          config_id: string
-          contact_custom_fields: Json
-          contact_types: Json | null
-          created_at: string
-          deal_contact_roles: Json | null
-          deal_custom_fields: Json
-          deal_label: string
-          deal_stages: Json | null
-          interaction_types: Json | null
-          task_types: Json | null
-          task_custom_fields: Json
-          updated_at: string
-        }
-        Insert: {
-          client_id: string
-          company_custom_fields?: Json
-          company_industries?: Json | null
-          company_label?: string
-          config_id?: string
-          contact_custom_fields?: Json
-          contact_types?: Json | null
-          created_at?: string
-          deal_contact_roles?: Json | null
-          deal_custom_fields?: Json
-          deal_label?: string
-          deal_stages?: Json | null
-          interaction_types?: Json | null
-          task_types?: Json | null
-          task_custom_fields?: Json
-          updated_at?: string
-        }
-        Update: {
-          client_id?: string
-          company_custom_fields?: Json
-          company_industries?: Json | null
-          company_label?: string
-          config_id?: string
-          contact_custom_fields?: Json
-          contact_types?: Json | null
-          created_at?: string
-          deal_contact_roles?: Json | null
-          deal_custom_fields?: Json
-          deal_label?: string
-          deal_stages?: Json | null
-          interaction_types?: Json | null
-          task_types?: Json | null
-          task_custom_fields?: Json
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "crm_config_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: true
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-        ]
-      }
-      crm_tasks: {
-        Row: {
-          client_id: string
-          contact_id: string | null
-          created_at: string
-          custom_fields: Json
-          deal_id: string | null
-          description: string | null
-          due_date: string | null
-          status: string
-          task_id: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          client_id: string
-          contact_id?: string | null
-          created_at?: string
-          custom_fields?: Json
-          deal_id?: string | null
-          description?: string | null
-          due_date?: string | null
-          status?: string
-          task_id?: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          client_id?: string
-          contact_id?: string | null
-          created_at?: string
-          custom_fields?: Json
-          deal_id?: string | null
-          description?: string | null
-          due_date?: string | null
-          status?: string
-          task_id?: string
-          title?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "crm_tasks_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "crm_tasks_contact_id_fkey"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["contact_id"]
-          },
-          {
-            foreignKeyName: "crm_tasks_deal_id_fkey"
-            columns: ["deal_id"]
-            isOneToOne: false
-            referencedRelation: "deals"
-            referencedColumns: ["deal_id"]
-          },
-        ]
-      }
-      deal_contacts: {
-        Row: {
-          deal_contact_id: string
-          client_id: string
-          deal_id: string
-          contact_id: string
-          role: string
-          is_primary: boolean
-          created_at: string
-        }
-        Insert: {
-          deal_contact_id?: string
-          client_id: string
-          deal_id: string
-          contact_id: string
-          role?: string
-          is_primary?: boolean
-          created_at?: string
-        }
-        Update: {
-          deal_contact_id?: string
-          client_id?: string
-          deal_id?: string
-          contact_id?: string
-          role?: string
-          is_primary?: boolean
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "deal_contacts_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "deal_contacts_deal_id_fkey"
-            columns: ["deal_id"]
-            isOneToOne: false
-            referencedRelation: "deals"
-            referencedColumns: ["deal_id"]
-          },
-          {
-            foreignKeyName: "deal_contacts_contact_id_fkey"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["contact_id"]
-          },
-        ]
-      }
-      deals: {
-        Row: {
-          address: string
-          client_id: string
-          company_id: string | null
-          created_at: string
-          custom_fields: Json
-          deal_id: string
-          notes: string | null
-          price: number | null
-          stage: string
-          updated_at: string
-        }
-        Insert: {
-          address: string
-          client_id: string
-          company_id?: string | null
-          created_at?: string
-          custom_fields?: Json
-          deal_id?: string
-          notes?: string | null
-          price?: number | null
-          stage?: string
-          updated_at?: string
-        }
-        Update: {
-          address?: string
-          client_id?: string
-          company_id?: string | null
-          created_at?: string
-          custom_fields?: Json
-          deal_id?: string
-          notes?: string | null
-          price?: number | null
-          stage?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "deals_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "deals_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["company_id"]
-          },
-        ]
-      }
-      interactions: {
-        Row: {
-          client_id: string
-          contact_id: string
-          created_at: string
-          deal_id: string | null
-          interaction_id: string
-          occurred_at: string
-          summary: string | null
-          type: string
-          updated_at: string
-        }
-        Insert: {
-          client_id: string
-          contact_id: string
-          created_at?: string
-          deal_id?: string | null
-          interaction_id?: string
-          occurred_at: string
-          summary?: string | null
-          type: string
-          updated_at?: string
-        }
-        Update: {
-          client_id?: string
-          contact_id?: string
-          created_at?: string
-          deal_id?: string | null
-          interaction_id?: string
-          occurred_at?: string
-          summary?: string | null
-          type?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "interactions_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "interactions_contact_id_fkey"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["contact_id"]
-          },
-          {
-            foreignKeyName: "interactions_deal_id_fkey"
-            columns: ["deal_id"]
-            isOneToOne: false
-            referencedRelation: "deals"
-            referencedColumns: ["deal_id"]
-          },
-        ]
-      }
-      autopilot_config: {
-        Row: {
-          client_id: string
-          config_id: string
-          created_at: string
-          enabled: boolean
-          pulse_interval: string
-          quiet_hours_end: string | null
-          quiet_hours_start: string | null
-          updated_at: string
-        }
-        Insert: {
-          client_id: string
-          config_id?: string
-          created_at?: string
-          enabled?: boolean
-          pulse_interval?: string
-          quiet_hours_end?: string | null
-          quiet_hours_start?: string | null
-          updated_at?: string
-        }
-        Update: {
-          client_id?: string
-          config_id?: string
-          created_at?: string
-          enabled?: boolean
-          pulse_interval?: string
-          quiet_hours_end?: string | null
-          quiet_hours_start?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "autopilot_config_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: true
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-        ]
-      }
-      conversation_threads: {
-        Row: {
-          client_id: string
-          compaction_compacted_through_at: string | null
-          compaction_compacted_through_message_id: string | null
-          compaction_summary: string | null
-          compaction_summary_model: string | null
-          compaction_summary_tokens_used: number
-          created_at: string
-          is_archived: boolean
-          is_pinned: boolean
-          thread_id: string
-          title: string | null
-          updated_at: string
-        }
-        Insert: {
-          client_id: string
-          compaction_compacted_through_at?: string | null
-          compaction_compacted_through_message_id?: string | null
-          compaction_summary?: string | null
-          compaction_summary_model?: string | null
-          compaction_summary_tokens_used?: number
-          created_at?: string
-          is_archived?: boolean
-          is_pinned?: boolean
-          thread_id?: string
-          title?: string | null
-          updated_at?: string
-        }
-        Update: {
-          client_id?: string
-          compaction_compacted_through_at?: string | null
-          compaction_compacted_through_message_id?: string | null
-          compaction_summary?: string | null
-          compaction_summary_model?: string | null
-          compaction_summary_tokens_used?: number
-          created_at?: string
-          is_archived?: boolean
-          is_pinned?: boolean
-          thread_id?: string
-          title?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "conversation_threads_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-        ]
-      }
-      connections: {
-        Row: {
-          account_identifier: string | null
-          activated_tools: string[]
-          client_id: string
-          composio_connected_account_id: string
-          created_at: string
-          display_name: string | null
-          id: string
-          status: "active" | "inactive" | "error" | "pending"
-          tool_count: number
-          toolkit_slug: string
-          updated_at: string
-        }
-        Insert: {
-          account_identifier?: string | null
-          activated_tools?: string[]
-          client_id: string
-          composio_connected_account_id: string
-          created_at?: string
-          display_name?: string | null
-          id?: string
-          status?: "active" | "inactive" | "error" | "pending"
-          tool_count?: number
-          toolkit_slug: string
-          updated_at?: string
-        }
-        Update: {
-          account_identifier?: string | null
-          activated_tools?: string[]
-          client_id?: string
-          composio_connected_account_id?: string
-          created_at?: string
-          display_name?: string | null
-          id?: string
-          status?: "active" | "inactive" | "error" | "pending"
-          tool_count?: number
-          toolkit_slug?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "connections_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-        ]
-      }
-      agent_triggers: {
-        Row: {
-          client_id: string
-          created_at: string
-          cron_expression: string | null
-          current_run_id: string | null
-          enabled: boolean
-          id: string
-          invocation_message: string | null
-          instruction_path: string
-          last_fired_at: string | null
-          last_status: string | null
-          name: string
-          next_fire_at: string | null
-          payload: Json
-          retry_count: number
-          thread_id: string
-          trigger_type: string
-          updated_at: string
-          webhook_secret: string | null
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          cron_expression?: string | null
-          current_run_id?: string | null
-          enabled?: boolean
-          id?: string
-          invocation_message?: string | null
-          instruction_path: string
-          last_fired_at?: string | null
-          last_status?: string | null
-          name: string
-          next_fire_at?: string | null
-          payload?: Json
-          retry_count?: number
-          thread_id: string
-          trigger_type?: string
-          updated_at?: string
-          webhook_secret?: string | null
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          cron_expression?: string | null
-          current_run_id?: string | null
-          enabled?: boolean
-          id?: string
-          invocation_message?: string | null
-          instruction_path?: string
-          last_fired_at?: string | null
-          last_status?: string | null
-          name?: string
-          next_fire_at?: string | null
-          payload?: Json
-          retry_count?: number
-          thread_id?: string
-          trigger_type?: string
-          updated_at?: string
-          webhook_secret?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "agent_triggers_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "agent_triggers_thread_id_fkey"
-            columns: ["thread_id"]
-            isOneToOne: false
-            referencedRelation: "conversation_threads"
-            referencedColumns: ["thread_id"]
-          },
-        ]
-      }
-      conversation_messages: {
-        Row: {
-          content: string | null
-          created_at: string
-          message_id: string
-          parts: Json | null
-          role: string
-          thread_id: string
-        }
-        Insert: {
-          content?: string | null
-          created_at?: string
-          message_id?: string
-          parts?: Json | null
-          role: string
-          thread_id: string
-        }
-        Update: {
-          content?: string | null
-          created_at?: string
-          message_id?: string
-          parts?: Json | null
-          role?: string
-          thread_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "conversation_messages_thread_id_fkey"
-            columns: ["thread_id"]
-            isOneToOne: false
-            referencedRelation: "conversation_threads"
-            referencedColumns: ["thread_id"]
-          },
-        ]
-      }
-      conversation_channel_mappings: {
-        Row: {
-          channel: string
-          client_id: string
-          created_at: string
-          external_conversation_id: string
-          mapping_id: string
-          thread_id: string
-          updated_at: string
-        }
-        Insert: {
-          channel: string
-          client_id: string
-          created_at?: string
-          external_conversation_id: string
-          mapping_id?: string
-          thread_id: string
-          updated_at?: string
-        }
-        Update: {
-          channel?: string
-          client_id?: string
-          created_at?: string
-          external_conversation_id?: string
-          mapping_id?: string
-          thread_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "conversation_channel_mappings_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "conversation_channel_mappings_thread_id_fkey"
-            columns: ["thread_id"]
-            isOneToOne: false
-            referencedRelation: "conversation_threads"
-            referencedColumns: ["thread_id"]
-          },
-        ]
-      }
-      conversation_channel_delivery_receipts: {
-        Row: {
-          channel: string
-          client_id: string
-          created_at: string
-          delivery_id: string
-          receipt_id: string
-          thread_id: string
-        }
-        Insert: {
-          channel: string
-          client_id: string
-          created_at?: string
-          delivery_id: string
-          receipt_id?: string
-          thread_id: string
-        }
-        Update: {
-          channel?: string
-          client_id?: string
-          created_at?: string
-          delivery_id?: string
-          receipt_id?: string
-          thread_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "conversation_channel_delivery_receipts_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "conversation_channel_delivery_receipts_thread_id_fkey"
-            columns: ["thread_id"]
-            isOneToOne: false
-            referencedRelation: "conversation_threads"
-            referencedColumns: ["thread_id"]
-          },
-        ]
-      }
-      runs: {
-        Row: {
-          client_id: string
-          completed_at: string | null
-          created_at: string
-          model: string | null
-          parent_run_id: string | null
-          run_id: string
-          run_type: string
-          status: Database["public"]["Enums"]["run_status"]
-          step_count: number | null
-          thread_id: string
-          tokens_in: number | null
-          tokens_out: number | null
-        }
-        Insert: {
-          client_id: string
-          completed_at?: string | null
-          created_at?: string
-          model?: string | null
-          parent_run_id?: string | null
-          run_id?: string
-          run_type?: string
-          status?: Database["public"]["Enums"]["run_status"]
-          step_count?: number | null
-          thread_id: string
-          tokens_in?: number | null
-          tokens_out?: number | null
-        }
-        Update: {
-          client_id?: string
-          completed_at?: string | null
-          created_at?: string
-          model?: string | null
-          parent_run_id?: string | null
-          run_id?: string
-          run_type?: string
-          status?: Database["public"]["Enums"]["run_status"]
-          step_count?: number | null
-          thread_id?: string
-          tokens_in?: number | null
-          tokens_out?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "runs_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "runs_parent_run_id_fkey"
-            columns: ["parent_run_id"]
-            isOneToOne: false
-            referencedRelation: "runs"
-            referencedColumns: ["run_id"]
-          },
-          {
-            foreignKeyName: "runs_thread_id_fkey"
-            columns: ["thread_id"]
-            isOneToOne: false
-            referencedRelation: "conversation_threads"
-            referencedColumns: ["thread_id"]
-          },
-        ]
-      }
-      thread_queue_records: {
-        Row: {
-          channel: string
-          client_id: string
-          content: Json
-          created_at: string
-          queue_id: string
-          thread_id: string
-        }
-        Insert: {
-          channel?: string
-          client_id: string
-          content: Json
-          created_at?: string
-          queue_id?: string
-          thread_id: string
-        }
-        Update: {
-          channel?: string
-          client_id?: string
-          content?: Json
-          created_at?: string
-          queue_id?: string
-          thread_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "thread_queue_records_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "thread_queue_records_thread_id_fkey"
-            columns: ["thread_id"]
-            isOneToOne: false
-            referencedRelation: "conversation_threads"
-            referencedColumns: ["thread_id"]
           },
         ]
       }
@@ -1619,6 +1592,14 @@ export type Database = {
       }
     }
     Functions: {
+      autopilot_interval_to_cron: {
+        Args: { p_pulse_interval: string }
+        Returns: string
+      }
+      autopilot_next_fire_at: {
+        Args: { p_pulse_interval: string; p_reference: string }
+        Returns: string
+      }
       claim_due_triggers: {
         Args: never
         Returns: {
@@ -1628,8 +1609,8 @@ export type Database = {
           current_run_id: string | null
           enabled: boolean
           id: string
-          invocation_message: string | null
           instruction_path: string
+          invocation_message: string | null
           last_fired_at: string | null
           last_status: string | null
           name: string
@@ -1641,6 +1622,12 @@ export type Database = {
           updated_at: string
           webhook_secret: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "agent_triggers"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       consume_message_quota: {
         Args: { p_client_id: string }
@@ -1655,15 +1642,9 @@ export type Database = {
           plan_name: string
         }[]
       }
-      release_message_quota: {
-        Args: { p_client_id: string; p_period_start: string }
-        Returns: {
-          released: boolean
-        }[]
-      }
       create_run_if_idle: {
         Args: { p_client_id: string; p_run_type?: string; p_thread_id: string }
-        Returns: string | null
+        Returns: string
       }
       drain_thread_queue: {
         Args: { p_client_id: string; p_thread_id: string }
@@ -1673,10 +1654,11 @@ export type Database = {
           queue_id: string
         }[]
       }
-      get_client_accessible_schema: {
-        Args: never
-        Returns: Json
+      ensure_autopilot_for_client: {
+        Args: { p_client_id: string }
+        Returns: undefined
       }
+      get_client_accessible_schema: { Args: never; Returns: Json }
       get_message_quota_status: {
         Args: { p_client_id: string }
         Returns: {
@@ -1693,20 +1675,17 @@ export type Database = {
       get_my_client_id: { Args: never; Returns: string }
       get_system_reminder_context: {
         Args: { p_client_id: string; p_thread_id: string }
-        Returns: {
-          active_connection_toolkits: string[]
-          active_trigger_count: number
-          days_since_signup: number | null
-          display_name: string | null
-          memory_file_count: number
-          open_todo_count: number
-          pending_approval_count: number
-          user_email: string | null
-        }
+        Returns: Json
       }
       mark_stale_runs_failed: {
-        Args: { p_stale_minutes?: number; p_thread_id?: string | null }
+        Args: { p_stale_minutes?: number; p_thread_id?: string }
         Returns: number
+      }
+      release_message_quota: {
+        Args: { p_client_id: string; p_period_start: string }
+        Returns: {
+          released: boolean
+        }[]
       }
       release_stale_trigger_claims: {
         Args: { p_stale_minutes?: number }
@@ -1714,21 +1693,33 @@ export type Database = {
       }
       release_trigger_claim: {
         Args: {
-          p_advance_next_fire_at?: boolean | null
-          p_next_fire_at?: string | null
+          p_advance_next_fire_at?: boolean
+          p_next_fire_at?: string
           p_run_id: string
           p_status?: string
           p_trigger_id: string
         }
         Returns: boolean
       }
-      run_readonly_sql: {
-        Args: { query_text: string }
-        Returns: Json
+      run_readonly_sql: { Args: { query_text: string }; Returns: Json }
+      search_records: {
+        Args: { query: string }
+        Returns: {
+          id: string
+          subtitle: string
+          title: string
+          type: string
+        }[]
       }
     }
     Enums: {
-      run_status: "queued" | "running" | "completed" | "partial" | "failed" | "cancelled"
+      run_status:
+        | "queued"
+        | "running"
+        | "completed"
+        | "partial"
+        | "failed"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1856,7 +1847,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      run_status: ["queued", "running", "completed", "partial", "failed", "cancelled"],
+      run_status: [
+        "queued",
+        "running",
+        "completed",
+        "partial",
+        "failed",
+        "cancelled",
+      ],
     },
   },
 } as const
+

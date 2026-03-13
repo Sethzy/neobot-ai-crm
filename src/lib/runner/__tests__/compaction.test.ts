@@ -20,6 +20,7 @@ vi.mock("ai", () => ({
 
 vi.mock("@/lib/ai/gateway", () => ({
   gateway: mockGateway,
+  gatewayProviderOptions: {},
   TIER_1_MODEL: "google/gemini-3-flash",
   COMPACTION_MODEL: "google/gemini-2.5-flash-lite",
 }));

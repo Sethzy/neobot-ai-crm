@@ -22,6 +22,7 @@ export const runnerPayloadSchema = z.object({
   input: z.string(),
   fileParts: z.array(runnerFilePartSchema).optional(),
   crmMode: z.enum(["normal", "setup"]).optional(),
+  includeConfigTool: z.boolean().optional(),
 });
 
 export const toolResultEnvelopeSchema = z.object({

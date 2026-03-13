@@ -54,6 +54,7 @@ vi.mock("ai", () => ({
 
 vi.mock("@/lib/ai/gateway", () => ({
   gateway: mockGateway,
+  gatewayProviderOptions: {},
   TIER_1_MODEL: "google/gemini-3-flash",
 }));
 
@@ -171,6 +172,36 @@ describe("runAgent CRM configuration", () => {
           deal_label: "Policy",
           deal_stages: ["lead", "quoted", "bound"],
         }),
+      }),
+    );
+  });
+
+  it("passes includeConfigTool to createCrmTools when payload has it", async () => {
+    await runAgent(
+      {
+        ...validPayload,
+        includeConfigTool: true,
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockCreateCrmTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      expect.objectContaining({
+        includeConfigTool: true,
+      }),
+    );
+  });
+
+  it("does not pass includeConfigTool when payload omits it", async () => {
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    expect(mockCreateCrmTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      expect.objectContaining({
+        includeConfigTool: undefined,
       }),
     );
   });

@@ -2574,6 +2574,58 @@
             "Normal usage patterns never hit the limit",
             "Rate limit state resets correctly after window expires"
           ]
+        },
+        {
+          "pr": 48,
+          "title": "CRM configuration mode — time-limited, UI-gated reconfiguration",
+          "status": "in_progress",
+          "simplified": false,
+          "decisions": ["SAFETY-01", "SAFETY-02", "SAFETY-04", "TOOL-02"],
+          "description": "Expose configure_crm in normal chat only when explicitly activated from Settings. Time-limited (1h TTL) with auto-expiry safety net. Agent can self-disable via disable_crm_config_mode tool. Solves QA ISSUE-001: configure_crm not available in normal chat.",
+          "subtasks": [
+            {
+              "id": "PR48-1",
+              "task": "Add crm_config_mode_until column to clients table (migration)",
+              "done": false
+            },
+            {
+              "id": "PR48-2",
+              "task": "Add includeConfigTool option to createCrmTools and tool-registry",
+              "done": false
+            },
+            {
+              "id": "PR48-3",
+              "task": "Create disable_crm_config_mode tool",
+              "done": false
+            },
+            {
+              "id": "PR48-4",
+              "task": "Create POST /api/settings/crm-config-mode endpoint (enable/disable)",
+              "done": false
+            },
+            {
+              "id": "PR48-5",
+              "task": "Wire chat route to check config mode flag and pass includeConfigTool",
+              "done": false
+            },
+            {
+              "id": "PR48-6",
+              "task": "Inject system reminder when config mode is active",
+              "done": false
+            },
+            {
+              "id": "PR48-7",
+              "task": "Add Reconfigure CRM button + confirmation modal to Settings page",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "configure_crm tool appears in agent toolset only after activation from Settings",
+            "configure_crm tool disappears after 1h TTL expires",
+            "Agent can call disable_crm_config_mode to end config mode early",
+            "Normal chat without activation does NOT include configure_crm",
+            "Settings button shows clear destructive warning before activation"
+          ]
         }
       ]
     },

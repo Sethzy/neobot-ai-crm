@@ -1,20 +1,23 @@
 /**
- * Settings shell with the first production-ready billing section.
+ * Settings page with billing and CRM configuration mode controls.
  * @module app/(dashboard)/settings/page
  */
 import Link from "next/link";
 
-import { AlertCircle, CheckCircle, ExternalLink, Sparkles } from "@/components/icons/lucide-compat";
+import { AlertCircle, CheckCircle, ExternalLink } from "@/components/icons/lucide-compat";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { resolveClientId } from "@/lib/chat/client-id";
 import { customerPortalAction } from "@/lib/stripe/actions";
 import { getBillingPlanMessageLimit } from "@/lib/stripe/plans";
 import { loadCurrentBillingState } from "@/lib/stripe/stripe";
+import { createClient } from "@/lib/supabase/server";
 import { formatMessageQuotaResetDate } from "@/lib/usage/message-quota";
 import { loadCurrentMessageQuota } from "@/lib/usage/message-quota-server";
 
+import { CrmConfigModeCard } from "./crm-config-mode-card";
 import { SubmitButton } from "../pricing/submit-button";
 
 interface SettingsPageProps {
@@ -108,10 +111,34 @@ function getStatusVariant(status: string | null) {
   }
 }
 
+/** Loads the CRM config mode expiry for the current client. Returns ISO string if active, null otherwise. */
+async function loadCrmConfigModeExpiresAt(): Promise<string | null> {
+  try {
+    const supabase = await createClient();
+    const clientId = await resolveClientId(supabase);
+    const { data } = await supabase
+      .from("clients")
+      .select("crm_config_mode_until")
+      .eq("client_id", clientId)
+      .single();
+
+    if (data?.crm_config_mode_until && new Date(data.crm_config_mode_until) > new Date()) {
+      return data.crm_config_mode_until;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
-  const client = await loadCurrentBillingState();
-  const messageQuota = await loadCurrentMessageQuota();
+  const [client, messageQuota, crmConfigExpiresAt] = await Promise.all([
+    loadCurrentBillingState(),
+    loadCurrentMessageQuota(),
+    loadCrmConfigModeExpiresAt(),
+  ]);
   const connectionAlert = renderConnectionAlert(
     resolvedSearchParams.connection,
     resolvedSearchParams.reason,
@@ -133,9 +160,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           <div className="space-y-2">
             <h1 className="text-3xl font-semibold tracking-tight">Workspace controls</h1>
             <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-              Billing is the first settings surface to ship here. Stripe remains the source of
+              Manage your billing plan and CRM configuration. Stripe remains the source of
               truth for paid subscriptions, while Sunder mirrors the current plan into the client
-              row for product logic and future gating.
+              row for product logic and gating.
             </p>
           </div>
         </div>
@@ -246,31 +273,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             </CardFooter>
           </Card>
 
-          <Card>
-            <CardHeader className="gap-2">
-              <CardDescription>Roadmap</CardDescription>
-              <CardTitle className="text-xl">More settings will land here next.</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <p>
-                Connections, account preferences, and future workspace controls still have room to
-                grow. Billing ships first because it needs end-to-end routes, webhooks, and a user
-                surface today.
-              </p>
-              <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-4">
-                <div className="flex items-start gap-3">
-                  <Sparkles className="mt-0.5 h-4 w-4 text-emerald-700" />
-                  <div className="space-y-1">
-                    <p className="font-medium text-foreground">What exists right now</p>
-                    <p>
-                      Billing plan status, Stripe portal access, and connection callback feedback
-                      are now available from this route.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <CrmConfigModeCard initialExpiresAt={crmConfigExpiresAt} />
         </div>
       </div>
     </div>

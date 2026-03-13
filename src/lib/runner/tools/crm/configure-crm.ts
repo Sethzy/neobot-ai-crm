@@ -1,5 +1,5 @@
 /**
- * Setup-mode-only CRM configuration tool.
+ * CRM configuration tool (available in setup mode and when config mode is active).
  * @module lib/runner/tools/crm/configure-crm
  */
 import { tool } from "ai";

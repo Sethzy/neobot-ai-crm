@@ -75,6 +75,11 @@ async function fetchReminderContext(
   };
 }
 
+interface BuildSystemReminderOptions {
+  /** When true, injects a CRM configuration mode active notice. */
+  crmConfigModeActive?: boolean;
+}
+
 /**
  * Builds the system-reminder XML block for the current run turn.
  */
@@ -82,6 +87,7 @@ export async function buildSystemReminder(
   supabase: SupabaseClient<Database>,
   clientId: string,
   threadId: string,
+  options?: BuildSystemReminderOptions,
 ): Promise<string> {
   const context = await fetchReminderContext(supabase, clientId, threadId);
 
@@ -153,6 +159,13 @@ export async function buildSystemReminder(
     if (inactiveConnectionCount > 0) {
       reminderLines.push(`Inactive connections: ${inactiveConnectionCount}`);
     }
+  }
+
+  if (options?.crmConfigModeActive) {
+    reminderLines.push(
+      "CRM configuration mode: ACTIVE — configure_crm and disable_crm_config_mode tools are available. " +
+      "Use configure_crm to reconfigure CRM fields/stages, then call disable_crm_config_mode when done.",
+    );
   }
 
   if (context.days_since_signup !== null) {

@@ -34,6 +34,8 @@ interface AssembleContextParams {
   instructions?: string;
   crmConfig?: CrmVocabConfig;
   crmMode?: "normal" | "setup";
+  /** When true, injects CRM config mode notice into the system reminder. */
+  crmConfigModeActive?: boolean;
   platformInstructions?: string;
   systemPrompt?: string;
 }
@@ -146,8 +148,9 @@ async function loadSystemPromptState({
   supabase,
   threadId,
   clientId,
+  crmConfigModeActive,
   includeCompactionState = true,
-}: Pick<AssembleContextParams, "supabase" | "threadId" | "clientId"> & {
+}: Pick<AssembleContextParams, "supabase" | "threadId" | "clientId" | "crmConfigModeActive"> & {
   includeCompactionState?: boolean;
 }): Promise<{
   memoryContext?: MemoryContext;
@@ -162,7 +165,9 @@ async function loadSystemPromptState({
     return { memoryContext, systemReminder, compactionState };
   }
 
-  const reminderPromise = buildSystemReminder(supabase, clientId, threadId);
+  const reminderPromise = buildSystemReminder(supabase, clientId, threadId, {
+    crmConfigModeActive,
+  });
   const compactionPromise = includeCompactionState
     ? fetchThreadCompactionState(supabase, threadId)
     : Promise.resolve(null);
@@ -220,6 +225,7 @@ export async function assembleContext({
   instructions,
   crmConfig,
   crmMode = "normal",
+  crmConfigModeActive,
   platformInstructions,
   systemPrompt,
 }: AssembleContextParams): Promise<AssembledContext> {
@@ -227,6 +233,7 @@ export async function assembleContext({
     supabase,
     threadId,
     clientId,
+    crmConfigModeActive,
   });
 
   let historyQuery = supabase

@@ -10,6 +10,7 @@ import type { Database } from "@/types/database";
 import { createConfigureCrmTool } from "./configure-crm";
 import { createCreateRecordTool } from "./create-record";
 import { createDeleteRecordsTool } from "./delete-records";
+import { createDisableConfigModeTool } from "./disable-config-mode";
 import { createInteractionTools } from "./interactions";
 import { createLinkRecordsTool } from "./link-records";
 import { createSearchCrmTool } from "./search";
@@ -30,6 +31,8 @@ interface CreateCrmToolsOptions {
    * so approval-gated delete tools can be withheld from their registry.
    */
   allowDeleteTools?: boolean;
+  /** When true, includes configure_crm + disable_crm_config_mode alongside normal tools. */
+  includeConfigTool?: boolean;
 }
 
 /**
@@ -45,6 +48,7 @@ export function createCrmTools(
     allowDeleteTools = true,
     mode = "normal",
     config = CRM_DEFAULTS,
+    includeConfigTool = false,
   } = options ?? {};
 
   if (mode === "setup") {
@@ -77,6 +81,10 @@ export function createCrmTools(
     update_task: taskTools.update_task,
     ...(allowDeleteTools ? {
       delete_records: createDeleteRecordsTool(supabase, clientId).delete_records,
+    } : {}),
+    ...(includeConfigTool ? {
+      ...createConfigureCrmTool(supabase, clientId),
+      ...createDisableConfigModeTool(supabase, clientId),
     } : {}),
   };
 }
