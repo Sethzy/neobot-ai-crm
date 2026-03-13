@@ -128,7 +128,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
     <Message from="assistant" data-testid="message-bubble">
       <MessageContent>
         {isStreaming && !hasParts && (
-          <Shimmer as="span" className="text-xs text-muted-foreground" duration={2}>
+          <Shimmer as="span" className="text-xs" duration={2}>
             Thinking...
           </Shimmer>
         )}
