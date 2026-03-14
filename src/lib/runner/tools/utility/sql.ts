@@ -9,25 +9,29 @@ import { z } from "zod";
 import type { Database } from "@/types/database";
 
 /**
- * Validates that a query is read-only (SELECT/CTE, single statement, no semicolons).
- * Returns an error message or null if valid.
+ * Strips a trailing semicolon and validates that a query is read-only
+ * (SELECT/CTE, single statement). Returns `{ cleaned, error }` where
+ * `cleaned` is the semicolon-free query to send to the RPC.
  */
-export function getReadOnlySqlValidationError(query: string): string | null {
-  const normalized = query.trim();
+export function validateAndCleanSql(query: string): { cleaned: string; error: string | null } {
+  const trimmed = query.trim();
 
-  if (normalized.length === 0) {
-    return "Query cannot be empty";
+  if (trimmed.length === 0) {
+    return { cleaned: trimmed, error: "Query cannot be empty" };
   }
 
-  if (normalized.includes(";")) {
-    return "Only single-statement SQL is allowed";
+  // Strip trailing semicolon (LLMs add these by habit)
+  const cleaned = trimmed.replace(/;\s*$/, "");
+
+  if (cleaned.includes(";")) {
+    return { cleaned, error: "Only single-statement SQL is allowed" };
   }
 
-  if (!/^(select|with)\s/i.test(normalized)) {
-    return "Only SELECT/CTE queries are allowed";
+  if (!/^(select|with)\s/i.test(cleaned)) {
+    return { cleaned, error: "Only SELECT/CTE queries are allowed" };
   }
 
-  return null;
+  return { cleaned, error: null };
 }
 
 /**
@@ -50,14 +54,14 @@ export function createSqlTools(supabase: SupabaseClient<Database>) {
         .optional(),
     }),
     execute: async ({ query, purpose: _purpose }) => {
-      const validationError = getReadOnlySqlValidationError(query);
+      const { cleaned, error: validationError } = validateAndCleanSql(query);
 
       if (validationError) {
         return { success: false as const, error: validationError };
       }
 
       const { data, error } = await supabase.rpc("run_readonly_sql", {
-        query_text: query,
+        query_text: cleaned,
       });
 
       if (error) {

@@ -1,9 +1,9 @@
 /**
  * Compact CRM task item for agent-generated inline views.
+ * Renders as a borderless content block — the outer layout (Card/Grid) provides containment.
  * @module components/views/task-item
  */
 import { TaskStatusBadge } from "@/components/crm/task-status-badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 export interface TaskItemProps {
@@ -12,13 +12,6 @@ export interface TaskItemProps {
   status?: "open" | "completed";
   contactName?: string;
   dealAddress?: string;
-}
-
-function getContextText({
-  contactName,
-  dealAddress,
-}: Pick<TaskItemProps, "contactName" | "dealAddress">) {
-  return [contactName, dealAddress].filter(Boolean).join(" • ");
 }
 
 /** Returns true when the task is open and past its due date. */
@@ -32,7 +25,7 @@ function isOverdue(dueDate: string | undefined, status: string | undefined): boo
 }
 
 /**
- * Renders a single task with optional status, due date, and linked CRM context.
+ * Renders a single task with optional status, due date, and linked CRM context chips.
  */
 export function TaskItem({
   title,
@@ -41,27 +34,39 @@ export function TaskItem({
   contactName,
   dealAddress,
 }: TaskItemProps) {
-  const contextText = getContextText({ contactName, dealAddress });
   const overdue = isOverdue(dueDate, status);
+  const contextItems = [contactName, dealAddress].filter(Boolean) as string[];
 
   return (
-    <Card size="sm" className="border-border/60 bg-card/80">
-      <CardContent className="flex flex-col gap-3">
-        <p className="text-sm font-medium text-foreground">{title}</p>
-        {(dueDate || status) ? (
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            {dueDate ? (
-              <span className={cn(overdue && "font-medium text-rose-600")}>
-                {dueDate}{overdue ? " · Overdue" : ""}
-              </span>
-            ) : null}
-            {status ? <TaskStatusBadge status={status} /> : null}
-          </div>
-        ) : null}
-        {contextText ? (
-          <p className="text-sm text-muted-foreground">{contextText}</p>
-        ) : null}
-      </CardContent>
-    </Card>
+    <div
+      className={cn(
+        "flex flex-col gap-3 p-4",
+        overdue && "border-l-3 border-l-rose-500",
+      )}
+    >
+      <p className="text-sm font-medium text-foreground">{title}</p>
+      {(dueDate || status) ? (
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          {dueDate ? (
+            <span className={cn(overdue && "font-medium text-rose-600 dark:text-rose-400")}>
+              {dueDate}{overdue ? " · Overdue" : ""}
+            </span>
+          ) : null}
+          {status ? <TaskStatusBadge status={status} /> : null}
+        </div>
+      ) : null}
+      {contextItems.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {contextItems.map((item) => (
+            <span
+              key={item}
+              className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+            >
+              {item}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }

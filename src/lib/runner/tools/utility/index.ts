@@ -8,6 +8,7 @@ import type { Database } from "@/types/database";
 
 import { createAskUserQuestionTool } from "./ask-user-question";
 import { createCalculateTool } from "./calculate";
+import { createGeneratePdfTool } from "./generate-pdf";
 import { createRenameChatTool } from "./rename-chat";
 import { createSendMessageTool } from "./send-message";
 import { createSqlTools } from "./sql";
@@ -36,6 +37,7 @@ export function createUtilityTools(
     ...createCalculateTool(),
     ...createTodoTools(supabase, clientId, threadId),
     ...createSqlTools(supabase),
+    ...(!isSubagent ? createGeneratePdfTool(supabase, clientId) : {}),
     ...(!isSubagent ? createAskUserQuestionTool() : {}),
     ...(!isSubagent ? createRenameChatTool(supabase, clientId, threadId) : {}),
     ...(includeSendMessage ? createSendMessageTool() : {}),

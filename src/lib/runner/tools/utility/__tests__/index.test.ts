@@ -19,6 +19,7 @@ describe("createUtilityTools", () => {
     expect(Object.keys(tools).sort()).toEqual([
       "ask_user_question",
       "calculate",
+      "generate_pdf",
       "get_agent_db_schema",
       "list_todo",
       "manage_todo",

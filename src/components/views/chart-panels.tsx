@@ -96,7 +96,7 @@ function ChartPanelShell({
   footer?: ReactNode;
 }) {
   return (
-    <Card size="sm" className="h-full border-border/60 bg-card/80">
+    <Card className="h-full">
       <CardHeader className="gap-1.5">
         <CardTitle>{title}</CardTitle>
         {subtitle ? <CardDescription>{subtitle}</CardDescription> : null}
@@ -104,7 +104,11 @@ function ChartPanelShell({
       <CardContent className="flex flex-col gap-3">
         {children}
         {insight ? (
-          <p className="text-sm text-muted-foreground">{insight}</p>
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 dark:border-emerald-900 dark:bg-emerald-950/50">
+            <p className="text-sm font-medium text-emerald-900 dark:text-emerald-200">
+              {insight}
+            </p>
+          </div>
         ) : null}
       </CardContent>
       {footer ? <CardFooter className="text-sm text-muted-foreground">{footer}</CardFooter> : null}

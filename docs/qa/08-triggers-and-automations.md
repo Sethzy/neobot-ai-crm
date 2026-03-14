@@ -30,63 +30,172 @@
 
 ## Manual QA Scenarios
 
-### 8.1 Autopilot thread exists
+### 8.1 Autopilot plumbing — thread, trigger, and cron
 
 1. Navigate to `/chat`
 2. **Expected:** "Sunder Autopilot" pinned thread visible in sidebar
-3. Click on it
-4. **Expected:** Thread exists and is pinned (distinct from regular threads)
-5. **Verify in Supabase:** `conversation_threads` has a row with `is_pinned = true` and title containing "Autopilot"
+3. Check `/automations` page
+4. **Expected:** Autopilot trigger exists (type: pulse, default `0 */6 * * *` cron)
+5. **Verify in Supabase:** `agent_triggers` has autopilot trigger with `next_run_at` set, linked to the pinned thread
+6. Manually fire: set `next_run_at` to `now()` in Supabase, then `curl /api/cron/scan?cron_secret=...`
+7. **Expected:** `runs` table has a new row with `run_type = 'autopilot'`, linked to the autopilot thread, using `generateText` (non-streaming)
 
 **Notes / failures:**
 
 ---
 
-### 8.2 Autopilot trigger auto-created
+### 8.2 Bootstrap — agent checks live state before acting
 
-1. Check `/automations` page
-2. **Expected:** An autopilot trigger exists (type: schedule, default 6h interval)
-3. **Verify in Supabase:** `agent_triggers` has autopilot trigger row with `next_run_at` set
-4. **Expected:** Trigger is linked to the autopilot thread
+> Tests: `BOOTSTRAP` section of `AUTOPILOT_INSTRUCTION_PROMPT` in `src/lib/autopilot/constants.ts`
 
-**Notes / failures:**
+Pre-condition: Seed CRM with a few tasks (some overdue) and deals.
 
----
-
-### 8.3 Autopilot pulse execution
-
-1. Manually trigger an autopilot pulse:
-   - Option A: Wait for `next_run_at` to pass, then hit `/api/cron/scan`
-   - Option B: Update `next_run_at` in Supabase to now(), then hit `/api/cron/scan`
-2. **Expected:** A run is created in the autopilot thread
-3. Check the autopilot thread in chat
-4. **Expected:** Agent has produced meaningful output (checked CRM state, identified work to do)
-5. **Expected:** Agent used tools (`search_crm` with entity: tasks, `list_todo`, etc.) — not just generic text
-6. **Verify:** `runs` table has a new run linked to the autopilot thread with `generateText` (not stream)
+1. Fire a pulse
+2. **Inspect Langfuse trace** (or `runs` table tool calls): agent's FIRST tool calls must be the bootstrap trio:
+   - `list_todo()` — check thread todos
+   - `search_crm(entity: "tasks")` — live CRM tasks
+   - `search_crm(entity: "deals")` — live CRM deals
+3. **Expected:** These calls happen BEFORE any write/action tools. The agent does not act on stale thread history alone.
+4. **Fail if:** Agent skips bootstrap and immediately writes, or only calls one of the three.
 
 **Notes / failures:**
 
 ---
 
-### 8.4 Autopilot priority order
+### 8.3 Priority order — agent works the highest-priority item
 
-Pre-condition: Create some testable state:
-- Create an overdue CRM task (due date in the past)
-- Create some agent todos in the autopilot thread
-- Leave USER.md sparse
+> Tests: `PRIORITY` ladder (9 tiers) in `AUTOPILOT_INSTRUCTION_PROMPT`
 
-1. Trigger autopilot pulse
-2. **Expected priority behavior:**
-   - If there are agent todos → agent resumes interrupted work first
-   - If there are overdue CRM tasks → agent checks those next
-   - If USER.md is sparse → agent might try to learn about user
-3. **Expected:** Agent calls tools for live state BEFORE acting (bootstrap requirement from PR19-6)
+Run each sub-scenario by seeding specific state, firing a pulse, then checking what the agent chose to work on.
+
+**8.3a — Tier 1: Resume interrupted work (todos)**
+
+1. Create agent todos in the autopilot thread via `manage_todo` (e.g., "Draft follow-up email for Mr. Tan")
+2. Fire pulse
+3. **Expected:** Agent calls `list_todo()`, finds the pending todo, and resumes that work before anything else
+
+**8.3b — Tier 2: Overdue CRM tasks**
+
+1. Clear all todos. Create a CRM task with `due_date` in the past.
+2. Fire pulse
+3. **Expected:** Agent calls `search_crm(entity: "tasks")`, identifies the overdue task, and acts on it (e.g., creates an interaction, proposes a follow-up)
+
+**8.3c — Tier 3: Monitored CRM state (deals)**
+
+1. Clear todos and overdue tasks. Have active deals with recent stage changes.
+2. Fire pulse
+3. **Expected:** Agent reviews deals via `search_crm(entity: "deals")` or `run_sql()`, surfaces insights or proposes next actions
+
+**8.3d — Tier 6: Sparse USER.md**
+
+1. Clear todos, tasks, and deals. Ensure `/agent/USER.md` is empty or has < 3 lines.
+2. Fire pulse
+3. **Expected:** Agent leaves a concise question in the thread to learn about the user (not a wall of questions — one question only)
+
+**8.3e — Tier 7-9: Engagement / proposals / momentum**
+
+1. Clear everything. Populate CRM with a stalled deal (no activity for 14+ days).
+2. Fire pulse
+3. **Expected:** Agent proposes concrete next steps: creates a CRM task via `create_task()`, or proposes a follow-up action for user approval
 
 **Notes / failures:**
 
 ---
 
-### 8.5 Search available trigger types
+### 8.4 Approval override — safe vs deferred actions
+
+> Tests: `<approval-override>` section of `AUTOPILOT_INSTRUCTION_PROMPT`
+
+**8.4a — Auto-executed actions (internal)**
+
+1. Seed an overdue task. Fire pulse.
+2. **Expected:** Agent auto-executes without asking: `create_task`, `update_task`, `create_interaction`, `manage_todo`, `write_file` (to memory files)
+3. **Verify:** These tool calls complete successfully in the trace — no "awaiting approval" language
+
+**8.4b — Deferred actions (external-facing)**
+
+1. Seed state that would naturally lead to creating a new contact (e.g., a lead name mentioned in a task note)
+2. Fire pulse
+3. **Expected:** Agent does NOT call `create_contact`, `update_contact`, `create_deal`, etc. directly
+4. **Expected:** Agent leaves a clear proposal in the thread: "I'd like to create a contact for [name] — please approve"
+5. **Verify in trace:** No blocked tool calls, no errors — agent self-gates via prompt, not via tool restrictions
+
+**8.4c — Summary of actions**
+
+1. Fire any pulse that results in actions
+2. **Expected:** Agent's thread response ends with a summary: what it did, what it deferred for user approval
+3. **Fail if:** Agent takes actions silently with no summary
+
+**Notes / failures:**
+
+---
+
+### 8.5 Memory persistence — MEMORY.md updated after pulse
+
+> Tests: `AFTER ACTING` section of `AUTOPILOT_INSTRUCTION_PROMPT`
+
+1. Fire a pulse that results in at least one action
+2. **Expected:** Agent calls `write_file` to `/agent/MEMORY.md` with a timestamped summary of what it did and learned
+3. Fire a second pulse
+4. **Expected:** Agent reads MEMORY.md, sees the previous pulse summary, and does not repeat the same work
+5. **Bonus:** If the agent learned a stable fact (e.g., user prefers mornings for viewings), check if it wrote to `/agent/USER.md` or `/agent/memory/*.md`
+
+**Notes / failures:**
+
+---
+
+### 8.6 Hard rules — no empty pulses, no filler
+
+> Tests: `HARD RULES` section of `AUTOPILOT_INSTRUCTION_PROMPT`
+
+**8.6a — Always does something**
+
+1. Seed minimal but non-empty state (a few contacts, one active deal)
+2. Fire pulse
+3. **Expected:** Agent takes at least one meaningful action (not just "everything looks good!")
+4. **Fail if:** Agent produces only a status report with no concrete action or next step
+
+**8.6b — Logs when nothing is actionable**
+
+1. Clear ALL state: no todos, no tasks, no deals, empty CRM
+2. Fire pulse
+3. **Expected:** Agent verifies all sources (todos, tasks, deals, follow-ups) and explicitly logs WHY nothing was actionable
+4. **Expected:** Agent still does something constructive (Tier 6: asks about the user, or Tier 8: proposes creating initial CRM tasks)
+5. **Fail if:** Agent says "nothing to do" without checking all sources
+
+**8.6c — No filler / low-value output**
+
+1. Fire 3 pulses in quick succession (reset `next_run_at` each time)
+2. **Expected:** Pulses 2 and 3 don't just repeat pulse 1's work. Agent reads MEMORY.md and finds new things to do or correctly identifies that it already handled everything.
+3. **Fail if:** Agent produces generic motivational text, restates CRM data without acting on it, or repeats the same actions
+
+**Notes / failures:**
+
+---
+
+### 8.7 Quiet hours — pulse skipped during off-hours
+
+1. Set `quiet_hours_start` and `quiet_hours_end` in `autopilot_config` to cover the current time
+2. Fire cron scan
+3. **Expected:** Pulse is skipped, `next_run_at` is rescheduled to after quiet hours end
+4. **Verify:** No new run created in the autopilot thread
+
+**Notes / failures:**
+
+---
+
+### 8.8 Concurrency — pulse skipped if thread is busy
+
+1. Start a long-running chat in the autopilot thread (or simulate by leaving a run in `processing` state)
+2. Fire cron scan
+3. **Expected:** Pulse returns `skipped_busy`, no double-execution
+4. **Verify:** No new run created
+
+**Notes / failures:**
+
+---
+
+### 8.9 Search available trigger types
 
 1. "What kinds of automations can I set up?"
 2. **Expected:** Agent calls `search_triggers` to discover available trigger types
@@ -98,7 +207,7 @@ Pre-condition: Create some testable state:
 
 ---
 
-### 8.6 Create a scheduled trigger via chat
+### 8.10 Create a scheduled trigger via chat
 
 1. In a new thread: "Check my overdue tasks every morning at 8am"
 2. **Expected:** Agent calls `setup_trigger` with:
@@ -112,7 +221,7 @@ Pre-condition: Create some testable state:
 
 ---
 
-### 8.7 Create a webhook trigger via chat
+### 8.11 Create a webhook trigger via chat
 
 1. "Create a webhook trigger that processes inbound leads"
 2. **Expected:** `setup_trigger` with type: webhook
@@ -130,7 +239,7 @@ Pre-condition: Create some testable state:
 
 ---
 
-### 8.8 Create an RSS trigger via chat
+### 8.12 Create an RSS trigger via chat
 
 1. "Monitor the PropertyGuru RSS feed for new listings in District 10"
 2. **Expected:** `setup_trigger` with type: rss, config includes feed URL
@@ -144,7 +253,7 @@ Pre-condition: Create some testable state:
 
 ---
 
-### 8.9 Manage triggers via chat
+### 8.13 Manage triggers via chat
 
 1. "List all my active triggers"
 2. **Expected:** `manage_active_triggers` with list action
@@ -159,7 +268,7 @@ Pre-condition: Create some testable state:
 
 ---
 
-### 8.10 Automations page — trigger list
+### 8.14 Automations page — trigger list
 
 1. Navigate to `/automations`
 2. **Expected:** Table shows all triggers with:
@@ -178,7 +287,7 @@ Pre-condition: Create some testable state:
 
 ---
 
-### 8.11 Suggested automations — template cards (PR 20a)
+### 8.15 Suggested automations — template cards (PR 20a)
 
 1. Navigate to `/automations`
 2. **Expected:** "Suggested" section visible (below trigger table, or as empty state if no triggers)
@@ -200,7 +309,7 @@ Pre-condition: Create some testable state:
 
 ---
 
-### 8.12 Chat empty state suggestion chips (PR 20a)
+### 8.16 Chat empty state suggestion chips (PR 20a)
 
 1. Create a new thread (empty)
 2. **Expected:** 3-4 suggestion chips shown in the empty state
@@ -213,26 +322,23 @@ Pre-condition: Create some testable state:
 
 ---
 
-### 8.13 Autopilot configuration
-
-1. Check `autopilot_config` in Supabase — should have a row for this client
-2. Default pulse interval should be 6h
-3. Change pulse interval (via direct DB edit or agent if tool exists)
-4. Verify next_run_at updates accordingly
-
-**Notes / failures:**
-
----
-
 ## Edge Cases
 
-- [ ] Trigger fires while thread has an active run — serialization prevents double execution
+### Pulse prompt behavior
+- [ ] Pulse with nothing to do — agent still takes a constructive action (no empty "all good!" responses)
+- [ ] Pulse repeats — agent reads MEMORY.md and avoids redoing the same work
+- [ ] Pulse with external-facing action needed — agent proposes (not executes) contact/deal mutations
+- [ ] Pulse during quiet hours — skipped, rescheduled correctly
+- [ ] Pulse while thread is busy — returns `skipped_busy`, no double-execution
+- [ ] Pulse with large thread history — agent relies on bootstrap tools for live state, not stale context
+- [ ] Pulse with broken memory file (corrupt MEMORY.md) — agent handles gracefully, doesn't crash
+
+### Triggers (non-pulse)
 - [ ] Cron scanner with no due triggers — completes cleanly, no unnecessary runs
 - [ ] Webhook with invalid JSON body — graceful error response
 - [ ] Webhook with wrong/missing secret (if HMAC validation enabled) — 401/403
 - [ ] RSS feed that's down/404 — trigger handles gracefully, doesn't crash
 - [ ] RSS feed with 0 new items — no run fired (noise suppression)
-- [ ] Autopilot with nothing to do — produces minimal or no output (noise suppression from PR19-7)
 - [ ] 20+ triggers for a single user — automations page handles pagination
 - [ ] Trigger's retry policy: autopilot (0 retries), schedule (max 2 retries)
 - [ ] Delete a trigger that's currently running — handled gracefully
@@ -242,5 +348,5 @@ Pre-condition: Create some testable state:
 
 ## Pass / Fail Criteria
 
-- **Pass:** Autopilot thread exists and fires on schedule. User can create schedule/webhook/RSS triggers via chat. Triggers fire correctly and produce meaningful output. Automations page shows accurate trigger state. Template cards pre-fill chat correctly. No double-execution.
-- **Fail:** Autopilot never fires, triggers double-execute, webhook doesn't process payload, RSS doesn't dedup, automations page crashes, template cards broken.
+- **Pass:** Autopilot pulse fires on schedule, bootstraps with live CRM state, follows priority order, auto-executes internal actions, defers external actions as proposals, updates MEMORY.md after acting, never produces empty/filler pulses. User triggers (schedule/webhook/RSS) work via chat. Automations page accurate. No double-execution.
+- **Fail:** Pulse skips bootstrap, acts on stale data, executes external-facing mutations without deferring, produces no-op filler output, doesn't update memory, repeats same work across pulses. Triggers double-execute, webhook doesn't process payload, RSS doesn't dedup, automations page crashes.
