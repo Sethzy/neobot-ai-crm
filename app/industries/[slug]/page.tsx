@@ -7,20 +7,20 @@ import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Container } from "@/components/landing/Container";
 import {
-  TbArrowRight,
-  TbCheck,
-  TbClipboardList,
-  TbFileCheck,
-  TbFileText,
-  TbReceipt2,
-} from "react-icons/tb";
+  ArrowRightIcon,
+  CheckIcon,
+  ClipboardListIcon,
+  FileCheckIcon,
+  FileTextIcon,
+  ReceiptIcon,
+} from "lucide-react";
 import { problemIconMap as iconMap } from "@/data/problem-icons";
 
 const useCaseIcons = {
-  invoices: TbFileText,
-  receipts: TbReceipt2,
-  contracts: TbFileCheck,
-  forms: TbClipboardList,
+  invoices: FileTextIcon,
+  receipts: ReceiptIcon,
+  contracts: FileCheckIcon,
+  forms: ClipboardListIcon,
 } as const;
 
 export async function generateMetadata({
@@ -118,7 +118,7 @@ export default async function IndustryPage({
                   className="inline-flex items-center gap-2 rounded-full bg-sunder-green px-8 py-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-sunder-green-dark"
                 >
                   Book a Demo
-                  <TbArrowRight className="h-4 w-4" />
+                  <ArrowRightIcon className="h-4 w-4" />
                 </Link>
               </div>
             </div>
@@ -142,7 +142,7 @@ export default async function IndustryPage({
                   key={i}
                   className="flex items-center gap-2 rounded-full border border-zinc-100 bg-white px-5 py-3 shadow-sm"
                 >
-                  <TbFileText className="h-5 w-5 text-sunder-green" />
+                  <FileTextIcon className="h-5 w-5 text-sunder-green" />
                   <span className="font-medium text-zinc-900">{docType}</span>
                 </div>
               ))}
@@ -203,7 +203,7 @@ export default async function IndustryPage({
                   className="rounded-2xl border border-sunder-green/10 bg-sunder-green/5 p-6"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sunder-green/10">
-                    <TbCheck className="h-6 w-6 text-sunder-green" />
+                    <CheckIcon className="h-6 w-6 text-sunder-green" />
                   </div>
                   <h3 className="mt-4 font-semibold text-zinc-900">
                     {benefit.title}
@@ -235,7 +235,7 @@ export default async function IndustryPage({
                   if (!useCase) return null;
                   const Icon =
                     useCaseIcons[caseSlug as keyof typeof useCaseIcons] ||
-                    TbFileText;
+                    FileTextIcon;
                   return (
                     <Link
                       key={caseSlug}
@@ -276,7 +276,7 @@ export default async function IndustryPage({
                   className="inline-flex items-center gap-2 rounded-full bg-sunder-green px-8 py-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-sunder-green-dark"
                 >
                   Book a Demo
-                  <TbArrowRight className="h-4 w-4" />
+                  <ArrowRightIcon className="h-4 w-4" />
                 </Link>
               </div>
             </div>

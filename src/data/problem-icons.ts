@@ -3,19 +3,19 @@
  * @module data/problem-icons
  */
 import {
-  TbAlertTriangle,
-  TbClock,
-  TbEdit,
-  TbFileX,
-  TbLayersIntersect,
-  TbSearch,
-} from "react-icons/tb";
+  TriangleAlertIcon,
+  ClockIcon,
+  PencilIcon,
+  FileXIcon,
+  LayersIcon,
+  SearchIcon,
+} from "lucide-react";
 
 export const problemIconMap = {
-  "alert-triangle": TbAlertTriangle,
-  clock: TbClock,
-  search: TbSearch,
-  "file-x": TbFileX,
-  edit: TbEdit,
-  layers: TbLayersIntersect,
+  "alert-triangle": TriangleAlertIcon,
+  clock: ClockIcon,
+  search: SearchIcon,
+  "file-x": FileXIcon,
+  edit: PencilIcon,
+  layers: LayersIcon,
 } as const;

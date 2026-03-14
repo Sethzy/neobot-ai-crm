@@ -5,18 +5,18 @@ import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Container } from "@/components/landing/Container";
 import {
-  TbArrowRight,
-  TbClipboardList,
-  TbFileCheck,
-  TbFileText,
-  TbReceipt2,
-} from "react-icons/tb";
+  ArrowRightIcon,
+  ClipboardListIcon,
+  FileCheckIcon,
+  FileTextIcon,
+  ReceiptIcon,
+} from "lucide-react";
 
 const useCaseIcons = {
-  invoices: TbFileText,
-  receipts: TbReceipt2,
-  contracts: TbFileCheck,
-  forms: TbClipboardList,
+  invoices: FileTextIcon,
+  receipts: ReceiptIcon,
+  contracts: FileCheckIcon,
+  forms: ClipboardListIcon,
 } as const;
 
 export const metadata: Metadata = {
@@ -75,7 +75,7 @@ export default function UseCasesIndexPage() {
               {useCases.map((useCase) => {
                 const Icon =
                   useCaseIcons[useCase.slug as keyof typeof useCaseIcons] ||
-                  TbFileText;
+                  FileTextIcon;
                 return (
                   <Link
                     key={useCase.slug}
@@ -93,7 +93,7 @@ export default function UseCasesIndexPage() {
                     </p>
                     <div className="mt-6 flex items-center gap-2 text-sm font-medium text-sunder-green">
                       Learn more
-                      <TbArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </div>
                   </Link>
                 );
@@ -119,7 +119,7 @@ export default function UseCasesIndexPage() {
                   className="inline-flex items-center gap-2 rounded-full bg-sunder-green px-8 py-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-sunder-green-dark"
                 >
                   Book a Demo
-                  <TbArrowRight className="h-4 w-4" />
+                  <ArrowRightIcon className="h-4 w-4" />
                 </Link>
               </div>
             </div>

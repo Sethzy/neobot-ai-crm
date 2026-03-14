@@ -7,18 +7,18 @@ import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Container } from "@/components/landing/Container";
 import {
-  TbArrowRight,
-  TbCalculator,
-  TbCheck,
-  TbScale,
-  TbTruck,
-} from "react-icons/tb";
+  ArrowRightIcon,
+  CalculatorIcon,
+  CheckIcon,
+  ScaleIcon,
+  TruckIcon,
+} from "lucide-react";
 import { problemIconMap as iconMap } from "@/data/problem-icons";
 
 const industryIcons = {
-  accounting: TbCalculator,
-  legal: TbScale,
-  logistics: TbTruck,
+  accounting: CalculatorIcon,
+  legal: ScaleIcon,
+  logistics: TruckIcon,
 } as const;
 
 export async function generateMetadata({
@@ -116,7 +116,7 @@ export default async function UseCasePage({
                   className="inline-flex items-center gap-2 rounded-full bg-sunder-green px-8 py-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-sunder-green-dark"
                 >
                   Book a Demo
-                  <TbArrowRight className="h-4 w-4" />
+                  <ArrowRightIcon className="h-4 w-4" />
                 </Link>
               </div>
             </div>
@@ -175,7 +175,7 @@ export default async function UseCasePage({
                   className="rounded-2xl border border-sunder-green/10 bg-sunder-green/5 p-6"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sunder-green/10">
-                    <TbCheck className="h-6 w-6 text-sunder-green" />
+                    <CheckIcon className="h-6 w-6 text-sunder-green" />
                   </div>
                   <h3 className="mt-4 font-semibold text-zinc-900">
                     {benefit.title}
@@ -210,7 +210,7 @@ export default async function UseCasePage({
                   const Icon =
                     industryIcons[
                       industrySlug as keyof typeof industryIcons
-                    ] || TbCalculator;
+                    ] || CalculatorIcon;
                   return (
                     <Link
                       key={industrySlug}
@@ -251,7 +251,7 @@ export default async function UseCasePage({
                   className="inline-flex items-center gap-2 rounded-full bg-sunder-green px-8 py-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-sunder-green-dark"
                 >
                   Book a Demo
-                  <TbArrowRight className="h-4 w-4" />
+                  <ArrowRightIcon className="h-4 w-4" />
                 </Link>
               </div>
             </div>
