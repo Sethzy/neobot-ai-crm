@@ -24,12 +24,12 @@ describe("StatMetric", () => {
   it("shows a trend indicator when present", () => {
     render(<StatMetric label="Stale" value={3} trend="up" />);
 
-    expect(screen.getByTestId("trend-indicator")).toHaveTextContent("↑");
+    expect(screen.getByTestId("trend-indicator")).toHaveTextContent("↗");
   });
 
   it("shows trend with change magnitude", () => {
     render(<StatMetric label="Revenue" value="$4.2M" trend="up" change="12%" />);
 
-    expect(screen.getByTestId("trend-indicator")).toHaveTextContent("↑ 12%");
+    expect(screen.getByTestId("trend-indicator")).toHaveTextContent("↗ 12%");
   });
 });

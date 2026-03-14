@@ -143,6 +143,29 @@ describe("run_sql", () => {
     expect(supabase.calls.rpc).toEqual([]);
   });
 
+  it("strips trailing semicolon before sending to RPC", async () => {
+    const mockRows = [{ count: 3 }];
+    const supabase = createMockSupabaseClient({
+      rpcResults: {
+        run_readonly_sql: { data: mockRows, error: null },
+      },
+    });
+
+    const tools = createSqlTools(supabase as never);
+    const result = await tools.run_sql.execute(
+      { query: "SELECT COUNT(*) FROM deals;" },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({ success: true, rows: mockRows, row_count: 1 });
+    expect(supabase.calls.rpc).toEqual([
+      {
+        fn: "run_readonly_sql",
+        args: { query_text: "SELECT COUNT(*) FROM deals" },
+      },
+    ]);
+  });
+
   it("rejects empty queries", async () => {
     const supabase = createMockSupabaseClient();
     const tools = createSqlTools(supabase as never);

@@ -51,7 +51,9 @@
       "2026-03-12: Added PR 8b (math.js calculate tool) to Phase 3. Small built-in tool (sibling to PR 8a drive-time). General-purpose expression evaluator using math.js — agent writes math expressions, mathjs evaluates them safely. Covers commission calculations, amortization, unit conversions, and any ad-hoc arithmetic. No sandbox needed. Hardened math.js instance disables dangerous functions (import, evaluate, parse, simplify, derivative, resolve, createUnit, reviver). Old PR 8b (Excalidraw) cut from scope.",
       "2026-03-13: Added PR 42a-i (json-render inline mode migration) to Phase 3 after PR 42a. Migrates agent-generated views from show_view tool-call pattern to json-render native inline mode. LLM emits spec JSONL inside ```spec fences; pipeJsonRender() transforms stream; useJsonRenderMessage() + segment-based rendering on client. Deletes show_view tool, ViewCard, ShowViewInline. catalog.prompt({ mode: 'inline' }) replaces hand-rolled getViewCatalogPrompt(). Handover: docs/product/handovers/json-render-inline-mode-handover.md.",
       "2026-03-13: Added PR 42a-p (view component visual polish) to Phase 4. Design polish pass for all 7 custom CRM view components (StatMetric, DealCard, ContactCard, TaskItem, BarChartPanel, DonutChartPanel, FunnelChartPanel). Tighter spacing, better card proportions, improved chart colors, responsive refinements.",
-      "2026-03-13: Added 6 production hardening PRs to Phase 4 (PR 47a-f). Pre-launch reliability and security: error boundaries, env validation, health endpoint, security headers, Sentry integration, API rate limiting. Identified during pre-prod QA audit. Can be assigned to another dev."
+      "2026-03-13: Added 6 production hardening PRs to Phase 4 (PR 47a-f). Pre-launch reliability and security: error boundaries, env validation, health endpoint, security headers, Sentry integration, API rate limiting. Identified during pre-prod QA audit. Can be assigned to another dev.",
+      "2026-03-14: PR 32a (Resend email): added resend-cli (https://github.com/resend/resend-cli) as a required tool. New task PR32a-1 for CLI setup (install, API key config, domain verification, local dev workflow). Original SDK integration task renumbered to PR32a-1b. CLI used for management/debugging; SDK for runtime sending.",
+      "2026-03-15: Added PR 42a-pdf (PDF document generation tool) to Phase 4. Agent tool that generates downloadable PDF documents on demand. User asks in chat (e.g. 'make me a client brief'), agent pulls CRM data, calls generate_pdf tool which makes an inner LLM call using @json-render/react-pdf catalog.prompt() as system prompt, compiles the JSONL spec, renders via renderToBuffer(), stores in Supabase Storage, returns download URL. No main agent context bloat — inner LLM call is isolated. Standard 15 PDF components from json-render (Document, Page, Text, Table, etc.). Custom branded components deferred."
     ]
   },
   "phases": [
@@ -1924,11 +1926,16 @@
             "SERVICE-13",
             "TRIG-13"
           ],
-          "note": "Platform transactional email for notifications and autopilot results. Separate from Gmail connection (Composio) which is user's own email.",
+          "note": "Platform transactional email for notifications and autopilot results. Separate from Gmail connection (Composio) which is user's own email. Must use resend-cli (https://github.com/resend/resend-cli) for local development, domain verification, and email management workflows.",
           "tasks": [
             {
               "id": "PR32a-1",
-              "task": "Resend SDK integration for transactional email",
+              "task": "Resend CLI setup: install resend-cli, configure API key, verify sending domain, and document CLI workflow for local email dev/testing",
+              "done": false
+            },
+            {
+              "id": "PR32a-1b",
+              "task": "Resend SDK integration for transactional email (runtime sending via SDK, management/debugging via CLI)",
               "done": false
             },
             {
@@ -2626,6 +2633,56 @@
             "Normal chat without activation does NOT include configure_crm",
             "Settings button shows clear destructive warning before activation"
           ]
+        },
+        {
+          "pr": "42a-pdf",
+          "title": "PDF document generation tool",
+          "status": "in_progress",
+          "simplified": false,
+          "decisions": ["UX-10", "LLM-02"],
+          "dependsOn": ["42a"],
+          "description": "Agent tool for on-demand PDF document generation. User asks in chat (e.g. 'make me a client brief for John Tan'), agent pulls CRM data via existing tools, then calls generate_pdf which makes an inner generateText() call using @json-render/react-pdf catalog.prompt() as system prompt. The inner LLM generates a JSONL spec, compiled via createSpecStreamCompiler, rendered server-side via renderToBuffer(), stored in Supabase Storage, and returned as a download URL. No main agent context bloat — PDF generation runs in an isolated LLM call. Uses the 15 standard json-render PDF components (Document, Page, Text, Table, Heading, Row, Column, Image, Link, List, Divider, Spacer, PageNumber, View). Custom branded components (DealCard PDF, ContactCard PDF) and chart-to-PDF rendering deferred.",
+          "tasks": [
+            {
+              "id": "PR42a-pdf-1",
+              "task": "Install @json-render/react-pdf and create PDF catalog (src/lib/views/pdf-catalog.ts) using standardComponentDefinitions",
+              "done": false
+            },
+            {
+              "id": "PR42a-pdf-2",
+              "task": "Create PDF render API route (app/api/pdf/route.ts) — accepts spec, validates, calls renderToBuffer(), returns PDF bytes",
+              "done": false
+            },
+            {
+              "id": "PR42a-pdf-3",
+              "task": "Create generate_pdf agent tool — inner generateText() call with catalog.prompt() system prompt, spec compilation, render, upload to Supabase Storage, return download URL",
+              "done": false
+            },
+            {
+              "id": "PR42a-pdf-4",
+              "task": "Add generate_pdf tool description to system prompt (when to use it, what context to pass)",
+              "done": false
+            },
+            {
+              "id": "PR42a-pdf-5",
+              "task": "Register generate_pdf tool in tool-registry.ts (available to main agent, excluded from subagents)",
+              "done": false
+            },
+            {
+              "id": "PR42a-pdf-6",
+              "task": "Render download link in chat UI when generate_pdf tool output contains a download URL",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Agent generates a valid PDF when user asks for a document (e.g. 'make me a client brief')",
+            "PDF contains structured content from CRM data (contacts, deals, tasks)",
+            "Download URL works and returns a real PDF file",
+            "generate_pdf tool does not bloat main agent context — inner LLM call is isolated",
+            "PDF render API route validates spec and returns appropriate errors for invalid input",
+            "Tool is excluded from subagent toolsets"
+          ],
+          "note": "Inspired by vercel-labs/json-render react-pdf example app. Uses the same json-render catalog/registry pattern already in use for inline shadcn views (PR 42a). The PDF catalog auto-generates the inner LLM system prompt via catalog.prompt(). Inner LLM call uses Gemini Flash (Tier 1) for cost efficiency. Supabase Storage upload follows existing agent file client patterns."
         }
       ]
     },

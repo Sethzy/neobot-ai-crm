@@ -5,6 +5,10 @@ import { GeistMono } from "geist/font/mono";
 import { Toaster } from "sonner";
 import { Providers } from "./providers";
 import "./globals.css";
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const figtree = localFont({
   src: [
@@ -55,7 +59,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} ${figtree.variable} ${fraunces.variable}`}>
+    <html lang="en" className={cn(GeistSans.variable, GeistMono.variable, figtree.variable, fraunces.variable, "font-sans", geist.variable)}>
       <body>
         <script
           type="application/ld+json"
