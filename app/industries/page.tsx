@@ -5,16 +5,16 @@ import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Container } from "@/components/landing/Container";
 import {
-  TbArrowRight,
-  TbCalculator,
-  TbScale,
-  TbTruck,
-} from "react-icons/tb";
+  ArrowRightIcon,
+  CalculatorIcon,
+  ScaleIcon,
+  TruckIcon,
+} from "lucide-react";
 
 const industryIcons = {
-  accounting: TbCalculator,
-  legal: TbScale,
-  logistics: TbTruck,
+  accounting: CalculatorIcon,
+  legal: ScaleIcon,
+  logistics: TruckIcon,
 } as const;
 
 export const metadata: Metadata = {
@@ -73,7 +73,7 @@ export default function IndustriesIndexPage() {
               {industries.map((industry) => {
                 const Icon =
                   industryIcons[industry.slug as keyof typeof industryIcons] ||
-                  TbCalculator;
+                  CalculatorIcon;
                 return (
                   <Link
                     key={industry.slug}
@@ -106,7 +106,7 @@ export default function IndustriesIndexPage() {
                     </div>
                     <div className="mt-6 flex items-center gap-2 text-sm font-medium text-sunder-green">
                       Learn more
-                      <TbArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </div>
                   </Link>
                 );
@@ -132,7 +132,7 @@ export default function IndustriesIndexPage() {
                   className="inline-flex items-center gap-2 rounded-full bg-sunder-green px-8 py-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-sunder-green-dark"
                 >
                   Book a Demo
-                  <TbArrowRight className="h-4 w-4" />
+                  <ArrowRightIcon className="h-4 w-4" />
                 </Link>
               </div>
             </div>
