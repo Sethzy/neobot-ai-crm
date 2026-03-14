@@ -4,9 +4,15 @@
  * @module components/library/library-file-card
  */
 import { memo, type ComponentType } from "react";
-import { Download } from "@/components/icons/lucide-compat";
-import { FaFileExcel, FaFilePdf, FaFileWord, FaFilePowerpoint, FaFileCsv, FaFile } from "react-icons/fa";
-import type { IconBaseProps } from "react-icons";
+import {
+  DownloadIcon,
+  FileSpreadsheetIcon,
+  FileTextIcon,
+  FileIcon,
+  PresentationIcon,
+  SheetIcon,
+  type LucideProps,
+} from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -14,7 +20,7 @@ import type { ReportHistoryItem } from "@/components/docgen/report-history";
 
 /** File type config: icon component, color class, label, badge text */
 interface FileTypeConfig {
-  Icon: ComponentType<IconBaseProps>;
+  Icon: ComponentType<LucideProps>;
   colorClass: string;
   label: string;
   badge: string;
@@ -30,19 +36,19 @@ function getFileTypeConfig(filename: string): FileTypeConfig {
   switch (ext) {
     case "xlsx":
     case "xls":
-      return { Icon: FaFileExcel, colorClass: "text-green-600", label: "Spreadsheet", badge: "EXCEL" };
+      return { Icon: FileSpreadsheetIcon, colorClass: "text-green-600", label: "Spreadsheet", badge: "EXCEL" };
     case "csv":
-      return { Icon: FaFileCsv, colorClass: "text-emerald-600", label: "CSV", badge: "CSV" };
+      return { Icon: SheetIcon, colorClass: "text-emerald-600", label: "CSV", badge: "CSV" };
     case "pdf":
-      return { Icon: FaFilePdf, colorClass: "text-red-600", label: "PDF", badge: "PDF" };
+      return { Icon: FileTextIcon, colorClass: "text-red-600", label: "PDF", badge: "PDF" };
     case "docx":
     case "doc":
-      return { Icon: FaFileWord, colorClass: "text-blue-600", label: "Document", badge: "WORD" };
+      return { Icon: FileTextIcon, colorClass: "text-blue-600", label: "Document", badge: "WORD" };
     case "pptx":
     case "ppt":
-      return { Icon: FaFilePowerpoint, colorClass: "text-orange-600", label: "Presentation", badge: "PPT" };
+      return { Icon: PresentationIcon, colorClass: "text-orange-600", label: "Presentation", badge: "PPT" };
     default:
-      return { Icon: FaFile, colorClass: "text-zinc-400", label: "File", badge: "FILE" };
+      return { Icon: FileIcon, colorClass: "text-zinc-400", label: "File", badge: "FILE" };
   }
 }
 
@@ -138,7 +144,7 @@ export const LibraryFileCard = memo(function LibraryFileCard({
             onDownload(report.file_path);
           }}
         >
-          <Download className="h-4 w-4" />
+          <DownloadIcon className="size-4" />
         </Button>
       </div>
     );
@@ -180,7 +186,7 @@ export const LibraryFileCard = memo(function LibraryFileCard({
           onDownload(report.file_path);
         }}
       >
-        <Download className="h-4 w-4" />
+        <DownloadIcon className="size-4" />
       </Button>
     </div>
   );

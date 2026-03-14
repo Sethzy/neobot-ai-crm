@@ -5,12 +5,12 @@
  * The iconography uses a tighter prebuilt Tabler set instead of generic stock AI symbols.
  */
 import dynamic from 'next/dynamic'
-import type { IconType } from 'react-icons'
+import type { LucideIcon } from 'lucide-react'
 import {
-  TbLayoutKanban,
-  TbMessage2Cog,
-  TbPlugConnected,
-} from 'react-icons/tb'
+  KanbanIcon,
+  BotMessageSquareIcon,
+  PlugIcon,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Container } from '@/components/landing/Container'
 import { useMediaQuery } from '@/hooks/use-media-query'
@@ -26,7 +26,7 @@ interface Feature {
   value: string
   summary: string
   description: string
-  icon: IconType
+  icon: LucideIcon
 }
 
 const features: Array<Feature> = [
@@ -36,7 +36,7 @@ const features: Array<Feature> = [
     summary: 'Leads, deals, and scheduling — handled.',
     description:
       'Contacts, follow-ups, pipelines, appointments — managed through chat. No spreadsheets, no manual entry.',
-    icon: TbLayoutKanban,
+    icon: KanbanIcon,
   },
   {
     name: 'Full AI Power',
@@ -44,7 +44,7 @@ const features: Array<Feature> = [
     summary: 'Videos, slides, docs — from a message.',
     description:
       'Videos, slides, images, documents — powered by the latest AI models. Describe what you need, it delivers.',
-    icon: TbMessage2Cog,
+    icon: BotMessageSquareIcon,
   },
   {
     name: 'Your Tools, Connected',
@@ -52,7 +52,7 @@ const features: Array<Feature> = [
     summary: 'Gmail, Calendar, Notion, and more.',
     description:
       'Neo plugs into your existing apps. One message can check your calendar, draft an email, and update your CRM.',
-    icon: TbPlugConnected,
+    icon: PlugIcon,
   },
 ]
 
