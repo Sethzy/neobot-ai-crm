@@ -1,6 +1,6 @@
 # QA Surface 18: Agent-Generated Views
 
-> **PRs covered:** 42a (inline views via pipeJsonRender — no tool call needed)
+> **PRs covered:** 42a (inline views via pipeJsonRender — no tool call needed), persistence fix `4c98ab1`
 > **Dogfoodable:** Partial (requires specific prompts to trigger inline views)
 > **Time estimate:** 15-20 min manual
 > **v2 tools:** `search_crm`, `run_sql` (views are rendered inline via `pipeJsonRender()`, not via a `show_view` tool call)
@@ -101,18 +101,43 @@
 
 ---
 
-### 18.8 View persists in thread
+### 18.8 View persists after hard reload (persistence fix `4c98ab1`)
 
 1. After generating a view (18.1-18.7), scroll up
 2. **Expected:** View still rendered (not disappeared)
-3. Refresh the page
-4. **Expected:** View re-renders from persisted data
+3. **Hard-reload the page** (Cmd+Shift+R)
+4. **Expected:** View re-renders as a component, NOT as a raw ` ```spec ` code block
+5. Check the message parts in the DOM — should contain `data-spec` parts, not raw fence text
+
+**Context:** Fix commit `4c98ab1` added `splitTextAndSpecParts()` in `buildAssistantPartsFromSteps()` so new messages persist `data-spec` parts instead of raw fences.
 
 **Notes / failures:**
 
 ---
 
-### 18.9 Agent chooses plain text when appropriate
+### 18.9 Historical messages rehydrate views (persistence fix `4c98ab1`)
+
+1. Open a **thread created before the fix** that had inline views
+2. **Expected:** Views render correctly (not as code blocks)
+3. Hard-reload again — still renders
+
+**Context:** `rehydrateSpecParts()` in `normalizeMessageParts()` re-parses old text parts containing ` ```spec ` fences at load time so historical messages also render views.
+
+**Notes / failures:**
+
+---
+
+### 18.10 ViewErrorBoundary catches crashes (persistence fix `4c98ab1`)
+
+1. If a view component throws during render (e.g., bad data shape)
+2. **Expected:** Styled error fallback appears: "View failed to render: ..." with a dashed red border
+3. **Expected:** Rest of the chat panel remains functional — no white screen
+
+**Notes / failures:**
+
+---
+
+### 18.11 Agent chooses plain text when appropriate
 
 1. "What's Sarah's phone number?"
 2. **Expected:** Agent answers in plain text (no inline view for simple lookups)
@@ -131,10 +156,12 @@
 - [ ] Empty CRM (no data) — agent generates empty state or explains, not a broken view
 - [ ] Multiple views in one response — all render inline
 - [ ] View on mobile — responsive layout, charts scale down
+- [ ] View component throws during render — error boundary shows fallback, chat panel stays functional
+- [ ] Thread with pre-fix messages containing raw spec fences — rehydration converts to views at load time
 
 ---
 
 ## Pass / Fail Criteria
 
-- **Pass:** Agent generates compact CRM views inline in chat using ```spec fences after querying data via `search_crm` or `run_sql`. Deal cards, stat metrics, charts, task items, and contact cards render correctly. Catalog validation prevents invalid components. Agent uses views appropriately (not for everything).
-- **Fail:** Views render as raw JSON. Charts don't render. Views stuck inside collapsed tool pills. Agent generates views for simple text answers. Validation doesn't catch invalid specs.
+- **Pass:** Agent generates compact CRM views inline in chat using ```spec fences after querying data via `search_crm` or `run_sql`. Deal cards, stat metrics, charts, task items, and contact cards render correctly. Catalog validation prevents invalid components. Agent uses views appropriately (not for everything). **Views survive hard-reload** — persisted as `data-spec` parts, not raw fences. Historical threads also render views via rehydration. Error boundary catches component crashes gracefully.
+- **Fail:** Views render as raw JSON or ` ```spec ` code blocks after page reload. Charts don't render. Views stuck inside collapsed tool pills. Agent generates views for simple text answers. Validation doesn't catch invalid specs. Component crash takes down the entire chat panel.
