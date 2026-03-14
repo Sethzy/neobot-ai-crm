@@ -5,9 +5,15 @@
  */
 import { useState, type ComponentType } from 'react';
 import Image from "next/image";
-import { Download } from '@/components/icons/lucide-compat';
-import { FaFileExcel, FaFilePdf, FaFileWord, FaFilePowerpoint, FaFileCsv, FaFile } from 'react-icons/fa';
-import type { IconBaseProps } from 'react-icons';
+import {
+  DownloadIcon,
+  FileSpreadsheetIcon,
+  FileTextIcon,
+  FileIcon,
+  PresentationIcon,
+  SheetIcon,
+  type LucideProps,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface FileDownloadProps {
@@ -21,7 +27,7 @@ interface FileDownloadProps {
 
 /** File type config: icon component, color class, label */
 interface FileTypeConfig {
-  Icon: ComponentType<IconBaseProps>;
+  Icon: ComponentType<LucideProps>;
   colorClass: string;
   label: string;
 }
@@ -37,51 +43,51 @@ function getFileTypeConfig(filename: string): FileTypeConfig {
     case 'xlsx':
     case 'xls':
       return {
-        Icon: FaFileExcel,
+        Icon: FileSpreadsheetIcon,
         colorClass: 'text-green-600',
         label: 'Spreadsheet',
       };
     case 'csv':
       return {
-        Icon: FaFileCsv,
+        Icon: SheetIcon,
         colorClass: 'text-emerald-600',
         label: 'Spreadsheet',
       };
     case 'pdf':
       return {
-        Icon: FaFilePdf,
+        Icon: FileTextIcon,
         colorClass: 'text-red-600',
         label: 'PDF',
       };
     case 'docx':
     case 'doc':
       return {
-        Icon: FaFileWord,
+        Icon: FileTextIcon,
         colorClass: 'text-blue-600',
         label: 'Document',
       };
     case 'pptx':
     case 'ppt':
       return {
-        Icon: FaFilePowerpoint,
+        Icon: PresentationIcon,
         colorClass: 'text-orange-600',
         label: 'Presentation',
       };
     default:
       return {
-        Icon: FaFile,
+        Icon: FileIcon,
         colorClass: 'text-zinc-400',
         label: 'File',
       };
   }
 }
 
-/** File type icon using react-icons */
+/** File type icon */
 function FileTypeIcon({ config }: { config: FileTypeConfig }) {
   const { Icon, colorClass } = config;
   return (
     <div className="h-10 w-10 flex items-center justify-center shrink-0">
-      <Icon className={cn('h-8 w-8', colorClass)} />
+      <Icon className={cn('size-8', colorClass)} />
     </div>
   );
 }
@@ -121,7 +127,7 @@ export function FileDownload({ url, mediaType, filename }: FileDownloadProps) {
         </div>
 
         {/* Download indicator */}
-        <Download className="h-4 w-4 shrink-0 text-zinc-400" />
+        <DownloadIcon className="size-4 shrink-0 text-zinc-400" />
       </a>
     );
   }

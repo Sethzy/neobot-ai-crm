@@ -7,7 +7,7 @@
 
 import * as React from "react"
 import { Dialog as DialogPrimitive } from "radix-ui"
-import { TbX } from "react-icons/tb"
+import { XIcon } from "lucide-react"
 
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -280,7 +280,7 @@ export function FilterOverlay({
                   "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <TbX className="size-4" />
+                <XIcon className="size-4" />
                 <span className="sr-only">Close filters</span>
               </button>
             </DialogPrimitive.Close>
