@@ -53,11 +53,22 @@ This is consistent but visually flat. Specific issues:
 
 ### Hard constraints (do not violate)
 
-1. **Do not modify `src/lib/views/catalog.ts`** — This file defines the Zod schemas and descriptions that get injected into the LLM's system prompt. Every prop costs ~10-20 input tokens per request, forever. Changes here change the LLM contract.
-2. **Do not add new components** — Same reason. Each component in the catalog costs ~60-100 tokens in the system prompt.
-3. **Do not change the shadcn base 6** — Card, Grid, Tabs, Text, Badge, Table come from `@json-render/shadcn`. We don't control their implementation.
-4. **Do not change component prop interfaces** — The props must stay compatible with what the LLM sends. You can add internal-only derived styling (e.g. computing a color from the `stage` prop), but the component's public API must not change.
-5. **Maintain dark mode compatibility** — Use Tailwind theme tokens (`text-foreground`, `bg-card`, `border-border`, etc.), not hard-coded colors. Test in both light and dark.
+1. **Do not add new components** — Each component in the catalog costs ~60-100 tokens in the system prompt, paid on every request. Adding components is a separate product decision.
+2. **Do not change the shadcn base 6** — Card, Grid, Tabs, Text, Badge, Table come from `@json-render/shadcn`. We don't control their implementation.
+3. **Maintain dark mode compatibility** — Use Tailwind theme tokens (`text-foreground`, `bg-card`, `border-border`, etc.), not hard-coded colors. Test in both light and dark.
+
+### Schema/prop changes (allowed with justification)
+
+`src/lib/views/catalog.ts` defines the Zod schemas and descriptions that get injected into the LLM's system prompt via `catalog.prompt()`. Every prop costs ~10-20 input tokens per request, forever. Every description/example change also costs tokens. So:
+
+**Default to deriving visuals from existing props.** Most improvements can be computed from what the LLM already sends — e.g. mapping the `stage` prop to a border color, computing initials from `name`, mapping `status` to an icon. These are free in token cost and don't change the LLM contract.
+
+**If a visual improvement genuinely cannot be achieved without a new prop**, it may be added under these conditions:
+1. The prop is optional (`.nullable()`) — existing specs without it still render correctly
+2. The prop is a constrained enum or short string, not open-ended (e.g. `z.enum(["deals", "contacts", "revenue", "tasks"]).nullable()`, not `z.string()`)
+3. The total token cost increase across the full catalog stays under ~100 tokens
+4. The description and example in `catalog.ts` are updated to teach the LLM when to use the new prop
+5. Document the token cost justification in the PR description (before vs after character count of `catalog.prompt()` output)
 
 ### Soft constraints (prefer but negotiate if needed)
 
@@ -130,7 +141,6 @@ If the dev environment doesn't have agent access, create a simple test page that
 ## Out of Scope
 
 - New component types
-- Changes to the catalog/schema (LLM contract)
 - Animation or transitions (keep it simple for v1)
 - Interactive features (click-to-navigate, filtering) — views are read-only snapshots
 - Changes to how/when the LLM decides to emit views (system prompt logic)
