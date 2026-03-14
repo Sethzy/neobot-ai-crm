@@ -20,7 +20,7 @@ export function createDisableConfigModeTool(
       "Disable CRM configuration mode for this workspace. " +
       "Call this after finishing CRM reconfiguration to remove the configure_crm tool from future turns. " +
       "The user activated config mode from Settings — you should disable it when done.",
-    parameters: z.object({}),
+    inputSchema: z.object({}),
     execute: async () => {
       const adminClient = await createAdminClient();
       const { error } = await adminClient

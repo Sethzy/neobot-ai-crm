@@ -6,6 +6,9 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+/** Object-only subset of Json, used for custom_fields and similar JSONB columns. */
+export type JsonObject = { [key: string]: Json | undefined };
+
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -1694,7 +1697,7 @@ export type Database = {
       release_trigger_claim: {
         Args: {
           p_advance_next_fire_at?: boolean
-          p_next_fire_at?: string
+          p_next_fire_at?: string | null
           p_run_id: string
           p_status?: string
           p_trigger_id: string
