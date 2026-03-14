@@ -66,7 +66,6 @@ const nextConfig: NextConfig = {
     optimizePackageImports: [
       "lucide-react",
       "date-fns",
-      "react-icons",
       "@radix-ui/react-radio-group",
       "framer-motion",
       "class-variance-authority",
