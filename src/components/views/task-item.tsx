@@ -3,6 +3,7 @@
  * Renders as a borderless content block — the outer layout (Card/Grid) provides containment.
  * @module components/views/task-item
  */
+import { Badge } from "@/components/ui/badge";
 import { TaskStatusBadge } from "@/components/crm/task-status-badge";
 import { cn } from "@/lib/utils";
 
@@ -58,12 +59,9 @@ export function TaskItem({
       {contextItems.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
           {contextItems.map((item) => (
-            <span
-              key={item}
-              className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-            >
+            <Badge key={item} variant="secondary">
               {item}
-            </span>
+            </Badge>
           ))}
         </div>
       ) : null}

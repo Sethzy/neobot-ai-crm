@@ -3,6 +3,7 @@
  * Renders as a borderless content block — the outer layout (Card/Grid) provides containment.
  * @module components/views/contact-card
  */
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   formatCrmEnumLabel,
@@ -18,11 +19,11 @@ export interface ContactCardProps {
 
 /** Small palette for deterministic avatar background colors. */
 const AVATAR_COLORS = [
-  "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-  "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
-  "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
-  "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
-  "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
+  "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
+  "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300",
+  "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+  "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
+  "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300",
 ] as const;
 
 /** Derives 1–2 letter initials from a full name string. */
@@ -45,12 +46,11 @@ function getAvatarColor(name: string): string {
 export function ContactCard({ name, type, subtitle }: ContactCardProps) {
   return (
     <div className="flex items-start gap-3 p-4">
-      <div
-        data-testid="contact-avatar"
-        className={`flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${getAvatarColor(name)}`}
-      >
-        {getInitials(name)}
-      </div>
+      <Avatar data-testid="contact-avatar">
+        <AvatarFallback className={getAvatarColor(name)}>
+          {getInitials(name)}
+        </AvatarFallback>
+      </Avatar>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex items-start justify-between gap-2">
           <p className="line-clamp-1 text-sm font-semibold text-foreground">{name}</p>

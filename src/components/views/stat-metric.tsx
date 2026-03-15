@@ -3,7 +3,7 @@
  * Renders as a borderless content block — the outer layout (Card/Grid) provides containment.
  * @module components/views/stat-metric
  */
-import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 export interface StatMetricProps {
   label: string;
@@ -19,10 +19,10 @@ const trendArrowMap = {
   flat: "→",
 } as const;
 
-const trendPillMap = {
-  up: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
-  down: "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300",
-  flat: "bg-muted text-muted-foreground",
+const trendVariantMap = {
+  up: "success",
+  down: "destructive",
+  flat: "secondary",
 } as const;
 
 /**
@@ -39,15 +39,9 @@ export function StatMetric({ label, value, trend, change }: StatMetricProps) {
           {value}
         </p>
         {trend ? (
-          <span
-            data-testid="trend-indicator"
-            className={cn(
-              "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold leading-none",
-              trendPillMap[trend],
-            )}
-          >
+          <Badge data-testid="trend-indicator" variant={trendVariantMap[trend]}>
             {trendArrowMap[trend]}{change ? ` ${change}` : ""}
-          </span>
+          </Badge>
         ) : null}
       </div>
     </div>

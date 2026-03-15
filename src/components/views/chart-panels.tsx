@@ -23,6 +23,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Card,
   CardContent,
@@ -104,11 +105,9 @@ function ChartPanelShell({
       <CardContent className="flex flex-col gap-3">
         {children}
         {insight ? (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 dark:border-emerald-900 dark:bg-emerald-950/50">
-            <p className="text-sm font-medium text-emerald-900 dark:text-emerald-200">
-              {insight}
-            </p>
-          </div>
+          <Alert>
+            <AlertDescription className="font-medium">{insight}</AlertDescription>
+          </Alert>
         ) : null}
       </CardContent>
       {footer ? <CardFooter className="text-sm text-muted-foreground">{footer}</CardFooter> : null}
