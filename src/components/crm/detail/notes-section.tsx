@@ -5,8 +5,11 @@
 "use client";
 
 import { AppIcon } from "@/components/icons/app-icons";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Empty, EmptyDescription } from "@/components/ui/empty";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useContactInteractions } from "@/hooks/use-contact-relations";
 import { formatCrmDateTime } from "@/lib/crm/display";
 
@@ -25,7 +28,7 @@ export function NotesSection({ contactId }: NotesSectionProps) {
     return (
       <div className="space-y-4">
         {Array.from({ length: 2 }).map((_, index) => (
-          <div key={index} className="h-24 rounded-lg border border-border/40 bg-muted/20" />
+          <Skeleton key={index} className="h-24" />
         ))}
       </div>
     );
@@ -33,28 +36,30 @@ export function NotesSection({ contactId }: NotesSectionProps) {
 
   if (isError) {
     return (
-      <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
-        <p className="text-sm text-destructive">Unable to load notes.</p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="mt-3"
-          onClick={() => {
-            void refetch();
-          }}
-        >
-          Retry
-        </Button>
-      </div>
+      <Alert variant="destructive">
+        <AlertDescription>
+          Unable to load notes.
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => {
+              void refetch();
+            }}
+          >
+            Retry
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
 
   if (notes.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border/50 bg-muted/10 p-6 text-sm text-muted-foreground">
-        No notes have been recorded for this person yet.
-      </div>
+      <Empty>
+        <EmptyDescription>No notes have been recorded for this person yet.</EmptyDescription>
+      </Empty>
     );
   }
 

@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { cn } from "@/lib/utils";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { formatDealStageLabel } from "@/lib/crm/display";
 import type { Deal } from "@/lib/crm/schemas";
 import { useState } from "react";
@@ -23,40 +23,33 @@ export function DealStageMenu({ currentStage, stages, onChange }: DealStageMenuP
 
   return (
     <div onClick={(event) => event.stopPropagation()}>
-      <label className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span className="sr-only">Deal stage</span>
-        <select
-          aria-label="Deal stage"
-          className={cn(
-            "h-8 rounded-md border border-input bg-background px-2.5 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow]",
-            "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
-          )}
-          value={currentStage}
-          disabled={isSaving}
-          onClick={(event) => event.stopPropagation()}
-          onChange={async (event) => {
-            const nextStage = event.target.value;
+      <NativeSelect
+        aria-label="Deal stage"
+        value={currentStage}
+        disabled={isSaving}
+        onClick={(event) => event.stopPropagation()}
+        onChange={async (event) => {
+          const nextStage = event.target.value;
 
-            if (nextStage === currentStage || isSaving) {
-              return;
-            }
+          if (nextStage === currentStage || isSaving) {
+            return;
+          }
 
-            setIsSaving(true);
+          setIsSaving(true);
 
-            try {
-              await onChange(nextStage);
-            } finally {
-              setIsSaving(false);
-            }
-          }}
-        >
-          {stages.map((stage) => (
-            <option key={stage} value={stage}>
-              {formatDealStageLabel(stage as Deal["stage"])}
-            </option>
-          ))}
-        </select>
-      </label>
+          try {
+            await onChange(nextStage);
+          } finally {
+            setIsSaving(false);
+          }
+        }}
+      >
+        {stages.map((stage) => (
+          <NativeSelectOption key={stage} value={stage}>
+            {formatDealStageLabel(stage as Deal["stage"])}
+          </NativeSelectOption>
+        ))}
+      </NativeSelect>
     </div>
   );
 }

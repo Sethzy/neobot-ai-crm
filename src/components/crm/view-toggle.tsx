@@ -6,8 +6,7 @@
 
 import { AppIcon, type AppIconName } from "@/components/icons/app-icons";
 import type { ViewType } from "@/hooks/use-view-preference";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 interface ViewToggleProps {
   /** Currently selected view mode. */
@@ -32,30 +31,21 @@ const viewLabelMap: Record<ViewType, string> = {
 
 export function ViewToggle({ current, views, onChange }: ViewToggleProps) {
   return (
-    <div className="flex items-center gap-0.5 rounded-lg border border-border/40 bg-muted/20 p-0.5">
-      {views.map((view) => {
-        const isActive = view === current;
-
-        return (
-          <Button
-            key={view}
-            type="button"
-            variant="ghost"
-            size="xs"
-            data-active={isActive}
-            aria-label={`${viewLabelMap[view]} view`}
-            aria-pressed={isActive}
-            className={cn(
-              "gap-1.5 px-2.5",
-              isActive ? "bg-background shadow-sm" : "text-muted-foreground",
-            )}
-            onClick={() => onChange(view)}
-          >
-            <AppIcon name={viewIconMap[view]} className="h-3.5 w-3.5" />
-            <span>{viewLabelMap[view]}</span>
-          </Button>
-        );
-      })}
-    </div>
+    <ToggleGroup
+      type="single"
+      variant="outline"
+      size="sm"
+      value={current}
+      onValueChange={(value) => {
+        if (value) onChange(value as ViewType);
+      }}
+    >
+      {views.map((view) => (
+        <ToggleGroupItem key={view} value={view} aria-label={`${viewLabelMap[view]} view`}>
+          <AppIcon name={viewIconMap[view]} className="size-3.5" />
+          <span>{viewLabelMap[view]}</span>
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
   );
 }
