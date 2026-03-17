@@ -61,6 +61,8 @@ The agent comes batteries-included. One signup, one QR scan, everything works. N
 | **Document Generation** | Custom MCP (ported from Sunder) | Custom-built | Excel reports, AI analysis, reconciliation checks | MVP |
 | **Artifact Publishing (Mini Lovable)** | Custom (frontend-design skill + browser sandbox) + here.now (free hosting) | Custom-built | Personalized pitch webpages, property showcases, interactive deliverables | MVP |
 | **Diagramming (Excalidraw MCP)** | Excalidraw MCP (`mcp.excalidraw.com`) | Sunder central account | Visual diagrams, property comparisons, transaction timelines, process flows | MVP |
+| **Google Maps Business Search** | Google Places API (New) — Text Search | Sunder central account (shared `GOOGLE_MAPS_API_KEY`) | Lead prospecting, contractor/vendor discovery, neighborhood business lookup, competitive analysis | MVP |
+| **Browser Automation (Agent-Level)** | Vercel agent-browser (CLI) + Browserbase (cloud) | Sunder central account | Web scraping, form filling, authenticated session automation, property portal monitoring, visual verification | MVP |
 
 ### What We DON'T Need
 
@@ -1743,6 +1745,129 @@ Excalidraw diagrams complement HTML artifacts. The agent can:
 ### Cost
 
 $0 at any scale. Open-source, no per-use charges. Self-hosting on Vercel fits within free tier for expected volume.
+
+---
+
+## 15. Browser Automation — Vercel agent-browser (Sunder Central + Browserbase)
+
+### What It Is
+
+**Vercel agent-browser** is an open-source, AI-optimized headless browser CLI built by Vercel Labs. It controls Chrome/Chromium via the Chrome DevTools Protocol (CDP) and is designed specifically for LLM agents — it uses **93% less tokens** than Playwright MCP by returning compact accessibility snapshots instead of full DOM trees. As of v0.20.0 (March 14, 2026), it is a **100% native Rust binary** — no Node.js or Playwright dependencies. Install size is 7 MB (down from 710 MB), memory usage is 8 MB, cold start is 617ms.
+
+- **GitHub:** https://github.com/vercel-labs/agent-browser
+- **License:** Apache 2.0
+- **Current version:** v0.20.14 (March 17, 2026)
+
+### Architecture
+
+```
+Sunder agent needs to browse the web
+    → CLI invocation: `agent-browser <command>`
+    → Rust daemon (auto-started) manages Chrome via CDP
+    → Returns compact snapshots with element refs (@e1, @e2...)
+    → Agent interacts using refs (click @e3, fill @e5 "hello")
+    → Cloud sessions via Browserbase for anti-bot / session persistence
+```
+
+### What It Can Do (Plain English)
+
+**Core browsing:**
+- Open any URL, navigate back/forward, manage tabs
+- Take screenshots (with optional numbered labels on interactive elements for vision-capable models)
+- Get a compact text snapshot of any page — returns an accessibility tree with short refs like `@e1`, `@e2` instead of full HTML. Agent uses these refs to click, type, etc.
+
+**Interacting with pages:**
+- Click, double-click, hover on any element
+- Fill forms (text fields, checkboxes, radio buttons, dropdowns, file uploads)
+- Type text, press keyboard shortcuts
+- Drag and drop elements
+- Scroll pages or specific sections
+- Handle browser dialogs (accept/dismiss popups)
+
+**Auto-connect (new in v0.20.x):**
+- Automatically discovers and connects to a **running Chrome browser** on the machine — no port config needed
+- Reads Chrome's `DevToolsActivePort` file or probes standard ports
+- Supports Chrome, Chromium, Chrome Canary, and **Brave Browser** (v0.20.7+)
+- Key use case: import auth state from a user's already-logged-in browser session
+
+**Session & auth management:**
+- Save and restore browser sessions (cookies + localStorage) across runs
+- Persistent profiles for long-running automation
+- AES-256-GCM encrypted credential vault — LLMs reference credentials by name, never see raw passwords
+- Named sessions with auto-save/restore
+
+**Network control:**
+- Intercept, mock, or abort network requests
+- Track all requests and responses
+- Wait for network idle before proceeding
+
+**Visual comparison & diffing:**
+- Compare current page snapshot vs. previous (detect changes)
+- Pixel-level screenshot diffs against a baseline
+- Compare two URLs side-by-side
+
+**Video & screencasting:**
+- Live viewport streaming over WebSocket (human can watch the agent browse in real-time)
+- Record browsing sessions as `.webm` video files
+
+**Security features:**
+- Domain allowlists — restrict which sites the agent can visit
+- Action policies — gate destructive operations via allow/deny rules
+- Content boundaries — CSPRNG-nonced delimiters to prevent prompt injection from page content
+- Output length limits — prevent context flooding from large pages
+
+**Cloud browser providers (for anti-bot, stealth, session persistence):**
+- Browserbase (our default), Kernel, Browser Use, Browserless.io
+- iOS Safari via Appium (for mobile testing)
+- Lightpanda engine (10x faster, 10x less memory for headless-only workloads)
+
+### What Changed in v0.20.x (Recent Changelog)
+
+| Version | Key Changes |
+|---------|-------------|
+| **v0.20.0** | Full native Rust — Node.js/Playwright removed entirely. 99x smaller, 18x less memory, 1.6x faster cold start. |
+| v0.20.2 | Linux Alpine builds, consecutive auto-connect reuse, clean disconnect from external browsers |
+| v0.20.3 | Chrome launch retry (3 attempts), remote CDP snapshot hang fix |
+| v0.20.7 | **Brave Browser support** for auto-connect |
+| v0.20.8 | `BrowserManager` TypeScript API removed — CLI-only is the recommended interface |
+| v0.20.9 | iOS Appium v3 fix; snapshot `--selector` scoping for subtree queries |
+| v0.20.12 | Batched CDP calls for annotated snapshots over WSS (20-40s down to normal speed) |
+| **v0.20.14** | `--idle-timeout` for daemon auto-shutdown, cursor-interactive elements in snapshot tree, remote host CDP discovery |
+
+### Why This Matters for Sunder
+
+- **Token efficiency** — agent can browse the web using 5.7x fewer tokens than Playwright MCP, critical for keeping run costs low with Gemini Flash
+- **CLI-first** — fits our runner architecture (tools invoke CLI commands via `execSync`)
+- **Browserbase integration** — our existing browser automation provider is a first-class cloud provider (`--provider browserbase`)
+- **Session persistence** — agent can maintain logged-in sessions to property portals (PropertyGuru, 99.co, SRX) across runs
+- **Auto-connect** — for dev/QA, agent can connect to developer's own Chrome and reuse auth state
+
+### Use Cases for Real Estate Agent
+
+| Use Case | How |
+|----------|-----|
+| **Property portal monitoring** | Agent logs into PropertyGuru/99.co, scrapes new listings matching client criteria |
+| **Competitor listing checks** | Navigate competitor agent pages, snapshot listings, compare prices |
+| **Form filling** | Auto-fill government forms (URA, HDB) with client data |
+| **Visual verification** | Screenshot a listing page, diff against yesterday's screenshot to detect price changes |
+| **Lead capture page testing** | Navigate to agent's own landing pages, verify forms work end-to-end |
+| **Document download** | Navigate to portals, download transaction documents, save to Knowledge Base |
+
+### Integration with Existing Browser Automation Stack (§Browser Automation / RPA Provider Decision)
+
+This does NOT replace the existing Browserbase/Firecrawl decision — it **complements** it:
+
+| Layer | Tool | When |
+|-------|------|------|
+| **CLI/agent interface** | agent-browser | Agent's primary way to issue browser commands (open, snapshot, click, fill) |
+| **Cloud browser runtime** | Browserbase | When anti-bot stealth, CAPTCHA solving, or multi-day session persistence is needed (`--provider browserbase`) |
+| **Extraction pipelines** | Firecrawl | When the job is pure content extraction (no interaction needed) |
+
+### Cost
+
+- **agent-browser itself:** $0 (open-source, runs as local binary)
+- **Browserbase runtime:** Already budgeted in Browser Automation section (~$20/mo at MVP scale)
+- **No additional cost** — agent-browser is the CLI layer on top of existing infra
 
 ---
 

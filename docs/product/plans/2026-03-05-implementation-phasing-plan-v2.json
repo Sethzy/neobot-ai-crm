@@ -54,7 +54,8 @@
       "2026-03-13: Added 6 production hardening PRs to Phase 4 (PR 47a-f). Pre-launch reliability and security: error boundaries, env validation, health endpoint, security headers, Sentry integration, API rate limiting. Identified during pre-prod QA audit. Can be assigned to another dev.",
       "2026-03-14: PR 32a (Resend email): added resend-cli (https://github.com/resend/resend-cli) as a required tool. New task PR32a-1 for CLI setup (install, API key config, domain verification, local dev workflow). Original SDK integration task renumbered to PR32a-1b. CLI used for management/debugging; SDK for runtime sending.",
       "2026-03-15: Added PR 42a-pdf (PDF document generation tool) to Phase 4. Agent tool that generates downloadable PDF documents on demand. User asks in chat (e.g. 'make me a client brief'), agent pulls CRM data, calls generate_pdf tool which makes an inner LLM call using @json-render/react-pdf catalog.prompt() as system prompt, compiles the JSONL spec, renders via renderToBuffer(), stores in Supabase Storage, returns download URL. No main agent context bloat — inner LLM call is isolated. Standard 15 PDF components from json-render (Document, Page, Text, Table, etc.). Custom branded components deferred.",
-      "2026-03-15: Added PR 49 (UI reset — stock shadcn + custom theme) to Phase 4. Reset all drifted shadcn components to stock via CLI overwrite, swap icon library from react-icons/tb to lucide-react, apply green-anchored custom theme via globals.css (tweakcn-generated). Preserves justified Badge custom variants (success/warning/info). Ensures json-render inline views and app dashboard share identical component implementations. Supersedes PR 42a-p visual polish scope."
+      "2026-03-15: Added PR 49 (UI reset — stock shadcn + custom theme) to Phase 4. Reset all drifted shadcn components to stock via CLI overwrite, swap icon library from react-icons/tb to lucide-react, apply green-anchored custom theme via globals.css (tweakcn-generated). Preserves justified Badge custom variants (success/warning/info). Ensures json-render inline views and app dashboard share identical component implementations. Supersedes PR 42a-p visual polish scope.",
+      "2026-03-16: Cut Vercel AI SDK Chat SDK adapter from PRs 41-42 (Telegram). Replaced with raw Telegram Bot API integration following nanoclaw + dorabot reference patterns (grammy, channel registry, markdown→HTML formatting, message chunking). PR 41 expanded to 4 tasks (bot registration, channel module, webhook route, outbound delivery). PR 42 updated: approvals via Telegram InlineKeyboard (dorabot pattern) instead of text-only. Drift analysis: roadmap docs/Sunder - Source of Truth/references/nanoclaw-dorabot/telegram-drift-analysis.md"
     ]
   },
   "phases": [
@@ -2779,20 +2780,26 @@
             "GAP-09",
             "UX-07"
           ],
+          "note": "Cut Chat SDK adapter. Raw Telegram Bot API webhook + grammy polling, following nanoclaw/dorabot patterns. See drift analysis: roadmap docs/Sunder - Source of Truth/references/nanoclaw-dorabot/telegram-drift-analysis.md",
           "tasks": [
             {
               "id": "PR41-1",
-              "task": "Telegram bot registration and webhook setup",
+              "task": "Telegram bot registration (BotFather) and env config",
               "done": false
             },
             {
               "id": "PR41-2",
-              "task": "Vercel AI SDK Chat SDK adapter for Telegram",
+              "task": "Telegram channel module — grammy bot, message monitor, format/send/chunking (nanoclaw/dorabot pattern)",
               "done": false
             },
             {
               "id": "PR41-3",
-              "task": "Message format translation to unified thread model",
+              "task": "Webhook route (/api/webhook/telegram) — receive updates, dedupe via delivery_receipts, map to thread via channel_mappings, call runAgent()",
+              "done": false
+            },
+            {
+              "id": "PR41-4",
+              "task": "Outbound message delivery — agent response sent back via grammy sendMessage with markdown→HTML formatting",
               "done": false
             }
           ],
@@ -2807,16 +2814,16 @@
           "decisions": [
             "UX-07"
           ],
-          "note": "v2 simplification: text + approvals only, skip inline keyboards.",
+          "note": "Approvals via Telegram inline keyboards (dorabot pattern: InlineKeyboard with callback_data for approve/deny). Multi-channel identity resolution. Cut Chat SDK adapter.",
           "tasks": [
             {
               "id": "PR42-1",
-              "task": "Approval gates work via Telegram",
+              "task": "Approval request delivery via Telegram inline keyboard (dorabot pattern: InlineKeyboard + callback_query handler)",
               "done": false
             },
             {
               "id": "PR42-2",
-              "task": "Multi-channel identity resolution",
+              "task": "Multi-channel identity resolution (same client across web + Telegram)",
               "done": false
             }
           ],
