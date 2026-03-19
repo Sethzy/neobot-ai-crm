@@ -1,5 +1,5 @@
 /**
- * Settings page with billing and CRM configuration mode controls.
+ * Settings page with billing, CRM configuration mode, and agent-skill controls.
  * @module app/(dashboard)/settings/page
  */
 import Link from "next/link";
@@ -160,9 +160,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           <div className="space-y-2">
             <h1 className="text-3xl font-semibold tracking-tight">Workspace controls</h1>
             <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-              Manage your billing plan and CRM configuration. Stripe remains the source of
-              truth for paid subscriptions, while Sunder mirrors the current plan into the client
-              row for product logic and gating.
+              Manage your billing plan, CRM configuration, and agent skills. Stripe remains the
+              source of truth for paid subscriptions, while Sunder mirrors the current plan into
+              the client row for product logic and gating.
             </p>
           </div>
         </div>
@@ -275,6 +275,26 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
           <CrmConfigModeCard initialExpiresAt={crmConfigExpiresAt} />
         </div>
+
+        <Card className="border-border/70 bg-card shadow-sm">
+          <CardHeader className="gap-2">
+            <CardDescription>Agent</CardDescription>
+            <CardTitle className="text-2xl">Skills</CardTitle>
+          </CardHeader>
+
+          <CardContent className="space-y-4 text-sm text-muted-foreground">
+            <p className="max-w-2xl">
+              Review the instruction skills your agent can follow, edit their SKILL.md files, and
+              reset bundled defaults when you want to return to the original workflow.
+            </p>
+          </CardContent>
+
+          <CardFooter className="border-t">
+            <Button asChild variant="outline">
+              <Link href="/skills">Open skills</Link>
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
     </div>
   );

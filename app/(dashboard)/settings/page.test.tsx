@@ -85,6 +85,7 @@ describe("/settings page", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText("88")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open skills/i })).toHaveAttribute("href", "/skills");
   });
 
   it("shows billing and connection alerts from the query string", async () => {

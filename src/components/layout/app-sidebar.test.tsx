@@ -83,9 +83,11 @@ describe("AppSidebar", () => {
     expect(screen.getByText("Memory")).toBeInTheDocument();
   });
 
-  it("renders DATABASE section nav items", () => {
+  it("renders customer and database section nav items", () => {
     render(<AppSidebar />, { wrapper });
-    expect(screen.getByText("CRM")).toBeInTheDocument();
+    expect(screen.getByText("People")).toBeInTheDocument();
+    expect(screen.getByText("Companies")).toBeInTheDocument();
+    expect(screen.getByText("Deals")).toBeInTheDocument();
     expect(screen.getByText("Knowledge")).toBeInTheDocument();
     expect(screen.getByText("Workspace")).toBeInTheDocument();
     expect(screen.getByText("Channels")).toBeInTheDocument();

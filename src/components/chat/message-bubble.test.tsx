@@ -7,6 +7,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { MessageBubble } from "./message-bubble";
+import type { ChatUIMessage } from "./message-content";
 
 /* ------------------------------------------------------------------ */
 /*  Mocks                                                             */
@@ -637,6 +638,18 @@ describe("MessageBubble — inline spec segments", () => {
 /*  Skill badge                                                        */
 /* ------------------------------------------------------------------ */
 
+function createReadFilePart(
+  path: string,
+): Extract<ChatUIMessage["parts"][number], { type: "tool-read_file" }> {
+  return {
+    type: "tool-read_file",
+    toolCallId: `tc-${path}`,
+    state: "output-available",
+    input: { path },
+    output: { success: true, content: "..." },
+  } as Extract<ChatUIMessage["parts"][number], { type: "tool-read_file" }>;
+}
+
 describe("MessageBubble — skill badge", () => {
   it("shows skill badge for a user skill read_file", () => {
     render(
@@ -645,13 +658,7 @@ describe("MessageBubble — skill badge", () => {
           id: "skill-1",
           role: "assistant",
           parts: [
-            {
-              type: "tool-read_file",
-              toolCallId: "tc-1",
-              state: "result",
-              input: { path: "/agent/skills/call-prep/SKILL.md" },
-              output: { success: true, content: "..." },
-            } as any,
+            createReadFilePart("/agent/skills/call-prep/SKILL.md"),
             { type: "text", text: "Here's your call prep." },
           ],
         }}
@@ -669,13 +676,7 @@ describe("MessageBubble — skill badge", () => {
           id: "skill-2",
           role: "assistant",
           parts: [
-            {
-              type: "tool-read_file",
-              toolCallId: "tc-2",
-              state: "result",
-              input: { path: "/agent/skills/system/creating-connections/SKILL.md" },
-              output: { success: true, content: "..." },
-            } as any,
+            createReadFilePart("/agent/skills/system/creating-connections/SKILL.md"),
             { type: "text", text: "Connection guide." },
           ],
         }}
@@ -692,13 +693,7 @@ describe("MessageBubble — skill badge", () => {
           id: "skill-3",
           role: "assistant",
           parts: [
-            {
-              type: "tool-read_file",
-              toolCallId: "tc-3",
-              state: "result",
-              input: { path: "/agent/skills/connections/conn-abc/SKILL.md" },
-              output: { success: true, content: "..." },
-            } as any,
+            createReadFilePart("/agent/skills/connections/conn-abc/SKILL.md"),
             { type: "text", text: "Gmail guide." },
           ],
         }}
@@ -715,13 +710,7 @@ describe("MessageBubble — skill badge", () => {
           id: "skill-4",
           role: "assistant",
           parts: [
-            {
-              type: "tool-read_file",
-              toolCallId: "tc-4",
-              state: "result",
-              input: { path: "/agent/MEMORY.md" },
-              output: { success: true, content: "..." },
-            } as any,
+            createReadFilePart("/agent/MEMORY.md"),
             { type: "text", text: "Memory read." },
           ],
         }}
