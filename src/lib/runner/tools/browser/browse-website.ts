@@ -3,18 +3,25 @@
  * @module lib/runner/tools/browser/browse-website
  */
 import { tool } from "ai";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { getBrowserUseClient } from "@/lib/browser-use/client";
+import { getProfileForPlatform } from "@/lib/browser-use/profiles";
+import type { Database } from "@/types/database";
 
 const BROWSER_USE_MODEL = "browser-use-2.0";
 const MAX_BROWSER_STEPS = 25;
 const DOMAIN_PATTERN = /^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
+type BrowserSupabaseClient = SupabaseClient<Database>;
 
 /**
  * Creates the public-site browsing tool for Browser-Use Cloud.
  */
-export function createBrowseWebsiteTool() {
+export function createBrowseWebsiteTool(
+  supabase?: BrowserSupabaseClient,
+  clientId?: string,
+) {
   const browse_website = tool({
     description:
       "Browse public websites to search, filter, click, fill forms, and extract data. " +
@@ -46,8 +53,17 @@ export function createBrowseWebsiteTool() {
         )
         .optional()
         .describe("Optional domain allowlist that restricts browser navigation."),
+      platform: z
+        .string()
+        .trim()
+        .min(1)
+        .transform((value) => value.toLowerCase())
+        .optional()
+        .describe(
+          "Optional platform slug for login-gated browsing, for example propnex, propertyguru, ura, hdb, or srx.",
+        ),
     }),
-    execute: async ({ goal, startUrl, outputDescription, allowedDomains }) => {
+    execute: async ({ goal, startUrl, outputDescription, allowedDomains, platform }) => {
       let client;
       try {
         client = getBrowserUseClient();
@@ -61,7 +77,31 @@ export function createBrowseWebsiteTool() {
         };
       }
 
-      const session = await client.sessions.create({});
+      let profileId: string | undefined;
+      if (platform) {
+        if (!supabase || !clientId) {
+          return {
+            success: false as const,
+            error: `Authenticated browsing for ${platform} is not available in this runtime.`,
+          };
+        }
+
+        const profile = await getProfileForPlatform(supabase, clientId, platform);
+        if (!profile) {
+          return {
+            success: false as const,
+            error: `No saved login for ${platform}. Ask the user to connect it first.`,
+            needsAuth: true as const,
+            platform,
+          };
+        }
+
+        profileId = profile.browser_use_profile_id;
+      }
+
+      const session = await client.sessions.create(
+        profileId ? { profileId } : {},
+      );
 
       try {
         const taskPrompt = outputDescription

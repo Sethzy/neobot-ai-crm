@@ -9,6 +9,7 @@
 import { useState } from "react";
 
 import { JsonView } from "@/components/ui/json-view";
+import { useBrowserAuth } from "@/hooks/use-browser-auth";
 import { cn } from "@/lib/utils";
 
 export type ToolPartState =
@@ -46,13 +47,30 @@ function isPdfDownload(
   );
 }
 
+/** Check if browse_website returned an auth-required result. */
+function isBrowserNeedsAuth(
+  toolName: string,
+  output: unknown,
+): output is { success: false; needsAuth: true; platform: string; error?: string } {
+  return (
+    toolName === "browse_website" &&
+    output !== null &&
+    typeof output === "object" &&
+    (output as Record<string, unknown>).success === false &&
+    (output as Record<string, unknown>).needsAuth === true &&
+    typeof (output as Record<string, unknown>).platform === "string"
+  );
+}
+
 export function ToolCallInline({ name, state, input, output, errorText, approvalId, onToolApproval }: ToolCallInlineProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { state: browserAuthState, connect, verify, reset } = useBrowserAuth();
   const isRunning = state === "input-available" || state === "input-streaming";
   const isAwaitingApproval = state === "approval-requested";
   const isDenied = state === "output-denied";
   const hasError = state === "output-error";
   const pdfResult = isPdfDownload(name, output) ? output : null;
+  const authNeeded = isBrowserNeedsAuth(name, output) ? output : null;
 
   return (
     <div data-testid="tool-call-inline">
@@ -115,6 +133,82 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
           </svg>
           {pdfResult.filename ?? "Download PDF"}
         </a>
+      )}
+
+      {authNeeded && (
+        <div
+          data-testid="browser-auth-card"
+          className="ml-3 mt-1 space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950"
+        >
+          <p className="text-xs text-amber-900 dark:text-amber-100">
+            Access to <span className="font-medium">{authNeeded.platform}</span> requires login.
+          </p>
+
+          {browserAuthState.status === "awaiting-login" && browserAuthState.liveUrl && (
+            <div className="space-y-2">
+              <iframe
+                title={`${authNeeded.platform} login`}
+                src={browserAuthState.liveUrl}
+                className="h-80 w-full rounded-md border border-amber-200 bg-white dark:border-amber-800"
+              />
+              <a
+                href={browserAuthState.liveUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex text-xs font-medium text-amber-800 underline underline-offset-2 dark:text-amber-200"
+              >
+                Open in new tab
+              </a>
+            </div>
+          )}
+
+          {browserAuthState.status === "done" ? (
+            <p className="text-xs text-emerald-700 dark:text-emerald-300">
+              Connection saved. Retry your request to continue.
+            </p>
+          ) : null}
+
+          {browserAuthState.status !== "awaiting-login" && browserAuthState.status !== "verifying" && browserAuthState.status !== "done" && (
+            <button
+              type="button"
+              className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-amber-700"
+              onClick={() => void connect(authNeeded.platform)}
+            >
+              Connect {authNeeded.platform}
+            </button>
+          )}
+
+          {browserAuthState.status === "awaiting-login" && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-amber-700"
+                onClick={() => void verify(authNeeded.platform)}
+              >
+                Done, I&apos;ve logged in
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900"
+                onClick={() => reset(authNeeded.platform)}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {browserAuthState.status === "verifying" && (
+            <p className="text-xs text-amber-900 dark:text-amber-100">
+              Verifying login...
+            </p>
+          )}
+
+          {authNeeded.error ? (
+            <p className="text-xs text-amber-800/80 dark:text-amber-200/80">
+              {authNeeded.error}
+            </p>
+          ) : null}
+        </div>
       )}
 
       {isOpen && (

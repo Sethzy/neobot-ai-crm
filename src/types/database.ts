@@ -452,6 +452,44 @@ export type Database = {
           },
         ]
       }
+      browser_profiles: {
+        Row: {
+          browser_use_profile_id: string
+          client_id: string
+          created_at: string
+          id: string
+          label: string | null
+          platform: string
+          updated_at: string
+        }
+        Insert: {
+          browser_use_profile_id: string
+          client_id: string
+          created_at?: string
+          id?: string
+          label?: string | null
+          platform: string
+          updated_at?: string
+        }
+        Update: {
+          browser_use_profile_id?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          label?: string | null
+          platform?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "browser_profiles_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           client_id: string
@@ -1861,4 +1899,3 @@ export const Constants = {
     },
   },
 } as const
-

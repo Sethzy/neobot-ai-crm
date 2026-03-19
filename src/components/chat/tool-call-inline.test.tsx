@@ -6,6 +6,14 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+const { mockUseBrowserAuth } = vi.hoisted(() => ({
+  mockUseBrowserAuth: vi.fn(),
+}));
+
+vi.mock("@/hooks/use-browser-auth", () => ({
+  useBrowserAuth: (...args: unknown[]) => mockUseBrowserAuth(...args),
+}));
+
 import { ToolCallInline } from "./tool-call-inline";
 
 describe("ToolCallInline", () => {
@@ -15,6 +23,16 @@ describe("ToolCallInline", () => {
     input: { query: "John" },
     output: { results: [{ name: "John Doe" }] },
   };
+
+  mockUseBrowserAuth.mockReturnValue({
+    state: {
+      status: "idle",
+      liveUrl: null,
+    },
+    connect: vi.fn(),
+    verify: vi.fn(),
+    reset: vi.fn(),
+  });
 
   it("renders as subtle muted text with no bg fill", () => {
     render(<ToolCallInline {...defaultProps} />);
@@ -276,5 +294,80 @@ describe("output-denied state", () => {
 
     expect(screen.queryByRole("button", { name: /approve/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /deny/i })).not.toBeInTheDocument();
+  });
+});
+
+describe("browser auth card", () => {
+  it("renders an auth card when browse_website returns needsAuth", () => {
+    render(
+      <ToolCallInline
+        name="browse_website"
+        state="output-available"
+        input={{ goal: "Search ProMap", platform: "propnex" }}
+        output={{
+          success: false,
+          needsAuth: true,
+          platform: "propnex",
+          error: "No saved login",
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("browser-auth-card")).toBeInTheDocument();
+    expect(screen.getByText(/requires login/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /connect propnex/i })).toBeInTheDocument();
+  });
+
+  it("does not render an auth card for normal browse_website output", () => {
+    render(
+      <ToolCallInline
+        name="browse_website"
+        state="output-available"
+        input={{ goal: "Search example.com" }}
+        output={{ success: true, output: "data" }}
+      />,
+    );
+
+    expect(screen.queryByTestId("browser-auth-card")).not.toBeInTheDocument();
+  });
+
+  it("does not render an auth card for other tools", () => {
+    render(
+      <ToolCallInline
+        name="web_scrape"
+        state="output-available"
+        input={{ url: "https://example.com" }}
+        output={{ success: false, needsAuth: true, platform: "propnex" }}
+      />,
+    );
+
+    expect(screen.queryByTestId("browser-auth-card")).not.toBeInTheDocument();
+  });
+
+  it("renders the embedded iframe and fallback link while awaiting login", () => {
+    mockUseBrowserAuth.mockReturnValueOnce({
+      state: {
+        status: "awaiting-login",
+        liveUrl: "https://live.browser-use.com/session_123",
+      },
+      connect: vi.fn(),
+      verify: vi.fn(),
+      reset: vi.fn(),
+    });
+
+    render(
+      <ToolCallInline
+        name="browse_website"
+        state="output-available"
+        input={{ goal: "Search ProMap", platform: "propnex" }}
+        output={{ success: false, needsAuth: true, platform: "propnex" }}
+      />,
+    );
+
+    expect(screen.getByTitle(/propnex login/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /open in new tab/i })).toHaveAttribute(
+      "href",
+      "https://live.browser-use.com/session_123",
+    );
   });
 });

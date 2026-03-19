@@ -5,7 +5,11 @@
 
 import { describe, expect, it } from "vitest";
 
-import { SETUP_SYSTEM_PROMPT, SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
+import {
+  BROWSER_AUTOMATION_PROMPT,
+  SETUP_SYSTEM_PROMPT,
+  SYSTEM_PROMPT,
+} from "@/lib/ai/system-prompt";
 
 describe("SYSTEM_PROMPT", () => {
   it("exports a non-empty string", () => {
@@ -221,6 +225,16 @@ describe("SYSTEM_PROMPT memory instructions", () => {
     expect(SYSTEM_PROMPT.match(/(?<!\/agent\/)SOUL\.md/g) ?? []).toHaveLength(0);
     expect(SYSTEM_PROMPT.match(/(?<!\/agent\/)memory\//g) ?? []).toHaveLength(0);
     expect(SYSTEM_PROMPT.match(/(?<!\/agent\/)vault\//g) ?? []).toHaveLength(0);
+  });
+});
+
+describe("BROWSER_AUTOMATION_PROMPT", () => {
+  it("includes authenticated browsing guidance for platform connections", () => {
+    expect(BROWSER_AUTOMATION_PROMPT).toContain("Platform authentication");
+    expect(BROWSER_AUTOMATION_PROMPT).toContain('platform: "propnex"');
+    expect(BROWSER_AUTOMATION_PROMPT).toContain("needsAuth");
+    expect(BROWSER_AUTOMATION_PROMPT).toContain("Do not auto-retry");
+    expect(BROWSER_AUTOMATION_PROMPT).toContain("saved login may have expired");
   });
 });
 

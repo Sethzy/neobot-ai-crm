@@ -73,7 +73,9 @@ export function createRunnerTools(
   });
   const shouldIncludeBrowserTools =
     options?.includeBrowserTools === true && isBrowserUseConfigured();
-  const browserTools = shouldIncludeBrowserTools ? createBrowserTools() : {};
+  const browserTools = shouldIncludeBrowserTools
+    ? createBrowserTools(supabase, clientId)
+    : {};
 
   return {
     ...crmTools,
