@@ -9,6 +9,8 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { bootstrapSkills } from "@/lib/runner/skills/skill-bootstrap";
+
 import {
   MEMORY_BUCKET_ID,
   MEMORY_TEXT_CONTENT_TYPE,
@@ -84,6 +86,7 @@ export async function bootstrapMemoryFiles(
     );
   }
 
+  await bootstrapSkills(supabase, clientId);
   bootstrappedClients.add(clientId);
 }
 

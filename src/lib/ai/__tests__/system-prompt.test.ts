@@ -142,6 +142,14 @@ describe("SYSTEM_PROMPT", () => {
     );
   });
 
+  it("includes custom skill discovery and loading guidance", () => {
+    expect(SYSTEM_PROMPT).toContain("<custom-skills>");
+    expect(SYSTEM_PROMPT).toContain("</custom-skills>");
+    expect(SYSTEM_PROMPT).toContain("<available-skills>");
+    expect(SYSTEM_PROMPT).toContain("read_file");
+    expect(SYSTEM_PROMPT).toContain("/agent/skills/{slug}/SKILL.md");
+  });
+
   it("qualifies non-integration connection types as not yet available in v1", () => {
     expect(SYSTEM_PROMPT).toContain("not yet available in v1");
     expect(SYSTEM_PROMPT).toContain("only Composio OAuth integrations are supported");

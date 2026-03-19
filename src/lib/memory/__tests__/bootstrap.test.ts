@@ -16,6 +16,14 @@ import {
   DEFAULT_USER_MD,
 } from "../templates";
 
+const { mockBootstrapSkills } = vi.hoisted(() => ({
+  mockBootstrapSkills: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/runner/skills/skill-bootstrap", () => ({
+  bootstrapSkills: mockBootstrapSkills,
+}));
+
 const CLIENT_ID = "660e8400-e29b-41d4-a716-446655440000";
 
 /** Simulates a file entry returned by `bucket.list()`. */
@@ -46,6 +54,27 @@ describe("bootstrapMemoryFiles", () => {
     vi.clearAllMocks();
     _resetBootstrapCache();
     mock = createMockStorage();
+  });
+
+  it("bootstraps bundled instruction skills after memory files", async () => {
+    mock.mockList
+      .mockResolvedValueOnce({
+        data: [fileEntry("SOUL.md"), fileEntry("USER.md"), fileEntry("MEMORY.md")],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: [
+          fileEntry("preferences.md"),
+          fileEntry("growth-plan.md"),
+          fileEntry("patterns.md"),
+          fileEntry("key-decisions.md"),
+        ],
+        error: null,
+      });
+
+    await bootstrapMemoryFiles(mock.client, CLIENT_ID);
+
+    expect(mockBootstrapSkills).toHaveBeenCalledWith(mock.client, CLIENT_ID);
   });
 
   it("creates only files that are missing", async () => {

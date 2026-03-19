@@ -16,6 +16,7 @@ const {
   mockLoadMemoryContext,
   mockBuildSystemReminder,
   mockFetchThreadCompactionState,
+  mockDiscoverUserSkills,
 } = vi.hoisted(() => ({
   mockBootstrapMemoryFiles: vi.fn().mockResolvedValue(undefined),
   mockLoadMemoryContext: vi.fn().mockResolvedValue({
@@ -27,6 +28,7 @@ const {
     "<system-reminder>\nCurrent time: 2026-03-05 14:30:00 UTC\nOpen todos: 0\n</system-reminder>",
   ),
   mockFetchThreadCompactionState: vi.fn().mockResolvedValue(null),
+  mockDiscoverUserSkills: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/memory/bootstrap", () => ({
@@ -54,6 +56,10 @@ vi.mock("@/lib/runner/compaction", async (importOriginal) => {
     fetchThreadCompactionState: mockFetchThreadCompactionState,
   };
 });
+
+vi.mock("@/lib/runner/skills/discover-skills", () => ({
+  discoverUserSkills: mockDiscoverUserSkills,
+}));
 
 describe("assembleContext", () => {
   function textModelMessage(role: "user" | "assistant" | "system", text: string) {
@@ -393,6 +399,32 @@ describe("assembleContext", () => {
 
     expect(result.system).toContain("<browser-automation>");
     expect(result.system).toContain("browse_website");
+  });
+
+  it("injects available skills into the assembled system prompt", async () => {
+    mockDiscoverUserSkills.mockResolvedValueOnce([
+      {
+        slug: "call-prep",
+        name: "call-prep",
+        description: "Prepare for meetings.",
+        path: "/agent/skills/call-prep/SKILL.md",
+      },
+    ]);
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      clientId: "client-123",
+    });
+
+    expect(result.system).toContain("<available-skills>");
+    expect(result.system).toContain("call-prep");
+    expect(result.system).toContain("Prepare for meetings.");
+    expect(result.system).toContain('read_file("/agent/skills/call-prep/SKILL.md")');
   });
 
   it("replaces the default system prompt when an override is provided", async () => {
@@ -742,5 +774,29 @@ describe("assembleSystemOnly", () => {
 
     expect(withoutBrowser).not.toContain("<browser-automation>");
     expect(withBrowser).toContain("<browser-automation>");
+  });
+
+  it("includes available skills for system-only assembly", async () => {
+    mockDiscoverUserSkills.mockResolvedValueOnce([
+      {
+        slug: "daily-briefing",
+        name: "daily-briefing",
+        description: "Morning briefing with tasks.",
+        path: "/agent/skills/daily-briefing/SKILL.md",
+      },
+    ]);
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const system = await assembleSystemOnly({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      clientId: "client-123",
+    });
+
+    expect(system).toContain("<available-skills>");
+    expect(system).toContain("daily-briefing");
+    expect(system).toContain('read_file("/agent/skills/daily-briefing/SKILL.md")');
   });
 });

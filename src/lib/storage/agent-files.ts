@@ -49,7 +49,14 @@ function resolveStoragePath(clientId: string, inputPath: string, allowEmpty = fa
 function assertWritable(inputPath: string): void {
   const normalizedPath = normalizeWorkspacePath(inputPath, false);
 
-  if (normalizedPath === ROOT_SOUL_PATH || normalizedPath.startsWith("skills/")) {
+  if (normalizedPath === ROOT_SOUL_PATH) {
+    throw new Error(`Path "${normalizedPath}" is read-only and cannot be modified by the agent.`);
+  }
+
+  if (
+    normalizedPath.startsWith("skills/system/")
+    || normalizedPath.startsWith("skills/connections/")
+  ) {
     throw new Error(`Path "${normalizedPath}" is read-only and cannot be modified by the agent.`);
   }
 }

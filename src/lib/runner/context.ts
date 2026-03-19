@@ -24,6 +24,10 @@ import {
   type ThreadCompactionState,
 } from "@/lib/runner/compaction";
 import { getTextFromParts } from "@/lib/runner/message-utils";
+import {
+  discoverUserSkills,
+  type SkillMetadata,
+} from "@/lib/runner/skills/discover-skills";
 import { buildSystemReminder } from "@/lib/runner/system-reminder";
 import type { Database, Json } from "@/types/database";
 
@@ -78,6 +82,7 @@ function normalizeRole(role: string): MessageRole {
 
 interface BuildSystemPromptOptions {
   memory?: MemoryContext;
+  userSkills?: SkillMetadata[];
   compactionSummary?: string;
   systemReminder?: string;
   instructions?: string;
@@ -88,6 +93,7 @@ interface BuildSystemPromptOptions {
 
 function buildSystemPrompt({
   memory,
+  userSkills,
   compactionSummary,
   systemReminder,
   instructions,
@@ -107,6 +113,13 @@ function buildSystemPrompt({
 
     if (instructions && instructions.trim().length > 0) {
       sections.push(instructions.trim());
+    }
+
+    if (userSkills && userSkills.length > 0) {
+      const listing = userSkills
+        .map((skill) => `- **${skill.name}**: ${skill.description}\n  -> \`read_file("${skill.path}")\``)
+        .join("\n");
+      sections.push(`<available-skills>\n${listing}\n</available-skills>`);
     }
 
     return sections.join("\n\n");
@@ -138,6 +151,13 @@ function buildSystemPrompt({
 
   if (memory.memory.length > 0) {
     sections.push(`<working-memory>\n${memory.memory}\n</working-memory>`);
+  }
+
+  if (userSkills && userSkills.length > 0) {
+    const listing = userSkills
+      .map((skill) => `- **${skill.name}**: ${skill.description}\n  -> \`read_file("${skill.path}")\``)
+      .join("\n");
+    sections.push(`<available-skills>\n${listing}\n</available-skills>`);
   }
 
   if (compactionSummary && compactionSummary.trim().length > 0) {
@@ -174,15 +194,17 @@ async function loadSystemPromptState({
   includeCompactionState?: boolean;
 }): Promise<{
   memoryContext?: MemoryContext;
+  userSkills: SkillMetadata[];
   systemReminder?: string;
   compactionState: ThreadCompactionState | null;
 }> {
   let memoryContext: MemoryContext | undefined;
+  let userSkills: SkillMetadata[] = [];
   let systemReminder: string | undefined;
   let compactionState: ThreadCompactionState | null = null;
 
   if (!clientId) {
-    return { memoryContext, systemReminder, compactionState };
+    return { memoryContext, userSkills, systemReminder, compactionState };
   }
 
   const reminderPromise = buildSystemReminder(supabase, clientId, threadId, {
@@ -193,13 +215,14 @@ async function loadSystemPromptState({
     : Promise.resolve(null);
 
   await bootstrapMemoryFiles(supabase, clientId);
-  [memoryContext, systemReminder, compactionState] = await Promise.all([
+  [memoryContext, userSkills, systemReminder, compactionState] = await Promise.all([
     loadMemoryContext(supabase, clientId),
+    discoverUserSkills(supabase, clientId),
     reminderPromise,
     compactionPromise,
   ]);
 
-  return { memoryContext, systemReminder, compactionState };
+  return { memoryContext, userSkills, systemReminder, compactionState };
 }
 
 /**
@@ -216,7 +239,7 @@ export async function assembleSystemOnly({
   platformInstructions,
   systemPrompt,
 }: AssembleSystemOnlyParams): Promise<string> {
-  const { memoryContext, systemReminder } = await loadSystemPromptState({
+  const { memoryContext, userSkills, systemReminder } = await loadSystemPromptState({
     supabase,
     threadId,
     clientId,
@@ -225,6 +248,7 @@ export async function assembleSystemOnly({
 
   return buildSystemPrompt({
     memory: memoryContext,
+    userSkills,
     systemReminder,
     platformInstructions: platformInstructions ?? (crmConfig
       ? buildPlatformInstructions(crmConfig)
@@ -252,7 +276,7 @@ export async function assembleContext({
   platformInstructions,
   systemPrompt,
 }: AssembleContextParams): Promise<AssembledContext> {
-  const { memoryContext, systemReminder, compactionState } = await loadSystemPromptState({
+  const { memoryContext, userSkills, systemReminder, compactionState } = await loadSystemPromptState({
     supabase,
     threadId,
     clientId,
@@ -312,13 +336,14 @@ export async function assembleContext({
   return {
     system: buildSystemPrompt({
       memory: memoryContext,
-    compactionSummary: compactionState?.compaction_summary,
-    systemReminder,
-    instructions,
-    includeBrowserAutomation,
-    platformInstructions: platformInstructions ?? (crmConfig
-      ? buildPlatformInstructions(crmConfig)
-      : PLATFORM_INSTRUCTIONS),
+      userSkills,
+      compactionSummary: compactionState?.compaction_summary,
+      systemReminder,
+      instructions,
+      includeBrowserAutomation,
+      platformInstructions: platformInstructions ?? (crmConfig
+        ? buildPlatformInstructions(crmConfig)
+        : PLATFORM_INSTRUCTIONS),
       systemPrompt: systemPrompt ?? (crmMode === "setup"
         ? CRM_SETUP_SYSTEM_PROMPT
         : SYSTEM_PROMPT),
