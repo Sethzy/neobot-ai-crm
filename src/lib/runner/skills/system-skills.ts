@@ -9,7 +9,8 @@
  * @module lib/runner/skills/system-skills
  */
 import { readFile } from "fs/promises";
-import { join } from "path";
+
+import { getBundledSystemSkillPath } from "./bundled-skill-files";
 
 const SYSTEM_SKILLS_PREFIX = "skills/system/";
 
@@ -41,7 +42,11 @@ export async function getSystemSkillContent(
     return null;
   }
 
-  const filePath = join(__dirname, "system", relativePath);
+  const filePath = getBundledSystemSkillPath(relativePath);
+
+  if (!filePath) {
+    return null;
+  }
 
   try {
     return await readFile(filePath, "utf-8");

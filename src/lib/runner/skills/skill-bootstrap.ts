@@ -3,7 +3,6 @@
  * @module lib/runner/skills/skill-bootstrap
  */
 import { readFile } from "fs/promises";
-import { join } from "path";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -16,26 +15,23 @@ import {
   isStorageConflictError,
 } from "@/lib/memory/storage";
 
+import {
+  DEFAULT_SKILL_SLUGS,
+  type DefaultSkillSlug,
+  getBundledDefaultSkillPath,
+} from "./bundled-skill-files";
+
 const SKILLS_DIRECTORY = "skills";
 const RESERVED_SKILL_DIRECTORIES = new Set(["system", "connections"]);
-const DEFAULT_SKILL_SLUGS = [
-  "call-prep",
-  "daily-briefing",
-  "draft-outreach",
-  "pipeline-review",
-  "listing-analysis",
-  "call-summary",
-  "market-briefing",
-] as const;
 
 const bootstrappedClients = new Set<string>();
 
 async function uploadDefaultSkill(
   supabase: SupabaseClient,
   clientId: string,
-  slug: (typeof DEFAULT_SKILL_SLUGS)[number],
+  slug: DefaultSkillSlug,
 ): Promise<void> {
-  const content = await readFile(join(__dirname, "defaults", slug, "SKILL.md"), "utf-8");
+  const content = await readFile(getBundledDefaultSkillPath(slug), "utf-8");
   const storagePath = `${clientId}/${SKILLS_DIRECTORY}/${slug}/SKILL.md`;
   const { error } = await supabase.storage
     .from(MEMORY_BUCKET_ID)
