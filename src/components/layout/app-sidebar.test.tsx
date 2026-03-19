@@ -77,7 +77,7 @@ describe("AppSidebar", () => {
   it("renders AGENT section nav items", () => {
     render(<AppSidebar />, { wrapper });
     expect(screen.getByText("Chat")).toBeInTheDocument();
-    expect(screen.getByText("Mission Control")).toBeInTheDocument();
+    expect(screen.getByText("Skills")).toBeInTheDocument();
     expect(screen.getByText("Tasks")).toBeInTheDocument();
     expect(screen.getByText("Automations")).toBeInTheDocument();
     expect(screen.getByText("Memory")).toBeInTheDocument();
