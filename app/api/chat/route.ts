@@ -27,8 +27,8 @@ import {
 } from "@/lib/usage/message-quota";
 import { type PostRequestBody, postRequestBodySchema } from "./schema";
 
-/** Allows longer streaming runs on Vercel functions. */
-export const maxDuration = 60;
+/** Allows longer streaming runs on Vercel functions (browser tasks take 30-60s). */
+export const maxDuration = 120;
 
 function getStreamContext() {
   try {

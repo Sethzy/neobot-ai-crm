@@ -2,6 +2,7 @@
  * Tool category barrel for the runner.
  * @module lib/runner/tools
  */
+export { createBrowserTools } from "./browser";
 export { createConnectionTools } from "./connections";
 export { createCrmTools } from "./crm";
 export { createStorageTools } from "./storage";

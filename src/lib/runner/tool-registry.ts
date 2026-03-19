@@ -4,8 +4,10 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { isBrowserUseConfigured } from "@/lib/browser-use/client";
 import { loadCrmConfig } from "@/lib/crm/config";
 import {
+  createBrowserTools,
   createConnectionTools,
   createCrmTools,
   createStorageTools,
@@ -68,6 +70,7 @@ export function createRunnerTools(
   const triggerTools = createTriggerTools(supabase, clientId, threadId, {
     allowMutations: options?.allowTriggerMutations ?? true,
   });
+  const browserTools = isBrowserUseConfigured() ? createBrowserTools() : {};
 
   return {
     ...crmTools,
@@ -76,5 +79,6 @@ export function createRunnerTools(
     ...utilityTools,
     ...triggerTools,
     ...connectionTools,
+    ...browserTools,
   };
 }
