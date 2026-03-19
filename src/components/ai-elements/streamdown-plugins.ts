@@ -8,24 +8,30 @@ import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { createMermaidPlugin } from "@streamdown/mermaid";
 import "streamdown/styles.css";
+import "./streamdown-overrides.css";
 
-/** Custom mermaid plugin with Sunder theming and LR-friendly layout. */
+/**
+ * Custom mermaid plugin with Sunder theming and LR-friendly layout.
+ * Uses static hex values because Mermaid's SVG renderer cannot resolve
+ * CSS variables or oklch(). Values approximate Flexoki light-mode tokens.
+ */
 const mermaid = createMermaidPlugin({
   config: {
     theme: "base",
     themeVariables: {
-      primaryColor: "var(--muted)",
-      primaryTextColor: "var(--foreground)",
-      primaryBorderColor: "var(--info)",
-      lineColor: "var(--border)",
-      secondaryColor: "var(--card)",
-      tertiaryColor: "var(--background)",
+      primaryColor: "#F2F0E5",
+      primaryTextColor: "#1C1B1A",
+      primaryBorderColor: "#B7B5AC",
+      lineColor: "#B7B5AC",
+      secondaryColor: "#FFFCF0",
+      tertiaryColor: "#F2F0E5",
       fontFamily: "Inter, system-ui, sans-serif",
     },
     flowchart: {
       useMaxWidth: false,
       nodeSpacing: 30,
       rankSpacing: 40,
+      curve: "basis",
     },
   },
 });

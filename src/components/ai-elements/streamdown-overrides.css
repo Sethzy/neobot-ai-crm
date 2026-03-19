@@ -1,0 +1,142 @@
+/**
+ * Streamdown CSS overrides.
+ *
+ * 1. Pointer-events fix for Tailwind v4 + node_modules incompatibility.
+ * 2. Hide SVG/MMD download options — only PNG is needed.
+ * 3. Compact inline layout (header + actions share one row).
+ * 4. Hide pan/zoom controls.
+ * 5. Fullscreen: sidebar-aware, white background, ChatGPT-style layout.
+ */
+
+/* ── 1. Pointer-events fix ─────────────────────────────────────────────── */
+
+[data-streamdown="mermaid-block-actions"],
+[data-streamdown="code-block-actions"] {
+  pointer-events: auto !important;
+}
+
+[data-streamdown="mermaid-block-actions"] button,
+[data-streamdown="code-block-actions"] button {
+  pointer-events: auto !important;
+  cursor: pointer;
+}
+
+/* ── 2. Hide SVG & MMD download options (keep PNG only) ────────────────── */
+
+[data-streamdown="mermaid-block-actions"] button[title="Download diagram as SVG"],
+[data-streamdown="mermaid-block-actions"] button[title="Download diagram as MMD"] {
+  display: none !important;
+}
+
+/* ── 3. Compact inline layout ──────────────────────────────────────────── */
+
+/* Mermaid block container — zero gap/padding, clip children to rounded corners */
+[data-streamdown="mermaid-block"] {
+  border-color: var(--border) !important;
+  background-color: var(--card) !important;
+  gap: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Header row: "mermaid" label — compact, inline with actions */
+[data-streamdown="mermaid-block"] > div:first-child {
+  height: auto !important;
+  padding: 6px 8px !important;
+}
+
+/* Actions bar: overlay on header row (label left, buttons right) */
+[data-streamdown="mermaid-block"] > div:nth-child(2) {
+  position: absolute !important;
+  top: 0 !important;
+  right: 4px !important;
+  margin-top: 0 !important;
+  z-index: 10;
+}
+
+/* Remove the glass-effect container border/bg from the action buttons group */
+[data-streamdown="mermaid-block-actions"] {
+  border: none !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove ALL inner container chrome — only the outer mermaid-block border shows.
+   The inner wrapper, mermaid container, and pan/zoom wrapper all have their own
+   border/radius/overflow that create visible "box within box" artifacts. */
+[data-streamdown="mermaid-block"] > div:last-child,
+[data-streamdown="mermaid-block"] > div:last-child > *,
+[data-streamdown="mermaid-block"] > div:last-child > * > * {
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  overflow: visible !important;
+  box-shadow: none !important;
+}
+
+/* Scale SVG to fit container width with breathing room */
+[data-streamdown="mermaid-block"] > div:last-child {
+  padding: 1.25rem !important;
+}
+
+[data-streamdown="mermaid-block"] svg {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+/* ── 4. Hide pan/zoom controls ─────────────────────────────────────────── */
+
+/* Hide zoom in/out/reset button group */
+[data-streamdown="mermaid"] div:has(> button[title="Zoom in"]) {
+  display: none !important;
+}
+
+/* Remove grab cursor from diagram (panZoom disabled) */
+[data-streamdown="mermaid"] > div {
+  cursor: default !important;
+}
+
+/* ── 5. Fullscreen: sidebar-aware, ChatGPT-style ───────────────────────── */
+
+/* Constrain to main content area — sidebar stays visible.
+   The fullscreen portal has role="button" on its outer container. */
+body > [role="button"]:has([data-streamdown="mermaid"]) {
+  left: var(--sidebar-width, 16rem) !important;
+  background-color: white !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
+}
+
+/* Close button: static in top toolbar row */
+body > [role="button"]:has([data-streamdown="mermaid"]) > button:first-child {
+  position: static !important;
+  align-self: flex-start;
+  margin: 0.5rem 1.5rem !important;
+  flex-shrink: 0;
+}
+
+/* Content wrapper: fill remaining space, generous side padding */
+body > [role="button"]:has([data-streamdown="mermaid"]) > div:last-child {
+  flex: 1 !important;
+  padding: 0 2rem 2rem !important;
+}
+
+/* Diagram card in fullscreen only: bordered, rounded, white interior.
+   Use a more specific selector so it doesn't leak into the inline view.
+   The fullscreen portal's outer div has role="button" from streamdown. */
+body > [role="button"]:has([data-streamdown="mermaid"]) [data-streamdown="mermaid"] {
+  border: 1px solid var(--border) !important;
+  border-radius: 0.75rem !important;
+  background-color: white !important;
+  overflow: hidden !important;
+}
+
+/* Center the SVG vertically within the fullscreen card */
+body > [role="button"]:has([data-streamdown="mermaid"]) [data-streamdown="mermaid"] > div {
+  min-height: 0 !important;
+}

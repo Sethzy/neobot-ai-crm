@@ -54,6 +54,7 @@ export const MessageResponse = memo(
         className
       )}
       plugins={streamdownPlugins}
+      controls={{ mermaid: { download: true, copy: true, fullscreen: true, panZoom: false } }}
       animated
       caret="block"
       {...props}
