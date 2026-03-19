@@ -8,6 +8,7 @@ import {
   TOWN_TO_PLANNING_AREA,
 } from "@/lib/property/sg-regions";
 import { formatAreaName } from "@/lib/property/utils";
+import { CHART_COLORS } from "@/lib/property/chart-colors";
 import { SgPlanningAreaMap } from "./sg-region-map";
 
 type Transaction = {
@@ -147,25 +148,25 @@ export function TopNeighbourhoods({ transactions }: TopNeighbourhoodsProps) {
   const maxCount = Math.max(...highlights.values(), 0);
 
   return (
-    <div className="rounded-2xl border border-zinc-200/70 bg-white p-6 lg:p-8">
+    <div className="rounded-2xl border border-border bg-card p-6 lg:p-8">
       {/* Header row: title left, toggle right */}
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-zinc-900">
+          <h3 className="text-lg font-semibold text-foreground">
             Top Neighbourhoods
           </h3>
-          <p className="mt-0.5 text-sm text-zinc-400">
+          <p className="mt-0.5 text-sm text-muted-foreground">
             Geographic distribution of transactions
           </p>
         </div>
-        <div className="flex gap-1 rounded-lg border border-zinc-200 bg-white p-0.5">
+        <div className="flex gap-1 rounded-lg border border-border bg-card p-0.5">
           <button
             type="button"
             onClick={() => setView("hdb")}
             className={`rounded-md px-3.5 py-1.5 text-xs font-medium transition ${
               view === "hdb"
-                ? "bg-zinc-900 text-white"
-                : "text-zinc-500 hover:text-zinc-900"
+                ? "bg-foreground text-background"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             HDB Towns
@@ -175,8 +176,8 @@ export function TopNeighbourhoods({ transactions }: TopNeighbourhoodsProps) {
             onClick={() => setView("private")}
             className={`rounded-md px-3.5 py-1.5 text-xs font-medium transition ${
               view === "private"
-                ? "bg-zinc-900 text-white"
-                : "text-zinc-500 hover:text-zinc-900"
+                ? "bg-foreground text-background"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Private Districts
@@ -193,7 +194,7 @@ export function TopNeighbourhoods({ transactions }: TopNeighbourhoodsProps) {
         />
 
         {/* Ranked list */}
-        <div className="divide-y divide-zinc-100">
+        <div className="divide-y divide-border">
           {ranked.map((entry, i) => (
             <div
               key={entry.name}
@@ -201,19 +202,17 @@ export function TopNeighbourhoods({ transactions }: TopNeighbourhoodsProps) {
             >
               <span
                 className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                style={{
-                  backgroundColor: `rgba(2, 79, 70, ${Math.max(0.15, (10 - i) / 10)})`,
-                }}
+                style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
               />
-              <span className="flex-1 text-sm text-zinc-700">
+              <span className="flex-1 text-sm text-muted-foreground">
                 {view === "private"
                   ? `D${entry.name}: ${DISTRICT_LABELS[entry.name] ?? "Unknown"}`
                   : formatAreaName(entry.name)}
               </span>
-              <span className="tabular-nums text-sm font-semibold text-zinc-900">
+              <span className="tabular-nums text-sm font-semibold text-foreground">
                 {entry.count}
               </span>
-              <span className="w-12 text-right text-xs tabular-nums text-zinc-400">
+              <span className="w-12 text-right text-xs tabular-nums text-muted-foreground">
                 ({entry.percentage}%)
               </span>
             </div>

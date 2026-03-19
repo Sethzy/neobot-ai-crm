@@ -20,7 +20,7 @@ export function GoogleAuthButton({
     <button
       type="button"
       className={cn(
-        "inline-flex h-12 w-full items-center justify-center gap-3 rounded-2xl border border-black/10 bg-white px-4 text-sm font-medium text-[#202330] shadow-[0_12px_24px_-18px_rgba(15,23,42,0.45)] transition hover:border-black/20 hover:bg-black/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6]/40 disabled:cursor-not-allowed disabled:opacity-60",
+        "inline-flex h-12 w-full items-center justify-center gap-3 rounded-2xl border border-border bg-card px-4 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60",
         className,
       )}
       disabled={disabled || isLoading}

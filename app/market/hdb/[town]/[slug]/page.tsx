@@ -179,32 +179,32 @@ export default async function HdbStreetProfilePage({
         <Container>
           <Link
             href="/market/hdb"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-sunder-green"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition hover:text-primary"
           >
             <AppIcon name="arrowLeft" className="h-4 w-4" />
             Back to HDB streets
           </Link>
 
-          <div className="mt-6 rounded-2xl border border-[#E8DCC8] border-t-4 border-t-sunder-green bg-white p-6 shadow-sm">
-            <span className="inline-block rounded-full bg-sunder-green/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-sunder-green">
+          <div className="mt-6 rounded-2xl border border-border border-t-4 border-t-primary bg-card p-6 shadow-sm">
+            <span className="inline-block rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
               HDB Street Profile
             </span>
-            <h1 className="mt-2 font-serif text-2xl font-medium tracking-tight text-zinc-900 sm:text-3xl">
+            <h1 className="mt-2 font-serif text-2xl font-medium tracking-tight text-foreground sm:text-3xl">
               {streetName}
             </h1>
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                 <AppIcon name="mapPin" className="h-3 w-3" />
                 {displayTown}
               </span>
               {dominantFlatTypes ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                   <AppIcon name="home" className="h-3 w-3" />
                   {dominantFlatTypes}
                 </span>
               ) : null}
               {earliestLease ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                   <AppIcon name="calendar" className="h-3 w-3" />
                   Lease from {earliestLease}
                 </span>

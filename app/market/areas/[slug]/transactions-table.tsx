@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { PaginatedTable } from "@/components/property/paginated-table";
+import { MARKET_TRANSACTION_TYPE_TONE_CLASSES } from "@/lib/ui/color-maps";
 import {
   formatDateMonthYear,
   formatEnumLabel,
@@ -18,16 +19,10 @@ type CeaTransaction = {
   transaction_type: string | null;
 };
 
-const TXN_TYPE_COLORS: Record<string, string> = {
-  "New Sale": "bg-emerald-100 text-emerald-800",
-  Resale: "bg-blue-100 text-blue-800",
-  "Whole Rental": "bg-violet-100 text-violet-800",
-  "Room Rental": "bg-amber-100 text-amber-800",
-};
-
 function TxnBadge({ label }: { label: string | null }) {
   const formatted = formatEnumLabel(label);
-  const colors = TXN_TYPE_COLORS[formatted] ?? "bg-zinc-100 text-zinc-700";
+  const colors =
+    MARKET_TRANSACTION_TYPE_TONE_CLASSES[formatted] ?? "bg-muted text-muted-foreground";
   return (
     <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${colors}`}>
       {formatted}
@@ -59,14 +54,14 @@ export function AreaTransactionsTableClient({
             row.salesperson_reg_num ? (
               <Link
                 href={`/market/agents/${row.salesperson_reg_num}`}
-                className="font-medium text-zinc-900 hover:text-sunder-green"
+                className="font-medium text-foreground hover:text-primary"
               >
                 {row.salesperson_name ?? row.salesperson_reg_num}
               </Link>
             ) : (
               "Unknown"
             ),
-          className: "px-4 py-4 text-sm text-zinc-900",
+          className: "px-4 py-4 text-sm text-foreground",
         },
         {
           header: "Property Type",
@@ -78,16 +73,16 @@ export function AreaTransactionsTableClient({
         },
       ]}
       mobileCardRenderer={(row) => (
-        <div className="px-4 py-3 space-y-1">
+        <div className="space-y-1 px-4 py-3">
           <div className="flex justify-between">
-            <span className="text-sm font-medium text-zinc-900">
+            <span className="text-sm font-medium text-foreground">
               {row.salesperson_name ?? row.salesperson_reg_num ?? "Unknown"}
             </span>
-            <span className="text-xs text-zinc-500">
+            <span className="text-xs text-muted-foreground">
               {formatDateMonthYear(row.transaction_date)}
             </span>
           </div>
-          <p className="text-sm text-zinc-600">{formatPropertyType(row.property_type)}</p>
+          <p className="text-sm text-muted-foreground">{formatPropertyType(row.property_type)}</p>
           <TxnBadge label={row.transaction_type} />
         </div>
       )}

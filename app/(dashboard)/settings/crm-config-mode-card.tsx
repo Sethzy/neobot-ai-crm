@@ -117,7 +117,7 @@ export function CrmConfigModeCard({ initialExpiresAt }: CrmConfigModeCardProps) 
         </div>
 
         {result?.success && result.expiresAt && (
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-sm">
+          <div className="rounded-xl border border-success/30 bg-success/5 p-4 text-sm">
             <p className="font-medium text-foreground">Configuration mode is active.</p>
             <p>
               Go to chat and ask Sunder to reconfigure your CRM. Expires at{" "}

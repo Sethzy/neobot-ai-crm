@@ -4,6 +4,10 @@
 import type { ReactNode } from "react";
 import { PaginatedTable } from "@/components/property/paginated-table";
 import {
+  MARKET_REPRESENTED_TONE_CLASSES,
+  MARKET_TRANSACTION_TYPE_TONE_CLASSES,
+} from "@/lib/ui/color-maps";
+import {
   formatAreaName,
   formatDateMonthYear,
   formatEnumLabel,
@@ -20,23 +24,9 @@ type AgentTransaction = {
   general_location: string | null;
 };
 
-const TXN_TYPE_COLORS: Record<string, string> = {
-  "New Sale": "bg-[#D8F3DC] text-sunder-green",
-  Resale: "bg-[#F0E8D8] text-sunder-green",
-  "Whole Rental": "bg-zinc-100 text-zinc-700",
-  "Room Rental": "bg-zinc-100 text-zinc-700",
-};
-
-const REP_COLORS: Record<string, string> = {
-  Seller: "bg-[#D8F3DC] text-sunder-green",
-  Buyer: "bg-[#F0E8D8] text-sunder-green",
-  Landlord: "bg-zinc-100 text-zinc-600",
-  Tenant: "bg-zinc-100 text-zinc-600",
-};
-
 function Badge({ label, colorMap }: { label: string | null; colorMap: Record<string, string> }): ReactNode {
   const formatted = formatEnumLabel(label);
-  const colors = colorMap[formatted] ?? "bg-zinc-100 text-zinc-700";
+  const colors = colorMap[formatted] ?? "bg-muted text-muted-foreground";
   return (
     <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${colors}`}>
       {formatted}
@@ -66,7 +56,12 @@ export function AgentTransactionsTableClient({
         },
         {
           header: "Transaction Type",
-          cell: (row) => <Badge label={row.transaction_type} colorMap={TXN_TYPE_COLORS} />,
+          cell: (row) => (
+            <Badge
+              label={row.transaction_type}
+              colorMap={MARKET_TRANSACTION_TYPE_TONE_CLASSES}
+            />
+          ),
         },
         {
           header: "Area",
@@ -75,21 +70,32 @@ export function AgentTransactionsTableClient({
         },
         {
           header: "Represented",
-          cell: (row) => <Badge label={row.represented} colorMap={REP_COLORS} />,
+          cell: (row) => (
+            <Badge
+              label={row.represented}
+              colorMap={MARKET_REPRESENTED_TONE_CLASSES}
+            />
+          ),
         },
       ]}
       mobileCardRenderer={(row) => (
-        <div className="px-4 py-3 space-y-1">
+        <div className="space-y-1 px-4 py-3">
           <div className="flex justify-between">
-            <span className="text-sm font-medium text-zinc-900">
+            <span className="text-sm font-medium text-foreground">
               {formatDateMonthYear(row.transaction_date)}
             </span>
-            <Badge label={row.represented} colorMap={REP_COLORS} />
+            <Badge
+              label={row.represented}
+              colorMap={MARKET_REPRESENTED_TONE_CLASSES}
+            />
           </div>
-          <p className="text-sm text-zinc-600">{formatPropertyType(row.property_type)}</p>
-          <div className="flex items-center gap-2 text-xs text-zinc-500">
+          <p className="text-sm text-muted-foreground">{formatPropertyType(row.property_type)}</p>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>{formatAreaName(row.general_location ?? row.town ?? row.district)}</span>
-            <Badge label={row.transaction_type} colorMap={TXN_TYPE_COLORS} />
+            <Badge
+              label={row.transaction_type}
+              colorMap={MARKET_TRANSACTION_TYPE_TONE_CLASSES}
+            />
           </div>
         </div>
       )}

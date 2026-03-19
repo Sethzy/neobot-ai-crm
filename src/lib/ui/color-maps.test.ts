@@ -6,6 +6,9 @@ import {
   DEAL_STAGE_TONE_CLASSES,
   FILETYPE_COLOR_CLASSES,
   FILETYPE_ICON_CLASSES,
+  MARKET_HDB_FLAT_TYPE_TONE_CLASSES,
+  MARKET_REPRESENTED_TONE_CLASSES,
+  MARKET_TRANSACTION_TYPE_TONE_CLASSES,
   TASK_STATUS_TONE_CLASSES,
   TASK_STATUS_TOP_BORDER_CLASSES,
 } from "./color-maps";
@@ -100,5 +103,44 @@ describe("FILETYPE_ICON_CLASSES", () => {
     expect(FILETYPE_ICON_CLASSES.PDF).toBe("bg-filetype-pdf/10 text-filetype-pdf");
     expect(FILETYPE_ICON_CLASSES.Document).toBe("bg-filetype-document/10 text-filetype-document");
     expect(FILETYPE_ICON_CLASSES.Presentation).toBe("bg-filetype-presentation/10 text-filetype-presentation");
+  });
+});
+
+describe("MARKET_TRANSACTION_TYPE_TONE_CLASSES", () => {
+  it("uses semantic or domain tokens", () => {
+    expect(MARKET_TRANSACTION_TYPE_TONE_CLASSES["New Sale"]).toBe("bg-success/10 text-success");
+    expect(MARKET_TRANSACTION_TYPE_TONE_CLASSES["Sub Sale"]).toBe("bg-warning/10 text-warning");
+    expect(MARKET_TRANSACTION_TYPE_TONE_CLASSES.Resale).toBe("bg-info/10 text-info");
+    expect(MARKET_TRANSACTION_TYPE_TONE_CLASSES["Whole Rental"]).toBe("bg-tag/10 text-tag");
+    expect(MARKET_TRANSACTION_TYPE_TONE_CLASSES["Room Rental"]).toBe(
+      "bg-stage-negotiation/10 text-stage-negotiation"
+    );
+  });
+
+  it("contains no raw Tailwind palette classes", () => {
+    const values = Object.values(MARKET_TRANSACTION_TYPE_TONE_CLASSES).join(" ");
+    expect(values).not.toMatch(/amber|orange|emerald|sky|blue|green|violet|pink|red/);
+  });
+});
+
+describe("MARKET_REPRESENTED_TONE_CLASSES", () => {
+  it("uses semantic tokens", () => {
+    expect(MARKET_REPRESENTED_TONE_CLASSES.Seller).toBe("bg-success/10 text-success");
+    expect(MARKET_REPRESENTED_TONE_CLASSES.Buyer).toBe("bg-info/10 text-info");
+    expect(MARKET_REPRESENTED_TONE_CLASSES.Landlord).toBe("bg-warning/10 text-warning");
+    expect(MARKET_REPRESENTED_TONE_CLASSES.Tenant).toBe("bg-tag/10 text-tag");
+  });
+});
+
+describe("MARKET_HDB_FLAT_TYPE_TONE_CLASSES", () => {
+  it("uses semantic or chart tokens", () => {
+    expect(MARKET_HDB_FLAT_TYPE_TONE_CLASSES["1 ROOM"]).toBe("bg-destructive/10 text-destructive");
+    expect(MARKET_HDB_FLAT_TYPE_TONE_CLASSES["5 ROOM"]).toBe("bg-info/10 text-info");
+    expect(MARKET_HDB_FLAT_TYPE_TONE_CLASSES["MULTI-GENERATION"]).toBe("bg-chart-4/10 text-chart-4");
+  });
+
+  it("contains no raw Tailwind palette classes", () => {
+    const values = Object.values(MARKET_HDB_FLAT_TYPE_TONE_CLASSES).join(" ");
+    expect(values).not.toMatch(/amber|orange|emerald|sky|blue|green|violet|pink|red/);
   });
 });

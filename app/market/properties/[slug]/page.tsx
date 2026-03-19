@@ -275,32 +275,32 @@ export default async function PropertyProfilePage({
         <Container>
           <Link
             href="/market/properties"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-sunder-green"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition hover:text-primary"
           >
             <AppIcon name="arrowLeft" className="h-4 w-4" />
             Back to properties
           </Link>
 
           <div className="mt-6">
-            <h1 className="font-serif text-3xl font-medium tracking-tight text-zinc-900 sm:text-4xl">
+            <h1 className="font-serif text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
               {context.project}
             </h1>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {context.district ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                   <AppIcon name="mapPin" className="h-3 w-3" />
                   D{context.district}
                   {marketSegment ? `: ${marketSegment}` : ""}
                 </span>
               ) : null}
               {propertyType ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                   <AppIcon name="property" className="h-3 w-3" />
                   {propertyType}
                 </span>
               ) : null}
               {tenure ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                   <AppIcon name="clock" className="h-3 w-3" />
                   {tenure}
                 </span>

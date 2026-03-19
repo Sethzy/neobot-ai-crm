@@ -88,3 +88,31 @@ export const FILETYPE_ICON_CLASSES: Record<string, string> = {
   Document:     "bg-filetype-document/10 text-filetype-document",
   Presentation: "bg-filetype-presentation/10 text-filetype-presentation",
 };
+
+/** Market transaction type badge classes. */
+export const MARKET_TRANSACTION_TYPE_TONE_CLASSES: Record<string, string> = {
+  "New Sale": "bg-success/10 text-success",
+  "Sub Sale": "bg-warning/10 text-warning",
+  Resale: "bg-info/10 text-info",
+  "Whole Rental": "bg-tag/10 text-tag",
+  "Room Rental": "bg-stage-negotiation/10 text-stage-negotiation",
+};
+
+/** Market represented-party badge classes. */
+export const MARKET_REPRESENTED_TONE_CLASSES: Record<string, string> = {
+  Seller: "bg-success/10 text-success",
+  Buyer: "bg-info/10 text-info",
+  Landlord: "bg-warning/10 text-warning",
+  Tenant: "bg-tag/10 text-tag",
+};
+
+/** HDB flat type badge classes. */
+export const MARKET_HDB_FLAT_TYPE_TONE_CLASSES: Record<string, string> = {
+  "1 ROOM": "bg-destructive/10 text-destructive",
+  "2 ROOM": "bg-stage-negotiation/10 text-stage-negotiation",
+  "3 ROOM": "bg-warning/10 text-warning",
+  "4 ROOM": "bg-success/10 text-success",
+  "5 ROOM": "bg-info/10 text-info",
+  EXECUTIVE: "bg-tag/10 text-tag",
+  "MULTI-GENERATION": "bg-chart-4/10 text-chart-4",
+};

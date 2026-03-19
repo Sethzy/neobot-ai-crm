@@ -14,12 +14,12 @@ const mermaid = createMermaidPlugin({
   config: {
     theme: "base",
     themeVariables: {
-      primaryColor: "#e0f2fe",
-      primaryTextColor: "#0c4a6e",
-      primaryBorderColor: "#7dd3fc",
-      lineColor: "#94a3b8",
-      secondaryColor: "#f0f9ff",
-      tertiaryColor: "#f8fafc",
+      primaryColor: "var(--muted)",
+      primaryTextColor: "var(--foreground)",
+      primaryBorderColor: "var(--info)",
+      lineColor: "var(--border)",
+      secondaryColor: "var(--card)",
+      tertiaryColor: "var(--background)",
       fontFamily: "Inter, system-ui, sans-serif",
     },
     flowchart: {

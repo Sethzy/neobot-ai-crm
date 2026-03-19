@@ -200,17 +200,17 @@ export default async function AgencyProfilePage({
         <Container>
           <Link
             href="/market/agencies"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-sunder-green"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition hover:text-primary"
           >
             <AppIcon name="arrowLeft" className="h-4 w-4" />
             Back to agencies
           </Link>
 
-          <div className="mt-6 rounded-2xl border border-[#E8DCC8] border-t-4 border-t-sunder-green bg-white p-8 shadow-sm">
-            <span className="inline-block rounded-full bg-sunder-green/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-sunder-green">
+          <div className="mt-6 rounded-2xl border border-border border-t-4 border-t-primary bg-card p-8 shadow-sm">
+            <span className="inline-block rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
               Agency Profile
             </span>
-            <h1 className="mt-3 font-serif text-3xl font-medium tracking-tight text-zinc-900 sm:text-4xl">
+            <h1 className="mt-3 font-serif text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
               {agencyName}
             </h1>
           </div>
@@ -233,39 +233,39 @@ export default async function AgencyProfilePage({
       <section className="pb-20 sm:pb-24">
         <Container>
           <DataTable title="Top Agents in This Agency">
-            <table className="min-w-full divide-y divide-zinc-200">
-              <thead className="bg-[#FAF6EF]">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted/30">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Agent
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Registration
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Recent Transactions
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Latest Activity
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100">
+              <tbody className="divide-y divide-border">
                 {topAgents.map((agent) => (
-                  <tr key={agent.registrationNo} className="hover:bg-zinc-50/80">
-                    <td className="px-4 py-4 text-sm text-zinc-900">
+                  <tr key={agent.registrationNo} className="hover:bg-muted/40">
+                    <td className="px-4 py-4 text-sm text-foreground">
                       <Link
                         href={`/market/agents/${agent.registrationNo}`}
-                        className="font-medium text-zinc-900 hover:text-sunder-green"
+                        className="font-medium text-foreground hover:text-primary"
                       >
                         {agent.name ?? "Unknown"}
                       </Link>
                     </td>
-                    <td className="px-4 py-4 text-sm text-zinc-600">{agent.registrationNo}</td>
-                    <td className="px-4 py-4 text-sm text-zinc-600">
+                    <td className="px-4 py-4 text-sm text-muted-foreground">{agent.registrationNo}</td>
+                    <td className="px-4 py-4 text-sm text-muted-foreground">
                       {formatCount(agent.transactionCount)}
                     </td>
-                    <td className="px-4 py-4 text-sm text-zinc-600">
+                    <td className="px-4 py-4 text-sm text-muted-foreground">
                       {formatDateMonthYear(agent.latestTransactionDate)}
                     </td>
                   </tr>

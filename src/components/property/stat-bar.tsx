@@ -18,14 +18,14 @@ export function StatBar({ items }: StatBarProps) {
     >
       {items.map((item) => (
         <div key={item.label} className="text-center">
-          <p className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
+          <p className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
             {item.value}
           </p>
-          <p className="mt-1 text-xs text-zinc-400">
+          <p className="mt-1 text-xs text-muted-foreground">
             {item.label}
           </p>
           {item.hint ? (
-            <p className="text-xs text-zinc-400">{item.hint}</p>
+            <p className="text-xs text-muted-foreground">{item.hint}</p>
           ) : null}
         </div>
       ))}

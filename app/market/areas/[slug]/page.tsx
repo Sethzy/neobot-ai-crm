@@ -206,17 +206,17 @@ export default async function AreaProfilePage({
         <Container>
           <Link
             href="/market/areas"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 transition hover:text-sunder-green"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition hover:text-primary"
           >
             <AppIcon name="arrowLeft" className="h-4 w-4" />
             Back to areas
           </Link>
 
-          <div className="mt-6 rounded-2xl border border-[#E8DCC8] border-t-4 border-t-sunder-green bg-white p-8 shadow-sm">
-            <span className="inline-block rounded-full bg-sunder-green/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-sunder-green">
+          <div className="mt-6 rounded-2xl border border-border border-t-4 border-t-primary bg-card p-8 shadow-sm">
+            <span className="inline-block rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
               Area Profile
             </span>
-            <h1 className="mt-3 font-serif text-3xl font-medium tracking-tight text-zinc-900 sm:text-4xl">
+            <h1 className="mt-3 font-serif text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
               {areaName}
             </h1>
           </div>

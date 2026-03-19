@@ -36,7 +36,7 @@ describe("MarketSubNav", () => {
     render(<MarketSubNav />);
 
     const agentsLink = screen.getByRole("link", { name: /agents/i });
-    expect(agentsLink.className).toMatch(/text-sunder-green|border-sunder-green/);
+    expect(agentsLink.className).toMatch(/text-primary|border-primary/);
   });
 
   it("renders as a nav element with accessible label", () => {

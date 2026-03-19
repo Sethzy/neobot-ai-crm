@@ -11,7 +11,11 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { CHART_PRIMARY } from "@/lib/property/chart-colors";
+import {
+  CHART_PRIMARY,
+  CHART_BORDER,
+  CHART_TOOLTIP_STYLE,
+} from "@/lib/property/chart-colors";
 
 type Granularity = "yearly" | "quarterly" | "monthly";
 
@@ -68,13 +72,13 @@ export function TransactionVolumeChart({
   if (chartData.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-zinc-200/70 bg-white p-5">
+    <div className="rounded-2xl border border-border bg-card p-5">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-zinc-900">Transaction Volume</h3>
-          {subtitle ? <p className="text-sm text-zinc-500">{subtitle}</p> : null}
+          <h3 className="text-lg font-semibold text-foreground">Transaction Volume</h3>
+          {subtitle ? <p className="text-sm text-muted-foreground">{subtitle}</p> : null}
         </div>
-        <div className="flex gap-1 rounded-lg bg-zinc-100 p-1">
+        <div className="flex gap-1 rounded-lg bg-muted p-1">
           {TABS.map((tab) => (
             <button
               key={tab.value}
@@ -82,8 +86,8 @@ export function TransactionVolumeChart({
               onClick={() => setGranularity(tab.value)}
               className={`rounded-md px-3 py-1 text-xs font-medium transition ${
                 granularity === tab.value
-                  ? "bg-white text-zinc-900 shadow-sm"
-                  : "text-zinc-600 hover:text-zinc-900"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {tab.label}
@@ -93,7 +97,7 @@ export function TransactionVolumeChart({
       </div>
       <ResponsiveContainer width="100%" height={280}>
         <BarChart data={chartData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_BORDER} />
           <XAxis
             dataKey="period"
             tick={{ fontSize: 11 }}
@@ -108,11 +112,7 @@ export function TransactionVolumeChart({
             className="hidden sm:block"
           />
           <Tooltip
-            contentStyle={{
-              borderRadius: 8,
-              border: "1px solid #e4e4e7",
-              fontSize: 13,
-            }}
+            contentStyle={CHART_TOOLTIP_STYLE}
           />
           <Bar dataKey="count" fill={CHART_PRIMARY} radius={[4, 4, 0, 0]} name="Transactions" />
         </BarChart>

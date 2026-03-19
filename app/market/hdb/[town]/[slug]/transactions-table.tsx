@@ -2,6 +2,7 @@
 "use client";
 
 import { PaginatedTable } from "@/components/property/paginated-table";
+import { MARKET_HDB_FLAT_TYPE_TONE_CLASSES } from "@/lib/ui/color-maps";
 import {
   formatAreaSqft,
   formatCurrencySgd,
@@ -20,16 +21,6 @@ type HdbRow = {
   lease_commence_date: number | null;
   remaining_lease: string | null;
   resale_price: number | string | null;
-};
-
-const FLAT_TYPE_COLORS: Record<string, string> = {
-  "1 ROOM": "bg-red-100 text-red-800",
-  "2 ROOM": "bg-orange-100 text-orange-800",
-  "3 ROOM": "bg-amber-100 text-amber-800",
-  "4 ROOM": "bg-emerald-100 text-emerald-800",
-  "5 ROOM": "bg-sky-100 text-sky-800",
-  EXECUTIVE: "bg-violet-100 text-violet-800",
-  "MULTI-GENERATION": "bg-pink-100 text-pink-800",
 };
 
 export function HdbTransactionsTableClient({
@@ -84,7 +75,8 @@ export function HdbTransactionsTableClient({
           header: "Flat Type",
           cell: (row) => {
             const type = row.flat_type ?? "Unknown";
-            const color = FLAT_TYPE_COLORS[type] ?? "bg-zinc-100 text-zinc-800";
+            const color =
+              MARKET_HDB_FLAT_TYPE_TONE_CLASSES[type] ?? "bg-muted text-muted-foreground";
             return (
               <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>
                 {type}
@@ -95,7 +87,8 @@ export function HdbTransactionsTableClient({
       ]}
       mobileCardRenderer={(row) => {
         const type = row.flat_type ?? "Unknown";
-        const color = FLAT_TYPE_COLORS[type] ?? "bg-zinc-100 text-zinc-800";
+        const color =
+          MARKET_HDB_FLAT_TYPE_TONE_CLASSES[type] ?? "bg-muted text-muted-foreground";
         const block = row.block ?? "";
         const street = row.street_name ?? "";
         const address = block && street ? `Blk ${block} ${street}` : street || block || "";
@@ -104,21 +97,21 @@ export function HdbTransactionsTableClient({
         const psf = price && sqm && sqm > 0 ? Math.round(price / (sqm * 10.764)) : null;
 
         return (
-          <div className="px-4 py-3 space-y-1">
-            <div className="flex justify-between items-start">
-              <span className="text-sm font-medium text-zinc-900">
+          <div className="space-y-1 px-4 py-3">
+            <div className="flex items-start justify-between">
+              <span className="text-sm font-medium text-foreground">
                 {formatCurrencySgd(price)}
               </span>
               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>
                 {type}
               </span>
             </div>
-            {address ? <p className="text-sm text-zinc-600">{address}</p> : null}
-            <p className="text-xs text-zinc-500">
+            {address ? <p className="text-sm text-muted-foreground">{address}</p> : null}
+            <p className="text-xs text-muted-foreground">
               {row.storey_range ?? ""} · {sqm ? formatAreaSqft(sqm) : ""}
               {psf ? ` · $${psf.toLocaleString()} psf` : ""}
             </p>
-            <p className="text-xs text-zinc-400">{formatDateMonthYear(row.month)}</p>
+            <p className="text-xs text-muted-foreground">{formatDateMonthYear(row.month)}</p>
           </div>
         );
       }}

@@ -10,7 +10,7 @@ export default function DocumentDetailLoading() {
       </div>
 
       <div className="flex min-h-0 flex-1">
-        <div className="flex w-1/2 items-center justify-center border-r border-[#E5E5E5] bg-neutral-50/50">
+        <div className="flex w-1/2 items-center justify-center border-r border-border/60 bg-muted/20">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
         <div className="w-1/2 bg-muted/10 p-6">

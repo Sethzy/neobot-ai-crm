@@ -15,10 +15,10 @@ export function DataTable({
   children,
 }: DataTableProps) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#E8DCC8] bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       {title ? (
-        <div className="border-b border-[#E8DCC8] bg-[#FAF6EF] px-4 py-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+        <div className="border-b border-border bg-muted/30 px-4 py-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             {title}
           </h2>
         </div>
@@ -28,7 +28,7 @@ export function DataTable({
 
       {isEmpty ? (
         <div className="p-10 text-center">
-          <p className="text-sm text-zinc-600">{emptyMessage}</p>
+          <p className="text-sm text-muted-foreground">{emptyMessage}</p>
         </div>
       ) : null}
     </div>

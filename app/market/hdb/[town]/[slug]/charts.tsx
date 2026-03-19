@@ -41,7 +41,7 @@ export function HdbProfileCharts({
           valueLabel="Median Price"
         />
       ) : null}
-      <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {hasFloor ? <FloorPremiumChart data={storeyPsfPoints} /> : null}
         {hasBreakdown ? (
           <TypeBreakdownChart title="Flat Type" data={flatTypeBreakdown} />

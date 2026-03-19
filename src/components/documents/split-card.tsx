@@ -101,7 +101,7 @@ export function SplitCard({ split, onPageClick }: SplitCardProps) {
             Notes
           </button>
           {notesExpanded && (
-            <p className="mt-2 px-3 py-2.5 bg-[#F9FAFB] rounded-lg text-xs text-foreground/80 leading-relaxed">
+            <p className="mt-2 rounded-lg bg-muted/30 px-3 py-2.5 text-xs leading-relaxed text-foreground/80">
               {split.observation}
             </p>
           )}

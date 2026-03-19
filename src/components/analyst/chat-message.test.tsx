@@ -30,9 +30,9 @@ describe('ChatMessage', () => {
 
     const { container } = render(<ChatMessage message={message} />);
 
-    // User messages align right and have zinc background
+    // User messages align right and use the tokenized muted background
     expect(container.firstChild).toHaveClass('justify-end');
-    const bubble = container.querySelector('.bg-zinc-100');
+    const bubble = container.querySelector('.bg-muted');
     expect(bubble).toBeInTheDocument();
   });
 

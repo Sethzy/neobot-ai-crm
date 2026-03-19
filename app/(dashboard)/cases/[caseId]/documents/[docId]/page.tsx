@@ -31,8 +31,8 @@ const PdfViewerPane = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full flex-col bg-neutral-50/50">
-        <div className="h-10 border-b border-[#d1d1d1] bg-[#eeeeee]" />
+      <div className="flex h-full flex-col bg-muted/20">
+        <div className="h-10 border-b border-border/60 bg-muted/40" />
         <div className="flex flex-1 items-center justify-center">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
@@ -119,7 +119,7 @@ export default function DocumentDetailPage() {
           <div className="h-4 w-48 rounded bg-muted" />
         </div>
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          <div className="flex w-full md:w-1/2 items-center justify-center border-b md:border-b-0 md:border-r border-[#E5E5E5]">
+          <div className="flex w-full items-center justify-center border-b border-border/60 md:w-1/2 md:border-r md:border-b-0">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
           </div>
           <div className="w-full md:w-1/2 space-y-4 p-4 md:p-6">
@@ -167,7 +167,7 @@ export default function DocumentDetailPage() {
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <div className="h-1/2 md:h-auto w-full md:w-1/2 border-b md:border-b-0 md:border-r border-[#E5E5E5]">
+        <div className="h-1/2 w-full border-b border-border/60 md:h-auto md:w-1/2 md:border-r md:border-b-0">
           <PdfViewerPane pdfUrl={pdfUrl} fileType={document.file_type} />
         </div>
 

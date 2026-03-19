@@ -156,7 +156,7 @@ export function MarketSearchBox({
       <div className="relative mx-auto max-w-2xl">
         <AppIcon
           name="search"
-          className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+          className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
         />
         <input
           ref={inputRef}
@@ -170,13 +170,13 @@ export function MarketSearchBox({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           autoComplete="off"
-          className="h-12 w-full rounded-full border border-zinc-200 bg-white pl-11 pr-10 text-sm text-zinc-900 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-300 focus:shadow-md"
+          className="h-12 w-full rounded-full border border-border bg-card pl-11 pr-10 text-sm text-foreground shadow-sm outline-none transition placeholder:text-muted-foreground focus:border-primary/30 focus:shadow-md"
         />
         {query.length > 0 && (
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-zinc-400 transition hover:text-zinc-600"
+            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground transition hover:text-foreground"
           >
             <AppIcon name="close" className="h-4 w-4" />
           </button>
@@ -186,10 +186,10 @@ export function MarketSearchBox({
         {isOpen && (
           <div
             ref={dropdownRef}
-            className="absolute left-0 right-0 z-50 mt-1.5 max-h-80 overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200 bg-white shadow-lg"
+            className="absolute left-0 right-0 z-50 mt-1.5 max-h-80 overflow-y-auto overscroll-contain rounded-2xl border border-border bg-popover shadow-lg"
           >
             {isLoading ? (
-              <p className="px-4 py-2.5 text-sm text-zinc-400">Searching...</p>
+              <p className="px-4 py-2.5 text-sm text-muted-foreground">Searching...</p>
             ) : suggestions.length > 0 ? (
               <ul role="listbox" className="py-1">
                 {suggestions.map((suggestion, i) => (
@@ -201,15 +201,15 @@ export function MarketSearchBox({
                     onClick={() => navigateToSuggestion(suggestion)}
                     className={`flex cursor-pointer items-center justify-between gap-4 px-4 py-2 transition ${
                       i === activeIndex
-                        ? "bg-zinc-50"
+                        ? "bg-muted/30"
                         : ""
                     }`}
                   >
-                    <span className="truncate text-sm font-medium text-zinc-900">
+                    <span className="truncate text-sm font-medium text-foreground">
                       {suggestion.label}
                     </span>
                     {suggestion.sublabel && (
-                      <span className="shrink-0 text-xs text-zinc-400">
+                      <span className="shrink-0 text-xs text-muted-foreground">
                         {suggestion.sublabel}
                       </span>
                     )}
@@ -217,7 +217,7 @@ export function MarketSearchBox({
                 ))}
               </ul>
             ) : hasSearched ? (
-              <p className="px-4 py-2.5 text-sm text-zinc-400">No results found</p>
+              <p className="px-4 py-2.5 text-sm text-muted-foreground">No results found</p>
             ) : null}
           </div>
         )}

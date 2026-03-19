@@ -21,7 +21,7 @@ export function MarketSubNav() {
   return (
     <nav
       aria-label="Market data navigation"
-      className="sticky top-0 z-50 border-b border-zinc-200 bg-white/95 backdrop-blur-sm"
+      className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm"
     >
       <div className="mx-auto flex max-w-7xl items-center px-4 sm:px-6 lg:px-8">
         <Link href="/" className="mr-6 shrink-0 py-3 transition-opacity hover:opacity-80">
@@ -39,8 +39,8 @@ export function MarketSubNav() {
                 href={href}
                 className={`inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-3 text-sm font-medium transition ${
                   isActive
-                    ? "border-sunder-green text-sunder-green"
-                    : "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
                 }`}
               >
                 <AppIcon name={icon} className="h-4 w-4" />

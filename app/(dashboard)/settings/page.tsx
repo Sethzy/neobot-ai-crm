@@ -171,7 +171,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         {billingAlert}
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-          <Card className="border-emerald-500/15 bg-linear-to-br from-emerald-500/6 via-card to-card shadow-sm">
+          <Card className="border-success/15 bg-linear-to-br from-success/6 via-card to-card shadow-sm">
             <CardHeader className="gap-2">
               <CardDescription>Billing</CardDescription>
               <CardTitle className="flex flex-wrap items-center gap-3 text-2xl">

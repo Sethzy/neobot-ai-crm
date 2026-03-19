@@ -37,10 +37,10 @@ export default async function AgentsPage({
     <section className="grid place-items-center pb-24">
       <Container>
         <div className="mx-auto max-w-xl text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
             Singapore Property Agent Profiles
           </h1>
-          <p className="mt-3 text-base text-zinc-500">
+          <p className="mt-3 text-base text-muted-foreground">
             Search 42,000+ agents and 1.3M+ transactions in Singapore.
           </p>
 
@@ -50,7 +50,7 @@ export default async function AgentsPage({
             defaultValue={searchTerm}
           />
 
-          <div className="mt-6 flex items-center justify-center gap-6 text-sm text-zinc-400">
+          <div className="mt-6 flex items-center justify-center gap-6 text-sm text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
               <AppIcon name="contacts" className="h-3.5 w-3.5" />
               42,000+ registered agents

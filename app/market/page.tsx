@@ -61,13 +61,13 @@ export default function MarketHubPage() {
       <section className="py-14 sm:py-20">
         <Container>
           <div className="mx-auto max-w-3xl text-center">
-            <span className="inline-block rounded-full bg-sunder-green/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sunder-green">
+            <span className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
               Free for Agents
             </span>
-            <h1 className="mt-4 font-serif text-4xl font-medium tracking-tight text-zinc-900 sm:text-5xl">
+            <h1 className="mt-4 font-serif text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
               Singapore Property Market Data
             </h1>
-            <p className="mt-5 text-pretty text-lg leading-relaxed text-zinc-600">
+            <p className="mt-5 text-pretty text-lg leading-relaxed text-muted-foreground">
               Everything you need to research agents, properties, and
               neighbourhoods - all in one place. Powered by CEA, URA, and HDB
               public data.

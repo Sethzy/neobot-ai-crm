@@ -31,7 +31,7 @@ export function PropertyProfileCharts({
       {/* Activity Overview */}
       {hasVolume ? (
         <>
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Activity Overview</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Activity Overview</p>
           <TransactionVolumeChart dates={dates} subtitle="Volume of sales over time" />
         </>
       ) : null}
@@ -39,7 +39,7 @@ export function PropertyProfileCharts({
       {/* Price Analysis */}
       {(hasPsf || hasFloorData) ? (
         <>
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Price Analysis</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Price Analysis</p>
           {hasPsf ? (
             <PriceTrendChart
               title="Price Trend"

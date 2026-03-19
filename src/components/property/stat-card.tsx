@@ -10,19 +10,19 @@ type StatCardProps = {
 
 export function StatCard({ label, value, hint, icon }: StatCardProps) {
   return (
-    <div className="rounded-2xl border border-[#E8DCC8] bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="flex items-center gap-2">
         {icon ? (
-          <span className="text-sunder-green">{icon}</span>
+          <span className="text-primary">{icon}</span>
         ) : null}
-        <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {label}
         </p>
       </div>
-      <p className="mt-2 text-3xl font-semibold tracking-tight text-zinc-900">
+      <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
         {value}
       </p>
-      {hint ? <p className="mt-2 text-sm text-zinc-600">{hint}</p> : null}
+      {hint ? <p className="mt-2 text-sm text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }

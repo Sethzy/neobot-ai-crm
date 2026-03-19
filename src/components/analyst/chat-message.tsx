@@ -57,7 +57,7 @@ export const ChatMessage = memo(function ChatMessage({ message }: ChatMessagePro
       <div className={cn(
         'text-sm',
         isUser
-          ? 'max-w-[85%] bg-zinc-100 dark:bg-zinc-800 text-foreground rounded-2xl px-5 py-3.5'
+          ? 'max-w-[85%] rounded-2xl bg-muted px-5 py-3.5 text-foreground'
           : 'w-full bg-transparent px-0 py-2' // Full width assistant message
       )}>
         {/* Main content (text, reasoning, tools) */}

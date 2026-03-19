@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import { CHART_BORDER, CHART_PRIMARY } from "@/lib/property/chart-colors";
 import {
   PLANNING_AREA_PATHS,
   PLANNING_AREA_VIEWBOX,
@@ -14,8 +15,11 @@ type SgPlanningAreaMapProps = {
   maxCount?: number;
 };
 
-/** Color scale: green shades matching the NeoBot design. */
-const FILL_COLOR = "2, 79, 70"; // rgb(2, 79, 70) — sunder-green-dark
+function buildAreaFill(intensity: number): string {
+  return `color-mix(in srgb, ${CHART_PRIMARY} ${Math.round(
+    Math.max(intensity * 70, 10)
+  )}%, var(--color-muted))`;
+}
 
 export function SgPlanningAreaMap({ highlights, maxCount: maxCountProp }: SgPlanningAreaMapProps) {
   const [hovered, setHovered] = useState<string | null>(null);
@@ -44,10 +48,10 @@ export function SgPlanningAreaMap({ highlights, maxCount: maxCountProp }: SgPlan
               d={area.d}
               fill={
                 count > 0
-                  ? `rgba(${FILL_COLOR}, ${Math.max(intensity * 0.7, 0.1)})`
-                  : "#f4f4f5"
+                  ? buildAreaFill(intensity)
+                  : "var(--color-muted)"
               }
-              stroke={isHovered ? "#024F46" : "#e4e4e7"}
+              stroke={isHovered ? CHART_PRIMARY : CHART_BORDER}
               strokeWidth={isHovered ? 1.5 : 0.5}
               className="cursor-pointer transition-all duration-150"
               onMouseEnter={() => setHovered(area.name)}
@@ -59,11 +63,11 @@ export function SgPlanningAreaMap({ highlights, maxCount: maxCountProp }: SgPlan
 
       {/* Hover tooltip */}
       {hovered ? (
-        <div className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-center shadow-md">
-          <p className="text-xs font-semibold text-zinc-900">
+        <div className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 rounded-lg border border-border bg-popover px-3 py-1.5 text-center shadow-md">
+          <p className="text-xs font-semibold text-popover-foreground">
             {formatName(hovered)}
           </p>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-muted-foreground">
             {highlights.get(hovered) ?? 0} transactions
           </p>
         </div>
@@ -71,14 +75,14 @@ export function SgPlanningAreaMap({ highlights, maxCount: maxCountProp }: SgPlan
 
       {/* Legend overlay — bottom-left inside the map */}
       {legendMax > 0 ? (
-        <div className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-md bg-white/90 px-2 py-1.5 text-[10px] text-zinc-500 backdrop-blur-sm">
+        <div className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-md bg-card/90 px-2 py-1.5 text-[10px] text-muted-foreground backdrop-blur-sm">
           <span>0</span>
           {Array.from({ length: buckets }, (_, i) => (
             <div
               key={i}
               className="h-2.5 w-5 rounded-sm"
               style={{
-                backgroundColor: `rgba(${FILL_COLOR}, ${Math.max(((i + 1) / buckets) * 0.7, 0.1)})`,
+                backgroundColor: buildAreaFill((i + 1) / buckets),
               }}
             />
           ))}

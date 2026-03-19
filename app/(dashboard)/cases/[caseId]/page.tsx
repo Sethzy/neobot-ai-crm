@@ -129,7 +129,7 @@ export default function CaseDetailPage() {
                 className="group px-1 py-2 text-foreground/60 data-[state=active]:font-semibold hover:text-foreground"
               >
                 AI Analyst
-                <Sparkle className="ml-1 h-3.5 w-3.5 text-[#024F46] opacity-60 transition-opacity group-data-[state=active]:opacity-100 group-hover:opacity-80" />
+                <Sparkle className="ml-1 h-3.5 w-3.5 text-primary opacity-60 transition-opacity group-data-[state=active]:opacity-100 group-hover:opacity-80" />
               </TabsTrigger>
               <TabsTrigger
                 value="library"

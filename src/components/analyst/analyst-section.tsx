@@ -326,8 +326,8 @@ function EmptyState({ onSelectAction }: EmptyStateProps) {
       <div className="flex flex-col items-center gap-6 max-w-2xl w-full">
         {/* Brand/Greeting */}
         <div className="flex flex-col items-center gap-4 text-center mb-4">
-          <div className="h-12 w-12 rounded-2xl bg-[#024F46]/10 flex items-center justify-center rotate-3 transform transition-transform hover:rotate-6">
-            <Sparkles className="h-6 w-6 text-[#024F46]" />
+          <div className="flex h-12 w-12 rotate-3 transform items-center justify-center rounded-2xl bg-primary/10 transition-transform hover:rotate-6">
+            <Sparkles className="h-6 w-6 text-primary" />
           </div>
           <h2 className="text-3xl font-serif font-medium tracking-tight text-foreground">
             What should I work on?

@@ -218,11 +218,11 @@ export default async function AgentProfilePage({
 
   return (
     <>
-      <section className="bg-gradient-to-b from-emerald-50/40 to-transparent pt-6 pb-10 sm:pt-8 sm:pb-14">
+      <section className="bg-gradient-to-b from-primary/10 to-transparent pt-6 pb-10 sm:pt-8 sm:pb-14">
         <Container>
           <Link
             href="/market/agents"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-400 transition hover:text-zinc-700"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground"
           >
             <AppIcon name="arrowLeft" className="h-3.5 w-3.5" />
             Back to agents
@@ -231,7 +231,7 @@ export default async function AgentProfilePage({
           <div className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-4">
               {/* Initials avatar */}
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-lg font-semibold text-zinc-500">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-muted text-lg font-semibold text-foreground">
                 {displayName
                   .split(" ")
                   .filter(Boolean)
@@ -242,28 +242,28 @@ export default async function AgentProfilePage({
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
+                  <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
                     {displayName}
                   </h1>
                   {/* CEA status badge */}
                   {isExpiredProfile ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                       Expired
                     </span>
                   ) : profile.agent ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">
+                      <span className="h-1.5 w-1.5 rounded-full bg-success" />
                       Active
                     </span>
                   ) : null}
                 </div>
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-zinc-400">
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5 font-mono">
                     <AppIcon name="shield" className="h-3.5 w-3.5" />
                     {registrationNo}
                   </span>
-                  <span className="inline-flex items-center gap-1.5 text-zinc-500 transition-colors hover:text-zinc-900">
-                    <AppIcon name="agency" className="h-3.5 w-3.5 text-zinc-400" />
+                  <span className="inline-flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground">
+                    <AppIcon name="agency" className="h-3.5 w-3.5 text-muted-foreground" />
                     {profile.agent?.estate_agent_name ? (
                       <Link
                         href={{
@@ -272,7 +272,7 @@ export default async function AgentProfilePage({
                           )}`,
                           query: { name: profile.agent.estate_agent_name },
                         }}
-                        className="font-medium hover:underline underline-offset-4 decoration-zinc-300"
+                        className="font-medium hover:text-primary hover:underline underline-offset-4 decoration-border"
                       >
                         {agencyName}
                       </Link>
@@ -295,7 +295,7 @@ export default async function AgentProfilePage({
                 href="https://wa.me/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-zinc-200 bg-white px-5 text-sm font-medium text-zinc-700 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-border bg-card px-5 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted/40"
               >
                 WhatsApp
               </a>
@@ -303,13 +303,13 @@ export default async function AgentProfilePage({
           </div>
 
             {isExpiredProfile ? (
-              <p className="mt-4 rounded-lg bg-zinc-50 p-3 text-sm text-zinc-500">
+              <p className="mt-4 rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">
                 This registration is no longer in the current CEA registry, but
                 historical transactions remain available.
               </p>
             ) : null}
 
-          <div className="mt-8 border-t border-zinc-100 pt-6">
+          <div className="mt-8 border-t border-border pt-6">
             <StatBar
               items={[
                 { label: "Total Transactions", value: formatCount(profile.transactionCount) },

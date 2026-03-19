@@ -61,36 +61,50 @@ const defaultWrapperClassName = "inline-flex items-center gap-2";
 const defaultIconWrapperClassName = "inline-flex h-6 w-6 items-center justify-center rounded border border-border bg-card";
 const defaultIconClassName = "h-4 w-4";
 const defaultColorClassName = "h-3 w-3 rounded-full";
+const DICTIONARY_COLORS = {
+  info: "var(--info)",
+  success: "var(--success)",
+  warning: "var(--warning)",
+  tag: "var(--tag)",
+  denied: "var(--denied)",
+  muted: "var(--muted-foreground)",
+  stageLeads: "var(--stage-leads)",
+  stageNegotiation: "var(--stage-negotiation)",
+  stageOffer: "var(--stage-offer)",
+  stageClosing: "var(--stage-closing)",
+  stageLost: "var(--stage-lost)",
+  statusOpen: "var(--status-open)",
+} as const;
 
 export const contactTypeDictionaryMap = {
   buyer: {
     label: "Buyer",
-    color: "#3b82f6",
+    color: DICTIONARY_COLORS.info,
     icon: "lucide:users",
   },
   seller: {
     label: "Seller",
-    color: "#10b981",
+    color: DICTIONARY_COLORS.success,
     icon: "lucide:briefcase",
   },
   landlord: {
     label: "Landlord",
-    color: "#f97316",
+    color: DICTIONARY_COLORS.warning,
     icon: "lucide:building2",
   },
   tenant: {
     label: "Tenant",
-    color: "#8b5cf6",
+    color: DICTIONARY_COLORS.tag,
     icon: "lucide:home",
   },
   agent: {
     label: "Agent",
-    color: "#14b8a6",
+    color: DICTIONARY_COLORS.statusOpen,
     icon: "lucide:handshake",
   },
   other: {
     label: "Other",
-    color: "#6b7280",
+    color: DICTIONARY_COLORS.muted,
     icon: "lucide:circle",
   },
 } as const satisfies DictionaryMap;
@@ -98,27 +112,27 @@ export const contactTypeDictionaryMap = {
 export const dealStageDictionaryMap = {
   leads: {
     label: "Leads",
-    color: "#f97316",
+    color: DICTIONARY_COLORS.stageLeads,
     icon: "lucide:sparkles",
   },
   negotiation: {
     label: "Negotiation",
-    color: "#eab308",
+    color: DICTIONARY_COLORS.stageNegotiation,
     icon: "lucide:handshake",
   },
   offer: {
     label: "Offer",
-    color: "#8b5cf6",
+    color: DICTIONARY_COLORS.stageOffer,
     icon: "lucide:target",
   },
   closing: {
     label: "Closing",
-    color: "#10b981",
+    color: DICTIONARY_COLORS.stageClosing,
     icon: "lucide:trophy",
   },
   lost: {
     label: "Lost",
-    color: "#ef4444",
+    color: DICTIONARY_COLORS.stageLost,
     icon: "lucide:flag",
   },
 } as const satisfies DictionaryMap;
@@ -126,32 +140,32 @@ export const dealStageDictionaryMap = {
 export const crmStatusDictionaryMap = {
   active: {
     label: "Active",
-    color: "#3b82f6",
+    color: DICTIONARY_COLORS.success,
     icon: "lucide:users",
   },
   inactive: {
     label: "Inactive",
-    color: "#6b7280",
+    color: DICTIONARY_COLORS.muted,
     icon: "lucide:user-check",
   },
   open: {
     label: "Open",
-    color: "#3b82f6",
+    color: DICTIONARY_COLORS.statusOpen,
     icon: "lucide:circle",
   },
   in_progress: {
     label: "In progress",
-    color: "#f97316",
+    color: DICTIONARY_COLORS.warning,
     icon: "lucide:zap",
   },
   won: {
     label: "Won",
-    color: "#10b981",
+    color: DICTIONARY_COLORS.success,
     icon: "lucide:trophy",
   },
   lost: {
     label: "Lost",
-    color: "#ef4444",
+    color: DICTIONARY_COLORS.denied,
     icon: "lucide:flag",
   },
 } as const satisfies DictionaryMap;
@@ -159,22 +173,22 @@ export const crmStatusDictionaryMap = {
 export const crmLifecycleStageDictionaryMap = {
   prospect: {
     label: "Prospect",
-    color: "#f97316",
+    color: DICTIONARY_COLORS.warning,
     icon: "lucide:sparkles",
   },
   customer: {
     label: "Customer",
-    color: "#10b981",
+    color: DICTIONARY_COLORS.success,
     icon: "lucide:briefcase",
   },
   lead: {
     label: "Lead",
-    color: "#eab308",
+    color: DICTIONARY_COLORS.info,
     icon: "lucide:target",
   },
   opportunity: {
     label: "Opportunity",
-    color: "#8b5cf6",
+    color: DICTIONARY_COLORS.stageOffer,
     icon: "lucide:trophy",
   },
 } as const satisfies DictionaryMap;
@@ -182,32 +196,32 @@ export const crmLifecycleStageDictionaryMap = {
 export const crmSourceDictionaryMap = {
   customer_referral: {
     label: "Customer referral",
-    color: "#10b981",
+    color: DICTIONARY_COLORS.success,
     icon: "lucide:thumbs-up",
   },
   partner_referral: {
     label: "Partner referral",
-    color: "#3b82f6",
+    color: DICTIONARY_COLORS.info,
     icon: "lucide:handshake",
   },
   industry_event: {
     label: "Industry event",
-    color: "#f97316",
+    color: DICTIONARY_COLORS.stageNegotiation,
     icon: "lucide:calendar",
   },
   outbound_campaign: {
     label: "Outbound campaign",
-    color: "#eab308",
+    color: DICTIONARY_COLORS.warning,
     icon: "lucide:megaphone",
   },
   website: {
     label: "Website",
-    color: "#6366f1",
+    color: DICTIONARY_COLORS.tag,
     icon: "lucide:globe",
   },
   direct: {
     label: "Direct",
-    color: "#14b8a6",
+    color: DICTIONARY_COLORS.statusOpen,
     icon: "lucide:phone",
   },
 } as const satisfies DictionaryMap;

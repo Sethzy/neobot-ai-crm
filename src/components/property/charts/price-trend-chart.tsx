@@ -13,7 +13,11 @@ import {
   YAxis,
 } from "recharts";
 import { formatCompactCurrency } from "@/lib/crm/display";
-import { CHART_PRIMARY, CHART_PRIMARY_LIGHT } from "@/lib/property/chart-colors";
+import {
+  CHART_PRIMARY,
+  CHART_PRIMARY_LIGHT,
+  CHART_BORDER,
+} from "@/lib/property/chart-colors";
 
 type PriceTrendChartProps = {
   title: string;
@@ -125,20 +129,20 @@ function CustomTooltip({
   const med = values.median;
 
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm shadow-md">
-      <p className="font-semibold text-zinc-900">
+    <div className="rounded-lg border border-border bg-popover px-3 py-2 text-sm text-popover-foreground shadow-md">
+      <p className="font-semibold text-popover-foreground">
         {label ? expandPeriodLabel(label) : ""}
       </p>
       {min != null && max != null ? (
-        <p className="text-zinc-600">
+        <p className="text-popover-foreground">
           {formatFullPrice(min)} – {formatFullPrice(max)}
-          <span className="ml-1.5 text-zinc-400">Price Range</span>
+          <span className="ml-1.5 text-muted-foreground">Price Range</span>
         </p>
       ) : null}
       {med != null ? (
-        <p className="text-zinc-600">
+        <p className="text-popover-foreground">
           {formatFullPrice(med)}
-          <span className="ml-1.5 text-zinc-400">{valueLabel}</span>
+          <span className="ml-1.5 text-muted-foreground">{valueLabel}</span>
         </p>
       ) : null}
     </div>
@@ -158,14 +162,14 @@ export function PriceTrendChart({
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-200/70 bg-white p-5">
+    <div className="rounded-2xl border border-border bg-card p-5">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-zinc-900">{title}</h3>
-        {subtitle ? <p className="text-sm text-zinc-500">{subtitle}</p> : null}
+        <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+        {subtitle ? <p className="text-sm text-muted-foreground">{subtitle}</p> : null}
       </div>
       <ResponsiveContainer width="100%" height={280}>
         <ComposedChart data={chartData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_BORDER} />
           <XAxis
             dataKey="period"
             tick={{ fontSize: 11 }}
@@ -194,7 +198,7 @@ export function PriceTrendChart({
             type="monotone"
             dataKey="min"
             stroke="none"
-            fill="#ffffff"
+            fill="var(--color-card)"
             fillOpacity={1}
             name="min"
           />

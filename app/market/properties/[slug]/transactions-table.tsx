@@ -2,10 +2,12 @@
 "use client";
 
 import { PaginatedTable } from "@/components/property/paginated-table";
+import { MARKET_TRANSACTION_TYPE_TONE_CLASSES } from "@/lib/ui/color-maps";
 import {
   formatAreaSqft,
   formatCurrencySgd,
   formatDateMonthYear,
+  formatEnumLabel,
   toNumber,
 } from "@/lib/property/utils";
 
@@ -24,9 +26,8 @@ type UraTransactionRow = {
 };
 
 function saleTypeBadgeClass(type: string | null): string {
-  if (type === "New Sale") return "bg-emerald-100 text-emerald-800";
-  if (type === "Sub Sale") return "bg-amber-100 text-amber-800";
-  return "bg-blue-100 text-blue-800";
+  const label = formatEnumLabel(type);
+  return MARKET_TRANSACTION_TYPE_TONE_CLASSES[label] ?? "bg-muted text-muted-foreground";
 }
 
 export function PropertyTransactionsTableClient({
@@ -52,7 +53,7 @@ export function PropertyTransactionsTableClient({
         {
           header: "Floor",
           cell: (row) => row.floor_range ?? "N/A",
-          className: "px-4 py-4 text-sm text-zinc-600 whitespace-nowrap",
+          className: "px-4 py-4 text-sm text-muted-foreground whitespace-nowrap",
         },
         {
           header: "Price",
@@ -86,7 +87,7 @@ export function PropertyTransactionsTableClient({
         return (
           <div className="space-y-1 px-4 py-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-zinc-900">
+              <span className="text-sm font-medium text-foreground">
                 {formatCurrencySgd(price)}
               </span>
               <span
@@ -97,10 +98,10 @@ export function PropertyTransactionsTableClient({
                 {row.type_of_sale ?? "N/A"}
               </span>
             </div>
-            <p className="text-sm text-zinc-600">
+            <p className="text-sm text-muted-foreground">
               {row.street ?? "N/A"} · {row.floor_range ?? "N/A"}
             </p>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-muted-foreground">
               PSF: {formatCurrencySgd(psf)} · {formatAreaSqft(area)} sqft ·{" "}
               {formatDateMonthYear(row.contract_date)}
             </p>
