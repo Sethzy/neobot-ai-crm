@@ -97,6 +97,7 @@ All Tasklet reference material lives in `roadmap docs/Sunder - Source of Truth/r
 - Implement consistent design and responsive patterns across the app.
 - Tables: Always ask the user if they want to use TanStack Table.
 - Forms: Use Zod validation and lightweight controlled/uncontrolled React form patterns.
+- **Design System:** Dashboard uses Flexoki semantic tokens — **never raw Tailwind palette classes** (`bg-amber-500`, `text-green-600`, etc.) in dashboard components. Use Layer 2 tokens (`text-warning`, `bg-success/10`) for states and Layer 3 tokens (`border-l-stage-leads`, `text-filetype-pdf`) for CRM concepts. No `dark:` prefixes on accent colors — CSS cascade handles it. Import class-string maps from `src/lib/ui/color-maps.ts` — don't define inline maps. Full reference: `roadmap docs/Sunder - Source of Truth/ux-and-pm/design-system.md`.
 
 ## Testing and Documentation
 
