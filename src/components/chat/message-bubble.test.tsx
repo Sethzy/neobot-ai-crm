@@ -632,3 +632,102 @@ describe("MessageBubble — inline spec segments", () => {
     expect(screen.getByTestId("view-renderer")).toHaveAttribute("data-loading", "false");
   });
 });
+
+/* ------------------------------------------------------------------ */
+/*  Skill badge                                                        */
+/* ------------------------------------------------------------------ */
+
+describe("MessageBubble — skill badge", () => {
+  it("shows skill badge for a user skill read_file", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "skill-1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-read_file",
+              toolCallId: "tc-1",
+              state: "result",
+              input: { path: "/agent/skills/call-prep/SKILL.md" },
+              output: { success: true, content: "..." },
+            } as any,
+            { type: "text", text: "Here's your call prep." },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("skill-badge")).toBeInTheDocument();
+    expect(screen.getByTestId("skill-badge")).toHaveTextContent("call-prep");
+  });
+
+  it("does not show skill badge for system skill reads", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "skill-2",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-read_file",
+              toolCallId: "tc-2",
+              state: "result",
+              input: { path: "/agent/skills/system/creating-connections/SKILL.md" },
+              output: { success: true, content: "..." },
+            } as any,
+            { type: "text", text: "Connection guide." },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.queryByTestId("skill-badge")).not.toBeInTheDocument();
+  });
+
+  it("does not show skill badge for connection skill reads", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "skill-3",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-read_file",
+              toolCallId: "tc-3",
+              state: "result",
+              input: { path: "/agent/skills/connections/conn-abc/SKILL.md" },
+              output: { success: true, content: "..." },
+            } as any,
+            { type: "text", text: "Gmail guide." },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.queryByTestId("skill-badge")).not.toBeInTheDocument();
+  });
+
+  it("does not show skill badge for non-skill reads", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "skill-4",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-read_file",
+              toolCallId: "tc-4",
+              state: "result",
+              input: { path: "/agent/MEMORY.md" },
+              output: { success: true, content: "..." },
+            } as any,
+            { type: "text", text: "Memory read." },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.queryByTestId("skill-badge")).not.toBeInTheDocument();
+  });
+});

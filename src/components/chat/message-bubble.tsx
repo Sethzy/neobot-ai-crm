@@ -15,6 +15,8 @@ import { memo } from "react";
 import { SPEC_DATA_PART_TYPE } from "@json-render/core";
 import { useJsonRenderMessage } from "@json-render/react";
 
+import { Badge } from "@/components/ui/badge";
+
 import {
   Message,
   MessageContent,
@@ -41,6 +43,24 @@ interface MessageBubbleProps {
 
 function filePartToAttachment(part: { filename?: string; url: string; mediaType: string }): Attachment {
   return { filename: part.filename ?? "file", url: part.url, contentType: part.mediaType };
+}
+
+/** Matches /agent/skills/{slug}/SKILL.md — excludes system/ and connections/. */
+const USER_SKILL_PATTERN = /^\/agent\/skills\/(?!system\/|connections\/)([^/]+)\/SKILL\.md$/;
+
+/** Extract user skill slug from persisted tool-read_file parts, if any. */
+function extractSkillSlug(parts: ChatUIMessage["parts"]): string | null {
+  for (const part of parts) {
+    if (
+      part.type === "tool-read_file" &&
+      "input" in part &&
+      typeof (part as { input?: { path?: string } }).input?.path === "string"
+    ) {
+      const match = (part as { input: { path: string } }).input.path.match(USER_SKILL_PATTERN);
+      if (match?.[1]) return match[1];
+    }
+  }
+  return null;
 }
 
 export const MessageBubble = memo(function MessageBubble({ message, isStreaming = false, isLast = false, onToolApproval, onQuestionSubmit }: MessageBubbleProps) {
@@ -127,6 +147,16 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
   return (
     <Message from="assistant" data-testid="message-bubble">
       <MessageContent>
+        {(() => {
+          const skillSlug = extractSkillSlug(message.parts);
+          if (!skillSlug) return null;
+          return (
+            <Badge variant="outline" data-testid="skill-badge" className="mb-2 text-xs">
+              {skillSlug}
+            </Badge>
+          );
+        })()}
+
         {isStreaming && !hasParts && (
           <Shimmer as="span" className="text-xs" duration={2}>
             Thinking...
