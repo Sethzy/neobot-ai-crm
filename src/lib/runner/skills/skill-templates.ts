@@ -505,3 +505,18 @@ Fields:
 - \`requestBody\`: Optional raw request body string
 - \`extraHeaders\`: Optional additional headers object (cannot include blocked headers; Content-Type is added automatically)`,
 };
+
+// ---------------------------------------------------------------------------
+// Default skill helpers
+// ---------------------------------------------------------------------------
+
+/** Whether a slug is one of the bundled defaults (and therefore resettable). */
+export function isDefaultSkillSlug(slug: string): boolean {
+  return (DEFAULT_SKILL_SLUGS as readonly string[]).includes(slug);
+}
+
+/** Returns the bundled default content for a slug, or null if not a default. */
+export function getDefaultSkillContent(slug: string): string | null {
+  if (!isDefaultSkillSlug(slug)) return null;
+  return DEFAULT_SKILL_CONTENT[slug as DefaultSkillSlug];
+}

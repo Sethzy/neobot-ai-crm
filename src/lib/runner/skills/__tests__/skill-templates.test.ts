@@ -9,6 +9,8 @@ import {
   DEFAULT_SKILL_CONTENT,
   DEFAULT_SKILL_SLUGS,
   SYSTEM_SKILL_CONTENT,
+  getDefaultSkillContent,
+  isDefaultSkillSlug,
 } from "../skill-templates";
 
 describe("DEFAULT_SKILL_CONTENT", () => {
@@ -60,5 +62,30 @@ describe("SYSTEM_SKILL_CONTENT", () => {
 
   it("returns undefined for unknown paths", () => {
     expect(SYSTEM_SKILL_CONTENT["nonexistent/SKILL.md" as keyof typeof SYSTEM_SKILL_CONTENT]).toBeUndefined();
+  });
+});
+
+describe("isDefaultSkillSlug", () => {
+  it("returns true for bundled defaults", () => {
+    expect(isDefaultSkillSlug("call-prep")).toBe(true);
+    expect(isDefaultSkillSlug("daily-briefing")).toBe(true);
+    expect(isDefaultSkillSlug("market-briefing")).toBe(true);
+  });
+
+  it("returns false for custom skills", () => {
+    expect(isDefaultSkillSlug("deal-closed")).toBe(false);
+    expect(isDefaultSkillSlug("my-custom")).toBe(false);
+  });
+});
+
+describe("getDefaultSkillContent", () => {
+  it("returns content for a bundled default", () => {
+    const content = getDefaultSkillContent("call-prep");
+    expect(content).not.toBeNull();
+    expect(content).toContain("name: call-prep");
+  });
+
+  it("returns null for a non-default slug", () => {
+    expect(getDefaultSkillContent("deal-closed")).toBeNull();
   });
 });
