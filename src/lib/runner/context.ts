@@ -91,6 +91,33 @@ interface BuildSystemPromptOptions {
   systemPrompt?: string;
 }
 
+function sanitizeSkillPromptText(value: string): string {
+  return value
+    .trim()
+    .replace(/\s+/g, " ")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function formatAvailableSkills(userSkills?: SkillMetadata[]): string | null {
+  if (!userSkills || userSkills.length === 0) {
+    return null;
+  }
+
+  const listing = userSkills
+    .map((skill) => {
+      const safeName = sanitizeSkillPromptText(skill.name);
+      const safeDescription = sanitizeSkillPromptText(skill.description);
+      const readFileCall = `read_file(${JSON.stringify(skill.path)})`;
+
+      return `- **${safeName}**: ${safeDescription}\n  -> \`${readFileCall}\``;
+    })
+    .join("\n");
+
+  return `<available-skills>\n${listing}\n</available-skills>`;
+}
+
 function buildSystemPrompt({
   memory,
   userSkills,
@@ -103,6 +130,7 @@ function buildSystemPrompt({
 }: BuildSystemPromptOptions): string {
   const activeSystemPrompt = systemPrompt ?? SYSTEM_PROMPT;
   const activePlatformInstructions = platformInstructions ?? PLATFORM_INSTRUCTIONS;
+  const availableSkillsSection = formatAvailableSkills(userSkills);
 
   if (!memory) {
     const sections = [activeSystemPrompt];
@@ -115,11 +143,8 @@ function buildSystemPrompt({
       sections.push(instructions.trim());
     }
 
-    if (userSkills && userSkills.length > 0) {
-      const listing = userSkills
-        .map((skill) => `- **${skill.name}**: ${skill.description}\n  -> \`read_file("${skill.path}")\``)
-        .join("\n");
-      sections.push(`<available-skills>\n${listing}\n</available-skills>`);
+    if (availableSkillsSection) {
+      sections.push(availableSkillsSection);
     }
 
     return sections.join("\n\n");
@@ -153,11 +178,8 @@ function buildSystemPrompt({
     sections.push(`<working-memory>\n${memory.memory}\n</working-memory>`);
   }
 
-  if (userSkills && userSkills.length > 0) {
-    const listing = userSkills
-      .map((skill) => `- **${skill.name}**: ${skill.description}\n  -> \`read_file("${skill.path}")\``)
-      .join("\n");
-    sections.push(`<available-skills>\n${listing}\n</available-skills>`);
+  if (availableSkillsSection) {
+    sections.push(availableSkillsSection);
   }
 
   if (compactionSummary && compactionSummary.trim().length > 0) {

@@ -69,6 +69,7 @@ export async function bootstrapSkills(
 
   const existingSlugs = new Set(
     (entries ?? [])
+      .filter((entry) => entry.id === null)
       .map((entry) => entry.name)
       .filter((name) => !RESERVED_SKILL_DIRECTORIES.has(name)),
   );

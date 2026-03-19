@@ -72,6 +72,7 @@ export async function discoverUserSkills(
   }
 
   const skillDirs = entries
+    .filter((entry) => entry.id === null)
     .map((entry) => entry.name)
     .filter((name) => !EXCLUDED_SKILL_DIRS.has(name));
 

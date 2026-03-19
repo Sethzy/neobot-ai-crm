@@ -81,14 +81,17 @@ Content.`;
 });
 
 function createMockSupabase(
-  listResults: Record<string, Array<{ name: string }>>,
+  listResults: Record<string, Array<{ name: string; id?: string | null }>>,
   downloadResults: Record<string, string>,
 ) {
   return {
     storage: {
       from: () => ({
         list: vi.fn(async (path: string) => ({
-          data: listResults[path] ?? [],
+          data: (listResults[path] ?? []).map((entry) => ({
+            id: null,
+            ...entry,
+          })),
           error: null,
         })),
         download: vi.fn(async (path: string) => {
@@ -188,5 +191,32 @@ description: A good skill.
     } as unknown as SupabaseClient;
 
     await expect(discoverUserSkills(supabase, "client-1")).resolves.toEqual([]);
+  });
+
+  it("ignores files at the skills root and only discovers directory entries", async () => {
+    const supabase = createMockSupabase(
+      {
+        "client-1/skills": [
+          { name: "call-prep", id: "file-1" },
+          { name: "daily-briefing", id: null },
+        ],
+      },
+      {
+        "client-1/skills/daily-briefing/SKILL.md": `---
+name: daily-briefing
+description: Morning briefing with tasks.
+---
+# Daily Briefing`,
+      },
+    );
+
+    const skills = await discoverUserSkills(supabase, "client-1");
+
+    expect(skills).toEqual([
+      expect.objectContaining({
+        slug: "daily-briefing",
+        path: "/agent/skills/daily-briefing/SKILL.md",
+      }),
+    ]);
   });
 });

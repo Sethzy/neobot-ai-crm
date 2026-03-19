@@ -8,11 +8,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { _resetSkillBootstrapCache, bootstrapSkills } from "../skill-bootstrap";
 
 function createMockSupabase({
-  listData = [] as Array<{ name: string }>,
+  listData = [] as Array<{ name: string; id?: string | null }>,
   listError = null as { message: string } | null,
   uploadError = null as { message: string; statusCode?: string } | null,
 }: {
-  listData?: Array<{ name: string }>;
+  listData?: Array<{ name: string; id?: string | null }>;
   listError?: { message: string } | null;
   uploadError?: { message: string; statusCode?: string } | null;
 } = {}) {
@@ -22,7 +22,13 @@ function createMockSupabase({
     client: {
       storage: {
         from: () => ({
-          list: vi.fn(async () => ({ data: listData, error: listError })),
+          list: vi.fn(async () => ({
+            data: listData.map((entry) => ({
+              id: null,
+              ...entry,
+            })),
+            error: listError,
+          })),
           upload: vi.fn(async (path: string) => {
             uploadedFiles.push(path);
             return { error: uploadError };
@@ -68,7 +74,7 @@ describe("bootstrapSkills", () => {
         from: () => ({
           list: vi.fn(async () => {
             listCallCount++;
-            return { data: [{ name: "call-prep" }], error: null };
+            return { data: [{ name: "call-prep", id: null }], error: null };
           }),
           upload: vi.fn(async () => ({ error: null })),
         }),
@@ -117,5 +123,19 @@ describe("bootstrapSkills", () => {
     await expect(bootstrapSkills(supabase, "client-1")).rejects.toThrow("Storage down");
 
     expect(listCallCount).toBe(2);
+  });
+
+  it("does not let files at the skills root shadow bundled defaults", async () => {
+    const { client, uploadedFiles } = createMockSupabase({
+      listData: [
+        { name: "call-prep", id: "file-1" },
+        { name: "daily-briefing", id: null },
+      ],
+    });
+
+    await bootstrapSkills(client, "client-1");
+
+    expect(uploadedFiles.filter((path) => path.includes("call-prep"))).toHaveLength(1);
+    expect(uploadedFiles.filter((path) => path.includes("daily-briefing"))).toHaveLength(0);
   });
 });

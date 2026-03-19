@@ -270,6 +270,14 @@ describe("createAgentFileClient", () => {
     ).rejects.toThrow("read-only");
   });
 
+  it("blocks malformed writes at the skills root", async () => {
+    const client = createAgentFileClient(supabase.client, CLIENT_ID);
+
+    await expect(client.uploadFile("skills/call-prep", "overwrite")).rejects.toThrow("read-only");
+    await expect(client.uploadFile("skills/system", "overwrite")).rejects.toThrow("read-only");
+    await expect(client.uploadFile("skills/connections", "overwrite")).rejects.toThrow("read-only");
+  });
+
   it("does not block similarly named nested files", async () => {
     supabase.mockUpload.mockResolvedValue({ data: { path: "ok" }, error: null });
     const client = createAgentFileClient(supabase.client, CLIENT_ID);
