@@ -62,7 +62,7 @@ The agent comes batteries-included. One signup, one QR scan, everything works. N
 | **Artifact Publishing (Mini Lovable)** | Custom (frontend-design skill + browser sandbox) + here.now (free hosting) | Custom-built | Personalized pitch webpages, property showcases, interactive deliverables | MVP |
 | **Diagramming (Excalidraw MCP)** | Excalidraw MCP (`mcp.excalidraw.com`) | Sunder central account | Visual diagrams, property comparisons, transaction timelines, process flows | MVP |
 | **Google Maps Business Search** | Google Places API (New) — Text Search | Sunder central account (shared `GOOGLE_MAPS_API_KEY`) | Lead prospecting, contractor/vendor discovery, neighborhood business lookup, competitive analysis | MVP |
-| **Browser Automation (Agent-Level)** | Vercel agent-browser (CLI) + Browserbase (cloud) | Sunder central account | Web scraping, form filling, authenticated session automation, property portal monitoring, visual verification | MVP |
+| **Browser Automation (Agent-Level)** | Browser-Use Cloud (primary) / Browserbase (fallback) / Firecrawl Browser (stateless) / Skyvern (workflow RPA) | Sunder central account | Web scraping, form filling, authenticated session automation, property portal monitoring, visual verification | MVP |
 
 ### What We DON'T Need
 
@@ -97,27 +97,58 @@ The agent comes batteries-included. One signup, one QR scan, everything works. N
 
 #### Cost Snapshot (Operational Comparison)
 
+**Updated March 17, 2026.** Added Browser-Use Cloud and Skyvern. Corrected BYOK cost estimates to account for vision-capable LLM inference (Gemini Flash for page interpretation costs ~$0.003-0.01 per step, not negligible).
+
 Assumptions:
-- 30 connection actions/day
-- 30-day month (900 actions/month)
-- Browserbase + Firecrawl: 1.2 browser minutes/action
-- Tinyfish: 12 steps/action
+- 30 connection actions/day, 30-day month (900 actions/month)
+- Average task: 10 steps, ~2 min browser time
+- BYOK LLM cost (Gemini Flash vision): ~$0.005/step (screenshot interpretation, action planning)
+- Browser-Use and Skyvern: LLM cost included in per-step pricing
 
-| Provider | Monthly Total | Daily Avg | Cost per Action | Notes |
-|---------|---------------|-----------|-----------------|-------|
-| **Browserbase** | **$20.00/mo** | **$0.67/day** | **$0.022** | Fits inside Developer included browser hours |
-| **Firecrawl Browser** | **$16.00/mo** | **$0.53/day** | **$0.0178** | Fits inside Hobby credits at 2 credits/min |
-| **Tinyfish** | **$143.10/mo** | **$4.77/day** | **$0.159** | Standard + overage at 10,800 steps/month |
+| Provider | Model | Per Action | Monthly (900 actions) | Notes |
+|---------|-------|------------|----------------------|-------|
+| **Browser-Use Cloud** | Hand-over-prompt | **$0.073** | **~$66** + no plan fee | LLM included. 1 maxStep. No session mgmt. Skills API for repeated tasks. |
+| **Firecrawl Browser** | Step-by-step (BYOK) | **$0.054** | **~$49** + $16 plan = **~$65** | Cheap browser ($0.004/action), but + your LLM for 10 vision calls/action (~$0.05). Eats your maxSteps. |
+| **Browserbase** | Step-by-step (BYOK x2) | **$0.072** | **~$65** + $20 plan = **~$85** | Browser ($0.004) + your orchestration LLM + Stagehand vision LLM. Two LLMs. Eats your maxSteps. |
+| **Skyvern** | Hand-over-prompt | **~$0.08-0.15** | **~$72-135** + $29 plan = **~$101-164** | Credit-based (rates undisclosed). LLM included. Workflows. CAPTCHA + 2FA built-in. |
+| **Tinyfish** | Goal-based | **$0.159** | **$143** | Rejected — too expensive for RPA volume. |
 
-#### Adoption Rule
+**Key insight on BYOK cost:** The original Feb 2026 estimates understated Firecrawl/Browserbase costs by ignoring LLM inference for page interpretation. Each browser step requires a vision-capable LLM call (~$0.005 on Gemini Flash) to decide what to click/extract. At 10 steps/action, that's ~$0.05 in LLM alone — making BYOK providers comparable in total cost to Browser-Use, but with more integration complexity.
 
-1. **Use Browserbase** when auth/session persistence is required across days/runs.
-2. **Use Firecrawl** for stateless browsing, extraction-heavy pipelines, and agent-browser command workflows.
-3. **Use Tinyfish only** where orchestration simplicity is worth premium runtime cost.
+#### Adoption Rule (Updated March 17, 2026)
+
+1. **Use Browser-Use Cloud** as the default for agent-initiated browsing. Simplest integration (1 tool, 1 API call), LLM included, Skills API for repeated workflows. Does not eat runner maxSteps.
+2. **Use Firecrawl** for stateless extraction-heavy pipelines where you want fine-grained control and already have a Firecrawl plan for scraping.
+3. **Use Browserbase** as fallback when advanced anti-bot stealth is required (aggressive bot detection on specific portals).
+4. **Use Skyvern** for complex authenticated RPA workflows (government portals, 2FA-gated agent portals) where compliance and reliability matter more than cost.
+5. **Do not use Tinyfish** — rejected on cost.
 
 #### Compliance Note
 
 For social platform workflows (e.g., LinkedIn), implementation must follow platform policy and account safety constraints regardless of provider choice.
+
+#### Note: Browser-Use Cloud (Added March 17, 2026)
+
+Browser-Use Cloud is a fully managed browser agent API. Unlike Browserbase/Firecrawl (which give you a browser to drive), Browser-Use gives you an agent that drives the browser for you. You hand over a natural-language prompt, it browses autonomously, returns structured results.
+
+- **API:** `browser-use-sdk` (TypeScript/Python). `client.tasks.createTask({ task, schema })` → `task.complete()` → typed results.
+- **Models:** 18+ models. `browser-use-2.0` ($0.006/step), `browser-use-llm` ($0.002/step), Gemini, GPT-4o, Claude, Llama.
+- **Skills API:** Demonstrate a workflow once → deterministic reusable endpoint (milliseconds, no LLM cost). Ideal for repeated portal searches.
+- **Pricing:** $0.01/task init + per-step LLM cost (model-dependent) + $0.06/hr browser. No base subscription required (Pay As You Go).
+- **Advantage over Browserbase/Firecrawl:** One API call, one maxStep burned, no session lifecycle, LLM cost included in per-step pricing.
+- **Reference doc:** `references/browser-use/00-browser-use-cloud-design-doc.md`
+
+#### Note: Skyvern (Added March 17, 2026)
+
+Skyvern is an AI browser automation platform focused on workflow RPA (form filling, data extraction, multi-step authenticated processes). Uses LLMs + computer vision to interact with websites. Similar "hand over a prompt" model to Browser-Use but with a stronger workflow/RPA focus.
+
+- **API:** `skyvern` SDK (Python, TypeScript planned). `POST /v1/run/tasks` with prompt, URL, data extraction schema.
+- **Engines:** `skyvern-1.0`, `skyvern-2.0` (v2 is default, better accuracy).
+- **Workflows:** Reusable multi-block automations (TaskBlock, ExtractionBlock, ForLoopBlock, CodeBlock). YAML-defined. Can persist browser sessions across runs. Closest equivalent to Browser-Use Skills but more structured/composable.
+- **Pricing:** Credit-based. Free: 1,000 credits. Hobby: $29/mo (5,000 credits). Pro: $149/mo (25,000 credits). Credit-per-action rates not publicly documented.
+- **Differentiators:** CAPTCHA solving built-in, residential proxies, TOTP/2FA support, SOC2 Type II + HIPAA (enterprise). Recording URL for every run (debugging).
+- **Weakness:** No Vercel AI SDK integration. Python-first. Higher price point than Browser-Use for comparable volumes.
+- **Best for:** Complex authenticated workflows (government portals, agent portals with 2FA), where reliability and compliance matter more than cost.
 
 #### Note: Apify as Agent Skill
 
@@ -1674,6 +1705,10 @@ A proven workflow for generating luxury real estate listing videos from static p
 **Why this matters for Sunder:** Static listing photos are table stakes. Buyers want walkthrough-feel video before booking showings. This pipeline could be automated as an agent service — user provides a listing URL, agent produces a shareable video. Fits the "finished deliverables" pattern of the artifact generation system above.
 
 **Phase 2 integration path:** Agent tool `generate_listing_video(listing_url)` → orchestrates the pipeline → publishes to artifact URL. Depends on artifact publishing infra (Build 10) being in place first.
+
+### Market Validation: Flint "Custom Pages Per Prospect"
+
+See **[flint-custom-pages-per-prospect-validation.md](./flint-custom-pages-per-prospect-validation.md)** — Flint's beta users are generating unique landing pages per enriched prospect (via Clay), per Google Ads keyword, and per social comment. Validates the "personalized per-recipient" pattern Sunder already specs above, with richer context (compounding memory + CRM + domain-specific tool chaining).
 
 ---
 
