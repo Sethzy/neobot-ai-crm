@@ -114,3 +114,37 @@ export async function discoverUserSkills(
     .filter((skill): skill is SkillMetadata => skill !== null)
     .sort((left, right) => left.slug.localeCompare(right.slug));
 }
+
+/** Full skill detail including raw markdown content. */
+export interface SkillDetail extends SkillMetadata {
+  /** Complete SKILL.md content (including frontmatter). */
+  content: string;
+}
+
+/**
+ * Loads a single skill's full content and metadata from Supabase Storage.
+ * Returns null if the skill doesn't exist or has invalid frontmatter.
+ */
+export async function getSkillContent(
+  supabase: SupabaseClient,
+  clientId: string,
+  slug: string,
+): Promise<SkillDetail | null> {
+  const bucket = supabase.storage.from(MEMORY_BUCKET_ID);
+  const filePath = `${clientId}/${SKILLS_DIRECTORY}/${slug}/SKILL.md`;
+
+  const { data, error } = await bucket.download(filePath);
+  if (error || !data || typeof data.text !== "function") return null;
+
+  const content = await data.text();
+  const meta = parseFrontmatter(content);
+  if (!meta) return null;
+
+  return {
+    slug,
+    name: meta.name,
+    description: meta.description,
+    path: toModelPath(`${SKILLS_DIRECTORY}/${slug}/SKILL.md`),
+    content,
+  };
+}

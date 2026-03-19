@@ -5,7 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
 
-import { discoverUserSkills, parseFrontmatter } from "../discover-skills";
+import { discoverUserSkills, getSkillContent, parseFrontmatter } from "../discover-skills";
 
 describe("parseFrontmatter", () => {
   it("extracts name and description from valid frontmatter", () => {
@@ -218,5 +218,40 @@ description: Morning briefing with tasks.
         path: "/agent/skills/daily-briefing/SKILL.md",
       }),
     ]);
+  });
+});
+
+describe("getSkillContent", () => {
+  it("returns full content and metadata for an existing skill", async () => {
+    const supabase = createMockSupabase(
+      {},
+      {
+        "client-1/skills/call-prep/SKILL.md": `---\nname: call-prep\ndescription: Prepare for meetings.\n---\n\n# Call Prep\n\nWorkflow here.`,
+      },
+    );
+
+    const result = await getSkillContent(supabase, "client-1", "call-prep");
+
+    expect(result).not.toBeNull();
+    expect(result!.slug).toBe("call-prep");
+    expect(result!.name).toBe("call-prep");
+    expect(result!.description).toBe("Prepare for meetings.");
+    expect(result!.content).toContain("# Call Prep");
+    expect(result!.content).toContain("Workflow here.");
+  });
+
+  it("returns null when skill does not exist", async () => {
+    const supabase = createMockSupabase({}, {});
+    const result = await getSkillContent(supabase, "client-1", "nonexistent");
+    expect(result).toBeNull();
+  });
+
+  it("returns null when frontmatter is invalid", async () => {
+    const supabase = createMockSupabase(
+      {},
+      { "client-1/skills/bad/SKILL.md": "# No frontmatter" },
+    );
+    const result = await getSkillContent(supabase, "client-1", "bad");
+    expect(result).toBeNull();
   });
 });
