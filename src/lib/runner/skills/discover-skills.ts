@@ -115,6 +115,28 @@ export async function discoverUserSkills(
     .sort((left, right) => left.slug.localeCompare(right.slug));
 }
 
+/**
+ * Validates that SKILL.md content has valid YAML frontmatter with name and description.
+ * Used by server actions to reject invalid saves (prevents bricking a skill).
+ */
+export function validateSkillContent(
+  content: string,
+): { valid: true } | { valid: false; error: string } {
+  if (!content || content.trim().length === 0) {
+    return { valid: false, error: "Content cannot be empty." };
+  }
+
+  const meta = parseFrontmatter(content);
+  if (!meta) {
+    return {
+      valid: false,
+      error: "SKILL.md must have valid YAML frontmatter with name and description.",
+    };
+  }
+
+  return { valid: true };
+}
+
 /** Full skill detail including raw markdown content. */
 export interface SkillDetail extends SkillMetadata {
   /** Complete SKILL.md content (including frontmatter). */
