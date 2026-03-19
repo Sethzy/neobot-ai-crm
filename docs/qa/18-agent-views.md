@@ -101,9 +101,20 @@
 
 ---
 
-### 18.8 View persists after hard reload (persistence fix `4c98ab1`)
+### 18.8 Chart panels — line chart
 
-1. After generating a view (18.1-18.7), scroll up
+1. "Show me my deals trend over the past 6 months as a line chart"
+2. **Expected:** Agent calls `search_crm` (entity: deals) or `run_sql` to aggregate by month
+3. **Expected:** LineChartPanel renders inline with month labels on x-axis and deal counts on y-axis
+4. **Expected:** Optional area fill may be used for emphasis
+
+**Notes / failures:**
+
+---
+
+### 18.9 View persists after hard reload (persistence fix `4c98ab1`)
+
+1. After generating a view (18.1-18.8), scroll up
 2. **Expected:** View still rendered (not disappeared)
 3. **Hard-reload the page** (Cmd+Shift+R)
 4. **Expected:** View re-renders as a component, NOT as a raw ` ```spec ` code block
@@ -115,7 +126,7 @@
 
 ---
 
-### 18.9 Historical messages rehydrate views (persistence fix `4c98ab1`)
+### 18.10 Historical messages rehydrate views (persistence fix `4c98ab1`)
 
 1. Open a **thread created before the fix** that had inline views
 2. **Expected:** Views render correctly (not as code blocks)
@@ -127,7 +138,7 @@
 
 ---
 
-### 18.10 ViewErrorBoundary catches crashes (persistence fix `4c98ab1`)
+### 18.11 ViewErrorBoundary catches crashes (persistence fix `4c98ab1`)
 
 1. If a view component throws during render (e.g., bad data shape)
 2. **Expected:** Styled error fallback appears: "View failed to render: ..." with a dashed red border
@@ -137,7 +148,7 @@
 
 ---
 
-### 18.11 Agent chooses plain text when appropriate
+### 18.12 Agent chooses plain text when appropriate
 
 1. "What's Sarah's phone number?"
 2. **Expected:** Agent answers in plain text (no inline view for simple lookups)
