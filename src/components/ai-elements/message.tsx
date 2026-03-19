@@ -54,10 +54,14 @@ export const MessageResponse = memo(
         className
       )}
       plugins={streamdownPlugins}
+      animated
+      caret="block"
       {...props}
     />
   ),
-  (prevProps, nextProps) => prevProps.children === nextProps.children
+  (prevProps, nextProps) =>
+    prevProps.children === nextProps.children &&
+    prevProps.isAnimating === nextProps.isAnimating
 );
 
 MessageResponse.displayName = "MessageResponse";

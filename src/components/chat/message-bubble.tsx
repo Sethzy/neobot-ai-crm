@@ -161,7 +161,10 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
         {segments.map((seg, i) => {
           if (seg.kind === "text") {
             return seg.parts.map((tp, j) => (
-              <MessageResponse key={`${message.id}-text-${i}-${j}`}>
+              <MessageResponse
+                key={`${message.id}-text-${i}-${j}`}
+                isAnimating={isStreaming}
+              >
                 {tp.text}
               </MessageResponse>
             ));

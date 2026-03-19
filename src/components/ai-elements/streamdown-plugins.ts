@@ -2,10 +2,12 @@
  * Shared Streamdown plugin configuration used by message and reasoning renderers.
  * @module components/ai-elements/streamdown-plugins
  */
+import type { PluginConfig } from "streamdown";
 import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { createMermaidPlugin } from "@streamdown/mermaid";
+import "streamdown/styles.css";
 
 /** Custom mermaid plugin with Sunder theming and LR-friendly layout. */
 const mermaid = createMermaidPlugin({
@@ -28,4 +30,8 @@ const mermaid = createMermaidPlugin({
   },
 });
 
-export const streamdownPlugins = { cjk, code, math, mermaid };
+/**
+ * Cast needed because `@streamdown/mermaid@1.0.2` depends on mermaid 11.12
+ * while `streamdown@2.5` ships mermaid 11.13. Runtime API is identical.
+ */
+export const streamdownPlugins = { cjk, code, math, mermaid } as PluginConfig;
