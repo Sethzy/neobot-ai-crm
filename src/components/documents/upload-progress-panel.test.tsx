@@ -4,6 +4,7 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { UploadProgressPanel } from "./upload-progress-panel";
 import type { QueueItem } from "@/contexts/upload-context";
 
@@ -104,12 +105,14 @@ describe("UploadProgressPanel", () => {
     ];
 
     render(
-      <UploadProgressPanel
-        queue={failedQueue}
-        isUploading={false}
-        onDismiss={vi.fn()}
-        {...defaultProps}
-      />
+      <TooltipProvider>
+        <UploadProgressPanel
+          queue={failedQueue}
+          isUploading={false}
+          onDismiss={vi.fn()}
+          {...defaultProps}
+        />
+      </TooltipProvider>
     );
 
     expect(screen.getByText("Failed")).toBeInTheDocument();

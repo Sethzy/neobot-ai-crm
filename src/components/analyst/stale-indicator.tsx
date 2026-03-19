@@ -53,7 +53,7 @@ export function StaleIndicator({ isStale, isCheckingStale, onCheckStale }: Stale
           aria-label="New uploads detected (click to recheck)"
           onClick={() => onCheckStale?.()}
         >
-          <AlertTriangle className="h-4 w-4 text-amber-500" />
+          <AlertTriangle className="h-4 w-4 text-warning" />
         </div>
       </TooltipTrigger>
       <TooltipContent side="bottom" sideOffset={4}>

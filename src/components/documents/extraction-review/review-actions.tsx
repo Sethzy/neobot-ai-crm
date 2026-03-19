@@ -25,7 +25,7 @@ export function ReviewActions({
     return (
       <Button
         onClick={onToggleReviewed}
-        className="h-7 gap-1.5 text-xs font-normal bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg px-3 shadow-sm"
+        className="h-7 gap-1.5 text-xs font-normal bg-success hover:opacity-90 text-success-foreground rounded-lg px-3 shadow-sm"
       >
         <Check className="h-3.5 w-3.5" />
         Reviewed

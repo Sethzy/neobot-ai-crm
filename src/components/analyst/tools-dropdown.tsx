@@ -2,6 +2,7 @@
 import { Blocks, FileSpreadsheet, Building2, FileText, ChevronDown, Presentation, FileType, PenTool, Database } from '@/components/icons/lucide-compat';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { FILETYPE_ICON_CLASSES } from '@/lib/ui/color-maps';
 import { useState } from 'react';
 
 export function ToolsDropdown() {
@@ -31,28 +32,28 @@ export function ToolsDropdown() {
             </h4>
 
             <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50 cursor-default">
-              <div className="h-6 w-6 rounded bg-green-100 flex items-center justify-center text-green-700">
+              <div className={`h-6 w-6 rounded flex items-center justify-center ${FILETYPE_ICON_CLASSES.Spreadsheet}`}>
                 <FileSpreadsheet className="h-3.5 w-3.5" />
               </div>
               <span className="text-sm">Excel</span>
             </div>
 
             <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50 cursor-default">
-              <div className="h-6 w-6 rounded bg-blue-100 flex items-center justify-center text-blue-700">
+              <div className={`h-6 w-6 rounded flex items-center justify-center ${FILETYPE_ICON_CLASSES.Document}`}>
                 <FileType className="h-3.5 w-3.5" />
               </div>
               <span className="text-sm">Word</span>
             </div>
 
             <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50 cursor-default">
-              <div className="h-6 w-6 rounded bg-orange-100 flex items-center justify-center text-orange-700">
+              <div className={`h-6 w-6 rounded flex items-center justify-center ${FILETYPE_ICON_CLASSES.Presentation}`}>
                 <Presentation className="h-3.5 w-3.5" />
               </div>
               <span className="text-sm">PowerPoint</span>
             </div>
 
             <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50 cursor-default">
-              <div className="h-6 w-6 rounded bg-red-100 flex items-center justify-center text-red-700">
+              <div className={`h-6 w-6 rounded flex items-center justify-center ${FILETYPE_ICON_CLASSES.PDF}`}>
                 <FileText className="h-3.5 w-3.5" />
               </div>
               <span className="text-sm">PDF</span>

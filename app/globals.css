@@ -5,6 +5,24 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* Flexoki base palette (light) */
+  --flexoki-bg:    hsl(48 100% 97%);  /* paper — main background */
+  --flexoki-bg-2:  hsl(51 33% 92%);  /* slightly warmer — sidebar, cards */
+  --flexoki-ui:    hsl(51 21% 88%);  /* hover states, selected rows */
+  --flexoki-ui-2:  hsl(50 14% 83%);  /* borders, inputs */
+  --flexoki-ui-3:  hsl(55 10% 79%);  /* subtle decorations, ring */
+  --flexoki-tx:    hsl(0 3% 6%);     /* ink — primary text */
+  --flexoki-tx-2:  hsl(50 3% 42%);   /* secondary text */
+  --flexoki-tx-3:  hsl(49 7% 70%);   /* placeholder / muted text */
+  --flexoki-re:    hsl(3 62% 42%);   /* red — destructive */
+  --flexoki-orange:  #BC5215;
+  --flexoki-yellow:  #AD8301;
+  --flexoki-green:   #66800B;
+  --flexoki-cyan:    #24837B;
+  --flexoki-blue:    #205EA6;
+  --flexoki-purple:  #5E409D;
+  --flexoki-magenta: #A02F6F;
+
   --background: oklch(0.9761 0.0041 91.4461);
   --foreground: oklch(0.2417 0.0298 269.8827);
   --card: oklch(1.0000 0 0);
@@ -38,16 +56,39 @@
   --sidebar-accent-foreground: oklch(0.2417 0.0298 269.8827);
   --sidebar-border: oklch(0.9251 0.0071 88.6450);
   --sidebar-ring: oklch(0.6333 0.0309 154.9039);
-  --success: #19A249;
-  --success-foreground: #F1FDF4;
-  --success-border: #B8E1C2;
-  --info: #2762EA;
-  --info-foreground: #F0F6FF;
-  --warning: #D87708;
-  --warning-foreground: #FFFBEB;
-  --content-foreground: #1F2937;
-  --tag: #7C3AED;
-  --tag-foreground: #F5F3FF;
+
+  --success: var(--flexoki-green);
+  --success-foreground: #000000;
+  --success-border: var(--flexoki-green);
+  --info: var(--flexoki-blue);
+  --info-foreground: var(--flexoki-bg);
+  --warning: var(--flexoki-yellow);
+  --warning-foreground: #000000;
+  --content-foreground: var(--flexoki-tx);
+  --tag: var(--flexoki-purple);
+  --tag-foreground: var(--flexoki-bg);
+  /* Semantic tokens — approval/denied/syntax */
+  --approval: var(--flexoki-yellow);
+  --denied: var(--flexoki-orange);
+  --syntax-string: var(--flexoki-cyan);
+  --syntax-number: var(--flexoki-blue);
+  --syntax-boolean: var(--flexoki-yellow);
+  /* Layer 3 — CRM stage tokens */
+  --stage-leads:       var(--flexoki-yellow);
+  --stage-negotiation: var(--flexoki-orange);
+  --stage-offer:       var(--flexoki-purple);
+  --stage-closing:     var(--flexoki-green);
+  --stage-lost:        var(--flexoki-re);
+  /* Layer 3 — Task status tokens */
+  --status-open:       var(--flexoki-cyan);
+  --status-completed:  var(--flexoki-green);
+  /* Layer 3 — File type tokens */
+  --filetype-spreadsheet:  var(--flexoki-green);
+  --filetype-pdf:          var(--flexoki-re);
+  --filetype-document:     var(--flexoki-blue);
+  --filetype-presentation: var(--flexoki-orange);
+  --filetype-default:      var(--flexoki-tx-2);
+
   --shadow-2xs: 0px 1px 2px 0px hsl(225 27.7778% 14.1176% / 0.02);
   --shadow-xs: 0px 1px 2px 0px hsl(225 27.7778% 14.1176% / 0.02);
   --shadow-sm: 0px 1px 2px 0px hsl(225 27.7778% 14.1176% / 0.04), 0px 1px 2px -1px hsl(225 27.7778% 14.1176% / 0.04);
@@ -59,6 +100,24 @@
 }
 
 .dark {
+  /* Flexoki base palette (dark) */
+  --flexoki-bg:    hsl(0 3% 6%);     /* near-black — main background */
+  --flexoki-bg-2:  hsl(30 4% 11%);   /* slightly lighter — sidebar, cards */
+  --flexoki-ui:    hsl(30 3% 15%);   /* hover states */
+  --flexoki-ui-2:  hsl(40 3% 20%);   /* borders, inputs */
+  --flexoki-ui-3:  hsl(30 3% 24%);   /* subtle decorations, ring */
+  --flexoki-tx:    hsl(55 10% 79%);  /* warm light — primary text */
+  --flexoki-tx-2:  hsl(43 3% 52%);   /* secondary text */
+  --flexoki-tx-3:  hsl(45 2% 33%);   /* muted text */
+  --flexoki-re:    hsl(5 61% 54%);   /* red — destructive */
+  --flexoki-orange:  #DA702C;
+  --flexoki-yellow:  #D0A215;
+  --flexoki-green:   #879A39;
+  --flexoki-cyan:    #3AA99F;
+  --flexoki-blue:    #4385BE;
+  --flexoki-purple:  #8B7EC8;
+  --flexoki-magenta: #CE5D97;
+
   --background: oklch(0.1448 0 0);
   --foreground: oklch(0.9702 0 0);
   --card: oklch(0.1822 0 0);
@@ -159,6 +218,25 @@
   --color-content-foreground: var(--content-foreground);
   --color-tag: var(--tag);
   --color-tag-foreground: var(--tag-foreground);
+  /* Semantic tokens — enables bg-approval/10, text-denied, etc. */
+  --color-approval: var(--approval);
+  --color-denied: var(--denied);
+  --color-syntax-string: var(--syntax-string);
+  --color-syntax-number: var(--syntax-number);
+  --color-syntax-boolean: var(--syntax-boolean);
+  /* Domain tokens — enables border-l-stage-leads, bg-status-open/10, etc. */
+  --color-stage-leads: var(--stage-leads);
+  --color-stage-negotiation: var(--stage-negotiation);
+  --color-stage-offer: var(--stage-offer);
+  --color-stage-closing: var(--stage-closing);
+  --color-stage-lost: var(--stage-lost);
+  --color-status-open: var(--status-open);
+  --color-status-completed: var(--status-completed);
+  --color-filetype-spreadsheet: var(--filetype-spreadsheet);
+  --color-filetype-pdf: var(--filetype-pdf);
+  --color-filetype-document: var(--filetype-document);
+  --color-filetype-presentation: var(--filetype-presentation);
+  --color-filetype-default: var(--filetype-default);
 
   /* Radius */
   --radius-sm: calc(var(--radius) - 4px);

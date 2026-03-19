@@ -89,13 +89,13 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
           className={cn(
             "h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50",
             isRunning && "animate-pulse bg-foreground/50",
-            isAwaitingApproval && "animate-pulse bg-amber-500",
-            isDenied && "bg-orange-500",
+            isAwaitingApproval && "animate-pulse bg-approval",
+            isDenied && "bg-denied",
           )}
         />
         <span>{name}</span>
         {isDenied && (
-          <span className="text-[10px] font-medium text-orange-600 dark:text-orange-400">
+          <span className="text-[10px] font-medium text-denied">
             Denied
           </span>
         )}
@@ -106,7 +106,7 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
         <div data-testid="tool-approval-actions" className="ml-3 mt-1 flex items-center gap-2">
           <button
             type="button"
-            className="rounded-md border border-green-300 bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 hover:bg-green-100 dark:border-green-800 dark:bg-green-950 dark:text-green-300 dark:hover:bg-green-900"
+            className="rounded-md border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-medium text-success hover:bg-success/20"
             aria-label="Approve"
             onClick={() => onToolApproval(approvalId, true)}
           >
@@ -114,7 +114,7 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
           </button>
           <button
             type="button"
-            className="rounded-md border border-red-300 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-950 dark:text-red-300 dark:hover:bg-red-900"
+            className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive hover:bg-destructive/20"
             aria-label="Deny"
             onClick={() => onToolApproval(approvalId, false)}
           >
@@ -142,9 +142,9 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
       {authNeeded && (
         <div
           data-testid="browser-auth-card"
-          className="ml-3 mt-1 space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950"
+          className="ml-3 mt-1 space-y-2 rounded-md border border-warning/20 bg-warning/5 p-3"
         >
-          <p className="text-xs text-amber-900 dark:text-amber-100">
+          <p className="text-xs text-foreground">
             Access to <span className="font-medium">{authPlatformConfig?.label ?? authNeeded.platform}</span> requires login.
           </p>
 
@@ -153,13 +153,13 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
               <iframe
                 title={`${authNeeded.platform} login`}
                 src={browserAuthState.liveUrl}
-                className="h-80 w-full rounded-md border border-amber-200 bg-white dark:border-amber-800"
+                className="h-80 w-full rounded-md border border-warning/20 bg-white"
               />
               <a
                 href={browserAuthState.liveUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex text-xs font-medium text-amber-800 underline underline-offset-2 dark:text-amber-200"
+                className="inline-flex text-xs font-medium text-warning underline underline-offset-2"
               >
                 Open in new tab
               </a>
@@ -167,7 +167,7 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
           )}
 
           {browserAuthState.status === "done" ? (
-            <p className="text-xs text-emerald-700 dark:text-emerald-300">
+            <p className="text-xs text-success">
               Connection saved. Retry your request to continue.
             </p>
           ) : null}
@@ -175,7 +175,7 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
           {browserAuthState.status !== "awaiting-login" && browserAuthState.status !== "verifying" && browserAuthState.status !== "done" && (
             <button
               type="button"
-              className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-amber-700"
+              className="rounded-md bg-warning px-3 py-1.5 text-xs font-medium text-warning-foreground transition-colors hover:opacity-90"
               onClick={() => void connect(authNeeded.platform)}
             >
               Connect {authPlatformConfig?.label ?? authNeeded.platform}
@@ -186,14 +186,14 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-amber-700"
+                className="rounded-md bg-warning px-3 py-1.5 text-xs font-medium text-warning-foreground transition-colors hover:opacity-90"
                 onClick={() => void verify(authNeeded.platform)}
               >
                 Done, I&apos;ve logged in
               </button>
               <button
                 type="button"
-                className="rounded-md border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900"
+                className="rounded-md border border-warning/30 px-3 py-1.5 text-xs font-medium text-warning transition-colors hover:bg-warning/10"
                 onClick={() => reset(authNeeded.platform)}
               >
                 Cancel
@@ -202,13 +202,13 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
           )}
 
           {browserAuthState.status === "verifying" && (
-            <p className="text-xs text-amber-900 dark:text-amber-100">
+            <p className="text-xs text-foreground">
               Verifying login...
             </p>
           )}
 
           {authNeeded.error ? (
-            <p className="text-xs text-amber-800/80 dark:text-amber-200/80">
+            <p className="text-xs text-muted-foreground">
               {authNeeded.error}
             </p>
           ) : null}

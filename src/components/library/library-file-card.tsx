@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { FILETYPE_COLOR_CLASSES } from "@/lib/ui/color-maps";
 import { cn } from "@/lib/utils";
 import type { ReportHistoryItem } from "@/components/docgen/report-history";
 
@@ -32,23 +33,24 @@ interface FileTypeConfig {
  */
 function getFileTypeConfig(filename: string): FileTypeConfig {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  const colorClass = FILETYPE_COLOR_CLASSES[ext] ?? "text-filetype-default";
 
   switch (ext) {
     case "xlsx":
     case "xls":
-      return { Icon: FileSpreadsheetIcon, colorClass: "text-green-600", label: "Spreadsheet", badge: "EXCEL" };
+      return { Icon: FileSpreadsheetIcon, colorClass, label: "Spreadsheet", badge: "EXCEL" };
     case "csv":
-      return { Icon: SheetIcon, colorClass: "text-emerald-600", label: "CSV", badge: "CSV" };
+      return { Icon: SheetIcon, colorClass, label: "CSV", badge: "CSV" };
     case "pdf":
-      return { Icon: FileTextIcon, colorClass: "text-red-600", label: "PDF", badge: "PDF" };
+      return { Icon: FileTextIcon, colorClass, label: "PDF", badge: "PDF" };
     case "docx":
     case "doc":
-      return { Icon: FileTextIcon, colorClass: "text-blue-600", label: "Document", badge: "WORD" };
+      return { Icon: FileTextIcon, colorClass, label: "Document", badge: "WORD" };
     case "pptx":
     case "ppt":
-      return { Icon: PresentationIcon, colorClass: "text-orange-600", label: "Presentation", badge: "PPT" };
+      return { Icon: PresentationIcon, colorClass, label: "Presentation", badge: "PPT" };
     default:
-      return { Icon: FileIcon, colorClass: "text-zinc-400", label: "File", badge: "FILE" };
+      return { Icon: FileIcon, colorClass, label: "File", badge: "FILE" };
   }
 }
 

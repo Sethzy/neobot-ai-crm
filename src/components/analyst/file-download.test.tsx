@@ -36,10 +36,11 @@ describe('FileDownload', () => {
     expect(screen.getByText('report.xlsx')).toBeInTheDocument();
     // Should show Spreadsheet label for Excel files
     expect(screen.getByText('Spreadsheet')).toBeInTheDocument();
+    expect(link.querySelector("svg")?.getAttribute("class") ?? "").toContain("text-filetype-spreadsheet");
   });
 
   it('shows PDF-specific styling and label', () => {
-    render(
+    const { container } = render(
       <FileDownload
         url="https://example.com/document.pdf"
         mediaType="application/pdf"
@@ -49,6 +50,7 @@ describe('FileDownload', () => {
 
     expect(screen.getByText('document.pdf')).toBeInTheDocument();
     expect(screen.getByText('PDF')).toBeInTheDocument();
+    expect(container.querySelector("svg")?.getAttribute("class") ?? "").toContain("text-filetype-pdf");
   });
 
   it('shows CSV-specific styling and label', () => {

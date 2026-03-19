@@ -62,6 +62,6 @@ describe("ReviewActions", () => {
 
     // Reviewed: emerald style
     const reviewedButton = screen.getByRole("button");
-    expect(reviewedButton).toHaveClass("bg-emerald-600");
+    expect(reviewedButton).toHaveClass("bg-success");
   });
 });

@@ -32,7 +32,7 @@ describe("DuplicateIndicator", () => {
   it("renders none status with green color class", () => {
     render(<DuplicateIndicator status="none" />);
     const icon = screen.getByLabelText("No duplicates found");
-    expect(icon).toHaveClass("text-green-500");
+    expect(icon).toHaveClass("text-success");
   });
 
   it("renders detected status with amber color class", () => {

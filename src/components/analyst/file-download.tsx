@@ -14,6 +14,7 @@ import {
   SheetIcon,
   type LucideProps,
 } from 'lucide-react';
+import { FILETYPE_COLOR_CLASSES } from '@/lib/ui/color-maps';
 import { cn } from '@/lib/utils';
 
 interface FileDownloadProps {
@@ -38,47 +39,24 @@ interface FileTypeConfig {
  */
 function getFileTypeConfig(filename: string): FileTypeConfig {
   const ext = filename.split('.').pop()?.toLowerCase() ?? '';
+  const colorClass = FILETYPE_COLOR_CLASSES[ext] ?? 'text-filetype-default';
 
   switch (ext) {
     case 'xlsx':
     case 'xls':
-      return {
-        Icon: FileSpreadsheetIcon,
-        colorClass: 'text-green-600',
-        label: 'Spreadsheet',
-      };
+      return { Icon: FileSpreadsheetIcon, colorClass, label: 'Spreadsheet' };
     case 'csv':
-      return {
-        Icon: SheetIcon,
-        colorClass: 'text-emerald-600',
-        label: 'Spreadsheet',
-      };
+      return { Icon: SheetIcon, colorClass, label: 'Spreadsheet' };
     case 'pdf':
-      return {
-        Icon: FileTextIcon,
-        colorClass: 'text-red-600',
-        label: 'PDF',
-      };
+      return { Icon: FileTextIcon, colorClass, label: 'PDF' };
     case 'docx':
     case 'doc':
-      return {
-        Icon: FileTextIcon,
-        colorClass: 'text-blue-600',
-        label: 'Document',
-      };
+      return { Icon: FileTextIcon, colorClass, label: 'Document' };
     case 'pptx':
     case 'ppt':
-      return {
-        Icon: PresentationIcon,
-        colorClass: 'text-orange-600',
-        label: 'Presentation',
-      };
+      return { Icon: PresentationIcon, colorClass, label: 'Presentation' };
     default:
-      return {
-        Icon: FileIcon,
-        colorClass: 'text-zinc-400',
-        label: 'File',
-      };
+      return { Icon: FileIcon, colorClass, label: 'File' };
   }
 }
 
@@ -109,8 +87,8 @@ export function FileDownload({ url, mediaType, filename }: FileDownloadProps) {
         href={url}
         download={displayName}
         className={cn(
-          'flex items-center gap-3 px-3 py-2.5 rounded-lg border border-zinc-200 bg-zinc-50',
-          'transition-colors hover:bg-zinc-100 max-w-xs'
+          'flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border bg-muted/30',
+          'transition-colors hover:bg-muted/50 max-w-xs'
         )}
       >
         {/* File type icon */}
@@ -118,16 +96,16 @@ export function FileDownload({ url, mediaType, filename }: FileDownloadProps) {
 
         {/* File info */}
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm truncate text-zinc-900">
+          <p className="font-medium text-sm truncate text-foreground">
             {displayName}
           </p>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-muted-foreground">
             {config.label}
           </p>
         </div>
 
         {/* Download indicator */}
-        <DownloadIcon className="size-4 shrink-0 text-zinc-400" />
+        <DownloadIcon className="size-4 shrink-0 text-muted-foreground" />
       </a>
     );
   }

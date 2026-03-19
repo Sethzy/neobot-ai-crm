@@ -23,14 +23,14 @@ type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>;
 
 const stageBarClassByVariant = {
   default: "bg-primary",
-  destructive: "bg-rose-500",
+  destructive: "bg-destructive",
   ghost: "bg-muted-foreground",
-  info: "bg-blue-500",
+  info: "bg-info",
   link: "bg-primary",
-  outline: "bg-zinc-500",
-  secondary: "bg-slate-500",
-  success: "bg-emerald-500",
-  warning: "bg-amber-500",
+  outline: "bg-muted-foreground/50",
+  secondary: "bg-muted-foreground/30",
+  success: "bg-success",
+  warning: "bg-warning",
 } as const satisfies Record<BadgeVariant, string>;
 
 export interface PipelineStageSummary {

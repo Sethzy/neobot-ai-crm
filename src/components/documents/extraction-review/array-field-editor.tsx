@@ -68,7 +68,7 @@ export function ArrayFieldEditor({ fieldName, value, originalValue, onChange, di
 
   if (isNullOrEmpty) {
     return (
-      <div className="px-3 py-2.5 bg-[#F9FAFB] rounded-lg text-sm border border-border/30 flex items-center justify-center gap-3">
+      <div className="flex items-center justify-center gap-3 rounded-lg border border-border/30 bg-muted/30 px-3 py-2.5 text-sm">
         <span className="text-muted-foreground">Value is NULL</span>
       </div>
     );
@@ -119,7 +119,7 @@ export function ArrayFieldEditor({ fieldName, value, originalValue, onChange, di
               key={idx}
               className={cn(
                 "border-t border-border/20",
-                isRowEdited ? "bg-green-50" : "hover:bg-muted/20"
+                isRowEdited ? "bg-success/10" : "hover:bg-muted/20"
               )}
               onMouseEnter={() => {
                 const rowKey = `${fieldName}[${idx}]`;

@@ -167,13 +167,13 @@ export function ValidationRulesSection({ caseId }: ValidationRulesSectionProps) 
         <div className="flex items-center gap-4">
           <h2 className="text-lg font-semibold text-foreground">Validation Rules</h2>
           {totalIssues > 0 ? (
-            <span className="flex items-center gap-1.5 text-[13px] text-amber-600">
+            <span className="flex items-center gap-1.5 text-[13px] text-warning">
               <AlertTriangle className="h-4 w-4" />
               {totalIssues} issue{totalIssues !== 1 ? "s" : ""} across{" "}
               {uniqueDocIds.size} doc{uniqueDocIds.size !== 1 ? "s" : ""}
             </span>
           ) : splits.length > 0 ? (
-            <span className="flex items-center gap-1.5 text-[13px] text-green-600">
+            <span className="flex items-center gap-1.5 text-[13px] text-success">
               <CheckCircle2 className="h-4 w-4" />
               All validations passing
             </span>
@@ -210,12 +210,12 @@ export function ValidationRulesSection({ caseId }: ValidationRulesSectionProps) 
                       </span>
                     </div>
                     {tagIssueCount > 0 ? (
-                      <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 text-amber-600 dark:bg-amber-950/50">
+                      <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-warning/10 text-warning">
                         <AlertTriangle className="h-3.5 w-3.5" />
                         {tagIssueCount} issue{tagIssueCount !== 1 ? "s" : ""}
                       </span>
                     ) : tagSplitCount > 0 && rules.length > 0 ? (
-                      <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-green-50 text-green-600 dark:bg-green-950/50">
+                      <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-success/10 text-success">
                         <CheckCircle2 className="h-3.5 w-3.5" />
                         Passing
                       </span>
@@ -283,9 +283,9 @@ export function ValidationRulesSection({ caseId }: ValidationRulesSectionProps) 
                             <td className="px-5 py-4 text-sm text-foreground/80">
                               <span className="flex items-center gap-2.5">
                                 {hasFailing ? (
-                                  <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                                  <AlertTriangle className="h-4 w-4 text-warning flex-shrink-0" />
                                 ) : isAllPassing ? (
-                                  <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                  <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
                                 ) : (
                                   <Info className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" />
                                 )}
@@ -380,7 +380,7 @@ export function ValidationRulesSection({ caseId }: ValidationRulesSectionProps) 
                               <span
                                 className={`text-[13px] tabular-nums ${
                                   hasFailing
-                                    ? "text-amber-600 font-medium"
+                                    ? "text-warning font-medium"
                                     : "text-foreground/80"
                                 }`}
                               >

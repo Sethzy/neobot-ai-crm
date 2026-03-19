@@ -70,7 +70,7 @@ export function DuplicateIndicator({
           <TooltipTrigger asChild>
             <span className="cursor-default">
               <CheckCircle2
-                className="h-3.5 w-3.5 text-green-500"
+                className="h-3.5 w-3.5 text-success"
                 aria-label="No duplicates found"
               />
             </span>

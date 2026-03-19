@@ -63,7 +63,7 @@ export function UploadProgressPanel({
           {isBusy ? (
             <Loader2 className="h-3 w-3 animate-spin text-muted-foreground/70" />
           ) : (
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <span className="h-2 w-2 rounded-full bg-success" />
           )}
           <span className="text-xs font-medium text-foreground/80">{statusText}</span>
           {totalCount > 0 && (
@@ -105,7 +105,7 @@ export function UploadProgressPanel({
           <div
             className={cn(
               "h-full transition-all",
-              failedCount > 0 ? "bg-amber-500" : "bg-foreground/60"
+              failedCount > 0 ? "bg-warning" : "bg-foreground/60"
             )}
             style={{ width: `${progress}%` }}
           />
@@ -120,7 +120,7 @@ export function UploadProgressPanel({
             {queue.map((item) => (
               <div key={item.id} className="flex items-center gap-1.5">
                 {item.status === "complete" && (
-                  <Check className="h-3 w-3 text-emerald-500 shrink-0" />
+                  <Check className="h-3 w-3 text-success shrink-0" />
                 )}
                 {item.status === "uploading" && (
                   <Loader2 className="h-3 w-3 animate-spin text-muted-foreground/70 shrink-0" />
@@ -155,7 +155,7 @@ export function UploadProgressPanel({
                     <Loader2 className="h-3 w-3 animate-spin text-muted-foreground/70 shrink-0" />
                   )}
                   {reportTask.status === "complete" && (
-                    <FileSpreadsheet className="h-3 w-3 text-emerald-500 shrink-0" />
+                    <FileSpreadsheet className="h-3 w-3 text-success shrink-0" />
                   )}
                   {reportTask.status === "failed" && (
                     <AlertCircle className="h-3 w-3 text-destructive shrink-0" />

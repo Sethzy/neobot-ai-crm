@@ -6,6 +6,7 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
+  avatarColorFor,
   formatCrmEnumLabel,
   getContactTypeBadgeVariant,
 } from "@/lib/crm/display";
@@ -17,27 +18,11 @@ export interface ContactCardProps {
   subtitle?: string;
 }
 
-/** Small palette for deterministic avatar background colors. */
-const AVATAR_COLORS = [
-  "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
-  "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300",
-  "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
-  "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
-  "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300",
-] as const;
-
 /** Derives 1–2 letter initials from a full name string. */
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
   return (parts[0]?.[0] ?? "?").toUpperCase();
-}
-
-/** Deterministic color index from a name string. */
-function getAvatarColor(name: string): string {
-  let hash = 0;
-  for (const ch of name) hash = ((hash << 5) - hash + ch.charCodeAt(0)) | 0;
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
 /**
@@ -47,7 +32,7 @@ export function ContactCard({ name, type, subtitle }: ContactCardProps) {
   return (
     <div className="flex items-start gap-3 p-4">
       <Avatar data-testid="contact-avatar">
-        <AvatarFallback className={getAvatarColor(name)}>
+        <AvatarFallback className={avatarColorFor(name)}>
           {getInitials(name)}
         </AvatarFallback>
       </Avatar>

@@ -218,13 +218,13 @@ export function AnalystSection({ caseId }: AnalystSectionProps) {
               ))}
               {/* Inline warning when stream was interrupted */}
               {wasInterrupted && !isLoading && (
-                <div className="p-3 rounded-lg bg-amber-50 text-amber-800 flex items-center gap-2 text-sm">
-                  <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                <div className="p-3 rounded-lg bg-warning/5 border border-warning/20 flex items-center gap-2 text-sm">
+                  <AlertTriangle className="h-4 w-4 flex-shrink-0 text-warning" />
                   <span>Response may be incomplete due to connection interruption.</span>
                   <Button
                     variant="link"
                     size="sm"
-                    className="ml-auto p-0 h-auto text-amber-800 hover:text-amber-900"
+                    className="ml-auto p-0 h-auto text-warning hover:opacity-80"
                     onClick={() => reload()}
                   >
                     Regenerate
@@ -255,14 +255,14 @@ export function AnalystSection({ caseId }: AnalystSectionProps) {
       {/* Error state with retry */}
       {error && (
         <div className="max-w-3xl mx-auto w-full px-4 mb-4">
-          <div className="p-3 rounded-lg bg-red-50 text-red-700 flex items-center gap-2 text-sm">
+          <div className="p-3 rounded-lg bg-destructive/5 text-destructive flex items-center gap-2 text-sm">
             <AlertTriangle className="h-4 w-4" />
             <span>An error occurred.</span>
             <Button
               variant="link"
               size="sm"
               onClick={() => reload()}
-              className="text-red-700 p-0 h-auto font-semibold"
+              className="text-destructive p-0 h-auto font-semibold"
             >
               Retry
             </Button>

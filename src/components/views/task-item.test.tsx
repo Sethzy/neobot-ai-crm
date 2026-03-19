@@ -47,7 +47,7 @@ describe("TaskItem", () => {
   });
 
   it("shows overdue treatment for open tasks past due date", () => {
-    render(
+    const { container } = render(
       <TaskItem
         title="Old task"
         dueDate="2020-01-01"
@@ -56,6 +56,8 @@ describe("TaskItem", () => {
     );
 
     expect(screen.getByText(/· Overdue/)).toBeInTheDocument();
+    expect(container.firstChild).not.toBeNull();
+    expect(container.firstChild).toHaveClass("border-l-warning");
   });
 
   it("does not show overdue for completed tasks", () => {

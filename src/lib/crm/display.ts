@@ -8,6 +8,13 @@ import type { badgeVariants } from "@/components/ui/badge";
 import type { CustomFieldDefinition } from "@/lib/crm/config";
 import type { Contact, CrmTask, Deal } from "@/lib/crm/schemas";
 import { crmTaskStatusValues, dealStageValues } from "@/lib/crm/schemas";
+import {
+  AVATAR_COLORS,
+  DEAL_STAGE_TONE_CLASSES,
+  DEAL_STAGE_TOP_BORDER_CLASSES,
+  TASK_STATUS_TONE_CLASSES,
+  TASK_STATUS_TOP_BORDER_CLASSES,
+} from "@/lib/ui/color-maps";
 
 type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>;
 
@@ -201,13 +208,7 @@ export function formatCompactCurrency(value: number): string {
 }
 
 /** Kanban chip background/text classes per deal stage. */
-export const dealStageToneClassMap: Record<(typeof dealStageValues)[number], string> = {
-  leads: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
-  negotiation: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300",
-  offer: "bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300",
-  closing: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
-  lost: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300",
-};
+export const dealStageToneClassMap = DEAL_STAGE_TONE_CLASSES;
 
 /** Returns a safe kanban tone class for default or configured deal stages. */
 export function getDealStageToneClass(stage: Deal["stage"]): string {
@@ -216,13 +217,7 @@ export function getDealStageToneClass(stage: Deal["stage"]): string {
 }
 
 /** Kanban column top-border classes per deal stage. */
-export const dealStageTopBorderMap: Record<(typeof dealStageValues)[number], string> = {
-  leads: "border-t-amber-400",
-  negotiation: "border-t-orange-400",
-  offer: "border-t-violet-400",
-  closing: "border-t-emerald-400",
-  lost: "border-t-rose-400",
-};
+export const dealStageTopBorderMap = DEAL_STAGE_TOP_BORDER_CLASSES;
 
 /** Returns a safe kanban border class for default or configured deal stages. */
 export function getDealStageTopBorderClass(stage: Deal["stage"]): string {
@@ -231,36 +226,16 @@ export function getDealStageTopBorderClass(stage: Deal["stage"]): string {
 }
 
 /** Kanban chip background/text classes per task status. */
-export const taskStatusToneClassMap: Record<(typeof crmTaskStatusValues)[number], string> = {
-  open: "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300",
-  completed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
-};
+export const taskStatusToneClassMap = TASK_STATUS_TONE_CLASSES;
 
 /** Kanban column top-border classes per task status. */
-export const taskStatusTopBorderMap: Record<(typeof crmTaskStatusValues)[number], string> = {
-  open: "border-t-sky-400",
-  completed: "border-t-emerald-400",
-};
+export const taskStatusTopBorderMap = TASK_STATUS_TOP_BORDER_CLASSES;
 
-/** Deterministic color palette for avatar initials in kanban cards. */
-const AVATAR_COLORS = [
-  "bg-amber-500",
-  "bg-blue-500",
-  "bg-emerald-500",
-  "bg-violet-500",
-  "bg-rose-500",
-  "bg-cyan-500",
-  "bg-orange-500",
-  "bg-teal-500",
-  "bg-indigo-500",
-  "bg-pink-500",
-];
-
-/** Returns a deterministic Tailwind background color class from a string hash. */
-export function getAvatarColor(str: string): string {
+/** Returns a deterministic avatar color class (bg + text) from a string hash. */
+export function avatarColorFor(name: string): string {
   let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
+
+export { DEAL_STAGE_LEFT_BORDER_CLASSES } from "@/lib/ui/color-maps";

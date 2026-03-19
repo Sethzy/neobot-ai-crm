@@ -30,4 +30,16 @@ describe("ContactCard", () => {
 
     expect(screen.getByText("Last contact: 5 Mar 2026")).toBeInTheDocument();
   });
+
+  it("uses centralized avatar color classes", () => {
+    render(<ContactCard name="John Tan" />);
+
+    const avatarFallback = screen
+      .getByTestId("contact-avatar")
+      .querySelector("[data-slot='avatar-fallback']");
+
+    expect(avatarFallback).not.toBeNull();
+    expect(avatarFallback).toHaveClass("text-foreground");
+    expect(avatarFallback?.className).toMatch(/bg-/);
+  });
 });

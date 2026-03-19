@@ -22,7 +22,7 @@ describe("DealCard", () => {
   });
 
   it("renders the stage badge when provided", () => {
-    render(
+    const { container } = render(
       <DealCard
         address="Marine Parade"
         price="$2.1M"
@@ -31,5 +31,7 @@ describe("DealCard", () => {
     );
 
     expect(screen.getByTestId("stage-badge")).toHaveTextContent("leads");
+    expect(container.firstChild).not.toBeNull();
+    expect(container.firstChild).toHaveClass("border-l-stage-leads");
   });
 });

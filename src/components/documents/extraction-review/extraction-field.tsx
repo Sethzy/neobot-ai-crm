@@ -135,7 +135,7 @@ export function ExtractionField({
       data-field-name={fieldName}
       className={cn(
         "px-5 py-4 transition-colors border-2 border-transparent",
-        "hover:border-[#808BF8]/60"
+        "hover:border-tag/40"
       )}
       onMouseEnter={() => onFieldHover(citations)}
       onMouseLeave={() => onFieldHover([])}
@@ -162,7 +162,7 @@ export function ExtractionField({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Badge
-                  className="text-[10px] bg-red-50 text-red-600/80 border-0 cursor-default hover:bg-red-100 flex items-center gap-1 transition-none"
+                  className="text-[10px] bg-destructive/10 text-destructive/80 border-0 cursor-default hover:bg-destructive/15 flex items-center gap-1 transition-none"
                 >
                   Needs review
                   {onDismissRule && (
@@ -173,7 +173,7 @@ export function ExtractionField({
                         // Dismiss all undismissed failures for this field (batched)
                         onDismissRule(undismissedFailures.map((f) => f.ruleId));
                       }}
-                      className="ml-0.5 p-0.5 hover:bg-red-200/60 rounded"
+                      className="ml-0.5 rounded p-0.5 hover:bg-destructive/15"
                       aria-label="Dismiss all validation failures"
                     >
                       <X className="h-3 w-3" />
@@ -276,7 +276,7 @@ export function ExtractionField({
             onChange={onValueChange}
           />
         ) : (
-          <div className="px-3 py-2.5 bg-[#F9FAFB] rounded-lg text-sm whitespace-pre-wrap border border-border/30">
+          <div className="rounded-lg border border-border/30 bg-muted/30 px-3 py-2.5 text-sm whitespace-pre-wrap">
             {unwrapped.displayValue}
           </div>
         )}
@@ -284,12 +284,12 @@ export function ExtractionField({
 
       {/* Reasoning section */}
       {reasoning && (
-        <div className="mt-3 p-3 bg-white rounded-lg border border-border/40">
+        <div className="mt-3 rounded-lg border border-border/40 bg-card p-3">
           <Badge variant="info" className="text-[10px] mb-2 gap-1">
             <Lightbulb className="h-3 w-3" />
             Reasoning
           </Badge>
-          <div className="px-3 py-2 bg-[#F9FAFB] rounded-md">
+          <div className="rounded-md bg-muted/30 px-3 py-2">
             <p className="text-xs text-foreground/80 leading-relaxed">{reasoning}</p>
           </div>
         </div>
@@ -297,11 +297,11 @@ export function ExtractionField({
 
       {/* Citations section */}
       {citationTexts.length > 0 && (
-        <div className="mt-3 p-3 bg-white rounded-lg border border-border/40">
-          <Badge className="text-[10px] mb-2 bg-[#F9FAFB] text-muted-foreground border-0 hover:bg-[#F9FAFB]">
+        <div className="mt-3 rounded-lg border border-border/40 bg-card p-3">
+          <Badge className="mb-2 border-0 bg-muted/40 text-[10px] text-muted-foreground hover:bg-muted/40">
             Citations
           </Badge>
-          <div className="px-3 py-2 bg-[#F9FAFB] rounded-md space-y-1">
+          <div className="rounded-md bg-muted/30 px-3 py-2 space-y-1">
             {citationTexts.map((text, i) => (
               <p key={i} className="text-xs text-foreground/80">{text}</p>
             ))}

@@ -5,7 +5,7 @@
  */
 import { AppIcon } from "@/components/icons/app-icons";
 import type { CrmTaskWithRelations } from "@/hooks/use-crm-tasks";
-import { formatContactFullName, formatCrmDate, getAvatarColor } from "@/lib/crm/display";
+import { formatContactFullName, formatCrmDate, avatarColorFor } from "@/lib/crm/display";
 
 interface TaskKanbanCardProps {
   /** CRM task row rendered as card content. */
@@ -23,7 +23,7 @@ export function TaskKanbanCard({ task }: TaskKanbanCardProps) {
       {/* Title with avatar initial */}
       <div className="flex items-center gap-2">
         <span
-          className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold text-white ${getAvatarColor(task.title)}`}
+          className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold ${avatarColorFor(task.title)}`}
         >
           {initial}
         </span>
@@ -51,7 +51,7 @@ export function TaskKanbanCard({ task }: TaskKanbanCardProps) {
             <AppIcon name="person" className="h-3.5 w-3.5 shrink-0" />
             <span className="inline-flex items-center gap-1.5 truncate">
               <span
-                className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[8px] font-medium text-white ${getAvatarColor(contactName)}`}
+                className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[8px] font-medium ${avatarColorFor(contactName)}`}
               >
                 {contactName.charAt(0).toUpperCase()}
               </span>

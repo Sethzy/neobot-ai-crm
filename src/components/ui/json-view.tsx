@@ -37,7 +37,7 @@ function JsonNode({ value }: { value: unknown }) {
 
   if (typeof value === "string") {
     return (
-      <span className="text-green-600 dark:text-green-400">
+      <span className="text-syntax-string">
         &quot;{value}&quot;
       </span>
     );
@@ -45,13 +45,13 @@ function JsonNode({ value }: { value: unknown }) {
 
   if (typeof value === "number") {
     return (
-      <span className="text-blue-600 dark:text-blue-400">{String(value)}</span>
+      <span className="text-syntax-number">{String(value)}</span>
     );
   }
 
   if (typeof value === "boolean") {
     return (
-      <span className="text-amber-600 dark:text-amber-400">
+      <span className="text-syntax-boolean">
         {String(value)}
       </span>
     );

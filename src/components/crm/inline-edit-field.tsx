@@ -396,7 +396,7 @@ export function InlineEditField({
             {isSaving ? (
               <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground/60" />
             ) : isSaved ? (
-              <Check className="h-3.5 w-3.5 shrink-0 text-green-600" />
+              <Check className="h-3.5 w-3.5 shrink-0 text-success" />
             ) : (
               <Pencil className="h-3 w-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100" />
             )}

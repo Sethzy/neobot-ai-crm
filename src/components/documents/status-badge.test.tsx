@@ -65,20 +65,20 @@ describe("StatusBadge - uses new badge variants", () => {
     render(<StatusBadge status="processed" />);
 
     const badge = screen.getByText("Processed").closest("span");
-    expect(badge).toHaveClass("bg-success-foreground");
+    expect(badge).toHaveClass("bg-success/10");
   });
 
   it("renders in_review status with warning variant", () => {
     render(<StatusBadge status="in_review" />);
 
     const badge = screen.getByText("In Review").closest("span");
-    expect(badge).toHaveClass("bg-warning-foreground");
+    expect(badge).toHaveClass("bg-warning/10");
   });
 
   it("renders reviewed status with info variant", () => {
     render(<StatusBadge status="reviewed" />);
 
     const badge = screen.getByText("Reviewed").closest("span");
-    expect(badge).toHaveClass("bg-info-foreground");
+    expect(badge).toHaveClass("bg-info/10");
   });
 });

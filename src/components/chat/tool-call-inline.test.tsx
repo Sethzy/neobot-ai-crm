@@ -236,7 +236,7 @@ describe("approval-requested state", () => {
 
     const dot = screen.getByTestId("tool-dot");
     expect(dot.className).toMatch(/animate-pulse/);
-    expect(dot.className).toMatch(/bg-amber/);
+    expect(dot.className).toMatch(/bg-approval/);
   });
 });
 
@@ -251,7 +251,7 @@ describe("output-denied state", () => {
     );
 
     const dot = screen.getByTestId("tool-dot");
-    expect(dot.className).toMatch(/bg-orange/);
+    expect(dot.className).toMatch(/bg-denied/);
     expect(dot.className).not.toMatch(/animate-pulse/);
   });
 

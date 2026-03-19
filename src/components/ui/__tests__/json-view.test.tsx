@@ -70,10 +70,10 @@ describe("JsonView", () => {
       <JsonView data={{ name: "John", count: 5, active: true, note: null }} />,
     );
     const stringValue = screen.getByText('"John"');
-    expect(stringValue.className).toMatch(/text-green/);
+    expect(stringValue.className).toMatch(/text-syntax-string/);
     const numberValue = screen.getByText("5");
-    expect(numberValue.className).toMatch(/text-blue/);
+    expect(numberValue.className).toMatch(/text-syntax-number/);
     const boolValue = screen.getByText("true");
-    expect(boolValue.className).toMatch(/text-amber/);
+    expect(boolValue.className).toMatch(/text-syntax-boolean/);
   });
 });

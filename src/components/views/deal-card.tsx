@@ -5,7 +5,7 @@
  */
 import { StageBadge } from "@/components/crm/stage-badge";
 import { Badge } from "@/components/ui/badge";
-import { formatCrmEnumLabel } from "@/lib/crm/display";
+import { formatCrmEnumLabel, DEAL_STAGE_LEFT_BORDER_CLASSES } from "@/lib/crm/display";
 import { cn } from "@/lib/utils";
 import { dealStageValues } from "@/lib/crm/schemas";
 
@@ -14,20 +14,6 @@ export interface DealCardProps {
   price: string;
   stage?: string;
 }
-
-/** Left border color accent mapped to deal pipeline stages. */
-const stageBorderMap: Record<string, string> = {
-  leads: "border-l-zinc-400",
-  negotiation: "border-l-sky-500",
-  offer: "border-l-amber-500",
-  closing: "border-l-emerald-500",
-  closed_won: "border-l-emerald-500",
-  lost: "border-l-rose-500",
-  closed_lost: "border-l-rose-500",
-};
-
-/** Default border color for stages not in the map. */
-const DEFAULT_STAGE_BORDER = "border-l-zinc-300";
 
 function isDefaultDealStage(stage: string): stage is (typeof dealStageValues)[number] {
   return dealStageValues.includes(stage as (typeof dealStageValues)[number]);
@@ -38,7 +24,7 @@ function isDefaultDealStage(stage: string): stage is (typeof dealStageValues)[nu
  */
 export function DealCard({ address, price, stage }: DealCardProps) {
   const borderClass = stage
-    ? (stageBorderMap[stage] ?? DEFAULT_STAGE_BORDER)
+    ? (DEAL_STAGE_LEFT_BORDER_CLASSES[stage as keyof typeof DEAL_STAGE_LEFT_BORDER_CLASSES] ?? "border-l-border")
     : undefined;
 
   return (

@@ -435,7 +435,7 @@ export function QuickEditCell({
           {isSaving ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
           ) : isSaved ? (
-            <Check className="h-3.5 w-3.5 text-emerald-600" aria-label={`${ariaLabel} saved`} />
+            <Check className="h-3.5 w-3.5 text-success" aria-label={`${ariaLabel} saved`} />
           ) : null}
           <Button
             type="button"

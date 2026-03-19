@@ -477,8 +477,8 @@ describe("ExtractionField - Needs Review badge", () => {
     );
 
     const badge = screen.getByText("Needs review");
-    // Class includes opacity modifier: text-red-600/80
-    expect(badge).toHaveClass("text-red-600/80");
+    // Class includes opacity modifier: text-destructive/80
+    expect(badge).toHaveClass("text-destructive/80");
   });
 
   // Note: Tooltip interaction tests are skipped due to Radix UI/jsdom environment issues

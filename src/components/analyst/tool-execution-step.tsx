@@ -153,7 +153,7 @@ function CopyButton({ text }: { text: string }) {
       title="Copy code"
     >
       {copied ? (
-        <Check className="h-3.5 w-3.5 text-green-500" />
+        <Check className="h-3.5 w-3.5 text-success" />
       ) : (
         <Copy className="h-3.5 w-3.5 text-muted-foreground" />
       )}
@@ -204,13 +204,13 @@ export function ToolExecutionStep({ state, toolName, input, output, error }: Too
           <Loader2 data-testid="status-loading" className="h-3.5 w-3.5 animate-spin text-muted-foreground/70 shrink-0 ml-1" />
         )}
         {isSuccess && (
-          <div className="flex items-center justify-center h-4 w-4 rounded-full bg-green-500/15 ml-1">
-            <Check data-testid="status-success" className="h-2.5 w-2.5 text-green-600 dark:text-green-400 shrink-0" strokeWidth={3} />
+          <div className="flex items-center justify-center h-4 w-4 rounded-full bg-success/15 ml-1">
+            <Check data-testid="status-success" className="h-2.5 w-2.5 text-success shrink-0" strokeWidth={3} />
           </div>
         )}
         {isError && (
-          <div className="flex items-center justify-center h-4 w-4 rounded-full bg-red-500/15 ml-1">
-             <X data-testid="status-error" className="h-2.5 w-2.5 text-red-600 dark:text-red-400 shrink-0" strokeWidth={3} />
+          <div className="flex items-center justify-center h-4 w-4 rounded-full bg-destructive/15 ml-1">
+             <X data-testid="status-error" className="h-2.5 w-2.5 text-destructive shrink-0" strokeWidth={3} />
           </div>
         )}
 
@@ -264,9 +264,9 @@ export function ToolExecutionStep({ state, toolName, input, output, error }: Too
           {/* Stderr - simple label style */}
           {showOutputSection && stderr && (
             <div>
-              <div className="text-sm text-amber-600 dark:text-amber-400 mb-1">Stderr:</div>
-              <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 overflow-hidden">
-                <pre className="p-3 text-sm font-mono overflow-x-auto max-h-[200px] overflow-y-auto text-amber-700 dark:text-amber-300">
+              <div className="text-sm text-warning mb-1">Stderr:</div>
+              <div className="rounded-lg bg-warning/10 overflow-hidden">
+                <pre className="p-3 text-sm font-mono overflow-x-auto max-h-[200px] overflow-y-auto text-warning">
                   {stderr}
                 </pre>
               </div>
@@ -276,9 +276,9 @@ export function ToolExecutionStep({ state, toolName, input, output, error }: Too
           {/* Error - simple label style */}
           {error && (
             <div>
-              <div className="text-sm text-red-600 dark:text-red-400 mb-1">Error:</div>
-              <div className="rounded-lg bg-red-50 dark:bg-red-950/30 overflow-hidden">
-                <pre className="p-3 text-sm font-mono overflow-x-auto max-h-[200px] overflow-y-auto text-red-700 dark:text-red-300">
+              <div className="text-sm text-destructive mb-1">Error:</div>
+              <div className="rounded-lg bg-destructive/10 overflow-hidden">
+                <pre className="p-3 text-sm font-mono overflow-x-auto max-h-[200px] overflow-y-auto text-destructive">
                   {error}
                 </pre>
               </div>
