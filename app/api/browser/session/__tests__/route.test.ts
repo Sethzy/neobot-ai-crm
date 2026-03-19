@@ -42,6 +42,7 @@ import { POST } from "../route";
 describe("POST /api/browser/session", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-test-secret";
 
     mockAuthenticateRequest.mockResolvedValue({
       kind: "ok",
@@ -71,19 +72,21 @@ describe("POST /api/browser/session", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      sessionId: "session_123",
-      liveUrl: "https://live.browser-use.com/session_123",
-      browserUseProfileId: "profile_123",
-      platform: "propnex",
-    });
+    const payload = await response.json() as Record<string, unknown>;
+    expect(payload.sessionId).toBe("session_123");
+    expect(payload.liveUrl).toBe("https://live.browser-use.com/session_123");
+    expect(payload.platform).toBe("propnex");
+    expect(typeof payload.authToken).toBe("string");
     expect(mockGetProfileForPlatform).toHaveBeenCalledWith(
       expect.anything(),
       "660e8400-e29b-41d4-a716-446655440000",
       "propnex",
     );
     expect(mockProfilesCreate).toHaveBeenCalledOnce();
-    expect(mockSessionsCreate).toHaveBeenCalledWith({ profileId: "profile_123" });
+    expect(mockSessionsCreate).toHaveBeenCalledWith({
+      profileId: "profile_123",
+      startUrl: "https://promap.propnex.com/login",
+    });
   });
 
   it("reuses an existing Browser-Use profile on reconnect", async () => {
@@ -101,7 +104,10 @@ describe("POST /api/browser/session", () => {
 
     expect(response.status).toBe(200);
     expect(mockProfilesCreate).not.toHaveBeenCalled();
-    expect(mockSessionsCreate).toHaveBeenCalledWith({ profileId: "profile_existing" });
+    expect(mockSessionsCreate).toHaveBeenCalledWith({
+      profileId: "profile_existing",
+      startUrl: "https://promap.propnex.com/login",
+    });
   });
 
   it("returns 400 for an invalid request body", async () => {

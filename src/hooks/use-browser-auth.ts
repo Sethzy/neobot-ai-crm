@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 type BrowserAuthStatus =
@@ -17,14 +17,15 @@ type BrowserAuthStatus =
 
 interface PendingBrowserAuthSession {
   sessionId: string;
-  browserUseProfileId: string;
+  authToken: string;
+  liveUrl: string;
 }
 
 interface BrowserAuthState {
   status: BrowserAuthStatus;
   liveUrl: string | null;
   sessionId: string | null;
-  browserUseProfileId: string | null;
+  authToken: string | null;
   platform: string | null;
 }
 
@@ -68,24 +69,80 @@ function clearPendingSession(platform: string): void {
   window.sessionStorage.removeItem(getStorageKey(platform));
 }
 
+function getInitialBrowserAuthState(platform?: string): BrowserAuthState {
+  if (!platform) {
+    return {
+      status: "idle",
+      liveUrl: null,
+      sessionId: null,
+      authToken: null,
+      platform: null,
+    };
+  }
+
+  const pendingSession = readPendingSession(platform);
+  if (!pendingSession) {
+    return {
+      status: "idle",
+      liveUrl: null,
+      sessionId: null,
+      authToken: null,
+      platform: null,
+    };
+  }
+
+  return {
+    status: "awaiting-login",
+    liveUrl: pendingSession.liveUrl,
+    sessionId: pendingSession.sessionId,
+    authToken: pendingSession.authToken,
+    platform,
+  };
+}
+
+async function cleanupPendingBrowserSession(platform: string): Promise<void> {
+  const pendingSession = readPendingSession(platform);
+
+  if (!pendingSession) {
+    return;
+  }
+
+  try {
+    await fetch("/api/browser/session/cleanup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ authToken: pendingSession.authToken }),
+    });
+  } catch {
+    // Cleanup is best-effort; a failed cleanup should not block client recovery.
+  }
+}
+
 /**
  * Creates and verifies Browser-Use auth sessions for one platform at a time.
  */
-export function useBrowserAuth() {
-  const [state, setState] = useState<BrowserAuthState>({
-    status: "idle",
-    liveUrl: null,
-    sessionId: null,
-    browserUseProfileId: null,
-    platform: null,
-  });
+export function useBrowserAuth(platform?: string) {
+  const [state, setState] = useState<BrowserAuthState>(() => getInitialBrowserAuthState(platform));
+
+  useEffect(() => {
+    if (!platform) {
+      return;
+    }
+
+    const hydratedState = getInitialBrowserAuthState(platform);
+    if (hydratedState.status === "awaiting-login") {
+      setState(hydratedState);
+    }
+  }, [platform]);
 
   const connect = useCallback(async (platform: string) => {
+    await cleanupPendingBrowserSession(platform);
+
     setState({
       status: "connecting",
       liveUrl: null,
       sessionId: null,
-      browserUseProfileId: null,
+      authToken: null,
       platform,
     });
 
@@ -99,14 +156,14 @@ export function useBrowserAuth() {
         error?: string;
         sessionId?: string;
         liveUrl?: string;
-        browserUseProfileId?: string;
+        authToken?: string;
       };
 
       if (
         !response.ok ||
         typeof payload.sessionId !== "string" ||
         typeof payload.liveUrl !== "string" ||
-        typeof payload.browserUseProfileId !== "string"
+        typeof payload.authToken !== "string"
       ) {
         toast.error(payload.error ?? "Failed to create browser session.");
         setState((currentState) => ({ ...currentState, status: "error" }));
@@ -115,14 +172,15 @@ export function useBrowserAuth() {
 
       writePendingSession(platform, {
         sessionId: payload.sessionId,
-        browserUseProfileId: payload.browserUseProfileId,
+        authToken: payload.authToken,
+        liveUrl: payload.liveUrl,
       });
 
       setState({
         status: "awaiting-login",
         liveUrl: payload.liveUrl,
         sessionId: payload.sessionId,
-        browserUseProfileId: payload.browserUseProfileId,
+        authToken: payload.authToken,
         platform,
       });
     } catch {
@@ -147,15 +205,14 @@ export function useBrowserAuth() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionId: pendingSession.sessionId,
-          browserUseProfileId: pendingSession.browserUseProfileId,
-          platform,
+          authToken: pendingSession.authToken,
         }),
       });
       const payload = await response.json() as { success?: boolean; error?: string };
 
       if (!response.ok || payload.success !== true) {
         toast.error(payload.error ?? "Login could not be verified. Please try again.");
+        clearPendingSession(platform);
         setState((currentState) => ({ ...currentState, status: "error" }));
         return;
       }
@@ -173,8 +230,9 @@ export function useBrowserAuth() {
     }
   }, []);
 
-  const reset = useCallback((platform?: string) => {
+  const reset = useCallback(async (platform?: string) => {
     if (platform) {
+      await cleanupPendingBrowserSession(platform);
       clearPendingSession(platform);
     }
 
@@ -182,7 +240,7 @@ export function useBrowserAuth() {
       status: "idle",
       liveUrl: null,
       sessionId: null,
-      browserUseProfileId: null,
+      authToken: null,
       platform: null,
     });
   }, []);

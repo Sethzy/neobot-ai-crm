@@ -4,6 +4,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createBrowserAuthToken } from "@/lib/browser-use/auth-state";
+
 const {
   mockAuthenticateRequest,
   mockResolveClientId,
@@ -42,15 +44,25 @@ vi.mock("@/lib/browser-use/client", () => ({
 import { POST } from "../route";
 
 describe("POST /api/browser/verify", () => {
+  const clientId = "660e8400-e29b-41d4-a716-446655440000";
+  const authToken = () =>
+    createBrowserAuthToken({
+      clientId,
+      platform: "propnex",
+      sessionId: "session_123",
+      browserUseProfileId: "profile_123",
+    });
+
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-test-secret";
 
     mockAuthenticateRequest.mockResolvedValue({
       kind: "ok",
       supabase: { from: vi.fn() },
       userId: "user-1",
     });
-    mockResolveClientId.mockResolvedValue("660e8400-e29b-41d4-a716-446655440000");
+    mockResolveClientId.mockResolvedValue(clientId);
     mockUpsertProfile.mockResolvedValue({ label: "PropNex ProMap" });
     mockTasksCreate.mockResolvedValue({ id: "task_123" });
     mockTasksWait.mockResolvedValue({
@@ -75,9 +87,7 @@ describe("POST /api/browser/verify", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionId: "session_123",
-          browserUseProfileId: "profile_123",
-          platform: "propnex",
+          authToken: authToken(),
         }),
       }),
     );
@@ -89,7 +99,7 @@ describe("POST /api/browser/verify", () => {
       label: "PropNex ProMap",
     });
     expect(mockUpsertProfile).toHaveBeenCalledWith(expect.anything(), {
-      clientId: "660e8400-e29b-41d4-a716-446655440000",
+      clientId,
       platform: "propnex",
       browserUseProfileId: "profile_123",
       label: "propnex",
@@ -108,9 +118,7 @@ describe("POST /api/browser/verify", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionId: "session_123",
-          browserUseProfileId: "profile_123",
-          platform: "propnex",
+          authToken: authToken(),
         }),
       }),
     );
@@ -135,9 +143,7 @@ describe("POST /api/browser/verify", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionId: "session_123",
-          browserUseProfileId: "profile_123",
-          platform: "propnex",
+          authToken: authToken(),
         }),
       }),
     );
@@ -161,9 +167,7 @@ describe("POST /api/browser/verify", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionId: "session_123",
-          browserUseProfileId: "profile_123",
-          platform: "propnex",
+          authToken: authToken(),
         }),
       }),
     );
@@ -174,6 +178,39 @@ describe("POST /api/browser/verify", () => {
       error: "Login could not be verified. Please try logging in again.",
     });
     expect(mockUpsertProfile).not.toHaveBeenCalled();
+    expect(mockSessionsStop).toHaveBeenCalledWith("session_123");
+  });
+
+  it("returns 400 for an invalid auth token", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/browser/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          authToken: "not-a-valid-token",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid browser auth state." });
+    expect(mockTasksCreate).not.toHaveBeenCalled();
+  });
+
+  it("stops the session even when task creation fails", async () => {
+    mockTasksCreate.mockRejectedValueOnce(new Error("browser-use down"));
+
+    const response = await POST(
+      new Request("http://localhost/api/browser/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          authToken: authToken(),
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(500);
     expect(mockSessionsStop).toHaveBeenCalledWith("session_123");
   });
 });

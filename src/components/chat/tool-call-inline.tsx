@@ -10,6 +10,7 @@ import { useState } from "react";
 
 import { JsonView } from "@/components/ui/json-view";
 import { useBrowserAuth } from "@/hooks/use-browser-auth";
+import { getBrowserPlatformConfig } from "@/lib/browser-use/platforms";
 import { cn } from "@/lib/utils";
 
 export type ToolPartState =
@@ -64,13 +65,16 @@ function isBrowserNeedsAuth(
 
 export function ToolCallInline({ name, state, input, output, errorText, approvalId, onToolApproval }: ToolCallInlineProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const { state: browserAuthState, connect, verify, reset } = useBrowserAuth();
+  const authNeeded = isBrowserNeedsAuth(name, output) ? output : null;
+  const authPlatformConfig = authNeeded
+    ? getBrowserPlatformConfig(authNeeded.platform)
+    : null;
+  const { state: browserAuthState, connect, verify, reset } = useBrowserAuth(authNeeded?.platform);
   const isRunning = state === "input-available" || state === "input-streaming";
   const isAwaitingApproval = state === "approval-requested";
   const isDenied = state === "output-denied";
   const hasError = state === "output-error";
   const pdfResult = isPdfDownload(name, output) ? output : null;
-  const authNeeded = isBrowserNeedsAuth(name, output) ? output : null;
 
   return (
     <div data-testid="tool-call-inline">
@@ -141,7 +145,7 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
           className="ml-3 mt-1 space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950"
         >
           <p className="text-xs text-amber-900 dark:text-amber-100">
-            Access to <span className="font-medium">{authNeeded.platform}</span> requires login.
+            Access to <span className="font-medium">{authPlatformConfig?.label ?? authNeeded.platform}</span> requires login.
           </p>
 
           {browserAuthState.status === "awaiting-login" && browserAuthState.liveUrl && (
@@ -174,7 +178,7 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
               className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-amber-700"
               onClick={() => void connect(authNeeded.platform)}
             >
-              Connect {authNeeded.platform}
+              Connect {authPlatformConfig?.label ?? authNeeded.platform}
             </button>
           )}
 

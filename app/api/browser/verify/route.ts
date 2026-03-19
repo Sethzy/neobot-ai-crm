@@ -5,15 +5,13 @@
 import { z } from "zod";
 
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
+import { verifyBrowserAuthToken } from "@/lib/browser-use/auth-state";
 import { getBrowserUseClient } from "@/lib/browser-use/client";
 import { upsertProfile } from "@/lib/browser-use/profiles";
 import { resolveClientId } from "@/lib/chat/client-id";
 
 const requestSchema = z.object({
-  sessionId: z.string().min(1),
-  browserUseProfileId: z.string().min(1),
-  platform: z.string().trim().min(1).transform((value) => value.toLowerCase()),
-  label: z.string().trim().min(1).optional(),
+  authToken: z.string().min(1),
 });
 
 const verifyOutputSchema = z.object({
@@ -62,48 +60,59 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError("Invalid request body.", 400);
   }
 
+  const token = verifyBrowserAuthToken(body.authToken);
+  if (!token) {
+    return jsonError("Invalid browser auth state.", 400);
+  }
+
   try {
     const clientId = await resolveClientId(supabase, userId);
+    if (clientId !== token.clientId) {
+      return jsonError("Invalid browser auth state.", 400);
+    }
+
     const client = getBrowserUseClient();
-    const task = await client.tasks.create({
-      sessionId: body.sessionId,
-      llm: "browser-use-llm",
-      maxSteps: 5,
-      task:
-        "Check whether the current browser session is logged into the current platform. " +
-        "Return loggedIn=true only if the page clearly shows authenticated account access. " +
-        "Return loggedIn=false if you see a login screen, sign-in prompt, or cannot verify access.",
-      structuredOutput: verifyOutputJsonSchema,
-    });
-
-    const result = await client.tasks.wait(task.id);
-
     try {
-      await client.sessions.stop(body.sessionId);
-    } catch {
-      // Session cleanup failures should not mask the verification result.
-    }
-
-    const isLoggedIn = result.isSuccess === true && parseLoggedInOutput(result.output);
-    if (!isLoggedIn) {
-      return Response.json({
-        success: false,
-        error: "Login could not be verified. Please try logging in again.",
+      const task = await client.tasks.create({
+        sessionId: token.sessionId,
+        llm: "browser-use-llm",
+        maxSteps: 5,
+        task:
+          "Check whether the current browser session is logged into the current platform. " +
+          "Return loggedIn=true only if the page clearly shows authenticated account access. " +
+          "Return loggedIn=false if you see a login screen, sign-in prompt, or cannot verify access.",
+        structuredOutput: verifyOutputJsonSchema,
       });
+
+      const result = await client.tasks.wait(task.id);
+
+      const isLoggedIn = result.isSuccess === true && parseLoggedInOutput(result.output);
+      if (!isLoggedIn) {
+        return Response.json({
+          success: false,
+          error: "Login could not be verified. Please try logging in again.",
+        });
+      }
+
+      const profile = await upsertProfile(supabase, {
+        clientId,
+        platform: token.platform,
+        browserUseProfileId: token.browserUseProfileId,
+        label: token.platform,
+      });
+
+      return Response.json({
+        success: true,
+        platform: token.platform,
+        label: profile.label,
+      });
+    } finally {
+      try {
+        await client.sessions.stop(token.sessionId);
+      } catch {
+        // Session cleanup failures should not mask the verification result.
+      }
     }
-
-    const profile = await upsertProfile(supabase, {
-      clientId,
-      platform: body.platform,
-      browserUseProfileId: body.browserUseProfileId,
-      label: body.label ?? body.platform,
-    });
-
-    return Response.json({
-      success: true,
-      platform: body.platform,
-      label: profile.label,
-    });
   } catch (error) {
     console.error("[browser/verify] Failed to verify auth session.", error);
     return jsonError("Failed to verify browser session.", 500);

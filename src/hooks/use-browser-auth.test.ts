@@ -32,7 +32,7 @@ describe("useBrowserAuth", () => {
         JSON.stringify({
           sessionId: "session_123",
           liveUrl: "https://live.browser-use.com/session_123",
-          browserUseProfileId: "profile_123",
+          authToken: "auth-token-123",
         }),
         { status: 200 },
       ),
@@ -51,7 +51,8 @@ describe("useBrowserAuth", () => {
     expect(sessionStorage.getItem("sunder-browser-auth:propnex")).toBe(
       JSON.stringify({
         sessionId: "session_123",
-        browserUseProfileId: "profile_123",
+        authToken: "auth-token-123",
+        liveUrl: "https://live.browser-use.com/session_123",
       }),
     );
   });
@@ -61,7 +62,8 @@ describe("useBrowserAuth", () => {
       "sunder-browser-auth:propnex",
       JSON.stringify({
         sessionId: "session_123",
-        browserUseProfileId: "profile_123",
+        authToken: "auth-token-123",
+        liveUrl: "https://live.browser-use.com/session_123",
       }),
     );
     vi.mocked(fetch).mockResolvedValueOnce(
@@ -81,6 +83,22 @@ describe("useBrowserAuth", () => {
     expect(mockToastSuccess).toHaveBeenCalled();
   });
 
+  it("hydrates awaiting-login state from sessionStorage on mount", async () => {
+    sessionStorage.setItem(
+      "sunder-browser-auth:propnex",
+      JSON.stringify({
+        sessionId: "session_123",
+        authToken: "auth-token-123",
+        liveUrl: "https://live.browser-use.com/session_123",
+      }),
+    );
+
+    const { result } = renderHook(() => useBrowserAuth("propnex"));
+
+    expect(result.current.state.status).toBe("awaiting-login");
+    expect(result.current.state.liveUrl).toBe("https://live.browser-use.com/session_123");
+  });
+
   it("fails fast when verify is called without a pending session", async () => {
     const { result } = renderHook(() => useBrowserAuth());
 
@@ -92,5 +110,30 @@ describe("useBrowserAuth", () => {
     expect(mockToastError).toHaveBeenCalledWith(
       "No pending login session found. Connect the platform again.",
     );
+  });
+
+  it("calls cleanup and clears storage when reset is invoked for a pending session", async () => {
+    sessionStorage.setItem(
+      "sunder-browser-auth:propnex",
+      JSON.stringify({
+        sessionId: "session_123",
+        authToken: "auth-token-123",
+        liveUrl: "https://live.browser-use.com/session_123",
+      }),
+    );
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ success: true }), { status: 200 }),
+    );
+    const { result } = renderHook(() => useBrowserAuth("propnex"));
+
+    await act(async () => {
+      await result.current.reset("propnex");
+    });
+
+    expect(fetch).toHaveBeenCalledWith("/api/browser/session/cleanup", expect.objectContaining({
+      method: "POST",
+    }));
+    expect(sessionStorage.getItem("sunder-browser-auth:propnex")).toBeNull();
+    expect(result.current.state.status).toBe("idle");
   });
 });
