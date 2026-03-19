@@ -36,8 +36,12 @@ scripts/property-pipeline/venv/
 # Playwright MCP artifacts
 .playwright-mcp/
 
-# Claude Code worktrees
+# Claude Code worktrees and project memory
 .claude/worktrees/
+.claude/projects/
+
+# Cached search result artifacts
+claude-codex-sdk-integrations*.json
 
 # QA run artifacts (generated)
 scripts/qa/output/
