@@ -1,12 +1,15 @@
 /**
  * @file DocGen skill registry
+ * @deprecated This entire module is deprecated. The hardcoded registry + direct Anthropic
+ * Skills API approach is being replaced by:
+ * - Vercel Sandbox + Claude Code CLI for Excel generation (see docs/product/designs/sandbox-skill-execution.md)
+ * - Per-client SKILL.md files in Supabase Storage for user preferences (see docs/product/designs/instruction-skills.md)
+ * - Anthropic's xlsx skill baked into the sandbox snapshot instead of referenced via skill_id
+ *
+ * Do not add new entries. Will be removed when sandbox execution ships.
+ *
  * @description Maps client IDs to their uploaded Claude API skill IDs.
  * Updated manually after uploading skills via Claude Skills API.
- *
- * When a new client is onboarded:
- * 1. Generate skill: Run /2e-generate-docgen-skill {client-id}
- * 2. Upload skill: python3 scripts/upload-docgen-skill.py {client-id}
- * 3. Update this registry with the returned skill_id
  */
 
 /**
