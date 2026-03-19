@@ -146,6 +146,9 @@ function getApprovalResponses(
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const t0 = performance.now();
+  const _t = (label: string) => console.log(`[chat/timing] ${label}: ${(performance.now() - t0).toFixed(0)}ms`);
+
   if (!process.env.AI_GATEWAY_API_KEY) {
     return jsonError("Server misconfiguration: AI_GATEWAY_API_KEY is required.", 500);
   }
@@ -179,15 +182,19 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError("Invalid request body: could not resolve latest user message text.", 400);
   }
 
+  _t("body_parsed");
+
   const authResult = await authenticateRequest();
   if (authResult.kind === "error") return authResult.response;
   const { supabase, userId } = authResult;
+  _t("auth");
   let clientId: string | null = null;
   let didCreateThread = false;
 
   try {
     const resolvedClientId = await resolveClientId(supabase, userId);
     clientId = resolvedClientId;
+    _t("resolve_client_id");
 
     // Check if CRM config mode is active (non-null and not expired)
     // TODO: Could be combined with an existing client query to avoid an extra round-trip.
@@ -196,6 +203,7 @@ export async function POST(request: Request): Promise<Response> {
       .select("crm_config_mode_until")
       .eq("client_id", resolvedClientId)
       .single();
+    _t("crm_config_mode_check");
 
     const isCrmConfigModeActive = Boolean(
       clientRow?.crm_config_mode_until &&
@@ -210,6 +218,7 @@ export async function POST(request: Request): Promise<Response> {
       .eq("is_archived", false)
       .maybeSingle();
     let isNewThread = false;
+    _t("thread_lookup");
 
     if (threadLookupError) {
       return jsonError("Failed to process chat request.", 500);
@@ -230,7 +239,14 @@ export async function POST(request: Request): Promise<Response> {
 
       isNewThread = true;
       didCreateThread = true;
+      _t("thread_insert");
     }
+
+    // Start title generation early so it runs in parallel with runAgent() setup.
+    // .catch ensures a flaky title model never jeopardizes chat delivery.
+    const titlePromise = isNewThread && input.length > 0
+      ? generateTitleFromUserMessage(input).catch(() => "")
+      : null;
 
     if (approvalResponses.length > 0) {
       const resolutionResults = await Promise.all(
@@ -267,8 +283,10 @@ export async function POST(request: Request): Promise<Response> {
           }];
         }),
       );
+      _t("approval_resolution");
     }
 
+    _t("pre_run_agent");
     const result = await runAgent(
       {
         clientId: resolvedClientId,
@@ -282,6 +300,7 @@ export async function POST(request: Request): Promise<Response> {
       },
       supabase,
     );
+    _t("run_agent_returned");
 
     if (result.status === "queued") {
       return Response.json({ status: "queued" }, { status: 202 });
@@ -300,17 +319,15 @@ export async function POST(request: Request): Promise<Response> {
       });
     }
 
-    const titlePromise = isNewThread && input.length > 0
-      ? generateTitleFromUserMessage(input)
-      : null;
-
     const stream = createUIMessageStream({
       originalMessages: body.messages as UIMessage[] | undefined,
       execute: async ({ writer }) => {
+        _t("stream_execute_start");
         writer.merge(pipeJsonRender(result.streamResult.toUIMessageStream()));
 
         if (titlePromise) {
           const title = await titlePromise;
+          _t("title_gen_resolved");
           if (title.length > 0) {
             writer.write({ type: "data-chat-title", data: title });
             supabase
@@ -336,6 +353,7 @@ export async function POST(request: Request): Promise<Response> {
 
     after(async () => langfuseSpanProcessor.forceFlush());
 
+    _t("response_returned");
     return createUIMessageStreamResponse({
       stream,
       async consumeSseStream({ stream: sseStream }) {

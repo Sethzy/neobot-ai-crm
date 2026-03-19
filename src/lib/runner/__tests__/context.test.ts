@@ -114,6 +114,35 @@ describe("assembleContext", () => {
     expect(memoryIdx).toBeLessThan(reminderIdx);
   });
 
+  it("places available-skills before memory sections for cache-friendliness", async () => {
+    mockDiscoverUserSkills.mockResolvedValueOnce([
+      {
+        slug: "test-skill",
+        name: "test-skill",
+        description: "A test skill.",
+        path: "/agent/skills/test-skill/SKILL.md",
+      },
+    ]);
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      clientId: "client-123",
+    });
+
+    const skillsIdx = result.system.indexOf("<available-skills>");
+    const soulIdx = result.system.indexOf("<soul>");
+    const memoryIdx = result.system.indexOf("<working-memory>");
+
+    expect(skillsIdx).toBeGreaterThan(0);
+    expect(skillsIdx).toBeLessThan(soulIdx);
+    expect(soulIdx).toBeLessThan(memoryIdx);
+  });
+
   it("includes platform instructions before system prompt when clientId is provided", async () => {
     const supabase = createMockSupabaseClient({
       selectResult: { data: [], error: null },

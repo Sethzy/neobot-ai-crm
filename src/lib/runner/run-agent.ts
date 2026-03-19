@@ -99,6 +99,9 @@ export async function runAgent(
   payload: RunnerPayload,
   supabase: ChatSupabaseClient,
 ): Promise<RunAgentResult> {
+  const t0 = performance.now();
+  const _t = (label: string) => console.log(`[runner/timing] ${label}: ${(performance.now() - t0).toFixed(0)}ms`);
+
   const { clientId, threadId, input } = payload;
   const modelId = TIER_1_MODEL;
   const crmMode = payload.crmMode ?? "normal";
@@ -116,6 +119,7 @@ export async function runAgent(
 
   if (shouldConsumeMessageQuota) {
     const quota = await consumeMessageQuota(supabase, clientId);
+    _t("consume_quota");
 
     if (!quota.allowed) {
       throw new MessageQuotaError(
@@ -169,8 +173,10 @@ export async function runAgent(
 
   try {
     await markStaleRunsFailed(supabase, { threadId });
+    _t("mark_stale_runs");
 
     lockResult = await createRun(supabase, { threadId, clientId, runType });
+    _t("create_run_lock");
     if (!lockResult.created) {
       await enqueueMessage(supabase, {
         threadId,
@@ -200,10 +206,36 @@ export async function runAgent(
         },
       ]);
       shouldReleaseConsumedQuota = false;
+      _t("create_messages");
     }
 
-    const { config: crmConfig } = await loadCrmConfig(supabase, clientId);
+    // Phase A: Load CRM config and Composio connections in parallel.
+    // These are independent — neither needs the other's result.
+    const composioPromise = getActiveConnections(supabase, clientId)
+      .then((connections) => {
+        _t("get_connections");
+        return loadActivatedConnectionTools(connections);
+      })
+      .then((tools) => {
+        _t("load_composio_tools");
+        return tools;
+      })
+      .catch((error) => {
+        _t("composio_failed");
+        console.error("[composio] Failed to load activated connection tools for runner.", error);
+        return {} as ToolSet;
+      });
 
+    const [{ config: crmConfig }, composioTools] = await Promise.all([
+      loadCrmConfig(supabase, clientId).then((result) => {
+        _t("load_crm_config");
+        return result;
+      }),
+      composioPromise,
+    ]);
+
+    // Phase B: assembleContext needs crmConfig (now available).
+    // Composio tools are also resolved from Phase A.
     const { system, messages } = await assembleContext({
       supabase,
       threadId,
@@ -215,6 +247,8 @@ export async function runAgent(
         payload.triggerType === "chat" && isBrowserUseConfigured(),
       crmConfigModeActive: payload.includeConfigTool,
     });
+    _t("assemble_context");
+
     const runnerTools = createRunnerTools(supabase, clientId, threadId, {
       allowTriggerMutations: payload.triggerType === "chat",
       crmMode,
@@ -227,14 +261,7 @@ export async function runAgent(
       crmConfig,
       crmMode,
     });
-    let composioTools: ToolSet = {};
-
-    try {
-      const connections = await getActiveConnections(supabase, clientId);
-      composioTools = await loadActivatedConnectionTools(connections);
-    } catch (error) {
-      console.error("[composio] Failed to load activated connection tools for runner.", error);
-    }
+    _t("create_tools");
 
     const tools: CombinedRunnerTools = {
       ...runnerTools,
@@ -242,6 +269,7 @@ export async function runAgent(
       ...composioTools,
     };
 
+    _t("pre_stream_text");
     const streamResult = await propagateAttributes(
       {
         traceName: `sunder-${payload.triggerType}`,
@@ -301,6 +329,7 @@ export async function runAgent(
         }),
     );
 
+    _t("stream_text_returned");
     return { status: "streaming", streamResult };
   } catch (error) {
     if (shouldReleaseConsumedQuota && consumedQuota) {

@@ -166,6 +166,12 @@ function buildSystemPrompt({
     sections.push(instructions.trim());
   }
 
+  // Skills change rarely — keep in the stable prefix zone for LLM cache-friendliness.
+  if (availableSkillsSection) {
+    sections.push(availableSkillsSection);
+  }
+
+  // --- Dynamic tail (changes between turns) ---
   if (memory.soul.length > 0) {
     sections.push(`<soul>\n${memory.soul}\n</soul>`);
   }
@@ -176,10 +182,6 @@ function buildSystemPrompt({
 
   if (memory.memory.length > 0) {
     sections.push(`<working-memory>\n${memory.memory}\n</working-memory>`);
-  }
-
-  if (availableSkillsSection) {
-    sections.push(availableSkillsSection);
   }
 
   if (compactionSummary && compactionSummary.trim().length > 0) {
