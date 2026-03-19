@@ -216,6 +216,7 @@ export async function runAgent(
       allowTriggerMutations: payload.triggerType === "chat",
       crmMode,
       crmConfig,
+      includeBrowserTools: payload.triggerType === "chat",
       includeConfigTool: payload.includeConfigTool,
     });
     const subagentTools = createSubagentTool(supabase, clientId, threadId, {

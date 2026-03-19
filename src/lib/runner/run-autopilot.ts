@@ -62,6 +62,7 @@ export async function runAutopilot({
     const runnerTools = createRunnerTools(supabase, clientId, threadId, {
       allowTriggerMutations: false,
       allowConnectionMutations: false,
+      includeBrowserTools: false,
     });
     const subagentTools = createSubagentTool(supabase, clientId, threadId, {
       parentRunId: lockResult.runId,

@@ -26,6 +26,7 @@ export interface CreateRunnerToolsOptions {
   crmConfig?: Awaited<ReturnType<typeof loadCrmConfig>>["config"];
   isSubagent?: boolean;
   includeSendMessage?: boolean;
+  includeBrowserTools?: boolean;
   /** Only relevant for chat-triggered runs. When true, includes configure_crm in the tool registry. */
   includeConfigTool?: boolean;
 }
@@ -70,7 +71,9 @@ export function createRunnerTools(
   const triggerTools = createTriggerTools(supabase, clientId, threadId, {
     allowMutations: options?.allowTriggerMutations ?? true,
   });
-  const browserTools = isBrowserUseConfigured() ? createBrowserTools() : {};
+  const shouldIncludeBrowserTools =
+    options?.includeBrowserTools === true && isBrowserUseConfigured();
+  const browserTools = shouldIncludeBrowserTools ? createBrowserTools() : {};
 
   return {
     ...crmTools,

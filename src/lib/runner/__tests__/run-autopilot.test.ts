@@ -13,6 +13,7 @@ const {
   mockCompleteRun,
   mockMarkStaleRunsFailed,
   mockDrainAndContinue,
+  mockCreateBrowserTools,
   mockCreateCrmTools,
   mockCreateConnectionTools,
   mockCreateStorageTools,
@@ -36,6 +37,7 @@ const {
   mockCompleteRun: vi.fn(),
   mockMarkStaleRunsFailed: vi.fn(),
   mockDrainAndContinue: vi.fn(),
+  mockCreateBrowserTools: vi.fn(),
   mockCreateCrmTools: vi.fn(),
   mockCreateConnectionTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
@@ -78,6 +80,7 @@ vi.mock("@/lib/runner/drain-and-continue", () => ({
 }));
 
 vi.mock("@/lib/runner/tools", () => ({
+  createBrowserTools: mockCreateBrowserTools,
   createCrmTools: mockCreateCrmTools,
   createConnectionTools: mockCreateConnectionTools,
   createStorageTools: mockCreateStorageTools,
@@ -117,7 +120,11 @@ import { runAutopilot } from "../run-autopilot";
 describe("runAutopilot", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv("BROWSER_USE_API_KEY", "bu_test-key");
     mockMarkStaleRunsFailed.mockResolvedValue(0);
+    mockCreateBrowserTools.mockReturnValue({
+      browse_website: { description: "browser-tool" },
+    });
     mockCreateCrmTools.mockReturnValue({ search_tasks: { description: "tool" } });
     mockCreateConnectionTools.mockReturnValue({
       list_users_connections: { description: "connection-tool" },
@@ -204,6 +211,7 @@ describe("runAutopilot", () => {
         parentRunId: "run-1",
       }),
     );
+    expect(mockCreateBrowserTools).not.toHaveBeenCalled();
   });
 
   it("passes the persisted autopilot run type when claiming a lock", async () => {

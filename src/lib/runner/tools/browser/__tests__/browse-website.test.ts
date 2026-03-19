@@ -170,19 +170,17 @@ describe("createBrowseWebsiteTool", () => {
     });
   });
 
-  it("stops the session even when task execution throws", async () => {
+  it("rethrows Browser-Use execution errors after session cleanup", async () => {
     mockWaitTask.mockRejectedValueOnce(new Error("Network error"));
 
     const tools = createBrowseWebsiteTool();
-    const result = await tools.browse_website.execute(
-      { goal: "Search for condos" },
-      EXECUTION_OPTIONS,
-    );
 
-    expect(result).toEqual({
-      success: false,
-      error: "Network error",
-    });
+    await expect(
+      tools.browse_website.execute(
+        { goal: "Search for condos" },
+        EXECUTION_OPTIONS,
+      ),
+    ).rejects.toThrow("Network error");
     expect(mockStopSession).toHaveBeenCalledWith("session-1");
   });
 

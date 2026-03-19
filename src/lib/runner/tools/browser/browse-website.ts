@@ -42,43 +42,9 @@ export function createBrowseWebsiteTool() {
         .describe("Optional domain allowlist that restricts browser navigation."),
     }),
     execute: async ({ goal, startUrl, outputDescription, allowedDomains }) => {
+      let client;
       try {
-        const client = getBrowserUseClient();
-        const session = await client.sessions.create({});
-
-        try {
-          const taskPrompt = outputDescription
-            ? `${goal}\n\nReturn the results in this format: ${outputDescription}`
-            : goal;
-
-          const task = await client.tasks.create({
-            sessionId: session.id,
-            task: taskPrompt,
-            llm: BROWSER_USE_MODEL,
-            maxSteps: MAX_BROWSER_STEPS,
-            ...(startUrl ? { startUrl } : {}),
-            ...(allowedDomains ? { allowedDomains } : {}),
-          });
-          const result = await client.tasks.wait(task.id);
-
-          return {
-            success: Boolean(result.isSuccess),
-            output: result.output,
-            cost: result.cost,
-          };
-        } catch (error) {
-          return {
-            success: false as const,
-            error:
-              error instanceof Error ? error.message : "Unknown Browser-Use error.",
-          };
-        } finally {
-          try {
-            await client.sessions.stop(session.id);
-          } catch {
-            // Ignore cleanup failures so the user still receives the task result.
-          }
-        }
+        client = getBrowserUseClient();
       } catch (error) {
         return {
           success: false as const,
@@ -87,6 +53,36 @@ export function createBrowseWebsiteTool() {
               ? error.message
               : "BROWSER_USE_API_KEY is not configured.",
         };
+      }
+
+      const session = await client.sessions.create({});
+
+      try {
+        const taskPrompt = outputDescription
+          ? `${goal}\n\nReturn the results in this format: ${outputDescription}`
+          : goal;
+
+        const task = await client.tasks.create({
+          sessionId: session.id,
+          task: taskPrompt,
+          llm: BROWSER_USE_MODEL,
+          maxSteps: MAX_BROWSER_STEPS,
+          ...(startUrl ? { startUrl } : {}),
+          ...(allowedDomains ? { allowedDomains } : {}),
+        });
+        const result = await client.tasks.wait(task.id);
+
+        return {
+          success: Boolean(result.isSuccess),
+          output: result.output,
+          cost: result.cost,
+        };
+      } finally {
+        try {
+          await client.sessions.stop(session.id);
+        } catch {
+          // Ignore cleanup failures so the user still receives the task result.
+        }
       }
     },
   });

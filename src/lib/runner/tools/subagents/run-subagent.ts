@@ -80,6 +80,7 @@ export function createSubagentTool(
             allowConnectionMutations: false,
             isSubagent: true,
             includeSendMessage: false,
+            includeBrowserTools: false,
             crmConfig: options.crmConfig,
             crmMode: options.crmMode ?? "normal",
           });
