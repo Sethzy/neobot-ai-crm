@@ -2,8 +2,6 @@
  * Seeds bundled default instruction skills into client storage.
  * @module lib/runner/skills/skill-bootstrap
  */
-import { readFile } from "fs/promises";
-
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
@@ -16,10 +14,10 @@ import {
 } from "@/lib/memory/storage";
 
 import {
+  DEFAULT_SKILL_CONTENT,
   DEFAULT_SKILL_SLUGS,
   type DefaultSkillSlug,
-  getBundledDefaultSkillPath,
-} from "./bundled-skill-files";
+} from "./skill-templates";
 
 const SKILLS_DIRECTORY = "skills";
 const RESERVED_SKILL_DIRECTORIES = new Set(["system", "connections"]);
@@ -31,7 +29,7 @@ async function uploadDefaultSkill(
   clientId: string,
   slug: DefaultSkillSlug,
 ): Promise<void> {
-  const content = await readFile(getBundledDefaultSkillPath(slug), "utf-8");
+  const content = DEFAULT_SKILL_CONTENT[slug];
   const storagePath = `${clientId}/${SKILLS_DIRECTORY}/${slug}/SKILL.md`;
   const { error } = await supabase.storage
     .from(MEMORY_BUCKET_ID)

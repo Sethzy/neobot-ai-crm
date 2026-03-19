@@ -1,47 +1,37 @@
 /**
  * Integration tests for bundled instruction skill defaults.
+ * Tests the inlined constants in skill-templates.ts — the single source of truth.
  * @module lib/runner/skills/__tests__/skill-integration
  */
-import { readdirSync } from "fs";
-import { readFile } from "fs/promises";
-import { join } from "path";
 import { describe, expect, it } from "vitest";
 
 import { parseFrontmatter } from "../discover-skills";
+import { DEFAULT_SKILL_CONTENT, DEFAULT_SKILL_SLUGS } from "../skill-templates";
 
 describe("bundled instruction skills", () => {
-  const defaultsDirectory = join(__dirname, "..", "defaults");
+  it("ships seven defaults with valid frontmatter", () => {
+    expect(DEFAULT_SKILL_SLUGS).toHaveLength(7);
 
-  it("ships seven defaults with valid frontmatter", async () => {
-    const slugs = readdirSync(defaultsDirectory, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name);
-
-    expect(slugs).toHaveLength(7);
-
-    for (const slug of slugs) {
-      const content = await readFile(join(defaultsDirectory, slug, "SKILL.md"), "utf-8");
+    for (const slug of DEFAULT_SKILL_SLUGS) {
+      const content = DEFAULT_SKILL_CONTENT[slug];
       const metadata = parseFrontmatter(content);
 
-      expect(metadata, `${slug}/SKILL.md should have valid frontmatter`).not.toBeNull();
+      expect(metadata, `${slug} should have valid frontmatter`).not.toBeNull();
       expect(metadata?.name, `${slug} frontmatter name should match slug`).toBe(slug);
       expect(metadata?.description.length, `${slug} description should not be empty`).toBeGreaterThan(10);
     }
   });
 
-  it("references only universally available tools", async () => {
+  it("references only universally available tools", () => {
     const forbiddenReferences = ["send_message", "browse_website", "conn_"];
-    const slugs = readdirSync(defaultsDirectory, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name);
 
-    for (const slug of slugs) {
-      const content = await readFile(join(defaultsDirectory, slug, "SKILL.md"), "utf-8");
+    for (const slug of DEFAULT_SKILL_SLUGS) {
+      const content = DEFAULT_SKILL_CONTENT[slug];
 
-      for (const forbiddenReference of forbiddenReferences) {
+      for (const ref of forbiddenReferences) {
         expect(
-          content.includes(forbiddenReference),
-          `${slug}/SKILL.md must not reference "${forbiddenReference}"`,
+          content.includes(ref),
+          `${slug} must not reference "${ref}"`,
         ).toBe(false);
       }
     }

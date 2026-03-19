@@ -1,16 +1,13 @@
 /**
- * Resolves bundled system skill files from the codebase.
+ * Resolves bundled system skill content from inlined string constants.
  *
- * System skills live at `src/lib/runner/skills/system/` and are served
- * as a read_file fallback when the agent requests `/agent/skills/system/*`.
- * This avoids per-client seeding — system skills are identical for all clients
- * and versioned with code.
+ * System skills are served as a read_file fallback when the agent requests
+ * `/agent/skills/system/*`. Content is inlined in skill-templates.ts
+ * (same pattern as memory/templates.ts) so it works in Next.js bundles.
  *
  * @module lib/runner/skills/system-skills
  */
-import { readFile } from "fs/promises";
-
-import { getBundledSystemSkillPath } from "./bundled-skill-files";
+import { SYSTEM_SKILL_CONTENT } from "./skill-templates";
 
 const SYSTEM_SKILLS_PREFIX = "skills/system/";
 
@@ -24,14 +21,14 @@ export function isSystemSkillPath(storagePath: string): boolean {
 }
 
 /**
- * Reads a bundled system skill file from the codebase.
+ * Returns bundled system skill content from inlined constants.
  *
  * @param storagePath - Storage-relative path (e.g. `skills/system/creating-connections/SKILL.md`).
- * @returns The markdown content, or `null` if the path is not a system skill or the file doesn't exist.
+ * @returns The markdown content, or `null` if the path is not a system skill or doesn't exist.
  */
-export async function getSystemSkillContent(
+export function getSystemSkillContent(
   storagePath: string,
-): Promise<string | null> {
+): string | null {
   if (!isSystemSkillPath(storagePath)) {
     return null;
   }
@@ -42,15 +39,5 @@ export async function getSystemSkillContent(
     return null;
   }
 
-  const filePath = getBundledSystemSkillPath(relativePath);
-
-  if (!filePath) {
-    return null;
-  }
-
-  try {
-    return await readFile(filePath, "utf-8");
-  } catch {
-    return null;
-  }
+  return SYSTEM_SKILL_CONTENT[relativePath] ?? null;
 }
