@@ -362,6 +362,39 @@ describe("assembleContext", () => {
     expect(result.system).toContain("Custom autopilot instructions");
   });
 
+  it("does not include browser automation guidance by default", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      clientId: "client-123",
+    });
+
+    expect(result.system).not.toContain("<browser-automation>");
+    expect(result.system).not.toContain("browse_website");
+  });
+
+  it("includes browser automation guidance when enabled for the run", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      clientId: "client-123",
+      includeBrowserAutomation: true,
+    });
+
+    expect(result.system).toContain("<browser-automation>");
+    expect(result.system).toContain("browse_website");
+  });
+
   it("replaces the default system prompt when an override is provided", async () => {
     const supabase = createMockSupabaseClient({
       selectResult: { data: [], error: null },
@@ -688,5 +721,26 @@ describe("assembleSystemOnly", () => {
     });
 
     expect(system).not.toContain("Custom autopilot instructions");
+  });
+
+  it("only includes browser automation guidance when explicitly enabled", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const withoutBrowser = await assembleSystemOnly({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      clientId: "client-123",
+    });
+    const withBrowser = await assembleSystemOnly({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      clientId: "client-123",
+      includeBrowserAutomation: true,
+    });
+
+    expect(withoutBrowser).not.toContain("<browser-automation>");
+    expect(withBrowser).toContain("<browser-automation>");
   });
 });

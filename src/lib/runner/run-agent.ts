@@ -8,6 +8,7 @@ import { propagateAttributes } from "@langfuse/tracing";
 
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { gateway, gatewayProviderOptions, TIER_1_MODEL } from "@/lib/ai/gateway";
+import { isBrowserUseConfigured } from "@/lib/browser-use/client";
 import { createMessages } from "@/lib/chat/messages";
 import { loadActivatedConnectionTools } from "@/lib/composio";
 import { getActiveConnections } from "@/lib/connections/queries";
@@ -210,6 +211,8 @@ export async function runAgent(
       clientId,
       crmConfig,
       crmMode,
+      includeBrowserAutomation:
+        payload.triggerType === "chat" && isBrowserUseConfigured(),
       crmConfigModeActive: payload.includeConfigTool,
     });
     const runnerTools = createRunnerTools(supabase, clientId, threadId, {

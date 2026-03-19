@@ -81,7 +81,7 @@ vi.mock("resumable-stream", () => ({
   createResumableStreamContext: mockCreateResumableStreamContext,
 }));
 
-import { POST } from "../../../../app/api/chat/route";
+import { POST, maxDuration } from "../../../../app/api/chat/route";
 
 function createJsonRequest(body: unknown): Request {
   return new Request("http://localhost/api/chat", {
@@ -93,6 +93,10 @@ function createJsonRequest(body: unknown): Request {
 
 describe("POST /api/chat", () => {
   const threadId = "770e8400-e29b-41d4-a716-446655440000";
+
+  it("exports a 120 second maxDuration for browser-backed chat runs", () => {
+    expect(maxDuration).toBe(120);
+  });
 
   function createThreadLookup(options: { threadExists: boolean; error?: { message: string } | null }) {
     const { threadExists, error = null } = options;

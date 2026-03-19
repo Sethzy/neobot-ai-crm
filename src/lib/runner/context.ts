@@ -9,7 +9,11 @@ import {
   buildPlatformInstructions,
   PLATFORM_INSTRUCTIONS,
 } from "@/lib/ai/platform-instructions";
-import { CRM_SETUP_SYSTEM_PROMPT, SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
+import {
+  BROWSER_AUTOMATION_PROMPT,
+  CRM_SETUP_SYSTEM_PROMPT,
+  SYSTEM_PROMPT,
+} from "@/lib/ai/system-prompt";
 import type { CrmVocabConfig } from "@/lib/crm/config";
 import { bootstrapMemoryFiles } from "@/lib/memory/bootstrap";
 import { loadMemoryContext } from "@/lib/memory/loader";
@@ -34,6 +38,7 @@ interface AssembleContextParams {
   instructions?: string;
   crmConfig?: CrmVocabConfig;
   crmMode?: "normal" | "setup";
+  includeBrowserAutomation?: boolean;
   /** When true, injects CRM config mode notice into the system reminder. */
   crmConfigModeActive?: boolean;
   platformInstructions?: string;
@@ -51,6 +56,7 @@ interface AssembleSystemOnlyParams {
   clientId?: string;
   crmConfig?: CrmVocabConfig;
   crmMode?: "normal" | "setup";
+  includeBrowserAutomation?: boolean;
   platformInstructions?: string;
   systemPrompt?: string;
 }
@@ -76,6 +82,7 @@ interface BuildSystemPromptOptions {
   systemReminder?: string;
   instructions?: string;
   platformInstructions?: string;
+  includeBrowserAutomation?: boolean;
   systemPrompt?: string;
 }
 
@@ -85,15 +92,24 @@ function buildSystemPrompt({
   systemReminder,
   instructions,
   platformInstructions,
+  includeBrowserAutomation,
   systemPrompt,
 }: BuildSystemPromptOptions): string {
   const activeSystemPrompt = systemPrompt ?? SYSTEM_PROMPT;
   const activePlatformInstructions = platformInstructions ?? PLATFORM_INSTRUCTIONS;
 
   if (!memory) {
-    return instructions
-      ? [activeSystemPrompt, instructions.trim()].join("\n\n")
-      : activeSystemPrompt;
+    const sections = [activeSystemPrompt];
+
+    if (includeBrowserAutomation) {
+      sections.push(BROWSER_AUTOMATION_PROMPT);
+    }
+
+    if (instructions && instructions.trim().length > 0) {
+      sections.push(instructions.trim());
+    }
+
+    return sections.join("\n\n");
   }
 
   const sections: string[] = [];
@@ -103,6 +119,10 @@ function buildSystemPrompt({
 
   // Layer 2: core personality, tool usage, approvals, and output guidance.
   sections.push(activeSystemPrompt);
+
+  if (includeBrowserAutomation) {
+    sections.push(BROWSER_AUTOMATION_PROMPT);
+  }
 
   if (instructions && instructions.trim().length > 0) {
     sections.push(instructions.trim());
@@ -192,6 +212,7 @@ export async function assembleSystemOnly({
   clientId,
   crmConfig,
   crmMode = "normal",
+  includeBrowserAutomation,
   platformInstructions,
   systemPrompt,
 }: AssembleSystemOnlyParams): Promise<string> {
@@ -208,6 +229,7 @@ export async function assembleSystemOnly({
     platformInstructions: platformInstructions ?? (crmConfig
       ? buildPlatformInstructions(crmConfig)
       : PLATFORM_INSTRUCTIONS),
+    includeBrowserAutomation,
     systemPrompt: systemPrompt ?? (crmMode === "setup"
       ? CRM_SETUP_SYSTEM_PROMPT
       : SYSTEM_PROMPT),
@@ -225,6 +247,7 @@ export async function assembleContext({
   instructions,
   crmConfig,
   crmMode = "normal",
+  includeBrowserAutomation,
   crmConfigModeActive,
   platformInstructions,
   systemPrompt,
@@ -289,12 +312,13 @@ export async function assembleContext({
   return {
     system: buildSystemPrompt({
       memory: memoryContext,
-      compactionSummary: compactionState?.compaction_summary,
-      systemReminder,
-      instructions,
-      platformInstructions: platformInstructions ?? (crmConfig
-        ? buildPlatformInstructions(crmConfig)
-        : PLATFORM_INSTRUCTIONS),
+    compactionSummary: compactionState?.compaction_summary,
+    systemReminder,
+    instructions,
+    includeBrowserAutomation,
+    platformInstructions: platformInstructions ?? (crmConfig
+      ? buildPlatformInstructions(crmConfig)
+      : PLATFORM_INSTRUCTIONS),
       systemPrompt: systemPrompt ?? (crmMode === "setup"
         ? CRM_SETUP_SYSTEM_PROMPT
         : SYSTEM_PROMPT),

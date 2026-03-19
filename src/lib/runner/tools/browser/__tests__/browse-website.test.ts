@@ -150,6 +150,16 @@ describe("createBrowseWebsiteTool", () => {
     );
   });
 
+  it("rejects invalid allowedDomains values at the schema layer", () => {
+    const tools = createBrowseWebsiteTool();
+    const parsed = tools.browse_website.inputSchema.safeParse({
+      goal: "Search 99.co",
+      allowedDomains: ["https://99.co"],
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
   it("returns unsuccessful task results without throwing", async () => {
     mockWaitTask.mockResolvedValueOnce({
       isSuccess: false,

@@ -9,6 +9,7 @@ import { getBrowserUseClient } from "@/lib/browser-use/client";
 
 const BROWSER_USE_MODEL = "browser-use-2.0";
 const MAX_BROWSER_STEPS = 25;
+const DOMAIN_PATTERN = /^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
 
 /**
  * Creates the public-site browsing tool for Browser-Use Cloud.
@@ -37,7 +38,12 @@ export function createBrowseWebsiteTool() {
         .optional()
         .describe("Optional description of the exact result shape to return."),
       allowedDomains: z
-        .array(z.string())
+        .array(
+          z.string().regex(
+            DOMAIN_PATTERN,
+            "Each allowed domain must be a hostname like example.com",
+          ),
+        )
         .optional()
         .describe("Optional domain allowlist that restricts browser navigation."),
     }),
