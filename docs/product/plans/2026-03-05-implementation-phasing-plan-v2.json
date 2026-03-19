@@ -2091,7 +2091,7 @@
         {
           "pr": "50b",
           "title": "Browser automation — authenticated browsing (profiles + embedded browser auth)",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [
             "SERVICE-12"
           ],
