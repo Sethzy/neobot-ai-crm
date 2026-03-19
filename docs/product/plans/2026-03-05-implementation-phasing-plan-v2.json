@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 — Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-17 (PR 50 Browser-Use Cloud)",
+    "updated": "2026-03-19 (PR 51 + 51a Instruction Skills)",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md §17",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -58,7 +58,8 @@
       "2026-03-16: Cut Vercel AI SDK Chat SDK adapter from PRs 41-42 (Telegram). Replaced with raw Telegram Bot API integration following nanoclaw + dorabot reference patterns (grammy, channel registry, markdown→HTML formatting, message chunking). PR 41 expanded to 4 tasks (bot registration, channel module, webhook route, outbound delivery). PR 42 updated: approvals via Telegram InlineKeyboard (dorabot pattern) instead of text-only. Drift analysis: roadmap docs/Sunder - Source of Truth/references/nanoclaw-dorabot/telegram-drift-analysis.md",
       "2026-03-17: Added PR 50 (Browser automation — Browser-Use Cloud) to Phase 3. Replaces original SERVICE-12 plan (Browserbase + Stagehand) with Browser-Use Cloud. 'Hand over a prompt' model: one tool call, Browser-Use handles all browsing on their infra. Profile-based auth for login-gated platforms (PropNex, PropertyGuru, URA, etc.) via embedded liveUrl in chat. Verified: liveUrl is interactive, works without BU auth, embeddable in iframe. Design doc: roadmap docs/Sunder - Source of Truth/references/browser-use/00-browser-use-cloud-design-doc.md.",
       "2026-03-17: Added PR 50a (Browser-Use Skills API) to Phase 3 as deferred follow-up to PR 50. Converts repeated property portal searches into deterministic Browser-Use Skills — instant execution, no LLM cost. Admin creates skills for top SG portals (99.co, PropertyGuru, SRX, URA, HDB). Agent calls search_property_portal tool which executes skills in milliseconds instead of live browsing. Falls back to browse_website if no skill exists.",
-      "2026-03-19: Split PR 50 into three PRs after code review. PR 50 = public browsing only (chat-only, no auth). PR 50b = authenticated browsing (profiles + embedded browser auth). PR 50c = Skills API (renamed from 50a, depends on 50b). Key review fixes: (1) scrubbed leaked API key from docs, (2) explicit Browser-Use profile creation via API instead of invented IDs, (3) chat-only registry scope (excluded from autopilot/subagents), (4) strict error semantics in profile queries (throw on DB errors, null for absence only), (5) structured output for verify route instead of prose parsing, (6) auth card rendered from tool output (no new message part protocol), (7) manual retry after login (no auto-resume), (8) clarify only when ambiguous (not mandatory preflight)."
+      "2026-03-19: Split PR 50 into three PRs after code review. PR 50 = public browsing only (chat-only, no auth). PR 50b = authenticated browsing (profiles + embedded browser auth). PR 50c = Skills API (renamed from 50a, depends on 50b). Key review fixes: (1) scrubbed leaked API key from docs, (2) explicit Browser-Use profile creation via API instead of invented IDs, (3) chat-only registry scope (excluded from autopilot/subagents), (4) strict error semantics in profile queries (throw on DB errors, null for absence only), (5) structured output for verify route instead of prose parsing, (6) auth card rendered from tool output (no new message part protocol), (7) manual retry after login (no auto-resume), (8) clarify only when ambiguous (not mandatory preflight).",
+      "2026-03-19: Added PR 51 (Instruction skills) and PR 51a (Frontend skills page) to Phase 4. Out-of-plan work — SKILL-01 through SKILL-08 architecture decisions exist but are all DEFERRED to post-v1. This is a simplified KISS implementation: no skill_registry table (filesystem discovery via Supabase Storage listing + frontmatter parsing), no Skill-Building Interviews (chat-based creation), no shadowing (overwrite + reset). 7 bundled RE-specific default skills seeded on onboarding (adapted from anthropics/knowledge-work-plugins/sales). Progressive disclosure: names+descriptions in system prompt (~200 tokens), full SKILL.md loaded via existing read_file on demand. Frontend: skills list, editor, reset to default. Deprecates old SKILL-01 to SKILL-08 architecture decisions as over-engineered for current scale. Design doc: docs/product/designs/instruction-skills.md. Also documented sandbox skill execution (separate scope, another dev): docs/product/designs/sandbox-skill-execution.md."
     ]
   },
   "phases": [
@@ -2034,7 +2035,7 @@
         {
           "pr": "50",
           "title": "Browser automation — public browsing via Browser-Use Cloud",
-          "status": "in_progress",
+          "status": "done",
           "decisions": [
             "SERVICE-12"
           ],
@@ -2090,7 +2091,7 @@
         {
           "pr": "50b",
           "title": "Browser automation — authenticated browsing (profiles + embedded browser auth)",
-          "status": "pending",
+          "status": "in_progress",
           "decisions": [
             "SERVICE-12"
           ],
@@ -2934,6 +2935,93 @@
             "json-render inline views render consistently with app dashboard components",
             "No visual regressions on CRM, chat, settings, auth pages",
             "Full test suite passes"
+          ]
+        },
+        {
+          "pr": 51,
+          "title": "Instruction skills — discovery + defaults + system prompt injection",
+          "status": "pending",
+          "simplified": true,
+          "decisions": [],
+          "dependsOn": ["26a"],
+          "note": "Out-of-plan work. Simplified KISS implementation of SKILL-01/02 without skill_registry table or Skill-Building Interviews (SKILL-07/08). Filesystem discovery via Supabase Storage listing + frontmatter parsing. 7 bundled RE-specific default skills seeded on onboarding. Progressive disclosure: names+descriptions in system prompt, full SKILL.md loaded via existing read_file on demand. Design doc: docs/product/designs/instruction-skills.md. References: anthropics/knowledge-work-plugins/sales, ai-sdk.dev/cookbook/guides/agent-skills.",
+          "tasks": [
+            {
+              "id": "PR51-1",
+              "task": "Create discoverUserSkills() — list Supabase Storage skill dirs, parse YAML frontmatter, return SkillMetadata[]",
+              "done": false
+            },
+            {
+              "id": "PR51-2",
+              "task": "Inject <available-skills> block into system prompt via assembleContext()",
+              "done": false
+            },
+            {
+              "id": "PR51-3",
+              "task": "Add custom skills instruction block to SYSTEM_PROMPT in system-prompt.ts",
+              "done": false
+            },
+            {
+              "id": "PR51-4",
+              "task": "Create 7 bundled default RE skills (call-prep, daily-briefing, draft-outreach, pipeline-review, listing-analysis, call-summary, market-briefing) adapted from anthropics/knowledge-work-plugins/sales",
+              "done": false
+            },
+            {
+              "id": "PR51-5",
+              "task": "Create bootstrapSkills() to seed defaults on first login (extend bootstrapMemoryFiles pattern)",
+              "done": false
+            },
+            {
+              "id": "PR51-6",
+              "task": "Tests for discovery, frontmatter parsing, bootstrap, and system prompt injection",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "discoverUserSkills() returns metadata for user-created skills, excludes system/ and connections/ dirs",
+            "System prompt includes <available-skills> block with skill names and descriptions",
+            "First login seeds 7 default skills to Supabase Storage",
+            "Subsequent logins skip seeding (idempotent)",
+            "Agent can read_file any user skill SKILL.md and follow its instructions",
+            "Agent can write_file to create/edit user skills via chat",
+            "Existing system skills and connection skills continue working unchanged"
+          ]
+        },
+        {
+          "pr": "51a",
+          "title": "Frontend skills page — list, edit, reset",
+          "status": "pending",
+          "simplified": true,
+          "decisions": [],
+          "dependsOn": [51],
+          "note": "Frontend surface for managing instruction skills. List available skills (name + description from Supabase Storage), edit skill content via textarea/markdown editor, reset to bundled default. Optional: subtle skill indicator in chat UI when agent uses a skill. Design doc: docs/product/designs/instruction-skills.md §11.",
+          "tasks": [
+            {
+              "id": "PR51a-1",
+              "task": "Skills list page — read skills from Supabase Storage, display name + description + edit button",
+              "done": false
+            },
+            {
+              "id": "PR51a-2",
+              "task": "Skill editor — textarea with SKILL.md content, save to Supabase Storage",
+              "done": false
+            },
+            {
+              "id": "PR51a-3",
+              "task": "Reset to default button — re-copy bundled version to client storage",
+              "done": false
+            },
+            {
+              "id": "PR51a-4",
+              "task": "Chat UI skill indicator — subtle badge when agent loads a skill via read_file",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Skills list page displays all user skills with name and description",
+            "Editing a skill saves updated content to Supabase Storage",
+            "Reset button restores bundled default, overwriting user edits",
+            "Chat UI shows which skill the agent is using (when applicable)"
           ]
         }
       ]
