@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 — Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-15 (PR 49 UI reset)",
+    "updated": "2026-03-17 (PR 50 Browser-Use Cloud)",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md §17",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -55,7 +55,10 @@
       "2026-03-14: PR 32a (Resend email): added resend-cli (https://github.com/resend/resend-cli) as a required tool. New task PR32a-1 for CLI setup (install, API key config, domain verification, local dev workflow). Original SDK integration task renumbered to PR32a-1b. CLI used for management/debugging; SDK for runtime sending.",
       "2026-03-15: Added PR 42a-pdf (PDF document generation tool) to Phase 4. Agent tool that generates downloadable PDF documents on demand. User asks in chat (e.g. 'make me a client brief'), agent pulls CRM data, calls generate_pdf tool which makes an inner LLM call using @json-render/react-pdf catalog.prompt() as system prompt, compiles the JSONL spec, renders via renderToBuffer(), stores in Supabase Storage, returns download URL. No main agent context bloat — inner LLM call is isolated. Standard 15 PDF components from json-render (Document, Page, Text, Table, etc.). Custom branded components deferred.",
       "2026-03-15: Added PR 49 (UI reset — stock shadcn + custom theme) to Phase 4. Reset all drifted shadcn components to stock via CLI overwrite, swap icon library from react-icons/tb to lucide-react, apply green-anchored custom theme via globals.css (tweakcn-generated). Preserves justified Badge custom variants (success/warning/info). Ensures json-render inline views and app dashboard share identical component implementations. Supersedes PR 42a-p visual polish scope.",
-      "2026-03-16: Cut Vercel AI SDK Chat SDK adapter from PRs 41-42 (Telegram). Replaced with raw Telegram Bot API integration following nanoclaw + dorabot reference patterns (grammy, channel registry, markdown→HTML formatting, message chunking). PR 41 expanded to 4 tasks (bot registration, channel module, webhook route, outbound delivery). PR 42 updated: approvals via Telegram InlineKeyboard (dorabot pattern) instead of text-only. Drift analysis: roadmap docs/Sunder - Source of Truth/references/nanoclaw-dorabot/telegram-drift-analysis.md"
+      "2026-03-16: Cut Vercel AI SDK Chat SDK adapter from PRs 41-42 (Telegram). Replaced with raw Telegram Bot API integration following nanoclaw + dorabot reference patterns (grammy, channel registry, markdown→HTML formatting, message chunking). PR 41 expanded to 4 tasks (bot registration, channel module, webhook route, outbound delivery). PR 42 updated: approvals via Telegram InlineKeyboard (dorabot pattern) instead of text-only. Drift analysis: roadmap docs/Sunder - Source of Truth/references/nanoclaw-dorabot/telegram-drift-analysis.md",
+      "2026-03-17: Added PR 50 (Browser automation — Browser-Use Cloud) to Phase 3. Replaces original SERVICE-12 plan (Browserbase + Stagehand) with Browser-Use Cloud. 'Hand over a prompt' model: one tool call, Browser-Use handles all browsing on their infra. Profile-based auth for login-gated platforms (PropNex, PropertyGuru, URA, etc.) via embedded liveUrl in chat. Verified: liveUrl is interactive, works without BU auth, embeddable in iframe. Design doc: roadmap docs/Sunder - Source of Truth/references/browser-use/00-browser-use-cloud-design-doc.md.",
+      "2026-03-17: Added PR 50a (Browser-Use Skills API) to Phase 3 as deferred follow-up to PR 50. Converts repeated property portal searches into deterministic Browser-Use Skills — instant execution, no LLM cost. Admin creates skills for top SG portals (99.co, PropertyGuru, SRX, URA, HDB). Agent calls search_property_portal tool which executes skills in milliseconds instead of live browsing. Falls back to browse_website if no skill exists.",
+      "2026-03-19: Split PR 50 into three PRs after code review. PR 50 = public browsing only (chat-only, no auth). PR 50b = authenticated browsing (profiles + embedded browser auth). PR 50c = Skills API (renamed from 50a, depends on 50b). Key review fixes: (1) scrubbed leaked API key from docs, (2) explicit Browser-Use profile creation via API instead of invented IDs, (3) chat-only registry scope (excluded from autopilot/subagents), (4) strict error semantics in profile queries (throw on DB errors, null for absence only), (5) structured output for verify route instead of prose parsing, (6) auth card rendered from tool output (no new message part protocol), (7) manual retry after login (no auto-resume), (8) clarify only when ambiguous (not mandatory preflight)."
     ]
   },
   "phases": [
@@ -2026,6 +2029,176 @@
             "Ask agent 'what is 1% commission on a $1.8M property sale with 60/40 co-broke split?' → agent calls calculate tool with correct expression → returns accurate number",
             "Agent can chain multiple calculate calls for multi-step financial calculations",
             "Attempting to evaluate dangerous expressions (import, parse, evaluate) returns an error, not a result"
+          ]
+        },
+        {
+          "pr": "50",
+          "title": "Browser automation — public browsing via Browser-Use Cloud",
+          "status": "in_progress",
+          "decisions": [
+            "SERVICE-12"
+          ],
+          "note": "Public-site browsing only. 'Hand over a prompt' model: agent makes one tool call, Browser-Use runs the entire browsing task on their infra. Chat-only (excluded from autopilot/subagents). No auth/profiles in this PR. Design doc: roadmap docs/Sunder - Source of Truth/references/browser-use/00-browser-use-cloud-design-doc.md.",
+          "tasks": [
+            {
+              "id": "PR50-1",
+              "task": "Install browser-use-sdk, add BROWSER_USE_API_KEY to .env.example and Vercel env vars",
+              "done": false
+            },
+            {
+              "id": "PR50-2",
+              "task": "Create src/lib/browser-use/client.ts — shared BrowserUseClient singleton with isBrowserUseConfigured() guard",
+              "done": false
+            },
+            {
+              "id": "PR50-3",
+              "task": "Create src/lib/runner/tools/browser/browse-website.ts — browse_website tool (public sites only, no platform/profile params). Goal-based parameters following Browser-Use best practices: goal (string), startUrl (optional URL), outputDescription (optional string), allowedDomains (optional string[]). Hardcoded maxSteps: 25, model: browser-use-2.0. Returns { success, output, cost }. Throw on API errors, explicit stopSession() in finally block.",
+              "done": false
+            },
+            {
+              "id": "PR50-4",
+              "task": "Create src/lib/runner/tools/browser/index.ts barrel, add createBrowserTools to src/lib/runner/tools/index.ts exports",
+              "done": false
+            },
+            {
+              "id": "PR50-5",
+              "task": "Edit tool-registry.ts — add browser tools gated on BROWSER_USE_API_KEY env var. Chat-only: exclude from subagent branch (same pattern as includeConfigTool).",
+              "done": false
+            },
+            {
+              "id": "PR50-6",
+              "task": "Edit system-prompt.ts — add browser tool instructions. Key rules: (1) Clarify with ask_user_question when site, action, filters, or output format are materially ambiguous. If the request already specifies these clearly, proceed directly. (2) Write the goal as a maximally descriptive instruction: specific actions, specific data fields, specific format. (3) When to use browse_website vs web_scrape: web_scrape for known URLs with static content; browse_website for interaction (search, filter, click, forms). (4) If results are wrong or empty, report to user and ask how to refine — do not retry automatically. (5) Each call is capped at 25 steps (~$0.16 max).",
+              "done": false
+            },
+            {
+              "id": "PR50-7",
+              "task": "Edit app/api/chat/route.ts — bump maxDuration from 60 to 120",
+              "done": false
+            },
+            {
+              "id": "PR50-8",
+              "task": "Unit tests: browse_website tool (env var guard, task creation with correct params, success/failure handling, session cleanup on error), barrel registration, tool-registry env gating. Follow scrape.test.ts mock pattern.",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Ask agent 'search 99.co for 3-bed condos in Tanjong Pagar' → agent calls browse_website → returns listing data",
+            "browse_website tool not available when BROWSER_USE_API_KEY is missing",
+            "browse_website not available to subagents or autopilot runs"
+          ]
+        },
+        {
+          "pr": "50b",
+          "title": "Browser automation — authenticated browsing (profiles + embedded browser auth)",
+          "status": "pending",
+          "decisions": [
+            "SERVICE-12"
+          ],
+          "dependsOn": [
+            "50"
+          ],
+          "note": "Adds profile-based auth for login-gated platforms. Uses Browser-Use profiles.createProfile() API (explicit, opaque IDs). Embedded liveUrl in chat for user login. Verify route uses structured output schema { loggedIn: boolean }. Auth card rendered from tool output (no new message part protocol). Manual retry after login (no auto-resume). Design doc Section 6.2-6.6.",
+          "tasks": [
+            {
+              "id": "PR50b-1",
+              "task": "DB migration: browser_profiles table (client_id, platform, browser_use_profile_id, label). RLS + updated_at trigger. Follow connections migration pattern.",
+              "done": false
+            },
+            {
+              "id": "PR50b-2",
+              "task": "Create src/lib/browser-use/profiles.ts — profile CRUD (getProfileForPlatform, upsertProfile, listProfiles). Strict error semantics: throw on DB failures, return null only for true absence. Validate rows.",
+              "done": false
+            },
+            {
+              "id": "PR50b-3",
+              "task": "Extend browse_website tool with platform parameter. Single profile lookup (no duplicate fetch). When platform is set and no profile exists, return { success: false, needsAuth: true, platform }. When profile exists, pass profileId to createSession().",
+              "done": false
+            },
+            {
+              "id": "PR50b-4",
+              "task": "Create app/api/browser/session/route.ts — POST creates Browser-Use profile via profiles.createProfile() API (explicit, opaque ID), creates session with profile, returns liveUrl + profileId + sessionId.",
+              "done": false
+            },
+            {
+              "id": "PR50b-5",
+              "task": "Create app/api/browser/verify/route.ts — POST runs verification task with structured output schema z.object({ loggedIn: z.boolean() }), saves profile to DB via upsertProfile(), stops session.",
+              "done": false
+            },
+            {
+              "id": "PR50b-6",
+              "task": "Frontend: render auth card from browse_website tool output when needsAuth is true. Show 'Connect [platform]' button that opens liveUrl in iframe (or new tab fallback). 'Done' button calls verify API. Success/failure state. No new message part protocol — use existing tool output rendering.",
+              "done": false
+            },
+            {
+              "id": "PR50b-7",
+              "task": "Update system-prompt.ts — add platform profile usage guidance. When tool returns needsAuth, tell user to connect. After login saved, user manually retries their request (no auto-resume).",
+              "done": false
+            },
+            {
+              "id": "PR50b-8",
+              "task": "Unit tests: profile CRUD (strict error semantics), browse_website with platform param (profile hit/miss), session route, verify route (structured output parsing), migration SQL contract test.",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Ask agent to access PropNex → detects no profile → returns needsAuth → frontend shows auth card → user logs in via liveUrl → clicks Done → verify confirms login → profile saved",
+            "Subsequent PropNex request uses saved profile → already logged in → returns data",
+            "DB errors in profile lookup throw (not silently return null)",
+            "Verify route uses structured { loggedIn: boolean } output, not prose parsing"
+          ]
+        },
+        {
+          "pr": "50c",
+          "title": "Browser automation — Skills API for repeated portal searches — DEFERRED",
+          "status": "pending",
+          "decisions": [
+            "SERVICE-12"
+          ],
+          "dependsOn": [
+            "50b"
+          ],
+          "note": "Follow-up to PR 50b. Converts repeated browsing workflows into deterministic Browser-Use Skills (instant, no LLM cost). Admin/backend creates skills for top SG property portals; agent calls them as fast API endpoints instead of live browsing. Design doc Section 4: roadmap docs/Sunder - Source of Truth/references/browser-use/00-browser-use-cloud-design-doc.md#4-skills-api.",
+          "tasks": [
+            {
+              "id": "PR50c-1",
+              "task": "Create src/lib/browser-use/skills.ts — skill CRUD (create, get status, execute, list). Wraps Browser-Use Skills API v2.",
+              "done": false
+            },
+            {
+              "id": "PR50c-2",
+              "task": "Admin script or API route to create skills for top 3-5 SG property portals (99.co, PropertyGuru, SRX, URA caveats, HDB resale). Each skill: goal (input/output schema) + agentPrompt (demonstration).",
+              "done": false
+            },
+            {
+              "id": "PR50c-3",
+              "task": "DB: skill_registry table or config (maps platform + action → Browser-Use skill_id). Seeded with portal skills from PR50c-2.",
+              "done": false
+            },
+            {
+              "id": "PR50c-4",
+              "task": "Create src/lib/runner/tools/browser/search-property-portal.ts — search_property_portal tool. Looks up skill_id for the requested portal, calls skill execute API, returns typed results. Falls back to browse_website if no skill exists.",
+              "done": false
+            },
+            {
+              "id": "PR50c-5",
+              "task": "Edit system-prompt.ts — add search_property_portal tool instructions. Agent should prefer this over browse_website for known portals.",
+              "done": false
+            },
+            {
+              "id": "PR50c-6",
+              "task": "Skill health monitoring: detect broken skills (site UI changed), log failures, flag for re-creation.",
+              "done": false
+            },
+            {
+              "id": "PR50c-7",
+              "task": "Unit tests: skill CRUD, search_property_portal tool (skill lookup, execute, fallback to browse_website), health monitoring.",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Ask agent 'search 99.co for 3-bed condos in D15' → agent calls search_property_portal → skill executes in milliseconds → returns structured listings (no live browsing)",
+            "Ask agent to search an unknown portal → agent falls back to browse_website (live browsing)",
+            "Broken skill (site changed) → detected, logged, agent falls back to browse_website gracefully"
           ]
         }
       ]
