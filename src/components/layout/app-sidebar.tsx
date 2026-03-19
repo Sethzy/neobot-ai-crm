@@ -1,7 +1,7 @@
 /**
  * Application sidebar with logo, navigation, and user section.
  * Uses shadcn Sidebar with icon-only collapse mode.
- * Navigation follows the Mission Control UX Spec §3.1 Primary Navigation.
+ * Navigation follows the primary navigation spec.
  * @module components/layout/app-sidebar
  */
 'use client';
@@ -47,7 +47,7 @@ interface NavigationItem {
 /** AGENT section — primary operating surfaces */
 const agentNavItems: NavigationItem[] = [
   { label: "Chat", href: "/chat", icon: "chat" },
-  { label: "Mission Control", href: "/mission-control", icon: "missionControl" },
+  { label: "Skills", href: "/skills", icon: "document" },
   { label: "Tasks", href: "/tasks", icon: "tasks" },
   { label: "Automations", href: "/automations", icon: "automations" },
   { label: "Memory", href: "/memory", icon: "memory" },
