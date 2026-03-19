@@ -122,6 +122,9 @@ importers:
       ai:
         specifier: ^6.0.111
         version: 6.0.116(zod@4.3.6)
+      browser-use-sdk:
+        specifier: ^3.3.1
+        version: 3.3.1
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -3467,6 +3470,9 @@ packages:
 
   brotli@1.3.3:
     resolution: {integrity: sha512-oTKjJdShmDuGW94SyyaoQvAjf30dZaHnjJ8uAF+u2/vGJkJbJPJAT1gDiOJP5v1Zb6f9KEyW/1HpuaWIXtGHPg==}
+
+  browser-use-sdk@3.3.1:
+    resolution: {integrity: sha512-uGv4bBz+l7DepyzCxLhDorcHZUlkLmFx31AQEY/VQsgnsXB8B1o1M9NQouEl9M26tpSYpltyQuQS0maijOz4WQ==}
 
   browserify-zlib@0.2.0:
     resolution: {integrity: sha512-Z942RysHXmJrhqk88FmKBVq/v5tqmSkDz7p54G/MGyjMnCFFnC79XWNbg+Vta8W6Wb2qtSZTSxIGkJrRpCFEiA==}
@@ -10408,6 +10414,11 @@ snapshots:
   brotli@1.3.3:
     dependencies:
       base64-js: 1.5.1
+
+  browser-use-sdk@3.3.1:
+    dependencies:
+      dotenv: 17.3.1
+      zod: 4.3.6
 
   browserify-zlib@0.2.0:
     dependencies:
