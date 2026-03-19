@@ -12,9 +12,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
-  Funnel,
-  FunnelChart,
   Line,
   LineChart,
   Pie,
@@ -243,6 +240,9 @@ export function FunnelChartPanel({
   const safeData = Array.isArray(data) ? data : [];
   const chartConfig = buildSegmentConfig(safeData, nameKey);
 
+  /* Render funnel as stacked horizontal bars for clearer stage visualization.
+   * Recharts' FunnelChart looks broken when most values are 0 — a horizontal
+   * bar chart with decreasing widths is more readable for CRM pipeline stages. */
   return (
     <ChartPanelShell
       title={title}
@@ -253,20 +253,31 @@ export function FunnelChartPanel({
       {safeData.length === 0 ? (
         <ChartEmptyState />
       ) : (
-        <ChartContainer config={chartConfig} className="aspect-auto h-56 w-full">
-          <FunnelChart>
-            <ChartTooltip content={<ChartTooltipContent nameKey={nameKey} hideLabel />} />
-            <Funnel dataKey={valueKey} data={safeData} nameKey={nameKey} isAnimationActive={false}>
-              {safeData.map((_, index) => (
-                <Cell
-                  key={`funnel-segment-${index}`}
-                  fill={SEGMENT_COLORS[index % SEGMENT_COLORS.length]}
-                />
-              ))}
-            </Funnel>
-            <ChartLegend content={<ChartLegendContent nameKey={nameKey} />} />
-          </FunnelChart>
-        </ChartContainer>
+        <div className="flex flex-col gap-2 py-2">
+          {safeData.map((datum, index) => {
+            const name = String(datum[nameKey] ?? "");
+            const value = Number(datum[valueKey] ?? 0);
+            const maxValue = Math.max(...safeData.map((d) => Number(d[valueKey] ?? 0)), 1);
+            const widthPercent = Math.max((value / maxValue) * 100, 8); // minimum 8% so empty stages are visible
+            return (
+              <div key={`funnel-${index}`} className="flex flex-col gap-1">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">{name}</span>
+                  <span>{value}</span>
+                </div>
+                <div className="h-6 w-full rounded-md bg-muted/50">
+                  <div
+                    className="h-full rounded-md transition-all"
+                    style={{
+                      width: `${widthPercent}%`,
+                      backgroundColor: SEGMENT_COLORS[index % SEGMENT_COLORS.length],
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </ChartPanelShell>
   );

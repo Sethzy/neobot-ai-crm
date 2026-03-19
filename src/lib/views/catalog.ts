@@ -14,6 +14,8 @@ const allowedComponentTypes = [
   "Text",
   "Badge",
   "Table",
+  "Accordion",
+  "Progress",
   "StatMetric",
   "DealCard",
   "ContactCard",
@@ -39,6 +41,8 @@ export const catalog = defineCatalog(schema, {
     Text: shadcnComponentDefinitions.Text,
     Badge: shadcnComponentDefinitions.Badge,
     Table: shadcnComponentDefinitions.Table,
+    Accordion: shadcnComponentDefinitions.Accordion,
+    Progress: shadcnComponentDefinitions.Progress,
     StatMetric: {
       props: z.object({
         label: z.string().min(1),

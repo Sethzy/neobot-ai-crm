@@ -42,14 +42,14 @@ export function TaskItem({
     <div
       className={cn(
         "flex flex-col gap-3 p-4",
-        overdue && "border-l-3 border-l-rose-500",
+        overdue && "border-l-3 border-l-amber-500",
       )}
     >
       <p className="text-sm font-medium text-foreground">{title}</p>
       {(dueDate || status) ? (
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           {dueDate ? (
-            <span className={cn(overdue && "font-medium text-rose-600 dark:text-rose-400")}>
+            <span className={cn(overdue && "font-medium text-amber-600 dark:text-amber-400")}>
               {dueDate}{overdue ? " · Overdue" : ""}
             </span>
           ) : null}
