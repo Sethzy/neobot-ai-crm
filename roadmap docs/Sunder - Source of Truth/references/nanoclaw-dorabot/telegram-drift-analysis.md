@@ -1,8 +1,8 @@
-# Telegram Integration Drift Analysis: NanoClaw vs Dorabot vs Sunder
+# Telegram Integration Drift Analysis: NanoClaw vs Dorabot vs OpenClaw vs Sunder
 
-> **Date:** 2026-03-16
+> **Date:** 2026-03-16 (updated 2026-03-20)
 > **Purpose:** Identify correct reference patterns for Sunder's Telegram integration (PRs 41-42). Default is zero drift from reference codebases. All justified drift is documented with reasons.
-> **Decision:** Cut Vercel AI SDK Chat SDK adapter. Use raw Telegram Bot API (grammy) following nanoclaw + dorabot patterns.
+> **Decision:** Cut Vercel AI SDK Chat SDK adapter. Use raw Telegram Bot API (grammy) following dorabot patterns. Deep link `/start` pairing for multi-tenant auth.
 
 ---
 
@@ -12,8 +12,28 @@
 |------|-------------|------------|
 | **NanoClaw** | Personal AI assistant framework. Multi-channel (Telegram, WhatsApp, Discord, Slack). Self-hosted, single Node.js process, SQLite, Linux containers. | `/Users/sethlim/Documents/nanoclaw-1` |
 | **Dorabot** | Self-learning AI agent framework. Multi-channel (Telegram, WhatsApp). Self-hosted, gateway WebSocket server, SQLite, Claude Agent SDK. | `/Users/sethlim/Documents/dorabot` |
+| **OpenClaw** | Enterprise AI assistant. Multi-account Telegram, streaming previews, forum topics, reactions, polls, pairing. Self-hosted, plugin architecture. | `/Users/sethlim/Documents/openclaw` |
+| **vercel/chat** | Vercel Chat SDK. Multi-platform adapter abstraction (Slack, Telegram, Teams, Discord). Normalizes webhooks into unified `Message` type. | GitHub: `vercel/chat` |
 
-Both are production-grade, open-source, and use the same fundamental patterns for Telegram integration.
+**Primary reference: Dorabot.** OpenClaw is overengineered for Sunder's needs (~4000 lines vs ~800 for the same core features). NanoClaw's formatting is too simplistic (raw Markdown, dumb chunking). vercel/chat does not handle user-to-account mapping — cut from scope.
+
+### 1.1 Three-Way Comparison (Telegram Only)
+
+| Aspect | NanoClaw | Dorabot | OpenClaw |
+|--------|----------|---------|----------|
+| **Code volume** | ~300 lines, 1 file | ~800 lines, 5 files | ~4000+ lines, 20+ files |
+| **Format** | Raw Markdown v1 | Markdown → HTML (sanitized) | Markdown → HTML (sanitized + table support) |
+| **Chunking** | Dumb `text.slice(i, i+4096)` | Smart: paragraph → line → sentence, tag-aware | Smart (similar to dorabot) |
+| **Approvals** | None | InlineKeyboard (~40 lines) | Extensible action system (~200 lines) |
+| **Media** | Placeholder text only (`[Photo]`) | Full download via Telegram File API | Full download + sticker vision (LLM describes stickers) |
+| **Streaming** | None | None | Draft stream (live typing preview) |
+| **Multi-account** | No | No | Yes (N bots per instance) |
+| **Forum topics** | No | No | Yes |
+| **Reactions/Polls** | No | No | Yes |
+| **Auth/Pairing** | `allowFrom` config list | `allowFrom` config list | `dmPolicy: "pairing"` (most sophisticated) |
+| **Delivery** | Polling only | Polling only | Polling + Webhook |
+
+**Verdict:** Dorabot hits the sweet spot — complete format/send/approval pipeline without OpenClaw's enterprise overhead. NanoClaw is too minimal (brittle formatting, no approvals).
 
 ---
 
@@ -167,6 +187,24 @@ Both are production-grade, open-source, and use the same fundamental patterns fo
 | **Why Drift** | Sunder's agent doesn't generate media (images, audio). Inbound media from users is not useful for a CRM agent in v1. Adding media download + Supabase Storage upload is scope creep. |
 | **Impact** | Skip `media.ts`. Inbound messages with media but no text are ignored. Messages with media + caption use caption as text body. |
 
+### 4.8 DRIFT: Deep Link `/start` Pairing (Multi-Tenant Auth)
+
+| Reference Pattern | NanoClaw: `allowFrom` config list (hardcoded Telegram user IDs). Dorabot: same. OpenClaw: `dmPolicy: "pairing"` (approval-based, but still single-instance). vercel/chat: no identity resolution. |
+|---|---|
+| **Sunder Pattern** | Deep link `/start` token pairing flow. User generates a pairing link in Sunder web Settings, taps it in Telegram, bot validates token and links `chat_id` → `client_id`. |
+| **Why Drift** | Sunder is multi-tenant SaaS — one shared bot serves all clients. Reference codebases are all single-user self-hosted (one bot, one user, hardcoded allowlist). None solve the "which client does this Telegram message belong to?" problem. Deep link pairing is Telegram's officially recommended pattern for connecting accounts to external services (https://core.telegram.org/bots/features#deep-linking). |
+| **Primary Sources** | Telegram Bot Features — Deep Linking (https://core.telegram.org/bots/features#deep-linking), Telegram Bot API — setWebhook (https://core.telegram.org/bots/api#setwebhook), grammY on Vercel (https://grammy.dev/hosting/vercel). |
+| **Implementation** | 1. New `telegram_pairing_tokens` table (`token TEXT`, `client_id UUID`, `expires_at TIMESTAMPTZ`, `created_at TIMESTAMPTZ`). 2. `POST /api/telegram/generate-pairing-link` — generates base64url token (≤64 chars), stores with 10min expiry, returns `https://t.me/SunderBot?start=<token>`. 3. Webhook `/start` handler — validates token, creates `conversation_channel_mapping` (`client_id + 'telegram' + chat_id → new thread_id`), consumes token. 4. Settings UI — "Connect Telegram" card showing deep link and connection status. |
+| **Alternatives Considered** | Telegram Login Widget/OIDC (overkill — users already auth via Supabase), Seamless Login (`login_url` inline keyboard — reverse direction, bot initiates), OAuth state parameter (for third-party linking, not account pairing). |
+
+### 4.9 DRIFT: Webhook Security (secret_token header)
+
+| Reference Pattern | NanoClaw: no webhook (polling). Dorabot: no webhook (polling). OpenClaw: supports webhook with `secret_token`. |
+|---|---|
+| **Sunder Pattern** | Set `secret_token` via `bot.api.setWebhook(url, { secret_token })`. Verify `X-Telegram-Bot-Api-Secret-Token` header in webhook route. |
+| **Why Drift** | Webhook mode requires verifying requests come from Telegram. The `secret_token` is Telegram's official mechanism (not HMAC — just a constant-time string comparison). OpenClaw implements this; nanoclaw/dorabot don't need it (polling mode). |
+| **Impact** | Add `TELEGRAM_WEBHOOK_SECRET` env var. First 5 lines of webhook route check the header. |
+
 ### 4.7 DRIFT: No Session Key / Session Resume
 
 | Reference Pattern | Dorabot: session key format `"telegram:dm:{chatId}"`. SDK session resume via `sdkSessionId`. |
@@ -197,36 +235,102 @@ These patterns should be copied with **no modifications** from dorabot:
 
 ## 6. File Plan for Sunder PRs 41-42
 
-### PR 41: Telegram Integration — Bot Setup
+### PR 41: Telegram Integration — Bot Setup + Pairing
 
 ```
 src/lib/channels/
 ├── types.ts                      # InboundMessage, ChannelHandler, SendOptions (from dorabot)
 ├── registry.ts                   # registerChannelHandler(), getChannelHandler() (from dorabot)
 └── telegram/
-    ├── bot.ts                    # createTelegramBot(), token resolution (from dorabot)
+    ├── bot.ts                    # createTelegramBot(), token from env var (adapted from dorabot)
     ├── format.ts                 # markdownToTelegramHtml(), sanitizeTelegramHtml() (COPY EXACT from dorabot)
     ├── send.ts                   # sendTelegramMessage(), splitTelegramMessage() (COPY EXACT from dorabot)
-    ├── monitor.ts                # startTelegramMonitor() — adapted for Sunder webhook model
     └── index.ts                  # barrel exports
 
 app/api/webhook/telegram/
-└── route.ts                      # POST handler: verify → dedupe → map → runAgent → reply
+└── route.ts                      # POST handler: verify secret_token → handle /start pairing
+                                  # → dedupe via delivery_receipts → lookup client via channel_mappings
+                                  # → lookup/create thread → runAgent() → sendTelegramMessage()
+
+app/api/telegram/generate-pairing-link/
+└── route.ts                      # POST (authenticated): generate pairing token, return t.me deep link
+
+supabase/migrations/
+└── XXXXXXXX_create_telegram_pairing_tokens.sql
+                                  # telegram_pairing_tokens (token, client_id, expires_at, created_at)
+                                  # RLS on client_id, short-lived single-use tokens
+
+app/(dashboard)/settings/         # Add "Connect Telegram" card with deep link + connection status
 
 Environment:
   TELEGRAM_BOT_TOKEN=...          # From BotFather
-  TELEGRAM_WEBHOOK_SECRET=...     # For webhook verification
+  TELEGRAM_WEBHOOK_SECRET=...     # For webhook verification (X-Telegram-Bot-Api-Secret-Token header)
 ```
 
-### PR 42: Telegram Approvals + Identity
+#### Pairing Flow (Deep Link /start)
+
+```
+Web Settings UI                     Telegram
+─────────────                       ────────
+1. User clicks "Connect Telegram"
+2. POST /api/telegram/generate-pairing-link
+   → generates base64url token (≤64 chars)
+   → stores in telegram_pairing_tokens
+     (token, client_id, expires_at=now+10min)
+   → returns t.me/SunderBot?start=<token>
+3. UI shows link (+ QR code)
+                                    4. User taps link → opens bot
+                                    5. Taps "Start"
+                                    6. Telegram POSTs /start <token>
+                                       to /api/webhook/telegram
+7. Webhook handler:
+   → validates token (exists + not expired)
+   → extracts client_id
+   → creates conversation_channel_mapping
+     (client_id, 'telegram', chat_id → new thread_id)
+   → deletes token (consumed)
+   → bot replies "Connected!"
+                                    8. User sees "Connected!" in Telegram
+                                    9. All future messages route to this client
+```
+
+#### Steady-State Message Flow
+
+```
+User sends "check my deals" in Telegram
+  ↓
+Telegram POSTs to /api/webhook/telegram
+  ↓
+1. Verify X-Telegram-Bot-Api-Secret-Token header
+2. Extract chat_id + update_id from Update JSON
+3. Lookup channel_mappings WHERE (channel='telegram', external_conversation_id=chat_id)
+   → not found? Reply "Please link from your Sunder dashboard."
+   → found? Extract client_id + thread_id
+4. Check delivery_receipts for (client_id, 'telegram', update_id)
+   → already exists? Return 200 (dedupe)
+   → new? Insert receipt
+5. Call runAgent({ clientId, threadId, input, triggerType: 'chat' })
+   → queued? Return 200 (Telegram expects fast response)
+   → runs? Collect final response text
+6. sendTelegramMessage(bot.api, chat_id, response)
+   → markdownToTelegramHtml → sanitize → chunk → send
+  ↓
+User sees agent response in Telegram
+```
+
+### PR 42: Telegram Approvals + Unpairing
 
 ```
 src/lib/channels/telegram/
 ├── approvals.ts                  # sendApprovalRequest() — InlineKeyboard (from dorabot)
-└── monitor.ts                    # Add callback_query handler for approvals (from dorabot)
+                                  # approve:{requestId} / deny:{requestId} callback data
+
+app/api/webhook/telegram/
+└── route.ts                      # Add callback_query handler for approval responses
+
+app/(dashboard)/settings/         # Add "Disconnect Telegram" button + confirmation
 
 Existing files to modify:
-  src/lib/runner/tools/           # approval_events integration with Telegram delivery
   src/lib/approvals/              # Wire Telegram as a delivery channel for approval requests
 ```
 
@@ -283,6 +387,30 @@ Both are used by dorabot. `@grammyjs/runner` may not be needed if using webhook 
 | Database layer | `/Users/sethlim/Documents/nanoclaw-1/src/db.ts` |
 | IPC system | `/Users/sethlim/Documents/nanoclaw-1/src/ipc.ts` |
 
+### OpenClaw (Reviewed, Not Copied — Overengineered for Sunder)
+
+| Purpose | File Path |
+|---------|-----------|
+| Telegram send (1181 lines) | `/Users/sethlim/Documents/openclaw/src/telegram/send.ts` |
+| Telegram format | `/Users/sethlim/Documents/openclaw/src/telegram/format.ts` |
+| Bot handlers (1240 lines) | `/Users/sethlim/Documents/openclaw/src/telegram/bot/bot-handlers.ts` |
+| Message context (750 lines) | `/Users/sethlim/Documents/openclaw/src/telegram/bot/bot-message-context.ts` |
+| Message dispatch (496 lines) | `/Users/sethlim/Documents/openclaw/src/telegram/bot/bot-message-dispatch.ts` |
+| Webhook mode | `/Users/sethlim/Documents/openclaw/src/telegram/webhook.ts` |
+| Config types | `/Users/sethlim/Documents/openclaw/src/config/types.telegram.ts` |
+
+### External Primary Sources (Pairing Flow)
+
+| Source | URL |
+|--------|-----|
+| Telegram Bot Features — Deep Linking | https://core.telegram.org/bots/features#deep-linking |
+| Telegram Bot API — setWebhook | https://core.telegram.org/bots/api#setwebhook |
+| Telegram Deep Links API | https://core.telegram.org/api/links |
+| grammY on Vercel | https://grammy.dev/hosting/vercel |
+| Telegram Login / OIDC (alternative, not used) | https://core.telegram.org/bots/telegram-login |
+| Next.js App Router + Telegram Bot | https://www.launchfa.st/blog/telegram-nextjs-app-router/ |
+| Supabase Edge Functions Telegram Bot | https://supabase.com/docs/guides/functions/examples/telegram-bot |
+
 ---
 
 ## 9. Decision Summary
@@ -290,11 +418,14 @@ Both are used by dorabot. `@grammyjs/runner` may not be needed if using webhook 
 | Decision | Choice | Reason |
 |----------|--------|--------|
 | Primary reference | **Dorabot** | Cleaner file structure, richer message types, complete format/send/approval pipeline |
-| Bot library | **grammy** | Both repos use it. Industry standard for Telegram bots in TypeScript |
-| Message delivery | **Webhook** (drift from both) | Sunder is serverless on Vercel. Polling requires long-running process |
+| Bot library | **grammy** | All three repos use it. Industry standard for Telegram bots in TypeScript |
+| Message delivery | **Webhook** (drift from nanoclaw/dorabot) | Sunder is serverless on Vercel. Polling requires long-running process. OpenClaw supports both. |
 | Formatting | **Copy exact** from dorabot | `markdownToTelegramHtml()` + `sanitizeTelegramHtml()` + `splitTelegramMessage()` |
 | Approvals | **InlineKeyboard** from dorabot | Correct Telegram UX. Overrides v2 plan "skip inline keyboards" |
+| Multi-tenant auth | **Deep link `/start` pairing** (drift from all) | All reference repos are single-user. Telegram's official recommended pattern for account linking. |
+| Webhook security | **`secret_token` header** (from OpenClaw) | `X-Telegram-Bot-Api-Secret-Token` — Telegram's official mechanism. Constant-time string comparison, not HMAC. |
 | Channel mapping | **Sunder's existing tables** | `conversation_channel_mappings` + `delivery_receipts` already built |
 | Agent invocation | **Sunder's existing `runAgent()`** | Same function for web + Telegram. No new agent code |
 | Media | **Deferred** (drift from dorabot) | Not useful for CRM agent in v1 |
 | Queue | **Sunder's existing queue** | `thread_queue_records` + `drain_thread_queue` already handles concurrency |
+| Thread model | **One Telegram chat = one thread** | First message creates mapping. Web and Telegram are separate threads, same client data. |

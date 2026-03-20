@@ -56,6 +56,7 @@
       "2026-03-15: Added PR 42a-pdf (PDF document generation tool) to Phase 4. Agent tool that generates downloadable PDF documents on demand. User asks in chat (e.g. 'make me a client brief'), agent pulls CRM data, calls generate_pdf tool which makes an inner LLM call using @json-render/react-pdf catalog.prompt() as system prompt, compiles the JSONL spec, renders via renderToBuffer(), stores in Supabase Storage, returns download URL. No main agent context bloat — inner LLM call is isolated. Standard 15 PDF components from json-render (Document, Page, Text, Table, etc.). Custom branded components deferred.",
       "2026-03-15: Added PR 49 (UI reset — stock shadcn + custom theme) to Phase 4. Reset all drifted shadcn components to stock via CLI overwrite, swap icon library from react-icons/tb to lucide-react, apply green-anchored custom theme via globals.css (tweakcn-generated). Preserves justified Badge custom variants (success/warning/info). Ensures json-render inline views and app dashboard share identical component implementations. Supersedes PR 42a-p visual polish scope.",
       "2026-03-16: Cut Vercel AI SDK Chat SDK adapter from PRs 41-42 (Telegram). Replaced with raw Telegram Bot API integration following nanoclaw + dorabot reference patterns (grammy, channel registry, markdown→HTML formatting, message chunking). PR 41 expanded to 4 tasks (bot registration, channel module, webhook route, outbound delivery). PR 42 updated: approvals via Telegram InlineKeyboard (dorabot pattern) instead of text-only. Drift analysis: roadmap docs/Sunder - Source of Truth/references/nanoclaw-dorabot/telegram-drift-analysis.md",
+      "2026-03-20: Added deep link /start pairing flow to PR 41 (multi-tenant auth). Pattern from Telegram official docs (https://core.telegram.org/bots/features#deep-linking). New: telegram_pairing_tokens table, POST /api/telegram/generate-pairing-link endpoint, /start command handler, Settings UI pairing card. Also: PR 41 now 5 tasks, PR 42 now 3 tasks (added unpairing). Compared nanoclaw, dorabot, openclaw, vercel/chat — none solve multi-tenant pairing (all single-user self-hosted). Deep link is the Telegram-recommended pattern for linking accounts to external services.",
       "2026-03-17: Added PR 50 (Browser automation — Browser-Use Cloud) to Phase 3. Replaces original SERVICE-12 plan (Browserbase + Stagehand) with Browser-Use Cloud. 'Hand over a prompt' model: one tool call, Browser-Use handles all browsing on their infra. Profile-based auth for login-gated platforms (PropNex, PropertyGuru, URA, etc.) via embedded liveUrl in chat. Verified: liveUrl is interactive, works without BU auth, embeddable in iframe. Design doc: roadmap docs/Sunder - Source of Truth/references/browser-use/00-browser-use-cloud-design-doc.md.",
       "2026-03-17: Added PR 50a (Browser-Use Skills API) to Phase 3 as deferred follow-up to PR 50. Converts repeated property portal searches into deterministic Browser-Use Skills — instant execution, no LLM cost. Admin creates skills for top SG portals (99.co, PropertyGuru, SRX, URA, HDB). Agent calls search_property_portal tool which executes skills in milliseconds instead of live browsing. Falls back to browse_website if no skill exists.",
       "2026-03-19: Split PR 50 into three PRs after code review. PR 50 = public browsing only (chat-only, no auth). PR 50b = authenticated browsing (profiles + embedded browser auth). PR 50c = Skills API (renamed from 50a, depends on 50b). Key review fixes: (1) scrubbed leaked API key from docs, (2) explicit Browser-Use profile creation via API instead of invented IDs, (3) chat-only registry scope (excluded from autopilot/subagents), (4) strict error semantics in profile queries (throw on DB errors, null for absence only), (5) structured output for verify route instead of prose parsing, (6) auth card rendered from tool output (no new message part protocol), (7) manual retry after login (no auto-resume), (8) clarify only when ambiguous (not mandatory preflight).",
@@ -2994,7 +2995,7 @@
           "simplified": true,
           "decisions": [],
           "dependsOn": [51],
-          "note": "Frontend surface for managing instruction skills. List available skills (name + description from Supabase Storage), edit skill content via textarea/markdown editor, reset to bundled default. Optional: subtle skill indicator in chat UI when agent uses a skill. Design doc: docs/product/designs/instruction-skills.md §11.",
+          "note": "Frontend surface for managing instruction skills. Replaces Mission Control placeholder with Skills at /skills in sidebar. List available skills, edit via textarea with frontmatter validation, reset to bundled default (gated to DEFAULT_SKILL_SLUGS only). Chat skill badge on persisted tool-read_file parts. Design doc: docs/product/designs/instruction-skills.md §11.",
           "tasks": [
             {
               "id": "PR51a-1",
@@ -3036,60 +3037,76 @@
         {
           "pr": 41,
           "title": "Telegram integration — bot setup",
-          "status": "pending",
+          "status": "in_progress",
+          "tasklist": "docs/product/tasks/2026-03-20-pr41-telegram-bot-setup-tasklist.md",
           "decisions": [
             "GAP-09",
             "UX-07"
           ],
-          "note": "Cut Chat SDK adapter. Raw Telegram Bot API webhook + grammy polling, following nanoclaw/dorabot patterns. See drift analysis: roadmap docs/Sunder - Source of Truth/references/nanoclaw-dorabot/telegram-drift-analysis.md",
+          "note": "Cut Chat SDK adapter. Raw Telegram Bot API webhook + grammy, following dorabot patterns. Deep link /start pairing flow for multi-tenant auth (Telegram official docs pattern). See drift analysis: roadmap docs/Sunder - Source of Truth/references/nanoclaw-dorabot/telegram-drift-analysis.md",
           "tasks": [
             {
               "id": "PR41-1",
-              "task": "Telegram bot registration (BotFather) and env config",
+              "task": "Telegram bot registration (BotFather), env config (TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET)",
               "done": false
             },
             {
               "id": "PR41-2",
-              "task": "Telegram channel module — grammy bot, message monitor, format/send/chunking (nanoclaw/dorabot pattern)",
+              "task": "Telegram channel module — grammy bot, format.ts (markdownToTelegramHtml, sanitizeTelegramHtml), send.ts (sendTelegramMessage, splitTelegramMessage, chunking), copied from dorabot",
               "done": false
             },
             {
               "id": "PR41-3",
-              "task": "Webhook route (/api/webhook/telegram) — receive updates, dedupe via delivery_receipts, map to thread via channel_mappings, call runAgent()",
+              "task": "Deep link pairing flow: telegram_pairing_tokens table (token, client_id, expires_at, created_at) + POST /api/telegram/generate-pairing-link endpoint + /start command handler in webhook that validates token, creates channel_mapping, consumes token",
               "done": false
             },
             {
               "id": "PR41-4",
-              "task": "Outbound message delivery — agent response sent back via grammy sendMessage with markdown→HTML formatting",
+              "task": "Webhook route (POST /api/webhook/telegram) — verify X-Telegram-Bot-Api-Secret-Token header, extract chat_id, lookup client_id via channel_mappings, dedupe via delivery_receipts, lookup/create thread, call runAgent(), send response via grammy sendMessage",
+              "done": false
+            },
+            {
+              "id": "PR41-5",
+              "task": "Settings UI — Connect Telegram card with pairing deep link (t.me/SunderBot?start=<token>) and connection status",
               "done": false
             }
           ],
           "testCriteria": [
-            "Send message to Telegram bot, get agent response"
+            "Generate pairing link from Settings, tap in Telegram, bot confirms connection",
+            "Send message to Telegram bot, get agent response",
+            "Second message reuses same thread (channel_mapping lookup)"
           ]
         },
         {
           "pr": 42,
           "title": "Telegram integration — approvals + features",
-          "status": "pending",
+          "status": "in_progress",
+          "tasklist": "docs/product/tasks/2026-03-20-pr42-telegram-approvals-tasklist.md",
           "decisions": [
             "UX-07"
           ],
-          "note": "Approvals via Telegram inline keyboards (dorabot pattern: InlineKeyboard with callback_data for approve/deny). Multi-channel identity resolution. Cut Chat SDK adapter.",
+          "note": "Approvals via Telegram inline keyboards (dorabot pattern: InlineKeyboard with callback_data for approve/deny). Multi-channel identity resolution via channel_mappings. Unpairing support.",
           "tasks": [
             {
               "id": "PR42-1",
-              "task": "Approval request delivery via Telegram inline keyboard (dorabot pattern: InlineKeyboard + callback_query handler)",
+              "task": "Approval request delivery via Telegram inline keyboard (dorabot pattern: InlineKeyboard approve:{requestId}/deny:{requestId} + callback_query handler). Wire to existing approval_events table.",
               "done": false
             },
             {
               "id": "PR42-2",
-              "task": "Multi-channel identity resolution (same client across web + Telegram)",
+              "task": "Multi-channel identity resolution — same client across web + Telegram, both channels see same CRM data and memory but separate conversation threads",
+              "done": false
+            },
+            {
+              "id": "PR42-3",
+              "task": "Unpairing — disconnect Telegram from Settings UI, deletes channel_mapping row, bot replies 'disconnected' on next message",
               "done": false
             }
           ],
           "testCriteria": [
-            "Full agent interaction via Telegram including approvals"
+            "Approval-gated action triggers InlineKeyboard in Telegram, tap Approve/Deny resolves correctly",
+            "Full agent interaction via Telegram including approvals",
+            "Disconnect from Settings, bot no longer responds"
           ]
         },
         {
