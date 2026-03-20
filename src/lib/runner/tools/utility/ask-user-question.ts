@@ -1,40 +1,29 @@
 /**
  * ask_user_question tool for structured user input during agent runs.
- * Surfaces 2-4 options mid-task; the user picks one and the agent continues.
- * Constrained to one question per call to match the "one follow-up at a time" rule.
- * The execute function echoes questions back — the UI renders interactive buttons.
+ * Schema aligned with Anthropic's ask_user_input_v0: string options, type enum, 1-3 questions.
+ * The execute function echoes questions back — the UI renders interactive widgets.
  * @module lib/runner/tools/utility/ask-user-question
  */
 import { tool } from "ai";
 import { z } from "zod";
 
-const optionSchema = z.object({
-  label: z.string().describe("Concise option label (1-5 words)."),
-  description: z
-    .string()
-    .describe("What this option means or what happens if chosen."),
-});
-
 const questionSchema = z.object({
   question: z
     .string()
-    .describe("The question to ask. Be specific, end with '?'."),
-  header: z
-    .string()
-    .max(12)
-    .describe(
-      "Short label displayed as a tag (max 12 chars). E.g., 'Action', 'Format'.",
-    ),
+    .describe("The question text shown to the user."),
   options: z
-    .array(optionSchema)
+    .array(z.string().describe("Short label"))
     .min(2)
     .max(4)
+    .describe("2-4 options with short, self-explanatory labels."),
+  type: z
+    .enum(["single_select", "multi_select", "rank_priorities"])
+    .default("single_select")
     .describe(
-      "2-4 concrete options. Put recommended option first with '(Recommended)' suffix.",
+      "Question type: 'single_select' for choosing 1 option, " +
+      "'multi_select' for choosing 1 or more options, " +
+      "'rank_priorities' for drag-and-drop ranking between options.",
     ),
-  multiSelect: z
-    .boolean()
-    .describe("If true, user can select multiple options."),
 });
 
 /**
@@ -43,15 +32,30 @@ const questionSchema = z.object({
 export function createAskUserQuestionTool() {
   const ask_user_question = tool({
     description:
-      "Ask the user a question with structured options. Use when you need user input to proceed: " +
-      "gathering preferences, clarifying ambiguous instructions, or offering implementation choices. " +
-      "Present 2-4 concrete options. Users can always select 'Other' to type a custom response. " +
-      "If you recommend an option, put it first and add '(Recommended)' to the label.",
+      "USE THIS TOOL WHENEVER YOU HAVE A QUESTION FOR THE USER. Instead of asking questions in prose, " +
+      "present options as clickable choices. Your questions will be presented to the user as a widget in chat.\n\n" +
+      "USE THIS TOOL WHEN:\n" +
+      "- User asks a question with 2-10 reasonable answers\n" +
+      "- You need clarification to proceed\n" +
+      "- Ranking or prioritization would help\n" +
+      "- User says 'which should I...' or 'what do you recommend...'\n" +
+      "- User asks for a recommendation across a broad area needing refinement\n\n" +
+      "HOW TO USE:\n" +
+      "- Always include a brief conversational message before calling this tool\n" +
+      "- Generally prefer multi_select — users may have multiple preferences\n" +
+      "- Use short, self-explanatory labels (no descriptions needed)\n" +
+      "- Collect all info needed up front rather than spreading over multiple turns\n" +
+      "- Prefer 1-3 questions with up to 4 options each\n\n" +
+      "SKIP THIS TOOL WHEN:\n" +
+      "- Question is open-ended (names, descriptions, free feedback)\n" +
+      "- User is clearly venting, not seeking choices\n" +
+      "- Context makes the right choice obvious\n" +
+      "- User explicitly asked to discuss options in prose",
     inputSchema: z.object({
-      questions: z.array(questionSchema).min(1).max(1),
+      questions: z.array(questionSchema).min(1).max(3),
     }),
     execute: async ({ questions }) => {
-      // Echo questions back as output — the UI renders them as interactive buttons.
+      // Echo questions back as output — the UI renders them as interactive widgets.
       // The user's response arrives as a new chat message on the next turn.
       return { questions, status: "awaiting_response" as const };
     },
