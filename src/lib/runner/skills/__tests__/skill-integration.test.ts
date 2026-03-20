@@ -9,8 +9,8 @@ import { parseFrontmatter } from "../discover-skills";
 import { DEFAULT_SKILL_CONTENT, DEFAULT_SKILL_SLUGS } from "../skill-templates";
 
 describe("bundled instruction skills", () => {
-  it("ships seven defaults with valid frontmatter", () => {
-    expect(DEFAULT_SKILL_SLUGS).toHaveLength(7);
+  it("ships eight defaults with valid frontmatter", () => {
+    expect(DEFAULT_SKILL_SLUGS).toHaveLength(8);
 
     for (const slug of DEFAULT_SKILL_SLUGS) {
       const content = DEFAULT_SKILL_CONTENT[slug];

@@ -1,5 +1,7 @@
 # OpenClaw vs Sunder: Onboarding Comparison
 
+> **UPDATE 2026-03-20:** PR 38 tasks 8-13 replaced by PR 38d (skill-based onboarding following dorabot pattern). This comparison doc is historical reference only. The setup_progress DB approach, system prompt injection, and completion tracking are all removed. See `docs/product/tasks/2026-03-20-pr38d-skill-based-onboarding-tasklist.md` for the current approach.
+
 Verbatim comparison of OpenClaw's conversational onboarding pattern against Sunder's planned PR 38 implementation. Every drift is documented with rationale for whether it's intentional or needs resolution.
 
 ---

@@ -17,18 +17,12 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT.length).toBeGreaterThan(0);
   });
 
-  it("mentions real estate context", () => {
-    expect(SYSTEM_PROMPT.toLowerCase()).toContain("real estate");
+  it("mentions advisory sales context", () => {
+    expect(SYSTEM_PROMPT.toLowerCase()).toContain("advisory sales");
   });
 
-  it("mentions singapore context", () => {
-    expect(SYSTEM_PROMPT.toLowerCase()).toContain("singapore");
-  });
-
-  it("sets concise and practical response expectations", () => {
-    const lower = SYSTEM_PROMPT.toLowerCase();
-    expect(lower).toContain("concise");
-    expect(lower).toContain("practical");
+  it("adapts to user locale instead of hardcoding geography", () => {
+    expect(SYSTEM_PROMPT.toLowerCase()).toContain("locale");
   });
 
   it("includes mechanical safety guidance for approval-gated tools", () => {
@@ -64,9 +58,9 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT.toLowerCase()).toContain("search before creating");
   });
 
-  it("instructs agent to ask one follow-up question at a time", () => {
+  it("instructs agent to briefly describe multi-step work", () => {
     expect(SYSTEM_PROMPT.toLowerCase()).toContain(
-      "one follow-up question at a time",
+      "multi-step work",
     );
   });
 
@@ -101,6 +95,21 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT).toContain("prefer run_subagent");
     expect(SYSTEM_PROMPT).toContain("clean isolated context");
     expect(SYSTEM_PROMPT).toContain("Simple trigger work can stay inline");
+  });
+
+  describe("subagent guidance", () => {
+    it("states subagents inherit activated connection tools", () => {
+      expect(SYSTEM_PROMPT).toContain("including activated connection tools");
+    });
+
+    it("states subagents cannot create connections or triggers", () => {
+      expect(SYSTEM_PROMPT).toContain("cannot create or activate connections");
+      expect(SYSTEM_PROMPT).toContain("create triggers");
+    });
+
+    it("does not say subagents are internal-work-only", () => {
+      expect(SYSTEM_PROMPT).not.toContain("internal work");
+    });
   });
 
   it("includes external-connections section with 3 sub-sections", () => {
@@ -208,8 +217,8 @@ describe("SYSTEM_PROMPT memory instructions", () => {
     expect(SYSTEM_PROMPT).toContain("already in CRM");
   });
 
-  it("mentions SOUL.md is read-only for the agent", () => {
-    expect(SYSTEM_PROMPT).toMatch(/SOUL\.md.*read-only/is);
+  it("mentions SOUL.md is writable during onboarding", () => {
+    expect(SYSTEM_PROMPT).toMatch(/SOUL\.md.*onboarding/is);
   });
 
   it("mentions the 200-line cap on MEMORY.md", () => {
@@ -239,7 +248,7 @@ describe("SYSTEM_PROMPT memory instructions", () => {
 describe("BROWSER_AUTOMATION_PROMPT", () => {
   it("includes authenticated browsing guidance for platform connections", () => {
     expect(BROWSER_AUTOMATION_PROMPT).toContain("Platform authentication");
-    expect(BROWSER_AUTOMATION_PROMPT).toContain('platform: "propnex"');
+    expect(BROWSER_AUTOMATION_PROMPT).toContain('platform: "salesforce"');
     expect(BROWSER_AUTOMATION_PROMPT).toContain("needsAuth");
     expect(BROWSER_AUTOMATION_PROMPT).toContain("Do not auto-retry");
     expect(BROWSER_AUTOMATION_PROMPT).toContain("saved login may have expired");

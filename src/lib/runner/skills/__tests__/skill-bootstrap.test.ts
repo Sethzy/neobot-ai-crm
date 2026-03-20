@@ -50,7 +50,7 @@ describe("bootstrapSkills", () => {
 
     await bootstrapSkills(client, "client-1");
 
-    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(7);
+    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(8);
     expect(uploadedFiles.some((path) => path.includes("call-prep"))).toBe(true);
     expect(uploadedFiles.some((path) => path.includes("daily-briefing"))).toBe(true);
   });
@@ -64,7 +64,7 @@ describe("bootstrapSkills", () => {
 
     expect(uploadedFiles.filter((path) => path.includes("call-prep"))).toHaveLength(0);
     expect(uploadedFiles.filter((path) => path.includes("daily-briefing"))).toHaveLength(0);
-    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(5);
+    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(6);
   });
 
   it("is idempotent via the process cache", async () => {

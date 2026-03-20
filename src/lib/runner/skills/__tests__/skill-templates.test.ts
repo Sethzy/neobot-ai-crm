@@ -14,8 +14,8 @@ import {
 } from "../skill-templates";
 
 describe("DEFAULT_SKILL_CONTENT", () => {
-  it("contains all 7 default skill slugs", () => {
-    expect(DEFAULT_SKILL_SLUGS).toHaveLength(7);
+  it("contains all 8 default skill slugs", () => {
+    expect(DEFAULT_SKILL_SLUGS).toHaveLength(8);
     for (const slug of DEFAULT_SKILL_SLUGS) {
       expect(DEFAULT_SKILL_CONTENT[slug], `missing content for ${slug}`).toBeDefined();
       expect(DEFAULT_SKILL_CONTENT[slug].length).toBeGreaterThan(50);
@@ -62,6 +62,32 @@ describe("SYSTEM_SKILL_CONTENT", () => {
 
   it("returns undefined for unknown paths", () => {
     expect(SYSTEM_SKILL_CONTENT["nonexistent/SKILL.md" as keyof typeof SYSTEM_SKILL_CONTENT]).toBeUndefined();
+  });
+});
+
+describe("onboarding skill", () => {
+  it("has valid frontmatter with name and description", () => {
+    const content = DEFAULT_SKILL_CONTENT["onboarding"];
+    expect(content).toBeDefined();
+    expect(content).toContain("name: onboarding");
+    expect(content).toContain("Personalize");
+  });
+
+  it("references ask_user_question tool", () => {
+    const content = DEFAULT_SKILL_CONTENT["onboarding"];
+    expect(content).toContain("ask_user_question");
+  });
+
+  it("covers all three phases", () => {
+    const content = DEFAULT_SKILL_CONTENT["onboarding"];
+    expect(content).toContain("Phase 1");
+    expect(content).toContain("Phase 2");
+    expect(content).toContain("Phase 3");
+  });
+
+  it("enforces SOUL.md brevity", () => {
+    const content = DEFAULT_SKILL_CONTENT["onboarding"];
+    expect(content).toContain("20 lines");
   });
 });
 

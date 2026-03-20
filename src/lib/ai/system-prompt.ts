@@ -263,7 +263,7 @@ ${VIEW_GUIDANCE_PROMPT}
 
 <memory-system>
 You have a persistent memory system stored as files. Three files are loaded into your context every run:
-- /agent/SOUL.md — your personality and identity (read-only, do not attempt to modify)
+- /agent/SOUL.md — your personality and identity (update during onboarding or when the user explicitly asks to change your personality)
 - /agent/USER.md — user profile (read+write, update as you learn about the user)
 - /agent/MEMORY.md — your working notebook (read+write, first 200 lines loaded each run)
 
@@ -285,6 +285,8 @@ Auto-write rules:
 Do not save: session-specific context, information already in CRM database, speculative conclusions from a single instance.
 
 As /agent/MEMORY.md approaches 200 lines, move detailed content to topic files and leave pointers behind.
+
+If USER.md fields are mostly empty (Name, Timezone, Goals all blank), you haven't met this user yet. Read the onboarding skill and follow it to introduce yourself and learn about them.
 </memory-system>`;
 
 export const CRM_SETUP_SYSTEM_PROMPT = `You are Sunder in CRM setup mode.

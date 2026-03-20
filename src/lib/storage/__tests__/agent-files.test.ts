@@ -232,12 +232,17 @@ describe("createAgentFileClient", () => {
     expect(supabase.mockRemove).toHaveBeenCalledWith([`${CLIENT_ID}/memory/old.md`]);
   });
 
-  it("blocks write, edit, delete for root SOUL.md", async () => {
+  it("allows writes to SOUL.md (unlocked for onboarding)", async () => {
+    supabase.mockUpload.mockResolvedValue({ data: { path: "ok" }, error: null });
     const client = createAgentFileClient(supabase.client, CLIENT_ID);
 
-    await expect(client.uploadFile("SOUL.md", "overwrite")).rejects.toThrow("read-only");
-    await expect(client.editFile("SOUL.md", "a", "b")).rejects.toThrow("read-only");
-    await expect(client.deleteFile("SOUL.md")).rejects.toThrow("read-only");
+    await client.uploadFile("SOUL.md", "new personality");
+
+    expect(supabase.mockUpload).toHaveBeenCalledWith(
+      `${CLIENT_ID}/SOUL.md`,
+      "new personality",
+      { upsert: true, contentType: "text/plain; charset=utf-8" },
+    );
   });
 
   it("allows writes to user skill paths", async () => {
