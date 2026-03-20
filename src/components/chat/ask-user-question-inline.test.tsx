@@ -1,5 +1,9 @@
 /**
  * Tests for the AskUserQuestionInline interactive options component.
+ * Per-type behavior matrix:
+ *   single_select: radios, Skip, "Something else...", Continue →
+ *   multi_select:  checkboxes, counter, Cmd+Enter, "Something else...", Continue → (NO Skip)
+ *   rank_priorities: drag handles, numbered, Skip, Continue → (NO "Something else...")
  * @module components/chat/ask-user-question-inline.test
  */
 import { render, screen } from "@testing-library/react";
@@ -8,267 +12,321 @@ import { describe, expect, it, vi } from "vitest";
 
 import { AskUserQuestionInline, type AskUserQuestion } from "./ask-user-question-inline";
 
-vi.mock("@/components/ui/badge", () => ({
-  Badge: ({ children, ...props }: { children: React.ReactNode; variant?: string; className?: string }) => (
-    <span data-testid="badge" {...props}>{children}</span>
-  ),
-}));
-
-const singleSelectQuestion: AskUserQuestion = {
-  question: "Which format should I use?",
-  header: "Format",
-  options: [
-    { label: "Markdown (Recommended)", description: "Plain text with formatting" },
-    { label: "PDF", description: "Formatted document for sharing" },
-    { label: "CSV", description: "Spreadsheet-compatible format" },
-  ],
-  multiSelect: false,
+const singleQ: AskUserQuestion = {
+  question: "What format should the article be?",
+  options: ["Technical deep-dive", "Practical how-to guide", "Opinion piece", "Explainer for beginners"],
+  type: "single_select",
 };
 
-const multiSelectQuestion: AskUserQuestion = {
-  question: "Which features do you want?",
-  header: "Features",
-  options: [
-    { label: "CRM sync", description: "Sync contacts automatically" },
-    { label: "Email alerts", description: "Get notified on changes" },
-  ],
-  multiSelect: true,
+const multiQ: AskUserQuestion = {
+  question: "Which sections should the article include?",
+  options: ["Code examples", "Architecture diagrams", "Comparison table", "Further reading"],
+  type: "multi_select",
+};
+
+const rankQ: AskUserQuestion = {
+  question: "Rank these by importance to you",
+  options: ["Response speed", "Accuracy", "Cost efficiency"],
+  type: "rank_priorities",
 };
 
 describe("AskUserQuestionInline", () => {
-  it("renders question text and header badge", () => {
-    render(
-      <AskUserQuestionInline
-        questions={[singleSelectQuestion]}
-        onSubmit={vi.fn()}
-      />,
-    );
+  // ─── single_select: radio buttons ─────────────────────────────
 
-    expect(screen.getByText("Which format should I use?")).toBeInTheDocument();
-    expect(screen.getByText("Format")).toBeInTheDocument();
+  it("renders question text and all options as radio buttons", () => {
+    render(<AskUserQuestionInline questions={[singleQ]} onSubmit={vi.fn()} />);
+
+    expect(screen.getByText("What format should the article be?")).toBeInTheDocument();
+    expect(screen.getByText("Technical deep-dive")).toBeInTheDocument();
+    expect(screen.getByText("Practical how-to guide")).toBeInTheDocument();
+    expect(screen.getByText("Opinion piece")).toBeInTheDocument();
+    expect(screen.getByText("Explainer for beginners")).toBeInTheDocument();
   });
 
-  it("renders all option buttons", () => {
-    render(
-      <AskUserQuestionInline
-        questions={[singleSelectQuestion]}
-        onSubmit={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText("Markdown (Recommended)")).toBeInTheDocument();
-    expect(screen.getByText("PDF")).toBeInTheDocument();
-    expect(screen.getByText("CSV")).toBeInTheDocument();
+  it("single question — no pagination controls shown", () => {
+    render(<AskUserQuestionInline questions={[singleQ]} onSubmit={vi.fn()} />);
+    expect(screen.queryByTestId("ask-question-pagination")).not.toBeInTheDocument();
   });
 
-  it("renders option descriptions", () => {
-    render(
-      <AskUserQuestionInline
-        questions={[singleSelectQuestion]}
-        onSubmit={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText("Plain text with formatting")).toBeInTheDocument();
-    expect(screen.getByText("Formatted document for sharing")).toBeInTheDocument();
-  });
-
-  it("calls onSubmit with label on single-select click", async () => {
+  it("single_select: clicking option does NOT submit — must click Continue", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
 
-    render(
-      <AskUserQuestionInline
-        questions={[singleSelectQuestion]}
-        onSubmit={onSubmit}
-      />,
+    render(<AskUserQuestionInline questions={[singleQ]} onSubmit={onSubmit} />);
+    await user.click(screen.getByText("Practical how-to guide"));
+
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    await user.click(screen.getByTestId("ask-question-continue"));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      "Q: What format should the article be?\nA: Practical how-to guide",
     );
+  });
 
-    await user.click(screen.getByText("PDF"));
-
-    expect(onSubmit).toHaveBeenCalledWith("PDF");
+  it("Continue is disabled until an option is selected", () => {
+    render(<AskUserQuestionInline questions={[singleQ]} onSubmit={vi.fn()} />);
+    expect(screen.getByTestId("ask-question-continue")).toBeDisabled();
   });
 
   it("does not call onSubmit when disabled", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
 
-    render(
-      <AskUserQuestionInline
-        questions={[singleSelectQuestion]}
-        onSubmit={onSubmit}
-        disabled
-      />,
-    );
-
-    await user.click(screen.getByText("PDF"));
+    render(<AskUserQuestionInline questions={[singleQ]} onSubmit={onSubmit} disabled />);
+    await user.click(screen.getByText("Practical how-to guide"));
 
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("hides 'Other' trigger and 'Done' button when disabled", () => {
-    render(
-      <AskUserQuestionInline
-        questions={[multiSelectQuestion]}
-        onSubmit={vi.fn()}
-        disabled
-      />,
-    );
+  it("hides interactive controls when disabled", () => {
+    render(<AskUserQuestionInline questions={[multiQ]} onSubmit={vi.fn()} disabled />);
 
-    expect(screen.queryByTestId("ask-question-other-trigger")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("ask-question-done")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("ask-question-other-input")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("ask-question-continue")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("ask-question-skip")).not.toBeInTheDocument();
   });
 
-  it("shows 'Other' input when clicking Other trigger", async () => {
-    const user = userEvent.setup();
+  // ─── "Something else..." ──────────────────────────────────────
 
-    render(
-      <AskUserQuestionInline
-        questions={[singleSelectQuestion]}
-        onSubmit={vi.fn()}
-      />,
-    );
-
-    await user.click(screen.getByTestId("ask-question-other-trigger"));
-
-    expect(screen.getByTestId("ask-question-other-input")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Type your response...")).toBeInTheDocument();
+  it("shows Something else input for single_select (always visible)", () => {
+    render(<AskUserQuestionInline questions={[singleQ]} onSubmit={vi.fn()} />);
+    expect(screen.getByPlaceholderText("Something else...")).toBeInTheDocument();
   });
 
-  it("submits custom text via 'Other' input", async () => {
+  it("shows Something else input for multi_select", () => {
+    render(<AskUserQuestionInline questions={[multiQ]} onSubmit={vi.fn()} />);
+    expect(screen.getByPlaceholderText("Something else...")).toBeInTheDocument();
+  });
+
+  it("does NOT show Something else for rank_priorities", () => {
+    render(<AskUserQuestionInline questions={[rankQ]} onSubmit={vi.fn()} />);
+    expect(screen.queryByTestId("ask-question-other-input")).not.toBeInTheDocument();
+  });
+
+  it("Something else overrides radio selection when both present", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
 
-    render(
-      <AskUserQuestionInline
-        questions={[singleSelectQuestion]}
-        onSubmit={onSubmit}
-      />,
+    render(<AskUserQuestionInline questions={[singleQ]} onSubmit={onSubmit} />);
+    await user.click(screen.getByText("Opinion piece"));
+    await user.type(screen.getByPlaceholderText("Something else..."), "Case study");
+    await user.click(screen.getByTestId("ask-question-continue"));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      "Q: What format should the article be?\nA: Case study",
     );
-
-    await user.click(screen.getByTestId("ask-question-other-trigger"));
-    await user.type(screen.getByPlaceholderText("Type your response..."), "Plain text");
-    await user.click(screen.getByRole("button", { name: /send/i }));
-
-    expect(onSubmit).toHaveBeenCalledWith("Plain text");
   });
 
   it("submits custom text on Enter key", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
 
-    render(
-      <AskUserQuestionInline
-        questions={[singleSelectQuestion]}
-        onSubmit={onSubmit}
-      />,
+    render(<AskUserQuestionInline questions={[singleQ]} onSubmit={onSubmit} />);
+    await user.type(screen.getByPlaceholderText("Something else..."), "Custom{Enter}");
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      "Q: What format should the article be?\nA: Custom",
     );
-
-    await user.click(screen.getByTestId("ask-question-other-trigger"));
-    await user.type(screen.getByPlaceholderText("Type your response..."), "Custom{Enter}");
-
-    expect(onSubmit).toHaveBeenCalledWith("Custom");
   });
 
-  it("does not submit empty 'Other' text", async () => {
+  // ─── multi_select ─────────────────────────────────────────────
+
+  it("multi_select renders checkboxes and Continue button", () => {
+    render(<AskUserQuestionInline questions={[multiQ]} onSubmit={vi.fn()} />);
+
+    expect(screen.getByTestId("ask-question-continue")).toBeInTheDocument();
+    expect(screen.getByTestId("ask-question-continue")).toBeDisabled();
+  });
+
+  it("multi_select has NO Skip button (counter replaces it)", () => {
+    render(<AskUserQuestionInline questions={[multiQ]} onSubmit={vi.fn()} />);
+    expect(screen.queryByTestId("ask-question-skip")).not.toBeInTheDocument();
+  });
+
+  it("multi_select shows selection counter", async () => {
+    const user = userEvent.setup();
+
+    render(<AskUserQuestionInline questions={[multiQ]} onSubmit={vi.fn()} />);
+    const options = screen.getAllByTestId("ask-question-option");
+    await user.click(options[0]);
+    await user.click(options[2]);
+
+    expect(screen.getByTestId("ask-question-counter")).toHaveTextContent("2 selected");
+  });
+
+  it("multi_select collects selections and submits on Continue", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
 
-    render(
-      <AskUserQuestionInline
-        questions={[singleSelectQuestion]}
-        onSubmit={onSubmit}
-      />,
+    render(<AskUserQuestionInline questions={[multiQ]} onSubmit={onSubmit} />);
+    const options = screen.getAllByTestId("ask-question-option");
+    await user.click(options[0]);
+    await user.click(options[2]);
+    await user.click(screen.getByTestId("ask-question-continue"));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      "Q: Which sections should the article include?\nA: Code examples, Comparison table",
     );
+  });
 
-    await user.click(screen.getByTestId("ask-question-other-trigger"));
-    await user.click(screen.getByRole("button", { name: /send/i }));
+  it("multi_select toggles selection", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
 
+    render(<AskUserQuestionInline questions={[multiQ]} onSubmit={onSubmit} />);
+    const options = screen.getAllByTestId("ask-question-option");
+    await user.click(options[0]);
+    await user.click(options[2]);
+    await user.click(options[0]); // deselect first
+    await user.click(screen.getByTestId("ask-question-continue"));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      "Q: Which sections should the article include?\nA: Comparison table",
+    );
+  });
+
+  // ─── rank_priorities ──────────────────────────────────────────
+
+  it("rank_priorities renders drag handles and numbered items", () => {
+    render(<AskUserQuestionInline questions={[rankQ]} onSubmit={vi.fn()} />);
+
+    expect(screen.getByText("Response speed")).toBeInTheDocument();
+    expect(screen.getByText("Accuracy")).toBeInTheDocument();
+    expect(screen.getByText("Cost efficiency")).toBeInTheDocument();
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
+  });
+
+  it("rank_priorities has Skip button", () => {
+    render(<AskUserQuestionInline questions={[rankQ]} onSubmit={vi.fn()} />);
+    expect(screen.getByTestId("ask-question-skip")).toBeInTheDocument();
+  });
+
+  it("rank_priorities submits numbered format without prefix", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<AskUserQuestionInline questions={[rankQ]} onSubmit={onSubmit} />);
+    await user.click(screen.getByTestId("ask-question-continue"));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      "Q: Rank these by importance to you\nA: 1. Response speed, 2. Accuracy, 3. Cost efficiency",
+    );
+  });
+
+  // ─── Skip ─────────────────────────────────────────────────────
+
+  it("single_select has Skip button", () => {
+    render(<AskUserQuestionInline questions={[singleQ]} onSubmit={vi.fn()} />);
+    expect(screen.getByTestId("ask-question-skip")).toBeInTheDocument();
+  });
+
+  // ─── Skipped questions omitted from message ───────────────────
+
+  it("skipped questions are omitted from the user message", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<AskUserQuestionInline questions={[singleQ, rankQ]} onSubmit={onSubmit} />);
+
+    // Skip Q1 (single_select)
+    await user.click(screen.getByTestId("ask-question-skip"));
+
+    // Answer Q2 (rank_priorities) with default order
+    await user.click(screen.getByTestId("ask-question-continue"));
+
+    // Only Q2 appears — Q1 is omitted
+    expect(onSubmit).toHaveBeenCalledWith(
+      "Q: Rank these by importance to you\nA: 1. Response speed, 2. Accuracy, 3. Cost efficiency",
+    );
+  });
+
+  // ─── Dismiss X — silent, no message ───────────────────────────
+
+  it("dismiss button closes widget silently — no onSubmit called", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<AskUserQuestionInline questions={[singleQ, multiQ]} onSubmit={onSubmit} />);
+
+    await user.click(screen.getByTestId("ask-question-dismiss"));
+
+    // Widget gone, no message sent
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("ask-user-question-inline")).not.toBeInTheDocument();
+  });
+
+  // ─── Multi-question pagination ────────────────────────────────
+
+  it("shows pagination with question counter and dot indicators", () => {
+    render(<AskUserQuestionInline questions={[singleQ, multiQ]} onSubmit={vi.fn()} />);
+
+    expect(screen.getByTestId("ask-question-pagination")).toBeInTheDocument();
+    expect(screen.getByText("Question 1 of 2")).toBeInTheDocument();
+    expect(screen.getByTestId("ask-question-dots")).toBeInTheDocument();
+  });
+
+  it("answering Q1 via Continue advances to Q2", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<AskUserQuestionInline questions={[singleQ, multiQ]} onSubmit={onSubmit} />);
+
+    expect(screen.getByText("What format should the article be?")).toBeInTheDocument();
+    expect(screen.getByText("Question 1 of 2")).toBeInTheDocument();
+
+    await user.click(screen.getByText("Technical deep-dive"));
+    await user.click(screen.getByTestId("ask-question-continue"));
+
+    expect(screen.getByText("Which sections should the article include?")).toBeInTheDocument();
+    expect(screen.getByText("Question 2 of 2")).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("renders multi-select with checkboxes and a Done button", () => {
-    render(
-      <AskUserQuestionInline
-        questions={[multiSelectQuestion]}
-        onSubmit={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByTestId("ask-question-done")).toBeInTheDocument();
-    expect(screen.getByTestId("ask-question-done")).toBeDisabled();
-  });
-
-  it("collects multiple selections and submits on Done", async () => {
+  it("answering last question submits all answered Q&A pairs", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
 
-    render(
-      <AskUserQuestionInline
-        questions={[multiSelectQuestion]}
-        onSubmit={onSubmit}
-      />,
-    );
+    render(<AskUserQuestionInline questions={[singleQ, multiQ]} onSubmit={onSubmit} />);
+
+    await user.click(screen.getByText("Technical deep-dive"));
+    await user.click(screen.getByTestId("ask-question-continue"));
 
     const options = screen.getAllByTestId("ask-question-option");
-    await user.click(options[0]);
-    await user.click(options[1]);
-    await user.click(screen.getByTestId("ask-question-done"));
+    await user.click(options[0]); // Code examples
+    await user.click(screen.getByTestId("ask-question-continue"));
 
-    expect(onSubmit).toHaveBeenCalledWith("CRM sync, Email alerts");
+    expect(onSubmit).toHaveBeenCalledWith(
+      "Q: What format should the article be?\nA: Technical deep-dive\n\nQ: Which sections should the article include?\nA: Code examples",
+    );
   });
 
-  it("toggles selection in multi-select mode", async () => {
+  it("prev button navigates back", async () => {
     const user = userEvent.setup();
-    const onSubmit = vi.fn();
 
-    render(
-      <AskUserQuestionInline
-        questions={[multiSelectQuestion]}
-        onSubmit={onSubmit}
-      />,
-    );
+    render(<AskUserQuestionInline questions={[singleQ, multiQ]} onSubmit={vi.fn()} />);
 
-    const options = screen.getAllByTestId("ask-question-option");
-    // Select both, then deselect first
-    await user.click(options[0]);
-    await user.click(options[1]);
-    await user.click(options[0]);
-    await user.click(screen.getByTestId("ask-question-done"));
+    await user.click(screen.getByText("Technical deep-dive"));
+    await user.click(screen.getByTestId("ask-question-continue"));
+    expect(screen.getByText("Question 2 of 2")).toBeInTheDocument();
 
-    expect(onSubmit).toHaveBeenCalledWith("Email alerts");
+    await user.click(screen.getByTestId("ask-question-prev"));
+    expect(screen.getByText("Question 1 of 2")).toBeInTheDocument();
+    expect(screen.getByText("What format should the article be?")).toBeInTheDocument();
   });
 
-  it("preserves display order in multi-select regardless of click order", async () => {
-    const user = userEvent.setup();
-    const onSubmit = vi.fn();
+  // ─── Disabled state ───────────────────────────────────────────
 
+  it("disabled multi-question shows all questions stacked", () => {
     render(
-      <AskUserQuestionInline
-        questions={[multiSelectQuestion]}
-        onSubmit={onSubmit}
-      />,
+      <AskUserQuestionInline questions={[singleQ, multiQ]} onSubmit={vi.fn()} disabled />,
     );
 
-    const options = screen.getAllByTestId("ask-question-option");
-    // Click in reverse order: second option first, then first option
-    await user.click(options[1]);
-    await user.click(options[0]);
-    await user.click(screen.getByTestId("ask-question-done"));
-
-    // Should be display order (CRM sync first), not click order (Email alerts first)
-    expect(onSubmit).toHaveBeenCalledWith("CRM sync, Email alerts");
-  });
-
-  it("renders multiple questions", () => {
-    render(
-      <AskUserQuestionInline
-        questions={[singleSelectQuestion, multiSelectQuestion]}
-        onSubmit={vi.fn()}
-      />,
-    );
-
-    const cards = screen.getAllByTestId("ask-question-card");
-    expect(cards).toHaveLength(2);
+    expect(screen.getByText("What format should the article be?")).toBeInTheDocument();
+    expect(screen.getByText("Which sections should the article include?")).toBeInTheDocument();
+    expect(screen.queryByTestId("ask-question-pagination")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("ask-question-skip")).not.toBeInTheDocument();
   });
 });
