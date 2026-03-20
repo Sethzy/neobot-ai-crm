@@ -25,6 +25,7 @@
     { "id": "22", "name": "Error Recovery", "status": "pending", "lastRun": null, "report": null },
     { "id": "23", "name": "PDF Document Generation", "status": "pending", "lastRun": null, "report": null },
     { "id": "24", "name": "Browser Automation", "status": "pending", "lastRun": null, "report": null },
-    { "id": "25", "name": "Instruction Skills", "status": "pending", "lastRun": null, "report": null }
+    { "id": "25", "name": "Instruction Skills", "status": "pending", "lastRun": null, "report": null },
+    { "id": "26", "name": "Ask User Question Widget", "status": "pending", "lastRun": null, "report": null }
   ]
 }

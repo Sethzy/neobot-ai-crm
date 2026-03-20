@@ -1,9 +1,9 @@
 # Sunder QA Plan — Surface-Based Testing
 
 > **Created:** 2026-03-10
-> **Updated:** 2026-03-12
-> **Total surfaces:** 24
-> **Coverage:** 40+ done PRs across Phases 1-4
+> **Updated:** 2026-03-20
+> **Total surfaces:** 26
+> **Coverage:** 50+ done PRs across Phases 1-5
 
 ## Execution Order
 

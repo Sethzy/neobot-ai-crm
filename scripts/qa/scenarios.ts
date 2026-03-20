@@ -777,4 +777,36 @@ export const scenarios: QaScenario[] = [
     notes:
       "Agent should call write_file to create a new SKILL.md under /agent/skills/{slug}/. File should have valid YAML frontmatter with name and description.",
   },
+
+  // ── 26: Ask User Question Widget ──────────────────────────────────────
+  {
+    surface: "26-ask-user-question",
+    scenario: "structured-clarification",
+    prompt:
+      "I want to send a newsletter to my warm leads but I'm not sure about the angle",
+    expectedTools: ["ask_user_question"],
+    sequential: false,
+    notes:
+      "Agent should call ask_user_question with structured options (not ask in prose). Verify tool output has question, options (string[]), and type field.",
+  },
+  {
+    surface: "26-ask-user-question",
+    scenario: "batched-multi-question",
+    prompt:
+      "I need help writing a market update report — ask me some clarifying questions before you start",
+    expectedTools: ["ask_user_question"],
+    sequential: false,
+    notes:
+      "Agent should batch 2-3 questions into a single ask_user_question call (questions array length > 1). Verify the tool is called once with multiple questions, not multiple times with one question each.",
+  },
+  {
+    surface: "26-ask-user-question",
+    scenario: "prefers-multi-select",
+    prompt:
+      "What should I include in my client brief for the Tans?",
+    expectedTools: ["ask_user_question"],
+    sequential: false,
+    notes:
+      "Agent should prefer multi_select type for this question (multiple sections could be included). Verify type field is 'multi_select', not 'single_select'. // TODO: verify expectedTools — agent may search CRM first.",
+  },
 ];
