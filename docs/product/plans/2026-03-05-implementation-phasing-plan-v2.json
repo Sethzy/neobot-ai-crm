@@ -2,15 +2,15 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 — Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-20 (PR51-4 skill templates done — B2C advisory sales rewrite)",
+    "updated": "2026-03-20 (PR51b ask-user-question claude.ai parity — done)",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md §17",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
     "totalPhases": 6,
-    "estimatedPRs": 41,
+    "estimatedPRs": 42,
     "keptPRs": 27,
     "cutPRs": 19,
-    "donePRs": 36,
+    "donePRs": 37,
     "hardeningPRs": 6,
     "statusOptions": [
       "pending",
@@ -3076,6 +3076,51 @@
             "Editing a skill saves updated content to Supabase Storage",
             "Reset button restores bundled default, overwriting user edits",
             "Chat UI shows which skill the agent is using (when applicable)"
+          ]
+        },
+        {
+          "pr": "51b",
+          "title": "Ask user question — claude.ai parity",
+          "status": "done",
+          "simplified": true,
+          "decisions": [],
+          "tasks": [
+            {
+              "id": "PR51b-1",
+              "task": "Rewrite ask_user_question tool schema to match Anthropic ask_user_input_v0: string options, type enum (single_select/multi_select/rank_priorities), max 3 questions, Anthropic-style tool description",
+              "done": true
+            },
+            {
+              "id": "PR51b-2",
+              "task": "Rewrite ask-user-question-inline component: radio buttons for single_select, checkboxes for multi_select, drag-to-reorder for rank_priorities, per-type skip/something-else/counter, paginated stepper with dot indicators, silent dismiss, Q&A formatted answers with skipped questions omitted",
+              "done": true
+            },
+            {
+              "id": "PR51b-3",
+              "task": "Rewrite component tests (31 tests): per-type behaviors, Escape key, Cmd+Enter shortcut, dismiss-then-escape safety, hook-order stability",
+              "done": true
+            },
+            {
+              "id": "PR51b-4",
+              "task": "Update message-bubble and chat-panel test fixtures for new schema shape",
+              "done": true
+            },
+            {
+              "id": "PR51b-5",
+              "task": "Update system prompt <asking-the-user> with Anthropic-style guidance: always write message before widget, prefer multi_select, batch questions, when to use/skip",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "ask_user_question tool accepts 1-3 questions with string options and type enum",
+            "single_select shows radio buttons with Skip and Something else, Continue → confirms",
+            "multi_select shows checkboxes with counter (no Skip), Cmd+Enter shortcut works",
+            "rank_priorities shows drag-to-reorder with numbered handles (no Something else)",
+            "Dismiss X closes widget silently — no message sent",
+            "Skipped questions omitted from user message (not A: Skipped)",
+            "Pagination shows Question N of M with dot indicators for 2-3 questions",
+            "Escape key only fires skip for single_select and rank_priorities",
+            "Agent always writes a conversational message before showing the widget"
           ]
         }
       ]
