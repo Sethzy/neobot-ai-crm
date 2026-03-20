@@ -727,4 +727,54 @@ export const scenarios: QaScenario[] = [
     notes:
       "search_crm with entity: tasks. TaskItem components via inline spec. run_sql also acceptable.",
   },
+
+  // ---------------------------------------------------------------------------
+  // Surface 25: Instruction Skills
+  // ---------------------------------------------------------------------------
+  {
+    surface: "25-instruction-skills",
+    scenario: "daily-briefing-trigger",
+    prompt: "What's on my plate today?",
+    expectedTools: ["read_file", "search_crm"],
+    sequential: false,
+    notes:
+      "Agent should load daily-briefing skill via read_file(/agent/skills/daily-briefing/SKILL.md), then follow workflow with search_crm for tasks/deals.",
+  },
+  {
+    surface: "25-instruction-skills",
+    scenario: "call-prep-trigger",
+    prompt: "Prep me for my call with David Tan",
+    expectedTools: ["read_file", "search_crm"],
+    sequential: false,
+    notes:
+      "Agent should load call-prep skill via read_file(/agent/skills/call-prep/SKILL.md), then search_crm for David Tan's history. web_search also acceptable.",
+  },
+  {
+    surface: "25-instruction-skills",
+    scenario: "draft-outreach-trigger",
+    prompt: "Draft an outreach message to Sarah Lim about the insurance renewal",
+    expectedTools: ["read_file", "search_crm"],
+    sequential: false,
+    notes:
+      "Agent should load draft-outreach skill via read_file(/agent/skills/draft-outreach/SKILL.md), then search_crm for Sarah Lim. web_search also acceptable.",
+  },
+  {
+    surface: "25-instruction-skills",
+    scenario: "no-skill-trigger",
+    prompt: "What's the weather in Singapore?",
+    expectedTools: ["web_search"],
+    sequential: false,
+    notes:
+      "Agent should NOT load any skill — no read_file on /agent/skills/. Should answer via web_search or general knowledge.",
+  },
+  {
+    surface: "25-instruction-skills",
+    scenario: "create-custom-skill",
+    prompt:
+      "Save a skill for me: whenever I close a deal, update the CRM to closed-won and remind me to ask for a Google review in 2 weeks.",
+    expectedTools: ["write_file"],
+    sequential: false,
+    notes:
+      "Agent should call write_file to create a new SKILL.md under /agent/skills/{slug}/. File should have valid YAML frontmatter with name and description.",
+  },
 ];

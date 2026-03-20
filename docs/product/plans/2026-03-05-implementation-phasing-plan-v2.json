@@ -2,11 +2,11 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 — Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-19 (PR 51 + 51a Instruction Skills)",
+    "updated": "2026-03-20 (PR51-4 skill templates done — B2C advisory sales rewrite)",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md §17",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
-    "totalPhases": 5,
+    "totalPhases": 6,
     "estimatedPRs": 41,
     "keptPRs": 27,
     "cutPRs": 19,
@@ -60,7 +60,8 @@
       "2026-03-17: Added PR 50 (Browser automation — Browser-Use Cloud) to Phase 3. Replaces original SERVICE-12 plan (Browserbase + Stagehand) with Browser-Use Cloud. 'Hand over a prompt' model: one tool call, Browser-Use handles all browsing on their infra. Profile-based auth for login-gated platforms (PropNex, PropertyGuru, URA, etc.) via embedded liveUrl in chat. Verified: liveUrl is interactive, works without BU auth, embeddable in iframe. Design doc: roadmap docs/Sunder - Source of Truth/references/browser-use/00-browser-use-cloud-design-doc.md.",
       "2026-03-17: Added PR 50a (Browser-Use Skills API) to Phase 3 as deferred follow-up to PR 50. Converts repeated property portal searches into deterministic Browser-Use Skills — instant execution, no LLM cost. Admin creates skills for top SG portals (99.co, PropertyGuru, SRX, URA, HDB). Agent calls search_property_portal tool which executes skills in milliseconds instead of live browsing. Falls back to browse_website if no skill exists.",
       "2026-03-19: Split PR 50 into three PRs after code review. PR 50 = public browsing only (chat-only, no auth). PR 50b = authenticated browsing (profiles + embedded browser auth). PR 50c = Skills API (renamed from 50a, depends on 50b). Key review fixes: (1) scrubbed leaked API key from docs, (2) explicit Browser-Use profile creation via API instead of invented IDs, (3) chat-only registry scope (excluded from autopilot/subagents), (4) strict error semantics in profile queries (throw on DB errors, null for absence only), (5) structured output for verify route instead of prose parsing, (6) auth card rendered from tool output (no new message part protocol), (7) manual retry after login (no auto-resume), (8) clarify only when ambiguous (not mandatory preflight).",
-      "2026-03-19: Added PR 51 (Instruction skills) and PR 51a (Frontend skills page) to Phase 4. Out-of-plan work — SKILL-01 through SKILL-08 architecture decisions exist but are all DEFERRED to post-v1. This is a simplified KISS implementation: no skill_registry table (filesystem discovery via Supabase Storage listing + frontmatter parsing), no Skill-Building Interviews (chat-based creation), no shadowing (overwrite + reset). 7 bundled RE-specific default skills seeded on onboarding (adapted from anthropics/knowledge-work-plugins/sales). Progressive disclosure: names+descriptions in system prompt (~200 tokens), full SKILL.md loaded via existing read_file on demand. Frontend: skills list, editor, reset to default. Deprecates old SKILL-01 to SKILL-08 architecture decisions as over-engineered for current scale. Design doc: docs/product/designs/instruction-skills.md. Also documented sandbox skill execution (separate scope, another dev): docs/product/designs/sandbox-skill-execution.md."
+      "2026-03-19: Added PR 51 (Instruction skills) and PR 51a (Frontend skills page) to Phase 4. Out-of-plan work — SKILL-01 through SKILL-08 architecture decisions exist but are all DEFERRED to post-v1. This is a simplified KISS implementation: no skill_registry table (filesystem discovery via Supabase Storage listing + frontmatter parsing), no Skill-Building Interviews (chat-based creation), no shadowing (overwrite + reset). 7 bundled RE-specific default skills seeded on onboarding (adapted from anthropics/knowledge-work-plugins/sales). Progressive disclosure: names+descriptions in system prompt (~200 tokens), full SKILL.md loaded via existing read_file on demand. Frontend: skills list, editor, reset to default. Deprecates old SKILL-01 to SKILL-08 architecture decisions as over-engineered for current scale. Design doc: docs/product/designs/instruction-skills.md. Also documented sandbox skill execution (separate scope, another dev): docs/product/designs/sandbox-skill-execution.md.",
+      "2026-03-20: Added Phase 6 (Sandbox) with PR 52 (Sandbox Excel Analysis) and PR 53 (Sandbox Artifact Publishing). Restores cut PRs 27+28 (Vercel Sandbox) in simplified form. Two dedicated tools with two snapshots: analyze_spreadsheet (snap_excel: Python + LibreOffice + Anthropic xlsx skill + Claude CLI) and publish_artifact (snap_artifact: Node + Vite + React template + Claude CLI). Vercel Sandbox snapshots confirmed (Firecracker microVM, millisecond boot). User steers via SKILL.md in Supabase Storage (same pattern as instruction skills from PR 51). PR 52 depends on PR 51 infra (discoverUserSkills, getSkillContent, storage paths). PR 53 depends on PR 52 shared sandbox infra. Design doc: docs/product/designs/sandbox-skill-execution.md. Reference repos: vercel-labs/coding-agent-template, anthropics/financial-services-plugins, firecrawl/open-lovable, diggerhq/openlovable."
     ]
   },
   "phases": [
@@ -2941,7 +2942,7 @@
         {
           "pr": 51,
           "title": "Instruction skills — discovery + defaults + system prompt injection",
-          "status": "pending",
+          "status": "in_progress",
           "simplified": true,
           "decisions": [],
           "dependsOn": ["26a"],
@@ -2964,8 +2965,8 @@
             },
             {
               "id": "PR51-4",
-              "task": "Create 7 bundled default RE skills (call-prep, daily-briefing, draft-outreach, pipeline-review, listing-analysis, call-summary, market-briefing) adapted from anthropics/knowledge-work-plugins/sales",
-              "done": false
+              "task": "Create 7 bundled default skills (call-prep, daily-briefing, draft-outreach, pipeline-review, opportunity-analysis, call-summary, market-briefing) adapted from anthropics/knowledge-work-plugins/sales for B2C advisory sales",
+              "done": true
             },
             {
               "id": "PR51-5",
@@ -3144,6 +3145,67 @@
           ]
         }
       ]
+    },
+    {
+      "phase": 6,
+      "title": "Sandbox (Code Execution)",
+      "status": "pending",
+      "goal": "Agent can write and run code in isolated sandboxes to produce Excel financial models and published web pages.",
+      "demoMoment": "User uploads a property spreadsheet, gets back a professional Excel model with live formulas. User asks for a showcase page, gets a shareable URL.",
+      "prs": [
+        {
+          "pr": 52,
+          "title": "Sandbox: Excel Analysis (analyze_spreadsheet)",
+          "status": "pending",
+          "tasklist": "docs/product/tasks/2026-03-20-pr52-sandbox-excel-analysis-tasklist.md",
+          "decisions": ["EXEC-04", "EXEC-05", "EXEC-06"],
+          "dependsOn": ["51"],
+          "note": "Vercel Sandbox + Claude Code CLI inside. snap_excel snapshot: Python 3.13 + pandas + openpyxl + LibreOffice + gcc + Anthropic xlsx skill. User's re-analyst SKILL.md loaded at runtime. Output: .xlsx with live formulas. Restores cut PRs 27+28 in simplified form.",
+          "tasks": [
+            { "id": "PR52-1", "task": "Install @vercel/sandbox + define types (SandboxConfig, SandboxResult)", "done": false },
+            { "id": "PR52-2", "task": "createSandbox() wrapper — Sandbox.create() from snapshot with env validation", "done": false },
+            { "id": "PR52-3", "task": "loadSkillFilesForSandbox() — download user skill files from Supabase Storage", "done": false },
+            { "id": "PR52-4", "task": "runClaudeForExcel() — write API key config, inject user skills, run Claude CLI, read output", "done": false },
+            { "id": "PR52-5", "task": "analyze_spreadsheet tool — full orchestration (create sandbox → load → run → upload output → destroy)", "done": false },
+            { "id": "PR52-6", "task": "Register tool in createRunnerTools() + add system prompt guidance", "done": false },
+            { "id": "PR52-7", "task": "Add sandbox env vars to .env.example", "done": false },
+            { "id": "PR52-8", "task": "Build snap_excel snapshot (Python, LibreOffice, gcc, Claude CLI, xlsx skill files from disk)", "done": false },
+            { "id": "PR52-9", "task": "E2E manual test — upload xlsx, get back model with live formulas", "done": false }
+          ],
+          "testCriteria": [
+            "Upload xlsx → get downloadable .xlsx with live Excel formulas (not hardcoded values)",
+            "Color coding: blue inputs, black formulas, yellow assumptions",
+            "recalc.py verifies zero formula errors before output",
+            "Works with and without user re-analyst SKILL.md",
+            "Sandbox destroyed after each invocation"
+          ]
+        },
+        {
+          "pr": 53,
+          "title": "Sandbox: Artifact Publishing (publish_artifact)",
+          "status": "pending",
+          "tasklist": "docs/product/tasks/2026-03-20-pr53-sandbox-artifact-publishing-tasklist.md",
+          "decisions": ["EXEC-04", "EXEC-07", "EXEC-08"],
+          "dependsOn": ["52"],
+          "note": "Reuses sandbox infra from PR 52. snap_artifact snapshot: Node 22 + Vite + React + Tailwind + pre-scaffolded property page template + Claude CLI. Runner chains CRM/search/browser tools first, then hands data to sandbox. Claude Code tweaks template (20-40s, not from scratch). Output published to Supabase Storage signed URL or here.now. See Built-In Services §13 for full product spec.",
+          "tasks": [
+            { "id": "PR53-1", "task": "Build pre-scaffolded React property page template (7 components + theme + build script)", "done": false },
+            { "id": "PR53-2", "task": "Build snap_artifact snapshot (Node 22 + template + node_modules + Claude CLI)", "done": false },
+            { "id": "PR53-3", "task": "runClaudeForArtifact() — inject data + photos, run Claude CLI, read output HTML", "done": false },
+            { "id": "PR53-4", "task": "publish_artifact tool — full orchestration (create sandbox → load → run → publish → destroy)", "done": false },
+            { "id": "PR53-5", "task": "Publishing layer — upload HTML to Supabase Storage signed URL or here.now", "done": false },
+            { "id": "PR53-6", "task": "Register tool in createRunnerTools() + add system prompt guidance", "done": false },
+            { "id": "PR53-7", "task": "E2E manual test — ask for showcase page, get shareable URL with live page", "done": false }
+          ],
+          "testCriteria": [
+            "Agent chains CRM/search tools before calling sandbox (data gathering phase)",
+            "Shareable URL returned in chat with live property showcase page",
+            "User can iterate ('change the hero image') — new sandbox, updated page",
+            "Template customized per user's frontend-design SKILL.md brand preferences",
+            "Sandbox destroyed after each invocation"
+          ]
+        }
+      ]
     }
   ],
   "cutPRs": {
@@ -3221,17 +3283,18 @@
       {
         "pr": 27,
         "title": "Vercel Sandbox integration — setup",
-        "reason": "No code execution for v1. CRM autopilot doesn't need sandbox.",
+        "reason": "Originally cut. Restored as PR 52 (Sandbox Excel Analysis) in Phase 6 with simplified scope: snapshot-based Vercel Sandbox + Claude Code CLI, not custom sandbox infra.",
         "decisions": [
           "EXEC-04",
           "EXEC-05",
           "EXEC-06"
-        ]
+        ],
+        "restoredAs": "52"
       },
       {
         "pr": 28,
         "title": "Vercel Sandbox integration — artifacts",
-        "reason": "No CMA generation or artifact rendering for v1.",
+        "reason": "Originally cut. Restored as PR 53 (Sandbox Artifact Publishing) in Phase 6 with simplified scope: pre-scaffolded React template in snapshot, not full Tasklet instant-app pattern.",
         "decisions": [
           "EXEC-07",
           "EXEC-08",
@@ -3239,7 +3302,8 @@
           "EXEC-10",
           "EXEC-11",
           "SERVICE-10"
-        ]
+        ],
+        "restoredAs": "53"
       },
       {
         "pr": 30,
@@ -3605,6 +3669,16 @@
         "tool": "add_contact_method",
         "pr": "32a",
         "category": "Messaging"
+      },
+      {
+        "tool": "analyze_spreadsheet",
+        "pr": 52,
+        "category": "Sandbox"
+      },
+      {
+        "tool": "publish_artifact",
+        "pr": 53,
+        "category": "Sandbox"
       }
     ],
     "cut": [
@@ -3618,7 +3692,7 @@
       },
       {
         "tool": "run_command",
-        "reason": "No sandbox"
+        "reason": "No generic run_command. Replaced by two dedicated sandbox tools: analyze_spreadsheet (PR 52) and publish_artifact (PR 53)."
       },
       {
         "tool": "show_user_preview",
