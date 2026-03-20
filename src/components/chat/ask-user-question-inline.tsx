@@ -8,7 +8,7 @@
  */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -54,8 +54,15 @@ function QuestionCard({
   const showSkip = !isMulti && !disabled && !!onSkip;
   const showCounter = isMulti && !disabled && selectedChecks.length > 0;
 
+  // Determine if "Continue →" should be enabled
+  const canContinue =
+    (otherText.trim().length > 0 && !isRank) ||
+    (isSingle && selectedRadio !== null) ||
+    (isMulti && selectedChecks.length > 0) ||
+    isRank; // rank always has an ordering
+
   /** Submit the current selection via "Continue →". */
-  const handleContinue = () => {
+  const handleContinue = useCallback(() => {
     // "Something else" overrides if the user typed something (single/multi only)
     const otherTrimmed = otherText.trim();
     if (otherTrimmed.length > 0 && !isRank) {
@@ -73,7 +80,22 @@ function QuestionCard({
       const ranked = rankedItems.map((o, i) => `${i + 1}. ${o}`).join(", ");
       onSubmit(ranked);
     }
-  };
+  }, [otherText, isRank, isSingle, isMulti, selectedRadio, selectedChecks, rankedItems, onSubmit]);
+
+  // Cmd/Ctrl+Enter shortcut — window-level listener so it works regardless of focus.
+  // Only active for multi_select.
+  useEffect(() => {
+    if (!isMulti || disabled) return;
+
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && canContinue) {
+        e.preventDefault();
+        handleContinue();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isMulti, disabled, canContinue, handleContinue]);
 
   const handleMultiToggle = (option: string) => {
     setSelectedChecks((prev) =>
@@ -99,13 +121,6 @@ function QuestionCard({
   const handleDragEnd = () => {
     setDragIndex(null);
   };
-
-  // Determine if "Continue →" should be enabled
-  const canContinue =
-    (otherText.trim().length > 0 && !isRank) ||
-    (isSingle && selectedRadio !== null) ||
-    (isMulti && selectedChecks.length > 0) ||
-    isRank; // rank always has an ordering
 
   return (
     <div
@@ -238,16 +253,7 @@ function QuestionCard({
 
       {/* ─── Footer: Skip + Continue → ──────────────────────────── */}
       {!disabled && (
-        <div
-          className="flex items-center justify-between"
-          onKeyDown={(e) => {
-            // Cmd+Enter shortcut for multi_select
-            if (isMulti && e.key === "Enter" && (e.metaKey || e.ctrlKey) && canContinue) {
-              e.preventDefault();
-              handleContinue();
-            }
-          }}
-        >
+        <div className="flex items-center justify-between">
           {showSkip ? (
             <Button
               size="sm"
@@ -285,7 +291,75 @@ export function AskUserQuestionInline({
   const isMultiQuestion = questions.length > 1;
   const currentQuestion = questions[currentIndex];
 
-  // Disabled mode: show all questions stacked (non-interactive)
+  /**
+   * Format collected Q&A pairs into the user message text.
+   * Skipped questions (null answers) are omitted entirely.
+   */
+  const formatAndSubmit = useCallback((finalAnswers: Map<number, string | null>) => {
+    const lines: string[] = [];
+    questions.forEach((q, i) => {
+      const answer = finalAnswers.get(i);
+      if (answer !== null && answer !== undefined) {
+        lines.push(`Q: ${q.question}\nA: ${answer}`);
+      }
+    });
+
+    if (lines.length === 0) return;
+    onSubmit(lines.join("\n\n"));
+  }, [questions, onSubmit]);
+
+  /** Record answer for current question and advance or submit. */
+  const handleAnswer = useCallback((text: string) => {
+    setAnswers((prev) => {
+      const next = new Map(prev);
+      next.set(currentIndex, text);
+
+      if (currentIndex < questions.length - 1) {
+        setCurrentIndex(currentIndex + 1);
+      } else {
+        formatAndSubmit(next);
+      }
+      return next;
+    });
+  }, [currentIndex, questions.length, formatAndSubmit]);
+
+  /** Skip current question (null answer) and advance or submit. */
+  const handleSkip = useCallback(() => {
+    setAnswers((prev) => {
+      const next = new Map(prev);
+      next.set(currentIndex, null);
+
+      if (currentIndex < questions.length - 1) {
+        setCurrentIndex(currentIndex + 1);
+      } else {
+        formatAndSubmit(next);
+      }
+      return next;
+    });
+  }, [currentIndex, questions.length, formatAndSubmit]);
+
+  /** Dismiss entire widget — closes silently, no answer recorded, no message sent. */
+  const handleDismiss = useCallback(() => {
+    setDismissed(true);
+  }, []);
+
+  // Esc key handler — MUST be before early returns for stable hook order.
+  // Only fires skip for types with a Skip button (single_select, rank_priorities).
+  // Guarded: no-ops when disabled or dismissed.
+  useEffect(() => {
+    if (disabled || dismissed) return;
+
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && currentQuestion?.type !== "multi_select") {
+        handleSkip();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [disabled, dismissed, currentQuestion?.type, handleSkip]);
+
+  // ─── Early returns AFTER all hooks ────────────────────────────
+
   if (disabled) {
     return (
       <div data-testid="ask-user-question-inline" className="space-y-2">
@@ -300,67 +374,6 @@ export function AskUserQuestionInline({
       </div>
     );
   }
-
-  /**
-   * Format collected Q&A pairs into the user message text.
-   * Skipped questions (null answers) are omitted entirely.
-   */
-  const formatAndSubmit = (finalAnswers: Map<number, string | null>) => {
-    const lines: string[] = [];
-    questions.forEach((q, i) => {
-      const answer = finalAnswers.get(i);
-      if (answer !== null && answer !== undefined) {
-        lines.push(`Q: ${q.question}\nA: ${answer}`);
-      }
-      // Skipped (null) questions are omitted — they do not appear in the message.
-    });
-
-    if (lines.length === 0) return; // All skipped — no message
-    onSubmit(lines.join("\n\n"));
-  };
-
-  /** Record answer for current question and advance or submit. */
-  const handleAnswer = (text: string) => {
-    const next = new Map(answers);
-    next.set(currentIndex, text);
-    setAnswers(next);
-
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    } else {
-      formatAndSubmit(next);
-    }
-  };
-
-  /** Skip current question (null answer) and advance or submit. */
-  const handleSkip = () => {
-    const next = new Map(answers);
-    next.set(currentIndex, null);
-    setAnswers(next);
-
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    } else {
-      formatAndSubmit(next);
-    }
-  };
-
-  /** Dismiss entire widget — closes silently, no answer recorded, no message sent. */
-  const handleDismiss = () => {
-    setDismissed(true);
-    // No formatAndSubmit — widget disappears with no message.
-  };
-
-  // Esc key handler — only skip for types that have a Skip button (single_select, rank_priorities)
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && currentQuestion?.type !== "multi_select") {
-        handleSkip();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  });
 
   if (dismissed || !currentQuestion) return null;
 

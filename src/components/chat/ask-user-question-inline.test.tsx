@@ -216,11 +216,73 @@ describe("AskUserQuestionInline", () => {
     );
   });
 
-  // ─── Skip ─────────────────────────────────────────────────────
+  // ─── Skip + Escape key ──────────────────────────────────────────
 
   it("single_select has Skip button", () => {
     render(<AskUserQuestionInline questions={[singleQ]} onSubmit={vi.fn()} />);
     expect(screen.getByTestId("ask-question-skip")).toBeInTheDocument();
+  });
+
+  it("Escape key triggers skip for single_select", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<AskUserQuestionInline questions={[singleQ]} onSubmit={onSubmit} />);
+    await user.keyboard("{Escape}");
+
+    // Single question skipped → all skipped → no message
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("Escape key does NOT trigger skip for multi_select", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<AskUserQuestionInline questions={[multiQ]} onSubmit={onSubmit} />);
+    await user.keyboard("{Escape}");
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    // Widget should still be visible
+    expect(screen.getByTestId("ask-user-question-inline")).toBeInTheDocument();
+  });
+
+  it("Escape does not fire after dismiss", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<AskUserQuestionInline questions={[singleQ, rankQ]} onSubmit={onSubmit} />);
+
+    // Answer Q1 so we have a recorded answer
+    await user.click(screen.getByText("Technical deep-dive"));
+    await user.click(screen.getByTestId("ask-question-continue"));
+
+    // Now on Q2 — dismiss
+    await user.click(screen.getByTestId("ask-question-dismiss"));
+
+    // Widget is gone
+    expect(screen.queryByTestId("ask-user-question-inline")).not.toBeInTheDocument();
+
+    // Press Escape — should NOT submit the Q1 answer
+    await user.keyboard("{Escape}");
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  // ─── Cmd+Enter shortcut ───────────────────────────────────────
+
+  it("Cmd+Enter submits multi_select when options are selected", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+
+    render(<AskUserQuestionInline questions={[multiQ]} onSubmit={onSubmit} />);
+    const options = screen.getAllByTestId("ask-question-option");
+    await user.click(options[0]); // Code examples
+    await user.click(options[2]); // Comparison table
+
+    await user.keyboard("{Meta>}{Enter}{/Meta}");
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      "Q: Which sections should the article include?\nA: Code examples, Comparison table",
+    );
   });
 
   // ─── Skipped questions omitted from message ───────────────────
