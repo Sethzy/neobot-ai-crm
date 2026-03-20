@@ -53,4 +53,19 @@ describe("createMockSupabase", () => {
     expect(data).toBeNull();
     expect(error).toEqual({ message: "RLS violation" });
   });
+
+  it("passes through configured count values", async () => {
+    const { client } = createMockSupabase({
+      contacts: {
+        data: null,
+        error: null,
+        count: 42,
+      },
+    });
+
+    const result = await client.from("contacts").select("*", { count: "exact", head: true });
+
+    expect(result.count).toBe(42);
+    expect(result.error).toBeNull();
+  });
 });

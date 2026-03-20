@@ -17,6 +17,7 @@ const {
   mockDrainAndContinue,
   mockCreateCrmTools,
   mockCreateConnectionTools,
+  mockCreateMarketTools,
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
@@ -29,6 +30,7 @@ const {
   mockGetActiveConnections,
   mockLoadActivatedConnectionTools,
   mockConsumeMessageQuota,
+  mockIsPropertySupabaseConfigured,
   mockReleaseMessageQuota,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
@@ -43,6 +45,7 @@ const {
   mockDrainAndContinue: vi.fn(),
   mockCreateCrmTools: vi.fn(),
   mockCreateConnectionTools: vi.fn(),
+  mockCreateMarketTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
@@ -55,6 +58,7 @@ const {
   mockGetActiveConnections: vi.fn(),
   mockLoadActivatedConnectionTools: vi.fn(),
   mockConsumeMessageQuota: vi.fn(),
+  mockIsPropertySupabaseConfigured: vi.fn(),
   mockReleaseMessageQuota: vi.fn(),
 }));
 
@@ -93,6 +97,7 @@ vi.mock("@/lib/runner/drain-and-continue", () => ({
 vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createConnectionTools: mockCreateConnectionTools,
+  createMarketTools: mockCreateMarketTools,
   createStorageTools: mockCreateStorageTools,
   createSubagentTool: mockCreateSubagentTool,
   createWebTools: mockCreateWebTools,
@@ -111,6 +116,10 @@ vi.mock("@/lib/connections/queries", () => ({
 vi.mock("@/lib/composio", () => ({
   loadActivatedConnectionTools: (...args: unknown[]) =>
     mockLoadActivatedConnectionTools(...args),
+}));
+
+vi.mock("@/lib/supabase/property-env", () => ({
+  isPropertySupabaseConfigured: mockIsPropertySupabaseConfigured,
 }));
 
 vi.mock("@/lib/usage/message-quota", () => ({
@@ -184,6 +193,9 @@ describe("runAgent", () => {
       search_for_integrations: { description: "connection-tool" },
       get_integrations_capabilities: { description: "connection-tool" },
     });
+    mockCreateMarketTools.mockReturnValue({
+      search_market_data: { description: "market-tool" },
+    });
     mockCreateStorageTools.mockReturnValue({
       read_file: { description: "storage-tool" },
       write_file: { description: "storage-tool" },
@@ -231,6 +243,7 @@ describe("runAgent", () => {
     mockMaybeCompactThread.mockResolvedValue(false);
     mockGetActiveConnections.mockResolvedValue([]);
     mockLoadActivatedConnectionTools.mockResolvedValue({});
+    mockIsPropertySupabaseConfigured.mockReturnValue(true);
     mockConsumeMessageQuota.mockResolvedValue({
       allowed: true,
       clientId: validPayload.clientId,
@@ -262,7 +275,7 @@ describe("runAgent", () => {
         system: "You are Sunder.",
         messages: [{ role: "user", content: "Hello, Sunder!" }],
         stopWhen: expect.any(Function),
-        tools: {
+        tools: expect.objectContaining({
           search_contacts: { description: "tool" },
           create_contact: { description: "tool" },
           update_contact: { description: "tool" },
@@ -290,7 +303,8 @@ describe("runAgent", () => {
           get_details_for_connections: { description: "connection-tool" },
           search_for_integrations: { description: "connection-tool" },
           get_integrations_capabilities: { description: "connection-tool" },
-        },
+          search_market_data: { description: "market-tool" },
+        }),
       }),
     );
     expect(mockCreateCrmTools).toHaveBeenCalledWith(
@@ -349,9 +363,11 @@ describe("runAgent", () => {
       validPayload.threadId,
       {
         isSubagent: true,
+        includeMarketTools: true,
       },
     );
 
+    expect(tools).toHaveProperty("search_market_data");
     expect(tools).not.toHaveProperty("search_triggers");
     expect(tools).not.toHaveProperty("setup_trigger");
     expect(tools).not.toHaveProperty("manage_active_triggers");
@@ -414,6 +430,7 @@ describe("runAgent", () => {
           deal_label: "Policy",
           deal_stages: ["lead", "quoted", "bound"],
         }),
+        includeMarketData: true,
       }),
     );
   });
@@ -441,8 +458,23 @@ describe("runAgent", () => {
           deal_label: "Policy",
           deal_stages: ["lead", "quoted", "bound"],
         }),
+        includeMarketData: true,
       }),
     );
+  });
+
+  it("disables market-data prompt injection when property env is not configured", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+    mockIsPropertySupabaseConfigured.mockReturnValue(false);
+
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    expect(mockAssembleContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        includeMarketData: false,
+      }),
+    );
+    expect(mockCreateMarketTools).not.toHaveBeenCalled();
   });
 
   it("passes gatewayProviderOptions to streamText", async () => {
@@ -656,6 +688,7 @@ describe("runAgent", () => {
         clientId: validPayload.clientId,
         crmMode: "normal",
         crmConfig: expect.objectContaining({ deal_label: "Policy" }),
+        includeMarketData: true,
       }),
     );
     expect(mockStreamText).toHaveBeenCalledWith(
@@ -690,6 +723,16 @@ describe("runAgent", () => {
       expect.objectContaining({
         tools: expect.objectContaining({
           search_contacts: { description: "tool" },
+          "conn-1__GMAIL_FETCH_EMAILS": { description: "composio-tool" },
+        }),
+      }),
+    );
+    expect(mockCreateSubagentTool).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({
+        composioTools: expect.objectContaining({
           "conn-1__GMAIL_FETCH_EMAILS": { description: "composio-tool" },
         }),
       }),
@@ -755,6 +798,7 @@ describe("runAgent", () => {
         clientId: validPayload.clientId,
         crmMode: "normal",
         crmConfig: expect.objectContaining({ deal_label: "Policy" }),
+        includeMarketData: true,
       }),
     );
   });

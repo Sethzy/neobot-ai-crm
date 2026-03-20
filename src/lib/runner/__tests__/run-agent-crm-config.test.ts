@@ -16,6 +16,7 @@ const {
   mockMarkStaleRunsFailed,
   mockCreateCrmTools,
   mockCreateConnectionTools,
+  mockCreateMarketTools,
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
@@ -25,6 +26,7 @@ const {
   mockLoadCrmConfig,
   mockFinalizeRun,
   mockGetActiveConnections,
+  mockIsPropertySupabaseConfigured,
   mockLoadActivatedConnectionTools,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
@@ -35,6 +37,7 @@ const {
   mockMarkStaleRunsFailed: vi.fn(),
   mockCreateCrmTools: vi.fn(),
   mockCreateConnectionTools: vi.fn(),
+  mockCreateMarketTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
@@ -44,6 +47,7 @@ const {
   mockLoadCrmConfig: vi.fn(),
   mockFinalizeRun: vi.fn(),
   mockGetActiveConnections: vi.fn(),
+  mockIsPropertySupabaseConfigured: vi.fn(),
   mockLoadActivatedConnectionTools: vi.fn(),
 }));
 
@@ -87,6 +91,7 @@ vi.mock("@/lib/runner/thread-queue", () => ({
 vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createConnectionTools: mockCreateConnectionTools,
+  createMarketTools: mockCreateMarketTools,
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
@@ -105,6 +110,10 @@ vi.mock("@/lib/connections/queries", () => ({
 vi.mock("@/lib/composio", () => ({
   loadActivatedConnectionTools: (...args: unknown[]) =>
     mockLoadActivatedConnectionTools(...args),
+}));
+
+vi.mock("@/lib/supabase/property-env", () => ({
+  isPropertySupabaseConfigured: mockIsPropertySupabaseConfigured,
 }));
 
 import { runAgent } from "../run-agent";
@@ -131,6 +140,7 @@ describe("runAgent CRM configuration", () => {
     });
     mockCreateCrmTools.mockReturnValue({ search_contacts: { description: "tool" } });
     mockCreateConnectionTools.mockReturnValue({});
+    mockCreateMarketTools.mockReturnValue({ search_market_data: { description: "market" } });
     mockCreateStorageTools.mockReturnValue({ read_file: { description: "storage" } });
     mockCreateWebTools.mockReturnValue({ web_search: { description: "web" } });
     mockCreateUtilityTools.mockReturnValue({ manage_todo: { description: "utility" } });
@@ -143,6 +153,7 @@ describe("runAgent CRM configuration", () => {
     mockCreateMessages.mockResolvedValue([]);
     mockGetActiveConnections.mockResolvedValue([]);
     mockLoadActivatedConnectionTools.mockResolvedValue({});
+    mockIsPropertySupabaseConfigured.mockReturnValue(true);
     mockStreamText.mockReturnValue({ toUIMessageStream: vi.fn(() => new ReadableStream()) });
   });
 

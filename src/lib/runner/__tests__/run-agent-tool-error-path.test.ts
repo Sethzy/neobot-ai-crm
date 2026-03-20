@@ -16,6 +16,7 @@ const {
   mockDrainAndContinue,
   mockCreateCrmTools,
   mockCreateConnectionTools,
+  mockCreateMarketTools,
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
@@ -25,6 +26,7 @@ const {
   mockMaybeCompactThread,
   mockTruncateOversizedParts,
   mockGetActiveConnections,
+  mockIsPropertySupabaseConfigured,
   mockLoadActivatedConnectionTools,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
@@ -38,6 +40,7 @@ const {
   mockDrainAndContinue: vi.fn(),
   mockCreateCrmTools: vi.fn(),
   mockCreateConnectionTools: vi.fn(),
+  mockCreateMarketTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
@@ -47,6 +50,7 @@ const {
   mockMaybeCompactThread: vi.fn(),
   mockTruncateOversizedParts: vi.fn(),
   mockGetActiveConnections: vi.fn(),
+  mockIsPropertySupabaseConfigured: vi.fn(),
   mockLoadActivatedConnectionTools: vi.fn(),
 }));
 
@@ -103,6 +107,7 @@ vi.mock("@/lib/runner/toolcall-artifacts", () => ({
 vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createConnectionTools: mockCreateConnectionTools,
+  createMarketTools: mockCreateMarketTools,
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
@@ -117,6 +122,10 @@ vi.mock("@/lib/connections/queries", () => ({
 vi.mock("@/lib/composio", () => ({
   loadActivatedConnectionTools: (...args: unknown[]) =>
     mockLoadActivatedConnectionTools(...args),
+}));
+
+vi.mock("@/lib/supabase/property-env", () => ({
+  isPropertySupabaseConfigured: mockIsPropertySupabaseConfigured,
 }));
 
 import type { RunnerPayload } from "../schemas";
@@ -142,6 +151,7 @@ describe("runAgent tool-error completion path", () => {
     });
     mockCreateCrmTools.mockReturnValue({});
     mockCreateConnectionTools.mockReturnValue({});
+    mockCreateMarketTools.mockReturnValue({});
     mockCreateStorageTools.mockReturnValue({});
     mockCreateWebTools.mockReturnValue({});
     mockCreateUtilityTools.mockReturnValue({});
@@ -154,6 +164,7 @@ describe("runAgent tool-error completion path", () => {
     }));
     mockGetActiveConnections.mockResolvedValue([]);
     mockLoadActivatedConnectionTools.mockResolvedValue({});
+    mockIsPropertySupabaseConfigured.mockReturnValue(true);
     mockStreamText.mockReturnValue({
       toUIMessageStreamResponse: vi.fn(() => new Response("streamed")),
     });

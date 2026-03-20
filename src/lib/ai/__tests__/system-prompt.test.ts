@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   BROWSER_AUTOMATION_PROMPT,
+  MARKET_DATA_PROMPT,
   SETUP_SYSTEM_PROMPT,
   SYSTEM_PROMPT,
 } from "@/lib/ai/system-prompt";
@@ -19,6 +20,10 @@ describe("SYSTEM_PROMPT", () => {
 
   it("mentions advisory sales context", () => {
     expect(SYSTEM_PROMPT.toLowerCase()).toContain("advisory sales");
+  });
+
+  it("keeps market-data tool guidance out of the base system prompt", () => {
+    expect(SYSTEM_PROMPT).not.toContain("search_market_data");
   });
 
   it("adapts to user locale instead of hardcoding geography", () => {
@@ -42,6 +47,10 @@ describe("SYSTEM_PROMPT", () => {
     expect(lower).toContain("file storage");
     expect(lower).toContain("web");
     expect(lower).toContain("trigger");
+  });
+
+  it("reserves web search for information outside the market database", () => {
+    expect(SYSTEM_PROMPT).toContain("isn't in their CRM or the market database");
   });
 
   it("instructs agent to skip preambles before tool calls", () => {
@@ -252,6 +261,21 @@ describe("BROWSER_AUTOMATION_PROMPT", () => {
     expect(BROWSER_AUTOMATION_PROMPT).toContain("needsAuth");
     expect(BROWSER_AUTOMATION_PROMPT).toContain("Do not auto-retry");
     expect(BROWSER_AUTOMATION_PROMPT).toContain("saved login may have expired");
+  });
+});
+
+describe("MARKET_DATA_PROMPT", () => {
+  it("includes search_market_data guidance for built-in property datasets", () => {
+    expect(MARKET_DATA_PROMPT).toContain("search_market_data");
+    expect(MARKET_DATA_PROMPT).toContain("CEA agent registry");
+    expect(MARKET_DATA_PROMPT).toContain("HDB resale");
+    expect(MARKET_DATA_PROMPT).toContain("URA private residential");
+  });
+
+  it("distinguishes market-data usage from web search", () => {
+    expect(MARKET_DATA_PROMPT).toContain("Use search mode");
+    expect(MARKET_DATA_PROMPT).toContain("Use stats mode");
+    expect(MARKET_DATA_PROMPT).toContain("Use web search instead");
   });
 });
 

@@ -21,6 +21,7 @@ import type { RunnerPayload } from "@/lib/runner/schemas";
 import { createRunnerTools } from "@/lib/runner/tool-registry";
 import { createSubagentTool } from "@/lib/runner/tools";
 import { enqueueMessage } from "@/lib/runner/thread-queue";
+import { isPropertySupabaseConfigured } from "@/lib/supabase/property-env";
 import {
   type ConsumedMessageQuota,
   consumeMessageQuota,
@@ -245,6 +246,7 @@ export async function runAgent(
       crmMode,
       includeBrowserAutomation:
         payload.triggerType === "chat" && isBrowserUseConfigured(),
+      includeMarketData: isPropertySupabaseConfigured(),
       crmConfigModeActive: payload.includeConfigTool,
     });
     _t("assemble_context");
@@ -254,12 +256,14 @@ export async function runAgent(
       crmMode,
       crmConfig,
       includeBrowserTools: payload.triggerType === "chat",
+      includeMarketTools: true,
       includeConfigTool: payload.includeConfigTool,
     });
     const subagentTools = createSubagentTool(supabase, clientId, threadId, {
       parentRunId: lockResult.runId,
       crmConfig,
       crmMode,
+      composioTools,
     });
     _t("create_tools");
 

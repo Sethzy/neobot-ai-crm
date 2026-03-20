@@ -17,6 +17,7 @@ const {
   mockDrainAndContinue,
   mockCreateCrmTools,
   mockCreateConnectionTools,
+  mockCreateMarketTools,
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
@@ -24,6 +25,7 @@ const {
   mockCreateSubagentTool,
   mockCreateMessages,
   mockGetActiveConnections,
+  mockIsPropertySupabaseConfigured,
   mockLoadActivatedConnectionTools,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
@@ -38,6 +40,7 @@ const {
   mockDrainAndContinue: vi.fn(),
   mockCreateCrmTools: vi.fn(),
   mockCreateConnectionTools: vi.fn(),
+  mockCreateMarketTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
@@ -45,6 +48,7 @@ const {
   mockCreateSubagentTool: vi.fn(),
   mockCreateMessages: vi.fn(),
   mockGetActiveConnections: vi.fn(),
+  mockIsPropertySupabaseConfigured: vi.fn(),
   mockLoadActivatedConnectionTools: vi.fn(),
 }));
 
@@ -81,6 +85,7 @@ vi.mock("@/lib/runner/drain-and-continue", () => ({
 vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createConnectionTools: mockCreateConnectionTools,
+  createMarketTools: mockCreateMarketTools,
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
@@ -95,6 +100,10 @@ vi.mock("@/lib/composio", () => ({
     mockLoadActivatedConnectionTools(...args),
 }));
 
+vi.mock("@/lib/supabase/property-env", () => ({
+  isPropertySupabaseConfigured: mockIsPropertySupabaseConfigured,
+}));
+
 import { runAgent } from "../run-agent";
 
 describe("stale run cleanup", () => {
@@ -107,6 +116,7 @@ describe("stale run cleanup", () => {
       search_contacts: { description: "tool" },
     });
     mockCreateConnectionTools.mockReturnValue({});
+    mockCreateMarketTools.mockReturnValue({});
     mockCreateStorageTools.mockReturnValue({
       read_file: { description: "storage-tool" },
       write_file: { description: "storage-tool" },
@@ -134,6 +144,7 @@ describe("stale run cleanup", () => {
     });
     mockGetActiveConnections.mockResolvedValue([]);
     mockLoadActivatedConnectionTools.mockResolvedValue({});
+    mockIsPropertySupabaseConfigured.mockReturnValue(true);
     mockStreamText.mockReturnValue({
       toUIMessageStreamResponse: vi.fn(() => new Response("streamed")),
     });

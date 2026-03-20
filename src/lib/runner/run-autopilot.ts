@@ -16,6 +16,7 @@ import { createRunnerTools } from "@/lib/runner/tool-registry";
 import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
 import { finalizeRun } from "@/lib/runner/run-persistence";
 import { createSubagentTool } from "@/lib/runner/tools";
+import { isPropertySupabaseConfigured } from "@/lib/supabase/property-env";
 import type { Database } from "@/types/database";
 
 const MAX_STEPS_AUTOPILOT = 9;
@@ -58,14 +59,13 @@ export async function runAutopilot({
       currentMessage: "",
       clientId,
       instructions: AUTOPILOT_INSTRUCTION_PROMPT,
+      includeMarketData: isPropertySupabaseConfigured(),
     });
     const runnerTools = createRunnerTools(supabase, clientId, threadId, {
       allowTriggerMutations: false,
       allowConnectionMutations: false,
       includeBrowserTools: false,
-    });
-    const subagentTools = createSubagentTool(supabase, clientId, threadId, {
-      parentRunId: lockResult.runId,
+      includeMarketTools: true,
     });
     let composioTools: ToolSet = {};
 
@@ -75,6 +75,11 @@ export async function runAutopilot({
     } catch (error) {
       console.error("[composio] Failed to load activated connection tools for autopilot.", error);
     }
+
+    const subagentTools = createSubagentTool(supabase, clientId, threadId, {
+      parentRunId: lockResult.runId,
+      composioTools,
+    });
 
     const result = await propagateAttributes(
       {

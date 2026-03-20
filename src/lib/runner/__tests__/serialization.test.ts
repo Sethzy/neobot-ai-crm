@@ -16,6 +16,7 @@ const {
   mockEnqueueMessage,
   mockCreateCrmTools,
   mockCreateConnectionTools,
+  mockCreateMarketTools,
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
@@ -23,6 +24,7 @@ const {
   mockCreateSubagentTool,
   mockCreateMessages,
   mockGetActiveConnections,
+  mockIsPropertySupabaseConfigured,
   mockLoadActivatedConnectionTools,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
@@ -36,6 +38,7 @@ const {
   mockEnqueueMessage: vi.fn(),
   mockCreateCrmTools: vi.fn(),
   mockCreateConnectionTools: vi.fn(),
+  mockCreateMarketTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
@@ -43,6 +46,7 @@ const {
   mockCreateSubagentTool: vi.fn(),
   mockCreateMessages: vi.fn(),
   mockGetActiveConnections: vi.fn(),
+  mockIsPropertySupabaseConfigured: vi.fn(),
   mockLoadActivatedConnectionTools: vi.fn(),
 }));
 
@@ -76,6 +80,7 @@ vi.mock("@/lib/runner/thread-queue", () => ({
 vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createConnectionTools: mockCreateConnectionTools,
+  createMarketTools: mockCreateMarketTools,
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
@@ -88,6 +93,10 @@ vi.mock("@/lib/connections/queries", () => ({
 vi.mock("@/lib/composio", () => ({
   loadActivatedConnectionTools: (...args: unknown[]) =>
     mockLoadActivatedConnectionTools(...args),
+}));
+
+vi.mock("@/lib/supabase/property-env", () => ({
+  isPropertySupabaseConfigured: mockIsPropertySupabaseConfigured,
 }));
 
 import { runAgent } from "../run-agent";
@@ -106,6 +115,7 @@ describe("per-thread serialization", () => {
       search_contacts: { description: "tool" },
     });
     mockCreateConnectionTools.mockReturnValue({});
+    mockCreateMarketTools.mockReturnValue({});
     mockCreateStorageTools.mockReturnValue({
       read_file: { description: "storage-tool" },
       write_file: { description: "storage-tool" },
@@ -133,6 +143,7 @@ describe("per-thread serialization", () => {
     });
     mockGetActiveConnections.mockResolvedValue([]);
     mockLoadActivatedConnectionTools.mockResolvedValue({});
+    mockIsPropertySupabaseConfigured.mockReturnValue(true);
     mockStreamText.mockReturnValue({
       toUIMessageStreamResponse: vi.fn(() => new Response("streamed")),
     });

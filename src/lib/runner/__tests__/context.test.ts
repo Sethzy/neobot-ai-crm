@@ -5,7 +5,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildPlatformInstructions } from "@/lib/ai/platform-instructions";
-import { SETUP_SYSTEM_PROMPT, SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
+import { MARKET_DATA_PROMPT, SETUP_SYSTEM_PROMPT, SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
 import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
 import { SUMMARY_PREFIX } from "../compaction";
@@ -430,6 +430,39 @@ describe("assembleContext", () => {
     expect(result.system).toContain("browse_website");
   });
 
+  it("does not include market data guidance by default", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      clientId: "client-123",
+    });
+
+    expect(result.system).not.toContain("<market-data>");
+    expect(result.system).not.toContain("search_market_data");
+  });
+
+  it("includes market data guidance when enabled for the run", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      clientId: "client-123",
+      includeMarketData: true,
+    });
+
+    expect(result.system).toContain(MARKET_DATA_PROMPT);
+    expect(result.system).toContain("search_market_data");
+  });
+
   it("injects available skills into the assembled system prompt", async () => {
     mockDiscoverUserSkills.mockResolvedValueOnce([
       {
@@ -500,7 +533,7 @@ describe("assembleContext", () => {
     expect(result.system).not.toContain("You are Sunder, an AI assistant for solo real estate agents in Singapore.");
   });
 
-  it("caps history query to the latest 240 messages", async () => {
+  it("caps history query to the latest 80 messages", async () => {
     const supabase = createMockSupabaseClient({
       selectResult: { data: [], error: null },
     });
@@ -516,7 +549,7 @@ describe("assembleContext", () => {
       expect.arrayContaining([
         { method: "order", args: ["created_at", { ascending: false }] },
         { method: "order", args: ["message_id", { ascending: false }] },
-        { method: "limit", args: [240] },
+        { method: "limit", args: [80] },
       ]),
     );
   });
@@ -549,9 +582,9 @@ describe("assembleContext", () => {
     );
   });
 
-  it("enforces a maximum history window of 240 messages even if more rows are returned", async () => {
-    const historyRows = Array.from({ length: 250 }, (_, index) => {
-      const newestFirstIndex = 250 - index;
+  it("enforces a maximum history window of 80 messages even if more rows are returned", async () => {
+    const historyRows = Array.from({ length: 100 }, (_, index) => {
+      const newestFirstIndex = 100 - index;
       return {
         role: newestFirstIndex % 2 === 0 ? "assistant" : "user",
         content: `Message ${newestFirstIndex}`,
@@ -573,9 +606,9 @@ describe("assembleContext", () => {
       clientId: "client-123",
     });
 
-    expect(result.messages).toHaveLength(240);
-    expect(result.messages[0]).toEqual(textModelMessage("user", "Message 11"));
-    expect(result.messages[239]).toEqual(textModelMessage("assistant", "Message 250"));
+    expect(result.messages).toHaveLength(80);
+    expect(result.messages[0]).toEqual(textModelMessage("user", "Message 21"));
+    expect(result.messages[79]).toEqual(textModelMessage("assistant", "Message 100"));
   });
 
   it("includes thread history before the current message", async () => {
@@ -830,6 +863,27 @@ describe("assembleSystemOnly", () => {
 
     expect(withoutBrowser).not.toContain("<browser-automation>");
     expect(withBrowser).toContain("<browser-automation>");
+  });
+
+  it("only includes market data guidance when explicitly enabled", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const withoutMarket = await assembleSystemOnly({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      clientId: "client-123",
+    });
+    const withMarket = await assembleSystemOnly({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      clientId: "client-123",
+      includeMarketData: true,
+    });
+
+    expect(withoutMarket).not.toContain("<market-data>");
+    expect(withMarket).toContain(MARKET_DATA_PROMPT);
   });
 
   it("includes available skills for system-only assembly", async () => {

@@ -10,6 +10,7 @@ import type { Database } from "@/types/database";
 type QueryResult = {
   data: unknown;
   error: { message: string } | null;
+  count?: number | null;
 };
 
 type ChainableBuilder = Record<string, ReturnType<typeof vi.fn>> & {

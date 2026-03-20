@@ -14,6 +14,7 @@ const {
   mockLoadMemoryContext,
   mockBuildSystemReminder,
   mockFetchThreadCompactionState,
+  mockDiscoverUserSkills,
 } = vi.hoisted(() => ({
   mockBootstrapMemoryFiles: vi.fn().mockResolvedValue(undefined),
   mockLoadMemoryContext: vi.fn().mockResolvedValue({
@@ -25,6 +26,7 @@ const {
     "<system-reminder>\nCurrent time: 2026-03-05 14:30:00 UTC\nOpen todos: 0\n</system-reminder>",
   ),
   mockFetchThreadCompactionState: vi.fn().mockResolvedValue(null),
+  mockDiscoverUserSkills: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/memory/bootstrap", () => ({
@@ -50,6 +52,10 @@ vi.mock("@/lib/runner/compaction", async (importOriginal) => {
     fetchThreadCompactionState: mockFetchThreadCompactionState,
   };
 });
+
+vi.mock("@/lib/runner/skills/discover-skills", () => ({
+  discoverUserSkills: mockDiscoverUserSkills,
+}));
 
 describe("assembleContext CRM configuration", () => {
   beforeEach(() => {
@@ -100,5 +106,25 @@ describe("assembleContext CRM configuration", () => {
     expect(result.system).toContain("law_firm &quot;partner&quot;");
     expect(result.system).toContain("Coverage &quot;Amount&quot;");
     expect(result.system).toContain("Tier &quot;Band&quot;");
+  });
+
+  it("can include market-data guidance alongside setup mode when explicitly enabled", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Help me configure this.",
+      clientId: "client-123",
+      crmMode: "setup",
+      includeMarketData: true,
+      crmConfig: CRM_DEFAULTS,
+    });
+
+    expect(result.system.toLowerCase()).toContain("crm setup");
+    expect(result.system).toContain("<market-data>");
+    expect(result.system).toContain("search_market_data");
   });
 });

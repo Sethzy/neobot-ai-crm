@@ -10,11 +10,13 @@ import {
   createBrowserTools,
   createConnectionTools,
   createCrmTools,
+  createMarketTools,
   createStorageTools,
   createTriggerTools,
   createUtilityTools,
   createWebTools,
 } from "@/lib/runner/tools";
+import { isPropertySupabaseConfigured } from "@/lib/supabase/property-env";
 import type { Database } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
@@ -27,6 +29,7 @@ export interface CreateRunnerToolsOptions {
   isSubagent?: boolean;
   includeSendMessage?: boolean;
   includeBrowserTools?: boolean;
+  includeMarketTools?: boolean;
   /** Only relevant for chat-triggered runs. When true, includes configure_crm in the tool registry. */
   includeConfigTool?: boolean;
 }
@@ -57,12 +60,16 @@ export function createRunnerTools(
   const connectionTools = createConnectionTools(supabase, clientId, {
     allowMutations: isSubagent ? false : (options?.allowConnectionMutations ?? true),
   });
+  const shouldIncludeMarketTools =
+    options?.includeMarketTools === true && isPropertySupabaseConfigured();
+  const marketTools = shouldIncludeMarketTools ? createMarketTools() : {};
 
   if (isSubagent) {
     return {
       ...crmTools,
       ...storageTools,
       ...webTools,
+      ...marketTools,
       ...utilityTools,
       ...connectionTools,
     };
@@ -81,6 +88,7 @@ export function createRunnerTools(
     ...crmTools,
     ...storageTools,
     ...webTools,
+    ...marketTools,
     ...utilityTools,
     ...triggerTools,
     ...connectionTools,

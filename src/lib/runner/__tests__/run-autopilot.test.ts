@@ -16,6 +16,7 @@ const {
   mockCreateBrowserTools,
   mockCreateCrmTools,
   mockCreateConnectionTools,
+  mockCreateMarketTools,
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
@@ -27,6 +28,7 @@ const {
   mockBuildAssistantPartsFromSteps,
   mockGetAssistantTextFromParts,
   mockGetActiveConnections,
+  mockIsPropertySupabaseConfigured,
   mockLoadActivatedConnectionTools,
 } = vi.hoisted(() => ({
   mockGenerateText: vi.fn(),
@@ -40,6 +42,7 @@ const {
   mockCreateBrowserTools: vi.fn(),
   mockCreateCrmTools: vi.fn(),
   mockCreateConnectionTools: vi.fn(),
+  mockCreateMarketTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
@@ -51,6 +54,7 @@ const {
   mockBuildAssistantPartsFromSteps: vi.fn(),
   mockGetAssistantTextFromParts: vi.fn(),
   mockGetActiveConnections: vi.fn(),
+  mockIsPropertySupabaseConfigured: vi.fn(),
   mockLoadActivatedConnectionTools: vi.fn(),
 }));
 
@@ -83,6 +87,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createBrowserTools: mockCreateBrowserTools,
   createCrmTools: mockCreateCrmTools,
   createConnectionTools: mockCreateConnectionTools,
+  createMarketTools: mockCreateMarketTools,
   createStorageTools: mockCreateStorageTools,
   createSubagentTool: mockCreateSubagentTool,
   createWebTools: mockCreateWebTools,
@@ -115,6 +120,10 @@ vi.mock("@/lib/composio", () => ({
     mockLoadActivatedConnectionTools(...args),
 }));
 
+vi.mock("@/lib/supabase/property-env", () => ({
+  isPropertySupabaseConfigured: mockIsPropertySupabaseConfigured,
+}));
+
 import { runAutopilot } from "../run-autopilot";
 
 describe("runAutopilot", () => {
@@ -131,6 +140,9 @@ describe("runAutopilot", () => {
       get_details_for_connections: { description: "connection-tool" },
       search_for_integrations: { description: "connection-tool" },
       get_integrations_capabilities: { description: "connection-tool" },
+    });
+    mockCreateMarketTools.mockReturnValue({
+      search_market_data: { description: "market-tool" },
     });
     mockCreateStorageTools.mockReturnValue({ read_file: { description: "tool" } });
     mockCreateWebTools.mockReturnValue({ web_search: { description: "tool" } });
@@ -153,6 +165,7 @@ describe("runAutopilot", () => {
     mockCreateMessages.mockResolvedValue([]);
     mockGetActiveConnections.mockResolvedValue([]);
     mockLoadActivatedConnectionTools.mockResolvedValue({});
+    mockIsPropertySupabaseConfigured.mockReturnValue(true);
   });
 
   it("injects autopilot instructions and executes generateText with tool-loop settings", async () => {
@@ -173,6 +186,7 @@ describe("runAutopilot", () => {
     expect(mockAssembleContext).toHaveBeenCalledWith(
       expect.objectContaining({
         instructions: expect.stringContaining("autonomous pulse"),
+        includeMarketData: true,
       }),
     );
     expect(mockStepCountIs).toHaveBeenCalledWith(9);
@@ -184,6 +198,7 @@ describe("runAutopilot", () => {
         tools: expect.objectContaining({
           search_triggers: { description: "tool" },
           manage_active_triggers: { description: "tool" },
+          search_market_data: { description: "market-tool" },
           run_subagent: { description: "subagent-tool" },
           list_users_connections: { description: "connection-tool" },
           get_details_for_connections: { description: "connection-tool" },
@@ -203,12 +218,14 @@ describe("runAutopilot", () => {
       "550e8400-e29b-41d4-a716-446655440000",
       { allowMutations: false },
     );
+    expect(mockCreateMarketTools).toHaveBeenCalledOnce();
     expect(mockCreateSubagentTool).toHaveBeenCalledWith(
       "supabase",
       "550e8400-e29b-41d4-a716-446655440000",
       "660e8400-e29b-41d4-a716-446655440000",
       expect.objectContaining({
         parentRunId: "run-1",
+        composioTools: expect.any(Object),
       }),
     );
     expect(mockCreateBrowserTools).not.toHaveBeenCalled();

@@ -12,6 +12,7 @@ import {
 import {
   BROWSER_AUTOMATION_PROMPT,
   CRM_SETUP_SYSTEM_PROMPT,
+  MARKET_DATA_PROMPT,
   SYSTEM_PROMPT,
 } from "@/lib/ai/system-prompt";
 import type { CrmVocabConfig } from "@/lib/crm/config";
@@ -43,6 +44,7 @@ interface AssembleContextParams {
   crmConfig?: CrmVocabConfig;
   crmMode?: "normal" | "setup";
   includeBrowserAutomation?: boolean;
+  includeMarketData?: boolean;
   /** When true, injects CRM config mode notice into the system reminder. */
   crmConfigModeActive?: boolean;
   platformInstructions?: string;
@@ -61,6 +63,7 @@ interface AssembleSystemOnlyParams {
   crmConfig?: CrmVocabConfig;
   crmMode?: "normal" | "setup";
   includeBrowserAutomation?: boolean;
+  includeMarketData?: boolean;
   platformInstructions?: string;
   systemPrompt?: string;
 }
@@ -74,7 +77,7 @@ interface HistoryRow {
 }
 
 const allowedRoles: MessageRole[] = ["system", "user", "assistant"];
-const MAX_CONTEXT_MESSAGES = 240;
+const MAX_CONTEXT_MESSAGES = 80;
 
 function normalizeRole(role: string): MessageRole {
   return allowedRoles.includes(role as MessageRole) ? (role as MessageRole) : "assistant";
@@ -88,6 +91,7 @@ interface BuildSystemPromptOptions {
   instructions?: string;
   platformInstructions?: string;
   includeBrowserAutomation?: boolean;
+  includeMarketData?: boolean;
   systemPrompt?: string;
 }
 
@@ -126,6 +130,7 @@ function buildSystemPrompt({
   instructions,
   platformInstructions,
   includeBrowserAutomation,
+  includeMarketData,
   systemPrompt,
 }: BuildSystemPromptOptions): string {
   const activeSystemPrompt = systemPrompt ?? SYSTEM_PROMPT;
@@ -137,6 +142,10 @@ function buildSystemPrompt({
 
     if (includeBrowserAutomation) {
       sections.push(BROWSER_AUTOMATION_PROMPT);
+    }
+
+    if (includeMarketData) {
+      sections.push(MARKET_DATA_PROMPT);
     }
 
     if (instructions && instructions.trim().length > 0) {
@@ -160,6 +169,10 @@ function buildSystemPrompt({
 
   if (includeBrowserAutomation) {
     sections.push(BROWSER_AUTOMATION_PROMPT);
+  }
+
+  if (includeMarketData) {
+    sections.push(MARKET_DATA_PROMPT);
   }
 
   if (instructions && instructions.trim().length > 0) {
@@ -260,6 +273,7 @@ export async function assembleSystemOnly({
   crmConfig,
   crmMode = "normal",
   includeBrowserAutomation,
+  includeMarketData,
   platformInstructions,
   systemPrompt,
 }: AssembleSystemOnlyParams): Promise<string> {
@@ -278,6 +292,7 @@ export async function assembleSystemOnly({
       ? buildPlatformInstructions(crmConfig)
       : PLATFORM_INSTRUCTIONS),
     includeBrowserAutomation,
+    includeMarketData,
     systemPrompt: systemPrompt ?? (crmMode === "setup"
       ? CRM_SETUP_SYSTEM_PROMPT
       : SYSTEM_PROMPT),
@@ -296,6 +311,7 @@ export async function assembleContext({
   crmConfig,
   crmMode = "normal",
   includeBrowserAutomation,
+  includeMarketData,
   crmConfigModeActive,
   platformInstructions,
   systemPrompt,
@@ -365,6 +381,7 @@ export async function assembleContext({
       systemReminder,
       instructions,
       includeBrowserAutomation,
+      includeMarketData,
       platformInstructions: platformInstructions ?? (crmConfig
         ? buildPlatformInstructions(crmConfig)
         : PLATFORM_INSTRUCTIONS),

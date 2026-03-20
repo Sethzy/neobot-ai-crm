@@ -2,7 +2,7 @@
  * Isolated run_subagent tool for offloading work outside the parent context.
  * @module lib/runner/tools/subagents/run-subagent
  */
-import { generateText, stepCountIs, tool } from "ai";
+import { generateText, stepCountIs, tool, type ToolSet } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
@@ -15,6 +15,7 @@ import type { StepLike } from "@/lib/runner/message-utils";
 import { saveToolcallBlock } from "@/lib/runner/toolcall-artifacts";
 import { createAgentFileClient } from "@/lib/storage/agent-files";
 import { toStoragePath } from "@/lib/storage/agent-paths";
+import { isPropertySupabaseConfigured } from "@/lib/supabase/property-env";
 import type { Database } from "@/types/database";
 
 const MAX_SUBAGENT_STEPS = 9;
@@ -32,6 +33,19 @@ interface CreateSubagentToolOptions {
   parentRunId: string;
   crmConfig?: CrmVocabConfig;
   crmMode?: "normal" | "setup";
+  /**
+   * Activated Composio connection tools inherited from the parent run.
+   * Subagents receive the same activated tools as the parent — no extra
+   * Composio API call. Connection management tools (create, activate,
+   * delete) remain blocked via allowConnectionMutations: false.
+   *
+   * Drift from Tasklet: Tasklet gives subagents unrestricted access to all
+   * inherited connection tools. We do the same at the tool level, but our
+   * system prompt guides the agent to keep external-facing actions (send
+   * email, create event) on the parent agent. This is a conservative safety
+   * boundary we can widen later.
+   */
+  composioTools?: ToolSet;
 }
 
 /**
@@ -69,21 +83,27 @@ export function createSubagentTool(
               threadId,
               crmConfig: options.crmConfig,
               crmMode: options.crmMode ?? "normal",
+              includeMarketData: isPropertySupabaseConfigured(),
             }),
           ]);
 
           if (instructionMarkdown.trim().length === 0) {
             throw new Error(`Instruction file is empty: ${path}`);
           }
-          const tools = createRunnerTools(supabase, clientId, threadId, {
+          const runnerTools = createRunnerTools(supabase, clientId, threadId, {
             allowTriggerMutations: false,
             allowConnectionMutations: false,
             isSubagent: true,
             includeSendMessage: false,
             includeBrowserTools: false,
+            includeMarketTools: true,
             crmConfig: options.crmConfig,
             crmMode: options.crmMode ?? "normal",
           });
+          const tools = {
+            ...runnerTools,
+            ...(options.composioTools ?? {}),
+          };
           const userMessage = payload
             ? `${instructionMarkdown}\n\n${payload}`
             : instructionMarkdown;

@@ -15,6 +15,7 @@ const {
   mockCompleteRun,
   mockSaveToolcallBlock,
   mockCreateAgentFileClient,
+  mockIsPropertySupabaseConfigured,
 } = vi.hoisted(() => ({
   mockGenerateText: vi.fn(),
   mockStepCountIs: vi.fn(() => "stop"),
@@ -26,6 +27,7 @@ const {
   mockCompleteRun: vi.fn(),
   mockSaveToolcallBlock: vi.fn(),
   mockCreateAgentFileClient: vi.fn(),
+  mockIsPropertySupabaseConfigured: vi.fn(),
 }));
 
 vi.mock("ai", () => ({
@@ -36,6 +38,7 @@ vi.mock("ai", () => ({
 
 vi.mock("@/lib/ai/gateway", () => ({
   gateway: mockGateway,
+  gatewayProviderOptions: {},
   TIER_1_MODEL: "google/gemini-3-flash",
 }));
 
@@ -60,6 +63,10 @@ vi.mock("@/lib/storage/agent-files", () => ({
   createAgentFileClient: mockCreateAgentFileClient,
 }));
 
+vi.mock("@/lib/supabase/property-env", () => ({
+  isPropertySupabaseConfigured: mockIsPropertySupabaseConfigured,
+}));
+
 import { createSubagentTool } from "../run-subagent";
 
 const CLIENT_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -79,6 +86,7 @@ describe("createSubagentTool", () => {
     mockCreateAgentFileClient.mockReturnValue({
       downloadFile: vi.fn().mockResolvedValue("# Briefing\n\nSummarize the lead."),
     });
+    mockIsPropertySupabaseConfigured.mockReturnValue(true);
     mockGenerateText.mockResolvedValue({
       text: "Final briefing text",
       steps: [
@@ -136,6 +144,7 @@ describe("createSubagentTool", () => {
       threadId: THREAD_ID,
       crmConfig: undefined,
       crmMode: "normal",
+      includeMarketData: true,
     });
     expect(mockCreateRunnerTools).toHaveBeenCalledWith(
       "supabase",
@@ -146,6 +155,8 @@ describe("createSubagentTool", () => {
         allowConnectionMutations: false,
         isSubagent: true,
         includeSendMessage: false,
+        includeBrowserTools: false,
+        includeMarketTools: true,
         crmConfig: undefined,
         crmMode: "normal",
       },
@@ -247,6 +258,40 @@ describe("createSubagentTool", () => {
       "call-1",
       { query: "Jane Chen" },
       { contacts: [] },
+    );
+  });
+
+  it("spreads composioTools into the subagent tool set alongside runner tools", async () => {
+    const fakeComposioTools = {
+      "conn_abc__GMAIL_SEND_EMAIL": { description: "Send email via Gmail" },
+      "conn_abc__GMAIL_SEARCH_THREADS": { description: "Search Gmail threads" },
+    };
+
+    const { run_subagent } = createSubagentTool(
+      "supabase" as never,
+      CLIENT_ID,
+      THREAD_ID,
+      {
+        parentRunId: PARENT_RUN_ID,
+        composioTools: fakeComposioTools as never,
+      },
+    );
+
+    await run_subagent.execute(
+      {
+        path: "subagents/triggers/morning-briefing.md",
+      },
+      { abortSignal: new AbortController().signal } as never,
+    );
+
+    expect(mockGenerateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tools: {
+          search_contacts: { description: "tool" },
+          "conn_abc__GMAIL_SEND_EMAIL": { description: "Send email via Gmail" },
+          "conn_abc__GMAIL_SEARCH_THREADS": { description: "Search Gmail threads" },
+        },
+      }),
     );
   });
 
