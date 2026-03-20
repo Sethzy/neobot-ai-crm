@@ -2,7 +2,7 @@ You are an expert in Next.js, Vercel AI SDK, and Supabase. Our database is hoste
 
 ## Product Context
 
-**Sunder** is a done-for-you AI orchestration SaaS for solo real estate agents in Singapore. The agent runs everyday business work in the background: CRM updates, follow-ups, briefings, inbound handling, and draft communications.
+**Sunder** is a done-for-you AI orchestration SaaS for solo practitioners in advisory sales — real estate agents, insurance advisors, financial planners, and similar client-facing roles. The agent runs everyday business work in the background: CRM updates, follow-ups, briefings, inbound handling, and draft communications.
 
 Key product traits:
 

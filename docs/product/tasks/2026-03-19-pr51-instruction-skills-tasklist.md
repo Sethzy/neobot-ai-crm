@@ -2,16 +2,16 @@
 
 **PR:** PR 51: Instruction skills — discovery + defaults + system prompt injection
 **Decisions:** None (out-of-plan work; SKILL-01 to SKILL-08 are deferred/deprecated — this is a simplified KISS replacement)
-**Goal:** Users get 7 pre-installed RE workflow skills from day 1, can create/edit their own via chat, and the agent discovers and uses them via progressive disclosure.
+**Goal:** Users get 7 pre-installed default skills from day 1, can create/edit their own via chat, and the agent discovers and uses them via progressive disclosure.
 
-**Architecture:** Filesystem-based skill discovery via Supabase Storage directory listing + YAML frontmatter parsing. No `skill_registry` table. No Skill-Building Interviews. Skills are SKILL.md files at `{clientId}/skills/{slug}/SKILL.md`. Discovery injects skill names+descriptions into the system prompt (~200 tokens). Agent loads full skill content on demand via existing `read_file` tool. 7 bundled RE default skills seeded on client onboarding using the same `bootstrapMemoryFiles` pattern.
+**Architecture:** Filesystem-based skill discovery via Supabase Storage directory listing + YAML frontmatter parsing. No `skill_registry` table. No Skill-Building Interviews. Skills are SKILL.md files at `{clientId}/skills/{slug}/SKILL.md`. Discovery injects skill names+descriptions into the system prompt (~200 tokens). Agent loads full skill content on demand via existing `read_file` tool. 7 bundled default skills seeded on client onboarding using the same `bootstrapMemoryFiles` pattern.
 
 **Tech Stack:** TypeScript, Supabase Storage, Vercel AI SDK (existing runner), `yaml` package (frontmatter parsing)
 
 **Design doc:** `docs/product/designs/instruction-skills.md`
 
 **Reference repos:**
-- [anthropics/knowledge-work-plugins/sales](https://github.com/anthropics/knowledge-work-plugins/tree/main/sales) — 9 sales skills to adapt for RE
+- [anthropics/knowledge-work-plugins/sales](https://github.com/anthropics/knowledge-work-plugins/tree/main/sales) — 6 sales skills adapted for B2C advisory sales
 - [AI SDK Cookbook: Agent Skills](https://ai-sdk.dev/cookbook/guides/agent-skills) — `discoverSkills()` + `buildSkillsPrompt()` pattern
 
 **Code review decisions (2026-03-19):**
@@ -34,7 +34,7 @@
 - `src/lib/runner/skills/defaults/daily-briefing/SKILL.md`
 - `src/lib/runner/skills/defaults/draft-outreach/SKILL.md`
 - `src/lib/runner/skills/defaults/pipeline-review/SKILL.md`
-- `src/lib/runner/skills/defaults/listing-analysis/SKILL.md`
+- `src/lib/runner/skills/defaults/opportunity-analysis/SKILL.md`
 - `src/lib/runner/skills/defaults/call-summary/SKILL.md`
 - `src/lib/runner/skills/defaults/market-briefing/SKILL.md`
 - `src/lib/runner/skills/skill-bootstrap.ts` — `bootstrapSkills()`
@@ -615,7 +615,7 @@ Skills to create:
 | `daily-briefing` | sales/daily-briefing | Tasks due + overdue follow-ups + deals needing attention + action plan |
 | `draft-outreach` | sales/draft-outreach | CRM lookup + web research prospect + draft personalized message |
 | `pipeline-review` | sales/pipeline-review | Active deals by stage + stale deals flagged + next actions per deal |
-| `listing-analysis` | sales/account-research | Web search listing + comps + pricing assessment + CRM client match |
+| `opportunity-analysis` | sales/account-research | Web search listing + comps + pricing assessment + CRM client match |
 | `call-summary` | sales/call-summary | Extract action items + update CRM + draft follow-up |
 | `market-briefing` | sales/competitive-intelligence | District price trends + new launches + policy changes |
 
@@ -796,7 +796,7 @@ const DEFAULT_SKILL_SLUGS = [
   "daily-briefing",
   "draft-outreach",
   "pipeline-review",
-  "listing-analysis",
+  "opportunity-analysis",
   "call-summary",
   "market-briefing",
 ] as const;

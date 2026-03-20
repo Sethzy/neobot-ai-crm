@@ -136,7 +136,7 @@ Agent: reads + edits the existing SKILL.md via read_file + write_file
 
 No new tools needed. `write_file` already handles `skills/*` paths.
 
-## 5. Example Skills for RE Agents
+## 5. Example Skills for Advisory Sales
 
 Adapted from [anthropics/knowledge-work-plugins/sales](https://github.com/anthropics/knowledge-work-plugins/tree/main/sales):
 
@@ -145,14 +145,14 @@ Adapted from [anthropics/knowledge-work-plugins/sales](https://github.com/anthro
 ```yaml
 ---
 name: call-prep
-description: Prepare for a client meeting with property data, CRM history, and talking points. Trigger with "prep me for my call with [client]" or "meeting prep [name]".
+description: Prepare for a client call or meeting with CRM history, context, and talking points. Trigger with "prep me for my call with [client]" or "meeting prep [name]".
 ---
 ```
 
 Agent workflow when triggered:
 1. `search_crm` — pull client history, interactions, preferences
-2. `web_search` — recent market data for properties they've discussed
-3. Generate prep brief: talking points, objection handling, relevant listings
+2. `web_search` — recent market context relevant to the conversation
+3. Generate prep brief: talking points, objection handling, suggested agenda
 
 ### daily-briefing
 
@@ -179,8 +179,8 @@ description: Research a prospect and draft personalized outreach. Trigger with "
 
 Agent workflow when triggered:
 1. `search_crm` — existing relationship history
-2. `web_search` — prospect's recent activity, company news
-3. Draft personalized email following user's voice/style from SOUL.md
+2. `web_search` — prospect's recent activity, relevant public info
+3. Draft personalized message following user's voice/style from SOUL.md
 
 ### pipeline-review
 
@@ -196,19 +196,19 @@ Agent workflow when triggered:
 2. Flag: deals stale >14 days, deals missing next steps, high-value deals needing attention
 3. Generate summary with recommended actions per deal
 
-### listing-analysis
+### opportunity-analysis
 
 ```yaml
 ---
-name: listing-analysis
-description: Analyze a property listing with market comps, pricing assessment, and client fit. Trigger with "analyze this listing", "what do you think of [property]", or "is [address] a good deal".
+name: opportunity-analysis
+description: Analyze an opportunity with market context, pricing signals, and likely fit for clients already in the CRM. Trigger with "analyze this opportunity", "what do you think of [opportunity]", or "is this a good fit".
 ---
 ```
 
 Agent workflow when triggered:
-1. `web_search` — property details, recent transactions nearby
+1. `web_search` — opportunity details, market context, comparable signals
 2. `search_crm` — which clients might be interested (matching preferences)
-3. Generate analysis: pricing vs comps, pros/cons, which clients to show it to
+3. Generate analysis: attractiveness, risks, pricing context, which clients to approach
 
 ## 6. Implementation
 
@@ -300,17 +300,17 @@ Skills are the product, not the model. Users shouldn't start from zero.
 > miss critical steps... The output looks plausible but is subtly wrong in ways that matter."
 > — Nicolas Bustamante, Fintool
 
-Every new Sunder client gets a set of **pre-installed RE-specific skills** on onboarding. These are system-level defaults that the user can edit, override, or delete. Adapted from [anthropics/knowledge-work-plugins/sales](https://github.com/anthropics/knowledge-work-plugins/tree/main/sales) for real estate:
+Every new Sunder client gets a set of **pre-installed default skills** on onboarding. These are system-level defaults that the user can edit, override, or delete. Adapted from [anthropics/knowledge-work-plugins/sales](https://github.com/anthropics/knowledge-work-plugins/tree/main/sales) for B2C advisory sales:
 
-| Skill | Adapted from (Anthropic sales) | RE version |
+| Skill | Adapted from (Anthropic sales) | Sunder version |
 |---|---|---|
-| `call-prep` | `call-prep` | Pull CRM history + property interests + market context → talking points + objection handling |
+| `call-prep` | `call-prep` | Pull CRM history + client context + market signals → talking points + objection handling |
 | `daily-briefing` | `daily-briefing` | Today's tasks, overdue follow-ups, deals needing attention, autopilot activity summary |
-| `draft-outreach` | `draft-outreach` | Research prospect + draft personalized message (WhatsApp/email) in agent's voice |
+| `draft-outreach` | `draft-outreach` | Research prospect + draft personalized message in agent's voice |
 | `pipeline-review` | `pipeline-review` | Active deals by stage, stale deals flagged, next actions per deal |
-| `listing-analysis` | `account-research` | Analyze a listing: pricing vs comps, pros/cons, which CRM clients to show it to |
+| `opportunity-analysis` | `account-research` | Analyze an opportunity: market context, pricing signals, which CRM clients to approach |
 | `call-summary` | `call-summary` | Post-meeting: extract action items, update CRM, draft follow-up message |
-| `market-briefing` | `competitive-intelligence` | Weekly: district price trends, new launches, policy changes, what it means for active deals |
+| `market-briefing` | `competitive-intelligence` | Market signals: pricing trends, new offerings, policy changes, what it means for active deals |
 
 ### How Pre-Installed Skills Work
 
@@ -323,7 +323,7 @@ Bundled defaults:
   ├── daily-briefing/SKILL.md
   ├── draft-outreach/SKILL.md
   ├── pipeline-review/SKILL.md
-  ├── listing-analysis/SKILL.md
+  ├── opportunity-analysis/SKILL.md
   ├── call-summary/SKILL.md
   └── market-briefing/SKILL.md
 
@@ -342,13 +342,23 @@ This follows the Fintool pattern: **public skills (bundled defaults) → user's 
 
 ## 11. Frontend — Skill Management UI
 
-The frontend should surface skills so users know what's available and can manage them:
+Skills get their own top-level sidebar item under AGENT, **replacing the Mission Control placeholder** (`/mission-control` → "Coming soon"). Route: `/skills`.
 
-### Skills List (Settings or sidebar)
+```
+AGENT
+  Chat
+  Skills          ← replaces Mission Control
+  Tasks
+  Automations
+  Memory
+```
+
+### Skills List (`/skills`)
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  Your Skills                           [+ New]  │
+│  Skills                                         │
+│  Workflow guides for recurring tasks.            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
 │  📋 call-prep                          [Edit]   │
@@ -359,51 +369,38 @@ The frontend should surface skills so users know what's available and can manage
 │  Morning briefing with tasks, follow-ups,       │
 │  and pipeline status                            │
 │                                                 │
-│  📋 draft-outreach                     [Edit]   │
-│  Research a prospect and draft outreach          │
-│                                                 │
-│  📋 pipeline-review                    [Edit]   │
-│  Review deal pipeline and flag stale deals       │
-│                                                 │
-│  📋 listing-analysis                   [Edit]   │
-│  Analyze a listing with comps and client fit     │
-│                                                 │
-│  📋 call-summary                       [Edit]   │
-│  Post-meeting summary with action items          │
-│                                                 │
-│  📋 market-briefing                    [Edit]   │
-│  Weekly market trends and policy changes         │
+│  ... (5 more)                                   │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### Skill Editor
+### Skill Editor (`/skills/[slug]`)
 
-- Simple markdown editor (or just a textarea)
-- Shows SKILL.md content
-- User edits → saves to Supabase Storage
-- Could also edit via chat ("update my call prep to include...")
+- Plain textarea showing full SKILL.md content
+- Save with frontmatter validation (rejects invalid saves)
+- Reset to default button (only for bundled defaults, not custom skills)
+- Back link to `/skills`
 
-### Skill Triggers in Chat
+### Skill Indicator in Chat
 
-When the agent uses a skill, the chat UI could show a subtle indicator:
+When the agent uses a skill, the chat UI shows a subtle badge:
 
 ```
 ┌──────────────────────────────────────────┐
-│  📋 Using: call-prep                     │  ← subtle chip/badge
+│  [call-prep]                             │  ← subtle outline badge
 │                                          │
 │  Here's your prep for the Tan family...  │
 └──────────────────────────────────────────┘
 ```
 
-This builds trust — the user sees which skill is guiding the output and can edit it if the result isn't right.
+Detected from persisted `tool-read_file` parts matching `/agent/skills/{slug}/SKILL.md` (excludes system/connection skills).
 
 ### Future: Skill Marketplace
 
 Not for v1, but the natural evolution:
 - Share skills between agents in the same brokerage
 - Publish skills to a community marketplace
-- Import skills from other users ("use Sarah's listing-analysis")
+- Import skills from other users ("use Sarah's opportunity-analysis")
 
 ## 12. Scope
 
@@ -412,7 +409,7 @@ Not for v1, but the natural evolution:
 - `discoverUserSkills()` function
 - Inject skill listing into system prompt via `assembleContext()`
 - System prompt instruction block for custom skills
-- Bundled default RE skills (7 skills, adapted from Anthropic sales)
+- Bundled default skills (7 skills, adapted from Anthropic sales)
 - Seed defaults on client onboarding (extend `bootstrapMemoryFiles` pattern)
 - Tests for discovery + seeding
 

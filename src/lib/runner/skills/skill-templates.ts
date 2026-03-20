@@ -17,7 +17,7 @@ export const DEFAULT_SKILL_SLUGS = [
   "daily-briefing",
   "draft-outreach",
   "pipeline-review",
-  "listing-analysis",
+  "opportunity-analysis",
   "call-summary",
   "market-briefing",
 ] as const;
@@ -27,25 +27,244 @@ export type DefaultSkillSlug = (typeof DEFAULT_SKILL_SLUGS)[number];
 export const DEFAULT_SKILL_CONTENT: Record<DefaultSkillSlug, string> = {
   "call-prep": `---
 name: call-prep
-description: Prepare for a client call or meeting with CRM history, property context, and focused talking points.
+description: Prepare for a client call with CRM history, attendee context, and suggested agenda. Works standalone with CRM and web research, supercharged when you connect your calendar, email, or chat. Trigger with "prep me for my call with [name]", "I'm meeting with [name] prep me", "call prep [name]", or "get me ready for [meeting]".
 ---
 
 # Call Prep
 
-Use this skill when the user asks for call prep, meeting prep, or a quick brief before speaking with a client, prospect, landlord, or buyer.
+Get fully prepared for any client call in minutes. This skill works with whatever context you provide, and gets significantly better when you connect your tools.
 
-## Workflow
+## How It Works
 
-1. Use \`search_crm\` first to find the relevant contact, deal, recent interactions, open tasks, and any recorded preferences.
-2. If a property, project, district, or market topic is involved, use \`web_search\` to gather recent context that could change the conversation.
-3. Build a practical brief with:
-   - who the person is and how they relate to the current deal or workflow
-   - recent history, promises made, and open loops
-   - property or market context that matters for this conversation
-   - 3-5 talking points
-   - likely objections, concerns, or decision blockers
-   - the clearest next step to secure before the call ends
-4. If the user wants the brief saved for later, use \`write_file\` with a descriptive filename.
+\`\`\`
+┌─────────────────────────────────────────────────────────────────┐
+│                        CALL PREP                                 │
+├─────────────────────────────────────────────────────────────────┤
+│  ALWAYS (works standalone)                                       │
+│  ✓ CRM: contact history, deals, interactions, preferences       │
+│  ✓ Web search: recent news, market context                      │
+│  ✓ You tell me: meeting type, attendees, any context            │
+│  ✓ Output: prep brief with agenda and questions                 │
+├─────────────────────────────────────────────────────────────────┤
+│  SUPERCHARGED (when you connect your tools)                      │
+│  + Calendar: auto-find meeting, pull attendees                  │
+│  + Email: recent threads, open questions, commitments           │
+│  + Chat: internal discussions, colleague insights               │
+└─────────────────────────────────────────────────────────────────┘
+\`\`\`
+
+---
+
+## Getting Started
+
+When you run this skill, I'll ask for what I need:
+
+**Required:**
+- Client or contact name
+- Meeting type (discovery, follow-up, negotiation, check-in, etc.)
+
+**Helpful if you have it:**
+- Who's attending (names and titles)
+- Any context you want me to know (paste prior notes, emails, etc.)
+
+If you've connected your calendar, email, or other tools, I'll pull context automatically and skip the questions.
+
+---
+
+## Connectors (Optional)
+
+Connect your tools to supercharge this skill:
+
+| Connector | What It Adds |
+|-----------|--------------|
+| **Email** | Recent threads with the client, open questions, attachments shared |
+| **Chat** | Internal chat discussions (e.g. Slack) about the client, colleague insights |
+| **Calendar** | Auto-find the meeting, pull attendees and description |
+
+> **No connectors?** No problem. CRM history and web search provide solid prep for any call. Just tell me about the meeting and paste any context you have.
+
+---
+
+## Output Format
+
+\`\`\`markdown
+# Call Prep: [Client Name]
+
+**Meeting:** [Type] — [Date/Time if known]
+**Attendees:** [Names with titles]
+**Your Goal:** [What you want to accomplish]
+
+---
+
+## Client Snapshot
+
+| Field | Value |
+|-------|-------|
+| **Name** | [Name] |
+| **Status** | [New lead / Active client / Past client] |
+| **Current Deal** | [Deal name and stage, if any] |
+| **Last Touch** | [Date and summary] |
+
+---
+
+## Who You're Meeting
+
+### [Name] — [Title or Role]
+- **Role:** [Decision maker / Co-decision maker / Influencer / Advisor / etc.]
+- **Background:** [Career history, relevant details if found]
+- **Last Interaction:** [Summary if known]
+- **Talking Point:** [Something personal/professional to reference]
+
+[Repeat for each attendee]
+
+---
+
+## Context & History
+
+**What's happened so far:**
+- [Key point from prior interactions]
+- [Open commitments or action items]
+- [Any concerns or objections raised]
+
+**Recent news:**
+- [News item 1 — why it matters]
+- [News item 2 — why it matters]
+
+---
+
+## Suggested Agenda
+
+1. **Open** — [Reference last conversation or trigger event]
+2. **[Topic 1]** — [Discovery question or value discussion]
+3. **[Topic 2]** — [Address known concern or explore priority]
+4. **[Topic 3]** — [Advance deal toward next milestone]
+5. **Next Steps** — [Propose clear follow-up with timeline]
+
+---
+
+## Discovery Questions
+
+Ask these to fill gaps in your understanding:
+
+1. [Question about their current situation]
+2. [Question about pain points or priorities]
+3. [Question about decision process and timeline]
+4. [Question about success criteria]
+5. [Question about other stakeholders]
+
+---
+
+## Potential Objections
+
+| Objection | Suggested Response |
+|-----------|-------------------|
+| [Likely objection based on context] | [How to address it] |
+| [Common objection for this stage] | [How to address it] |
+
+---
+
+## Internal Notes
+
+[Any internal chat context (e.g. Slack), colleague insights, or relevant background]
+
+---
+
+## After the Call
+
+Run **call-summary** to:
+- Extract action items
+- Update your CRM
+- Draft follow-up message
+\`\`\`
+
+---
+
+## Execution Flow
+
+### Step 1: Gather Context
+
+**If connectors available:**
+\`\`\`
+1. Calendar → Find upcoming meeting matching client name
+   - Pull: title, time, attendees, description
+
+2. CRM → Query contact and deal (always available)
+   - Pull: contact details, open deals, recent interactions
+   - Pull: last 10 activities, open tasks, any notes
+
+3. Email → Search recent threads
+   - Query: emails with client (last 30 days)
+   - Extract: key topics, open questions, commitments
+
+4. Chat → Search internal discussions
+   - Query: client name mentions (last 30 days)
+   - Extract: colleague insights, relevant background
+\`\`\`
+
+**If no connectors:**
+\`\`\`
+1. Ask user:
+   - "Who are you meeting with?"
+   - "What type of meeting is this?"
+   - "Who's attending? (names and titles if you know)"
+   - "Any context you want me to know? (paste notes, emails, etc.)"
+
+2. Accept whatever they provide and work with it
+\`\`\`
+
+### Step 2: Research Supplement
+
+**Always run (web search):**
+\`\`\`
+1. "[Client or company] news" — last 30 days
+2. "[Relevant market topic]" — context for the conversation
+3. Attendee backgrounds — if names are known
+\`\`\`
+
+### Step 3: Synthesize & Generate
+
+\`\`\`
+1. Combine all sources into unified context
+2. Identify gaps in understanding → generate discovery questions
+3. Anticipate objections based on stage and history
+4. Create suggested agenda tailored to meeting type
+5. Output formatted prep brief
+\`\`\`
+
+---
+
+## Meeting Type Variations
+
+### Discovery / First Meeting
+- Focus on: Understanding their world, pain points, priorities
+- Agenda emphasis: Questions > Talking
+- Key output: Qualification signals, next step proposal
+
+### Follow-Up / Presentation
+- Focus on: Their specific situation, tailored recommendations
+- Agenda emphasis: Address open loops, show relevant options
+- Key output: Updated commitments, decision timeline
+
+### Negotiation / Proposal Review
+- Focus on: Addressing concerns, justifying value
+- Agenda emphasis: Handle objections, close gaps
+- Key output: Path to agreement, clear next steps
+
+### Check-In / Relationship Review
+- Focus on: Value delivered, expansion opportunities
+- Agenda emphasis: Review wins, surface new needs
+- Key output: Renewed trust, referral pipeline
+
+---
+
+## Tips for Better Prep
+
+1. **More context = better prep** — Paste emails, notes, anything you have
+2. **Name the attendees** — Even just titles help me research
+3. **State your goal** — "I want to get them to commit to next steps"
+4. **Flag concerns** — "They mentioned budget is tight"
+
+---
 
 ## Gotchas
 
@@ -53,146 +272,1353 @@ Use this skill when the user asks for call prep, meeting prep, or a quick brief 
 - Do not drown the user in CRM history. Surface only what changes the conversation.
 - If search results are ambiguous, say so and keep the brief conditional.
 - If market facts may be stale, say that explicitly rather than sounding certain.
+
+---
+
+## Related Skills
+
+- **call-summary** — Process call notes and capture follow-ups
+- **draft-outreach** — Write personalized outreach after research
+- **opportunity-analysis** — Deep research on a specific opportunity before the call
 `,
 
   "daily-briefing": `---
 name: daily-briefing
-description: Create a focused daily briefing with priority tasks, follow-ups, and deals that need attention today.
+description: Start your day with a prioritized briefing. Works standalone with CRM data, supercharged when you connect your calendar and email. Trigger with "morning briefing", "daily brief", "what's on my plate today", "prep my day", or "start my day".
 ---
 
 # Daily Briefing
 
-Use this skill when the user asks for a morning briefing, start-of-day plan, or a quick overview of what matters today.
+Get a clear view of what matters most today. This skill works with whatever you tell me, and gets richer when you connect your tools.
 
-## Workflow
+## How It Works
 
-1. Use \`search_crm\` to pull today's tasks, overdue tasks, active deals, and recent interactions that still need follow-up.
-2. If the user has standing preferences or planning habits that matter, use \`read_file\` on relevant memory files to personalize the briefing.
-3. Turn the raw activity into a short operating plan:
-   - what is urgent today
-   - what is overdue and becoming risky
-   - which deals are active but drifting
-   - who needs a reply or a nudge
-   - the top 3 actions that would move the day forward
-4. Keep the output skimmable. Group by priority rather than by database entity.
-5. If the user wants the plan stored or reused later, save it with \`write_file\`.
+\`\`\`
+┌─────────────────────────────────────────────────────────────────┐
+│                      DAILY BRIEFING                              │
+├─────────────────────────────────────────────────────────────────┤
+│  ALWAYS (works standalone)                                       │
+│  ✓ CRM: pipeline alerts, tasks, deal health                    │
+│  ✓ You tell me: today's meetings, key priorities                │
+│  ✓ I organize: prioritized action plan for your day             │
+│  ✓ Output: scannable 2-minute briefing                          │
+├─────────────────────────────────────────────────────────────────┤
+│  SUPERCHARGED (when you connect your tools)                      │
+│  + Calendar: auto-pull today's meetings with attendees          │
+│  + Email: unread from key clients, waiting on replies           │
+│  + Chat: overnight messages, colleague updates                  │
+└─────────────────────────────────────────────────────────────────┘
+\`\`\`
+
+---
+
+## Getting Started
+
+When you run this skill, I'll ask for what I need:
+
+**If no calendar connected:**
+> "What meetings do you have today? (Just paste your calendar or list them)"
+
+**If you have connectors:**
+I'll pull everything automatically and just show you the briefing.
+
+---
+
+## Connectors (Optional)
+
+Connect your tools to supercharge this skill:
+
+| Connector | What It Adds |
+|-----------|--------------|
+| **Calendar** | Today's meetings with attendees, times, and context |
+| **Email** | Unread from key clients, emails waiting on replies |
+| **Chat** | Overnight messages, colleague updates about clients |
+
+> **No connectors?** No problem. CRM has your pipeline and tasks. Tell me your meetings and I'll create your briefing.
+
+---
+
+## Output Format
+
+\`\`\`markdown
+# Daily Briefing | [Day, Month Date]
+
+---
+
+## #1 Priority
+
+**[Most important thing to do today]**
+[Why it matters and what to do about it]
+
+---
+
+## Today's Numbers
+
+| Active Deals | Pipeline Value | Closing This Month | Meetings Today |
+|--------------|---------------|-------------------|----------------|
+| [N] | $[Value] | [N] ($[Value]) | [N] |
+
+---
+
+## Today's Meetings
+
+### [Time] — [Client Name] ([Meeting Type])
+**Attendees:** [Names]
+**Context:** [One-line: deal status, last touch, what's at stake]
+**Prep:** [Quick action before this meeting]
+
+### [Time] — [Client Name] ([Meeting Type])
+**Attendees:** [Names]
+**Context:** [One-line context]
+**Prep:** [Quick action]
+
+*Run call-prep for detailed meeting prep*
+
+---
+
+## Pipeline Alerts
+
+### Needs Attention
+| Deal | Stage | Value | Alert | Action |
+|------|-------|-------|-------|--------|
+| [Deal] | [Stage] | [Value] | [Why flagged] | [What to do] |
+
+### Closing This Week
+| Deal | Close Date | Value | Confidence | Blocker |
+|------|------------|-------|------------|---------|
+| [Deal] | [Date] | [Value] | [H/M/L] | [If any] |
+
+---
+
+## Email Priorities
+
+### Needs Response
+| From | Subject | Received |
+|------|---------|----------|
+| [Name] | [Subject] | [Time] |
+
+### Waiting On Reply
+| To | Subject | Sent | Days Waiting |
+|----|---------|------|--------------|
+| [Name] | [Subject] | [Date] | [N] |
+
+---
+
+## Suggested Actions
+
+1. **[Action]** — [Why now]
+2. **[Action]** — [Why now]
+3. **[Action]** — [Why now]
+
+---
+
+*Run call-prep before your meetings*
+*Run call-summary after each call*
+\`\`\`
+
+---
+
+## Execution Flow
+
+### Step 1: Gather Context
+
+**If connectors available:**
+\`\`\`
+1. Calendar → Get today's events
+   - Filter to client meetings
+   - Pull: time, title, attendees, description
+
+2. CRM → Query pipeline (always available)
+   - Active deals
+   - Flag: closing this week, no activity 7+ days, slipped dates
+   - Get: overdue tasks, upcoming tasks
+
+3. Email → Check priority messages
+   - Unread from key client contacts
+   - Sent messages with no reply (3+ days)
+
+4. Chat → Check overnight messages (if available)
+   - Client-related mentions
+   - Colleague updates
+\`\`\`
+
+**If no connectors:**
+\`\`\`
+Ask user:
+1. "What meetings do you have today?"
+2. "Any deals closing soon or needing attention?"
+3. "Anything urgent I should know about?"
+
+Work with whatever they provide.
+\`\`\`
+
+### Step 2: Prioritize
+
+\`\`\`
+Priority ranking:
+1. URGENT: Deal closing today/tomorrow not yet won
+2. HIGH: Meeting today with high-value deal
+3. HIGH: Unread message from key client
+4. MEDIUM: Deal closing this week
+5. MEDIUM: Stale deal (7+ days no activity)
+6. LOW: Tasks due this week
+
+Select #1 Priority:
+- If meeting with important deal today → prep that
+- If deal closing today → focus on close
+- If urgent message from client → respond first
+- Else → highest-value stale deal
+\`\`\`
+
+### Step 3: Generate Briefing
+
+\`\`\`
+Assemble sections based on available data:
+
+1. #1 Priority — Always include (even if simple)
+2. Today's Numbers — From CRM (always available)
+3. Today's Meetings — From calendar or user input
+4. Pipeline Alerts — From CRM (always available)
+5. Email Priorities — If email connected
+6. Suggested Actions — Always include top 3 actions
+\`\`\`
+
+---
+
+## Quick Mode
+
+Say "quick brief" or "tldr my day" for abbreviated version:
+
+\`\`\`markdown
+# Quick Brief | [Date]
+
+**#1:** [Priority action]
+
+**Meetings:** [N] — [Client 1], [Client 2], [Client 3]
+
+**Alerts:**
+- [Alert 1]
+- [Alert 2]
+
+**Do Now:** [Single most important action]
+\`\`\`
+
+---
+
+## End of Day Mode
+
+Say "wrap up my day" or "end of day summary" after your last meeting:
+
+\`\`\`markdown
+# End of Day | [Date]
+
+**Completed:**
+- [Meeting 1] — [Outcome]
+- [Meeting 2] — [Outcome]
+
+**Pipeline Changes:**
+- [Deal] moved to [Stage]
+
+**Tomorrow's Focus:**
+- [Priority 1]
+- [Priority 2]
+
+**Open Loops:**
+- [ ] [Unfinished item needing follow-up]
+\`\`\`
+
+---
+
+## Tips
+
+1. **Connect your calendar first** — Biggest time saver
+2. **Connect email second** — Unlocks message priorities
+3. **Even without connectors** — CRM has your pipeline. Just tell me your meetings and I'll help prioritize
+
+---
 
 ## Gotchas
 
-- Do not produce a giant dump of every task in CRM.
+- Do not produce a giant dump of every task in CRM. Focus on what's actionable.
 - Highlight missing information when a deal or task is underspecified.
 - Prefer action-oriented wording over a passive status report.
 - If nothing looks urgent, say that clearly instead of manufacturing urgency.
+
+---
+
+## Related Skills
+
+- **call-prep** — Deep prep for any specific meeting
+- **call-summary** — Process notes after calls
+- **pipeline-review** — Broader review of the full deal pipeline
 `,
 
   "draft-outreach": `---
 name: draft-outreach
-description: Research a prospect or client and draft personalized outreach grounded in CRM context and public information.
+description: Research a prospect then draft personalized outreach. Uses CRM and web research by default, supercharged with email. Trigger with "draft outreach to [name]", "write to [prospect]", "reach out to [name]", or "draft a message to [name]".
 ---
 
 # Draft Outreach
 
-Use this skill when the user asks for help drafting a message to a lead, prospect, buyer, seller, landlord, or referral partner.
+Research first, then draft. This skill never sends generic outreach — it always researches the prospect first to personalize the message. Works standalone with CRM and web search, supercharged when you connect your email.
 
-## Workflow
+## How It Works
 
-1. Start with \`search_crm\` to understand the relationship history, property context, prior promises, and tone of the relationship.
-2. If the person, company, project, or market angle needs more context, use \`web_search\` to gather recent public information that can make the outreach more relevant.
-3. Draft the message around one clear purpose:
-   - re-engage a quiet lead
-   - follow up after a viewing or conversation
-   - share a relevant listing or market update
-   - move the conversation to a concrete next step
-4. Keep the draft natural, concise, and personalized. Mention only details you can support from CRM or public information.
-5. If the user wants alternate versions, create a few tight variants rather than a long list.
-6. If the user wants the draft saved, use \`write_file\`.
+\`\`\`
++------------------------------------------------------------------+
+|                      DRAFT OUTREACH                               |
+|                                                                   |
+|  Step 1: RESEARCH (always happens first)                         |
+|  - CRM: relationship history, deal context (always available)    |
+|  - Web search: recent news, public info                          |
+|                                                                   |
+|  Step 2: DRAFT (based on research)                               |
+|  - Personalized opening (from research)                          |
+|  - Relevant hook (their priorities)                              |
+|  - Clear CTA                                                      |
+|                                                                   |
+|  Step 3: DELIVER (based on connectors)                           |
+|  - Email draft (if email connected)                              |
+|  - Copy for WhatsApp/SMS (always)                                |
+|  - Output to user (always)                                        |
++------------------------------------------------------------------+
+\`\`\`
+
+---
+
+## Connectors (Optional)
+
+| Connector | What It Adds |
+|-----------|--------------|
+| **Email** | Create draft directly in your inbox |
+
+> **No connectors?** CRM history and web research work great. I'll output the message text for you to copy.
+
+---
+
+## Output Format
+
+\`\`\`markdown
+# Outreach Draft: [Person]
+**Generated:** [Date] | **Research Sources:** [CRM, Web]
+
+---
+
+## Research Summary
+
+**Target:** [Name], [Role/Context]
+**Hook:** [Why reaching out now - the personalized angle]
+**Goal:** [What you want from this outreach]
+
+---
+
+## Email Draft
+
+**To:** [email if known, or "find email" note]
+**Subject:** [Personalized subject line]
+
+---
+
+[Email body]
+
+---
+
+**Subject Line Alternatives:**
+1. [Option 2]
+2. [Option 3]
+
+---
+
+## WhatsApp / SMS Version
+
+[Shorter, conversational version of the same message]
+
+---
+
+## Why This Approach
+
+| Element | Based On |
+|---------|----------|
+| Opening | [Research finding that makes it personal] |
+| Hook | [Their priority/pain point] |
+| Proof | [Relevant success story or credential] |
+| CTA | [Low-friction ask] |
+
+---
+
+## Email Draft Status
+
+[Draft created - check email]
+[Email not connected - copy email above]
+
+---
+
+## Follow-up Sequence (Optional)
+
+**Day 3 - Follow-up 1:**
+[Short, new angle]
+
+**Day 7 - Follow-up 2:**
+[Different value prop]
+
+**Day 14 - Break-up:**
+[Final attempt]
+\`\`\`
+
+---
+
+## Execution Flow
+
+### Step 1: Parse Request
+
+\`\`\`
+Input patterns:
+- "draft outreach to John Tan" → Person lookup in CRM
+- "write to the buyer for Bishan deal" → Role + deal context
+- "reach out to sarah@email.com" → Email provided
+- "message to [name] about [topic]" → Person + topic
+\`\`\`
+
+### Step 2: Research First (Always)
+
+\`\`\`
+1. search_crm for contact + relationship history
+2. Web search for person + relevant context
+3. read_file for user's voice/style preferences (SOUL.md)
+\`\`\`
+
+**Must find before drafting:**
+- Who they are (role, background)
+- Relationship history from CRM
+- Recent news or trigger event
+- Personalization hook
+
+### Step 3: Identify Hook
+
+\`\`\`
+Priority order for hooks:
+1. Trigger event (life change, news, milestone) → Most timely
+2. Mutual connection / referral → Social proof
+3. Their recent activity (post, event, purchase) → Shows you did research
+4. Relevant update from you (new offering, market news) → Value-first
+5. Role-based need → Least personal but still relevant
+\`\`\`
+
+### Step 4: Draft Message
+
+**Email Structure (AIDA):**
+\`\`\`
+SUBJECT: [Personalized, <50 chars, no spam words]
+
+[Opening: Personal hook - shows you know them]
+
+[Interest: Their situation/opportunity in 1-2 sentences]
+
+[Desire: Brief proof point - relevant success story]
+
+[Action: Clear, low-friction CTA]
+
+[Signature]
+\`\`\`
+
+**WhatsApp / SMS:**
+\`\`\`
+Hi [Name], [Personal reference].
+
+[1-2 sentences on why you're reaching out]
+
+[Clear question or soft CTA]
+\`\`\`
+
+### Step 5: Create Email Draft
+
+\`\`\`
+If email connector available:
+1. Create draft with to, subject, body
+2. Return draft link
+3. Note: "Draft created - review and send"
+
+If not available:
+1. Output message text
+2. Note: "Copy to your email or messaging app"
+\`\`\`
+
+---
+
+## Capability by Connector
+
+| Capability | Standalone | + Email |
+|------------|-----------|---------|
+| Personalized opening | From CRM + web | Same |
+| Background details | CRM + public | Same |
+| Prior relationship | From CRM | Same |
+| Auto-create draft | No | Yes |
+
+---
+
+## Message Templates by Scenario
+
+### Cold Outreach (No Prior Relationship)
+
+\`\`\`
+Subject: [Their situation] + [your angle]
+
+Hi [Name],
+
+[Personal hook based on research - news, mutual connection, referral].
+
+[1 sentence on their likely need based on context].
+
+[Brief proof: relevant experience or success story].
+
+Worth a quick call to see if I can help?
+
+[Signature]
+\`\`\`
+
+### Warm Outreach (Have Met / Referral)
+
+\`\`\`
+Subject: Following up from [context]
+
+Hi [Name],
+
+[Reference to how you know them / who connected you].
+
+[Why reaching out now - their trigger].
+
+[Specific value you can offer].
+
+[CTA]
+\`\`\`
+
+### Re-Engagement (Went Dark)
+
+\`\`\`
+Subject: [Short, curiosity-driven]
+
+Hi [Name],
+
+[Acknowledge time passed without being guilt-trippy].
+
+[New reason to reconnect - their news or your news].
+
+[Simple question to re-open dialogue].
+
+[Signature]
+\`\`\`
+
+### Post-Meeting Follow-up
+
+\`\`\`
+Subject: Great meeting you [context]
+
+Hi [Name],
+
+[Specific memory from conversation].
+
+[Value-add: article, resource, or info related to what you discussed].
+
+[Soft CTA for next conversation].
+\`\`\`
+
+---
+
+## Email Style Guidelines
+
+1. **Be concise but informative** — Get to the point quickly. Busy people skim.
+2. **No markdown formatting** — Never use asterisks, bold (**text**), or other markdown. Write plain text that looks natural in any email client.
+3. **Short paragraphs** — 2-3 sentences max per paragraph. White space is your friend.
+4. **Simple lists** — If listing items, use plain dashes. No fancy formatting.
+
+**Good:**
+\`\`\`
+Here's what I can share:
+- A few options that match your criteria
+- Quick comparison of the top picks
+- 15-min call this week to walk through them
+\`\`\`
+
+**Bad:**
+\`\`\`
+**What I Can Offer:**
+- **Options** matching your criteria
+- **Comparison** of top picks
+\`\`\`
+
+---
+
+## What NOT to Do
+
+**Generic openers:**
+- "I hope this message finds you well"
+- "I'm reaching out because..."
+- "I wanted to introduce myself"
+
+**Feature dumps:**
+- Long paragraphs about your services
+- Multiple value props at once
+- No clear CTA
+
+**Fake personalization:**
+- "I noticed you're looking for [thing]" (obviously)
+- "Congrats on your new [thing]" (without context)
+
+**Markdown in emails:**
+- Using **bold** or *italic* asterisks
+- Headers or formatted lists that won't render
+
+**Instead:**
+- Lead with something specific you learned from CRM or research
+- One clear value prop
+- One clear ask
+- Plain text formatting only
+
+---
+
+## Channel Selection
+
+\`\`\`
+IF email available:
+  → Email preferred for formal outreach
+  → Also provide WhatsApp/SMS version
+
+IF no email:
+  → WhatsApp/SMS message
+  → Shorter, more conversational
+
+IF warm intro possible:
+  → Suggest mutual connection outreach first
+\`\`\`
+
+---
+
+## Personalization Settings
+
+Before drafting, read the user's SOUL.md for:
+- **Voice and tone** — formal, casual, direct
+- **Signature** — preferred sign-off and contact info
+- **Proof points** — past successes or credentials to reference
+- **CTA preferences** — how the user likes to close (call, meeting, WhatsApp, etc.)
+
+If SOUL.md is missing or thin, draft in a professional but warm tone and suggest the user save their preferences.
+
+---
+
+## Example
+
+**Input:** "draft outreach to John Tan about the Bishan condo"
+
+**Research finds:**
+- CRM: John Tan, buyer, budget $1.2M, viewed 3 units in Bishan, last interaction Mar 12
+- Web: Bishan resale prices up 2.1% QoQ, new launch nearby at $1,450 psf
+
+**Output:**
+
+\`\`\`markdown
+# Outreach Draft: John Tan
+
+## Research Summary
+**Target:** John Tan, active buyer
+**Hook:** New comparable launch nearby changes the value picture for Bishan Loft
+**Goal:** Re-engage and schedule viewing of updated options
+
+---
+
+## Email Draft
+
+**To:** john.tan@email.com
+**Subject:** New Bishan option + a thought on Bishan Loft
+
+---
+
+Hi John,
+
+Hope you've been well since our last viewing at Bishan Loft.
+
+Wanted to flag something — a new launch just came in nearby at $1,450 psf,
+which actually makes Bishan Loft's $1,050 psf look even more competitive
+than when we last spoke.
+
+Given your $1.2M budget, I think there's a strong case to move on
+Bishan Loft before the new launch shifts buyer attention. Happy to
+walk through the numbers if useful.
+
+Free for a quick call this week?
+
+Best,
+[You]
+
+---
+
+**Subject Alternatives:**
+1. Bishan Loft — quick update on pricing
+2. New launch near Bishan + your options
+\`\`\`
+
+---
 
 ## Gotchas
 
 - Do not invent rapport, urgency, or shared history.
-- Do not make claims about listings, budgets, or timelines unless they are grounded in data.
+- Do not make claims about products, budgets, or timelines unless they are grounded in CRM data or research.
 - Avoid sounding like a mass blast. Specificity matters more than length.
 - If public research is thin, lean on CRM context instead of guessing.
+- Read the user's SOUL.md for voice and tone preferences before drafting.
+
+---
+
+## Tips
+
+1. **Name the person** — "draft outreach to John Tan" is better than "write an email"
+2. **State your goal** — "re-engage him about the Bishan deal" helps me pick the right angle
+3. **Paste context** — Prior messages, notes, or CRM history help me personalize
+4. **Connect email** — I can create a draft directly in your inbox
+
+---
+
+## Related Skills
+
+- **call-prep** — Prepare for the call that follows the outreach
+- **call-summary** — After the conversation, capture notes and next steps
 `,
 
   "pipeline-review": `---
 name: pipeline-review
-description: Review the deal pipeline, flag stale or risky deals, and recommend next actions for each important opportunity.
+description: Analyze pipeline health — prioritize deals, flag risks, and get a weekly action plan. Use when running a weekly pipeline review, deciding which deals to focus on, spotting stale or stuck deals, or auditing for missing next steps. Trigger with "pipeline review", "deal review", "how's my pipeline", or "what needs attention".
 ---
 
 # Pipeline Review
 
-Use this skill when the user asks for a pipeline review, deal review, or wants help spotting what in their pipeline needs attention.
+Analyze your pipeline health, prioritize deals, and get actionable recommendations for where to focus.
 
-## Workflow
+## How It Works
 
-1. Use \`search_crm\` to inspect active deals, recent interactions, linked contacts, and open tasks.
-2. Identify the deals that matter most by urgency, value, inactivity, or missing next steps.
-3. Summarize the pipeline in a practical way:
-   - where momentum exists
-   - which deals have gone quiet
-   - which deals are blocked by missing information or delayed follow-up
-   - which tasks should exist but do not
-4. Recommend the next action for each important deal. Keep the advice concrete and executable.
-5. If the user asks for a saved review or recurring checklist, use \`write_file\`.
+\`\`\`
+┌─────────────────────────────────────────────────────────────────┐
+│                     PIPELINE REVIEW                              │
+├─────────────────────────────────────────────────────────────────┤
+│  ALWAYS (works standalone)                                       │
+│  ✓ CRM: pull all active deals automatically                    │
+│  ✓ Health check: flag stale, stuck, and at-risk deals          │
+│  ✓ Prioritization: rank deals by impact and closability        │
+│  ✓ Hygiene audit: missing data, overdue tasks, no next step    │
+│  ✓ Weekly action plan: what to focus on                        │
+├─────────────────────────────────────────────────────────────────┤
+│  SUPERCHARGED (when you connect your tools)                      │
+│  + Calendar: See upcoming meetings per deal                     │
+│  + Email: Recent threads per deal, waiting on replies           │
+└─────────────────────────────────────────────────────────────────┘
+\`\`\`
+
+---
+
+## Connectors (Optional)
+
+| Connector | What It Adds |
+|-----------|--------------|
+| **Calendar** | Upcoming meetings per deal, scheduling gaps |
+| **Email** | Recent threads per deal, emails waiting on replies |
+
+> **No connectors?** No problem. CRM has everything needed for a solid pipeline review.
+
+---
+
+## Output
+
+\`\`\`markdown
+# Pipeline Review: [Date]
+
+**Deals Analyzed:** [X]
+**Total Pipeline Value:** [X]
+
+---
+
+## Pipeline Health Score: [X/100]
+
+| Dimension | Score | Issue |
+|-----------|-------|-------|
+| **Stage Progression** | [X]/25 | [X] deals stuck in same stage 30+ days |
+| **Activity Recency** | [X]/25 | [X] deals with no activity in 14+ days |
+| **Close Date Accuracy** | [X]/25 | [X] deals with close date in past |
+| **Task Coverage** | [X]/25 | [X] deals with no next step or open task |
+
+---
+
+## Priority Actions This Week
+
+### 1. [Highest Priority Deal]
+**Why:** [Reason — large, closing soon, at risk, etc.]
+**Action:** [Specific next step]
+
+### 2. [Second Priority]
+**Why:** [Reason]
+**Action:** [Next step]
+
+### 3. [Third Priority]
+**Why:** [Reason]
+**Action:** [Next step]
+
+---
+
+## Deal Prioritization Matrix
+
+### Close This Week (Focus Time Here)
+| Deal | Value | Stage | Close Date | Next Action |
+|------|-------|-------|------------|-------------|
+| [Deal] | [Value] | [Stage] | [Date] | [Action] |
+
+### Close This Month (Keep Warm)
+| Deal | Value | Stage | Close Date | Status |
+|------|-------|-------|------------|--------|
+| [Deal] | [Value] | [Stage] | [Date] | [Status] |
+
+### Nurture (Check-in Periodically)
+| Deal | Value | Stage | Close Date | Status |
+|------|-------|-------|------------|--------|
+| [Deal] | [Value] | [Stage] | [Date] | [Status] |
+
+---
+
+## Risk Flags
+
+### Stale Deals (No Activity 14+ Days)
+| Deal | Value | Last Activity | Days Silent | Recommendation |
+|------|-------|---------------|-------------|----------------|
+| [Deal] | [Value] | [Date] | [X] | [Re-engage / Downgrade / Remove] |
+
+### Stuck Deals (Same Stage 30+ Days)
+| Deal | Value | Stage | Days in Stage | Recommendation |
+|------|-------|-------|---------------|----------------|
+| [Deal] | [Value] | [Stage] | [X] | [Push / Re-qualify / Close out] |
+
+### Past Close Date
+| Deal | Value | Close Date | Days Overdue | Recommendation |
+|------|-------|------------|--------------|----------------|
+| [Deal] | [Value] | [Date] | [X] | [Update date / Close lost] |
+
+---
+
+## Hygiene Issues
+
+| Issue | Count | Deals | Action |
+|-------|-------|-------|--------|
+| Missing close date | [X] | [List] | Add realistic close dates |
+| Missing next step | [X] | [List] | Define next action |
+| No linked contact | [X] | [List] | Link primary contact |
+| Overdue tasks | [X] | [List] | Complete or reschedule |
+
+---
+
+## Pipeline Shape
+
+### By Stage
+| Stage | # Deals | Value | % of Pipeline |
+|-------|---------|-------|---------------|
+| [Stage] | [X] | $[Value] | [X]% |
+
+### By Close Month
+| Month | # Deals | Value |
+|-------|---------|-------|
+| [Month] | [X] | $[Value] |
+
+### By Deal Size
+| Size | # Deals | Value |
+|------|---------|-------|
+| $500K+ | [X] | $[Value] |
+| $200K-500K | [X] | $[Value] |
+| $100K-200K | [X] | $[Value] |
+| <$100K | [X] | $[Value] |
+
+---
+
+## Recommendations
+
+### This Week
+1. [ ] [Specific action for priority deal 1]
+2. [ ] [Action for at-risk deal]
+3. [ ] [Hygiene task]
+
+### This Month
+1. [ ] [Strategic action]
+2. [ ] [Pipeline building if needed]
+
+---
+
+## Deals to Consider Removing
+
+These deals may be dead weight:
+
+| Deal | Value | Reason | Recommendation |
+|------|-------|--------|----------------|
+| [Deal] | [Value] | [No activity 60+ days, no response] | Mark closed-lost |
+| [Deal] | [Value] | [Pushed 3+ times, no engagement] | Qualify out |
+\`\`\`
+
+---
+
+## Prioritization Framework
+
+I'll rank deals using this framework:
+
+| Factor | Weight | What I Look For |
+|--------|--------|-----------------|
+| **Close Date** | 30% | Deals closing soonest get priority |
+| **Deal Size** | 25% | Bigger deals = more focus |
+| **Stage** | 20% | Later stage = more focus |
+| **Activity** | 15% | Active deals get prioritized |
+| **Risk** | 10% | Lower risk = safer bet |
+
+You can tell me to weight differently: "Focus on big deals over soon deals" or "I need quick wins, prioritize close dates."
+
+---
+
+## Execution Flow
+
+### Step 1: Gather Pipeline Data
+
+\`\`\`
+1. search_crm → All active deals
+   - Pull: deal name, value, stage, close date, created date
+   - Pull: last activity date, linked contacts, open tasks
+
+2. search_crm → Recent interactions per deal
+   - Last 5 interactions per deal
+   - Flag: deals with no recent activity
+
+3. Calendar (if connected) → Upcoming meetings per deal
+4. Email (if connected) → Recent threads per deal
+\`\`\`
+
+### Step 2: Score and Prioritize
+
+\`\`\`
+Priority ranking:
+1. Close date proximity — Deals closing soonest get priority
+2. Deal value — Bigger deals = more focus
+3. Stage — Later stage = more focus
+4. Activity recency — Active deals get prioritized
+5. Risk level — Lower risk = safer bet
+
+Health scoring:
+- Stage Progression: 25 pts if no deals stuck 30+ days
+- Activity Recency: 25 pts if no deals silent 14+ days
+- Close Date Accuracy: 25 pts if no past-due close dates
+- Task Coverage: 25 pts if all deals have a next step
+\`\`\`
+
+### Step 3: Generate Review
+
+\`\`\`
+Assemble sections:
+1. Pipeline Health Score — Always
+2. Priority Actions — Top 3 deals needing attention
+3. Deal Prioritization Matrix — Grouped by timeline
+4. Risk Flags — Stale, stuck, past due
+5. Hygiene Issues — Data quality problems
+6. Pipeline Shape — Stage distribution
+7. Recommendations — Actionable checklist
+8. Deals to Remove — Dead weight candidates
+\`\`\`
+
+---
 
 ## Gotchas
 
 - Do not confuse a full pipeline inventory with a useful review. Focus on decisions and interventions.
 - Call out data gaps clearly when a deal cannot be assessed confidently.
-- Do not label something as stalled just because there was no interaction yesterday.
+- Do not label something as stalled just because there was no interaction yesterday. Use 14-day threshold.
 - If the pipeline looks healthy, say that. The review should not always sound alarmist.
-`,
 
-  "listing-analysis": `---
-name: listing-analysis
-description: Analyze a property listing with market context, pricing signals, and likely fit for people already in the CRM.
 ---
 
-# Listing Analysis
+## Tips
 
-Use this skill when the user asks whether a listing looks good, wants a fast property read, or needs help deciding which clients might match a listing.
+1. **Review weekly** — Pipeline health decays fast. Weekly reviews catch issues early.
+2. **Kill dead deals** — Stale deals inflate your pipeline and distort your focus. Be ruthless.
+3. **Every deal needs a next step** — If there's no clear next action, the deal isn't real.
+4. **Close dates should mean something** — A close date is when you expect it to close, not when you hope.
 
-## Workflow
+---
 
-1. Use \`web_search\` to gather the listing details, project context, nearby comparables, district signals, and any policy or supply context that materially affects the analysis.
-2. Use \`search_crm\` to identify existing clients whose preferences, stage, and budget may fit the property.
-3. Build a concise analysis that covers:
-   - what the listing appears to be
-   - what looks attractive
-   - what looks risky or uncertain
-   - how the pricing feels relative to nearby context
-   - which CRM contacts might care and why
-4. If the user wants a saved brief or reusable note, store it with \`write_file\`.
+## Related Skills
+
+- **daily-briefing** — Quick daily view focused on today's priorities
+- **opportunity-analysis** — Deep dive on a specific deal
+- **call-prep** — Prep for a meeting with a priority deal
+`,
+
+  "opportunity-analysis": `---
+name: opportunity-analysis
+description: Analyze a specific opportunity with market context, pricing signals, and likely fit for clients already in the CRM. Works with CRM and web research. Trigger with "analyze this opportunity", "what do you think of [opportunity]", "is this a good fit", "evaluate [opportunity]", or "is [thing] worth looking at".
+---
+
+# Opportunity Analysis
+
+Research a specific opportunity — a listing, product, policy, investment, or offering — then assess its attractiveness, risks, and fit for clients already in your CRM.
+
+## How It Works
+
+\`\`\`
+┌─────────────────────────────────────────────────────────────────┐
+│                   OPPORTUNITY ANALYSIS                           │
+├─────────────────────────────────────────────────────────────────┤
+│  ALWAYS (works standalone)                                       │
+│  ✓ Web search: opportunity details, comparables, market context │
+│  ✓ CRM: match against existing clients and their preferences    │
+│  ✓ Analysis: attractiveness, risks, pricing context             │
+│  ✓ Client matching: who in CRM might care and why               │
+│  ✓ Output: structured analysis with recommendation              │
+└─────────────────────────────────────────────────────────────────┘
+\`\`\`
+
+---
+
+## What I Need From You
+
+**Option 1: Share a link or description**
+Paste a URL, forward a listing, or describe the opportunity. I'll research it.
+
+**Option 2: Ask about something specific**
+"What do you think of the new launch at Bishan?" or "Is this whole life policy competitive?"
+
+**Option 3: Compare options**
+"Compare these two options for my client John." I'll analyze both and recommend.
+
+---
+
+## Output Format
+
+\`\`\`markdown
+# Opportunity Analysis: [Name/Description]
+
+**Analyzed:** [Date]
+**Sources:** Web Research, CRM
+
+---
+
+## Quick Take
+
+[2-3 sentences: What it is, whether it looks attractive, who it might fit]
+
+---
+
+## Overview
+
+| Field | Value |
+|-------|-------|
+| **Name** | [Opportunity name] |
+| **Type** | [Listing / Product / Policy / Investment] |
+| **Price / Terms** | [Key pricing info] |
+| **Location / Provider** | [If relevant] |
+| **Key Features** | [Highlights] |
+
+---
+
+## What Looks Attractive
+- [Strength 1 with evidence]
+- [Strength 2 with evidence]
+
+## What Looks Risky or Uncertain
+- [Risk 1 with evidence]
+- [Risk 2 with evidence]
+
+---
+
+## Market Context
+
+**Pricing vs Comparables:**
+| Comparable | Price | Difference | Notes |
+|-----------|-------|------------|-------|
+| [Comp 1] | [Price] | [+/-X%] | [Key difference] |
+| [Comp 2] | [Price] | [+/-X%] | [Key difference] |
+
+**Market Signals:**
+- [Relevant trend or data point]
+- [Recent development that affects this opportunity]
+
+---
+
+## Qualification Signals
+
+### Positive Signals
+- ✅ [Signal and evidence]
+- ✅ [Signal and evidence]
+
+### Potential Concerns
+- ⚠️ [Concern and what to watch for]
+
+### Unknown (Verify Before Proceeding)
+- ❓ [Gap in understanding that could change the assessment]
+
+---
+
+## CRM Client Matches
+
+| Client | Deal/Stage | Why They Might Fit | Action |
+|--------|-----------|-------------------|--------|
+| [Name] | [Deal info] | [Match reason] | [Recommended next step] |
+| [Name] | [Deal info] | [Match reason] | [Recommended next step] |
+
+---
+
+## Recommended Approach
+
+**Best Fit For:** [Client name or profile, and why]
+
+**Opening Angle:** [What to lead with when presenting this opportunity]
+
+**Questions to Ask First:**
+1. [Question to verify fit before investing more time]
+2. [Question about client's constraints or preferences]
+3. [Question about timeline or urgency]
+
+---
+
+## Sources
+- [Source 1](URL)
+- [Source 2](URL)
+\`\`\`
+
+---
+
+## Execution Flow
+
+### Step 1: Research the Opportunity
+
+\`\`\`
+1. Web search for opportunity details
+   - "[Opportunity name]" — official listing/product page
+   - "[Opportunity name] review" — independent assessments
+   - "[Opportunity name] price" — pricing verification
+
+2. Web search for comparables
+   - "[Similar offerings] in [area/category]" — competitive context
+   - "[Market/segment] trends" — macro context
+
+3. Web search for risks
+   - "[Opportunity name] issues OR concerns" — red flags
+   - Regulatory or policy context if relevant
+\`\`\`
+
+### Step 2: Match Against CRM
+
+\`\`\`
+1. search_crm → Contacts with matching preferences
+   - Filter by: budget range, stated needs, preferences
+   - Check: deal stage (active leads most relevant)
+
+2. search_crm → Deals that could benefit
+   - Active deals where this opportunity fills a gap
+   - Stale deals this could re-engage
+\`\`\`
+
+### Step 3: Analyze and Synthesize
+
+\`\`\`
+1. Assess attractiveness vs risks
+2. Compare pricing to market context
+3. Identify qualification signals (positive, concerns, unknown)
+4. Match to CRM clients with reasoning
+5. Generate recommended approach
+6. Output formatted analysis
+\`\`\`
+
+---
+
+## Analysis Variations
+
+### Single Opportunity
+Focus on: Deep analysis of one opportunity with market context
+
+### Comparison (Two or More)
+Focus on: Side-by-side comparison with pros/cons and recommendation per client
+
+### Client-First ("What's good for John?")
+Focus on: Search for opportunities matching a specific client's criteria
+
+---
 
 ## Gotchas
 
-- Separate listing facts from market interpretation.
+- Separate facts from market interpretation. Label which is which.
 - Be explicit when comparable evidence is thin or noisy.
-- Do not oversell a listing just because the marketing copy is strong.
-- If the address or project name is ambiguous, say so before making a confident judgment.
+- Do not oversell an opportunity just because the marketing copy is strong.
+- If details are ambiguous or incomplete, say so before making a confident judgment.
+- If no CRM clients match, say that clearly rather than forcing a weak match.
+
+---
+
+## Tips
+
+1. **Share the link** — A URL gives me much more to work with than a name
+2. **Name the client** — "Is this good for John?" lets me tailor the analysis
+3. **State your angle** — "I'm thinking of presenting this to buyers" helps me focus
+4. **Ask for comparisons** — "Compare this to [other option]" is more useful than a standalone review
+
+---
+
+## Related Skills
+
+- **draft-outreach** — Draft a message to matched clients about this opportunity
+- **pipeline-review** — See how this fits into the broader deal pipeline
+- **market-briefing** — Broader market context beyond a single opportunity
 `,
 
   "call-summary": `---
 name: call-summary
-description: Turn call notes or a meeting recap into a clear summary with decisions, follow-ups, and what should happen next.
+description: Process call notes or a meeting recap — extract action items, draft follow-up message, generate structured summary. Use when pasting rough notes after a meeting, drafting a client follow-up, logging the activity to CRM, or capturing decisions and next steps. Trigger with "summarize my call", "call notes", "meeting recap", or "what happened in my meeting with [name]".
 ---
 
 # Call Summary
 
-Use this skill when the user shares notes from a call, asks for a recap, or wants help turning a conversation into a structured next-step summary.
+Process call notes or a meeting recap to extract action items, draft follow-up communications, and update records.
 
-## Workflow
+## How It Works
 
-1. Read the conversation notes carefully and identify the core facts before summarizing.
-2. If the relevant contact or deal is unclear, use \`search_crm\` to anchor the summary to the right person or opportunity.
-3. Produce a compact recap with:
-   - what happened
-   - what was decided
-   - open questions or unresolved issues
-   - specific follow-ups and owners where possible
-   - what the user should do next
-4. If the user wants the notes saved or turned into a reusable record, use \`write_file\` with a descriptive filename.
+\`\`\`
+┌─────────────────────────────────────────────────────────────────┐
+│                      CALL SUMMARY                                │
+├─────────────────────────────────────────────────────────────────┤
+│  ALWAYS (works standalone)                                       │
+│  ✓ Paste call notes, transcript, or describe what happened      │
+│  ✓ Extract key discussion points and decisions                  │
+│  ✓ Identify action items with owners and due dates              │
+│  ✓ Surface objections, concerns, and open questions             │
+│  ✓ Draft client-facing follow-up message                        │
+│  ✓ Generate internal summary                                    │
+├─────────────────────────────────────────────────────────────────┤
+│  SUPERCHARGED (when you connect your tools)                      │
+│  + Email: Send follow-up directly from draft                    │
+│  + Calendar: Link to meeting, pull attendee context             │
+└─────────────────────────────────────────────────────────────────┘
+\`\`\`
+
+---
+
+## What I Need From You
+
+**Option 1: Paste your notes**
+Just paste whatever you have — bullet points, rough notes, stream of consciousness. I'll structure it.
+
+**Option 2: Paste a transcript**
+If you have a full transcript from a video call or recording, paste it. I'll extract the key moments.
+
+**Option 3: Describe the call**
+Tell me what happened: "Had a first meeting with John Tan. He's looking to buy in Bishan, budget around $1.2M. Main concern is stamp duty as a foreigner."
+
+---
+
+## Connectors (Optional)
+
+| Connector | What It Adds |
+|-----------|--------------|
+| **Email** | Create follow-up draft directly in your inbox, or send if you approve |
+| **Calendar** | Link to meeting, pull attendee context automatically |
+
+> **No connectors?** No problem. CRM anchors the summary to the right contact and deal. I'll output the follow-up text for you to copy.
+
+---
+
+## Output
+
+### Internal Summary
+\`\`\`markdown
+## Call Summary: [Client Name] — [Date]
+
+**Attendees:** [Names and roles]
+**Call Type:** [Discovery / Follow-up / Negotiation / Check-in]
+**Duration:** [If known]
+
+### Key Discussion Points
+1. [Topic] — [What was discussed, decisions made]
+2. [Topic] — [Summary]
+
+### Client Priorities
+- [Priority 1 they expressed]
+- [Priority 2]
+
+### Objections / Concerns Raised
+- [Concern] — [How you addressed it / status]
+
+### Competing Offers / Alternatives
+- [Any competing options, other agents, or alternative choices mentioned]
+
+### Action Items
+| Owner | Action | Due |
+|-------|--------|-----|
+| [You] | [Task] | [Date] |
+| [Client] | [Task] | [Date] |
+
+### Next Steps
+- [Agreed next step with timeline]
+
+### Deal Impact
+- [How this call affects the deal — stage change, risk, acceleration]
+\`\`\`
+
+### Client Follow-Up Message
+\`\`\`
+Subject: [Meeting recap + next steps]
+
+Hi [Name],
+
+Thank you for taking the time to meet today...
+
+[Key points discussed]
+
+[Commitments you made]
+
+[Clear next step with timeline]
+
+Best,
+[You]
+\`\`\`
+
+---
+
+## Email Style Guidelines
+
+When drafting client-facing messages:
+
+1. **Be concise but informative** — Get to the point quickly. Clients are busy.
+2. **No markdown formatting** — Don't use asterisks, bold, or other markdown syntax. Write in plain text that looks natural in any email client.
+3. **Use simple structure** — Short paragraphs, line breaks between sections.
+4. **Keep it scannable** — If listing items, use plain dashes or numbers, not fancy formatting.
+
+**Good:**
+\`\`\`
+Here's what we discussed:
+- Three options in the Bishan area within your budget
+- Viewing schedule for this weekend
+- Documents needed for the loan pre-approval
+\`\`\`
+
+**Bad:**
+\`\`\`
+**What We Discussed:**
+- **Three options** in the Bishan area
+\`\`\`
+
+---
+
+## If Connectors Available
+
+**CRM (always available):**
+- Anchor summary to the right contact and deal
+- Log the call as an interaction
+- Create tasks for action items
+- Update deal stage if warranted
+
+**Email connected:**
+- Offer to create a draft follow-up
+- Or send directly if you approve
+
+**Calendar connected:**
+- Link summary to the calendar event
+- Pull attendee names and context automatically
+
+---
 
 ## Gotchas
 
@@ -200,34 +1626,238 @@ Use this skill when the user shares notes from a call, asks for a recap, or want
 - Keep the summary tighter than the raw notes. Distillation is the job.
 - If the notes are ambiguous, surface the ambiguity instead of pretending it is resolved.
 - Distinguish between agreed actions and suggested next actions.
+
+---
+
+## Tips
+
+1. **More detail = better output** — Even rough notes help. "They seemed concerned about X" is useful context.
+2. **Name the attendees** — Helps me structure the summary and assign action items.
+3. **Flag what matters** — If something was important, tell me: "The big thing was..."
+4. **Tell me the deal stage** — Helps me tailor the follow-up tone and next steps.
+
+---
+
+## Related Skills
+
+- **draft-outreach** — Draft a follow-up message based on the call
+- **call-prep** — Prepare for the next call with this client
 `,
 
   "market-briefing": `---
 name: market-briefing
-description: Create a concise market briefing with recent pricing signals, launches, policy changes, and implications for active work.
+description: Research market conditions and build a focused briefing with pricing signals, new offerings, policy changes, and implications for active deals. Works with web search and CRM. Trigger with "market update", "market briefing", "what's changed in the market", "what should I know about [market/segment]", or "what's new in [area]".
 ---
 
 # Market Briefing
 
-Use this skill when the user asks for a market update, district briefing, competitor snapshot, or wants help understanding what has changed recently.
+Research market conditions and generate a focused briefing that connects external signals back to your active work. The output maps what changed to why it matters to who in your CRM pipeline is affected.
 
-## Workflow
+## How It Works
 
-1. Use \`web_search\` to gather recent and relevant market information. Focus on what is new or decision-changing: pricing shifts, launches, supply, policy updates, financing conditions, and notable local developments.
-2. Use \`search_crm\` when helpful to connect the market update back to live deals, clients, or segments already in play.
-3. Deliver the briefing in three layers:
-   - what changed
-   - why it matters
-   - who or what in the current CRM pipeline is likely affected
-4. Keep the summary crisp. Lead with the few changes that actually alter advice or timing.
-5. If the user wants a saved briefing or reusable memo, use \`write_file\`.
+\`\`\`
+┌─────────────────────────────────────────────────────────────────┐
+│                     MARKET BRIEFING                              │
+├─────────────────────────────────────────────────────────────────┤
+│  ALWAYS (works standalone)                                       │
+│  ✓ Web search: pricing shifts, new offerings, policy changes   │
+│  ✓ CRM: connect signals back to active deals and clients       │
+│  ✓ Three-layer analysis: what changed → why it matters → who   │
+│  ✓ Output: scannable briefing with pipeline impact              │
+└─────────────────────────────────────────────────────────────────┘
+\`\`\`
+
+---
+
+## Getting Started
+
+When you run this skill, I'll ask for what I need:
+
+**If topic is clear:**
+> "Market briefing on [area/segment/topic]" — I'll research and deliver.
+
+**If topic is broad:**
+> I'll ask: "Any specific area, segment, or topic? Or a general market scan?"
+
+**If recurring:**
+> Save the briefing with \`write_file\` and set up a trigger for weekly/monthly updates.
+
+---
+
+## Output Format
+
+\`\`\`markdown
+# Market Briefing: [Topic/Area]
+
+**Generated:** [Date]
+**Sources:** Web Research, CRM
+
+---
+
+## Quick Take
+
+[2-3 sentences: The one or two things that actually change advice or timing for active deals]
+
+---
+
+## What Changed
+
+### Pricing Signals
+| Signal | Detail | Source | Date |
+|--------|--------|--------|------|
+| [Price movement] | [Specifics] | [Source] | [Date] |
+
+### New Offerings / Launches
+| Offering | Detail | Why It Matters |
+|----------|--------|----------------|
+| [New product/listing/policy] | [Key details] | [Impact on your work] |
+
+### Policy / Regulatory
+| Change | Detail | Effective | Impact |
+|--------|--------|-----------|--------|
+| [Policy change] | [What changed] | [When] | [Who it affects] |
+
+### Other Notable Developments
+- [Development — why it matters]
+
+---
+
+## Why It Matters
+
+For each signal above, the implication:
+
+1. **[Signal]** → [What this means for your clients/deals]
+2. **[Signal]** → [How this changes advice or timing]
+
+---
+
+## Who's Affected in Your Pipeline
+
+| Client/Deal | Signal | Impact | Recommended Action |
+|-------------|--------|--------|--------------------|
+| [Name/Deal] | [Which signal] | [How it affects them] | [What to do] |
+| [Name/Deal] | [Which signal] | [How it affects them] | [What to do] |
+
+---
+
+## Recommended Actions
+
+1. **[Action]** — [Why now, tied to a specific signal]
+2. **[Action]** — [Why now]
+3. **[Action]** — [Why now]
+
+---
+
+## Sources
+- [Source 1](URL)
+- [Source 2](URL)
+\`\`\`
+
+---
+
+## Execution Flow
+
+### Phase 1: Research Market Signals
+
+\`\`\`
+Run targeted web searches by category:
+
+Pricing:
+1. "[Market/area] pricing trends [year]" — recent price movements
+2. "[Market/area] transaction data" — volume and pricing signals
+
+New Offerings:
+3. "[Market/area] new launch OR new product OR new listing" — what's new
+4. "[Market/area] upcoming releases" — what's coming
+
+Policy / Regulatory:
+5. "[Market/area] regulation OR policy change [year]" — regulatory shifts
+6. "[Industry] compliance OR requirements update" — new requirements
+
+Financing / Conditions:
+7. "[Market/area] interest rates OR financing" — cost of capital
+8. "[Market/area] supply OR demand trends" — macro conditions
+\`\`\`
+
+### Phase 2: Connect to CRM Pipeline
+
+\`\`\`
+1. search_crm → Active deals and contacts
+   - Match signals to deals by area, segment, budget, timeline
+   - Flag deals where a signal changes urgency or advice
+
+2. Identify:
+   - Which clients should hear about this
+   - Which deals are accelerated or at risk
+   - Which stale deals this could re-engage
+\`\`\`
+
+### Phase 3: Synthesize Briefing
+
+\`\`\`
+1. Filter to signals that actually change advice or timing
+2. Structure in three layers: what → why → who
+3. Lead with the most impactful signals
+4. Connect every signal to a CRM action where possible
+5. Output formatted briefing
+\`\`\`
+
+---
+
+## Briefing Variations
+
+### General Market Scan
+Focus on: Broad overview across all categories
+Best for: Weekly or monthly check-in on market conditions
+
+### Segment-Specific
+Focus on: Deep dive on one area, segment, or product category
+Best for: When a client asks about a specific market
+
+### Trigger-Based
+Focus on: One specific event and its implications
+Best for: Reacting to a policy change, major launch, or price shift
+
+---
+
+## Refresh Cadence
+
+Market intel gets stale. Recommended refresh:
+
+| Trigger | Action |
+|---------|--------|
+| **Weekly** | Quick scan — new pricing signals, launches |
+| **Monthly** | Full briefing — all categories |
+| **Policy change** | Immediate update on that change and who it affects |
+| **Major launch** | Immediate analysis of the new offering |
+| **Client asks** | On-demand segment or topic briefing |
+
+---
 
 ## Gotchas
 
 - Prioritize freshness. Old market commentary is rarely useful if newer signals exist.
-- Do not present thin search evidence as a clear market trend.
-- Separate observed facts from interpretation.
+- Do not present thin search evidence as a clear market trend. Say "early signal" not "trend."
+- Separate observed facts from interpretation. Label which is which.
 - If the update is mixed or noisy, say that plainly instead of forcing a strong narrative.
+- Not everything is actionable. If nothing significant changed, say that.
+
+---
+
+## Tips
+
+1. **Be specific** — "market briefing on District 15 condos" gets better results than "market update"
+2. **Set up a recurring trigger** — Weekly market scans keep you ahead of clients
+3. **Name the signal** — "What does the new ABSD change mean for my clients?" focuses the briefing
+4. **Save and share** — Use \`write_file\` to save briefings you want to reference later
+
+---
+
+## Related Skills
+
+- **opportunity-analysis** — Deep dive on a specific opportunity surfaced by the briefing
+- **pipeline-review** — See which active deals are affected by market changes
+- **draft-outreach** — Reach out to affected clients with the news
 `,
 };
 
