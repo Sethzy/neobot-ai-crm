@@ -62,7 +62,8 @@
       "2026-03-19: Split PR 50 into three PRs after code review. PR 50 = public browsing only (chat-only, no auth). PR 50b = authenticated browsing (profiles + embedded browser auth). PR 50c = Skills API (renamed from 50a, depends on 50b). Key review fixes: (1) scrubbed leaked API key from docs, (2) explicit Browser-Use profile creation via API instead of invented IDs, (3) chat-only registry scope (excluded from autopilot/subagents), (4) strict error semantics in profile queries (throw on DB errors, null for absence only), (5) structured output for verify route instead of prose parsing, (6) auth card rendered from tool output (no new message part protocol), (7) manual retry after login (no auto-resume), (8) clarify only when ambiguous (not mandatory preflight).",
       "2026-03-19: Added PR 51 (Instruction skills) and PR 51a (Frontend skills page) to Phase 4. Out-of-plan work — SKILL-01 through SKILL-08 architecture decisions exist but are all DEFERRED to post-v1. This is a simplified KISS implementation: no skill_registry table (filesystem discovery via Supabase Storage listing + frontmatter parsing), no Skill-Building Interviews (chat-based creation), no shadowing (overwrite + reset). 7 bundled RE-specific default skills seeded on onboarding (adapted from anthropics/knowledge-work-plugins/sales). Progressive disclosure: names+descriptions in system prompt (~200 tokens), full SKILL.md loaded via existing read_file on demand. Frontend: skills list, editor, reset to default. Deprecates old SKILL-01 to SKILL-08 architecture decisions as over-engineered for current scale. Design doc: docs/product/designs/instruction-skills.md. Also documented sandbox skill execution (separate scope, another dev): docs/product/designs/sandbox-skill-execution.md.",
       "2026-03-20: Added Phase 6 (Sandbox) with PR 52 (Sandbox Excel Analysis) and PR 53 (Sandbox Artifact Publishing). Restores cut PRs 27+28 (Vercel Sandbox) in simplified form. Two dedicated tools with two snapshots: analyze_spreadsheet (snap_excel: Python + LibreOffice + Anthropic xlsx skill + Claude CLI) and publish_artifact (snap_artifact: Node + Vite + React template + Claude CLI). Vercel Sandbox snapshots confirmed (Firecracker microVM, millisecond boot). User steers via SKILL.md in Supabase Storage (same pattern as instruction skills from PR 51). PR 52 depends on PR 51 infra (discoverUserSkills, getSkillContent, storage paths). PR 53 depends on PR 52 shared sandbox infra. Design doc: docs/product/designs/sandbox-skill-execution.md. Reference repos: vercel-labs/coding-agent-template, anthropics/financial-services-plugins, firecrawl/open-lovable, diggerhq/openlovable.",
-      "2026-03-20: Added PR 54 (Sandbox cheap model routing via OpenRouter) to Phase 6. Claude Code CLI inside sandbox costs ~$0.05-0.50/run with Sonnet. OpenRouter provides Anthropic-compatible API endpoint for cheap models (MiniMax ~$0.002/run, Kimi 2.5 ~$0.003/run, Gemini Flash ~$0.001/run). Claude CLI reads ANTHROPIC_BASE_URL — just point it at OpenRouter. NanoClaw credential proxy pattern validates this approach (roadmap docs/.../nanoclaw-dorabot/nanoclaw-overview.md). Config-only change: env vars swapped at sandbox runtime, no code changes to CLI or tools."
+      "2026-03-20: Added PR 54 (Sandbox cheap model routing via OpenRouter) to Phase 6. Claude Code CLI inside sandbox costs ~$0.05-0.50/run with Sonnet. OpenRouter provides Anthropic-compatible API endpoint for cheap models (MiniMax ~$0.002/run, Kimi 2.5 ~$0.003/run, Gemini Flash ~$0.001/run). Claude CLI reads ANTHROPIC_BASE_URL — just point it at OpenRouter. NanoClaw credential proxy pattern validates this approach (roadmap docs/.../nanoclaw-dorabot/nanoclaw-overview.md). Config-only change: env vars swapped at sandbox runtime, no code changes to CLI or tools.",
+      "2026-03-20: Added PRs 43-44 (WhatsApp integration) to Phase 5. Mirrors Telegram PRs 41-42 pattern. baileys on Fly relay ($3/mo) for persistent socket, Sunder webhook for agent logic. format.ts + send.ts copied from dorabot WhatsApp module. Text-based approvals ('Reply 1 or 2') and numbered questions (no inline keyboards on WA). QR code pairing in Settings UI. PR 43: relay + webhook + pairing (6 tasks). PR 44: approvals + questions + disconnect (3 tasks). Drift analysis: roadmap docs/Sunder - Source of Truth/references/nanoclaw-dorabot/dorabot-whatsapp-drift-analysis.md"
     ]
   },
   "phases": [
@@ -2505,7 +2506,7 @@
         {
           "pr": "38d",
           "title": "Skill-based onboarding (dorabot pattern)",
-          "status": "pending",
+          "status": "done",
           "simplified": true,
           "decisions": [
             "UX-09"
@@ -2515,27 +2516,27 @@
             {
               "id": "PR38d-1",
               "task": "Remove SOUL.md read-only restriction in agent-files.ts",
-              "done": false
+              "done": true
             },
             {
               "id": "PR38d-2",
               "task": "Update system prompt: SOUL.md writable guidance + empty USER.md detection hint",
-              "done": false
+              "done": true
             },
             {
               "id": "PR38d-3",
               "task": "Add onboarding skill to DEFAULT_SKILL_SLUGS and DEFAULT_SKILL_CONTENT in skill-templates.ts",
-              "done": false
+              "done": true
             },
             {
               "id": "PR38d-4",
               "task": "Update QA surface 13 for skill-based approach",
-              "done": false
+              "done": true
             },
             {
               "id": "PR38d-5",
               "task": "Update reference docs (comparison doc outdated, remove RE references)",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -3180,6 +3181,94 @@
           "testCriteria": [
             "Approval-gated action triggers InlineKeyboard in Telegram, tap Approve/Deny resolves correctly",
             "Full agent interaction via Telegram including approvals",
+            "Disconnect from Settings, bot no longer responds"
+          ]
+        },
+        {
+          "pr": 43,
+          "title": "WhatsApp integration — Fly relay + webhook + pairing",
+          "status": "pending",
+          "tasklist": "docs/product/tasks/2026-03-20-pr43-whatsapp-setup-tasklist.md",
+          "decisions": [
+            "GAP-09",
+            "UX-07"
+          ],
+          "dependsOn": [
+            41
+          ],
+          "note": "baileys on Fly relay ($3/mo always-on) + Sunder webhook. Mirrors Telegram PR 41 pattern. Format/send copied from dorabot WhatsApp module. QR code pairing in Settings UI. See drift analysis: roadmap docs/Sunder - Source of Truth/references/nanoclaw-dorabot/dorabot-whatsapp-drift-analysis.md",
+          "tasks": [
+            {
+              "id": "PR43-1",
+              "task": "WhatsApp channel module — format.ts (markdownToWhatsApp), send.ts (toWhatsAppJid, splitWhatsAppMessage, sendWhatsAppMessage, buildMediaContent, edit, delete), copied from dorabot",
+              "done": false
+            },
+            {
+              "id": "PR43-2",
+              "task": "Fly relay service — baileys socket, webhook forwarder (POST inbound to Sunder), /qr endpoint (QR code for pairing), /status endpoint, /send endpoint (outbound), Dockerfile + fly.toml",
+              "done": false
+            },
+            {
+              "id": "PR43-3",
+              "task": "Webhook route (POST /api/webhook/whatsapp) — verify relay secret, extract phone/text, lookup channel_mappings, dedupe via delivery_receipts, lookup/create thread, call runAgent(), return response to relay",
+              "done": false
+            },
+            {
+              "id": "PR43-4",
+              "task": "QR pairing flow — Settings UI polls relay /qr endpoint, displays QR code, user scans with WhatsApp, relay confirms → creates channel_mapping via Sunder callback",
+              "done": false
+            },
+            {
+              "id": "PR43-5",
+              "task": "Settings UI — Connect WhatsApp card with QR code display, connection status, disconnect button",
+              "done": false
+            },
+            {
+              "id": "PR43-6",
+              "task": "/new command — creates fresh thread, updates channel_mapping (mirrors Telegram /new)",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Scan QR code from Settings, WhatsApp connects",
+            "Send message via WhatsApp, get agent response",
+            "Second message reuses same thread",
+            "Send /new, next message goes to fresh thread"
+          ]
+        },
+        {
+          "pr": 44,
+          "title": "WhatsApp integration — approvals + features",
+          "status": "pending",
+          "tasklist": "docs/product/tasks/2026-03-20-pr44-whatsapp-approvals-tasklist.md",
+          "decisions": [
+            "UX-07"
+          ],
+          "dependsOn": [
+            43,
+            42
+          ],
+          "note": "Text-based approvals ('Reply 1 to Allow, 2 to Deny') and numbered questions ('Reply with a number'). No inline keyboards on WhatsApp. Dorabot monitor.ts pattern. Disconnect support.",
+          "tasks": [
+            {
+              "id": "PR44-1",
+              "task": "WhatsApp approval module — sendWhatsAppApprovalRequest() text-based (dorabot pattern). Approval response parsing: '1'/'allow'/'yes' → approve, '2'/'deny'/'no' → deny. Wire to approval_events table.",
+              "done": false
+            },
+            {
+              "id": "PR44-2",
+              "task": "WhatsApp question module — sendWhatsAppQuestion() with numbered options (dorabot pattern). Response parsing: numeric reply → option selection.",
+              "done": false
+            },
+            {
+              "id": "PR44-3",
+              "task": "Disconnect — remove channel_mapping from Settings UI, notify relay to disconnect",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "Approval-gated action sends text prompt to WhatsApp, reply '1' resolves correctly",
+            "Question sends numbered options, reply with number selects correctly",
             "Disconnect from Settings, bot no longer responds"
           ]
         },
