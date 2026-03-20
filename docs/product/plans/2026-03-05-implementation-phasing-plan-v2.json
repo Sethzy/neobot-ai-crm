@@ -61,7 +61,8 @@
       "2026-03-17: Added PR 50a (Browser-Use Skills API) to Phase 3 as deferred follow-up to PR 50. Converts repeated property portal searches into deterministic Browser-Use Skills — instant execution, no LLM cost. Admin creates skills for top SG portals (99.co, PropertyGuru, SRX, URA, HDB). Agent calls search_property_portal tool which executes skills in milliseconds instead of live browsing. Falls back to browse_website if no skill exists.",
       "2026-03-19: Split PR 50 into three PRs after code review. PR 50 = public browsing only (chat-only, no auth). PR 50b = authenticated browsing (profiles + embedded browser auth). PR 50c = Skills API (renamed from 50a, depends on 50b). Key review fixes: (1) scrubbed leaked API key from docs, (2) explicit Browser-Use profile creation via API instead of invented IDs, (3) chat-only registry scope (excluded from autopilot/subagents), (4) strict error semantics in profile queries (throw on DB errors, null for absence only), (5) structured output for verify route instead of prose parsing, (6) auth card rendered from tool output (no new message part protocol), (7) manual retry after login (no auto-resume), (8) clarify only when ambiguous (not mandatory preflight).",
       "2026-03-19: Added PR 51 (Instruction skills) and PR 51a (Frontend skills page) to Phase 4. Out-of-plan work — SKILL-01 through SKILL-08 architecture decisions exist but are all DEFERRED to post-v1. This is a simplified KISS implementation: no skill_registry table (filesystem discovery via Supabase Storage listing + frontmatter parsing), no Skill-Building Interviews (chat-based creation), no shadowing (overwrite + reset). 7 bundled RE-specific default skills seeded on onboarding (adapted from anthropics/knowledge-work-plugins/sales). Progressive disclosure: names+descriptions in system prompt (~200 tokens), full SKILL.md loaded via existing read_file on demand. Frontend: skills list, editor, reset to default. Deprecates old SKILL-01 to SKILL-08 architecture decisions as over-engineered for current scale. Design doc: docs/product/designs/instruction-skills.md. Also documented sandbox skill execution (separate scope, another dev): docs/product/designs/sandbox-skill-execution.md.",
-      "2026-03-20: Added Phase 6 (Sandbox) with PR 52 (Sandbox Excel Analysis) and PR 53 (Sandbox Artifact Publishing). Restores cut PRs 27+28 (Vercel Sandbox) in simplified form. Two dedicated tools with two snapshots: analyze_spreadsheet (snap_excel: Python + LibreOffice + Anthropic xlsx skill + Claude CLI) and publish_artifact (snap_artifact: Node + Vite + React template + Claude CLI). Vercel Sandbox snapshots confirmed (Firecracker microVM, millisecond boot). User steers via SKILL.md in Supabase Storage (same pattern as instruction skills from PR 51). PR 52 depends on PR 51 infra (discoverUserSkills, getSkillContent, storage paths). PR 53 depends on PR 52 shared sandbox infra. Design doc: docs/product/designs/sandbox-skill-execution.md. Reference repos: vercel-labs/coding-agent-template, anthropics/financial-services-plugins, firecrawl/open-lovable, diggerhq/openlovable."
+      "2026-03-20: Added Phase 6 (Sandbox) with PR 52 (Sandbox Excel Analysis) and PR 53 (Sandbox Artifact Publishing). Restores cut PRs 27+28 (Vercel Sandbox) in simplified form. Two dedicated tools with two snapshots: analyze_spreadsheet (snap_excel: Python + LibreOffice + Anthropic xlsx skill + Claude CLI) and publish_artifact (snap_artifact: Node + Vite + React template + Claude CLI). Vercel Sandbox snapshots confirmed (Firecracker microVM, millisecond boot). User steers via SKILL.md in Supabase Storage (same pattern as instruction skills from PR 51). PR 52 depends on PR 51 infra (discoverUserSkills, getSkillContent, storage paths). PR 53 depends on PR 52 shared sandbox infra. Design doc: docs/product/designs/sandbox-skill-execution.md. Reference repos: vercel-labs/coding-agent-template, anthropics/financial-services-plugins, firecrawl/open-lovable, diggerhq/openlovable.",
+      "2026-03-20: Added PR 54 (Sandbox cheap model routing via OpenRouter) to Phase 6. Claude Code CLI inside sandbox costs ~$0.05-0.50/run with Sonnet. OpenRouter provides Anthropic-compatible API endpoint for cheap models (MiniMax ~$0.002/run, Kimi 2.5 ~$0.003/run, Gemini Flash ~$0.001/run). Claude CLI reads ANTHROPIC_BASE_URL — just point it at OpenRouter. NanoClaw credential proxy pattern validates this approach (roadmap docs/.../nanoclaw-dorabot/nanoclaw-overview.md). Config-only change: env vars swapped at sandbox runtime, no code changes to CLI or tools."
     ]
   },
   "phases": [
@@ -2323,7 +2324,7 @@
             "UX-09",
             "DATA-08"
           ],
-          "note": "v2 simplification: bootstrap files + first chat only. Skip guided interview and deep profile phase. Auth funnel work can land ahead of the rest of onboarding: dedicated login/signup pages, Google-first Supabase auth, unified post-auth redirect to /chat, and a display_name fallback fix so OAuth users bootstrap cleanly into clients. Conversational onboarding inspired by OpenClaw's BOOTSTRAP.md pattern: agent's first message is warm and personal ('Hey, I just came online — who am I working with?'), co-discovers user context through natural chat rather than a form wizard, and writes findings to USER.md + SOUL.md in real time. No interrogation, no robotic checklist — just talk. The first conversation itself is the product.",
+          "note": "v2 simplification: bootstrap files + first chat only. Skip guided interview and deep profile phase. Auth funnel work can land ahead of the rest of onboarding: dedicated login/signup pages, Google-first Supabase auth, unified post-auth redirect to /chat, and a display_name fallback fix so OAuth users bootstrap cleanly into clients. Conversational onboarding inspired by OpenClaw's BOOTSTRAP.md pattern: agent's first message is warm and personal ('Hey, I just came online — who am I working with?'), co-discovers user context through natural chat rather than a form wizard, and writes findings to USER.md + SOUL.md in real time. No interrogation, no robotic checklist — just talk. The first conversation itself is the product. Tasks 8-13 replaced by PR 38d (skill-based onboarding, dorabot pattern).",
           "tasks": [
             {
               "id": "PR38-1",
@@ -2500,6 +2501,52 @@
             "Chat composer hard-stops at zero remaining messages, surfaces an upgrade CTA, and re-enables automatically after the Asia/Singapore month rolls over"
           ],
           "simplified": true
+        },
+        {
+          "pr": "38d",
+          "title": "Skill-based onboarding (dorabot pattern)",
+          "status": "pending",
+          "simplified": true,
+          "decisions": [
+            "UX-09"
+          ],
+          "note": "Replaces PR 38 tasks 8-13 with dorabot-inspired skill-based onboarding. One SKILL.md file, zero DB state, zero system prompt injection. Agent detects empty USER.md and follows the onboarding skill. Three phases: learn user, craft soul, confirm. SOUL.md unlocked for agent writes. Reference: dorabot-1/skills/onboard/SKILL.md.",
+          "tasks": [
+            {
+              "id": "PR38d-1",
+              "task": "Remove SOUL.md read-only restriction in agent-files.ts",
+              "done": false
+            },
+            {
+              "id": "PR38d-2",
+              "task": "Update system prompt: SOUL.md writable guidance + empty USER.md detection hint",
+              "done": false
+            },
+            {
+              "id": "PR38d-3",
+              "task": "Add onboarding skill to DEFAULT_SKILL_SLUGS and DEFAULT_SKILL_CONTENT in skill-templates.ts",
+              "done": false
+            },
+            {
+              "id": "PR38d-4",
+              "task": "Update QA surface 13 for skill-based approach",
+              "done": false
+            },
+            {
+              "id": "PR38d-5",
+              "task": "Update reference docs (comparison doc outdated, remove RE references)",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "New user with empty USER.md: agent detects, reads onboarding skill, runs 3-phase flow",
+            "Explicit onboard trigger: agent reads skill and starts flow",
+            "USER.md and SOUL.md populated with real content after onboarding",
+            "ask_user_question used for structured input (not prose questions)",
+            "SOUL.md is 20 lines or fewer of punchy prose",
+            "Second session loads personalized context, no re-trigger",
+            "Re-onboarding (personalize me) works — reads existing files, asks update vs fresh"
+          ]
         },
         {
           "pr": 46,
@@ -2771,7 +2818,7 @@
         {
           "pr": 48,
           "title": "CRM configuration mode — time-limited, UI-gated reconfiguration",
-          "status": "in_progress",
+          "status": "done",
           "simplified": false,
           "decisions": [
             "SAFETY-01",
@@ -2784,37 +2831,37 @@
             {
               "id": "PR48-1",
               "task": "Add crm_config_mode_until column to clients table (migration)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR48-2",
               "task": "Add includeConfigTool option to createCrmTools and tool-registry",
-              "done": false
+              "done": true
             },
             {
               "id": "PR48-3",
               "task": "Create disable_crm_config_mode tool",
-              "done": false
+              "done": true
             },
             {
               "id": "PR48-4",
               "task": "Create POST /api/settings/crm-config-mode endpoint (enable/disable)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR48-5",
               "task": "Wire chat route to check config mode flag and pass includeConfigTool",
-              "done": false
+              "done": true
             },
             {
               "id": "PR48-6",
               "task": "Inject system reminder when config mode is active",
-              "done": false
+              "done": true
             },
             {
               "id": "PR48-7",
               "task": "Add Reconfigure CRM button + confirmation modal to Settings page",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -2828,7 +2875,7 @@
         {
           "pr": "42a-pdf",
           "title": "PDF document generation tool",
-          "status": "in_progress",
+          "status": "pending",
           "simplified": false,
           "decisions": [
             "UX-10",
@@ -2883,7 +2930,7 @@
         {
           "pr": 49,
           "title": "UI reset — stock shadcn components + custom theme",
-          "status": "in_progress",
+          "status": "done",
           "simplified": false,
           "decisions": [
             "FOUND-05",
@@ -2897,37 +2944,37 @@
             {
               "id": "PR49-1",
               "task": "Run npx shadcn@latest add --all --overwrite to reset all components to stock",
-              "done": false
+              "done": true
             },
             {
               "id": "PR49-2",
               "task": "Re-add justified Badge custom variants (success, warning, info) on top of stock",
-              "done": false
+              "done": true
             },
             {
               "id": "PR49-3",
               "task": "Apply green-anchored custom theme to globals.css (preserve Sunder tokens)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR49-4",
               "task": "Swap react-icons/tb imports to lucide-react across all consumer files",
-              "done": false
+              "done": true
             },
             {
               "id": "PR49-5",
               "task": "Fix type errors and broken imports from overwrite",
-              "done": false
+              "done": true
             },
             {
               "id": "PR49-6",
               "task": "Visual QA all app pages (CRM, chat, settings, auth)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR49-7",
               "task": "Run full test suite and fix test breakages",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -2942,26 +2989,28 @@
         {
           "pr": 51,
           "title": "Instruction skills — discovery + defaults + system prompt injection",
-          "status": "in_progress",
+          "status": "done",
           "simplified": true,
           "decisions": [],
-          "dependsOn": ["26a"],
+          "dependsOn": [
+            "26a"
+          ],
           "note": "Out-of-plan work. Simplified KISS implementation of SKILL-01/02 without skill_registry table or Skill-Building Interviews (SKILL-07/08). Filesystem discovery via Supabase Storage listing + frontmatter parsing. 7 bundled RE-specific default skills seeded on onboarding. Progressive disclosure: names+descriptions in system prompt, full SKILL.md loaded via existing read_file on demand. Design doc: docs/product/designs/instruction-skills.md. References: anthropics/knowledge-work-plugins/sales, ai-sdk.dev/cookbook/guides/agent-skills.",
           "tasks": [
             {
               "id": "PR51-1",
               "task": "Create discoverUserSkills() — list Supabase Storage skill dirs, parse YAML frontmatter, return SkillMetadata[]",
-              "done": false
+              "done": true
             },
             {
               "id": "PR51-2",
               "task": "Inject <available-skills> block into system prompt via assembleContext()",
-              "done": false
+              "done": true
             },
             {
               "id": "PR51-3",
               "task": "Add custom skills instruction block to SYSTEM_PROMPT in system-prompt.ts",
-              "done": false
+              "done": true
             },
             {
               "id": "PR51-4",
@@ -2971,12 +3020,12 @@
             {
               "id": "PR51-5",
               "task": "Create bootstrapSkills() to seed defaults on first login (extend bootstrapMemoryFiles pattern)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR51-6",
               "task": "Tests for discovery, frontmatter parsing, bootstrap, and system prompt injection",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -2992,31 +3041,33 @@
         {
           "pr": "51a",
           "title": "Frontend skills page — list, edit, reset",
-          "status": "pending",
+          "status": "done",
           "simplified": true,
           "decisions": [],
-          "dependsOn": [51],
+          "dependsOn": [
+            51
+          ],
           "note": "Frontend surface for managing instruction skills. Replaces Mission Control placeholder with Skills at /skills in sidebar. List available skills, edit via textarea with frontmatter validation, reset to bundled default (gated to DEFAULT_SKILL_SLUGS only). Chat skill badge on persisted tool-read_file parts. Design doc: docs/product/designs/instruction-skills.md §11.",
           "tasks": [
             {
               "id": "PR51a-1",
               "task": "Skills list page — read skills from Supabase Storage, display name + description + edit button",
-              "done": false
+              "done": true
             },
             {
               "id": "PR51a-2",
               "task": "Skill editor — textarea with SKILL.md content, save to Supabase Storage",
-              "done": false
+              "done": true
             },
             {
               "id": "PR51a-3",
               "task": "Reset to default button — re-copy bundled version to client storage",
-              "done": false
+              "done": true
             },
             {
               "id": "PR51a-4",
               "task": "Chat UI skill indicator — subtle badge when agent loads a skill via read_file",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -3070,12 +3121,29 @@
               "id": "PR41-5",
               "task": "Settings UI — Connect Telegram card with pairing deep link (t.me/SunderBot?start=<token>) and connection status",
               "done": false
+            },
+            {
+              "id": "PR41-6",
+              "task": "/new command — creates fresh thread, updates channel_mapping (dorabot pattern)",
+              "done": false
+            },
+            {
+              "id": "PR41-7",
+              "task": "Inbound media download (photos, documents, voice) — download via Telegram File API, upload to Supabase Storage, pass as fileParts to runAgent()",
+              "done": false
+            },
+            {
+              "id": "PR41-8",
+              "task": "Outbound media support — sendTelegramMessage accepts media URL + mimeType, sends via sendPhoto/sendVideo/sendAudio/sendDocument (dorabot sendMedia pattern). Enables agent to push PDFs, images to Telegram.",
+              "done": false
             }
           ],
           "testCriteria": [
             "Generate pairing link from Settings, tap in Telegram, bot confirms connection",
             "Send message to Telegram bot, get agent response",
-            "Second message reuses same thread (channel_mapping lookup)"
+            "Second message reuses same thread (channel_mapping lookup)",
+            "Send /new, next message goes to fresh thread",
+            "Send photo with caption, agent receives and references the image"
           ]
         },
         {
@@ -3101,6 +3169,11 @@
             {
               "id": "PR42-3",
               "task": "Unpairing — disconnect Telegram from Settings UI, deletes channel_mapping row, bot replies 'disconnected' on next message",
+              "done": false
+            },
+            {
+              "id": "PR42-4",
+              "task": "Question UI — InlineKeyboard with numbered options (dorabot sendQuestion pattern: q:{requestId}:{optionIndex} callback data)",
               "done": false
             }
           ],
@@ -3158,19 +3231,61 @@
           "title": "Sandbox: Excel Analysis (analyze_spreadsheet)",
           "status": "pending",
           "tasklist": "docs/product/tasks/2026-03-20-pr52-sandbox-excel-analysis-tasklist.md",
-          "decisions": ["EXEC-04", "EXEC-05", "EXEC-06"],
-          "dependsOn": ["51"],
+          "decisions": [
+            "EXEC-04",
+            "EXEC-05",
+            "EXEC-06"
+          ],
+          "dependsOn": [
+            "51"
+          ],
           "note": "Vercel Sandbox + Claude Code CLI inside. snap_excel snapshot: Python 3.13 + pandas + openpyxl + LibreOffice + gcc + Anthropic xlsx skill. User's re-analyst SKILL.md loaded at runtime. Output: .xlsx with live formulas. Restores cut PRs 27+28 in simplified form.",
           "tasks": [
-            { "id": "PR52-1", "task": "Install @vercel/sandbox + define types (SandboxConfig, SandboxResult)", "done": false },
-            { "id": "PR52-2", "task": "createSandbox() wrapper — Sandbox.create() from snapshot with env validation", "done": false },
-            { "id": "PR52-3", "task": "loadSkillFilesForSandbox() — download user skill files from Supabase Storage", "done": false },
-            { "id": "PR52-4", "task": "runClaudeForExcel() — write API key config, inject user skills, run Claude CLI, read output", "done": false },
-            { "id": "PR52-5", "task": "analyze_spreadsheet tool — full orchestration (create sandbox → load → run → upload output → destroy)", "done": false },
-            { "id": "PR52-6", "task": "Register tool in createRunnerTools() + add system prompt guidance", "done": false },
-            { "id": "PR52-7", "task": "Add sandbox env vars to .env.example", "done": false },
-            { "id": "PR52-8", "task": "Build snap_excel snapshot (Python, LibreOffice, gcc, Claude CLI, xlsx skill files from disk)", "done": false },
-            { "id": "PR52-9", "task": "E2E manual test — upload xlsx, get back model with live formulas", "done": false }
+            {
+              "id": "PR52-1",
+              "task": "Install @vercel/sandbox + define types (SandboxConfig, SandboxResult)",
+              "done": false
+            },
+            {
+              "id": "PR52-2",
+              "task": "createSandbox() wrapper — Sandbox.create() from snapshot with env validation",
+              "done": false
+            },
+            {
+              "id": "PR52-3",
+              "task": "loadSkillFilesForSandbox() — download user skill files from Supabase Storage",
+              "done": false
+            },
+            {
+              "id": "PR52-4",
+              "task": "runClaudeForExcel() — write API key config, inject user skills, run Claude CLI, read output",
+              "done": false
+            },
+            {
+              "id": "PR52-5",
+              "task": "analyze_spreadsheet tool — full orchestration (create sandbox → load → run → upload output → destroy)",
+              "done": false
+            },
+            {
+              "id": "PR52-6",
+              "task": "Register tool in createRunnerTools() + add system prompt guidance",
+              "done": false
+            },
+            {
+              "id": "PR52-7",
+              "task": "Add sandbox env vars to .env.example",
+              "done": false
+            },
+            {
+              "id": "PR52-8",
+              "task": "Build snap_excel snapshot (Python, LibreOffice, gcc, Claude CLI, xlsx skill files from disk)",
+              "done": false
+            },
+            {
+              "id": "PR52-9",
+              "task": "E2E manual test — upload xlsx, get back model with live formulas",
+              "done": false
+            }
           ],
           "testCriteria": [
             "Upload xlsx → get downloadable .xlsx with live Excel formulas (not hardcoded values)",
@@ -3185,17 +3300,51 @@
           "title": "Sandbox: Artifact Publishing (publish_artifact)",
           "status": "pending",
           "tasklist": "docs/product/tasks/2026-03-20-pr53-sandbox-artifact-publishing-tasklist.md",
-          "decisions": ["EXEC-04", "EXEC-07", "EXEC-08"],
-          "dependsOn": ["52"],
+          "decisions": [
+            "EXEC-04",
+            "EXEC-07",
+            "EXEC-08"
+          ],
+          "dependsOn": [
+            "52"
+          ],
           "note": "Reuses sandbox infra from PR 52. snap_artifact snapshot: Node 22 + Vite + React + Tailwind + pre-scaffolded property page template + Claude CLI. Runner chains CRM/search/browser tools first, then hands data to sandbox. Claude Code tweaks template (20-40s, not from scratch). Output published to Supabase Storage signed URL or here.now. See Built-In Services §13 for full product spec.",
           "tasks": [
-            { "id": "PR53-1", "task": "Build pre-scaffolded React property page template (7 components + theme + build script)", "done": false },
-            { "id": "PR53-2", "task": "Build snap_artifact snapshot (Node 22 + template + node_modules + Claude CLI)", "done": false },
-            { "id": "PR53-3", "task": "runClaudeForArtifact() — inject data + photos, run Claude CLI, read output HTML", "done": false },
-            { "id": "PR53-4", "task": "publish_artifact tool — full orchestration (create sandbox → load → run → publish → destroy)", "done": false },
-            { "id": "PR53-5", "task": "Publishing layer — upload HTML to Supabase Storage signed URL or here.now", "done": false },
-            { "id": "PR53-6", "task": "Register tool in createRunnerTools() + add system prompt guidance", "done": false },
-            { "id": "PR53-7", "task": "E2E manual test — ask for showcase page, get shareable URL with live page", "done": false }
+            {
+              "id": "PR53-1",
+              "task": "Build pre-scaffolded React property page template (7 components + theme + build script)",
+              "done": false
+            },
+            {
+              "id": "PR53-2",
+              "task": "Build snap_artifact snapshot (Node 22 + template + node_modules + Claude CLI)",
+              "done": false
+            },
+            {
+              "id": "PR53-3",
+              "task": "runClaudeForArtifact() — inject data + photos, run Claude CLI, read output HTML",
+              "done": false
+            },
+            {
+              "id": "PR53-4",
+              "task": "publish_artifact tool — full orchestration (create sandbox → load → run → publish → destroy)",
+              "done": false
+            },
+            {
+              "id": "PR53-5",
+              "task": "Publishing layer — upload HTML to Supabase Storage signed URL or here.now",
+              "done": false
+            },
+            {
+              "id": "PR53-6",
+              "task": "Register tool in createRunnerTools() + add system prompt guidance",
+              "done": false
+            },
+            {
+              "id": "PR53-7",
+              "task": "E2E manual test — ask for showcase page, get shareable URL with live page",
+              "done": false
+            }
           ],
           "testCriteria": [
             "Agent chains CRM/search tools before calling sandbox (data gathering phase)",
@@ -3203,6 +3352,57 @@
             "User can iterate ('change the hero image') — new sandbox, updated page",
             "Template customized per user's frontend-design SKILL.md brand preferences",
             "Sandbox destroyed after each invocation"
+          ]
+        },
+        {
+          "pr": 54,
+          "title": "Sandbox: Cheap model routing via OpenRouter",
+          "status": "pending",
+          "tasklist": "docs/product/tasks/2026-03-20-pr54-sandbox-openrouter-model-routing-tasklist.md",
+          "decisions": [
+            "LLM-01"
+          ],
+          "dependsOn": [
+            "52"
+          ],
+          "note": "Claude Code CLI inside sandbox is expensive (~$0.05-0.50/run with Sonnet). Swap to cheap models (MiniMax, Kimi 2.5, Gemini Flash) via OpenRouter. OpenRouter speaks the Anthropic Messages API format — Claude CLI doesn't know the difference. Just env var changes: ANTHROPIC_BASE_URL + ANTHROPIC_API_KEY pointed at OpenRouter. NanoClaw credential proxy pattern validated this approach. Configurable per-tool: analyze_spreadsheet can use a different model than publish_artifact.",
+          "tasks": [
+            {
+              "id": "PR54-1",
+              "task": "Research: verify OpenRouter Anthropic-format compatibility with Claude Code CLI tool_use",
+              "done": false
+            },
+            {
+              "id": "PR54-2",
+              "task": "Add SANDBOX_MODEL_PROVIDER and SANDBOX_MODEL_ID env vars with defaults",
+              "done": false
+            },
+            {
+              "id": "PR54-3",
+              "task": "Update sandbox API key config writer to support OpenRouter (base URL + auth token + model header)",
+              "done": false
+            },
+            {
+              "id": "PR54-4",
+              "task": "Update snapshot build scripts — no changes needed (model config is runtime, not snapshot)",
+              "done": false
+            },
+            {
+              "id": "PR54-5",
+              "task": "E2E test: run analyze_spreadsheet with MiniMax/Kimi via OpenRouter, verify Excel output quality",
+              "done": false
+            },
+            {
+              "id": "PR54-6",
+              "task": "Cost comparison: Claude Sonnet vs MiniMax vs Kimi vs Gemini Flash on same spreadsheet task",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "analyze_spreadsheet works with non-Claude model via OpenRouter",
+            "publish_artifact works with non-Claude model via OpenRouter",
+            "Excel output quality acceptable (formulas work, recalc passes)",
+            "Cost per invocation drops to ~$0.01-0.05 range"
           ]
         }
       ]
