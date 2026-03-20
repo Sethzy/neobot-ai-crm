@@ -261,19 +261,13 @@ describe("createSubagentTool", () => {
     );
   });
 
-  it("spreads composioTools into the subagent tool set alongside runner tools", async () => {
-    const fakeComposioTools = {
-      "conn_abc__GMAIL_SEND_EMAIL": { description: "Send email via Gmail" },
-      "conn_abc__GMAIL_SEARCH_THREADS": { description: "Search Gmail threads" },
-    };
-
+  it("keeps the subagent tool set limited to runner tools", async () => {
     const { run_subagent } = createSubagentTool(
       "supabase" as never,
       CLIENT_ID,
       THREAD_ID,
       {
         parentRunId: PARENT_RUN_ID,
-        composioTools: fakeComposioTools as never,
       },
     );
 
@@ -288,8 +282,6 @@ describe("createSubagentTool", () => {
       expect.objectContaining({
         tools: {
           search_contacts: { description: "tool" },
-          "conn_abc__GMAIL_SEND_EMAIL": { description: "Send email via Gmail" },
-          "conn_abc__GMAIL_SEARCH_THREADS": { description: "Search Gmail threads" },
         },
       }),
     );

@@ -159,6 +159,27 @@ describe("createSearchMarketDataTool", () => {
         error: "date_from must be on or before date_to",
       });
     });
+
+    it("returns an error when date_from is not a real calendar date", async () => {
+      const { client } = createMockSupabase({
+        cea_transactions: { data: [], error: null },
+      });
+      const tools = createSearchMarketDataTool(client as never);
+
+      const result = await tools.search_market_data.execute(
+        {
+          dataset: "transactions",
+          date_from: "2025-02-31",
+          mode: "search",
+        },
+        EXECUTION_OPTIONS,
+      );
+
+      expect(result).toEqual({
+        success: false,
+        error: "date_from must be a real calendar date in YYYY-MM-DD format",
+      });
+    });
   });
 
   describe("hdb dataset", () => {

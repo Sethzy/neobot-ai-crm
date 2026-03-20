@@ -225,9 +225,11 @@ describe("runAutopilot", () => {
       "660e8400-e29b-41d4-a716-446655440000",
       expect.objectContaining({
         parentRunId: "run-1",
-        composioTools: expect.any(Object),
       }),
     );
+    const subagentOptions = mockCreateSubagentTool.mock.calls.at(-1)?.[3];
+
+    expect(subagentOptions).not.toHaveProperty("composioTools");
     expect(mockCreateBrowserTools).not.toHaveBeenCalled();
   });
 

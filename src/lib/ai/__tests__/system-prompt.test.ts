@@ -107,8 +107,9 @@ describe("SYSTEM_PROMPT", () => {
   });
 
   describe("subagent guidance", () => {
-    it("states subagents inherit activated connection tools", () => {
-      expect(SYSTEM_PROMPT).toContain("including activated connection tools");
+    it("states subagents do not inherit activated connection tools", () => {
+      expect(SYSTEM_PROMPT).toContain("do not inherit activated connection tools");
+      expect(SYSTEM_PROMPT).not.toContain("including activated connection tools");
     });
 
     it("states subagents cannot create connections or triggers", () => {
@@ -276,6 +277,11 @@ describe("MARKET_DATA_PROMPT", () => {
     expect(MARKET_DATA_PROMPT).toContain("Use search mode");
     expect(MARKET_DATA_PROMPT).toContain("Use stats mode");
     expect(MARKET_DATA_PROMPT).toContain("Use web search instead");
+  });
+
+  it("explains that sampled stats are recent-window aggregates, not full-dataset exact stats", () => {
+    expect(MARKET_DATA_PROMPT).toContain("most recent 10,000 matching rows");
+    expect(MARKET_DATA_PROMPT).toContain("recent-window stats");
   });
 });
 

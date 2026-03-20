@@ -187,6 +187,8 @@ describe("search_market_data stats mode", () => {
       expect(result.totalMatching).toBe(500000);
       expect(result.sampled).toBe(true);
       expect(result.sampleSize).toBe(10000);
+      expect(result.sampleBasis).toBe("most_recent_matching_rows_by_date");
+      expect(result.sampleDescription).toContain("most recent 10000 matching rows");
     });
 
     it("omits sampled metadata when the total is within the sample limit", async () => {
@@ -211,6 +213,8 @@ describe("search_market_data stats mode", () => {
       expect(result.totalMatching).toBe(1);
       expect(result).not.toHaveProperty("sampled");
       expect(result).not.toHaveProperty("sampleSize");
+      expect(result).not.toHaveProperty("sampleBasis");
+      expect(result).not.toHaveProperty("sampleDescription");
     });
   });
 

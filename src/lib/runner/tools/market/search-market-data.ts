@@ -71,7 +71,9 @@ const searchMarketDataInputSchema = z.object({
   mode: z
     .enum(["search", "stats"])
     .default("search")
-    .describe("search = return individual records. stats = return aggregate statistics."),
+    .describe(
+      "search = return individual records. stats = return aggregate statistics. For hdb and ura, large stats queries may use the most recent 10,000 matching rows ordered by date; totalMatching remains exact.",
+    ),
   town: z
     .string()
     .optional()
@@ -155,6 +157,22 @@ function normalizeDistrict(input: string): string | null {
 
 function normalizeAgentRegNo(input: string): string {
   return input.trim().toUpperCase();
+}
+
+/** Return true only for real ISO calendar dates, not just YYYY-MM-DD-shaped strings. */
+function isIsoCalendarDate(value: string): boolean {
+  if (!ISO_DATE_REGEX.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    candidate.getUTCFullYear() === year &&
+    candidate.getUTCMonth() === month - 1 &&
+    candidate.getUTCDate() === day
+  );
 }
 
 /** Apply dataset-aware filters while ignoring unsupported fields for a given dataset. */
@@ -242,11 +260,19 @@ function buildQuery(
   return queryBuilder;
 }
 
-/** Return a validation error when a provided date range is inverted. */
-function getDateRangeError(
+/** Return the first validation error for malformed or inverted date filters. */
+function getDateValidationError(
   dateFrom: SearchMarketDataInput["date_from"],
   dateTo: SearchMarketDataInput["date_to"],
 ): string | null {
+  if (dateFrom && !isIsoCalendarDate(dateFrom)) {
+    return "date_from must be a real calendar date in YYYY-MM-DD format";
+  }
+
+  if (dateTo && !isIsoCalendarDate(dateTo)) {
+    return "date_to must be a real calendar date in YYYY-MM-DD format";
+  }
+
   if (dateFrom && dateTo && dateFrom > dateTo) {
     return "date_from must be on or before date_to";
   }
@@ -287,15 +313,19 @@ function toHdbPsf(row: HdbStatsRow): number | null {
   return Math.round(price / (sqm * SQFT_PER_SQM));
 }
 
-/** Add explicit sampling metadata when the exact match count exceeds the sample cap. */
-function getSamplingMetadata(totalMatching: number) {
+/** Add explicit sampling metadata when stats are computed from a recency-limited sample. */
+function getSamplingMetadata(dataset: "hdb" | "ura", totalMatching: number) {
   if (totalMatching <= STATS_SAMPLE_LIMIT) {
     return {};
   }
 
+  const dateColumn = DATASET_CONFIG[dataset].dateColumn;
+
   return {
     sampled: true as const,
     sampleSize: STATS_SAMPLE_LIMIT,
+    sampleBasis: "most_recent_matching_rows_by_date" as const,
+    sampleDescription: `Aggregates are computed from the most recent ${STATS_SAMPLE_LIMIT} matching rows ordered by ${dateColumn} descending.`,
   };
 }
 
@@ -370,16 +400,17 @@ async function executeCountOnlyStats(
 
 /** Build the stats-mode response for HDB sampled price and PSF aggregates. */
 async function executeHdbStats(supabase: SupabaseClient, filters: MarketDataFilters) {
-  const sampleResult = await getSampleRows(supabase, "hdb", filters);
-
-  if (!sampleResult.success) {
-    return sampleResult;
-  }
-
-  const countResult = await getExactCount(supabase, "hdb", filters);
+  const [sampleResult, countResult] = await Promise.all([
+    getSampleRows(supabase, "hdb", filters),
+    getExactCount(supabase, "hdb", filters),
+  ]);
 
   if (!countResult.success) {
     return countResult;
+  }
+
+  if (!sampleResult.success) {
+    return sampleResult;
   }
 
   const totalMatching = countResult.count;
@@ -402,22 +433,23 @@ async function executeHdbStats(supabase: SupabaseClient, filters: MarketDataFilt
       medianPsf: median(psfValues),
     },
     totalMatching,
-    ...getSamplingMetadata(totalMatching),
+    ...getSamplingMetadata("hdb", totalMatching),
   };
 }
 
 /** Build the stats-mode response for URA sampled price and PSF aggregates. */
 async function executeUraStats(supabase: SupabaseClient, filters: MarketDataFilters) {
-  const sampleResult = await getSampleRows(supabase, "ura", filters);
-
-  if (!sampleResult.success) {
-    return sampleResult;
-  }
-
-  const countResult = await getExactCount(supabase, "ura", filters);
+  const [sampleResult, countResult] = await Promise.all([
+    getSampleRows(supabase, "ura", filters),
+    getExactCount(supabase, "ura", filters),
+  ]);
 
   if (!countResult.success) {
     return countResult;
+  }
+
+  if (!sampleResult.success) {
+    return sampleResult;
   }
 
   const totalMatching = countResult.count;
@@ -441,7 +473,7 @@ async function executeUraStats(supabase: SupabaseClient, filters: MarketDataFilt
       medianPsf: median(psfValues),
     },
     totalMatching,
-    ...getSamplingMetadata(totalMatching),
+    ...getSamplingMetadata("ura", totalMatching),
   };
 }
 
@@ -451,7 +483,7 @@ async function executeUraStats(supabase: SupabaseClient, filters: MarketDataFilt
 export function createSearchMarketDataTool(supabase: SupabaseClient) {
   const search_market_data = tool({
     description:
-      "Search Singapore property market data across CEA agents, CEA transactions, HDB resale transactions, and URA private sales. Use search mode for records and stats mode for aggregates.",
+      "Search Singapore property market data across CEA agents, CEA transactions, HDB resale transactions, and URA private sales. Use search mode for records and stats mode for aggregates. Large HDB and URA stats queries may return recent-window sample metadata alongside exact totalMatching counts.",
     inputSchema: searchMarketDataInputSchema,
     execute: async ({
       dataset,
@@ -482,12 +514,12 @@ export function createSearchMarketDataTool(supabase: SupabaseClient) {
         street,
         project,
       } satisfies MarketDataFilters;
-      const dateRangeError = getDateRangeError(date_from, date_to);
+      const dateValidationError = getDateValidationError(date_from, date_to);
 
-      if (dateRangeError) {
+      if (dateValidationError) {
         return {
           success: false as const,
-          error: dateRangeError,
+          error: dateValidationError,
         };
       }
 

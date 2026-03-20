@@ -727,16 +727,14 @@ describe("runAgent", () => {
         }),
       }),
     );
-    expect(mockCreateSubagentTool).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.any(String),
-      expect.any(String),
+    const subagentOptions = mockCreateSubagentTool.mock.calls.at(-1)?.[3];
+
+    expect(subagentOptions).toEqual(
       expect.objectContaining({
-        composioTools: expect.objectContaining({
-          "conn-1__GMAIL_FETCH_EMAILS": { description: "composio-tool" },
-        }),
+        parentRunId: "run-1",
       }),
     );
+    expect(subagentOptions).not.toHaveProperty("composioTools");
   });
 
   it("keeps the runner toolset unchanged when activated Composio tools resolve to an empty object", async () => {

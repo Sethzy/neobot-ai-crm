@@ -2,7 +2,7 @@
  * Autonomous autopilot pulse runner.
  * @module lib/runner/run-autopilot
  */
-import { generateText, stepCountIs, type ToolSet } from "ai";
+import { generateText, stepCountIs } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { propagateAttributes } from "@langfuse/tracing";
 
@@ -67,7 +67,7 @@ export async function runAutopilot({
       includeBrowserTools: false,
       includeMarketTools: true,
     });
-    let composioTools: ToolSet = {};
+    let composioTools = {};
 
     try {
       const connections = await getActiveConnections(supabase, clientId);
@@ -78,7 +78,6 @@ export async function runAutopilot({
 
     const subagentTools = createSubagentTool(supabase, clientId, threadId, {
       parentRunId: lockResult.runId,
-      composioTools,
     });
 
     const result = await propagateAttributes(

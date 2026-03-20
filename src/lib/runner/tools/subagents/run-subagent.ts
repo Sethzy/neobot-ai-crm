@@ -2,7 +2,7 @@
  * Isolated run_subagent tool for offloading work outside the parent context.
  * @module lib/runner/tools/subagents/run-subagent
  */
-import { generateText, stepCountIs, tool, type ToolSet } from "ai";
+import { generateText, stepCountIs, tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
@@ -33,19 +33,6 @@ interface CreateSubagentToolOptions {
   parentRunId: string;
   crmConfig?: CrmVocabConfig;
   crmMode?: "normal" | "setup";
-  /**
-   * Activated Composio connection tools inherited from the parent run.
-   * Subagents receive the same activated tools as the parent — no extra
-   * Composio API call. Connection management tools (create, activate,
-   * delete) remain blocked via allowConnectionMutations: false.
-   *
-   * Drift from Tasklet: Tasklet gives subagents unrestricted access to all
-   * inherited connection tools. We do the same at the tool level, but our
-   * system prompt guides the agent to keep external-facing actions (send
-   * email, create event) on the parent agent. This is a conservative safety
-   * boundary we can widen later.
-   */
-  composioTools?: ToolSet;
 }
 
 /**
@@ -100,10 +87,6 @@ export function createSubagentTool(
             crmConfig: options.crmConfig,
             crmMode: options.crmMode ?? "normal",
           });
-          const tools = {
-            ...runnerTools,
-            ...(options.composioTools ?? {}),
-          };
           const userMessage = payload
             ? `${instructionMarkdown}\n\n${payload}`
             : instructionMarkdown;
@@ -111,7 +94,7 @@ export function createSubagentTool(
             model: gateway(TIER_1_MODEL),
             system,
             messages: [{ role: "user", content: userMessage }],
-            tools,
+            tools: runnerTools,
             stopWhen: stepCountIs(MAX_SUBAGENT_STEPS),
             abortSignal,
             timeout: {

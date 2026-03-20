@@ -77,7 +77,7 @@ interface HistoryRow {
 }
 
 const allowedRoles: MessageRole[] = ["system", "user", "assistant"];
-const MAX_CONTEXT_MESSAGES = 80;
+const MAX_CONTEXT_MESSAGES = 240;
 
 function normalizeRole(role: string): MessageRole {
   return allowedRoles.includes(role as MessageRole) ? (role as MessageRole) : "assistant";

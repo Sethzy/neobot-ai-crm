@@ -263,7 +263,6 @@ export async function runAgent(
       parentRunId: lockResult.runId,
       crmConfig,
       crmMode,
-      composioTools,
     });
     _t("create_tools");
 
