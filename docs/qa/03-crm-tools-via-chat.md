@@ -1,6 +1,6 @@
 # QA Surface 3: CRM Tools via Chat
 
-> **PRs covered:** 5 (schema), 6 (CRM tools), 15c (configurability + custom fields), 15d (companies), 15e (read parity + introspection), CRM consolidation (28→8 tools)
+> **PRs covered:** 5 (schema), 6 (CRM tools), 15c (configurability + custom fields), 15d (companies), 15e (read parity + introspection), CRM consolidation (28→8 tools), 48 (CRM config mode — time-limited activation from Settings)
 > **Dogfoodable:** Partial (via chat UI)
 > **Time estimate:** 30-40 min manual (lots of agent prompts)
 > **v2 tools:** `search_crm`, `create_record`, `update_record`, `delete_records`, `link_records`, `create_interaction`, `create_task`, `update_task`, `configure_crm`

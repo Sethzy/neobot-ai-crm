@@ -12,16 +12,24 @@
 - Tasklet v2 system prompt: `roadmap docs/Sunder - Source of Truth/references/tasklet/tasklet tools/system-prompt-wholesale/01-v2-system-prompt-verbatim.md` (lines 131-137, 233-240)
 - Tasklet subagent lifecycle: `roadmap docs/Sunder - Source of Truth/references/tasklet/core-architecture/05-subagent-lifecycle.md`
 - Tasklet connection trace: `roadmap docs/Sunder - Source of Truth/references/tasklet/skills-deep-dive-connection-generation-trace.md` (lines 555-571, 758-760)
+- Approval system design: `docs/product/designs/approval-system-pr33-34-35.md`
 
 **Drift summary (Sunder vs Tasklet):**
 | Aspect | Tasklet | Sunder (intentional) | Reason |
 |---|---|---|---|
 | Subagent system prompt | Instruction markdown only | Full system prompt + memory + skills + system-reminder | Better behavior consistency for solo practitioner product. Subagent knows persona, CRM vocab, user preferences without parent hardcoding. Worth the token cost. |
-| Subagent tool surface | All parent tools inherited | All parent tools inherited (after this fix) | Parity restored. |
+| Subagent tool surface | All parent tools inherited, no restrictions on activated connection tools | All parent tools inherited, but prompt guides agent to keep external-facing actions on the parent | Conservative safety boundary: subagents can read via connections (search Gmail, check calendar) but outbound actions (send email, create event) should stay with the parent until we intentionally widen this. |
 | System-reminder | NOT given to subagents | Given to subagents | Subagent can discover connections without parent hardcoding connection IDs. Simpler instruction files. |
 | Memory context | NOT given (subagent reads via read_file if needed) | Injected via assembleSystemOnly() | Subagent follows user preferences (e.g., "concise briefs") without extra tool calls. |
 | Tool activation scope | Per-agent (each chat activates independently) | Per-client (activate once, available everywhere) | Simpler model for solo practitioner. No per-thread permission boundary. |
 | Connection management | Blocked for subagents (UI tools) | Blocked via `allowConnectionMutations: false` | Same intent, different mechanism. |
+
+**Review decisions (2026-03-20):**
+1. **Safety boundary: Keep conservative.** Subagents get activated Composio tools but the system prompt tells the agent to keep external-facing actions (sending emails, creating events) on the parent. Subagents can read via connections (search Gmail, check calendar). We can widen later intentionally.
+2. **Autopilot ordering: Minimal reorder only.** Move `createSubagentTool()` after `composioTools` is loaded. No broader refactor.
+3. **Stale test: Fix as Task 0.** Repair the `gatewayProviderOptions` mock in `run-subagent.test.ts` before writing new tests.
+4. **DRY tests: Extend existing tests.** Add assertions to existing happy-path tests rather than creating near-duplicate test cases.
+5. **Prompt assertions: Yes.** Lock down the safety boundary wording with targeted assertions in `system-prompt.test.ts`.
 
 ---
 
@@ -30,13 +38,14 @@
 **Modify:**
 - `src/lib/runner/tools/subagents/run-subagent.ts` — accept + spread composioTools
 - `src/lib/runner/run-agent.ts:259-263` — pass composioTools to createSubagentTool
-- `src/lib/runner/run-autopilot.ts:67-69` — pass composioTools to createSubagentTool
-- `src/lib/ai/system-prompt.ts:176-183` — update subagent guidance text
+- `src/lib/runner/run-autopilot.ts:62-77` — reorder so createSubagentTool comes after composioTools is loaded, pass composioTools
+- `src/lib/ai/system-prompt.ts:175-183` — update subagent guidance text
 
 **Test:**
-- `src/lib/runner/tools/subagents/__tests__/run-subagent.test.ts` — add test for composio tool inheritance
-- `src/lib/runner/__tests__/run-agent.test.ts` — verify composioTools passed to createSubagentTool
-- `src/lib/runner/__tests__/run-autopilot.test.ts` — verify composioTools passed to createSubagentTool
+- `src/lib/runner/tools/subagents/__tests__/run-subagent.test.ts` — fix stale mock, add composio tool inheritance test
+- `src/lib/runner/__tests__/run-agent.test.ts` — extend existing test to verify composioTools passed
+- `src/lib/runner/__tests__/run-autopilot.test.ts` — extend existing test to verify composioTools passed
+- `src/lib/ai/__tests__/system-prompt.test.ts` — add assertions locking down subagent safety wording
 
 **Unchanged (verify no regressions):**
 - `src/lib/runner/tool-registry.ts` — subagent branch (lines 61-68) unchanged; composio tools come from outside
@@ -45,7 +54,47 @@
 
 ---
 
-### Task 1: Add composioTools to CreateSubagentToolOptions interface
+### Task 0: Fix stale run-subagent test harness
+
+**Why:** The existing `run-subagent.test.ts` is already red because the mock at line 37 does not export `gatewayProviderOptions`, which `run-subagent.ts:101` now reads. Must fix before TDD is valid.
+
+**Files:**
+- Test: `src/lib/runner/tools/subagents/__tests__/run-subagent.test.ts:37-40`
+
+**Step 1: Add missing mock export**
+
+In `run-subagent.test.ts`, find the `vi.mock("@/lib/ai/gateway", ...)` block (around line 37) and add `gatewayProviderOptions`:
+
+```typescript
+// BEFORE:
+vi.mock("@/lib/ai/gateway", () => ({
+  gateway: mockGateway,
+  TIER_1_MODEL: "google/gemini-3-flash",
+}));
+
+// AFTER:
+vi.mock("@/lib/ai/gateway", () => ({
+  gateway: mockGateway,
+  gatewayProviderOptions: {},
+  TIER_1_MODEL: "google/gemini-3-flash",
+}));
+```
+
+**Step 2: Run the existing tests to verify they pass**
+
+Run: `npx vitest run src/lib/runner/tools/subagents/__tests__/run-subagent.test.ts`
+Expected: ALL 4 existing tests PASS (were previously red due to missing mock)
+
+**Step 3: Commit**
+
+```bash
+git add src/lib/runner/tools/subagents/__tests__/run-subagent.test.ts
+git commit -m "fix(test): add missing gatewayProviderOptions mock to run-subagent test harness"
+```
+
+---
+
+### Task 1: Add composioTools to CreateSubagentToolOptions and spread into tool set
 
 **Files:**
 - Modify: `src/lib/runner/tools/subagents/run-subagent.ts:5,31-35,78-94`
@@ -53,11 +102,9 @@
 
 **Step 1: Write the failing test — subagent receives composio tools**
 
-Add to the test file after the existing imports and mocks. Add a new mock for Composio tools and a new test case:
+Add a new test inside the existing `describe("createSubagentTool")` block:
 
 ```typescript
-// In run-subagent.test.ts, add a new test inside the describe block:
-
 it("spreads composioTools into the subagent tool set alongside runner tools", async () => {
   const fakeComposioTools = {
     "conn_abc__GMAIL_SEND_EMAIL": { description: "Send email via Gmail" },
@@ -98,7 +145,7 @@ it("spreads composioTools into the subagent tool set alongside runner tools", as
 Run: `npx vitest run src/lib/runner/tools/subagents/__tests__/run-subagent.test.ts -t "spreads composioTools"`
 Expected: FAIL — `composioTools` is not a recognized property of `CreateSubagentToolOptions`
 
-**Step 3: Add composioTools to the interface and spread into tool set**
+**Step 3: Implement — add composioTools to interface and spread into tool set**
 
 In `src/lib/runner/tools/subagents/run-subagent.ts`:
 
@@ -111,7 +158,18 @@ interface CreateSubagentToolOptions {
   parentRunId: string;
   crmConfig?: CrmVocabConfig;
   crmMode?: "normal" | "setup";
-  /** Activated Composio connection tools inherited from the parent run. */
+  /**
+   * Activated Composio connection tools inherited from the parent run.
+   * Subagents receive the same activated tools as the parent — no extra
+   * Composio API call. Connection management tools (create, activate,
+   * delete) remain blocked via allowConnectionMutations: false.
+   *
+   * Drift from Tasklet: Tasklet gives subagents unrestricted access to all
+   * inherited connection tools. We do the same at the tool level, but our
+   * system prompt guides the agent to keep external-facing actions (send
+   * email, create event) on the parent agent. This is a conservative safety
+   * boundary we can widen later.
+   */
   composioTools?: ToolSet;
 }
 
@@ -134,50 +192,17 @@ const tools = {
 };
 ```
 
-Also update the `generateText` call (line 94) — the `tools` variable name is already correct, no change needed there.
-
 **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/lib/runner/tools/subagents/__tests__/run-subagent.test.ts -t "spreads composioTools"`
 Expected: PASS
 
-**Step 5: Write test — subagent works without composioTools (backward compat)**
-
-```typescript
-it("works without composioTools option (backward compatible)", async () => {
-  const { run_subagent } = createSubagentTool(
-    "supabase" as never,
-    CLIENT_ID,
-    THREAD_ID,
-    {
-      parentRunId: PARENT_RUN_ID,
-      // No composioTools passed
-    },
-  );
-
-  await run_subagent.execute(
-    {
-      path: "subagents/triggers/morning-briefing.md",
-    },
-    { abortSignal: new AbortController().signal } as never,
-  );
-
-  expect(mockGenerateText).toHaveBeenCalledWith(
-    expect.objectContaining({
-      tools: {
-        search_contacts: { description: "tool" },
-      },
-    }),
-  );
-});
-```
-
-**Step 6: Run all subagent tests**
+**Step 5: Run all subagent tests to verify backward compat**
 
 Run: `npx vitest run src/lib/runner/tools/subagents/__tests__/run-subagent.test.ts`
-Expected: ALL PASS (existing tests still pass because composioTools is optional)
+Expected: ALL PASS — existing tests don't pass `composioTools`, so they still get only runner tools
 
-**Step 7: Commit**
+**Step 6: Commit**
 
 ```bash
 git add src/lib/runner/tools/subagents/run-subagent.ts src/lib/runner/tools/subagents/__tests__/run-subagent.test.ts
@@ -186,47 +211,34 @@ git commit -m "feat(subagent): accept composioTools in CreateSubagentToolOptions
 
 ---
 
-### Task 2: Pass composioTools from parent run to subagent
+### Task 2: Pass composioTools from parent run-agent and run-autopilot to subagent
 
 **Files:**
 - Modify: `src/lib/runner/run-agent.ts:259-263`
-- Modify: `src/lib/runner/run-autopilot.ts:67-69`
+- Modify: `src/lib/runner/run-autopilot.ts:62-77`
 - Test: `src/lib/runner/__tests__/run-agent.test.ts`
 - Test: `src/lib/runner/__tests__/run-autopilot.test.ts`
 
-**Step 1: Write the failing test — run-agent passes composioTools to createSubagentTool**
+**Step 1: Extend existing run-agent test — add composioTools assertion**
 
-In `src/lib/runner/__tests__/run-agent.test.ts`, find the test that verifies `mockCreateSubagentTool` is called. Add an assertion that composioTools is passed. First, check existing test patterns — the test already mocks `mockGetActiveConnections` and `mockLoadActivatedConnectionTools`. Add:
+In `src/lib/runner/__tests__/run-agent.test.ts`, find the existing test around line 673 that already tests Composio integration (or the main happy-path test). Add an assertion to verify `mockCreateSubagentTool` receives `composioTools`:
 
 ```typescript
-// Find the existing test "runs the agent loop..." or similar.
-// Add/modify the assertion for mockCreateSubagentTool:
-
-it("passes composioTools to createSubagentTool", async () => {
-  const fakeComposioTools = { "conn_1__GMAIL_SEND": { description: "send" } };
-  mockGetActiveConnections.mockResolvedValue([]);
-  mockLoadActivatedConnectionTools.mockResolvedValue(fakeComposioTools);
-
-  // ... existing setup (mockCreateRun, mockAssembleContext, mockStreamText, etc.)
-  // Run the agent...
-
-  expect(mockCreateSubagentTool).toHaveBeenCalledWith(
-    expect.anything(), // supabase
-    expect.any(String), // clientId
-    expect.any(String), // threadId
-    expect.objectContaining({
-      composioTools: fakeComposioTools,
-    }),
-  );
-});
+// Inside the existing happy-path test or composio test, add:
+expect(mockCreateSubagentTool).toHaveBeenCalledWith(
+  expect.anything(), // supabase
+  expect.any(String), // clientId
+  expect.any(String), // threadId
+  expect.objectContaining({
+    composioTools: expect.any(Object),
+  }),
+);
 ```
-
-Note: This test will need the same boilerplate as existing run-agent tests (mockCreateRun returning `{ created: true, runId: "..." }`, mockAssembleContext, mockStreamText, etc.). Copy the setup from an existing passing test and modify the assertion.
 
 **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run src/lib/runner/__tests__/run-agent.test.ts -t "passes composioTools"`
-Expected: FAIL — createSubagentTool is not called with composioTools
+Run: `npx vitest run src/lib/runner/__tests__/run-agent.test.ts`
+Expected: FAIL on the new assertion — `composioTools` not passed yet
 
 **Step 3: Pass composioTools in run-agent.ts**
 
@@ -251,34 +263,74 @@ const subagentTools = createSubagentTool(supabase, clientId, threadId, {
 
 **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run src/lib/runner/__tests__/run-agent.test.ts -t "passes composioTools"`
+Run: `npx vitest run src/lib/runner/__tests__/run-agent.test.ts`
 Expected: PASS
 
-**Step 5: Pass composioTools in run-autopilot.ts**
+**Step 5: Reorder and pass composioTools in run-autopilot.ts**
 
-In `src/lib/runner/run-autopilot.ts`, update lines 67-69:
+**Important:** In `run-autopilot.ts`, `createSubagentTool` is currently at line 67 BEFORE `composioTools` is loaded at lines 70-77. Must reorder.
 
 ```typescript
-// BEFORE:
+// BEFORE (lines 62-77):
+const runnerTools = createRunnerTools(supabase, clientId, threadId, {
+  allowTriggerMutations: false,
+  allowConnectionMutations: false,
+  includeBrowserTools: false,
+});
 const subagentTools = createSubagentTool(supabase, clientId, threadId, {
   parentRunId: lockResult.runId,
 });
+let composioTools: ToolSet = {};
 
-// AFTER:
+try {
+  const connections = await getActiveConnections(supabase, clientId);
+  composioTools = await loadActivatedConnectionTools(connections);
+} catch (error) {
+  console.error("[composio] Failed to load activated connection tools for autopilot.", error);
+}
+
+// AFTER (reordered — load composio first, then create subagent tool):
+const runnerTools = createRunnerTools(supabase, clientId, threadId, {
+  allowTriggerMutations: false,
+  allowConnectionMutations: false,
+  includeBrowserTools: false,
+});
+let composioTools: ToolSet = {};
+
+try {
+  const connections = await getActiveConnections(supabase, clientId);
+  composioTools = await loadActivatedConnectionTools(connections);
+} catch (error) {
+  console.error("[composio] Failed to load activated connection tools for autopilot.", error);
+}
+
 const subagentTools = createSubagentTool(supabase, clientId, threadId, {
   parentRunId: lockResult.runId,
   composioTools,
 });
 ```
 
-Note: The `composioTools` variable is already in scope — it's declared at line 70 and populated at lines 72-77.
+**Step 6: Extend existing run-autopilot test — add composioTools assertion**
 
-**Step 6: Run all runner tests**
+In `src/lib/runner/__tests__/run-autopilot.test.ts`, find the existing happy-path test (around line 158) and add:
+
+```typescript
+expect(mockCreateSubagentTool).toHaveBeenCalledWith(
+  expect.anything(),
+  expect.any(String),
+  expect.any(String),
+  expect.objectContaining({
+    composioTools: expect.any(Object),
+  }),
+);
+```
+
+**Step 7: Run all runner tests**
 
 Run: `npx vitest run src/lib/runner/__tests__/run-agent.test.ts src/lib/runner/__tests__/run-autopilot.test.ts`
 Expected: ALL PASS
 
-**Step 7: Commit**
+**Step 8: Commit**
 
 ```bash
 git add src/lib/runner/run-agent.ts src/lib/runner/run-autopilot.ts src/lib/runner/__tests__/run-agent.test.ts src/lib/runner/__tests__/run-autopilot.test.ts
@@ -287,29 +339,41 @@ git commit -m "feat(subagent): pass composioTools from parent run-agent and run-
 
 ---
 
-### Task 3: Update system prompt subagent guidance
+### Task 3: Update system prompt subagent guidance and lock with test assertions
 
 **Files:**
 - Modify: `src/lib/ai/system-prompt.ts:175-183`
+- Test: `src/lib/ai/__tests__/system-prompt.test.ts`
 
-**Step 1: Read the current subagent guidance**
+**Step 1: Write failing test assertions for the new prompt wording**
 
-Current text at lines 175-183:
+In `src/lib/ai/__tests__/system-prompt.test.ts`, add targeted assertions:
+
+```typescript
+describe("subagent guidance", () => {
+  it("states subagents inherit activated connection tools", () => {
+    expect(SYSTEM_PROMPT).toContain("including activated connection tools");
+  });
+
+  it("states subagents cannot create connections or triggers", () => {
+    expect(SYSTEM_PROMPT).toContain("cannot create or activate connections");
+    expect(SYSTEM_PROMPT).toContain("create triggers");
+  });
+
+  it("does not say subagents are internal-work-only", () => {
+    expect(SYSTEM_PROMPT).not.toContain("internal work");
+  });
+});
 ```
-<subagents>
-You can delegate bounded internal work to run_subagent.
 
-- Prefer run_subagent for reusable instruction files, long multi-step work, or tasks that benefit from a clean isolated context.
-- The subagent receives the same system guidance and tools you do, but it is a stateless worker with a single request-response cycle.
-- Subagents cannot access conversation history, compaction summaries, or prior trigger events unless you put the needed context into the payload.
-- Use subagents only for internal work. Do not delegate anything that requires direct user interaction or approval-gated external actions.
-- A good payload is explicit and self-contained: include the goal, required inputs, output format, and any constraints the subagent must follow.
-</subagents>
-```
+**Step 2: Run tests to verify they fail**
 
-**Step 2: Update the guidance**
+Run: `npx vitest run src/lib/ai/__tests__/system-prompt.test.ts -t "subagent guidance"`
+Expected: FAIL — current prompt says "internal work" and doesn't mention "activated connection tools"
 
-Replace the `<subagents>` block with:
+**Step 3: Update the subagent guidance**
+
+In `src/lib/ai/system-prompt.ts`, replace the `<subagents>` block (lines 175-183):
 
 ```
 <subagents>
@@ -319,25 +383,27 @@ You can delegate work to run_subagent.
 - The subagent receives the same system guidance, memory, and tools you do — including activated connection tools (e.g., Gmail, Calendar). It is a stateless worker with a single request-response cycle.
 - Subagents cannot access conversation history, compaction summaries, or prior trigger events unless you put the needed context into the payload.
 - Subagents cannot create or activate connections, create triggers, send chat messages, or use the browser. They can use any already-activated connection tools.
+- For external-facing actions that affect the user's clients (sending emails, creating calendar events), prefer doing those yourself rather than delegating to a subagent, so the user sees the action in their chat history.
 - A good payload is explicit and self-contained: include the goal, required inputs, output format, and any constraints the subagent must follow.
 </subagents>
 ```
 
-Key changes:
-- Removed "internal work only" restriction — subagents can now do external work via activated connections
-- Added "including activated connection tools" to clarify inheritance
-- Explicit list of what subagents CANNOT do (connection management, triggers, send_message, browser) — matches the code flags in `run-subagent.ts:79-83`
+Key changes from current:
+- Removed "internal work only" blanket restriction
+- Added "including activated connection tools" — clarifies tool inheritance
+- Added explicit list of what subagents CANNOT do (matches code: `allowConnectionMutations: false`, `allowTriggerMutations: false`, `includeSendMessage: false`, `includeBrowserTools: false`)
+- Added soft safety guidance: "prefer doing those yourself" for external-facing actions — this keeps the conservative boundary without hard-blocking. The tools ARE available if the parent delegates (e.g., autopilot trigger runs), but the agent is guided to keep user-visible actions in the main thread.
 
-**Step 3: Verify the system prompt compiles**
+**Step 4: Run tests to verify they pass**
 
-Run: `npx tsc --noEmit src/lib/ai/system-prompt.ts`
-Expected: no errors (or same pre-existing errors as before)
+Run: `npx vitest run src/lib/ai/__tests__/system-prompt.test.ts -t "subagent guidance"`
+Expected: PASS
 
-**Step 4: Commit**
+**Step 5: Commit**
 
 ```bash
-git add src/lib/ai/system-prompt.ts
-git commit -m "docs(system-prompt): update subagent guidance — connection tools now inherited"
+git add src/lib/ai/system-prompt.ts src/lib/ai/__tests__/system-prompt.test.ts
+git commit -m "docs(system-prompt): update subagent guidance — connection tools inherited, safety boundary preserved"
 ```
 
 ---
@@ -362,12 +428,17 @@ Expected: ALL PASS (no changes to these files)
 Run: `npx vitest run src/lib/composio/`
 Expected: ALL PASS (no changes to these files)
 
-**Step 4: Run full test suite**
+**Step 4: Run system prompt tests**
+
+Run: `npx vitest run src/lib/ai/`
+Expected: ALL PASS
+
+**Step 5: Run full test suite**
 
 Run: `npx vitest run`
 Expected: ALL PASS
 
-**Step 5: Final commit (if any test fixes were needed)**
+**Step 6: Final commit if any fixes were needed**
 
 ```bash
 git commit -m "test: fix any regressions from subagent composio tool inheritance"
@@ -387,3 +458,6 @@ After implementation, manually verify these scenarios:
 - [ ] Subagent cannot create triggers (`allowTriggerMutations: false` still works)
 - [ ] Subagent cannot send chat messages (`includeSendMessage: false` still works)
 - [ ] Subagent cannot use browser (`includeBrowserTools: false` still works)
+- [ ] System prompt contains "including activated connection tools" (locked by test)
+- [ ] System prompt contains "cannot create or activate connections" (locked by test)
+- [ ] System prompt does NOT contain "internal work" blanket restriction (locked by test)

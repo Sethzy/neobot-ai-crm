@@ -24,8 +24,9 @@ The runner has hard limits on context window usage: tool results are truncated a
 **Key constants:**
 - `ARTIFACT_SIZE_THRESHOLD_BYTES = 5,000` — tool result truncation threshold
 - `MAX_STEPS_TIER_1 = 9` — max steps per run
-- `MAX_CONTEXT_MESSAGES = 240` — max history messages loaded
-- `COMPACTION_MESSAGE_THRESHOLD = 200` — triggers compaction
+- `MAX_CONTEXT_MESSAGES = 80` — max history messages loaded
+- `COMPACTION_MESSAGE_THRESHOLD = 80` — triggers compaction
+- `COMPACTION_KEEP_RECENT = 30` — messages kept verbatim after compaction
 
 ---
 
@@ -117,8 +118,8 @@ The runner has hard limits on context window usage: tool results are truncated a
 
 ### 20.8 Message history limit
 
-1. Create a thread approaching 240 messages
-2. **Expected:** Context loads the most recent 240 messages (`MAX_CONTEXT_MESSAGES`)
+1. Create a thread approaching 80 messages
+2. **Expected:** Context loads the most recent 80 messages (`MAX_CONTEXT_MESSAGES`)
 3. **Expected:** Older messages are not in context but still in DB
 4. Agent should not crash or behave oddly at this boundary
 
