@@ -162,9 +162,9 @@ describe("compaction constants", () => {
     expect(Number.isInteger(ARTIFACT_SIZE_THRESHOLD_BYTES)).toBe(true);
     expect(ARTIFACT_SIZE_THRESHOLD_BYTES).toBeGreaterThan(0);
     expect(Number.isInteger(COMPACTION_KEEP_RECENT)).toBe(true);
-    expect(COMPACTION_KEEP_RECENT).toBe(50);
+    expect(COMPACTION_KEEP_RECENT).toBe(30);
     expect(Number.isInteger(COMPACTION_MESSAGE_THRESHOLD)).toBe(true);
-    expect(COMPACTION_MESSAGE_THRESHOLD).toBe(200);
+    expect(COMPACTION_MESSAGE_THRESHOLD).toBe(80);
     expect(COMPACTION_MESSAGE_THRESHOLD).toBeGreaterThan(COMPACTION_KEEP_RECENT);
   });
 
@@ -739,8 +739,8 @@ describe("maybeCompactThread", () => {
       usage: { totalTokens: 222 },
     });
     const boundaryMessageId = createUuid(20);
-    const messageRows = createMessageRows(230, { sameTimestampFrom: 20 });
-    const lastCompactedMessageNumber = 230 - COMPACTION_KEEP_RECENT;
+    const messageRows = createMessageRows(120, { sameTimestampFrom: 20 });
+    const lastCompactedMessageNumber = 120 - COMPACTION_KEEP_RECENT;
     const supabase = createCompactionSupabaseMock({
       threadRow: {
         thread_id: createUuid(90),

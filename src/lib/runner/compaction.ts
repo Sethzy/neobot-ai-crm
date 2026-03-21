@@ -25,10 +25,10 @@ export const SUMMARY_PREFIX =
 export const ARTIFACT_SIZE_THRESHOLD_BYTES = 5_000;
 
 /** Uncompacted message windows above this count should be summarized. */
-export const COMPACTION_MESSAGE_THRESHOLD = 200;
+export const COMPACTION_MESSAGE_THRESHOLD = 80;
 
 /** The newest messages that always remain verbatim after each compaction pass. */
-export const COMPACTION_KEEP_RECENT = 50;
+export const COMPACTION_KEEP_RECENT = 30;
 
 /**
  * Structured compaction summary instructions matching Tasklet's 4-section format.

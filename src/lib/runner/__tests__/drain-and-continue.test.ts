@@ -228,4 +228,39 @@ describe("drainAndContinue", () => {
       ],
     });
   });
+
+  it("preserves queued channel metadata when replaying remaining messages", async () => {
+    mockDrainQueue.mockResolvedValue([
+      {
+        text: "Review the attachment",
+        triggerType: "chat",
+        channel: "telegram",
+        fileParts: [
+          {
+            type: "file",
+            filename: "shot.png",
+            mediaType: "image/png",
+            url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+          },
+        ],
+      },
+      {
+        text: "Second Telegram follow up",
+        triggerType: "chat",
+        channel: "telegram",
+      },
+    ]);
+    mockRunAgent.mockResolvedValue({ status: "streaming" });
+
+    await drainAndContinue("supabase" as never, { clientId: CLIENT, threadId: THREAD });
+
+    expect(mockEnqueueMessage).toHaveBeenCalledWith("supabase", {
+      threadId: THREAD,
+      clientId: CLIENT,
+      content: "Second Telegram follow up",
+      triggerType: "chat",
+      channel: "telegram",
+      fileParts: undefined,
+    });
+  });
 });

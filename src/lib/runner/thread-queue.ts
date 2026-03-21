@@ -9,13 +9,14 @@ import type { Database, Json } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
 type QueuedTriggerType = "chat" | "cron" | "webhook" | "pulse";
+type QueuedChannel = "web" | "telegram" | "whatsapp";
 
 export interface EnqueueMessageInput {
   threadId: string;
   clientId: string;
   content: string;
   fileParts?: RunnerFilePart[];
-  channel?: string;
+  channel?: QueuedChannel;
   triggerType?: QueuedTriggerType;
 }
 
@@ -33,6 +34,7 @@ interface DrainedQueueRow {
 export interface DrainedQueuedMessage {
   text: string;
   triggerType: QueuedTriggerType;
+  channel?: QueuedChannel;
   fileParts?: RunnerFilePart[];
 }
 
@@ -49,6 +51,10 @@ function parseQueuedFileParts(value: unknown): RunnerFilePart[] | undefined {
   return parsed.success && parsed.data.length > 0 ? parsed.data : undefined;
 }
 
+function isQueuedChannel(value: unknown): value is QueuedChannel {
+  return value === "web" || value === "telegram" || value === "whatsapp";
+}
+
 function extractQueuedMessage(content: Json): DrainedQueuedMessage {
   if (typeof content === "string") {
     return {
@@ -61,6 +67,7 @@ function extractQueuedMessage(content: Json): DrainedQueuedMessage {
     return {
       text: content.text,
       triggerType: isQueuedTriggerType(content.triggerType) ? content.triggerType : "chat",
+      channel: isQueuedChannel(content.channel) ? content.channel : undefined,
       fileParts: parseQueuedFileParts(content.fileParts),
     };
   }
@@ -85,11 +92,13 @@ export async function enqueueMessage(
     content: triggerType && triggerType !== "chat"
       ? {
           text: content,
+          channel,
           triggerType,
           ...(fileParts && fileParts.length > 0 ? { fileParts } : {}),
         }
       : {
           text: content,
+          channel,
           ...(fileParts && fileParts.length > 0 ? { fileParts } : {}),
         },
   });

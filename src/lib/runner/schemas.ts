@@ -6,6 +6,8 @@ import { z } from "zod";
 
 /** Supported invocation sources for runAgent. */
 export const triggerTypeValues = ["chat", "webhook", "cron", "pulse"] as const;
+/** Supported delivery channels for queued chat work. */
+export const runnerChannelValues = ["web", "telegram", "whatsapp"] as const;
 
 export const runnerFilePartSchema = z.object({
   type: z.literal("file"),
@@ -20,6 +22,7 @@ export const runnerPayloadSchema = z.object({
   triggerType: z.enum(triggerTypeValues),
   consumeMessageQuota: z.boolean().optional(),
   input: z.string(),
+  channel: z.enum(runnerChannelValues).optional(),
   fileParts: z.array(runnerFilePartSchema).optional(),
   crmMode: z.enum(["normal", "setup"]).optional(),
   includeConfigTool: z.boolean().optional(),

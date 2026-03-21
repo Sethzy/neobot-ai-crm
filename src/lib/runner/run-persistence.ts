@@ -10,6 +10,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createApprovalEvent } from "@/lib/approvals/queries";
 import { captureServerEvents } from "@/lib/analytics/posthog-server";
 import { createMessages } from "@/lib/chat/messages";
+import {
+  deliverToExternalChannels,
+  hasExternalDeliverables,
+} from "@/lib/channels/deliver";
 import { maybeCompactThread } from "@/lib/runner/compaction";
 import { drainAndContinue } from "@/lib/runner/drain-and-continue";
 import {
@@ -204,6 +208,13 @@ export async function finalizeRun({
   }
 
   await completeRun(supabase, { ...baseRunCompletion, status: "completed" });
+
+  if (hasExternalDeliverables(contentText, parts)) {
+    await deliverToExternalChannels(supabase, threadId, clientId, contentText, parts)
+      .catch((deliveryError) => {
+        console.error(`[${logLabel}] external channel delivery failed:`, deliveryError);
+      });
+  }
 
   // Drain any queued messages that arrived while this run was active.
   await drainAndContinue(supabase, { clientId, threadId });

@@ -184,7 +184,7 @@ export async function runAgent(
         clientId,
         content: input,
         fileParts: payload.fileParts,
-        channel: "web",
+        channel: payload.channel ?? "web",
         ...(payload.triggerType === "chat" ? {} : { triggerType: payload.triggerType }),
       });
       shouldReleaseConsumedQuota = false;

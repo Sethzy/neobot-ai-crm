@@ -180,6 +180,29 @@ describe("per-thread serialization", () => {
     expect(mockStreamText).not.toHaveBeenCalled();
   });
 
+  it("queues busy telegram messages with the external channel preserved", async () => {
+    mockCreateRun.mockResolvedValue({ created: false });
+
+    const result = await runAgent(
+      {
+        clientId: CLIENT,
+        threadId: THREAD_A,
+        triggerType: "chat",
+        input: "Telegram follow up",
+        channel: "telegram",
+      },
+      "supabase" as never,
+    );
+
+    expect(result).toEqual({ status: "queued" });
+    expect(mockEnqueueMessage).toHaveBeenCalledWith("supabase", {
+      threadId: THREAD_A,
+      clientId: CLIENT,
+      content: "Telegram follow up",
+      channel: "telegram",
+    });
+  });
+
   it("allows different threads to run concurrently", async () => {
     mockCreateRun
       .mockResolvedValueOnce({ created: true, runId: "run-a" })

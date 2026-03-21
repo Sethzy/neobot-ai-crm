@@ -93,6 +93,7 @@ export async function drainAndContinue(
       threadId,
       clientId,
       content: queuedMessage.text,
+      channel: queuedMessage.channel,
       fileParts: queuedMessage.fileParts,
       triggerType: queuedMessage.triggerType,
     });
@@ -108,6 +109,7 @@ export async function drainAndContinue(
       clientId,
       threadId,
       triggerType: firstQueuedMessage.triggerType,
+      ...(firstQueuedMessage.channel ? { channel: firstQueuedMessage.channel } : {}),
       input: firstQueuedMessage.triggerType === "chat"
         ? buildQueuedInput(nextBatch)
         : firstQueuedMessage.text,

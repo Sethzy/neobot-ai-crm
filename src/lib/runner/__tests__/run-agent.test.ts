@@ -26,6 +26,8 @@ const {
   mockCreateMessages,
   mockMaybeCompactThread,
   mockTruncateOversizedParts,
+  mockDeliverToExternalChannels,
+  mockHasExternalDeliverables,
   mockLoadCrmConfig,
   mockGetActiveConnections,
   mockLoadActivatedConnectionTools,
@@ -54,6 +56,8 @@ const {
   mockCreateMessages: vi.fn(),
   mockMaybeCompactThread: vi.fn(),
   mockTruncateOversizedParts: vi.fn(),
+  mockDeliverToExternalChannels: vi.fn(),
+  mockHasExternalDeliverables: vi.fn(() => false),
   mockLoadCrmConfig: vi.fn(),
   mockGetActiveConnections: vi.fn(),
   mockLoadActivatedConnectionTools: vi.fn(),
@@ -153,6 +157,11 @@ vi.mock("@/lib/runner/compaction", () => ({
 vi.mock("@/lib/runner/toolcall-artifacts", () => ({
   saveToolcallBlock: vi.fn().mockResolvedValue(undefined),
   truncateOversizedParts: (...args: unknown[]) => mockTruncateOversizedParts(...args),
+}));
+
+vi.mock("@/lib/channels/deliver", () => ({
+  deliverToExternalChannels: (...args: unknown[]) => mockDeliverToExternalChannels(...args),
+  hasExternalDeliverables: (...args: unknown[]) => mockHasExternalDeliverables(...args),
 }));
 
 import type { RunnerPayload } from "../schemas";
@@ -664,6 +673,27 @@ describe("runAgent", () => {
           url: "https://storage.example.com/chat-attachments/client-1/shot.png",
         },
       ],
+    });
+  });
+
+  it("preserves a telegram channel hint when queueing a busy chat run", async () => {
+    mockCreateRun.mockResolvedValue({ created: false });
+
+    const result = await runAgent(
+      {
+        ...validPayload,
+        input: "Reply from Telegram",
+        channel: "telegram",
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(result).toEqual({ status: "queued" });
+    expect(mockEnqueueMessage).toHaveBeenCalledWith("mock-supabase-client", {
+      threadId: validPayload.threadId,
+      clientId: validPayload.clientId,
+      content: "Reply from Telegram",
+      channel: "telegram",
     });
   });
 

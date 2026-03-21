@@ -40,6 +40,13 @@ vi.mock("@/lib/analytics/posthog-server", () => ({
   captureServerEvents: (...args: unknown[]) => mockCaptureServerEvents(...args),
 }));
 
+const mockDeliverToExternalChannels = vi.fn().mockResolvedValue(undefined);
+const mockHasExternalDeliverables = vi.fn().mockReturnValue(false);
+vi.mock("@/lib/channels/deliver", () => ({
+  deliverToExternalChannels: (...args: unknown[]) => mockDeliverToExternalChannels(...args),
+  hasExternalDeliverables: (...args: unknown[]) => mockHasExternalDeliverables(...args),
+}));
+
 const mockBuildAssistantPartsFromSteps = vi.fn();
 const mockGetAssistantTextFromParts = vi.fn();
 vi.mock("@/lib/runner/message-utils", () => ({
@@ -95,6 +102,8 @@ describe("finalizeRun block storage", () => {
       event: {},
     });
     mockCaptureServerEvents.mockResolvedValue(undefined);
+    mockDeliverToExternalChannels.mockResolvedValue(undefined);
+    mockHasExternalDeliverables.mockReturnValue(false);
   });
 
   it("calls saveToolcallBlock for every tool part with output-available state", async () => {
@@ -294,6 +303,62 @@ describe("finalizeRun block storage", () => {
       "insert failed",
     );
     consoleSpy.mockRestore();
+  });
+
+  it("delivers to external channels after the run is completed and before draining queued work", async () => {
+    const parts: PersistedPart[] = [
+      { type: "text", text: "Telegram reply" },
+    ];
+
+    mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
+    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+    mockGetAssistantTextFromParts.mockReturnValue("Telegram reply");
+    mockHasExternalDeliverables.mockReturnValue(true);
+
+    await finalizeRun(makeInput({ text: "Telegram reply" }));
+
+    expect(mockDeliverToExternalChannels).toHaveBeenCalledWith(
+      expect.anything(),
+      THREAD_ID,
+      CLIENT_ID,
+      "Telegram reply",
+      parts,
+    );
+    expect(mockCompleteRun.mock.invocationCallOrder[0]).toBeLessThan(
+      mockDeliverToExternalChannels.mock.invocationCallOrder[0],
+    );
+    expect(mockDeliverToExternalChannels.mock.invocationCallOrder[0]).toBeLessThan(
+      mockDrainAndContinue.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("delivers question-only runs with no assistant prose when parts are externally deliverable", async () => {
+    const parts: PersistedPart[] = [
+      {
+        type: "tool-ask_user_question",
+        toolCallId: "tool-question-1",
+        state: "output-available",
+        output: {
+          questions: [{ question: "Which contact?", options: ["John", "Mary"] }],
+          status: "awaiting_response",
+        },
+      } as PersistedPart,
+    ];
+
+    mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
+    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+    mockGetAssistantTextFromParts.mockReturnValue("");
+    mockHasExternalDeliverables.mockReturnValue(true);
+
+    await finalizeRun(makeInput({ text: "" }));
+
+    expect(mockDeliverToExternalChannels).toHaveBeenCalledWith(
+      expect.anything(),
+      THREAD_ID,
+      CLIENT_ID,
+      "",
+      parts,
+    );
   });
 });
 

@@ -30,6 +30,18 @@ describe("runnerPayloadSchema", () => {
     expect(runnerPayloadSchema.parse(valid)).toEqual(valid);
   });
 
+  test("accepts an external channel hint for queued chat work", () => {
+    const valid = {
+      clientId: "550e8400-e29b-41d4-a716-446655440000",
+      threadId: "660e8400-e29b-41d4-a716-446655440000",
+      triggerType: "chat" as const,
+      input: "Hello from Telegram!",
+      channel: "telegram" as const,
+    };
+
+    expect(runnerPayloadSchema.parse(valid)).toEqual(valid);
+  });
+
   test("rejects invalid trigger type", () => {
     const invalid = {
       clientId: "550e8400-e29b-41d4-a716-446655440000",

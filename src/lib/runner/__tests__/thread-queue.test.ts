@@ -26,7 +26,7 @@ describe("enqueueMessage", () => {
       thread_id: "thread-1",
       client_id: "client-1",
       channel: "web",
-      content: { text: "Follow up on this" },
+      content: { text: "Follow up on this", channel: "web" },
     });
   });
 
@@ -50,6 +50,7 @@ describe("enqueueMessage", () => {
       channel: "web",
       content: {
         text: "Process the most recent trigger event for this thread.",
+        channel: "web",
         triggerType: "cron",
       },
     });
@@ -81,6 +82,7 @@ describe("enqueueMessage", () => {
       channel: "web",
       content: {
         text: "Review this screenshot",
+        channel: "web",
         fileParts: [
           {
             type: "file",
@@ -192,6 +194,36 @@ describe("drainQueue", () => {
             url: "https://storage.example.com/chat-attachments/client-1/shot.png",
           },
         ],
+      },
+    ]);
+  });
+
+  it("hydrates the queued channel when draining external chat rows", async () => {
+    const client = createMockSupabaseClient({
+      rpcResults: {
+        drain_thread_queue: {
+          data: [
+            {
+              queue_id: "q1",
+              content: {
+                text: "Telegram follow up",
+                channel: "telegram",
+              },
+              created_at: "2026-03-01T00:00:01Z",
+            },
+          ],
+          error: null,
+        },
+      },
+    });
+
+    await expect(
+      drainQueue(client as never, { threadId: "thread-1", clientId: "client-1" }),
+    ).resolves.toEqual([
+      {
+        text: "Telegram follow up",
+        triggerType: "chat",
+        channel: "telegram",
       },
     ]);
   });
