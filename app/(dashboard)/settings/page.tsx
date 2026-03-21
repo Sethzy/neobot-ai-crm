@@ -18,6 +18,7 @@ import { formatMessageQuotaResetDate } from "@/lib/usage/message-quota";
 import { loadCurrentMessageQuota } from "@/lib/usage/message-quota-server";
 
 import { CrmConfigModeCard } from "./crm-config-mode-card";
+import { TelegramConnectCard } from "./telegram-connect-card";
 import { SubmitButton } from "../pricing/submit-button";
 
 interface SettingsPageProps {
@@ -132,12 +133,31 @@ async function loadCrmConfigModeExpiresAt(): Promise<string | null> {
   }
 }
 
+/** Loads the connected Telegram chat id for the current client, or null when disconnected. */
+async function loadTelegramChatId(): Promise<string | null> {
+  try {
+    const supabase = await createClient();
+    const clientId = await resolveClientId(supabase);
+    const { data } = await supabase
+      .from("conversation_channel_mappings")
+      .select("external_conversation_id")
+      .eq("client_id", clientId)
+      .eq("channel", "telegram")
+      .maybeSingle();
+
+    return data?.external_conversation_id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
-  const [client, messageQuota, crmConfigExpiresAt] = await Promise.all([
+  const [client, messageQuota, crmConfigExpiresAt, telegramChatId] = await Promise.all([
     loadCurrentBillingState(),
     loadCurrentMessageQuota(),
     loadCrmConfigModeExpiresAt(),
+    loadTelegramChatId(),
   ]);
   const connectionAlert = renderConnectionAlert(
     resolvedSearchParams.connection,
@@ -273,7 +293,10 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             </CardFooter>
           </Card>
 
-          <CrmConfigModeCard initialExpiresAt={crmConfigExpiresAt} />
+          <div className="space-y-4">
+            <CrmConfigModeCard initialExpiresAt={crmConfigExpiresAt} />
+            <TelegramConnectCard initialChatId={telegramChatId} />
+          </div>
         </div>
 
         <Card className="border-border/70 bg-card shadow-sm">

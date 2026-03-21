@@ -18,12 +18,30 @@ vi.mock("@/lib/chat/client-id", () => ({
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
-    from: vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: null, error: null }),
-        }),
-      }),
+    from: vi.fn((table: string) => {
+      if (table === "clients") {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: null, error: null }),
+            }),
+          }),
+        };
+      }
+
+      if (table === "conversation_channel_mappings") {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+              }),
+            }),
+          }),
+        };
+      }
+
+      throw new Error(`Unexpected table: ${table}`);
     }),
   }),
 }));
@@ -85,6 +103,7 @@ describe("/settings page", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText("88")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Generate pairing link/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open skills/i })).toHaveAttribute("href", "/skills");
   });
 

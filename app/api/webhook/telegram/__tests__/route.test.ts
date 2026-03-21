@@ -1,0 +1,659 @@
+/**
+ * Tests for the Telegram webhook route.
+ * @module app/api/webhook/telegram/__tests__/route
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const {
+  mockAfter,
+  mockCreateAdminClient,
+  mockCreateTelegramBot,
+  mockGetTelegramBotToken,
+  mockRunAgent,
+  mockResolveAndContinueApproval,
+  mockAdvancePendingQuestionBatchByCallback,
+  mockAdvancePendingQuestionBatchByTextReply,
+  mockClearPendingQuestionsForChat,
+  mockDownloadAndStoreTelegramFile,
+} = vi.hoisted(() => ({
+  mockAfter: vi.fn(),
+  mockCreateAdminClient: vi.fn(),
+  mockCreateTelegramBot: vi.fn(),
+  mockGetTelegramBotToken: vi.fn(),
+  mockRunAgent: vi.fn(),
+  mockResolveAndContinueApproval: vi.fn(),
+  mockAdvancePendingQuestionBatchByCallback: vi.fn(),
+  mockAdvancePendingQuestionBatchByTextReply: vi.fn(),
+  mockClearPendingQuestionsForChat: vi.fn(),
+  mockDownloadAndStoreTelegramFile: vi.fn(),
+}));
+
+vi.mock("next/server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/server")>();
+
+  return {
+    ...actual,
+    after: mockAfter,
+  };
+});
+
+vi.mock("@/lib/supabase/server", () => ({
+  createAdminClient: mockCreateAdminClient,
+}));
+
+vi.mock("@/lib/channels/telegram", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/channels/telegram")>();
+
+  return {
+    ...actual,
+    createTelegramBot: (...args: unknown[]) => mockCreateTelegramBot(...args),
+    getTelegramBotToken: (...args: unknown[]) => mockGetTelegramBotToken(...args),
+    downloadAndStoreTelegramFile: (...args: unknown[]) => mockDownloadAndStoreTelegramFile(...args),
+  };
+});
+
+vi.mock("@/lib/runner/run-agent", () => ({
+  runAgent: (...args: unknown[]) => mockRunAgent(...args),
+}));
+
+vi.mock("@/lib/approvals/continue-after-approval", () => ({
+  resolveAndContinueApproval: (...args: unknown[]) => mockResolveAndContinueApproval(...args),
+}));
+
+vi.mock("@/lib/channels/telegram/pending-questions", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/channels/telegram/pending-questions")>();
+
+  return {
+    ...actual,
+    advancePendingQuestionBatchByCallback: (...args: unknown[]) =>
+      mockAdvancePendingQuestionBatchByCallback(...args),
+    advancePendingQuestionBatchByTextReply: (...args: unknown[]) =>
+      mockAdvancePendingQuestionBatchByTextReply(...args),
+    clearPendingQuestionsForChat: (...args: unknown[]) => mockClearPendingQuestionsForChat(...args),
+  };
+});
+
+import { POST } from "../route";
+
+interface MockSupabaseResult {
+  data: unknown;
+  error: { message: string; code?: string } | null;
+}
+
+interface MockWebhookSupabaseConfig {
+  mappingResults?: MockSupabaseResult[];
+  approvalEventResults?: MockSupabaseResult[];
+  pairingTokenResults?: MockSupabaseResult[];
+  receiptInsertResults?: MockSupabaseResult[];
+  threadInsertResults?: MockSupabaseResult[];
+  mappingInsertResults?: MockSupabaseResult[];
+  mappingUpdateResults?: MockSupabaseResult[];
+  tokenDeleteResults?: MockSupabaseResult[];
+}
+
+function takeResult(queue: MockSupabaseResult[] | undefined, fallback: MockSupabaseResult) {
+  return queue?.shift() ?? fallback;
+}
+
+function createWebhookSupabase(config: MockWebhookSupabaseConfig = {}) {
+  const records = {
+    inserts: [] as Array<{ table: string; value: unknown }>,
+    deletes: [] as Array<{ table: string; filters: Array<[string, unknown]> }>,
+  };
+
+  const from = vi.fn((table: string) => {
+    if (table === "conversation_channel_mappings") {
+      const filters: Array<[string, unknown]> = [];
+      const selectChain = {
+        eq: vi.fn((field: string, value: unknown) => {
+          filters.push([field, value]);
+          return selectChain;
+        }),
+        maybeSingle: vi.fn().mockImplementation(async () =>
+          takeResult(config.mappingResults, { data: null, error: null })
+        ),
+      };
+
+      const deleteFilters: Array<[string, unknown]> = [];
+      const deleteChain = {
+        eq: vi.fn((field: string, value: unknown) => {
+          deleteFilters.push([field, value]);
+          return deleteChain;
+        }),
+        then: async (onfulfilled?: ((value: MockSupabaseResult) => unknown) | null) => {
+          const result = { data: null, error: null };
+          records.deletes.push({ table, filters: deleteFilters });
+          return onfulfilled ? onfulfilled(result) : result;
+        },
+      };
+
+      return {
+        select: vi.fn(() => selectChain),
+        insert: vi.fn().mockImplementation(async (value: unknown) => {
+          records.inserts.push({ table, value });
+          return takeResult(config.mappingInsertResults, { data: null, error: null });
+        }),
+        update: vi.fn().mockImplementation((_value: unknown) => {
+          const updateChain = {
+            eq: vi.fn(() => updateChain),
+            then: async (onfulfilled?: ((value: MockSupabaseResult) => unknown) | null) => {
+              const result = takeResult(config.mappingUpdateResults, { data: null, error: null });
+              return onfulfilled ? onfulfilled(result) : result;
+            },
+          };
+          return updateChain;
+        }),
+        delete: vi.fn(() => deleteChain),
+      };
+    }
+
+    if (table === "conversation_channel_delivery_receipts") {
+      return {
+        insert: vi.fn().mockImplementation(async (value: unknown) => {
+          records.inserts.push({ table, value });
+          return takeResult(config.receiptInsertResults, { data: null, error: null });
+        }),
+      };
+    }
+
+    if (table === "telegram_pairing_tokens") {
+      const selectChain = {
+        eq: vi.fn(() => selectChain),
+        maybeSingle: vi.fn().mockImplementation(async () =>
+          takeResult(config.pairingTokenResults, { data: null, error: null })
+        ),
+      };
+      const deleteChain = {
+        eq: vi.fn().mockImplementation(async (_field: string, value: unknown) => {
+          records.deletes.push({ table, filters: [["token", value]] });
+          return takeResult(config.tokenDeleteResults, { data: null, error: null });
+        }),
+      };
+
+      return {
+        select: vi.fn(() => selectChain),
+        delete: vi.fn(() => deleteChain),
+      };
+    }
+
+    if (table === "conversation_threads") {
+      return {
+        insert: vi.fn().mockImplementation(async (value: unknown) => {
+          records.inserts.push({ table, value });
+          return takeResult(config.threadInsertResults, { data: null, error: null });
+        }),
+      };
+    }
+
+    if (table === "approval_events") {
+      const selectChain = {
+        eq: vi.fn(() => selectChain),
+        single: vi.fn().mockImplementation(async () =>
+          takeResult(config.approvalEventResults, { data: null, error: null })
+        ),
+      };
+
+      return {
+        select: vi.fn(() => selectChain),
+      };
+    }
+
+    throw new Error(`Unexpected table: ${table}`);
+  });
+
+  return { from, records };
+}
+
+function createTelegramBotApi() {
+  return {
+    sendChatAction: vi.fn().mockResolvedValue(undefined),
+    sendMessage: vi.fn().mockResolvedValue({ message_id: 1, chat: { id: 12345 } }),
+    answerCallbackQuery: vi.fn().mockResolvedValue(undefined),
+    editMessageText: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+function createRequest(body: unknown, secret = "telegram-secret") {
+  return new Request("http://localhost/api/webhook/telegram", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-telegram-bot-api-secret-token": secret,
+    },
+    body: typeof body === "string" ? body : JSON.stringify(body),
+  });
+}
+
+async function flushBackgroundWork() {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+describe("POST /api/webhook/telegram", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.TELEGRAM_WEBHOOK_SECRET = "telegram-secret";
+    mockAfter.mockImplementation(async (callback: () => Promise<void> | void) => {
+      await callback();
+    });
+    mockGetTelegramBotToken.mockReturnValue("123:ABC");
+    mockRunAgent.mockResolvedValue({
+      status: "streaming",
+      streamResult: { text: Promise.resolve("done") },
+    });
+    mockResolveAndContinueApproval.mockResolvedValue({ success: true, status: "continued" });
+    mockAdvancePendingQuestionBatchByCallback.mockResolvedValue({ status: "expired" });
+    mockAdvancePendingQuestionBatchByTextReply.mockResolvedValue({ status: "expired" });
+    mockClearPendingQuestionsForChat.mockResolvedValue(undefined);
+    mockDownloadAndStoreTelegramFile.mockResolvedValue(null);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns 401 when the Telegram secret header is invalid", async () => {
+    const response = await POST(createRequest({ update_id: 1 }, "wrong-secret"));
+
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 400 for malformed JSON", async () => {
+    const response = await POST(createRequest("{bad-json"));
+
+    expect(response.status).toBe(400);
+  });
+
+  it("acknowledges a mapped regular message and continues the agent in after()", async () => {
+    const supabase = createWebhookSupabase({
+      mappingResults: [
+        {
+          data: {
+            client_id: "client-1",
+            thread_id: "thread-1",
+            external_conversation_id: "12345",
+          },
+          error: null,
+        },
+      ],
+      receiptInsertResults: [{ data: null, error: null }],
+    });
+    const api = createTelegramBotApi();
+    mockCreateAdminClient.mockResolvedValue(supabase);
+    mockCreateTelegramBot.mockReturnValue({ api });
+
+    const response = await POST(
+      createRequest({
+        update_id: 42,
+        message: {
+          message_id: 7,
+          text: "Hello from Telegram",
+          chat: { id: 12345, type: "private" },
+          from: { id: 9, is_bot: false, first_name: "Seth" },
+        },
+      }),
+    );
+    await flushBackgroundWork();
+
+    expect(response.status).toBe(200);
+    expect(mockAfter).toHaveBeenCalledTimes(1);
+    expect(api.sendChatAction).toHaveBeenCalledWith(12345, "typing");
+    expect(mockRunAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: "client-1",
+        threadId: "thread-1",
+        triggerType: "chat",
+        input: "Hello from Telegram",
+        channel: "telegram",
+        consumeMessageQuota: true,
+      }),
+      supabase,
+    );
+  });
+
+  it("pairs a chat from /start <token>", async () => {
+    const supabase = createWebhookSupabase({
+      mappingResults: [{ data: null, error: null }],
+      pairingTokenResults: [{
+        data: {
+          token: "pair-token-123",
+          client_id: "client-1",
+          expires_at: "2099-03-20T20:10:00.000Z",
+        },
+        error: null,
+      }],
+      threadInsertResults: [{ data: null, error: null }],
+      mappingInsertResults: [{ data: null, error: null }],
+      tokenDeleteResults: [{ data: null, error: null }],
+    });
+    const api = createTelegramBotApi();
+    mockCreateAdminClient.mockResolvedValue(supabase);
+    mockCreateTelegramBot.mockReturnValue({ api });
+
+    const response = await POST(
+      createRequest({
+        update_id: 99,
+        message: {
+          message_id: 1,
+          text: "/start pair-token-123",
+          chat: { id: 12345, type: "private" },
+          from: { id: 7, is_bot: false, first_name: "Seth" },
+        },
+      }),
+    );
+    await flushBackgroundWork();
+
+    expect(response.status).toBe(200);
+    expect(
+      supabase.records.inserts.some(
+        (insert) => insert.table === "conversation_threads",
+      ),
+    ).toBe(true);
+    expect(
+      supabase.records.inserts.some(
+        (insert) => insert.table === "conversation_channel_mappings",
+      ),
+    ).toBe(true);
+    expect(api.sendMessage).toHaveBeenCalledWith(
+      12345,
+      expect.stringMatching(/connected/i),
+      expect.anything(),
+    );
+  });
+
+  it("does not resolve approvals for callbacks from unpaired chats", async () => {
+    const supabase = createWebhookSupabase({
+      mappingResults: [{ data: null, error: null }],
+    });
+    const api = createTelegramBotApi();
+    mockCreateAdminClient.mockResolvedValue(supabase);
+    mockCreateTelegramBot.mockReturnValue({ api });
+
+    const response = await POST(
+      createRequest({
+        update_id: 100,
+        callback_query: {
+          id: "callback-1",
+          data: "approve:approval-1",
+          message: {
+            message_id: 8,
+            text: "Approve this?",
+            chat: { id: 12345, type: "private" },
+          },
+        },
+      }),
+    );
+    await flushBackgroundWork();
+
+    expect(response.status).toBe(200);
+    expect(mockResolveAndContinueApproval).not.toHaveBeenCalled();
+    expect(api.answerCallbackQuery).toHaveBeenCalledWith("callback-1", {
+      text: "Not connected.",
+    });
+  });
+
+  it("returns an expired response for stale question callbacks", async () => {
+    const supabase = createWebhookSupabase();
+    const api = createTelegramBotApi();
+    mockCreateAdminClient.mockResolvedValue(supabase);
+    mockCreateTelegramBot.mockReturnValue({ api });
+    mockAdvancePendingQuestionBatchByCallback.mockResolvedValueOnce({ status: "expired" });
+
+    const response = await POST(
+      createRequest({
+        update_id: 101,
+        callback_query: {
+          id: "callback-2",
+          data: "q:batch-1:0:1",
+          message: {
+            message_id: 8,
+            text: "Which contact?",
+            chat: { id: 12345, type: "private" },
+          },
+        },
+      }),
+    );
+    await flushBackgroundWork();
+
+    expect(response.status).toBe(200);
+    expect(api.answerCallbackQuery).toHaveBeenCalledWith("callback-2", {
+      text: "This question has expired.",
+    });
+  });
+
+  it("edits approval callback messages after a successful resolution", async () => {
+    const supabase = createWebhookSupabase({
+      mappingResults: [{
+        data: {
+          client_id: "client-1",
+          thread_id: "thread-2",
+          external_conversation_id: "12345",
+        },
+        error: null,
+      }],
+      approvalEventResults: [{
+        data: { thread_id: "thread-2" },
+        error: null,
+      }],
+    });
+    const api = createTelegramBotApi();
+    mockCreateAdminClient.mockResolvedValue(supabase);
+    mockCreateTelegramBot.mockReturnValue({ api });
+
+    const response = await POST(
+      createRequest({
+        update_id: 102,
+        callback_query: {
+          id: "callback-approval",
+          data: "approve:approval-1",
+          message: {
+            message_id: 8,
+            text: "Approval Required",
+            chat: { id: 12345, type: "private" },
+          },
+        },
+      }),
+    );
+    await flushBackgroundWork();
+
+    expect(response.status).toBe(200);
+    expect(api.editMessageText).toHaveBeenCalledWith(
+      12345,
+      8,
+      expect.stringContaining("✅ Approved"),
+      { reply_markup: { inline_keyboard: [] } },
+    );
+  });
+
+  it("edits the selected question message before sending the next question", async () => {
+    const supabase = createWebhookSupabase();
+    const api = createTelegramBotApi();
+    mockCreateAdminClient.mockResolvedValue(supabase);
+    mockCreateTelegramBot.mockReturnValue({ api });
+    mockAdvancePendingQuestionBatchByCallback.mockResolvedValueOnce({
+      status: "next",
+      batch: {
+        token: "batch-1",
+        clientId: "client-1",
+        threadId: "thread-1",
+        chatId: "12345",
+        questions: [],
+        answers: ["Mary"],
+        currentIndex: 1,
+        awaitingTextReply: false,
+      },
+      question: {
+        question: "Why this contact?",
+        options: ["Urgent", "Important"],
+        type: "single_select",
+      },
+      questionIndex: 1,
+      selectedOption: "Mary",
+    });
+
+    const response = await POST(
+      createRequest({
+        update_id: 103,
+        callback_query: {
+          id: "callback-question",
+          data: "q:batch-1:0:1",
+          message: {
+            message_id: 9,
+            text: "Which contact?",
+            chat: { id: 12345, type: "private" },
+          },
+        },
+      }),
+    );
+    await flushBackgroundWork();
+
+    expect(response.status).toBe(200);
+    expect(api.editMessageText).toHaveBeenCalledWith(
+      12345,
+      9,
+      expect.stringContaining("✅ Selected: Mary"),
+      { reply_markup: { inline_keyboard: [] } },
+    );
+    expect(api.sendMessage).toHaveBeenCalledWith(
+      12345,
+      expect.stringContaining("Why this contact?"),
+      expect.anything(),
+    );
+  });
+
+  it("handles /new by clearing pending questions and moving the mapping to a fresh thread", async () => {
+    const supabase = createWebhookSupabase({
+      mappingResults: [{
+        data: {
+          client_id: "client-1",
+          thread_id: "thread-1",
+          external_conversation_id: "12345",
+        },
+        error: null,
+      }],
+      threadInsertResults: [{ data: null, error: null }],
+      mappingUpdateResults: [{ data: null, error: null }],
+    });
+    const api = createTelegramBotApi();
+    mockCreateAdminClient.mockResolvedValue(supabase);
+    mockCreateTelegramBot.mockReturnValue({ api });
+
+    const response = await POST(
+      createRequest({
+        update_id: 200,
+        message: {
+          message_id: 2,
+          text: "/new",
+          chat: { id: 12345, type: "private" },
+          from: { id: 7, is_bot: false, first_name: "Seth" },
+        },
+      }),
+    );
+    await flushBackgroundWork();
+
+    expect(response.status).toBe(200);
+    expect(mockClearPendingQuestionsForChat).toHaveBeenCalledWith(supabase, "12345");
+    expect(
+      supabase.records.inserts.some((insert) => insert.table === "conversation_threads"),
+    ).toBe(true);
+    expect(api.sendMessage).toHaveBeenCalledWith(
+      12345,
+      expect.stringMatching(/started a new telegram chat/i),
+      expect.anything(),
+    );
+  });
+
+  it("uses the completed pending text reply instead of the raw Telegram text", async () => {
+    const supabase = createWebhookSupabase({
+      mappingResults: [{
+        data: {
+          client_id: "client-1",
+          thread_id: "thread-1",
+          external_conversation_id: "12345",
+        },
+        error: null,
+      }],
+      receiptInsertResults: [{ data: null, error: null }],
+    });
+    const api = createTelegramBotApi();
+    mockCreateAdminClient.mockResolvedValue(supabase);
+    mockCreateTelegramBot.mockReturnValue({ api });
+    mockAdvancePendingQuestionBatchByTextReply.mockResolvedValueOnce({
+      status: "completed",
+      clientId: "client-1",
+      threadId: "thread-1",
+      responseText: "Q: Which contact?\nA: John",
+      selectedOption: "John",
+    });
+
+    const response = await POST(
+      createRequest({
+        update_id: 201,
+        message: {
+          message_id: 3,
+          text: "John",
+          chat: { id: 12345, type: "private" },
+          from: { id: 7, is_bot: false, first_name: "Seth" },
+        },
+      }),
+    );
+    await flushBackgroundWork();
+
+    expect(response.status).toBe(200);
+    expect(mockRunAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: "Q: Which contact?\nA: John",
+      }),
+      supabase,
+    );
+  });
+
+  it("passes stored Telegram media through as runner file parts", async () => {
+    const supabase = createWebhookSupabase({
+      mappingResults: [{
+        data: {
+          client_id: "client-1",
+          thread_id: "thread-1",
+          external_conversation_id: "12345",
+        },
+        error: null,
+      }],
+      receiptInsertResults: [{ data: null, error: null }],
+    });
+    const api = createTelegramBotApi();
+    mockCreateAdminClient.mockResolvedValue(supabase);
+    mockCreateTelegramBot.mockReturnValue({ api });
+    mockDownloadAndStoreTelegramFile.mockResolvedValueOnce({
+      url: "https://storage.example.com/chat-attachments/client-1/telegram/photo.jpg",
+      mimeType: "image/jpeg",
+    });
+
+    const response = await POST(
+      createRequest({
+        update_id: 202,
+        message: {
+          message_id: 4,
+          photo: [
+            { file_id: "photo-small", width: 100, height: 100 },
+            { file_id: "photo-large", width: 1000, height: 1000 },
+          ],
+          chat: { id: 12345, type: "private" },
+          from: { id: 7, is_bot: false, first_name: "Seth" },
+        },
+      }),
+    );
+    await flushBackgroundWork();
+
+    expect(response.status).toBe(200);
+    expect(mockRunAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: "",
+        fileParts: [{
+          type: "file",
+          url: "https://storage.example.com/chat-attachments/client-1/telegram/photo.jpg",
+          mediaType: "image/jpeg",
+        }],
+      }),
+      supabase,
+    );
+  });
+});

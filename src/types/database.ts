@@ -725,6 +725,86 @@ export type Database = {
           },
         ]
       }
+      telegram_pairing_tokens: {
+        Row: {
+          client_id: string
+          created_at: string
+          expires_at: string
+          token: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          expires_at: string
+          token: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          expires_at?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_pairing_tokens_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
+      telegram_pending_questions: {
+        Row: {
+          answers: Json
+          awaiting_text_reply: boolean
+          chat_id: string
+          client_id: string
+          created_at: string
+          current_index: number
+          questions: Json
+          thread_id: string
+          token: string
+        }
+        Insert: {
+          answers?: Json
+          awaiting_text_reply?: boolean
+          chat_id: string
+          client_id: string
+          created_at?: string
+          current_index?: number
+          questions?: Json
+          thread_id: string
+          token: string
+        }
+        Update: {
+          answers?: Json
+          awaiting_text_reply?: boolean
+          chat_id?: string
+          client_id?: string
+          created_at?: string
+          current_index?: number
+          questions?: Json
+          thread_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_pending_questions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "telegram_pending_questions_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
       crm_config: {
         Row: {
           client_id: string
