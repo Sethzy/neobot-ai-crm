@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 type BrowserAuthStatus =
@@ -69,26 +69,22 @@ function clearPendingSession(platform: string): void {
   window.sessionStorage.removeItem(getStorageKey(platform));
 }
 
+const IDLE_STATE: BrowserAuthState = {
+  status: "idle",
+  liveUrl: null,
+  sessionId: null,
+  authToken: null,
+  platform: null,
+};
+
 function getInitialBrowserAuthState(platform?: string): BrowserAuthState {
   if (!platform) {
-    return {
-      status: "idle",
-      liveUrl: null,
-      sessionId: null,
-      authToken: null,
-      platform: null,
-    };
+    return IDLE_STATE;
   }
 
   const pendingSession = readPendingSession(platform);
   if (!pendingSession) {
-    return {
-      status: "idle",
-      liveUrl: null,
-      sessionId: null,
-      authToken: null,
-      platform: null,
-    };
+    return IDLE_STATE;
   }
 
   return {
@@ -124,27 +120,10 @@ async function cleanupPendingBrowserSession(platform: string): Promise<void> {
 export function useBrowserAuth(platform?: string) {
   const [state, setState] = useState<BrowserAuthState>(() => getInitialBrowserAuthState(platform));
 
-  useEffect(() => {
-    if (!platform) {
-      return;
-    }
-
-    const hydratedState = getInitialBrowserAuthState(platform);
-    if (hydratedState.status === "awaiting-login") {
-      setState(hydratedState);
-    }
-  }, [platform]);
-
   const connect = useCallback(async (platform: string) => {
     await cleanupPendingBrowserSession(platform);
 
-    setState({
-      status: "connecting",
-      liveUrl: null,
-      sessionId: null,
-      authToken: null,
-      platform,
-    });
+    setState({ ...IDLE_STATE, status: "connecting", platform });
 
     try {
       const response = await fetch("/api/browser/session", {
@@ -236,13 +215,7 @@ export function useBrowserAuth(platform?: string) {
       clearPendingSession(platform);
     }
 
-    setState({
-      status: "idle",
-      liveUrl: null,
-      sessionId: null,
-      authToken: null,
-      platform: null,
-    });
+    setState(IDLE_STATE);
   }, []);
 
   return {

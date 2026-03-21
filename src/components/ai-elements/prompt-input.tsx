@@ -40,7 +40,7 @@ import {
   PlusIcon,
   SquareIcon,
   XIcon,
-} from "@/components/icons/lucide-compat";
+} from "lucide-react";
 import { nanoid } from "nanoid";
 import {
   Children,

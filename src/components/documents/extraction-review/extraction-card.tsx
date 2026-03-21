@@ -4,6 +4,7 @@
  */
 import { useCallback, memo, useMemo } from "react";
 import { AlertTriangle } from "@/components/icons/lucide-compat";
+import { formatTagLabel } from "@/lib/utils";
 import { useSetHighlights } from "@/contexts/highlight-context";
 import {
   Tooltip,
@@ -38,13 +39,6 @@ interface ExtractionCardProps {
 function formatPageRange(startPage: number, endPage: number): string {
   if (startPage === endPage) return `Page ${startPage}`;
   return `Pages ${startPage}-${endPage}`;
-}
-
-/**
- * Formats tag ID as display label.
- */
-function formatTagLabel(tagId: string): string {
-  return tagId.charAt(0).toUpperCase() + tagId.slice(1).replace(/_/g, " ");
 }
 
 /**

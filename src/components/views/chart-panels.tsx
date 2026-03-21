@@ -40,6 +40,10 @@ import {
 
 type ChartDatum = Record<string, string | number>;
 
+/** Defensive coercion — ensures data is always an array even if the LLM sends a non-array. */
+const ensureArray = (data: unknown): ChartDatum[] =>
+  Array.isArray(data) ? data : [];
+
 /** Chart color palette — maps to CSS variables --chart-1 through --chart-5. */
 const SEGMENT_COLORS = [
   "var(--color-chart-1)",
@@ -127,7 +131,7 @@ function buildSegmentConfig(data: ChartDatum[], nameKey: string): ChartConfig {
     const key = String(datum[nameKey] ?? `segment-${i}`);
     config[key] = {
       label: key,
-      color: `var(--chart-${(i % 5) + 1})`,
+      color: `var(--chart-${(i % SEGMENT_COLORS.length) + 1})`,
     };
   }
   return config;
@@ -144,7 +148,7 @@ export function BarChartPanel({
   xKey,
   yKey,
 }: BarChartPanelProps) {
-  const safeData = Array.isArray(data) ? data : [];
+  const safeData = ensureArray(data);
 
   const chartConfig = {
     [yKey]: { label: yKey, color: "var(--chart-1)" },
@@ -182,7 +186,7 @@ export function DonutChartPanel({
   valueKey,
   centerLabel,
 }: DonutChartPanelProps) {
-  const safeData = Array.isArray(data) ? data : [];
+  const safeData = ensureArray(data);
   const chartConfig = buildSegmentConfig(safeData, nameKey);
 
   /* Inject fill into each datum so Recharts picks up the color per-segment. */
@@ -237,7 +241,7 @@ export function FunnelChartPanel({
   valueKey,
   footerText,
 }: FunnelChartPanelProps) {
-  const safeData = Array.isArray(data) ? data : [];
+  const safeData = ensureArray(data);
   const chartConfig = buildSegmentConfig(safeData, nameKey);
 
   /* Render funnel as stacked horizontal bars for clearer stage visualization.
@@ -254,10 +258,11 @@ export function FunnelChartPanel({
         <ChartEmptyState />
       ) : (
         <div className="flex flex-col gap-2 py-2">
-          {safeData.map((datum, index) => {
+          {(() => {
+            const maxValue = Math.max(...safeData.map((d) => Number(d[valueKey] ?? 0)), 1);
+            return safeData.map((datum, index) => {
             const name = String(datum[nameKey] ?? "");
             const value = Number(datum[valueKey] ?? 0);
-            const maxValue = Math.max(...safeData.map((d) => Number(d[valueKey] ?? 0)), 1);
             const widthPercent = Math.max((value / maxValue) * 100, 8); // minimum 8% so empty stages are visible
             return (
               <div key={`funnel-${index}`} className="flex flex-col gap-1">
@@ -276,7 +281,8 @@ export function FunnelChartPanel({
                 </div>
               </div>
             );
-          })}
+          });
+          })()}
         </div>
       )}
     </ChartPanelShell>
@@ -296,7 +302,7 @@ export function LineChartPanel({
   yKey,
   areaFill,
 }: LineChartPanelProps) {
-  const safeData = Array.isArray(data) ? data : [];
+  const safeData = ensureArray(data);
 
   const chartConfig = {
     [yKey]: { label: yKey, color: "var(--chart-1)" },

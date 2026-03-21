@@ -2,7 +2,7 @@
  * Shared thumbnail preview for chat attachments in the composer and message list.
  * @module components/chat/preview-attachment
  */
-import { XIcon } from "@/components/icons/lucide-compat";
+import { X } from "@/components/icons/lucide-compat";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -62,7 +62,7 @@ export function PreviewAttachment({
           type="button"
           variant="destructive"
         >
-          <XIcon className="size-2" />
+          <X className="size-2" />
         </Button>
       ) : null}
 

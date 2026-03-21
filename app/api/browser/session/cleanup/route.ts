@@ -43,19 +43,16 @@ export async function POST(request: Request): Promise<Response> {
     const client = getBrowserUseClient();
     const persistedProfile = await getProfileForPlatform(supabase, clientId, token.platform);
 
-    try {
-      await client.sessions.stop(token.sessionId);
-    } catch {
-      // Session may already be gone; cleanup should stay best-effort.
-    }
-
-    if (!persistedProfile) {
-      try {
-        await client.profiles.delete(token.browserUseProfileId);
-      } catch {
-        // Profile cleanup is best-effort; do not fail the client on provider cleanup issues.
-      }
-    }
+    await Promise.all([
+      client.sessions.stop(token.sessionId).catch(() => {
+        // Session may already be gone; cleanup should stay best-effort.
+      }),
+      !persistedProfile
+        ? client.profiles.delete(token.browserUseProfileId).catch(() => {
+            // Profile cleanup is best-effort; do not fail the client on provider cleanup issues.
+          })
+        : Promise.resolve(),
+    ]);
 
     return Response.json({ success: true });
   } catch (error) {
