@@ -587,6 +587,26 @@ describe("runAgent", () => {
     expect(mockStreamText).toHaveBeenCalled();
   });
 
+  it("passes instructions through to assembleContext when provided", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(
+      {
+        ...validPayload,
+        triggerType: "pulse",
+        input: "",
+        instructions: "You are running an autonomous pulse.",
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockAssembleContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        instructions: "You are running an autonomous pulse.",
+      }),
+    );
+  });
+
   it("consumes quota for direct chat sends before attempting the run", async () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
 

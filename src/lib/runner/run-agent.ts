@@ -246,6 +246,7 @@ export async function runAgent(
       threadId,
       currentMessage: "",
       clientId,
+      instructions: payload.instructions,
       crmConfig,
       crmMode,
       includeBrowserAutomation:
