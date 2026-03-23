@@ -11,6 +11,13 @@ import { resolveClientId } from "@/lib/chat/client-id";
 import { getFileExtension } from "@/lib/file-utils";
 
 const BUCKET_ID = "chat-attachments";
+const ALLOWED_UPLOAD_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "text/csv",
+]);
 
 function isBlobLike(value: unknown): value is Blob {
   return (
@@ -31,8 +38,8 @@ const fileSchema = z.object({
     .refine((file) => file.size <= 5 * 1024 * 1024, {
       message: "File size should be less than 5MB",
     })
-    .refine((file) => ["image/jpeg", "image/png"].includes(file.type), {
-      message: "File type should be JPEG or PNG",
+    .refine((file) => ALLOWED_UPLOAD_TYPES.has(file.type), {
+      message: "File type should be JPEG, PNG, XLSX, XLS, or CSV",
     }),
 });
 

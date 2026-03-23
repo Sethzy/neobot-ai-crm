@@ -34,12 +34,14 @@ function createMockSupabase() {
   const mockList = vi.fn();
   const mockUpload = vi.fn();
   const mockRemove = vi.fn();
+  const mockCreateSignedUrl = vi.fn();
 
   const mockFrom = vi.fn(() => ({
     download: mockDownload,
     list: mockList,
     upload: mockUpload,
     remove: mockRemove,
+    createSignedUrl: mockCreateSignedUrl,
   }));
 
   return {
@@ -53,6 +55,7 @@ function createMockSupabase() {
     mockList,
     mockUpload,
     mockRemove,
+    mockCreateSignedUrl,
   };
 }
 
@@ -294,5 +297,59 @@ describe("createAgentFileClient", () => {
       "allowed",
       { upsert: true, contentType: "text/plain; charset=utf-8" },
     );
+  });
+
+  it("uploads a binary artifact and returns a signed URL", async () => {
+    const buffer = Buffer.from("xlsx");
+    supabase.mockUpload.mockResolvedValue({ data: { path: "ok" }, error: null });
+    supabase.mockCreateSignedUrl.mockResolvedValue({
+      data: { signedUrl: "https://storage.example.com/signed/result.xlsx" },
+      error: null,
+    });
+    const client = createAgentFileClient(supabase.client, CLIENT_ID);
+
+    const result = await client.uploadArtifact({
+      path: "artifacts/result.xlsx",
+      content: buffer,
+      contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      expiresInSeconds: 3_600,
+      downloadFilename: "result.xlsx",
+    });
+
+    expect(supabase.mockUpload).toHaveBeenCalledWith(
+      `${CLIENT_ID}/artifacts/result.xlsx`,
+      buffer,
+      {
+        upsert: true,
+        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      },
+    );
+    expect(supabase.mockCreateSignedUrl).toHaveBeenCalledWith(
+      `${CLIENT_ID}/artifacts/result.xlsx`,
+      3_600,
+      { download: "result.xlsx" },
+    );
+    expect(result).toEqual({
+      storagePath: `${CLIENT_ID}/artifacts/result.xlsx`,
+      downloadUrl: "https://storage.example.com/signed/result.xlsx",
+    });
+  });
+
+  it("surfaces signed URL failures after uploading an artifact", async () => {
+    supabase.mockUpload.mockResolvedValue({ data: { path: "ok" }, error: null });
+    supabase.mockCreateSignedUrl.mockResolvedValue({
+      data: null,
+      error: { message: "sign failed" },
+    });
+    const client = createAgentFileClient(supabase.client, CLIENT_ID);
+
+    await expect(
+      client.uploadArtifact({
+        path: "artifacts/result.xlsx",
+        content: Buffer.from("xlsx"),
+        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        expiresInSeconds: 3_600,
+      }),
+    ).rejects.toThrow('Failed to sign file "artifacts/result.xlsx": sign failed');
   });
 });

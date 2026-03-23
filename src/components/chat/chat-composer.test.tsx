@@ -40,6 +40,10 @@ describe("ChatComposer", () => {
     expect(screen.getByPlaceholderText(/send a message/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /attach files/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /submit/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/upload attachments/i)).toHaveAttribute(
+      "accept",
+      "image/jpeg,image/png,.xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel",
+    );
   });
 
   it("shows monthly quota usage and an upgrade link when quota data is provided", () => {
@@ -142,6 +146,49 @@ describe("ChatComposer", () => {
           url: "https://storage.example.com/chat-attachments/client-1/photo.png",
           filename: "photo.png",
           mediaType: "image/png",
+        },
+      ],
+    });
+  });
+
+  it("uploads a selected spreadsheet attachment and preserves its media type", async () => {
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          url: "https://storage.example.com/chat-attachments/client-1/deals.csv",
+          pathname: "deals.csv",
+          contentType: "text/csv",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+
+    render(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
+
+    await user.upload(
+      screen.getByLabelText(/upload attachments/i),
+      new File(["a,b\n1,2"], "deals.csv", { type: "text/csv" }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("deals.csv")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /submit/i }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      text: "",
+      files: [
+        {
+          type: "file",
+          url: "https://storage.example.com/chat-attachments/client-1/deals.csv",
+          filename: "deals.csv",
+          mediaType: "text/csv",
         },
       ],
     });

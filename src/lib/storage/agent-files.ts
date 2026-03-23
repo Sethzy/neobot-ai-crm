@@ -209,6 +209,61 @@ export function createAgentFileClient(supabase: SupabaseClient, clientId: string
   }
 
   /**
+   * Uploads a binary artifact and returns a signed download URL for it.
+   *
+   * @param options.path - Relative workspace file path to store the artifact under.
+   * @param options.content - Binary or text content to upload.
+   * @param options.contentType - MIME type for the stored object.
+   * @param options.expiresInSeconds - Signed URL expiry in seconds.
+   * @param options.downloadFilename - Optional download filename for the signed URL response.
+   */
+  async function uploadArtifact(options: {
+    path: string;
+    content: ArrayBuffer | ArrayBufferView | Blob | Buffer | string;
+    contentType: string;
+    expiresInSeconds: number;
+    downloadFilename?: string;
+  }): Promise<{ storagePath: string; downloadUrl: string }> {
+    const normalizedPath = normalizeWorkspacePath(options.path, false);
+    const storagePath = resolveStoragePath(clientId, normalizedPath);
+
+    const { error: uploadError } = await supabase.storage.from(BUCKET_ID).upload(
+      storagePath,
+      options.content,
+      {
+        upsert: true,
+        contentType: options.contentType,
+      },
+    );
+
+    if (uploadError) {
+      throw new Error(`Failed to upload file "${normalizedPath}": ${uploadError.message}`);
+    }
+
+    const signedUrlResponse = options.downloadFilename
+      ? await supabase.storage.from(BUCKET_ID).createSignedUrl(
+        storagePath,
+        options.expiresInSeconds,
+        { download: options.downloadFilename },
+      )
+      : await supabase.storage.from(BUCKET_ID).createSignedUrl(
+        storagePath,
+        options.expiresInSeconds,
+      );
+
+    if (signedUrlResponse.error || !signedUrlResponse.data?.signedUrl) {
+      throw new Error(
+        `Failed to sign file "${normalizedPath}": ${signedUrlResponse.error?.message ?? "unknown error"}`,
+      );
+    }
+
+    return {
+      storagePath,
+      downloadUrl: signedUrlResponse.data.signedUrl,
+    };
+  }
+
+  /**
    * Edits a file by replacing text and re-uploading the full file.
    *
    * @param path - Relative workspace file path.
@@ -272,6 +327,7 @@ export function createAgentFileClient(supabase: SupabaseClient, clientId: string
     downloadBinary,
     listDirectory,
     uploadFile,
+    uploadArtifact,
     editFile,
     deleteFile,
   };

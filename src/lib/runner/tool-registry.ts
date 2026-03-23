@@ -5,12 +5,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { loadCrmConfig } from "@/lib/crm/config";
+import { isSandboxConfigured } from "@/lib/sandbox/env";
 import {
   createBrowserTools,
   createConnectionTools,
   createCrmTools,
   createListingTools,
   createMarketTools,
+  createSandboxTools,
   createStorageTools,
   createTriggerTools,
   createUtilityTools,
@@ -62,6 +64,9 @@ export function createRunnerTools(
   // Guard creation so runner startup doesn't crash in environments without property DB.
   const marketTools = isPropertySupabaseConfigured() ? createMarketTools() : {};
   const listingTools = isSubagent ? {} : createListingTools();
+  const sandboxTools = !isSubagent && isSandboxConfigured()
+    ? createSandboxTools(supabase, clientId, threadId)
+    : {};
 
   if (isSubagent) {
     return {
@@ -89,5 +94,6 @@ export function createRunnerTools(
     ...triggerTools,
     ...connectionTools,
     ...browserTools,
+    ...sandboxTools,
   };
 }

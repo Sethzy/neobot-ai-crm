@@ -1370,6 +1370,57 @@ export type Database = {
           },
         ]
       }
+      sprite_sessions: {
+        Row: {
+          client_id: string
+          created_at: string
+          destroyed_at: string | null
+          id: string
+          last_active_at: string
+          preview_url: string | null
+          sprite_name: string
+          status: string
+          thread_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          destroyed_at?: string | null
+          id?: string
+          last_active_at?: string
+          preview_url?: string | null
+          sprite_name: string
+          status?: string
+          thread_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          destroyed_at?: string | null
+          id?: string
+          last_active_at?: string
+          preview_url?: string | null
+          sprite_name?: string
+          status?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sprite_sessions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "sprite_sessions_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
       splits: {
         Row: {
           created_at: string | null

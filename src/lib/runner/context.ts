@@ -14,6 +14,7 @@ import {
   CRM_SETUP_SYSTEM_PROMPT,
   MARKET_DATA_PROMPT,
   PROPERTY_LISTING_PROMPT,
+  SANDBOX_PROMPT,
   SYSTEM_PROMPT,
 } from "@/lib/ai/system-prompt";
 import type { CrmVocabConfig } from "@/lib/crm/config";
@@ -48,6 +49,7 @@ interface AssembleContextParams {
   includeBrowserAutomation?: boolean;
   includeMarketData?: boolean;
   includePropertyListings?: boolean;
+  includeSandboxTools?: boolean;
   /** When true, injects CRM config mode notice into the system reminder. */
   crmConfigModeActive?: boolean;
   platformInstructions?: string;
@@ -68,6 +70,7 @@ interface AssembleSystemOnlyParams {
   includeBrowserAutomation?: boolean;
   includeMarketData?: boolean;
   includePropertyListings?: boolean;
+  includeSandboxTools?: boolean;
   platformInstructions?: string;
   systemPrompt?: string;
 }
@@ -97,6 +100,7 @@ interface BuildSystemPromptOptions {
   includeBrowserAutomation?: boolean;
   includeMarketData?: boolean;
   includePropertyListings?: boolean;
+  includeSandboxTools?: boolean;
   systemPrompt?: string;
 }
 
@@ -134,6 +138,7 @@ function buildSystemPrompt({
   includeBrowserAutomation,
   includeMarketData,
   includePropertyListings,
+  includeSandboxTools,
   systemPrompt,
 }: BuildSystemPromptOptions): string {
   const activeSystemPrompt = systemPrompt ?? SYSTEM_PROMPT;
@@ -158,6 +163,10 @@ function buildSystemPrompt({
 
   if (includePropertyListings) {
     sections.push(PROPERTY_LISTING_PROMPT);
+  }
+
+  if (includeSandboxTools) {
+    sections.push(SANDBOX_PROMPT);
   }
 
   if (instructions && instructions.trim().length > 0) {
@@ -290,6 +299,7 @@ export async function assembleSystemOnly({
   includeBrowserAutomation,
   includeMarketData,
   includePropertyListings,
+  includeSandboxTools,
   platformInstructions,
   systemPrompt,
 }: AssembleSystemOnlyParams): Promise<string> {
@@ -308,6 +318,7 @@ export async function assembleSystemOnly({
     includeBrowserAutomation,
     includeMarketData,
     includePropertyListings,
+    includeSandboxTools,
     systemPrompt: systemPrompt ?? (crmMode === "setup"
       ? CRM_SETUP_SYSTEM_PROMPT
       : SYSTEM_PROMPT),
@@ -340,6 +351,7 @@ export async function assembleContext({
   includeBrowserAutomation,
   includeMarketData,
   includePropertyListings,
+  includeSandboxTools,
   crmConfigModeActive,
   platformInstructions,
   systemPrompt,
@@ -460,6 +472,7 @@ export async function assembleContext({
       includeBrowserAutomation,
       includeMarketData,
       includePropertyListings,
+      includeSandboxTools,
       platformInstructions: platformInstructions ?? (crmConfig
         ? buildPlatformInstructions(crmConfig)
         : PLATFORM_INSTRUCTIONS),

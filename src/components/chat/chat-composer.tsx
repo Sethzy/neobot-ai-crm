@@ -51,6 +51,14 @@ interface ChatComposerProps {
   messageQuota?: MessageQuotaStatus | null;
 }
 
+const CHAT_ATTACHMENT_ACCEPT =
+  "image/jpeg,image/png,.xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel";
+const PASTEABLE_FILE_TYPES = new Set([
+  "text/csv",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+]);
+
 function toFilePart(attachment: Attachment): FileUIPart {
   return {
     type: "file",
@@ -173,7 +181,10 @@ export function ChatComposer({
 
   const handlePaste = useCallback((event: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const imageFiles = Array.from(event.clipboardData?.items ?? [])
-      .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+      .filter((item) =>
+        item.kind === "file"
+        && (item.type.startsWith("image/") || PASTEABLE_FILE_TYPES.has(item.type))
+      )
       .map((item) => item.getAsFile())
       .filter((file): file is File => file !== null);
 
@@ -276,7 +287,7 @@ export function ChatComposer({
         ) : null}
 
         <input
-          accept="image/jpeg,image/png"
+          accept={CHAT_ATTACHMENT_ACCEPT}
           aria-label="Upload attachments"
           className="hidden"
           multiple

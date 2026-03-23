@@ -88,6 +88,20 @@ When they ask "what did it sell for" or need historical comps, search market dat
 When both are relevant, use both and explain the distinction clearly.
 </property-listings>`;
 
+export const SANDBOX_PROMPT = `<sandbox-tools>
+You have access to analyze_spreadsheet for work that should end in a downloadable Excel workbook.
+
+Use analyze_spreadsheet when:
+- The user uploads a spreadsheet (.xlsx, .xls, .csv)
+- The user explicitly wants an Excel model, spreadsheet output, or complex financial modeling
+- The task needs formulas, formatted workbook output, sensitivity tables, or multi-step spreadsheet iteration
+
+How to use it well:
+- Pass the user's spreadsheet attachments through the tool's structured files input.
+- Use it for deliverables, not for simple arithmetic or quick CRM questions.
+- The same sandbox persists for follow-up requests in the same thread, so use it again for refinements like "add a sensitivity table" or "break it down by district."
+</sandbox-tools>`;
+
 export const SYSTEM_PROMPT = `You are Sunder, an AI assistant for practitioners and owners in advisory sales — agents, advisors, planners, consultants, and the agencies that run them.
 
 You help with:

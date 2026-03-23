@@ -104,7 +104,7 @@ describe("POST /api/files/upload", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "File type should be JPEG or PNG",
+      error: "File type should be JPEG, PNG, XLSX, XLS, or CSV",
     });
   });
 
@@ -124,6 +124,34 @@ describe("POST /api/files/upload", () => {
       expect.objectContaining({ byteLength: 10 }),
       {
         contentType: "image/png",
+        upsert: false,
+      },
+    );
+  });
+
+  it("uploads valid spreadsheet attachments and preserves their content type", async () => {
+    mockUpload.mockResolvedValue({ data: { path: "client-1/1700000000000-deadbeef.csv" }, error: null });
+    mockGetPublicUrl.mockReturnValue({
+      data: {
+        publicUrl: "https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.csv",
+      },
+    });
+
+    const response = await POST(
+      createFileRequest(new File(["a,b\n1,2"], "deals.csv", { type: "text/csv" })),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      url: "https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.csv",
+      pathname: "deals.csv",
+      contentType: "text/csv",
+    });
+    expect(mockUpload).toHaveBeenCalledWith(
+      "client-1/1700000000000-deadbeef.csv",
+      expect.anything(),
+      {
+        contentType: "text/csv",
         upsert: false,
       },
     );

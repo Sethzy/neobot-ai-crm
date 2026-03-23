@@ -9,6 +9,7 @@ import {
   BROWSER_AUTOMATION_PROMPT,
   MARKET_DATA_PROMPT,
   PROPERTY_LISTING_PROMPT,
+  SANDBOX_PROMPT,
   SETUP_SYSTEM_PROMPT,
   SYSTEM_PROMPT,
 } from "@/lib/ai/system-prompt";
@@ -207,6 +208,15 @@ describe("PROPERTY_LISTING_PROMPT", () => {
     expect(PROPERTY_LISTING_PROMPT).toContain("browse_website");
     expect(PROPERTY_LISTING_PROMPT).toContain("what's available");
     expect(PROPERTY_LISTING_PROMPT).toContain("what did it sell for");
+  });
+});
+
+describe("SANDBOX_PROMPT", () => {
+  it("guides analyze_spreadsheet toward spreadsheet deliverables and iteration", () => {
+    expect(SANDBOX_PROMPT).toContain("analyze_spreadsheet");
+    expect(SANDBOX_PROMPT).toContain(".xlsx");
+    expect(SANDBOX_PROMPT).toContain("follow-up");
+    expect(SANDBOX_PROMPT).toContain("complex financial modeling");
   });
 });
 
