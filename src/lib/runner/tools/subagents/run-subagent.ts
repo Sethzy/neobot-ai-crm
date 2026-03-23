@@ -71,6 +71,7 @@ export function createSubagentTool(
               crmConfig: options.crmConfig,
               crmMode: options.crmMode ?? "normal",
               includeMarketData: isPropertySupabaseConfigured(),
+              includePropertyListings: false,
             }),
           ]);
 
@@ -84,6 +85,7 @@ export function createSubagentTool(
             includeSendMessage: false,
             includeBrowserTools: false,
             includeMarketTools: true,
+            includeListingTools: false,
             crmConfig: options.crmConfig,
             crmMode: options.crmMode ?? "normal",
           });

@@ -8,6 +8,7 @@ import { propagateAttributes } from "@langfuse/tracing";
 
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { gateway, gatewayProviderOptions, TIER_1_MODEL } from "@/lib/ai/gateway";
+import { isApifyConfigured } from "@/lib/apify/env";
 import { isBrowserUseConfigured } from "@/lib/browser-use/client";
 import { createMessages } from "@/lib/chat/messages";
 import { loadActivatedConnectionTools } from "@/lib/composio";
@@ -247,6 +248,8 @@ export async function runAgent(
       includeBrowserAutomation:
         payload.triggerType === "chat" && isBrowserUseConfigured(),
       includeMarketData: isPropertySupabaseConfigured(),
+      includePropertyListings:
+        payload.triggerType === "chat" && isApifyConfigured(),
       crmConfigModeActive: payload.includeConfigTool,
     });
     _t("assemble_context");
@@ -257,6 +260,7 @@ export async function runAgent(
       crmConfig,
       includeBrowserTools: payload.triggerType === "chat",
       includeMarketTools: true,
+      includeListingTools: payload.triggerType === "chat",
       includeConfigTool: payload.includeConfigTool,
     });
     const subagentTools = createSubagentTool(supabase, clientId, threadId, {

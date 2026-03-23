@@ -4,6 +4,8 @@
  */
 import { createPropertyPublicServerClient } from "@/lib/supabase/property-public-server";
 
+import { createSearch99coTool } from "./search-99co";
+import { createSearchPropertyguruTool } from "./search-propertyguru";
 import { createSearchMarketDataTool } from "./search-market-data";
 
 /**
@@ -14,5 +16,15 @@ export function createMarketTools() {
 
   return {
     ...createSearchMarketDataTool(propertySupabase),
+  };
+}
+
+/**
+ * Creates the Apify-backed public listing tools without any Supabase dependency.
+ */
+export function createListingTools() {
+  return {
+    ...createSearch99coTool(),
+    ...createSearchPropertyguruTool(),
   };
 }

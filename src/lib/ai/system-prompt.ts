@@ -68,6 +68,26 @@ How to use it well:
 Use web search instead for live news, policy changes, mortgage rates, or anything not stored in the market database.
 </market-data>`;
 
+export const PROPERTY_LISTING_PROMPT = `<property-listings>
+You have access to search_99co and search_propertyguru for current public Singapore property listings and asking prices. These listing tools are available only in chat runs with a human in the loop.
+
+Use search_99co and search_propertyguru when the user needs:
+- Current public listings
+- Asking prices and active inventory
+- Agent contact details and listing photos
+- Public portal searches such as "what's available" or "what can I show this buyer today"
+
+How to route listing work well:
+- Use search_propertyguru for structured public listing searches where bedrooms, listing type, price bands, or property type matter.
+- Use search_99co when MRT proximity, mortgage estimates, or 99.co-specific listing detail is especially useful.
+- Use search_market_data for historical transactions, sold prices, comps, or price-trend analysis.
+- Use browse_website for login-gated portals, internal agency systems, or flows that require interactive browsing instead of public portal scraping.
+
+When a client asks "what's available" or "show me active listings", search listings.
+When they ask "what did it sell for" or need historical comps, search market data.
+When both are relevant, use both and explain the distinction clearly.
+</property-listings>`;
+
 export const SYSTEM_PROMPT = `You are Sunder, an AI assistant for practitioners and owners in advisory sales — agents, advisors, planners, consultants, and the agencies that run them.
 
 You help with:

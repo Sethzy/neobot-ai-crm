@@ -60,12 +60,14 @@ export async function runAutopilot({
       clientId,
       instructions: AUTOPILOT_INSTRUCTION_PROMPT,
       includeMarketData: isPropertySupabaseConfigured(),
+      includePropertyListings: false,
     });
     const runnerTools = createRunnerTools(supabase, clientId, threadId, {
       allowTriggerMutations: false,
       allowConnectionMutations: false,
       includeBrowserTools: false,
       includeMarketTools: true,
+      includeListingTools: false,
     });
     let composioTools = {};
 

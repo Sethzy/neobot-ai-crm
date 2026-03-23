@@ -4,12 +4,14 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { isApifyConfigured } from "@/lib/apify/env";
 import { isBrowserUseConfigured } from "@/lib/browser-use/client";
 import { loadCrmConfig } from "@/lib/crm/config";
 import {
   createBrowserTools,
   createConnectionTools,
   createCrmTools,
+  createListingTools,
   createMarketTools,
   createStorageTools,
   createTriggerTools,
@@ -30,6 +32,7 @@ export interface CreateRunnerToolsOptions {
   includeSendMessage?: boolean;
   includeBrowserTools?: boolean;
   includeMarketTools?: boolean;
+  includeListingTools?: boolean;
   /** Only relevant for chat-triggered runs. When true, includes configure_crm in the tool registry. */
   includeConfigTool?: boolean;
 }
@@ -63,6 +66,9 @@ export function createRunnerTools(
   const shouldIncludeMarketTools =
     options?.includeMarketTools === true && isPropertySupabaseConfigured();
   const marketTools = shouldIncludeMarketTools ? createMarketTools() : {};
+  const shouldIncludeListingTools =
+    !isSubagent && options?.includeListingTools === true && isApifyConfigured();
+  const listingTools = shouldIncludeListingTools ? createListingTools() : {};
 
   if (isSubagent) {
     return {
@@ -89,6 +95,7 @@ export function createRunnerTools(
     ...storageTools,
     ...webTools,
     ...marketTools,
+    ...listingTools,
     ...utilityTools,
     ...triggerTools,
     ...connectionTools,
