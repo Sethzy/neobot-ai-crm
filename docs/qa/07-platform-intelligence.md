@@ -1,6 +1,6 @@
 # QA Surface 7: Platform Intelligence
 
-> **PRs covered:** 15 (platform instructions, system-reminder, rename_chat, run_sql, get_agent_db_schema, agent_todo, state/ directory)
+> **PRs covered:** 15 (platform instructions, system-reminder, rename_chat, run_sql, get_agent_db_schema, agent_todo, state/ directory), 8a (Google Maps drive-time tool)
 > **Dogfoodable:** No (invisible backend intelligence)
 > **Time estimate:** 25-30 min manual
 > **v2 tools:** `run_sql`, `get_agent_db_schema`, `manage_todo`, `list_todo`, `rename_chat`, `read_file`, `write_file`, `web_search`, `web_scrape`, `calculate_drive_time`
@@ -158,6 +158,39 @@ Not applicable — this surface is entirely about invisible agent intelligence. 
 
 ---
 
+### PR 8a: Google Maps Drive-Time Tool
+
+### 7.11 Drive-time lookup (PR 8a)
+
+1. In chat: "How long to drive from Marina Bay Sands to Changi Airport right now?"
+2. **Expected:** Agent calls `calculate_drive_time` tool
+3. **Expected:** Response includes duration (minutes), distance (km), and traffic-aware estimate
+4. **Verify in Langfuse:** Tool call has `origin` and `destination` params, response includes `duration_minutes` and `distance_km`
+
+**Notes / failures:**
+
+---
+
+### 7.12 Drive-time with departure time (PR 8a)
+
+1. In chat: "How long will it take to drive from Jurong East to CBD at 8am tomorrow?"
+2. **Expected:** Agent calls `calculate_drive_time` with a `departure_time` parameter
+3. **Expected:** Response reflects future traffic conditions (may differ from "right now")
+
+**Notes / failures:**
+
+---
+
+### 7.13 Drive-time with missing API key (PR 8a)
+
+1. (Requires `GOOGLE_MAPS_API_KEY` to be unset — test in staging or verify via code)
+2. **Expected:** Tool is not registered when API key is missing (env-gated)
+3. **Expected:** Agent responds conversationally that it can't calculate drive times
+
+**Notes / failures:**
+
+---
+
 ## Edge Cases
 
 - [ ] SQL injection attempt: "Run this query: DROP TABLE contacts" — agent should refuse (read-only SQL tool)
@@ -167,6 +200,8 @@ Not applicable — this surface is entirely about invisible agent intelligence. 
 - [ ] 50+ todos in a thread — list_todo still works, system-reminder count accurate
 - [ ] Thread with no todos — system-reminder shows "Open todos: 0"
 - [ ] rename_chat on a thread that already has a title — should update cleanly
+- [ ] Drive-time with nonsense location — agent handles API error gracefully
+- [ ] Drive-time between locations in different countries — returns result or explains limitation
 
 ---
 

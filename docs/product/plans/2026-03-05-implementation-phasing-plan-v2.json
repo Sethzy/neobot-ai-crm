@@ -93,6 +93,7 @@
           "pr": 1,
           "title": "Vercel AI Gateway + basic streaming endpoint",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "LLM-01",
             "LLM-02",
@@ -139,6 +140,7 @@
           "pr": 2,
           "title": "Chat UI with streaming",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "UX-01",
             "UX-06"
@@ -178,6 +180,7 @@
           "pr": 3,
           "title": "Clients + conversation threads + messages DB schema",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "DATA-03",
             "DATA-09",
@@ -234,6 +237,7 @@
           "pr": 4,
           "title": "Runner engine (core loop) + per-thread serialization",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "RUNNER-01",
             "RUNNER-02",
@@ -309,6 +313,7 @@
           "pr": 5,
           "title": "CRM schema + seed data",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "DATA-01",
             "DATA-03",
@@ -354,6 +359,7 @@
           "pr": 6,
           "title": "CRM tools for the agent",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "TOOL-03",
             "TOOL-09"
@@ -428,6 +434,7 @@
           "pr": 7,
           "title": "File tools (Supabase Storage)",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "DATA-02",
             "DATA-04",
@@ -474,6 +481,7 @@
           "pr": 8,
           "title": "Web search tool",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "SERVICE-03",
             "TOOL-03",
@@ -504,6 +512,7 @@
           "pr": "8a",
           "title": "Google Maps drive-time tool",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "SERVICE-03",
             "TOOL-03"
@@ -539,6 +548,7 @@
           "pr": 9,
           "title": "Supabase Realtime for live updates",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "DATA-07"
           ],
@@ -567,6 +577,7 @@
           "pr": 10,
           "title": "CRM read-only pages (Contacts)",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "UX-02"
           ],
@@ -600,6 +611,7 @@
           "pr": 11,
           "title": "CRM read-only pages (Deals + Tasks)",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "UX-02"
           ],
@@ -628,6 +640,7 @@
           "pr": 12,
           "title": "Audit trail + basic safety",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "SAFETY-03",
             "SCALE-01"
@@ -671,6 +684,7 @@
           "pr": "12a",
           "title": "Knowledge Base schema + pages",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "SERVICE-02",
             "DATA-09"
@@ -711,6 +725,7 @@
           "pr": "p1-crm-tool-consolidation",
           "title": "CRM tool consolidation (untracked cleanup)",
           "status": "done",
+          "simplified": true,
           "note": "Phase 1 cleanup pass \u2014 consolidated CRM tools into cleaner factory pattern. Design: docs/product/tooling/crm-tool-consolidation.md.",
           "tasks": []
         },
@@ -718,6 +733,7 @@
           "pr": "p1-crm-ux",
           "title": "CRM UX upgrade (untracked polish)",
           "status": "done",
+          "simplified": true,
           "note": "Phase 1 polish pass \u2014 CRM table UX, deal-contact linking, tool description improvements. Design: docs/product/designs/2026-03-04-crm-ux-upgrade-design.md.",
           "tasklist": "docs/product/tasks/phase-2/2026-03-04-crm-ux-upgrade-tasklist.md",
           "tasks": []
@@ -726,6 +742,7 @@
           "pr": "p1-chat-sdk-convergence",
           "title": "Chat SDK convergence (untracked alignment)",
           "status": "done",
+          "simplified": true,
           "note": "Phase 1/2 transition \u2014 aligned chat implementation with Vercel chatbot reference patterns before Phase 2 memory work.",
           "tasklist": "docs/product/tasks/phase-2/2026-03-04-chat-sdk-convergence-staged-tasklist.md",
           "tasks": []
@@ -734,6 +751,7 @@
           "pr": "p1-chatbot-zero-drift",
           "title": "Chatbot reference zero drift (untracked alignment)",
           "status": "done",
+          "simplified": true,
           "note": "Phase 1/2 transition \u2014 eliminated remaining drift from Vercel chatbot reference before memory system work began.",
           "tasklist": "docs/product/tasks/phase-2/2026-03-05-chatbot-reference-zero-drift-tasklist.md",
           "tasks": []
@@ -758,6 +776,7 @@
           "pr": 13,
           "title": "Storage layout + SOUL.md + USER.md + MEMORY.md",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "MEM-01",
             "MEM-02",
@@ -810,6 +829,7 @@
           "pr": 14,
           "title": "Memory system",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "MEM-03",
             "MEM-04",
@@ -863,6 +883,7 @@
           "pr": 15,
           "title": "Platform instructions + system-reminder + utility tools",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "RUNNER-03",
             "RUNNER-04",
@@ -940,6 +961,7 @@
           "pr": "15c",
           "title": "CRM configurability \u2014 dynamic vocabulary + custom fields",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "TOOL-01",
             "TOOL-02",
@@ -1025,6 +1047,7 @@
           "pr": "15d",
           "title": "Company object \u2014 complete the CRM triad",
           "status": "done",
+          "simplified": true,
           "decisions": [],
           "dependsOn": [
             5,
@@ -1093,6 +1116,7 @@
           "pr": "15e",
           "title": "CRM read parity + schema introspection",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "TOOL-01",
             "TOOL-02",
@@ -1157,6 +1181,7 @@
           "pr": 18,
           "title": "Cron scanner + agent_triggers table",
           "status": "done",
+          "simplified": true,
           "decisions": [
             "TRIG-01",
             "TRIG-02",
@@ -1941,7 +1966,8 @@
         {
           "pr": "32a",
           "title": "Email messaging tools (Resend)",
-          "status": "done",
+          "status": "pending",
+          "simplified": false,
           "decisions": [
             "SERVICE-13",
             "TRIG-13"
@@ -1951,42 +1977,42 @@
             {
               "id": "PR32a-1",
               "task": "Resend CLI setup: install resend-cli, configure API key, verify sending domain, and document CLI workflow for local email dev/testing",
-              "done": true
+              "done": false
             },
             {
               "id": "PR32a-1b",
               "task": "Resend SDK integration for transactional email (runtime sending via SDK, management/debugging via CLI)",
-              "done": true
+              "done": false
             },
             {
               "id": "PR32a-2",
               "task": "Implement send_message tool (platform email via Resend) with Zod schema",
-              "done": true
+              "done": false
             },
             {
               "id": "PR32a-3",
               "task": "Implement reply_message tool for threaded email replies",
-              "done": true
+              "done": false
             },
             {
               "id": "PR32a-4",
               "task": "Implement list_contact_methods tool",
-              "done": true
+              "done": false
             },
             {
               "id": "PR32a-5",
               "task": "Implement add_contact_method tool (with verification)",
-              "done": true
+              "done": false
             },
             {
               "id": "PR32a-6",
               "task": "Tool-level idempotency for external-facing tools (TRIG-13): dedup via sent_messages table to prevent duplicate sends on retry",
-              "done": true
+              "done": false
             },
             {
               "id": "PR32a-7",
               "task": "Migration: sent_messages table for idempotency tracking",
-              "done": true
+              "done": false
             }
           ],
           "testCriteria": [
@@ -2163,14 +2189,15 @@
         {
           "pr": "50c",
           "title": "Browser automation \u2014 Skills API for repeated portal searches \u2014 DEFERRED",
-          "status": "done",
+          "status": "cut",
+          "simplified": false,
           "decisions": [
             "SERVICE-12"
           ],
           "dependsOn": [
             "50b"
           ],
-          "note": "Follow-up to PR 50b. Converts repeated browsing workflows into deterministic Browser-Use Skills (instant, no LLM cost). Admin/backend creates skills for top SG property portals; agent calls them as fast API endpoints instead of live browsing. Design doc Section 4: roadmap docs/Sunder - Source of Truth/references/browser-use/00-browser-use-cloud-design-doc.md#4-skills-api.",
+          "note": "DEFERRED/CUT: Browser-Use Skills API deferred indefinitely. PR 57 (Apify-based listing tools) covers the primary use case (property portal searches) more reliably and cheaply. Original scope: follow-up to PR 50b, converts repeated browsing workflows into deterministic Browser-Use Skills. Design doc Section 4: roadmap docs/Sunder - Source of Truth/references/browser-use/00-browser-use-cloud-design-doc.md#4-skills-api.",
           "tasks": [
             {
               "id": "PR50c-1",
@@ -2217,7 +2244,8 @@
         {
           "pr": 55,
           "title": "Property market data agent tool (search_market_data)",
-          "status": "in_progress",
+          "status": "done",
+          "simplified": true,
           "note": "Out-of-plan scope exception. Single tool with dataset discriminator (agents/transactions/hdb/ura) and two modes (search/stats). Env-gated via isPropertySupabaseConfigured() \u2014 only registered if property Supabase is configured. Uses existing createPropertyPublicServerClient() singleton (separate Supabase project, public RLS read-only). Available in chat + autopilot + subagents. Complements PR 50/50b browser automation.",
           "tasklist": "docs/product/tasks/2026-03-20-pr55-search-market-data-tasklist.md",
           "tasks": [
@@ -2244,12 +2272,12 @@
             {
               "id": "PR55-5",
               "task": "Barrel test + integration test",
-              "done": false
+              "done": true
             },
             {
               "id": "PR55-6",
               "task": "v2 plan update",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -2263,6 +2291,7 @@
           "pr": 57,
           "title": "Property portal listing tools (search_99co + search_propertyguru)",
           "status": "done",
+          "simplified": true,
           "note": "Out-of-plan scope exception. Two agent tools that search live property listings on 99.co and PropertyGuru via Apify actors (easyapi + fatihtahta). Chat-only scope (excluded from autopilot/subagents \u2014 paid scraping needs human in loop). Separate isApifyConfigured() env gate (independent from market data). Separate createListingTools() factory (no Supabase dependency \u2014 APIFY-only deploy must not crash). Bearer auth, fetchWithTimeout reuse, Apify error parsing, maxTotalChargeUsd guard. Explicit hostname allowlists for URL validation (not suffix matching). Thin output envelope { success, portal, count, results } with portal-native field shapes. 99.co listing_url canonicalized to absolute. PG country hardcoded to 'sg'. Tests span market/__tests__/, system-prompt.test.ts, context.test.ts, tool-registry.test.ts. Design doc: docs/product/designs/pr57-property-portal-listing-tools.md.",
           "decisions": [],
           "dependsOn": [],

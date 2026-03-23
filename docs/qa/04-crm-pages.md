@@ -1,8 +1,8 @@
 # QA Surface 4: CRM Pages
 
-> **PRs covered:** 10 (contacts page), 11 (deals + tasks pages), 15c (dynamic labels + custom fields in drawers), 15d (companies page + drawers)
+> **PRs covered:** 10 (contacts page), 11 (deals + tasks pages), 15c (dynamic labels + custom fields in drawers), 15d (companies page + drawers), 9 (Supabase Realtime live updates)
 > **Dogfoodable:** Yes — primary dogfood target
-> **Time estimate:** 20-25 min manual
+> **Time estimate:** 25-30 min manual
 
 ---
 
@@ -158,6 +158,46 @@
 
 ---
 
+### PR 9: Supabase Realtime
+
+### 4.10 Realtime contact creation (PR 9)
+
+1. Open CRM Contacts page in browser tab A
+2. In browser tab B, open chat and say: "Create a contact named Test Realtime with email test@realtime.com"
+3. **Expected:** Agent creates the contact via `create_record`
+4. Switch to tab A (DO NOT refresh)
+5. **Expected:** "Test Realtime" appears in the contacts table automatically without refresh
+6. **Verify:** The Supabase Realtime subscription received the INSERT event
+
+**Notes / failures:**
+
+---
+
+### 4.11 Realtime deal update (PR 9)
+
+1. Open CRM Deals page in tab A
+2. In tab B chat: "Move the Tanjong Pagar deal to negotiation stage"
+3. **Expected:** Agent updates the deal via `update_record`
+4. Switch to tab A (no refresh)
+5. **Expected:** Deal's stage badge updates from previous stage to "Negotiation" automatically
+
+**Notes / failures:**
+
+---
+
+### 4.12 Realtime — subscribe on mount, unsubscribe on unmount (PR 9)
+
+1. Open CRM Contacts page
+2. Navigate away to `/chat`
+3. Create a contact via chat
+4. Navigate back to CRM Contacts
+5. **Expected:** New contact visible (fresh subscription on mount)
+6. **Verify:** No console errors about stale subscriptions or memory leaks
+
+**Notes / failures:**
+
+---
+
 ## Edge Cases
 
 - [ ] Empty CRM (no data) — tables show empty state, not error
@@ -168,10 +208,12 @@
 - [ ] 100+ contacts — table pagination or virtual scroll works
 - [ ] Table sort by column — click column header, data reorders
 - [ ] Drawer on mobile — renders as full-screen sheet or modal
+- [ ] Realtime with slow network — update eventually appears (no silent drop)
+- [ ] Rapid consecutive updates — all reflect in table (no missed events)
 
 ---
 
 ## Pass / Fail Criteria
 
-- **Pass:** All CRM entity pages render correctly with data from agent-created records. Drawers show accurate relationships and custom fields. Search/filter works. Dynamic labels reflect CRM config.
-- **Fail:** Tables crash with no data, drawers show wrong relationships, custom fields missing from drawers, filters don't work, dynamic labels not applied.
+- **Pass:** All CRM entity pages render correctly with data from agent-created records. Drawers show accurate relationships and custom fields. Search/filter works. Dynamic labels reflect CRM config. Realtime updates appear without page refresh when agent creates/updates records.
+- **Fail:** Tables crash with no data, drawers show wrong relationships, custom fields missing from drawers, filters don't work, dynamic labels not applied, Realtime updates don't appear (requires refresh).
