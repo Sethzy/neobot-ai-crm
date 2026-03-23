@@ -18,6 +18,7 @@ SELECT
   ct.thread_id,
   ct.title,
   ct.is_pinned,
+  ct.is_primary,
   at.id AS trigger_id,
   at.trigger_type,
   at.name,
@@ -80,9 +81,10 @@ BEGIN
       ON ct.thread_id = at.thread_id
     WHERE ct.thread_id IS NULL
        OR ct.is_pinned IS NOT TRUE
-       OR ct.title <> 'Sunder Autopilot'
+       OR ct.is_primary IS NOT TRUE
+       OR ct.title <> 'Agent'
   ) THEN
-    RAISE EXCEPTION 'Some clients are missing the pinned Sunder Autopilot thread';
+    RAISE EXCEPTION 'Some clients are missing the pinned primary Agent thread';
   END IF;
 
   IF to_regprocedure('public.autopilot_interval_to_cron(text)') IS NULL THEN

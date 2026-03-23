@@ -3,8 +3,6 @@
  * Shown when Telegram is not yet connected. Non-blocking — chat works without it.
  * @module components/agent/telegram-cta-banner
  */
-"use client";
-
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";

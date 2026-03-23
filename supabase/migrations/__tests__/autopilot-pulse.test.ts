@@ -19,6 +19,10 @@ const bootstrapMigrationPath = join(
   process.cwd(),
   "supabase/migrations/20260306030002_bootstrap_autopilot_on_signup.sql",
 );
+const primaryThreadBootstrapPath = join(
+  process.cwd(),
+  "supabase/migrations/20260323100001_update_bootstrap_for_primary_thread.sql",
+);
 const verificationPath = join(
   process.cwd(),
   "supabase/verification/pr19_autopilot_bootstrap_check.sql",
@@ -27,6 +31,7 @@ const verificationPath = join(
 const autopilotConfigSql = readFileSync(autopilotConfigMigrationPath, "utf8");
 const pulseTriggerSql = readFileSync(pulseTriggerMigrationPath, "utf8");
 const bootstrapSql = readFileSync(bootstrapMigrationPath, "utf8");
+const primaryThreadBootstrapSql = readFileSync(primaryThreadBootstrapPath, "utf8");
 const verificationSql = readFileSync(verificationPath, "utf8");
 
 describe("PR19 autopilot pulse migrations", () => {
@@ -78,10 +83,20 @@ describe("PR19 autopilot pulse migrations", () => {
     );
   });
 
+  it("replaces ensure_autopilot_for_client to create primary threads with is_primary and Agent title", () => {
+    expect(primaryThreadBootstrapSql).toContain("CREATE OR REPLACE FUNCTION public.ensure_autopilot_for_client");
+    expect(primaryThreadBootstrapSql).toContain("is_primary = true");
+    expect(primaryThreadBootstrapSql).toContain("title = 'Agent'");
+    expect(primaryThreadBootstrapSql).toContain("is_pinned, is_primary)");
+    // Handles legacy fallback
+    expect(primaryThreadBootstrapSql).toContain("title = 'Agent' OR title = 'Sunder Autopilot'");
+  });
+
   it("adds a verification script that checks bootstrap coverage and pulse invariants", () => {
     expect(verificationSql).toContain("public.autopilot_config");
     expect(verificationSql).toContain("trigger_type = 'pulse'");
-    expect(verificationSql).toContain("Sunder Autopilot");
+    expect(verificationSql).toContain("is_primary");
+    expect(verificationSql).toContain("Agent");
     expect(verificationSql).toContain("idx_agent_triggers_one_pulse_per_client");
     expect(verificationSql).toContain("autopilot_config");
   });

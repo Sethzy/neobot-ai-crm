@@ -92,22 +92,21 @@ BEGIN
     INTO v_thread_id
     FROM public.conversation_threads
     WHERE client_id = p_client_id
-      AND (title = 'Agent' OR title = 'Sunder Autopilot')
+      AND title = 'Sunder Autopilot'
     ORDER BY is_archived ASC, created_at ASC
     LIMIT 1;
   END IF;
 
   IF v_thread_id IS NULL THEN
-    INSERT INTO public.conversation_threads (client_id, title, is_pinned, is_primary)
-    VALUES (p_client_id, 'Agent', true, true)
+    INSERT INTO public.conversation_threads (client_id, title, is_pinned)
+    VALUES (p_client_id, 'Sunder Autopilot', true)
     RETURNING thread_id INTO v_thread_id;
   ELSE
     UPDATE public.conversation_threads
     SET
       is_archived = false,
       is_pinned = true,
-      title = 'Agent',
-      is_primary = true
+      title = COALESCE(title, 'Sunder Autopilot')
     WHERE thread_id = v_thread_id;
   END IF;
 
