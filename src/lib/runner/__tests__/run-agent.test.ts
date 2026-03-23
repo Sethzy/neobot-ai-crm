@@ -688,6 +688,25 @@ describe("runAgent", () => {
     );
   });
 
+  it("persists pulse runs with autopilot run type", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(
+      {
+        ...validPayload,
+        triggerType: "pulse",
+        input: "",
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockCreateRun).toHaveBeenCalledWith("mock-supabase-client", {
+      threadId: validPayload.threadId,
+      clientId: validPayload.clientId,
+      runType: "autopilot",
+    });
+  });
+
   it("consumes quota for direct chat sends before attempting the run", async () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
 
