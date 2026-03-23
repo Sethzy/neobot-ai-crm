@@ -17,8 +17,45 @@ import type { Database, Json } from "@/types/database";
 export const SUMMARY_PREFIX =
   "Another language model started to solve this problem and produced a summary of its thinking process. You also have access to the state of the tools that were used by that language model. Use this to build on the work that has already been done and avoid duplicating work. Here is the summary produced by the other language model, use the information in this summary to assist with your own analysis:";
 
-/** Uncompacted message windows above this count should be summarized. */
-export const COMPACTION_MESSAGE_THRESHOLD = 80;
+/** Fraction of context window that triggers compaction. Deep Agents default: 0.85 */
+const COMPACTION_TRIGGER_FRACTION = 0.85;
+
+/** Fallback: fixed token count if model profile unavailable. Deep Agents default: 170000 */
+const COMPACTION_TRIGGER_TOKENS_FALLBACK = 170_000;
+
+/** Fallback: message count if no token data. Preserves existing behavior. */
+const COMPACTION_MESSAGE_FALLBACK = 80;
+
+/** Known context windows for our models. */
+const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
+  "google/gemini-3-flash": 1_000_000,
+  "google/gemini-2.5-flash-lite": 1_000_000,
+};
+
+/** Determines whether compaction should be triggered for the current run. */
+export function shouldTriggerCompaction(input: {
+  promptTokens: number;
+  modelId: string;
+  messageCount?: number;
+}): boolean {
+  const { promptTokens, modelId, messageCount } = input;
+
+  // If we have token data, use fraction-based or fixed-token trigger
+  if (promptTokens > 0) {
+    const contextWindow = MODEL_CONTEXT_WINDOWS[modelId];
+    if (contextWindow) {
+      return promptTokens >= contextWindow * COMPACTION_TRIGGER_FRACTION;
+    }
+    return promptTokens >= COMPACTION_TRIGGER_TOKENS_FALLBACK;
+  }
+
+  // No token data — fall back to message count
+  if (messageCount != null) {
+    return messageCount > COMPACTION_MESSAGE_FALLBACK;
+  }
+
+  return false;
+}
 
 /** The newest messages that always remain verbatim after each compaction pass. */
 export const COMPACTION_KEEP_RECENT = 30;
@@ -303,7 +340,20 @@ export async function maybeCompactThread(
   supabase: ChatSupabaseClient,
   clientId: string,
   threadId: string,
+  modelId?: string,
 ): Promise<boolean> {
+  // Query the latest run's prompt_tokens for fraction-based triggering
+  const { data: lastRun } = await supabase
+    .from("runs")
+    .select("prompt_tokens, model")
+    .eq("thread_id", threadId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const promptTokens = (lastRun as Record<string, unknown> | null)?.prompt_tokens as number | null ?? 0;
+  const runModelId = modelId ?? (lastRun as Record<string, unknown> | null)?.model as string | null ?? "";
+
   const compactionState = await fetchThreadCompactionState(supabase, threadId);
 
   let messageQuery = supabase
@@ -329,7 +379,13 @@ export async function maybeCompactThread(
   const uncompactedRows = ((data as CompactionMessageRow[] | null) ?? [])
     .filter((row) => isAfterThreadCompactionBoundary(row, compactionState));
 
-  if (uncompactedRows.length <= COMPACTION_MESSAGE_THRESHOLD) {
+  const shouldCompact = shouldTriggerCompaction({
+    promptTokens,
+    modelId: runModelId,
+    messageCount: uncompactedRows.length,
+  });
+
+  if (!shouldCompact) {
     return false;
   }
 

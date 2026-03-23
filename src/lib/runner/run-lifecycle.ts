@@ -33,6 +33,8 @@ export interface CompleteRunInput {
   tokensOut: number;
   /** Number of model/tool loop steps executed in this run. */
   stepCount?: number;
+  /** Input token count for fraction-based compaction trigger. */
+  promptTokens?: number;
 }
 
 export interface MarkStaleRunsInput {
@@ -111,7 +113,7 @@ export async function createSubagentRun(
  */
 export async function completeRun(
   supabase: ChatSupabaseClient,
-  { runId, status, model, tokensIn, tokensOut, stepCount }: CompleteRunInput,
+  { runId, status, model, tokensIn, tokensOut, stepCount, promptTokens }: CompleteRunInput,
 ): Promise<void> {
   const updatePayload = {
     status,
@@ -119,6 +121,7 @@ export async function completeRun(
     tokens_in: tokensIn,
     tokens_out: tokensOut,
     completed_at: new Date().toISOString(),
+    ...(promptTokens !== undefined && { prompt_tokens: promptTokens }),
   };
 
   const { error: primaryError } = await supabase

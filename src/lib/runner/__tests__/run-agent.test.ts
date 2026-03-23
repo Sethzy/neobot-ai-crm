@@ -1366,6 +1366,7 @@ describe("runAgent", () => {
       model: "google/gemini-3-flash",
       tokensIn: 100,
       tokensOut: 50,
+      promptTokens: 100,
       stepCount: 0,
     });
     expect(mockDrainAndContinue).toHaveBeenCalledWith("mock-supabase-client", {
@@ -1418,6 +1419,7 @@ describe("runAgent", () => {
       model: "google/gemini-3-flash",
       tokensIn: 200,
       tokensOut: 100,
+      promptTokens: 200,
       stepCount: 3,
     });
   });

@@ -228,6 +228,7 @@ describe("runAgent tool-error completion path", () => {
       model: "google/gemini-3-flash",
       tokensIn: 42,
       tokensOut: 7,
+      promptTokens: 42,
       stepCount: 1,
     });
     expect(mockDrainAndContinue).toHaveBeenCalledWith("mock-supabase-client", {

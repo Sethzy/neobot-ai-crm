@@ -138,6 +138,7 @@ export async function finalizeRun({
     tokensIn: totalUsage.inputTokens ?? 0,
     tokensOut: totalUsage.outputTokens ?? 0,
     stepCount: steps.length,
+    promptTokens: totalUsage.inputTokens ?? 0,
   };
 
   const approvalRequests = extractApprovalRequests(parts);

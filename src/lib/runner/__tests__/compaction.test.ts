@@ -27,7 +27,6 @@ vi.mock("@/lib/ai/gateway", () => ({
 
 import {
   COMPACTION_KEEP_RECENT,
-  COMPACTION_MESSAGE_THRESHOLD,
   STRUCTURED_SUMMARY_INSTRUCTIONS,
   SUMMARY_PREFIX,
   fetchThreadCompactionState,
@@ -37,6 +36,7 @@ import {
   maybeCompactThread,
   persistThreadCompactionState,
   pruneTriggerEvents,
+  shouldTriggerCompaction,
   threadCompactionStateSchema,
 } from "../compaction";
 
@@ -67,6 +67,7 @@ function createCompactionSupabaseMock(options?: {
   messageRows?: Record<string, unknown>[];
   updateRow?: Record<string, unknown> | null;
   updateError?: { message: string } | null;
+  lastRunRow?: Record<string, unknown> | null;
 }) {
   const calls = {
     from: [] as string[],
@@ -104,10 +105,17 @@ function createCompactionSupabaseMock(options?: {
         calls.methods.push({ method: "order", args });
         return query;
       },
+      limit: (...args: unknown[]) => {
+        calls.methods.push({ method: "limit", args });
+        return query;
+      },
       maybeSingle: async () => {
         calls.methods.push({ method: "maybeSingle", args: [] });
         if (table === "conversation_threads") {
           return { data: options?.threadRow ?? null, error: null };
+        }
+        if (table === "runs") {
+          return { data: options?.lastRunRow ?? null, error: null };
         }
 
         return { data: null, error: null };
@@ -160,9 +168,6 @@ describe("compaction constants", () => {
   it("uses positive integer thresholds", () => {
     expect(Number.isInteger(COMPACTION_KEEP_RECENT)).toBe(true);
     expect(COMPACTION_KEEP_RECENT).toBe(30);
-    expect(Number.isInteger(COMPACTION_MESSAGE_THRESHOLD)).toBe(true);
-    expect(COMPACTION_MESSAGE_THRESHOLD).toBe(80);
-    expect(COMPACTION_MESSAGE_THRESHOLD).toBeGreaterThan(COMPACTION_KEEP_RECENT);
   });
 
 });
@@ -505,7 +510,7 @@ describe("maybeCompactThread", () => {
         compaction_summary_model: null,
         compaction_summary_tokens_used: null,
       },
-      messageRows: createMessageRows(COMPACTION_MESSAGE_THRESHOLD),
+      messageRows: createMessageRows(80 /* COMPACTION_MESSAGE_FALLBACK */),
     });
 
     const result = await maybeCompactThread(
@@ -523,8 +528,8 @@ describe("maybeCompactThread", () => {
       text: "Compacted summary",
       usage: { totalTokens: 456 },
     });
-    const messageRows = createMessageRows(COMPACTION_MESSAGE_THRESHOLD + 1);
-    const lastCompactedMessageNumber = COMPACTION_MESSAGE_THRESHOLD + 1 - COMPACTION_KEEP_RECENT;
+    const messageRows = createMessageRows(80 /* COMPACTION_MESSAGE_FALLBACK */ + 1);
+    const lastCompactedMessageNumber = 80 /* COMPACTION_MESSAGE_FALLBACK */ + 1 - COMPACTION_KEEP_RECENT;
     const supabase = createCompactionSupabaseMock({
       threadRow: {
         thread_id: createUuid(90),
@@ -581,7 +586,7 @@ describe("maybeCompactThread", () => {
       usage: { totalTokens: 100 },
     });
 
-    const messageRows = createMessageRows(COMPACTION_MESSAGE_THRESHOLD + 10);
+    const messageRows = createMessageRows(80 /* COMPACTION_MESSAGE_FALLBACK */ + 10);
     messageRows[5] = {
       ...messageRows[5],
       role: "system",
@@ -639,7 +644,7 @@ describe("maybeCompactThread", () => {
       usage: { totalTokens: 100 },
     });
 
-    const messageRows = createMessageRows(COMPACTION_MESSAGE_THRESHOLD + 10);
+    const messageRows = createMessageRows(80 /* COMPACTION_MESSAGE_FALLBACK */ + 10);
     messageRows[5] = {
       ...messageRows[5],
       role: "user",
@@ -686,7 +691,7 @@ describe("maybeCompactThread", () => {
       usage: { totalTokens: 120 },
     });
 
-    const messageRows = createMessageRows(COMPACTION_MESSAGE_THRESHOLD + 10);
+    const messageRows = createMessageRows(80 /* COMPACTION_MESSAGE_FALLBACK */ + 10);
     messageRows[12] = {
       ...messageRows[12],
       role: "assistant",
@@ -793,5 +798,70 @@ describe("maybeCompactThread", () => {
         },
       ]),
     );
+  });
+});
+
+describe("shouldTriggerCompaction", () => {
+  it("triggers compaction when prompt tokens exceed 85% of model context window", () => {
+    const result = shouldTriggerCompaction({
+      promptTokens: 860_000,
+      modelId: "google/gemini-3-flash",
+    });
+    expect(result).toBe(true);
+  });
+
+  it("does not trigger compaction below 85% threshold", () => {
+    const result = shouldTriggerCompaction({
+      promptTokens: 800_000,
+      modelId: "google/gemini-3-flash",
+    });
+    expect(result).toBe(false);
+  });
+
+  it("falls back to fixed token threshold for unknown models", () => {
+    const result = shouldTriggerCompaction({
+      promptTokens: 180_000,
+      modelId: "unknown/model",
+    });
+    expect(result).toBe(true);
+  });
+
+  it("does not trigger for unknown models below fallback threshold", () => {
+    const result = shouldTriggerCompaction({
+      promptTokens: 160_000,
+      modelId: "unknown/model",
+    });
+    expect(result).toBe(false);
+  });
+
+  it("falls back to message count when no token data available", () => {
+    const result = shouldTriggerCompaction({
+      promptTokens: 0,
+      modelId: "google/gemini-3-flash",
+      messageCount: 81,
+    });
+    expect(result).toBe(true);
+  });
+
+  it("does not trigger on message count at or below fallback threshold", () => {
+    expect(shouldTriggerCompaction({
+      promptTokens: 0,
+      modelId: "google/gemini-3-flash",
+      messageCount: 80,
+    })).toBe(false);
+
+    expect(shouldTriggerCompaction({
+      promptTokens: 0,
+      modelId: "google/gemini-3-flash",
+      messageCount: 70,
+    })).toBe(false);
+  });
+
+  it("returns false when no data is available", () => {
+    const result = shouldTriggerCompaction({
+      promptTokens: 0,
+      modelId: "google/gemini-3-flash",
+    });
+    expect(result).toBe(false);
   });
 });
