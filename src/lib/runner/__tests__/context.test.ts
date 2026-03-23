@@ -5,7 +5,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildPlatformInstructions } from "@/lib/ai/platform-instructions";
-import { MARKET_DATA_PROMPT, SETUP_SYSTEM_PROMPT, SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
+import {
+  MARKET_DATA_PROMPT,
+  PROPERTY_LISTING_PROMPT,
+  SETUP_SYSTEM_PROMPT,
+  SYSTEM_PROMPT,
+} from "@/lib/ai/system-prompt";
 import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
 import { SUMMARY_PREFIX } from "../compaction";
@@ -461,6 +466,40 @@ describe("assembleContext", () => {
 
     expect(result.system).toContain(MARKET_DATA_PROMPT);
     expect(result.system).toContain("search_market_data");
+  });
+
+  it("does not include property listing guidance by default", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      clientId: "client-123",
+    });
+
+    expect(result.system).not.toContain("search_99co");
+    expect(result.system).not.toContain("search_propertyguru");
+  });
+
+  it("includes property listing guidance when enabled for the run", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello!",
+      clientId: "client-123",
+      includePropertyListings: true,
+    });
+
+    expect(result.system).toContain(PROPERTY_LISTING_PROMPT);
+    expect(result.system).toContain("search_99co");
+    expect(result.system).toContain("search_propertyguru");
   });
 
   it("injects available skills into the assembled system prompt", async () => {

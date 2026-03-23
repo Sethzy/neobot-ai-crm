@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   BROWSER_AUTOMATION_PROMPT,
   MARKET_DATA_PROMPT,
+  PROPERTY_LISTING_PROMPT,
   SETUP_SYSTEM_PROMPT,
   SYSTEM_PROMPT,
 } from "@/lib/ai/system-prompt";
@@ -195,6 +196,17 @@ describe("SYSTEM_PROMPT", () => {
     // Must still contain old getViewCatalogPrompt patterns that are now in customRules
     expect(SYSTEM_PROMPT.toLowerCase()).toContain("snapshot");
     expect(SYSTEM_PROMPT).toContain("4KB");
+  });
+});
+
+describe("PROPERTY_LISTING_PROMPT", () => {
+  it("routes public listing searches separately from market data and browser automation", () => {
+    expect(PROPERTY_LISTING_PROMPT).toContain("search_99co");
+    expect(PROPERTY_LISTING_PROMPT).toContain("search_propertyguru");
+    expect(PROPERTY_LISTING_PROMPT).toContain("search_market_data");
+    expect(PROPERTY_LISTING_PROMPT).toContain("browse_website");
+    expect(PROPERTY_LISTING_PROMPT).toContain("what's available");
+    expect(PROPERTY_LISTING_PROMPT).toContain("what did it sell for");
   });
 });
 

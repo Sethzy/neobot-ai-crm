@@ -18,6 +18,7 @@ const {
   mockCreateCrmTools,
   mockCreateConnectionTools,
   mockCreateMarketTools,
+  mockCreateListingTools,
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
@@ -32,6 +33,7 @@ const {
   mockGetActiveConnections,
   mockLoadActivatedConnectionTools,
   mockConsumeMessageQuota,
+  mockIsApifyConfigured,
   mockIsPropertySupabaseConfigured,
   mockReleaseMessageQuota,
 } = vi.hoisted(() => ({
@@ -48,6 +50,7 @@ const {
   mockCreateCrmTools: vi.fn(),
   mockCreateConnectionTools: vi.fn(),
   mockCreateMarketTools: vi.fn(),
+  mockCreateListingTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
@@ -62,6 +65,7 @@ const {
   mockGetActiveConnections: vi.fn(),
   mockLoadActivatedConnectionTools: vi.fn(),
   mockConsumeMessageQuota: vi.fn(),
+  mockIsApifyConfigured: vi.fn(),
   mockIsPropertySupabaseConfigured: vi.fn(),
   mockReleaseMessageQuota: vi.fn(),
 }));
@@ -102,6 +106,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createConnectionTools: mockCreateConnectionTools,
   createMarketTools: mockCreateMarketTools,
+  createListingTools: mockCreateListingTools,
   createStorageTools: mockCreateStorageTools,
   createSubagentTool: mockCreateSubagentTool,
   createWebTools: mockCreateWebTools,
@@ -124,6 +129,10 @@ vi.mock("@/lib/composio", () => ({
 
 vi.mock("@/lib/supabase/property-env", () => ({
   isPropertySupabaseConfigured: mockIsPropertySupabaseConfigured,
+}));
+
+vi.mock("@/lib/apify/env", () => ({
+  isApifyConfigured: mockIsApifyConfigured,
 }));
 
 vi.mock("@/lib/usage/message-quota", () => ({
@@ -205,6 +214,10 @@ describe("runAgent", () => {
     mockCreateMarketTools.mockReturnValue({
       search_market_data: { description: "market-tool" },
     });
+    mockCreateListingTools.mockReturnValue({
+      search_99co: { description: "listing-tool" },
+      search_propertyguru: { description: "listing-tool" },
+    });
     mockCreateStorageTools.mockReturnValue({
       read_file: { description: "storage-tool" },
       write_file: { description: "storage-tool" },
@@ -252,6 +265,7 @@ describe("runAgent", () => {
     mockMaybeCompactThread.mockResolvedValue(false);
     mockGetActiveConnections.mockResolvedValue([]);
     mockLoadActivatedConnectionTools.mockResolvedValue({});
+    mockIsApifyConfigured.mockReturnValue(true);
     mockIsPropertySupabaseConfigured.mockReturnValue(true);
     mockConsumeMessageQuota.mockResolvedValue({
       allowed: true,
@@ -440,6 +454,7 @@ describe("runAgent", () => {
           deal_stages: ["lead", "quoted", "bound"],
         }),
         includeMarketData: true,
+        includePropertyListings: true,
       }),
     );
   });
@@ -468,6 +483,7 @@ describe("runAgent", () => {
           deal_stages: ["lead", "quoted", "bound"],
         }),
         includeMarketData: true,
+        includePropertyListings: true,
       }),
     );
   });
@@ -484,6 +500,20 @@ describe("runAgent", () => {
       }),
     );
     expect(mockCreateMarketTools).not.toHaveBeenCalled();
+  });
+
+  it("disables property-listing prompt injection when Apify is not configured", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+    mockIsApifyConfigured.mockReturnValue(false);
+
+    await runAgent(validPayload, "mock-supabase-client" as never);
+
+    expect(mockAssembleContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        includePropertyListings: false,
+      }),
+    );
+    expect(mockCreateListingTools).not.toHaveBeenCalled();
   });
 
   it("passes gatewayProviderOptions to streamText", async () => {

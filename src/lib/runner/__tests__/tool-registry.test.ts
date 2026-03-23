@@ -8,24 +8,32 @@ const {
   mockCreateBrowserTools,
   mockCreateConnectionTools,
   mockCreateCrmTools,
+  mockCreateListingTools,
   mockCreateMarketTools,
   mockCreateStorageTools,
   mockCreateTriggerTools,
   mockCreateUtilityTools,
   mockCreateWebTools,
+  mockIsApifyConfigured,
   mockIsBrowserUseConfigured,
   mockIsPropertySupabaseConfigured,
 } = vi.hoisted(() => ({
   mockCreateBrowserTools: vi.fn(),
   mockCreateConnectionTools: vi.fn(),
   mockCreateCrmTools: vi.fn(),
+  mockCreateListingTools: vi.fn(),
   mockCreateMarketTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateTriggerTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
+  mockIsApifyConfigured: vi.fn(),
   mockIsBrowserUseConfigured: vi.fn(),
   mockIsPropertySupabaseConfigured: vi.fn(),
+}));
+
+vi.mock("@/lib/apify/env", () => ({
+  isApifyConfigured: mockIsApifyConfigured,
 }));
 
 vi.mock("@/lib/browser-use/client", () => ({
@@ -40,6 +48,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createBrowserTools: mockCreateBrowserTools,
   createConnectionTools: mockCreateConnectionTools,
   createCrmTools: mockCreateCrmTools,
+  createListingTools: mockCreateListingTools,
   createMarketTools: mockCreateMarketTools,
   createStorageTools: mockCreateStorageTools,
   createTriggerTools: mockCreateTriggerTools,
@@ -62,6 +71,10 @@ describe("createRunnerTools", () => {
     mockCreateCrmTools.mockReturnValue({
       search_contacts: { description: "crm-tool" },
     });
+    mockCreateListingTools.mockReturnValue({
+      search_99co: { description: "listing-tool" },
+      search_propertyguru: { description: "listing-tool" },
+    });
     mockCreateMarketTools.mockReturnValue({
       search_market_data: { description: "market-tool" },
     });
@@ -77,6 +90,7 @@ describe("createRunnerTools", () => {
     mockCreateWebTools.mockReturnValue({
       web_search: { description: "web-tool" },
     });
+    mockIsApifyConfigured.mockReturnValue(true);
     mockIsBrowserUseConfigured.mockReturnValue(true);
     mockIsPropertySupabaseConfigured.mockReturnValue(true);
   });
@@ -129,6 +143,19 @@ describe("createRunnerTools", () => {
     expect(mockCreateMarketTools).toHaveBeenCalledOnce();
   });
 
+  it("includes listing tools when explicitly enabled and Apify is configured", () => {
+    const tools = createRunnerTools(
+      "supabase" as never,
+      "client-id",
+      "thread-id",
+      { includeListingTools: true },
+    );
+
+    expect(tools).toHaveProperty("search_99co");
+    expect(tools).toHaveProperty("search_propertyguru");
+    expect(mockCreateListingTools).toHaveBeenCalledOnce();
+  });
+
   it("omits market tools when includeMarketTools is false", () => {
     const tools = createRunnerTools(
       "supabase" as never,
@@ -155,6 +182,32 @@ describe("createRunnerTools", () => {
     expect(mockCreateMarketTools).not.toHaveBeenCalled();
   });
 
+  it("omits listing tools when includeListingTools is false", () => {
+    const tools = createRunnerTools(
+      "supabase" as never,
+      "client-id",
+      "thread-id",
+      { includeListingTools: false },
+    );
+
+    expect(tools).not.toHaveProperty("search_99co");
+    expect(mockCreateListingTools).not.toHaveBeenCalled();
+  });
+
+  it("omits listing tools when Apify is not configured", () => {
+    mockIsApifyConfigured.mockReturnValue(false);
+
+    const tools = createRunnerTools(
+      "supabase" as never,
+      "client-id",
+      "thread-id",
+      { includeListingTools: true },
+    );
+
+    expect(tools).not.toHaveProperty("search_99co");
+    expect(mockCreateListingTools).not.toHaveBeenCalled();
+  });
+
   it("includes market tools for subagents when explicitly enabled", () => {
     const tools = createRunnerTools(
       "supabase" as never,
@@ -165,5 +218,32 @@ describe("createRunnerTools", () => {
 
     expect(tools).toHaveProperty("search_market_data");
     expect(mockCreateMarketTools).toHaveBeenCalledOnce();
+  });
+
+  it("omits listing tools for subagents even when explicitly enabled", () => {
+    const tools = createRunnerTools(
+      "supabase" as never,
+      "client-id",
+      "thread-id",
+      { includeListingTools: true, isSubagent: true },
+    );
+
+    expect(tools).not.toHaveProperty("search_99co");
+    expect(mockCreateListingTools).not.toHaveBeenCalled();
+  });
+
+  it("keeps listing tools independent from property Supabase gating", () => {
+    mockIsPropertySupabaseConfigured.mockReturnValue(false);
+
+    const tools = createRunnerTools(
+      "supabase" as never,
+      "client-id",
+      "thread-id",
+      { includeListingTools: true },
+    );
+
+    expect(tools).toHaveProperty("search_99co");
+    expect(mockCreateListingTools).toHaveBeenCalledOnce();
+    expect(mockCreateMarketTools).not.toHaveBeenCalled();
   });
 });
