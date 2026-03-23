@@ -143,19 +143,6 @@ export async function finalizeRun({
   const contentText = contentTextFromParts.length > 0 ? contentTextFromParts : fallbackContentText;
   const hasNonStepParts = parts.some((part) => part.type !== "step-start");
 
-  if (hasNonStepParts || contentText.length > 0) {
-    await createMessages(supabase, [
-      {
-        thread_id: threadId,
-        role: "assistant",
-        content: contentText,
-        parts: hasNonStepParts
-          ? (parts as Json)
-          : ([{ type: "text", text: contentText }] as Json),
-      },
-    ]);
-  }
-
   const baseRunCompletion = {
     runId,
     model: modelId,
@@ -205,6 +192,28 @@ export async function finalizeRun({
         },
       })),
     );
+  }
+
+  if (hasNonStepParts || contentText.length > 0) {
+    try {
+      await createMessages(supabase, [
+        {
+          thread_id: threadId,
+          role: "assistant",
+          content: contentText,
+          parts: hasNonStepParts
+            ? (parts as Json)
+            : ([{ type: "text", text: contentText }] as Json),
+        },
+      ]);
+    } catch (messageError) {
+      console.error(
+        `[${logLabel}] message persistence failed after approval events:`,
+        messageError,
+      );
+      await completeRun(supabase, { ...baseRunCompletion, status: "partial" });
+      return;
+    }
   }
 
   await completeRun(supabase, { ...baseRunCompletion, status: "completed" });
