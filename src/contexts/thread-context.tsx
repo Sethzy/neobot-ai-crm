@@ -131,6 +131,7 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
         id: thread.thread_id,
         title: thread.title ?? "New Chat",
         isPinned: thread.is_pinned,
+        isPrimary: thread.is_primary,
         createdAt: new Date(thread.created_at),
       })),
     [threadRows],

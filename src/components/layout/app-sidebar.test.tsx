@@ -76,7 +76,7 @@ describe("AppSidebar", () => {
 
   it("renders AGENT section nav items", () => {
     render(<AppSidebar />, { wrapper });
-    expect(screen.getByText("Chat")).toBeInTheDocument();
+    expect(screen.getByText("New Task")).toBeInTheDocument();
     expect(screen.getByText("Skills")).toBeInTheDocument();
     expect(screen.getByText("Tasks")).toBeInTheDocument();
     expect(screen.getByText("Automations")).toBeInTheDocument();
@@ -95,7 +95,8 @@ describe("AppSidebar", () => {
 
   it("renders section headers", () => {
     render(<AppSidebar />, { wrapper });
-    expect(screen.getByText("Agent")).toBeInTheDocument();
+    // "Agent" appears as both a section header and a nav item
+    expect(screen.getAllByText("Agent").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Database")).toBeInTheDocument();
   });
 

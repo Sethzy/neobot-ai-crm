@@ -144,6 +144,8 @@ export const appIcons = {
   workspace: FoldersIcon,
   knowledgeFile: BookOpenIcon,
   meeting: CalendarDaysIcon,
+  agent: BotMessageSquareIcon,
+  compose: PenLineIcon,
   area: MapPinIcon,
 } as const satisfies Record<string, LucideIcon>;
 

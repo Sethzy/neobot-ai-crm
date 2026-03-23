@@ -47,6 +47,7 @@ export async function listThreads(supabase: ChatSupabaseClient, clientId: string
     .select("*")
     .eq("client_id", clientId)
     .eq("is_archived", false)
+    .eq("is_primary", false)
     .order("updated_at", { ascending: false });
 
   if (error) {
@@ -89,6 +90,27 @@ export async function getThread(supabase: ChatSupabaseClient, threadId: string):
 
   if (error || !data) {
     throw new Error(error?.message ?? "Thread not found");
+  }
+
+  return data;
+}
+
+/**
+ * Loads the primary thread for a client, or null if none exists.
+ */
+export async function getPrimaryThread(
+  supabase: ChatSupabaseClient,
+  clientId: string,
+): Promise<ThreadRow | null> {
+  const { data, error } = await supabase
+    .from("conversation_threads")
+    .select("*")
+    .eq("client_id", clientId)
+    .eq("is_primary", true)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
   }
 
   return data;

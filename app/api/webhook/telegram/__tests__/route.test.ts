@@ -88,6 +88,7 @@ interface MockWebhookSupabaseConfig {
   approvalEventResults?: MockSupabaseResult[];
   pairingTokenResults?: MockSupabaseResult[];
   receiptInsertResults?: MockSupabaseResult[];
+  threadSelectResults?: MockSupabaseResult[];
   threadInsertResults?: MockSupabaseResult[];
   mappingInsertResults?: MockSupabaseResult[];
   mappingUpdateResults?: MockSupabaseResult[];
@@ -180,7 +181,18 @@ function createWebhookSupabase(config: MockWebhookSupabaseConfig = {}) {
     }
 
     if (table === "conversation_threads") {
+      const selectChain = {
+        eq: vi.fn(() => selectChain),
+        single: vi.fn().mockImplementation(async () =>
+          takeResult(config.threadSelectResults, { data: null, error: null })
+        ),
+        maybeSingle: vi.fn().mockImplementation(async () =>
+          takeResult(config.threadSelectResults, { data: null, error: null })
+        ),
+      };
+
       return {
+        select: vi.fn(() => selectChain),
         insert: vi.fn().mockImplementation(async (value: unknown) => {
           records.inserts.push({ table, value });
           return takeResult(config.threadInsertResults, { data: null, error: null });
@@ -314,7 +326,7 @@ describe("POST /api/webhook/telegram", () => {
     );
   });
 
-  it("pairs a chat from /start <token>", async () => {
+  it("pairs a chat from /start <token> by mapping to the primary thread", async () => {
     const supabase = createWebhookSupabase({
       mappingResults: [{ data: null, error: null }],
       pairingTokenResults: [{
@@ -325,7 +337,10 @@ describe("POST /api/webhook/telegram", () => {
         },
         error: null,
       }],
-      threadInsertResults: [{ data: null, error: null }],
+      threadSelectResults: [{
+        data: { thread_id: "primary-thread-1" },
+        error: null,
+      }],
       mappingInsertResults: [{ data: null, error: null }],
       tokenDeleteResults: [{ data: null, error: null }],
     });
@@ -347,11 +362,13 @@ describe("POST /api/webhook/telegram", () => {
     await flushBackgroundWork();
 
     expect(response.status).toBe(200);
+    // Should NOT create a new thread — uses existing primary
     expect(
       supabase.records.inserts.some(
         (insert) => insert.table === "conversation_threads",
       ),
-    ).toBe(true);
+    ).toBe(false);
+    // Should create a channel mapping
     expect(
       supabase.records.inserts.some(
         (insert) => insert.table === "conversation_channel_mappings",
@@ -828,6 +845,88 @@ describe("POST /api/webhook/telegram", () => {
     expect(mockRunAgent).not.toHaveBeenCalledWith(
       expect.objectContaining({ input: "John and Mary" }),
       supabase,
+    );
+  });
+
+  it("switches mapping back to primary thread on /main", async () => {
+    const supabase = createWebhookSupabase({
+      mappingResults: [{
+        data: {
+          client_id: "client-1",
+          thread_id: "task-thread-1",
+          external_conversation_id: "12345",
+        },
+        error: null,
+      }],
+      threadSelectResults: [{
+        data: { thread_id: "primary-thread-1" },
+        error: null,
+      }],
+      mappingUpdateResults: [{ data: null, error: null }],
+    });
+    const api = createTelegramBotApi();
+    mockCreateAdminClient.mockResolvedValue(supabase);
+    mockCreateTelegramBot.mockReturnValue({ api });
+
+    const response = await POST(
+      createRequest({
+        update_id: 300,
+        message: {
+          message_id: 5,
+          text: "/main",
+          chat: { id: 12345, type: "private" },
+          from: { id: 7, is_bot: false, first_name: "Seth" },
+        },
+      }),
+    );
+    await flushBackgroundWork();
+
+    expect(response.status).toBe(200);
+    expect(mockClearPendingQuestionsForChat).toHaveBeenCalledWith(supabase, "12345");
+    expect(api.sendMessage).toHaveBeenCalledWith(
+      12345,
+      expect.stringMatching(/main session/i),
+      expect.anything(),
+    );
+  });
+
+  it("reports already in main session when /main issued on primary thread", async () => {
+    const supabase = createWebhookSupabase({
+      mappingResults: [{
+        data: {
+          client_id: "client-1",
+          thread_id: "primary-thread-1",
+          external_conversation_id: "12345",
+        },
+        error: null,
+      }],
+      threadSelectResults: [{
+        data: { thread_id: "primary-thread-1" },
+        error: null,
+      }],
+    });
+    const api = createTelegramBotApi();
+    mockCreateAdminClient.mockResolvedValue(supabase);
+    mockCreateTelegramBot.mockReturnValue({ api });
+
+    const response = await POST(
+      createRequest({
+        update_id: 301,
+        message: {
+          message_id: 6,
+          text: "/main",
+          chat: { id: 12345, type: "private" },
+          from: { id: 7, is_bot: false, first_name: "Seth" },
+        },
+      }),
+    );
+    await flushBackgroundWork();
+
+    expect(response.status).toBe(200);
+    expect(api.sendMessage).toHaveBeenCalledWith(
+      12345,
+      expect.stringMatching(/already in the main session/i),
+      expect.anything(),
     );
   });
 

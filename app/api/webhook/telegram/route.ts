@@ -263,18 +263,20 @@ async function handleStartCommand(
     return;
   }
 
-  const threadId = randomUUID();
-  const { error: threadError } = await supabase
+  // Look up the existing primary thread instead of creating a new one
+  const { data: primaryThread, error: primaryError } = await supabase
     .from("conversation_threads")
-    .insert({
-      thread_id: threadId,
-      client_id: pairingToken.client_id,
-      title: null,
-    });
+    .select("thread_id")
+    .eq("client_id", pairingToken.client_id)
+    .eq("is_primary", true)
+    .single();
 
-  if (threadError) {
-    throw threadError;
+  if (primaryError || !primaryThread) {
+    await sendPlainTelegramMessage(bot, numericChatId, "Setup incomplete. Please try again.");
+    return;
   }
+
+  const threadId = primaryThread.thread_id;
 
   const { error: mappingError } = await supabase
     .from("conversation_channel_mappings")
@@ -341,6 +343,56 @@ async function handleNewCommand(
   }
 
   await sendPlainTelegramMessage(bot, numericChatId, "Started a new Telegram chat.");
+}
+
+async function handleMainCommand(
+  supabase: TelegramAdminClient,
+  bot: TelegramBot,
+  message: Record<string, unknown>,
+): Promise<void> {
+  const chatId = String((message.chat as Record<string, unknown>).id);
+  const numericChatId = Number(chatId);
+  const mapping = await getTelegramMappingByChatId(supabase, chatId);
+
+  if (!mapping) {
+    await sendPlainTelegramMessage(
+      bot,
+      numericChatId,
+      "This chat is not connected. Generate a new pairing link from Settings.",
+    );
+    return;
+  }
+
+  await clearPendingQuestionsForChat(supabase, chatId);
+
+  const { data: primaryThread, error: primaryError } = await supabase
+    .from("conversation_threads")
+    .select("thread_id")
+    .eq("client_id", mapping.client_id)
+    .eq("is_primary", true)
+    .single();
+
+  if (primaryError || !primaryThread) {
+    await sendPlainTelegramMessage(bot, numericChatId, "Primary thread not found.");
+    return;
+  }
+
+  if (mapping.thread_id === primaryThread.thread_id) {
+    await sendPlainTelegramMessage(bot, numericChatId, "Already in the main session.");
+    return;
+  }
+
+  const { error: updateError } = await supabase
+    .from("conversation_channel_mappings")
+    .update({ thread_id: primaryThread.thread_id })
+    .eq("channel", "telegram")
+    .eq("external_conversation_id", chatId);
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  await sendPlainTelegramMessage(bot, numericChatId, "Switched back to main session.");
 }
 
 async function continueTelegramQuestionBatch(
@@ -633,6 +685,11 @@ async function processUpdate(
 
     if (command?.command === "/new") {
       await handleNewCommand(supabase, bot, update.message);
+      return;
+    }
+
+    if (command?.command === "/main") {
+      await handleMainCommand(supabase, bot, update.message);
       return;
     }
 

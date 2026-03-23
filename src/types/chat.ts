@@ -9,6 +9,7 @@ export interface Thread {
   id: string;
   title: string;
   isPinned: boolean;
+  isPrimary: boolean;
   createdAt: Date;
 }
 

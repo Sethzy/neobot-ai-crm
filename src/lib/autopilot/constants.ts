@@ -4,8 +4,8 @@
  */
 import { z } from "zod";
 
-/** Pinned thread title shown for the built-in autopilot conversation. */
-export const AUTOPILOT_THREAD_TITLE = "Sunder Autopilot";
+/** Pinned thread title shown for the built-in primary agent conversation. */
+export const PRIMARY_THREAD_TITLE = "Agent";
 
 /** Default pulse schedule: every 6 hours. */
 export const DEFAULT_PULSE_CRON = "0 */6 * * *";

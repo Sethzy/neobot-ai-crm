@@ -6,15 +6,15 @@ import { describe, expect, test } from "vitest";
 
 import {
   AUTOPILOT_INSTRUCTION_PROMPT,
-  AUTOPILOT_THREAD_TITLE,
+  PRIMARY_THREAD_TITLE,
   DEFAULT_PULSE_CRON,
   PULSE_INTERVAL_MAP,
   autopilotConfigSchema,
 } from "../constants";
 
 describe("autopilot constants", () => {
-  test("uses the expected pinned autopilot thread title", () => {
-    expect(AUTOPILOT_THREAD_TITLE).toBe("Sunder Autopilot");
+  test("uses the expected primary thread title", () => {
+    expect(PRIMARY_THREAD_TITLE).toBe("Agent");
   });
 
   test("uses the expected default 6 hour cron expression", () => {

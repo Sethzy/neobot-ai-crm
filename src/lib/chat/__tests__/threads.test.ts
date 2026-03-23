@@ -9,6 +9,7 @@ import { createMockSupabaseClient } from "@/test/mocks/supabase";
 import {
   archiveThread,
   createThread,
+  getPrimaryThread,
   getThread,
   listThreads,
   updateThreadTitle,
@@ -141,6 +142,58 @@ describe("updateThreadTitle", () => {
     await expect(updateThreadTitle(client as never, "thread-1", "Renamed")).rejects.toThrow(
       "Pinned threads cannot be renamed",
     );
+  });
+});
+
+describe("getPrimaryThread", () => {
+  test("returns the primary thread for a client", async () => {
+    const row = {
+      thread_id: "thread-primary",
+      client_id: "client-1",
+      title: "Agent",
+      is_primary: true,
+      is_pinned: true,
+      is_archived: false,
+      created_at: "2026-03-01T00:00:00Z",
+      updated_at: "2026-03-01T01:00:00Z",
+    };
+    const client = createMockSupabaseClient({
+      selectResult: { data: [row], error: null },
+    });
+
+    await expect(getPrimaryThread(client as never, "client-1")).resolves.toEqual(row);
+    expect(client.calls.from).toContain("conversation_threads");
+    const eqCalls = client.calls.methods.filter((c) => c.method === "eq");
+    expect(eqCalls).toContainEqual({ method: "eq", args: ["client_id", "client-1"] });
+    expect(eqCalls).toContainEqual({ method: "eq", args: ["is_primary", true] });
+  });
+
+  test("returns null when no primary thread exists", async () => {
+    const client = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    await expect(getPrimaryThread(client as never, "client-1")).resolves.toBeNull();
+  });
+
+  test("throws on query errors", async () => {
+    const client = createMockSupabaseClient({
+      selectResult: { data: null, error: { message: "DB error" } },
+    });
+
+    await expect(getPrimaryThread(client as never, "client-1")).rejects.toThrow("DB error");
+  });
+});
+
+describe("listThreads - primary filtering", () => {
+  test("includes is_primary=false filter in the query", async () => {
+    const client = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    await listThreads(client as never, "client-1");
+    const eqCalls = client.calls.methods.filter((c) => c.method === "eq");
+    expect(eqCalls).toContainEqual({ method: "eq", args: ["is_primary", false] });
   });
 });
 

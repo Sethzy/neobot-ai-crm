@@ -46,7 +46,8 @@ interface NavigationItem {
 
 /** AGENT section — primary operating surfaces */
 const agentNavItems: NavigationItem[] = [
-  { label: "Chat", href: "/chat", icon: "chat" },
+  { label: "Agent", href: "/agent", icon: "agent" },
+  { label: "New Task", href: "/chat", icon: "compose" },
   { label: "Skills", href: "/skills", icon: "document" },
   { label: "Tasks", href: "/tasks", icon: "tasks" },
   { label: "Automations", href: "/automations", icon: "automations" },

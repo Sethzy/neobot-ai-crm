@@ -683,6 +683,7 @@ export type Database = {
           created_at: string
           is_archived: boolean
           is_pinned: boolean
+          is_primary: boolean
           thread_id: string
           title: string | null
           updated_at: string
@@ -697,6 +698,7 @@ export type Database = {
           created_at?: string
           is_archived?: boolean
           is_pinned?: boolean
+          is_primary?: boolean
           thread_id?: string
           title?: string | null
           updated_at?: string
@@ -711,6 +713,7 @@ export type Database = {
           created_at?: string
           is_archived?: boolean
           is_pinned?: boolean
+          is_primary?: boolean
           thread_id?: string
           title?: string | null
           updated_at?: string
