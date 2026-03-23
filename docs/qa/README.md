@@ -1,8 +1,8 @@
 # Sunder QA Plan — Surface-Based Testing
 
 > **Created:** 2026-03-10
-> **Updated:** 2026-03-20
-> **Total surfaces:** 27
+> **Updated:** 2026-03-23
+> **Total surfaces:** 28
 > **Coverage:** 50+ done PRs across Phases 1-5
 
 ## Execution Order
@@ -36,6 +36,7 @@ Test in this order (dependency-safe — each surface builds on the previous):
 | 23 | PDF Document Generation | [23-pdf-document-generation.md](23-pdf-document-generation.md) | Partial | 15-20 min | [ ] |
 | 24 | Browser Automation | [24-browser-automation.md](24-browser-automation.md) | Partial | 20-30 min | [ ] |
 | 27 | Real Business Cases | [27-real-business-cases.md](27-real-business-cases.md) | Partial | 45-60 min | [ ] |
+| 28 | Property Listing Tools | [28-property-listing-tools.md](28-property-listing-tools.md) | Partial | 15-20 min | [ ] |
 
 **Total estimated manual time:** ~9-10.5 hours
 
@@ -88,6 +89,7 @@ Walk through each "Manual QA Scenario" as a real user. Check boxes as you go. Wr
 | 23. PDF Generation | 42a-pdf |
 | 24. Browser Automation | 50, 50b |
 | 27. Real Business Cases | All (end-to-end integration) |
+| 28. Property Listing Tools | 57 |
 | **Audit trail** | 12 (covered implicitly — runs table + step_count checked via Supabase in other surfaces) |
 
 ## Legacy

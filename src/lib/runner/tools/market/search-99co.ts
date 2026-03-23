@@ -7,10 +7,9 @@ import { z } from "zod";
 
 import { runActorSync } from "./apify-client";
 
-const SEARCH_99CO_ACTOR_ID = "easyapi/99-co-property-listings-scraper";
+const SEARCH_99CO_ACTOR_ID = "easyapi~99-co-property-listings-scraper";
 const ALLOWED_99CO_HOSTS = new Set(["99.co", "www.99.co"]);
-const MAX_TOOL_ITEMS = 30;
-const MAX_IMAGE_COUNT = 5;
+const MAX_TOOL_ITEMS = 100;
 const COST_CAP_USD = 1;
 
 interface Search99coListing {
@@ -41,9 +40,6 @@ function sanitize99coListing(listing: Search99coListing): Search99coListing {
     ...listing,
     ...(typeof listing.listing_url === "string"
       ? { listing_url: toAbsolute99coUrl(listing.listing_url) }
-      : {}),
-    ...(Array.isArray(listing.photo_urls)
-      ? { photo_urls: listing.photo_urls.slice(0, MAX_IMAGE_COUNT) }
       : {}),
   };
 }

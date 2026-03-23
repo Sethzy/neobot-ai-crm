@@ -8,14 +8,13 @@ import { z } from "zod";
 import { runActorSync } from "./apify-client";
 
 const SEARCH_PROPERTYGURU_ACTOR_ID =
-  "fatihtahta/propertyguru-scraper-ddproperty-batdongsan-ppe";
+  "fatihtahta~propertyguru-scraper-ddproperty-batdongsan-ppe";
 const ALLOWED_PROPERTYGURU_HOSTS = new Set([
   "propertyguru.com.sg",
   "www.propertyguru.com.sg",
 ]);
-const MAX_TOOL_ITEMS = 30;
+const MAX_TOOL_ITEMS = 100;
 const MIN_PROVIDER_ITEMS = 10;
-const MAX_IMAGE_COUNT = 5;
 const COST_CAP_USD = 1;
 
 interface SearchPropertyguruListing {
@@ -30,12 +29,7 @@ function isAllowedPropertyguruUrl(value: string): boolean {
 function sanitizePropertyguruListing(
   listing: SearchPropertyguruListing,
 ): SearchPropertyguruListing {
-  return {
-    ...listing,
-    ...(Array.isArray(listing.images)
-      ? { images: listing.images.slice(0, MAX_IMAGE_COUNT) }
-      : {}),
-  };
+  return { ...listing };
 }
 
 const searchPropertyguruInputSchema = z

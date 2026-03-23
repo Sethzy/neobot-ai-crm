@@ -49,7 +49,7 @@ describe("createSearch99coTool", () => {
     );
 
     expect(mockRunActorSync).toHaveBeenCalledWith(
-      "easyapi/99-co-property-listings-scraper",
+      "easyapi~99-co-property-listings-scraper",
       {
         searchUrls: [
           "https://www.99.co/singapore/sale?query_ids=district-10&price_max=2000000",
@@ -63,19 +63,20 @@ describe("createSearch99coTool", () => {
       portal: "99co",
       count: 1,
       results: [
-        {
-          listing_title: "City Gate",
-          listing_url: "https://www.99.co/singapore/sale/property/city-gate-condo-1",
-          photo_urls: [
-            "https://img/1",
-            "https://img/2",
-            "https://img/3",
-            "https://img/4",
-            "https://img/5",
-          ],
-        },
-      ],
-    });
+      {
+        listing_title: "City Gate",
+        listing_url: "https://www.99.co/singapore/sale/property/city-gate-condo-1",
+        photo_urls: [
+          "https://img/1",
+          "https://img/2",
+          "https://img/3",
+          "https://img/4",
+          "https://img/5",
+          "https://img/6",
+        ],
+      },
+    ],
+  });
   });
 
   it("rejects malicious lookalike hosts at the schema layer", () => {
@@ -100,7 +101,7 @@ describe("createSearch99coTool", () => {
     const tools = createSearch99coTool();
     const parsed = tools.search_99co.inputSchema.safeParse({
       searchUrls: ["https://www.99.co/singapore/sale?query_ids=district-10"],
-      maxItems: 31,
+      maxItems: 101,
     });
 
     expect(parsed.success).toBe(false);

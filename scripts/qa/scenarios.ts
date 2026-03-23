@@ -809,4 +809,43 @@ export const scenarios: QaScenario[] = [
     notes:
       "Agent should prefer multi_select type for this question (multiple sections could be included). Verify type field is 'multi_select', not 'single_select'. // TODO: verify expectedTools — agent may search CRM first.",
   },
+  // ── 28: Property Listing Tools ────────────────────────────────────────
+  {
+    surface: "28-property-listing-tools",
+    scenario: "search-99co-live-listings",
+    prompt: "Search 99.co for 3-bedroom condos in District 10 under $2M.",
+    expectedTools: ["search_99co"],
+    sequential: false,
+    notes:
+      "Happy path for live 99.co listings. Agent should use the dedicated listing tool, not browse_website or search_market_data.",
+  },
+  {
+    surface: "28-property-listing-tools",
+    scenario: "search-propertyguru-structured-query",
+    prompt: "Find landed properties for rent on PropertyGuru under S$20k per month.",
+    expectedTools: ["search_propertyguru"],
+    sequential: false,
+    notes:
+      "Validates structured-query routing for PropertyGuru. Tool args should express rent + landed filters rather than falling back to browsing.",
+  },
+  {
+    surface: "28-property-listing-tools",
+    scenario: "compare-live-listings-with-market-data",
+    prompt:
+      "What's available in District 10 under $2M, and what did similar condos recently sell for?",
+    expectedTools: ["search_propertyguru", "search_market_data"],
+    sequential: false,
+    notes:
+      "End-to-end routing check. Agent should combine a live listing search with historical market data instead of answering from a single source.",
+  },
+  {
+    surface: "28-property-listing-tools",
+    scenario: "reject-invalid-99co-host",
+    prompt:
+      "Search this URL for me: https://evil99.co/singapore/condo-sale",
+    expectedTools: [],
+    sequential: false,
+    notes:
+      "Important edge case. Agent should reject the invalid host before any listing tool call and explain that the portal URL is not valid.",
+  },
 ];

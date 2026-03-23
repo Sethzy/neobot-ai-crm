@@ -62,8 +62,11 @@ export async function runActorSync<T>(
     }
 
     const payload = await response.json();
+    if (!Array.isArray(payload)) {
+      throw new Error(`Apify actor ${actorId}: Expected dataset items array`);
+    }
 
-    return Array.isArray(payload) ? (payload as T[]) : [];
+    return payload as T[];
   } catch (error) {
     if (isAbortError(error)) {
       throw new Error("Scraping timed out — try fewer results or a narrower search");

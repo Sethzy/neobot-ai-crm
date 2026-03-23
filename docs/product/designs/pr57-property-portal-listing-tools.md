@@ -23,10 +23,10 @@ A real estate client asks "what's available in District 10 under $2M?" — the a
 
 Both tools use Apify actors — the highest-credibility third-party option for each portal:
 
-| Portal | Apify Actor | Pricing (illustrative, verify before use) | MCP-ready | Notes |
-|--------|-------------|-------------------------------------------|-----------|-------|
-| 99.co | `easyapi/99-co-property-listings-scraper` | ~$3/1K results (pay-per-event) | Yes | OpenAPI spec available. Rich nested output (MRT walk times, mortgage estimates). |
-| PropertyGuru | `fatihtahta/propertyguru-scraper-ddproperty-batdongsan` | ~$2/1K results (pay-per-event) | Yes | Structured query builder. Flat output. Covers SG/MY/TH/VN (we use SG only). |
+| Portal | Apify Actor API ID | Pricing (illustrative, verify before use) | MCP-ready | Notes |
+|--------|---------------------|-------------------------------------------|-----------|-------|
+| 99.co | `easyapi~99-co-property-listings-scraper` | Subscription + usage-based billing on Apify | Yes | Use the API actor ID format, not the store-page slug. OpenAPI spec available. Rich nested output (MRT walk times, mortgage estimates). |
+| PropertyGuru | `fatihtahta~propertyguru-scraper-ddproperty-batdongsan-ppe` | Pay-per-result pricing on Apify | Yes | Use the API actor ID format, not the store-page slug. Structured query builder. Flat output. Covers SG/MY/TH/VN (we use SG only). |
 
 > **Note:** Apify actor pricing changes frequently. The figures above are illustrative based on research conducted 2026-03-23. Verify current pricing on the actor pages before committing to budget assumptions.
 
@@ -42,7 +42,7 @@ Six decisions made after code review, documented here as the binding spec:
 
 ### D1. Chat-only scope
 
-Tools are registered for **chat only** — excluded from autopilot and subagents. Rationale: paid scraping without a human in the loop is a cost risk. PR 50c already covers these portals via Browser-Use Skills for automated flows. Opening to autopilot/subagents is a one-line registry change if needed later.
+Tools are registered for **chat only** — excluded from autopilot and subagents. Rationale: paid scraping without a human in the loop is a cost risk. Automated flows for these portals remain deferred until we explicitly reopen that scope. Opening to autopilot/subagents is a one-line registry change if needed later.
 
 ### D2. Separate env gating from market data
 
@@ -154,15 +154,15 @@ z.object({
     .describe('Singapore property type filter.'),
   minPrice: z.number().int().optional(),
   maxPrice: z.number().int().optional(),
-  maxItems: z.number().int().min(1).max(100).default(30).optional()
-    .describe('Maximum listings to return. Default 30, max 100.'),
+  maxItems: z.number().int().min(10).max(100).default(100).optional()
+    .describe('Maximum listings to return. Default 100, provider minimum 10, max 100.'),
 }).refine(
   (data) => (data.searchQueries?.length ?? 0) > 0 || (data.startUrls?.length ?? 0) > 0,
   { message: 'At least one of searchQueries or startUrls is required' }
 )
 ```
 
-**Note:** `country: "sg"` is hardcoded internally when calling the Apify actor — never exposed to the agent.
+**Note:** `country: "sg"` is hardcoded internally when calling the Apify actor — never exposed to the agent. The current PropertyGuru actor enforces a provider minimum of `10` for `maxItems`, so the wrapper mirrors that contract instead of silently coercing smaller values.
 
 ### Output Fields (per listing)
 
@@ -330,7 +330,7 @@ Consistent envelope for both tools:
 
 ### Tool Availability
 
-**Chat only.** Excluded from autopilot and subagents to prevent uncontrolled paid scraping. PR 50c (Browser-Use Skills) already covers these portals for automated flows. Opening to autopilot is a one-line registry change if needed later.
+**Chat only.** Excluded from autopilot and subagents to prevent uncontrolled paid scraping. Automated flows for these portals remain deferred until we explicitly reopen that scope. Opening to autopilot is a one-line registry change if needed later.
 
 ### System Prompt Guidance
 

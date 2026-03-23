@@ -49,7 +49,7 @@ describe("createSearchPropertyguruTool", () => {
     );
 
     expect(mockRunActorSync).toHaveBeenCalledWith(
-      "fatihtahta/propertyguru-scraper-ddproperty-batdongsan-ppe",
+      "fatihtahta~propertyguru-scraper-ddproperty-batdongsan-ppe",
       {
         searchQueries: ["marina bay"],
         country: "sg",
@@ -73,6 +73,7 @@ describe("createSearchPropertyguruTool", () => {
             "https://img/3",
             "https://img/4",
             "https://img/5",
+            "https://img/6",
           ],
         },
       ],
@@ -97,7 +98,7 @@ describe("createSearchPropertyguruTool", () => {
     );
 
     expect(mockRunActorSync).toHaveBeenCalledWith(
-      "fatihtahta/propertyguru-scraper-ddproperty-batdongsan-ppe",
+      "fatihtahta~propertyguru-scraper-ddproperty-batdongsan-ppe",
       {
         startUrls: ["https://www.propertyguru.com.sg/property-for-rent"],
         maxItems: 10,
@@ -140,7 +141,7 @@ describe("createSearchPropertyguruTool", () => {
     expect(
       tools.search_propertyguru.inputSchema.safeParse({
         searchQueries: ["marina bay"],
-        maxItems: 31,
+        maxItems: 101,
       }).success,
     ).toBe(false);
   });

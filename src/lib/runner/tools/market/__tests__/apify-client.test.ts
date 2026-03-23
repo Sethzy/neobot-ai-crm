@@ -31,11 +31,11 @@ describe("runActorSync", () => {
       }),
     );
 
-    const results = await runActorSync("actor/name", { query: "marina bay" });
+    const results = await runActorSync("actor~name", { query: "marina bay" });
 
     expect(results).toEqual([{ id: "listing-1" }]);
     expect(mockFetchWithTimeout).toHaveBeenCalledWith(
-      "https://api.apify.com/v2/acts/actor%2Fname/run-sync-get-dataset-items",
+      "https://api.apify.com/v2/acts/actor~name/run-sync-get-dataset-items",
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
@@ -56,10 +56,10 @@ describe("runActorSync", () => {
       }),
     );
 
-    await runActorSync("actor/name", {}, { maxTotalChargeUsd: 0.25 });
+    await runActorSync("actor~name", {}, { maxTotalChargeUsd: 0.25 });
 
     expect(mockFetchWithTimeout).toHaveBeenCalledWith(
-      "https://api.apify.com/v2/acts/actor%2Fname/run-sync-get-dataset-items?maxTotalChargeUsd=0.25",
+      "https://api.apify.com/v2/acts/actor~name/run-sync-get-dataset-items?maxTotalChargeUsd=0.25",
       expect.any(Object),
       90_000,
     );
@@ -80,8 +80,8 @@ describe("runActorSync", () => {
       ),
     );
 
-    await expect(runActorSync("actor/name", {})).rejects.toThrow(
-      "Apify actor actor/name: Actor run did not succeed",
+    await expect(runActorSync("actor~name", {})).rejects.toThrow(
+      "Apify actor actor~name: Actor run did not succeed",
     );
   });
 
@@ -90,7 +90,7 @@ describe("runActorSync", () => {
     mockFetchWithTimeout.mockRejectedValueOnce(abortError);
     mockIsAbortError.mockReturnValueOnce(true);
 
-    await expect(runActorSync("actor/name", {})).rejects.toThrow(
+    await expect(runActorSync("actor~name", {})).rejects.toThrow(
       "Scraping timed out — try fewer results or a narrower search",
     );
   });
@@ -98,9 +98,22 @@ describe("runActorSync", () => {
   it("throws when APIFY_TOKEN is missing", async () => {
     vi.stubEnv("APIFY_TOKEN", "");
 
-    await expect(runActorSync("actor/name", {})).rejects.toThrow(
+    await expect(runActorSync("actor~name", {})).rejects.toThrow(
       "APIFY_TOKEN is not configured",
     );
     expect(mockFetchWithTimeout).not.toHaveBeenCalled();
+  });
+
+  it("throws when Apify returns a malformed success payload", async () => {
+    mockFetchWithTimeout.mockResolvedValueOnce(
+      new Response(JSON.stringify({ items: [] }), {
+        status: 201,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await expect(runActorSync("actor~name", {})).rejects.toThrow(
+      "Apify actor actor~name: Expected dataset items array",
+    );
   });
 });
