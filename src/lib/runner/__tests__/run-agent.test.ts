@@ -571,6 +571,22 @@ describe("runAgent", () => {
     expect(mockStreamText).not.toHaveBeenCalled();
   });
 
+  it("does not create a user message for pulse runs", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(
+      {
+        ...validPayload,
+        triggerType: "pulse",
+        input: "",
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockCreateMessages).not.toHaveBeenCalled();
+    expect(mockStreamText).toHaveBeenCalled();
+  });
+
   it("consumes quota for direct chat sends before attempting the run", async () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
 

@@ -196,7 +196,7 @@ export async function runAgent(
     }
     const runId = lockResult.runId;
 
-    if (payload.triggerType !== "cron") {
+    if (payload.triggerType !== "cron" && payload.triggerType !== "pulse") {
       const userMessageParts = [
         ...(payload.fileParts ?? []),
         ...(input.length > 0 ? [{ type: "text", text: input }] : []),
