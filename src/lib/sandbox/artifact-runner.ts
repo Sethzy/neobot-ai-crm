@@ -7,7 +7,7 @@ import { extname } from "node:path";
 import { buildSandboxClaudeEnv } from "./claude-env";
 import type { SpriteSkillFile } from "./types";
 import { buildArtifactPrompt } from "./artifact-prompt";
-import { assertSafeExternalUrl } from "./external-url";
+import { fetchSafeExternalResource } from "./external-url";
 import { getPropertyShowcaseTemplateFiles } from "./templates/property-showcase/template-files";
 
 const ALLOWED_TOOLS = ["Read", "Write", "Edit", "MultiEdit", "Bash", "Glob", "Grep"];
@@ -146,8 +146,7 @@ export async function downloadPhotosToSprite(
   const filenames: string[] = [];
 
   for (const [index, url] of photoUrls.entries()) {
-    const safeUrl = assertSafeExternalUrl(url);
-    const response = await fetch(safeUrl.toString());
+    const response = await fetchSafeExternalResource(url);
 
     if (!response.ok) {
       throw new Error(`Failed to download photo "${url}" (status ${response.status}).`);

@@ -41,12 +41,22 @@ describe("loadSkillFilesForSandbox", () => {
     supabase = createMockSupabase();
   });
 
-  it("returns an empty array when the skill directory is missing", async () => {
-    supabase.mockList.mockResolvedValue({ data: null, error: { message: "not found" } });
+  it("returns an empty array when the skill directory is empty or missing", async () => {
+    supabase.mockList.mockResolvedValue({ data: [], error: null });
 
     await expect(
       loadSkillFilesForSandbox(supabase.client as never, "client-1", "re-analyst"),
     ).resolves.toEqual([]);
+  });
+
+  it("throws when listing the skill directory fails", async () => {
+    supabase.mockList.mockResolvedValue({ data: null, error: { message: "permission denied" } });
+
+    await expect(
+      loadSkillFilesForSandbox(supabase.client as never, "client-1", "re-analyst"),
+    ).rejects.toThrow(
+      'Failed to list sandbox skill directory "client-1/skills/re-analyst": permission denied',
+    );
   });
 
   it("loads SKILL.md plus nested reference files with Sprite-relative paths", async () => {
@@ -88,7 +98,7 @@ describe("loadSkillFilesForSandbox", () => {
     );
   });
 
-  it("skips files that fail to download and keeps the readable files", async () => {
+  it("throws when downloading a listed skill file fails", async () => {
     supabase.mockList.mockResolvedValue({
       data: [
         { name: "SKILL.md", id: "skill-file" },
@@ -101,12 +111,10 @@ describe("loadSkillFilesForSandbox", () => {
       .mockResolvedValueOnce({ data: createDownloadPayload("skill body"), error: null })
       .mockResolvedValueOnce({ data: null, error: { message: "missing" } });
 
-    const files = await loadSkillFilesForSandbox(
-      supabase.client as never,
-      "client-1",
-      "re-analyst",
+    await expect(
+      loadSkillFilesForSandbox(supabase.client as never, "client-1", "re-analyst"),
+    ).rejects.toThrow(
+      'Failed to download sandbox skill file "client-1/skills/re-analyst/notes.md": missing',
     );
-
-    expect(files).toEqual([{ path: "re-analyst/SKILL.md", content: "skill body" }]);
   });
 });

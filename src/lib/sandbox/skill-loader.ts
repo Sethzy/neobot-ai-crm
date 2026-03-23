@@ -25,7 +25,11 @@ export async function loadSkillFilesForSandbox(
   const bucket = supabase.storage.from(MEMORY_BUCKET_ID);
   const { data: entries, error } = await bucket.list(basePath);
 
-  if (error || !entries) {
+  if (error) {
+    throw new Error(`Failed to list sandbox skill directory "${basePath}": ${error.message}`);
+  }
+
+  if (!entries || entries.length === 0) {
     return [];
   }
 
@@ -43,13 +47,10 @@ export async function loadSkillFilesForSandbox(
     }
 
     const content = await downloadFileAsString(bucket, `${basePath}/${entry.name}`);
-
-    if (content !== null) {
-      files.push({
-        path: `${skillSlug}/${entry.name}`,
-        content,
-      });
-    }
+    files.push({
+      path: `${skillSlug}/${entry.name}`,
+      content,
+    });
   }
 
   return files;
@@ -64,7 +65,11 @@ async function loadNestedSkillFiles(
   const directoryPath = `${basePath}/${directoryName}`;
   const { data: nestedEntries, error } = await bucket.list(directoryPath);
 
-  if (error || !nestedEntries) {
+  if (error) {
+    throw new Error(`Failed to list sandbox skill directory "${directoryPath}": ${error.message}`);
+  }
+
+  if (!nestedEntries || nestedEntries.length === 0) {
     return [];
   }
 
@@ -76,13 +81,10 @@ async function loadNestedSkillFiles(
     }
 
     const content = await downloadFileAsString(bucket, `${directoryPath}/${entry.name}`);
-
-    if (content !== null) {
-      files.push({
-        path: `${skillSlug}/${directoryName}/${entry.name}`,
-        content,
-      });
-    }
+    files.push({
+      path: `${skillSlug}/${directoryName}/${entry.name}`,
+      content,
+    });
   }
 
   return files;
@@ -91,11 +93,13 @@ async function loadNestedSkillFiles(
 async function downloadFileAsString(
   bucket: ReturnType<SupabaseClient["storage"]["from"]>,
   path: string,
-): Promise<string | null> {
+): Promise<string> {
   const { data, error } = await bucket.download(path);
 
   if (error || !data) {
-    return null;
+    throw new Error(
+      `Failed to download sandbox skill file "${path}": ${error?.message ?? "unknown error"}`,
+    );
   }
 
   if (typeof data === "string") {
@@ -121,5 +125,5 @@ async function downloadFileAsString(
     return Buffer.from(buffer).toString("utf8");
   }
 
-  return null;
+  throw new Error(`Failed to read sandbox skill file "${path}": unsupported payload.`);
 }

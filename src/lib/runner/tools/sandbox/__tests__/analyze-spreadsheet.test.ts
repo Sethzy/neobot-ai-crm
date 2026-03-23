@@ -155,7 +155,9 @@ describe("createAnalyzeSpreadsheetTool", () => {
       files: [{ url: "https://example.com/a.xlsx", filename: "a.xlsx", mediaType: XLSX_MIME }],
     });
 
-    expect(fetch).toHaveBeenCalledWith("https://example.com/a.xlsx");
+    expect(fetch).toHaveBeenCalledWith("https://example.com/a.xlsx", {
+      redirect: "error",
+    });
     expect(mockWriteFile).toHaveBeenCalledWith("/workspace/input/a.xlsx", expect.any(Buffer));
     expect(mockRunClaudeInSprite).toHaveBeenCalledWith(
       sprite,

@@ -6,7 +6,7 @@ import { tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import { assertSafeExternalUrl } from "@/lib/sandbox/external-url";
+import { fetchSafeExternalResource } from "@/lib/sandbox/external-url";
 import { runClaudeInSprite } from "@/lib/sandbox/run-claude-in-sprite";
 import { loadSkillFilesForSandbox } from "@/lib/sandbox/skill-loader";
 import {
@@ -81,8 +81,7 @@ export function createAnalyzeSpreadsheetTool(
           await sprite.execFile("mkdir", ["-p", "/workspace/input"]);
 
           for (const file of files) {
-            const safeUrl = assertSafeExternalUrl(file.url);
-            const response = await fetch(safeUrl.toString());
+            const response = await fetchSafeExternalResource(file.url);
 
             if (!response.ok) {
               throw new Error(
