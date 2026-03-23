@@ -50,17 +50,30 @@ export async function runAutopilot({
     }, supabase);
 
     if (result.status === "streaming") {
-      // consumeStream() waits for the full stream including onFinish (which calls
-      // finalizeRun). Do NOT use .text — it resolves before onFinish fires.
-      // Verified in AI SDK source: stream-text.ts line 1100 resolves _steps (and
-      // thus .text) before line 1105 calls onFinish. consumeStream() waits for the
-      // entire TransformStream flush() to complete, which includes onFinish.
-      await result.streamResult.consumeStream();
+      // consumeStream({ onError }) waits for the full stream including onFinish
+      // (which calls finalizeRun) and detects failures. Do NOT use .text — it
+      // resolves before onFinish fires. The onError callback catches:
+      // 1. Stream errors → runAgent's onError calls recordFailedRun, then stream
+      //    errors, consumeStream catches and calls our onError.
+      // 2. onFinish/finalizeRun errors → flush() catches, controller.error(),
+      //    stream errors, consumeStream catches and calls our onError.
+      let streamError: unknown = null;
+      await result.streamResult.consumeStream({
+        onError: (error: unknown) => { streamError = error; },
+      });
+
+      if (streamError) {
+        const message = streamError instanceof Error
+          ? streamError.message
+          : "Stream consumption failed";
+        return { status: "failed", error: message };
+      }
+
       return { status: "completed" };
     }
 
-    // "queued" shouldn't happen for pulse (runAgent skips queue for pulse)
-    // but handle gracefully
+    // "queued" from runAgent means thread was busy and pulse was not
+    // enqueued (pulse guard in runAgent skips enqueue).
     return { status: "skipped_busy" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown autopilot error";
@@ -175,7 +188,7 @@ None of these affect callers or break existing behavior. They're side effects of
 | `src/lib/runner/run-agent.ts:182` | Skip enqueue for pulse | +3 lines |
 | `src/lib/runner/run-agent.ts:196` | Skip user message for pulse | Change `!== "cron"` to `!== "cron" && !== "pulse"` |
 | `src/lib/runner/run-agent.ts:241` | Pass `payload.instructions` to `assembleContext` | +1 line |
-| `src/lib/runner/run-agent.ts:258` | Add `allowConnectionMutations: triggerType === "chat"` | +1 line |
+| `src/lib/runner/run-agent.ts:258` | Add `allowConnectionMutations: triggerType !== "pulse"` | +1 line |
 | `src/lib/runner/run-autopilot.ts` | Replace 140 lines with ~25 line wrapper | -115 lines net |
 
 **Total: ~10 lines changed in `run-agent.ts`, ~5 lines in `schemas.ts`, ~25 lines in `run-autopilot.ts` (replacing 140). No new files.**
@@ -224,7 +237,7 @@ No changes to: `run-agent-crm-config.test.ts`, `run-agent-tool-error-path.test.t
 |---------|---------|-------------------|--------|
 | Runner function | One (`streamAgent`) | One (`runAgent`) + thin wrapper | Minimal — wrapper only translates error contract and consumes stream |
 | Pulse invocation | Same function, different params | Same function, different params | Aligned |
-| Streaming for pulse | `streamAgent` yields to nobody | `streamText` streams to nobody, wrapper awaits `.text` | Aligned — same pattern |
+| Streaming for pulse | `streamAgent` yields to nobody | `streamText` streams to nobody, wrapper awaits `consumeStream({ onError })` | Aligned — same pattern |
 
 ---
 
@@ -242,16 +255,23 @@ Created a 150-line `execute-run.ts` with an `ExecuteRunConfig` type. Required up
 
 **Critical:** `streamText` returns a `StreamTextResult`. The `.text` promise resolves when all steps complete, but **before `onFinish` fires**. This is because `.text` is derived from `._steps.resolve()` (stream-text.ts:1100), which fires before `await notify({ onFinish })` (stream-text.ts:1105).
 
-To wait for `onFinish` (and thus `finalizeRun`) to complete, use `consumeStream()`:
+To wait for `onFinish` (and thus `finalizeRun`) to complete, use `consumeStream({ onError })`:
 
 ```typescript
 // WRONG — resolves before onFinish:
 await streamResult.text;
 
-// CORRECT — waits for full flush() including onFinish:
+// WRONG — waits for flush() but silently swallows errors from onFinish:
 await streamResult.consumeStream();
+
+// CORRECT — waits for full flush() including onFinish AND detects errors:
+let streamError: unknown = null;
+await streamResult.consumeStream({
+  onError: (error: unknown) => { streamError = error; },
+});
+if (streamError) { /* handle failure */ }
 ```
 
-`consumeStream()` (stream-text.ts:2305) awaits the `fullStream`, which doesn't complete until the TransformStream's `flush()` function returns — and `flush()` includes the `await notify({ onFinish })` call.
+`consumeStream()` (stream-text.ts:2305) awaits the `fullStream`, which doesn't complete until the TransformStream's `flush()` function returns — and `flush()` includes the `await notify({ onFinish })` call. However, bare `consumeStream()` silently swallows errors (consume-stream.ts:26 catches reader errors and only calls an optional `onError` callback). Always pass `onError` when you need to detect failures.
 
 This was verified by reading the AI SDK source at `node_modules/ai/src/generate-text/stream-text.ts`.
