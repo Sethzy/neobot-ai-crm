@@ -22,12 +22,6 @@ vi.mock("@/lib/runner/compaction", () => ({
   maybeCompactThread: (...args: unknown[]) => mockMaybeCompactThread(...args),
 }));
 
-const mockSaveToolcallBlock = vi.fn().mockResolvedValue(undefined);
-vi.mock("@/lib/storage/tool-blocks", () => ({
-  saveToolcallBlock: (...args: unknown[]) => mockSaveToolcallBlock(...args),
-}));
-
-
 const mockCreateApprovalEvent = vi.fn().mockResolvedValue(undefined);
 const mockExpireApprovalEvent = vi.fn().mockResolvedValue(undefined);
 vi.mock("@/lib/approvals/queries", () => ({
@@ -76,21 +70,9 @@ function makeInput(overrides: Partial<Parameters<typeof finalizeRun>[0]> = {}) {
   };
 }
 
-function createDeferredPromise<T>() {
-  let resolve!: (value: T | PromiseLike<T>) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<T>((innerResolve, innerReject) => {
-    resolve = innerResolve;
-    reject = innerReject;
-  });
-
-  return { promise, resolve, reject };
-}
-
-describe("finalizeRun block storage", () => {
+describe("finalizeRun", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSaveToolcallBlock.mockResolvedValue(undefined);
     mockCreateMessages.mockResolvedValue(undefined);
     mockCompleteRun.mockResolvedValue(undefined);
     mockDrainAndContinue.mockResolvedValue(undefined);
@@ -109,114 +91,6 @@ describe("finalizeRun block storage", () => {
     mockCaptureServerEvents.mockResolvedValue(undefined);
     mockDeliverToExternalChannels.mockResolvedValue(undefined);
     mockHasExternalDeliverables.mockReturnValue(false);
-  });
-
-  it("calls saveToolcallBlock for every tool part with output-available state", async () => {
-    const parts: PersistedPart[] = [
-      { type: "step-start" },
-      { type: "tool-search_contacts", toolCallId: "call-1", state: "output-available", input: { query: "John" }, output: { success: true, contacts: [] } },
-      { type: "text", text: "Found nothing." },
-      { type: "tool-search_deals", toolCallId: "call-2", state: "output-available", input: { query: "Bishan" }, output: { success: true, deals: [{ id: 1 }] } },
-    ];
-
-    mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
-
-    mockGetAssistantTextFromParts.mockReturnValue("Found nothing.");
-
-    await finalizeRun(makeInput());
-
-    expect(mockSaveToolcallBlock).toHaveBeenCalledTimes(2);
-    expect(mockSaveToolcallBlock).toHaveBeenCalledWith(
-      expect.anything(),
-      CLIENT_ID,
-      "call-1",
-      { query: "John" },
-      { success: true, contacts: [] },
-    );
-    expect(mockSaveToolcallBlock).toHaveBeenCalledWith(
-      expect.anything(),
-      CLIENT_ID,
-      "call-2",
-      { query: "Bishan" },
-      { success: true, deals: [{ id: 1 }] },
-    );
-  });
-
-  it("skips non-tool parts and tool parts without output-available state", async () => {
-    const parts: PersistedPart[] = [
-      { type: "step-start" },
-      { type: "text", text: "Hello" },
-      { type: "tool-create_contact", toolCallId: "call-3", state: "input-available", input: { name: "Alice" } },
-      { type: "reasoning", text: "thinking..." },
-    ];
-
-    mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
-
-    mockGetAssistantTextFromParts.mockReturnValue("Hello");
-
-    await finalizeRun(makeInput());
-
-    expect(mockSaveToolcallBlock).not.toHaveBeenCalled();
-  });
-
-  it("waits for block storage to finish before persisting the assistant message", async () => {
-    const deferred = createDeferredPromise<void>();
-    const parts: PersistedPart[] = [
-      { type: "tool-search_contacts", toolCallId: "call-wait", state: "output-available", input: { q: "x" }, output: { success: true } },
-      { type: "text", text: "Done" },
-    ];
-
-    mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
-
-    mockGetAssistantTextFromParts.mockReturnValue("Done");
-    mockSaveToolcallBlock.mockImplementation(() => deferred.promise);
-
-    const finalizePromise = finalizeRun(makeInput());
-    await Promise.resolve();
-
-    expect(mockCreateMessages).not.toHaveBeenCalled();
-
-    deferred.resolve();
-    await finalizePromise;
-
-    expect(mockCreateMessages).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not block persistence when saveToolcallBlock fails", async () => {
-    const parts: PersistedPart[] = [
-      { type: "tool-search_contacts", toolCallId: "call-fail", state: "output-available", input: { q: "x" }, output: { success: true } },
-    ];
-
-    mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
-
-    mockGetAssistantTextFromParts.mockReturnValue("");
-    mockSaveToolcallBlock.mockRejectedValue(new Error("storage down"));
-
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    // Should not throw
-    await finalizeRun(makeInput({ text: "Done" }));
-
-    // Message persistence and run completion should still happen
-    expect(mockCreateMessages).toHaveBeenCalled();
-    expect(mockCompleteRun).toHaveBeenCalled();
-
-    consoleSpy.mockRestore();
-  });
-
-  it("includes tool-error parts for block storage with null result", async () => {
-    const parts: PersistedPart[] = [
-      { type: "tool-web_scrape", toolCallId: "call-err", state: "output-error", input: { url: "https://x.com" }, errorText: "timeout" },
-    ];
-
-    mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
-
-    mockGetAssistantTextFromParts.mockReturnValue("");
-
-    await finalizeRun(makeInput({ text: "Error occurred" }));
-
-    // output-error parts should NOT trigger block storage (no successful output)
-    expect(mockSaveToolcallBlock).not.toHaveBeenCalled();
   });
 
   it("writes approval events for approval-requested tool parts before completing the run", async () => {

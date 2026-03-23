@@ -22,7 +22,6 @@ import {
   type StepLike,
 } from "@/lib/runner/message-utils";
 import { completeRun } from "@/lib/runner/run-lifecycle";
-import { saveToolcallBlock } from "@/lib/storage/tool-blocks";
 import type { Database, Json } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
@@ -94,36 +93,6 @@ export async function finalizeRun({
   logLabel,
 }: FinalizeRunInput): Promise<void> {
   const rawParts = buildAssistantPartsFromSteps(steps);
-
-  // Block storage: save ALL tool call args + results to storage.
-  // Start early so uploads overlap with message persistence, but await completion
-  // before finalizeRun returns so recovery data is actually durable.
-  const toolParts = rawParts.filter(
-    (part) =>
-      part.state === "output-available" &&
-      typeof part.toolCallId === "string",
-  );
-  const blockStoragePromise = toolParts.length > 0
-    ? Promise.all(
-      toolParts.map((part) =>
-        saveToolcallBlock(
-          supabase,
-          clientId,
-          part.toolCallId as string,
-          part.input ?? null,
-          part.output ?? null,
-        ),
-      ),
-    )
-    : null;
-
-  if (blockStoragePromise) {
-    try {
-      await blockStoragePromise;
-    } catch (blockStorageError) {
-      console.error(`[${logLabel}] block storage failed:`, blockStorageError);
-    }
-  }
 
   const contentTextFromParts = getAssistantTextFromParts(rawParts);
   const fallbackContentText = typeof text === "string" ? text.trim() : "";
