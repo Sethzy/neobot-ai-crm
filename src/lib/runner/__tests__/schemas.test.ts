@@ -64,6 +64,18 @@ describe("runnerPayloadSchema", () => {
 
     expect(() => runnerPayloadSchema.parse(invalid)).toThrow();
   });
+
+  test("accepts optional instructions override for autopilot", () => {
+    const valid = {
+      clientId: "550e8400-e29b-41d4-a716-446655440000",
+      threadId: "660e8400-e29b-41d4-a716-446655440000",
+      triggerType: "pulse" as const,
+      input: "",
+      instructions: "You are running an autonomous pulse.",
+    };
+
+    expect(runnerPayloadSchema.parse(valid)).toEqual(valid);
+  });
 });
 
 describe("toolResultEnvelopeSchema", () => {
