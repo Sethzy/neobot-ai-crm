@@ -15,7 +15,7 @@ Sunder's agent has structured tools (CRM, memory, triggers, connections) but can
 
 The user (a real estate agent) is the domain expert. We cannot pre-build deterministic scripts for every analysis they'll want. The agent needs to **write and run code** guided by the user's own instructions.
 
-### Two Dedicated Tools, One Sandbox Provider
+### Two Dedicated Tools, One Sprite
 
 | | `analyze_spreadsheet` | `publish_artifact` |
 |---|---|---|
@@ -26,6 +26,8 @@ The user (a real estate agent) is the domain expert. We cannot pre-build determi
 | **User skill** | `/agent/skills/re-analyst/SKILL.md` (analysis prefs) | `/agent/skills/frontend-design/SKILL.md` (brand prefs) |
 | **Runtime** | Python 3 + pandas + openpyxl + LibreOffice | Node 22 + Vite + React + Tailwind |
 | **Iteration** | Multi-turn (same Sprite, auto-sleeps between turns) | Multi-turn (same Sprite, live preview updates) |
+
+Both tools use the **same default Sprite** (Ubuntu (current LTS) with Python, Node, Claude Code all pre-installed). Dependencies like `pandas`, `openpyxl`, and LibreOffice are installed on first use and persist across hibernation. No custom Sprite templates needed.
 
 ## 2. Core Insight
 
@@ -52,15 +54,15 @@ From studying [OpenComputer/Digger](https://opencomputer.dev/guides/building-ope
 |---|---|---|---|
 | **Persistence** | Ephemeral (dies on timeout) | Auto-sleep/wake, S3-backed storage | Hibernate/wake |
 | **Claude Code** | Install at boot (~15-30s) | Pre-installed | Agent SDK baked in |
-| **Preview URLs** | Wire up yourself | Auto-activated on port 8080 | Built-in + auth |
+| **Preview URLs** | Wire up yourself | Port 8080 (private by default, must set auth to public) | Built-in + auth |
 | **Multi-turn** | Shell out to CLI each time, new session | Same Sprite, same filesystem, <1s wake | `session.sendMessage()` |
-| **Idle cost** | Burning compute until timeout | Nothing (sleeping) | Nothing (hibernating) |
+| **Idle cost** | Burning compute until timeout | No idle compute (storage: $0.000027/GB-hr) | Nothing (hibernating) |
 | **Checkpoints** | Manual snapshots | ~300ms transactional, copy-on-write | Hibernate (auto) |
 | **Backing** | Vercel (massive) | Fly.io (established, well-funded) | Digger (small startup) |
 | **Pricing** | $0.128/vCPU-hr active CPU | $0.07/CPU-hr + $0.04375/GB-hr | Unknown |
 | **DX** | `@vercel/sandbox` SDK, shell out to CLI | REST API + JS/Go SDK, shell out to CLI | `sandbox.agent.start()`, structured events |
 
-**Decision: Sprites.** Fly.io is established and battle-tested (running Firecracker at scale for years). Claude Code pre-installed. Auto-sleep/wake solves multi-turn without idle cost. Preview URLs work out of the box. $30 free credits to prototype.
+**Decision: Sprites.** Fly.io is established and battle-tested (running Firecracker at scale for years). Claude Code pre-installed. Auto-sleep/wake solves multi-turn with no idle compute cost while sleeping (storage still bills at $0.000027/GB-hr). Preview URLs work out of the box. $30 free credits to prototype.
 
 OpenComputer has nicer DX (`sandbox.agent.start()` with structured event streaming), but it's a small startup. Sprites gives us the same persistence model with Fly.io reliability. We can always swap providers later — the pattern is the same.
 
@@ -76,9 +78,9 @@ Sunder Runner (Gemini Flash, Vercel AI SDK)
 ├── analyze_spreadsheet tool
 │   │
 │   │  1. Downloads user's files + skill files from Supabase Storage
-│   │  2. Creates or wakes a Sprite
+│   │  2. Creates (client.createSprite(name)) or references existing (client.sprite(name)) Sprite
 │   │  3. Writes files into Sprite filesystem
-│   │  4. Runs: claude -p "{task}" --dangerously-skip-permissions
+│   │  4. Runs: sprite.execFile('claude', [...args], { env })
 │   │  5. Reads output files from Sprite
 │   │  6. Uploads results to Supabase Storage
 │   │  7. Sprite auto-sleeps (stays alive for follow-ups)
@@ -87,17 +89,17 @@ Sunder Runner (Gemini Flash, Vercel AI SDK)
 │   Sprite (Fly.io) — per-client, reusable
 │   ├── Claude Code CLI (pre-installed)
 │   ├── Python 3 + pandas + openpyxl + LibreOffice
-│   ├── Anthropic xlsx skill (baked into Sprite template)
+│   ├── Anthropic xlsx skill (written on first use)
 │   ├── User's re-analyst SKILL.md (loaded at runtime)
 │   └── User's uploaded files (loaded at runtime)
 │
 └── publish_artifact tool
     │
     │  1. Runner gathers data FIRST (CRM, search, browser — no sandbox)
-    │  2. Creates or wakes a Sprite
+    │  2. Creates (client.createSprite(name)) or references existing (client.sprite(name)) Sprite
     │  3. Writes property data + photos + skill files into Sprite
-    │  4. Runs: claude -p "{task}" --dangerously-skip-permissions
-    │  5. Dev server starts on port 8080 → preview URL auto-activates
+    │  4. Runs: sprite.execFile('claude', [...args], { env })
+    │  5. Dev server via sprite.createService() → preview URL (set auth to public)
     │  6. Returns preview URL to user
     │  7. Sprite auto-sleeps (stays alive for follow-ups)
     │
@@ -105,7 +107,7 @@ Sunder Runner (Gemini Flash, Vercel AI SDK)
     Sprite (Fly.io) — per-client, reusable
     ├── Claude Code CLI (pre-installed)
     ├── Node 22 + Vite + React + Tailwind
-    ├── Pre-scaffolded property page template (baked into Sprite template)
+    ├── Pre-scaffolded property page template (written on first use)
     ├── User's frontend-design SKILL.md (loaded at runtime)
     └── Property data + photos (assembled by runner, loaded at runtime)
 ```
@@ -155,62 +157,80 @@ The v1 design treated each tool call as a one-shot: boot sandbox → run → des
 
 ```
 Iteration 1: "Analyze this spreadsheet"
-  → Runner creates a Sprite (or wakes an existing one for this client)
+  → Runner creates a Sprite for this thread (client.createSprite()) or references existing one (client.sprite())
   → Writes uploaded files + skill files into Sprite
-  → sprite.exec("claude --dangerously-skip-permissions -p '...'")
+  → sprite.execFile('claude', ['--dangerously-skip-permissions', '-p', '...'], { env })
   → Claude Code writes Python, runs pandas, produces Excel
   → Runner reads output, uploads to Supabase Storage, returns download link
-  → Sprite auto-sleeps (costs nothing while user reviews the model)
+  → Sprite auto-sleeps (no idle compute cost while user reviews the model)
 
 Iteration 2: "Now break it down by district" (3 minutes later)
   → Sprite wakes in <1 second
   → All files from iteration 1 still there (persistent filesystem)
-  → sprite.exec("claude -p 'Break down the analysis by district'")
+  → sprite.execFile('claude', ['-p', 'Break down the analysis by district'], { env })
   → Claude Code reads existing code + data, modifies analysis
   → Runner reads updated output, returns new download link
 
 Iteration 3: "Add a trendline" (10 minutes later)
   → Same pattern. Sprite wakes, files intact, Claude Code modifies.
 
-Iteration 4: "Export as PDF" (next day — Sprite was sleeping all night for free)
+Iteration 4: "Export as PDF" (next day — Sprite was sleeping all night, no idle compute cost)
   → Same pattern. Sprite wakes, everything still there.
   → Runner marks session complete, optionally kills the Sprite
 ```
 
 ### Sprite Lifecycle
 
+**One Sprite per thread** (not per client, not per tool call). This matches the existing concurrency model — one run per thread via `thread_queue_records`.
+
 ```
-                    ┌─────────────────────────────────┐
-                    │           Per-Client Sprite       │
-                    │                                   │
-  create ──────►   │  RUNNING  ──auto──►  SLEEPING     │
-                    │     ▲                    │        │
-                    │     │    wake (<1s)       │        │
-                    │     └────────────────────┘        │
-                    │                                   │
-                    │  Kill after:                      │
-                    │  - 24h of no activity, OR          │
-                    │  - User explicitly finishes, OR   │
-                    │  - Thread closes                  │
-                    └─────────────────────────────────┘
+Thread starts
+  │
+  ▼
+First sandbox tool call → client.createSprite(name) for this thread
+  │
+  ▼
+  ┌─────────────────────────────────┐
+  │       Per-Thread Sprite          │
+  │                                  │
+  │  RUNNING  ──auto──►  SLEEPING   │
+  │     ▲                    │      │
+  │     │    wake (<1s)      │      │
+  │     └────────────────────┘      │
+  └─────────────────────────────────┘
+  │
+  ▼
+Kill after:
+  - 24h of no activity, OR
+  - User explicitly finishes ("ship it"), OR
+  - Thread is archived/closed
 ```
 
-- **One Sprite per client** (not per tool call). Both `analyze_spreadsheet` and `publish_artifact` can use the same Sprite if the runtimes are compatible, or separate Sprites if not.
-- **Auto-sleep** when idle — no compute cost between iterations.
+**Why per-thread, not per-client:**
+- **No concurrency collisions.** Two threads can't fight over the same Sprite — each thread has its own, serialized by the existing queue.
+- **No dep conflicts.** A deal-comparison thread gets Python+pandas. A showcase thread gets Node+React. They don't coexist in one bloated VM.
+- **Clean lifecycle.** Thread goes quiet → Sprite sleeps → 24h inactivity → destroyed. Natural, no manual cleanup.
+- **Cost is fine.** No idle compute cost while sleeping (storage still bills at $0.000027/GB-hr). A user with 3 active threads has 3 sleeping Sprites — negligible cost.
+
+**Why not per-tool-call (ephemeral):**
+- Users iterate 3-4 times per task. Re-creating the Sprite and re-uploading files each time wastes time and loses the filesystem context from previous iterations.
+
+**Other rules:**
+- **Auto-sleep** when idle — no idle compute cost between iterations (storage still bills at $0.000027/GB-hr).
 - **Wake in <1 second** — feels instant to the user.
-- **Kill policy:** destroy after 24h of no activity, or when the user/thread signals completion.
 - **Checkpoint before risky operations** — ~300ms, transactional, can rollback.
+- **Max Sprites per client:** 3 concurrent (soft limit, prevents runaway cost from abandoned threads).
 
-### Sprite ID Tracking
+### Sprite Session Tracking
 
-The Sprite ID is stored on the thread so follow-up messages route to the same Sprite:
+The Sprite name is stored per thread so follow-up messages route to the same Sprite:
 
 ```typescript
 // In thread metadata or a sprite_sessions table
 {
   threadId: "thread_abc",
   clientId: "client_123",
-  spriteId: "sprite_xyz",      // Fly.io Sprite ID
+  spriteName: "thread-thread_a", // Fly.io Sprite name (SDK is name-addressed)
   createdAt: "2026-03-23T10:00:00Z",
   lastActiveAt: "2026-03-23T10:15:00Z",
   status: "sleeping",          // running | sleeping | destroyed
@@ -276,17 +296,21 @@ analyze_spreadsheet: tool({
     + "deal comparison, ROI calculation, or any spreadsheet-based analysis. "
     + "Output is a downloadable .xlsx file with proper Excel formulas. "
     + "Supports multi-turn iteration — user can refine the analysis in follow-up messages.",
-  parameters: z.object({
+  inputSchema: z.object({
     task: z.string().describe("What analysis to perform"),
-    fileUrls: z.array(z.string()).describe("Supabase Storage URLs of xlsx/csv files"),
+    files: z.array(z.object({
+      url: z.string().url(),
+      filename: z.string(),
+      mediaType: z.string(),
+    })).describe("Structured chat file parts for xlsx/csv files"),
   }),
-  execute: async ({ task, fileUrls }) => { /* ... */ },
+  execute: async ({ task, files }) => { /* ... */ },
 })
 ```
 
-### Sprite Template: `sunder-excel`
+### Sprite Dependencies (analyze_spreadsheet)
 
-Pre-built Sprite template with all dependencies. Claude Code is pre-installed on all Sprites by default.
+Default Sprite with all dependencies installed on first use. Claude Code is pre-installed on all Sprites by default.
 
 | Component | Why |
 |---|---|
@@ -298,21 +322,22 @@ Pre-built Sprite template with all dependencies. Claude Code is pre-installed on
 | `/skills/xlsx/scripts/recalc.py` | Formula recalculation + error scanning via LibreOffice |
 | `/skills/xlsx/scripts/office/` | LibreOffice sandbox helpers |
 
-Source: Anthropic xlsx skill at `/Users/sethlim/Downloads/xlsx/`
+Source: Anthropic xlsx skill vendored at `src/lib/sandbox/skills/xlsx/`
 
 ### Execution Flow
 
 ```
-1. Check for existing Sprite for this client (wake if sleeping, create if none)
-2. Write ANTHROPIC_API_KEY to Sprite environment
-3. Download user's re-analyst skill files from Supabase Storage → /skills/re-analyst/
-4. Download user's uploaded files → /workspace/input/
-5. sprite.exec("claude --dangerously-skip-permissions -p '{prompt}'
-     --allowedTools Read,Write,Edit,Bash,Glob,Grep --max-turns 20")
-6. Read /workspace/output/result.xlsx + /workspace/output/summary.txt from Sprite
-7. Upload result.xlsx to Supabase Storage → generate download URL
-8. Sprite auto-sleeps (ready for follow-up)
-9. Return { downloadUrl, summary, spriteId }
+1. Look up the thread's Sprite session, then create or wake the thread-scoped Sprite by name
+2. Download user's re-analyst skill files from Supabase Storage → /skills/re-analyst/
+3. Runner downloads user's uploaded files, then writes them into /workspace/input/
+4. sprite.execFile('claude', [
+     '--dangerously-skip-permissions', '-p', prompt,
+     '--allowedTools', 'Read,Write,Edit,Bash,Glob,Grep', '--max-turns', '20',
+   ], { env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY!, PATH: process.env.PATH! } })
+5. Read /workspace/output/result.xlsx + /workspace/output/summary.txt from Sprite
+6. Upload result.xlsx to Supabase Storage → generate download URL
+7. Sprite auto-sleeps (ready for follow-up)
+8. Return { downloadUrl, summary }
 ```
 
 ### Prompt Sent to Claude Code CLI
@@ -394,7 +419,7 @@ publish_artifact: tool({
     + "pre-scaffolded React template, customized by Claude Code, and served via "
     + "a live preview URL. Use AFTER gathering property data via CRM/search/browser tools. "
     + "Supports multi-turn iteration — user can refine the page in follow-up messages.",
-  parameters: z.object({
+  inputSchema: z.object({
     task: z.string().describe("What page to create and any specific requirements"),
     propertyData: z.record(z.unknown()).describe("Property details assembled from CRM/search"),
     photoUrls: z.array(z.string()).optional().describe("Photo URLs to include"),
@@ -403,25 +428,24 @@ publish_artifact: tool({
 })
 ```
 
-### Sprite Template: `sunder-artifact`
+### Sprite Dependencies (publish_artifact)
 
 | Component | Why |
 |---|---|
 | Node.js 22 | React/Vite runtime |
 | `/template/` | Pre-scaffolded Vite + React + Tailwind project |
-| `/template/node_modules/` | Pre-installed dependencies (saves 15-20s) |
+| `npm install` inside Sprite | First-run dependency install; persists across hibernation |
 | `/template/src/components/` | Default property page components |
 
 ### Pre-Scaffolded Template
 
-Baked into the Sprite template so Claude Code tweaks instead of building from scratch:
+Written into the Sprite on first use so Claude Code tweaks instead of building from scratch:
 
 ```
 /template/
 ├── package.json               ← Vite + React 18 + Tailwind 4 + lucide-react
 ├── vite.config.ts
 ├── index.html
-├── node_modules/              ← pre-installed
 ├── src/
 │   ├── App.tsx                ← layout shell
 │   ├── components/
@@ -435,7 +459,7 @@ Baked into the Sprite template so Claude Code tweaks instead of building from sc
 │   ├── data/
 │   │   └── property.json      ← placeholder, swapped at runtime
 │   └── styles/
-│       └── theme.css          ← default luxury theme (dark + gold)
+│       └── theme.css          ← neutral default theme; user skill controls aesthetic
 └── build.sh                   ← npm run build → single-file HTML output
 ```
 
@@ -447,16 +471,20 @@ Baked into the Sprite template so Claude Code tweaks instead of building from sc
      Web search → neighborhood amenities, schools, transport
      Browser scraping → listing photos (optional)
      Assembles propertyData JSON
-2. Check for existing Sprite for this client (wake if sleeping, create if none)
-3. Write ANTHROPIC_API_KEY to Sprite environment
-4. Download user's frontend-design skill files from Supabase Storage → /skills/frontend-design/
-5. Write propertyData to /workspace/data/property.json
-6. Download photos → /workspace/photos/
-7. sprite.exec("claude --dangerously-skip-permissions -p '{prompt}'
-     --allowedTools Read,Write,Edit,Bash,Glob,Grep --max-turns 20")
-8. Dev server starts on port 8080 → Sprite preview URL auto-activates
-9. Sprite auto-sleeps (stays alive for follow-ups, preview URL wakes on request)
-10. Return { previewUrl, summary, spriteId }
+2. Look up the thread's Sprite session, then create or wake the thread-scoped Sprite by name
+3. Download user's frontend-design skill files from Supabase Storage → /skills/frontend-design/
+4. Write propertyData to /workspace/data/property.json
+5. Runner downloads photos, then writes them into /workspace/photos/
+6. sprite.execFile('claude', [
+     '--dangerously-skip-permissions', '-p', prompt,
+     '--allowedTools', 'Read,Write,Edit,Bash,Glob,Grep', '--max-turns', '20',
+   ], { env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY!, PATH: process.env.PATH! } })
+7. Start dev server via sprite.createService('dev-server', {
+     cmd: 'bash', args: ['-lc', 'cd /workspace/app && npm run dev'],
+   })
+   Preview URL from sprite.url (must call sprite.updateURLSettings({ auth: 'public' }) first)
+8. Sprite auto-sleeps (stays alive for follow-ups, preview URL wakes on request)
+9. Return { previewUrl, summary }
 ```
 
 ### Prompt Sent to Claude Code CLI
@@ -472,8 +500,8 @@ Copy it to /workspace/app/ and customize:
 - Update theme (colors, fonts, layout) per SKILL.md brand guidelines
 - Swap placeholder images with actual photos
 - Add, remove, or modify sections as appropriate for this property
-- Run: cd /workspace/app && npm run dev
-- The dev server will be accessible on port 8080 via the Sprite preview URL
+- The dev server will be started via sprite.createService() (Services survive hibernation, unlike detachable sessions)
+- Preview URL is private by default — sprite.updateURLSettings({ auth: 'public' }) is called to make it accessible
 ```
 
 ### User Flow (Multi-Turn with Live Preview)
@@ -492,12 +520,12 @@ Sunder: "Building your showcase page..."
   [Claude Code reads frontend-design SKILL.md: "dark bg, gold accents"]
   [copies /template → /workspace/app]
   [swaps property.json, edits theme, updates components]
-  [runs npm run dev → dev server on port 8080]
-  [Sprite auto-sleeps, preview URL stays active]
+  [dev server started via sprite.createService() on port 8080]
+  [Sprite auto-sleeps, preview URL stays active (must call sprite.updateURLSettings({ auth: 'public' }) for user access)]
 
 Sunder: "Your showcase page is live!
 
-  🔗 https://{sprite-id}.sprites.dev
+  🔗 {sprite.url} (read from Sprite metadata, do not hardcode domain)
 
   Includes: hero with photo #1, gallery (6 images),
   property details, neighborhood map, your contact card.
@@ -508,14 +536,14 @@ User: "Swap the hero to photo 3 and add a mortgage calculator"
 
 Sunder: "Updating..."
 
-  [Sprite wakes in <1s — all code still there, dev server restarts]
+  [Sprite wakes in <1s — all code still there, dev server Service survives hibernation]
   [Claude Code modifies Hero.tsx, adds MortgageCalc back]
   [preview URL auto-updates]
 
 Sunder: "Done! Hero now uses photo 3, mortgage calculator
   added with your 3.8% rate as default.
 
-  🔗 https://{sprite-id}.sprites.dev (same URL, updated)"
+  🔗 {sprite.url} (read from Sprite metadata, do not hardcode domain) (same URL, updated)"
 
 User: "Make the cards bigger with more whitespace"
 
@@ -542,25 +570,33 @@ Sunder: "Published!
 
 ## 8. Infrastructure
 
-### Sprite Templates
+### Sprite Setup
 
-Two pre-configured Sprite templates, registered with Fly.io:
+**No custom templates.** Default Sprites come with Ubuntu (current LTS), Python, Node, Claude Code, and all common dev tools pre-installed. Additional dependencies are installed on first use and persist across hibernation:
 
-| | `sunder-excel` | `sunder-artifact` |
-|---|---|---|
-| **Base** | Default Sprite (Claude Code pre-installed) | Default Sprite (Claude Code pre-installed) |
-| **Additional deps** | Python 3.13, pandas, openpyxl, xlsxwriter, matplotlib, LibreOffice, gcc | Node 22 (pre-installed), pre-scaffolded Vite+React template |
-| **Baked-in skills** | Anthropic xlsx skill + recalc.py + LibreOffice helpers | React property page template + node_modules |
-| **Size** | ~500MB (LibreOffice is heavy) | ~300MB (node_modules) |
-| **Rebuild when** | xlsx skill updates, Python dep changes | Template changes, React dep updates |
+```
+First analyze_spreadsheet call on a new Sprite:
+  → sprite.execFile('pip', ['install', 'pandas', 'openpyxl', 'xlsxwriter', 'matplotlib'])  ~15s
+  → sprite.execFile('sudo', ['apt', 'install', '-y', 'libreoffice-calc', 'gcc'])           ~30s
+  → write Anthropic xlsx skill files to /skills/xlsx/
+  → persists forever — subsequent calls skip this
+
+First publish_artifact call on a new Sprite:
+  → write pre-scaffolded React template to /workspace/template/
+  → sprite.execFile('npm', ['install'], { cwd: '/workspace/template' })                     ~20s
+  → persists forever — subsequent calls just copy the template
+```
+
+After first use, the Sprite has everything and boots instantly (<1s wake from sleep).
 
 ### Environment Variables
 
 ```
-SPRITES_API_KEY                  — Fly.io Sprites API key
-ANTHROPIC_API_KEY                — Injected into Sprite for Claude Code CLI
-SPRITE_TEMPLATE_EXCEL            — Template name for analyze_spreadsheet
-SPRITE_TEMPLATE_ARTIFACT         — Template name for publish_artifact
+SPRITES_TOKEN                    — Fly.io Sprites API token
+ANTHROPIC_API_KEY                — Passed per-command via execFile() env option (not written to Sprite environment)
+
+SDK: @fly/sprites@0.0.1-rc37 (pin prerelease — stable 0.0.1 lacks filesystem, services, and policy APIs)
+Node: 24+ required (set in Vercel Project Settings → Node.js Version → 24.x)
 ```
 
 ### Cost Model
@@ -586,7 +622,7 @@ SPRITE_TEMPLATE_ARTIFACT         — Template name for publish_artifact
 
 **Multi-turn session (4 iterations): ~$0.24-1.24**
 
-**Idle cost between iterations: $0 (Sprite is sleeping)**
+**Idle cost between iterations: no idle compute cost while sleeping (storage still bills at $0.000027/GB-hr)**
 
 Compare to v1 design (ephemeral Vercel Sandbox): ~$0.10-0.40 per invocation × 4 invocations = ~$0.40-1.60, plus re-upload and re-setup overhead each time.
 
@@ -598,7 +634,7 @@ Compare to v1 design (ephemeral Vercel Sandbox): ~$0.10-0.40 per invocation × 4
 | Agent CLI max turns per iteration | 20 |
 | Max file upload size | 10 MB |
 | Sprite auto-kill after inactivity | 24 hours |
-| Concurrent Sprites per client | 1 |
+| Concurrent Sprites per client | 3 (one per active thread) |
 | Sprite resources | 2 vCPU, 1GB RAM (burst to 4 vCPU) |
 
 ## 9. Security
@@ -609,7 +645,7 @@ Compare to v1 design (ephemeral Vercel Sandbox): ~$0.10-0.40 per invocation × 4
 - Each client gets their own Sprite — no shared state between clients
 - `--dangerously-skip-permissions` is safe because the Sprite is isolated
 - Files are explicitly copied in/out — no shared filesystem with the platform
-- ANTHROPIC_API_KEY is the only secret injected (for Claude Code to make API calls)
+- ANTHROPIC_API_KEY is the only secret passed (via `env` option on each `execFile()` call, not written to Sprite environment)
 - **Network egress:** Domain allowlist via Sprites Layer 3 filtering — only `api.anthropic.com` + package registries
 
 ### What the Sprite CAN Do
@@ -618,7 +654,7 @@ Compare to v1 design (ephemeral Vercel Sandbox): ~$0.10-0.40 per invocation × 4
 - Run arbitrary Python/Node code
 - Make outbound HTTP to allowlisted domains
 - Iterate on errors autonomously
-- Serve a dev server on port 8080 (preview URL)
+- Serve a dev server on port 8080 (preview URL, private by default — must set auth to public)
 
 ### What the Sprite CANNOT Do
 
@@ -669,8 +705,7 @@ src/lib/runner/tools/sandbox/
 └── publish-artifact.ts            — publish_artifact tool definition
 
 scripts/
-├── build-sprite-template-excel.sh — Build sunder-excel Sprite template
-└── build-sprite-template-artifact.sh — Build sunder-artifact Sprite template
+└── setup-sprite-deps.sh            — Install dependencies on first Sprite use (pandas, LibreOffice, etc.)
 ```
 
 ### Database
@@ -683,9 +718,9 @@ create table sprite_sessions (
   client_id uuid not null references clients(id),
   thread_id uuid references threads(id),
   sprite_id text not null,           -- Fly.io Sprite ID
-  template text not null,            -- 'sunder-excel' | 'sunder-artifact'
+  template text not null,            -- 'default' (single default Sprite model)
   status text not null default 'running', -- running | sleeping | destroyed
-  preview_url text,                  -- Sprite preview URL (for publish_artifact)
+  preview_url text,                  -- from sprite.url metadata (for publish_artifact)
   created_at timestamptz default now(),
   last_active_at timestamptz default now(),
   destroyed_at timestamptz
@@ -731,13 +766,13 @@ create policy "client_isolation" on sprite_sessions
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| Sandbox provider | Sprites (Fly.io) over Vercel Sandbox | Persistent VMs with auto-sleep solve multi-turn iteration without idle cost. Claude Code pre-installed. Preview URLs built-in. Fly.io is established and battle-tested. |
-| Persistent sessions over ephemeral | Per-client Sprites that auto-sleep | Users iterate 3-4 times per task. Re-booting and re-uploading each time is wasteful and loses context. Auto-sleep means zero idle cost. |
+| Sandbox provider | Sprites (Fly.io) over Vercel Sandbox | Persistent VMs with auto-sleep solve multi-turn iteration with no idle compute cost while sleeping (storage still bills at $0.000027/GB-hr). Claude Code pre-installed. Preview URLs built-in. Fly.io is established and battle-tested. |
+| Persistent sessions over ephemeral | Per-thread Sprites that auto-sleep | Users iterate 3-4 times per task. Re-booting and re-uploading each time is wasteful and loses context. Auto-sleep means no idle compute cost while sleeping (storage still bills at $0.000027/GB-hr). One Sprite per thread matches existing concurrency model. |
 | Agent inside sandbox (not sandbox-as-tool) | Claude Code CLI runs inside Sprite | Sunder's runner is a business orchestrator, not a coding agent. Delegating coding tasks to Claude Code avoids building custom code-iteration logic. |
-| Two dedicated tools (not one generic) | `analyze_spreadsheet` + `publish_artifact` | Different runtimes, different templates, different outputs. Cleaner tool descriptions for the model. |
-| Two Sprite templates | `sunder-excel` + `sunder-artifact` | LibreOffice (~400MB) only needed for Excel. Don't bloat the artifact template. |
-| Anthropic xlsx skill baked into template | Bundled, not per-client | Same skill for all users. Production-grade formulas, color coding, recalc. |
-| Pre-scaffolded React template baked in | Bundled, not per-client | Agent tweaks template (~20-40s) instead of building from scratch (~60-180s). |
+| Two dedicated tools (not one generic) | `analyze_spreadsheet` + `publish_artifact` | Different runtimes, different dependency sets, different outputs. Cleaner tool descriptions for the model. |
+| Single default Sprite (no custom templates) | Default Ubuntu (current LTS) with Python + Node + Claude Code pre-installed | Deps installed on first use and persist across hibernation. No template maintenance burden. 100GB storage per Sprite is more than enough. |
+| Anthropic xlsx skill bundled | Written on first use, not per-client | Same skill for all users. Production-grade formulas, color coding, recalc. |
+| Pre-scaffolded React template bundled | Written on first use, not per-client | Agent tweaks template (~20-40s) instead of building from scratch (~60-180s). |
 | User preferences in Supabase Storage | Per-client SKILL.md | Each client has different analysis/brand preferences. Same pattern as memory files. |
 | Gemini Flash for routing, Claude for execution | Two-tier model | Flash is cheap for deciding when to use sandbox. Claude is powerful for writing + running code. |
 | Preview via Sprite port 8080 (not static publish) | Live preview during iteration | User sees changes in real-time. Static publish only on final "ship it." |
@@ -745,7 +780,7 @@ create policy "client_isolation" on sprite_sessions
 
 ## 13. Open Questions
 
-1. **One Sprite or two per client?** Could both tools share a single Sprite with both Python and Node installed, or keep separate templates for isolation and size? Leaning toward two (keeps templates lean) but worth testing.
+1. ~~**One Sprite or two per client?**~~ **RESOLVED — One Sprite per thread.** Each thread gets its own Sprite with exactly the deps it needs. No dep conflicts, no concurrency collisions, matches existing thread serialization model. Max 3 concurrent Sprites per client.
 
 2. **Streaming:** Should Sprite execution stream Claude Code's progress to the chat UI? Would improve UX for long-running analyses but adds complexity (SSE from Sprite → runner → chat UI).
 

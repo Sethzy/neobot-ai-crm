@@ -940,9 +940,148 @@ git commit -m "docs: Gemini prompt caching spike results"
 
 ---
 
+## Task 9: Session reset for stale threads (Dorabot pattern)
+
+Skip loading old message history when a thread hasn't been used in 4+ hours. The agent starts fresh with system prompt + memory files + new message. Old messages stay in DB — user can still scroll back in the UI. The agent just doesn't see them.
+
+Reference: Dorabot's idle timeout at `/Users/sethlim/Documents/dorabot-1/src/gateway/server.ts:1357-1368`.
+
+**Files:**
+- Create: DB migration — add `context_reset_at` to `conversation_threads`
+- Modify: `src/lib/runner/context.ts` — add stale check, filter messages by `context_reset_at`
+- Test: `src/lib/runner/__tests__/context.test.ts`
+
+**Step 1: Create migration**
+
+```sql
+-- supabase/migrations/YYYYMMDDHHMMSS_add_context_reset_at_to_threads.sql
+ALTER TABLE public.conversation_threads ADD COLUMN IF NOT EXISTS context_reset_at TIMESTAMPTZ;
+COMMENT ON COLUMN public.conversation_threads.context_reset_at IS 'When set, context assembly only loads messages after this timestamp. Set automatically when a thread is stale (4h idle). User still sees full history in UI.';
+```
+
+**Step 2: Write test for stale thread reset**
+
+```typescript
+// In src/lib/runner/__tests__/context.test.ts
+describe("session reset for stale threads", () => {
+  test("does not load messages older than context_reset_at", async () => {
+    const resetAt = new Date("2026-03-23T10:00:00Z");
+    const oldMessage = { created_at: "2026-03-23T08:00:00Z", role: "user", content: "old message" };
+    const newMessage = { created_at: "2026-03-23T10:05:00Z", role: "user", content: "new message" };
+
+    mockGetThread.mockResolvedValue({ context_reset_at: resetAt.toISOString() });
+    mockLoadMessages.mockResolvedValue([oldMessage, newMessage]);
+
+    const { messages } = await assembleContext({
+      supabase: mockSupabase,
+      threadId: "thread-1",
+      currentMessage: "hello",
+      clientId: "client-1",
+    });
+
+    const contents = messages.map((m) => m.content).filter(Boolean);
+    expect(contents).not.toContain("old message");
+  });
+
+  test("sets context_reset_at when thread is stale (4h idle)", async () => {
+    const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
+    mockGetThread.mockResolvedValue({ updated_at: fiveHoursAgo, context_reset_at: null });
+
+    await assembleContext({
+      supabase: mockSupabase,
+      threadId: "thread-1",
+      currentMessage: "hello",
+      clientId: "client-1",
+    });
+
+    expect(mockSupabaseUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ context_reset_at: expect.any(String) })
+    );
+  });
+
+  test("does not reset when thread was recently active", async () => {
+    const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString();
+    mockGetThread.mockResolvedValue({ updated_at: oneHourAgo, context_reset_at: null });
+
+    await assembleContext({
+      supabase: mockSupabase,
+      threadId: "thread-1",
+      currentMessage: "hello",
+      clientId: "client-1",
+    });
+
+    expect(mockSupabaseUpdate).not.toHaveBeenCalled();
+  });
+});
+```
+
+**Step 3: Run tests to verify they fail**
+
+```bash
+npx vitest run src/lib/runner/__tests__/context.test.ts -t "session reset"
+```
+Expected: FAIL — no stale check exists yet.
+
+**Step 4: Implement stale check in assembleContext**
+
+In `src/lib/runner/context.ts`, add at the start of `assembleContext()`:
+
+```typescript
+const IDLE_TIMEOUT_MS = 4 * 60 * 60 * 1000; // 4h — matches Dorabot pattern
+
+// Check if thread is stale
+const thread = await getThread(supabase, threadId);
+const gap = Date.now() - new Date(thread.updated_at).getTime();
+let contextResetAt = thread.context_reset_at;
+
+if (gap > IDLE_TIMEOUT_MS && !contextResetAt) {
+  contextResetAt = new Date().toISOString();
+  await supabase
+    .from("conversation_threads")
+    .update({ context_reset_at: contextResetAt })
+    .eq("thread_id", threadId);
+}
+```
+
+Then when loading messages, add the filter:
+
+```typescript
+let historyQuery = supabase
+  .from("conversation_messages")
+  .select("message_id, created_at, role, content, parts")
+  .eq("thread_id", threadId);
+
+if (contextResetAt) {
+  historyQuery = historyQuery.gt("created_at", contextResetAt);
+}
+```
+
+**Step 5: Run tests to verify they pass**
+
+```bash
+npx vitest run src/lib/runner/__tests__/context.test.ts -t "session reset"
+```
+Expected: PASS
+
+**Step 6: Run full test suite**
+
+```bash
+npx vitest run src/lib/runner/__tests__/
+```
+Expected: All PASS
+
+**Step 7: Commit**
+
+```bash
+git add -A
+git commit -m "feat: session reset for stale threads — skip old messages after 4h idle (Dorabot pattern)"
+```
+
+---
+
 ## Notes
 
-- **Task ordering matters:** Tasks 1-2 must be done sequentially (2 depends on 1). Tasks 3-5 can be done in parallel. Task 6 is independent. Task 7 depends on Task 4 (system reminder move). Task 8 is a spike that can run anytime.
+- **Task ordering matters:** Tasks 1-2 must be done sequentially (2 depends on 1). Tasks 3-5 can be done in parallel. Task 6 is independent. Task 7 depends on Task 4 (system reminder move). Task 8 is a spike that can run anytime. Task 9 is independent — can be done anytime after Task 4 (it modifies `context.ts` which Task 4 also touches).
 - **Compaction summary overwrite:** Verified that `conversation_threads.compaction_summary` is a single column that overwrites — no "summaries of summaries" risk. Summary tagging (Deep Agents' `lc_source` pattern) is not needed.
 - **`toModelPath` stays:** Used in 20+ files for skills, triggers, storage. Not artifact-specific. Do not delete.
 - **PR 56 overlap:** Tasks in PR 56 (parallelize Composio loading, dedup connections query) are partially superseded by Task 3 (DB-cached schemas eliminates Composio API from hot path). PR 56-2 (connections dedup) may still be useful for system reminder — evaluate after Task 4.

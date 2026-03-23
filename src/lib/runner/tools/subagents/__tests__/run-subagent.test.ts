@@ -236,6 +236,7 @@ describe("createSubagentTool", () => {
       model: "google/gemini-3-flash",
       tokensIn: 120,
       tokensOut: 45,
+      promptTokens: 120,
       stepCount: 1,
     });
   });

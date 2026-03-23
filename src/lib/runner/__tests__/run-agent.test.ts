@@ -896,7 +896,8 @@ describe("runAgent", () => {
       expect.objectContaining({
         supabase: "mock-supabase-client",
         threadId: validPayload.threadId,
-        currentMessage: "",
+        currentMessage: validPayload.input,
+        currentMessageParts: [{ type: "text", text: validPayload.input }],
         clientId: validPayload.clientId,
         crmMode: "normal",
         crmConfig: expect.objectContaining({ deal_label: "Policy" }),
@@ -930,7 +931,10 @@ describe("runAgent", () => {
     );
     expect(mockLoadActivatedConnectionTools).toHaveBeenCalledWith([
       { id: "conn-1" },
-    ]);
+    ], {
+      supabase: "mock-supabase-client",
+      clientId: validPayload.clientId,
+    });
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
         tools: expect.objectContaining({
@@ -958,7 +962,10 @@ describe("runAgent", () => {
 
     expect(mockLoadActivatedConnectionTools).toHaveBeenCalledWith([
       { id: "conn-1" },
-    ]);
+    ], {
+      supabase: "mock-supabase-client",
+      clientId: validPayload.clientId,
+    });
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
         tools: expect.not.objectContaining({
@@ -1004,7 +1011,8 @@ describe("runAgent", () => {
       expect.objectContaining({
         supabase: "mock-supabase-client",
         threadId: validPayload.threadId,
-        currentMessage: "",
+        currentMessage: validPayload.input,
+        currentMessageParts: [{ type: "text", text: validPayload.input }],
         clientId: validPayload.clientId,
         crmMode: "normal",
         crmConfig: expect.objectContaining({ deal_label: "Policy" }),
@@ -1048,6 +1056,20 @@ describe("runAgent", () => {
         ],
       },
     ]);
+    expect(mockAssembleContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentMessage: "Review this screenshot",
+        currentMessageParts: [
+          {
+            type: "file",
+            filename: "shot.png",
+            mediaType: "image/png",
+            url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+          },
+          { type: "text", text: "Review this screenshot" },
+        ],
+      }),
+    );
   });
 
   it("persists image-only user messages with null content and file parts", async () => {
@@ -1084,6 +1106,19 @@ describe("runAgent", () => {
         ],
       },
     ]);
+    expect(mockAssembleContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentMessage: "",
+        currentMessageParts: [
+          {
+            type: "file",
+            filename: "shot.png",
+            mediaType: "image/png",
+            url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+          },
+        ],
+      }),
+    );
   });
 
   it("persists assistant output text to conversation_messages when stream finishes", async () => {
@@ -1377,6 +1412,10 @@ describe("runAgent", () => {
       "mock-supabase-client",
       validPayload.clientId,
       validPayload.threadId,
+      {
+        promptTokens: 100,
+        modelId: "google/gemini-3-flash",
+      },
     );
   });
 

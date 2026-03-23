@@ -862,4 +862,34 @@ export const scenarios: QaScenario[] = [
     notes:
       "Important edge case. Agent should reject the invalid host before any listing tool call and explain that the portal URL is not valid.",
   },
+  // PR 55: search_market_data
+  {
+    surface: "28-property-listing-tools",
+    scenario: "hdb-resale-search",
+    prompt:
+      "Show me recent HDB resale transactions in Tampines for 4-room flats.",
+    expectedTools: ["search_market_data"],
+    sequential: false,
+    notes:
+      "search_market_data with dataset: hdb, mode: search. Should return individual transaction records with prices.",
+  },
+  {
+    surface: "28-property-listing-tools",
+    scenario: "ura-stats-median-psf",
+    prompt:
+      "What's the median price PSF for District 9 condos sold in the last 6 months?",
+    expectedTools: ["search_market_data"],
+    sequential: false,
+    notes:
+      "search_market_data with dataset: ura, mode: stats. Should return aggregate statistics including median_price_psf.",
+  },
+  {
+    surface: "28-property-listing-tools",
+    scenario: "cea-agent-lookup",
+    prompt: "Look up the CEA agent with registration number R012345A.",
+    expectedTools: ["search_market_data"],
+    sequential: false,
+    notes:
+      "search_market_data with dataset: agents. Returns agent registry info or not-found.",
+  },
 ];

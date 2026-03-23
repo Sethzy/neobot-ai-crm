@@ -4,8 +4,15 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const { mockUpdateConnection } = vi.hoisted(() => ({
+  mockUpdateConnection: vi.fn(),
+}));
+
 vi.mock("../client", () => ({
   getComposio: vi.fn(),
+}));
+vi.mock("@/lib/connections/queries", () => ({
+  updateConnection: (...args: unknown[]) => mockUpdateConnection(...args),
 }));
 
 import { getComposio } from "../client";
@@ -37,6 +44,7 @@ function createMockConnection(
 describe("loadActivatedConnectionTools", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    mockUpdateConnection.mockReset();
   });
 
   it("returns an empty ToolSet when no active connections have activated tools", async () => {
@@ -246,6 +254,58 @@ describe("loadActivatedConnectionTools", () => {
       },
       dangerouslySkipVersionCheck: true,
     });
+  });
+
+  it("persists fallback-loaded schemas so existing active connections self-heal", async () => {
+    const rawTools = [
+      {
+        slug: "GMAIL_SEND_EMAIL",
+        description: "Send email",
+        inputParameters: {
+          type: "object",
+          properties: { to: { type: "string" } },
+        },
+      },
+    ];
+    vi.mocked(getComposio).mockReturnValue({
+      tools: {
+        getRawComposioTools: vi.fn().mockResolvedValue(rawTools),
+        execute: vi.fn().mockResolvedValue({ success: true }),
+      },
+    } as never);
+    mockUpdateConnection.mockResolvedValue({} as never);
+
+    const result = await loadActivatedConnectionTools([
+      createMockConnection({
+        id: "550e8400-e29b-41d4-a716-446655440008",
+        toolkit_slug: "gmail",
+        activated_tools: ["GMAIL_SEND_EMAIL"],
+        tool_schemas: {},
+      }),
+    ], {
+      supabase: "supabase" as never,
+      clientId: "660e8400-e29b-41d4-a716-446655440000",
+    });
+
+    expect(Object.keys(result)).toEqual([
+      "550e8400-e29b-41d4-a716-446655440008__GMAIL_SEND_EMAIL",
+    ]);
+    expect(mockUpdateConnection).toHaveBeenCalledWith(
+      "supabase",
+      "660e8400-e29b-41d4-a716-446655440000",
+      {
+        id: "550e8400-e29b-41d4-a716-446655440008",
+        tool_schemas: {
+          GMAIL_SEND_EMAIL: {
+            description: "Send email",
+            inputParameters: {
+              type: "object",
+              properties: { to: { type: "string" } },
+            },
+          },
+        },
+      },
+    );
   });
 
   it("skips pending connections", async () => {

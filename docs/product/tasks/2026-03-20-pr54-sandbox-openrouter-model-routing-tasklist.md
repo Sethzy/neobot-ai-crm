@@ -1,8 +1,8 @@
-# Sandbox: Cheap Model Routing via OpenRouter
+# Sprite: Cheap Model Routing via OpenRouter
 
-**PR:** PR 54: Sandbox cheap model routing
+**PR:** PR 54: Sprite cheap model routing
 **Decisions:** LLM-01
-**Goal:** Replace Claude Sonnet (~$0.05-0.50/run) inside sandbox with cheap models (MiniMax, Kimi 2.5, Gemini Flash) via OpenRouter (~$0.001-0.01/run). 10-50x cost reduction. Zero code changes to the Claude Code CLI — just env var swaps.
+**Goal:** Replace Claude Sonnet (~$0.05-0.50/run) inside Sprite with cheap models (MiniMax, Kimi 2.5, Gemini Flash) via OpenRouter (~$0.001-0.01/run). 10-50x cost reduction. Zero code changes to the Claude Code CLI — just env var swaps.
 
 **Architecture:** Claude Code CLI reads `ANTHROPIC_BASE_URL` and `ANTHROPIC_API_KEY` at startup. By default these point at `api.anthropic.com`. OpenRouter provides an Anthropic-compatible API endpoint at `https://openrouter.ai/api/v1`. Point the CLI at OpenRouter, set the model via HTTP header, and the CLI thinks it's talking to Anthropic but actually hitting MiniMax/Kimi/Flash. The NanoClaw credential proxy pattern validated this approach (see `roadmap docs/.../nanoclaw-dorabot/nanoclaw-overview.md`).
 
@@ -14,9 +14,11 @@ WITH OPENROUTER (cheap):
   Claude CLI → openrouter.ai/api/v1 → MiniMax/Kimi/Flash → ~$0.001-0.01/run
 ```
 
-**Tech Stack:** OpenRouter API, Claude Code CLI env vars, Vitest
+**Tech Stack:** OpenRouter API, Claude Code CLI env vars, Sprites SDK (`@fly/sprites@0.0.1-rc37`), Vitest
 
-**Depends on:** PR 52 (sandbox infra — `run-claude-in-sandbox.ts` writes the API key config)
+**Requirements:** Node 24 (required by `@fly/sprites`)
+
+**Depends on:** PR 52 (Sprites infra — `run-claude-in-sprite.ts` writes the API key config)
 
 **Reference:**
 - NanoClaw credential proxy: `roadmap docs/.../nanoclaw-dorabot/nanoclaw-overview.md`
@@ -28,12 +30,12 @@ WITH OPENROUTER (cheap):
 ## Relevant Files
 
 ### Modify
-- `src/lib/sandbox/run-claude-in-sandbox.ts` — update `writeApiKeyConfig()` to support OpenRouter
-- `src/lib/sandbox/run-claude-for-artifact.ts` — same API key config change
+- `src/lib/sandbox/run-claude-in-sprite.ts` — switch to `execFile()` with env option for OpenRouter support
+- `src/lib/sandbox/run-claude-for-artifact.ts` — same `execFile()` + env pattern
 - `.env.example` — add `SANDBOX_MODEL_PROVIDER`, `SANDBOX_MODEL_ID`, `OPENROUTER_API_KEY`
 
 ### Reference (read, don't modify)
-- `src/lib/sandbox/create-sandbox.ts` — no changes (model config is runtime, not snapshot)
+- `src/lib/sandbox/create-sprite.ts` — no changes (model config is runtime, not Sprite image)
 - `roadmap docs/.../nanoclaw-dorabot/nanoclaw-overview.md` — credential proxy pattern
 
 ---
@@ -80,11 +82,11 @@ Document: does it work? Any errors? Does tool_use work?
 
 **Step 4: Document findings**
 
-Write results to `docs/product/references/openrouter-sandbox-compatibility.md`:
+Write results to `docs/product/references/openrouter-sprite-compatibility.md`:
 - Which models work
 - Which models support tool_use
 - Any format translation issues
-- Recommended default model for sandbox tasks
+- Recommended default model for Sprite tasks
 
 ---
 
@@ -96,11 +98,11 @@ Write results to `docs/product/references/openrouter-sandbox-compatibility.md`:
 **Step 1: Add new env vars**
 
 ```bash
-# Sandbox model routing (PR 54)
+# Sprite model routing (PR 54)
 # Options: "anthropic" (default, expensive) or "openrouter" (cheap)
 SANDBOX_MODEL_PROVIDER=openrouter
 
-# Model ID for sandbox tasks (OpenRouter model IDs)
+# Model ID for Sprite tasks (OpenRouter model IDs)
 # Cheap options: minimax/minimax-m1, moonshotai/kimi-k2, google/gemini-2.5-flash
 SANDBOX_MODEL_ID=minimax/minimax-m1
 
@@ -110,36 +112,36 @@ OPENROUTER_API_KEY=sk-or-...
 
 ---
 
-## Task 3: Update sandbox API key config writer
+## Task 3: Switch to execFile() + env for OpenRouter model routing
 
-The core change. Update the function that writes Claude CLI config inside the sandbox to support OpenRouter.
+The core change. Use `sprite.execFile()` with `env` option to pass credentials and base URL to the Claude CLI. No filesystem writes or `sprite.exec()` shell strings.
 
 **Files:**
-- Modify: `src/lib/sandbox/run-claude-in-sandbox.ts`
+- Modify: `src/lib/sandbox/run-claude-in-sprite.ts`
 - Modify: `src/lib/sandbox/run-claude-for-artifact.ts`
 
 **Step 1: Write failing test**
 
 ```typescript
-// Add to src/lib/sandbox/__tests__/run-claude-in-sandbox.test.ts
+// Add to src/lib/sandbox/__tests__/run-claude-in-sprite.test.ts
 
-describe("buildSandboxModelConfig", () => {
+describe("buildSpriteModelConfig", () => {
   it("returns Anthropic config when provider is anthropic", () => {
-    const config = buildSandboxModelConfig("anthropic", undefined, "sk-ant-...");
+    const config = buildSpriteModelConfig("anthropic", undefined, "sk-ant-...");
     expect(config.baseUrl).toBeUndefined(); // default
     expect(config.apiKey).toBe("sk-ant-...");
     expect(config.modelFlag).toBeUndefined();
   });
 
   it("returns OpenRouter config when provider is openrouter", () => {
-    const config = buildSandboxModelConfig("openrouter", "minimax/minimax-m1", "sk-or-...");
+    const config = buildSpriteModelConfig("openrouter", "minimax/minimax-m1", "sk-or-...");
     expect(config.baseUrl).toBe("https://openrouter.ai/api/v1");
     expect(config.apiKey).toBe("sk-or-...");
     expect(config.modelFlag).toBe("minimax/minimax-m1");
   });
 
   it("defaults to anthropic when provider is unset", () => {
-    const config = buildSandboxModelConfig(undefined, undefined, "sk-ant-...");
+    const config = buildSpriteModelConfig(undefined, undefined, "sk-ant-...");
     expect(config.baseUrl).toBeUndefined();
   });
 });
@@ -150,20 +152,20 @@ Run: should fail.
 **Step 2: Implement model config builder**
 
 ```typescript
-// In src/lib/sandbox/run-claude-in-sandbox.ts
+// In src/lib/sandbox/run-claude-in-sprite.ts
 
-interface SandboxModelConfig {
+interface SpriteModelConfig {
   baseUrl?: string;
   apiKey: string;
   modelFlag?: string;
 }
 
-/** Builds the model config for the Claude CLI inside the sandbox. Exported for testing. */
-export function buildSandboxModelConfig(
+/** Builds the model config for the Claude CLI inside the Sprite. Exported for testing. */
+export function buildSpriteModelConfig(
   provider: string | undefined,
   modelId: string | undefined,
   apiKey: string,
-): SandboxModelConfig {
+): SpriteModelConfig {
   if (provider === "openrouter") {
     return {
       baseUrl: "https://openrouter.ai/api/v1",
@@ -177,12 +179,12 @@ export function buildSandboxModelConfig(
 }
 ```
 
-**Step 3: Update writeApiKeyConfig**
+**Step 3: Update runClaudeInSprite to use execFile() with env option**
 
-Replace the current `writeApiKeyConfig` function:
+Replace the current approach (writing config files + bashrc via `sprite.exec()`) with `execFile()` arg arrays. Pass `ANTHROPIC_BASE_URL` and `ANTHROPIC_API_KEY` via the `env` option — no filesystem writes needed:
 
 ```typescript
-async function writeApiKeyConfig(sandbox: Sandbox): Promise<string[]> {
+async function runClaudeInSprite(sprite: Sprite, prompt: string, maxTurns: number): Promise<string> {
   const provider = process.env.SANDBOX_MODEL_PROVIDER;
   const modelId = process.env.SANDBOX_MODEL_ID;
   const apiKey = provider === "openrouter"
@@ -193,35 +195,39 @@ async function writeApiKeyConfig(sandbox: Sandbox): Promise<string[]> {
     throw new Error(
       provider === "openrouter"
         ? "OPENROUTER_API_KEY is required when SANDBOX_MODEL_PROVIDER=openrouter"
-        : "ANTHROPIC_API_KEY is required for sandbox Claude CLI",
+        : "ANTHROPIC_API_KEY is required for Sprite Claude CLI",
     );
   }
 
-  const config = buildSandboxModelConfig(provider, modelId, apiKey);
+  const config = buildSpriteModelConfig(provider, modelId, apiKey);
 
-  // Write Claude CLI config
-  const configJson: Record<string, string> = { apiKey: config.apiKey };
-  await sandbox.runCommand({
-    cmd: "sh",
-    args: ["-c", `mkdir -p /root/.config/claude && echo '${JSON.stringify(configJson)}' > /root/.config/claude/config.json`],
-  });
-
-  // Set base URL if using OpenRouter
-  if (config.baseUrl) {
-    await sandbox.runCommand({
-      cmd: "sh",
-      args: ["-c", `echo 'export ANTHROPIC_BASE_URL="${config.baseUrl}"' >> /root/.bashrc`],
-    });
-  }
-
-  // Return extra CLI args (--model flag if non-default)
-  const extraArgs: string[] = [];
+  // Build CLI args
+  const args = [
+    "--dangerously-skip-permissions",
+    "-p", prompt,
+    "--max-turns", String(maxTurns),
+  ];
   if (config.modelFlag) {
-    extraArgs.push("--model", config.modelFlag);
+    args.push("--model", config.modelFlag);
   }
-  return extraArgs;
+
+  // Build env — pass ANTHROPIC_BASE_URL + ANTHROPIC_API_KEY via env option.
+  // Always include PATH so the CLI can find system binaries.
+  const env: Record<string, string> = {
+    ANTHROPIC_API_KEY: config.apiKey,
+    PATH: process.env.PATH!,
+  };
+  if (config.baseUrl) {
+    env.ANTHROPIC_BASE_URL = config.baseUrl;
+  }
+
+  // Use execFile() with arg array — never exec() with string interpolation
+  const result = await sprite.execFile("claude", args, { env });
+  return result.stdout;
 }
 ```
+
+> **Important:** Use `sprite.execFile()` (arg array), never `sprite.exec()` (shell string). The `exec()` method is deprecated and vulnerable to injection. The `env` option on `execFile()` sets environment variables for the subprocess without writing to bashrc or the filesystem.
 
 **Step 4: Thread extra args into buildClaudeCliArgs**
 
@@ -230,31 +236,30 @@ Update the CLI arg builder to accept and include model-specific args:
 ```typescript
 export function buildClaudeCliArgs(prompt: string, maxTurns: number, extraArgs: string[] = []): string[] {
   return [
-    "--print",
+    "--dangerously-skip-permissions",
     ...extraArgs,  // includes --model if OpenRouter
     "--allowedTools", ALLOWED_TOOLS.join(","),
-    "--dangerously-skip-permissions",
     "--max-turns", String(maxTurns),
     "-p", prompt,
   ];
 }
 ```
 
-**Step 5: Apply same change to run-claude-for-artifact.ts**
+**Step 5: Apply same execFile() + env pattern to run-claude-for-artifact.ts**
 
-Extract the shared `writeApiKeyConfig` + `buildSandboxModelConfig` into a shared module (e.g. `src/lib/sandbox/model-config.ts`) or just duplicate the pattern. Prefer extracting.
+Extract the shared `buildSpriteModelConfig` into a shared module (e.g. `src/lib/sandbox/model-config.ts`) or just duplicate the pattern. Prefer extracting. Both call sites must use `sprite.execFile()` with `env` option — no `sprite.exec()` string interpolation anywhere.
 
 Run all tests: `npx vitest run src/lib/sandbox/` — should pass.
 
 ---
 
-## Task 4: Verify no snapshot changes needed
+## Task 4: Verify no Sprite image changes needed
 
-Confirm: the model config is purely runtime (env vars + CLI args). The snapshot doesn't need to be rebuilt.
+Confirm: the model config is purely runtime (env vars + CLI args). The Sprite image doesn't need to be rebuilt.
 
-- [ ] `snap_excel` — no changes (Claude CLI is installed, which model it calls is determined at runtime)
-- [ ] `snap_artifact` — no changes (same reason)
-- [ ] The `ANTHROPIC_BASE_URL` env var is set inside the sandbox at runtime, not at snapshot build time
+- [ ] `sprite_excel` — no changes (Claude CLI is installed, which model it calls is determined at runtime)
+- [ ] `sprite_artifact` — no changes (same reason)
+- [ ] The `ANTHROPIC_BASE_URL` env var is passed via `execFile()` env option at runtime, not baked into the Sprite image
 
 This is a no-op task — just verify the mental model is correct.
 
@@ -277,8 +282,8 @@ OPENROUTER_API_KEY=sk-or-...
 2. Upload a property deals xlsx
 3. "Build me a comparison model"
 4. Verify:
-   - [ ] Sandbox boots and runs
-   - [ ] Claude CLI calls OpenRouter (check sandbox logs for base URL)
+   - [ ] Sprite boots and runs
+   - [ ] Claude CLI calls OpenRouter (check Sprite logs for base URL)
    - [ ] Output .xlsx has live formulas
    - [ ] recalc.py passes (zero errors)
    - [ ] Quality is acceptable (formulas make sense, numbers are right)
@@ -308,7 +313,7 @@ Run the same spreadsheet analysis task with each model and document:
 | Kimi K2 | OpenRouter | ? | ? | ? | ? | ? |
 | Gemini Flash | OpenRouter | ? | ? | ? | ? | ? |
 
-Save results to `docs/product/references/sandbox-model-cost-comparison.md`.
+Save results to `docs/product/references/sprite-model-cost-comparison.md`.
 
 Pick the default model based on this data.
 
@@ -320,11 +325,11 @@ Pick the default model based on this data.
 |---|---|---|
 | 1 | Research — verify OpenRouter Anthropic-format compatibility | — |
 | 2 | Add env vars | — |
-| 3 | Update API key config writer for OpenRouter | PR 52, Task 1 |
-| 4 | Verify no snapshot changes needed | 3 |
+| 3 | Switch to execFile() + env for OpenRouter model routing | PR 52, Task 1 |
+| 4 | Verify no Sprite image changes needed | 3 |
 | 5 | E2E test with cheap model | 2, 3 |
 | 6 | Cost comparison across models | 5 |
 
 Task 1 is the critical gate. If OpenRouter doesn't support Anthropic-format tool_use, we need a fallback (LiteLLM proxy or custom translation layer). But NanoClaw's success with this pattern suggests it should work.
 
-**Expected outcome:** Sandbox invocations drop from ~$0.05-0.50/run to ~$0.001-0.01/run. 10-50x cost reduction with acceptable quality for code-writing tasks.
+**Expected outcome:** Sprite invocations drop from ~$0.05-0.50/run to ~$0.001-0.01/run. 10-50x cost reduction with acceptable quality for code-writing tasks.

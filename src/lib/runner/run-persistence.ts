@@ -213,7 +213,10 @@ export async function finalizeRun({
 
   // Drain any queued messages that arrived while this run was active.
   await drainAndContinue(supabase, { clientId, threadId });
-  void maybeCompactThread(supabase, clientId, threadId).catch((compactionError) => {
+  void maybeCompactThread(supabase, clientId, threadId, {
+    promptTokens: baseRunCompletion.promptTokens,
+    modelId,
+  }).catch((compactionError) => {
     console.error(`[${logLabel}] post-run compaction failed:`, compactionError);
   });
 }

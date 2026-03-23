@@ -413,6 +413,7 @@ export type Database = {
           id: string
           status: string
           tool_count: number
+          tool_schemas: Json
           toolkit_slug: string
           updated_at: string
         }
@@ -426,6 +427,7 @@ export type Database = {
           id?: string
           status?: string
           tool_count?: number
+          tool_schemas?: Json
           toolkit_slug: string
           updated_at?: string
         }
@@ -439,6 +441,7 @@ export type Database = {
           id?: string
           status?: string
           tool_count?: number
+          tool_schemas?: Json
           toolkit_slug?: string
           updated_at?: string
         }
@@ -680,6 +683,7 @@ export type Database = {
           compaction_summary: string | null
           compaction_summary_model: string | null
           compaction_summary_tokens_used: number
+          context_reset_at: string | null
           created_at: string
           is_archived: boolean
           is_pinned: boolean
@@ -695,6 +699,7 @@ export type Database = {
           compaction_summary?: string | null
           compaction_summary_model?: string | null
           compaction_summary_tokens_used?: number
+          context_reset_at?: string | null
           created_at?: string
           is_archived?: boolean
           is_pinned?: boolean
@@ -710,6 +715,7 @@ export type Database = {
           compaction_summary?: string | null
           compaction_summary_model?: string | null
           compaction_summary_tokens_used?: number
+          context_reset_at?: string | null
           created_at?: string
           is_archived?: boolean
           is_pinned?: boolean
@@ -1301,6 +1307,7 @@ export type Database = {
           created_at: string
           model: string | null
           parent_run_id: string | null
+          prompt_tokens: number | null
           run_id: string
           run_type: string
           status: Database["public"]["Enums"]["run_status"]
@@ -1315,6 +1322,7 @@ export type Database = {
           created_at?: string
           model?: string | null
           parent_run_id?: string | null
+          prompt_tokens?: number | null
           run_id?: string
           run_type?: string
           status?: Database["public"]["Enums"]["run_status"]
@@ -1329,6 +1337,7 @@ export type Database = {
           created_at?: string
           model?: string | null
           parent_run_id?: string | null
+          prompt_tokens?: number | null
           run_id?: string
           run_type?: string
           status?: Database["public"]["Enums"]["run_status"]

@@ -140,6 +140,11 @@ export interface GeneratedCompactionSummary {
   model: string;
 }
 
+export interface CompactionTriggerSnapshot {
+  promptTokens?: number;
+  modelId?: string;
+}
+
 interface CompactionMessageRow {
   message_id: string;
   created_at: string;
@@ -340,21 +345,26 @@ export async function maybeCompactThread(
   supabase: ChatSupabaseClient,
   clientId: string,
   threadId: string,
-  modelId?: string,
+  triggerSnapshot?: CompactionTriggerSnapshot,
 ): Promise<boolean> {
-  // Query the latest run's prompt_tokens for fraction-based triggering.
-  // Cast needed: prompt_tokens column is added by migration but not yet in generated DB types.
-  const { data: lastRun } = await supabase
-    .from("runs")
-    .select("prompt_tokens, model")
-    .eq("thread_id", threadId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  let promptTokens = triggerSnapshot?.promptTokens ?? 0;
+  let runModelId = triggerSnapshot?.modelId ?? "";
 
-  const lastRunRow = lastRun as { prompt_tokens?: number | null; model?: string | null } | null;
-  const promptTokens = lastRunRow?.prompt_tokens ?? 0;
-  const runModelId = modelId ?? lastRunRow?.model ?? "";
+  if (triggerSnapshot?.promptTokens == null || triggerSnapshot?.modelId == null) {
+    // Query the latest run only when the caller did not provide an explicit snapshot.
+    // Cast needed: prompt_tokens column is added by migration but not yet in generated DB types.
+    const { data: lastRun } = await supabase
+      .from("runs")
+      .select("prompt_tokens, model")
+      .eq("thread_id", threadId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const lastRunRow = lastRun as { prompt_tokens?: number | null; model?: string | null } | null;
+    promptTokens = triggerSnapshot?.promptTokens ?? lastRunRow?.prompt_tokens ?? 0;
+    runModelId = triggerSnapshot?.modelId ?? lastRunRow?.model ?? "";
+  }
 
   const compactionState = await fetchThreadCompactionState(supabase, threadId);
 

@@ -62,6 +62,7 @@
       "2026-03-19: Split PR 50 into three PRs after code review. PR 50 = public browsing only (chat-only, no auth). PR 50b = authenticated browsing (profiles + embedded browser auth). PR 50c = Skills API (renamed from 50a, depends on 50b). Key review fixes: (1) scrubbed leaked API key from docs, (2) explicit Browser-Use profile creation via API instead of invented IDs, (3) chat-only registry scope (excluded from autopilot/subagents), (4) strict error semantics in profile queries (throw on DB errors, null for absence only), (5) structured output for verify route instead of prose parsing, (6) auth card rendered from tool output (no new message part protocol), (7) manual retry after login (no auto-resume), (8) clarify only when ambiguous (not mandatory preflight).",
       "2026-03-19: Added PR 51 (Instruction skills) and PR 51a (Frontend skills page) to Phase 4. Out-of-plan work \u2014 SKILL-01 through SKILL-08 architecture decisions exist but are all DEFERRED to post-v1. This is a simplified KISS implementation: no skill_registry table (filesystem discovery via Supabase Storage listing + frontmatter parsing), no Skill-Building Interviews (chat-based creation), no shadowing (overwrite + reset). 7 bundled RE-specific default skills seeded on onboarding (adapted from anthropics/knowledge-work-plugins/sales). Progressive disclosure: names+descriptions in system prompt (~200 tokens), full SKILL.md loaded via existing read_file on demand. Frontend: skills list, editor, reset to default. Deprecates old SKILL-01 to SKILL-08 architecture decisions as over-engineered for current scale. Design doc: docs/product/designs/instruction-skills.md. Also documented sandbox skill execution (separate scope, another dev): docs/product/designs/sandbox-skill-execution.md.",
       "2026-03-20: Added Phase 6 (Sandbox) with PR 52 (Sandbox Excel Analysis) and PR 53 (Sandbox Artifact Publishing). Restores cut PRs 27+28 (Vercel Sandbox) in simplified form. Two dedicated tools with two snapshots: analyze_spreadsheet (snap_excel: Python + LibreOffice + Anthropic xlsx skill + Claude CLI) and publish_artifact (snap_artifact: Node + Vite + React template + Claude CLI). Vercel Sandbox snapshots confirmed (Firecracker microVM, millisecond boot). User steers via SKILL.md in Supabase Storage (same pattern as instruction skills from PR 51). PR 52 depends on PR 51 infra (discoverUserSkills, getSkillContent, storage paths). PR 53 depends on PR 52 shared sandbox infra. Design doc: docs/product/designs/sandbox-skill-execution.md. Reference repos: vercel-labs/coding-agent-template, anthropics/financial-services-plugins, firecrawl/open-lovable, diggerhq/openlovable.",
+      "2026-03-23: ARCHITECTURE REVISION — Sandbox provider changed from Vercel Sandbox (ephemeral) to Sprites/Fly.io (persistent VMs with auto-sleep). Key changes: (1) Provider: @fly/sprites@0.0.1-rc37 replaces @vercel/sandbox. Node 24+ required. (2) Lifecycle: one Sprite per thread, auto-sleeps when idle, wakes <1s. No more create-run-destroy per invocation. (3) Multi-turn iteration built-in — same Sprite, files persist, user can refine. (4) Claude Code pre-installed on default Sprites — no custom snapshots/templates needed. Additional deps (pandas, LibreOffice) installed on first use and persist across hibernation. (5) Preview URLs via Sprites Services (survive hibernation). Private by default, must set auth to public. (6) execFile() with arg arrays, not exec() string (SDK splits on whitespace). (7) API keys passed per-command via env option, not persisted in Sprite. (8) Added PR 52a (sandbox workflow skills) — outer skills guide runner data gathering, inner skills guide Claude Code coding style. (9) SDK verification completed: docs/product/references/sprites-sdk-verification.md. Design doc fully rewritten: docs/product/designs/sandbox-skill-execution.md. Reference: diggerhq/opencomputer (Building Open Lovable Part 1), Harrison Chase two-pattern taxonomy.",
       "2026-03-20: Added PR 54 (Sandbox cheap model routing via OpenRouter) to Phase 6. Claude Code CLI inside sandbox costs ~$0.05-0.50/run with Sonnet. OpenRouter provides Anthropic-compatible API endpoint for cheap models (MiniMax ~$0.002/run, Kimi 2.5 ~$0.003/run, Gemini Flash ~$0.001/run). Claude CLI reads ANTHROPIC_BASE_URL \u2014 just point it at OpenRouter. NanoClaw credential proxy pattern validates this approach (roadmap docs/.../nanoclaw-dorabot/nanoclaw-overview.md). Config-only change: env vars swapped at sandbox runtime, no code changes to CLI or tools.",
       "2026-03-20: Added PRs 43-44 (WhatsApp integration) to Phase 5. Mirrors Telegram PRs 41-42 pattern. Originally planned custom baileys relay \u2014 switched to forking lharries/whatsapp-mcp Go bridge (whatsmeow). Already has socket, QR auth, SQLite store, history sync, REST API. Only ~15 lines of Go to add (webhook forwarder). Deploy to Fly (~$2/mo). format.ts + send.ts copied from dorabot. Text-based approvals. QR code pairing. PR 43: 6 tasks. PR 44: 3 tasks. Drift analysis: roadmap docs/Sunder - Source of Truth/references/nanoclaw-dorabot/dorabot-whatsapp-drift-analysis.md",
       "2026-03-20: Added PR 45 (WhatsApp inbox as CRM data source) to Phase 5. Agent tools: search_whatsapp_messages, list_whatsapp_chats, get_whatsapp_contact_history. Relay already stores all messages in SQLite (whatsapp-mcp built-in). Sync to Supabase tables (whatsapp_chats + whatsapp_messages with RLS + FTS). Voice note transcription via Gemini multimodal. Pattern from whatsapp-mcp (github.com/lharries/whatsapp-mcp) query model. 6 tasks.",
@@ -3658,51 +3659,61 @@
           "dependsOn": [
             "51"
           ],
-          "note": "Vercel Sandbox + Claude Code CLI inside. snap_excel snapshot: Python 3.13 + pandas + openpyxl + LibreOffice + gcc + Anthropic xlsx skill. User's re-analyst SKILL.md loaded at runtime. Output: .xlsx with live formulas. Restores cut PRs 27+28 in simplified form.",
+          "note": "Sprites (Fly.io) + Claude Code CLI inside. One default Sprite per thread, auto-sleeps when idle, wakes <1s. Python/Node/Claude Code pre-installed. pandas + openpyxl + LibreOffice installed on first use (persists across hibernation). User's re-analyst SKILL.md loaded at runtime from Supabase Storage. Output: .xlsx with live formulas. Multi-turn iteration supported. SDK: @fly/sprites@0.0.1-rc37. Node 24+ required.",
           "tasks": [
             {
               "id": "PR52-1",
-              "task": "Install @vercel/sandbox + define types (SandboxConfig, SandboxResult)",
+              "task": "Install @fly/sprites@0.0.1-rc37 + define types (SpriteSession, SpriteResult)",
               "done": false
             },
             {
               "id": "PR52-2",
-              "task": "createSandbox() wrapper \u2014 Sandbox.create() from snapshot with env validation",
+              "task": "Create sprite_sessions migration (thread-scoped, RLS with get_my_client_id())",
               "done": false
             },
             {
               "id": "PR52-3",
-              "task": "loadSkillFilesForSandbox() \u2014 download user skill files from Supabase Storage",
+              "task": "getOrCreateSprite() wrapper \u2014 createSprite/wake lifecycle with DB tracking",
               "done": false
             },
             {
               "id": "PR52-4",
-              "task": "runClaudeForExcel() \u2014 write API key config, inject user skills, run Claude CLI, read output",
+              "task": "sprite-session.ts \u2014 DB tracking layer (upsert/find active sessions)",
               "done": false
             },
             {
               "id": "PR52-5",
-              "task": "analyze_spreadsheet tool \u2014 full orchestration (create sandbox \u2192 load \u2192 run \u2192 upload output \u2192 destroy)",
+              "task": "loadSkillFilesForSandbox() \u2014 download user skill files from Supabase Storage",
               "done": false
             },
             {
               "id": "PR52-6",
-              "task": "Register tool in createRunnerTools() + add system prompt guidance",
+              "task": "runClaudeInSprite() \u2014 execFile() with per-command env, inject skills, read output",
               "done": false
             },
             {
               "id": "PR52-7",
-              "task": "Add sandbox env vars to .env.example",
+              "task": "analyze_spreadsheet tool \u2014 orchestration (getOrCreateSprite \u2192 load \u2192 run \u2192 upload output)",
               "done": false
             },
             {
               "id": "PR52-8",
-              "task": "Build snap_excel snapshot (Python, LibreOffice, gcc, Claude CLI, xlsx skill files from disk)",
+              "task": "Register tool in createRunnerTools() (inputSchema, env-gated) + system prompt guidance",
               "done": false
             },
             {
               "id": "PR52-9",
-              "task": "E2E manual test \u2014 upload xlsx, get back model with live formulas",
+              "task": "Add SPRITES_TOKEN + ANTHROPIC_API_KEY env vars, vendor xlsx skill assets",
+              "done": false
+            },
+            {
+              "id": "PR52-10",
+              "task": "Extend chat upload to accept xlsx/csv (upload route + composer allowlist)",
+              "done": false
+            },
+            {
+              "id": "PR52-11",
+              "task": "E2E manual test \u2014 upload xlsx, get back model with live formulas, iterate",
               "done": false
             }
           ],
@@ -3711,7 +3722,8 @@
             "Color coding: blue inputs, black formulas, yellow assumptions",
             "recalc.py verifies zero formula errors before output",
             "Works with and without user re-analyst SKILL.md",
-            "Sandbox destroyed after each invocation"
+            "Multi-turn: follow-up iteration uses same Sprite, files persist",
+            "Sprite auto-sleeps after invocation, wakes on follow-up"
           ]
         },
         {
@@ -3727,7 +3739,7 @@
           "dependsOn": [
             "52"
           ],
-          "note": "Reuses sandbox infra from PR 52. snap_artifact snapshot: Node 22 + Vite + React + Tailwind + pre-scaffolded property page template + Claude CLI. Runner chains CRM/search/browser tools first, then hands data to sandbox. Claude Code tweaks template (20-40s, not from scratch). Output published to Supabase Storage signed URL or here.now. See Built-In Services \u00a713 for full product spec.",
+          "note": "Reuses Sprites infra from PR 52. Default Sprite with Node pre-installed. Pre-scaffolded Vite + React + Tailwind template written on first use (persists). Runner chains CRM/search/browser tools first to gather data, then hands to Sprite. Claude Code tweaks template (20-40s). Live preview via Sprites Services on port 8080 (survives hibernation). Static HTML published on 'ship it'. Multi-turn iteration on same Sprite.",
           "tasks": [
             {
               "id": "PR53-1",
@@ -3736,41 +3748,42 @@
             },
             {
               "id": "PR53-2",
-              "task": "Build snap_artifact snapshot (Node 22 + template + node_modules + Claude CLI)",
+              "task": "Sprite setup script \u2014 write template + npm install (persists across hibernation)",
               "done": false
             },
             {
               "id": "PR53-3",
-              "task": "runClaudeForArtifact() \u2014 inject data + photos, run Claude CLI, read output HTML",
+              "task": "runClaudeForArtifact() \u2014 inject data + photos via sprite.filesystem(), run Claude CLI via execFile()",
               "done": false
             },
             {
               "id": "PR53-4",
-              "task": "publish_artifact tool \u2014 full orchestration (create sandbox \u2192 load \u2192 run \u2192 publish \u2192 destroy)",
+              "task": "publish_artifact tool \u2014 orchestration with isFollowUp/shipIt modes",
               "done": false
             },
             {
               "id": "PR53-5",
-              "task": "Publishing layer \u2014 upload HTML to Supabase Storage signed URL or here.now",
+              "task": "Dev server via createService() + updateURLSettings({ auth: 'public' })",
               "done": false
             },
             {
               "id": "PR53-6",
-              "task": "Register tool in createRunnerTools() + add system prompt guidance",
+              "task": "Register tool in createRunnerTools() (inputSchema, env-gated) + system prompt guidance",
               "done": false
             },
             {
               "id": "PR53-7",
-              "task": "E2E manual test \u2014 ask for showcase page, get shareable URL with live page",
+              "task": "E2E manual test \u2014 ask for showcase page, get live preview URL, iterate, ship it",
               "done": false
             }
           ],
           "testCriteria": [
             "Agent chains CRM/search tools before calling sandbox (data gathering phase)",
-            "Shareable URL returned in chat with live property showcase page",
-            "User can iterate ('change the hero image') \u2014 new sandbox, updated page",
+            "Live preview URL returned in chat from Sprite Services",
+            "User can iterate ('change the hero image') \u2014 same Sprite, same URL, updated page",
             "Template customized per user's frontend-design SKILL.md brand preferences",
-            "Sandbox destroyed after each invocation"
+            "'Ship it' builds static HTML and publishes to permanent URL",
+            "Sprite auto-sleeps after invocation, preview URL wakes on request"
           ]
         },
         {
@@ -3803,7 +3816,7 @@
             },
             {
               "id": "PR54-4",
-              "task": "Update snapshot build scripts \u2014 no changes needed (model config is runtime, not snapshot)",
+              "task": "Verify no Sprite changes needed \u2014 model config is per-command env, not Sprite config",
               "done": false
             },
             {
@@ -3902,7 +3915,7 @@
       {
         "pr": 27,
         "title": "Vercel Sandbox integration \u2014 setup",
-        "reason": "Originally cut. Restored as PR 52 (Sandbox Excel Analysis) in Phase 6 with simplified scope: snapshot-based Vercel Sandbox + Claude Code CLI, not custom sandbox infra.",
+        "reason": "Originally cut. Restored as PR 52 (Sandbox Excel Analysis) in Phase 6 with simplified scope. NOTE: 2026-03-23 architecture revision superseded Vercel Sandbox with Sprites/Fly.io persistent VMs. See changelog entry for details.",
         "decisions": [
           "EXEC-04",
           "EXEC-05",
@@ -3913,7 +3926,7 @@
       {
         "pr": 28,
         "title": "Vercel Sandbox integration \u2014 artifacts",
-        "reason": "Originally cut. Restored as PR 53 (Sandbox Artifact Publishing) in Phase 6 with simplified scope: pre-scaffolded React template in snapshot, not full Tasklet instant-app pattern.",
+        "reason": "Originally cut. Restored as PR 53 (Sandbox Artifact Publishing) in Phase 6 with simplified scope. NOTE: 2026-03-23 architecture revision superseded Vercel Sandbox with Sprites/Fly.io persistent VMs. Pre-scaffolded React template, not full Tasklet instant-app pattern.",
         "decisions": [
           "EXEC-07",
           "EXEC-08",

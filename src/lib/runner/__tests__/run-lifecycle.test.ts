@@ -177,6 +177,29 @@ describe("completeRun", () => {
     );
   });
 
+  it("persists prompt_tokens when provided", async () => {
+    const client = createMockSupabaseClient({
+      updateResult: { data: [], error: null },
+    });
+
+    await completeRun(client as never, {
+      runId: "run-1",
+      status: "completed",
+      model: "google/gemini-3-flash",
+      tokensIn: 100,
+      tokensOut: 50,
+      promptTokens: 80,
+    });
+
+    const updateCall = client.calls.methods.find((call) => call.method === "update");
+    expect(updateCall).toBeDefined();
+    expect(updateCall?.args[0]).toEqual(
+      expect.objectContaining({
+        prompt_tokens: 80,
+      }),
+    );
+  });
+
   it("omits step_count when not provided", async () => {
     const client = createMockSupabaseClient({
       updateResult: { data: [], error: null },
@@ -271,6 +294,100 @@ describe("completeRun", () => {
       }),
     );
     expect(update.mock.calls[1]?.[0]).not.toHaveProperty("step_count");
+  });
+
+  it("retries without prompt_tokens when column is unavailable", async () => {
+    const update = vi.fn();
+    const eq = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: null,
+        error: {
+          message: 'column "prompt_tokens" of relation "runs" does not exist',
+          code: "42703",
+        },
+      })
+      .mockResolvedValueOnce({ data: [], error: null });
+
+    update.mockReturnValue({ eq });
+
+    const client = {
+      from: vi.fn(() => ({
+        update,
+      })),
+    };
+
+    await completeRun(client as never, {
+      runId: "run-1",
+      status: "completed",
+      model: "google/gemini-3-flash",
+      tokensIn: 100,
+      tokensOut: 50,
+      promptTokens: 80,
+    });
+
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(update.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        prompt_tokens: 80,
+      }),
+    );
+    expect(update.mock.calls[1]?.[0]).not.toHaveProperty("prompt_tokens");
+  });
+
+  it("retries without both optional columns when both are unavailable", async () => {
+    const update = vi.fn();
+    const eq = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: null,
+        error: {
+          message: 'column "step_count" of relation "runs" does not exist',
+          code: "42703",
+        },
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: {
+          message: 'column "prompt_tokens" of relation "runs" does not exist',
+          code: "42703",
+        },
+      })
+      .mockResolvedValueOnce({ data: [], error: null });
+
+    update.mockReturnValue({ eq });
+
+    const client = {
+      from: vi.fn(() => ({
+        update,
+      })),
+    };
+
+    await completeRun(client as never, {
+      runId: "run-1",
+      status: "completed",
+      model: "google/gemini-3-flash",
+      tokensIn: 100,
+      tokensOut: 50,
+      stepCount: 2,
+      promptTokens: 80,
+    });
+
+    expect(update).toHaveBeenCalledTimes(3);
+    expect(update.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        step_count: 2,
+        prompt_tokens: 80,
+      }),
+    );
+    expect(update.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        prompt_tokens: 80,
+      }),
+    );
+    expect(update.mock.calls[1]?.[0]).not.toHaveProperty("step_count");
+    expect(update.mock.calls[2]?.[0]).not.toHaveProperty("step_count");
+    expect(update.mock.calls[2]?.[0]).not.toHaveProperty("prompt_tokens");
   });
 
   it("does not retry when step_count failure is unrelated to missing column", async () => {

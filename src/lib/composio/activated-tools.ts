@@ -3,9 +3,12 @@
  * Falls back to Composio API for pre-migration connections with empty tool_schemas.
  * @module lib/composio/activated-tools
  */
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { jsonSchema, tool, type ToolSet } from "ai";
 
+import { updateConnection } from "@/lib/connections/queries";
 import type { ConnectionRow } from "@/lib/connections/schemas";
+import type { Database } from "@/types/database";
 
 import { getComposio } from "./client";
 
@@ -14,6 +17,13 @@ const EMPTY_TOOL_INPUT_SCHEMA = {
   properties: {},
 };
 
+type ChatSupabaseClient = SupabaseClient<Database>;
+
+interface LoadActivatedConnectionToolsOptions {
+  supabase?: ChatSupabaseClient;
+  clientId?: string;
+}
+
 /**
  * Loads only the activated tools for each active connection using cached schemas
  * from the DB row. Falls back to Composio API when schemas are missing (pre-migration rows).
@@ -21,6 +31,7 @@ const EMPTY_TOOL_INPUT_SCHEMA = {
  */
 export async function loadActivatedConnectionTools(
   connections: ConnectionRow[],
+  options?: LoadActivatedConnectionToolsOptions,
 ): Promise<ToolSet> {
   const activeConnections = connections.filter(
     (connection) => connection.status === "active" && connection.activated_tools.length > 0,
@@ -52,6 +63,20 @@ export async function loadActivatedConnectionTools(
             description: rawTool.description ?? null,
             inputParameters: rawTool.inputParameters ?? null,
           };
+        }
+
+        if (options?.supabase && options.clientId) {
+          try {
+            await updateConnection(options.supabase, options.clientId, {
+              id: connection.id,
+              tool_schemas: schemas,
+            });
+          } catch (error) {
+            console.warn(
+              `[composio] Failed to persist cached schemas for connection ${connection.id}:`,
+              error,
+            );
+          }
         }
       }
 

@@ -1077,4 +1077,56 @@ describe("session reset for stale threads", () => {
     // No update should have been made — thread is fresh
     expect(updateCalls).toHaveLength(0);
   });
+
+  it("sets context_reset_at to the last persisted thread activity when the thread is stale", async () => {
+    const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+      updateResult: { data: [], error: null },
+    });
+
+    const originalFrom = supabase.from.bind(supabase);
+    const updateCalls: unknown[] = [];
+    supabase.from = ((table: string) => {
+      const query = originalFrom(table);
+      if (table === "conversation_threads") {
+        query.maybeSingle = async () => ({
+          data: { updated_at: fiveHoursAgo, context_reset_at: null },
+          error: null,
+        });
+        const originalUpdate = query.update.bind(query);
+        query.update = (...args: unknown[]) => {
+          updateCalls.push(args);
+          return originalUpdate(...args);
+        };
+      }
+      return query;
+    }) as typeof supabase.from;
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "hello",
+      clientId: "client-123",
+    });
+
+    expect(updateCalls).toEqual([
+      [{ context_reset_at: fiveHoursAgo }],
+    ]);
+    expect(supabase.calls.methods).toEqual(
+      expect.arrayContaining([
+        { method: "gt", args: ["created_at", fiveHoursAgo] },
+      ]),
+    );
+    expect(result.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: "user",
+          content: expect.arrayContaining([
+            expect.objectContaining({ type: "text", text: "hello" }),
+          ]),
+        }),
+      ]),
+    );
+  });
 });

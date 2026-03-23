@@ -196,30 +196,17 @@ export async function runAgent(
     }
     const runId = lockResult.runId;
 
-    if (payload.triggerType !== "cron" && payload.triggerType !== "pulse") {
-      const userMessageParts = [
-        ...(payload.fileParts ?? []),
-        ...(input.length > 0 ? [{ type: "text", text: input }] : []),
-      ];
-
-      await createMessages(supabase, [
-        {
-          thread_id: threadId,
-          role: "user",
-          content: input.length > 0 ? input : null,
-          parts: userMessageParts as Json,
-        },
-      ]);
-      shouldReleaseConsumedQuota = false;
-      _t("create_messages");
-    }
+    const userMessageParts = [
+      ...(payload.fileParts ?? []),
+      ...(input.length > 0 ? [{ type: "text" as const, text: input }] : []),
+    ];
 
     // Phase A: Load CRM config and Composio connections in parallel.
     // These are independent — neither needs the other's result.
     const composioPromise = getActiveConnections(supabase, clientId)
       .then((connections) => {
         _t("get_connections");
-        return loadActivatedConnectionTools(connections);
+        return loadActivatedConnectionTools(connections, { supabase, clientId });
       })
       .then((tools) => {
         _t("load_composio_tools");
@@ -244,7 +231,8 @@ export async function runAgent(
     const { system, messages } = await assembleContext({
       supabase,
       threadId,
-      currentMessage: "",
+      currentMessage: input,
+      currentMessageParts: userMessageParts.length > 0 ? userMessageParts : undefined,
       clientId,
       instructions: payload.instructions,
       crmConfig,
@@ -257,6 +245,19 @@ export async function runAgent(
       crmConfigModeActive: payload.includeConfigTool,
     });
     _t("assemble_context");
+
+    if (payload.triggerType !== "cron" && payload.triggerType !== "pulse") {
+      await createMessages(supabase, [
+        {
+          thread_id: threadId,
+          role: "user",
+          content: input.length > 0 ? input : null,
+          parts: userMessageParts as Json,
+        },
+      ]);
+      shouldReleaseConsumedQuota = false;
+      _t("create_messages");
+    }
 
     const runnerTools = createRunnerTools(supabase, clientId, threadId, {
       allowTriggerMutations: payload.triggerType === "chat",

@@ -112,6 +112,7 @@ export function createSubagentTool(
             tokensIn: result.totalUsage.inputTokens ?? 0,
             tokensOut: result.totalUsage.outputTokens ?? 0,
             stepCount: result.steps.length,
+            promptTokens: result.totalUsage.inputTokens ?? 0,
           });
 
           return result.text;

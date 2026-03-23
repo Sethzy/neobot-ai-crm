@@ -523,6 +523,44 @@ describe("maybeCompactThread", () => {
     expect(mockGenerateText).not.toHaveBeenCalled();
   });
 
+  it("uses the caller-provided trigger snapshot instead of querying the latest run", async () => {
+    mockGenerateText.mockResolvedValue({
+      text: "Compacted summary",
+      usage: { totalTokens: 123 },
+    });
+    const messageRows = createMessageRows(81);
+    const supabase = createCompactionSupabaseMock({
+      threadRow: {
+        thread_id: createUuid(90),
+        client_id: createUuid(91),
+        compaction_summary: null,
+        compaction_compacted_through_at: null,
+        compaction_compacted_through_message_id: null,
+        compaction_summary_model: null,
+        compaction_summary_tokens_used: null,
+      },
+      messageRows,
+      lastRunRow: {
+        prompt_tokens: 10,
+        model: "google/gemini-3-flash",
+      },
+    });
+
+    const result = await maybeCompactThread(
+      supabase.client as never,
+      createUuid(91),
+      createUuid(90),
+      {
+        promptTokens: 860_000,
+        modelId: "google/gemini-3-flash",
+      },
+    );
+
+    expect(result).toBe(true);
+    expect(supabase.calls.from).not.toContain("runs");
+    expect(mockGenerateText).toHaveBeenCalledOnce();
+  });
+
   it("summarizes only the older uncompacted messages and persists the new boundary", async () => {
     mockGenerateText.mockResolvedValue({
       text: "Compacted summary",

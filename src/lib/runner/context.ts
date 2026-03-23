@@ -40,6 +40,7 @@ interface AssembleContextParams {
   supabase: ChatSupabaseClient;
   threadId: string;
   currentMessage: string;
+  currentMessageParts?: UIMessage["parts"];
   clientId?: string;
   instructions?: string;
   crmConfig?: CrmVocabConfig;
@@ -207,6 +208,34 @@ function buildUiMessageParts(row: HistoryRow): UIMessage["parts"] | null {
   return [{ type: "text", text: fallbackText }];
 }
 
+function buildCurrentMessageParts(
+  currentMessage: string,
+  currentMessageParts?: UIMessage["parts"],
+): UIMessage["parts"] | null {
+  const trimmedCurrentMessage = currentMessage.trim();
+
+  if (currentMessageParts && currentMessageParts.length > 0) {
+    const hasMatchingTextPart = currentMessageParts.some((part) =>
+      part.type === "text" && part.text === trimmedCurrentMessage
+    );
+
+    if (trimmedCurrentMessage.length > 0 && !hasMatchingTextPart) {
+      return [
+        ...currentMessageParts,
+        { type: "text", text: trimmedCurrentMessage },
+      ];
+    }
+
+    return currentMessageParts;
+  }
+
+  if (trimmedCurrentMessage.length === 0) {
+    return null;
+  }
+
+  return [{ type: "text", text: trimmedCurrentMessage }];
+}
+
 async function loadSystemPromptState({
   supabase,
   threadId,
@@ -303,6 +332,7 @@ export async function assembleContext({
   supabase,
   threadId,
   currentMessage,
+  currentMessageParts,
   clientId,
   instructions,
   crmConfig,
@@ -339,8 +369,9 @@ export async function assembleContext({
       const gap = Date.now() - new Date(thread.updated_at).getTime();
       if (gap > IDLE_TIMEOUT_MS) {
         // Thread is stale — set (or advance) context_reset_at so old messages are skipped.
-        // Re-triggers on every idle gap, not just the first one.
-        contextResetAt = new Date().toISOString();
+        // Anchor the reset boundary to the thread's last persisted activity so the
+        // next inbound message still lands after the cutoff even if app/db clocks differ.
+        contextResetAt = thread.updated_at;
         // Cast needed: context_reset_at added by migration but not yet in generated DB types.
         await supabase
           .from("conversation_threads")
@@ -392,11 +423,11 @@ export async function assembleContext({
     })
     .filter((message): message is Omit<UIMessage, "id"> => message !== null);
 
-  const trimmedCurrentMessage = currentMessage.trim();
-  const currentMessageTurn = trimmedCurrentMessage.length > 0
+  const liveMessageParts = buildCurrentMessageParts(currentMessage, currentMessageParts);
+  const currentMessageTurn = liveMessageParts
     ? [{
       role: "user" as const,
-      parts: [{ type: "text" as const, text: trimmedCurrentMessage }],
+      parts: liveMessageParts,
     }]
     : [];
   const modelMessages = await convertToModelMessages([
