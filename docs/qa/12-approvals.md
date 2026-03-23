@@ -1,6 +1,6 @@
 # QA Surface 12: Approvals
 
-> **PRs covered:** 33 (gate implementation), 34 (events + UI)
+> **PRs covered:** 33 (gate implementation), 34 (events + UI), untracked (harness fix: approval persistence order + orphan expiry)
 > **Dogfoodable:** Yes
 > **Time estimate:** 20-25 min manual
 > **v2 tools:** `create_record`, `delete_records`, `search_crm`, `update_record`, `manage_activated_tools_for_connections`, `delete_connection`
@@ -117,6 +117,33 @@
 
 ---
 
+### 12.8 Approval persistence order (harness fix)
+
+> **Commits:** `faec836` — approval events before message, `2534f8d` — expire orphans on partial runs
+
+1. Trigger a destructive action: "Delete the contact QA Test Delete"
+2. **Expected:** Approval card appears in chat
+3. **Verify in Supabase:** `approval_events` row exists BEFORE the assistant message row (check `created_at` timestamps)
+4. **Expected:** `approval_events.status = 'pending'`
+5. Click "Approve"
+6. **Expected:** Action executes, approval status updates to `approved`
+
+**Notes / failures:**
+
+---
+
+### 12.9 Partial run orphan expiry (harness fix)
+
+> **Commit:** `2534f8d`
+
+1. This is a failure-mode scenario — cannot easily trigger via UI
+2. **Verify in Supabase:** If any `agent_runs` rows have `status = 'partial'`, check that corresponding `approval_events` rows have `status = 'expired'` (not stuck as `pending`)
+3. **Expected:** Orphaned approval events from partial runs do not show as pending in the system reminder
+
+**Notes / failures:**
+
+---
+
 ## Edge Cases
 
 - [ ] Approve after long delay (minutes) — still works, not expired
@@ -130,4 +157,4 @@
 ## Pass / Fail Criteria
 
 - **Pass:** `delete_records` and `manage_activated_tools_for_connections` and `delete_connection` show approval gates. Approved actions execute; denied actions don't. `approval_events` table tracks all decisions. Non-destructive tools (`create_record`, `update_record`, `search_crm`) bypass the gate. Subagents can't access delete tools.
-- **Fail:** `delete_records` auto-executes without approval. Denied actions still execute. No `approval_events` rows. Gate triggers on non-destructive actions (false positives).
+- **Fail:** `delete_records` auto-executes without approval. Denied actions still execute. No `approval_events` rows. Gate triggers on non-destructive actions (false positives). Approval events created AFTER message (orphan risk). Partial-run approval events stuck as pending.

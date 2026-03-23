@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-03-23T07:35:00Z",
+  "lastUpdated": "2026-03-23T09:00:00Z",
   "surfaces": [
     { "id": "01", "name": "Auth & Landing", "status": "pending", "lastRun": null, "report": null },
     { "id": "02", "name": "Chat Core", "status": "warn", "lastRun": "2026-03-13T00:00:00Z", "report": "docs/qa/reports/qa-report-02-17-20260313-32ab.md" },

@@ -1,6 +1,6 @@
 # QA Surface 11: Subagents
 
-> **PRs covered:** 29 (subagent spawning + results), untracked (composio tool inheritance)
+> **PRs covered:** 29 (subagent spawning + results), untracked (composio tool inheritance), untracked (harness fix: todo isolation)
 > **Dogfoodable:** No (invisible to browser — results appear in chat)
 > **Time estimate:** 20-25 min manual
 
@@ -145,6 +145,23 @@ Not applicable — subagents are invisible backend operations. Results appear as
 
 ---
 
+### 11.11 Subagent todo isolation (harness fix)
+
+> **Commit:** `6ddf001` — exclude todo tools from subagents (Deep Agents `_EXCLUDED_STATE_KEYS` alignment)
+
+1. In main thread: "Add a todo: review Q2 pipeline"
+2. **Expected:** Agent calls `manage_todo` (add) — todo appears in main thread
+3. "Run a subagent to research property market trends in District 15"
+4. **Expected:** Subagent spawns and runs research
+5. **Expected:** Subagent does NOT have `manage_todo` or `list_todo` tools
+6. After subagent returns: "List my todos"
+7. **Expected:** Only "review Q2 pipeline" appears — subagent did not create or modify any todos
+8. **Verify in Supabase:** `agent_todo` table has no rows created by the subagent run
+
+**Notes / failures:**
+
+---
+
 ## Edge Cases
 
 - [ ] Subagent fails (e.g., web search unavailable) — main thread gets error summary, not crash
@@ -158,5 +175,5 @@ Not applicable — subagents are invisible backend operations. Results appear as
 
 ## Pass / Fail Criteria
 
-- **Pass:** Subagents spawn for heavy research/analysis tasks. Results are summarized back to main thread. Context isolation works (main thread not bloated). Instruction files are respected. Connection tools (Gmail, Calendar) are available to subagents. Connection management tools are blocked. External-facing actions stay on parent.
+- **Pass:** Subagents spawn for heavy research/analysis tasks. Results are summarized back to main thread. Context isolation works (main thread not bloated). Instruction files are respected. Connection tools (Gmail, Calendar) are available to subagents. Connection management tools are blocked. External-facing actions stay on parent. Subagents do NOT have todo tools (manage_todo, list_todo).
 - **Fail:** Subagents never spawn, results raw-dumped into context, main thread context explodes, subagent errors crash the main run, subagent cannot use activated connection tools, subagent can create/activate connections.

@@ -592,6 +592,20 @@ export const scenarios: QaScenario[] = [
     tokenBudget: 80_000,
   },
 
+  // ── 11: Subagents – todo isolation (harness fix) ────────────────────────
+  {
+    surface: "11-subagents",
+    scenario: "todo-isolation",
+    prompt:
+      "Add a todo 'review Q2 pipeline', then run a subagent to research property trends in District 15",
+    expectedTools: ["manage_todo", "run_subagent"],
+    sequential: false,
+    notes:
+      "After subagent returns, verify no subagent-created todos exist. Subagent should NOT have manage_todo or list_todo tools. The parent's todo should be the only one.",
+    latencyBudgetMs: 120_000,
+    tokenBudget: 80_000,
+  },
+
   // ── 12: Approvals ──────────────────────────────────────────────────────
   {
     surface: "12-approvals",
