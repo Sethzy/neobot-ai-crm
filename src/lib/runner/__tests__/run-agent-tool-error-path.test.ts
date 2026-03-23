@@ -24,7 +24,6 @@ const {
   mockCreateSubagentTool,
   mockCreateMessages,
   mockMaybeCompactThread,
-  mockTruncateOversizedParts,
   mockGetActiveConnections,
   mockIsPropertySupabaseConfigured,
   mockLoadActivatedConnectionTools,
@@ -48,7 +47,6 @@ const {
   mockCreateSubagentTool: vi.fn(),
   mockCreateMessages: vi.fn(),
   mockMaybeCompactThread: vi.fn(),
-  mockTruncateOversizedParts: vi.fn(),
   mockGetActiveConnections: vi.fn(),
   mockIsPropertySupabaseConfigured: vi.fn(),
   mockLoadActivatedConnectionTools: vi.fn(),
@@ -99,9 +97,8 @@ vi.mock("@/lib/runner/compaction", () => ({
   maybeCompactThread: (...args: unknown[]) => mockMaybeCompactThread(...args),
 }));
 
-vi.mock("@/lib/runner/toolcall-artifacts", () => ({
+vi.mock("@/lib/storage/tool-blocks", () => ({
   saveToolcallBlock: vi.fn().mockResolvedValue(undefined),
-  truncateOversizedParts: (...args: unknown[]) => mockTruncateOversizedParts(...args),
 }));
 
 vi.mock("@/lib/runner/tools", () => ({
@@ -158,10 +155,6 @@ describe("runAgent tool-error completion path", () => {
     mockCreateTriggerTools.mockReturnValue({});
     mockCreateSubagentTool.mockReturnValue({});
     mockMaybeCompactThread.mockResolvedValue(false);
-    mockTruncateOversizedParts.mockImplementation(async (_supabase, _clientId, parts) => ({
-      parts,
-      recoveryPaths: [],
-    }));
     mockGetActiveConnections.mockResolvedValue([]);
     mockLoadActivatedConnectionTools.mockResolvedValue({});
     mockIsPropertySupabaseConfigured.mockReturnValue(true);

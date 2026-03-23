@@ -20,7 +20,6 @@ vi.mock("@/lib/runner/drain-and-continue", () => ({ drainAndContinue: (...args: 
 const mockMaybeCompactThread = vi.fn().mockResolvedValue(undefined);
 vi.mock("@/lib/runner/compaction", () => ({
   maybeCompactThread: (...args: unknown[]) => mockMaybeCompactThread(...args),
-  ARTIFACT_SIZE_THRESHOLD_BYTES: 5_000,
 }));
 
 const mockSaveToolcallBlock = vi.fn().mockResolvedValue(undefined);
@@ -28,10 +27,6 @@ vi.mock("@/lib/storage/tool-blocks", () => ({
   saveToolcallBlock: (...args: unknown[]) => mockSaveToolcallBlock(...args),
 }));
 
-const mockTruncateOversizedParts = vi.fn();
-vi.mock("@/lib/runner/toolcall-artifacts", () => ({
-  truncateOversizedParts: (...args: unknown[]) => mockTruncateOversizedParts(...args),
-}));
 
 const mockCreateApprovalEvent = vi.fn().mockResolvedValue(undefined);
 const mockExpireApprovalEvent = vi.fn().mockResolvedValue(undefined);
@@ -100,7 +95,7 @@ describe("finalizeRun block storage", () => {
     mockCompleteRun.mockResolvedValue(undefined);
     mockDrainAndContinue.mockResolvedValue(undefined);
     mockMaybeCompactThread.mockResolvedValue(undefined);
-    mockTruncateOversizedParts.mockReset();
+
     mockCreateApprovalEvent.mockResolvedValue({
       success: true,
       status: "created",
@@ -125,7 +120,7 @@ describe("finalizeRun block storage", () => {
     ];
 
     mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
-    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+
     mockGetAssistantTextFromParts.mockReturnValue("Found nothing.");
 
     await finalizeRun(makeInput());
@@ -156,7 +151,7 @@ describe("finalizeRun block storage", () => {
     ];
 
     mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
-    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+
     mockGetAssistantTextFromParts.mockReturnValue("Hello");
 
     await finalizeRun(makeInput());
@@ -172,7 +167,7 @@ describe("finalizeRun block storage", () => {
     ];
 
     mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
-    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+
     mockGetAssistantTextFromParts.mockReturnValue("Done");
     mockSaveToolcallBlock.mockImplementation(() => deferred.promise);
 
@@ -193,7 +188,7 @@ describe("finalizeRun block storage", () => {
     ];
 
     mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
-    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+
     mockGetAssistantTextFromParts.mockReturnValue("");
     mockSaveToolcallBlock.mockRejectedValue(new Error("storage down"));
 
@@ -215,7 +210,7 @@ describe("finalizeRun block storage", () => {
     ];
 
     mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
-    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+
     mockGetAssistantTextFromParts.mockReturnValue("");
 
     await finalizeRun(makeInput({ text: "Error occurred" }));
@@ -238,7 +233,7 @@ describe("finalizeRun block storage", () => {
     ];
 
     mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
-    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+
     mockGetAssistantTextFromParts.mockReturnValue("Waiting for approval.");
 
     await finalizeRun(makeInput());
@@ -288,7 +283,7 @@ describe("finalizeRun block storage", () => {
     ];
 
     mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
-    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+
     mockGetAssistantTextFromParts.mockReturnValue("Waiting for approval.");
     mockCreateApprovalEvent.mockResolvedValue({
       success: false,
@@ -329,7 +324,7 @@ describe("finalizeRun block storage", () => {
     ];
 
     mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
-    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+
     mockGetAssistantTextFromParts.mockReturnValue("Waiting for approval.");
     mockCreateApprovalEvent.mockResolvedValue({
       success: false,
@@ -357,7 +352,7 @@ describe("finalizeRun block storage", () => {
     ];
 
     mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
-    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+
     mockGetAssistantTextFromParts.mockReturnValue("Waiting for approval.");
     mockCreateApprovalEvent.mockResolvedValue({
       success: true,
@@ -403,7 +398,7 @@ describe("finalizeRun block storage", () => {
     ];
 
     mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
-    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+
     mockGetAssistantTextFromParts.mockReturnValue("Waiting for approval.");
     mockCreateApprovalEvent.mockResolvedValue({
       success: true,
@@ -441,7 +436,7 @@ describe("finalizeRun block storage", () => {
     ];
 
     mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
-    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+
     mockGetAssistantTextFromParts.mockReturnValue("Telegram reply");
     mockHasExternalDeliverables.mockReturnValue(true);
 
@@ -476,7 +471,7 @@ describe("finalizeRun block storage", () => {
     ];
 
     mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
-    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+
     mockGetAssistantTextFromParts.mockReturnValue("");
     mockHasExternalDeliverables.mockReturnValue(true);
 

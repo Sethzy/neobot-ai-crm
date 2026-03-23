@@ -22,20 +22,12 @@ describe("buildPlatformInstructions", () => {
     expect(instructions).toContain("Deal stages: lead, quoted, bound");
   });
 
-  it("includes <context-management> instructions with recovery guidance", () => {
+  it("does not include context-management truncation instructions (removed for cache stability)", () => {
     const instructions = buildPlatformInstructions();
 
-    expect(instructions).toContain("<context-management>");
-    expect(instructions).toContain("</context-management>");
-    expect(instructions).toContain("You MUST read the full untruncated data");
-    expect(instructions).toContain("Data truncated:");
-    expect(instructions).toContain("<context-removed>");
-    expect(instructions).toContain("read_file");
-    expect(instructions).toContain("toolcalls/");
-    expect(instructions).toContain("result.json");
-    expect(instructions).toContain("args.json");
-    expect(instructions).toContain("trigger invocation");
-    expect(instructions).toContain("Omitted");
+    expect(instructions).not.toContain("<context-management>");
+    expect(instructions).not.toContain("Data truncated:");
+    expect(instructions).not.toContain("<context-removed>");
   });
 
   it("escapes config-derived values before injecting them into XML-like instructions", () => {
@@ -87,21 +79,11 @@ describe("buildPlatformInstructions", () => {
     expect(instructions).toContain("Company custom fields: none");
   });
 
-  it("uses /agent/ prefixes for state and toolcall paths", () => {
+  it("uses /agent/ prefixes for state paths", () => {
     const instructions = buildPlatformInstructions();
 
     expect(instructions).toContain("/agent/state/");
     expect(instructions).toContain("/agent/state/draft-email.md");
     expect(instructions).toContain("/agent/state/research-notes.md");
-    expect(instructions).toContain("/agent/toolcalls/");
-    expect(instructions).toContain('/agent/toolcalls/{toolCallId}/result.json');
-    expect(instructions).toContain('/agent/toolcalls/{toolCallId}/args.json');
-  });
-
-  it("does not contain bare state or toolcalls directory references", () => {
-    const instructions = buildPlatformInstructions();
-
-    expect(instructions.match(/(?<!\/agent\/)state\//g) ?? []).toHaveLength(0);
-    expect(instructions.match(/(?<!\/agent\/)toolcalls\//g) ?? []).toHaveLength(0);
   });
 });

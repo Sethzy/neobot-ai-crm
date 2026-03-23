@@ -17,13 +17,6 @@ import type { Database, Json } from "@/types/database";
 export const SUMMARY_PREFIX =
   "Another language model started to solve this problem and produced a summary of its thinking process. You also have access to the state of the tools that were used by that language model. Use this to build on the work that has already been done and avoid duplicating work. Here is the summary produced by the other language model, use the information in this summary to assist with your own analysis:";
 
-/**
- * Tool results at or above this persisted size are stored as artifacts instead.
- * Matches Tasklet's ~5KB inline retention threshold (empirically verified: a 617KB
- * scrape was truncated to ~5KB inline with a permanent `<context-removed>` marker).
- */
-export const ARTIFACT_SIZE_THRESHOLD_BYTES = 5_000;
-
 /** Uncompacted message windows above this count should be summarized. */
 export const COMPACTION_MESSAGE_THRESHOLD = 80;
 

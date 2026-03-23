@@ -26,7 +26,6 @@ vi.mock("@/lib/ai/gateway", () => ({
 }));
 
 import {
-  ARTIFACT_SIZE_THRESHOLD_BYTES,
   COMPACTION_KEEP_RECENT,
   COMPACTION_MESSAGE_THRESHOLD,
   STRUCTURED_SUMMARY_INSTRUCTIONS,
@@ -159,8 +158,6 @@ describe("compaction constants", () => {
   });
 
   it("uses positive integer thresholds", () => {
-    expect(Number.isInteger(ARTIFACT_SIZE_THRESHOLD_BYTES)).toBe(true);
-    expect(ARTIFACT_SIZE_THRESHOLD_BYTES).toBeGreaterThan(0);
     expect(Number.isInteger(COMPACTION_KEEP_RECENT)).toBe(true);
     expect(COMPACTION_KEEP_RECENT).toBe(30);
     expect(Number.isInteger(COMPACTION_MESSAGE_THRESHOLD)).toBe(true);

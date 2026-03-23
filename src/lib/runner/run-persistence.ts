@@ -1,8 +1,7 @@
 /**
  * Shared post-inference persistence logic for run-agent and run-autopilot.
- * Builds assistant parts, truncates oversized tool outputs, persists the
- * assistant message, completes the run, drains queued messages, and fires
- * background compaction.
+ * Builds assistant parts, persists the assistant message, completes the run,
+ * drains queued messages, and fires background compaction.
  * @module lib/runner/run-persistence
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -24,7 +23,6 @@ import {
 } from "@/lib/runner/message-utils";
 import { completeRun } from "@/lib/runner/run-lifecycle";
 import { saveToolcallBlock } from "@/lib/storage/tool-blocks";
-import { truncateOversizedParts } from "@/lib/runner/toolcall-artifacts";
 import type { Database, Json } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
@@ -119,14 +117,7 @@ export async function finalizeRun({
     )
     : null;
 
-  let parts: PersistedPart[] = rawParts;
-
-  try {
-    const truncatedResult = await truncateOversizedParts(supabase, clientId, rawParts);
-    parts = truncatedResult.parts;
-  } catch (artifactError) {
-    console.error(`[${logLabel}] toolcall artifact persistence failed:`, artifactError);
-  }
+  const parts = rawParts;
 
   if (blockStoragePromise) {
     try {
