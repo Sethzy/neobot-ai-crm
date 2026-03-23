@@ -212,11 +212,14 @@ describe("PROPERTY_LISTING_PROMPT", () => {
 });
 
 describe("SANDBOX_PROMPT", () => {
-  it("guides analyze_spreadsheet toward spreadsheet deliverables and iteration", () => {
+  it("guides sandbox tools toward spreadsheet and artifact deliverables", () => {
     expect(SANDBOX_PROMPT).toContain("analyze_spreadsheet");
+    expect(SANDBOX_PROMPT).toContain("publish_artifact");
     expect(SANDBOX_PROMPT).toContain(".xlsx");
     expect(SANDBOX_PROMPT).toContain("follow-up");
     expect(SANDBOX_PROMPT).toContain("complex financial modeling");
+    expect(SANDBOX_PROMPT).toContain("property showcase");
+    expect(SANDBOX_PROMPT).toContain("30-day signed URL");
   });
 });
 

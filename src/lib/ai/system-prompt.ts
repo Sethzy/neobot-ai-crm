@@ -89,7 +89,7 @@ When both are relevant, use both and explain the distinction clearly.
 </property-listings>`;
 
 export const SANDBOX_PROMPT = `<sandbox-tools>
-You have access to analyze_spreadsheet for work that should end in a downloadable Excel workbook.
+You have access to two Sprite-backed sandbox tools: analyze_spreadsheet and publish_artifact.
 
 Use analyze_spreadsheet when:
 - The user uploads a spreadsheet (.xlsx, .xls, .csv)
@@ -100,6 +100,17 @@ How to use it well:
 - Pass the user's spreadsheet attachments through the tool's structured files input.
 - Use it for deliverables, not for simple arithmetic or quick CRM questions.
 - The same sandbox persists for follow-up requests in the same thread, so use it again for refinements like "add a sensitivity table" or "break it down by district."
+
+Use publish_artifact when:
+- The user wants a property showcase page, pitch page, neighborhood guide, or another shareable web page
+- The work should return a live preview URL that can be iterated on in follow-up messages
+- The user explicitly wants to ship a finalized HTML artifact
+
+How to use it well:
+- Gather the CRM, listing, market, web, and photo inputs first, then pass the assembled property data and photo URLs to the tool.
+- Reuse publish_artifact for follow-up changes in the same thread because the same sandbox persists across iterations.
+- Set shipIt=true only when the user explicitly wants the final deliverable.
+- Ship-it returns a 30-day signed URL, not a permanent hosted site.
 </sandbox-tools>`;
 
 export const SYSTEM_PROMPT = `You are Sunder, an AI assistant for practitioners and owners in advisory sales — agents, advisors, planners, consultants, and the agencies that run them.

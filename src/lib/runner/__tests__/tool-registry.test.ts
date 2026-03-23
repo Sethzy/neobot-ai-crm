@@ -77,6 +77,7 @@ describe("createRunnerTools", () => {
     });
     mockCreateSandboxTools.mockReturnValue({
       analyze_spreadsheet: { description: "sandbox-tool" },
+      publish_artifact: { description: "sandbox-tool" },
     });
     mockCreateStorageTools.mockReturnValue({
       read_file: { description: "storage-tool" },
@@ -183,6 +184,7 @@ describe("createRunnerTools", () => {
     );
 
     expect(tools).toHaveProperty("analyze_spreadsheet");
+    expect(tools).toHaveProperty("publish_artifact");
     expect(mockCreateSandboxTools).toHaveBeenCalledWith(
       "supabase",
       "client-id",
@@ -200,6 +202,7 @@ describe("createRunnerTools", () => {
     );
 
     expect(tools).not.toHaveProperty("analyze_spreadsheet");
+    expect(tools).not.toHaveProperty("publish_artifact");
     expect(mockCreateSandboxTools).not.toHaveBeenCalled();
   });
 
@@ -212,6 +215,7 @@ describe("createRunnerTools", () => {
     );
 
     expect(tools).not.toHaveProperty("analyze_spreadsheet");
+    expect(tools).not.toHaveProperty("publish_artifact");
     expect(mockCreateSandboxTools).not.toHaveBeenCalled();
   });
 });
