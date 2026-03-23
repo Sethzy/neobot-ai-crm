@@ -180,6 +180,9 @@ export async function runAgent(
     lockResult = await createRun(supabase, { threadId, clientId, runType });
     _t("create_run_lock");
     if (!lockResult.created) {
+      if (payload.triggerType === "pulse") {
+        return { status: "queued" };
+      }
       await enqueueMessage(supabase, {
         threadId,
         clientId,

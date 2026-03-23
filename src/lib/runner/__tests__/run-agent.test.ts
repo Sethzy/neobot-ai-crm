@@ -554,6 +554,23 @@ describe("runAgent", () => {
     expect(mockConsumeMessageQuota).not.toHaveBeenCalled();
   });
 
+  it("returns queued without enqueuing when a pulse run finds a busy thread", async () => {
+    mockCreateRun.mockResolvedValue({ created: false });
+
+    const result = await runAgent(
+      {
+        ...validPayload,
+        triggerType: "pulse",
+        input: "",
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(result).toEqual({ status: "queued" });
+    expect(mockEnqueueMessage).not.toHaveBeenCalled();
+    expect(mockStreamText).not.toHaveBeenCalled();
+  });
+
   it("consumes quota for direct chat sends before attempting the run", async () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
 
