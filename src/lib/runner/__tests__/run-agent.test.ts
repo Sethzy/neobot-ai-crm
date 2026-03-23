@@ -19,6 +19,7 @@ const {
   mockCreateConnectionTools,
   mockCreateMarketTools,
   mockCreateListingTools,
+  mockCreateBrowserTools,
   mockCreateStorageTools,
   mockCreateWebTools,
   mockCreateUtilityTools,
@@ -50,6 +51,7 @@ const {
   mockCreateConnectionTools: vi.fn(),
   mockCreateMarketTools: vi.fn(),
   mockCreateListingTools: vi.fn(),
+  mockCreateBrowserTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
@@ -105,6 +107,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createConnectionTools: mockCreateConnectionTools,
   createMarketTools: mockCreateMarketTools,
   createListingTools: mockCreateListingTools,
+  createBrowserTools: mockCreateBrowserTools,
   createStorageTools: mockCreateStorageTools,
   createSubagentTool: mockCreateSubagentTool,
   createWebTools: mockCreateWebTools,
@@ -207,6 +210,9 @@ describe("runAgent", () => {
       get_details_for_connections: { description: "connection-tool" },
       search_for_integrations: { description: "connection-tool" },
       get_integrations_capabilities: { description: "connection-tool" },
+    });
+    mockCreateBrowserTools.mockReturnValue({
+      browse_website: { description: "browser-tool" },
     });
     mockCreateMarketTools.mockReturnValue({
       search_market_data: { description: "market-tool" },
@@ -379,7 +385,6 @@ describe("runAgent", () => {
       validPayload.threadId,
       {
         isSubagent: true,
-        includeMarketTools: true,
       },
     );
 
@@ -492,7 +497,8 @@ describe("runAgent", () => {
         includeMarketData: false,
       }),
     );
-    expect(mockCreateMarketTools).not.toHaveBeenCalled();
+    // Market tools are still registered (stable tool set), but prompt guidance is omitted
+    expect(mockCreateMarketTools).toHaveBeenCalled();
   });
 
   it("disables property-listing prompt injection when Apify is not configured", async () => {
@@ -506,7 +512,8 @@ describe("runAgent", () => {
         includePropertyListings: false,
       }),
     );
-    expect(mockCreateListingTools).not.toHaveBeenCalled();
+    // Listing tools are still registered (stable tool set), but prompt guidance is omitted
+    expect(mockCreateListingTools).toHaveBeenCalled();
   });
 
   it("passes gatewayProviderOptions to streamText", async () => {
@@ -658,7 +665,7 @@ describe("runAgent", () => {
     );
   });
 
-  it("excludes browser and listing tools from pulse runs", async () => {
+  it("always registers browser, market, and listing tools for pulse runs (stable tool set)", async () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
 
     await runAgent(
@@ -672,10 +679,9 @@ describe("runAgent", () => {
 
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
-        tools: expect.not.objectContaining({
+        tools: expect.objectContaining({
           browse_website: expect.anything(),
-          search_99co: expect.anything(),
-          search_propertyguru: expect.anything(),
+          search_market_data: expect.anything(),
         }),
       }),
     );

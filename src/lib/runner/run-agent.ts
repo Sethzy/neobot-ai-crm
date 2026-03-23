@@ -263,9 +263,6 @@ export async function runAgent(
       allowConnectionMutations: payload.triggerType !== "pulse",
       crmMode,
       crmConfig,
-      includeBrowserTools: payload.triggerType === "chat",
-      includeMarketTools: true,
-      includeListingTools: payload.triggerType === "chat",
       includeConfigTool: payload.includeConfigTool,
     });
     const subagentTools = createSubagentTool(supabase, clientId, threadId, {

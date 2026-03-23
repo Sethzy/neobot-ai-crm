@@ -4,8 +4,6 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { isApifyConfigured } from "@/lib/apify/env";
-import { isBrowserUseConfigured } from "@/lib/browser-use/client";
 import { loadCrmConfig } from "@/lib/crm/config";
 import {
   createBrowserTools,
@@ -18,7 +16,6 @@ import {
   createUtilityTools,
   createWebTools,
 } from "@/lib/runner/tools";
-import { isPropertySupabaseConfigured } from "@/lib/supabase/property-env";
 import type { Database } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
@@ -30,9 +27,6 @@ export interface CreateRunnerToolsOptions {
   crmConfig?: Awaited<ReturnType<typeof loadCrmConfig>>["config"];
   isSubagent?: boolean;
   includeSendMessage?: boolean;
-  includeBrowserTools?: boolean;
-  includeMarketTools?: boolean;
-  includeListingTools?: boolean;
   /** Only relevant for chat-triggered runs. When true, includes configure_crm in the tool registry. */
   includeConfigTool?: boolean;
 }
@@ -63,12 +57,8 @@ export function createRunnerTools(
   const connectionTools = createConnectionTools(supabase, clientId, {
     allowMutations: isSubagent ? false : (options?.allowConnectionMutations ?? true),
   });
-  const shouldIncludeMarketTools =
-    options?.includeMarketTools === true && isPropertySupabaseConfigured();
-  const marketTools = shouldIncludeMarketTools ? createMarketTools() : {};
-  const shouldIncludeListingTools =
-    !isSubagent && options?.includeListingTools === true && isApifyConfigured();
-  const listingTools = shouldIncludeListingTools ? createListingTools() : {};
+  const marketTools = createMarketTools();
+  const listingTools = isSubagent ? {} : createListingTools();
 
   if (isSubagent) {
     return {
@@ -84,11 +74,7 @@ export function createRunnerTools(
   const triggerTools = createTriggerTools(supabase, clientId, threadId, {
     allowMutations: options?.allowTriggerMutations ?? true,
   });
-  const shouldIncludeBrowserTools =
-    options?.includeBrowserTools === true && isBrowserUseConfigured();
-  const browserTools = shouldIncludeBrowserTools
-    ? createBrowserTools(supabase, clientId)
-    : {};
+  const browserTools = createBrowserTools(supabase, clientId);
 
   return {
     ...crmTools,

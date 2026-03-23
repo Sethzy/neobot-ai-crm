@@ -81,6 +81,8 @@ vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createConnectionTools: mockCreateConnectionTools,
   createMarketTools: mockCreateMarketTools,
+  createBrowserTools: vi.fn().mockReturnValue({}),
+  createListingTools: vi.fn().mockReturnValue({}),
   createStorageTools: mockCreateStorageTools,
   createWebTools: mockCreateWebTools,
   createUtilityTools: mockCreateUtilityTools,
