@@ -1,8 +1,8 @@
 # Sandbox Skill Execution — Design Doc
 
-**Status:** Draft — iterating on mental model
-**Date:** 2026-03-19
-**Scope:** Add code execution capability to Sunder via Vercel Sandbox + Claude Code CLI
+**Status:** Draft v2 — revised architecture (Sprites + persistent sessions)
+**Date:** 2026-03-23 (original: 2026-03-19)
+**Scope:** Add code execution capability to Sunder via Sprites (Fly.io) + Claude Code CLI
 
 ---
 
@@ -15,29 +15,54 @@ Sunder's agent has structured tools (CRM, memory, triggers, connections) but can
 
 The user (a real estate agent) is the domain expert. We cannot pre-build deterministic scripts for every analysis they'll want. The agent needs to **write and run code** guided by the user's own instructions.
 
-### Two Dedicated Tools, Two Snapshots
+### Two Dedicated Tools, One Sandbox Provider
 
 | | `analyze_spreadsheet` | `publish_artifact` |
 |---|---|---|
 | **Use case** | RE financial projections, deal comparison, data analysis | Property showcases, pitch pages, neighborhood guides |
 | **Input** | Uploaded xlsx/csv + analysis request | Property name (agent gathers data first via CRM/search/browser) |
-| **Output** | `.xlsx` file → download link in chat | `.html` → published shareable URL |
+| **Output** | `.xlsx` file → download link in chat | Live preview URL → shareable link |
 | **Baked-in skill** | Anthropic xlsx skill (formulas, recalc, LibreOffice) | Pre-scaffolded React property page template |
 | **User skill** | `/agent/skills/re-analyst/SKILL.md` (analysis prefs) | `/agent/skills/frontend-design/SKILL.md` (brand prefs) |
 | **Runtime** | Python 3 + pandas + openpyxl + LibreOffice | Node 22 + Vite + React + Tailwind |
-| **Snapshot** | `snap_excel` (~500MB, LibreOffice is heavy) | `snap_artifact` (~300MB, node_modules) |
-| **Duration** | 30-90s | 20-40s (template tweaking, not from scratch) |
-| **Cost** | ~$0.10-0.40 per analysis | ~$0.15-0.60 per artifact |
+| **Iteration** | Multi-turn (same Sprite, auto-sleeps between turns) | Multi-turn (same Sprite, live preview updates) |
 
 ## 2. Core Insight
 
-From studying Tasklet, Viktor, NanoClaw, and the Vercel coding-agent-template:
+### Why Not Vercel Sandbox?
 
-- **Structured tools** (CRM, memory, Composio) run on the platform server. No sandbox needed.
-- **Code execution** runs in an isolated, disposable sandbox. The sandbox is on-demand, per-tool-call.
-- **The user steers via skill files**, not the developer. Skill files are per-client files in Supabase Storage — same pattern as SOUL.md, USER.md, MEMORY.md.
-- **An agent CLI** (Claude Code) runs inside the sandbox. The agent reads skill files, writes code, runs it, iterates on errors, and returns results.
-- **Baked-in skills provide the foundation** — Anthropic's xlsx skill for Excel best practices, a pre-scaffolded React template for artifact publishing. The agent tweaks, not rebuilds.
+The v1 design used Vercel Sandbox (ephemeral Firecracker microVMs) with on-demand snapshots. This works for single-shot code execution, but falls apart for the iterative workflow users actually need:
+
+1. **Users iterate.** "Analyze this" → "now break it down by region" → "add a trendline" → "export as PDF." Each iteration would mean booting a new sandbox, re-uploading data, re-installing dependencies, and losing all context.
+2. **The outer agent isn't a coding agent.** Sunder's runner (Gemini Flash, Vercel AI SDK) is great at business orchestration. It doesn't know how to debug pandas errors or fix React build failures. Trying to make it handle code iteration (parse errors, generate fixes, retry) adds massive complexity.
+3. **Ready-made coding agents exist.** Claude Code is a complete, autonomous coding agent. Instead of building custom orchestration, we delegate the entire coding task and let Claude Code handle iteration, error recovery, and file management inside the sandbox.
+
+### The Pattern: Delegate to a Coding Agent Inside a Persistent Sandbox
+
+From studying [OpenComputer/Digger](https://opencomputer.dev/guides/building-open-lovable-part-1), [Vercel coding-agent-template](https://github.com/vercel-labs/coding-agent-template), and [Harrison Chase's two-pattern taxonomy](https://blog.langchain.com/the-two-patterns-by-which-agents-connect-sandboxes/):
+
+- **Sunder's runner is the planner and data gatherer.** It uses lightweight tools (CRM, web search, browser, Apify) to assemble context and data. No sandbox needed for this.
+- **Claude Code is the coding agent.** It runs inside a persistent Sprite, reads skill files, writes code, runs it, iterates on errors, and returns results. The runner hands off a task and gets back a result.
+- **The user steers via skill files.** Per-client SKILL.md files in Supabase Storage — same pattern as SOUL.md, USER.md, MEMORY.md.
+- **The Sprite auto-sleeps between turns.** No idle compute cost. Wakes in <1 second when the user asks for the next iteration.
+
+### Why Sprites (Fly.io)?
+
+| Criteria | Vercel Sandbox | Sprites (Fly.io) | OpenComputer (Digger) |
+|---|---|---|---|
+| **Persistence** | Ephemeral (dies on timeout) | Auto-sleep/wake, S3-backed storage | Hibernate/wake |
+| **Claude Code** | Install at boot (~15-30s) | Pre-installed | Agent SDK baked in |
+| **Preview URLs** | Wire up yourself | Auto-activated on port 8080 | Built-in + auth |
+| **Multi-turn** | Shell out to CLI each time, new session | Same Sprite, same filesystem, <1s wake | `session.sendMessage()` |
+| **Idle cost** | Burning compute until timeout | Nothing (sleeping) | Nothing (hibernating) |
+| **Checkpoints** | Manual snapshots | ~300ms transactional, copy-on-write | Hibernate (auto) |
+| **Backing** | Vercel (massive) | Fly.io (established, well-funded) | Digger (small startup) |
+| **Pricing** | $0.128/vCPU-hr active CPU | $0.07/CPU-hr + $0.04375/GB-hr | Unknown |
+| **DX** | `@vercel/sandbox` SDK, shell out to CLI | REST API + JS/Go SDK, shell out to CLI | `sandbox.agent.start()`, structured events |
+
+**Decision: Sprites.** Fly.io is established and battle-tested (running Firecracker at scale for years). Claude Code pre-installed. Auto-sleep/wake solves multi-turn without idle cost. Preview URLs work out of the box. $30 free credits to prototype.
+
+OpenComputer has nicer DX (`sandbox.agent.start()` with structured event streaming), but it's a small startup. Sprites gives us the same persistence model with Fly.io reliability. We can always swap providers later — the pattern is the same.
 
 ## 3. Architecture
 
@@ -50,21 +75,37 @@ Sunder Runner (Gemini Flash, Vercel AI SDK)
 │
 ├── analyze_spreadsheet tool
 │   │
+│   │  1. Downloads user's files + skill files from Supabase Storage
+│   │  2. Creates or wakes a Sprite
+│   │  3. Writes files into Sprite filesystem
+│   │  4. Runs: claude -p "{task}" --dangerously-skip-permissions
+│   │  5. Reads output files from Sprite
+│   │  6. Uploads results to Supabase Storage
+│   │  7. Sprite auto-sleeps (stays alive for follow-ups)
+│   │
 │   ▼
-│   Vercel Sandbox — snap_excel
+│   Sprite (Fly.io) — per-client, reusable
+│   ├── Claude Code CLI (pre-installed)
 │   ├── Python 3 + pandas + openpyxl + LibreOffice
-│   ├── Anthropic xlsx skill (baked in)
-│   ├── Claude Code CLI (baked in)
+│   ├── Anthropic xlsx skill (baked into Sprite template)
 │   ├── User's re-analyst SKILL.md (loaded at runtime)
 │   └── User's uploaded files (loaded at runtime)
 │
 └── publish_artifact tool
     │
+    │  1. Runner gathers data FIRST (CRM, search, browser — no sandbox)
+    │  2. Creates or wakes a Sprite
+    │  3. Writes property data + photos + skill files into Sprite
+    │  4. Runs: claude -p "{task}" --dangerously-skip-permissions
+    │  5. Dev server starts on port 8080 → preview URL auto-activates
+    │  6. Returns preview URL to user
+    │  7. Sprite auto-sleeps (stays alive for follow-ups)
+    │
     ▼
-    Vercel Sandbox — snap_artifact
+    Sprite (Fly.io) — per-client, reusable
+    ├── Claude Code CLI (pre-installed)
     ├── Node 22 + Vite + React + Tailwind
-    ├── Pre-scaffolded property page template (baked in)
-    ├── Claude Code CLI (baked in)
+    ├── Pre-scaffolded property page template (baked into Sprite template)
     ├── User's frontend-design SKILL.md (loaded at runtime)
     └── Property data + photos (assembled by runner, loaded at runtime)
 ```
@@ -80,7 +121,103 @@ Sunder Runner (Gemini Flash, Vercel AI SDK)
 | Web tools | search, fetch, scrape | Platform-level HTTP |
 | Utility tools | calculate, ask_user, send_message | Lightweight platform ops |
 
-## 4. Skill Files — The User's Steering Wheel
+## 4. Multi-Turn Iteration — The Key Change
+
+### Why This Matters
+
+The v1 design treated each tool call as a one-shot: boot sandbox → run → destroy. Users don't work that way. They iterate:
+
+**Analysis iteration:**
+```
+"Analyze this spreadsheet of Q1 listings"
+  → runs pandas, produces Excel model
+"Now break it down by district"
+  → needs the same data + previous analysis context
+"Remove the outliers and add a trendline"
+  → iterating on the same work
+"Export that as a PDF"
+  → still the same session
+```
+
+**Artifact iteration:**
+```
+"Build me a showcase page for the 42 Noriega listing"
+  → Claude Code builds React app, preview URL live
+"Swap the hero to photo 3 and add a mortgage calculator"
+  → modifies existing code, preview updates
+"Make the cards bigger with more whitespace"
+  → another tweak, same session
+"Looks good, ship it"
+  → final version published
+```
+
+### How It Works with Sprites
+
+```
+Iteration 1: "Analyze this spreadsheet"
+  → Runner creates a Sprite (or wakes an existing one for this client)
+  → Writes uploaded files + skill files into Sprite
+  → sprite.exec("claude --dangerously-skip-permissions -p '...'")
+  → Claude Code writes Python, runs pandas, produces Excel
+  → Runner reads output, uploads to Supabase Storage, returns download link
+  → Sprite auto-sleeps (costs nothing while user reviews the model)
+
+Iteration 2: "Now break it down by district" (3 minutes later)
+  → Sprite wakes in <1 second
+  → All files from iteration 1 still there (persistent filesystem)
+  → sprite.exec("claude -p 'Break down the analysis by district'")
+  → Claude Code reads existing code + data, modifies analysis
+  → Runner reads updated output, returns new download link
+
+Iteration 3: "Add a trendline" (10 minutes later)
+  → Same pattern. Sprite wakes, files intact, Claude Code modifies.
+
+Iteration 4: "Export as PDF" (next day — Sprite was sleeping all night for free)
+  → Same pattern. Sprite wakes, everything still there.
+  → Runner marks session complete, optionally kills the Sprite
+```
+
+### Sprite Lifecycle
+
+```
+                    ┌─────────────────────────────────┐
+                    │           Per-Client Sprite       │
+                    │                                   │
+  create ──────►   │  RUNNING  ──auto──►  SLEEPING     │
+                    │     ▲                    │        │
+                    │     │    wake (<1s)       │        │
+                    │     └────────────────────┘        │
+                    │                                   │
+                    │  Kill after:                      │
+                    │  - 24h of no activity, OR          │
+                    │  - User explicitly finishes, OR   │
+                    │  - Thread closes                  │
+                    └─────────────────────────────────┘
+```
+
+- **One Sprite per client** (not per tool call). Both `analyze_spreadsheet` and `publish_artifact` can use the same Sprite if the runtimes are compatible, or separate Sprites if not.
+- **Auto-sleep** when idle — no compute cost between iterations.
+- **Wake in <1 second** — feels instant to the user.
+- **Kill policy:** destroy after 24h of no activity, or when the user/thread signals completion.
+- **Checkpoint before risky operations** — ~300ms, transactional, can rollback.
+
+### Sprite ID Tracking
+
+The Sprite ID is stored on the thread so follow-up messages route to the same Sprite:
+
+```typescript
+// In thread metadata or a sprite_sessions table
+{
+  threadId: "thread_abc",
+  clientId: "client_123",
+  spriteId: "sprite_xyz",      // Fly.io Sprite ID
+  createdAt: "2026-03-23T10:00:00Z",
+  lastActiveAt: "2026-03-23T10:15:00Z",
+  status: "sleeping",          // running | sleeping | destroyed
+}
+```
+
+## 5. Skill Files — The User's Steering Wheel
 
 ### Storage Location
 
@@ -128,7 +265,7 @@ Agent: writes /agent/skills/frontend-design/SKILL.md via existing write_file too
 
 No sandbox involved — skill file creation uses the existing platform `write_file` tool.
 
-## 5. Tool 1: `analyze_spreadsheet`
+## 6. Tool 1: `analyze_spreadsheet`
 
 ### Tool Definition
 
@@ -137,7 +274,8 @@ analyze_spreadsheet: tool({
   description: "Analyze spreadsheet data and produce an Excel financial model. "
     + "Use when the user uploads an xlsx/csv file or asks for financial analysis, "
     + "deal comparison, ROI calculation, or any spreadsheet-based analysis. "
-    + "Output is a downloadable .xlsx file with proper Excel formulas.",
+    + "Output is a downloadable .xlsx file with proper Excel formulas. "
+    + "Supports multi-turn iteration — user can refine the analysis in follow-up messages.",
   parameters: z.object({
     task: z.string().describe("What analysis to perform"),
     fileUrls: z.array(z.string()).describe("Supabase Storage URLs of xlsx/csv files"),
@@ -146,40 +284,35 @@ analyze_spreadsheet: tool({
 })
 ```
 
-### Snapshot: `snap_excel`
+### Sprite Template: `sunder-excel`
 
-Built once. Base runtime: **`node22`** (needed for Claude CLI). Python + LibreOffice installed via `dnf`.
+Pre-built Sprite template with all dependencies. Claude Code is pre-installed on all Sprites by default.
 
-| Component | Install method | Why |
-|---|---|---|
-| Node.js 22 | Base runtime | Claude Code CLI requires Node |
-| Claude Code CLI | `npm install -g @anthropic-ai/claude-code` | Agent that writes and runs code |
-| Python 3.13 | `sudo dnf install -y python3.13 python3.13-pip` | Primary analysis language |
-| pandas | `pip install` | DataFrame operations, `pd.read_excel()` |
-| openpyxl | `pip install` | Excel read/write with formulas + formatting. Also used by `recalc.py` |
-| xlsxwriter | `pip install` | Alternative Excel writer |
-| matplotlib | `pip install` | Chart generation |
-| LibreOffice Calc | `sudo dnf install -y libreoffice-calc` | Formula recalculation — openpyxl writes formulas as strings, LibreOffice evaluates them |
-| gcc | `sudo dnf install -y gcc` | `soffice.py` compiles a C socket shim at runtime when AF_UNIX sockets are blocked in sandboxed VMs |
-| `/skills/xlsx/SKILL.md` | Baked into snapshot | Anthropic's xlsx skill — formula rules, color coding, verification |
-| `/skills/xlsx/scripts/recalc.py` | Baked into snapshot | Formula recalculation + error scanning via LibreOffice |
-| `/skills/xlsx/scripts/office/` | Baked into snapshot | LibreOffice sandbox helpers (socket shim for blocked AF_UNIX) |
+| Component | Why |
+|---|---|
+| Python 3.13 + pip | Primary analysis language |
+| pandas + openpyxl + xlsxwriter + matplotlib | DataFrame operations, Excel read/write, charts |
+| LibreOffice Calc | Formula recalculation (recalc.py runs soffice --headless) |
+| gcc | soffice.py compiles a C socket shim at runtime if AF_UNIX sockets are blocked |
+| `/skills/xlsx/SKILL.md` | Anthropic's xlsx skill — formula rules, color coding, verification |
+| `/skills/xlsx/scripts/recalc.py` | Formula recalculation + error scanning via LibreOffice |
+| `/skills/xlsx/scripts/office/` | LibreOffice sandbox helpers |
 
 Source: Anthropic xlsx skill at `/Users/sethlim/Downloads/xlsx/`
 
 ### Execution Flow
 
 ```
-1. Sandbox.create({ source: { type: "snapshot", snapshotId: SNAP_EXCEL_ID } })
-2. Write ANTHROPIC_API_KEY config
+1. Check for existing Sprite for this client (wake if sleeping, create if none)
+2. Write ANTHROPIC_API_KEY to Sprite environment
 3. Download user's re-analyst skill files from Supabase Storage → /skills/re-analyst/
-4. Download user's uploaded files → /tmp/
-5. claude --print -p "{prompt}" --allowedTools Read,Write,Edit,Bash,Glob,Grep \
-     --dangerously-skip-permissions --max-turns 20
-6. Read /tmp/output.xlsx + /tmp/summary.txt from sandbox
-7. Upload output.xlsx to Supabase Storage → generate download URL
-8. sandbox.shutdown()
-9. Return { downloadUrl, summary }
+4. Download user's uploaded files → /workspace/input/
+5. sprite.exec("claude --dangerously-skip-permissions -p '{prompt}'
+     --allowedTools Read,Write,Edit,Bash,Glob,Grep --max-turns 20")
+6. Read /workspace/output/result.xlsx + /workspace/output/summary.txt from Sprite
+7. Upload result.xlsx to Supabase Storage → generate download URL
+8. Sprite auto-sleeps (ready for follow-up)
+9. Return { downloadUrl, summary, spriteId }
 ```
 
 ### Prompt Sent to Claude Code CLI
@@ -191,17 +324,17 @@ analysis preferences and domain knowledge. Follow them.
 
 Task: {user's task description}
 
-Input files are in /tmp/. Available files: {list of filenames}
+Input files are in /workspace/input/. Available files: {list of filenames}
 
-Create an Excel financial model at /tmp/output.xlsx:
+Create an Excel financial model at /workspace/output/result.xlsx:
 - Use Excel FORMULAS, not hardcoded Python calculations
 - Blue text for editable inputs, black for formulas (per xlsx skill)
-- Run: python /skills/xlsx/scripts/recalc.py /tmp/output.xlsx
+- Run: python /skills/xlsx/scripts/recalc.py /workspace/output/result.xlsx
 - If errors found, fix formulas and recalculate until clean
-- Write a human-readable summary to /tmp/summary.txt
+- Write a human-readable summary to /workspace/output/summary.txt
 ```
 
-### User Flow
+### User Flow (Multi-Turn)
 
 ```
 User: [uploads deals.xlsx]
@@ -209,14 +342,12 @@ User: [uploads deals.xlsx]
 
 Sunder: "Analyzing your deals..."
 
-  [sandbox boots from snap_excel → loads skills + file]
+  [Sprite created for this client → loads skills + file]
   [Claude Code reads xlsx skill + user's re-analyst skill]
-  [writes Python using openpyxl → creates workbook with 3 sheets]
+  [writes Python, creates workbook with 3 sheets]
   [formulas: =PMT, =NPV, =SUM, sensitivity ranges]
-  [color codes: blue inputs, black formulas, yellow assumptions]
-  [runs recalc.py → finds 1 #DIV/0! error → fixes → recalculates → clean]
-  [writes summary]
-  [sandbox destroyed]
+  [runs recalc.py → finds 1 #DIV/0! → fixes → clean]
+  [Sprite auto-sleeps]
 
 Sunder: "Your financial model is ready!
 
@@ -228,15 +359,31 @@ Sunder: "Your financial model is ready!
   Tampines 2BR is the best pick:
   - Net yield 2.71% (beats your 2.5% benchmark)
   - TDSR 38.8% (well within 55% limit)
-  - Outperforms REITs benchmark at 5% over 5 years
 
-  All inputs are editable — change mortgage rate or vacancy
-  in the Assumptions sheet and everything recalculates.
+  Want me to change anything?"
 
-  Want me to email this to anyone?"
+User: "Add a sensitivity table for mortgage rates 2.5% to 4.5%"
+
+Sunder: "Updating your model..."
+
+  [Sprite wakes in <1s — all files still there]
+  [Claude Code reads existing workbook, adds sensitivity sheet]
+  [runs recalc.py → clean]
+  [Sprite auto-sleeps]
+
+Sunder: "Done! Updated model with 7x7 sensitivity table.
+
+  📊 [Download deals-comparison-v2.xlsx]
+
+  New sheet: Rate Sensitivity (2.5% to 4.5% in 0.25% steps)
+  Tampines 2BR stays positive yield down to 3.75%."
+
+User: "Perfect. Email this to my client Sarah."
+
+  [runner uses send_message tool — no sandbox, existing platform tool]
 ```
 
-## 6. Tool 2: `publish_artifact`
+## 7. Tool 2: `publish_artifact`
 
 ### Tool Definition
 
@@ -244,8 +391,9 @@ Sunder: "Your financial model is ready!
 publish_artifact: tool({
   description: "Generate and publish a web page — property showcases, pitch pages, "
     + "neighborhood guides, or open house landing pages. The page is built from a "
-    + "pre-scaffolded React template, customized by Claude Code, and published to a "
-    + "shareable URL. Use AFTER gathering property data via CRM/search/browser tools.",
+    + "pre-scaffolded React template, customized by Claude Code, and served via "
+    + "a live preview URL. Use AFTER gathering property data via CRM/search/browser tools. "
+    + "Supports multi-turn iteration — user can refine the page in follow-up messages.",
   parameters: z.object({
     task: z.string().describe("What page to create and any specific requirements"),
     propertyData: z.record(z.unknown()).describe("Property details assembled from CRM/search"),
@@ -255,21 +403,18 @@ publish_artifact: tool({
 })
 ```
 
-### Snapshot: `snap_artifact`
-
-Built once. Contains:
+### Sprite Template: `sunder-artifact`
 
 | Component | Why |
 |---|---|
-| Claude Code CLI | Agent that writes and runs code |
 | Node.js 22 | React/Vite runtime |
 | `/template/` | Pre-scaffolded Vite + React + Tailwind project |
 | `/template/node_modules/` | Pre-installed dependencies (saves 15-20s) |
-| `/template/src/components/` | Default property page components (see below) |
+| `/template/src/components/` | Default property page components |
 
 ### Pre-Scaffolded Template
 
-The template is baked into the snapshot so Claude tweaks it instead of building from scratch:
+Baked into the Sprite template so Claude Code tweaks instead of building from scratch:
 
 ```
 /template/
@@ -294,15 +439,6 @@ The template is baked into the snapshot so Claude tweaks it instead of building 
 └── build.sh                   ← npm run build → single-file HTML output
 ```
 
-Claude Code doesn't scaffold a project. It:
-1. Copies `/template` → `/workspace`
-2. Swaps `property.json` with real data
-3. Tweaks components to match user's brand (from SKILL.md)
-4. Adds/removes sections as requested
-5. Runs `build.sh` → single-file HTML
-
-**20-40s** instead of 60-180s from scratch.
-
 ### Execution Flow
 
 ```
@@ -311,37 +447,36 @@ Claude Code doesn't scaffold a project. It:
      Web search → neighborhood amenities, schools, transport
      Browser scraping → listing photos (optional)
      Assembles propertyData JSON
-2. Sandbox.create({ source: { type: "snapshot", snapshotId: SNAP_ARTIFACT_ID } })
-3. Write ANTHROPIC_API_KEY config
+2. Check for existing Sprite for this client (wake if sleeping, create if none)
+3. Write ANTHROPIC_API_KEY to Sprite environment
 4. Download user's frontend-design skill files from Supabase Storage → /skills/frontend-design/
-5. Write propertyData to /tmp/property-data.json
-6. Download photos → /tmp/photos/
-7. claude --print -p "{prompt}" --allowedTools Read,Write,Edit,Bash,Glob,Grep \
-     --dangerously-skip-permissions --max-turns 20
-8. Read /tmp/output.html from sandbox
-9. Upload to Supabase Storage or publish via here.now → generate shareable URL
-10. sandbox.shutdown()
-11. Return { url, summary }
+5. Write propertyData to /workspace/data/property.json
+6. Download photos → /workspace/photos/
+7. sprite.exec("claude --dangerously-skip-permissions -p '{prompt}'
+     --allowedTools Read,Write,Edit,Bash,Glob,Grep --max-turns 20")
+8. Dev server starts on port 8080 → Sprite preview URL auto-activates
+9. Sprite auto-sleeps (stays alive for follow-ups, preview URL wakes on request)
+10. Return { previewUrl, summary, spriteId }
 ```
 
 ### Prompt Sent to Claude Code CLI
 
 ```
 Read /skills/frontend-design/SKILL.md for the user's brand and design preferences.
-Read /tmp/property-data.json for property details.
-Photos are in /tmp/photos/.
+Read /workspace/data/property.json for property details.
+Photos are in /workspace/photos/.
 
 A React property showcase template is at /template/.
-Copy it to /workspace/ and customize:
-- Replace /workspace/src/data/property.json with real property data
+Copy it to /workspace/app/ and customize:
+- Replace src/data/property.json with real property data
 - Update theme (colors, fonts, layout) per SKILL.md brand guidelines
-- Swap placeholder images with actual photos (base64 embed or reference)
+- Swap placeholder images with actual photos
 - Add, remove, or modify sections as appropriate for this property
-- Run: cd /workspace && sh build.sh
-- Write final single-file HTML to /tmp/output.html
+- Run: cd /workspace/app && npm run dev
+- The dev server will be accessible on port 8080 via the Sprite preview URL
 ```
 
-### User Flow
+### User Flow (Multi-Turn with Live Preview)
 
 ```
 User: "Make a showcase page for the 42 Noriega listing"
@@ -353,174 +488,149 @@ Sunder (Flash, no sandbox yet):
 
 Sunder: "Building your showcase page..."
 
-  [sandbox boots from snap_artifact → loads skill + data + photos]
+  [Sprite created → loads skill + data + photos]
   [Claude Code reads frontend-design SKILL.md: "dark bg, gold accents"]
-  [copies /template → /workspace]
-  [swaps property.json with real data]
-  [edits theme.css: gold accent colors, serif headings]
-  [edits Hero.tsx: best photo, "42 Noriega St" overlay]
-  [edits NeighborhoodMap.tsx: real amenity locations]
-  [removes MortgageCalc.tsx (not requested)]
-  [runs build.sh → single-file HTML]
-  [sandbox destroyed]
+  [copies /template → /workspace/app]
+  [swaps property.json, edits theme, updates components]
+  [runs npm run dev → dev server on port 8080]
+  [Sprite auto-sleeps, preview URL stays active]
 
-Sunder: "Your showcase page is ready!
+Sunder: "Your showcase page is live!
 
-  🔗 https://42-noriega.here.now
+  🔗 https://{sprite-id}.sprites.dev
 
-  Includes:
-  • Hero with listing photo #1
-  • Photo gallery (6 images)
-  • Property details (3BR, 1200sqft, freehold, $1.8M)
-  • Neighborhood map with Botanic Gardens MRT, schools
-  • Your contact card
+  Includes: hero with photo #1, gallery (6 images),
+  property details, neighborhood map, your contact card.
 
-  Want me to change anything before you share it?"
+  Want me to change anything?"
 
 User: "Swap the hero to photo 3 and add a mortgage calculator"
 
-  [runner calls publish_artifact again with the edit request]
-  [new sandbox, same snapshot, previous output.html passed as input]
-  [Claude Code edits: swaps hero photo, adds MortgageCalc component back]
-  [builds → new URL]
+Sunder: "Updating..."
 
-Sunder: "Updated! https://42-noriega-v2.here.now
-         Hero now uses photo 3, mortgage calculator added
-         with your 3.8% rate as default."
+  [Sprite wakes in <1s — all code still there, dev server restarts]
+  [Claude Code modifies Hero.tsx, adds MortgageCalc back]
+  [preview URL auto-updates]
+
+Sunder: "Done! Hero now uses photo 3, mortgage calculator
+  added with your 3.8% rate as default.
+
+  🔗 https://{sprite-id}.sprites.dev (same URL, updated)"
+
+User: "Make the cards bigger with more whitespace"
+
+  [Sprite wakes, Claude Code tweaks CSS]
+
+Sunder: "Updated. Cards are larger with more breathing room."
 
 User: "Perfect. Send this to my client John."
 
-  [runner uses send_message tool — no sandbox, existing platform tool]
-  [WhatsApp/email to John with the link]
-```
+Sunder: "Before I publish the final version — want me to build
+  a static HTML so it lives permanently, or keep this preview URL?"
 
-## 7. Snapshots
+User: "Static HTML, permanent link"
 
-### Two Separate Snapshots
+  [Claude Code runs build.sh → single-file HTML]
+  [Runner reads /workspace/app/dist/index.html]
+  [Uploads to Supabase Storage or publishes via here.now]
+  [Sprite killed — no longer needed]
 
-| | `snap_excel` | `snap_artifact` |
-|---|---|---|
-| **Env var** | `SANDBOX_SNAPSHOT_EXCEL_ID` | `SANDBOX_SNAPSHOT_ARTIFACT_ID` |
-| **Runtime** | `python3.13` | `node22` |
-| **Size** | ~500MB (LibreOffice is heavy) | ~300MB (node_modules) |
-| **Baked-in skill** | Anthropic xlsx skill + recalc.py + LibreOffice | React property page template + node_modules |
-| **Claude CLI** | Yes | Yes |
-| **Rebuild when** | xlsx skill updates, Python dep changes | Template changes, React dep updates |
-
-### Build Scripts
-
-```typescript
-// scripts/build-snapshot-excel.ts
-import { Sandbox } from "@vercel/sandbox";
-
-const sandbox = await Sandbox.create({ timeout: 15 * 60 * 1000, runtime: "node22" });
-
-// Python 3.13 (node22 is the base runtime for Claude CLI; add Python via dnf)
-await sandbox.runCommand({ cmd: "dnf", args: ["install", "-y", "python3.13", "python3.13-pip"], sudo: true });
-
-// Python data science stack
-await sandbox.runCommand({ cmd: "pip3.13", args: ["install", "pandas", "openpyxl", "xlsxwriter", "matplotlib"] });
-
-// LibreOffice for formula recalculation (recalc.py runs soffice --headless)
-await sandbox.runCommand({ cmd: "dnf", args: ["install", "-y", "libreoffice-calc"], sudo: true });
-
-// gcc for soffice.py socket shim (compiles C at runtime if AF_UNIX blocked)
-await sandbox.runCommand({ cmd: "dnf", args: ["install", "-y", "gcc"], sudo: true });
-
-// Claude Code CLI
-await sandbox.runCommand({ cmd: "npm", args: ["install", "-g", "@anthropic-ai/claude-code"] });
-
-// Bake in Anthropic xlsx skill (source: /Users/sethlim/Downloads/xlsx/)
-await sandbox.runCommand({ cmd: "mkdir", args: ["-p", "/skills/xlsx/scripts/office/helpers", "/skills/xlsx/scripts/office/schemas", "/skills/xlsx/scripts/office/validators"] });
-// ... write SKILL.md, recalc.py, soffice.py, pack.py, unpack.py, validate.py, helpers/*, schemas/*, validators/*
-
-// Directories for runtime files
-await sandbox.runCommand({ cmd: "mkdir", args: ["-p", "/skills", "/tmp/output"] });
-
-const snapshot = await sandbox.snapshot();
-console.log(`SANDBOX_SNAPSHOT_EXCEL_ID=${snapshot.snapshotId}`);
-await sandbox.stop();
-```
-
-```typescript
-// scripts/build-snapshot-artifact.ts
-import { Sandbox } from "@vercel/sandbox";
-
-const sandbox = await Sandbox.create({ timeout: 10 * 60 * 1000, runtime: "node22" });
-
-// Claude Code CLI
-await sandbox.runCommand({ cmd: "npm", args: ["install", "-g", "@anthropic-ai/claude-code"] });
-
-// Scaffold template project
-await sandbox.runCommand({ cmd: "mkdir", args: ["-p", "/template/src/components", "/template/src/data", "/template/src/styles"] });
-// ... write package.json, vite.config.ts, all component files, theme.css, build.sh
-
-// Pre-install dependencies
-await sandbox.runCommand({ cmd: "sh", args: ["-c", "cd /template && npm install"] });
-
-// Directories for runtime files
-await sandbox.runCommand({ cmd: "mkdir", args: ["-p", "/skills", "/tmp/output", "/tmp/photos"] });
-
-const snapshot = await sandbox.snapshot();
-console.log(`SANDBOX_SNAPSHOT_ARTIFACT_ID=${snapshot.snapshotId}`);
-await sandbox.stop();
+Sunder: "Published!
+  🔗 https://42-noriega.here.now
+  Sent to John via WhatsApp."
 ```
 
 ## 8. Infrastructure
 
+### Sprite Templates
+
+Two pre-configured Sprite templates, registered with Fly.io:
+
+| | `sunder-excel` | `sunder-artifact` |
+|---|---|---|
+| **Base** | Default Sprite (Claude Code pre-installed) | Default Sprite (Claude Code pre-installed) |
+| **Additional deps** | Python 3.13, pandas, openpyxl, xlsxwriter, matplotlib, LibreOffice, gcc | Node 22 (pre-installed), pre-scaffolded Vite+React template |
+| **Baked-in skills** | Anthropic xlsx skill + recalc.py + LibreOffice helpers | React property page template + node_modules |
+| **Size** | ~500MB (LibreOffice is heavy) | ~300MB (node_modules) |
+| **Rebuild when** | xlsx skill updates, Python dep changes | Template changes, React dep updates |
+
 ### Environment Variables
 
 ```
-SANDBOX_VERCEL_TEAM_ID           — Vercel team for sandbox provisioning
-SANDBOX_VERCEL_PROJECT_ID        — Vercel project for sandbox provisioning
-SANDBOX_VERCEL_TOKEN             — Vercel API token for sandbox provisioning
-SANDBOX_SNAPSHOT_EXCEL_ID        — Snapshot ID for analyze_spreadsheet
-SANDBOX_SNAPSHOT_ARTIFACT_ID     — Snapshot ID for publish_artifact
-ANTHROPIC_API_KEY                — Injected into sandbox for Claude Code CLI
+SPRITES_API_KEY                  — Fly.io Sprites API key
+ANTHROPIC_API_KEY                — Injected into Sprite for Claude Code CLI
+SPRITE_TEMPLATE_EXCEL            — Template name for analyze_spreadsheet
+SPRITE_TEMPLATE_ARTIFACT         — Template name for publish_artifact
 ```
 
 ### Cost Model
 
-| | `analyze_spreadsheet` | `publish_artifact` |
-|---|---|---|
-| Sandbox compute | ~$0.02–0.05 (30-90s) | ~$0.01–0.03 (20-40s) |
-| Claude CLI (Sonnet) | ~$0.05–0.30 | ~$0.10–0.50 |
-| Runner routing (Flash) | ~$0.001 | ~$0.005 (more tool chaining) |
-| **Total per invocation** | **~$0.10–0.40** | **~$0.15–0.60** |
+**Per-iteration costs (Sprites compute):**
 
-### Timeout and Limits
-
-| Limit | `analyze_spreadsheet` | `publish_artifact` |
+| Resource | Rate | Typical per iteration |
 |---|---|---|
-| Sandbox timeout | 3 minutes | 3 minutes |
-| Agent CLI max turns | 20 | 20 |
-| Max file upload size | 10 MB | 10 MB (photos) |
-| Concurrent sandboxes per client | 1 | 1 |
+| CPU (burst to 4 cores, avg 2) | $0.07/CPU-hr | ~$0.004-0.01 (30-90s) |
+| Memory (1GB) | $0.04375/GB-hr | ~$0.001 |
+| Hot storage (NVMe) | $0.000683/GB-hr | Negligible |
+| **Sprite compute subtotal** | | **~$0.005-0.01** |
+
+**Per-iteration costs (LLM):**
+
+| Model | Rate | Typical per iteration |
+|---|---|---|
+| Claude Code (Sonnet) inside Sprite | ~$0.05-0.30 | ~$0.05-0.30 |
+| Runner routing (Gemini Flash) | ~$0.001-0.005 | ~$0.001-0.005 |
+| **LLM subtotal** | | **~$0.05-0.30** |
+
+**Total per iteration: ~$0.06-0.31**
+
+**Multi-turn session (4 iterations): ~$0.24-1.24**
+
+**Idle cost between iterations: $0 (Sprite is sleeping)**
+
+Compare to v1 design (ephemeral Vercel Sandbox): ~$0.10-0.40 per invocation × 4 invocations = ~$0.40-1.60, plus re-upload and re-setup overhead each time.
+
+### Limits
+
+| Limit | Value |
+|---|---|
+| Max iterations per session | 10 (soft limit, configurable) |
+| Agent CLI max turns per iteration | 20 |
+| Max file upload size | 10 MB |
+| Sprite auto-kill after inactivity | 24 hours |
+| Concurrent Sprites per client | 1 |
+| Sprite resources | 2 vCPU, 1GB RAM (burst to 4 vCPU) |
 
 ## 9. Security
 
 ### Isolation Model
 
-- Sandbox is **ephemeral** — destroyed after each invocation
-- Sandbox has **no access** to Sunder's database, other clients' files, or platform secrets
-- `--dangerously-skip-permissions` is safe because the sandbox is disposable and isolated
+- Sprite runs in a **Firecracker microVM** — hardware-level isolation
+- Each client gets their own Sprite — no shared state between clients
+- `--dangerously-skip-permissions` is safe because the Sprite is isolated
 - Files are explicitly copied in/out — no shared filesystem with the platform
-- ANTHROPIC_API_KEY is the only secret injected (for the agent CLI to make API calls)
+- ANTHROPIC_API_KEY is the only secret injected (for Claude Code to make API calls)
+- **Network egress:** Domain allowlist via Sprites Layer 3 filtering — only `api.anthropic.com` + package registries
 
-### What the Sandbox CAN Do
+### What the Sprite CAN Do
 
 - Read/write files within its own filesystem
 - Run arbitrary Python/Node code
-- Make outbound HTTP requests (for package installs, web lookups)
+- Make outbound HTTP to allowlisted domains
 - Iterate on errors autonomously
+- Serve a dev server on port 8080 (preview URL)
 
-### What the Sandbox CANNOT Do
+### What the Sprite CANNOT Do
 
 - Access Supabase (no connection string injected)
-- Access other clients' data
-- Persist state between invocations
+- Access other clients' data (separate VMs)
 - Access Sunder's CRM, memory, or connection tools
-- Run longer than the timeout
+- Make arbitrary outbound network requests (egress allowlist)
+- Run longer than 24h without activity
+
+### Checkpoint Safety Net
+
+Before risky operations (major code changes, dependency upgrades), Claude Code can checkpoint the Sprite (~300ms). If something breaks, the runner can rollback.
 
 ## 10. Relationship to Existing Codebase
 
@@ -548,105 +658,103 @@ ANTHROPIC_API_KEY                — Injected into sandbox for Claude Code CLI
 
 ```
 src/lib/sandbox/
-├── create-sandbox.ts              — Sandbox.create() wrapper, snapshot selection
-├── run-claude-in-sandbox.ts       — Claude CLI execution + output reading
+├── sprites-client.ts              — Sprites SDK wrapper (create, wake, exec, kill)
+├── sprite-session.ts              — Per-client Sprite lifecycle (create/wake/sleep/kill)
+├── run-claude-in-sprite.ts        — Claude CLI execution + output reading
 ├── skill-loader.ts                — Download skill files from Supabase Storage
-└── types.ts                       — SandboxConfig, SandboxResult types
+└── types.ts                       — SpriteSession, SpriteResult types
 
 src/lib/runner/tools/sandbox/
 ├── analyze-spreadsheet.ts         — analyze_spreadsheet tool definition
 └── publish-artifact.ts            — publish_artifact tool definition
 
 scripts/
-├── build-snapshot-excel.ts        — Build snap_excel snapshot
-└── build-snapshot-artifact.ts     — Build snap_artifact snapshot
+├── build-sprite-template-excel.sh — Build sunder-excel Sprite template
+└── build-sprite-template-artifact.sh — Build sunder-artifact Sprite template
+```
+
+### Database
+
+New table: `sprite_sessions`
+
+```sql
+create table sprite_sessions (
+  id uuid primary key default gen_random_uuid(),
+  client_id uuid not null references clients(id),
+  thread_id uuid references threads(id),
+  sprite_id text not null,           -- Fly.io Sprite ID
+  template text not null,            -- 'sunder-excel' | 'sunder-artifact'
+  status text not null default 'running', -- running | sleeping | destroyed
+  preview_url text,                  -- Sprite preview URL (for publish_artifact)
+  created_at timestamptz default now(),
+  last_active_at timestamptz default now(),
+  destroyed_at timestamptz
+);
+
+-- RLS: clients can only see their own Sprites
+alter table sprite_sessions enable row level security;
+create policy "client_isolation" on sprite_sessions
+  using (client_id = current_setting('app.client_id')::uuid);
 ```
 
 ## 11. Reference Implementations
 
-### Repos
+### Primary References
+
+| Repo / Resource | What we take from it |
+|---|---|
+| [diggerhq/opencomputer](https://github.com/diggerhq/opencomputer) | Architecture pattern: Claude Agent SDK inside persistent VM, `sandbox.agent.start()`, multi-turn sessions, preview URLs. See [Building Open Lovable Part 1](https://opencomputer.dev/guides/building-open-lovable-part-1). |
+| [Sprites.dev](https://sprites.dev) + [Design & Implementation blog post](https://fly.io/blog/design-and-implementation/) | Infrastructure: Firecracker microVMs, S3-backed persistent storage, checkpoints, auto-sleep/wake, port 8080 preview URLs, egress filtering. |
+| [vercel-labs/coding-agent-template](https://github.com/vercel-labs/coding-agent-template) | SDK patterns: `Sandbox.create()`, `runCommand()`, agent CLI inside sandbox, snapshot workflow. Useful as API reference even though we're not using Vercel Sandbox. |
+| [Anthropic: Hosting the Agent SDK](https://platform.claude.com/docs/en/agent-sdk/hosting) | Three deployment patterns: ephemeral, long-running, hybrid. Sunder uses hybrid (persistent Sprite with session resumption). |
+| [Harrison Chase: Two Patterns for Agents + Sandboxes](https://blog.langchain.com/the-two-patterns-by-which-agents-connect-sandboxes/) | Pattern taxonomy. Sunder uses Pattern 1 (Agent IN Sandbox) for coding tasks, Pattern 2 (Sandbox as Tool) is what the runner does for structured tools. |
+
+### Skill References
 
 | Repo | What we take from it |
 |---|---|
-| [vercel-labs/coding-agent-template](https://github.com/vercel-labs/coding-agent-template) | `@vercel/sandbox` API pattern, `Sandbox.create()`, `runCommand()`, agent CLI inside sandbox, snapshot workflow |
-| [firecrawl/open-lovable](https://github.com/firecrawl/open-lovable) (24.5k stars) | Sandbox provider interface, Vite scaffolding, live preview pattern |
-| [diggerhq/openlovable](https://github.com/diggerhq/openlovable) | Claude agent inside sandbox writing React, iterative editing, preview URL |
 | [alirezarezvani/claude-skills](https://github.com/alirezarezvani/claude-skills) | Skill file format (SKILL.md + scripts + references) |
-| Anthropic xlsx skill (`/Users/sethlim/Downloads/xlsx/`) | Production-grade Excel skill with LibreOffice recalc, formula verification, socket shim for sandboxed VMs |
-
-### Articles & Blog Posts
-
-| Source | Location in repo | Key takeaways |
-|---|---|---|
-| [Anthropic: Equipping agents with Agent Skills](https://claude.com/blog/equipping-agents-for-the-real-world-with-agent-skills) | (external) | Skills = folders not files. Progressive disclosure (metadata → SKILL.md → linked files). Code execution as skill scripts. Security: audit skills from untrusted sources. |
-| [Thariq (@trq212): Lessons from Building Claude Code — How We Use Skills](https://x.com/trq212/status/2033949937936085378) | (external) | 9 skill categories (library/API, verification, data fetching, business process, scaffolding, code quality, CI/CD, runbooks, infra ops). Key tips: don't state the obvious, build gotchas sections, use filesystem for progressive disclosure, avoid railroading Claude, store data in skill dirs for memory. |
-| [Anthropic: Skills Guide](https://platform.claude.com/docs/en/build-with-claude/skills-guide) | (external) | Skills API: `container.skills` in Messages API. Anthropic pre-built skills: `xlsx`, `pptx`, `docx`, `pdf`. Custom skills uploaded via Skills API. Up to 8 skills per request. |
-| Nicolas Bustamante: Lessons from Building AI Agents (Fintool) | `references/Fintool/nicbustamante-fintool-lessons-building-ai-agents-FULL.md` | "The sandbox is not optional." Three mount points (private/shared/public). Sandbox pre-warming. Skills architecture with `/public/skills/` for shared skills. S3-first file architecture. |
-| Nicolas Bustamante: Reverse Engineering Excel AI Agents | `references/Fintool/nicbustamante-reverse-engineering-excel-ai-agents-FULL.md` | Compared Claude in Excel (14 tools), Shortcut AI (11 tools), Microsoft Copilot (2 tools). Tool architecture matters more than model. Claude's approach: many specialized tools with safety guardrails. |
-
-### Anthropic Financial Skills (Reference for RE Skill)
-
-These are the official Anthropic examples for financial skills. **Use as reference when building the RE investment analysis skill.**
-
-| Repo | Skills | What's useful |
-|---|---|---|
-| [anthropics/claude-cookbooks/skills/custom_skills](https://github.com/anthropics/claude-cookbooks/tree/main/skills/custom_skills) | `creating-financial-models` (DCF + sensitivity + Monte Carlo), `analyzing-financial-statements` (ratio calculation + interpretation) | Skill structure, Python scripts (`dcf_model.py`, `sensitivity_analysis.py`, `calculate_ratios.py`), input/output format conventions |
-| [anthropics/financial-services-plugins](https://github.com/anthropics/financial-services-plugins) | **financial-analysis:** `dcf-model`, `3-statement-model`, `comps-analysis`, `lbo-model`, `audit-xls`, `clean-data-xls`. **wealth-management:** `financial-plan`, `portfolio-rebalance`, `investment-proposal`, `tax-loss-harvesting`. **investment-banking:** full plugin with hooks + commands. **equity-research:** research workflow. | Production-grade DCF skill with step-by-step verification, sensitivity table construction (odd-numbered grids, center=base case), formulas-over-hardcodes enforcement, cell comments for sources. The `dcf-model` skill is the gold standard for how to write a financial analysis skill. |
-
-**Key patterns from Anthropic's DCF skill to adopt for RE analysis:**
-- **Verify step-by-step** — don't build end-to-end. Show inputs → confirm → project → confirm → output.
-- **Formulas over hardcodes** — every projection must be a live Excel formula, never a Python-computed value.
-- **Sensitivity tables** — odd-numbered grid (5x5 or 7x7), center cell = base case, highlighted.
-- **Cell comments** — every hardcoded input gets a source comment as it's written, not deferred.
-- **Section checkpoints** — after each major section, pause and validate before proceeding.
-
-> **Note:** When building the RE investment analysis skill (`/agent/skills/re-analyst/`), reference
-> `anthropics/financial-services-plugins/financial-analysis/skills/dcf-model/SKILL.md` for structure,
-> and adapt the DCF/sensitivity patterns for RE-specific metrics (rental yield, cash-on-cash, TDSR,
-> capital appreciation, mortgage amortization).
+| [anthropics/financial-services-plugins](https://github.com/anthropics/financial-services-plugins) | Production-grade DCF skill — formula verification, sensitivity tables, cell comments. Gold standard for RE analysis skill. |
+| [anthropics/claude-cookbooks/skills/custom_skills](https://github.com/anthropics/claude-cookbooks/tree/main/skills/custom_skills) | Financial model skills — DCF, sensitivity analysis, ratio calculation. Skill structure and Python script patterns. |
+| Anthropic xlsx skill (`/Users/sethlim/Downloads/xlsx/`) | Production-grade Excel skill with LibreOffice recalc, formula verification, socket shim for sandboxed VMs. |
 
 ### Internal Docs
 
 | Doc | Location | Relevance |
 |---|---|---|
-| Built-In Services §13 (Artifact Publishing) | `roadmap docs/.../services/01-Built-In Services.md` | Full product spec: use cases, design skill principles, hosting (Supabase Storage / here.now), cost estimates, implementation checklist |
-| Tasklet sandbox trace (conversation 2026-03-14) | (conversation artifact) | `run_command` tool pattern, FUSE storage bridge, Unikraft microVM internals, skill-as-steering concept |
+| Sandbox reference comparison | `roadmap docs/.../references/sandboxes/sandbox-environments-comparison.md` | Full vendor comparison (Sprites, E2B, Modal, Cloudflare, Vercel) |
+| Assembly pattern references | `roadmap docs/.../references/sandboxes/assembly-pattern-references.md` | 16 reference repos for gather → assemble → sandbox pattern |
+| Assembly pattern playbook | `roadmap docs/.../references/sandboxes/assembly-pattern-playbook.md` | Strategic playbook with ranked implementations and decision guide |
+| Built-In Services §13 | `roadmap docs/.../services/01-Built-In Services.md` | Full product spec: artifact publishing use cases, design skill principles |
 
-## 12. Open Questions
-
-1. **Sandbox provider:** Vercel Sandbox vs E2B? Vercel is natural given our stack. E2B has more mature agent-specific features and native template support. Need to compare pricing.
-
-2. **Agent CLI choice:** Claude Code CLI vs Codex CLI? Claude Code is more mature. Could support both via config.
-
-3. **Streaming:** Should sandbox execution stream progress to the chat UI, or just return the final result? Streaming adds complexity but improves UX for long-running analyses.
-
-4. **Cost controls:** How to prevent runaway sandbox compute? Per-client daily/monthly limits? Tied to billing tier?
-
-5. **Artifact iteration:** When user says "change X" on a published artifact, do we pass the previous HTML as input to a new sandbox, or keep the sandbox alive between turns?
-
-6. **Template maintenance:** Who maintains the pre-scaffolded React template? How do we update it without breaking existing artifacts?
-
-7. ~~**Pre-built sandbox image:**~~ **RESOLVED — Vercel Sandbox supports snapshots.** `sandbox.snapshot()` freezes filesystem state; `Sandbox.create({ source: { type: "snapshot", snapshotId } })` restores it. Millisecond boot via Firecracker microVM.
-
-8. ~~**Output format:**~~ **RESOLVED — Use Case 1 outputs .xlsx (not JSON), Use Case 2 outputs published URL.**
-
-9. ~~**Skill discovery:**~~ **RESOLVED — Two dedicated tools. No routing needed. Model picks the right tool based on user intent.**
-
----
-
-## 13. Decision Log
+## 12. Decision Log
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| Two dedicated tools (not one generic) | `analyze_spreadsheet` + `publish_artifact` | Different runtimes, different snapshots, different outputs. Cleaner tool descriptions for the model. |
-| Two separate snapshots | `snap_excel` + `snap_artifact` | LibreOffice (~400MB) only needed for Excel. Don't bloat the artifact snapshot. |
-| Agent CLI inside sandbox (not pre-built scripts) | Claude Code CLI | User is the domain expert; can't pre-build all analyses. Agent writes code guided by user's skill files. |
-| Anthropic xlsx skill baked in snapshot | Bundled, not per-client | Same skill for all users. Production-grade formulas, color coding, recalc. |
-| Pre-scaffolded React template baked in snapshot | Bundled, not per-client | Agent tweaks template (~20-40s) instead of building from scratch (~60-180s). |
-| User preferences in Supabase Storage (not bundled) | Per-client SKILL.md | Each client has different analysis/brand preferences. Same pattern as memory files. |
-| Sandbox on-demand per tool call (not persistent) | Ephemeral | Security, cost, simplicity. No state to manage between calls. |
+| Sandbox provider | Sprites (Fly.io) over Vercel Sandbox | Persistent VMs with auto-sleep solve multi-turn iteration without idle cost. Claude Code pre-installed. Preview URLs built-in. Fly.io is established and battle-tested. |
+| Persistent sessions over ephemeral | Per-client Sprites that auto-sleep | Users iterate 3-4 times per task. Re-booting and re-uploading each time is wasteful and loses context. Auto-sleep means zero idle cost. |
+| Agent inside sandbox (not sandbox-as-tool) | Claude Code CLI runs inside Sprite | Sunder's runner is a business orchestrator, not a coding agent. Delegating coding tasks to Claude Code avoids building custom code-iteration logic. |
+| Two dedicated tools (not one generic) | `analyze_spreadsheet` + `publish_artifact` | Different runtimes, different templates, different outputs. Cleaner tool descriptions for the model. |
+| Two Sprite templates | `sunder-excel` + `sunder-artifact` | LibreOffice (~400MB) only needed for Excel. Don't bloat the artifact template. |
+| Anthropic xlsx skill baked into template | Bundled, not per-client | Same skill for all users. Production-grade formulas, color coding, recalc. |
+| Pre-scaffolded React template baked in | Bundled, not per-client | Agent tweaks template (~20-40s) instead of building from scratch (~60-180s). |
+| User preferences in Supabase Storage | Per-client SKILL.md | Each client has different analysis/brand preferences. Same pattern as memory files. |
 | Gemini Flash for routing, Claude for execution | Two-tier model | Flash is cheap for deciding when to use sandbox. Claude is powerful for writing + running code. |
-| SKILL.md as user-editable (not developer-authored) | User steers | The user knows their domain. The skill file is how they transfer expertise to the agent. |
-| Vercel Sandbox with snapshots | Snapshots + Firecracker | Same Vercel stack. Snapshots eliminate cold install overhead. Millisecond boot. |
-| Excel output for Use Case 1 (not JSON/text) | `.xlsx` with formulas | Users need editable models they can share with clients. Proper Excel with formulas, not hardcoded values. |
-| Published URL for Use Case 2 (not file download) | Shareable link | Users share showcase pages with clients. A URL is more professional than a file. |
+| Preview via Sprite port 8080 (not static publish) | Live preview during iteration | User sees changes in real-time. Static publish only on final "ship it." |
+| Sprite auto-kill after 24h inactivity | Cost safety net | Prevents forgotten Sprites from accumulating cost. |
+
+## 13. Open Questions
+
+1. **One Sprite or two per client?** Could both tools share a single Sprite with both Python and Node installed, or keep separate templates for isolation and size? Leaning toward two (keeps templates lean) but worth testing.
+
+2. **Streaming:** Should Sprite execution stream Claude Code's progress to the chat UI? Would improve UX for long-running analyses but adds complexity (SSE from Sprite → runner → chat UI).
+
+3. **Cost controls:** Per-client daily/monthly limits on Sprite compute? Tied to billing tier?
+
+4. **Template maintenance:** How to update baked-in templates (React components, xlsx skill) without breaking active Sprites? Version the templates?
+
+5. **Cheap model routing (PR 54):** Can we swap Claude Code inside the Sprite to use a cheaper model via OpenRouter for simple iterations? The `ANTHROPIC_BASE_URL` env var approach from the original PR 54 design still applies.
+
+6. ~~**Artifact iteration:**~~ **RESOLVED — Sprite stays alive between turns. Auto-sleeps when idle. Files persist. No need to pass previous output to a new sandbox.**
+
+7. ~~**Sandbox provider:**~~ **RESOLVED — Sprites (Fly.io). Persistent VMs with auto-sleep, Claude Code pre-installed, preview URLs built-in, established company.**
