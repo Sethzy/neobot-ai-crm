@@ -2,12 +2,12 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-20 (PR56 runner pre-LLM pipeline optimization)",
+    "updated": "2026-03-23 (PR56 context pipeline redesign)",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
     "totalPhases": 6,
-    "estimatedPRs": 43,
+    "estimatedPRs": 44,
     "keptPRs": 27,
     "cutPRs": 19,
     "donePRs": 37,
@@ -66,7 +66,9 @@
       "2026-03-20: Added PRs 43-44 (WhatsApp integration) to Phase 5. Mirrors Telegram PRs 41-42 pattern. Originally planned custom baileys relay \u2014 switched to forking lharries/whatsapp-mcp Go bridge (whatsmeow). Already has socket, QR auth, SQLite store, history sync, REST API. Only ~15 lines of Go to add (webhook forwarder). Deploy to Fly (~$2/mo). format.ts + send.ts copied from dorabot. Text-based approvals. QR code pairing. PR 43: 6 tasks. PR 44: 3 tasks. Drift analysis: roadmap docs/Sunder - Source of Truth/references/nanoclaw-dorabot/dorabot-whatsapp-drift-analysis.md",
       "2026-03-20: Added PR 45 (WhatsApp inbox as CRM data source) to Phase 5. Agent tools: search_whatsapp_messages, list_whatsapp_chats, get_whatsapp_contact_history. Relay already stores all messages in SQLite (whatsapp-mcp built-in). Sync to Supabase tables (whatsapp_chats + whatsapp_messages with RLS + FTS). Voice note transcription via Gemini multimodal. Pattern from whatsapp-mcp (github.com/lharries/whatsapp-mcp) query model. 6 tasks.",
       "2026-03-20: Added PR 55 (search_market_data \u2014 property market data agent tool) to Phase 3 as out-of-plan scope exception. Gives agent instant SQL access to Singapore property DB (CEA agents 37K, CEA transactions 1.3M, HDB resale 970K, URA private 500K). Single tool with dataset discriminator + two modes (search/stats). Env-gated via isPropertySupabaseConfigured() \u2014 zero impact for non-SG deployments. Uses existing createPropertyPublicServerClient() singleton (separate Supabase project, public RLS). Available in chat, autopilot, and subagents. Complements PR 50/50b browser automation \u2014 browse_website for live portal interaction, search_market_data for historical/aggregate data.",
-      "2026-03-20: Added PR 56 (Runner pre-LLM pipeline optimization) to Phase 4. Out-of-plan performance work. 3 confirmed serialization fixes after code review narrowed scope from original 6: (1) Composio per-connection for\u2192of\u2192Promise.all with deterministic merge, (2) connections query dedup in buildSystemReminder via optional ConnectionRow[] param, (3) autopilot Composio-after-context\u2192parallel. Dropped from original scope: bootstrap parallelization (first-turn skill seeding race), DB-side compaction cutoff removal (broader scans on long threads), context.ts restructure (API churn exceeded gain). No exported internals, no promise-aware APIs, assembleContext() stays as-is."
+      "2026-03-20: Added PR 56 (Runner pre-LLM pipeline optimization) to Phase 4. Out-of-plan performance work. 3 confirmed serialization fixes after code review narrowed scope from original 6: (1) Composio per-connection for\u2192of\u2192Promise.all with deterministic merge, (2) connections query dedup in buildSystemReminder via optional ConnectionRow[] param, (3) autopilot Composio-after-context\u2192parallel. Dropped from original scope: bootstrap parallelization (first-turn skill seeding race), DB-side compaction cutoff removal (broader scans on long threads), context.ts restructure (API churn exceeded gain). No exported internals, no promise-aware APIs, assembleContext() stays as-is.",
+      "2026-03-23: Added PR 57 (Property portal listing tools \u2014 search_99co + search_propertyguru) to Phase 3. Two agent tools that search live listings on 99.co and PropertyGuru via Apify actors (easyapi + fatihtahta). Complements PR 55 (historical transactions) and PR 50/50c (login-gated portals). Env-gated via APIFY_TOKEN. Two separate tools (not unified) because input schemas differ fundamentally (URL-based vs query builder) and output shapes diverge (nested vs flat). Design doc: docs/product/designs/pr57-property-portal-listing-tools.md.",
+      "2026-03-23: PR 56 scope expanded from runner parallelization to full context pipeline redesign. Adds prompt cache stability (append-only messages, stable tools, system reminder as message, memory after cache boundary), DB-cached Composio schemas, fraction-based compaction (Deep Agents pattern). Revises PR 22c text truncation decision (removed for cache stability). Design doc: references/deepagents/01-context-pipeline-design-doc.md."
     ]
   },
   "phases": [
@@ -2255,6 +2257,92 @@
             "Tool not registered when NEXT_PUBLIC_PROPERTY_SUPABASE_URL is not set",
             "All tests pass: npx vitest run src/lib/runner/tools/market/"
           ]
+        },
+        {
+          "pr": 57,
+          "title": "Property portal listing tools (search_99co + search_propertyguru)",
+          "status": "pending",
+          "note": "Out-of-plan scope exception. Two agent tools that search live property listings on 99.co and PropertyGuru via Apify actors (easyapi + fatihtahta). Chat-only scope (excluded from autopilot/subagents \u2014 paid scraping needs human in loop). Separate isApifyConfigured() env gate (independent from market data). Separate createListingTools() factory (no Supabase dependency \u2014 APIFY-only deploy must not crash). Bearer auth, fetchWithTimeout reuse, Apify error parsing, maxTotalChargeUsd guard. Explicit hostname allowlists for URL validation (not suffix matching). Thin output envelope { success, portal, count, results } with portal-native field shapes. 99.co listing_url canonicalized to absolute. PG country hardcoded to 'sg'. Tests span market/__tests__/, system-prompt.test.ts, context.test.ts, tool-registry.test.ts. Design doc: docs/product/designs/pr57-property-portal-listing-tools.md.",
+          "decisions": [],
+          "dependsOn": [],
+          "tasks": [
+            {
+              "id": "PR57-1",
+              "task": "apify-client.ts \u2014 shared Apify HTTP client (Bearer auth, fetchWithTimeout reuse, Apify error parsing, maxTotalChargeUsd guard)",
+              "done": false
+            },
+            {
+              "id": "PR57-2",
+              "task": "market/__tests__/apify-client.test.ts \u2014 unit tests (auth header, timeout, error payload parsing, maxTotalChargeUsd param, missing token)",
+              "done": false
+            },
+            {
+              "id": "PR57-3",
+              "task": "search-99co.ts \u2014 tool definition + Zod schema (explicit hostname allowlist {'99.co','www.99.co'} + path /singapore/). Canonicalize relative listing_url to absolute.",
+              "done": false
+            },
+            {
+              "id": "PR57-4",
+              "task": "market/__tests__/search-99co.test.ts \u2014 unit tests (mock Apify response, URL validation rejects evil99.co and non-SG paths, timeout, output envelope, URL canonicalization)",
+              "done": false
+            },
+            {
+              "id": "PR57-5",
+              "task": "search-propertyguru.ts \u2014 tool definition + Zod schema (hardcoded country: 'sg', explicit hostname allowlist for startUrls, .refine() requires searchQueries or startUrls)",
+              "done": false
+            },
+            {
+              "id": "PR57-6",
+              "task": "market/__tests__/search-propertyguru.test.ts \u2014 unit tests (mock Apify response, refine validation, startUrls hostname validation rejects non-PG URLs, country hardcoding, output envelope)",
+              "done": false
+            },
+            {
+              "id": "PR57-7",
+              "task": "market/index.ts \u2014 add separate createListingTools() factory (no Supabase dependency). tool-registry.ts \u2014 separate isApifyConfigured() gate, chat-only registration.",
+              "done": false
+            },
+            {
+              "id": "PR57-8",
+              "task": "context.ts \u2014 separate property-listings prompt injection path (independent from market data flag)",
+              "done": false
+            },
+            {
+              "id": "PR57-9",
+              "task": "System prompt <tool-usage> property search routing guidance (conditional on isApifyConfigured())",
+              "done": false
+            },
+            {
+              "id": "PR57-10",
+              "task": "system-prompt.test.ts \u2014 fragment content tests only (property search routing text present in prompt string). No env-conditional logic.",
+              "done": false
+            },
+            {
+              "id": "PR57-11",
+              "task": "context.test.ts + tool-registry.test.ts \u2014 env-conditioned presence/absence of listing tools and prompt injection. Chat-only scope. Independence from market data flag. APIFY-only deploy (no Supabase) must not crash.",
+              "done": false
+            },
+            {
+              "id": "PR57-12",
+              "task": "v2 plan update",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "In chat: 'Search 99.co for 3-bed condos in District 10 under $2M' \u2192 agent calls search_99co \u2192 returns { success: true, portal: '99co', count: N, results: [...] } with MRT walk times",
+            "In chat: 'Find landed properties for rent on PropertyGuru' \u2192 agent calls search_propertyguru with listingType: 'rent', propertyType: 'sg_landed' \u2192 returns listings",
+            "99.co URL with wrong hostname \u2192 Zod validation rejects before Apify call",
+            "PropertyGuru with neither searchQueries nor startUrls \u2192 Zod refine rejects",
+            "Both tools not registered when APIFY_TOKEN is missing",
+            "Both tools not available in autopilot or subagent runs",
+            "Market data tools still register independently when only NEXT_PUBLIC_PROPERTY_SUPABASE_URL is set",
+            "Apify timeout \u2192 { success: false, error: 'Scraping timed out...' }",
+            "Apify 4xx/5xx \u2192 parsed error message from response body",
+            "system-prompt.test.ts: property search routing fragment present in prompt string",
+            "context.test.ts: listing guidance injected when APIFY_TOKEN set, absent when not",
+            "tool-registry.test.ts: Apify tools in chat-only scope when APIFY_TOKEN set, absent when not",
+            "Listing tools register when only APIFY_TOKEN is set (no property Supabase) \u2014 no crash",
+            "All PR57 tests pass: npx vitest run src/lib/runner/tools/market/__tests__/apify-client.test.ts src/lib/runner/tools/market/__tests__/search-99co.test.ts src/lib/runner/tools/market/__tests__/search-propertyguru.test.ts src/lib/ai/__tests__/system-prompt.test.ts src/lib/runner/__tests__/context.test.ts src/lib/runner/__tests__/tool-registry.test.ts"
+          ]
         }
       ]
     },
@@ -3175,33 +3263,65 @@
         },
         {
           "pr": 56,
-          "title": "Runner pre-LLM pipeline optimization",
+          "title": "Context pipeline redesign \u2014 cache stability + latency + fraction compaction",
           "status": "in_progress",
           "simplified": false,
-          "decisions": [],
-          "note": "Out-of-plan performance work. Three confirmed serialization fixes: (1) Composio per-connection for\u2192of\u2192Promise.all, (2) connections query dedup in buildSystemReminder, (3) autopilot Composio-after-context\u2192parallel. Scope narrowed after code review: bootstrap stays serial (first-turn skill seeding race), DB-side compaction cutoff stays (avoids broader scans), assembleContext() remains the single context assembly seam, no exported internals. Compared against dorabot local-first CLI.",
+          "decisions": [
+            "DATA-10",
+            "SESSION-07"
+          ],
+          "note": "Supersedes original PR 56 scope (parallelization). Redesigned based on Deep Agents (langchain-ai/deepagents) harness patterns + prompt caching best practices (11 reference docs). Design doc: roadmap docs/Sunder - Source of Truth/references/deepagents/01-context-pipeline-design-doc.md. Tasklist: docs/product/tasks/2026-03-23-context-pipeline-redesign-tasklist.md. Revises PR 22c decisions (removes text truncation for cache stability). Core insight: cache stability > context minimization.",
           "tasks": [
             {
               "id": "PR56-1",
-              "task": "Parallelize Composio per-connection tool loading \u2014 deterministic merge with barrier-style test",
+              "task": "Extract saveToolcallBlock to src/lib/storage/tool-blocks.ts (separate block storage from truncation)",
               "done": false
             },
             {
               "id": "PR56-2",
-              "task": "Deduplicate connections query \u2014 pass optional ConnectionRow[] into buildSystemReminder",
+              "task": "Remove text truncation from persistence \u2014 delete truncateOversizedParts, saveToolcallArtifact, buildContextRemovedMarker. Keep block storage for subagent observability.",
               "done": false
             },
             {
               "id": "PR56-3",
-              "task": "Parallelize Composio with context assembly in run-autopilot.ts",
+              "task": "DB-cache Composio tool schemas \u2014 add tool_schemas JSONB column to connections, persist on activation, load from DB instead of Composio API",
+              "done": false
+            },
+            {
+              "id": "PR56-4",
+              "task": "Slim system reminder to counts only + move from system prompt to user message (cache boundary separation)",
+              "done": false
+            },
+            {
+              "id": "PR56-5",
+              "task": "Stable tool set \u2014 always register all tools (browser, market), runtime error if unconfigured",
+              "done": false
+            },
+            {
+              "id": "PR56-6",
+              "task": "Fraction-based compaction trigger \u2014 0.85 of context window (Deep Agents pattern), persist prompt_tokens on runs table",
+              "done": false
+            },
+            {
+              "id": "PR56-7",
+              "task": "Move memory (SOUL/USER/MEMORY.md) outside cached prefix \u2014 inject as message after cache boundary (Deep Agents ordering)",
+              "done": false
+            },
+            {
+              "id": "PR56-8",
+              "task": "Prompt caching spike \u2014 verify Gemini implicit caching with stable prefix, test system-reminder-as-message",
               "done": false
             }
           ],
           "testCriteria": [
-            "All existing runner + composio tests pass",
-            "Barrier test proves Composio loads connections concurrently",
-            "System reminder uses pre-fetched connections when provided",
-            "Autopilot loads Composio in parallel with context assembly"
+            "Tool outputs saved in full to DB (no <context-removed> markers for text)",
+            "loadActivatedConnectionTools reads from DB row, not Composio API",
+            "System prompt identical across consecutive turns (no timestamp, no tool set changes)",
+            "System reminder injected as user message, not in system prompt string",
+            "Memory content injected as message, not in system prompt string",
+            "All tools registered on every run including browser and market",
+            "Compaction triggers at 85% of model context window using previous run prompt_tokens",
+            "Cache hit rate 95%+ on turns 2-50 (once caching enabled)"
           ]
         }
       ]

@@ -2,7 +2,7 @@
 
 > **Created:** 2026-03-10
 > **Updated:** 2026-03-20
-> **Total surfaces:** 26
+> **Total surfaces:** 27
 > **Coverage:** 50+ done PRs across Phases 1-5
 
 ## Execution Order
@@ -35,8 +35,9 @@ Test in this order (dependency-safe — each surface builds on the previous):
 | 22 | Error Recovery | [22-error-recovery.md](22-error-recovery.md) | No | 20-25 min | [ ] |
 | 23 | PDF Document Generation | [23-pdf-document-generation.md](23-pdf-document-generation.md) | Partial | 15-20 min | [ ] |
 | 24 | Browser Automation | [24-browser-automation.md](24-browser-automation.md) | Partial | 20-30 min | [ ] |
+| 27 | Real Business Cases | [27-real-business-cases.md](27-real-business-cases.md) | Partial | 45-60 min | [ ] |
 
-**Total estimated manual time:** ~8-9.5 hours
+**Total estimated manual time:** ~9-10.5 hours
 
 ## How to Use
 
@@ -86,6 +87,7 @@ Walk through each "Manual QA Scenario" as a real user. Check boxes as you go. Wr
 | 22. Error Recovery | 4, 38c, 33-34, 25-26 |
 | 23. PDF Generation | 42a-pdf |
 | 24. Browser Automation | 50, 50b |
+| 27. Real Business Cases | All (end-to-end integration) |
 | **Audit trail** | 12 (covered implicitly — runs table + step_count checked via Supabase in other surfaces) |
 
 ## Legacy
