@@ -1,324 +1,148 @@
 /**
- * Tests for autonomous pulse execution.
+ * Tests for the autopilot wrapper around runAgent.
  * @module lib/runner/__tests__/run-autopilot
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  mockGenerateText,
-  mockStepCountIs,
-  mockGateway,
-  mockAssembleContext,
-  mockCreateRun,
-  mockCompleteRun,
-  mockMarkStaleRunsFailed,
-  mockDrainAndContinue,
-  mockCreateBrowserTools,
-  mockCreateCrmTools,
-  mockCreateConnectionTools,
-  mockCreateMarketTools,
-  mockCreateListingTools,
-  mockCreateStorageTools,
-  mockCreateWebTools,
-  mockCreateUtilityTools,
-  mockCreateTriggerTools,
-  mockCreateSubagentTool,
-  mockCreateMessages,
-  mockMaybeCompactThread,
-  mockTruncateOversizedParts,
-  mockBuildAssistantPartsFromSteps,
-  mockGetAssistantTextFromParts,
-  mockGetActiveConnections,
-  mockIsApifyConfigured,
-  mockIsPropertySupabaseConfigured,
-  mockLoadActivatedConnectionTools,
-} = vi.hoisted(() => ({
-  mockGenerateText: vi.fn(),
-  mockStepCountIs: vi.fn(() => vi.fn(() => true)),
-  mockGateway: vi.fn(() => "mock-model"),
-  mockAssembleContext: vi.fn(),
-  mockCreateRun: vi.fn(),
-  mockCompleteRun: vi.fn(),
-  mockMarkStaleRunsFailed: vi.fn(),
-  mockDrainAndContinue: vi.fn(),
-  mockCreateBrowserTools: vi.fn(),
-  mockCreateCrmTools: vi.fn(),
-  mockCreateConnectionTools: vi.fn(),
-  mockCreateMarketTools: vi.fn(),
-  mockCreateListingTools: vi.fn(),
-  mockCreateStorageTools: vi.fn(),
-  mockCreateWebTools: vi.fn(),
-  mockCreateUtilityTools: vi.fn(),
-  mockCreateTriggerTools: vi.fn(),
-  mockCreateSubagentTool: vi.fn(),
-  mockCreateMessages: vi.fn(),
-  mockMaybeCompactThread: vi.fn(),
-  mockTruncateOversizedParts: vi.fn(),
-  mockBuildAssistantPartsFromSteps: vi.fn(),
-  mockGetAssistantTextFromParts: vi.fn(),
-  mockGetActiveConnections: vi.fn(),
-  mockIsApifyConfigured: vi.fn(),
-  mockIsPropertySupabaseConfigured: vi.fn(),
-  mockLoadActivatedConnectionTools: vi.fn(),
+const { mockRunAgent } = vi.hoisted(() => ({
+  mockRunAgent: vi.fn(),
 }));
 
-vi.mock("ai", () => ({
-  generateText: mockGenerateText,
-  stepCountIs: mockStepCountIs,
+vi.mock("@/lib/runner/run-agent", () => ({
+  runAgent: mockRunAgent,
 }));
 
-vi.mock("@/lib/ai/gateway", () => ({
-  gateway: mockGateway,
-  gatewayProviderOptions: {},
-  TIER_1_MODEL: "google/gemini-3-flash",
-}));
-
-vi.mock("@/lib/runner/context", () => ({
-  assembleContext: mockAssembleContext,
-}));
-
-vi.mock("@/lib/runner/run-lifecycle", () => ({
-  createRun: mockCreateRun,
-  completeRun: mockCompleteRun,
-  markStaleRunsFailed: mockMarkStaleRunsFailed,
-}));
-
-vi.mock("@/lib/runner/drain-and-continue", () => ({
-  drainAndContinue: mockDrainAndContinue,
-}));
-
-vi.mock("@/lib/runner/tools", () => ({
-  createBrowserTools: mockCreateBrowserTools,
-  createCrmTools: mockCreateCrmTools,
-  createConnectionTools: mockCreateConnectionTools,
-  createMarketTools: mockCreateMarketTools,
-  createListingTools: mockCreateListingTools,
-  createStorageTools: mockCreateStorageTools,
-  createSubagentTool: mockCreateSubagentTool,
-  createWebTools: mockCreateWebTools,
-  createUtilityTools: mockCreateUtilityTools,
-  createTriggerTools: mockCreateTriggerTools,
-}));
-
-vi.mock("@/lib/chat/messages", () => ({
-  createMessages: (...args: unknown[]) => mockCreateMessages(...args),
-}));
-
-vi.mock("@/lib/runner/compaction", () => ({
-  maybeCompactThread: (...args: unknown[]) => mockMaybeCompactThread(...args),
-}));
-
-vi.mock("@/lib/runner/toolcall-artifacts", () => ({
-  saveToolcallBlock: vi.fn().mockResolvedValue(undefined),
-  truncateOversizedParts: (...args: unknown[]) => mockTruncateOversizedParts(...args),
-}));
-
-vi.mock("@/lib/runner/message-utils", () => ({
-  buildAssistantPartsFromSteps: (...args: unknown[]) => mockBuildAssistantPartsFromSteps(...args),
-  getAssistantTextFromParts: (...args: unknown[]) => mockGetAssistantTextFromParts(...args),
-}));
-vi.mock("@/lib/connections/queries", () => ({
-  getActiveConnections: (...args: unknown[]) => mockGetActiveConnections(...args),
-}));
-vi.mock("@/lib/composio", () => ({
-  loadActivatedConnectionTools: (...args: unknown[]) =>
-    mockLoadActivatedConnectionTools(...args),
-}));
-
-vi.mock("@/lib/supabase/property-env", () => ({
-  isPropertySupabaseConfigured: mockIsPropertySupabaseConfigured,
-}));
-
-vi.mock("@/lib/apify/env", () => ({
-  isApifyConfigured: mockIsApifyConfigured,
-}));
-
+import { AUTOPILOT_INSTRUCTION_PROMPT } from "@/lib/autopilot/constants";
 import { runAutopilot } from "../run-autopilot";
 
 describe("runAutopilot", () => {
+  const clientId = "550e8400-e29b-41d4-a716-446655440000";
+  const threadId = "660e8400-e29b-41d4-a716-446655440000";
+
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubEnv("BROWSER_USE_API_KEY", "bu_test-key");
-    mockMarkStaleRunsFailed.mockResolvedValue(0);
-    mockCreateBrowserTools.mockReturnValue({
-      browse_website: { description: "browser-tool" },
-    });
-    mockCreateCrmTools.mockReturnValue({ search_tasks: { description: "tool" } });
-    mockCreateConnectionTools.mockReturnValue({
-      list_users_connections: { description: "connection-tool" },
-      get_details_for_connections: { description: "connection-tool" },
-      search_for_integrations: { description: "connection-tool" },
-      get_integrations_capabilities: { description: "connection-tool" },
-    });
-    mockCreateMarketTools.mockReturnValue({
-      search_market_data: { description: "market-tool" },
-    });
-    mockCreateListingTools.mockReturnValue({
-      search_99co: { description: "listing-tool" },
-      search_propertyguru: { description: "listing-tool" },
-    });
-    mockCreateStorageTools.mockReturnValue({ read_file: { description: "tool" } });
-    mockCreateWebTools.mockReturnValue({ web_search: { description: "tool" } });
-    mockCreateUtilityTools.mockReturnValue({ list_todo: { description: "tool" } });
-    mockCreateTriggerTools.mockReturnValue({
-      search_triggers: { description: "tool" },
-      manage_active_triggers: { description: "tool" },
-    });
-    mockCreateSubagentTool.mockReturnValue({
-      run_subagent: { description: "subagent-tool" },
-    });
-    mockAssembleContext.mockResolvedValue({
-      system: "system prompt",
-      messages: [{ role: "assistant", content: "Previous autopilot update" }],
-    });
-    mockBuildAssistantPartsFromSteps.mockReturnValue([]);
-    mockGetAssistantTextFromParts.mockReturnValue("");
-    mockTruncateOversizedParts.mockResolvedValue({ parts: [], recoveryPaths: [] });
-    mockMaybeCompactThread.mockResolvedValue(false);
-    mockCreateMessages.mockResolvedValue([]);
-    mockGetActiveConnections.mockResolvedValue([]);
-    mockLoadActivatedConnectionTools.mockResolvedValue({});
-    mockIsApifyConfigured.mockReturnValue(true);
-    mockIsPropertySupabaseConfigured.mockReturnValue(true);
   });
 
-  it("injects autopilot instructions and executes generateText with tool-loop settings", async () => {
-    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
-    mockGenerateText.mockResolvedValue({
-      text: "Autopilot completed a useful task.",
-      steps: [],
-      totalUsage: { inputTokens: 120, outputTokens: 45 },
+  it("calls runAgent with pulse parameters and consumes the stream on success", async () => {
+    const mockConsumeStream = vi.fn().mockResolvedValue(undefined);
+    mockRunAgent.mockResolvedValue({
+      status: "streaming",
+      streamResult: { consumeStream: mockConsumeStream },
     });
 
     const result = await runAutopilot({
-      clientId: "550e8400-e29b-41d4-a716-446655440000",
-      threadId: "660e8400-e29b-41d4-a716-446655440000",
+      clientId,
+      threadId,
       supabase: "supabase" as never,
     });
 
     expect(result).toEqual({ status: "completed" });
-    expect(mockAssembleContext).toHaveBeenCalledWith(
-      expect.objectContaining({
-        instructions: expect.stringContaining("autonomous pulse"),
-        includeMarketData: true,
-        includePropertyListings: false,
-      }),
-    );
-    expect(mockStepCountIs).toHaveBeenCalledWith(9);
-    expect(mockGenerateText).toHaveBeenCalledWith(
-      expect.objectContaining({
-        model: "mock-model",
-        system: "system prompt",
-        stopWhen: expect.any(Function),
-        tools: expect.objectContaining({
-          search_triggers: { description: "tool" },
-          manage_active_triggers: { description: "tool" },
-          search_market_data: { description: "market-tool" },
-          run_subagent: { description: "subagent-tool" },
-          list_users_connections: { description: "connection-tool" },
-          get_details_for_connections: { description: "connection-tool" },
-          search_for_integrations: { description: "connection-tool" },
-          get_integrations_capabilities: { description: "connection-tool" },
-        }),
-      }),
-    );
-    expect(mockCreateTriggerTools).toHaveBeenCalledWith(
+    expect(mockRunAgent).toHaveBeenCalledWith(
+      {
+        clientId,
+        threadId,
+        input: "",
+        triggerType: "pulse",
+        channel: "web",
+        consumeMessageQuota: false,
+        instructions: AUTOPILOT_INSTRUCTION_PROMPT,
+      },
       "supabase",
-      "550e8400-e29b-41d4-a716-446655440000",
-      "660e8400-e29b-41d4-a716-446655440000",
-      { allowMutations: false },
     );
-    expect(mockCreateConnectionTools).toHaveBeenCalledWith(
-      "supabase",
-      "550e8400-e29b-41d4-a716-446655440000",
-      { allowMutations: false },
-    );
-    expect(mockCreateMarketTools).toHaveBeenCalledOnce();
-    expect(mockCreateSubagentTool).toHaveBeenCalledWith(
-      "supabase",
-      "550e8400-e29b-41d4-a716-446655440000",
-      "660e8400-e29b-41d4-a716-446655440000",
-      expect.objectContaining({
-        parentRunId: "run-1",
-      }),
-    );
-    const subagentOptions = mockCreateSubagentTool.mock.calls.at(-1)?.[3];
-
-    expect(subagentOptions).not.toHaveProperty("composioTools");
-    expect(mockCreateBrowserTools).not.toHaveBeenCalled();
-    expect(mockCreateListingTools).not.toHaveBeenCalled();
+    expect(mockConsumeStream).toHaveBeenCalledOnce();
   });
 
-  it("passes the persisted autopilot run type when claiming a lock", async () => {
-    mockCreateRun.mockResolvedValue({ created: false });
-
-    await runAutopilot({
-      clientId: "550e8400-e29b-41d4-a716-446655440000",
-      threadId: "660e8400-e29b-41d4-a716-446655440000",
-      supabase: "supabase" as never,
-    });
-
-    expect(mockCreateRun).toHaveBeenCalledWith("supabase", {
-      threadId: "660e8400-e29b-41d4-a716-446655440000",
-      clientId: "550e8400-e29b-41d4-a716-446655440000",
-      runType: "autopilot",
-    });
-  });
-
-  it("does not enqueue or create a synthetic user message when the thread is busy", async () => {
-    mockCreateRun.mockResolvedValue({ created: false });
+  it("maps queued status to skipped_busy", async () => {
+    mockRunAgent.mockResolvedValue({ status: "queued" });
 
     const result = await runAutopilot({
-      clientId: "550e8400-e29b-41d4-a716-446655440000",
-      threadId: "660e8400-e29b-41d4-a716-446655440000",
+      clientId,
+      threadId,
       supabase: "supabase" as never,
     });
 
     expect(result).toEqual({ status: "skipped_busy" });
-    expect(mockGenerateText).not.toHaveBeenCalled();
-    expect(mockCreateMessages).not.toHaveBeenCalled();
   });
 
-  it("completes the run using total usage across all steps", async () => {
-    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
-    mockGenerateText.mockResolvedValue({
-      text: "Done",
-      steps: [{ text: "Done" }],
-      totalUsage: { inputTokens: 200, outputTokens: 100 },
-    });
-
-    await runAutopilot({
-      clientId: "550e8400-e29b-41d4-a716-446655440000",
-      threadId: "660e8400-e29b-41d4-a716-446655440000",
-      supabase: "supabase" as never,
-    });
-
-    expect(mockCompleteRun).toHaveBeenCalledWith(
-      "supabase",
-      expect.objectContaining({
-        runId: "run-1",
-        status: "completed",
-        tokensIn: 200,
-        tokensOut: 100,
-        stepCount: 1,
-      }),
-    );
-  });
-
-  it("marks the run failed when generateText throws", async () => {
-    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
-    mockGenerateText.mockRejectedValue(new Error("LLM timeout"));
+  it("catches runAgent throws and returns failed status", async () => {
+    mockRunAgent.mockRejectedValue(new Error("LLM timeout"));
 
     const result = await runAutopilot({
-      clientId: "550e8400-e29b-41d4-a716-446655440000",
-      threadId: "660e8400-e29b-41d4-a716-446655440000",
+      clientId,
+      threadId,
       supabase: "supabase" as never,
     });
 
     expect(result).toEqual({ status: "failed", error: "LLM timeout" });
-    expect(mockCompleteRun).toHaveBeenCalledWith(
-      "supabase",
-      expect.objectContaining({ status: "failed" }),
+  });
+
+  it("handles non-Error throws with a generic message", async () => {
+    mockRunAgent.mockRejectedValue("raw string error");
+
+    const result = await runAutopilot({
+      clientId,
+      threadId,
+      supabase: "supabase" as never,
+    });
+
+    expect(result).toEqual({ status: "failed", error: "Unknown autopilot error" });
+  });
+
+  it("never throws — all errors are returned as failed status", async () => {
+    mockRunAgent.mockRejectedValue(new Error("catastrophic"));
+
+    // This must not throw
+    const result = await runAutopilot({
+      clientId,
+      threadId,
+      supabase: "supabase" as never,
+    });
+
+    expect(result.status).toBe("failed");
+  });
+
+  it("detects stream errors via consumeStream onError and returns failed", async () => {
+    const streamError = new Error("finalizeRun failed");
+    const mockConsumeStream = vi.fn().mockImplementation(
+      (options?: { onError?: (error: unknown) => void }) => {
+        // Simulate: flush() caught onFinish error, called controller.error(),
+        // stream errored, consumeStream caught the read error and calls onError
+        options?.onError?.(streamError);
+        return Promise.resolve();
+      },
     );
+    mockRunAgent.mockResolvedValue({
+      status: "streaming",
+      streamResult: { consumeStream: mockConsumeStream },
+    });
+
+    const result = await runAutopilot({
+      clientId,
+      threadId,
+      supabase: "supabase" as never,
+    });
+
+    expect(result).toEqual({ status: "failed", error: "finalizeRun failed" });
+  });
+
+  it("detects non-Error stream failures via consumeStream onError", async () => {
+    const mockConsumeStream = vi.fn().mockImplementation(
+      (options?: { onError?: (error: unknown) => void }) => {
+        options?.onError?.("raw error string");
+        return Promise.resolve();
+      },
+    );
+    mockRunAgent.mockResolvedValue({
+      status: "streaming",
+      streamResult: { consumeStream: mockConsumeStream },
+    });
+
+    const result = await runAutopilot({
+      clientId,
+      threadId,
+      supabase: "supabase" as never,
+    });
+
+    expect(result).toEqual({ status: "failed", error: "Stream consumption failed" });
   });
 });

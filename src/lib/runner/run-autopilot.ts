@@ -1,25 +1,12 @@
 /**
- * Autonomous autopilot pulse runner.
+ * Autonomous autopilot pulse runner — thin wrapper around runAgent.
  * @module lib/runner/run-autopilot
  */
-import { generateText, stepCountIs } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { propagateAttributes } from "@langfuse/tracing";
 
-import { gateway, gatewayProviderOptions, TIER_1_MODEL } from "@/lib/ai/gateway";
 import { AUTOPILOT_INSTRUCTION_PROMPT } from "@/lib/autopilot/constants";
-import { loadActivatedConnectionTools } from "@/lib/composio";
-import { getActiveConnections } from "@/lib/connections/queries";
-import { assembleContext } from "@/lib/runner/context";
-import { buildPrepareStep } from "@/lib/runner/run-agent";
-import { createRunnerTools } from "@/lib/runner/tool-registry";
-import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
-import { finalizeRun } from "@/lib/runner/run-persistence";
-import { createSubagentTool } from "@/lib/runner/tools";
-import { isPropertySupabaseConfigured } from "@/lib/supabase/property-env";
+import { runAgent } from "@/lib/runner/run-agent";
 import type { Database } from "@/types/database";
-
-const MAX_STEPS_AUTOPILOT = 9;
 
 type ChatSupabaseClient = SupabaseClient<Database>;
 
@@ -35,106 +22,71 @@ export type RunAutopilotResult =
   | { status: "failed"; error: string };
 
 /**
- * Executes one autopilot pulse without client streaming.
- * Busy threads are skipped rather than queued into the chat-message backlog.
+ * Executes one autopilot pulse by delegating to the unified runner.
+ * Busy threads are skipped (not queued). Errors are caught and returned
+ * as `{ status: "failed" }` — this function never throws.
+ *
+ * Uses `consumeStream({ onError })` to block until the full stream
+ * (including `onFinish` / `finalizeRun`) completes. The `onError` callback
+ * detects stream and finalization failures that `consumeStream()` would
+ * otherwise silently swallow. Do NOT use `.text` — it resolves before
+ * `onFinish` fires (verified in AI SDK source: stream-text.ts flush()).
  */
 export async function runAutopilot({
   clientId,
   threadId,
   supabase,
 }: RunAutopilotInput): Promise<RunAutopilotResult> {
-  const modelId = TIER_1_MODEL;
-
-  await markStaleRunsFailed(supabase, { threadId });
-
-  const lockResult = await createRun(supabase, { threadId, clientId, runType: "autopilot" });
-  if (!lockResult.created) {
-    return { status: "skipped_busy" };
-  }
-
   try {
-    const { system, messages } = await assembleContext({
-      supabase,
-      threadId,
-      currentMessage: "",
+    const result = await runAgent({
       clientId,
+      threadId,
+      input: "",
+      triggerType: "pulse",
+      channel: "web",
+      consumeMessageQuota: false,
       instructions: AUTOPILOT_INSTRUCTION_PROMPT,
-      includeMarketData: isPropertySupabaseConfigured(),
-      includePropertyListings: false,
-    });
-    const runnerTools = createRunnerTools(supabase, clientId, threadId, {
-      allowTriggerMutations: false,
-      allowConnectionMutations: false,
-      includeBrowserTools: false,
-      includeMarketTools: true,
-      includeListingTools: false,
-    });
-    let composioTools = {};
+    }, supabase);
 
-    try {
-      const connections = await getActiveConnections(supabase, clientId);
-      composioTools = await loadActivatedConnectionTools(connections);
-    } catch (error) {
-      console.error("[composio] Failed to load activated connection tools for autopilot.", error);
+    if (result.status === "streaming") {
+      // consumeStream() waits for the full stream including onFinish (which
+      // calls finalizeRun). The onError callback detects failures that would
+      // otherwise be silently swallowed:
+      //
+      // 1. Stream errors (LLM timeout, network) — runAgent's onError callback
+      //    calls recordFailedRun, then the stream errors, consumeStream catches
+      //    the read error and calls our onError.
+      // 2. onFinish/finalizeRun errors — flush() catches the throw, calls
+      //    controller.error(error), stream errors, consumeStream catches and
+      //    calls our onError.
+      //
+      // Verified in AI SDK source: consume-stream.ts:26 catches reader.read()
+      // errors and calls onError. stream-text.ts:1170 flush() catch calls
+      // controller.error(error) which propagates through teed streams.
+      let streamError: unknown = null;
+      await result.streamResult.consumeStream({
+        onError: (error: unknown) => { streamError = error; },
+      });
+
+      if (streamError) {
+        const message = streamError instanceof Error
+          ? streamError.message
+          : "Stream consumption failed";
+        return { status: "failed", error: message };
+      }
+
+      return { status: "completed" };
     }
 
-    const subagentTools = createSubagentTool(supabase, clientId, threadId, {
-      parentRunId: lockResult.runId,
-    });
-
-    const result = await propagateAttributes(
-      {
-        traceName: "sunder-autopilot",
-        sessionId: threadId,
-        userId: clientId,
-        tags: ["pulse"],
-      },
-      async () =>
-        generateText({
-          model: gateway(modelId),
-          system,
-          messages,
-          stopWhen: stepCountIs(MAX_STEPS_AUTOPILOT),
-          tools: {
-            ...runnerTools,
-            ...subagentTools,
-            ...composioTools,
-          },
-          prepareStep: buildPrepareStep(modelId, MAX_STEPS_AUTOPILOT),
-          providerOptions: gatewayProviderOptions,
-          experimental_telemetry: { isEnabled: true },
-        }),
-    );
-
-    await finalizeRun({
-      supabase,
-      clientId,
-      threadId,
-      runId: lockResult.runId,
-      modelId,
-      triggerType: "pulse",
-      steps: result.steps,
-      text: result.text,
-      totalUsage: result.totalUsage,
-      logLabel: "autopilot",
-    });
-
-    return { status: "completed" };
+    // "queued" from runAgent means thread was busy and pulse was not
+    // enqueued (pulse guard in runAgent skips enqueue).
+    return { status: "skipped_busy" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown autopilot error";
 
-    try {
-      await completeRun(supabase, {
-        runId: lockResult.runId,
-        status: "failed",
-        model: modelId,
-        tokensIn: 0,
-        tokensOut: 0,
-      });
-    } catch (lifecycleError) {
-      console.error("[autopilot] completeRun failed during error handling:", lifecycleError);
-    }
-
+    // Note: runAgent's recordFailedRun already marked the run as failed
+    // and emitted analytics before throwing. We just translate the error
+    // contract from "throw" to "return { status: failed }".
     return { status: "failed", error: message };
   }
 }
