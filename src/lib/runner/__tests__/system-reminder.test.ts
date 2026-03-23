@@ -7,12 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/connections/queries", () => ({
   getAllConnections: vi.fn(),
 }));
-vi.mock("@/lib/storage/skill-files", () => ({
-  getConnectionSkillContent: vi.fn(),
-}));
-
 import { getAllConnections } from "@/lib/connections/queries";
-import { getConnectionSkillContent } from "@/lib/storage/skill-files";
 import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
 import { buildSystemReminder } from "../system-reminder";
@@ -30,7 +25,6 @@ const BASE_CONTEXT = {
   active_connection_toolkits: [] as string[],
 };
 const mockGetAllConnections = vi.mocked(getAllConnections);
-const mockGetSkillContent = vi.mocked(getConnectionSkillContent);
 const MOCK_GMAIL_CONNECTION = {
   id: "conn-abc",
   client_id: CLIENT_ID,
@@ -79,7 +73,6 @@ describe("buildSystemReminder", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-05T14:30:00Z"));
     mockGetAllConnections.mockResolvedValue([]);
-    mockGetSkillContent.mockResolvedValue(null);
   });
 
   it("returns a system-reminder XML block", async () => {
@@ -174,7 +167,6 @@ describe("buildSystemReminder", () => {
 
     expect(result).toContain("gmail (conn-abc): 3/45 tools active");
     expect(result).not.toContain("(skill:");
-    expect(mockGetSkillContent).not.toHaveBeenCalled();
   });
 
   it("shows inactive connection count when inactive connections exist", async () => {

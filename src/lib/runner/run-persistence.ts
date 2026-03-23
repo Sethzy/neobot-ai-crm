@@ -77,8 +77,8 @@ export function extractApprovalRequests(
 }
 
 /**
- * Shared post-inference persistence: build parts, truncate oversized outputs,
- * persist the assistant message, complete the run, drain queue, and compact.
+ * Shared post-inference persistence: build parts, persist the assistant message,
+ * complete the run, drain queue, and compact.
  */
 export async function finalizeRun({
   supabase,

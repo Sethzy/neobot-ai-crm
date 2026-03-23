@@ -99,6 +99,10 @@ describe("createManageToolsTool", () => {
       CLIENT_ID,
       "conn-1",
       ["GMAIL_READ_EMAIL", "GMAIL_DELETE_EMAIL"],
+      expect.objectContaining({
+        GMAIL_READ_EMAIL: { description: null, inputParameters: null },
+        GMAIL_DELETE_EMAIL: { description: null, inputParameters: null },
+      }),
     );
     expect(result).toEqual({
       success: true,

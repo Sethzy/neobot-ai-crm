@@ -57,7 +57,7 @@ vi.mock("@/lib/runner/run-lifecycle", () => ({
   completeRun: mockCompleteRun,
 }));
 
-vi.mock("@/lib/runner/toolcall-artifacts", () => ({
+vi.mock("@/lib/storage/tool-blocks", () => ({
   saveToolcallBlock: mockSaveToolcallBlock,
 }));
 
