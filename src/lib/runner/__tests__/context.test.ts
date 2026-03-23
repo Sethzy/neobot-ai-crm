@@ -1002,3 +1002,78 @@ describe("assembleSystemOnly", () => {
     expect(system).not.toContain("<inject>");
   });
 });
+
+describe("session reset for stale threads", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("applies gt filter on context_reset_at when thread has one set", async () => {
+    const resetAt = "2026-03-23T10:00:00.000Z";
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    // Override maybeSingle to return a thread with context_reset_at
+    const originalFrom = supabase.from.bind(supabase);
+    supabase.from = ((table: string) => {
+      const query = originalFrom(table);
+      if (table === "conversation_threads") {
+        query.maybeSingle = async () => ({
+          data: { updated_at: "2026-03-23T09:00:00.000Z", context_reset_at: resetAt },
+          error: null,
+        });
+      }
+      return query;
+    }) as typeof supabase.from;
+
+    await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "hello",
+      clientId: "client-123",
+    });
+
+    // Verify the gt filter was applied
+    expect(supabase.calls.methods).toEqual(
+      expect.arrayContaining([
+        { method: "gt", args: ["created_at", resetAt] },
+      ]),
+    );
+  });
+
+  it("does not set context_reset_at when thread was recently active", async () => {
+    const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString();
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const originalFrom = supabase.from.bind(supabase);
+    const updateCalls: unknown[] = [];
+    supabase.from = ((table: string) => {
+      const query = originalFrom(table);
+      if (table === "conversation_threads") {
+        query.maybeSingle = async () => ({
+          data: { updated_at: oneHourAgo, context_reset_at: null },
+          error: null,
+        });
+        const originalUpdate = query.update.bind(query);
+        query.update = (...args: unknown[]) => {
+          updateCalls.push(args);
+          return originalUpdate(...args);
+        };
+      }
+      return query;
+    }) as typeof supabase.from;
+
+    await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "hello",
+      clientId: "client-123",
+    });
+
+    // No update should have been made — thread is fresh
+    expect(updateCalls).toHaveLength(0);
+  });
+});

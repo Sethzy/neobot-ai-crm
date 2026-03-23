@@ -82,6 +82,9 @@ interface HistoryRow {
 const allowedRoles: MessageRole[] = ["system", "user", "assistant"];
 const MAX_CONTEXT_MESSAGES = 240;
 
+/** Threads idle for longer than this are treated as stale — old messages are skipped. */
+const IDLE_TIMEOUT_MS = 4 * 60 * 60 * 1000; // 4 hours — matches Dorabot pattern
+
 function normalizeRole(role: string): MessageRole {
   return allowedRoles.includes(role as MessageRole) ? (role as MessageRole) : "assistant";
 }
@@ -318,12 +321,41 @@ export async function assembleContext({
     crmConfigModeActive,
   });
 
+  // Check for stale thread — skip old messages after 4h idle (Dorabot pattern).
+  // Agent starts fresh with system prompt + memory + new message.
+  // Old messages stay in DB — user can still scroll back in the UI.
+  let contextResetAt: string | null = null;
+
+  if (clientId) {
+    const { data: threadRow } = await supabase
+      .from("conversation_threads")
+      .select("updated_at, context_reset_at")
+      .eq("thread_id", threadId)
+      .maybeSingle();
+
+    const thread = threadRow as { updated_at: string; context_reset_at: string | null } | null;
+    contextResetAt = thread?.context_reset_at ?? null;
+
+    if (thread && !contextResetAt) {
+      const gap = Date.now() - new Date(thread.updated_at).getTime();
+      if (gap > IDLE_TIMEOUT_MS) {
+        contextResetAt = new Date().toISOString();
+        await supabase
+          .from("conversation_threads")
+          .update({ context_reset_at: contextResetAt })
+          .eq("thread_id", threadId);
+      }
+    }
+  }
+
   let historyQuery = supabase
     .from("conversation_messages")
     .select("message_id, created_at, role, content, parts")
     .eq("thread_id", threadId);
 
-  if (compactionState) {
+  if (contextResetAt) {
+    historyQuery = historyQuery.gt("created_at", contextResetAt);
+  } else if (compactionState) {
     historyQuery = historyQuery.gte(
       "created_at",
       compactionState.compaction_compacted_through_at,
