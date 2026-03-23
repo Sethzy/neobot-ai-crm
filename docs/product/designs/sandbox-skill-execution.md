@@ -751,7 +751,7 @@ create policy "client_isolation" on sprite_sessions
 | [alirezarezvani/claude-skills](https://github.com/alirezarezvani/claude-skills) | Skill file format (SKILL.md + scripts + references) |
 | [anthropics/financial-services-plugins](https://github.com/anthropics/financial-services-plugins) | Production-grade DCF skill — formula verification, sensitivity tables, cell comments. Gold standard for RE analysis skill. |
 | [anthropics/claude-cookbooks/skills/custom_skills](https://github.com/anthropics/claude-cookbooks/tree/main/skills/custom_skills) | Financial model skills — DCF, sensitivity analysis, ratio calculation. Skill structure and Python script patterns. |
-| Anthropic xlsx skill (`/Users/sethlim/Downloads/xlsx/`) | Production-grade Excel skill with LibreOffice recalc, formula verification, socket shim for sandboxed VMs. |
+| Anthropic xlsx skill (`src/lib/sandbox/skills/xlsx/`) | Production-grade Excel skill with LibreOffice recalc, formula verification, socket shim for sandboxed VMs. |
 
 ### Internal Docs
 

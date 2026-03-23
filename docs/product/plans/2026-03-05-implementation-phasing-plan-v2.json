@@ -3782,7 +3782,7 @@
             "Live preview URL returned in chat from Sprite Services",
             "User can iterate ('change the hero image') \u2014 same Sprite, same URL, updated page",
             "Template customized per user's frontend-design SKILL.md brand preferences",
-            "'Ship it' builds static HTML and publishes to permanent URL",
+            "'Ship it' builds static HTML and publishes to a 30-day signed URL",
             "Sprite auto-sleeps after invocation, preview URL wakes on request"
           ]
         },

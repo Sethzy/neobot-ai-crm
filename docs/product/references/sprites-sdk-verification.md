@@ -4,7 +4,7 @@
 
 **Date:** 2026-03-23  
 **Status:** Verified against the official Sprites docs/API, current public site pricing, the published `@fly/sprites` npm packages, and public reference repos/community posts.  
-**Scope note:** As of the local v2 plan updated on 2026-03-23, sandbox/code-gen scope is currently deferred from the active build plan. Treat this as reference material unless that scope is explicitly reinstated.
+**Scope note:** Sandbox/code-gen scope is active again for PR 52-53. Treat this as the SDK verification reference for the current Sprites implementation work.
 
 ## Sources Reviewed
 
