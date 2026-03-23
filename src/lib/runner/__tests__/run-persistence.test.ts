@@ -24,9 +24,12 @@ vi.mock("@/lib/runner/compaction", () => ({
 }));
 
 const mockSaveToolcallBlock = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/lib/storage/tool-blocks", () => ({
+  saveToolcallBlock: (...args: unknown[]) => mockSaveToolcallBlock(...args),
+}));
+
 const mockTruncateOversizedParts = vi.fn();
 vi.mock("@/lib/runner/toolcall-artifacts", () => ({
-  saveToolcallBlock: (...args: unknown[]) => mockSaveToolcallBlock(...args),
   truncateOversizedParts: (...args: unknown[]) => mockTruncateOversizedParts(...args),
 }));
 

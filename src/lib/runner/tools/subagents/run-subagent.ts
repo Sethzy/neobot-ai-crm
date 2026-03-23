@@ -12,7 +12,7 @@ import { assembleSystemOnly } from "@/lib/runner/context";
 import { completeRun, createSubagentRun } from "@/lib/runner/run-lifecycle";
 import { createRunnerTools } from "@/lib/runner/tool-registry";
 import type { StepLike } from "@/lib/runner/message-utils";
-import { saveToolcallBlock } from "@/lib/runner/toolcall-artifacts";
+import { saveToolcallBlock } from "@/lib/storage/tool-blocks";
 import { createAgentFileClient } from "@/lib/storage/agent-files";
 import { toStoragePath } from "@/lib/storage/agent-paths";
 import { isPropertySupabaseConfigured } from "@/lib/supabase/property-env";

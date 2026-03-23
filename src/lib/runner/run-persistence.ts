@@ -23,10 +23,8 @@ import {
   type StepLike,
 } from "@/lib/runner/message-utils";
 import { completeRun } from "@/lib/runner/run-lifecycle";
-import {
-  saveToolcallBlock,
-  truncateOversizedParts,
-} from "@/lib/runner/toolcall-artifacts";
+import { saveToolcallBlock } from "@/lib/storage/tool-blocks";
+import { truncateOversizedParts } from "@/lib/runner/toolcall-artifacts";
 import type { Database, Json } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
