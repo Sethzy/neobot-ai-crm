@@ -93,7 +93,7 @@ describe("assembleContext", () => {
     expect(result.messages).toEqual([textModelMessage("user", "Hello!")]);
   });
 
-  it("assembles system string in 7-layer order when clientId is provided", async () => {
+  it("assembles system string in layered order when clientId is provided (no system-reminder in system string)", async () => {
     const supabase = createMockSupabaseClient({
       selectResult: { data: [], error: null },
     });
@@ -110,13 +110,14 @@ describe("assembleContext", () => {
     const soulIdx = result.system.indexOf("<soul>");
     const userIdx = result.system.indexOf("<user-profile>");
     const memoryIdx = result.system.indexOf("<working-memory>");
-    const reminderIdx = result.system.indexOf("<system-reminder>");
 
     expect(platformIdx).toBeLessThan(sunderIdx);
     expect(sunderIdx).toBeLessThan(soulIdx);
     expect(soulIdx).toBeLessThan(userIdx);
     expect(userIdx).toBeLessThan(memoryIdx);
-    expect(memoryIdx).toBeLessThan(reminderIdx);
+
+    // System reminder should NOT be in the system string
+    expect(result.system).not.toContain("<system-reminder>");
   });
 
   it("places available-skills before memory sections for cache-friendliness", async () => {
@@ -167,7 +168,7 @@ describe("assembleContext", () => {
     expect(systemPromptIndex).toBeGreaterThan(platformIndex);
   });
 
-  it("includes system-reminder at the end of the system string when clientId is provided", async () => {
+  it("injects system-reminder as a user message, not in system string", async () => {
     const supabase = createMockSupabaseClient({
       selectResult: { data: [], error: null },
     });
@@ -179,11 +180,16 @@ describe("assembleContext", () => {
       clientId: "client-123",
     });
 
-    expect(result.system).toContain("<system-reminder>");
+    // System prompt should NOT contain system-reminder
+    expect(result.system).not.toContain("<system-reminder>");
 
-    const reminderIndex = result.system.indexOf("<system-reminder>");
-    const memoryIndex = result.system.indexOf("<working-memory>");
-    expect(reminderIndex).toBeGreaterThan(memoryIndex);
+    // A message should contain system-reminder
+    const reminderMessage = result.messages.find(
+      (m) => Array.isArray(m.content)
+        && m.content.some((c) => c.type === "text" && "text" in c && (c as { text: string }).text.includes("<system-reminder>")),
+    );
+    expect(reminderMessage).toBeDefined();
+    expect(reminderMessage?.role).toBe("user");
   });
 
   it("injects a compaction summary between working memory and the system reminder", async () => {
@@ -209,10 +215,8 @@ describe("assembleContext", () => {
 
     const memoryIndex = result.system.indexOf("<working-memory>");
     const compactionIndex = result.system.indexOf("<compaction-summary>");
-    const reminderIndex = result.system.indexOf("<system-reminder>");
 
     expect(compactionIndex).toBeGreaterThan(memoryIndex);
-    expect(compactionIndex).toBeLessThan(reminderIndex);
     expect(result.system).toContain(SUMMARY_PREFIX);
     expect(result.system).toContain("Older thread summary");
   });
@@ -645,9 +649,13 @@ describe("assembleContext", () => {
       clientId: "client-123",
     });
 
-    expect(result.messages).toHaveLength(240);
-    expect(result.messages[0]).toEqual(textModelMessage("user", "Message 21"));
-    expect(result.messages[239]).toEqual(textModelMessage("assistant", "Message 260"));
+    // +1 for system-reminder message prepended
+    expect(result.messages).toHaveLength(241);
+    // First message is the system reminder
+    expect(result.messages[0].role).toBe("user");
+    // History messages start at index 1
+    expect(result.messages[1]).toEqual(textModelMessage("user", "Message 21"));
+    expect(result.messages[240]).toEqual(textModelMessage("assistant", "Message 260"));
   });
 
   it("includes thread history before the current message", async () => {
@@ -720,7 +728,11 @@ describe("assembleContext", () => {
       clientId: "client-123",
     });
 
-    expect(result.messages).toEqual([
+    // System-reminder message is prepended, then the filtered history
+    const historyMessages = result.messages.filter(
+      (m) => !Array.isArray(m.content) || !m.content.some((c) => c.type === "text" && "text" in c && (c as { text: string }).text.includes("<system-reminder>")),
+    );
+    expect(historyMessages).toEqual([
       textModelMessage("user", "Keep me"),
       textModelMessage("assistant", "Newest response"),
     ]);
@@ -861,7 +873,7 @@ describe("assembleSystemOnly", () => {
     });
 
     expect(system).toContain("<platform-instructions>");
-    expect(system).toContain("<system-reminder>");
+    expect(system).not.toContain("<system-reminder>");
     expect(system).toContain("<soul>");
     expect(system).not.toContain("Do not include me");
     expect(system).not.toContain("<compaction-summary>");

@@ -41,6 +41,7 @@ const MOCK_GMAIL_CONNECTION = {
   status: "active" as const,
   activated_tools: ["GMAIL_SEND_EMAIL", "GMAIL_READ_EMAIL", "GMAIL_LIST_EMAILS"],
   tool_count: 45,
+  tool_schemas: {},
   created_at: "2026-03-05T00:00:00Z",
   updated_at: "2026-03-05T00:00:00Z",
 };
@@ -54,6 +55,7 @@ const MOCK_CALENDAR_CONNECTION = {
   status: "active" as const,
   activated_tools: ["GOOGLECALENDAR_LIST_EVENTS", "GOOGLECALENDAR_CREATE_EVENT"],
   tool_count: 20,
+  tool_schemas: {},
   created_at: "2026-03-05T00:00:00Z",
   updated_at: "2026-03-05T00:00:00Z",
 };
@@ -164,19 +166,7 @@ describe("buildSystemReminder", () => {
     expect(result).toContain("Active connections: none");
   });
 
-  it("includes skill pointer when a connection has a skill file", async () => {
-    const supabase = createReminderSupabase();
-    mockGetAllConnections.mockResolvedValue([MOCK_GMAIL_CONNECTION]);
-    mockGetSkillContent.mockResolvedValue("# Gmail Skills\n\nUse threads.");
-
-    const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);
-
-    expect(result).toContain(
-      "gmail (conn-abc): 3/45 tools active (skill: /agent/skills/connections/conn-abc/SKILL.md)",
-    );
-  });
-
-  it("omits the skill pointer when no skill file exists", async () => {
+  it("does not fetch skill content for connections (removed for cache stability)", async () => {
     const supabase = createReminderSupabase();
     mockGetAllConnections.mockResolvedValue([MOCK_GMAIL_CONNECTION]);
 
@@ -184,21 +174,7 @@ describe("buildSystemReminder", () => {
 
     expect(result).toContain("gmail (conn-abc): 3/45 tools active");
     expect(result).not.toContain("(skill:");
-  });
-
-  it("keeps active connection lines when one skill lookup fails", async () => {
-    const supabase = createReminderSupabase();
-    mockGetAllConnections.mockResolvedValue([MOCK_GMAIL_CONNECTION, MOCK_CALENDAR_CONNECTION]);
-    mockGetSkillContent
-      .mockRejectedValueOnce(new Error("storage down"))
-      .mockResolvedValueOnce(null);
-
-    const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);
-
-    expect(result).toContain("Active connections:");
-    expect(result).toContain("gmail (conn-abc): 3/45 tools active");
-    expect(result).toContain("googlecalendar (conn-def): 2/20 tools active");
-    expect(result).not.toContain("Active connections: none");
+    expect(mockGetSkillContent).not.toHaveBeenCalled();
   });
 
   it("shows inactive connection count when inactive connections exist", async () => {

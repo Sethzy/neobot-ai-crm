@@ -90,7 +90,6 @@ interface BuildSystemPromptOptions {
   memory?: MemoryContext;
   userSkills?: SkillMetadata[];
   compactionSummary?: string;
-  systemReminder?: string;
   instructions?: string;
   platformInstructions?: string;
   includeBrowserAutomation?: boolean;
@@ -130,7 +129,6 @@ function buildSystemPrompt({
   memory,
   userSkills,
   compactionSummary,
-  systemReminder,
   instructions,
   platformInstructions,
   includeBrowserAutomation,
@@ -214,10 +212,6 @@ function buildSystemPrompt({
     sections.push(`<compaction-summary>\n${compactionSummary.trim()}\n</compaction-summary>`);
   }
 
-  if (systemReminder) {
-    sections.push(systemReminder);
-  }
-
   return sections.join("\n\n");
 }
 
@@ -291,7 +285,7 @@ export async function assembleSystemOnly({
   platformInstructions,
   systemPrompt,
 }: AssembleSystemOnlyParams): Promise<string> {
-  const { memoryContext, userSkills, systemReminder } = await loadSystemPromptState({
+  const { memoryContext, userSkills } = await loadSystemPromptState({
     supabase,
     threadId,
     clientId,
@@ -301,7 +295,6 @@ export async function assembleSystemOnly({
   return buildSystemPrompt({
     memory: memoryContext,
     userSkills,
-    systemReminder,
     platformInstructions: platformInstructions ?? (crmConfig
       ? buildPlatformInstructions(crmConfig)
       : PLATFORM_INSTRUCTIONS),
@@ -389,12 +382,17 @@ export async function assembleContext({
     ...currentMessageTurn,
   ]);
 
+  // Inject system reminder as a user message after the cache boundary
+  // (not in the system prompt) so the stable prefix remains cacheable.
+  const reminderMessages: ModelMessage[] = systemReminder
+    ? [{ role: "user" as const, content: [{ type: "text" as const, text: systemReminder }] }]
+    : [];
+
   return {
     system: buildSystemPrompt({
       memory: memoryContext,
       userSkills,
       compactionSummary: compactionState?.compaction_summary,
-      systemReminder,
       instructions,
       includeBrowserAutomation,
       includeMarketData,
@@ -406,6 +404,6 @@ export async function assembleContext({
         ? CRM_SETUP_SYSTEM_PROMPT
         : SYSTEM_PROMPT),
     }),
-    messages: modelMessages,
+    messages: [...reminderMessages, ...modelMessages],
   };
 }

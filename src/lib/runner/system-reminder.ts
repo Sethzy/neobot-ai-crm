@@ -6,8 +6,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { getAllConnections } from "@/lib/connections/queries";
-import { toModelPath } from "@/lib/storage/agent-paths";
-import { getConnectionSkillContent } from "@/lib/storage/skill-files";
 import type { Database } from "@/types/database";
 
 const systemReminderContextSchema = z.object({
@@ -126,26 +124,12 @@ export async function buildSystemReminder(
     const activeConnections = connections.filter((connection) => connection.status === "active");
 
     if (activeConnections.length > 0) {
-      const activeConnectionLines = await Promise.all(
-        activeConnections.map(async (connection) => {
-          let skillContent: string | null = null;
-
-          try {
-            skillContent = await getConnectionSkillContent(supabase, clientId, connection.id);
-          } catch {
-            skillContent = null;
-          }
-
-          const escapedToolkitSlug = escapeXml(connection.toolkit_slug);
-          const escapedConnectionId = escapeXml(connection.id);
-          const activatedToolCount = connection.activated_tools.length;
-          const skillPointer = skillContent
-            ? ` (skill: ${toModelPath(`skills/connections/${escapedConnectionId}/SKILL.md`)})`
-            : "";
-
-          return `  ${escapedToolkitSlug} (${escapedConnectionId}): ${activatedToolCount}/${connection.tool_count} tools active${skillPointer}`;
-        }),
-      );
+      const activeConnectionLines = activeConnections.map((connection) => {
+        const escapedToolkitSlug = escapeXml(connection.toolkit_slug);
+        const escapedConnectionId = escapeXml(connection.id);
+        const activatedToolCount = connection.activated_tools.length;
+        return `  ${escapedToolkitSlug} (${escapedConnectionId}): ${activatedToolCount}/${connection.tool_count} tools active`;
+      });
 
       reminderLines.push(`Active connections:\n${activeConnectionLines.join("\n")}`);
     } else {
