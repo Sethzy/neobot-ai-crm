@@ -1019,6 +1019,9 @@ describe("runAgent", () => {
         includeMarketData: true,
       }),
     );
+    expect(mockAssembleContext.mock.invocationCallOrder[0]).toBeLessThan(
+      mockCreateMessages.mock.invocationCallOrder[0],
+    );
   });
 
   it("persists inbound multimodal user messages before streaming", async () => {
