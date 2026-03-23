@@ -334,16 +334,19 @@ export async function assembleContext({
       .maybeSingle();
 
     const thread = threadRow as { updated_at: string; context_reset_at: string | null } | null;
-    contextResetAt = thread?.context_reset_at ?? null;
 
-    if (thread && !contextResetAt) {
+    if (thread) {
       const gap = Date.now() - new Date(thread.updated_at).getTime();
       if (gap > IDLE_TIMEOUT_MS) {
+        // Thread is stale — set (or advance) context_reset_at so old messages are skipped.
+        // Re-triggers on every idle gap, not just the first one.
         contextResetAt = new Date().toISOString();
         await supabase
           .from("conversation_threads")
           .update({ context_reset_at: contextResetAt })
           .eq("thread_id", threadId);
+      } else {
+        contextResetAt = thread.context_reset_at ?? null;
       }
     }
   }

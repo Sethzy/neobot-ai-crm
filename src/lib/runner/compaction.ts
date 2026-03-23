@@ -342,7 +342,8 @@ export async function maybeCompactThread(
   threadId: string,
   modelId?: string,
 ): Promise<boolean> {
-  // Query the latest run's prompt_tokens for fraction-based triggering
+  // Query the latest run's prompt_tokens for fraction-based triggering.
+  // Cast needed: prompt_tokens column is added by migration but not yet in generated DB types.
   const { data: lastRun } = await supabase
     .from("runs")
     .select("prompt_tokens, model")
@@ -351,8 +352,9 @@ export async function maybeCompactThread(
     .limit(1)
     .maybeSingle();
 
-  const promptTokens = (lastRun as Record<string, unknown> | null)?.prompt_tokens as number | null ?? 0;
-  const runModelId = modelId ?? (lastRun as Record<string, unknown> | null)?.model as string | null ?? "";
+  const lastRunRow = lastRun as { prompt_tokens?: number | null; model?: string | null } | null;
+  const promptTokens = lastRunRow?.prompt_tokens ?? 0;
+  const runModelId = modelId ?? lastRunRow?.model ?? "";
 
   const compactionState = await fetchThreadCompactionState(supabase, threadId);
 

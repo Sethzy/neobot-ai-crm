@@ -96,7 +96,7 @@ export async function finalizeRun({
   const rawParts = buildAssistantPartsFromSteps(steps);
 
   // Block storage: save ALL tool call args + results to storage.
-  // Start early so uploads overlap with truncation work, but await completion
+  // Start early so uploads overlap with message persistence, but await completion
   // before finalizeRun returns so recovery data is actually durable.
   const toolParts = rawParts.filter(
     (part) =>
@@ -117,8 +117,6 @@ export async function finalizeRun({
     )
     : null;
 
-  const parts = rawParts;
-
   if (blockStoragePromise) {
     try {
       await blockStoragePromise;
@@ -127,10 +125,10 @@ export async function finalizeRun({
     }
   }
 
-  const contentTextFromParts = getAssistantTextFromParts(parts);
+  const contentTextFromParts = getAssistantTextFromParts(rawParts);
   const fallbackContentText = typeof text === "string" ? text.trim() : "";
   const contentText = contentTextFromParts.length > 0 ? contentTextFromParts : fallbackContentText;
-  const hasNonStepParts = parts.some((part) => part.type !== "step-start");
+  const hasNonStepParts = rawParts.some((part) => part.type !== "step-start");
 
   const baseRunCompletion = {
     runId,
@@ -138,10 +136,11 @@ export async function finalizeRun({
     tokensIn: totalUsage.inputTokens ?? 0,
     tokensOut: totalUsage.outputTokens ?? 0,
     stepCount: steps.length,
+    // Currently mirrors tokensIn. Scaffolding for cache-aware breakdowns (cacheReadTokens, noCacheTokens).
     promptTokens: totalUsage.inputTokens ?? 0,
   };
 
-  const approvalRequests = extractApprovalRequests(parts);
+  const approvalRequests = extractApprovalRequests(rawParts);
   let createdApprovalIds: string[] = [];
   if (approvalRequests.length > 0) {
     const approvalResults = await Promise.all(
@@ -199,7 +198,7 @@ export async function finalizeRun({
           role: "assistant",
           content: contentText,
           parts: hasNonStepParts
-            ? (parts as Json)
+            ? (rawParts as Json)
             : ([{ type: "text", text: contentText }] as Json),
         },
       ]);
@@ -236,8 +235,8 @@ export async function finalizeRun({
 
   await completeRun(supabase, { ...baseRunCompletion, status: "completed" });
 
-  if (hasExternalDeliverables(contentText, parts)) {
-    await deliverToExternalChannels(supabase, threadId, clientId, contentText, parts)
+  if (hasExternalDeliverables(contentText, rawParts)) {
+    await deliverToExternalChannels(supabase, threadId, clientId, contentText, rawParts)
       .catch((deliveryError) => {
         console.error(`[${logLabel}] external channel delivery failed:`, deliveryError);
       });

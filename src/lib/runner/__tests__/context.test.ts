@@ -1008,19 +1008,20 @@ describe("session reset for stale threads", () => {
     vi.clearAllMocks();
   });
 
-  it("applies gt filter on context_reset_at when thread has one set", async () => {
+  it("applies gt filter on context_reset_at when thread was recently active", async () => {
     const resetAt = "2026-03-23T10:00:00.000Z";
+    // Thread was active recently (1h ago) — use existing context_reset_at, don't re-trigger
+    const recentUpdatedAt = new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString();
     const supabase = createMockSupabaseClient({
       selectResult: { data: [], error: null },
     });
 
-    // Override maybeSingle to return a thread with context_reset_at
     const originalFrom = supabase.from.bind(supabase);
     supabase.from = ((table: string) => {
       const query = originalFrom(table);
       if (table === "conversation_threads") {
         query.maybeSingle = async () => ({
-          data: { updated_at: "2026-03-23T09:00:00.000Z", context_reset_at: resetAt },
+          data: { updated_at: recentUpdatedAt, context_reset_at: resetAt },
           error: null,
         });
       }
@@ -1034,7 +1035,7 @@ describe("session reset for stale threads", () => {
       clientId: "client-123",
     });
 
-    // Verify the gt filter was applied
+    // Verify the gt filter was applied using the existing context_reset_at
     expect(supabase.calls.methods).toEqual(
       expect.arrayContaining([
         { method: "gt", args: ["created_at", resetAt] },
