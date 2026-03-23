@@ -607,6 +607,87 @@ describe("runAgent", () => {
     );
   });
 
+  it("disables connection mutations for pulse runs", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(
+      {
+        ...validPayload,
+        triggerType: "pulse",
+        input: "",
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockCreateConnectionTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      { allowMutations: false },
+    );
+  });
+
+  it("keeps connection mutations enabled for cron runs", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(
+      {
+        ...validPayload,
+        triggerType: "cron",
+        input: "Process the most recent trigger event.",
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockCreateConnectionTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      { allowMutations: true },
+    );
+  });
+
+  it("disables trigger mutations for pulse runs", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(
+      {
+        ...validPayload,
+        triggerType: "pulse",
+        input: "",
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockCreateTriggerTools).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      validPayload.clientId,
+      validPayload.threadId,
+      { allowMutations: false },
+    );
+  });
+
+  it("excludes browser and listing tools from pulse runs", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(
+      {
+        ...validPayload,
+        triggerType: "pulse",
+        input: "",
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockStreamText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tools: expect.not.objectContaining({
+          browse_website: expect.anything(),
+          search_99co: expect.anything(),
+          search_propertyguru: expect.anything(),
+        }),
+      }),
+    );
+  });
+
   it("consumes quota for direct chat sends before attempting the run", async () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
 

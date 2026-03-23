@@ -260,6 +260,7 @@ export async function runAgent(
 
     const runnerTools = createRunnerTools(supabase, clientId, threadId, {
       allowTriggerMutations: payload.triggerType === "chat",
+      allowConnectionMutations: payload.triggerType !== "pulse",
       crmMode,
       crmConfig,
       includeBrowserTools: payload.triggerType === "chat",
