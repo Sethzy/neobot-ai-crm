@@ -129,4 +129,24 @@ describe("DELETE /api/telegram/disconnect", () => {
 
     expect(response.status).toBe(500);
   });
+
+  it("returns 500 and leaves the mapping intact when clearing pending questions fails", async () => {
+    const supabase = createSupabase();
+    mockAuthenticateRequest.mockResolvedValue({
+      kind: "ok",
+      supabase,
+      userId: "user-1",
+    });
+    mockResolveClientId.mockResolvedValue("client-1");
+    mockClearPendingQuestionsForChat.mockRejectedValueOnce(new Error("clear failed"));
+
+    const response = await DELETE(
+      new Request("http://localhost/api/telegram/disconnect", {
+        method: "DELETE",
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    expect(supabase.deleteRow).not.toHaveBeenCalled();
+  });
 });

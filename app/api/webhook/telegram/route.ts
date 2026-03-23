@@ -25,6 +25,7 @@ import {
   advancePendingQuestionBatchByCallback,
   advancePendingQuestionBatchByTextReply,
   clearPendingQuestionsForChat,
+  restorePendingQuestionBatch,
 } from "@/lib/channels/telegram/pending-questions";
 import { runAgent } from "@/lib/runner/run-agent";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -343,6 +344,7 @@ async function handleNewCommand(
 }
 
 async function continueTelegramQuestionBatch(
+  supabase: TelegramAdminClient,
   bot: TelegramBot,
   chatId: number,
   result: Awaited<ReturnType<typeof advancePendingQuestionBatchByCallback>>,
@@ -351,28 +353,38 @@ async function continueTelegramQuestionBatch(
     return false;
   }
 
-  if (result.question.type === "single_select") {
-    await sendTelegramQuestion(
-      bot.api,
-      String(chatId),
-      result.batch.token,
-      result.questionIndex,
-      result.question.question,
-      result.question.options,
+  try {
+    if (result.question.type === "single_select") {
+      await sendTelegramQuestion(
+        bot.api,
+        String(chatId),
+        result.batch.token,
+        result.questionIndex,
+        result.question.question,
+        result.question.options,
+      );
+      return true;
+    }
+
+    await sendPlainTelegramMessage(
+      bot,
+      chatId,
+      buildUnsupportedQuestionFallback(
+        result.question.question,
+        result.question.options,
+        result.question.type,
+      ),
     );
     return true;
-  }
+  } catch (error) {
+    try {
+      await restorePendingQuestionBatch(supabase, result.rollback);
+    } catch (rollbackError) {
+      console.error("[telegram/webhook] failed to restore pending question batch:", rollbackError);
+    }
 
-  await sendPlainTelegramMessage(
-    bot,
-    chatId,
-    buildUnsupportedQuestionFallback(
-      result.question.question,
-      result.question.options,
-      result.question.type,
-    ),
-  );
-  return true;
+    throw error;
+  }
 }
 
 async function runTelegramAgent(
@@ -444,7 +456,7 @@ async function handleRegularMessage(
     });
 
     if (pendingTextReply.status === "next") {
-      await continueTelegramQuestionBatch(bot, numericChatId, pendingTextReply);
+      await continueTelegramQuestionBatch(supabase, bot, numericChatId, pendingTextReply);
       return;
     }
 
@@ -526,7 +538,13 @@ async function handleApprovalCallback(
 
   await bot.api.answerCallbackQuery(callbackId, {
     text: result.success
-      ? (approved ? "Approved — agent continuing" : "Denied")
+      ? (
+        result.status === "already_resolved"
+          ? "Already resolved."
+          : approved
+            ? "Approved — agent continuing"
+            : "Denied"
+      )
       : "Failed to process",
   });
 }
@@ -555,13 +573,14 @@ async function handleQuestionCallback(
   }
 
   await bot.api.answerCallbackQuery(callbackId, { text: "Selected" });
-  await editTelegramCallbackMessage(bot, callbackQuery, `✅ Selected: ${result.selectedOption}`);
 
   if (result.status === "next") {
-    await continueTelegramQuestionBatch(bot, chatId, result);
+    await continueTelegramQuestionBatch(supabase, bot, chatId, result);
+    await editTelegramCallbackMessage(bot, callbackQuery, `✅ Selected: ${result.selectedOption}`);
     return;
   }
 
+  await editTelegramCallbackMessage(bot, callbackQuery, `✅ Selected: ${result.selectedOption}`);
   await runTelegramAgent(supabase, {
     clientId: result.clientId,
     threadId: result.threadId,

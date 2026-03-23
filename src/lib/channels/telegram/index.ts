@@ -48,4 +48,5 @@ export {
   deletePendingQuestionBatch,
   generateQuestionCallbackToken,
   persistPendingQuestionBatch,
+  restorePendingQuestionBatch,
 } from "./pending-questions";

@@ -66,6 +66,14 @@ export interface PersistPendingQuestionBatchInput {
   questions: TelegramPendingQuestion[];
 }
 
+export interface PendingQuestionRollbackState {
+  token: string;
+  expectedCurrentIndex: number;
+  restoreCurrentIndex: number;
+  restoreAwaitingTextReply: boolean;
+  answers: string[];
+}
+
 type PendingQuestionAdvanceResult =
   | { status: "expired" }
   | {
@@ -73,6 +81,7 @@ type PendingQuestionAdvanceResult =
     batch: PendingQuestionBatch;
     question: TelegramPendingQuestion;
     questionIndex: number;
+    rollback: PendingQuestionRollbackState;
     selectedOption: string;
   }
   | {
@@ -244,6 +253,26 @@ export async function deletePendingQuestionBatch(
   }
 }
 
+/** Restores a batch cursor when sending the next Telegram question fails. */
+export async function restorePendingQuestionBatch(
+  supabase: TelegramPendingQuestionsClient,
+  rollback: PendingQuestionRollbackState,
+): Promise<void> {
+  const { error } = await supabase
+    .from("telegram_pending_questions")
+    .update({
+      answers: rollback.answers as unknown as Json,
+      current_index: rollback.restoreCurrentIndex,
+      awaiting_text_reply: rollback.restoreAwaitingTextReply,
+    })
+    .eq("token", rollback.token)
+    .eq("current_index", rollback.expectedCurrentIndex);
+
+  if (error) {
+    throw error;
+  }
+}
+
 /** Advances a pending batch from one inline-button answer. */
 export async function advancePendingQuestionBatchByCallback(
   supabase: TelegramPendingQuestionsClient,
@@ -315,6 +344,13 @@ export async function advancePendingQuestionBatchByCallback(
     batch: mapPendingQuestionRow(data as unknown as PendingQuestionSelectedRow),
     question: nextQuestion,
     questionIndex: nextQuestionIndex,
+    rollback: {
+      token: batch.token,
+      expectedCurrentIndex: nextQuestionIndex,
+      restoreCurrentIndex: batch.currentIndex,
+      restoreAwaitingTextReply: batch.awaitingTextReply,
+      answers: nextAnswers,
+    },
     selectedOption,
   };
 }
@@ -389,6 +425,13 @@ export async function advancePendingQuestionBatchByTextReply(
     batch: mapPendingQuestionRow(data as unknown as PendingQuestionSelectedRow),
     question: nextQuestion,
     questionIndex: nextQuestionIndex,
+    rollback: {
+      token: batch.token,
+      expectedCurrentIndex: nextQuestionIndex,
+      restoreCurrentIndex: batch.currentIndex,
+      restoreAwaitingTextReply: batch.awaitingTextReply,
+      answers: nextAnswers,
+    },
     selectedOption: trimmedText,
   };
 }
@@ -398,8 +441,12 @@ export async function clearPendingQuestionsForChat(
   supabase: TelegramPendingQuestionsClient,
   chatId: string,
 ): Promise<void> {
-  await supabase
+  const { error } = await supabase
     .from("telegram_pending_questions")
     .delete()
     .eq("chat_id", chatId);
+
+  if (error) {
+    throw error;
+  }
 }

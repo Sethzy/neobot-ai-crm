@@ -22,6 +22,12 @@ export async function DELETE(): Promise<Response> {
       .eq("channel", "telegram")
       .eq("client_id", clientId)
       .maybeSingle();
+
+    if (mapping?.external_conversation_id) {
+      const adminSupabase = await createAdminClient();
+      await clearPendingQuestionsForChat(adminSupabase, mapping.external_conversation_id);
+    }
+
     const { error } = await authResult.supabase
       .from("conversation_channel_mappings")
       .delete()
@@ -31,11 +37,6 @@ export async function DELETE(): Promise<Response> {
     if (error) {
       console.error("[telegram/disconnect] Failed to delete mapping:", error);
       return jsonError("Failed to disconnect Telegram.", 500);
-    }
-
-    if (mapping?.external_conversation_id) {
-      const adminSupabase = await createAdminClient();
-      await clearPendingQuestionsForChat(adminSupabase, mapping.external_conversation_id);
     }
 
     return Response.json({ success: true });

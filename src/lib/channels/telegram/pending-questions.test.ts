@@ -12,6 +12,7 @@ import {
   clearPendingQuestionsForChat,
   generateQuestionCallbackToken,
   persistPendingQuestionBatch,
+  restorePendingQuestionBatch,
 } from "./pending-questions";
 
 describe("generateQuestionCallbackToken", () => {
@@ -122,6 +123,13 @@ describe("advancePendingQuestionBatchByCallback", () => {
       }),
       question: questions[1],
       questionIndex: 1,
+      rollback: {
+        token: "batch-1",
+        expectedCurrentIndex: 1,
+        restoreCurrentIndex: 0,
+        restoreAwaitingTextReply: false,
+        answers: ["Mary"],
+      },
       selectedOption: "Mary",
     });
   });
@@ -225,6 +233,99 @@ describe("advancePendingQuestionBatchByTextReply", () => {
       selectedOption: "John and Mary",
     });
   });
+
+  it("returns rollback metadata when advancing from text reply to another question", async () => {
+    const questions = [
+      { question: "Which contacts?", options: ["John", "Mary"], type: "multi_select" as const },
+      { question: "Why?", options: ["Urgent", "Important"], type: "single_select" as const },
+    ];
+    const supabase = createMockSupabaseClient({
+      selectResult: {
+        data: [{
+          token: "batch-1",
+          client_id: "client-1",
+          thread_id: "thread-1",
+          chat_id: "12345",
+          questions,
+          answers: [],
+          current_index: 0,
+          awaiting_text_reply: true,
+        }],
+        error: null,
+      },
+      updateResult: {
+        data: {
+          token: "batch-1",
+          client_id: "client-1",
+          thread_id: "thread-1",
+          chat_id: "12345",
+          questions,
+          answers: ["John and Mary"],
+          current_index: 1,
+          awaiting_text_reply: false,
+        },
+        error: null,
+      },
+    });
+
+    const result = await advancePendingQuestionBatchByTextReply(supabase as never, {
+      chatId: "12345",
+      text: "John and Mary",
+    });
+
+    expect(result).toEqual({
+      status: "next",
+      batch: expect.objectContaining({
+        token: "batch-1",
+        currentIndex: 1,
+        awaitingTextReply: false,
+        answers: ["John and Mary"],
+      }),
+      question: questions[1],
+      questionIndex: 1,
+      rollback: {
+        token: "batch-1",
+        expectedCurrentIndex: 1,
+        restoreCurrentIndex: 0,
+        restoreAwaitingTextReply: true,
+        answers: ["John and Mary"],
+      },
+      selectedOption: "John and Mary",
+    });
+  });
+});
+
+describe("restorePendingQuestionBatch", () => {
+  it("moves the cursor back to the previous question while keeping collected answers", async () => {
+    const supabase = createMockSupabaseClient({
+      updateResult: { data: null, error: null },
+    });
+
+    await restorePendingQuestionBatch(supabase as never, {
+      token: "batch-1",
+      expectedCurrentIndex: 1,
+      restoreCurrentIndex: 0,
+      restoreAwaitingTextReply: false,
+      answers: ["Mary"],
+    });
+
+    expect(supabase.calls.methods).toContainEqual({
+      method: "update",
+      args: [{
+        answers: ["Mary"],
+        current_index: 0,
+        awaiting_text_reply: false,
+      }],
+    });
+    expect(supabase.calls.methods).toContainEqual({
+      method: "eq",
+      args: ["token", "batch-1"],
+    });
+    expect(supabase.calls.methods).toContainEqual({
+      method: "eq",
+      args: ["current_index", 1],
+    });
+  });
 });
 
 describe("clearPendingQuestionsForChat", () => {
@@ -242,6 +343,16 @@ describe("clearPendingQuestionsForChat", () => {
     expect(supabase.calls.methods).toContainEqual({
       method: "eq",
       args: ["chat_id", "12345"],
+    });
+  });
+
+  it("throws when the delete fails", async () => {
+    const supabase = createMockSupabaseClient({
+      deleteResult: { data: null, error: { message: "delete failed" } },
+    });
+
+    await expect(clearPendingQuestionsForChat(supabase as never, "12345")).rejects.toEqual({
+      message: "delete failed",
     });
   });
 });

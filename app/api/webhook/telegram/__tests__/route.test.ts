@@ -15,6 +15,7 @@ const {
   mockAdvancePendingQuestionBatchByTextReply,
   mockClearPendingQuestionsForChat,
   mockDownloadAndStoreTelegramFile,
+  mockRestorePendingQuestionBatch,
 } = vi.hoisted(() => ({
   mockAfter: vi.fn(),
   mockCreateAdminClient: vi.fn(),
@@ -26,6 +27,7 @@ const {
   mockAdvancePendingQuestionBatchByTextReply: vi.fn(),
   mockClearPendingQuestionsForChat: vi.fn(),
   mockDownloadAndStoreTelegramFile: vi.fn(),
+  mockRestorePendingQuestionBatch: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
@@ -70,6 +72,7 @@ vi.mock("@/lib/channels/telegram/pending-questions", async (importOriginal) => {
     advancePendingQuestionBatchByTextReply: (...args: unknown[]) =>
       mockAdvancePendingQuestionBatchByTextReply(...args),
     clearPendingQuestionsForChat: (...args: unknown[]) => mockClearPendingQuestionsForChat(...args),
+    restorePendingQuestionBatch: (...args: unknown[]) => mockRestorePendingQuestionBatch(...args),
   };
 });
 
@@ -245,6 +248,7 @@ describe("POST /api/webhook/telegram", () => {
     mockAdvancePendingQuestionBatchByTextReply.mockResolvedValue({ status: "expired" });
     mockClearPendingQuestionsForChat.mockResolvedValue(undefined);
     mockDownloadAndStoreTelegramFile.mockResolvedValue(null);
+    mockRestorePendingQuestionBatch.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -464,6 +468,51 @@ describe("POST /api/webhook/telegram", () => {
     );
   });
 
+  it("reports already-resolved approvals consistently in the callback toast", async () => {
+    const supabase = createWebhookSupabase({
+      mappingResults: [{
+        data: {
+          client_id: "client-1",
+          thread_id: "thread-2",
+          external_conversation_id: "12345",
+        },
+        error: null,
+      }],
+      approvalEventResults: [{
+        data: { thread_id: "thread-2" },
+        error: null,
+      }],
+    });
+    const api = createTelegramBotApi();
+    mockCreateAdminClient.mockResolvedValue(supabase);
+    mockCreateTelegramBot.mockReturnValue({ api });
+    mockResolveAndContinueApproval.mockResolvedValueOnce({
+      success: true,
+      status: "already_resolved",
+    });
+
+    const response = await POST(
+      createRequest({
+        update_id: 1021,
+        callback_query: {
+          id: "callback-approval-already",
+          data: "approve:approval-1",
+          message: {
+            message_id: 81,
+            text: "Approval Required",
+            chat: { id: 12345, type: "private" },
+          },
+        },
+      }),
+    );
+    await flushBackgroundWork();
+
+    expect(response.status).toBe(200);
+    expect(api.answerCallbackQuery).toHaveBeenCalledWith("callback-approval-already", {
+      text: "Already resolved.",
+    });
+  });
+
   it("edits the selected question message before sending the next question", async () => {
     const supabase = createWebhookSupabase();
     const api = createTelegramBotApi();
@@ -487,6 +536,13 @@ describe("POST /api/webhook/telegram", () => {
         type: "single_select",
       },
       questionIndex: 1,
+      rollback: {
+        token: "batch-1",
+        expectedCurrentIndex: 1,
+        restoreCurrentIndex: 0,
+        restoreAwaitingTextReply: false,
+        answers: ["Mary"],
+      },
       selectedOption: "Mary",
     });
 
@@ -518,6 +574,67 @@ describe("POST /api/webhook/telegram", () => {
       expect.stringContaining("Why this contact?"),
       expect.anything(),
     );
+  });
+
+  it("restores pending question state when sending the next question fails", async () => {
+    const supabase = createWebhookSupabase();
+    const api = createTelegramBotApi();
+    api.sendMessage.mockRejectedValueOnce(new Error("telegram send failed"));
+    mockCreateAdminClient.mockResolvedValue(supabase);
+    mockCreateTelegramBot.mockReturnValue({ api });
+    mockAdvancePendingQuestionBatchByCallback.mockResolvedValueOnce({
+      status: "next",
+      batch: {
+        token: "batch-1",
+        clientId: "client-1",
+        threadId: "thread-1",
+        chatId: "12345",
+        questions: [],
+        answers: ["Mary"],
+        currentIndex: 1,
+        awaitingTextReply: false,
+      },
+      question: {
+        question: "Why this contact?",
+        options: ["Urgent", "Important"],
+        type: "single_select",
+      },
+      questionIndex: 1,
+      rollback: {
+        token: "batch-1",
+        expectedCurrentIndex: 1,
+        restoreCurrentIndex: 0,
+        restoreAwaitingTextReply: false,
+        answers: ["Mary"],
+      },
+      selectedOption: "Mary",
+    });
+
+    const response = await POST(
+      createRequest({
+        update_id: 104,
+        callback_query: {
+          id: "callback-question-fail",
+          data: "q:batch-1:0:1",
+          message: {
+            message_id: 10,
+            text: "Which contact?",
+            chat: { id: 12345, type: "private" },
+          },
+        },
+      }),
+    );
+    await flushBackgroundWork();
+
+    expect(response.status).toBe(200);
+    expect(mockRestorePendingQuestionBatch).toHaveBeenCalledWith(supabase, {
+      token: "batch-1",
+      expectedCurrentIndex: 1,
+      restoreCurrentIndex: 0,
+      restoreAwaitingTextReply: false,
+      answers: ["Mary"],
+    });
+    expect(api.editMessageText).not.toHaveBeenCalled();
   });
 
   it("handles /new by clearing pending questions and moving the mapping to a fresh thread", async () => {
@@ -562,6 +679,42 @@ describe("POST /api/webhook/telegram", () => {
     );
   });
 
+  it("does not move the mapping when clearing pending questions fails during /new", async () => {
+    const supabase = createWebhookSupabase({
+      mappingResults: [{
+        data: {
+          client_id: "client-1",
+          thread_id: "thread-1",
+          external_conversation_id: "12345",
+        },
+        error: null,
+      }],
+    });
+    const api = createTelegramBotApi();
+    mockCreateAdminClient.mockResolvedValue(supabase);
+    mockCreateTelegramBot.mockReturnValue({ api });
+    mockClearPendingQuestionsForChat.mockRejectedValueOnce(new Error("clear failed"));
+
+    const response = await POST(
+      createRequest({
+        update_id: 2001,
+        message: {
+          message_id: 20,
+          text: "/new",
+          chat: { id: 12345, type: "private" },
+          from: { id: 7, is_bot: false, first_name: "Seth" },
+        },
+      }),
+    );
+    await flushBackgroundWork();
+
+    expect(response.status).toBe(200);
+    expect(
+      supabase.records.inserts.some((insert) => insert.table === "conversation_threads"),
+    ).toBe(false);
+    expect(api.sendMessage).not.toHaveBeenCalled();
+  });
+
   it("uses the completed pending text reply instead of the raw Telegram text", async () => {
     const supabase = createWebhookSupabase({
       mappingResults: [{
@@ -603,6 +756,77 @@ describe("POST /api/webhook/telegram", () => {
       expect.objectContaining({
         input: "Q: Which contact?\nA: John",
       }),
+      supabase,
+    );
+  });
+
+  it("restores pending text-reply state when sending the next prompt fails", async () => {
+    const supabase = createWebhookSupabase({
+      mappingResults: [{
+        data: {
+          client_id: "client-1",
+          thread_id: "thread-1",
+          external_conversation_id: "12345",
+        },
+        error: null,
+      }],
+      receiptInsertResults: [{ data: null, error: null }],
+    });
+    const api = createTelegramBotApi();
+    api.sendMessage.mockRejectedValueOnce(new Error("telegram send failed"));
+    mockCreateAdminClient.mockResolvedValue(supabase);
+    mockCreateTelegramBot.mockReturnValue({ api });
+    mockAdvancePendingQuestionBatchByTextReply.mockResolvedValueOnce({
+      status: "next",
+      batch: {
+        token: "batch-2",
+        clientId: "client-1",
+        threadId: "thread-1",
+        chatId: "12345",
+        questions: [],
+        answers: ["John and Mary"],
+        currentIndex: 1,
+        awaitingTextReply: false,
+      },
+      question: {
+        question: "Why?",
+        options: ["Urgent", "Important"],
+        type: "single_select",
+      },
+      questionIndex: 1,
+      rollback: {
+        token: "batch-2",
+        expectedCurrentIndex: 1,
+        restoreCurrentIndex: 0,
+        restoreAwaitingTextReply: true,
+        answers: ["John and Mary"],
+      },
+      selectedOption: "John and Mary",
+    });
+
+    const response = await POST(
+      createRequest({
+        update_id: 2011,
+        message: {
+          message_id: 31,
+          text: "John and Mary",
+          chat: { id: 12345, type: "private" },
+          from: { id: 7, is_bot: false, first_name: "Seth" },
+        },
+      }),
+    );
+    await flushBackgroundWork();
+
+    expect(response.status).toBe(200);
+    expect(mockRestorePendingQuestionBatch).toHaveBeenCalledWith(supabase, {
+      token: "batch-2",
+      expectedCurrentIndex: 1,
+      restoreCurrentIndex: 0,
+      restoreAwaitingTextReply: true,
+      answers: ["John and Mary"],
+    });
+    expect(mockRunAgent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ input: "John and Mary" }),
       supabase,
     );
   });
