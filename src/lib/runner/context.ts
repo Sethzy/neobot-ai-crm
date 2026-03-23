@@ -87,9 +87,7 @@ function normalizeRole(role: string): MessageRole {
 }
 
 interface BuildSystemPromptOptions {
-  memory?: MemoryContext;
   userSkills?: SkillMetadata[];
-  compactionSummary?: string;
   instructions?: string;
   platformInstructions?: string;
   includeBrowserAutomation?: boolean;
@@ -126,9 +124,7 @@ function formatAvailableSkills(userSkills?: SkillMetadata[]): string | null {
 }
 
 function buildSystemPrompt({
-  memory,
   userSkills,
-  compactionSummary,
   instructions,
   platformInstructions,
   includeBrowserAutomation,
@@ -139,32 +135,6 @@ function buildSystemPrompt({
   const activeSystemPrompt = systemPrompt ?? SYSTEM_PROMPT;
   const activePlatformInstructions = platformInstructions ?? PLATFORM_INSTRUCTIONS;
   const availableSkillsSection = formatAvailableSkills(userSkills);
-
-  if (!memory) {
-    const sections = [activeSystemPrompt];
-
-    if (includeBrowserAutomation) {
-      sections.push(BROWSER_AUTOMATION_PROMPT);
-    }
-
-    if (includeMarketData) {
-      sections.push(MARKET_DATA_PROMPT);
-    }
-
-    if (includePropertyListings) {
-      sections.push(PROPERTY_LISTING_PROMPT);
-    }
-
-    if (instructions && instructions.trim().length > 0) {
-      sections.push(instructions.trim());
-    }
-
-    if (availableSkillsSection) {
-      sections.push(availableSkillsSection);
-    }
-
-    return sections.join("\n\n");
-  }
 
   const sections: string[] = [];
 
@@ -195,7 +165,13 @@ function buildSystemPrompt({
     sections.push(availableSkillsSection);
   }
 
-  // --- Dynamic tail (changes between turns) ---
+  return sections.join("\n\n");
+}
+
+/** Formats memory context + compaction summary into a single string for message injection. */
+function formatMemoryMessage(memory: MemoryContext, compactionSummary?: string): string | null {
+  const sections: string[] = [];
+
   if (memory.soul.length > 0) {
     sections.push(`<soul>\n${memory.soul}\n</soul>`);
   }
@@ -212,7 +188,7 @@ function buildSystemPrompt({
     sections.push(`<compaction-summary>\n${compactionSummary.trim()}\n</compaction-summary>`);
   }
 
-  return sections.join("\n\n");
+  return sections.length > 0 ? sections.join("\n\n") : null;
 }
 
 function buildUiMessageParts(row: HistoryRow): UIMessage["parts"] | null {
@@ -292,8 +268,7 @@ export async function assembleSystemOnly({
     includeCompactionState: false,
   });
 
-  return buildSystemPrompt({
-    memory: memoryContext,
+  const system = buildSystemPrompt({
     userSkills,
     platformInstructions: platformInstructions ?? (crmConfig
       ? buildPlatformInstructions(crmConfig)
@@ -305,6 +280,17 @@ export async function assembleSystemOnly({
       ? CRM_SETUP_SYSTEM_PROMPT
       : SYSTEM_PROMPT),
   });
+
+  // For subagent system-only assembly, append memory directly to the system string
+  // (there's no messages array to inject into).
+  if (memoryContext) {
+    const memoryText = formatMemoryMessage(memoryContext);
+    if (memoryText) {
+      return `${system}\n\n${memoryText}`;
+    }
+  }
+
+  return system;
 }
 
 /**
@@ -382,17 +368,24 @@ export async function assembleContext({
     ...currentMessageTurn,
   ]);
 
-  // Inject system reminder as a user message after the cache boundary
+  // Inject system reminder and memory as user messages after the cache boundary
   // (not in the system prompt) so the stable prefix remains cacheable.
-  const reminderMessages: ModelMessage[] = systemReminder
-    ? [{ role: "user" as const, content: [{ type: "text" as const, text: systemReminder }] }]
-    : [];
+  const injectedMessages: ModelMessage[] = [];
+
+  if (systemReminder) {
+    injectedMessages.push({ role: "user" as const, content: [{ type: "text" as const, text: systemReminder }] });
+  }
+
+  if (memoryContext) {
+    const memoryText = formatMemoryMessage(memoryContext, compactionState?.compaction_summary);
+    if (memoryText) {
+      injectedMessages.push({ role: "user" as const, content: [{ type: "text" as const, text: memoryText }] });
+    }
+  }
 
   return {
     system: buildSystemPrompt({
-      memory: memoryContext,
       userSkills,
-      compactionSummary: compactionState?.compaction_summary,
       instructions,
       includeBrowserAutomation,
       includeMarketData,
@@ -404,6 +397,6 @@ export async function assembleContext({
         ? CRM_SETUP_SYSTEM_PROMPT
         : SYSTEM_PROMPT),
     }),
-    messages: [...reminderMessages, ...modelMessages],
+    messages: [...injectedMessages, ...modelMessages],
   };
 }
