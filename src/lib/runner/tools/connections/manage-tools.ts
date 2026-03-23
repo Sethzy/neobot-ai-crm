@@ -89,7 +89,19 @@ export function createManageToolsTool(
           });
 
           const activatedTools = Array.from(nextActivatedTools);
-          await updateConnectionActivatedTools(supabase, clientId, connection.id, activatedTools);
+
+          // Cache tool schemas for activated tools so runtime loading avoids Composio API calls
+          const schemasToCache: Record<string, { description: string | null; inputParameters: unknown }> = {};
+          for (const rawTool of rawTools) {
+            if (nextActivatedTools.has(rawTool.slug)) {
+              schemasToCache[rawTool.slug] = {
+                description: rawTool.description ?? null,
+                inputParameters: rawTool.inputParameters ?? null,
+              };
+            }
+          }
+
+          await updateConnectionActivatedTools(supabase, clientId, connection.id, activatedTools, schemasToCache);
 
           const activatedToolSet = new Set(activatedTools);
           results.push({

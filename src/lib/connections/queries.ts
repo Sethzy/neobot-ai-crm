@@ -285,17 +285,19 @@ export async function updateConnection(
   return connectionRowSchema.parse(data);
 }
 
-/** Updates the activated tool slug list for one connection row. */
+/** Updates the activated tool slug list and optional cached schemas for one connection row. */
 export async function updateConnectionActivatedTools(
   supabase: ConnectionSupabaseClient,
   clientId: string,
   connectionId: string,
   activatedTools: string[],
+  toolSchemas?: Record<string, { description: string | null; inputParameters: unknown }>,
 ): Promise<ConnectionRow> {
   try {
     return await updateConnection(supabase, clientId, {
       id: connectionId,
       activated_tools: activatedTools,
+      ...(toolSchemas != null ? { tool_schemas: toolSchemas } : {}),
     });
   } catch (error) {
     throw new Error(

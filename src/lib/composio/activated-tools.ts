@@ -1,5 +1,5 @@
 /**
- * Connection-scoped Composio tool loading.
+ * Connection-scoped Composio tool loading from cached DB schemas.
  * @module lib/composio/activated-tools
  */
 import { jsonSchema, tool, type ToolSet } from "ai";
@@ -14,8 +14,9 @@ const EMPTY_TOOL_INPUT_SCHEMA = {
 };
 
 /**
- * Loads only the activated tools for each active connection and prefixes each
- * tool name with the connection id so multi-connection tool routing stays unambiguous.
+ * Loads only the activated tools for each active connection using cached schemas
+ * from the DB row. Prefixes each tool name with the connection id so
+ * multi-connection tool routing stays unambiguous.
  */
 export async function loadActivatedConnectionTools(
   connections: ConnectionRow[],
@@ -33,18 +34,22 @@ export async function loadActivatedConnectionTools(
 
   for (const connection of activeConnections) {
     try {
-      const rawTools = await composio.tools.getRawComposioTools({
-        tools: connection.activated_tools,
-      });
+      const schemas = connection.tool_schemas ?? {};
 
-      for (const rawTool of rawTools) {
-        loadedTools[`${connection.id}__${rawTool.slug}`] = tool({
-          description: rawTool.description ?? rawTool.slug,
+      for (const slug of connection.activated_tools) {
+        const schema = schemas[slug];
+        if (!schema) {
+          console.warn(`[composio] No cached schema for ${slug} on connection ${connection.id}, skipping`);
+          continue;
+        }
+
+        loadedTools[`${connection.id}__${slug}`] = tool({
+          description: schema.description ?? slug,
           inputSchema: jsonSchema(
-            rawTool.inputParameters ?? EMPTY_TOOL_INPUT_SCHEMA,
+            schema.inputParameters ?? EMPTY_TOOL_INPUT_SCHEMA,
           ),
           execute: async (args) =>
-            composio.tools.execute(rawTool.slug, {
+            composio.tools.execute(slug, {
               connectedAccountId: connection.composio_connected_account_id,
               arguments: args,
               dangerouslySkipVersionCheck: true,

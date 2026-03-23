@@ -1,5 +1,5 @@
 /**
- * Tests for connection-ID-prefixed activated tool loading.
+ * Tests for connection-ID-prefixed activated tool loading from cached DB schemas.
  * @module lib/composio/__tests__/activated-tools
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -27,29 +27,11 @@ function createMockConnection(
     status: "active",
     activated_tools: [],
     tool_count: 0,
+    tool_schemas: {},
     created_at: "2026-03-07T00:00:00.000Z",
     updated_at: "2026-03-07T00:00:00.000Z",
     ...overrides,
   };
-}
-
-function createMockComposio(
-  toolsByCall: Array<Array<{ slug: string; description?: string; inputParameters?: Record<string, unknown> }>>,
-) {
-  let callIndex = 0;
-  const mockComposio = {
-    tools: {
-      getRawComposioTools: vi.fn().mockImplementation(() => {
-        const result = toolsByCall[callIndex] ?? [];
-        callIndex++;
-        return Promise.resolve(result);
-      }),
-      execute: vi.fn().mockResolvedValue({ success: true }),
-    },
-  };
-
-  vi.mocked(getComposio).mockReturnValue(mockComposio as never);
-  return mockComposio;
 }
 
 describe("loadActivatedConnectionTools", () => {
@@ -75,30 +57,68 @@ describe("loadActivatedConnectionTools", () => {
     expect(result).toEqual({});
   });
 
-  it("prefixes tool names with the connection id", async () => {
-    createMockComposio([
-      [
-        {
-          slug: "GMAIL_SEND_EMAIL",
-          description: "Send email",
-          inputParameters: {
-            type: "object",
-            properties: { to: { type: "string" } },
+  it("reads schemas from DB row, not Composio API", async () => {
+    const mockExecute = vi.fn().mockResolvedValue({ success: true });
+    vi.mocked(getComposio).mockReturnValue({
+      tools: {
+        getRawComposioTools: vi.fn(),
+        execute: mockExecute,
+      },
+    } as never);
+
+    const connections = [
+      createMockConnection({
+        id: "550e8400-e29b-41d4-a716-446655440003",
+        toolkit_slug: "gmail",
+        activated_tools: ["GMAIL_SEND_EMAIL"],
+        tool_schemas: {
+          GMAIL_SEND_EMAIL: {
+            description: "Send an email via Gmail",
+            inputParameters: {
+              type: "object",
+              properties: { to: { type: "string" }, subject: { type: "string" } },
+              required: ["to", "subject"],
+            },
           },
         },
-        {
-          slug: "GMAIL_READ_EMAIL",
-          description: "Read email",
-          inputParameters: { type: "object", properties: {} },
-        },
-      ],
-    ]);
+      }),
+    ];
+
+    const tools = await loadActivatedConnectionTools(connections);
+
+    expect(Object.keys(tools)).toEqual(["550e8400-e29b-41d4-a716-446655440003__GMAIL_SEND_EMAIL"]);
+
+    // Verify NO Composio API calls for schema loading
+    const composio = vi.mocked(getComposio)();
+    expect(composio.tools.getRawComposioTools).not.toHaveBeenCalled();
+  });
+
+  it("prefixes tool names with the connection id", async () => {
+    vi.mocked(getComposio).mockReturnValue({
+      tools: {
+        getRawComposioTools: vi.fn(),
+        execute: vi.fn().mockResolvedValue({ success: true }),
+      },
+    } as never);
 
     const result = await loadActivatedConnectionTools([
       createMockConnection({
         id: "550e8400-e29b-41d4-a716-446655440003",
         toolkit_slug: "gmail",
         activated_tools: ["GMAIL_SEND_EMAIL", "GMAIL_READ_EMAIL"],
+        tool_schemas: {
+          GMAIL_SEND_EMAIL: {
+            description: "Send email",
+            inputParameters: {
+              type: "object",
+              properties: { to: { type: "string" } },
+            },
+          },
+          GMAIL_READ_EMAIL: {
+            description: "Read email",
+            inputParameters: { type: "object", properties: {} },
+          },
+        },
       }),
     ]);
 
@@ -109,33 +129,35 @@ describe("loadActivatedConnectionTools", () => {
   });
 
   it("loads tools for multiple active connections independently", async () => {
-    createMockComposio([
-      [
-        {
-          slug: "GMAIL_SEND_EMAIL",
-          description: "Send email",
-          inputParameters: { type: "object", properties: {} },
-        },
-      ],
-      [
-        {
-          slug: "SLACK_SEND_MESSAGE",
-          description: "Send Slack message",
-          inputParameters: { type: "object", properties: {} },
-        },
-      ],
-    ]);
+    vi.mocked(getComposio).mockReturnValue({
+      tools: {
+        getRawComposioTools: vi.fn(),
+        execute: vi.fn().mockResolvedValue({ success: true }),
+      },
+    } as never);
 
     const result = await loadActivatedConnectionTools([
       createMockConnection({
         id: "550e8400-e29b-41d4-a716-446655440004",
         toolkit_slug: "gmail",
         activated_tools: ["GMAIL_SEND_EMAIL"],
+        tool_schemas: {
+          GMAIL_SEND_EMAIL: {
+            description: "Send email",
+            inputParameters: { type: "object", properties: {} },
+          },
+        },
       }),
       createMockConnection({
         id: "550e8400-e29b-41d4-a716-446655440005",
         toolkit_slug: "slack",
         activated_tools: ["SLACK_SEND_MESSAGE"],
+        tool_schemas: {
+          SLACK_SEND_MESSAGE: {
+            description: "Send Slack message",
+            inputParameters: { type: "object", properties: {} },
+          },
+        },
       }),
     ]);
 
@@ -145,47 +167,46 @@ describe("loadActivatedConnectionTools", () => {
     ]);
   });
 
-  it("requests raw tool definitions with a tools-only query", async () => {
-    const mock = createMockComposio([
-      [
-        {
-          slug: "GMAIL_SEND_EMAIL",
-          description: "Send email",
-          inputParameters: { type: "object", properties: {} },
-        },
-      ],
-    ]);
+  it("skips tools with no cached schema and warns", async () => {
+    const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.mocked(getComposio).mockReturnValue({
+      tools: {
+        getRawComposioTools: vi.fn(),
+        execute: vi.fn().mockResolvedValue({ success: true }),
+      },
+    } as never);
 
-    await loadActivatedConnectionTools([
+    const result = await loadActivatedConnectionTools([
       createMockConnection({
         id: "550e8400-e29b-41d4-a716-446655440006",
         toolkit_slug: "gmail",
-        activated_tools: ["GMAIL_SEND_EMAIL"],
+        activated_tools: ["GMAIL_SEND_EMAIL", "GMAIL_MISSING_TOOL"],
+        tool_schemas: {
+          GMAIL_SEND_EMAIL: {
+            description: "Send email",
+            inputParameters: { type: "object", properties: {} },
+          },
+        },
       }),
     ]);
 
-    expect(mock.tools.getRawComposioTools).toHaveBeenCalledWith({
-      tools: ["GMAIL_SEND_EMAIL"],
-    });
+    expect(Object.keys(result)).toEqual([
+      "550e8400-e29b-41d4-a716-446655440006__GMAIL_SEND_EMAIL",
+    ]);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("No cached schema for GMAIL_MISSING_TOOL"),
+    );
+    consoleSpy.mockRestore();
   });
 
   it("executes wrapped tools with the bound connected account id", async () => {
-    const mock = createMockComposio([
-      [
-        {
-          slug: "GMAIL_SEND_EMAIL",
-          description: "Send email",
-          inputParameters: {
-            type: "object",
-            properties: {
-              to: { type: "string" },
-              body: { type: "string" },
-            },
-            required: ["to"],
-          },
-        },
-      ],
-    ]);
+    const mockExecute = vi.fn().mockResolvedValue({ success: true });
+    vi.mocked(getComposio).mockReturnValue({
+      tools: {
+        getRawComposioTools: vi.fn(),
+        execute: mockExecute,
+      },
+    } as never);
 
     const result = await loadActivatedConnectionTools([
       createMockConnection({
@@ -193,6 +214,19 @@ describe("loadActivatedConnectionTools", () => {
         toolkit_slug: "gmail",
         composio_connected_account_id: "ca_personal_gmail",
         activated_tools: ["GMAIL_SEND_EMAIL"],
+        tool_schemas: {
+          GMAIL_SEND_EMAIL: {
+            description: "Send email",
+            inputParameters: {
+              type: "object",
+              properties: {
+                to: { type: "string" },
+                body: { type: "string" },
+              },
+              required: ["to"],
+            },
+          },
+        },
       }),
     ]);
 
@@ -204,7 +238,7 @@ describe("loadActivatedConnectionTools", () => {
       body: "Hello",
     });
 
-    expect(mock.tools.execute).toHaveBeenCalledWith("GMAIL_SEND_EMAIL", {
+    expect(mockExecute).toHaveBeenCalledWith("GMAIL_SEND_EMAIL", {
       connectedAccountId: "ca_personal_gmail",
       arguments: {
         to: "user@example.com",
@@ -214,47 +248,6 @@ describe("loadActivatedConnectionTools", () => {
     });
   });
 
-  it("keeps partial results when one connection fails to load", async () => {
-    let callIndex = 0;
-    const mockComposio = {
-      tools: {
-        getRawComposioTools: vi.fn().mockImplementation(() => {
-          callIndex++;
-          if (callIndex === 1) {
-            return Promise.reject(new Error("Composio timeout"));
-          }
-
-          return Promise.resolve([
-            {
-              slug: "SLACK_SEND_MESSAGE",
-              description: "Send Slack message",
-              inputParameters: { type: "object", properties: {} },
-            },
-          ]);
-        }),
-        execute: vi.fn().mockResolvedValue({ success: true }),
-      },
-    };
-    vi.mocked(getComposio).mockReturnValue(mockComposio as never);
-
-    const result = await loadActivatedConnectionTools([
-      createMockConnection({
-        id: "550e8400-e29b-41d4-a716-446655440008",
-        toolkit_slug: "gmail",
-        activated_tools: ["GMAIL_SEND_EMAIL"],
-      }),
-      createMockConnection({
-        id: "550e8400-e29b-41d4-a716-446655440009",
-        toolkit_slug: "slack",
-        activated_tools: ["SLACK_SEND_MESSAGE"],
-      }),
-    ]);
-
-    expect(Object.keys(result)).toEqual([
-      "550e8400-e29b-41d4-a716-446655440009__SLACK_SEND_MESSAGE",
-    ]);
-  });
-
   it("skips pending connections", async () => {
     const result = await loadActivatedConnectionTools([
       createMockConnection({
@@ -262,6 +255,12 @@ describe("loadActivatedConnectionTools", () => {
         toolkit_slug: "gmail",
         status: "pending",
         activated_tools: ["GMAIL_SEND_EMAIL"],
+        tool_schemas: {
+          GMAIL_SEND_EMAIL: {
+            description: "Send email",
+            inputParameters: { type: "object", properties: {} },
+          },
+        },
       }),
     ]);
 

@@ -17,6 +17,10 @@ export const connectionRowSchema = z.object({
   status: z.enum(connectionStatusValues),
   activated_tools: z.array(z.string()).default([]),
   tool_count: z.number().int().nonnegative().default(0),
+  tool_schemas: z.record(z.string(), z.object({
+    description: z.string().nullable(),
+    inputParameters: z.unknown(),
+  })).default({}),
   created_at: z.string().datetime({ offset: true }),
   updated_at: z.string().datetime({ offset: true }),
 });
@@ -45,6 +49,10 @@ export const connectionUpdateSchema = z.object({
   status: z.enum(connectionStatusValues).optional(),
   activated_tools: z.array(z.string()).optional(),
   tool_count: z.number().int().nonnegative().optional(),
+  tool_schemas: z.record(z.string(), z.object({
+    description: z.string().nullable(),
+    inputParameters: z.unknown(),
+  })).optional(),
 });
 
 export type ConnectionRow = z.infer<typeof connectionRowSchema>;
