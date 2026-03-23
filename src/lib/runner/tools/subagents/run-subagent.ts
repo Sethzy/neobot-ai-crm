@@ -15,6 +15,7 @@ import type { StepLike } from "@/lib/runner/message-utils";
 import { saveToolcallBlock } from "@/lib/storage/tool-blocks";
 import { createAgentFileClient } from "@/lib/storage/agent-files";
 import { toStoragePath } from "@/lib/storage/agent-paths";
+import { isPropertySupabaseConfigured } from "@/lib/supabase/property-env";
 import type { Database } from "@/types/database";
 
 const MAX_SUBAGENT_STEPS = 9;

@@ -16,6 +16,7 @@ import {
   createUtilityTools,
   createWebTools,
 } from "@/lib/runner/tools";
+import { isPropertySupabaseConfigured } from "@/lib/supabase/property-env";
 import type { Database } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
@@ -57,7 +58,9 @@ export function createRunnerTools(
   const connectionTools = createConnectionTools(supabase, clientId, {
     allowMutations: isSubagent ? false : (options?.allowConnectionMutations ?? true),
   });
-  const marketTools = createMarketTools();
+  // Market tools eagerly create a Supabase client that throws without env vars.
+  // Guard creation so runner startup doesn't crash in environments without property DB.
+  const marketTools = isPropertySupabaseConfigured() ? createMarketTools() : {};
   const listingTools = isSubagent ? {} : createListingTools();
 
   if (isSubagent) {

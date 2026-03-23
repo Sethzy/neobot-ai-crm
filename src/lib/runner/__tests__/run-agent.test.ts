@@ -497,8 +497,8 @@ describe("runAgent", () => {
         includeMarketData: false,
       }),
     );
-    // Market tools are still registered (stable tool set), but prompt guidance is omitted
-    expect(mockCreateMarketTools).toHaveBeenCalled();
+    // Market tools are not created when property env is unconfigured (eager client throws)
+    expect(mockCreateMarketTools).not.toHaveBeenCalled();
   });
 
   it("disables property-listing prompt injection when Apify is not configured", async () => {

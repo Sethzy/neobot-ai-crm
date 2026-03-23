@@ -37,6 +37,10 @@ export const connectionInsertSchema = connectionRowSchema
     account_identifier: z.string().nullable().optional(),
     activated_tools: z.array(z.string()).optional().default([]),
     tool_count: z.number().int().nonnegative().optional().default(0),
+    tool_schemas: z.record(z.string(), z.object({
+      description: z.string().nullable(),
+      inputParameters: z.unknown(),
+    })).optional().default({}),
   });
 
 /** Validates a partial update to one existing connection row. */
@@ -56,5 +60,6 @@ export const connectionUpdateSchema = z.object({
 });
 
 export type ConnectionRow = z.infer<typeof connectionRowSchema>;
-export type ConnectionInsert = z.infer<typeof connectionInsertSchema>;
+/** Input type for connection inserts — fields with `.default()` are optional at call sites. */
+export type ConnectionInsert = z.input<typeof connectionInsertSchema>;
 export type ConnectionUpdate = z.infer<typeof connectionUpdateSchema>;

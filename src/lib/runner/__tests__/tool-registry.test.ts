@@ -14,6 +14,7 @@ const {
   mockCreateTriggerTools,
   mockCreateUtilityTools,
   mockCreateWebTools,
+  mockIsPropertySupabaseConfigured,
 } = vi.hoisted(() => ({
   mockCreateBrowserTools: vi.fn(),
   mockCreateConnectionTools: vi.fn(),
@@ -24,6 +25,11 @@ const {
   mockCreateTriggerTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
+  mockIsPropertySupabaseConfigured: vi.fn(),
+}));
+
+vi.mock("@/lib/supabase/property-env", () => ({
+  isPropertySupabaseConfigured: mockIsPropertySupabaseConfigured,
 }));
 
 vi.mock("@/lib/runner/tools", () => ({
@@ -72,6 +78,7 @@ describe("createRunnerTools", () => {
     mockCreateWebTools.mockReturnValue({
       web_search: { description: "web-tool" },
     });
+    mockIsPropertySupabaseConfigured.mockReturnValue(true);
   });
 
   it("always includes browser tools for non-subagent runs", () => {
@@ -96,7 +103,7 @@ describe("createRunnerTools", () => {
     expect(tools).not.toHaveProperty("browse_website");
   });
 
-  it("always includes market tools", () => {
+  it("includes market tools when property env is configured", () => {
     const tools = createRunnerTools(
       "supabase" as never,
       "client-id",
@@ -105,6 +112,19 @@ describe("createRunnerTools", () => {
 
     expect(tools).toHaveProperty("search_market_data");
     expect(mockCreateMarketTools).toHaveBeenCalledOnce();
+  });
+
+  it("omits market tools when property env is not configured", () => {
+    mockIsPropertySupabaseConfigured.mockReturnValue(false);
+
+    const tools = createRunnerTools(
+      "supabase" as never,
+      "client-id",
+      "thread-id",
+    );
+
+    expect(tools).not.toHaveProperty("search_market_data");
+    expect(mockCreateMarketTools).not.toHaveBeenCalled();
   });
 
   it("always includes listing tools for non-subagent runs", () => {
@@ -119,7 +139,7 @@ describe("createRunnerTools", () => {
     expect(mockCreateListingTools).toHaveBeenCalledOnce();
   });
 
-  it("includes market tools for subagents", () => {
+  it("includes market tools for subagents when property env is configured", () => {
     const tools = createRunnerTools(
       "supabase" as never,
       "client-id",

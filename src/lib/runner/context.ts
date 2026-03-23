@@ -341,9 +341,10 @@ export async function assembleContext({
         // Thread is stale — set (or advance) context_reset_at so old messages are skipped.
         // Re-triggers on every idle gap, not just the first one.
         contextResetAt = new Date().toISOString();
+        // Cast needed: context_reset_at added by migration but not yet in generated DB types.
         await supabase
           .from("conversation_threads")
-          .update({ context_reset_at: contextResetAt })
+          .update({ context_reset_at: contextResetAt } as Record<string, unknown>)
           .eq("thread_id", threadId);
       } else {
         contextResetAt = thread.context_reset_at ?? null;
@@ -412,7 +413,10 @@ export async function assembleContext({
   }
 
   if (memoryContext) {
-    const memoryText = formatMemoryMessage(memoryContext, compactionState?.compaction_summary);
+    // When context has been reset (stale thread), skip the old compaction summary —
+    // it was built from messages the agent no longer sees.
+    const compactionSummary = contextResetAt ? undefined : compactionState?.compaction_summary;
+    const memoryText = formatMemoryMessage(memoryContext, compactionSummary);
     if (memoryText) {
       injectedMessages.push({ role: "user" as const, content: [{ type: "text" as const, text: memoryText }] });
     }

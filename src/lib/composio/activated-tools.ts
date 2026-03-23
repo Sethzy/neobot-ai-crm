@@ -1,5 +1,6 @@
 /**
  * Connection-scoped Composio tool loading from cached DB schemas.
+ * Falls back to Composio API for pre-migration connections with empty tool_schemas.
  * @module lib/composio/activated-tools
  */
 import { jsonSchema, tool, type ToolSet } from "ai";
@@ -15,8 +16,8 @@ const EMPTY_TOOL_INPUT_SCHEMA = {
 
 /**
  * Loads only the activated tools for each active connection using cached schemas
- * from the DB row. Prefixes each tool name with the connection id so
- * multi-connection tool routing stays unambiguous.
+ * from the DB row. Falls back to Composio API when schemas are missing (pre-migration rows).
+ * Prefixes each tool name with the connection id so multi-connection tool routing stays unambiguous.
  */
 export async function loadActivatedConnectionTools(
   connections: ConnectionRow[],
@@ -34,7 +35,25 @@ export async function loadActivatedConnectionTools(
 
   for (const connection of activeConnections) {
     try {
-      const schemas = connection.tool_schemas ?? {};
+      let schemas = connection.tool_schemas ?? {};
+
+      // Fallback: pre-migration rows have empty tool_schemas. Fetch from Composio API
+      // and use the raw tool definitions directly. This path will be eliminated once
+      // all existing connections have been re-activated (which caches their schemas).
+      const hasCachedSchemas = Object.keys(schemas).length > 0;
+      if (!hasCachedSchemas) {
+        console.warn(`[composio] No cached schemas for connection ${connection.id}, falling back to API`);
+        const rawTools = await composio.tools.getRawComposioTools({
+          tools: connection.activated_tools,
+        });
+        schemas = {};
+        for (const rawTool of rawTools) {
+          schemas[rawTool.slug] = {
+            description: rawTool.description ?? null,
+            inputParameters: rawTool.inputParameters ?? null,
+          };
+        }
+      }
 
       for (const slug of connection.activated_tools) {
         const schema = schemas[slug];
