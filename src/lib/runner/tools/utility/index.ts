@@ -34,7 +34,7 @@ export function createUtilityTools(
 
   return {
     ...createCalculateTool(),
-    ...createTodoTools(supabase, clientId, threadId),
+    ...(!isSubagent ? createTodoTools(supabase, clientId, threadId) : {}),
     ...createSqlTools(supabase),
     ...(!isSubagent ? createAskUserQuestionTool() : {}),
     ...(!isSubagent ? createRenameChatTool(supabase, clientId, threadId) : {}),
