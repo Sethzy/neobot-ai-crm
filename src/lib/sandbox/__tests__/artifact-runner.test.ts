@@ -223,6 +223,18 @@ describe("downloadPhotosToSprite", () => {
       downloadPhotosToSprite(sprite, ["https://example.com/missing.jpg"]),
     ).rejects.toThrow('Failed to download photo "https://example.com/missing.jpg" (status 404).');
   });
+
+  it("rejects localhost and private-network photo URLs before fetching", async () => {
+    const { sprite } = createMockSprite();
+    const fetchSpy = vi.fn();
+
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await expect(
+      downloadPhotosToSprite(sprite, ["http://127.0.0.1/private.jpg"]),
+    ).rejects.toThrow('Blocked private or unsafe URL "http://127.0.0.1/private.jpg".');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
 });
 
 describe("ensureDevServerService", () => {
@@ -395,6 +407,7 @@ describe("runArtifactInSprite", () => {
 
     expect(result.success).toBe(true);
     expect(result.outputHtml).toBe("<html>final</html>");
+    expect(mockExecFile).toHaveBeenCalledWith("bash", ["-lc", "rm -f /tmp/output.html"]);
   });
 
   it("returns a failure when ship-it mode does not produce output.html", async () => {

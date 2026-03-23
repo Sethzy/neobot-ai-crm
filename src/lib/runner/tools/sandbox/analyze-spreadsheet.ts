@@ -6,6 +6,7 @@ import { tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
+import { assertSafeExternalUrl } from "@/lib/sandbox/external-url";
 import { runClaudeInSprite } from "@/lib/sandbox/run-claude-in-sprite";
 import { loadSkillFilesForSandbox } from "@/lib/sandbox/skill-loader";
 import {
@@ -80,7 +81,8 @@ export function createAnalyzeSpreadsheetTool(
           await sprite.execFile("mkdir", ["-p", "/workspace/input"]);
 
           for (const file of files) {
-            const response = await fetch(file.url);
+            const safeUrl = assertSafeExternalUrl(file.url);
+            const response = await fetch(safeUrl.toString());
 
             if (!response.ok) {
               throw new Error(
@@ -104,7 +106,7 @@ export function createAnalyzeSpreadsheetTool(
             task,
             inputFilenames: files.map((file) => sanitizeSpriteFilename(file.filename)),
             userSkillFiles,
-            userSkillSlug: ANALYST_SKILL_SLUG,
+            userSkillSlug: userSkillFiles.length > 0 ? ANALYST_SKILL_SLUG : undefined,
           });
 
           await touchSpriteSession(supabase, spriteName);

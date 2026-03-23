@@ -73,10 +73,16 @@ describe("buildClaudeEnv", () => {
     vi.unstubAllEnvs();
   });
 
-  it("returns the Anthropic API key for execFile env injection", () => {
+  it("returns the Anthropic env needed for execFile injection", () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "sk-test-key");
+    vi.stubEnv("PATH", "/usr/bin:/usr/local/bin");
+    vi.stubEnv("ANTHROPIC_BASE_URL", "https://proxy.example.test");
 
-    expect(buildClaudeEnv()).toEqual({ ANTHROPIC_API_KEY: "sk-test-key" });
+    expect(buildClaudeEnv()).toEqual({
+      ANTHROPIC_API_KEY: "sk-test-key",
+      PATH: "/usr/bin:/usr/local/bin",
+      ANTHROPIC_BASE_URL: "https://proxy.example.test",
+    });
   });
 
   it("throws when ANTHROPIC_API_KEY is missing", () => {
@@ -90,13 +96,15 @@ describe("runClaudeInSprite", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv("ANTHROPIC_API_KEY", "sk-test-key");
+    vi.stubEnv("PATH", "/usr/bin:/usr/local/bin");
+    vi.stubEnv("ANTHROPIC_BASE_URL", "https://proxy.example.test");
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
   });
 
-  it("writes bundled xlsx assets on first run, injects user skills, and runs claude", async () => {
+  it("installs spreadsheet dependencies on first use, clears old outputs, writes bundled assets, and runs claude", async () => {
     const { sprite, mockExecFile, mockReadFile, mockWriteFile } = createMockSprite();
 
     mockReadFile.mockImplementation(async (path: string) => {
@@ -112,6 +120,14 @@ describe("runClaudeInSprite", () => {
     });
 
     mockExecFile.mockImplementation(async (command: string, args?: string[]) => {
+      if (command === "bash" && args?.[1]?.includes("pip3 show pandas")) {
+        return { stdout: "MISSING", stderr: "", exitCode: 0 };
+      }
+
+      if (command === "bash" && args?.[1]?.includes("command -v soffice")) {
+        return { stdout: "MISSING", stderr: "", exitCode: 0 };
+      }
+
       if (command === "test" && args?.[1] === "/workspace/output/result.xlsx") {
         return { stdout: "", stderr: "", exitCode: 0 };
       }
@@ -137,15 +153,31 @@ describe("runClaudeInSprite", () => {
       "# Preferences",
     );
     expect(mockExecFile).toHaveBeenCalledWith(
+      "pip3",
+      ["install", "pandas", "openpyxl", "xlsxwriter", "matplotlib"],
+    );
+    expect(mockExecFile).toHaveBeenCalledWith(
+      "bash",
+      ["-lc", "apt-get update -qq && apt-get install -y -qq libreoffice-calc gcc"],
+    );
+    expect(mockExecFile).toHaveBeenCalledWith(
+      "bash",
+      ["-lc", "rm -f /workspace/output/result.xlsx /workspace/output/summary.txt"],
+    );
+    expect(mockExecFile).toHaveBeenCalledWith(
       "claude",
       expect.arrayContaining(["--print", "--dangerously-skip-permissions"]),
       expect.objectContaining({
-        env: expect.objectContaining({ ANTHROPIC_API_KEY: "sk-test-key" }),
+        env: expect.objectContaining({
+          ANTHROPIC_API_KEY: "sk-test-key",
+          PATH: "/usr/bin:/usr/local/bin",
+          ANTHROPIC_BASE_URL: "https://proxy.example.test",
+        }),
       }),
     );
   });
 
-  it("skips bundled xlsx asset writes on follow-up runs when the skill already exists", async () => {
+  it("skips dependency installation and bundled asset writes on follow-up runs when everything already exists", async () => {
     const { sprite, mockExecFile, mockReadFile, mockWriteFile } = createMockSprite();
 
     mockReadFile.mockImplementation(async (path: string) => {
@@ -160,7 +192,17 @@ describe("runClaudeInSprite", () => {
       throw new Error(`Unexpected read: ${path}`);
     });
 
-    mockExecFile.mockResolvedValue({ stdout: "claude output", stderr: "", exitCode: 0 });
+    mockExecFile.mockImplementation(async (command: string, args?: string[]) => {
+      if (command === "bash" && args?.[1]?.includes("pip3 show pandas")) {
+        return { stdout: "INSTALLED", stderr: "", exitCode: 0 };
+      }
+
+      if (command === "bash" && args?.[1]?.includes("command -v soffice")) {
+        return { stdout: "INSTALLED", stderr: "", exitCode: 0 };
+      }
+
+      return { stdout: "claude output", stderr: "", exitCode: 0 };
+    });
 
     const result = await runClaudeInSprite(sprite as never, {
       task: "Adjust the assumptions",
@@ -173,6 +215,10 @@ describe("runClaudeInSprite", () => {
     expect(mockWriteFile).not.toHaveBeenCalledWith(
       "/skills/xlsx/SKILL.md",
       expect.anything(),
+    );
+    expect(mockExecFile).not.toHaveBeenCalledWith(
+      "pip3",
+      ["install", "pandas", "openpyxl", "xlsxwriter", "matplotlib"],
     );
   });
 

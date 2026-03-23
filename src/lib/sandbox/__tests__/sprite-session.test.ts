@@ -82,6 +82,17 @@ describe("sprite-session helpers", () => {
     ).resolves.toBeNull();
   });
 
+  it("throws when reading the active sprite session fails", async () => {
+    supabase.mockMaybeSingle.mockResolvedValue({
+      data: null,
+      error: { message: "permission denied" },
+    });
+
+    await expect(
+      findActiveSpriteSession(supabase.client as never, "thread-1"),
+    ).rejects.toThrow('Failed to read sprite session for thread "thread-1": permission denied');
+  });
+
   it("upserts a thread-scoped sprite session and returns the stored row", async () => {
     supabase.mockSingle.mockResolvedValue({
       data: {
@@ -119,6 +130,22 @@ describe("sprite-session helpers", () => {
     );
   });
 
+  it("throws when upserting the sprite session fails", async () => {
+    supabase.mockSingle.mockResolvedValue({
+      data: null,
+      error: { message: "rls blocked" },
+    });
+
+    await expect(
+      upsertSpriteSession(supabase.client as never, {
+        client_id: "client-1",
+        thread_id: "thread-1",
+        sprite_name: "thread-thread-1",
+        status: "running",
+      }),
+    ).rejects.toThrow('Failed to upsert sprite session for thread "thread-1": rls blocked');
+  });
+
   it("touches the sprite session by sprite name", async () => {
     await touchSpriteSession(supabase.client as never, "thread-thread-1");
 
@@ -131,6 +158,14 @@ describe("sprite-session helpers", () => {
       "sprite_name",
       "thread-thread-1",
     );
+  });
+
+  it("throws when touching the sprite session fails", async () => {
+    supabase.mockEqForUpdate.mockResolvedValueOnce({ error: { message: "write failed" } });
+
+    await expect(
+      touchSpriteSession(supabase.client as never, "thread-thread-1"),
+    ).rejects.toThrow('Failed to touch sprite session "thread-thread-1": write failed');
   });
 
   it("marks the sprite session destroyed by sprite name", async () => {

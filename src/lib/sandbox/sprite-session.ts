@@ -41,7 +41,11 @@ export async function findActiveSpriteSession(
     .neq("status", "destroyed")
     .maybeSingle();
 
-  if (error || !data) {
+  if (error) {
+    throw new Error(`Failed to read sprite session for thread "${threadId}": ${error.message}`);
+  }
+
+  if (!data) {
     return null;
   }
 
@@ -72,7 +76,9 @@ export async function upsertSpriteSession(
     .single();
 
   if (error || !data) {
-    return null;
+    throw new Error(
+      `Failed to upsert sprite session for thread "${session.thread_id}": ${error?.message ?? "unknown error"}`,
+    );
   }
 
   return toSpriteSessionRow(data);
@@ -85,10 +91,14 @@ export async function touchSpriteSession(
   supabase: SandboxSupabaseClient,
   spriteName: string,
 ): Promise<void> {
-  await supabase
+  const { error } = await supabase
     .from("sprite_sessions")
     .update({ last_active_at: new Date().toISOString() })
     .eq("sprite_name", spriteName);
+
+  if (error) {
+    throw new Error(`Failed to touch sprite session "${spriteName}": ${error.message}`);
+  }
 }
 
 /**
@@ -98,11 +108,15 @@ export async function markSpriteDestroyed(
   supabase: SandboxSupabaseClient,
   spriteName: string,
 ): Promise<void> {
-  await supabase
+  const { error } = await supabase
     .from("sprite_sessions")
     .update({
       status: "destroyed",
       destroyed_at: new Date().toISOString(),
     })
     .eq("sprite_name", spriteName);
+
+  if (error) {
+    throw new Error(`Failed to destroy sprite session "${spriteName}": ${error.message}`);
+  }
 }

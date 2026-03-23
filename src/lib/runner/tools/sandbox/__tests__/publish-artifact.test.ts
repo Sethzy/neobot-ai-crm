@@ -296,4 +296,19 @@ describe("createPublishArtifactTool", () => {
       error: "Storage quota exceeded",
     });
   });
+
+  it("returns a failure when sprite-session persistence fails", async () => {
+    mockFindActiveSpriteSession.mockRejectedValue(new Error("db unavailable"));
+
+    const tools = createPublishArtifactTool(mockSupabase, "client-1", "thread-1");
+    const result = await tools.publish_artifact.execute({
+      task: "Build a showcase.",
+      propertyData: { address: "42 Noriega Street" },
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: "db unavailable",
+    });
+  });
 });

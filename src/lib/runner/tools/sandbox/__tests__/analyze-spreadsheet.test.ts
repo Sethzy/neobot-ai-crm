@@ -227,6 +227,12 @@ describe("createAnalyzeSpreadsheetTool", () => {
       existingSpriteName: "thread-existing",
       spriteName: "thread-12345678",
     });
+    expect(mockRunClaudeInSprite).toHaveBeenCalledWith(
+      sprite,
+      expect.objectContaining({
+        userSkillSlug: undefined,
+      }),
+    );
   });
 
   it("returns a download error when a runner-side file fetch fails", async () => {
@@ -256,6 +262,47 @@ describe("createAnalyzeSpreadsheetTool", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("Failed to download input file");
+  });
+
+  it("blocks private spreadsheet input URLs before fetching them", async () => {
+    vi.stubEnv("SPRITES_TOKEN", "sprite-token");
+    const { sprite } = createMockSprite();
+
+    mockFindActiveSpriteSession.mockResolvedValue(null);
+    mockGetOrCreateSprite.mockResolvedValue({
+      sprite,
+      spriteName: "thread-12345678",
+      isNew: true,
+    });
+    mockLoadSkillFilesForSandbox.mockResolvedValue([]);
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const tools = createAnalyzeSpreadsheetTool({} as never, "client-1", "12345678-aaaa-bbbb-cccc");
+    const result = await tools.analyze_spreadsheet.execute({
+      task: "Compare these deals",
+      files: [{ url: "http://127.0.0.1/model.xlsx", filename: "model.xlsx", mediaType: XLSX_MIME }],
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Blocked private or unsafe URL "http://127.0.0.1/model.xlsx".');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns an error when sprite-session persistence fails", async () => {
+    vi.stubEnv("SPRITES_TOKEN", "sprite-token");
+    mockFindActiveSpriteSession.mockRejectedValue(new Error("db unavailable"));
+
+    const tools = createAnalyzeSpreadsheetTool({} as never, "client-1", "12345678-aaaa-bbbb-cccc");
+    const result = await tools.analyze_spreadsheet.execute({
+      task: "Compare these deals",
+      files: [],
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: "db unavailable",
+    });
   });
 
   it("returns an error when the Sprite did not produce result.xlsx", async () => {

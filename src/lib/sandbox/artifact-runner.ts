@@ -4,8 +4,10 @@
  */
 import { extname } from "node:path";
 
+import { buildSandboxClaudeEnv } from "./claude-env";
 import type { SpriteSkillFile } from "./types";
 import { buildArtifactPrompt } from "./artifact-prompt";
+import { assertSafeExternalUrl } from "./external-url";
 import { getPropertyShowcaseTemplateFiles } from "./templates/property-showcase/template-files";
 
 const ALLOWED_TOOLS = ["Read", "Write", "Edit", "MultiEdit", "Bash", "Glob", "Grep"];
@@ -97,17 +99,7 @@ export function buildClaudeCliArgs({
 export function buildClaudeEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): Record<string, string> {
-  const anthropicApiKey = env.ANTHROPIC_API_KEY?.trim();
-
-  if (!anthropicApiKey) {
-    throw new Error("ANTHROPIC_API_KEY is required for Sprite Claude CLI");
-  }
-
-  return {
-    ANTHROPIC_API_KEY: anthropicApiKey,
-    PATH: env.PATH?.trim() ?? "",
-    ANTHROPIC_BASE_URL: env.ANTHROPIC_BASE_URL?.trim() ?? "",
-  };
+  return buildSandboxClaudeEnv(env);
 }
 
 /**
@@ -154,7 +146,8 @@ export async function downloadPhotosToSprite(
   const filenames: string[] = [];
 
   for (const [index, url] of photoUrls.entries()) {
-    const response = await fetch(url);
+    const safeUrl = assertSafeExternalUrl(url);
+    const response = await fetch(safeUrl.toString());
 
     if (!response.ok) {
       throw new Error(`Failed to download photo "${url}" (status ${response.status}).`);
@@ -238,6 +231,7 @@ export async function runArtifactInSprite(
     await writePropertyDataToSprite(sprite, propertyData);
     const photoFilenames = await downloadPhotosToSprite(sprite, photoUrls);
     await writeSkillFilesToSprite(sprite, userSkillFiles);
+    await clearArtifactOutputs(sprite, shipIt);
 
     const prompt = buildArtifactPrompt({
       task,
@@ -309,6 +303,14 @@ async function writeTemplateFilesToSprite(
 
 async function installTemplateDependencies(sprite: SpriteHandle): Promise<void> {
   await sprite.execFile("bash", ["-lc", "cd /template && npm install"]);
+}
+
+async function clearArtifactOutputs(sprite: SpriteHandle, shipIt: boolean): Promise<void> {
+  if (!shipIt) {
+    return;
+  }
+
+  await sprite.execFile("bash", ["-lc", "rm -f /tmp/output.html"]);
 }
 
 async function drainServiceStream(stream: ServiceLogStreamLike): Promise<void> {

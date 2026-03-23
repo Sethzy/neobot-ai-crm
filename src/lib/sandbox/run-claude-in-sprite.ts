@@ -6,6 +6,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { buildSandboxClaudeEnv } from "./claude-env";
 import type { SpriteResult, SpriteSkillFile } from "./types";
 
 const ALLOWED_TOOLS = ["Read", "Write", "Edit", "MultiEdit", "Bash", "Glob", "Grep"];
@@ -89,13 +90,7 @@ export function buildAnalysisPrompt(
 export function buildClaudeEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): Record<string, string> {
-  const anthropicApiKey = env.ANTHROPIC_API_KEY?.trim();
-
-  if (!anthropicApiKey) {
-    throw new Error("ANTHROPIC_API_KEY is required for Sprite Claude CLI");
-  }
-
-  return { ANTHROPIC_API_KEY: anthropicApiKey };
+  return buildSandboxClaudeEnv(env);
 }
 
 /**
@@ -114,8 +109,10 @@ export async function runClaudeInSprite(
   const claudeEnv = buildClaudeEnv();
   const filesystem = sprite.filesystem();
 
+  await ensureSpreadsheetDependencies(sprite);
   await ensureBundledXlsxSkillFiles(sprite, filesystem);
   await writeSkillFiles(sprite, filesystem, userSkillFiles);
+  await clearSpreadsheetOutputs(sprite);
   await sprite.execFile("mkdir", ["-p", "/workspace/output"]);
 
   const prompt = buildAnalysisPrompt(task, inputFilenames, userSkillSlug);
@@ -152,6 +149,36 @@ async function ensureBundledXlsxSkillFiles(
     await sprite.execFile("mkdir", ["-p", dirname(fullPath)]);
     await filesystem.writeFile(fullPath, file.content);
   }
+}
+
+async function ensureSpreadsheetDependencies(sprite: SpriteHandle): Promise<void> {
+  const pythonDependencyCheck = await sprite.execFile("bash", [
+    "-lc",
+    "pip3 show pandas >/dev/null 2>&1 && pip3 show openpyxl >/dev/null 2>&1 && pip3 show xlsxwriter >/dev/null 2>&1 && pip3 show matplotlib >/dev/null 2>&1 && echo INSTALLED || echo MISSING",
+  ]);
+
+  if (toUtf8String(pythonDependencyCheck.stdout).includes("MISSING")) {
+    await sprite.execFile("pip3", ["install", "pandas", "openpyxl", "xlsxwriter", "matplotlib"]);
+  }
+
+  const systemDependencyCheck = await sprite.execFile("bash", [
+    "-lc",
+    "command -v soffice >/dev/null 2>&1 && command -v gcc >/dev/null 2>&1 && echo INSTALLED || echo MISSING",
+  ]);
+
+  if (toUtf8String(systemDependencyCheck.stdout).includes("MISSING")) {
+    await sprite.execFile("bash", [
+      "-lc",
+      "apt-get update -qq && apt-get install -y -qq libreoffice-calc gcc",
+    ]);
+  }
+}
+
+async function clearSpreadsheetOutputs(sprite: SpriteHandle): Promise<void> {
+  await sprite.execFile("bash", [
+    "-lc",
+    "rm -f /workspace/output/result.xlsx /workspace/output/summary.txt",
+  ]);
 }
 
 async function writeSkillFiles(
