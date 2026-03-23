@@ -8,6 +8,7 @@ import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
 import {
   createApprovalEvent,
+  expireApprovalEvent,
   resolveApprovalEvent,
 } from "../queries";
 
@@ -187,3 +188,56 @@ describe("resolveApprovalEvent", () => {
   });
 });
 
+describe("expireApprovalEvent", () => {
+  it("expires a pending approval event", async () => {
+    const row = {
+      id: "aaaaaaaa-0000-0000-0000-000000000001",
+      status: "expired",
+      resolved_at: "2026-03-10T00:01:00Z",
+    };
+    const supabase = createMockSupabaseClient({
+      updateResult: { data: row, error: null },
+    });
+
+    const result = await expireApprovalEvent(supabase as never, {
+      clientId: "550e8400-e29b-41d4-a716-446655440000",
+      approvalId: "approval-1",
+    });
+
+    expect(result).toEqual({ success: true, status: "updated", event: row });
+    expect(supabase.calls.from).toEqual(["approval_events"]);
+    expect(supabase.calls.methods).toContainEqual({
+      method: "update",
+      args: [expect.objectContaining({ status: "expired" })],
+    });
+    expect(supabase.calls.methods).toContainEqual({
+      method: "eq",
+      args: ["client_id", "550e8400-e29b-41d4-a716-446655440000"],
+    });
+    expect(supabase.calls.methods).toContainEqual({
+      method: "eq",
+      args: ["approval_id", "approval-1"],
+    });
+    expect(supabase.calls.methods).toContainEqual({
+      method: "eq",
+      args: ["status", "pending"],
+    });
+  });
+
+  it("returns missing when no pending approval event exists to expire", async () => {
+    const supabase = createMockSupabaseClient({
+      updateResult: { data: null, error: null },
+    });
+
+    const result = await expireApprovalEvent(supabase as never, {
+      clientId: "550e8400-e29b-41d4-a716-446655440000",
+      approvalId: "approval-1",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      status: "missing",
+      error: "Approval event not found.",
+    });
+  });
+});

@@ -27,6 +27,11 @@ interface ResolveApprovalEventInput {
   approved: boolean;
 }
 
+interface ExpireApprovalEventInput {
+  clientId: string;
+  approvalId: string;
+}
+
 function isDuplicateApprovalEventError(error: { message?: string; code?: string | null } | null) {
   if (!error) {
     return false;
@@ -118,6 +123,41 @@ export async function resolveApprovalEvent(
       status: "already_resolved" as const,
       event: existingEvent,
     };
+  }
+
+  return {
+    success: false as const,
+    status: "missing" as const,
+    error: "Approval event not found.",
+  };
+}
+
+/**
+ * Marks an existing pending approval event as expired.
+ * Used to clean up orphaned approvals when later persistence fails.
+ */
+export async function expireApprovalEvent(
+  supabase: ApprovalSupabaseClient,
+  input: ExpireApprovalEventInput,
+) {
+  const { data, error } = await supabase
+    .from("approval_events")
+    .update({
+      status: "expired" satisfies ApprovalEventStatus,
+      resolved_at: new Date().toISOString(),
+    })
+    .eq("client_id", input.clientId)
+    .eq("approval_id", input.approvalId)
+    .eq("status", "pending")
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    return { success: false as const, status: "error" as const, error: error.message };
+  }
+
+  if (data) {
+    return { success: true as const, status: "updated" as const, event: data };
   }
 
   return {

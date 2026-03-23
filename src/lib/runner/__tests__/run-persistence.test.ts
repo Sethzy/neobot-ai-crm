@@ -31,8 +31,10 @@ vi.mock("@/lib/runner/toolcall-artifacts", () => ({
 }));
 
 const mockCreateApprovalEvent = vi.fn().mockResolvedValue(undefined);
+const mockExpireApprovalEvent = vi.fn().mockResolvedValue(undefined);
 vi.mock("@/lib/approvals/queries", () => ({
   createApprovalEvent: (...args: unknown[]) => mockCreateApprovalEvent(...args),
+  expireApprovalEvent: (...args: unknown[]) => mockExpireApprovalEvent(...args),
 }));
 
 const mockCaptureServerEvents = vi.fn().mockResolvedValue(undefined);
@@ -99,6 +101,11 @@ describe("finalizeRun block storage", () => {
     mockCreateApprovalEvent.mockResolvedValue({
       success: true,
       status: "created",
+      event: {},
+    });
+    mockExpireApprovalEvent.mockResolvedValue({
+      success: true,
+      status: "updated",
       event: {},
     });
     mockCaptureServerEvents.mockResolvedValue(undefined);
@@ -360,6 +367,13 @@ describe("finalizeRun block storage", () => {
     await finalizeRun(makeInput());
 
     expect(mockCreateApprovalEvent).toHaveBeenCalled();
+    expect(mockExpireApprovalEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        clientId: CLIENT_ID,
+        approvalId: "approval-1",
+      },
+    );
     expect(mockCompleteRun).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -369,6 +383,52 @@ describe("finalizeRun block storage", () => {
     );
     expect(mockDrainAndContinue).not.toHaveBeenCalled();
     expect(mockDeliverToExternalChannels).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it("still marks run partial when orphaned approval cleanup fails", async () => {
+    const parts: PersistedPart[] = [
+      { type: "step-start" },
+      {
+        type: "tool-delete_contact",
+        toolCallId: "call-approval",
+        state: "approval-requested",
+        input: { contact_id: "contact-1" },
+        approval: { id: "approval-1" },
+      },
+      { type: "text", text: "Waiting for approval." },
+    ];
+
+    mockBuildAssistantPartsFromSteps.mockReturnValue(parts);
+    mockTruncateOversizedParts.mockResolvedValue({ parts, recoveryPaths: [] });
+    mockGetAssistantTextFromParts.mockReturnValue("Waiting for approval.");
+    mockCreateApprovalEvent.mockResolvedValue({
+      success: true,
+      status: "created",
+      event: {},
+    });
+    mockCreateMessages.mockRejectedValue(new Error("DB insert failed"));
+    mockExpireApprovalEvent.mockResolvedValue({
+      success: false,
+      status: "error",
+      error: "cleanup failed",
+    });
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await finalizeRun(makeInput());
+
+    expect(mockExpireApprovalEvent).toHaveBeenCalled();
+    expect(mockCompleteRun).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        runId: RUN_ID,
+        status: "partial",
+      }),
+    );
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "[test] approval cleanup failed after message persistence error:",
+      "cleanup failed",
+    );
     consoleSpy.mockRestore();
   });
 

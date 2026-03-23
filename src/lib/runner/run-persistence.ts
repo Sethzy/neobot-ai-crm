@@ -7,7 +7,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { createApprovalEvent } from "@/lib/approvals/queries";
+import { createApprovalEvent, expireApprovalEvent } from "@/lib/approvals/queries";
 import { captureServerEvents } from "@/lib/analytics/posthog-server";
 import { createMessages } from "@/lib/chat/messages";
 import {
@@ -152,6 +152,7 @@ export async function finalizeRun({
   };
 
   const approvalRequests = extractApprovalRequests(parts);
+  let createdApprovalIds: string[] = [];
   if (approvalRequests.length > 0) {
     const approvalResults = await Promise.all(
       approvalRequests.map((request) =>
@@ -178,6 +179,12 @@ export async function finalizeRun({
       await completeRun(supabase, { ...baseRunCompletion, status: "partial" });
       return;
     }
+
+    createdApprovalIds = approvalResults.flatMap((result, index) =>
+      result.success && result.status === "created"
+        ? [approvalRequests[index]?.approvalId].filter((approvalId): approvalId is string => typeof approvalId === "string")
+        : [],
+    );
 
     await captureServerEvents(
       approvalRequests.map((request) => ({
@@ -207,6 +214,27 @@ export async function finalizeRun({
         },
       ]);
     } catch (messageError) {
+      if (createdApprovalIds.length > 0) {
+        const cleanupResults = await Promise.all(
+          createdApprovalIds.map((approvalId) =>
+            expireApprovalEvent(supabase, {
+              clientId,
+              approvalId,
+            }),
+          ),
+        );
+        const cleanupFailure = cleanupResults.find(
+          (result) => !result.success,
+        );
+
+        if (cleanupFailure) {
+          console.error(
+            `[${logLabel}] approval cleanup failed after message persistence error:`,
+            cleanupFailure.error,
+          );
+        }
+      }
+
       console.error(
         `[${logLabel}] message persistence failed after approval events:`,
         messageError,
