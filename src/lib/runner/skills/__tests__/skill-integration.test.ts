@@ -9,8 +9,8 @@ import { parseFrontmatter } from "../discover-skills";
 import { DEFAULT_SKILL_CONTENT, DEFAULT_SKILL_SLUGS } from "../skill-templates";
 
 describe("bundled instruction skills", () => {
-  it("ships eight defaults with valid frontmatter", () => {
-    expect(DEFAULT_SKILL_SLUGS).toHaveLength(8);
+  it("ships thirteen defaults with valid frontmatter", () => {
+    expect(DEFAULT_SKILL_SLUGS).toHaveLength(13);
 
     for (const slug of DEFAULT_SKILL_SLUGS) {
       const content = DEFAULT_SKILL_CONTENT[slug];
@@ -23,7 +23,11 @@ describe("bundled instruction skills", () => {
   });
 
   it("references only universally available tools", () => {
-    const forbiddenReferences = ["send_message", "browse_website", "conn_"];
+    // Connection-prefixed tools are never available in default skills
+    const forbiddenReferences = ["conn_"];
+    // Outer workflow skills are allowed to reference platform tools like send_message
+    // and browser tools since those are available in the runner
+    const outerWorkflowSlugs = new Set(["deal-comparison", "property-showcase", "market-report"]);
 
     for (const slug of DEFAULT_SKILL_SLUGS) {
       const content = DEFAULT_SKILL_CONTENT[slug];
@@ -33,6 +37,16 @@ describe("bundled instruction skills", () => {
           content.includes(ref),
           `${slug} must not reference "${ref}"`,
         ).toBe(false);
+      }
+
+      // Non-workflow skills should not reference send_message or browse_website
+      if (!outerWorkflowSlugs.has(slug)) {
+        for (const ref of ["send_message", "browse_website"]) {
+          expect(
+            content.includes(ref),
+            `${slug} must not reference "${ref}"`,
+          ).toBe(false);
+        }
       }
     }
   });

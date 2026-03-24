@@ -50,9 +50,12 @@ describe("bootstrapSkills", () => {
 
     await bootstrapSkills(client, "client-1");
 
-    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(8);
+    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(13);
     expect(uploadedFiles.some((path) => path.includes("call-prep"))).toBe(true);
     expect(uploadedFiles.some((path) => path.includes("daily-briefing"))).toBe(true);
+    // Inner skills also seed reference files
+    expect(uploadedFiles.some((path) => path.includes("re-analyst/references/sg-property-taxes.md"))).toBe(true);
+    expect(uploadedFiles.some((path) => path.includes("re-analyst/references/yield-benchmarks.md"))).toBe(true);
   });
 
   it("skips skill slugs that already exist", async () => {
@@ -64,7 +67,7 @@ describe("bootstrapSkills", () => {
 
     expect(uploadedFiles.filter((path) => path.includes("call-prep"))).toHaveLength(0);
     expect(uploadedFiles.filter((path) => path.includes("daily-briefing"))).toHaveLength(0);
-    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(6);
+    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(11);
   });
 
   it("is idempotent via the process cache", async () => {

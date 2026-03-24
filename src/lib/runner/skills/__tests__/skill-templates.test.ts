@@ -14,8 +14,8 @@ import {
 } from "../skill-templates";
 
 describe("DEFAULT_SKILL_CONTENT", () => {
-  it("contains all 8 default skill slugs", () => {
-    expect(DEFAULT_SKILL_SLUGS).toHaveLength(8);
+  it("contains all 13 default skill slugs", () => {
+    expect(DEFAULT_SKILL_SLUGS).toHaveLength(13);
     for (const slug of DEFAULT_SKILL_SLUGS) {
       expect(DEFAULT_SKILL_CONTENT[slug], `missing content for ${slug}`).toBeDefined();
       expect(DEFAULT_SKILL_CONTENT[slug].length).toBeGreaterThan(50);
@@ -33,7 +33,10 @@ describe("DEFAULT_SKILL_CONTENT", () => {
 
   it("default skills reference only universally-available tools", () => {
     const forbiddenTools = ["send_message", "browse_website", "conn_"];
+    // Sandbox workflow skills legitimately reference send_message for post-analysis follow-ups
+    const sandboxSkills = new Set(["deal-comparison", "property-showcase", "market-report", "re-analyst", "frontend-design"]);
     for (const slug of DEFAULT_SKILL_SLUGS) {
+      if (sandboxSkills.has(slug)) continue;
       const content = DEFAULT_SKILL_CONTENT[slug];
       for (const tool of forbiddenTools) {
         expect(

@@ -16,6 +16,7 @@ import {
 import {
   DEFAULT_SKILL_CONTENT,
   DEFAULT_SKILL_SLUGS,
+  INNER_SKILL_REFERENCES,
   type DefaultSkillSlug,
 } from "./skill-templates";
 
@@ -40,6 +41,28 @@ async function uploadDefaultSkill(
 
   if (error && !isStorageConflictError(error)) {
     throw new Error(`Failed to bootstrap skill ${slug}: ${getStorageErrorMessage(error)}`);
+  }
+
+  // Seed reference files for inner skills (don't overwrite user edits)
+  const refs = INNER_SKILL_REFERENCES[slug];
+  if (refs) {
+    await Promise.all(
+      Object.entries(refs).map(async ([refPath, refContent]) => {
+        const fullPath = `${clientId}/${SKILLS_DIRECTORY}/${slug}/${refPath}`;
+        const { error: refError } = await supabase.storage
+          .from(MEMORY_BUCKET_ID)
+          .upload(fullPath, refContent, {
+            upsert: false,
+            contentType: MEMORY_TEXT_CONTENT_TYPE,
+          });
+
+        if (refError && !isStorageConflictError(refError)) {
+          throw new Error(
+            `Failed to bootstrap skill reference ${slug}/${refPath}: ${getStorageErrorMessage(refError)}`,
+          );
+        }
+      }),
+    );
   }
 }
 

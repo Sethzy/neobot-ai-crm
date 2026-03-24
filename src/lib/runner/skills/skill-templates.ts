@@ -21,6 +21,11 @@ export const DEFAULT_SKILL_SLUGS = [
   "opportunity-analysis",
   "call-summary",
   "market-briefing",
+  "deal-comparison",
+  "property-showcase",
+  "market-report",
+  "re-analyst",
+  "frontend-design",
 ] as const;
 
 export type DefaultSkillSlug = (typeof DEFAULT_SKILL_SLUGS)[number];
@@ -1995,6 +2000,373 @@ Market intel gets stale. Recommended refresh:
 - **pipeline-review** — See which active deals are affected by market changes
 - **draft-outreach** — Reach out to affected clients with the news
 `,
+
+  "deal-comparison": `---
+name: deal-comparison
+description: "Compare properties side-by-side with a professional Excel financial model. Use when the user uploads xlsx/csv files, asks to compare deals, or wants to know which property is better. Produces a downloadable Excel model with live formulas, sensitivity tables, and color-coded inputs."
+---
+
+# Deal Comparison
+
+Build a professional Excel financial model comparing properties side-by-side.
+
+## Before you start
+
+Check if the user uploaded files:
+- If yes, note the file URLs — these are the primary input
+- If no, ask which properties to compare, then search CRM
+
+## Workflow
+
+### Step 1: Gather property data from CRM
+
+For each property the user mentions, search CRM:
+
+\`\`\`
+search_crm({ query: "{property name or address}", table: "deals" })
+\`\`\`
+
+Collect: purchase price, size (sqft), tenure, floor, unit number, asking rent, any notes.
+
+### Step 2: Get market context
+
+Search for recent comparable transactions:
+
+\`\`\`
+web_search({ query: "{project name} recent transactions {year}" })
+\`\`\`
+
+This gives the model comparison points for sensitivity analysis.
+
+### Step 3: Read user context
+
+\`\`\`
+read_file("/agent/SOUL.md")
+\`\`\`
+
+Note the user's market focus, client context, and any relevant preferences.
+
+### Step 4: Hand off to coding agent
+
+Call analyze_spreadsheet with everything gathered. Include in the task description:
+- What specific analysis the user wants
+- Number of properties and their addresses
+- Any specific metrics or benchmarks they mentioned
+- Supplementary data from steps 1-3
+
+\`\`\`
+analyze_spreadsheet({
+  task: "{user's request + enriched context}",
+  fileUrls: ["{uploaded file URLs if any}"]
+})
+\`\`\`
+
+**IMPORTANT:**
+- Do NOT calculate yields, mortgage payments, or financial metrics yourself in chat text
+- Do NOT write formulas or Python code in the conversation
+- The sandbox agent has the user's re-analyst skill with their exact preferences and benchmarks
+- Let the coding agent handle ALL computation — it produces proper Excel with live formulas
+
+## After the model is ready
+
+Present the summary and download link. Offer to:
+- Email it to someone (use send_message)
+- Refine it ("add a sensitivity table", "remove property 3")
+- Do a follow-up analysis
+
+## Follow-up patterns
+
+For refinements, call analyze_spreadsheet again with the new request.
+The sandbox remembers the previous work — no need to re-upload files or re-explain context.
+
+## Gotchas
+
+- Never approximate financial calculations in chat. Always use the sandbox tool.
+- If the user asks "which is better?" — run the model FIRST, then give your opinion based on the numbers.
+- SG-specific: always mention ABSD/BSD applicability and TDSR if relevant.
+- If the user hasn't set up their re-analyst preferences yet, suggest they do ("want me to set up your analysis preferences first?").
+`,
+
+  "property-showcase": `---
+name: property-showcase
+description: "Build a polished property showcase web page with photos, details, neighborhood info, and your contact card. Published to a live preview URL that you can iterate on and then share with clients. Trigger with 'showcase page', 'listing page', 'property page', 'marketing page for [property]'."
+---
+
+# Property Showcase
+
+Build a polished, shareable property showcase page.
+
+## Workflow
+
+### Step 1: Identify the property
+
+If the user named a property, search CRM:
+
+\`\`\`
+search_crm({ query: "{property name or address}", table: "deals" })
+\`\`\`
+
+Collect: address, price, beds, sqft, tenure, floor, any listing notes.
+
+### Step 2: Get the agent's info
+
+\`\`\`
+read_file("/agent/SOUL.md")
+\`\`\`
+
+You need the agent's name, phone, email, and agency for the contact card.
+
+### Step 3: Research the neighborhood
+
+\`\`\`
+web_search({ query: "{address} nearby MRT schools amenities" })
+\`\`\`
+
+Get: nearest MRT + walk time, nearby schools (2-3), shopping, parks, key selling points.
+
+### Step 4: Get recent transactions (optional but valuable)
+
+\`\`\`
+web_search({ query: "{project name} recent transactions {year}" })
+\`\`\`
+
+or
+
+\`\`\`
+browser_scrape({ url: "https://edgeprop.sg/...", extract: "transactions" })
+\`\`\`
+
+Recent comparable sales add credibility to the page.
+
+### Step 5: Get listing photos
+
+If CRM has photo URLs, download them:
+
+\`\`\`
+fetch_url({ url: "{photo URL}" })
+\`\`\`
+
+Aim for 4-8 photos. If no photos in CRM, ask the user to share some.
+
+### Step 6: Hand off to coding agent
+
+Call publish_artifact with ALL gathered data:
+
+\`\`\`
+publish_artifact({
+  task: "Build a property showcase page for {address}. Include hero with best photo, photo gallery, property details, neighborhood map with {MRT + schools}, recent transactions table, and agent contact card for {agent name}.",
+  propertyData: {
+    address, price, beds, sqft, tenure, floor,
+    agent: { name, phone, email, agency },
+    neighborhood: { mrt, schools, amenities },
+    transactions: [ ... ],
+  },
+  photoUrls: ["url1", "url2", ...]
+})
+\`\`\`
+
+**IMPORTANT:**
+- Gather ALL data BEFORE calling publish_artifact
+- The sandbox cannot access CRM, memory, or do web searches
+- Include the agent's contact details — the showcase needs a CTA
+- Include neighborhood data — it's a key selling point
+
+## After the page is live
+
+The tool returns a live preview URL. Present it to the user with a summary of what's included.
+
+For follow-ups ("swap the hero photo", "add a mortgage calculator", "make the cards bigger"), call publish_artifact again. The sandbox remembers the previous code.
+
+When the user is happy, ask if they want to:
+- **Publish permanently** — builds static HTML, uploads to a permanent URL
+- **Send to a client** — use send_message with the preview or permanent link
+- **Keep iterating** — the preview stays live
+
+## Gotchas
+
+- Don't skip the photo gathering step. A showcase page without photos is useless.
+- Always include the agent's contact card. The whole point is lead generation.
+- If neighborhood data is sparse, say so rather than making things up.
+- If no frontend-design skill exists yet, the default template (dark + gold luxury) applies. Suggest the user set up brand preferences if they want a custom look.
+`,
+
+  "market-report": `---
+name: market-report
+description: "Generate a market analysis report with transaction trends, price movements, and area comparisons. Produces an Excel workbook with charts and data tables. Trigger with 'market report', 'area analysis', 'how is the market in [area]', 'transaction trends for [project]'."
+---
+
+# Market Report
+
+Produce a data-driven market analysis as an Excel workbook with charts.
+
+## Workflow
+
+### Step 1: Clarify scope
+
+Ask the user (or infer from context):
+- Which area, district, or project?
+- What time period? (default: last 12 months)
+- Any specific metrics? (price psf trends, volume, rental yields)
+
+### Step 2: Gather transaction data
+
+\`\`\`
+browser_scrape({ url: "https://edgeprop.sg/...", extract: "transactions" })
+\`\`\`
+
+or
+
+\`\`\`
+web_search({ query: "{area} property transactions {year} price trends" })
+\`\`\`
+
+Get as many data points as possible — recent transactions, median prices, volume.
+
+### Step 3: Get CRM context
+
+\`\`\`
+search_crm({ query: "{area}", table: "deals" })
+\`\`\`
+
+Check if the user has any active deals in the area — makes the report more relevant.
+
+### Step 4: Read user context
+
+\`\`\`
+read_file("/agent/SOUL.md")
+\`\`\`
+
+Note the user's market specialization and client focus.
+
+### Step 5: Hand off to coding agent
+
+\`\`\`
+analyze_spreadsheet({
+  task: "Build a market report for {area} covering {time period}. Include: transaction volume by month, median price psf trend, price distribution, top transactions. Create charts for each. Data: {paste structured data from steps 2-3}.",
+  fileUrls: []
+})
+\`\`\`
+
+If no files were uploaded, pass the gathered data in the task description.
+The coding agent will create the spreadsheet from scratch.
+
+## Gotchas
+
+- Web-scraped transaction data may be incomplete. Note the data source and date range in the report.
+- Don't present scraped data as authoritative — frame it as "based on available public data."
+- If the user wants to share this with clients, suggest converting key charts to a showcase page (property-showcase skill).
+`,
+
+  "re-analyst": `---
+name: re-analyst
+description: "Your property investment analysis preferences. This skill is read by the coding agent inside the sandbox when building Excel financial models. Customize it by telling me your benchmarks, mortgage details, and analysis preferences."
+type: inner
+editable: true
+---
+
+# Real Estate Investment Analysis Preferences
+
+These preferences guide how financial models are built for you.
+Edit this anytime by telling me your updated preferences.
+
+## Benchmarks
+
+- Minimum net rental yield: 2.5%
+- REIT comparison benchmark: 5% (for opportunity cost analysis)
+- Risk-free rate: 3.0% (SGS 10-year bond)
+
+## Mortgage Assumptions
+
+- Default mortgage rate: 3.8% (fixed)
+- Default LTV: 75%
+- Default loan tenure: 25 years
+- Always check TDSR (total debt servicing ratio, max 55%)
+
+## Analysis Preferences
+
+- Always show: gross yield, net yield, cash-on-cash return
+- Always include sensitivity table for mortgage rates (±1% in 0.25% steps)
+- Compare against REIT benchmark in summary
+- Show monthly cash flow breakdown (rental income vs mortgage + expenses)
+- Expense assumptions: maintenance $200/mo, property tax (based on AV), insurance $30/mo
+
+## SG-Specific Rules
+
+- Check ABSD applicability (citizen vs PR vs foreigner, property count)
+- Check BSD (buyer's stamp duty) — standard progressive rates
+- Note tenure risk for 99-year leasehold (remaining years matters)
+- Freehold premium: flag if price premium > 20% vs similar leasehold
+
+## Output Format
+
+- Blue text for editable inputs, black for formulas
+- Always use Excel FORMULAS, not hardcoded Python values
+- Include assumptions sheet as first tab
+- Run formula verification (recalc.py) before returning
+
+## References
+
+See /skills/re-analyst/references/ for:
+- SG property tax rates and ABSD tables
+- Yield benchmark history
+- Mortgage calculation conventions
+`,
+
+  "frontend-design": `---
+name: frontend-design
+description: "Your brand and design preferences for generated web pages (showcase pages, pitch pages, etc.). This skill is read by the coding agent inside the sandbox. Customize it by telling me your brand colors, typography, and layout preferences."
+type: inner
+editable: true
+---
+
+# Design & Brand Preferences
+
+These preferences guide how web pages are designed for you.
+Edit anytime by telling me your updated brand or design preferences.
+
+## Brand
+
+- Agent name: (from SOUL.md)
+- Agency: (from SOUL.md)
+- Logo URL: (none set — tell me your logo URL to add it)
+- Brand color: #C8A96E (warm gold — default luxury accent)
+
+## Visual Style
+
+- Background: dark (slate/charcoal gradients)
+- Accent color: gold/warm metallic
+- Typography: serif headings (Playfair Display), sans body (Inter)
+- Aesthetic: luxury, minimal, generous whitespace
+- Photos: full-bleed hero, CSS grid gallery with hover effects
+
+## Always Include
+
+- Hero section with best listing photo + address + price overlay
+- Photo gallery (grid layout, lightbox on click)
+- Property details (beds, sqft, tenure, floor, price)
+- Agent contact card with photo, phone, email, agency
+- Call-to-action button ("Schedule a Viewing" or "Contact Agent")
+
+## Include When Available
+
+- Neighborhood map with MRT, schools, amenities
+- Recent comparable transactions table
+- Mortgage calculator widget (interactive, default to user's mortgage rate)
+
+## Never Include
+
+- Generic stock photos
+- Competitor agent information
+- Unverified claims about property value appreciation
+
+## Technical
+
+- Tailwind CSS v4 for all styling
+- React 18 components
+- Single-page layout (no routing)
+- Mobile-responsive (test at 375px width)
+- Accessible: proper alt text, contrast ratios, semantic HTML
+`,
 };
 
 // ---------------------------------------------------------------------------
@@ -2270,6 +2642,110 @@ Fields:
 - \`description\`: Optional description
 - \`requestBody\`: Optional raw request body string
 - \`extraHeaders\`: Optional additional headers object (cannot include blocked headers; Content-Type is added automatically)`,
+};
+
+// ---------------------------------------------------------------------------
+// Inner skill reference files (seeded alongside SKILL.md)
+// ---------------------------------------------------------------------------
+
+const SG_PROPERTY_TAXES_CONTENT = `# Singapore Property Tax & Stamp Duty Reference
+
+## Buyer's Stamp Duty (BSD)
+| Purchase Price Bracket | Rate |
+|---|---|
+| First $180,000 | 1% |
+| Next $180,000 | 2% |
+| Next $640,000 | 3% |
+| Next $500,000 | 4% |
+| Next $1,500,000 | 5% |
+| Above $3,000,000 | 6% |
+
+## Additional Buyer's Stamp Duty (ABSD) — from Apr 2023
+| Buyer Profile | 1st Property | 2nd Property | 3rd+ Property |
+|---|---|---|---|
+| SG Citizen | 0% | 20% | 30% |
+| SG PR | 5% | 30% | 35% |
+| Foreigner | 60% | 60% | 60% |
+| Entity | 65% | 65% | 65% |
+
+## Total Debt Servicing Ratio (TDSR)
+- Max 55% of gross monthly income
+- Applies to all property loans from financial institutions
+- Stress-test rate: 4% or actual rate, whichever is higher (for variable rate loans)
+
+## Property Tax (Annual)
+Based on Annual Value (AV) — estimated annual rent
+
+**Owner-Occupied:**
+| AV Bracket | Rate |
+|---|---|
+| First $8,000 | 0% |
+| Next $22,000 | 4% |
+| Next $10,000 | 6% |
+| Next $15,000 | 8% |
+| Next $15,000 | 10% |
+| Next $15,000 | 12% |
+| Next $15,000 | 14% |
+| Above $100,000 | 16% |
+
+**Non-Owner-Occupied (Investment):**
+| AV Bracket | Rate |
+|---|---|
+| First $30,000 | 12% |
+| Next $15,000 | 20% |
+| Next $15,000 | 28% |
+| Above $60,000 | 36% |
+
+## Lease Decay
+- 99-year leasehold: value typically starts declining noticeably after 40 years remaining
+- Rule of thumb: remaining lease < 60 years = significant financing restrictions
+- Banks may reduce LTV or refuse loans for leases < 30 years remaining
+
+> Note: Rates current as of 2025. Verify before use in client-facing materials.
+`;
+
+const YIELD_BENCHMARKS_CONTENT = `# Yield & Return Benchmarks (Singapore)
+
+## REIT Benchmarks (as of 2025)
+| REIT Category | Avg Distribution Yield |
+|---|---|
+| Retail REITs | 5.5-6.5% |
+| Office REITs | 5.0-6.0% |
+| Industrial REITs | 6.0-7.5% |
+| Hospitality REITs | 5.0-7.0% |
+| Healthcare REITs | 5.5-6.5% |
+| S-REIT Index (overall) | ~5.5% |
+
+## Residential Rental Yields
+| District | Typical Gross Yield |
+|---|---|
+| Core Central (D1, D2, D6, D9, D10, D11) | 2.5-3.5% |
+| Rest of Central (D3-5, D7-8, D12-15) | 3.0-4.0% |
+| Outside Central (D16-28) | 3.5-4.5% |
+
+## Risk-Free Rate
+- SGS 10-year bond: ~3.0% (2025)
+- CPF OA rate: 2.5%
+- Fixed deposit (12-month): ~2.5-3.0%
+
+## Common Thresholds
+- Net yield > 2.5% = generally acceptable
+- Net yield > 3.5% = strong for SG residential
+- Cash-on-cash > 5% = competitive with REITs
+- TDSR < 45% = comfortable buffer
+- TDSR 45-55% = tight but acceptable
+
+> These are reference benchmarks only. Actual yields depend on specific property,
+> tenant quality, vacancy assumptions, and market conditions.
+`;
+
+/** Reference files to seed alongside inner skill SKILL.md files. */
+export const INNER_SKILL_REFERENCES: Record<string, Record<string, string>> = {
+  "re-analyst": {
+    "references/sg-property-taxes.md": SG_PROPERTY_TAXES_CONTENT,
+    "references/yield-benchmarks.md": YIELD_BENCHMARKS_CONTENT,
+  },
+  // frontend-design has no reference files by default
 };
 
 // ---------------------------------------------------------------------------

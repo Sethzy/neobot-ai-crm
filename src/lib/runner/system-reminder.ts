@@ -1,5 +1,5 @@
 /**
- * Builds the per-turn system-reminder injected at the end of the system string.
+ * Builds the per-turn system-reminder XML block consumed by context assembly.
  * @module lib/runner/system-reminder
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
