@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-03-23T09:00:00Z",
+  "lastUpdated": "2026-03-24T09:00:00Z",
   "surfaces": [
     { "id": "01", "name": "Auth & Landing", "status": "pending", "lastRun": null, "report": null },
     { "id": "02", "name": "Chat Core", "status": "warn", "lastRun": "2026-03-13T00:00:00Z", "report": "docs/qa/reports/qa-report-02-17-20260313-32ab.md" },
@@ -27,6 +27,7 @@
     { "id": "24", "name": "Browser Automation", "status": "pending", "lastRun": null, "report": null },
     { "id": "25", "name": "Instruction Skills", "status": "pending", "lastRun": null, "report": null },
     { "id": "26", "name": "Ask User Question Widget", "status": "pending", "lastRun": null, "report": null },
-    { "id": "28", "name": "Property Listing Tools", "status": "pending", "lastRun": null, "report": null }
+    { "id": "28", "name": "Property Listing Tools", "status": "pending", "lastRun": null, "report": null },
+    { "id": "29", "name": "Sandbox (Code Execution)", "status": "pending", "lastRun": null, "report": null }
   ]
 }

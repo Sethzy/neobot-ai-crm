@@ -742,6 +742,36 @@ export const scenarios: QaScenario[] = [
       "search_crm with entity: tasks. TaskItem components via inline spec. run_sql also acceptable.",
   },
 
+  // ── 20: Context Management & Efficiency ───────────────────────────────
+  {
+    surface: "20-context-and-efficiency",
+    scenario: "reminder-from-context",
+    prompt:
+      "Without running any tools, tell me my deal stages and how many active connections I have.",
+    expectedTools: [],
+    sequential: false,
+    notes:
+      "Happy path for the cache-stable prompt prefix. The answer should come from platform instructions + system-reminder context, not new tool calls.",
+  },
+  {
+    surface: "20-context-and-efficiency",
+    scenario: "stable-prefix-follow-up",
+    prompt: "Answer again in one sentence.",
+    expectedTools: [],
+    sequential: true,
+    notes:
+      "Sequential follow-up after reminder-from-context. Should reuse the same stable system string while still answering from injected reminder context.",
+  },
+  {
+    surface: "20-context-and-efficiency",
+    scenario: "market-tool-stays-registered",
+    prompt: "Show me recent HDB resale transactions in Tampines.",
+    expectedTools: ["search_market_data"],
+    sequential: false,
+    notes:
+      "Important edge case for PR 56's stable tool-set rule. The market tool should stay registered every run; in envs without property data configured it should fail at call time instead of disappearing from the tool list.",
+  },
+
   // ---------------------------------------------------------------------------
   // Surface 25: Instruction Skills
   // ---------------------------------------------------------------------------
@@ -891,5 +921,67 @@ export const scenarios: QaScenario[] = [
     sequential: false,
     notes:
       "search_market_data with dataset: agents. Returns agent registry info or not-found.",
+  },
+  // ── 29: Sandbox (Code Execution) ──────────────────────────────────────
+  // PR 52: analyze_spreadsheet
+  {
+    surface: "29-sandbox",
+    scenario: "spreadsheet-analysis-happy-path",
+    prompt:
+      "I just uploaded a property comparison spreadsheet. Build me a financial model comparing these 3 condos with net yield, mortgage payments, and a sensitivity table.",
+    expectedTools: ["analyze_spreadsheet"],
+    sequential: false,
+    notes:
+      "Happy path for analyze_spreadsheet. Agent should call the tool with the uploaded file. Verify response includes a download link and summary mentioning formulas/verification.",
+  },
+  {
+    surface: "29-sandbox",
+    scenario: "spreadsheet-iteration",
+    prompt: "Add a column for cash-on-cash return and break it down by district.",
+    expectedTools: ["analyze_spreadsheet"],
+    sequential: true,
+    notes:
+      "Multi-turn iteration. Same Sprite should be reused (no new sprite_sessions row). Agent should call analyze_spreadsheet again with the refinement request.",
+  },
+  // PR 53: publish_artifact
+  {
+    surface: "29-sandbox",
+    scenario: "showcase-page-happy-path",
+    prompt:
+      "Build me a showcase page for the Marina Bay Residences unit I have in my pipeline.",
+    expectedTools: ["search_crm", "publish_artifact"],
+    sequential: false,
+    notes:
+      "Happy path for publish_artifact. Agent should gather CRM data first (search_crm), then call publish_artifact. Verify response includes a preview URL. // TODO: verify expectedTools — agent may also call read_file, web_search before publish_artifact.",
+  },
+  {
+    surface: "29-sandbox",
+    scenario: "showcase-ship-it",
+    prompt: "Looks great, ship it.",
+    expectedTools: ["publish_artifact"],
+    sequential: true,
+    notes:
+      "Ship-it flow. Agent should call publish_artifact with shipIt=true. Response should include a signed URL (different from preview URL).",
+  },
+  // PR 52a: workflow skill orchestration
+  {
+    surface: "29-sandbox",
+    scenario: "deal-comparison-skill-routing",
+    prompt:
+      "Which of my pipeline properties is the best investment? Compare them side by side.",
+    expectedTools: ["search_crm", "analyze_spreadsheet"],
+    sequential: false,
+    notes:
+      "Tests deal-comparison skill routing. Agent should read the skill, search CRM for pipeline deals, then hand off to analyze_spreadsheet. // TODO: verify expectedTools — agent may also call read_file for skill + SOUL.md.",
+  },
+  {
+    surface: "29-sandbox",
+    scenario: "market-report-skill-routing",
+    prompt:
+      "Give me a market report for District 9 condos — transaction trends and median PSF over the last 12 months.",
+    expectedTools: ["analyze_spreadsheet"],
+    sequential: false,
+    notes:
+      "Tests market-report skill routing. Agent should gather web/market data, then call analyze_spreadsheet to produce the workbook. // TODO: verify expectedTools — agent may call web_search, search_market_data before sandbox.",
   },
 ];

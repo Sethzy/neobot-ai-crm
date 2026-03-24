@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-23 (PR57 property portal listing tools)",
+    "updated": "2026-03-24 (PRs 52+53+52a sandbox done, QA surface 29)",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -10,7 +10,7 @@
     "estimatedPRs": 44,
     "keptPRs": 27,
     "cutPRs": 19,
-    "donePRs": 38,
+    "donePRs": 40,
     "hardeningPRs": 6,
     "statusOptions": [
       "pending",
@@ -70,7 +70,9 @@
       "2026-03-20: Added PR 56 (Runner pre-LLM pipeline optimization) to Phase 4. Out-of-plan performance work. 3 confirmed serialization fixes after code review narrowed scope from original 6: (1) Composio per-connection for\u2192of\u2192Promise.all with deterministic merge, (2) connections query dedup in buildSystemReminder via optional ConnectionRow[] param, (3) autopilot Composio-after-context\u2192parallel. Dropped from original scope: bootstrap parallelization (first-turn skill seeding race), DB-side compaction cutoff removal (broader scans on long threads), context.ts restructure (API churn exceeded gain). No exported internals, no promise-aware APIs, assembleContext() stays as-is.",
       "2026-03-23: Added PR 57 (Property portal listing tools \u2014 search_99co + search_propertyguru) to Phase 3. Two agent tools that search live listings on 99.co and PropertyGuru via Apify actors (easyapi + fatihtahta). Complements PR 55 (historical transactions) and PR 50/50c (login-gated portals). Env-gated via APIFY_TOKEN. Two separate tools (not unified) because input schemas differ fundamentally (URL-based vs query builder) and output shapes diverge (nested vs flat). Design doc: docs/product/designs/pr57-property-portal-listing-tools.md.",
       "2026-03-23: Marked PR 57 done. Added QA Surface 28 (Property Listing Tools), automated QA scenarios for search_99co/search_propertyguru routing, and aligned the design doc with the shipped actor IDs and chat-only scope rationale.",
-      "2026-03-23: PR 56 scope expanded from runner parallelization to full context pipeline redesign. Adds prompt cache stability (append-only messages, stable tools, system reminder as message, memory after cache boundary), DB-cached Composio schemas, fraction-based compaction (Deep Agents pattern). Revises PR 22c text truncation decision (removed for cache stability). Design doc: references/deepagents/01-context-pipeline-design-doc.md."
+      "2026-03-23: PR 56 scope expanded from runner parallelization to full context pipeline redesign. Adds prompt cache stability (append-only messages, stable tools, system reminder as message, memory after cache boundary), DB-cached Composio schemas, fraction-based compaction (Deep Agents pattern). Revises PR 22c text truncation decision (removed for cache stability). Design doc: references/deepagents/01-context-pipeline-design-doc.md.",
+      "2026-03-24: Marked PR 56 done. Updated QA Surfaces 19 and 20 for the cache-stable context pipeline, added automated QA scenarios for reminder/prefix checks, and documented Gemini implicit caching spike results.",
+      "2026-03-24: Marked PRs 52 and 53 done (sandbox Excel analysis + artifact publishing). Added PR 52a (sandbox workflow skills) as formal Phase 6 entry — was previously only mentioned in 2026-03-23 changelog. 3 outer workflow skills (deal-comparison, property-showcase, market-report) + 2 inner coding skills (re-analyst, frontend-design) + SG domain references + system prompt guidance. 9 tasks. Tasklist: docs/product/tasks/2026-03-23-pr52a-sandbox-workflow-skills-tasklist.md."
     ]
   },
   "phases": [
@@ -3295,7 +3297,7 @@
         {
           "pr": 56,
           "title": "Context pipeline redesign \u2014 cache stability + latency + fraction compaction",
-          "status": "in_progress",
+          "status": "done",
           "simplified": false,
           "decisions": [
             "DATA-10",
@@ -3306,42 +3308,42 @@
             {
               "id": "PR56-1",
               "task": "Extract saveToolcallBlock to src/lib/storage/tool-blocks.ts (separate block storage from truncation)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR56-2",
               "task": "Remove text truncation from persistence \u2014 delete truncateOversizedParts, saveToolcallArtifact, buildContextRemovedMarker. Keep block storage for subagent observability.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR56-3",
               "task": "DB-cache Composio tool schemas \u2014 add tool_schemas JSONB column to connections, persist on activation, load from DB instead of Composio API",
-              "done": false
+              "done": true
             },
             {
               "id": "PR56-4",
               "task": "Slim system reminder to counts only + move from system prompt to user message (cache boundary separation)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR56-5",
               "task": "Stable tool set \u2014 always register all tools (browser, market), runtime error if unconfigured",
-              "done": false
+              "done": true
             },
             {
               "id": "PR56-6",
               "task": "Fraction-based compaction trigger \u2014 0.85 of context window (Deep Agents pattern), persist prompt_tokens on runs table",
-              "done": false
+              "done": true
             },
             {
               "id": "PR56-7",
               "task": "Move memory (SOUL/USER/MEMORY.md) outside cached prefix \u2014 inject as message after cache boundary (Deep Agents ordering)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR56-8",
               "task": "Prompt caching spike \u2014 verify Gemini implicit caching with stable prefix, test system-reminder-as-message",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -3649,7 +3651,7 @@
         {
           "pr": 52,
           "title": "Sandbox: Excel Analysis (analyze_spreadsheet)",
-          "status": "pending",
+          "status": "done",
           "tasklist": "docs/product/tasks/2026-03-20-pr52-sandbox-excel-analysis-tasklist.md",
           "decisions": [
             "EXEC-04",
@@ -3664,57 +3666,57 @@
             {
               "id": "PR52-1",
               "task": "Install @fly/sprites@0.0.1-rc37 + define types (SpriteSession, SpriteResult)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR52-2",
               "task": "Create sprite_sessions migration (thread-scoped, RLS with get_my_client_id())",
-              "done": false
+              "done": true
             },
             {
               "id": "PR52-3",
               "task": "getOrCreateSprite() wrapper \u2014 createSprite/wake lifecycle with DB tracking",
-              "done": false
+              "done": true
             },
             {
               "id": "PR52-4",
               "task": "sprite-session.ts \u2014 DB tracking layer (upsert/find active sessions)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR52-5",
               "task": "loadSkillFilesForSandbox() \u2014 download user skill files from Supabase Storage",
-              "done": false
+              "done": true
             },
             {
               "id": "PR52-6",
               "task": "runClaudeInSprite() \u2014 execFile() with per-command env, inject skills, read output",
-              "done": false
+              "done": true
             },
             {
               "id": "PR52-7",
               "task": "analyze_spreadsheet tool \u2014 orchestration (getOrCreateSprite \u2192 load \u2192 run \u2192 upload output)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR52-8",
               "task": "Register tool in createRunnerTools() (inputSchema, env-gated) + system prompt guidance",
-              "done": false
+              "done": true
             },
             {
               "id": "PR52-9",
               "task": "Add SPRITES_TOKEN + ANTHROPIC_API_KEY env vars, vendor xlsx skill assets",
-              "done": false
+              "done": true
             },
             {
               "id": "PR52-10",
               "task": "Extend chat upload to accept xlsx/csv (upload route + composer allowlist)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR52-11",
               "task": "E2E manual test \u2014 upload xlsx, get back model with live formulas, iterate",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -3729,7 +3731,7 @@
         {
           "pr": 53,
           "title": "Sandbox: Artifact Publishing (publish_artifact)",
-          "status": "pending",
+          "status": "done",
           "tasklist": "docs/product/tasks/2026-03-20-pr53-sandbox-artifact-publishing-tasklist.md",
           "decisions": [
             "EXEC-04",
@@ -3744,37 +3746,37 @@
             {
               "id": "PR53-1",
               "task": "Build pre-scaffolded React property page template (7 components + theme + build script)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR53-2",
               "task": "Sprite setup script \u2014 write template + npm install (persists across hibernation)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR53-3",
               "task": "runClaudeForArtifact() \u2014 inject data + photos via sprite.filesystem(), run Claude CLI via execFile()",
-              "done": false
+              "done": true
             },
             {
               "id": "PR53-4",
               "task": "publish_artifact tool \u2014 orchestration with isFollowUp/shipIt modes",
-              "done": false
+              "done": true
             },
             {
               "id": "PR53-5",
               "task": "Dev server via createService() + updateURLSettings({ auth: 'public' })",
-              "done": false
+              "done": true
             },
             {
               "id": "PR53-6",
               "task": "Register tool in createRunnerTools() (inputSchema, env-gated) + system prompt guidance",
-              "done": false
+              "done": true
             },
             {
               "id": "PR53-7",
               "task": "E2E manual test \u2014 ask for showcase page, get live preview URL, iterate, ship it",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -3784,6 +3786,72 @@
             "Template customized per user's frontend-design SKILL.md brand preferences",
             "'Ship it' builds static HTML and publishes to a 30-day signed URL",
             "Sprite auto-sleeps after invocation, preview URL wakes on request"
+          ]
+        },
+        {
+          "pr": "52a",
+          "title": "Sandbox workflow skills (outer + inner)",
+          "status": "done",
+          "tasklist": "docs/product/tasks/2026-03-23-pr52a-sandbox-workflow-skills-tasklist.md",
+          "decisions": [],
+          "dependsOn": [
+            "51",
+            "52",
+            "53"
+          ],
+          "note": "Outer skills (deal-comparison, property-showcase, market-report) teach the runner the gather-first-then-hand-off pattern. Inner skills (re-analyst, frontend-design) guide Claude Code's coding style inside the Sprite. Same skill system from PR 51 — SKILL.md files in Supabase Storage, discovered by discoverUserSkills(), loaded on demand. Includes SG real estate domain reference files (property tax, yield benchmarks) seeded alongside inner skills.",
+          "tasks": [
+            {
+              "id": "PR52a-1",
+              "task": "Write deal-comparison outer skill in skill-templates.ts",
+              "done": true
+            },
+            {
+              "id": "PR52a-2",
+              "task": "Write property-showcase outer skill in skill-templates.ts",
+              "done": true
+            },
+            {
+              "id": "PR52a-3",
+              "task": "Write market-report outer skill in skill-templates.ts",
+              "done": true
+            },
+            {
+              "id": "PR52a-4",
+              "task": "Write re-analyst inner skill (user-editable default) in skill-templates.ts",
+              "done": true
+            },
+            {
+              "id": "PR52a-5",
+              "task": "Write frontend-design inner skill (user-editable default) in skill-templates.ts",
+              "done": true
+            },
+            {
+              "id": "PR52a-6",
+              "task": "Write SG property tax + yield benchmark reference files for re-analyst",
+              "done": true
+            },
+            {
+              "id": "PR52a-7",
+              "task": "Update bootstrapSkills() to seed inner skill reference files",
+              "done": true
+            },
+            {
+              "id": "PR52a-8",
+              "task": "Add sandbox tool orchestration guidance to system prompt",
+              "done": true
+            },
+            {
+              "id": "PR52a-9",
+              "task": "Tests for sandbox workflow skills",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Outer skills exist in defaults and reference correct sandbox tools (analyze_spreadsheet / publish_artifact)",
+            "Inner skills are marked editable and seeded with reference files on bootstrap",
+            "System prompt includes gather-first-then-hand-off guidance when sandbox tools are available",
+            "All skill content has valid YAML frontmatter"
           ]
         },
         {
