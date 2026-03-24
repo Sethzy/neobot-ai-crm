@@ -30,7 +30,16 @@ describe("sandbox env helpers", () => {
   it("returns false when the Claude API key is missing", () => {
     vi.stubEnv("SPRITES_TOKEN", "sprite-token");
     vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.stubEnv("OPENROUTER_API_KEY", "");
 
     expect(isSandboxConfigured()).toBe(false);
+  });
+
+  it("returns true when OpenRouter key is set but Anthropic key is empty", () => {
+    vi.stubEnv("SPRITES_TOKEN", "sprite-token");
+    vi.stubEnv("OPENROUTER_API_KEY", "sk-or-test-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+
+    expect(isSandboxConfigured()).toBe(true);
   });
 });

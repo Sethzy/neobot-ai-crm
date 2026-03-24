@@ -109,10 +109,11 @@ describe("buildClaudeEnv", () => {
     });
   });
 
-  it("throws when ANTHROPIC_API_KEY is missing", () => {
+  it("throws when both ANTHROPIC_API_KEY and OPENROUTER_API_KEY are missing", () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.stubEnv("OPENROUTER_API_KEY", "");
 
-    expect(() => buildClaudeEnv()).toThrow("ANTHROPIC_API_KEY");
+    expect(() => buildClaudeEnv()).toThrow("ANTHROPIC_API_KEY or OPENROUTER_API_KEY");
   });
 });
 

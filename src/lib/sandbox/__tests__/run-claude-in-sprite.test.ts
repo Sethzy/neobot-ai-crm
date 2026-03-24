@@ -85,10 +85,49 @@ describe("buildClaudeEnv", () => {
     });
   });
 
-  it("throws when ANTHROPIC_API_KEY is missing", () => {
+  it("throws when both ANTHROPIC_API_KEY and OPENROUTER_API_KEY are missing", () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.stubEnv("OPENROUTER_API_KEY", "");
 
-    expect(() => buildClaudeEnv()).toThrow("ANTHROPIC_API_KEY");
+    expect(() => buildClaudeEnv()).toThrow("ANTHROPIC_API_KEY or OPENROUTER_API_KEY");
+  });
+
+  it("returns OpenRouter env when OPENROUTER_API_KEY is set", () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "sk-or-test-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.stubEnv("PATH", "/usr/bin");
+
+    expect(buildClaudeEnv()).toEqual({
+      ANTHROPIC_API_KEY: "",
+      ANTHROPIC_AUTH_TOKEN: "sk-or-test-key",
+      ANTHROPIC_BASE_URL: "https://openrouter.ai/api",
+      PATH: "/usr/bin",
+    });
+  });
+
+  it("includes ANTHROPIC_DEFAULT_SONNET_MODEL when SANDBOX_MODEL_ID is set", () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "sk-or-test-key");
+    vi.stubEnv("SANDBOX_MODEL_ID", "minimax/minimax-m2.7");
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.stubEnv("PATH", "/usr/bin");
+
+    expect(buildClaudeEnv()).toEqual({
+      ANTHROPIC_API_KEY: "",
+      ANTHROPIC_AUTH_TOKEN: "sk-or-test-key",
+      ANTHROPIC_BASE_URL: "https://openrouter.ai/api",
+      ANTHROPIC_DEFAULT_SONNET_MODEL: "minimax/minimax-m2.7",
+      PATH: "/usr/bin",
+    });
+  });
+
+  it("prefers OpenRouter when both keys are set", () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "sk-or-test-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-key");
+    vi.stubEnv("PATH", "/usr/bin");
+
+    const env = buildClaudeEnv();
+    expect(env.ANTHROPIC_AUTH_TOKEN).toBe("sk-or-test-key");
+    expect(env.ANTHROPIC_BASE_URL).toBe("https://openrouter.ai/api");
   });
 });
 

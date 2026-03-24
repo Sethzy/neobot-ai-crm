@@ -22,8 +22,18 @@ export function getSandboxAnthropicApiKey(): string | null {
 }
 
 /**
+ * Returns the configured OpenRouter API key, or null when not configured.
+ */
+export function getSandboxOpenRouterApiKey(): string | null {
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+
+  return apiKey && apiKey.length > 0 ? apiKey : null;
+}
+
+/**
  * Returns whether Sprite-backed sandbox tooling is configured for this runtime.
+ * Requires SPRITES_TOKEN plus either ANTHROPIC_API_KEY or OPENROUTER_API_KEY.
  */
 export function isSandboxConfigured(): boolean {
-  return getSpritesToken() !== null && getSandboxAnthropicApiKey() !== null;
+  return getSpritesToken() !== null && (getSandboxAnthropicApiKey() !== null || getSandboxOpenRouterApiKey() !== null);
 }
