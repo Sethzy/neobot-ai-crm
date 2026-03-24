@@ -65,6 +65,11 @@ How to use it well:
 - For HDB and URA stats, if the tool returns sampled: true, treat the aggregates as recent-window stats computed from the most recent 10,000 matching rows ordered by date, not exact full-dataset aggregates.
 - Prefer dataset-specific filters that match the question. Unsupported filters are ignored.
 
+For richer private residential data (unit-level transactions, profitability, ownership, buyer profiles):
+1. Use search_market_data (URA dataset) first to resolve the exact project name — it supports partial matching.
+2. Slugify the project name (lowercase, spaces to hyphens, strip apostrophes, e.g. "D'LEEDON" → "d-leedon") and web_scrape https://openagent.sg/property/{slug} for enriched REALIS data.
+3. OpenAgent does not cover HDB. Use search_market_data only for HDB.
+
 Use web search instead for live news, policy changes, mortgage rates, or anything not stored in the market database.
 </market-data>`;
 

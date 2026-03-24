@@ -51,7 +51,7 @@ export function AgentProfileCharts({
       {/* Activity Overview */}
       {(hasVolume || hasHeatmap) ? (
         <>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Activity Overview</p>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/80">Activity Overview</p>
           {hasVolume ? (
             <TransactionVolumeChart dates={dates} subtitle="Volume of sales over time" />
           ) : null}
@@ -70,7 +70,7 @@ export function AgentProfileCharts({
       {/* Transaction Breakdown */}
       {(hasTransactionType || hasSalesRep || hasRentalRep) ? (
         <>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Transaction Breakdown</p>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/80">Transaction Breakdown</p>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             {hasTransactionType ? (
               <TypeBreakdownChart title="Transaction Type" data={transactionTypeBreakdown} />
@@ -88,7 +88,7 @@ export function AgentProfileCharts({
       {/* Geography */}
       {hasTopNeighbourhoods ? (
         <>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Geography</p>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/80">Geography</p>
           <TopNeighbourhoods transactions={transactions} />
         </>
       ) : null}

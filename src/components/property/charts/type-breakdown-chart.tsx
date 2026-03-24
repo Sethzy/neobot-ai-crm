@@ -27,7 +27,7 @@ export function TypeBreakdownChart({ title, data }: TypeBreakdownChartProps) {
   const pct = total > 0 ? Math.round((topEntry.count / total) * 100) : 0;
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="rounded-2xl border border-border bg-card p-5 transition-shadow duration-200 hover:shadow-md">
       <h3 className="mb-4 text-lg font-semibold text-foreground">{title}</h3>
       <div className="relative">
         {/* Center label overlay — positioned over the donut hole */}

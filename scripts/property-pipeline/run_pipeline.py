@@ -5,6 +5,7 @@ import traceback
 from typing import Callable
 
 from src.detect_movements import run_movement_detection
+from src.enrich_agents_openagent import run_enrichment as run_agent_enrichment
 from src.ingest_agents import run_agent_ingestion
 from src.ingest_cea_transactions import run_cea_transaction_ingestion
 from src.ingest_hdb_resale import run_hdb_resale_ingestion
@@ -19,6 +20,7 @@ def main() -> None:
     mode.add_argument("--hdb-only", action="store_true")
     mode.add_argument("--ura-only", action="store_true")
     mode.add_argument("--movements-only", action="store_true")
+    mode.add_argument("--enrich-only", action="store_true", help="Run OpenAgent contact enrichment only.")
 
     parser.add_argument(
         "--with-movements",
@@ -42,6 +44,10 @@ def main() -> None:
     elif args.movements_only:
         steps = [
             ("movements", lambda: run_movement_detection(dry_run=args.dry_run)),
+        ]
+    elif args.enrich_only:
+        steps = [
+            ("enrich_contacts", lambda: run_agent_enrichment(dry_run=args.dry_run)),
         ]
     else:
         if args.with_movements:

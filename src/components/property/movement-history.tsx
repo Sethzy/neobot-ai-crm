@@ -31,7 +31,7 @@ export function MovementHistory({
   const end = formatMonthYear(registrationEnd);
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="rounded-2xl border border-border bg-card p-5 transition-shadow duration-200 hover:shadow-md">
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-foreground">Movement History</h3>
         <p className="text-sm text-muted-foreground">Agency transfers</p>

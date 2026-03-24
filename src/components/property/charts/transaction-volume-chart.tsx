@@ -72,7 +72,7 @@ export function TransactionVolumeChart({
   if (chartData.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="rounded-2xl border border-border bg-card p-5 transition-shadow duration-200 hover:shadow-md">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-foreground">Transaction Volume</h3>

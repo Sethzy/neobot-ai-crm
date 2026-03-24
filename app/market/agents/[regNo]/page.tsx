@@ -218,17 +218,17 @@ export default async function AgentProfilePage({
 
   return (
     <>
-      <section className="bg-gradient-to-b from-primary/10 to-transparent pt-6 pb-10 sm:pt-8 sm:pb-14">
+      <section className="py-12 sm:py-16">
         <Container>
           <Link
             href="/market/agents"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition hover:text-primary"
           >
-            <AppIcon name="arrowLeft" className="h-3.5 w-3.5" />
+            <AppIcon name="arrowLeft" className="h-4 w-4" />
             Back to agents
           </Link>
 
-          <div className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="mt-6">
             <div className="flex items-start gap-4">
               {/* Initials avatar */}
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-muted text-lg font-semibold text-foreground">
@@ -290,16 +290,6 @@ export default async function AgentProfilePage({
                 </div>
               </div>
             </div>
-            <div className="flex shrink-0 gap-3">
-              <a
-                href="https://wa.me/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-border bg-card px-5 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted/40"
-              >
-                WhatsApp
-              </a>
-            </div>
           </div>
 
             {isExpiredProfile ? (
@@ -309,7 +299,7 @@ export default async function AgentProfilePage({
               </p>
             ) : null}
 
-          <div className="mt-8 border-t border-border pt-6">
+          <div className="mt-8">
             <StatBar
               items={[
                 { label: "Total Transactions", value: formatCount(profile.transactionCount) },

@@ -52,7 +52,7 @@ export function ActivityHeatmap({ dates }: ActivityHeatmapProps) {
   }
 
   return (
-    <div className="rounded-2xl border border-border/70 bg-card p-5">
+    <div className="rounded-2xl border border-border/70 bg-card p-5 transition-shadow duration-200 hover:shadow-md">
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-foreground">Activity Heatmap</h3>
         <p className="text-sm text-muted-foreground">Monthly transaction activity history</p>

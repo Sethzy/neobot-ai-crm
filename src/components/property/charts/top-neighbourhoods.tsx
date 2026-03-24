@@ -148,7 +148,7 @@ export function TopNeighbourhoods({ transactions }: TopNeighbourhoodsProps) {
   const maxCount = Math.max(...highlights.values(), 0);
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 lg:p-8">
+    <div className="rounded-2xl border border-border bg-card p-6 transition-shadow duration-200 hover:shadow-md lg:p-8">
       {/* Header row: title left, toggle right */}
       <div className="mb-6 flex items-start justify-between">
         <div>

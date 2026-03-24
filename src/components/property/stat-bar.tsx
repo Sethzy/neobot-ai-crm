@@ -1,4 +1,4 @@
-/** Borderless horizontal stat row — replaces StatCard grid on profile pages. */
+/** Borderless horizontal stat row with responsive columns and subtle dividers. */
 
 type StatBarItem = {
   label: string;
@@ -12,23 +12,25 @@ type StatBarProps = {
 
 export function StatBar({ items }: StatBarProps) {
   return (
-    <div
-      className="grid gap-y-4"
-      style={{ gridTemplateColumns: `repeat(${items.length}, 1fr)` }}
-    >
-      {items.map((item) => (
-        <div key={item.label} className="text-center">
-          <p className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+    <dl className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:flex lg:gap-0">
+      {items.map((item, index) => (
+        <div
+          key={item.label}
+          className={`text-center lg:flex-1 lg:px-5 ${
+            index === 0 ? "lg:pl-0" : "lg:border-l lg:border-border/50"
+          } ${index === items.length - 1 ? "lg:pr-0" : ""}`}
+        >
+          <dd className="text-2xl font-semibold tabular-nums tracking-tight text-foreground sm:text-3xl">
             {item.value}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
+          </dd>
+          <dt className="mt-1 text-xs text-muted-foreground">
             {item.label}
-          </p>
+          </dt>
           {item.hint ? (
-            <p className="text-xs text-muted-foreground">{item.hint}</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground/70">{item.hint}</p>
           ) : null}
         </div>
       ))}
-    </div>
+    </dl>
   );
 }

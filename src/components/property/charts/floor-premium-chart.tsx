@@ -28,7 +28,7 @@ export function FloorPremiumChart({ data }: FloorPremiumChartProps) {
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="rounded-2xl border border-border bg-card p-5 transition-shadow duration-200 hover:shadow-md">
       <h3 className="text-lg font-semibold text-foreground">Floor Level Premium</h3>
       <p className="mb-4 text-sm text-muted-foreground">
         Correlation between floor level and PSF

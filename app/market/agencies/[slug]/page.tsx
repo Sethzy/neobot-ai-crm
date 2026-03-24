@@ -206,11 +206,8 @@ export default async function AgencyProfilePage({
             Back to agencies
           </Link>
 
-          <div className="mt-6 rounded-2xl border border-border border-t-4 border-t-primary bg-card p-8 shadow-sm">
-            <span className="inline-block rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
-              Agency Profile
-            </span>
-            <h1 className="mt-3 font-serif text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
+          <div className="mt-6">
+            <h1 className="font-serif text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
               {agencyName}
             </h1>
           </div>

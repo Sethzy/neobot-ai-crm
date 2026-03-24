@@ -106,14 +106,16 @@ export default async function AreaProfilePage({
         "id, salesperson_reg_num, salesperson_name, transaction_date, property_type, transaction_type"
       )
       .eq("town", areaName)
-      .order("transaction_date", { ascending: false }),
+      .order("transaction_date", { ascending: false })
+      .limit(120),
     client
       .from("cea_transactions")
       .select(
         "id, salesperson_reg_num, salesperson_name, transaction_date, property_type, transaction_type"
       )
       .eq("district", areaName)
-      .order("transaction_date", { ascending: false }),
+      .order("transaction_date", { ascending: false })
+      .limit(120),
     client
       .from("cea_transactions")
       .select("transaction_date")
@@ -134,7 +136,8 @@ export default async function AreaProfilePage({
       .from("hdb_resale_transactions")
       .select("resale_price, month")
       .eq("town", areaName)
-      .order("month", { ascending: false }),
+      .order("month", { ascending: false })
+      .limit(500),
     client
       .from("hdb_resale_transactions")
       .select("month")
@@ -212,11 +215,8 @@ export default async function AreaProfilePage({
             Back to areas
           </Link>
 
-          <div className="mt-6 rounded-2xl border border-border border-t-4 border-t-primary bg-card p-8 shadow-sm">
-            <span className="inline-block rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
-              Area Profile
-            </span>
-            <h1 className="mt-3 font-serif text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
+          <div className="mt-6">
+            <h1 className="font-serif text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
               {areaName}
             </h1>
           </div>
