@@ -5,7 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import type { Database } from "@/types/database";
+import type { Database, Json } from "@/types/database";
 import {
   connectionInsertSchema,
   connectionRowSchema,
@@ -16,6 +16,8 @@ import {
 } from "./schemas";
 
 type ConnectionSupabaseClient = SupabaseClient<Database>;
+type ConnectionInsertRow = Database["public"]["Tables"]["connections"]["Insert"];
+type ConnectionUpdateRow = Database["public"]["Tables"]["connections"]["Update"];
 
 async function parseConnectionRows(data: unknown): Promise<ConnectionRow[]> {
   return connectionRowSchema.array().parse(data ?? []);
@@ -24,6 +26,24 @@ async function parseConnectionRows(data: unknown): Promise<ConnectionRow[]> {
 const toolkitSlugRowSchema = z.object({
   toolkit_slug: z.string().min(1),
 });
+
+function toConnectionInsertPayload(input: ConnectionInsert): ConnectionInsertRow {
+  const { tool_schemas, ...rest } = input;
+  return {
+    ...rest,
+    ...(tool_schemas !== undefined ? { tool_schemas: tool_schemas as Json } : {}),
+  };
+}
+
+function toConnectionUpdatePayload(
+  input: Omit<ConnectionUpdate, "id">,
+): ConnectionUpdateRow {
+  const { tool_schemas, ...rest } = input;
+  return {
+    ...rest,
+    ...(tool_schemas !== undefined ? { tool_schemas: tool_schemas as Json } : {}),
+  };
+}
 
 /** Loads all active connections for one client. */
 export async function getActiveConnections(
@@ -188,7 +208,7 @@ export async function insertConnection(
   const parsedInput = connectionInsertSchema.parse(data);
   const { data: row, error } = await supabase
     .from("connections")
-    .insert(parsedInput)
+    .insert(toConnectionInsertPayload(parsedInput))
     .select("*")
     .single();
 
@@ -272,7 +292,7 @@ export async function updateConnection(
   const { id, ...changes } = connectionUpdateSchema.parse(update);
   const { data, error } = await supabase
     .from("connections")
-    .update(changes)
+    .update(toConnectionUpdatePayload(changes))
     .eq("client_id", clientId)
     .eq("id", id)
     .select("*")
