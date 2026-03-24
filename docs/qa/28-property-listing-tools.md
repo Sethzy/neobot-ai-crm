@@ -1,9 +1,9 @@
 # QA Surface 28: Property Listing Tools
 
-> **PRs covered:** 55 (search_market_data), 57 (search_99co + search_propertyguru)
+> **PRs covered:** 55 (search_market_data), 57 (search_99co + search_propertyguru), 58 (OpenAgent REALIS enrichment)
 > **Dogfoodable:** Partial (via chat UI)
-> **Time estimate:** 25-30 min manual
-> **v2 tools:** `search_99co`, `search_propertyguru`, `search_market_data`
+> **Time estimate:** 30-40 min manual
+> **v2 tools:** `search_99co`, `search_propertyguru`, `search_market_data`, `web_scrape`
 
 ---
 
@@ -148,6 +148,64 @@
 
 ---
 
+### PR 58: OpenAgent REALIS enrichment (search_market_data → web_scrape chain)
+
+### 28.11 REALIS property lookup — known project name
+
+1. In a new thread: **"Tell me about the profitability of Normanton Park condo."**
+2. **Expected tool calls:** `search_market_data` (URA dataset, project partial match), then `web_scrape` on `https://openagent.sg/property/normanton-park`
+3. **Expected:** Agent resolves project name via search_market_data first, then scrapes OpenAgent for enriched data.
+4. **Expected:** Response includes REALIS-only fields: profitability % (e.g., "97% profitable"), unit numbers (#XX-XX), owner sequence (1st/2nd/3rd), buyer profile (HDB/Private).
+5. **Verify:** Two tool pills — search_market_data then web_scrape. web_scrape URL contains `openagent.sg/property/`.
+
+**Notes / failures:**
+
+---
+
+### 28.12 REALIS property lookup — fuzzy/misspelled name
+
+1. In a new thread: **"What's the average holding period for D'Leedon?"**
+2. **Expected tool calls:** `search_market_data` (URA dataset, project: "D'LEEDON" or similar), then `web_scrape` on `https://openagent.sg/property/d-leedon`
+3. **Expected:** Agent correctly slugifies apostrophe (D'LEEDON → d-leedon).
+4. **Expected:** Response includes holding period data from OpenAgent.
+5. **Verify:** web_scrape URL is `openagent.sg/property/d-leedon` (not `dleedon`).
+
+**Notes / failures:**
+
+---
+
+### 28.13 REALIS data feeds into analysis
+
+1. In a new thread: **"Compare buyer profiles for Treasure at Tampines vs Caribbean at Keppel Bay — what % are HDB upgraders?"**
+2. **Expected tool calls:** Two `search_market_data` calls (or one per project), then two `web_scrape` calls on OpenAgent.
+3. **Expected:** Agent extracts purchaser profile data (HDB % vs Private %) from both OpenAgent pages and compares them.
+4. **Expected:** Response presents a clear comparison, not just raw dumps.
+
+**Notes / failures:**
+
+---
+
+### 28.14 HDB query does NOT route to OpenAgent
+
+1. In a new thread: **"What's the profitability of HDB flats in Tampines?"**
+2. **Expected tool calls:** `search_market_data` (HDB dataset) only.
+3. **Expected:** Agent does NOT call web_scrape on OpenAgent (OpenAgent has no HDB data).
+4. **Expected:** Agent responds with HDB resale stats from our data, possibly noting that profitability analysis isn't available for HDB.
+
+**Notes / failures:**
+
+---
+
+### 28.15 OpenAgent slug 404 graceful fallback
+
+1. In a new thread: **"Tell me about a condo called Sunshine Happy Gardens."** (fictitious project)
+2. **Expected tool calls:** `search_market_data` (URA dataset) returns no results or agent tries web_scrape which returns no content.
+3. **Expected:** Agent handles the miss gracefully — does not hallucinate data, explains the project wasn't found.
+
+**Notes / failures:**
+
+---
+
 ## Edge Cases
 
 - [ ] Listing tools are absent when `APIFY_TOKEN` is missing
@@ -157,10 +215,13 @@
 - [ ] HDB stats with very broad query (no filters) — caps at 10,000 rows, totalMatching is exact
 - [ ] search_market_data with invalid dataset — agent handles validation error
 - [ ] search_market_data date range with no results — returns empty array, not error
+- [ ] web_scrape on non-existent OpenAgent slug — agent handles gracefully, no hallucination
+- [ ] Agent does not route HDB queries to OpenAgent
+- [ ] Agent correctly slugifies special characters (apostrophes, @, ampersands)
 
 ---
 
 ## Pass / Fail Criteria
 
-- **Pass:** Chat routes live portal requests to the correct listing tool, rejects invalid portal URLs early, preserves the success/error envelope, combines listing data with market data correctly when both are requested, and `search_market_data` correctly routes across all 4 datasets (agents, transactions, hdb, ura) in both search and stats modes.
-- **Fail:** Agent falls back to `browse_website` for normal listing searches, uses the wrong tool family, accepts invalid portal hosts, returns malformed/non-live listing results, or `search_market_data` returns wrong dataset or mode.
+- **Pass:** Chat routes live portal requests to the correct listing tool, rejects invalid portal URLs early, preserves the success/error envelope, combines listing data with market data correctly when both are requested, `search_market_data` correctly routes across all 4 datasets (agents, transactions, hdb, ura) in both search and stats modes, and agent chains search_market_data → web_scrape on OpenAgent for REALIS-enriched property queries.
+- **Fail:** Agent falls back to `browse_website` for normal listing searches, uses the wrong tool family, accepts invalid portal hosts, returns malformed/non-live listing results, `search_market_data` returns wrong dataset or mode, agent routes HDB queries to OpenAgent, or agent fails to slugify project names correctly for OpenAgent URLs.
