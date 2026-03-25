@@ -3,18 +3,22 @@
  * @module lib/crm/postgrest-filters
  */
 
+/** Normalizes whitespace and escapes LIKE wildcards (`%`, `_`, `\`). */
+function escapeIlikeWildcards(searchText: string): string {
+  return searchText
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/\\/g, "\\\\")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_");
+}
+
 /**
  * Returns a raw `%escaped%` pattern for use with `.ilike()` builder calls.
  * Escapes LIKE wildcards but does NOT add PostgREST quoting.
  */
 export function buildIlikePattern(searchText: string): string {
-  const normalized = searchText.trim().replace(/\s+/g, " ");
-  const escaped = normalized
-    .replace(/\\/g, "\\\\")
-    .replace(/%/g, "\\%")
-    .replace(/_/g, "\\_");
-
-  return `%${escaped}%`;
+  return `%${escapeIlikeWildcards(searchText)}%`;
 }
 
 /**
@@ -22,13 +26,7 @@ export function buildIlikePattern(searchText: string): string {
  * Escapes LIKE wildcards and wraps in PostgREST-quoted `"%…%"` format.
  */
 export function buildContainsIlikeLiteral(searchText: string): string {
-  const normalized = searchText.trim().replace(/\s+/g, " ");
-  const escaped = normalized
-    .replace(/\\/g, "\\\\")
-    .replace(/%/g, "\\%")
-    .replace(/_/g, "\\_")
-    .replace(/"/g, '\\"');
-
+  const escaped = escapeIlikeWildcards(searchText).replace(/"/g, '\\"');
   return `"%${escaped}%"`;
 }
 

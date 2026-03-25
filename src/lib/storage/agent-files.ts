@@ -4,7 +4,8 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-const BUCKET_ID = "agent-files";
+/** Supabase Storage bucket for all client-scoped agent files. */
+export const AGENT_FILES_BUCKET = "agent-files";
 
 /**
  * Normalizes and validates a workspace-relative path.
@@ -78,7 +79,7 @@ export function createAgentFileClient(supabase: SupabaseClient, clientId: string
    */
   async function downloadObject(path: string): Promise<Blob | string> {
     const storagePath = resolveStoragePath(clientId, path);
-    const { data, error } = await supabase.storage.from(BUCKET_ID).download(storagePath);
+    const { data, error } = await supabase.storage.from(AGENT_FILES_BUCKET).download(storagePath);
 
     if (error || !data) {
       throw new Error(`Failed to read file "${path}": ${error?.message ?? "unknown error"}`);
@@ -148,7 +149,7 @@ export function createAgentFileClient(supabase: SupabaseClient, clientId: string
    */
   async function listDirectory(path: string, depth = 0): Promise<string> {
     const storagePath = resolveStoragePath(clientId, path, true);
-    const { data, error } = await supabase.storage.from(BUCKET_ID).list(storagePath, {
+    const { data, error } = await supabase.storage.from(AGENT_FILES_BUCKET).list(storagePath, {
       sortBy: { column: "name", order: "asc" },
     });
 
@@ -198,7 +199,7 @@ export function createAgentFileClient(supabase: SupabaseClient, clientId: string
     assertWritable(path);
     const storagePath = resolveStoragePath(clientId, path);
 
-    const { error } = await supabase.storage.from(BUCKET_ID).upload(storagePath, content, {
+    const { error } = await supabase.storage.from(AGENT_FILES_BUCKET).upload(storagePath, content, {
       upsert: true,
       contentType: "text/plain; charset=utf-8",
     });
@@ -227,7 +228,7 @@ export function createAgentFileClient(supabase: SupabaseClient, clientId: string
     const normalizedPath = normalizeWorkspacePath(options.path, false);
     const storagePath = resolveStoragePath(clientId, normalizedPath);
 
-    const { error: uploadError } = await supabase.storage.from(BUCKET_ID).upload(
+    const { error: uploadError } = await supabase.storage.from(AGENT_FILES_BUCKET).upload(
       storagePath,
       options.content,
       {
@@ -241,12 +242,12 @@ export function createAgentFileClient(supabase: SupabaseClient, clientId: string
     }
 
     const signedUrlResponse = options.downloadFilename
-      ? await supabase.storage.from(BUCKET_ID).createSignedUrl(
+      ? await supabase.storage.from(AGENT_FILES_BUCKET).createSignedUrl(
         storagePath,
         options.expiresInSeconds,
         { download: options.downloadFilename },
       )
-      : await supabase.storage.from(BUCKET_ID).createSignedUrl(
+      : await supabase.storage.from(AGENT_FILES_BUCKET).createSignedUrl(
         storagePath,
         options.expiresInSeconds,
       );
@@ -316,7 +317,7 @@ export function createAgentFileClient(supabase: SupabaseClient, clientId: string
     assertWritable(path);
     const storagePath = resolveStoragePath(clientId, path);
 
-    const { error } = await supabase.storage.from(BUCKET_ID).remove([storagePath]);
+    const { error } = await supabase.storage.from(AGENT_FILES_BUCKET).remove([storagePath]);
     if (error) {
       throw new Error(`Failed to delete file "${path}": ${error.message}`);
     }

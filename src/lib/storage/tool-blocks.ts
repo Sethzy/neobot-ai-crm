@@ -4,9 +4,9 @@
  * @module lib/storage/tool-blocks
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/database";
 
-const AGENT_FILES_BUCKET_ID = "agent-files";
+import { AGENT_FILES_BUCKET } from "@/lib/storage/agent-files";
+import type { Database } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
 
@@ -34,7 +34,7 @@ export async function saveToolcallBlock(
   if (argsContent != null) {
     uploads.push(
       supabase.storage
-        .from(AGENT_FILES_BUCKET_ID)
+        .from(AGENT_FILES_BUCKET)
         .upload(
           `${clientId}/toolcalls/${toolCallId}/args.json`,
           argsContent,
@@ -50,7 +50,7 @@ export async function saveToolcallBlock(
   if (resultContent != null) {
     uploads.push(
       supabase.storage
-        .from(AGENT_FILES_BUCKET_ID)
+        .from(AGENT_FILES_BUCKET)
         .upload(
           `${clientId}/toolcalls/${toolCallId}/result.json`,
           resultContent,

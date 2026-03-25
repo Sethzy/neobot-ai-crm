@@ -117,10 +117,6 @@ export function formatContactFullName(contact: Pick<Contact, "first_name" | "las
 
 /** Formats CRM enum-like values such as `hot_lead` into `Hot Lead`. */
 export function formatCrmEnumLabel(value: string): string {
-  if (typeof value !== "string") {
-    return String(value ?? "");
-  }
-
   const trimmed = value.trim();
 
   if (trimmed.length === 0) {
@@ -155,12 +151,8 @@ export function formatCustomFieldValue(
     return null;
   }
 
-  if (type === "number" || type === "currency") {
-    return typeof value === "number" ? String(value) : String(value).trim();
-  }
-
-  if (type === "date" || type === "select" || type === "text") {
-    return String(value);
+  if ((type === "number" || type === "currency") && typeof value !== "number") {
+    return String(value).trim();
   }
 
   return String(value);

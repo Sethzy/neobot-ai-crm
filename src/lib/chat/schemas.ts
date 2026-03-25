@@ -40,8 +40,8 @@ const stepStartPartSchema = z.object({
   type: z.literal("step-start"),
 });
 
-const typedToolPartSchema = z.object({
-  type: z.string().startsWith("tool-"),
+/** Shared fields for typed and dynamic tool part schemas. */
+const toolPartBaseFields = {
   toolCallId: z.string().min(1),
   state: z.enum([
     "input-streaming",
@@ -65,34 +65,17 @@ const typedToolPartSchema = z.object({
       reason: z.string().optional(),
     })
     .optional(),
+};
+
+const typedToolPartSchema = z.object({
+  type: z.string().startsWith("tool-"),
+  ...toolPartBaseFields,
 });
 
 const dynamicToolPartSchema = z.object({
   type: z.literal("dynamic-tool"),
-  toolCallId: z.string().min(1),
   toolName: z.string().min(1),
-  state: z.enum([
-    "input-streaming",
-    "input-available",
-    "approval-requested",
-    "approval-responded",
-    "output-available",
-    "output-error",
-    "output-denied",
-  ]),
-  input: z.unknown().optional(),
-  output: z.unknown().optional(),
-  errorText: z.string().optional(),
-  providerExecuted: z.boolean().optional(),
-  preliminary: z.boolean().optional(),
-  title: z.string().optional(),
-  approval: z
-    .object({
-      id: z.string(),
-      approved: z.boolean().optional(),
-      reason: z.string().optional(),
-    })
-    .optional(),
+  ...toolPartBaseFields,
 });
 
 const dataPartSchema = z.object({

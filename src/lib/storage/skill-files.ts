@@ -4,9 +4,8 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { AGENT_FILES_BUCKET } from "@/lib/storage/agent-files";
 import type { Database } from "@/types/database";
-
-const BUCKET_ID = "agent-files";
 
 /**
  * Returns the storage path for a connection-specific skill file.
@@ -24,7 +23,7 @@ export async function getConnectionSkillContent(
   connectionId: string,
 ): Promise<string | null> {
   const { data, error } = await supabase.storage
-    .from(BUCKET_ID)
+    .from(AGENT_FILES_BUCKET)
     .download(getConnectionSkillPath(clientId, connectionId));
 
   if (error || !data) {
