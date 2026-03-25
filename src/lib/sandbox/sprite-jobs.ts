@@ -216,17 +216,31 @@ export async function deliverResult(
 
   const chatMessage = formatResultForChat(job.job_type, resultMeta);
 
-  // Persist message FIRST — if this fails, the job stays "delivering" and
-  // webhook/cron will retry. Only mark terminal after the message is safe.
-  await createMessage(supabase, {
-    thread_id: job.thread_id,
-    role: "assistant",
-    parts: [
-      { type: "text", text: chatMessage },
-      { type: "data", data: { source: "background-job", jobId: job.id } },
-    ],
-  });
+  // Idempotent two-phase delivery:
+  // Phase 1: store result_meta (but stay "delivering"). If we crash after this,
+  //          a retry sees result_meta is populated and skips the message insert.
+  // Phase 2: insert chat message (only if not already delivered).
+  // Phase 3: mark terminal.
+  const alreadyDelivered = job.result_meta != null;
 
+  if (!alreadyDelivered) {
+    // Phase 1: persist result_meta while still "delivering"
+    await supabase.from("sprite_jobs").update({
+      result_meta: resultMeta,
+    }).eq("id", job.id);
+
+    // Phase 2: insert chat message
+    await createMessage(supabase, {
+      thread_id: job.thread_id,
+      role: "assistant",
+      parts: [
+        { type: "text", text: chatMessage },
+        { type: "data", data: { source: "background-job", jobId: job.id } },
+      ],
+    });
+  }
+
+  // Phase 3: mark terminal (idempotent — safe to repeat)
   await supabase.from("sprite_jobs").update({
     result_meta: resultMeta,
     status: "completed",
@@ -242,18 +256,26 @@ export async function failJob(
   errorMessage: string,
   supabase: SupabaseClient<Database>,
 ): Promise<void> {
-  // Persist message FIRST — only mark terminal after the message is safe.
-  await createMessage(supabase, {
-    thread_id: job.thread_id,
-    role: "assistant",
-    parts: [
-      { type: "text", text: errorMessage },
-      { type: "data", data: { source: "background-job", jobId: job.id } },
-    ],
-  });
+  const errorMeta = { error: errorMessage };
+  const alreadyDelivered = job.result_meta != null;
+
+  if (!alreadyDelivered) {
+    await supabase.from("sprite_jobs").update({
+      result_meta: errorMeta,
+    }).eq("id", job.id);
+
+    await createMessage(supabase, {
+      thread_id: job.thread_id,
+      role: "assistant",
+      parts: [
+        { type: "text", text: errorMessage },
+        { type: "data", data: { source: "background-job", jobId: job.id } },
+      ],
+    });
+  }
 
   await supabase.from("sprite_jobs").update({
-    result_meta: { error: errorMessage },
+    result_meta: errorMeta,
     status: "failed",
     completed_at: new Date().toISOString(),
   }).eq("id", job.id);
