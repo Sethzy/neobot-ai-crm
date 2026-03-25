@@ -145,18 +145,16 @@ function formatDispatchFailure(result: {
   return `dispatch returned ${result.status} (${detail})`;
 }
 
+function isNamedError(error: unknown, name: string): boolean {
+  return error instanceof Error && error.name === name;
+}
+
 function isInvalidCronError(error: unknown): boolean {
-  return (
-    error instanceof InvalidCronExpressionError ||
-    (error instanceof Error && error.name === "InvalidCronExpressionError")
-  );
+  return error instanceof InvalidCronExpressionError || isNamedError(error, "InvalidCronExpressionError");
 }
 
 function isInvalidRssConfigError(error: unknown): boolean {
-  return (
-    error instanceof InvalidRssConfigError ||
-    (error instanceof Error && error.name === "InvalidRssConfigError")
-  );
+  return error instanceof InvalidRssConfigError || isNamedError(error, "InvalidRssConfigError");
 }
 
 function resolveTriggerTimezone(trigger: TriggerRow): string {
@@ -328,22 +326,26 @@ export async function runScan({
       const message = error instanceof Error ? error.message : "Unknown scanner error";
 
       if (isInvalidCronError(error)) {
-        await updateTrigger(supabase, trigger.id, {
-          enabled: false,
-          last_status: INVALID_CRON_STATUS,
-        });
-        await releaseClaim(supabase, trigger, INVALID_CRON_STATUS, {
-          advanceNextFireAt: false,
-        });
+        await Promise.all([
+          updateTrigger(supabase, trigger.id, {
+            enabled: false,
+            last_status: INVALID_CRON_STATUS,
+          }),
+          releaseClaim(supabase, trigger, INVALID_CRON_STATUS, {
+            advanceNextFireAt: false,
+          }),
+        ]);
         errors.push(`${trigger.id}: invalid cron`);
       } else if (isInvalidRssConfigError(error)) {
-        await updateTrigger(supabase, trigger.id, {
-          enabled: false,
-          last_status: INVALID_RSS_CONFIG_STATUS,
-        });
-        await releaseClaim(supabase, trigger, INVALID_RSS_CONFIG_STATUS, {
-          advanceNextFireAt: false,
-        });
+        await Promise.all([
+          updateTrigger(supabase, trigger.id, {
+            enabled: false,
+            last_status: INVALID_RSS_CONFIG_STATUS,
+          }),
+          releaseClaim(supabase, trigger, INVALID_RSS_CONFIG_STATUS, {
+            advanceNextFireAt: false,
+          }),
+        ]);
         errors.push(`${trigger.id}: invalid rss config`);
       } else if (trigger.current_run_id) {
         if (trigger.trigger_type === "pulse" && trigger.cron_expression && trigger.next_fire_at) {

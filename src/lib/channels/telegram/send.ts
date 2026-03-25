@@ -13,6 +13,11 @@ import { markdownToTelegramHtml, sanitizeTelegramHtml } from "./format";
 
 const MSG_LIMIT = 4000;
 
+/** Returns true when Telegram rejects a message because it can't parse the HTML. */
+function isTelegramHtmlParseError(error: unknown): boolean {
+  return (error as { description?: string })?.description?.includes("can't parse") ?? false;
+}
+
 /** Normalizes a Telegram chat identifier into the form grammY expects. */
 export function normalizeTelegramChatId(target: string): number | string {
   const trimmed = target.trim();
@@ -136,7 +141,6 @@ export function splitTelegramMessage(text: string, limit = MSG_LIMIT): string[] 
 
 /** Detects which Telegram media send method should be used for one MIME type. */
 export function detectMediaType(
-  _url: string,
   mimeType: string,
 ): "photo" | "video" | "audio" | "document" {
   if (mimeType.startsWith("image/") && !mimeType.includes("svg")) {
@@ -179,7 +183,7 @@ async function sendMedia(
   replyTo?: number,
 ): Promise<{ id: string; chatId: string }> {
   const mimeType = resolveMediaMimeType(mediaSource);
-  const mediaType = detectMediaType(mediaSource, mimeType);
+  const mediaType = detectMediaType(mimeType);
   const file = createTelegramInputFile(mediaSource);
   const replyParameters = replyTo ? { message_id: replyTo } : undefined;
   const sendOptions = {
@@ -239,8 +243,7 @@ export async function sendTelegramMessage(
       reply_parameters: options?.replyTo ? { message_id: options.replyTo } : undefined,
     });
   } catch (error) {
-    const description = (error as { description?: string })?.description;
-    if (!description?.includes("can't parse")) {
+    if (!isTelegramHtmlParseError(error)) {
       throw error;
     }
 
@@ -264,8 +267,7 @@ export async function sendTelegramMessage(
     try {
       await api.sendMessage(chatId, htmlChunks[index], { parse_mode: "HTML" });
     } catch (error) {
-      const description = (error as { description?: string })?.description;
-      if (!description?.includes("can't parse")) {
+      if (!isTelegramHtmlParseError(error)) {
         throw error;
       }
 
@@ -296,8 +298,7 @@ export async function editTelegramMessage(
       parse_mode: "HTML",
     });
   } catch (error) {
-    const description = (error as { description?: string })?.description;
-    if (!description?.includes("can't parse")) {
+    if (!isTelegramHtmlParseError(error)) {
       throw error;
     }
 
@@ -310,8 +311,7 @@ export async function editTelegramMessage(
     try {
       await api.sendMessage(normalizedChatId, htmlChunks[index], { parse_mode: "HTML" });
     } catch (error) {
-      const description = (error as { description?: string })?.description;
-      if (!description?.includes("can't parse")) {
+      if (!isTelegramHtmlParseError(error)) {
         throw error;
       }
 

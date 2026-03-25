@@ -5,9 +5,7 @@
 import type { Api } from "grammy";
 import { InlineKeyboard } from "grammy";
 
-function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
+import { escapeHtml } from "./format";
 
 /** Builds the HTML body for one approval request message. */
 export function buildApprovalText(

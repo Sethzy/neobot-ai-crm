@@ -5,9 +5,7 @@
 import type { Api } from "grammy";
 import { InlineKeyboard } from "grammy";
 
-function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
+import { escapeHtml } from "./format";
 
 /** Builds the HTML body for a Telegram question prompt. */
 export function buildQuestionText(question: string, options: string[]): string {
@@ -20,7 +18,7 @@ export function buildQuestionText(question: string, options: string[]): string {
   return lines.join("\n");
 }
 
-/** Builds a two-column inline keyboard for single-select questions. */
+/** Encodes callback data for a question answer button. */
 export function buildQuestionCallbackData(
   requestId: string,
   questionIndex: number,

@@ -42,9 +42,8 @@ export async function loadActivatedConnectionTools(
   }
 
   const composio = getComposio();
-  const loadedTools: ToolSet = {};
 
-  for (const connection of activeConnections) {
+  const toolSets = await Promise.all(activeConnections.map(async (connection) => {
     try {
       let schemas = connection.tool_schemas ?? {};
 
@@ -80,6 +79,7 @@ export async function loadActivatedConnectionTools(
         }
       }
 
+      const connectionTools: ToolSet = {};
       for (const slug of connection.activated_tools) {
         const schema = schemas[slug];
         if (!schema) {
@@ -87,7 +87,7 @@ export async function loadActivatedConnectionTools(
           continue;
         }
 
-        loadedTools[`${connection.id}__${slug}`] = tool({
+        connectionTools[`${connection.id}__${slug}`] = tool({
           description: schema.description ?? slug,
           inputSchema: jsonSchema(
             schema.inputParameters ?? EMPTY_TOOL_INPUT_SCHEMA,
@@ -100,10 +100,13 @@ export async function loadActivatedConnectionTools(
             }),
         });
       }
+
+      return connectionTools;
     } catch (error) {
       console.error(`[composio] Failed to load tools for connection ${connection.id}:`, error);
+      return {};
     }
-  }
+  }));
 
-  return loadedTools;
+  return Object.assign({}, ...toolSets) as ToolSet;
 }

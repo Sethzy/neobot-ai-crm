@@ -70,14 +70,13 @@ export async function getToolkitCapabilities(
   }
 
   const composio = getComposio();
-  const capabilities: ToolkitCapability[] = [];
 
-  for (const toolkitSlug of toolkitSlugs) {
+  return Promise.all(toolkitSlugs.map(async (toolkitSlug) => {
     const tools = await composio.tools.getRawComposioTools({
       toolkits: [toolkitSlug],
     });
 
-    capabilities.push({
+    return {
       integrationId: toolkitSlug,
       name: tools[0]?.toolkit?.name ?? toolkitSlug,
       description: "",
@@ -89,8 +88,6 @@ export async function getToolkitCapabilities(
         description: tool.description ?? "",
         tags: tool.tags ?? [],
       })),
-    });
-  }
-
-  return capabilities;
+    } satisfies ToolkitCapability;
+  }));
 }

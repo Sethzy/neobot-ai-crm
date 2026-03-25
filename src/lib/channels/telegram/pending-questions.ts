@@ -273,110 +273,14 @@ export async function restorePendingQuestionBatch(
   }
 }
 
-/** Advances a pending batch from one inline-button answer. */
-export async function advancePendingQuestionBatchByCallback(
+/** Shared advance logic once the batch and selected answer are resolved. */
+async function advanceBatch(
   supabase: TelegramPendingQuestionsClient,
-  input: { token: string; questionIndex: number; optionIndex: number },
+  batch: PendingQuestionBatch,
+  selectedOption: string,
 ): Promise<PendingQuestionAdvanceResult> {
-  const batch = await loadBatchByToken(supabase, input.token);
-
-  if (!batch || batch.currentIndex !== input.questionIndex) {
-    return { status: "expired" };
-  }
-
-  const currentQuestion = batch.questions[batch.currentIndex];
-  if (!currentQuestion) {
-    return { status: "expired" };
-  }
-
-  const selectedOption = currentQuestion.options[input.optionIndex];
-  if (!selectedOption) {
-    return { status: "expired" };
-  }
-
   const nextAnswers = [...batch.answers];
   nextAnswers[batch.currentIndex] = selectedOption;
-
-  if (batch.currentIndex >= batch.questions.length - 1) {
-    const { error } = await supabase
-      .from("telegram_pending_questions")
-      .delete()
-      .eq("token", input.token)
-      .eq("current_index", batch.currentIndex);
-
-    if (error) {
-      return { status: "expired" };
-    }
-
-    return {
-      status: "completed",
-      clientId: batch.clientId,
-      threadId: batch.threadId,
-      responseText: buildBatchResponse(batch, nextAnswers),
-      selectedOption,
-    };
-  }
-
-  const nextQuestionIndex = batch.currentIndex + 1;
-  const nextQuestion = batch.questions[nextQuestionIndex];
-  if (!nextQuestion) {
-    return { status: "expired" };
-  }
-
-  const { data, error } = await supabase
-    .from("telegram_pending_questions")
-    .update({
-      answers: nextAnswers as unknown as Json,
-      current_index: nextQuestionIndex,
-      awaiting_text_reply: !isSupportedQuestionType(nextQuestion.type),
-    })
-    .eq("token", input.token)
-    .eq("current_index", batch.currentIndex)
-    .select(pendingQuestionSelectColumns)
-    .maybeSingle();
-
-  if (error || !data) {
-    return { status: "expired" };
-  }
-
-  return {
-    status: "next",
-    batch: mapPendingQuestionRow(data as unknown as PendingQuestionSelectedRow),
-    question: nextQuestion,
-    questionIndex: nextQuestionIndex,
-    rollback: {
-      token: batch.token,
-      expectedCurrentIndex: nextQuestionIndex,
-      restoreCurrentIndex: batch.currentIndex,
-      restoreAwaitingTextReply: batch.awaitingTextReply,
-      answers: nextAnswers,
-    },
-    selectedOption,
-  };
-}
-
-/** Advances a pending batch from the next free-text reply for one chat. */
-export async function advancePendingQuestionBatchByTextReply(
-  supabase: TelegramPendingQuestionsClient,
-  input: { chatId: string; text: string },
-): Promise<PendingQuestionAdvanceResult> {
-  const trimmedText = input.text.trim();
-  if (!trimmedText) {
-    return { status: "expired" };
-  }
-
-  const batch = await loadBatchAwaitingTextReply(supabase, input.chatId);
-  if (!batch) {
-    return { status: "expired" };
-  }
-
-  const currentQuestion = batch.questions[batch.currentIndex];
-  if (!currentQuestion) {
-    return { status: "expired" };
-  }
-
-  const nextAnswers = [...batch.answers];
-  nextAnswers[batch.currentIndex] = trimmedText;
 
   if (batch.currentIndex >= batch.questions.length - 1) {
     const { error } = await supabase
@@ -394,7 +298,7 @@ export async function advancePendingQuestionBatchByTextReply(
       clientId: batch.clientId,
       threadId: batch.threadId,
       responseText: buildBatchResponse(batch, nextAnswers),
-      selectedOption: trimmedText,
+      selectedOption,
     };
   }
 
@@ -432,8 +336,55 @@ export async function advancePendingQuestionBatchByTextReply(
       restoreAwaitingTextReply: batch.awaitingTextReply,
       answers: nextAnswers,
     },
-    selectedOption: trimmedText,
+    selectedOption,
   };
+}
+
+/** Advances a pending batch from one inline-button answer. */
+export async function advancePendingQuestionBatchByCallback(
+  supabase: TelegramPendingQuestionsClient,
+  input: { token: string; questionIndex: number; optionIndex: number },
+): Promise<PendingQuestionAdvanceResult> {
+  const batch = await loadBatchByToken(supabase, input.token);
+
+  if (!batch || batch.currentIndex !== input.questionIndex) {
+    return { status: "expired" };
+  }
+
+  const currentQuestion = batch.questions[batch.currentIndex];
+  if (!currentQuestion) {
+    return { status: "expired" };
+  }
+
+  const selectedOption = currentQuestion.options[input.optionIndex];
+  if (!selectedOption) {
+    return { status: "expired" };
+  }
+
+  return advanceBatch(supabase, batch, selectedOption);
+}
+
+/** Advances a pending batch from the next free-text reply for one chat. */
+export async function advancePendingQuestionBatchByTextReply(
+  supabase: TelegramPendingQuestionsClient,
+  input: { chatId: string; text: string },
+): Promise<PendingQuestionAdvanceResult> {
+  const trimmedText = input.text.trim();
+  if (!trimmedText) {
+    return { status: "expired" };
+  }
+
+  const batch = await loadBatchAwaitingTextReply(supabase, input.chatId);
+  if (!batch) {
+    return { status: "expired" };
+  }
+
+  const currentQuestion = batch.questions[batch.currentIndex];
+  if (!currentQuestion) {
+    return { status: "expired" };
+  }
+
+  return advanceBatch(supabase, batch, trimmedText);
 }
 
 /** Clears every pending-question batch for one Telegram chat. */

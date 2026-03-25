@@ -59,25 +59,25 @@ describe("splitTelegramMessage", () => {
 
 describe("detectMediaType", () => {
   it("detects photos from image mime types", () => {
-    expect(detectMediaType("https://example.com/photo.jpg", "image/jpeg")).toBe("photo");
+    expect(detectMediaType("image/jpeg")).toBe("photo");
   });
 
   it("detects videos from video mime types", () => {
-    expect(detectMediaType("https://example.com/clip.mp4", "video/mp4")).toBe("video");
+    expect(detectMediaType("video/mp4")).toBe("video");
   });
 
   it("detects audio from audio mime types", () => {
-    expect(detectMediaType("https://example.com/song.mp3", "audio/mpeg")).toBe("audio");
+    expect(detectMediaType("audio/mpeg")).toBe("audio");
   });
 
   it("falls back to documents for unknown types", () => {
-    expect(detectMediaType("https://example.com/file.pdf", "application/pdf")).toBe(
+    expect(detectMediaType("application/pdf")).toBe(
       "document",
     );
   });
 
   it("treats svg as a document instead of a photo", () => {
-    expect(detectMediaType("https://example.com/icon.svg", "image/svg+xml")).toBe(
+    expect(detectMediaType("image/svg+xml")).toBe(
       "document",
     );
   });

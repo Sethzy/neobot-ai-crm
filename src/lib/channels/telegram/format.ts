@@ -1,11 +1,10 @@
 /**
  * Markdown -> Telegram HTML conversion and sanitization.
- * Copied from dorabot with zero-drift behavior.
  * @module lib/channels/telegram/format
  */
 
 /** Escapes plain-text HTML characters for Telegram's HTML parse mode. */
-function escapeHtml(text: string): string {
+export function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

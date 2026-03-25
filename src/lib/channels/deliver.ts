@@ -152,15 +152,16 @@ async function deliverToTelegram(input: {
     await sendTelegramMessage(bot.api, input.chatId, input.text);
   }
 
-  for (const approvalPart of extractApprovalPartsFromPersisted(input.parts)) {
-    await sendTelegramApprovalRequest(
+  const approvalParts = extractApprovalPartsFromPersisted(input.parts);
+  await Promise.all(approvalParts.map((approvalPart) =>
+    sendTelegramApprovalRequest(
       bot.api,
       input.chatId,
       approvalPart.approvalId,
       approvalPart.toolName,
       approvalPart.input,
-    );
-  }
+    ),
+  ));
 
   const [firstQuestionBatch] = extractQuestionOutputs(input.parts);
   if (!firstQuestionBatch) {

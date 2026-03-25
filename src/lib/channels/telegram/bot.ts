@@ -10,7 +10,7 @@ export interface TelegramBotInfo {
   firstName: string;
 }
 
-let cachedBotUsername: string | null = null;
+let cachedBotUsernamePromise: Promise<string> | null = null;
 
 /** Resolves the Telegram bot token from environment configuration. */
 export function getTelegramBotToken(): string {
@@ -44,11 +44,14 @@ export async function validateTelegramToken(token: string): Promise<TelegramBotI
 
 /** Returns the bot username, resolving it once from Telegram and then caching it. */
 export async function getBotUsername(): Promise<string> {
-  if (cachedBotUsername) {
-    return cachedBotUsername;
+  if (!cachedBotUsernamePromise) {
+    cachedBotUsernamePromise = validateTelegramToken(getTelegramBotToken())
+      .then((info) => info.username)
+      .catch((error) => {
+        cachedBotUsernamePromise = null;
+        throw error;
+      });
   }
 
-  const info = await validateTelegramToken(getTelegramBotToken());
-  cachedBotUsername = info.username;
-  return cachedBotUsername;
+  return cachedBotUsernamePromise;
 }
