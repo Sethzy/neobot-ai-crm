@@ -78,6 +78,7 @@ export async function findActiveSpriteSessionByClient(
 
 /**
  * Upserts the per-thread Sprite session row and refreshes its activity timestamp.
+ * @deprecated Use insertSpriteSession() for new sessions (Phase A compatible).
  */
 export async function upsertSpriteSession(
   supabase: SandboxSupabaseClient,
@@ -106,6 +107,57 @@ export async function upsertSpriteSession(
   }
 
   return toSpriteSessionRow(data);
+}
+
+/**
+ * Inserts a new Sprite session row (no upsert — Phase A compatible).
+ */
+export async function insertSpriteSession(
+  supabase: SandboxSupabaseClient,
+  session: UpsertSpriteSessionInput,
+): Promise<SpriteSessionRow | null> {
+  const { data, error } = await supabase
+    .from("sprite_sessions")
+    .insert({
+      client_id: session.client_id,
+      thread_id: session.thread_id,
+      sprite_name: session.sprite_name,
+      status: session.status,
+      preview_url: session.preview_url ?? null,
+      last_active_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error || !data) {
+    throw new Error(
+      `Failed to insert sprite session for client "${session.client_id}": ${error?.message ?? "unknown error"}`,
+    );
+  }
+
+  return toSpriteSessionRow(data);
+}
+
+/**
+ * Rebinds an existing session row to a new Sprite name (e.g. after stale recovery).
+ */
+export async function rebindSpriteSession(
+  supabase: SandboxSupabaseClient,
+  oldSpriteName: string,
+  newSpriteName: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("sprite_sessions")
+    .update({
+      sprite_name: newSpriteName,
+      status: "running" as const,
+      last_active_at: new Date().toISOString(),
+    })
+    .eq("sprite_name", oldSpriteName);
+
+  if (error) {
+    throw new Error(`Failed to rebind sprite session "${oldSpriteName}" → "${newSpriteName}": ${error.message}`);
+  }
 }
 
 /**

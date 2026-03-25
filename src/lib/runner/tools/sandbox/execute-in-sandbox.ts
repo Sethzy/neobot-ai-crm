@@ -24,8 +24,9 @@ import {
 } from "@/lib/sandbox/sprite-jobs";
 import {
   findActiveSpriteSessionByClient,
+  insertSpriteSession,
+  rebindSpriteSession,
   touchSpriteSession,
-  upsertSpriteSession,
 } from "@/lib/sandbox/sprite-session";
 import { getOrCreateSprite } from "@/lib/sandbox/sprites-client";
 import type { SpriteSkillFile } from "@/lib/sandbox/types";
@@ -81,10 +82,15 @@ export function createExecuteInSandboxTool(
           spriteName: `client-${clientId.slice(0, 8)}-${crypto.randomUUID().slice(0, 8)}`,
         });
 
-        if (existingSession) {
+        if (existingSession && existingSession.sprite_name === spriteName) {
+          // Same Sprite reused — just refresh timestamp
           await touchSpriteSession(supabase, spriteName);
+        } else if (existingSession) {
+          // Stale recovery: old Sprite was gone, new one created — rebind the row
+          await rebindSpriteSession(supabase, existingSession.sprite_name, spriteName);
         } else {
-          await upsertSpriteSession(supabase, {
+          // First sandbox use for this client — insert a new session row
+          await insertSpriteSession(supabase, {
             client_id: clientId,
             thread_id: threadId,
             sprite_name: spriteName,

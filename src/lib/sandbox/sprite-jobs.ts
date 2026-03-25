@@ -248,65 +248,67 @@ async function promoteNextQueuedJob(
 
   if (!claimed) return;
 
-  const meta = (next.job_meta ?? {}) as Record<string, unknown>;
-  const skills = (meta.skills as string[]) ?? [];
-  const task = (meta.task as string) ?? "";
-  const inputFileRefs = (meta.inputFiles as string[]) ?? [];
-  const nextOutputDir = (meta.outputDir as string) ?? jobOutputDir(next.id);
-
-  // Notify user their queued job is starting
-  await createMessage(supabase, {
-    thread_id: next.thread_id,
-    role: "assistant",
-    parts: [
-      { type: "text", text: `Starting your ${skills[0] ?? "sandbox"} task now.` },
-      { type: "data", data: { source: "background-job", jobId: next.id } },
-    ],
-  });
-
-  // Sync skills
-  const allSkillFiles = [];
-  for (const slug of skills) {
-    const files = await loadSkillFilesForSandbox(supabase, next.client_id, slug);
-    allSkillFiles.push(...files);
-  }
-  const filesystem = sprite.filesystem();
-  await writeSkillFiles(sprite, filesystem, allSkillFiles);
-
-  // Re-download input files into job-scoped input dir
-  const inputDir = `${nextOutputDir}/input`;
-  await sprite.execFile("mkdir", ["-p", inputDir]);
-  const inputFilenames: string[] = [];
-
-  for (const fileRef of inputFileRefs) {
-    const parts = fileRef.split("/").filter(Boolean);
-    const filename = (parts[parts.length - 1] ?? `file-${Date.now()}`).split("?")[0] || "file";
-    inputFilenames.push(filename);
-    const inputFs = sprite.filesystem(inputDir);
-
-    if (fileRef.startsWith("https://")) {
-      const response = await fetchSafeExternalResource(fileRef);
-      if (!response.ok) {
-        await failJob(next as SpriteJobRow, `Failed to download input file: HTTP ${response.status} for ${fileRef}`, supabase);
-        return;
-      }
-      const arrayBuffer = await response.arrayBuffer();
-      await inputFs.writeFile(filename, Buffer.from(arrayBuffer));
-    } else {
-      const storagePath = `${next.client_id}/${fileRef}`;
-      const bucket = supabase.storage.from(MEMORY_BUCKET_ID);
-      const { data, error } = await bucket.download(storagePath);
-      if (error || !data) {
-        await failJob(next as SpriteJobRow, `Failed to download input file: ${fileRef}`, supabase);
-        return;
-      }
-      const buffer = Buffer.from(await data.arrayBuffer());
-      await inputFs.writeFile(filename, buffer);
-    }
-  }
-
-  // Build prompt and launch (fail the job if launch throws)
+  // Everything after CAS claim is wrapped in try/catch — any throw fails the job
+  // instead of stranding it in "starting" and blocking the Sprite.
   try {
+    const meta = (next.job_meta ?? {}) as Record<string, unknown>;
+    const skills = (meta.skills as string[]) ?? [];
+    const task = (meta.task as string) ?? "";
+    const inputFileRefs = (meta.inputFiles as string[]) ?? [];
+    const nextOutputDir = (meta.outputDir as string) ?? jobOutputDir(next.id);
+
+    // Notify user their queued job is starting
+    await createMessage(supabase, {
+      thread_id: next.thread_id,
+      role: "assistant",
+      parts: [
+        { type: "text", text: `Starting your ${skills[0] ?? "sandbox"} task now.` },
+        { type: "data", data: { source: "background-job", jobId: next.id } },
+      ],
+    });
+
+    // Sync skills
+    const allSkillFiles = [];
+    for (const slug of skills) {
+      const files = await loadSkillFilesForSandbox(supabase, next.client_id, slug);
+      allSkillFiles.push(...files);
+    }
+    const filesystem = sprite.filesystem();
+    await writeSkillFiles(sprite, filesystem, allSkillFiles);
+
+    // Re-download input files into job-scoped input dir
+    const inputDir = `${nextOutputDir}/input`;
+    await sprite.execFile("mkdir", ["-p", inputDir]);
+    const inputFilenames: string[] = [];
+
+    for (const fileRef of inputFileRefs) {
+      const parts = fileRef.split("/").filter(Boolean);
+      const filename = (parts[parts.length - 1] ?? `file-${Date.now()}`).split("?")[0] || "file";
+      inputFilenames.push(filename);
+      const inputFs = sprite.filesystem(inputDir);
+
+      if (fileRef.startsWith("https://")) {
+        const response = await fetchSafeExternalResource(fileRef);
+        if (!response.ok) {
+          await failJob(next as SpriteJobRow, `Failed to download input file: HTTP ${response.status} for ${fileRef}`, supabase);
+          return;
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        await inputFs.writeFile(filename, Buffer.from(arrayBuffer));
+      } else {
+        const storagePath = `${next.client_id}/${fileRef}`;
+        const bucket = supabase.storage.from(MEMORY_BUCKET_ID);
+        const { data, error } = await bucket.download(storagePath);
+        if (error || !data) {
+          await failJob(next as SpriteJobRow, `Failed to download input file: ${fileRef}`, supabase);
+          return;
+        }
+        const buffer = Buffer.from(await data.arrayBuffer());
+        await inputFs.writeFile(filename, buffer);
+      }
+    }
+
+    // Build prompt and launch
     const prompt = buildSandboxPrompt({
       task,
       skillSlugs: skills,
@@ -316,10 +318,10 @@ async function promoteNextQueuedJob(
 
     await launchBackgroundJob(sprite, next.id, { prompt, maxTurns: 20 });
     await updateJobStatus(supabase, next.id, "running");
-  } catch (launchError) {
+  } catch (promotionError) {
     await failJob(
       next as SpriteJobRow,
-      `Failed to launch queued job: ${launchError instanceof Error ? launchError.message : "unknown error"}`,
+      `Failed to launch queued job: ${promotionError instanceof Error ? promotionError.message : "unknown error"}`,
       supabase,
     );
   }
