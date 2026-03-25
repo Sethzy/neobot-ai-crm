@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createMessage } from "@/lib/chat/messages";
 import { createAgentFileClient } from "@/lib/storage/agent-files";
+import { ensureDevServerService, type SpriteHandle as FullSpriteHandle } from "./artifact-runner";
 import { jobOutputDir, jobDoneMarker, jobErrorMarker, jobStreamLog } from "./sandbox-paths";
 import type { Database } from "@/types/database";
 
@@ -15,8 +16,9 @@ const SIGNED_URL_EXPIRY_SECONDS = 60 * 60 * 24 * 30;
 type SpriteJobInsert = Database["public"]["Tables"]["sprite_jobs"]["Insert"];
 type SpriteJobRow = Database["public"]["Tables"]["sprite_jobs"]["Row"];
 
-/** Minimal sprite handle for delivery operations. */
+/** Sprite handle for delivery operations — filesystem + exec + optional service management. */
 interface SpriteHandle {
+  url?: string;
   execFile: (
     command: string,
     args?: string[],
@@ -24,6 +26,10 @@ interface SpriteHandle {
   filesystem: (basePath?: string) => {
     readFile: (path: string) => Promise<string | Buffer>;
   };
+  listServices?: FullSpriteHandle["listServices"];
+  createService?: FullSpriteHandle["createService"];
+  startService?: FullSpriteHandle["startService"];
+  updateURLSettings?: FullSpriteHandle["updateURLSettings"];
 }
 
 /**
@@ -129,6 +135,10 @@ export async function readLatestProgress(
  * Deliver a completed job's result to the chat thread.
  * Reads output artifacts from the sprite, uploads them to Supabase Storage,
  * inserts a conversation_messages row with download links, then marks completed.
+ *
+ * Order: upload artifact → persist chat message → mark job terminal.
+ * If the artifact upload or message insert fails, the job stays in "delivering"
+ * so webhook/cron can retry.
  */
 export async function deliverResult(
   job: SpriteJobRow,
@@ -152,29 +162,37 @@ export async function deliverResult(
   }
   resultMeta.summary = summary;
 
-  // Upload artifacts based on job type
+  // Upload required artifacts based on job type.
+  // If the expected artifact is missing or upload fails, treat as a job failure.
   if (job.job_type === "analyze") {
-    try {
-      const outputFile = await filesystem.readFile("result.xlsx");
-      const outputBuffer = typeof outputFile === "string"
-        ? Buffer.from(outputFile)
-        : outputFile;
+    const outputFile = await filesystem.readFile("result.xlsx");
+    const outputBuffer = typeof outputFile === "string"
+      ? Buffer.from(outputFile)
+      : outputFile;
 
-      const uploadResult = await agentFiles.uploadArtifact({
-        path: `artifacts/sandbox/result-${Date.now()}.xlsx`,
-        content: outputBuffer,
-        contentType: XLSX_MEDIA_TYPE,
-        expiresInSeconds: SIGNED_URL_EXPIRY_SECONDS,
-        downloadFilename: "result.xlsx",
-      });
+    const uploadResult = await agentFiles.uploadArtifact({
+      path: `artifacts/sandbox/result-${Date.now()}.xlsx`,
+      content: outputBuffer,
+      contentType: XLSX_MEDIA_TYPE,
+      expiresInSeconds: SIGNED_URL_EXPIRY_SECONDS,
+      downloadFilename: "result.xlsx",
+    });
 
-      resultMeta.downloadUrl = uploadResult.downloadUrl;
-      resultMeta.storagePath = uploadResult.storagePath;
-    } catch {
-      // No result.xlsx — deliver summary-only
+    resultMeta.downloadUrl = uploadResult.downloadUrl;
+    resultMeta.storagePath = uploadResult.storagePath;
+  } else if (job.job_type === "artifact") {
+    // Start dev server for first-run artifact jobs (was deferred at launch time
+    // because /workspace/app didn't exist yet — now it does).
+    if (sprite.listServices) {
+      try {
+        await ensureDevServerService(sprite as FullSpriteHandle, meta.isNew as boolean);
+      } catch {
+        // Dev server startup is best-effort — preview may not work but
+        // the artifact can still be delivered as a signed URL.
+      }
     }
-  } else if (job.job_type === "artifact" && meta.shipIt) {
-    try {
+
+    if (meta.shipIt) {
       const outputHtml = await filesystem.readFile("output.html");
       const htmlContent = typeof outputHtml === "string"
         ? outputHtml
@@ -189,19 +207,17 @@ export async function deliverResult(
       });
 
       resultMeta.publishedUrl = uploadResult.downloadUrl;
-    } catch {
-      // No output.html — deliver summary-only
+    }
+
+    if (sprite.url) {
+      resultMeta.previewUrl = sprite.url;
     }
   }
 
   const chatMessage = formatResultForChat(job.job_type, resultMeta);
 
-  await supabase.from("sprite_jobs").update({
-    result_meta: resultMeta,
-    status: "completed",
-    completed_at: new Date().toISOString(),
-  }).eq("id", job.id);
-
+  // Persist message FIRST — if this fails, the job stays "delivering" and
+  // webhook/cron will retry. Only mark terminal after the message is safe.
   await createMessage(supabase, {
     thread_id: job.thread_id,
     role: "assistant",
@@ -210,6 +226,12 @@ export async function deliverResult(
       { type: "data", data: { source: "background-job", jobId: job.id } },
     ],
   });
+
+  await supabase.from("sprite_jobs").update({
+    result_meta: resultMeta,
+    status: "completed",
+    completed_at: new Date().toISOString(),
+  }).eq("id", job.id);
 }
 
 /**
@@ -220,12 +242,7 @@ export async function failJob(
   errorMessage: string,
   supabase: SupabaseClient<Database>,
 ): Promise<void> {
-  await supabase.from("sprite_jobs").update({
-    result_meta: { error: errorMessage },
-    status: "failed",
-    completed_at: new Date().toISOString(),
-  }).eq("id", job.id);
-
+  // Persist message FIRST — only mark terminal after the message is safe.
   await createMessage(supabase, {
     thread_id: job.thread_id,
     role: "assistant",
@@ -234,6 +251,12 @@ export async function failJob(
       { type: "data", data: { source: "background-job", jobId: job.id } },
     ],
   });
+
+  await supabase.from("sprite_jobs").update({
+    result_meta: { error: errorMessage },
+    status: "failed",
+    completed_at: new Date().toISOString(),
+  }).eq("id", job.id);
 }
 
 /**
