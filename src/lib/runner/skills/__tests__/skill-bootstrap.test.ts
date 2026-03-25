@@ -33,6 +33,7 @@ function createMockSupabase({
             uploadedFiles.push(path);
             return { error: uploadError };
           }),
+          download: vi.fn(async () => ({ data: null, error: null })),
         }),
       },
     } as unknown as SupabaseClient,
@@ -50,7 +51,8 @@ describe("bootstrapSkills", () => {
 
     await bootstrapSkills(client, "client-1");
 
-    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(20);
+    // 20 bootstrap SKILL.md + 5 migration SKILL.md overwrites = 25
+    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(25);
     expect(uploadedFiles.some((path) => path.includes("call-prep"))).toBe(true);
     expect(uploadedFiles.some((path) => path.includes("daily-briefing"))).toBe(true);
     // Inner skills also seed reference files
@@ -67,7 +69,8 @@ describe("bootstrapSkills", () => {
 
     expect(uploadedFiles.filter((path) => path.includes("call-prep"))).toHaveLength(0);
     expect(uploadedFiles.filter((path) => path.includes("daily-briefing"))).toHaveLength(0);
-    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(18);
+    // 18 bootstrap SKILL.md (20 - 2 existing) + 5 migration overwrites = 23
+    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(23);
   });
 
   it("is idempotent via the process cache", async () => {
@@ -80,6 +83,7 @@ describe("bootstrapSkills", () => {
             return { data: [{ name: "call-prep", id: null }], error: null };
           }),
           upload: vi.fn(async () => ({ error: null })),
+          download: vi.fn(async () => ({ data: null, error: null })),
         }),
       },
     } as unknown as SupabaseClient;
@@ -118,6 +122,7 @@ describe("bootstrapSkills", () => {
           upload: vi.fn(async () => ({
             error: { message: "Storage down" },
           })),
+          download: vi.fn(async () => ({ data: null, error: null })),
         }),
       },
     } as unknown as SupabaseClient;
@@ -149,8 +154,8 @@ describe("bootstrapSkills", () => {
 
     await bootstrapSkills(client, "client-1");
 
-    // SKILL.md should NOT be re-uploaded (slug already exists)
-    expect(uploadedFiles.filter((path) => path.includes("re-analyst/SKILL.md"))).toHaveLength(0);
+    // SKILL.md is NOT re-uploaded by bootstrap (slug exists), but IS force-overwritten by migration
+    expect(uploadedFiles.filter((path) => path.includes("re-analyst/SKILL.md"))).toHaveLength(1);
     // But reference files SHOULD be backfilled (upsert:false means conflicts are tolerated)
     expect(uploadedFiles.some((path) => path.includes("re-analyst/references/sg-property-taxes.md"))).toBe(true);
     expect(uploadedFiles.some((path) => path.includes("re-analyst/references/yield-benchmarks.md"))).toBe(true);
