@@ -3,15 +3,10 @@
  * Converts splits to native JSON with summary metadata.
  * @module lib/docgen/json-generator
  */
+import type { DocGenSplit } from './types';
 
-export interface SplitForJSON {
-  id: string;
-  tag_id: string;
-  document_date: string | null;
-  identifier: string | null;
-  potential_duplicate: string | null;
-  extracted_data: Record<string, unknown> | null;
-}
+/** @deprecated Use `DocGenSplit` from `./types` instead. */
+export type SplitForJSON = DocGenSplit;
 
 interface JSONPayload {
   summary: {

@@ -128,18 +128,14 @@ async function executeClaudeReport(
   const clientSkillId = getDocgenSkillId(clientId);
   if (clientSkillId) {
     skills.push({ type: 'custom', skill_id: clientSkillId, version: 'latest' });
-    console.log('[claude] Using custom skill:', clientSkillId);
   }
 
   // 2. Upload JSON file (Files API beta)
-  console.log('[claude] Uploading JSON file...');
   const jsonFile = await anthropic.beta.files.upload({
     file: await toFile(Buffer.from(json), 'data.json', { type: 'application/json' }),
   });
-  console.log('[claude] File uploaded:', jsonFile.id);
 
   // 3. Initial request with skills (beta endpoint)
-  console.log('[claude] Sending initial request with', skills.length, 'skill(s)...');
   let response = await (anthropic.beta.messages.create as Function)({
     model: 'claude-sonnet-4-5-20250929',
     max_tokens: 16384,
@@ -161,7 +157,6 @@ async function executeClaudeReport(
       ],
     }],
   }) as Anthropic.Message & { container?: { id: string } };
-  console.log('[claude] Response received, stop_reason:', response.stop_reason);
 
   // 4. Handle pause_turn for long operations
   const messages: Anthropic.MessageParam[] = [{
@@ -175,7 +170,6 @@ async function executeClaudeReport(
 
   while (response.stop_reason === 'pause_turn' && continuations < MAX_CONTINUATIONS) {
     continuations++;
-    console.log('[claude] Continuation', continuations, '/', MAX_CONTINUATIONS);
     messages.push({ role: 'assistant', content: response.content });
     messages.push({ role: 'user', content: 'Continue.' });
 
@@ -194,13 +188,9 @@ async function executeClaudeReport(
       },
       messages,
     }) as Anthropic.Message & { container?: { id: string } };
-    console.log('[claude] Continuation response, stop_reason:', response.stop_reason);
   }
 
   // 5. Extract Excel file from response
-  console.log('[claude] Extracting Excel file from response...');
-  console.log('[claude] Response content blocks:', JSON.stringify(response.content.map((b: { type: string }) => b.type)));
-  console.log('[claude] Full response:', JSON.stringify(response.content, null, 2));
   const excelFileId = extractExcelFileId(response);
   if (!excelFileId) {
     throw new Error('Claude did not generate an Excel file');
@@ -208,11 +198,8 @@ async function executeClaudeReport(
 
   // 6. Extract AI summary from text blocks
   const aiSummary = extractTextContent(response);
-  console.log('[claude] AI summary:', aiSummary ? aiSummary.slice(0, 100) + '...' : 'none');
 
   // 7. Download and return (Files API beta)
-  console.log('[claude] Downloading file:', excelFileId);
   const fileResponse = await anthropic.beta.files.download(excelFileId);
-  console.log('[claude] Download complete');
   return { fileBuffer: await fileResponse.arrayBuffer(), aiSummary };
 }

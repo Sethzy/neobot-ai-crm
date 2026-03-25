@@ -62,6 +62,10 @@ export const billingPlanCatalog: Record<BillingPlanName, BillingPlanDefinition> 
 
 export const paidBillingPlanNames: readonly PaidBillingPlanName[] = ["Pro", "Max"];
 
+export function isBillingPlanName(value: string): value is BillingPlanName {
+  return (billingPlanNames as readonly string[]).includes(value);
+}
+
 export function isPaidBillingPlanName(value: string): value is PaidBillingPlanName {
   return paidBillingPlanNames.includes(value as PaidBillingPlanName);
 }
@@ -89,8 +93,8 @@ export function getPaidBillingPlanNameForPriceId(
 export function getBillingPlanMessageLimit(
   planName: string | null | undefined,
 ): number {
-  if (planName && planName in billingPlanCatalog) {
-    return billingPlanCatalog[planName as BillingPlanName].monthlyMessageLimit;
+  if (planName && isBillingPlanName(planName)) {
+    return billingPlanCatalog[planName].monthlyMessageLimit;
   }
 
   return billingPlanCatalog.Free.monthlyMessageLimit;

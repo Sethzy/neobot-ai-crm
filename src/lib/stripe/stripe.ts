@@ -331,9 +331,7 @@ const loadPricingPlans = unstable_cache(
   { revalidate: 3600 },
 );
 
-export async function listPricingPlans(): Promise<PricingPlan[]> {
-  return loadPricingPlans();
-}
+export const listPricingPlans = loadPricingPlans;
 
 export async function loadCurrentBillingState(): Promise<ClientBillingRow> {
   const { client } = await requireCurrentClientContext();
@@ -393,8 +391,10 @@ async function findLiveSubscriptionForCustomer(
 
 export async function createCheckoutSession(priceId: string): Promise<string> {
   const context = await requireCurrentClientContext();
-  const { planName, price } = await getValidatedRecurringPrice(priceId);
-  const stripeCustomerId = await ensureStripeCustomerId(context);
+  const [{ planName, price }, stripeCustomerId] = await Promise.all([
+    getValidatedRecurringPrice(priceId),
+    ensureStripeCustomerId(context),
+  ]);
   const liveSubscription = await findLiveSubscriptionForCustomer(stripeCustomerId);
 
   if (liveSubscription) {

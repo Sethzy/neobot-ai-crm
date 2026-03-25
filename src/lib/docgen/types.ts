@@ -38,3 +38,13 @@ export const ErrorResponseSchema = z.object({
 });
 
 export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;
+
+/** Shared split shape used by all DocGen generators (JSON, Excel, AI report). */
+export interface DocGenSplit {
+  id: string;
+  tag_id: string;
+  document_date: string | null;
+  identifier: string | null;
+  potential_duplicate: string | null;
+  extracted_data: Record<string, unknown> | null;
+}

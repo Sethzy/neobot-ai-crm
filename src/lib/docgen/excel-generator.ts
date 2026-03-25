@@ -5,15 +5,10 @@
  */
 import ExcelJS from 'exceljs';
 import { isCurrencyStructure, getArrayItemType } from '../field-utils';
+import type { DocGenSplit } from './types';
 
-export interface SplitForExcel {
-  id: string;
-  tag_id: string;
-  document_date: string | null;
-  identifier: string | null;
-  potential_duplicate: string | null;
-  extracted_data: Record<string, unknown> | null;
-}
+/** @deprecated Use `DocGenSplit` from `./types` instead. */
+export type SplitForExcel = DocGenSplit;
 
 /**
  * Type guard for signature object from ExtendAI.
