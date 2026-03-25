@@ -6,9 +6,6 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-/** Object-only subset of Json, used for custom_fields and similar JSONB columns. */
-export type JsonObject = { [key: string]: Json | undefined };
-
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -239,6 +236,44 @@ export type Database = {
           },
         ]
       }
+      browser_profiles: {
+        Row: {
+          browser_use_profile_id: string
+          client_id: string
+          created_at: string
+          id: string
+          label: string | null
+          platform: string
+          updated_at: string
+        }
+        Insert: {
+          browser_use_profile_id: string
+          client_id: string
+          created_at?: string
+          id?: string
+          label?: string | null
+          platform: string
+          updated_at?: string
+        }
+        Update: {
+          browser_use_profile_id?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          label?: string | null
+          platform?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "browser_profiles_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
       cases: {
         Row: {
           case_name: string
@@ -448,44 +483,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "connections_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-        ]
-      }
-      browser_profiles: {
-        Row: {
-          browser_use_profile_id: string
-          client_id: string
-          created_at: string
-          id: string
-          label: string | null
-          platform: string
-          updated_at: string
-        }
-        Insert: {
-          browser_use_profile_id: string
-          client_id: string
-          created_at?: string
-          id?: string
-          label?: string | null
-          platform: string
-          updated_at?: string
-        }
-        Update: {
-          browser_use_profile_id?: string
-          client_id?: string
-          created_at?: string
-          id?: string
-          label?: string | null
-          platform?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "browser_profiles_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
@@ -731,86 +728,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["client_id"]
-          },
-        ]
-      }
-      telegram_pairing_tokens: {
-        Row: {
-          client_id: string
-          created_at: string
-          expires_at: string
-          token: string
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          expires_at: string
-          token: string
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          expires_at?: string
-          token?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "telegram_pairing_tokens_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-        ]
-      }
-      telegram_pending_questions: {
-        Row: {
-          answers: Json
-          awaiting_text_reply: boolean
-          chat_id: string
-          client_id: string
-          created_at: string
-          current_index: number
-          questions: Json
-          thread_id: string
-          token: string
-        }
-        Insert: {
-          answers?: Json
-          awaiting_text_reply?: boolean
-          chat_id: string
-          client_id: string
-          created_at?: string
-          current_index?: number
-          questions?: Json
-          thread_id: string
-          token: string
-        }
-        Update: {
-          answers?: Json
-          awaiting_text_reply?: boolean
-          chat_id?: string
-          client_id?: string
-          created_at?: string
-          current_index?: number
-          questions?: Json
-          thread_id?: string
-          token?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "telegram_pending_questions_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "telegram_pending_questions_thread_id_fkey"
-            columns: ["thread_id"]
-            isOneToOne: false
-            referencedRelation: "conversation_threads"
-            referencedColumns: ["thread_id"]
           },
         ]
       }
@@ -1370,57 +1287,6 @@ export type Database = {
           },
         ]
       }
-      sprite_sessions: {
-        Row: {
-          client_id: string
-          created_at: string
-          destroyed_at: string | null
-          id: string
-          last_active_at: string
-          preview_url: string | null
-          sprite_name: string
-          status: string
-          thread_id: string
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          destroyed_at?: string | null
-          id?: string
-          last_active_at?: string
-          preview_url?: string | null
-          sprite_name: string
-          status?: string
-          thread_id: string
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          destroyed_at?: string | null
-          id?: string
-          last_active_at?: string
-          preview_url?: string | null
-          sprite_name?: string
-          status?: string
-          thread_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sprite_sessions_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "sprite_sessions_thread_id_fkey"
-            columns: ["thread_id"]
-            isOneToOne: false
-            referencedRelation: "conversation_threads"
-            referencedColumns: ["thread_id"]
-          },
-        ]
-      }
       splits: {
         Row: {
           created_at: string | null
@@ -1517,6 +1383,185 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "documents_with_status"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      sprite_jobs: {
+        Row: {
+          claimed_at: string | null
+          claimed_by: string | null
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          job_meta: Json
+          job_type: string
+          progress_label: string | null
+          result_meta: Json | null
+          sprite_name: string
+          status: string
+          thread_id: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          job_meta?: Json
+          job_type: string
+          progress_label?: string | null
+          result_meta?: Json | null
+          sprite_name: string
+          status?: string
+          thread_id: string
+        }
+        Update: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          job_meta?: Json
+          job_type?: string
+          progress_label?: string | null
+          result_meta?: Json | null
+          sprite_name?: string
+          status?: string
+          thread_id?: string
+        }
+        Relationships: []
+      }
+      sprite_sessions: {
+        Row: {
+          client_id: string
+          created_at: string
+          destroyed_at: string | null
+          id: string
+          last_active_at: string
+          preview_url: string | null
+          sprite_name: string
+          status: string
+          thread_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          destroyed_at?: string | null
+          id?: string
+          last_active_at?: string
+          preview_url?: string | null
+          sprite_name: string
+          status?: string
+          thread_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          destroyed_at?: string | null
+          id?: string
+          last_active_at?: string
+          preview_url?: string | null
+          sprite_name?: string
+          status?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sprite_sessions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "sprite_sessions_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: true
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
+      telegram_pairing_tokens: {
+        Row: {
+          client_id: string
+          created_at: string
+          expires_at: string
+          token: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          expires_at: string
+          token: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          expires_at?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_pairing_tokens_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
+      telegram_pending_questions: {
+        Row: {
+          answers: Json
+          awaiting_text_reply: boolean
+          chat_id: string
+          client_id: string
+          created_at: string
+          current_index: number
+          questions: Json
+          thread_id: string
+          token: string
+        }
+        Insert: {
+          answers?: Json
+          awaiting_text_reply?: boolean
+          chat_id: string
+          client_id: string
+          created_at?: string
+          current_index?: number
+          questions?: Json
+          thread_id: string
+          token: string
+        }
+        Update: {
+          answers?: Json
+          awaiting_text_reply?: boolean
+          chat_id?: string
+          client_id?: string
+          created_at?: string
+          current_index?: number
+          questions?: Json
+          thread_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_pending_questions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "telegram_pending_questions_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
           },
         ]
       }
@@ -1878,7 +1923,7 @@ export type Database = {
       release_trigger_claim: {
         Args: {
           p_advance_next_fire_at?: boolean
-          p_next_fire_at?: string | null
+          p_next_fire_at?: string
           p_run_id: string
           p_status?: string
           p_trigger_id: string
@@ -2042,3 +2087,5 @@ export const Constants = {
     },
   },
 } as const
+A new version of Supabase CLI is available: v2.78.1 (currently installed v2.75.0)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

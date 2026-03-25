@@ -9,6 +9,7 @@ export interface ArtifactPromptOptions {
   userSkillSlug?: string;
   isFollowUp: boolean;
   shipIt?: boolean;
+  outputDir?: string;
 }
 
 /**
@@ -20,6 +21,7 @@ export function buildArtifactPrompt({
   userSkillSlug,
   isFollowUp,
   shipIt = false,
+  outputDir = "/tmp",
 }: ArtifactPromptOptions): string {
   const lines: string[] = [];
 
@@ -53,7 +55,7 @@ export function buildArtifactPrompt({
   if (shipIt) {
     lines.push("");
     lines.push(
-      "This is a ship-it run. After your edits, execute /workspace/app/build.sh and verify /tmp/output.html exists.",
+      `This is a ship-it run. After your edits, execute OUTPUT_DIR=${outputDir} /workspace/app/build.sh and verify ${outputDir}/output.html exists.`,
     );
     lines.push(
       "The final output will be published as a 30-day signed URL, so finalize the page before you stop.",

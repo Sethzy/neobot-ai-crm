@@ -465,6 +465,30 @@ export async function assembleContext({
     }
   }
 
+  // Active background jobs (for agent awareness)
+  if (clientId) {
+    const { data: activeJobs } = await supabase
+      .from("sprite_jobs")
+      .select("id, thread_id, job_type, progress_label, created_at")
+      .eq("client_id", clientId)
+      .in("status", ["starting", "running"]);
+
+    // Filter to only rows that look like sprite jobs (guards against mock data leakage in tests)
+    const validJobs = (activeJobs ?? []).filter(
+      (j: Record<string, unknown>) => typeof j.job_type === "string",
+    );
+    if (validJobs.length > 0) {
+      let jobsContext = "\n\n## Active Background Jobs\n";
+      for (const job of validJobs) {
+        const elapsed = Math.round((Date.now() - new Date(job.created_at as string).getTime()) / 60000);
+        const progress = job.progress_label ? ` — ${job.progress_label}` : "";
+        jobsContext += `- ${job.job_type} job running for ${elapsed} min${progress}\n`;
+      }
+      jobsContext += "\nDo not start another sandbox job on the same thread while one is active.\n";
+      injectedMessages.push({ role: "user" as const, content: [{ type: "text" as const, text: jobsContext }] });
+    }
+  }
+
   return {
     system: buildSystemPrompt({
       userSkills,

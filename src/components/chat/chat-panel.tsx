@@ -8,9 +8,11 @@ import { DefaultChatTransport, type FileUIPart, type UIMessage } from "ai";
 import { useChat } from "@ai-sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle } from "@/components/icons/lucide-compat";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAutoResume } from "@/hooks/use-auto-resume";
+import { mapDbMessageToUiMessage } from "@/lib/chat/message-normalization";
+import { createClient } from "@/lib/supabase/client";
 import { messageQuotaKeys, useMessageQuota } from "@/hooks/use-message-quota";
 import { threadKeys } from "@/hooks/use-threads";
 import {
@@ -166,6 +168,43 @@ export function ChatPanel({
     resumeStream,
     setMessages,
   });
+
+  // Subscribe to background job message delivery via Supabase Realtime.
+  // When a sandbox job completes, the server inserts a conversation_messages
+  // row. This subscription picks it up and appends it to the local chat state.
+  useEffect(() => {
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel(`bg-jobs-${chatId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "conversation_messages",
+          filter: `thread_id=eq.${chatId}`,
+        },
+        (payload) => {
+          const newRow = payload.new as {
+            message_id: string;
+            role: string;
+            content: string | null;
+            parts: unknown;
+          };
+          const normalized = mapDbMessageToUiMessage(newRow);
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === normalized.id)) return prev;
+            return [...prev, normalized];
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [chatId, setMessages]);
 
   const handleToolApproval = useCallback(
     (approvalId: string, approved: boolean) => {

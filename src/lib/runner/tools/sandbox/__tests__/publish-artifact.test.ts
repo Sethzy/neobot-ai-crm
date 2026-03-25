@@ -1,29 +1,41 @@
 /**
- * Tests for the publish_artifact sandbox tool.
+ * Tests for the publish_artifact sandbox tool (async execution).
  * @module lib/runner/tools/sandbox/__tests__/publish-artifact
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  mockCreateAgentFileClient,
   mockFindActiveSpriteSession,
   mockGetOrCreateSprite,
   mockLoadSkillFilesForSandbox,
-  mockRunArtifactInSprite,
+  mockLaunchArtifactBackgroundJob,
+  mockWritePropertyDataToSprite,
+  mockDownloadPhotosToSprite,
+  mockWriteSkillFilesToSprite,
+  mockEnsureDevServerService,
+  mockBuildArtifactPrompt,
   mockTouchSpriteSession,
   mockUpsertSpriteSession,
+  mockFindRunningJob,
+  mockInsertSpriteJob,
+  mockUpdateJobStatus,
+  mockGetPropertyShowcaseTemplateFiles,
 } = vi.hoisted(() => ({
-  mockCreateAgentFileClient: vi.fn(),
   mockFindActiveSpriteSession: vi.fn(),
   mockGetOrCreateSprite: vi.fn(),
   mockLoadSkillFilesForSandbox: vi.fn(),
-  mockRunArtifactInSprite: vi.fn(),
+  mockLaunchArtifactBackgroundJob: vi.fn(),
+  mockWritePropertyDataToSprite: vi.fn(),
+  mockDownloadPhotosToSprite: vi.fn().mockResolvedValue([]),
+  mockWriteSkillFilesToSprite: vi.fn(),
+  mockEnsureDevServerService: vi.fn(),
+  mockBuildArtifactPrompt: vi.fn().mockReturnValue("test prompt"),
   mockTouchSpriteSession: vi.fn(),
   mockUpsertSpriteSession: vi.fn(),
-}));
-
-vi.mock("@/lib/storage/agent-files", () => ({
-  createAgentFileClient: mockCreateAgentFileClient,
+  mockFindRunningJob: vi.fn(),
+  mockInsertSpriteJob: vi.fn(),
+  mockUpdateJobStatus: vi.fn(),
+  mockGetPropertyShowcaseTemplateFiles: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/sandbox/sprite-session", () => ({
@@ -41,40 +53,74 @@ vi.mock("@/lib/sandbox/skill-loader", () => ({
 }));
 
 vi.mock("@/lib/sandbox/artifact-runner", () => ({
-  runArtifactInSprite: mockRunArtifactInSprite,
+  launchArtifactBackgroundJob: mockLaunchArtifactBackgroundJob,
+  writePropertyDataToSprite: mockWritePropertyDataToSprite,
+  downloadPhotosToSprite: mockDownloadPhotosToSprite,
+  writeSkillFilesToSprite: mockWriteSkillFilesToSprite,
+  ensureDevServerService: mockEnsureDevServerService,
+}));
+
+vi.mock("@/lib/sandbox/artifact-prompt", () => ({
+  buildArtifactPrompt: mockBuildArtifactPrompt,
+}));
+
+vi.mock("@/lib/sandbox/sprite-jobs", () => ({
+  findRunningJob: mockFindRunningJob,
+  insertSpriteJob: mockInsertSpriteJob,
+  updateJobStatus: mockUpdateJobStatus,
+}));
+
+vi.mock("@/lib/sandbox/sandbox-paths", () => ({
+  jobOutputDir: vi.fn((id: string) => `/workspace/jobs/${id}`),
+}));
+
+vi.mock("@/lib/sandbox/templates/property-showcase/template-files", () => ({
+  getPropertyShowcaseTemplateFiles: mockGetPropertyShowcaseTemplateFiles,
 }));
 
 import { createPublishArtifactTool } from "../publish-artifact";
 
+function createMockSprite() {
+  return {
+    name: "thread-thread-a",
+    url: "https://preview.example.test",
+    filesystem: vi.fn(() => ({
+      writeFile: vi.fn().mockResolvedValue(undefined),
+      readFile: vi.fn(),
+    })),
+    execFile: vi.fn().mockResolvedValue({ stdout: "", stderr: "" }),
+    spawn: vi.fn(),
+    listServices: vi.fn().mockResolvedValue([]),
+    createService: vi.fn().mockResolvedValue({ processAll: vi.fn().mockResolvedValue(undefined) }),
+    startService: vi.fn().mockResolvedValue({ processAll: vi.fn().mockResolvedValue(undefined) }),
+    updateURLSettings: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
 describe("createPublishArtifactTool", () => {
   const mockSupabase = {} as never;
-  const mockUploadArtifact = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.SPRITES_TOKEN = "sprites-token";
 
-    mockCreateAgentFileClient.mockReturnValue({
-      uploadArtifact: mockUploadArtifact,
-    });
+    const sprite = createMockSprite();
     mockFindActiveSpriteSession.mockResolvedValue(null);
     mockGetOrCreateSprite.mockResolvedValue({
-      sprite: { name: "thread-thread-a", url: "https://preview.example.test" },
+      sprite,
       spriteName: "thread-thread-a",
       isNew: true,
     });
     mockLoadSkillFilesForSandbox.mockResolvedValue([]);
-    mockRunArtifactInSprite.mockResolvedValue({
-      success: true,
-      summary: "Preview updated.",
-      previewUrl: "https://preview.example.test",
-    });
+    mockFindRunningJob.mockResolvedValue(null);
+    mockInsertSpriteJob.mockResolvedValue(undefined);
+    mockLaunchArtifactBackgroundJob.mockResolvedValue(undefined);
+    mockUpdateJobStatus.mockResolvedValue(undefined);
+    mockWritePropertyDataToSprite.mockResolvedValue(undefined);
+    mockWriteSkillFilesToSprite.mockResolvedValue(undefined);
+    mockEnsureDevServerService.mockResolvedValue(undefined);
     mockUpsertSpriteSession.mockResolvedValue(null);
     mockTouchSpriteSession.mockResolvedValue(undefined);
-    mockUploadArtifact.mockResolvedValue({
-      storagePath: "client-1/artifacts/sandbox/property-showcase.html",
-      downloadUrl: "https://storage.example.test/signed/property-showcase.html",
-    });
   });
 
   it("exposes description, inputSchema, and execute", () => {
@@ -119,7 +165,7 @@ describe("createPublishArtifactTool", () => {
     });
   });
 
-  it("uses the PR52 sprite-session and sprites-client split on the first run", async () => {
+  it("returns immediately with status 'started' and launches background job", async () => {
     const tools = createPublishArtifactTool(mockSupabase, "client-1", "thread-abcdef123456");
 
     const result = await tools.publish_artifact.execute({
@@ -129,52 +175,50 @@ describe("createPublishArtifactTool", () => {
 
     expect(result).toMatchObject({
       success: true,
+      status: "started",
       previewUrl: "https://preview.example.test",
-      published: false,
     });
-    expect(mockFindActiveSpriteSession).toHaveBeenCalledWith(
-      mockSupabase,
-      "thread-abcdef123456",
-    );
-    expect(mockGetOrCreateSprite).toHaveBeenCalledWith({
-      token: "sprites-token",
-      existingSpriteName: undefined,
-      spriteName: "thread-thread-a",
-    });
-    expect(mockLoadSkillFilesForSandbox).toHaveBeenCalledWith(
-      mockSupabase,
-      "client-1",
-      "frontend-design",
-    );
-    expect(mockRunArtifactInSprite).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "thread-thread-a" }),
-      expect.objectContaining({
-        task: "Build a showcase.",
-        propertyData: { address: "42 Noriega Street" },
-        photoUrls: [],
-        userSkillFiles: [],
-        isNew: true,
-      }),
-    );
-    expect(mockUpsertSpriteSession).toHaveBeenCalledWith(
-      mockSupabase,
+    expect(result.message).toContain("started");
+    expect(mockInsertSpriteJob).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({
         client_id: "client-1",
         thread_id: "thread-abcdef123456",
         sprite_name: "thread-thread-a",
-        status: "running",
-        preview_url: "https://preview.example.test",
+        job_type: "artifact",
       }),
     );
+    expect(mockLaunchArtifactBackgroundJob).toHaveBeenCalledTimes(1);
+    expect(mockUpdateJobStatus).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(String),
+      "running",
+    );
+    expect(mockEnsureDevServerService).toHaveBeenCalled();
     expect(mockTouchSpriteSession).toHaveBeenCalledWith(mockSupabase, "thread-thread-a");
+  });
+
+  it("rejects if a job is already running on the same sprite", async () => {
+    mockFindRunningJob.mockResolvedValue({ id: "existing-job" });
+
+    const tools = createPublishArtifactTool(mockSupabase, "client-1", "thread-1");
+    const result = await tools.publish_artifact.execute({
+      task: "Build a showcase.",
+      propertyData: { address: "42 Noriega Street" },
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("already running");
+    expect(mockLaunchArtifactBackgroundJob).not.toHaveBeenCalled();
   });
 
   it("reuses the active sprite on follow-up runs", async () => {
     mockFindActiveSpriteSession.mockResolvedValue({
       sprite_name: "thread-thread-a",
     });
+    const sprite = createMockSprite();
     mockGetOrCreateSprite.mockResolvedValue({
-      sprite: { name: "thread-thread-a", url: "https://preview.example.test" },
+      sprite,
       spriteName: "thread-thread-a",
       isNew: false,
     });
@@ -191,110 +235,29 @@ describe("createPublishArtifactTool", () => {
       existingSpriteName: "thread-thread-a",
       spriteName: "thread-thread-a",
     });
-    expect(mockRunArtifactInSprite).toHaveBeenCalledWith(
-      expect.anything(),
+    expect(mockBuildArtifactPrompt).toHaveBeenCalledWith(
       expect.objectContaining({
-        isNew: false,
-        photoUrls: ["https://example.com/new-hero.jpg"],
+        isFollowUp: true,
       }),
     );
   });
 
-  it("uploads built HTML through createAgentFileClient on ship-it and returns a signed URL", async () => {
-    mockRunArtifactInSprite.mockResolvedValue({
-      success: true,
-      summary: "Final page built.",
-      previewUrl: "https://preview.example.test",
-      outputHtml: "<html>final</html>",
-    });
-
-    const tools = createPublishArtifactTool(mockSupabase, "client-1", "thread-1");
-    const result = await tools.publish_artifact.execute({
-      task: "Ship it.",
-      propertyData: { address: "42 Noriega Street" },
-      shipIt: true,
-    });
-
-    expect(mockUploadArtifact).toHaveBeenCalledWith(
-      expect.objectContaining({
-        path: expect.stringMatching(/^artifacts\/sandbox\/property-showcase-\d+\.html$/),
-        content: "<html>final</html>",
-        contentType: "text/html; charset=utf-8",
-        expiresInSeconds: 60 * 60 * 24 * 30,
-        downloadFilename: "property-showcase.html",
-      }),
-    );
-    expect(result).toMatchObject({
-      success: true,
-      previewUrl: "https://preview.example.test",
-      published: true,
-      publishedUrl: "https://storage.example.test/signed/property-showcase.html",
-    });
-    expect(result.publicationNote).toContain("30 days");
-  });
-
-  it("returns a tool failure when the runner reports a download or build problem", async () => {
-    mockRunArtifactInSprite.mockResolvedValue({
-      success: false,
-      error: "Failed to download photo \"https://example.com/missing.jpg\" (status 404).",
-      summary: "",
-      previewUrl: "https://preview.example.test",
-    });
+  it("marks job as failed when launchArtifactBackgroundJob throws", async () => {
+    mockLaunchArtifactBackgroundJob.mockRejectedValue(new Error("spawn failed"));
 
     const tools = createPublishArtifactTool(mockSupabase, "client-1", "thread-1");
     const result = await tools.publish_artifact.execute({
       task: "Build a showcase.",
       propertyData: { address: "42 Noriega Street" },
-      photoUrls: ["https://example.com/missing.jpg"],
     });
 
-    expect(result).toEqual({
-      success: false,
-      error: 'Failed to download photo "https://example.com/missing.jpg" (status 404).',
-    });
-  });
-
-  it("returns a failure when ship-it mode does not produce an output artifact", async () => {
-    mockRunArtifactInSprite.mockResolvedValue({
-      success: false,
-      error: "Sandbox run completed but /tmp/output.html was not produced.",
-      summary: "",
-      previewUrl: "https://preview.example.test",
-    });
-
-    const tools = createPublishArtifactTool(mockSupabase, "client-1", "thread-1");
-    const result = await tools.publish_artifact.execute({
-      task: "Ship it.",
-      propertyData: { address: "42 Noriega Street" },
-      shipIt: true,
-    });
-
-    expect(result).toEqual({
-      success: false,
-      error: "Sandbox run completed but /tmp/output.html was not produced.",
-    });
-  });
-
-  it("returns a failure when artifact upload fails", async () => {
-    mockRunArtifactInSprite.mockResolvedValue({
-      success: true,
-      summary: "Final page built.",
-      previewUrl: "https://preview.example.test",
-      outputHtml: "<html>final</html>",
-    });
-    mockUploadArtifact.mockRejectedValue(new Error("Storage quota exceeded"));
-
-    const tools = createPublishArtifactTool(mockSupabase, "client-1", "thread-1");
-    const result = await tools.publish_artifact.execute({
-      task: "Ship it.",
-      propertyData: { address: "42 Noriega Street" },
-      shipIt: true,
-    });
-
-    expect(result).toEqual({
-      success: false,
-      error: "Storage quota exceeded",
-    });
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Failed to start");
+    expect(mockUpdateJobStatus).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(String),
+      "failed",
+    );
   });
 
   it("returns a failure when sprite-session persistence fails", async () => {

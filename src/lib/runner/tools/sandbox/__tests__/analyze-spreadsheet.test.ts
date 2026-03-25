@@ -1,5 +1,5 @@
 /**
- * Tests for the sandbox spreadsheet analysis tool.
+ * Tests for the sandbox spreadsheet analysis tool (async execution).
  * @module lib/runner/tools/sandbox/__tests__/analyze-spreadsheet
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,18 +8,24 @@ const {
   mockFindActiveSpriteSession,
   mockGetOrCreateSprite,
   mockLoadSkillFilesForSandbox,
-  mockRunClaudeInSprite,
+  mockLaunchBackgroundJob,
+  mockBuildAnalysisPrompt,
   mockTouchSpriteSession,
   mockUpsertSpriteSession,
-  mockCreateAgentFileClient,
+  mockFindRunningJob,
+  mockInsertSpriteJob,
+  mockUpdateJobStatus,
 } = vi.hoisted(() => ({
   mockFindActiveSpriteSession: vi.fn(),
   mockGetOrCreateSprite: vi.fn(),
   mockLoadSkillFilesForSandbox: vi.fn(),
-  mockRunClaudeInSprite: vi.fn(),
+  mockLaunchBackgroundJob: vi.fn(),
+  mockBuildAnalysisPrompt: vi.fn().mockReturnValue("test prompt"),
   mockTouchSpriteSession: vi.fn(),
   mockUpsertSpriteSession: vi.fn(),
-  mockCreateAgentFileClient: vi.fn(),
+  mockFindRunningJob: vi.fn(),
+  mockInsertSpriteJob: vi.fn(),
+  mockUpdateJobStatus: vi.fn(),
 }));
 
 vi.mock("@/lib/sandbox/sprite-session", () => ({
@@ -37,11 +43,18 @@ vi.mock("@/lib/sandbox/skill-loader", () => ({
 }));
 
 vi.mock("@/lib/sandbox/run-claude-in-sprite", () => ({
-  runClaudeInSprite: mockRunClaudeInSprite,
+  launchBackgroundJob: mockLaunchBackgroundJob,
+  buildAnalysisPrompt: mockBuildAnalysisPrompt,
 }));
 
-vi.mock("@/lib/storage/agent-files", () => ({
-  createAgentFileClient: mockCreateAgentFileClient,
+vi.mock("@/lib/sandbox/sprite-jobs", () => ({
+  findRunningJob: mockFindRunningJob,
+  insertSpriteJob: mockInsertSpriteJob,
+  updateJobStatus: mockUpdateJobStatus,
+}));
+
+vi.mock("@/lib/sandbox/sandbox-paths", () => ({
+  jobOutputDir: vi.fn((id: string) => `/workspace/jobs/${id}`),
 }));
 
 import { createAnalyzeSpreadsheetTool } from "../analyze-spreadsheet";
@@ -62,6 +75,7 @@ function createMockSprite() {
     sprite: {
       name: "thread-12345678",
       execFile: mockExecFile,
+      spawn: vi.fn(),
       filesystem: mockFilesystem,
     },
     mockWriteFile,
@@ -69,6 +83,22 @@ function createMockSprite() {
     mockFilesystem,
     mockExecFile,
   };
+}
+
+function setupDefaultMocks(sprite: ReturnType<typeof createMockSprite>["sprite"]) {
+  mockFindActiveSpriteSession.mockResolvedValue(null);
+  mockGetOrCreateSprite.mockResolvedValue({
+    sprite,
+    spriteName: "thread-12345678",
+    isNew: true,
+  });
+  mockUpsertSpriteSession.mockResolvedValue(null);
+  mockLoadSkillFilesForSandbox.mockResolvedValue([]);
+  mockFindRunningJob.mockResolvedValue(null);
+  mockInsertSpriteJob.mockResolvedValue(undefined);
+  mockLaunchBackgroundJob.mockResolvedValue(undefined);
+  mockUpdateJobStatus.mockResolvedValue(undefined);
+  mockTouchSpriteSession.mockResolvedValue(undefined);
 }
 
 describe("createAnalyzeSpreadsheetTool", () => {
@@ -115,32 +145,13 @@ describe("createAnalyzeSpreadsheetTool", () => {
     expect(result.error).toContain("SPRITES_TOKEN");
   });
 
-  it("downloads runner-side files, writes them into the Sprite, and uploads the output", async () => {
+  it("returns immediately with status 'started' instead of blocking", async () => {
     vi.stubEnv("SPRITES_TOKEN", "sprite-token");
-    const { sprite, mockWriteFile, mockReadFile } = createMockSprite();
-    const uploadArtifact = vi.fn().mockResolvedValue({
-      storagePath: "client-1/artifacts/result.xlsx",
-      downloadUrl: "https://storage.example.com/signed/result.xlsx",
-    });
-
-    mockFindActiveSpriteSession.mockResolvedValue(null);
-    mockGetOrCreateSprite.mockResolvedValue({
-      sprite,
-      spriteName: "thread-12345678",
-      isNew: true,
-    });
-    mockUpsertSpriteSession.mockResolvedValue(null);
-    mockLoadSkillFilesForSandbox.mockResolvedValue([{ path: "re-analyst/SKILL.md", content: "# Preferences" }]);
-    mockRunClaudeInSprite.mockResolvedValue({
-      success: true,
-      summary: "Workbook ready",
-      spriteName: "thread-12345678",
-      outputFiles: [],
-      cliOutput: "done",
-    });
-    mockReadFile.mockResolvedValue(Buffer.from("xlsx"));
-    mockTouchSpriteSession.mockResolvedValue(undefined);
-    mockCreateAgentFileClient.mockReturnValue({ uploadArtifact });
+    const { sprite } = createMockSprite();
+    setupDefaultMocks(sprite);
+    mockLoadSkillFilesForSandbox.mockResolvedValue([
+      { path: "re-analyst/SKILL.md", content: "# Preferences" },
+    ]);
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -155,44 +166,47 @@ describe("createAnalyzeSpreadsheetTool", () => {
       files: [{ url: "https://example.com/a.xlsx", filename: "a.xlsx", mediaType: XLSX_MIME }],
     });
 
-    expect(fetch).toHaveBeenCalledWith("https://example.com/a.xlsx", {
-      redirect: "error",
-    });
-    expect(mockWriteFile).toHaveBeenCalledWith("/workspace/input/a.xlsx", expect.any(Buffer));
-    expect(mockRunClaudeInSprite).toHaveBeenCalledWith(
-      sprite,
+    expect(result.success).toBe(true);
+    expect(result.status).toBe("started");
+    expect(result.message).toContain("started");
+    expect(mockInsertSpriteJob).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({
-        task: "Compare these deals",
-        inputFilenames: ["a.xlsx"],
-        userSkillSlug: "re-analyst",
+        client_id: "client-1",
+        thread_id: "12345678-aaaa-bbbb-cccc",
+        sprite_name: "thread-12345678",
+        job_type: "analyze",
       }),
     );
-    expect(uploadArtifact).toHaveBeenCalledWith(
-      expect.objectContaining({
-        path: expect.stringContaining("artifacts/sandbox/result-"),
-        contentType: XLSX_MIME,
-        expiresInSeconds: 2_592_000,
-        downloadFilename: "result.xlsx",
-      }),
+    expect(mockLaunchBackgroundJob).toHaveBeenCalledTimes(1);
+    expect(mockUpdateJobStatus).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(String),
+      "running",
     );
-    expect(result).toEqual({
-      success: true,
-      summary: "Workbook ready",
-      outputFiles: [
-        {
-          filename: "result.xlsx",
-          storagePath: "client-1/artifacts/result.xlsx",
-          downloadUrl: "https://storage.example.com/signed/result.xlsx",
-          mediaType: XLSX_MIME,
-        },
-      ],
-      spriteName: "thread-12345678",
+  });
+
+  it("rejects if a job is already running on the same sprite", async () => {
+    vi.stubEnv("SPRITES_TOKEN", "sprite-token");
+    const { sprite } = createMockSprite();
+    setupDefaultMocks(sprite);
+    mockFindRunningJob.mockResolvedValue({ id: "existing-job" });
+
+    const tools = createAnalyzeSpreadsheetTool({} as never, "client-1", "12345678-aaaa-bbbb-cccc");
+    const result = await tools.analyze_spreadsheet.execute({
+      task: "Analyze",
+      files: [],
     });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("already running");
+    expect(mockLaunchBackgroundJob).not.toHaveBeenCalled();
   });
 
   it("passes the existing session sprite name so follow-up runs reuse the same Sprite", async () => {
     vi.stubEnv("SPRITES_TOKEN", "sprite-token");
-    const { sprite, mockReadFile } = createMockSprite();
+    const { sprite } = createMockSprite();
+    setupDefaultMocks(sprite);
 
     mockFindActiveSpriteSession.mockResolvedValue({
       sprite_name: "thread-existing",
@@ -201,21 +215,6 @@ describe("createAnalyzeSpreadsheetTool", () => {
       sprite,
       spriteName: "thread-existing",
       isNew: false,
-    });
-    mockLoadSkillFilesForSandbox.mockResolvedValue([]);
-    mockRunClaudeInSprite.mockResolvedValue({
-      success: true,
-      summary: "Workbook ready",
-      spriteName: "thread-existing",
-      outputFiles: [],
-      cliOutput: "done",
-    });
-    mockReadFile.mockResolvedValue(Buffer.from("xlsx"));
-    mockCreateAgentFileClient.mockReturnValue({
-      uploadArtifact: vi.fn().mockResolvedValue({
-        storagePath: "client-1/artifacts/result.xlsx",
-        downloadUrl: "https://storage.example.com/signed/result.xlsx",
-      }),
     });
 
     const tools = createAnalyzeSpreadsheetTool({} as never, "client-1", "12345678-aaaa-bbbb-cccc");
@@ -229,25 +228,12 @@ describe("createAnalyzeSpreadsheetTool", () => {
       existingSpriteName: "thread-existing",
       spriteName: "thread-12345678",
     });
-    expect(mockRunClaudeInSprite).toHaveBeenCalledWith(
-      sprite,
-      expect.objectContaining({
-        userSkillSlug: undefined,
-      }),
-    );
   });
 
   it("returns a download error when a runner-side file fetch fails", async () => {
     vi.stubEnv("SPRITES_TOKEN", "sprite-token");
     const { sprite } = createMockSprite();
-
-    mockFindActiveSpriteSession.mockResolvedValue(null);
-    mockGetOrCreateSprite.mockResolvedValue({
-      sprite,
-      spriteName: "thread-12345678",
-      isNew: true,
-    });
-    mockLoadSkillFilesForSandbox.mockResolvedValue([]);
+    setupDefaultMocks(sprite);
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -269,14 +255,7 @@ describe("createAnalyzeSpreadsheetTool", () => {
   it("blocks private spreadsheet input URLs before fetching them", async () => {
     vi.stubEnv("SPRITES_TOKEN", "sprite-token");
     const { sprite } = createMockSprite();
-
-    mockFindActiveSpriteSession.mockResolvedValue(null);
-    mockGetOrCreateSprite.mockResolvedValue({
-      sprite,
-      spriteName: "thread-12345678",
-      isNew: true,
-    });
-    mockLoadSkillFilesForSandbox.mockResolvedValue([]);
+    setupDefaultMocks(sprite);
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
 
@@ -307,26 +286,11 @@ describe("createAnalyzeSpreadsheetTool", () => {
     });
   });
 
-  it("returns an error when the Sprite did not produce result.xlsx", async () => {
+  it("marks job as failed when launchBackgroundJob throws", async () => {
     vi.stubEnv("SPRITES_TOKEN", "sprite-token");
-    const { sprite, mockReadFile } = createMockSprite();
-
-    mockFindActiveSpriteSession.mockResolvedValue(null);
-    mockGetOrCreateSprite.mockResolvedValue({
-      sprite,
-      spriteName: "thread-12345678",
-      isNew: true,
-    });
-    mockLoadSkillFilesForSandbox.mockResolvedValue([]);
-    mockRunClaudeInSprite.mockResolvedValue({
-      success: true,
-      summary: "Workbook ready",
-      spriteName: "thread-12345678",
-      outputFiles: [],
-      cliOutput: "done",
-    });
-    mockReadFile.mockRejectedValue(new Error("ENOENT"));
-    mockCreateAgentFileClient.mockReturnValue({ uploadArtifact: vi.fn() });
+    const { sprite } = createMockSprite();
+    setupDefaultMocks(sprite);
+    mockLaunchBackgroundJob.mockRejectedValue(new Error("spawn failed"));
 
     const tools = createAnalyzeSpreadsheetTool({} as never, "client-1", "12345678-aaaa-bbbb-cccc");
     const result = await tools.analyze_spreadsheet.execute({
@@ -335,39 +299,11 @@ describe("createAnalyzeSpreadsheetTool", () => {
     });
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("result.xlsx");
-  });
-
-  it("returns an upload error when signing or upload fails", async () => {
-    vi.stubEnv("SPRITES_TOKEN", "sprite-token");
-    const { sprite, mockReadFile } = createMockSprite();
-
-    mockFindActiveSpriteSession.mockResolvedValue(null);
-    mockGetOrCreateSprite.mockResolvedValue({
-      sprite,
-      spriteName: "thread-12345678",
-      isNew: true,
-    });
-    mockLoadSkillFilesForSandbox.mockResolvedValue([]);
-    mockRunClaudeInSprite.mockResolvedValue({
-      success: true,
-      summary: "Workbook ready",
-      spriteName: "thread-12345678",
-      outputFiles: [],
-      cliOutput: "done",
-    });
-    mockReadFile.mockResolvedValue(Buffer.from("xlsx"));
-    mockCreateAgentFileClient.mockReturnValue({
-      uploadArtifact: vi.fn().mockRejectedValue(new Error("upload failed")),
-    });
-
-    const tools = createAnalyzeSpreadsheetTool({} as never, "client-1", "12345678-aaaa-bbbb-cccc");
-    const result = await tools.analyze_spreadsheet.execute({
-      task: "Compare these deals",
-      files: [],
-    });
-
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("upload failed");
+    expect(result.error).toContain("Failed to start");
+    expect(mockUpdateJobStatus).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(String),
+      "failed",
+    );
   });
 });

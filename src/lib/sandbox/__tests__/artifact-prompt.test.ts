@@ -68,6 +68,19 @@ describe("buildArtifactPrompt", () => {
     expect(prompt).toContain("30-day signed URL");
   });
 
+  it("uses custom outputDir in ship-it instructions when provided", () => {
+    const prompt = buildArtifactPrompt({
+      task: "Finalize the showcase.",
+      photoFilenames: [],
+      isFollowUp: true,
+      shipIt: true,
+      outputDir: "/workspace/jobs/abc",
+    });
+
+    expect(prompt).toContain("/workspace/jobs/abc/output.html");
+    expect(prompt).not.toContain("/tmp/output.html");
+  });
+
   it("never tells Claude to start or restart the dev server", () => {
     const prompt = buildArtifactPrompt({
       task: "Build a page.",

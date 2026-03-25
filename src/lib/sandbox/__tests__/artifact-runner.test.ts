@@ -17,6 +17,7 @@ import {
   buildClaudeEnv,
   downloadPhotosToSprite,
   ensureDevServerService,
+  launchArtifactBackgroundJob,
   runArtifactInSprite,
   writePropertyDataToSprite,
   writeSkillFilesToSprite,
@@ -39,6 +40,7 @@ function createMockSprite() {
     processAll: vi.fn().mockResolvedValue(undefined),
   });
   const mockUpdateURLSettings = vi.fn().mockResolvedValue(undefined);
+  const mockSpawn = vi.fn();
 
   return {
     sprite: {
@@ -46,6 +48,7 @@ function createMockSprite() {
       url: "https://preview.example.test",
       filesystem: mockFilesystem,
       execFile: mockExecFile,
+      spawn: mockSpawn,
       listServices: mockListServices,
       createService: mockCreateService,
       startService: mockStartService,
@@ -55,6 +58,7 @@ function createMockSprite() {
     mockReadFile,
     mockFilesystem,
     mockExecFile,
+    mockSpawn,
     mockListServices,
     mockCreateService,
     mockStartService,
@@ -70,7 +74,9 @@ describe("buildClaudeCliArgs", () => {
     });
 
     expect(Array.isArray(args)).toBe(true);
-    expect(args).toContain("--print");
+    expect(args).toContain("--output-format");
+    expect(args).toContain("stream-json");
+    expect(args).not.toContain("--print");
     expect(args).toContain("--dangerously-skip-permissions");
     expect(args).toContain("--allowedTools");
     expect(args[args.indexOf("--max-turns") + 1]).toBe("15");
@@ -356,7 +362,7 @@ describe("runArtifactInSprite", () => {
     );
     expect(mockExecFile).toHaveBeenCalledWith(
       "claude",
-      expect.arrayContaining(["--dangerously-skip-permissions", "--print"]),
+      expect.arrayContaining(["--dangerously-skip-permissions", "--output-format", "stream-json"]),
       expect.objectContaining({
         env: expect.objectContaining({
           ANTHROPIC_API_KEY: "sk-test-key",
@@ -428,5 +434,36 @@ describe("runArtifactInSprite", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Sandbox run completed but /tmp/output.html was not produced.");
+  });
+});
+
+describe("launchArtifactBackgroundJob", () => {
+  beforeEach(() => {
+    vi.stubEnv("SANDBOX_CALLBACK_SECRET", "test-secret");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.example.com");
+    vi.stubEnv("ANTHROPIC_API_KEY", "sk-test");
+    vi.stubEnv("PATH", "/usr/bin");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("calls sprite.spawn with detachable: true", async () => {
+    const mockSpawn = vi.fn();
+    const mockExecFile = vi.fn().mockResolvedValue({ stdout: "", stderr: "" });
+    const sprite = { spawn: mockSpawn, execFile: mockExecFile } as unknown as SpriteHandle;
+
+    await launchArtifactBackgroundJob(sprite, "art-job-1", {
+      prompt: "build a showcase",
+      maxTurns: 15,
+    });
+
+    expect(mockExecFile).toHaveBeenCalledWith("mkdir", ["-p", "/workspace/jobs/art-job-1"]);
+    expect(mockSpawn).toHaveBeenCalledTimes(1);
+    const [cmd, , opts] = mockSpawn.mock.calls[0];
+    expect(cmd).toBe("bash");
+    expect(opts.detachable).toBe(true);
+    expect(opts.env).toHaveProperty("JOB_ID", "art-job-1");
   });
 });

@@ -2,24 +2,39 @@
  * Artifact publishing tool backed by a persistent per-thread Sprite.
  * @module lib/runner/tools/sandbox/publish-artifact
  */
+import crypto from "crypto";
+
 import { tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
+import {
+  launchArtifactBackgroundJob,
+  writePropertyDataToSprite,
+  downloadPhotosToSprite,
+  writeSkillFilesToSprite,
+  ensureDevServerService,
+  type SpriteHandle,
+} from "@/lib/sandbox/artifact-runner";
+import { buildArtifactPrompt } from "@/lib/sandbox/artifact-prompt";
 import { getSpritesToken } from "@/lib/sandbox/env";
-import { runArtifactInSprite, type SpriteHandle } from "@/lib/sandbox/artifact-runner";
+import { jobOutputDir } from "@/lib/sandbox/sandbox-paths";
 import { loadSkillFilesForSandbox } from "@/lib/sandbox/skill-loader";
+import {
+  findRunningJob,
+  insertSpriteJob,
+  updateJobStatus,
+} from "@/lib/sandbox/sprite-jobs";
 import {
   findActiveSpriteSession,
   touchSpriteSession,
   upsertSpriteSession,
 } from "@/lib/sandbox/sprite-session";
 import { getOrCreateSprite } from "@/lib/sandbox/sprites-client";
-import { createAgentFileClient } from "@/lib/storage/agent-files";
+import { getPropertyShowcaseTemplateFiles } from "@/lib/sandbox/templates/property-showcase/template-files";
 import type { Database } from "@/types/database";
 
 const FRONTEND_SKILL_SLUG = "frontend-design";
-const SIGNED_URL_EXPIRY_SECONDS = 60 * 60 * 24 * 30;
 
 const publishArtifactInputSchema = z.object({
   task: z.string().min(1).describe("What page to create or how to change the current page."),
@@ -44,8 +59,6 @@ export function createPublishArtifactTool(
   clientId: string,
   threadId: string,
 ) {
-  const agentFiles = createAgentFileClient(supabase, clientId);
-
   return {
     publish_artifact: tool({
       description:
@@ -81,69 +94,70 @@ export function createPublishArtifactTool(
             preview_url: sprite.url ?? existingSession?.preview_url ?? null,
           });
 
+          const existingJob = await findRunningJob(supabase, spriteName);
+          if (existingJob) {
+            return {
+              success: false as const,
+              error: "A sandbox job is already running. Please wait for it to finish.",
+            };
+          }
+
+          if (isNew) {
+            const templateFiles = await getPropertyShowcaseTemplateFiles();
+            const filesystem = sprite.filesystem("/template");
+            for (const file of templateFiles) {
+              await filesystem.writeFile(file.relativePath, file.content);
+            }
+            await sprite.execFile("bash", ["-lc", "cd /template && npm install"]);
+          }
+
+          await writePropertyDataToSprite(sprite as SpriteHandle, propertyData);
+          const photoFilenames = await downloadPhotosToSprite(sprite as SpriteHandle, photoUrls);
           const userSkillFiles = await loadSkillFilesForSandbox(
             supabase,
             clientId,
             FRONTEND_SKILL_SLUG,
           );
-          const runResult = await runArtifactInSprite(sprite as SpriteHandle, {
-            task,
-            propertyData,
-            photoUrls,
-            userSkillFiles,
-            userSkillSlug: userSkillFiles.length > 0 ? FRONTEND_SKILL_SLUG : undefined,
-            isNew,
-            shipIt,
-          });
+          await writeSkillFilesToSprite(sprite as SpriteHandle, userSkillFiles);
+          const skillSlug = userSkillFiles.length > 0 ? FRONTEND_SKILL_SLUG : undefined;
 
-          if (!runResult.success) {
-            return {
-              success: false as const,
-              error: runResult.error ?? "Artifact publishing failed.",
-            };
-          }
-
-          await upsertSpriteSession(supabase, {
+          const jobId = crypto.randomUUID();
+          await insertSpriteJob(supabase, {
+            id: jobId,
             client_id: clientId,
             thread_id: threadId,
             sprite_name: spriteName,
-            status: "running",
-            preview_url: runResult.previewUrl,
+            job_type: "artifact",
+            job_meta: { skillSlug, shipIt, isNew },
           });
+
+          try {
+            const prompt = buildArtifactPrompt({
+              task,
+              photoFilenames,
+              userSkillSlug: skillSlug,
+              isFollowUp: !isNew,
+              shipIt,
+              outputDir: jobOutputDir(jobId),
+            });
+            await launchArtifactBackgroundJob(sprite as SpriteHandle, jobId, {
+              prompt,
+              maxTurns: 20,
+            });
+            await updateJobStatus(supabase, jobId, "running");
+          } catch {
+            await updateJobStatus(supabase, jobId, "failed");
+            return { success: false as const, error: "Failed to start artifact generation." };
+          }
+
+          await ensureDevServerService(sprite as SpriteHandle, isNew);
           await touchSpriteSession(supabase, spriteName);
-
-          if (!shipIt) {
-            return {
-              success: true as const,
-              summary: runResult.summary,
-              previewUrl: runResult.previewUrl,
-              published: false as const,
-              spriteName,
-            };
-          }
-
-          if (!runResult.outputHtml) {
-            return {
-              success: false as const,
-              error: "Sandbox run completed but /tmp/output.html was not produced.",
-            };
-          }
-
-          const uploadResult = await agentFiles.uploadArtifact({
-            path: `artifacts/sandbox/property-showcase-${Date.now()}.html`,
-            content: runResult.outputHtml,
-            contentType: "text/html; charset=utf-8",
-            expiresInSeconds: SIGNED_URL_EXPIRY_SECONDS,
-            downloadFilename: "property-showcase.html",
-          });
 
           return {
             success: true as const,
-            summary: runResult.summary,
-            previewUrl: runResult.previewUrl,
-            published: true as const,
-            publishedUrl: uploadResult.downloadUrl,
-            publicationNote: "This signed URL expires in 30 days and is not a permanent link.",
+            status: "started" as const,
+            message: "Artifact generation started in the background. I'll share results when it's ready.",
+            previewUrl: sprite.url ?? "",
             spriteName,
           };
         } catch (error) {

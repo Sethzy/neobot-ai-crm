@@ -5,6 +5,8 @@
 import { extname } from "node:path";
 
 import { buildSandboxClaudeEnv } from "./claude-env";
+import { jobOutputDir } from "./sandbox-paths";
+import { deriveJobToken } from "./sprite-jobs";
 import type { SpriteSkillFile } from "./types";
 import { buildArtifactPrompt } from "./artifact-prompt";
 import { fetchSafeExternalResource } from "./external-url";
@@ -42,6 +44,11 @@ export interface SpriteHandle {
     args?: string[],
     options?: { env?: Record<string, string> },
   ) => Promise<{ stdout?: string | Buffer; stderr?: string | Buffer; exitCode?: number }>;
+  spawn: (
+    command: string,
+    args?: string[],
+    options?: { detachable?: boolean; env?: Record<string, string> },
+  ) => void;
   listServices: () => Promise<ServiceWithStateLike[]>;
   createService: (
     serviceName: string,
@@ -82,7 +89,8 @@ export function buildClaudeCliArgs({
   maxTurns?: number;
 }): string[] {
   return [
-    "--print",
+    "--output-format",
+    "stream-json",
     "--dangerously-skip-permissions",
     "--allowedTools",
     ALLOWED_TOOLS.join(","),
@@ -100,6 +108,48 @@ export function buildClaudeEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): Record<string, string> {
   return buildSandboxClaudeEnv(env);
+}
+
+/**
+ * Launch artifact generation in a detachable tmux session.
+ * Returns immediately. Process runs at full speed, survives disconnect.
+ */
+export async function launchArtifactBackgroundJob(
+  sprite: SpriteHandle,
+  jobId: string,
+  options: { prompt: string; maxTurns: number },
+): Promise<void> {
+  const { prompt, maxTurns } = options;
+  const outputDir = jobOutputDir(jobId);
+  const claudeEnv = buildClaudeEnv();
+  const cliArgs = buildClaudeCliArgs({ prompt, maxTurns });
+
+  await sprite.execFile("mkdir", ["-p", outputDir]);
+
+  const shellEscape = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
+  const claudeCmd = ["claude", ...cliArgs].map(shellEscape).join(" ");
+
+  const wrapperScript = [
+    `cd /workspace/app`,
+    `${claudeCmd} > ${outputDir}/stream.jsonl 2>&1`,
+    `EXIT_CODE=$?`,
+    `[ $EXIT_CODE -eq 0 ] && touch ${outputDir}/.done || echo $EXIT_CODE > ${outputDir}/.error`,
+    `curl -s -X POST "$CALLBACK_URL" \\`,
+    `  -H "Authorization: Bearer $CALLBACK_TOKEN" \\`,
+    `  -H "Content-Type: application/json" \\`,
+    `  -d "{\\"jobId\\":\\"$JOB_ID\\",\\"status\\":\\"$([ -f ${outputDir}/.done ] && echo done || echo error)\\"}" \\`,
+    `  --max-time 10 || true`,
+  ].join("\n");
+
+  sprite.spawn("bash", ["-c", wrapperScript], {
+    detachable: true,
+    env: {
+      ...claudeEnv,
+      CALLBACK_URL: `${process.env.NEXT_PUBLIC_APP_URL}/api/sandbox/callback`,
+      CALLBACK_TOKEN: deriveJobToken(jobId),
+      JOB_ID: jobId,
+    },
+  });
 }
 
 /**

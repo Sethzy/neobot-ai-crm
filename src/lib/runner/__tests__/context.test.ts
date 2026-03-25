@@ -1129,4 +1129,67 @@ describe("session reset for stale threads", () => {
       ]),
     );
   });
+
+  describe("active background jobs", () => {
+    it("injects active sprite jobs into context when jobs are running", async () => {
+      const supabase = createMockSupabaseClient({
+        selectResult: { data: [], error: null },
+      });
+
+      // Override from() to return running jobs for sprite_jobs table
+      const originalFrom = supabase.from.bind(supabase);
+      supabase.from = ((table: string) => {
+        if (table === "sprite_jobs") {
+          const chain = originalFrom(table);
+          // Override the thenable resolution
+          chain.then = async (onfulfilled: ((value: unknown) => unknown) | null) => {
+            const result = {
+              data: [{
+                id: "job-1",
+                thread_id: "thread-1",
+                job_type: "analyze",
+                progress_label: "Running: pip3 install pandas",
+                created_at: new Date(Date.now() - 3 * 60000).toISOString(),
+              }],
+              error: null,
+            };
+            return onfulfilled ? onfulfilled(result) : result;
+          };
+          return chain;
+        }
+        return originalFrom(table);
+      }) as typeof supabase.from;
+
+      const result = await assembleContext({
+        supabase: supabase as never,
+        threadId: "thread-1",
+        currentMessage: "Hello",
+        clientId: "client-123",
+      });
+
+      const allContent = result.messages.map((m: { content: unknown }) =>
+        typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+      ).join(" ");
+      expect(allContent).toContain("Active Background Jobs");
+      expect(allContent).toContain("analyze job running for 3 min");
+    });
+
+    it("does not inject background jobs section when no jobs are running", async () => {
+      const supabase = createMockSupabaseClient({
+        selectResult: { data: [], error: null },
+      });
+
+      const result = await assembleContext({
+        supabase: supabase as never,
+        threadId: "thread-1",
+        currentMessage: "Hello",
+        clientId: "client-123",
+      });
+
+      const allContent = result.messages.map((m: { content: unknown }) =>
+        typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+      ).join(" ");
+      expect(allContent).not.toContain("Active Background Jobs");
+    });
+  });
 });

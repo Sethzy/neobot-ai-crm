@@ -2,5 +2,6 @@
 set -euo pipefail
 
 npm run build
-cp dist/index.html /tmp/output.html
-echo "Built single-file HTML at /tmp/output.html"
+OUTPUT_DIR="${OUTPUT_DIR:-/tmp}"
+cp dist/index.html "$OUTPUT_DIR/output.html"
+echo "Built single-file HTML at $OUTPUT_DIR/output.html"

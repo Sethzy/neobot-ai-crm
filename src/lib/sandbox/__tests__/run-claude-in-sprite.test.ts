@@ -8,6 +8,7 @@ import {
   buildAnalysisPrompt,
   buildClaudeCliArgs,
   buildClaudeEnv,
+  launchBackgroundJob,
   runClaudeInSprite,
 } from "../run-claude-in-sprite";
 
@@ -38,7 +39,9 @@ describe("buildClaudeCliArgs", () => {
     const prompt = "analyze this sheet with 'quoted' text";
     const args = buildClaudeCliArgs(prompt, 15);
 
-    expect(args).toContain("--print");
+    expect(args).toContain("--output-format");
+    expect(args).toContain("stream-json");
+    expect(args).not.toContain("--print");
     expect(args).toContain("--dangerously-skip-permissions");
     expect(args).toContain("--max-turns");
     expect(args[args.indexOf("--max-turns") + 1]).toBe("15");
@@ -65,6 +68,18 @@ describe("buildAnalysisPrompt", () => {
 
     expect(prompt).toContain("/skills/xlsx/SKILL.md");
     expect(prompt).not.toContain("/skills/re-analyst/");
+  });
+
+  it("uses custom output dir when provided", () => {
+    const prompt = buildAnalysisPrompt("analyze this", ["data.xlsx"], "re-analyst", "/workspace/jobs/abc");
+    expect(prompt).toContain("/workspace/jobs/abc");
+    expect(prompt).not.toContain("/workspace/output");
+  });
+
+  it("defaults to /workspace/output when outputDir is omitted", () => {
+    const prompt = buildAnalysisPrompt("analyze this", ["data.xlsx"]);
+    expect(prompt).toContain("/workspace/output/result.xlsx");
+    expect(prompt).toContain("/workspace/output/summary.txt");
   });
 });
 
@@ -105,7 +120,7 @@ describe("buildClaudeEnv", () => {
     });
   });
 
-  it("includes ANTHROPIC_DEFAULT_SONNET_MODEL when SANDBOX_MODEL_ID is set", () => {
+  it("sets all model tier vars when SANDBOX_MODEL_ID is set", () => {
     vi.stubEnv("OPENROUTER_API_KEY", "sk-or-test-key");
     vi.stubEnv("SANDBOX_MODEL_ID", "minimax/minimax-m2.7");
     vi.stubEnv("ANTHROPIC_API_KEY", "");
@@ -116,6 +131,9 @@ describe("buildClaudeEnv", () => {
       ANTHROPIC_AUTH_TOKEN: "sk-or-test-key",
       ANTHROPIC_BASE_URL: "https://openrouter.ai/api",
       ANTHROPIC_DEFAULT_SONNET_MODEL: "minimax/minimax-m2.7",
+      ANTHROPIC_DEFAULT_OPUS_MODEL: "minimax/minimax-m2.7",
+      ANTHROPIC_DEFAULT_HAIKU_MODEL: "minimax/minimax-m2.7",
+      CLAUDE_CODE_SUBAGENT_MODEL: "minimax/minimax-m2.7",
       PATH: "/usr/bin",
     });
   });
@@ -205,7 +223,7 @@ describe("runClaudeInSprite", () => {
     );
     expect(mockExecFile).toHaveBeenCalledWith(
       "claude",
-      expect.arrayContaining(["--print", "--dangerously-skip-permissions"]),
+      expect.arrayContaining(["--output-format", "stream-json", "--dangerously-skip-permissions"]),
       expect.objectContaining({
         env: expect.objectContaining({
           ANTHROPIC_API_KEY: "sk-test-key",
@@ -315,5 +333,55 @@ describe("runClaudeInSprite", () => {
 
     expect(result.success).toBe(false);
     expect(result.summary).toBe("No workbook");
+  });
+});
+
+describe("launchBackgroundJob", () => {
+  beforeEach(() => {
+    vi.stubEnv("SANDBOX_CALLBACK_SECRET", "test-secret");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.example.com");
+    vi.stubEnv("ANTHROPIC_API_KEY", "sk-test");
+    vi.stubEnv("PATH", "/usr/bin");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("calls sprite.spawn with detachable: true and env", async () => {
+    const mockSpawn = vi.fn();
+    const mockExecFile = vi.fn().mockResolvedValue({ stdout: "", stderr: "" });
+    const sprite = { spawn: mockSpawn, execFile: mockExecFile } as never;
+    const jobId = "test-job-123";
+
+    await launchBackgroundJob(sprite, jobId, { prompt: "analyze this", maxTurns: 20 });
+
+    // Should create output directory
+    expect(mockExecFile).toHaveBeenCalledWith("mkdir", ["-p", `/workspace/jobs/${jobId}`]);
+
+    // Should call spawn with detachable: true
+    expect(mockSpawn).toHaveBeenCalledTimes(1);
+    const [cmd, , opts] = mockSpawn.mock.calls[0];
+    expect(cmd).toBe("bash");
+    expect(opts.detachable).toBe(true);
+    expect(opts.env).toHaveProperty("ANTHROPIC_API_KEY");
+    expect(opts.env).toHaveProperty("CALLBACK_URL", "https://app.example.com/api/sandbox/callback");
+    expect(opts.env).toHaveProperty("JOB_ID", jobId);
+  });
+
+  it("includes done/error markers and webhook curl in the wrapper script", async () => {
+    const mockSpawn = vi.fn();
+    const sprite = {
+      spawn: mockSpawn,
+      execFile: vi.fn().mockResolvedValue({ stdout: "", stderr: "" }),
+    } as never;
+
+    await launchBackgroundJob(sprite, "job-abc", { prompt: "test", maxTurns: 10 });
+
+    const script = mockSpawn.mock.calls[0][1][1]; // args[1] is the -c script
+    expect(script).toContain(".done");
+    expect(script).toContain(".error");
+    expect(script).toContain("curl");
+    expect(script).toContain("CALLBACK_URL");
   });
 });

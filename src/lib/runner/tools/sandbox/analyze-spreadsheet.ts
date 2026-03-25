@@ -2,26 +2,30 @@
  * Spreadsheet analysis tool backed by a persistent per-thread Sprite.
  * @module lib/runner/tools/sandbox/analyze-spreadsheet
  */
+import crypto from "crypto";
+
 import { tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { fetchSafeExternalResource } from "@/lib/sandbox/external-url";
-import { runClaudeInSprite } from "@/lib/sandbox/run-claude-in-sprite";
+import { buildAnalysisPrompt, launchBackgroundJob } from "@/lib/sandbox/run-claude-in-sprite";
+import { jobOutputDir } from "@/lib/sandbox/sandbox-paths";
 import { loadSkillFilesForSandbox } from "@/lib/sandbox/skill-loader";
+import {
+  findRunningJob,
+  insertSpriteJob,
+  updateJobStatus,
+} from "@/lib/sandbox/sprite-jobs";
 import {
   findActiveSpriteSession,
   touchSpriteSession,
   upsertSpriteSession,
 } from "@/lib/sandbox/sprite-session";
 import { getOrCreateSprite } from "@/lib/sandbox/sprites-client";
-import { createAgentFileClient } from "@/lib/storage/agent-files";
 import type { Database } from "@/types/database";
 
 const ANALYST_SKILL_SLUG = "re-analyst";
-const XLSX_MEDIA_TYPE =
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const SIGNED_URL_EXPIRY_SECONDS = 60 * 60 * 24 * 30;
 
 const analyzeSpreadsheetInputSchema = z.object({
   task: z.string().min(1).describe("What spreadsheet analysis to perform."),
@@ -42,8 +46,6 @@ export function createAnalyzeSpreadsheetTool(
   clientId: string,
   threadId: string,
 ) {
-  const agentFiles = createAgentFileClient(supabase, clientId);
-
   return {
     analyze_spreadsheet: tool({
       description:
@@ -96,63 +98,47 @@ export function createAnalyzeSpreadsheetTool(
             );
           }
 
+          const existingJob = await findRunningJob(supabase, spriteName);
+          if (existingJob) {
+            return {
+              success: false as const,
+              error: "A sandbox job is already running. Please wait for it to finish.",
+            };
+          }
+
+          const inputFilenames = files.map((file) => sanitizeSpriteFilename(file.filename));
           const userSkillFiles = await loadSkillFilesForSandbox(
             supabase,
             clientId,
             ANALYST_SKILL_SLUG,
           );
-          const runResult = await runClaudeInSprite(sprite, {
-            task,
-            inputFilenames: files.map((file) => sanitizeSpriteFilename(file.filename)),
-            userSkillFiles,
-            userSkillSlug: userSkillFiles.length > 0 ? ANALYST_SKILL_SLUG : undefined,
+          const skillSlug = userSkillFiles.length > 0 ? ANALYST_SKILL_SLUG : undefined;
+
+          const jobId = crypto.randomUUID();
+          await insertSpriteJob(supabase, {
+            id: jobId,
+            client_id: clientId,
+            thread_id: threadId,
+            sprite_name: spriteName,
+            job_type: "analyze",
+            job_meta: { skillSlug, inputFilenames },
           });
+
+          try {
+            const prompt = buildAnalysisPrompt(task, inputFilenames, skillSlug, jobOutputDir(jobId));
+            await launchBackgroundJob(sprite, jobId, { prompt, maxTurns: 20 });
+            await updateJobStatus(supabase, jobId, "running");
+          } catch {
+            await updateJobStatus(supabase, jobId, "failed");
+            return { success: false as const, error: "Failed to start analysis." };
+          }
 
           await touchSpriteSession(supabase, spriteName);
 
-          if (!runResult.success) {
-            return {
-              success: false as const,
-              error:
-                runResult.error
-                ?? runResult.summary
-                ?? "Spreadsheet analysis failed.",
-            };
-          }
-
-          let outputBuffer: Buffer;
-
-          try {
-            const outputFile = await spriteFilesystem.readFile("/workspace/output/result.xlsx");
-            outputBuffer = typeof outputFile === "string"
-              ? Buffer.from(outputFile)
-              : outputFile;
-          } catch {
-            return {
-              success: false as const,
-              error: "Sandbox run completed but result.xlsx was not produced.",
-            };
-          }
-
-          const uploadResult = await agentFiles.uploadArtifact({
-            path: `artifacts/sandbox/result-${Date.now()}.xlsx`,
-            content: outputBuffer,
-            contentType: XLSX_MEDIA_TYPE,
-            expiresInSeconds: SIGNED_URL_EXPIRY_SECONDS,
-            downloadFilename: "result.xlsx",
-          });
-
           return {
             success: true as const,
-            summary: runResult.summary,
-            outputFiles: [
-              {
-                filename: "result.xlsx",
-                storagePath: uploadResult.storagePath,
-                downloadUrl: uploadResult.downloadUrl,
-                mediaType: XLSX_MEDIA_TYPE,
-              },
-            ],
+            status: "started" as const,
+            message: "Analysis started in the background. I'll share results when it's ready.",
             spriteName,
           };
         } catch (error) {

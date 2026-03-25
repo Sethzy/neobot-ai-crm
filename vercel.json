@@ -6,6 +6,10 @@
     {
       "path": "/api/cron/scan",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-sprites",
+      "schedule": "0 3 * * *"
     }
   ]
 }

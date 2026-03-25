@@ -107,6 +107,26 @@ vi.mock("./data-stream-provider", () => ({
   }),
 }));
 
+const mockSubscribe = vi.fn().mockReturnValue({ unsubscribe: vi.fn() });
+const mockOn = vi.fn().mockReturnValue({ subscribe: mockSubscribe });
+const mockChannel = vi.fn().mockReturnValue({ on: mockOn });
+const mockRemoveChannel = vi.fn();
+
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({
+    channel: mockChannel,
+    removeChannel: mockRemoveChannel,
+  }),
+}));
+
+vi.mock("@/lib/chat/message-normalization", () => ({
+  mapDbMessageToUiMessage: vi.fn((row: { message_id: string; role: string; parts: unknown }) => ({
+    id: row.message_id,
+    role: row.role,
+    parts: Array.isArray(row.parts) ? row.parts : [],
+  })),
+}));
+
 describe("ChatPanel", () => {
   const mockFetch = vi.fn();
   const sendMessage = vi.fn(async () => {});
@@ -755,6 +775,30 @@ describe("ChatPanel", () => {
 
     await waitFor(() => {
       expect(sendMessage).toHaveBeenCalledWith({ text: "Option A" });
+    });
+  });
+
+  describe("background job delivery via Realtime", () => {
+    it("subscribes to conversation_messages on mount with chatId", () => {
+      render(<ChatPanel chatId="thread-abc" />);
+
+      expect(mockChannel).toHaveBeenCalledWith("bg-jobs-thread-abc");
+      expect(mockOn).toHaveBeenCalledWith(
+        "postgres_changes",
+        expect.objectContaining({
+          event: "INSERT",
+          table: "conversation_messages",
+          filter: "thread_id=eq.thread-abc",
+        }),
+        expect.any(Function),
+      );
+      expect(mockSubscribe).toHaveBeenCalled();
+    });
+
+    it("unsubscribes on unmount", () => {
+      const { unmount } = render(<ChatPanel chatId="thread-abc" />);
+      unmount();
+      expect(mockRemoveChannel).toHaveBeenCalled();
     });
   });
 });

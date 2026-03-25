@@ -7,6 +7,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { buildSandboxClaudeEnv } from "./claude-env";
+import { jobOutputDir } from "./sandbox-paths";
+import { deriveJobToken } from "./sprite-jobs";
 import type { SpriteResult, SpriteSkillFile } from "./types";
 
 const ALLOWED_TOOLS = ["Read", "Write", "Edit", "MultiEdit", "Bash", "Glob", "Grep"];
@@ -19,6 +21,11 @@ type SpriteHandle = {
     args?: string[],
     options?: { env?: Record<string, string> },
   ) => Promise<{ stdout?: string | Buffer; stderr?: string | Buffer; exitCode?: number }>;
+  spawn: (
+    command: string,
+    args?: string[],
+    options?: { detachable?: boolean; env?: Record<string, string> },
+  ) => void;
   filesystem: (basePath?: string) => {
     writeFile: (path: string, content: string | Buffer) => Promise<void>;
     readFile: (path: string) => Promise<string | Buffer>;
@@ -40,7 +47,8 @@ let bundledXlsxSkillFilesPromise: Promise<SpriteSkillFile[]> | null = null;
  */
 export function buildClaudeCliArgs(prompt: string, maxTurns: number): string[] {
   return [
-    "--print",
+    "--output-format",
+    "stream-json",
     "--dangerously-skip-permissions",
     "--allowedTools",
     ALLOWED_TOOLS.join(","),
@@ -58,6 +66,7 @@ export function buildAnalysisPrompt(
   task: string,
   inputFilenames: string[],
   userSkillSlug?: string,
+  outputDir = "/workspace/output",
 ): string {
   const lines = [
     "Read /skills/xlsx/SKILL.md before making spreadsheet changes.",
@@ -75,9 +84,9 @@ export function buildAnalysisPrompt(
     `Task: ${task}`,
     "",
     `Input files are available in /workspace/input/: ${inputFilenames.join(", ") || "(none)"}`,
-    "Write the finished workbook to /workspace/output/result.xlsx.",
-    "Write a concise human-readable summary to /workspace/output/summary.txt.",
-    "Run python3 /skills/xlsx/scripts/recalc.py /workspace/output/result.xlsx before finishing.",
+    `Write the finished workbook to ${outputDir}/result.xlsx.`,
+    `Write a concise human-readable summary to ${outputDir}/summary.txt.`,
+    `Run python3 /skills/xlsx/scripts/recalc.py ${outputDir}/result.xlsx before finishing.`,
     "Fix any spreadsheet errors before you stop.",
   );
 
@@ -91,6 +100,49 @@ export function buildClaudeEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): Record<string, string> {
   return buildSandboxClaudeEnv(env);
+}
+
+/**
+ * Launch Claude Code in a detachable tmux session.
+ * Returns immediately. Process runs at full speed, survives disconnect.
+ * Reuses buildClaudeCliArgs() and buildClaudeEnv() from PR 52/53.
+ */
+export async function launchBackgroundJob(
+  sprite: SpriteHandle,
+  jobId: string,
+  options: { prompt: string; maxTurns: number },
+): Promise<void> {
+  const { prompt, maxTurns } = options;
+  const outputDir = jobOutputDir(jobId);
+  const claudeEnv = buildClaudeEnv();
+  const cliArgs = buildClaudeCliArgs(prompt, maxTurns);
+
+  await sprite.execFile("mkdir", ["-p", outputDir]);
+
+  const shellEscape = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
+  const claudeCmd = ["claude", ...cliArgs].map(shellEscape).join(" ");
+
+  const wrapperScript = [
+    `cd ${outputDir}`,
+    `${claudeCmd} > stream.jsonl 2>&1`,
+    `EXIT_CODE=$?`,
+    `[ $EXIT_CODE -eq 0 ] && touch .done || echo $EXIT_CODE > .error`,
+    `curl -s -X POST "$CALLBACK_URL" \\`,
+    `  -H "Authorization: Bearer $CALLBACK_TOKEN" \\`,
+    `  -H "Content-Type: application/json" \\`,
+    `  -d "{\\"jobId\\":\\"$JOB_ID\\",\\"status\\":\\"$([ -f .done ] && echo done || echo error)\\"}" \\`,
+    `  --max-time 10 || true`,
+  ].join("\n");
+
+  sprite.spawn("bash", ["-c", wrapperScript], {
+    detachable: true,
+    env: {
+      ...claudeEnv,
+      CALLBACK_URL: `${process.env.NEXT_PUBLIC_APP_URL}/api/sandbox/callback`,
+      CALLBACK_TOKEN: deriveJobToken(jobId),
+      JOB_ID: jobId,
+    },
+  });
 }
 
 /**
