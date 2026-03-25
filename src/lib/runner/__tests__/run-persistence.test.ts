@@ -43,10 +43,14 @@ vi.mock("@/lib/channels/deliver", () => ({
 
 const mockBuildAssistantPartsFromSteps = vi.fn();
 const mockGetAssistantTextFromParts = vi.fn();
-vi.mock("@/lib/runner/message-utils", () => ({
-  buildAssistantPartsFromSteps: (...args: unknown[]) => mockBuildAssistantPartsFromSteps(...args),
-  getAssistantTextFromParts: (...args: unknown[]) => mockGetAssistantTextFromParts(...args),
-}));
+vi.mock("@/lib/runner/message-utils", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/runner/message-utils")>();
+  return {
+    ...actual,
+    buildAssistantPartsFromSteps: (...args: unknown[]) => mockBuildAssistantPartsFromSteps(...args),
+    getAssistantTextFromParts: (...args: unknown[]) => mockGetAssistantTextFromParts(...args),
+  };
+});
 
 // Import module under test after all mocks
 const { extractApprovalRequests, finalizeRun } = await import("@/lib/runner/run-persistence");

@@ -14,7 +14,7 @@ CREATE INDEX idx_thread_queue_records_thread_created_at
   ON public.thread_queue_records(thread_id, created_at);
 
 COMMENT ON TABLE public.thread_queue_records IS 'Messages queued while a run is active for a thread.';
-COMMENT ON COLUMN public.thread_queue_records.content IS 'Queued message payload. v1 uses { text: string }.';
+COMMENT ON COLUMN public.thread_queue_records.content IS 'Queued message payload: { text: string, channel?: string, triggerType?: string, fileParts?: array }.';
 
 ALTER TABLE public.thread_queue_records ENABLE ROW LEVEL SECURITY;
 

@@ -17,6 +17,7 @@ import { maybeCompactThread } from "@/lib/runner/compaction";
 import { drainAndContinue } from "@/lib/runner/drain-and-continue";
 import {
   buildAssistantPartsFromSteps,
+  extractApprovalPartsFromPersisted,
   getAssistantTextFromParts,
   type PersistedPart,
   type StepLike,
@@ -25,12 +26,6 @@ import { completeRun } from "@/lib/runner/run-lifecycle";
 import type { Database, Json } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
-
-export interface ApprovalRequest {
-  approvalId: string;
-  toolName: string;
-  toolInput: Record<string, unknown>;
-}
 
 export interface FinalizeRunInput {
   supabase: ChatSupabaseClient;
@@ -47,33 +42,16 @@ export interface FinalizeRunInput {
 
 /**
  * Extracts approval-gated tool requests from normalized assistant parts.
+ * Delegates to the shared extractor and reshapes for persistence consumers.
  */
 export function extractApprovalRequests(
   parts: ReadonlyArray<PersistedPart>,
-): ApprovalRequest[] {
-  return parts.flatMap((part) => {
-    if (part.state !== "approval-requested") {
-      return [];
-    }
-
-    const approval = typeof part.approval === "object" && part.approval !== null
-      ? part.approval as { id?: unknown }
-      : null;
-    const approvalId = typeof approval?.id === "string" ? approval.id : null;
-    const partType = typeof part.type === "string" ? part.type : "";
-
-    if (!approvalId || !partType.startsWith("tool-")) {
-      return [];
-    }
-
-    return [{
-      approvalId,
-      toolName: partType.slice(5),
-      toolInput: typeof part.input === "object" && part.input !== null
-        ? part.input as Record<string, unknown>
-        : {},
-    }];
-  });
+): Array<{ approvalId: string; toolName: string; toolInput: Record<string, unknown> }> {
+  return extractApprovalPartsFromPersisted(parts).map((p) => ({
+    approvalId: p.approvalId,
+    toolName: p.toolName,
+    toolInput: p.input,
+  }));
 }
 
 /**

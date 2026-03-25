@@ -4,12 +4,17 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { type RunnerFilePart, runnerFilePartSchema } from "@/lib/runner/schemas";
+import {
+  type RunnerFilePart,
+  runnerChannelValues,
+  runnerFilePartSchema,
+  triggerTypeValues,
+} from "@/lib/runner/schemas";
 import type { Database, Json } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
-type QueuedTriggerType = "chat" | "cron" | "webhook" | "pulse";
-type QueuedChannel = "web" | "telegram" | "whatsapp";
+type QueuedTriggerType = (typeof triggerTypeValues)[number];
+type QueuedChannel = (typeof runnerChannelValues)[number];
 
 export interface EnqueueMessageInput {
   threadId: string;
@@ -39,7 +44,7 @@ export interface DrainedQueuedMessage {
 }
 
 function isQueuedTriggerType(value: unknown): value is QueuedTriggerType {
-  return value === "chat" || value === "cron" || value === "webhook" || value === "pulse";
+  return triggerTypeValues.includes(value as QueuedTriggerType);
 }
 
 function parseQueuedFileParts(value: unknown): RunnerFilePart[] | undefined {
@@ -52,7 +57,7 @@ function parseQueuedFileParts(value: unknown): RunnerFilePart[] | undefined {
 }
 
 function isQueuedChannel(value: unknown): value is QueuedChannel {
-  return value === "web" || value === "telegram" || value === "whatsapp";
+  return runnerChannelValues.includes(value as QueuedChannel);
 }
 
 function extractQueuedMessage(content: Json): DrainedQueuedMessage {

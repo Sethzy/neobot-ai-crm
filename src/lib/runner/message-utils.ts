@@ -502,6 +502,49 @@ export function getCompactionTextFromParts(parts: Json | null): string {
   return lines.join("\n").trim();
 }
 
+/** Approval-gated tool request extracted from persisted parts. */
+export interface ExtractedApprovalPart {
+  approvalId: string;
+  toolName: string;
+  input: Record<string, unknown>;
+}
+
+/**
+ * Extracts approval-gated tool requests from normalized assistant parts.
+ * Shared by run-persistence (DB events) and channel delivery (Telegram forwarding).
+ */
+export function extractApprovalPartsFromPersisted(
+  parts?: ReadonlyArray<PersistedPart>,
+): ExtractedApprovalPart[] {
+  if (!parts?.length) {
+    return [];
+  }
+
+  return parts.flatMap((part) => {
+    if (part.state !== "approval-requested") {
+      return [];
+    }
+
+    const approval = typeof part.approval === "object" && part.approval !== null
+      ? part.approval as { id?: unknown }
+      : null;
+    const approvalId = typeof approval?.id === "string" ? approval.id : null;
+    const partType = typeof part.type === "string" ? part.type : "";
+
+    if (!approvalId || !partType.startsWith("tool-")) {
+      return [];
+    }
+
+    return [{
+      approvalId,
+      toolName: partType.slice(5),
+      input: typeof part.input === "object" && part.input !== null
+        ? part.input as Record<string, unknown>
+        : {},
+    }];
+  });
+}
+
 /**
  * Returns newline-joined text content from assistant UI message parts.
  */

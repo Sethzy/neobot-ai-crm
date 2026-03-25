@@ -4,7 +4,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { PersistedPart } from "@/lib/runner/message-utils";
+import { extractApprovalPartsFromPersisted, type PersistedPart } from "@/lib/runner/message-utils";
 import type { Database } from "@/types/database";
 
 type AskUserQuestionOutput = {
@@ -41,34 +41,6 @@ export function hasExternalDeliverables(
   );
 }
 
-function extractApprovalParts(parts?: ReadonlyArray<PersistedPart>) {
-  if (!parts?.length) {
-    return [];
-  }
-
-  return parts.flatMap((part) => {
-    if (part.state !== "approval-requested") {
-      return [];
-    }
-
-    const approval = typeof part.approval === "object" && part.approval !== null
-      ? part.approval as { id?: unknown }
-      : null;
-    const approvalId = typeof approval?.id === "string" ? approval.id : null;
-    const toolType = typeof part.type === "string" ? part.type : "";
-    if (!approvalId || !toolType.startsWith("tool-")) {
-      return [];
-    }
-
-    return [{
-      approvalId,
-      toolName: toolType.slice(5),
-      input: typeof part.input === "object" && part.input !== null
-        ? part.input as Record<string, unknown>
-        : {},
-    }];
-  });
-}
 
 function extractQuestionOutputs(parts?: ReadonlyArray<PersistedPart>) {
   if (!parts?.length) {
@@ -180,7 +152,7 @@ async function deliverToTelegram(input: {
     await sendTelegramMessage(bot.api, input.chatId, input.text);
   }
 
-  for (const approvalPart of extractApprovalParts(input.parts)) {
+  for (const approvalPart of extractApprovalPartsFromPersisted(input.parts)) {
     await sendTelegramApprovalRequest(
       bot.api,
       input.chatId,
