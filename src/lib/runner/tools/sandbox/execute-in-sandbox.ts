@@ -81,12 +81,16 @@ export function createExecuteInSandboxTool(
           spriteName: `client-${clientId.slice(0, 8)}-${crypto.randomUUID().slice(0, 8)}`,
         });
 
-        await upsertSpriteSession(supabase, {
-          client_id: clientId,
-          thread_id: threadId,
-          sprite_name: spriteName,
-          status: "running",
-        });
+        if (existingSession) {
+          await touchSpriteSession(supabase, spriteName);
+        } else {
+          await upsertSpriteSession(supabase, {
+            client_id: clientId,
+            thread_id: threadId,
+            sprite_name: spriteName,
+            status: "running",
+          });
+        }
 
         // 2. Check for running job — queue if busy
         const runningJob = await findRunningJob(supabase, spriteName);
@@ -156,7 +160,7 @@ export function createExecuteInSandboxTool(
           }
         }
 
-        // 5. Insert job row and launch
+        // 5. Insert job row and launch (fail the row if launch throws)
         await insertSpriteJob(supabase, {
           id: jobId,
           client_id: clientId,
@@ -167,16 +171,24 @@ export function createExecuteInSandboxTool(
           status: "starting",
         });
 
-        const prompt = buildSandboxPrompt({
-          task,
-          skillSlugs: skills,
-          inputFilenames,
-          outputDir,
-        });
+        try {
+          const prompt = buildSandboxPrompt({
+            task,
+            skillSlugs: skills,
+            inputFilenames,
+            outputDir,
+          });
 
-        await launchBackgroundJob(sprite, jobId, { prompt, maxTurns: 20 });
-        await updateJobStatus(supabase, jobId, "running");
-        await touchSpriteSession(supabase, spriteName);
+          await launchBackgroundJob(sprite, jobId, { prompt, maxTurns: 20 });
+          await updateJobStatus(supabase, jobId, "running");
+          await touchSpriteSession(supabase, spriteName);
+        } catch (launchError) {
+          await updateJobStatus(supabase, jobId, "failed");
+          return {
+            success: false,
+            error: `Failed to launch sandbox job: ${launchError instanceof Error ? launchError.message : "unknown error"}`,
+          };
+        }
 
         return {
           success: true,

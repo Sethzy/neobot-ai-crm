@@ -284,33 +284,45 @@ async function promoteNextQueuedJob(
     inputFilenames.push(filename);
     const inputFs = sprite.filesystem(inputDir);
 
-    if (fileRef.startsWith("https://") || fileRef.startsWith("http://")) {
+    if (fileRef.startsWith("https://")) {
       const response = await fetchSafeExternalResource(fileRef);
-      if (response.ok) {
-        const arrayBuffer = await response.arrayBuffer();
-        await inputFs.writeFile(filename, Buffer.from(arrayBuffer));
+      if (!response.ok) {
+        await failJob(next as SpriteJobRow, `Failed to download input file: HTTP ${response.status} for ${fileRef}`, supabase);
+        return;
       }
+      const arrayBuffer = await response.arrayBuffer();
+      await inputFs.writeFile(filename, Buffer.from(arrayBuffer));
     } else {
       const storagePath = `${next.client_id}/${fileRef}`;
       const bucket = supabase.storage.from(MEMORY_BUCKET_ID);
-      const { data } = await bucket.download(storagePath);
-      if (data) {
-        const buffer = Buffer.from(await data.arrayBuffer());
-        await inputFs.writeFile(filename, buffer);
+      const { data, error } = await bucket.download(storagePath);
+      if (error || !data) {
+        await failJob(next as SpriteJobRow, `Failed to download input file: ${fileRef}`, supabase);
+        return;
       }
+      const buffer = Buffer.from(await data.arrayBuffer());
+      await inputFs.writeFile(filename, buffer);
     }
   }
 
-  // Build prompt and launch
-  const prompt = buildSandboxPrompt({
-    task,
-    skillSlugs: skills,
-    inputFilenames,
-    outputDir: nextOutputDir,
-  });
+  // Build prompt and launch (fail the job if launch throws)
+  try {
+    const prompt = buildSandboxPrompt({
+      task,
+      skillSlugs: skills,
+      inputFilenames,
+      outputDir: nextOutputDir,
+    });
 
-  await launchBackgroundJob(sprite, next.id, { prompt, maxTurns: 20 });
-  await updateJobStatus(supabase, next.id, "running");
+    await launchBackgroundJob(sprite, next.id, { prompt, maxTurns: 20 });
+    await updateJobStatus(supabase, next.id, "running");
+  } catch (launchError) {
+    await failJob(
+      next as SpriteJobRow,
+      `Failed to launch queued job: ${launchError instanceof Error ? launchError.message : "unknown error"}`,
+      supabase,
+    );
+  }
 }
 
 /**
