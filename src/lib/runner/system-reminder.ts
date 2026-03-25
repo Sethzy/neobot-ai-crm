@@ -57,20 +57,7 @@ async function fetchReminderContext(
 
   const parsedResult = systemReminderContextSchema.safeParse(data);
 
-  if (!parsedResult.success) {
-    return FALLBACK_CONTEXT;
-  }
-
-  return {
-    display_name: parsedResult.data.display_name ?? null,
-    user_email: parsedResult.data.user_email ?? null,
-    days_since_signup: parsedResult.data.days_since_signup ?? null,
-    open_todo_count: parsedResult.data.open_todo_count ?? 0,
-    memory_file_count: parsedResult.data.memory_file_count ?? 0,
-    active_trigger_count: parsedResult.data.active_trigger_count ?? 0,
-    pending_approval_count: parsedResult.data.pending_approval_count ?? 0,
-    active_connection_toolkits: parsedResult.data.active_connection_toolkits ?? [],
-  };
+  return parsedResult.success ? parsedResult.data : FALLBACK_CONTEXT;
 }
 
 interface BuildSystemReminderOptions {
@@ -87,7 +74,10 @@ export async function buildSystemReminder(
   threadId: string,
   options?: BuildSystemReminderOptions,
 ): Promise<string> {
-  const context = await fetchReminderContext(supabase, clientId, threadId);
+  const [context, connections] = await Promise.all([
+    fetchReminderContext(supabase, clientId, threadId),
+    getAllConnections(supabase, clientId).catch((): null => null),
+  ]);
 
   const now = new Date();
   const currentTime = `${now.toISOString().slice(0, 19).replace("T", " ")} UTC`;
@@ -112,15 +102,9 @@ export async function buildSystemReminder(
     reminderLines.push(`Pending approvals: ${context.pending_approval_count}`);
   }
 
-  let connections: Awaited<ReturnType<typeof getAllConnections>> | null = null;
-
-  try {
-    connections = await getAllConnections(supabase, clientId);
-  } catch {
+  if (!connections) {
     reminderLines.push("Active connections: none");
-  }
-
-  if (connections) {
+  } else {
     const activeConnections = connections.filter((connection) => connection.status === "active");
 
     if (activeConnections.length > 0) {

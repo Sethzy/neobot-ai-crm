@@ -347,12 +347,13 @@ export async function maybeCompactThread(
   threadId: string,
   triggerSnapshot?: CompactionTriggerSnapshot,
 ): Promise<boolean> {
-  let promptTokens = triggerSnapshot?.promptTokens ?? 0;
-  let runModelId = triggerSnapshot?.modelId ?? "";
+  let promptTokens: number;
+  let runModelId: string;
 
-  if (triggerSnapshot?.promptTokens == null || triggerSnapshot?.modelId == null) {
-    // Query the latest run only when the caller did not provide an explicit snapshot.
-    // Cast needed: prompt_tokens column is added by migration but not yet in generated DB types.
+  if (triggerSnapshot?.promptTokens != null && triggerSnapshot?.modelId != null) {
+    promptTokens = triggerSnapshot.promptTokens;
+    runModelId = triggerSnapshot.modelId;
+  } else {
     const { data: lastRun } = await supabase
       .from("runs")
       .select("prompt_tokens, model")

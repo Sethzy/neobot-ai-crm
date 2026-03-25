@@ -103,7 +103,9 @@ export async function runAgent(
   supabase: ChatSupabaseClient,
 ): Promise<RunAgentResult> {
   const t0 = performance.now();
-  const _t = (label: string) => console.log(`[runner/timing] ${label}: ${(performance.now() - t0).toFixed(0)}ms`);
+  const _t = process.env.NODE_ENV === "development"
+    ? (label: string) => console.log(`[runner/timing] ${label}: ${(performance.now() - t0).toFixed(0)}ms`)
+    : (_label: string) => {};
 
   const { clientId, threadId, input } = payload;
   const modelId = TIER_1_MODEL;
@@ -202,8 +204,6 @@ export async function runAgent(
       ...(input.length > 0 ? [{ type: "text" as const, text: input }] : []),
     ];
 
-    // Phase A: Load CRM config and Composio connections in parallel.
-    // These are independent — neither needs the other's result.
     const composioPromise = getActiveConnections(supabase, clientId)
       .then((connections) => {
         _t("get_connections");
@@ -227,8 +227,6 @@ export async function runAgent(
       composioPromise,
     ]);
 
-    // Phase B: assembleContext needs crmConfig (now available).
-    // Composio tools are also resolved from Phase A.
     const { system, messages } = await assembleContext({
       supabase,
       threadId,
@@ -299,6 +297,10 @@ export async function runAgent(
           tools,
           prepareStep: buildPrepareStep(modelId),
           providerOptions: gatewayProviderOptions,
+          // AI SDK default is 2 retries. We use 6 to match LangChain Deep Agents'
+          // recommendation for production agents — covers transient network errors,
+          // 429 rate limits, and 5xx from the gateway. Uses exponential backoff.
+          maxRetries: 6,
           experimental_telemetry: { isEnabled: true },
           onError: async ({ error }) => {
             console.error(`[runner] streamText onError for thread=${threadId} run=${runId}:`, error);

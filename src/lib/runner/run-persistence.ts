@@ -83,7 +83,6 @@ export async function finalizeRun({
     tokensIn: totalUsage.inputTokens ?? 0,
     tokensOut: totalUsage.outputTokens ?? 0,
     stepCount: steps.length,
-    // Currently mirrors tokensIn. Scaffolding for cache-aware breakdowns (cacheReadTokens, noCacheTokens).
     promptTokens: totalUsage.inputTokens ?? 0,
   };
 

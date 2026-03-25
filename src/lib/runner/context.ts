@@ -18,6 +18,7 @@ import {
   SYSTEM_PROMPT,
 } from "@/lib/ai/system-prompt";
 import type { CrmVocabConfig } from "@/lib/crm/config";
+import { escapeXml } from "@/lib/runner/system-reminder";
 import { bootstrapMemoryFiles } from "@/lib/memory/bootstrap";
 import { loadMemoryContext } from "@/lib/memory/loader";
 import type { MemoryContext } from "@/lib/memory/loader";
@@ -105,12 +106,7 @@ interface BuildSystemPromptOptions {
 }
 
 function sanitizeSkillPromptText(value: string): string {
-  return value
-    .trim()
-    .replace(/\s+/g, " ")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+  return escapeXml(value.trim().replace(/\s+/g, " "));
 }
 
 function formatAvailableSkills(userSkills?: SkillMetadata[]): string | null {
@@ -182,6 +178,23 @@ function buildSystemPrompt({
   }
 
   return sections.join("\n\n");
+}
+
+/** Resolves platform instructions and system prompt based on CRM config/mode overrides. */
+function resolvePromptOverrides(params: {
+  crmConfig?: CrmVocabConfig;
+  crmMode?: "normal" | "setup";
+  platformInstructions?: string;
+  systemPrompt?: string;
+}): Pick<BuildSystemPromptOptions, "platformInstructions" | "systemPrompt"> {
+  return {
+    platformInstructions: params.platformInstructions ?? (params.crmConfig
+      ? buildPlatformInstructions(params.crmConfig)
+      : PLATFORM_INSTRUCTIONS),
+    systemPrompt: params.systemPrompt ?? (params.crmMode === "setup"
+      ? CRM_SETUP_SYSTEM_PROMPT
+      : SYSTEM_PROMPT),
+  };
 }
 
 /** Formats memory context + compaction summary into a single string for message injection. */
@@ -315,16 +328,11 @@ export async function assembleSystemOnly({
 
   const system = buildSystemPrompt({
     userSkills,
-    platformInstructions: platformInstructions ?? (crmConfig
-      ? buildPlatformInstructions(crmConfig)
-      : PLATFORM_INSTRUCTIONS),
+    ...resolvePromptOverrides({ crmConfig, crmMode, platformInstructions, systemPrompt }),
     includeBrowserAutomation,
     includeMarketData,
     includePropertyListings,
     includeSandboxTools,
-    systemPrompt: systemPrompt ?? (crmMode === "setup"
-      ? CRM_SETUP_SYSTEM_PROMPT
-      : SYSTEM_PROMPT),
   });
 
   // For subagent system-only assembly, append memory directly to the system string
@@ -496,16 +504,11 @@ export async function assembleContext({
     system: buildSystemPrompt({
       userSkills,
       instructions,
+      ...resolvePromptOverrides({ crmConfig, crmMode, platformInstructions, systemPrompt }),
       includeBrowserAutomation,
       includeMarketData,
       includePropertyListings,
       includeSandboxTools,
-      platformInstructions: platformInstructions ?? (crmConfig
-        ? buildPlatformInstructions(crmConfig)
-        : PLATFORM_INSTRUCTIONS),
-      systemPrompt: systemPrompt ?? (crmMode === "setup"
-        ? CRM_SETUP_SYSTEM_PROMPT
-        : SYSTEM_PROMPT),
     }),
     messages: [...injectedMessages, ...modelMessages],
   };

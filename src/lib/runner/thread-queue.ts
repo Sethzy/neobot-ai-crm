@@ -94,18 +94,12 @@ export async function enqueueMessage(
     thread_id: threadId,
     client_id: clientId,
     channel,
-    content: triggerType && triggerType !== "chat"
-      ? {
-          text: content,
-          channel,
-          triggerType,
-          ...(fileParts && fileParts.length > 0 ? { fileParts } : {}),
-        }
-      : {
-          text: content,
-          channel,
-          ...(fileParts && fileParts.length > 0 ? { fileParts } : {}),
-        },
+    content: {
+      text: content,
+      channel,
+      ...(triggerType && triggerType !== "chat" ? { triggerType } : {}),
+      ...(fileParts && fileParts.length > 0 ? { fileParts } : {}),
+    },
   });
 
   if (error) {
