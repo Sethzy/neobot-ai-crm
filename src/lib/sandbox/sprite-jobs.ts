@@ -5,8 +5,12 @@ import crypto from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createMessage } from "@/lib/chat/messages";
+import { createAgentFileClient } from "@/lib/storage/agent-files";
 import { jobOutputDir, jobDoneMarker, jobErrorMarker, jobStreamLog } from "./sandbox-paths";
 import type { Database } from "@/types/database";
+
+const XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const SIGNED_URL_EXPIRY_SECONDS = 60 * 60 * 24 * 30;
 
 type SpriteJobInsert = Database["public"]["Tables"]["sprite_jobs"]["Insert"];
 type SpriteJobRow = Database["public"]["Tables"]["sprite_jobs"]["Row"];
@@ -123,8 +127,8 @@ export async function readLatestProgress(
 
 /**
  * Deliver a completed job's result to the chat thread.
- * Reads summary from output dir, inserts a conversation_messages row,
- * then marks the job as completed.
+ * Reads output artifacts from the sprite, uploads them to Supabase Storage,
+ * inserts a conversation_messages row with download links, then marks completed.
  */
 export async function deliverResult(
   job: SpriteJobRow,
@@ -132,21 +136,68 @@ export async function deliverResult(
   supabase: SupabaseClient<Database>,
 ): Promise<void> {
   const outputDir = jobOutputDir(job.id);
-  let summary = "Analysis complete.";
+  const filesystem = sprite.filesystem(outputDir);
+  const meta = (job.job_meta ?? {}) as Record<string, unknown>;
+  const agentFiles = createAgentFileClient(supabase, job.client_id);
+  const resultMeta: Record<string, unknown> = {};
 
+  // Read summary (shared by both job types)
+  let summary = "Analysis complete.";
   try {
-    const filesystem = sprite.filesystem(outputDir);
     const raw = await filesystem.readFile("summary.txt");
     const text = typeof raw === "string" ? raw : raw.toString("utf8");
     if (text.trim()) summary = text.trim();
   } catch {
     // No summary file — use default
   }
+  resultMeta.summary = summary;
 
-  const chatMessage = formatResultForChat(job.job_type, { summary });
+  // Upload artifacts based on job type
+  if (job.job_type === "analyze") {
+    try {
+      const outputFile = await filesystem.readFile("result.xlsx");
+      const outputBuffer = typeof outputFile === "string"
+        ? Buffer.from(outputFile)
+        : outputFile;
+
+      const uploadResult = await agentFiles.uploadArtifact({
+        path: `artifacts/sandbox/result-${Date.now()}.xlsx`,
+        content: outputBuffer,
+        contentType: XLSX_MEDIA_TYPE,
+        expiresInSeconds: SIGNED_URL_EXPIRY_SECONDS,
+        downloadFilename: "result.xlsx",
+      });
+
+      resultMeta.downloadUrl = uploadResult.downloadUrl;
+      resultMeta.storagePath = uploadResult.storagePath;
+    } catch {
+      // No result.xlsx — deliver summary-only
+    }
+  } else if (job.job_type === "artifact" && meta.shipIt) {
+    try {
+      const outputHtml = await filesystem.readFile("output.html");
+      const htmlContent = typeof outputHtml === "string"
+        ? outputHtml
+        : outputHtml.toString("utf8");
+
+      const uploadResult = await agentFiles.uploadArtifact({
+        path: `artifacts/sandbox/property-showcase-${Date.now()}.html`,
+        content: htmlContent,
+        contentType: "text/html; charset=utf-8",
+        expiresInSeconds: SIGNED_URL_EXPIRY_SECONDS,
+        downloadFilename: "property-showcase.html",
+      });
+
+      resultMeta.publishedUrl = uploadResult.downloadUrl;
+    } catch {
+      // No output.html — deliver summary-only
+    }
+  }
+
+  const chatMessage = formatResultForChat(job.job_type, resultMeta);
 
   await supabase.from("sprite_jobs").update({
-    result_meta: { summary },
+    result_meta: resultMeta,
     status: "completed",
     completed_at: new Date().toISOString(),
   }).eq("id", job.id);
@@ -154,7 +205,10 @@ export async function deliverResult(
   await createMessage(supabase, {
     thread_id: job.thread_id,
     role: "assistant",
-    parts: [{ type: "text", text: chatMessage }],
+    parts: [
+      { type: "text", text: chatMessage },
+      { type: "data", data: { source: "background-job", jobId: job.id } },
+    ],
   });
 }
 
@@ -175,7 +229,10 @@ export async function failJob(
   await createMessage(supabase, {
     thread_id: job.thread_id,
     role: "assistant",
-    parts: [{ type: "text", text: errorMessage }],
+    parts: [
+      { type: "text", text: errorMessage },
+      { type: "data", data: { source: "background-job", jobId: job.id } },
+    ],
   });
 }
 

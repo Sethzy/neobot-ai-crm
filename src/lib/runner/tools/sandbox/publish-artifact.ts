@@ -150,7 +150,12 @@ export function createPublishArtifactTool(
             return { success: false as const, error: "Failed to start artifact generation." };
           }
 
-          await ensureDevServerService(sprite as SpriteHandle, isNew);
+          // Only start the dev server on follow-up runs where /workspace/app already exists.
+          // On new sprites, the background Claude run creates /workspace/app first —
+          // the dev server is started at delivery time or on the next follow-up.
+          if (!isNew) {
+            await ensureDevServerService(sprite as SpriteHandle, isNew);
+          }
           await touchSpriteSession(supabase, spriteName);
 
           return {

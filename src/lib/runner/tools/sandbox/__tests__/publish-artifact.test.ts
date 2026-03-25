@@ -194,7 +194,8 @@ describe("createPublishArtifactTool", () => {
       expect.any(String),
       "running",
     );
-    expect(mockEnsureDevServerService).toHaveBeenCalled();
+    // Dev server is NOT started on new sprites — /workspace/app doesn't exist yet
+    expect(mockEnsureDevServerService).not.toHaveBeenCalled();
     expect(mockTouchSpriteSession).toHaveBeenCalledWith(mockSupabase, "thread-thread-a");
   });
 

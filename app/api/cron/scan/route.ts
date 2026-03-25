@@ -2,6 +2,8 @@
  * Vercel cron route that scans and dispatches due triggers.
  * @module app/api/cron/scan/route
  */
+import { checkActiveSpriteJobs } from "@/lib/sandbox/sprite-jobs";
+import { getSpritesClient } from "@/lib/sandbox/sprites-client";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireCronSecret } from "@/lib/triggers/route-auth";
 import { runScan } from "@/lib/triggers/scanner";
@@ -88,12 +90,25 @@ export async function GET(request: Request): Promise<Response> {
       dispatch: (payload) => dispatchTrigger(baseUrl, payload),
     });
 
+    // Check active sandbox jobs (fallback for missed webhook callbacks)
+    let spriteJobs = { checked: 0, delivered: 0, failed: 0 };
+    try {
+      const spritesClient = getSpritesClient();
+      spriteJobs = await checkActiveSpriteJobs(
+        supabase,
+        (spriteName) => spritesClient.sprite(spriteName),
+      );
+    } catch {
+      // Sprites not configured — skip silently
+    }
+
     return Response.json({
       success: true,
       claimed: result.claimed,
       dispatched: result.dispatched,
       staleReleased: result.staleReleased,
       errors: result.errors,
+      spriteJobs,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown scanner error";

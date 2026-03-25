@@ -192,6 +192,17 @@ export function ChatPanel({
             content: string | null;
             parts: unknown;
           };
+
+          // Only append background-job messages — normal chat messages are
+          // handled by useChat and would duplicate if appended here.
+          const parts = Array.isArray(newRow.parts) ? newRow.parts : [];
+          const isBackgroundJob = parts.some(
+            (p: Record<string, unknown>) =>
+              p.type === "data" &&
+              (p.data as Record<string, unknown>)?.source === "background-job",
+          );
+          if (!isBackgroundJob) return;
+
           const normalized = mapDbMessageToUiMessage(newRow);
           setMessages((prev) => {
             if (prev.some((m) => m.id === normalized.id)) return prev;

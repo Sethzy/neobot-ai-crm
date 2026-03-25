@@ -183,7 +183,7 @@ export async function runClaudeInSprite(
   };
 }
 
-async function ensureBundledXlsxSkillFiles(
+export async function ensureBundledXlsxSkillFiles(
   sprite: SpriteHandle,
   filesystem: ReturnType<SpriteHandle["filesystem"]>,
 ): Promise<void> {
@@ -203,7 +203,7 @@ async function ensureBundledXlsxSkillFiles(
   }
 }
 
-async function ensureSpreadsheetDependencies(sprite: SpriteHandle): Promise<void> {
+export async function ensureSpreadsheetDependencies(sprite: SpriteHandle): Promise<void> {
   const pythonDependencyCheck = await sprite.execFile("bash", [
     "-lc",
     "pip3 show pandas >/dev/null 2>&1 && pip3 show openpyxl >/dev/null 2>&1 && pip3 show xlsxwriter >/dev/null 2>&1 && pip3 show matplotlib >/dev/null 2>&1 && echo INSTALLED || echo MISSING",
@@ -233,7 +233,7 @@ async function clearSpreadsheetOutputs(sprite: SpriteHandle): Promise<void> {
   ]);
 }
 
-async function writeSkillFiles(
+export async function writeSkillFiles(
   sprite: SpriteHandle,
   filesystem: ReturnType<SpriteHandle["filesystem"]>,
   skillFiles: SpriteSkillFile[],

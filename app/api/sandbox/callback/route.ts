@@ -24,12 +24,13 @@ export async function POST(request: NextRequest) {
 
   const supabase = await createAdminClient();
 
-  // CAS: acquire ownership
+  // CAS: acquire ownership (claim both "starting" and "running" — fast jobs
+  // may finish before the tool handler flips status to "running")
   const { data: job } = await supabase
     .from("sprite_jobs")
     .update({ status: "delivering", claimed_by: "webhook", claimed_at: new Date().toISOString() })
     .eq("id", jobId)
-    .eq("status", "running")
+    .in("status", ["starting", "running"])
     .select()
     .single();
 

@@ -45,6 +45,9 @@ vi.mock("@/lib/sandbox/skill-loader", () => ({
 vi.mock("@/lib/sandbox/run-claude-in-sprite", () => ({
   launchBackgroundJob: mockLaunchBackgroundJob,
   buildAnalysisPrompt: mockBuildAnalysisPrompt,
+  ensureSpreadsheetDependencies: vi.fn().mockResolvedValue(undefined),
+  ensureBundledXlsxSkillFiles: vi.fn().mockResolvedValue(undefined),
+  writeSkillFiles: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/sandbox/sprite-jobs", () => ({

@@ -9,7 +9,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { fetchSafeExternalResource } from "@/lib/sandbox/external-url";
-import { buildAnalysisPrompt, launchBackgroundJob } from "@/lib/sandbox/run-claude-in-sprite";
+import {
+  buildAnalysisPrompt,
+  ensureBundledXlsxSkillFiles,
+  ensureSpreadsheetDependencies,
+  launchBackgroundJob,
+  writeSkillFiles,
+} from "@/lib/sandbox/run-claude-in-sprite";
 import { jobOutputDir } from "@/lib/sandbox/sandbox-paths";
 import { loadSkillFilesForSandbox } from "@/lib/sandbox/skill-loader";
 import {
@@ -113,6 +119,11 @@ export function createAnalyzeSpreadsheetTool(
             ANALYST_SKILL_SLUG,
           );
           const skillSlug = userSkillFiles.length > 0 ? ANALYST_SKILL_SLUG : undefined;
+
+          // Ensure dependencies and skill files are present before launching
+          await ensureSpreadsheetDependencies(sprite);
+          await ensureBundledXlsxSkillFiles(sprite, spriteFilesystem);
+          await writeSkillFiles(sprite, spriteFilesystem, userSkillFiles);
 
           const jobId = crypto.randomUUID();
           await insertSpriteJob(supabase, {
