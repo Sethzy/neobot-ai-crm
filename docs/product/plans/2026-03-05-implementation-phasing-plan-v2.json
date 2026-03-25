@@ -3299,7 +3299,7 @@
           "pr": 56,
           "title": "Context pipeline redesign \u2014 cache stability + latency + fraction compaction",
           "status": "done",
-          "simplified": false,
+          "simplified": true,
           "decisions": [
             "DATA-10",
             "SESSION-07"
