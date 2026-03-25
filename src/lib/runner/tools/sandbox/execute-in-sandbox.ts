@@ -8,6 +8,7 @@ import { tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
+import { MEMORY_BUCKET_ID } from "@/lib/memory/constants";
 import { fetchSafeExternalResource } from "@/lib/sandbox/external-url";
 import {
   buildSandboxPrompt,
@@ -41,7 +42,7 @@ const executeInSandboxSchema = z.object({
 });
 
 function isUrl(value: string): boolean {
-  return value.startsWith("https://") || value.startsWith("http://");
+  return value.startsWith("https://");
 }
 
 function extractFilename(value: string): string {
@@ -137,12 +138,15 @@ export function createExecuteInSandboxTool(
 
           if (isUrl(fileRef)) {
             const response = await fetchSafeExternalResource(fileRef);
+            if (!response.ok) {
+              return { success: false, error: `Failed to download ${fileRef}: HTTP ${response.status}` };
+            }
             const arrayBuffer = await response.arrayBuffer();
             await inputFs.writeFile(filename, Buffer.from(arrayBuffer));
           } else {
-            // Storage-relative path — download via Supabase Storage
+            // Storage-relative path — download via agent-files bucket
             const storagePath = `${clientId}/${fileRef}`;
-            const bucket = supabase.storage.from("memory");
+            const bucket = supabase.storage.from(MEMORY_BUCKET_ID);
             const { data, error } = await bucket.download(storagePath);
             if (error || !data) {
               return { success: false, error: `Failed to download ${fileRef}: ${error?.message}` };

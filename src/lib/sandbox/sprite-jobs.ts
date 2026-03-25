@@ -5,7 +5,9 @@ import crypto from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createMessage } from "@/lib/chat/messages";
+import { MEMORY_BUCKET_ID } from "@/lib/memory/constants";
 import { createAgentFileClient } from "@/lib/storage/agent-files";
+import { fetchSafeExternalResource } from "./external-url";
 import { inferContentType, filterOutputFiles } from "./sandbox-delivery";
 import { jobOutputDir, jobDoneMarker, jobErrorMarker, jobStreamLog } from "./sandbox-paths";
 import { buildSandboxPrompt, launchBackgroundJob, writeSkillFiles } from "./run-claude-in-sprite";
@@ -235,19 +237,21 @@ async function promoteNextQueuedJob(
 
   if (!next) return;
 
-  // CAS claim: queued → starting
-  const { count } = await supabase
+  // CAS claim: queued → starting (select() to verify the update landed)
+  const { data: claimed } = await supabase
     .from("sprite_jobs")
     .update({ status: "starting" } as Record<string, unknown>)
     .eq("id", next.id)
-    .eq("status", "queued");
+    .eq("status", "queued")
+    .select()
+    .maybeSingle();
 
-  if (count !== 1) return;
+  if (!claimed) return;
 
   const meta = (next.job_meta ?? {}) as Record<string, unknown>;
   const skills = (meta.skills as string[]) ?? [];
   const task = (meta.task as string) ?? "";
-  const inputFilenames = (meta.inputFiles as string[]) ?? [];
+  const inputFileRefs = (meta.inputFiles as string[]) ?? [];
   const nextOutputDir = (meta.outputDir as string) ?? jobOutputDir(next.id);
 
   // Notify user their queued job is starting
@@ -268,6 +272,34 @@ async function promoteNextQueuedJob(
   }
   const filesystem = sprite.filesystem();
   await writeSkillFiles(sprite, filesystem, allSkillFiles);
+
+  // Re-download input files into job-scoped input dir
+  const inputDir = `${nextOutputDir}/input`;
+  await sprite.execFile("mkdir", ["-p", inputDir]);
+  const inputFilenames: string[] = [];
+
+  for (const fileRef of inputFileRefs) {
+    const parts = fileRef.split("/").filter(Boolean);
+    const filename = (parts[parts.length - 1] ?? `file-${Date.now()}`).split("?")[0] || "file";
+    inputFilenames.push(filename);
+    const inputFs = sprite.filesystem(inputDir);
+
+    if (fileRef.startsWith("https://") || fileRef.startsWith("http://")) {
+      const response = await fetchSafeExternalResource(fileRef);
+      if (response.ok) {
+        const arrayBuffer = await response.arrayBuffer();
+        await inputFs.writeFile(filename, Buffer.from(arrayBuffer));
+      }
+    } else {
+      const storagePath = `${next.client_id}/${fileRef}`;
+      const bucket = supabase.storage.from(MEMORY_BUCKET_ID);
+      const { data } = await bucket.download(storagePath);
+      if (data) {
+        const buffer = Buffer.from(await data.arrayBuffer());
+        await inputFs.writeFile(filename, buffer);
+      }
+    }
+  }
 
   // Build prompt and launch
   const prompt = buildSandboxPrompt({
@@ -393,7 +425,7 @@ interface DestroyableSpriteHandle {
 }
 
 /**
- * Destroy sprites that have been inactive for more than 7 days.
+ * Destroy sprites that have been inactive for more than 30 days.
  * Skips sprites with running jobs.
  */
 export async function cleanupStaleSprites(

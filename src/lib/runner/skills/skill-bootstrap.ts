@@ -152,18 +152,23 @@ export async function migrateSkillBodies(
     return;
   }
 
+  let allSucceeded = true;
   for (const slug of MIGRATED_SKILL_SLUGS) {
     const content = DEFAULT_SKILL_CONTENT[slug];
     const storagePath = `${clientId}/${SKILLS_DIRECTORY}/${slug}/SKILL.md`;
-    await supabase.storage
+    const { error } = await supabase.storage
       .from(MEMORY_BUCKET_ID)
       .upload(storagePath, content, {
         upsert: true,
         contentType: MEMORY_TEXT_CONTENT_TYPE,
       });
+    if (error) {
+      allSucceeded = false;
+    }
   }
 
-  // Write version marker
+  // Only write version marker if all skills migrated successfully
+  if (!allSucceeded) return;
   await supabase.storage
     .from(MEMORY_BUCKET_ID)
     .upload(markerPath, SKILL_MIGRATION_VERSION, {
