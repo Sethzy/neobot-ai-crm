@@ -50,7 +50,7 @@ describe("bootstrapSkills", () => {
 
     await bootstrapSkills(client, "client-1");
 
-    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(13);
+    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(20);
     expect(uploadedFiles.some((path) => path.includes("call-prep"))).toBe(true);
     expect(uploadedFiles.some((path) => path.includes("daily-briefing"))).toBe(true);
     // Inner skills also seed reference files
@@ -67,7 +67,7 @@ describe("bootstrapSkills", () => {
 
     expect(uploadedFiles.filter((path) => path.includes("call-prep"))).toHaveLength(0);
     expect(uploadedFiles.filter((path) => path.includes("daily-briefing"))).toHaveLength(0);
-    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(11);
+    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(18);
   });
 
   it("is idempotent via the process cache", async () => {
@@ -140,5 +140,19 @@ describe("bootstrapSkills", () => {
 
     expect(uploadedFiles.filter((path) => path.includes("call-prep"))).toHaveLength(1);
     expect(uploadedFiles.filter((path) => path.includes("daily-briefing"))).toHaveLength(0);
+  });
+
+  it("backfills reference files even when the inner skill directory already exists", async () => {
+    const { client, uploadedFiles } = createMockSupabase({
+      listData: [{ name: "re-analyst" }],
+    });
+
+    await bootstrapSkills(client, "client-1");
+
+    // SKILL.md should NOT be re-uploaded (slug already exists)
+    expect(uploadedFiles.filter((path) => path.includes("re-analyst/SKILL.md"))).toHaveLength(0);
+    // But reference files SHOULD be backfilled (upsert:false means conflicts are tolerated)
+    expect(uploadedFiles.some((path) => path.includes("re-analyst/references/sg-property-taxes.md"))).toBe(true);
+    expect(uploadedFiles.some((path) => path.includes("re-analyst/references/yield-benchmarks.md"))).toBe(true);
   });
 });

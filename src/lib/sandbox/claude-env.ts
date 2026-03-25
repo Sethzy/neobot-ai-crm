@@ -17,7 +17,7 @@ const OPENROUTER_BASE_URL = "https://openrouter.ai/api";
  * - `ANTHROPIC_BASE_URL` → `https://openrouter.ai/api`
  * - `ANTHROPIC_AUTH_TOKEN` → the OpenRouter key
  * - `ANTHROPIC_API_KEY` → `""` (must be explicitly empty per OpenRouter docs)
- * - `ANTHROPIC_DEFAULT_SONNET_MODEL` → optional model override via `SANDBOX_MODEL_ID`
+ * - All model tier vars → optional override via `SANDBOX_MODEL_ID` (covers sonnet, opus, haiku, subagent)
  */
 export function buildSandboxClaudeEnv(
   env: NodeJS.ProcessEnv = process.env,
@@ -36,8 +36,12 @@ export function buildSandboxClaudeEnv(
     const modelId = env.SANDBOX_MODEL_ID?.trim();
     if (modelId) {
       result.ANTHROPIC_DEFAULT_SONNET_MODEL = modelId;
+      result.ANTHROPIC_DEFAULT_OPUS_MODEL = modelId;
+      result.ANTHROPIC_DEFAULT_HAIKU_MODEL = modelId;
+      result.CLAUDE_CODE_SUBAGENT_MODEL = modelId;
     }
 
+    appendOptionalKeys(result, env);
     return result;
   }
 
@@ -47,9 +51,23 @@ export function buildSandboxClaudeEnv(
     );
   }
 
-  return {
+  const result: Record<string, string> = {
     ANTHROPIC_API_KEY: anthropicApiKey,
     PATH: env.PATH?.trim() ?? "",
     ANTHROPIC_BASE_URL: env.ANTHROPIC_BASE_URL?.trim() ?? "",
   };
+
+  appendOptionalKeys(result, env);
+  return result;
+}
+
+/** Appends optional API keys used by sandbox skills (e.g. here.now publishing). */
+function appendOptionalKeys(
+  result: Record<string, string>,
+  env: NodeJS.ProcessEnv,
+): void {
+  const herenowApiKey = env.HERENOW_API_KEY?.trim();
+  if (herenowApiKey) {
+    result.HERENOW_API_KEY = herenowApiKey;
+  }
 }

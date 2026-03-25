@@ -14,8 +14,8 @@ import {
 } from "../skill-templates";
 
 describe("DEFAULT_SKILL_CONTENT", () => {
-  it("contains all 13 default skill slugs", () => {
-    expect(DEFAULT_SKILL_SLUGS).toHaveLength(13);
+  it("contains all 20 default skill slugs", () => {
+    expect(DEFAULT_SKILL_SLUGS).toHaveLength(20);
     for (const slug of DEFAULT_SKILL_SLUGS) {
       expect(DEFAULT_SKILL_CONTENT[slug], `missing content for ${slug}`).toBeDefined();
       expect(DEFAULT_SKILL_CONTENT[slug].length).toBeGreaterThan(50);

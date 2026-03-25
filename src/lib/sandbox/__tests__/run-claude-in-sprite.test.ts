@@ -5,11 +5,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  buildAnalysisPrompt,
   buildClaudeCliArgs,
   buildClaudeEnv,
+  buildSandboxPrompt,
   launchBackgroundJob,
-  runClaudeInSprite,
 } from "../run-claude-in-sprite";
 
 function createMockSprite() {
@@ -50,36 +49,50 @@ describe("buildClaudeCliArgs", () => {
   });
 });
 
-describe("buildAnalysisPrompt", () => {
-  it("includes the built-in xlsx skill, user skill, input files, output files, and recalc step", () => {
-    const prompt = buildAnalysisPrompt("compare two deals", ["a.xlsx", "b.csv"], "re-analyst");
-
-    expect(prompt).toContain("/skills/xlsx/SKILL.md");
-    expect(prompt).toContain("/skills/re-analyst/SKILL.md");
+describe("buildSandboxPrompt", () => {
+  it("includes primary skill, task, input files, and summary instruction", () => {
+    const prompt = buildSandboxPrompt({
+      task: "compare two deals",
+      skillSlugs: ["excel_editing"],
+      inputFilenames: ["a.xlsx", "b.csv"],
+      outputDir: "/workspace/jobs/j1",
+    });
+    expect(prompt).toContain("/skills/excel_editing/SKILL.md");
     expect(prompt).toContain("a.xlsx");
     expect(prompt).toContain("b.csv");
-    expect(prompt).toContain("/workspace/output/result.xlsx");
-    expect(prompt).toContain("/workspace/output/summary.txt");
-    expect(prompt).toContain("recalc.py");
+    expect(prompt).toContain("summary.txt");
+    expect(prompt).toContain("compare two deals");
   });
 
-  it("omits the user skill block when no user skill slug is provided", () => {
-    const prompt = buildAnalysisPrompt("compare two deals", ["a.xlsx"]);
-
-    expect(prompt).toContain("/skills/xlsx/SKILL.md");
-    expect(prompt).not.toContain("/skills/re-analyst/");
+  it("includes companion skill references", () => {
+    const prompt = buildSandboxPrompt({
+      task: "compare",
+      skillSlugs: ["excel_editing", "re-analyst"],
+      inputFilenames: [],
+      outputDir: "/workspace/jobs/j2",
+    });
+    expect(prompt).toContain("/skills/excel_editing/SKILL.md");
+    expect(prompt).toContain("Also read /skills/re-analyst/SKILL.md");
   });
 
-  it("uses custom output dir when provided", () => {
-    const prompt = buildAnalysisPrompt("analyze this", ["data.xlsx"], "re-analyst", "/workspace/jobs/abc");
-    expect(prompt).toContain("/workspace/jobs/abc");
-    expect(prompt).not.toContain("/workspace/output");
+  it("uses provided output dir", () => {
+    const prompt = buildSandboxPrompt({
+      task: "analyze",
+      skillSlugs: ["pdf_creation"],
+      inputFilenames: [],
+      outputDir: "/workspace/jobs/abc",
+    });
+    expect(prompt).toContain("/workspace/jobs/abc/");
   });
 
-  it("defaults to /workspace/output when outputDir is omitted", () => {
-    const prompt = buildAnalysisPrompt("analyze this", ["data.xlsx"]);
-    expect(prompt).toContain("/workspace/output/result.xlsx");
-    expect(prompt).toContain("/workspace/output/summary.txt");
+  it("handles no input files", () => {
+    const prompt = buildSandboxPrompt({
+      task: "write letter",
+      skillSlugs: ["docx_editing"],
+      inputFilenames: [],
+      outputDir: "/workspace/jobs/j3",
+    });
+    expect(prompt).toContain("No input files.");
   });
 });
 
@@ -149,7 +162,9 @@ describe("buildClaudeEnv", () => {
   });
 });
 
-describe("runClaudeInSprite", () => {
+// runClaudeInSprite tests removed (function deleted in PR 55)
+// The sync execution path is no longer used.
+describe.skip("runClaudeInSprite (deleted)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv("ANTHROPIC_API_KEY", "sk-test-key");

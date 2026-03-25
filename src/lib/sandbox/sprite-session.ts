@@ -53,6 +53,30 @@ export async function findActiveSpriteSession(
 }
 
 /**
+ * Returns the most recently active non-destroyed Sprite session for a client.
+ * Phase A lookup: ORDER BY last_active_at DESC LIMIT 1 (no unique index required).
+ */
+export async function findActiveSpriteSessionByClient(
+  supabase: SandboxSupabaseClient,
+  clientId: string,
+): Promise<SpriteSessionRow | null> {
+  const { data, error } = await supabase
+    .from("sprite_sessions")
+    .select("*")
+    .eq("client_id", clientId)
+    .neq("status", "destroyed")
+    .order("last_active_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to read sprite session for client "${clientId}": ${error.message}`);
+  }
+
+  return data ? toSpriteSessionRow(data) : null;
+}
+
+/**
  * Upserts the per-thread Sprite session row and refreshes its activity timestamp.
  */
 export async function upsertSpriteSession(

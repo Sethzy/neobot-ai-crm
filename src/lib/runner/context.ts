@@ -122,9 +122,12 @@ function formatAvailableSkills(userSkills?: SkillMetadata[]): string | null {
     .map((skill) => {
       const safeName = sanitizeSkillPromptText(skill.name);
       const safeDescription = sanitizeSkillPromptText(skill.description);
-      const readFileCall = `read_file(${JSON.stringify(skill.path)})`;
+      const isSandboxSkill = skill.description?.includes("execute_in_sandbox");
+      const hint = isSandboxSkill
+        ? `execute_in_sandbox({ skills: [${JSON.stringify(skill.slug ?? skill.name)}], task: "..." })`
+        : `read_file(${JSON.stringify(skill.path)})`;
 
-      return `- **${safeName}**: ${safeDescription}\n  -> \`${readFileCall}\``;
+      return `- **${safeName}** (slug: ${skill.slug ?? skill.name}): ${safeDescription}\n  -> \`${hint}\``;
     })
     .join("\n");
 
@@ -482,9 +485,9 @@ export async function assembleContext({
       for (const job of validJobs) {
         const elapsed = Math.round((Date.now() - new Date(job.created_at as string).getTime()) / 60000);
         const progress = job.progress_label ? ` — ${job.progress_label}` : "";
-        jobsContext += `- ${job.job_type} job running for ${elapsed} min${progress}\n`;
+        jobsContext += `- sandbox job running for ${elapsed} min${progress}\n`;
       }
-      jobsContext += "\nDo not start another sandbox job on the same thread while one is active.\n";
+      jobsContext += "\nYou can queue another sandbox job — it will start when the current one finishes.\n";
       injectedMessages.push({ role: "user" as const, content: [{ type: "text" as const, text: jobsContext }] });
     }
   }

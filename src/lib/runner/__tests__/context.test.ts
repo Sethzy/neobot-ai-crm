@@ -1171,7 +1171,7 @@ describe("session reset for stale threads", () => {
         typeof m.content === "string" ? m.content : JSON.stringify(m.content),
       ).join(" ");
       expect(allContent).toContain("Active Background Jobs");
-      expect(allContent).toContain("analyze job running for 3 min");
+      expect(allContent).toContain("sandbox job running for 3 min");
     });
 
     it("does not inject background jobs section when no jobs are running", async () => {

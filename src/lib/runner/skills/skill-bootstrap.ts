@@ -42,28 +42,38 @@ async function uploadDefaultSkill(
   if (error && !isStorageConflictError(error)) {
     throw new Error(`Failed to bootstrap skill ${slug}: ${getStorageErrorMessage(error)}`);
   }
+}
 
-  // Seed reference files for inner skills (don't overwrite user edits)
+/**
+ * Seeds reference files for an inner skill. Called for ALL inner skills on every
+ * bootstrap — not just missing ones — so that new reference files get backfilled
+ * into existing skill directories. Uses upsert:false to avoid overwriting user edits.
+ */
+async function backfillReferenceFiles(
+  supabase: SupabaseClient,
+  clientId: string,
+  slug: DefaultSkillSlug,
+): Promise<void> {
   const refs = INNER_SKILL_REFERENCES[slug];
-  if (refs) {
-    await Promise.all(
-      Object.entries(refs).map(async ([refPath, refContent]) => {
-        const fullPath = `${clientId}/${SKILLS_DIRECTORY}/${slug}/${refPath}`;
-        const { error: refError } = await supabase.storage
-          .from(MEMORY_BUCKET_ID)
-          .upload(fullPath, refContent, {
-            upsert: false,
-            contentType: MEMORY_TEXT_CONTENT_TYPE,
-          });
+  if (!refs) return;
 
-        if (refError && !isStorageConflictError(refError)) {
-          throw new Error(
-            `Failed to bootstrap skill reference ${slug}/${refPath}: ${getStorageErrorMessage(refError)}`,
-          );
-        }
-      }),
-    );
-  }
+  await Promise.all(
+    Object.entries(refs).map(async ([refPath, refContent]) => {
+      const fullPath = `${clientId}/${SKILLS_DIRECTORY}/${slug}/${refPath}`;
+      const { error } = await supabase.storage
+        .from(MEMORY_BUCKET_ID)
+        .upload(fullPath, refContent, {
+          upsert: false,
+          contentType: MEMORY_TEXT_CONTENT_TYPE,
+        });
+
+      if (error && !isStorageConflictError(error)) {
+        throw new Error(
+          `Failed to bootstrap skill reference ${slug}/${refPath}: ${getStorageErrorMessage(error)}`,
+        );
+      }
+    }),
+  );
 }
 
 /**
@@ -97,10 +107,75 @@ export async function bootstrapSkills(
     await Promise.all(missingSlugs.map((slug) => uploadDefaultSkill(supabase, clientId, slug)));
   }
 
+  // Backfill reference files for ALL inner skills (even existing ones) so new
+  // reference files added in code updates get seeded into existing directories.
+  const innerSlugsWithRefs = DEFAULT_SKILL_SLUGS.filter((slug) => slug in INNER_SKILL_REFERENCES);
+  if (innerSlugsWithRefs.length > 0) {
+    await Promise.all(innerSlugsWithRefs.map((slug) => backfillReferenceFiles(supabase, clientId, slug)));
+  }
+
+  // PR 55: Force-overwrite skills whose bodies changed in the sandbox generalization.
+  await migrateSkillBodies(supabase, clientId);
+
   bootstrappedClients.add(clientId);
+}
+
+/**
+ * Force-overwrites skill bodies that changed in the sandbox generalization (PR 55).
+ * Uses upsert: true (unlike bootstrapSkills which uses upsert: false).
+ * Called from bootstrapSkills after initial seeding completes.
+ */
+const MIGRATED_SKILL_SLUGS: DefaultSkillSlug[] = [
+  "deal-comparison",
+  "property-showcase",
+  "market-report",
+  "re-analyst",
+  "frontend-design",
+];
+
+const SKILL_MIGRATION_VERSION = "pr55-sandbox-generalization";
+const migratedClients = new Set<string>();
+
+export async function migrateSkillBodies(
+  supabase: SupabaseClient,
+  clientId: string,
+): Promise<void> {
+  if (migratedClients.has(clientId)) return;
+
+  // Check version marker to avoid repeat migrations
+  const markerPath = `${clientId}/${SKILLS_DIRECTORY}/.migration-${SKILL_MIGRATION_VERSION}`;
+  const { data: marker } = await supabase.storage
+    .from(MEMORY_BUCKET_ID)
+    .download(markerPath);
+  if (marker) {
+    migratedClients.add(clientId);
+    return;
+  }
+
+  for (const slug of MIGRATED_SKILL_SLUGS) {
+    const content = DEFAULT_SKILL_CONTENT[slug];
+    const storagePath = `${clientId}/${SKILLS_DIRECTORY}/${slug}/SKILL.md`;
+    await supabase.storage
+      .from(MEMORY_BUCKET_ID)
+      .upload(storagePath, content, {
+        upsert: true,
+        contentType: MEMORY_TEXT_CONTENT_TYPE,
+      });
+  }
+
+  // Write version marker
+  await supabase.storage
+    .from(MEMORY_BUCKET_ID)
+    .upload(markerPath, SKILL_MIGRATION_VERSION, {
+      upsert: true,
+      contentType: MEMORY_TEXT_CONTENT_TYPE,
+    });
+
+  migratedClients.add(clientId);
 }
 
 /** Clears the process-local bootstrap cache. Exposed for tests. */
 export function _resetSkillBootstrapCache(): void {
   bootstrappedClients.clear();
+  migratedClients.clear();
 }

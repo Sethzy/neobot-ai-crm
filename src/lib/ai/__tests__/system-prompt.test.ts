@@ -212,14 +212,12 @@ describe("PROPERTY_LISTING_PROMPT", () => {
 });
 
 describe("SANDBOX_PROMPT", () => {
-  it("guides sandbox tools toward spreadsheet and artifact deliverables", () => {
-    expect(SANDBOX_PROMPT).toContain("analyze_spreadsheet");
-    expect(SANDBOX_PROMPT).toContain("publish_artifact");
-    expect(SANDBOX_PROMPT).toContain(".xlsx");
-    expect(SANDBOX_PROMPT).toContain("follow-up");
-    expect(SANDBOX_PROMPT).toContain("complex financial modeling");
-    expect(SANDBOX_PROMPT).toContain("property showcase");
-    expect(SANDBOX_PROMPT).toContain("30-day signed URL");
+  it("references execute_in_sandbox and general sandbox capabilities", () => {
+    expect(SANDBOX_PROMPT).toContain("execute_in_sandbox");
+    expect(SANDBOX_PROMPT).not.toContain("analyze_spreadsheet");
+    expect(SANDBOX_PROMPT).not.toContain("publish_artifact");
+    expect(SANDBOX_PROMPT).toContain("Skills declare their own package");
+    expect(SANDBOX_PROMPT).toContain("Gather first, then hand off");
   });
 });
 

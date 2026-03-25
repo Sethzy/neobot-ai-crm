@@ -6,31 +6,17 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createMessage } from "@/lib/chat/messages";
 import { createAgentFileClient } from "@/lib/storage/agent-files";
-import { ensureDevServerService, type SpriteHandle as FullSpriteHandle } from "./artifact-runner";
+import { inferContentType, filterOutputFiles } from "./sandbox-delivery";
 import { jobOutputDir, jobDoneMarker, jobErrorMarker, jobStreamLog } from "./sandbox-paths";
+import { buildSandboxPrompt, launchBackgroundJob, writeSkillFiles } from "./run-claude-in-sprite";
+import { loadSkillFilesForSandbox } from "./skill-loader";
+import type { SpriteHandle } from "./types";
 import type { Database } from "@/types/database";
 
-const XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const SIGNED_URL_EXPIRY_SECONDS = 60 * 60 * 24 * 30;
 
 type SpriteJobInsert = Database["public"]["Tables"]["sprite_jobs"]["Insert"];
 type SpriteJobRow = Database["public"]["Tables"]["sprite_jobs"]["Row"];
-
-/** Sprite handle for delivery operations — filesystem + exec + optional service management. */
-interface SpriteHandle {
-  url?: string;
-  execFile: (
-    command: string,
-    args?: string[],
-  ) => Promise<{ stdout?: string | Buffer; stderr?: string | Buffer }>;
-  filesystem: (basePath?: string) => {
-    readFile: (path: string) => Promise<string | Buffer>;
-  };
-  listServices?: FullSpriteHandle["listServices"];
-  createService?: FullSpriteHandle["createService"];
-  startService?: FullSpriteHandle["startService"];
-  updateURLSettings?: FullSpriteHandle["updateURLSettings"];
-}
 
 /**
  * Derive a per-job HMAC token for webhook callback authentication.
@@ -162,59 +148,37 @@ export async function deliverResult(
   }
   resultMeta.summary = summary;
 
-  // Upload required artifacts based on job type.
-  // If the expected artifact is missing or upload fails, treat as a job failure.
-  if (job.job_type === "analyze") {
-    const outputFile = await filesystem.readFile("result.xlsx");
-    const outputBuffer = typeof outputFile === "string"
-      ? Buffer.from(outputFile)
-      : outputFile;
+  // Generic glob delivery: list output dir, upload all non-marker files
+  const isQuestion = summary.startsWith("QUESTION:");
+  const downloadLinks: string[] = [];
 
-    const uploadResult = await agentFiles.uploadArtifact({
-      path: `artifacts/sandbox/result-${Date.now()}.xlsx`,
-      content: outputBuffer,
-      contentType: XLSX_MEDIA_TYPE,
-      expiresInSeconds: SIGNED_URL_EXPIRY_SECONDS,
-      downloadFilename: "result.xlsx",
-    });
+  if (!isQuestion) {
+    const { stdout: lsOutput } = await sprite.execFile("ls", ["-1", outputDir]);
+    const rawListing = typeof lsOutput === "string" ? lsOutput : lsOutput?.toString("utf8") ?? "";
+    const outputFiles = filterOutputFiles(rawListing.split("\n"));
 
-    resultMeta.downloadUrl = uploadResult.downloadUrl;
-    resultMeta.storagePath = uploadResult.storagePath;
-  } else if (job.job_type === "artifact") {
-    // Start dev server for first-run artifact jobs (was deferred at launch time
-    // because /workspace/app didn't exist yet — now it does).
-    if (sprite.listServices) {
-      try {
-        await ensureDevServerService(sprite as FullSpriteHandle, meta.isNew as boolean);
-      } catch {
-        // Dev server startup is best-effort — preview may not work but
-        // the artifact can still be delivered as a signed URL.
-      }
-    }
-
-    if (meta.shipIt) {
-      const outputHtml = await filesystem.readFile("output.html");
-      const htmlContent = typeof outputHtml === "string"
-        ? outputHtml
-        : outputHtml.toString("utf8");
+    for (const filename of outputFiles) {
+      const fileData = await filesystem.readFile(filename);
+      const fileBuffer = typeof fileData === "string" ? Buffer.from(fileData) : fileData;
+      const contentType = inferContentType(filename);
 
       const uploadResult = await agentFiles.uploadArtifact({
-        path: `artifacts/sandbox/property-showcase-${Date.now()}.html`,
-        content: htmlContent,
-        contentType: "text/html; charset=utf-8",
+        path: `artifacts/sandbox/${filename.replace(/\.[^.]+$/, "")}-${Date.now()}${filename.slice(filename.lastIndexOf("."))}`,
+        content: fileBuffer,
+        contentType,
         expiresInSeconds: SIGNED_URL_EXPIRY_SECONDS,
-        downloadFilename: "property-showcase.html",
+        downloadFilename: filename,
       });
 
-      resultMeta.publishedUrl = uploadResult.downloadUrl;
-    }
-
-    if (sprite.url) {
-      resultMeta.previewUrl = sprite.url;
+      downloadLinks.push(`[Download ${filename}](${uploadResult.downloadUrl})`);
+      resultMeta.downloadUrl = resultMeta.downloadUrl ?? uploadResult.downloadUrl;
+      resultMeta.storagePath = resultMeta.storagePath ?? uploadResult.storagePath;
     }
   }
 
-  const chatMessage = formatResultForChat(job.job_type, resultMeta);
+  const chatMessage = downloadLinks.length > 0
+    ? `${summary}\n\n${downloadLinks.join("\n")}`
+    : summary;
 
   // Idempotent two-phase delivery:
   // Phase 1: store result_meta (but stay "delivering"). If we crash after this,
@@ -246,6 +210,75 @@ export async function deliverResult(
     status: "completed",
     completed_at: new Date().toISOString(),
   }).eq("id", job.id);
+
+  // Phase 4: queue chaining — promote next queued job on this Sprite
+  await promoteNextQueuedJob(job.sprite_name, sprite, supabase);
+}
+
+/**
+ * Promotes the next queued job on a Sprite after the current job completes.
+ * Uses CAS (queued → starting) to prevent race conditions.
+ */
+async function promoteNextQueuedJob(
+  spriteName: string,
+  sprite: SpriteHandle,
+  supabase: SupabaseClient<Database>,
+): Promise<void> {
+  const { data: next } = await supabase
+    .from("sprite_jobs")
+    .select("*")
+    .eq("sprite_name", spriteName)
+    .eq("status", "queued")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!next) return;
+
+  // CAS claim: queued → starting
+  const { count } = await supabase
+    .from("sprite_jobs")
+    .update({ status: "starting" } as Record<string, unknown>)
+    .eq("id", next.id)
+    .eq("status", "queued");
+
+  if (count !== 1) return;
+
+  const meta = (next.job_meta ?? {}) as Record<string, unknown>;
+  const skills = (meta.skills as string[]) ?? [];
+  const task = (meta.task as string) ?? "";
+  const inputFilenames = (meta.inputFiles as string[]) ?? [];
+  const nextOutputDir = (meta.outputDir as string) ?? jobOutputDir(next.id);
+
+  // Notify user their queued job is starting
+  await createMessage(supabase, {
+    thread_id: next.thread_id,
+    role: "assistant",
+    parts: [
+      { type: "text", text: `Starting your ${skills[0] ?? "sandbox"} task now.` },
+      { type: "data", data: { source: "background-job", jobId: next.id } },
+    ],
+  });
+
+  // Sync skills
+  const allSkillFiles = [];
+  for (const slug of skills) {
+    const files = await loadSkillFilesForSandbox(supabase, next.client_id, slug);
+    allSkillFiles.push(...files);
+  }
+  const filesystem = sprite.filesystem();
+  await writeSkillFiles(sprite, filesystem, allSkillFiles);
+
+  // Build prompt and launch
+  const prompt = buildSandboxPrompt({
+    task,
+    skillSlugs: skills,
+    inputFilenames,
+    outputDir: nextOutputDir,
+  });
+
+  await launchBackgroundJob(sprite, next.id, { prompt, maxTurns: 20 });
+  await updateJobStatus(supabase, next.id, "running");
 }
 
 /**
@@ -338,7 +371,7 @@ export async function checkActiveSpriteJobs(
         .select()
         .single();
       if (claimed) {
-        await failJob(claimed, "Analysis failed. Want me to try again?", supabase);
+        await failJob(claimed, "Sandbox job failed. Want me to try again?", supabase);
         failed++;
       }
     } else {
@@ -367,7 +400,7 @@ export async function cleanupStaleSprites(
   supabase: SupabaseClient<Database>,
   getSprite: (spriteName: string) => DestroyableSpriteHandle,
 ): Promise<{ destroyed: number }> {
-  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60_000).toISOString();
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60_000).toISOString();
 
   const { data: staleSessions } = await supabase
     .from("sprite_sessions")

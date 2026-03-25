@@ -6,8 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database";
 
-import { createAnalyzeSpreadsheetTool } from "./analyze-spreadsheet";
-import { createPublishArtifactTool } from "./publish-artifact";
+import { createExecuteInSandboxTool } from "./execute-in-sandbox";
 
 /**
  * Creates all sandbox-backed tools for a specific client/thread context.
@@ -18,7 +17,6 @@ export function createSandboxTools(
   threadId: string,
 ) {
   return {
-    ...createAnalyzeSpreadsheetTool(supabase, clientId, threadId),
-    ...createPublishArtifactTool(supabase, clientId, threadId),
+    ...createExecuteInSandboxTool(supabase, clientId, threadId),
   };
 }

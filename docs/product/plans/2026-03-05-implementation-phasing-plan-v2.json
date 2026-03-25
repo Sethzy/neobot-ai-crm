@@ -3905,6 +3905,88 @@
             "Excel output quality acceptable (formulas work, recalc passes)",
             "Cost per invocation drops to ~$0.01-0.05 range"
           ]
+        },
+        {
+          "pr": "54a",
+          "title": "Sandbox: Async execution (decouple sprite from chat stream)",
+          "status": "in_progress",
+          "tasklist": "docs/product/tasks/2026-03-25-pr54a-async-sandbox-execution-tasklist.md",
+          "decisions": [
+            "EXEC-02",
+            "EXEC-04"
+          ],
+          "dependsOn": [
+            "52",
+            "53"
+          ],
+          "note": "Makes sandbox tools non-blocking. Uses spawn({ detachable: true }) to fire Claude Code in a detachable tmux session on the sprite. Webhook callback (primary) + cron fallback (30s) detect completion and deliver results to chat. Frontend uses Supabase Realtime for live message delivery. Design doc: docs/plans/2026-03-24-async-sandbox-execution-design.md",
+          "tasks": [
+            { "id": "PR54a-1", "task": "Sandbox path helpers (sandbox-paths.ts)", "done": false },
+            { "id": "PR54a-2", "task": "Database migration: sprite_jobs table + RLS + indexes", "done": false },
+            { "id": "PR54a-3", "task": "Sprite jobs CRUD + per-job HMAC + result formatting", "done": false },
+            { "id": "PR54a-4", "task": "Update CLI args (stream-json) + prompt builders (job-scoped paths)", "done": false },
+            { "id": "PR54a-5", "task": "launchBackgroundJob() — detachable spawn + webhook callback", "done": false },
+            { "id": "PR54a-6", "task": "Tool handlers: swap sync → async (analyze + artifact)", "done": false },
+            { "id": "PR54a-7", "task": "Webhook callback endpoint (/api/sandbox/callback)", "done": false },
+            { "id": "PR54a-8", "task": "Result delivery (shared path) + cron fallback (30s)", "done": false },
+            { "id": "PR54a-9", "task": "System prompt: inject active background jobs", "done": false },
+            { "id": "PR54a-10", "task": "Frontend: Supabase Realtime subscription for live delivery", "done": false },
+            { "id": "PR54a-11", "task": "maxDuration=300 + SANDBOX_CALLBACK_SECRET env var", "done": false },
+            { "id": "PR54a-12", "task": "Daily sprite cleanup sweep", "done": false },
+            { "id": "PR54a-13", "task": "Integration tests", "done": false }
+          ],
+          "testCriteria": [
+            "Tool returns 'started' immediately (< 30s), not blocking for Claude Code execution",
+            "Webhook callback delivers result to chat within seconds of job completion",
+            "Cron fallback delivers result within 30s if webhook misses",
+            "Result message appears live in ChatPanel without page refresh",
+            "Concurrent jobs on the same sprite are rejected",
+            "Agent knows about running background jobs (system prompt context)",
+            "Job cancellation kills the sprite process",
+            "Stale sprites (>7 days) are cleaned up by daily sweep",
+            "Progress labels from stream.jsonl appear in job status"
+          ]
+        },
+        {
+          "pr": "55",
+          "title": "Sandbox: General escape hatch (one tool, per-client Sprites, auto-queue, 7 skills)",
+          "status": "in_progress",
+          "tasklist": "docs/product/tasks/2026-03-25-pr55-general-sandbox-escape-hatch-tasklist.md",
+          "decisions": [
+            "EXEC-04"
+          ],
+          "dependsOn": [
+            "54a"
+          ],
+          "note": "Replaces analyze_spreadsheet + publish_artifact with one general execute_in_sandbox tool. Per-client persistent Sprites (not per-thread). Auto-queue for concurrent jobs with CAS promotion. Two-tier skill model: primary sandbox skills + companion skills. 7 new sandbox skills (pdf_creation, excel_editing, docx_editing, pptx_editing, pdf_form_filling, pdf_signing, publish_website). Delivery path globs output dir instead of branching on job type. here.now publishing via skill. Design doc: docs/plans/2026-03-25-general-sandbox-escape-hatch-design.md",
+          "tasks": [
+            { "id": "PR55-1", "task": "Unify SpriteHandle type in types.ts", "done": false },
+            { "id": "PR55-2", "task": "General prompt builder buildSandboxPrompt()", "done": false },
+            { "id": "PR55-3", "task": "Generic delivery path sandbox-delivery.ts", "done": false },
+            { "id": "PR55-4", "task": "Per-client Sprite session lookup (Phase A)", "done": false },
+            { "id": "PR55-5", "task": "execute_in_sandbox tool handler with queue support", "done": false },
+            { "id": "PR55-6", "task": "Refactor deliverResult() for glob delivery + queue chaining", "done": false },
+            { "id": "PR55-7", "task": "System prompt, context assembly, HERENOW_API_KEY", "done": false },
+            { "id": "PR55-8", "task": "7 new sandbox skill templates + 5 body rewrites + migration", "done": false },
+            { "id": "PR55-9", "task": "Delete old files and clean up imports", "done": false },
+            { "id": "PR55-10", "task": "DB migration: sprite_sessions Phase A + queue support + 30-day cleanup", "done": false }
+          ],
+          "testCriteria": [
+            "execute_in_sandbox tool accepts skills array and inputFiles, returns started/queued",
+            "Per-client Sprite reused across threads (not per-thread)",
+            "Second job on busy Sprite inserts as queued, auto-starts when first completes",
+            "Queue promotion uses CAS (queued → starting)",
+            "deliverResult() globs output dir and uploads all non-marker files",
+            "QUESTION: prefix in summary.txt routes back to user without artifacts",
+            "Backward compat: old analyze/artifact jobs still deliver correctly",
+            "System prompt mentions execute_in_sandbox, not analyze_spreadsheet",
+            "formatAvailableSkills emits execute_in_sandbox hint for sandbox skills",
+            "20 default skill slugs (13 existing + 7 new)",
+            "Companion skills do not have execute_in_sandbox in descriptions",
+            "Outer workflow skills reference execute_in_sandbox in bodies",
+            "migrateSkillBodies force-overwrites 5 changed skills",
+            "Cleanup sweep uses 30-day cutoff (not 7)"
+          ]
         }
       ]
     }

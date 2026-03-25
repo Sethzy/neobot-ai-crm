@@ -16,8 +16,14 @@ const { mockUploadArtifact, mockCreateAgentFileClient } = vi.hoisted(() => {
   };
 });
 
-const { mockEnsureDevServerService } = vi.hoisted(() => ({
-  mockEnsureDevServerService: vi.fn().mockResolvedValue(undefined),
+const { mockLoadSkillFilesForSandbox } = vi.hoisted(() => ({
+  mockLoadSkillFilesForSandbox: vi.fn().mockResolvedValue([]),
+}));
+
+const { mockBuildSandboxPrompt, mockLaunchBackgroundJob, mockWriteSkillFiles } = vi.hoisted(() => ({
+  mockBuildSandboxPrompt: vi.fn().mockReturnValue("mock prompt"),
+  mockLaunchBackgroundJob: vi.fn().mockResolvedValue(undefined),
+  mockWriteSkillFiles: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/chat/messages", () => ({
@@ -28,8 +34,14 @@ vi.mock("@/lib/storage/agent-files", () => ({
   createAgentFileClient: mockCreateAgentFileClient,
 }));
 
-vi.mock("@/lib/sandbox/artifact-runner", () => ({
-  ensureDevServerService: mockEnsureDevServerService,
+vi.mock("@/lib/sandbox/skill-loader", () => ({
+  loadSkillFilesForSandbox: mockLoadSkillFilesForSandbox,
+}));
+
+vi.mock("@/lib/sandbox/run-claude-in-sprite", () => ({
+  buildSandboxPrompt: mockBuildSandboxPrompt,
+  launchBackgroundJob: mockLaunchBackgroundJob,
+  writeSkillFiles: mockWriteSkillFiles,
 }));
 
 import { parseProgressFromLines, deliverResult, failJob } from "../sprite-jobs";
@@ -53,30 +65,51 @@ function makeJobRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function makeMockSprite(fileContents: Record<string, string | Buffer> = {}) {
+function makeMockSprite(opts: {
+  fileContents?: Record<string, string | Buffer>;
+  lsOutput?: string;
+} = {}) {
+  const fileContents = opts.fileContents ?? {};
+  const lsOutput = opts.lsOutput ?? "stream.jsonl\n.done\nsummary.txt\n";
   return {
-    url: "https://preview.example.test",
-    execFile: vi.fn().mockResolvedValue({ stdout: "", stderr: "" }),
+    name: "sprite-1",
+    execFile: vi.fn().mockImplementation(async (cmd: string, args?: string[]) => {
+      if (cmd === "ls") return { stdout: lsOutput, stderr: "" };
+      return { stdout: "", stderr: "" };
+    }),
+    spawn: vi.fn(),
     filesystem: vi.fn(() => ({
       readFile: vi.fn().mockImplementation(async (path: string) => {
         if (fileContents[path] !== undefined) return fileContents[path];
         throw new Error(`ENOENT: ${path}`);
       }),
+      writeFile: vi.fn().mockResolvedValue(undefined),
     })),
-    listServices: vi.fn().mockResolvedValue([]),
-    createService: vi.fn().mockResolvedValue({ processAll: vi.fn().mockResolvedValue(undefined) }),
-    startService: vi.fn().mockResolvedValue({ processAll: vi.fn().mockResolvedValue(undefined) }),
-    updateURLSettings: vi.fn().mockResolvedValue(undefined),
   };
 }
 
 function makeMockSupabase() {
-  const chain: Record<string, unknown> = {};
+  // Terminal chain that resolves to { data: null, error: null } by default
+  const terminal = {
+    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    single: vi.fn().mockResolvedValue({ data: null, error: null }),
+    then: vi.fn().mockImplementation((fn: (v: unknown) => unknown) =>
+      Promise.resolve(fn({ data: null, error: null, count: 0 })),
+    ),
+  };
+
+  // Chainable methods all return the terminal object
+  const chain: Record<string, unknown> = { ...terminal };
   chain.update = vi.fn().mockReturnValue(chain);
+  chain.select = vi.fn().mockReturnValue(chain);
+  chain.insert = vi.fn().mockReturnValue(chain);
   chain.eq = vi.fn().mockReturnValue(chain);
-  chain.then = vi.fn().mockImplementation((fn: (v: unknown) => unknown) =>
-    Promise.resolve(fn({ data: null, error: null })),
-  );
+  chain.in = vi.fn().mockReturnValue(chain);
+  chain.is = vi.fn().mockReturnValue(chain);
+  chain.lt = vi.fn().mockReturnValue(chain);
+  chain.order = vi.fn().mockReturnValue(chain);
+  chain.limit = vi.fn().mockReturnValue(chain);
+
   return { from: vi.fn().mockReturnValue(chain) } as never;
 }
 
@@ -116,106 +149,87 @@ describe("deliverResult", () => {
     vi.clearAllMocks();
   });
 
-  it("uploads result.xlsx and includes download URL for analyze jobs", async () => {
-    const job = makeJobRow({ job_type: "analyze" });
+  it("uploads all non-marker output files for sandbox jobs", async () => {
+    const job = makeJobRow({
+      job_type: "sandbox",
+      job_meta: { skills: ["pdf_creation"], task: "test", inputFiles: [], outputDir: "/workspace/jobs/job-1" },
+    });
     const sprite = makeMockSprite({
-      "summary.txt": "Cap rate is 5.2%",
-      "result.xlsx": Buffer.from("xlsx-bytes"),
+      fileContents: {
+        "summary.txt": "Market report for 123 Main St.",
+        "report.pdf": Buffer.from("pdf-content"),
+        "chart.png": Buffer.from("png-content"),
+      },
+      lsOutput: "stream.jsonl\n.done\nsummary.txt\ninput\nreport.pdf\nchart.png\n",
     });
     const supabase = makeMockSupabase();
 
     await deliverResult(job, sprite, supabase);
 
+    expect(mockUploadArtifact).toHaveBeenCalledTimes(2);
     expect(mockUploadArtifact).toHaveBeenCalledWith(
-      expect.objectContaining({
-        content: Buffer.from("xlsx-bytes"),
-        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      }),
+      expect.objectContaining({ contentType: "application/pdf" }),
     );
-    expect(mockCreateMessage).toHaveBeenCalledWith(
-      supabase,
-      expect.objectContaining({
-        thread_id: "thread-1",
-        role: "assistant",
-      }),
+    expect(mockUploadArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({ contentType: "image/png" }),
     );
-    // Message text should contain the download URL
-    const parts = mockCreateMessage.mock.calls[0][1].parts;
-    const textPart = parts.find((p: { type: string }) => p.type === "text");
-    expect(textPart.text).toContain("Download result");
-    expect(textPart.text).toContain("https://storage.example.com/signed/result.xlsx");
   });
 
-  it("starts dev server for first-run artifact jobs at delivery time", async () => {
-    const job = makeJobRow({ job_type: "artifact", job_meta: { isNew: true } });
-    const sprite = makeMockSprite({ "summary.txt": "Showcase ready" });
+  it("includes download links in chat message", async () => {
+    const job = makeJobRow({
+      job_type: "sandbox",
+      job_meta: { skills: ["pdf_creation"], task: "test", inputFiles: [], outputDir: "/workspace/jobs/job-1" },
+    });
+    const sprite = makeMockSprite({
+      fileContents: {
+        "summary.txt": "Report ready.",
+        "report.pdf": Buffer.from("pdf"),
+      },
+      lsOutput: "stream.jsonl\n.done\nsummary.txt\nreport.pdf\n",
+    });
     const supabase = makeMockSupabase();
 
     await deliverResult(job, sprite, supabase);
 
-    expect(mockEnsureDevServerService).toHaveBeenCalledTimes(1);
+    const parts = mockCreateMessage.mock.calls[0][1].parts;
+    const textPart = parts.find((p: { type: string }) => p.type === "text");
+    expect(textPart.text).toContain("Report ready.");
+    expect(textPart.text).toContain("Download report.pdf");
   });
 
-  it("throws when result.xlsx is missing for analyze jobs (no silent false-success)", async () => {
-    const job = makeJobRow({ job_type: "analyze" });
-    const sprite = makeMockSprite({ "summary.txt": "Done" }); // no result.xlsx
+  it("skips artifact upload for QUESTION: summary", async () => {
+    const job = makeJobRow({
+      job_type: "sandbox",
+      job_meta: { skills: ["excel_editing"], task: "test", inputFiles: [], outputDir: "/workspace/jobs/job-1" },
+    });
+    const sprite = makeMockSprite({
+      fileContents: { "summary.txt": "QUESTION: Should I use a 6% or 7% cap rate?" },
+      lsOutput: "stream.jsonl\n.done\nsummary.txt\n",
+    });
     const supabase = makeMockSupabase();
 
-    await expect(deliverResult(job, sprite, supabase)).rejects.toThrow();
-    // Job should NOT be marked completed
-    expect(mockCreateMessage).not.toHaveBeenCalled();
+    await deliverResult(job, sprite, supabase);
+
+    expect(mockUploadArtifact).not.toHaveBeenCalled();
+    const parts = mockCreateMessage.mock.calls[0][1].parts;
+    const textPart = parts.find((p: { type: string }) => p.type === "text");
+    expect(textPart.text).toContain("cap rate");
   });
 
   it("skips message insert on retry when result_meta is already populated", async () => {
     const job = makeJobRow({
-      job_type: "analyze",
-      result_meta: { summary: "Already delivered", downloadUrl: "https://old-url" },
+      job_type: "sandbox",
+      result_meta: { summary: "Already delivered" },
     });
     const sprite = makeMockSprite({
-      "summary.txt": "Cap rate is 5.2%",
-      "result.xlsx": Buffer.from("xlsx-bytes"),
+      fileContents: { "summary.txt": "Done" },
+      lsOutput: "stream.jsonl\n.done\nsummary.txt\n",
     });
     const supabase = makeMockSupabase();
 
     await deliverResult(job, sprite, supabase);
 
-    // Should NOT insert a duplicate message
     expect(mockCreateMessage).not.toHaveBeenCalled();
-    // Should still mark terminal (idempotent)
-    expect(supabase.from).toHaveBeenCalled();
-  });
-
-  it("persists message before marking job terminal", async () => {
-    const callOrder: string[] = [];
-    mockCreateMessage.mockImplementation(async () => {
-      callOrder.push("createMessage");
-      return { message_id: "msg-1" };
-    });
-
-    const job = makeJobRow({ job_type: "analyze" });
-
-    // Build a supabase mock that tracks update call ordering
-    const chain: Record<string, unknown> = {};
-    chain.update = vi.fn().mockImplementation((arg: Record<string, unknown>) => {
-      if (arg.status === "completed") callOrder.push("markCompleted");
-      else callOrder.push("updateMeta");
-      return chain;
-    });
-    chain.eq = vi.fn().mockReturnValue(chain);
-    chain.then = vi.fn().mockImplementation((fn: (v: unknown) => unknown) =>
-      Promise.resolve(fn({ data: null, error: null })),
-    );
-    const supabase = { from: vi.fn().mockReturnValue(chain) } as never;
-
-    const sprite = makeMockSprite({
-      "summary.txt": "Done",
-      "result.xlsx": Buffer.from("xlsx"),
-    });
-
-    await deliverResult(job, sprite, supabase);
-
-    // Phase 1 (updateMeta) → Phase 2 (createMessage) → Phase 3 (markCompleted)
-    expect(callOrder).toEqual(["updateMeta", "createMessage", "markCompleted"]);
   });
 });
 

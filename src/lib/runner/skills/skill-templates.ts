@@ -26,6 +26,14 @@ export const DEFAULT_SKILL_SLUGS = [
   "market-report",
   "re-analyst",
   "frontend-design",
+  // Sandbox skills (PR 55)
+  "pdf_creation",
+  "excel_editing",
+  "docx_editing",
+  "pptx_editing",
+  "pdf_form_filling",
+  "pdf_signing",
+  "publish_website",
 ] as const;
 
 export type DefaultSkillSlug = (typeof DEFAULT_SKILL_SLUGS)[number];
@@ -2048,16 +2056,17 @@ Note the user's market focus, client context, and any relevant preferences.
 
 ### Step 4: Hand off to coding agent
 
-Call analyze_spreadsheet with everything gathered. Include in the task description:
+Call execute_in_sandbox with the excel_editing and re-analyst skills. Include in the task description:
 - What specific analysis the user wants
 - Number of properties and their addresses
 - Any specific metrics or benchmarks they mentioned
 - Supplementary data from steps 1-3
 
 \`\`\`
-analyze_spreadsheet({
+execute_in_sandbox({
+  skills: ["excel_editing", "re-analyst"],
   task: "{user's request + enriched context}",
-  fileUrls: ["{uploaded file URLs if any}"]
+  inputFiles: ["{uploaded file storage paths or URLs if any}"]
 })
 \`\`\`
 
@@ -2076,8 +2085,8 @@ Present the summary and download link. Offer to:
 
 ## Follow-up patterns
 
-For refinements, call analyze_spreadsheet again with the new request.
-The sandbox remembers the previous work — no need to re-upload files or re-explain context.
+For refinements, call execute_in_sandbox again with the new request.
+The sandbox remembers installed packages — no need to re-explain context.
 
 ## Gotchas
 
@@ -2150,13 +2159,12 @@ Aim for 4-8 photos. If no photos in CRM, ask the user to share some.
 
 ### Step 6: Hand off to coding agent
 
-Call publish_artifact with ALL gathered data:
+Call execute_in_sandbox with the publish_website and frontend-design skills, passing ALL gathered data:
 
 \`\`\`
-publish_artifact({
-  task: "Build a property showcase page for {address}. Include hero with best photo, photo gallery, property details, neighborhood map with {MRT + schools}, recent transactions table, and agent contact card for {agent name}.",
-  propertyData: {
-    address, price, beds, sqft, tenure, floor,
+execute_in_sandbox({
+  skills: ["publish_website", "frontend-design"],
+  task: "Build a property showcase page for {address}. Include hero with best photo, photo gallery, property details, neighborhood map with {MRT + schools}, recent transactions table, and agent contact card for {agent name}. Property data: {
     agent: { name, phone, email, agency },
     neighborhood: { mrt, schools, amenities },
     transactions: [ ... ],
@@ -2166,7 +2174,7 @@ publish_artifact({
 \`\`\`
 
 **IMPORTANT:**
-- Gather ALL data BEFORE calling publish_artifact
+- Gather ALL data BEFORE calling execute_in_sandbox
 - The sandbox cannot access CRM, memory, or do web searches
 - Include the agent's contact details — the showcase needs a CTA
 - Include neighborhood data — it's a key selling point
@@ -2175,7 +2183,7 @@ publish_artifact({
 
 The tool returns a live preview URL. Present it to the user with a summary of what's included.
 
-For follow-ups ("swap the hero photo", "add a mortgage calculator", "make the cards bigger"), call publish_artifact again. The sandbox remembers the previous code.
+For follow-ups ("swap the hero photo", "add a mortgage calculator", "make the cards bigger"), call execute_in_sandbox again with the same skills. Include the existing here.now URL in the task so the agent publishes to the same slug.
 
 When the user is happy, ask if they want to:
 - **Publish permanently** — builds static HTML, uploads to a permanent URL
@@ -2241,9 +2249,10 @@ Note the user's market specialization and client focus.
 ### Step 5: Hand off to coding agent
 
 \`\`\`
-analyze_spreadsheet({
+execute_in_sandbox({
+  skills: ["excel_editing", "re-analyst"],
   task: "Build a market report for {area} covering {time period}. Include: transaction volume by month, median price psf trend, price distribution, top transactions. Create charts for each. Data: {paste structured data from steps 2-3}.",
-  fileUrls: []
+  inputFiles: []
 })
 \`\`\`
 
@@ -2309,7 +2318,6 @@ Edit this anytime by telling me your updated preferences.
 See /skills/re-analyst/references/ for:
 - SG property tax rates and ABSD tables
 - Yield benchmark history
-- Mortgage calculation conventions
 `,
 
   "frontend-design": `---
@@ -2366,6 +2374,201 @@ Edit anytime by telling me your updated brand or design preferences.
 - Single-page layout (no routing)
 - Mobile-responsive (test at 375px width)
 - Accessible: proper alt text, contrast ratios, semantic HTML
+`,
+
+  // ---------------------------------------------------------------------------
+  // Sandbox skills (PR 55) — instructions for Claude Code inside the Sprite
+  // ---------------------------------------------------------------------------
+
+  "pdf_creation": `---
+name: pdf_creation
+description: "Create PDF reports and documents from HTML/CSS. Use execute_in_sandbox when asked to generate PDFs, reports, or formatted documents."
+---
+
+## Setup
+First run: \`pip3 install weasyprint\` (cached on subsequent runs).
+
+## Instructions
+For PDF creation from scratch, always use the weasyprint Python package and create the PDF from HTML/CSS. Do not use reportlab.
+
+Include thoughtful design elements, visual hierarchy.
+
+## Fonts (Pre-installed on Sprite)
+Sans Serif: Roboto, Open Sans, Lato, Noto Sans, Liberation Sans, DejaVu Sans
+Serif: EB Garamond, FreeSerif
+Monospace: Fira Code, Noto Mono, DejaVu Sans Mono
+
+Google Fonts via @import also work.
+
+## Page Breaks
+\`\`\`css
+h1, h2, h3, h4 { break-after: avoid; }
+.card, figure, table, tr { break-inside: avoid; }
+p { orphans: 3; widows: 3; }
+\`\`\`
+
+## Flexbox Layout
+\`\`\`css
+.flex-item {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+\`\`\`
+
+Limit horizontal density: Max 3-4 cards per row. Ensure text has enough room.
+
+## Output
+Write the finished PDF to the output directory.
+Write a concise summary of what was generated to summary.txt.
+`,
+
+  "excel_editing": `---
+name: excel_editing
+description: "Create and edit Excel spreadsheets with formulas, formatting, and validation. Use execute_in_sandbox when asked to build spreadsheets, financial models, or data analysis workbooks."
+---
+
+## Setup
+First run: \`pip3 install openpyxl pandas xlsxwriter matplotlib\`
+For formula recalculation: \`apt-get update -qq && apt-get install -y -qq libreoffice-calc\`
+
+## Critical Rule: Use Formulas, Not Hardcoded Values
+Always use Excel formulas instead of calculating in Python. This keeps spreadsheets dynamic.
+
+\`\`\`python
+# WRONG
+total = df['Sales'].sum()
+sheet['B10'] = total
+
+# CORRECT
+sheet['B10'] = '=SUM(B2:B9)'
+\`\`\`
+
+## Zero Formula Errors
+Every Excel file must have zero formula errors: #REF!, #DIV/0!, #VALUE!, #N/A, #NAME?
+
+## Library Choice
+| Use Case | Library |
+|---|---|
+| Data analysis, pivots | pandas |
+| Formulas, formatting | openpyxl |
+| Simple data export | pandas to_excel() |
+| Modifying existing files | openpyxl |
+
+## Financial Model Standards — Color Coding
+| Color | Meaning |
+|---|---|
+| Blue text | Hardcoded inputs |
+| Black text | Formulas |
+| Green text | Links from other sheets |
+| Yellow background | Key assumptions |
+
+## Formula Recalculation
+After creating/modifying Excel files with formulas, recalculate via LibreOffice:
+\`\`\`bash
+soffice --headless --calc --convert-to xlsx --outdir /tmp /path/to/file.xlsx
+\`\`\`
+
+## Output
+Write the finished workbook to the output directory.
+Write a concise summary to summary.txt.
+`,
+
+  "docx_editing": `---
+name: docx_editing
+description: "Create and edit Word documents. Use execute_in_sandbox when working with .docx files."
+---
+
+## Setup
+First run: \`pip3 install python-docx\`
+
+When editing an existing docx, use python-docx. Always first re-read the document structure to identify text split across multiple runs, then use run-aware replacement that preserves formatting instead of replacing entire paragraph text. Verify results by re-reading the saved document.
+`,
+
+  "pptx_editing": `---
+name: pptx_editing
+description: "Create and edit PowerPoint presentations. Use execute_in_sandbox when working with .pptx files."
+---
+
+## Setup
+First run: \`pip3 install python-pptx\`
+
+When editing an existing pptx, use python-pptx. Use blank slide layouts or remove empty text boxes after creation to avoid 'Insert text here' placeholder text. Always read the presentation structure first to understand existing content and layouts.
+`,
+
+  "pdf_form_filling": `---
+name: pdf_form_filling
+description: "Fill out PDF form fields programmatically. Use execute_in_sandbox when completing or filling out PDF forms."
+---
+
+## Setup
+First run: \`pip3 install pymupdf\`
+
+When needing to fill out a PDF: Print out with fitz first any fillable fields. If there are fillable fields, then fill them out via the fillable fields. If not then use fitz with coordinates (visually) to fill out the PDF.
+`,
+
+  "pdf_signing": `---
+name: pdf_signing
+description: "Add digital signatures to PDF documents. Use execute_in_sandbox when signing PDFs or adding signatures."
+---
+
+## Setup
+First run: \`pip3 install pymupdf\`
+
+When needing to sign a PDF, download Kalam font and use it to render a signature overlay on the PDF.
+`,
+
+  "publish_website": `---
+name: publish_website
+description: "Build and publish a shareable web page to here.now. Use execute_in_sandbox when asked to create a showcase, landing page, or any web page to share."
+---
+
+## Setup
+First run: \`pip3 install requests\`
+
+## Instructions
+1. Build the HTML/CSS/JS page for the task.
+2. Publish to here.now using the API below.
+3. Write the live URL to summary.txt.
+
+## Publishing to here.now
+
+\`\`\`python
+import requests, os, json
+
+slug = "suitable-slug-name"  # e.g. "123-main-st-showcase"
+api_key = os.environ.get("HERENOW_API_KEY", "")
+headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+
+# Read the HTML file
+with open("output.html", "r") as f:
+    html_content = f.read()
+
+# Step 1: Create site
+resp = requests.post("https://here.now/api/v1/publish",
+    headers=headers,
+    json={
+        "slug": slug,
+        "files": [{"path": "index.html", "size": len(html_content.encode()), "contentType": "text/html"}]
+    }
+)
+data = resp.json()
+upload_url = data["files"][0]["uploadUrl"]
+finalize_url = data["finalizeUrl"]
+version_id = data["versionId"]
+
+# Step 2: Upload file
+requests.put(upload_url, data=html_content.encode(), headers={"Content-Type": "text/html"})
+
+# Step 3: Finalize
+requests.post(finalize_url, json={"versionId": version_id}, headers=headers)
+
+print(f"Live at: https://{slug}.here.now/")
+\`\`\`
+
+The live URL is: \`https://{slug}.here.now/\`
+
+If updating an existing site, use the same slug to overwrite.
 `,
 };
 
@@ -2701,12 +2904,12 @@ Based on Annual Value (AV) — estimated annual rent
 - Rule of thumb: remaining lease < 60 years = significant financing restrictions
 - Banks may reduce LTV or refuse loans for leases < 30 years remaining
 
-> Note: Rates current as of 2025. Verify before use in client-facing materials.
+> Last verified: March 2026. ABSD rates effective Apr 2023. Verify before use in client-facing materials.
 `;
 
 const YIELD_BENCHMARKS_CONTENT = `# Yield & Return Benchmarks (Singapore)
 
-## REIT Benchmarks (as of 2025)
+## REIT Benchmarks (as of Q1 2026)
 | REIT Category | Avg Distribution Yield |
 |---|---|
 | Retail REITs | 5.5-6.5% |
@@ -2724,7 +2927,7 @@ const YIELD_BENCHMARKS_CONTENT = `# Yield & Return Benchmarks (Singapore)
 | Outside Central (D16-28) | 3.5-4.5% |
 
 ## Risk-Free Rate
-- SGS 10-year bond: ~3.0% (2025)
+- SGS 10-year bond: ~3.0% (Q1 2026)
 - CPF OA rate: 2.5%
 - Fixed deposit (12-month): ~2.5-3.0%
 

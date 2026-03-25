@@ -30,6 +30,25 @@ export interface SpriteOutputFile {
   mediaType: string;
 }
 
+/** Unified Sprite handle for all sandbox operations (PR 55). */
+export interface SpriteHandle {
+  name: string;
+  execFile: (
+    command: string,
+    args?: string[],
+    options?: { env?: Record<string, string> },
+  ) => Promise<{ stdout?: string | Buffer; stderr?: string | Buffer; exitCode?: number }>;
+  spawn: (
+    command: string,
+    args?: string[],
+    options?: { detachable?: boolean; env?: Record<string, string> },
+  ) => void;
+  filesystem: (basePath?: string) => {
+    writeFile: (path: string, content: string | Buffer) => Promise<void>;
+    readFile: (path: string) => Promise<string | Buffer>;
+  };
+}
+
 /** Execution result returned after Claude completes work inside a Sprite. */
 export interface SpriteResult {
   success: boolean;
