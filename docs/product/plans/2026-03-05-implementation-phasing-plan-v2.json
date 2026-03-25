@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-24 (PRs 52+53+52a sandbox done, QA surface 29)",
+    "updated": "2026-03-25 (PRs 54a+55 sandbox async+generalization done, QA surface 29 updated)",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -10,7 +10,7 @@
     "estimatedPRs": 44,
     "keptPRs": 27,
     "cutPRs": 19,
-    "donePRs": 40,
+    "donePRs": 42,
     "hardeningPRs": 6,
     "statusOptions": [
       "pending",
@@ -3909,7 +3909,7 @@
         {
           "pr": "54a",
           "title": "Sandbox: Async execution (decouple sprite from chat stream)",
-          "status": "in_progress",
+          "status": "done",
           "tasklist": "docs/product/tasks/2026-03-25-pr54a-async-sandbox-execution-tasklist.md",
           "decisions": [
             "EXEC-02",
@@ -3921,19 +3921,19 @@
           ],
           "note": "Makes sandbox tools non-blocking. Uses spawn({ detachable: true }) to fire Claude Code in a detachable tmux session on the sprite. Webhook callback (primary) + cron fallback (30s) detect completion and deliver results to chat. Frontend uses Supabase Realtime for live message delivery. Design doc: docs/plans/2026-03-24-async-sandbox-execution-design.md",
           "tasks": [
-            { "id": "PR54a-1", "task": "Sandbox path helpers (sandbox-paths.ts)", "done": false },
-            { "id": "PR54a-2", "task": "Database migration: sprite_jobs table + RLS + indexes", "done": false },
-            { "id": "PR54a-3", "task": "Sprite jobs CRUD + per-job HMAC + result formatting", "done": false },
-            { "id": "PR54a-4", "task": "Update CLI args (stream-json) + prompt builders (job-scoped paths)", "done": false },
-            { "id": "PR54a-5", "task": "launchBackgroundJob() — detachable spawn + webhook callback", "done": false },
-            { "id": "PR54a-6", "task": "Tool handlers: swap sync → async (analyze + artifact)", "done": false },
-            { "id": "PR54a-7", "task": "Webhook callback endpoint (/api/sandbox/callback)", "done": false },
-            { "id": "PR54a-8", "task": "Result delivery (shared path) + cron fallback (30s)", "done": false },
-            { "id": "PR54a-9", "task": "System prompt: inject active background jobs", "done": false },
-            { "id": "PR54a-10", "task": "Frontend: Supabase Realtime subscription for live delivery", "done": false },
-            { "id": "PR54a-11", "task": "maxDuration=300 + SANDBOX_CALLBACK_SECRET env var", "done": false },
-            { "id": "PR54a-12", "task": "Daily sprite cleanup sweep", "done": false },
-            { "id": "PR54a-13", "task": "Integration tests", "done": false }
+            { "id": "PR54a-1", "task": "Sandbox path helpers (sandbox-paths.ts)", "done": true },
+            { "id": "PR54a-1", "task": "Database migration: sprite_jobs table + RLS + indexes", "done": true },
+            { "id": "PR54a-2", "task": "Sprite jobs CRUD + per-job HMAC + result formatting", "done": true },
+            { "id": "PR54a-3", "task": "Update CLI args (stream-json) + prompt builders (job-scoped paths)", "done": true },
+            { "id": "PR54a-4", "task": "launchBackgroundJob() — detachable spawn + webhook callback", "done": true },
+            { "id": "PR54a-5", "task": "Tool handlers: swap sync → async (analyze + artifact)", "done": true },
+            { "id": "PR54a-6", "task": "Webhook callback endpoint (/api/sandbox/callback)", "done": true },
+            { "id": "PR54a-7", "task": "Result delivery (shared path) + cron fallback (30s)", "done": true },
+            { "id": "PR54a-8", "task": "System prompt: inject active background jobs", "done": true },
+            { "id": "PR54a-9", "task": "Frontend: Supabase Realtime subscription for live delivery", "done": true },
+            { "id": "PR54a-10", "task": "maxDuration=300 + SANDBOX_CALLBACK_SECRET env var", "done": true },
+            { "id": "PR54a-11", "task": "Daily sprite cleanup sweep", "done": true },
+            { "id": "PR54a-12", "task": "Integration tests", "done": true }
           ],
           "testCriteria": [
             "Tool returns 'started' immediately (< 30s), not blocking for Claude Code execution",
@@ -3950,7 +3950,7 @@
         {
           "pr": "55",
           "title": "Sandbox: General escape hatch (one tool, per-client Sprites, auto-queue, 7 skills)",
-          "status": "in_progress",
+          "status": "done",
           "tasklist": "docs/product/tasks/2026-03-25-pr55-general-sandbox-escape-hatch-tasklist.md",
           "decisions": [
             "EXEC-04"
@@ -3960,16 +3960,16 @@
           ],
           "note": "Replaces analyze_spreadsheet + publish_artifact with one general execute_in_sandbox tool. Per-client persistent Sprites (not per-thread). Auto-queue for concurrent jobs with CAS promotion. Two-tier skill model: primary sandbox skills + companion skills. 7 new sandbox skills (pdf_creation, excel_editing, docx_editing, pptx_editing, pdf_form_filling, pdf_signing, publish_website). Delivery path globs output dir instead of branching on job type. here.now publishing via skill. Design doc: docs/plans/2026-03-25-general-sandbox-escape-hatch-design.md",
           "tasks": [
-            { "id": "PR55-1", "task": "Unify SpriteHandle type in types.ts", "done": false },
-            { "id": "PR55-2", "task": "General prompt builder buildSandboxPrompt()", "done": false },
-            { "id": "PR55-3", "task": "Generic delivery path sandbox-delivery.ts", "done": false },
-            { "id": "PR55-4", "task": "Per-client Sprite session lookup (Phase A)", "done": false },
-            { "id": "PR55-5", "task": "execute_in_sandbox tool handler with queue support", "done": false },
-            { "id": "PR55-6", "task": "Refactor deliverResult() for glob delivery + queue chaining", "done": false },
-            { "id": "PR55-7", "task": "System prompt, context assembly, HERENOW_API_KEY", "done": false },
-            { "id": "PR55-8", "task": "7 new sandbox skill templates + 5 body rewrites + migration", "done": false },
-            { "id": "PR55-9", "task": "Delete old files and clean up imports", "done": false },
-            { "id": "PR55-10", "task": "DB migration: sprite_sessions Phase A + queue support + 30-day cleanup", "done": false }
+            { "id": "PR55-1", "task": "Unify SpriteHandle type in types.ts", "done": true },
+            { "id": "PR55-2", "task": "General prompt builder buildSandboxPrompt()", "done": true },
+            { "id": "PR55-3", "task": "Generic delivery path sandbox-delivery.ts", "done": true },
+            { "id": "PR55-4", "task": "Per-client Sprite session lookup (Phase A)", "done": true },
+            { "id": "PR55-5", "task": "execute_in_sandbox tool handler with queue support", "done": true },
+            { "id": "PR55-6", "task": "Refactor deliverResult() for glob delivery + queue chaining", "done": true },
+            { "id": "PR55-7", "task": "System prompt, context assembly, HERENOW_API_KEY", "done": true },
+            { "id": "PR55-8", "task": "7 new sandbox skill templates + 5 body rewrites + migration", "done": true },
+            { "id": "PR55-9", "task": "Delete old files and clean up imports", "done": true },
+            { "id": "PR55-10", "task": "DB migration: sprite_sessions Phase A + queue support + 30-day cleanup", "done": true }
           ],
           "testCriteria": [
             "execute_in_sandbox tool accepts skills array and inputFiles, returns started/queued",

@@ -923,65 +923,67 @@ export const scenarios: QaScenario[] = [
       "search_market_data with dataset: agents. Returns agent registry info or not-found.",
   },
   // ── 29: Sandbox (Code Execution) ──────────────────────────────────────
-  // PR 52: analyze_spreadsheet
+  // PR 55: execute_in_sandbox (general tool)
   {
     surface: "29-sandbox",
-    scenario: "spreadsheet-analysis-happy-path",
+    scenario: "pdf-report-generation",
+    prompt:
+      "Generate a PDF market report for District 10 condos with transaction trends and median prices over the last 12 months.",
+    expectedTools: ["execute_in_sandbox"],
+    sequential: false,
+    notes:
+      "Happy path for execute_in_sandbox with pdf_creation skill. Agent should gather data first, then call execute_in_sandbox. Verify response includes a download link for a PDF.",
+  },
+  {
+    surface: "29-sandbox",
+    scenario: "spreadsheet-analysis",
     prompt:
       "I just uploaded a property comparison spreadsheet. Build me a financial model comparing these 3 condos with net yield, mortgage payments, and a sensitivity table.",
-    expectedTools: ["analyze_spreadsheet"],
+    expectedTools: ["execute_in_sandbox"],
     sequential: false,
     notes:
-      "Happy path for analyze_spreadsheet. Agent should call the tool with the uploaded file. Verify response includes a download link and summary mentioning formulas/verification.",
+      "Happy path for execute_in_sandbox with excel_editing skill. Agent should call the tool with skills: ['excel_editing', 're-analyst']. Verify response includes a download link for an xlsx.",
   },
   {
     surface: "29-sandbox",
-    scenario: "spreadsheet-iteration",
-    prompt: "Add a column for cash-on-cash return and break it down by district.",
-    expectedTools: ["analyze_spreadsheet"],
-    sequential: true,
-    notes:
-      "Multi-turn iteration. Same Sprite should be reused (no new sprite_sessions row). Agent should call analyze_spreadsheet again with the refinement request.",
-  },
-  // PR 53: publish_artifact
-  {
-    surface: "29-sandbox",
-    scenario: "showcase-page-happy-path",
+    scenario: "word-doc-generation",
     prompt:
-      "Build me a showcase page for the Marina Bay Residences unit I have in my pipeline.",
-    expectedTools: ["search_crm", "publish_artifact"],
+      "Write a professional thank-you letter to John Chen for choosing us as their property agent. Save it as a Word doc.",
+    expectedTools: ["execute_in_sandbox"],
     sequential: false,
     notes:
-      "Happy path for publish_artifact. Agent should gather CRM data first (search_crm), then call publish_artifact. Verify response includes a preview URL. // TODO: verify expectedTools — agent may also call read_file, web_search before publish_artifact.",
+      "Tests docx_editing skill. Agent should call execute_in_sandbox with skills: ['docx_editing']. Verify .docx download link in response.",
   },
   {
     surface: "29-sandbox",
-    scenario: "showcase-ship-it",
-    prompt: "Looks great, ship it.",
-    expectedTools: ["publish_artifact"],
-    sequential: true,
+    scenario: "showcase-page-publish",
+    prompt:
+      "Build me a showcase page for the Marina Bay Residences unit I have in my pipeline. Make it shareable.",
+    expectedTools: ["search_crm", "execute_in_sandbox"],
+    sequential: false,
     notes:
-      "Ship-it flow. Agent should call publish_artifact with shipIt=true. Response should include a signed URL (different from preview URL).",
+      "Tests publish_website skill. Agent should gather CRM data first, then call execute_in_sandbox with skills: ['publish_website', 'frontend-design']. Verify response includes a here.now live URL. // TODO: verify expectedTools — agent may also call read_file, web_search.",
   },
-  // PR 52a: workflow skill orchestration
+  // PR 52a: workflow skill orchestration (updated for PR 55 tool names)
   {
     surface: "29-sandbox",
     scenario: "deal-comparison-skill-routing",
     prompt:
       "Which of my pipeline properties is the best investment? Compare them side by side.",
-    expectedTools: ["search_crm", "analyze_spreadsheet"],
+    expectedTools: ["search_crm", "execute_in_sandbox"],
     sequential: false,
     notes:
-      "Tests deal-comparison skill routing. Agent should read the skill, search CRM for pipeline deals, then hand off to analyze_spreadsheet. // TODO: verify expectedTools — agent may also call read_file for skill + SOUL.md.",
+      "Tests deal-comparison outer workflow skill. Agent should read the skill, search CRM, then call execute_in_sandbox with skills: ['excel_editing', 're-analyst']. // TODO: verify expectedTools — agent may also call read_file.",
   },
+  // PR 54a: async execution
   {
     surface: "29-sandbox",
-    scenario: "market-report-skill-routing",
+    scenario: "async-non-blocking",
     prompt:
-      "Give me a market report for District 9 condos — transaction trends and median PSF over the last 12 months.",
-    expectedTools: ["analyze_spreadsheet"],
+      "Generate a detailed PDF analysis of my top 5 pipeline deals with charts comparing yield, price PSF, and rental potential.",
+    expectedTools: ["execute_in_sandbox"],
     sequential: false,
     notes:
-      "Tests market-report skill routing. Agent should gather web/market data, then call analyze_spreadsheet to produce the workbook. // TODO: verify expectedTools — agent may call web_search, search_market_data before sandbox.",
+      "Tests async non-blocking return. Tool should return 'started' immediately. Result delivered via webhook/cron. Verify response mentions 'working on it' or similar.",
   },
 ];
