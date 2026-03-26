@@ -2825,8 +2825,8 @@
         {
           "pr": "47a",
           "title": "Production hardening \u2014 error boundaries",
-          "status": "pending",
-          "simplified": false,
+          "status": "done",
+          "simplified": true,
           "decisions": [],
           "tasks": [
             {
@@ -2854,8 +2854,8 @@
         {
           "pr": "47b",
           "title": "Production hardening \u2014 environment validation",
-          "status": "pending",
-          "simplified": false,
+          "status": "done",
+          "simplified": true,
           "decisions": [],
           "tasks": [
             {
@@ -2882,8 +2882,8 @@
         {
           "pr": "47c",
           "title": "Production hardening \u2014 health check endpoint",
-          "status": "pending",
-          "simplified": false,
+          "status": "done",
+          "simplified": true,
           "decisions": [],
           "tasks": [
             {
@@ -2905,8 +2905,8 @@
         {
           "pr": "47d",
           "title": "Production hardening \u2014 security headers",
-          "status": "pending",
-          "simplified": false,
+          "status": "done",
+          "simplified": true,
           "decisions": [],
           "tasks": [
             {
@@ -2928,8 +2928,8 @@
         {
           "pr": "47e",
           "title": "Production hardening \u2014 Sentry integration",
-          "status": "pending",
-          "simplified": false,
+          "status": "done",
+          "simplified": true,
           "decisions": [],
           "tasks": [
             {
@@ -2962,8 +2962,8 @@
         {
           "pr": "47f",
           "title": "Production hardening \u2014 API rate limiting",
-          "status": "pending",
-          "simplified": false,
+          "status": "done",
+          "simplified": true,
           "decisions": [],
           "tasks": [
             {
