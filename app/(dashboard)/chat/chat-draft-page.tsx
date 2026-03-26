@@ -7,6 +7,7 @@
 
 import { useSearchParams } from "next/navigation";
 
+import { ChatErrorBoundary } from "@/components/chat/chat-error-boundary";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import type { MessageQuotaStatus } from "@/lib/usage/message-quota";
 
@@ -21,13 +22,15 @@ export function ChatDraftPage({ id, initialQuota = null }: ChatDraftPageProps) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ChatPanel
-        chatId={id}
-        initialMessages={[]}
-        initialQuota={initialQuota}
-        autoResume={false}
-        initialPrompt={initialPrompt}
-      />
+      <ChatErrorBoundary>
+        <ChatPanel
+          chatId={id}
+          initialMessages={[]}
+          initialQuota={initialQuota}
+          autoResume={false}
+          initialPrompt={initialPrompt}
+        />
+      </ChatErrorBoundary>
     </div>
   );
 }
