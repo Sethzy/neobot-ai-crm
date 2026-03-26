@@ -9,8 +9,8 @@ import { jobOutputDir } from "./sandbox-paths";
 import { deriveJobToken } from "./sprite-jobs";
 import type { SpriteHandle, SpriteSkillFile } from "./types";
 
-const ALLOWED_TOOLS = ["Read", "Write", "Edit", "MultiEdit", "Bash", "Glob", "Grep"];
-const DEFAULT_MAX_TURNS = 20;
+const ALLOWED_TOOLS = ["Read", "Write", "Edit", "MultiEdit", "Bash", "Glob", "Grep", "Task"];
+export const DEFAULT_MAX_TURNS = 100;
 
 /**
  * Builds the Claude CLI argument array for `sprite.execFile()`.

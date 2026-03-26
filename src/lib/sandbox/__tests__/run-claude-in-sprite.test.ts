@@ -9,6 +9,7 @@ import {
   buildClaudeEnv,
   buildSandboxPrompt,
   launchBackgroundJob,
+  DEFAULT_MAX_TURNS,
 } from "../run-claude-in-sprite";
 
 function createMockSprite() {
@@ -46,6 +47,19 @@ describe("buildClaudeCliArgs", () => {
     expect(args[args.indexOf("--max-turns") + 1]).toBe("15");
     expect(args).toContain(prompt);
     expect(args.join(" ")).toContain("Bash");
+  });
+
+  it("includes Task in allowed tools for subagent dispatch", () => {
+    const args = buildClaudeCliArgs("test", 10);
+    const allowedIdx = args.indexOf("--allowedTools");
+    const toolsStr = args[allowedIdx + 1];
+    expect(toolsStr).toContain("Task");
+  });
+});
+
+describe("DEFAULT_MAX_TURNS", () => {
+  it("is 100 to allow for review loops on cheap models", () => {
+    expect(DEFAULT_MAX_TURNS).toBe(100);
   });
 });
 
