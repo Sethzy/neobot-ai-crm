@@ -24,6 +24,7 @@ const {
   mockCreateNewResumableStream,
   mockCreateResumableStreamContext,
   mockResolveApprovalEvent,
+  mockEnsureClientBootstrap,
 } = vi.hoisted(() => ({
   mockRunAgent: vi.fn(),
   mockCreateClient: vi.fn(),
@@ -39,6 +40,7 @@ const {
   mockCreateNewResumableStream: vi.fn(),
   mockCreateResumableStreamContext: vi.fn(),
   mockResolveApprovalEvent: vi.fn(),
+  mockEnsureClientBootstrap: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/runner/run-agent", () => ({
@@ -73,8 +75,29 @@ vi.mock("@/lib/ai/title", () => ({
 }));
 
 vi.mock("@/lib/redis", () => ({
+  getRedisClient: vi.fn().mockResolvedValue(null),
   setActiveStreamId: mockSetActiveStreamId,
   clearActiveStreamId: mockClearActiveStreamId,
+}));
+
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 29 }),
+}));
+
+vi.mock("@/lib/memory/bootstrap", () => ({
+  ensureClientBootstrap: mockEnsureClientBootstrap,
+}));
+
+vi.mock("next/server", () => ({
+  after: vi.fn(),
+}));
+
+vi.mock("@/instrumentation", () => ({
+  langfuseSpanProcessor: { forceFlush: vi.fn().mockResolvedValue(undefined) },
+}));
+
+vi.mock("@json-render/core", () => ({
+  pipeJsonRender: vi.fn((stream: unknown) => stream),
 }));
 
 vi.mock("resumable-stream", () => ({
@@ -98,8 +121,20 @@ describe("POST /api/chat", () => {
     expect(maxDuration).toBe(120);
   });
 
+  /** Returns a mock for the `clients` table — SELECT crm_config_mode_until query. */
+  function createClientLookup() {
+    const single = vi.fn().mockResolvedValue({
+      data: { crm_config_mode_until: null },
+      error: null,
+    });
+    const eq = vi.fn(() => ({ single }));
+    const select = vi.fn(() => ({ eq }));
+    return { select, single };
+  }
+
   function createThreadLookup(options: { threadExists: boolean; error?: { message: string } | null }) {
     const { threadExists, error = null } = options;
+    const clientLookup = createClientLookup();
     const maybeSingle = vi.fn().mockResolvedValue(
       threadExists
         ? { data: { thread_id: threadId }, error }
@@ -109,24 +144,32 @@ describe("POST /api/chat", () => {
     const secondEq = vi.fn(() => ({ eq: thirdEq }));
     const firstEq = vi.fn(() => ({ eq: secondEq }));
     const select = vi.fn(() => ({ eq: firstEq }));
-    const from = vi.fn(() => ({ select }));
+    const from = vi.fn((table: string) => {
+      if (table === "clients") return clientLookup;
+      return { select };
+    });
 
     return { from };
   }
 
   function createMissingThreadWithInsert() {
+    const clientLookup = createClientLookup();
     const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
     const thirdEq = vi.fn(() => ({ maybeSingle }));
     const secondEq = vi.fn(() => ({ eq: thirdEq }));
     const firstEq = vi.fn(() => ({ eq: secondEq }));
     const select = vi.fn(() => ({ eq: firstEq }));
     const insert = vi.fn().mockResolvedValue({ error: null });
-    const from = vi.fn(() => ({ select, insert }));
+    const from = vi.fn((table: string) => {
+      if (table === "clients") return clientLookup;
+      return { select, insert };
+    });
 
     return { from, insert };
   }
 
   function createMissingThreadWithInsertAndUpdate() {
+    const clientLookup = createClientLookup();
     const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
     const thirdEq = vi.fn(() => ({ maybeSingle }));
     const secondEq = vi.fn(() => ({ eq: thirdEq }));
@@ -140,7 +183,10 @@ describe("POST /api/chat", () => {
     const deleteThreadEq = vi.fn(() => ({ eq: deleteClientEq }));
     const deleteRow = vi.fn(() => ({ eq: deleteThreadEq }));
 
-    const from = vi.fn(() => ({ select, insert, update, delete: deleteRow }));
+    const from = vi.fn((table: string) => {
+      if (table === "clients") return clientLookup;
+      return { select, insert, update, delete: deleteRow };
+    });
     return { from, insert, update, updateEq, deleteRow, deleteThreadEq, deleteClientEq };
   }
 
@@ -844,8 +890,18 @@ describe("POST /api/chat", () => {
     expect(await response.json()).toEqual({ error: "Invalid request body." });
   });
 
-  it("returns 500 when AI gateway key is missing", async () => {
+  it("does not fail at the route level when AI gateway key is missing (validation deferred to runner)", async () => {
     delete process.env.AI_GATEWAY_API_KEY;
+
+    const streamResponse = new Response("streamed", {
+      headers: { "Content-Type": "text/event-stream" },
+    });
+    mockCreateUIMessageStream.mockReturnValue(new ReadableStream());
+    mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
+    mockRunAgent.mockResolvedValue({
+      status: "streaming",
+      streamResult: { toUIMessageStream: vi.fn(() => new ReadableStream()) },
+    });
 
     const response = await POST(
       createJsonRequest({
@@ -858,10 +914,8 @@ describe("POST /api/chat", () => {
       }),
     );
 
-    expect(response.status).toBe(500);
-    expect(await response.json()).toEqual({
-      error: "Server misconfiguration: AI_GATEWAY_API_KEY is required.",
-    });
+    // Route proceeds — AI_GATEWAY_API_KEY is validated by getServerEnv() inside the runner
+    expect(response).toBe(streamResponse);
   });
 
   it("returns 400 when thread id is not a UUID", async () => {
@@ -992,5 +1046,52 @@ describe("POST /api/chat", () => {
     expect(deleteRow).toHaveBeenCalledTimes(1);
     expect(deleteThreadEq).toHaveBeenCalledWith("thread_id", threadId);
     expect(deleteClientEq).toHaveBeenCalledWith("client_id", "client-456");
+  });
+
+  it("returns 500 without calling runAgent when ensureClientBootstrap fails", async () => {
+    mockEnsureClientBootstrap.mockRejectedValueOnce(new Error("storage down"));
+
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Hello" }],
+        },
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "Failed to process chat request." });
+    expect(mockRunAgent).not.toHaveBeenCalled();
+  });
+
+  it("awaits ensureClientBootstrap before calling runAgent", async () => {
+    const streamResponse = new Response("streamed", {
+      headers: { "Content-Type": "text/event-stream" },
+    });
+    mockCreateUIMessageStream.mockReturnValue(new ReadableStream());
+    mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
+    mockRunAgent.mockResolvedValue({
+      status: "streaming",
+      streamResult: { toUIMessageStream: vi.fn(() => new ReadableStream()) },
+    });
+
+    await POST(
+      createJsonRequest({
+        id: threadId,
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Hello" }],
+        },
+      }),
+    );
+
+    expect(mockEnsureClientBootstrap).toHaveBeenCalledWith(mockSupabase, "client-456");
+    expect(mockEnsureClientBootstrap.mock.invocationCallOrder[0]).toBeLessThan(
+      mockRunAgent.mock.invocationCallOrder[0],
+    );
   });
 });

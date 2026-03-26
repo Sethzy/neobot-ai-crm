@@ -18,6 +18,7 @@ import { resolveApprovalEvent } from "@/lib/approvals/queries";
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { generateTitleFromUserMessage } from "@/lib/ai/title";
+import { ensureClientBootstrap } from "@/lib/memory/bootstrap";
 import { clearActiveStreamId, setActiveStreamId } from "@/lib/redis";
 import { runAgent } from "@/lib/runner/run-agent";
 import type { RunnerFilePart } from "@/lib/runner/schemas";
@@ -217,6 +218,10 @@ export async function POST(request: Request): Promise<Response> {
     clientId = resolvedClientId;
     _t("resolve_client_id");
 
+    // Fire bootstrap early — overlaps with CRM config check + thread lookup.
+    // No-op SELECT on already-bootstrapped clients (99%+ of requests).
+    const bootstrapPromise = ensureClientBootstrap(supabase, resolvedClientId);
+
     // Check if CRM config mode is active (non-null and not expired)
     // TODO: Could be combined with an existing client query to avoid an extra round-trip.
     const { data: clientRow } = await supabase
@@ -306,6 +311,9 @@ export async function POST(request: Request): Promise<Response> {
       );
       _t("approval_resolution");
     }
+
+    await bootstrapPromise;
+    _t("ensure_bootstrap");
 
     _t("pre_run_agent");
     const result = await runAgent(
