@@ -14,9 +14,11 @@ import {
   buildSandboxPrompt,
   launchBackgroundJob,
   writeSkillFiles,
+  DEFAULT_MAX_TURNS,
 } from "@/lib/sandbox/run-claude-in-sprite";
 import { jobOutputDir } from "@/lib/sandbox/sandbox-paths";
 import { loadSkillFilesForSandbox } from "@/lib/sandbox/skill-loader";
+import { ensureSuperpowersInstalled } from "@/lib/sandbox/superpowers";
 import {
   findRunningJob,
   insertSpriteJob,
@@ -127,7 +129,10 @@ export function createExecuteInSandboxTool(
           };
         }
 
-        // 3. Sync skills to Sprite
+        // 3. One-time superpowers install (skips if already installed on this Sprite)
+        await ensureSuperpowersInstalled(sprite);
+
+        // 4. Sync per-job domain skills (re-fetched since users can edit)
         const allSkillFiles: SpriteSkillFile[] = [];
         for (const slug of skills) {
           const files = await loadSkillFilesForSandbox(supabase, clientId, slug);
@@ -185,7 +190,7 @@ export function createExecuteInSandboxTool(
             outputDir,
           });
 
-          await launchBackgroundJob(sprite, jobId, { prompt, maxTurns: 20 });
+          await launchBackgroundJob(sprite, jobId, { prompt, maxTurns: DEFAULT_MAX_TURNS });
           await updateJobStatus(supabase, jobId, "running");
           await touchSpriteSession(supabase, spriteName);
         } catch (launchError) {

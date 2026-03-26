@@ -231,7 +231,7 @@ After completing the main work, dispatch a fresh code-reviewer subagent. The rev
 ## When to Request Review
 
 - After completing the main task (spreadsheet analysis, artifact build)
-- Before writing the final summary.txt
+- After drafting summary.txt (so the reviewer can check it too)
 - When you've made significant changes and want a second opinion
 
 ## How to Request
