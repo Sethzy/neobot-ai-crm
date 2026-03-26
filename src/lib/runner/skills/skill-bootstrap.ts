@@ -21,7 +21,7 @@ import {
 } from "./skill-templates";
 
 const SKILLS_DIRECTORY = "skills";
-const RESERVED_SKILL_DIRECTORIES = new Set(["system", "connections"]);
+const RESERVED_SKILL_DIRECTORIES = new Set(["system", "connections", "superpowers"]);
 
 const bootstrappedClients = new Set<string>();
 

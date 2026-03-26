@@ -26,6 +26,10 @@ const { mockBuildSandboxPrompt, mockLaunchBackgroundJob, mockWriteSkillFiles } =
   mockWriteSkillFiles: vi.fn().mockResolvedValue(undefined),
 }));
 
+const { mockEnsureSuperpowersInstalled } = vi.hoisted(() => ({
+  mockEnsureSuperpowersInstalled: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/chat/messages", () => ({
   createMessage: mockCreateMessage,
 }));
@@ -42,6 +46,11 @@ vi.mock("@/lib/sandbox/run-claude-in-sprite", () => ({
   buildSandboxPrompt: mockBuildSandboxPrompt,
   launchBackgroundJob: mockLaunchBackgroundJob,
   writeSkillFiles: mockWriteSkillFiles,
+  DEFAULT_MAX_TURNS: 100,
+}));
+
+vi.mock("@/lib/sandbox/superpowers", () => ({
+  ensureSuperpowersInstalled: mockEnsureSuperpowersInstalled,
 }));
 
 import { parseProgressFromLines, deliverResult, failJob } from "../sprite-jobs";
@@ -262,5 +271,73 @@ describe("failJob", () => {
     await failJob(job, "Analysis failed.", supabase);
 
     expect(mockCreateMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe("queue promotion wiring (superpowers + DEFAULT_MAX_TURNS)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls ensureSuperpowersInstalled and launchBackgroundJob with DEFAULT_MAX_TURNS when promoting a queued job", async () => {
+    const job = makeJobRow({
+      job_type: "sandbox",
+      job_meta: { skills: ["excel_editing"], task: "test", inputFiles: [], outputDir: "/workspace/jobs/job-1" },
+    });
+    const sprite = makeMockSprite({
+      fileContents: { "summary.txt": "Done" },
+      lsOutput: "stream.jsonl\n.done\nsummary.txt\n",
+    });
+
+    // Build a supabase mock where queue promotion finds a queued job
+    const queuedJob = {
+      id: "queued-job-1",
+      client_id: "client-1",
+      thread_id: "thread-2",
+      sprite_name: "sprite-1",
+      job_type: "sandbox",
+      job_meta: { skills: ["pdf_creation"], task: "make a pdf", inputFiles: [], outputDir: "/workspace/jobs/queued-job-1" },
+      status: "queued",
+      created_at: new Date().toISOString(),
+    };
+
+    // maybeSingle is called by promoteNextQueuedJob:
+    //   1st call: find queued job → return queuedJob
+    //   2nd call: CAS claim → return queuedJob (simulates successful claim)
+    const terminal = {
+      maybeSingle: vi.fn().mockResolvedValue({ data: queuedJob, error: null }),
+      single: vi.fn().mockResolvedValue({ data: null, error: null }),
+      then: vi.fn().mockImplementation((fn: (v: unknown) => unknown) =>
+        Promise.resolve(fn({ data: null, error: null, count: 0 })),
+      ),
+    };
+    const chain: Record<string, unknown> = { ...terminal };
+    chain.update = vi.fn().mockReturnValue(chain);
+    chain.select = vi.fn().mockReturnValue(chain);
+    chain.insert = vi.fn().mockReturnValue(chain);
+    chain.eq = vi.fn().mockReturnValue(chain);
+    chain.in = vi.fn().mockReturnValue(chain);
+    chain.is = vi.fn().mockReturnValue(chain);
+    chain.lt = vi.fn().mockReturnValue(chain);
+    chain.order = vi.fn().mockReturnValue(chain);
+    chain.limit = vi.fn().mockReturnValue(chain);
+    const supabase = { from: vi.fn().mockReturnValue(chain) } as never;
+
+    await deliverResult(job, sprite, supabase);
+
+    // ensureSuperpowersInstalled should have been called during queue promotion
+    expect(mockEnsureSuperpowersInstalled).toHaveBeenCalledWith(sprite);
+
+    // launchBackgroundJob should use DEFAULT_MAX_TURNS (100)
+    expect(mockLaunchBackgroundJob).toHaveBeenCalledWith(
+      sprite,
+      "queued-job-1",
+      expect.objectContaining({ maxTurns: 100 }),
+    );
+
+    // ensureSuperpowersInstalled should be called BEFORE writeSkillFiles
+    const spCallOrder = mockEnsureSuperpowersInstalled.mock.invocationCallOrder[0];
+    const wsCallOrder = mockWriteSkillFiles.mock.invocationCallOrder[0];
+    expect(spCallOrder).toBeLessThan(wsCallOrder);
   });
 });

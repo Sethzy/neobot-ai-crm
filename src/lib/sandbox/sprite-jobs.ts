@@ -10,8 +10,9 @@ import { createAgentFileClient } from "@/lib/storage/agent-files";
 import { fetchSafeExternalResource } from "./external-url";
 import { inferContentType, filterOutputFiles } from "./sandbox-delivery";
 import { jobOutputDir, jobDoneMarker, jobErrorMarker, jobStreamLog } from "./sandbox-paths";
-import { buildSandboxPrompt, launchBackgroundJob, writeSkillFiles } from "./run-claude-in-sprite";
+import { buildSandboxPrompt, launchBackgroundJob, writeSkillFiles, DEFAULT_MAX_TURNS } from "./run-claude-in-sprite";
 import { loadSkillFilesForSandbox } from "./skill-loader";
+import { ensureSuperpowersInstalled } from "./superpowers";
 import type { SpriteHandle } from "./types";
 import type { Database } from "@/types/database";
 
@@ -240,7 +241,7 @@ async function promoteNextQueuedJob(
   // CAS claim: queued → starting (select() to verify the update landed)
   const { data: claimed } = await supabase
     .from("sprite_jobs")
-    .update({ status: "starting" } as Record<string, unknown>)
+    .update({ status: "starting" })
     .eq("id", next.id)
     .eq("status", "queued")
     .select()
@@ -267,7 +268,10 @@ async function promoteNextQueuedJob(
       ],
     });
 
-    // Sync skills
+    // One-time superpowers install (skips if already installed on this Sprite)
+    await ensureSuperpowersInstalled(sprite);
+
+    // Sync per-job domain skills (re-fetched from Supabase since users can edit)
     const allSkillFiles = [];
     for (const slug of skills) {
       const files = await loadSkillFilesForSandbox(supabase, next.client_id, slug);
@@ -316,7 +320,7 @@ async function promoteNextQueuedJob(
       outputDir: nextOutputDir,
     });
 
-    await launchBackgroundJob(sprite, next.id, { prompt, maxTurns: 20 });
+    await launchBackgroundJob(sprite, next.id, { prompt, maxTurns: DEFAULT_MAX_TURNS });
     await updateJobStatus(supabase, next.id, "running");
   } catch (promotionError) {
     await failJob(
@@ -475,7 +479,7 @@ export async function cleanupStaleSprites(
     }
 
     await supabase.from("sprite_sessions")
-      .update({ status: "destroyed" } as Record<string, unknown>)
+      .update({ status: "destroyed" })
       .eq("sprite_name", session.sprite_name);
 
     destroyed++;
