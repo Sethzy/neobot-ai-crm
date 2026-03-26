@@ -928,6 +928,55 @@ describe("POST /api/webhook/telegram", () => {
       expect.stringMatching(/already in the main session/i),
       expect.anything(),
     );
+    // Bug fix: should NOT clear pending questions when already on main
+    expect(mockClearPendingQuestionsForChat).not.toHaveBeenCalled();
+  });
+
+  it("warns about stale approvals when the approval thread differs from the current mapping", async () => {
+    const supabase = createWebhookSupabase({
+      mappingResults: [{
+        data: {
+          client_id: "client-1",
+          thread_id: "new-thread-after-switch",
+          external_conversation_id: "12345",
+        },
+        error: null,
+      }],
+      approvalEventResults: [{
+        data: { thread_id: "old-thread-before-switch" },
+        error: null,
+      }],
+    });
+    const api = createTelegramBotApi();
+    mockCreateAdminClient.mockResolvedValue(supabase);
+    mockCreateTelegramBot.mockReturnValue({ api });
+
+    const response = await POST(
+      createRequest({
+        update_id: 302,
+        callback_query: {
+          id: "callback-stale",
+          data: "approve:approval-stale",
+          message: {
+            message_id: 11,
+            text: "Approval Required",
+            chat: { id: 12345, type: "private" },
+          },
+        },
+      }),
+    );
+    await flushBackgroundWork();
+
+    expect(response.status).toBe(200);
+    expect(mockResolveAndContinueApproval).toHaveBeenCalledWith(
+      supabase,
+      expect.objectContaining({
+        threadId: "old-thread-before-switch",
+      }),
+    );
+    expect(api.answerCallbackQuery).toHaveBeenCalledWith("callback-stale", {
+      text: "Approved — response in web app (session changed)",
+    });
   });
 
   it("passes stored Telegram media through as runner file parts", async () => {

@@ -4,13 +4,16 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { TELEGRAM_CHANNEL } from "@/lib/channels/telegram/webhook";
 import { extractApprovalPartsFromPersisted, type PersistedPart } from "@/lib/runner/message-utils";
 import type { Database } from "@/types/database";
+
+type AskUserQuestionOption = string | { label?: string; description?: string };
 
 type AskUserQuestionOutput = {
   questions?: Array<{
     question?: string;
-    options?: string[];
+    options?: AskUserQuestionOption[];
     type?: "single_select" | "multi_select" | "rank_priorities";
   }>;
 };
@@ -70,9 +73,19 @@ function extractQuestionOutputs(parts?: ReadonlyArray<PersistedPart>) {
           return [];
         }
 
+        const options = question.options.flatMap((option) => {
+          if (typeof option === "string") return [option];
+          if (typeof option === "object" && option !== null && typeof option.label === "string") {
+            return option.description
+              ? [{ label: option.label, description: option.description }]
+              : [option.label];
+          }
+          return [];
+        });
+
         return [{
           question: question.question,
-          options: question.options.filter((option): option is string => typeof option === "string"),
+          options,
           type: question.type,
         }];
       })
@@ -107,7 +120,7 @@ export async function deliverToExternalChannels(
   }
 
   for (const mapping of mappings) {
-    if (mapping.channel !== "telegram") {
+    if (mapping.channel !== TELEGRAM_CHANNEL) {
       continue;
     }
 

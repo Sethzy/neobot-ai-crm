@@ -32,8 +32,10 @@ export {
   buildQuestionText,
   buildUnsupportedQuestionFallback,
   formatQuestionResponse,
+  getOptionLabel,
   isSupportedQuestionType,
   parseQuestionCallback,
+  type QuestionOption,
   sendTelegramQuestion,
 } from "./questions";
 export {

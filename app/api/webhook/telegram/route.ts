@@ -3,7 +3,7 @@
  * Handles pairing, inbound messages, approvals, and ask_user_question callbacks.
  * @module app/api/webhook/telegram/route
  */
-import { randomUUID, timingSafeEqual } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
 import { after } from "next/server";
 import { z } from "zod";
@@ -12,13 +12,10 @@ import { resolveAndContinueApproval } from "@/lib/approvals/continue-after-appro
 import {
   buildUnsupportedQuestionFallback,
   createTelegramBot,
-  downloadAndStoreTelegramFile,
-  getMediaFallbacks,
   getTelegramBotToken,
   isPairingTokenFormat,
   parseApprovalCallback,
   parseQuestionCallback,
-  resolveFileId,
   sendTelegramQuestion,
 } from "@/lib/channels/telegram";
 import {
@@ -27,9 +24,21 @@ import {
   clearPendingQuestionsForChat,
   restorePendingQuestionBatch,
 } from "@/lib/channels/telegram/pending-questions";
+import {
+  editTelegramCallbackMessage,
+  extractChatId,
+  extractInboundFiles,
+  getCallbackMessage,
+  hasValidTelegramSecret,
+  parseCommand,
+  recordTelegramDeliveryReceipt,
+  resolveCommandMapping,
+  sendPlainTelegramMessage,
+  TELEGRAM_CHANNEL,
+  type TelegramWebhookContext,
+} from "@/lib/channels/telegram/webhook";
 import { runAgent } from "@/lib/runner/run-agent";
 import { createAdminClient } from "@/lib/supabase/server";
-import type { Database } from "@/types/database";
 
 const telegramUpdateSchema = z.object({
   update_id: z.number().int(),
@@ -37,234 +46,46 @@ const telegramUpdateSchema = z.object({
   callback_query: z.record(z.string(), z.unknown()).optional(),
 });
 
-type TelegramAdminClient = Awaited<ReturnType<typeof createAdminClient>>;
-type TelegramBot = ReturnType<typeof createTelegramBot>;
-
-function getTelegramWebhookSecret(): string {
-  const secret = (process.env.TELEGRAM_WEBHOOK_SECRET ?? "").trim();
-  if (!secret) {
-    throw new Error("TELEGRAM_WEBHOOK_SECRET is required.");
-  }
-  return secret;
-}
-
-function hasValidTelegramSecret(headerValue: string | null): boolean {
-  const expected = getTelegramWebhookSecret();
-  const receivedBuffer = Buffer.from(headerValue ?? "");
-  const expectedBuffer = Buffer.from(expected);
-
-  if (receivedBuffer.length !== expectedBuffer.length) {
-    return false;
-  }
-
-  return timingSafeEqual(receivedBuffer, expectedBuffer);
-}
-
-function isDuplicateInsertError(error: { code?: string; message?: string } | null): boolean {
-  if (!error) {
-    return false;
-  }
-
-  if (error.code === "23505") {
-    return true;
-  }
-
-  return error.message?.toLowerCase().includes("duplicate") ?? false;
-}
-
-async function getTelegramMappingByChatId(
-  supabase: TelegramAdminClient,
-  chatId: string,
-) {
-  const { data, error } = await supabase
-    .from("conversation_channel_mappings")
-    .select("client_id, thread_id, external_conversation_id")
-    .eq("channel", "telegram")
-    .eq("external_conversation_id", chatId)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
-}
-
-async function recordTelegramDeliveryReceipt(
-  supabase: TelegramAdminClient,
-  input: { clientId: string; threadId: string; updateId: number },
-): Promise<boolean> {
-  const { error } = await supabase
-    .from("conversation_channel_delivery_receipts")
-    .insert({
-      client_id: input.clientId,
-      thread_id: input.threadId,
-      channel: "telegram",
-      delivery_id: String(input.updateId),
-    });
-
-  if (isDuplicateInsertError(error)) {
-    return false;
-  }
-
-  if (error) {
-    throw error;
-  }
-
-  return true;
-}
-
-async function sendPlainTelegramMessage(
-  bot: TelegramBot,
-  chatId: number,
-  text: string,
-) {
-  await bot.api.sendMessage(chatId, text, { parse_mode: "HTML" });
-}
-
-function getCallbackMessage(
-  callbackQuery: Record<string, unknown>,
-): Record<string, unknown> | null {
-  const message = callbackQuery.message;
-  return typeof message === "object" && message !== null
-    ? message as Record<string, unknown>
-    : null;
-}
-
-function getCallbackMessageText(message: Record<string, unknown>): string {
-  if (typeof message.text === "string" && message.text.trim().length > 0) {
-    return message.text;
-  }
-
-  if (typeof message.caption === "string" && message.caption.trim().length > 0) {
-    return message.caption;
-  }
-
-  return "";
-}
-
-async function editTelegramCallbackMessage(
-  bot: TelegramBot,
-  callbackQuery: Record<string, unknown>,
-  appendedLabel: string,
-): Promise<void> {
-  const message = getCallbackMessage(callbackQuery);
-  if (!message) {
-    return;
-  }
-
-  const chatId = Number((message.chat as Record<string, unknown> | undefined)?.id);
-  const messageId = typeof message.message_id === "number" ? message.message_id : NaN;
-  if (!Number.isFinite(chatId) || !Number.isFinite(messageId)) {
-    return;
-  }
-
-  const baseText = getCallbackMessageText(message);
-  const updatedText = baseText.length > 0 ? `${baseText}\n\n${appendedLabel}` : appendedLabel;
-
-  try {
-    await bot.api.editMessageText(chatId, messageId, updatedText, {
-      reply_markup: { inline_keyboard: [] },
-    });
-  } catch {
-    // Telegram callback edits are best-effort. Stale or already-edited messages
-    // should not break the callback flow.
-  }
-}
-
-function parseCommand(text: string): { command: string; args: string } | null {
-  const trimmed = text.trim();
-  if (!trimmed.startsWith("/")) {
-    return null;
-  }
-
-  const [rawCommand, ...rest] = trimmed.split(/\s+/);
-  const command = rawCommand.split("@")[0].toLowerCase();
-  return {
-    command,
-    args: rest.join(" ").trim(),
-  };
-}
-
-async function extractInboundFiles(
-  supabase: TelegramAdminClient,
-  bot: TelegramBot,
-  clientId: string,
-  message: Record<string, unknown>,
-) {
-  const supportedMediaTypes = [
-    "photo",
-    "document",
-    "voice",
-    "video",
-    "audio",
-    "animation",
-    "video_note",
-  ] as const;
-
-  for (const mediaType of supportedMediaTypes) {
-    const fileId = resolveFileId(mediaType, message);
-    if (!fileId) {
-      continue;
-    }
-
-    const { ext, mime } = getMediaFallbacks(mediaType);
-    const storedFile = await downloadAndStoreTelegramFile(
-      bot.api,
-      supabase,
-      clientId,
-      fileId,
-      ext,
-      mime,
-    );
-
-    if (!storedFile) {
-      return [];
-    }
-
-    return [{
-      type: "file" as const,
-      url: storedFile.url,
-      mediaType: storedFile.mimeType,
-    }];
-  }
-
-  return [];
-}
+// ---------------------------------------------------------------------------
+// /start — pairing
+// ---------------------------------------------------------------------------
 
 async function handleStartCommand(
-  supabase: TelegramAdminClient,
-  bot: TelegramBot,
+  ctx: TelegramWebhookContext,
   message: Record<string, unknown>,
   token: string,
 ): Promise<void> {
-  const chatId = String((message.chat as Record<string, unknown>).id);
-  const numericChatId = Number(chatId);
+  const { chatId, numericChatId } = extractChatId(message);
 
   if (!isPairingTokenFormat(token)) {
-    await sendPlainTelegramMessage(bot, numericChatId, "This pairing link is invalid.");
+    await sendPlainTelegramMessage(ctx.bot, numericChatId, "This pairing link is invalid.");
     return;
   }
 
-  const existingMapping = await getTelegramMappingByChatId(supabase, chatId);
+  const { data: existingMapping } = await ctx.supabase
+    .from("conversation_channel_mappings")
+    .select("client_id")
+    .eq("channel", TELEGRAM_CHANNEL)
+    .eq("external_conversation_id", chatId)
+    .maybeSingle();
+
   if (existingMapping) {
-    await sendPlainTelegramMessage(bot, numericChatId, "This Telegram chat is already connected.");
+    await sendPlainTelegramMessage(ctx.bot, numericChatId, "This Telegram chat is already connected.");
     return;
   }
 
-  const { data: pairingToken, error: pairingError } = await supabase
+  const { data: pairingToken, error: pairingError } = await ctx.supabase
     .from("telegram_pairing_tokens")
     .select("token, client_id, expires_at")
     .eq("token", token)
     .maybeSingle();
 
   if (pairingError || !pairingToken || new Date(pairingToken.expires_at) <= new Date()) {
-    await sendPlainTelegramMessage(bot, numericChatId, "This pairing link has expired.");
+    await sendPlainTelegramMessage(ctx.bot, numericChatId, "This pairing link has expired.");
     return;
   }
 
-  // Look up the existing primary thread instead of creating a new one
-  const { data: primaryThread, error: primaryError } = await supabase
+  const { data: primaryThread, error: primaryError } = await ctx.supabase
     .from("conversation_threads")
     .select("thread_id")
     .eq("client_id", pairingToken.client_id)
@@ -272,18 +93,16 @@ async function handleStartCommand(
     .single();
 
   if (primaryError || !primaryThread) {
-    await sendPlainTelegramMessage(bot, numericChatId, "Setup incomplete. Please try again.");
+    await sendPlainTelegramMessage(ctx.bot, numericChatId, "Setup incomplete. Please try again.");
     return;
   }
 
-  const threadId = primaryThread.thread_id;
-
-  const { error: mappingError } = await supabase
+  const { error: mappingError } = await ctx.supabase
     .from("conversation_channel_mappings")
     .insert({
       client_id: pairingToken.client_id,
-      thread_id: threadId,
-      channel: "telegram",
+      thread_id: primaryThread.thread_id,
+      channel: TELEGRAM_CHANNEL,
       external_conversation_id: chatId,
     });
 
@@ -291,36 +110,30 @@ async function handleStartCommand(
     throw mappingError;
   }
 
-  await supabase
+  await ctx.supabase
     .from("telegram_pairing_tokens")
     .delete()
     .eq("token", token);
 
-  await sendPlainTelegramMessage(bot, numericChatId, "Connected. You can message your agent here.");
+  await sendPlainTelegramMessage(ctx.bot, numericChatId, "Connected. You can message your agent here.");
 }
 
+// ---------------------------------------------------------------------------
+// /new — create fresh thread
+// ---------------------------------------------------------------------------
+
 async function handleNewCommand(
-  supabase: TelegramAdminClient,
-  bot: TelegramBot,
+  ctx: TelegramWebhookContext,
   message: Record<string, unknown>,
 ): Promise<void> {
-  const chatId = String((message.chat as Record<string, unknown>).id);
-  const numericChatId = Number(chatId);
-  const mapping = await getTelegramMappingByChatId(supabase, chatId);
+  const resolved = await resolveCommandMapping(ctx, message);
+  if (!resolved) return;
+  const { chatId, numericChatId, mapping } = resolved;
 
-  if (!mapping) {
-    await sendPlainTelegramMessage(
-      bot,
-      numericChatId,
-      "This chat is not connected. Generate a new pairing link from Settings.",
-    );
-    return;
-  }
-
-  await clearPendingQuestionsForChat(supabase, chatId);
+  await clearPendingQuestionsForChat(ctx.supabase, chatId);
 
   const threadId = randomUUID();
-  const { error: threadError } = await supabase
+  const { error: threadError } = await ctx.supabase
     .from("conversation_threads")
     .insert({
       thread_id: threadId,
@@ -332,40 +145,32 @@ async function handleNewCommand(
     throw threadError;
   }
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = await ctx.supabase
     .from("conversation_channel_mappings")
     .update({ thread_id: threadId })
-    .eq("channel", "telegram")
+    .eq("channel", TELEGRAM_CHANNEL)
     .eq("external_conversation_id", chatId);
 
   if (updateError) {
     throw updateError;
   }
 
-  await sendPlainTelegramMessage(bot, numericChatId, "Started a new Telegram chat.");
+  await sendPlainTelegramMessage(ctx.bot, numericChatId, "Started a new Telegram chat.");
 }
 
+// ---------------------------------------------------------------------------
+// /main — switch back to primary thread
+// ---------------------------------------------------------------------------
+
 async function handleMainCommand(
-  supabase: TelegramAdminClient,
-  bot: TelegramBot,
+  ctx: TelegramWebhookContext,
   message: Record<string, unknown>,
 ): Promise<void> {
-  const chatId = String((message.chat as Record<string, unknown>).id);
-  const numericChatId = Number(chatId);
-  const mapping = await getTelegramMappingByChatId(supabase, chatId);
+  const resolved = await resolveCommandMapping(ctx, message);
+  if (!resolved) return;
+  const { chatId, numericChatId, mapping } = resolved;
 
-  if (!mapping) {
-    await sendPlainTelegramMessage(
-      bot,
-      numericChatId,
-      "This chat is not connected. Generate a new pairing link from Settings.",
-    );
-    return;
-  }
-
-  await clearPendingQuestionsForChat(supabase, chatId);
-
-  const { data: primaryThread, error: primaryError } = await supabase
+  const { data: primaryThread, error: primaryError } = await ctx.supabase
     .from("conversation_threads")
     .select("thread_id")
     .eq("client_id", mapping.client_id)
@@ -373,31 +178,39 @@ async function handleMainCommand(
     .single();
 
   if (primaryError || !primaryThread) {
-    await sendPlainTelegramMessage(bot, numericChatId, "Primary thread not found.");
+    await sendPlainTelegramMessage(ctx.bot, numericChatId, "Primary thread not found.");
     return;
   }
 
+  // BUG FIX: Only clear pending questions when actually switching threads.
+  // Previously, clearPendingQuestionsForChat ran before this guard, discarding
+  // active question flows even when the user was already on main.
   if (mapping.thread_id === primaryThread.thread_id) {
-    await sendPlainTelegramMessage(bot, numericChatId, "Already in the main session.");
+    await sendPlainTelegramMessage(ctx.bot, numericChatId, "Already in the main session.");
     return;
   }
 
-  const { error: updateError } = await supabase
+  await clearPendingQuestionsForChat(ctx.supabase, chatId);
+
+  const { error: updateError } = await ctx.supabase
     .from("conversation_channel_mappings")
     .update({ thread_id: primaryThread.thread_id })
-    .eq("channel", "telegram")
+    .eq("channel", TELEGRAM_CHANNEL)
     .eq("external_conversation_id", chatId);
 
   if (updateError) {
     throw updateError;
   }
 
-  await sendPlainTelegramMessage(bot, numericChatId, "Switched back to main session.");
+  await sendPlainTelegramMessage(ctx.bot, numericChatId, "Switched back to main session.");
 }
 
+// ---------------------------------------------------------------------------
+// Question continuation helper
+// ---------------------------------------------------------------------------
+
 async function continueTelegramQuestionBatch(
-  supabase: TelegramAdminClient,
-  bot: TelegramBot,
+  ctx: TelegramWebhookContext,
   chatId: number,
   result: Awaited<ReturnType<typeof advancePendingQuestionBatchByCallback>>,
 ): Promise<boolean> {
@@ -408,7 +221,7 @@ async function continueTelegramQuestionBatch(
   try {
     if (result.question.type === "single_select") {
       await sendTelegramQuestion(
-        bot.api,
+        ctx.bot.api,
         String(chatId),
         result.batch.token,
         result.questionIndex,
@@ -419,7 +232,7 @@ async function continueTelegramQuestionBatch(
     }
 
     await sendPlainTelegramMessage(
-      bot,
+      ctx.bot,
       chatId,
       buildUnsupportedQuestionFallback(
         result.question.question,
@@ -430,7 +243,7 @@ async function continueTelegramQuestionBatch(
     return true;
   } catch (error) {
     try {
-      await restorePendingQuestionBatch(supabase, result.rollback);
+      await restorePendingQuestionBatch(ctx.supabase, result.rollback);
     } catch (rollbackError) {
       console.error("[telegram/webhook] failed to restore pending question batch:", rollbackError);
     }
@@ -439,8 +252,12 @@ async function continueTelegramQuestionBatch(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Agent run helper
+// ---------------------------------------------------------------------------
+
 async function runTelegramAgent(
-  supabase: TelegramAdminClient,
+  ctx: TelegramWebhookContext,
   input: {
     clientId: string;
     threadId: string;
@@ -455,11 +272,11 @@ async function runTelegramAgent(
       threadId: input.threadId,
       triggerType: "chat",
       input: input.text,
-      channel: "telegram",
+      channel: TELEGRAM_CHANNEL,
       consumeMessageQuota: true,
       ...(input.fileParts && input.fileParts.length > 0 ? { fileParts: input.fileParts } : {}),
     },
-    supabase,
+    ctx.supabase,
   );
 
   if (result.status === "streaming") {
@@ -467,26 +284,20 @@ async function runTelegramAgent(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Regular messages
+// ---------------------------------------------------------------------------
+
 async function handleRegularMessage(
-  supabase: TelegramAdminClient,
-  bot: TelegramBot,
+  ctx: TelegramWebhookContext,
   updateId: number,
   message: Record<string, unknown>,
 ): Promise<void> {
-  const chatId = String((message.chat as Record<string, unknown>).id);
-  const numericChatId = Number(chatId);
-  const mapping = await getTelegramMappingByChatId(supabase, chatId);
+  const resolved = await resolveCommandMapping(ctx, message);
+  if (!resolved) return;
+  const { numericChatId, mapping } = resolved;
 
-  if (!mapping) {
-    await sendPlainTelegramMessage(
-      bot,
-      numericChatId,
-      "This chat is not connected. Generate a new pairing link from Settings.",
-    );
-    return;
-  }
-
-  const shouldContinue = await recordTelegramDeliveryReceipt(supabase, {
+  const shouldContinue = await recordTelegramDeliveryReceipt(ctx.supabase, {
     clientId: mapping.client_id,
     threadId: mapping.thread_id,
     updateId,
@@ -502,19 +313,19 @@ async function handleRegularMessage(
       : "";
 
   if (messageText) {
-    const pendingTextReply = await advancePendingQuestionBatchByTextReply(supabase, {
-      chatId,
+    const pendingTextReply = await advancePendingQuestionBatchByTextReply(ctx.supabase, {
+      chatId: resolved.chatId,
       text: messageText,
     });
 
     if (pendingTextReply.status === "next") {
-      await continueTelegramQuestionBatch(supabase, bot, numericChatId, pendingTextReply);
+      await continueTelegramQuestionBatch(ctx, numericChatId, pendingTextReply);
       return;
     }
 
     if (pendingTextReply.status === "completed") {
-      await bot.api.sendChatAction(numericChatId, "typing");
-      await runTelegramAgent(supabase, {
+      await ctx.bot.api.sendChatAction(numericChatId, "typing");
+      await runTelegramAgent(ctx, {
         clientId: pendingTextReply.clientId,
         threadId: pendingTextReply.threadId,
         text: pendingTextReply.responseText,
@@ -524,13 +335,13 @@ async function handleRegularMessage(
     }
   }
 
-  const fileParts = await extractInboundFiles(supabase, bot, mapping.client_id, message);
+  const fileParts = await extractInboundFiles(ctx.supabase, ctx.bot, mapping.client_id, message);
   if (!messageText && fileParts.length === 0) {
     return;
   }
 
-  await bot.api.sendChatAction(numericChatId, "typing");
-  await runTelegramAgent(supabase, {
+  await ctx.bot.api.sendChatAction(numericChatId, "typing");
+  await runTelegramAgent(ctx, {
     clientId: mapping.client_id,
     threadId: mapping.thread_id,
     text: messageText,
@@ -539,27 +350,36 @@ async function handleRegularMessage(
   });
 }
 
+// ---------------------------------------------------------------------------
+// Approval callbacks
+// ---------------------------------------------------------------------------
+
 async function handleApprovalCallback(
-  supabase: TelegramAdminClient,
-  bot: TelegramBot,
+  ctx: TelegramWebhookContext,
   callbackQuery: Record<string, unknown>,
   callbackId: string,
   input: { action: "approve" | "deny"; approvalId: string },
 ): Promise<void> {
   const message = getCallbackMessage(callbackQuery);
   if (!message) {
-    await bot.api.answerCallbackQuery(callbackId);
+    await ctx.bot.api.answerCallbackQuery(callbackId);
     return;
   }
 
-  const chatId = String((message.chat as Record<string, unknown>).id);
-  const mapping = await getTelegramMappingByChatId(supabase, chatId);
+  const { chatId } = extractChatId(message);
+  const { data: mapping } = await ctx.supabase
+    .from("conversation_channel_mappings")
+    .select("client_id, thread_id, external_conversation_id")
+    .eq("channel", TELEGRAM_CHANNEL)
+    .eq("external_conversation_id", chatId)
+    .maybeSingle();
+
   if (!mapping) {
-    await bot.api.answerCallbackQuery(callbackId, { text: "Not connected." });
+    await ctx.bot.api.answerCallbackQuery(callbackId, { text: "Not connected." });
     return;
   }
 
-  const { data: approvalEvent } = await supabase
+  const { data: approvalEvent } = await ctx.supabase
     .from("approval_events")
     .select("thread_id")
     .eq("approval_id", input.approvalId)
@@ -567,12 +387,19 @@ async function handleApprovalCallback(
     .single();
 
   if (!approvalEvent) {
-    await bot.api.answerCallbackQuery(callbackId, { text: "Approval not found." });
+    await ctx.bot.api.answerCallbackQuery(callbackId, { text: "Approval not found." });
     return;
   }
 
   const approved = input.action === "approve";
-  const result = await resolveAndContinueApproval(supabase, {
+
+  // BUG FIX: Detect stale approvals from a previous session. After /new or /main,
+  // the mapping points to a different thread than the approval. The agent will run
+  // on the old thread, but delivery targets the current mapping — so the follow-up
+  // would silently vanish. Warn the user so they know where to look.
+  const isStaleThread = approvalEvent.thread_id !== mapping.thread_id;
+
+  const result = await resolveAndContinueApproval(ctx.supabase, {
     clientId: mapping.client_id,
     threadId: approvalEvent.thread_id,
     approvalId: input.approvalId,
@@ -585,25 +412,30 @@ async function handleApprovalCallback(
       : approved
         ? "✅ Approved"
         : "❌ Denied";
-    await editTelegramCallbackMessage(bot, callbackQuery, statusLabel);
+    await editTelegramCallbackMessage(ctx.bot, callbackQuery, statusLabel);
   }
 
-  await bot.api.answerCallbackQuery(callbackId, {
+  await ctx.bot.api.answerCallbackQuery(callbackId, {
     text: result.success
       ? (
         result.status === "already_resolved"
           ? "Already resolved."
           : approved
-            ? "Approved — agent continuing"
+            ? isStaleThread
+              ? "Approved — response in web app (session changed)"
+              : "Approved — agent continuing"
             : "Denied"
       )
       : "Failed to process",
   });
 }
 
+// ---------------------------------------------------------------------------
+// Question callbacks
+// ---------------------------------------------------------------------------
+
 async function handleQuestionCallback(
-  supabase: TelegramAdminClient,
-  bot: TelegramBot,
+  ctx: TelegramWebhookContext,
   callbackQuery: Record<string, unknown>,
   callbackId: string,
   input: { requestId: string; questionIndex: number; optionIndex: number },
@@ -611,29 +443,29 @@ async function handleQuestionCallback(
   const message = getCallbackMessage(callbackQuery);
   const chatId = Number((message?.chat as Record<string, unknown> | undefined)?.id);
 
-  const result = await advancePendingQuestionBatchByCallback(supabase, {
+  const result = await advancePendingQuestionBatchByCallback(ctx.supabase, {
     token: input.requestId,
     questionIndex: input.questionIndex,
     optionIndex: input.optionIndex,
   });
 
   if (result.status === "expired") {
-    await bot.api.answerCallbackQuery(callbackId, {
+    await ctx.bot.api.answerCallbackQuery(callbackId, {
       text: "This question has expired.",
     });
     return;
   }
 
-  await bot.api.answerCallbackQuery(callbackId, { text: "Selected" });
+  await ctx.bot.api.answerCallbackQuery(callbackId, { text: "Selected" });
 
   if (result.status === "next") {
-    await continueTelegramQuestionBatch(supabase, bot, chatId, result);
-    await editTelegramCallbackMessage(bot, callbackQuery, `✅ Selected: ${result.selectedOption}`);
+    await continueTelegramQuestionBatch(ctx, chatId, result);
+    await editTelegramCallbackMessage(ctx.bot, callbackQuery, `✅ Selected: ${result.selectedOption}`);
     return;
   }
 
-  await editTelegramCallbackMessage(bot, callbackQuery, `✅ Selected: ${result.selectedOption}`);
-  await runTelegramAgent(supabase, {
+  await editTelegramCallbackMessage(ctx.bot, callbackQuery, `✅ Selected: ${result.selectedOption}`);
+  await runTelegramAgent(ctx, {
     clientId: result.clientId,
     threadId: result.threadId,
     text: result.responseText,
@@ -641,37 +473,43 @@ async function handleQuestionCallback(
   });
 }
 
+// ---------------------------------------------------------------------------
+// Callback query dispatcher
+// ---------------------------------------------------------------------------
+
 async function handleCallbackQuery(
-  supabase: TelegramAdminClient,
-  bot: TelegramBot,
+  ctx: TelegramWebhookContext,
   callbackQuery: Record<string, unknown>,
 ): Promise<void> {
   const data = typeof callbackQuery.data === "string" ? callbackQuery.data : "";
   const callbackId = typeof callbackQuery.id === "string" ? callbackQuery.id : "";
 
   if (!data || !callbackId) {
-    await bot.api.answerCallbackQuery(callbackId);
+    await ctx.bot.api.answerCallbackQuery(callbackId);
     return;
   }
 
   const approval = parseApprovalCallback(data);
   if (approval) {
-    await handleApprovalCallback(supabase, bot, callbackQuery, callbackId, approval);
+    await handleApprovalCallback(ctx, callbackQuery, callbackId, approval);
     return;
   }
 
   const question = parseQuestionCallback(data);
   if (question) {
-    await handleQuestionCallback(supabase, bot, callbackQuery, callbackId, question);
+    await handleQuestionCallback(ctx, callbackQuery, callbackId, question);
     return;
   }
 
-  await bot.api.answerCallbackQuery(callbackId);
+  await ctx.bot.api.answerCallbackQuery(callbackId);
 }
 
+// ---------------------------------------------------------------------------
+// Top-level update dispatcher
+// ---------------------------------------------------------------------------
+
 async function processUpdate(
-  supabase: TelegramAdminClient,
-  bot: TelegramBot,
+  ctx: TelegramWebhookContext,
   update: z.infer<typeof telegramUpdateSchema>,
 ): Promise<void> {
   if (update.message) {
@@ -679,28 +517,32 @@ async function processUpdate(
     const command = parseCommand(text);
 
     if (command?.command === "/start") {
-      await handleStartCommand(supabase, bot, update.message, command.args);
+      await handleStartCommand(ctx, update.message, command.args);
       return;
     }
 
     if (command?.command === "/new") {
-      await handleNewCommand(supabase, bot, update.message);
+      await handleNewCommand(ctx, update.message);
       return;
     }
 
     if (command?.command === "/main") {
-      await handleMainCommand(supabase, bot, update.message);
+      await handleMainCommand(ctx, update.message);
       return;
     }
 
-    await handleRegularMessage(supabase, bot, update.update_id, update.message);
+    await handleRegularMessage(ctx, update.update_id, update.message);
     return;
   }
 
   if (update.callback_query) {
-    await handleCallbackQuery(supabase, bot, update.callback_query);
+    await handleCallbackQuery(ctx, update.callback_query);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Route handler
+// ---------------------------------------------------------------------------
 
 export async function POST(request: Request): Promise<Response> {
   if (!hasValidTelegramSecret(request.headers.get("x-telegram-bot-api-secret-token"))) {
@@ -720,9 +562,11 @@ export async function POST(request: Request): Promise<Response> {
     Promise.resolve(createTelegramBot(getTelegramBotToken())),
   ]);
 
+  const ctx: TelegramWebhookContext = { supabase, bot };
+
   after(async () => {
     try {
-      await processUpdate(supabase, bot, parsedUpdate);
+      await processUpdate(ctx, parsedUpdate);
     } catch (error) {
       console.error("[telegram/webhook] processing failed:", error);
     }

@@ -12,7 +12,9 @@ import type { Database, Json } from "@/types/database";
 
 import {
   formatQuestionResponse,
+  getOptionLabel,
   isSupportedQuestionType,
+  type QuestionOption,
 } from "./questions";
 
 type TelegramPendingQuestionsClient = SupabaseClient<Database>;
@@ -44,7 +46,7 @@ const pendingQuestionSelectColumns = [
 
 export interface TelegramPendingQuestion {
   question: string;
-  options: string[];
+  options: QuestionOption[];
   type: "single_select" | "multi_select" | "rank_priorities";
 }
 
@@ -97,6 +99,18 @@ export function generateQuestionCallbackToken(): string {
   return randomBytes(8).toString("base64url");
 }
 
+function normalizeOption(raw: unknown): QuestionOption | null {
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "object" && raw !== null && "label" in raw) {
+    const record = raw as Record<string, unknown>;
+    if (typeof record.label !== "string") return null;
+    return record.description && typeof record.description === "string"
+      ? { label: record.label, description: record.description }
+      : record.label;
+  }
+  return null;
+}
+
 function normalizeQuestions(value: Json): TelegramPendingQuestion[] {
   if (!Array.isArray(value)) {
     return [];
@@ -110,8 +124,8 @@ function normalizeQuestions(value: Json): TelegramPendingQuestion[] {
     const record = item as Record<string, unknown>;
     const question = typeof record.question === "string" ? record.question : null;
     const type = typeof record.type === "string" ? record.type : null;
-    const options = Array.isArray(record.options)
-      ? record.options.filter((option): option is string => typeof option === "string")
+    const options: QuestionOption[] = Array.isArray(record.options)
+      ? record.options.map(normalizeOption).filter((o): o is QuestionOption => o !== null)
       : [];
 
     if (
@@ -356,10 +370,11 @@ export async function advancePendingQuestionBatchByCallback(
     return { status: "expired" };
   }
 
-  const selectedOption = currentQuestion.options[input.optionIndex];
-  if (!selectedOption) {
+  const optionRaw = currentQuestion.options[input.optionIndex];
+  if (!optionRaw) {
     return { status: "expired" };
   }
+  const selectedOption = getOptionLabel(optionRaw);
 
   return advanceBatch(supabase, batch, selectedOption);
 }

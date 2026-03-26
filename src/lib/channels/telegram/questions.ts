@@ -7,12 +7,25 @@ import { InlineKeyboard } from "grammy";
 
 import { escapeHtml } from "./format";
 
+/** An option can be a plain label or include an optional description. */
+export type QuestionOption = string | { label: string; description?: string };
+
+/** Extracts the display label from a question option. */
+export function getOptionLabel(option: QuestionOption): string {
+  return typeof option === "string" ? option : option.label;
+}
+
 /** Builds the HTML body for a Telegram question prompt. */
-export function buildQuestionText(question: string, options: string[]): string {
+export function buildQuestionText(question: string, options: QuestionOption[]): string {
   const lines = [`❓ ${escapeHtml(question)}`, ""];
 
   for (let index = 0; index < options.length; index += 1) {
-    lines.push(`${index + 1}. ${escapeHtml(options[index])}`);
+    const option = options[index];
+    if (typeof option === "object" && option.description) {
+      lines.push(`${index + 1}. <b>${escapeHtml(option.label)}</b> — ${escapeHtml(option.description)}`);
+    } else {
+      lines.push(`${index + 1}. ${escapeHtml(getOptionLabel(option))}`);
+    }
   }
 
   return lines.join("\n");
@@ -31,12 +44,12 @@ export function buildQuestionCallbackData(
 export function buildQuestionKeyboard(
   requestId: string,
   questionIndex: number,
-  options: string[],
+  options: QuestionOption[],
 ): InlineKeyboard {
   const keyboard = new InlineKeyboard();
 
   for (let index = 0; index < options.length; index += 1) {
-    keyboard.text(options[index], buildQuestionCallbackData(requestId, questionIndex, index));
+    keyboard.text(getOptionLabel(options[index]), buildQuestionCallbackData(requestId, questionIndex, index));
     if (index % 2 === 1) {
       keyboard.row();
     }
@@ -97,10 +110,10 @@ export function isSupportedQuestionType(type: string): boolean {
 /** Builds the prose fallback for unsupported question types. */
 export function buildUnsupportedQuestionFallback(
   question: string,
-  options: string[],
+  options: QuestionOption[],
   type: string,
 ): string {
-  const optionList = options.map((option, index) => `${index + 1}. ${escapeHtml(option)}`).join("\n");
+  const optionList = options.map((option, index) => `${index + 1}. ${escapeHtml(getOptionLabel(option))}`).join("\n");
   const typeLabel = type === "multi_select"
     ? "You can pick multiple"
     : "Please rank these in order of priority";
@@ -121,7 +134,7 @@ export async function sendTelegramQuestion(
   requestId: string,
   questionIndex: number,
   question: string,
-  options: string[],
+  options: QuestionOption[],
 ): Promise<void> {
   await api.sendMessage(Number(chatId), buildQuestionText(question, options), {
     parse_mode: "HTML",

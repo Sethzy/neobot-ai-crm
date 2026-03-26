@@ -26,6 +26,24 @@ describe("buildQuestionText", () => {
     expect(text).toContain("2. Beta");
     expect(text).toContain("3. Gamma");
   });
+
+  it("renders option descriptions when provided (Dorabot parity)", () => {
+    const text = buildQuestionText("Pick a contact:", [
+      { label: "John Tan", description: "CEO at Acme Corp" },
+      { label: "Mary Lee" },
+      "Plain string option",
+    ]);
+    expect(text).toContain("1. <b>John Tan</b> — CEO at Acme Corp");
+    expect(text).toContain("2. Mary Lee");
+    expect(text).toContain("3. Plain string option");
+  });
+
+  it("escapes HTML in descriptions", () => {
+    const text = buildQuestionText("Pick:", [
+      { label: "A & B", description: "Uses <tags>" },
+    ]);
+    expect(text).toContain("<b>A &amp; B</b> — Uses &lt;tags&gt;");
+  });
 });
 
 describe("parseQuestionCallback", () => {
