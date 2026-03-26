@@ -8,6 +8,7 @@ import { cookies } from "next/headers";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database";
+import { getServerEnv } from "@/lib/env";
 
 import { getSupabaseEnv } from "./env";
 
@@ -44,11 +45,7 @@ export async function createClient() {
  */
 export async function createAdminClient(): Promise<SupabaseClient<Database>> {
   const { supabaseUrl } = getSupabaseEnv();
-  const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
-
-  if (!serviceRoleKey) {
-    throw new Error("Missing Supabase admin credentials");
-  }
+  const serviceRoleKey = getServerEnv().SUPABASE_SERVICE_ROLE_KEY;
 
   return createSupabaseClient<Database>(supabaseUrl, serviceRoleKey, {
     auth: {

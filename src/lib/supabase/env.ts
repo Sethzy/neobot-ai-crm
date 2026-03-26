@@ -1,7 +1,9 @@
 /**
  * Shared Supabase environment variable loader for client and server modules.
+ * Delegates to the central env validator for URL and anon key.
  * @module lib/supabase/env
  */
+import { getServerEnv } from "@/lib/env";
 
 export interface SupabaseEnv {
   supabaseUrl: string;
@@ -9,18 +11,6 @@ export interface SupabaseEnv {
 }
 
 export function getSupabaseEnv(): SupabaseEnv {
-  const supabaseUrl = (
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? ""
-  ).trim();
-  const supabaseAnonKey = (
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? ""
-  ).trim();
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      "Missing Supabase env vars. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
-    );
-  }
-
-  return { supabaseUrl, supabaseAnonKey };
+  const env = getServerEnv();
+  return { supabaseUrl: env.SUPABASE_URL, supabaseAnonKey: env.SUPABASE_ANON_KEY };
 }

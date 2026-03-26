@@ -6,6 +6,8 @@ import { createGateway } from "@ai-sdk/gateway";
 import type { GatewayProviderOptions } from "@ai-sdk/gateway";
 import type { JSONValue } from "ai";
 
+import { getServerEnv } from "@/lib/env";
+
 /**
  * Tier-1 model used for interactive chat and tool-calling runs.
  * This follows the approved LLM-05 decision.
@@ -24,7 +26,7 @@ export const COMPACTION_MODEL = "google/gemini-2.5-flash-lite";
  * Call as `gateway("provider/model-id")` when invoking AI SDK methods.
  */
 export const gateway = createGateway({
-  apiKey: process.env.AI_GATEWAY_API_KEY,
+  apiKey: getServerEnv().AI_GATEWAY_API_KEY,
 });
 
 /**

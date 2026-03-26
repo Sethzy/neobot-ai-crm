@@ -4,6 +4,8 @@
  */
 import { createClient } from "redis";
 
+import { getServerEnv } from "@/lib/env";
+
 const ACTIVE_STREAM_KEY_PREFIX = "chat:active-stream:";
 const ACTIVE_STREAM_TTL_SECONDS = 120;
 
@@ -12,8 +14,8 @@ type RedisClient = ReturnType<typeof createClient>;
 let redisClient: RedisClient | null = null;
 let redisConnectPromise: Promise<RedisClient> | null = null;
 
-async function getRedisClient(): Promise<RedisClient | null> {
-  const redisUrl = process.env.REDIS_URL;
+export async function getRedisClient(): Promise<RedisClient | null> {
+  const redisUrl = getServerEnv().REDIS_URL;
   if (!redisUrl) {
     return null;
   }

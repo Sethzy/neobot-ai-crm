@@ -149,9 +149,7 @@ export async function POST(request: Request): Promise<Response> {
   const t0 = performance.now();
   const _t = (label: string) => console.log(`[chat/timing] ${label}: ${(performance.now() - t0).toFixed(0)}ms`);
 
-  if (!process.env.AI_GATEWAY_API_KEY) {
-    return jsonError("Server misconfiguration: AI_GATEWAY_API_KEY is required.", 500);
-  }
+  // AI_GATEWAY_API_KEY is validated by getServerEnv() on first access — no runtime check needed.
 
   let body: PostRequestBody;
   try {
