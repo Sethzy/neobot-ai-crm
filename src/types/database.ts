@@ -348,6 +348,7 @@ export type Database = {
           created_at: string
           crm_config_mode_until: string | null
           display_name: string | null
+          is_bootstrapped: boolean
           plan_name: string | null
           quota_exempt: boolean
           stripe_customer_id: string | null
@@ -361,6 +362,7 @@ export type Database = {
           created_at?: string
           crm_config_mode_until?: string | null
           display_name?: string | null
+          is_bootstrapped?: boolean
           plan_name?: string | null
           quota_exempt?: boolean
           stripe_customer_id?: string | null
@@ -374,6 +376,7 @@ export type Database = {
           created_at?: string
           crm_config_mode_until?: string | null
           display_name?: string | null
+          is_bootstrapped?: boolean
           plan_name?: string | null
           quota_exempt?: boolean
           stripe_customer_id?: string | null
@@ -2087,5 +2090,3 @@ export const Constants = {
     },
   },
 } as const
-A new version of Supabase CLI is available: v2.78.1 (currently installed v2.75.0)
-We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
