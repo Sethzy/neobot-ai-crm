@@ -245,6 +245,17 @@ describe("bootstrapMemoryFiles", () => {
     expect(mock.mockUpload).not.toHaveBeenCalled();
   });
 
+  it("throws when a storage list call fails", async () => {
+    mock.mockList
+      .mockResolvedValueOnce({ data: null, error: { message: "storage unavailable" } })
+      .mockResolvedValueOnce({ data: [], error: null });
+
+    await expect(bootstrapMemoryFiles(mock.client, CLIENT_ID)).rejects.toThrow(
+      "storage unavailable",
+    );
+    expect(mock.mockUpload).not.toHaveBeenCalled();
+  });
+
   it("uses parallel list calls (root + topic dirs)", async () => {
     mock.mockList
       .mockResolvedValueOnce({

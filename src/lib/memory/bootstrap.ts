@@ -66,13 +66,20 @@ export async function bootstrapMemoryFiles(
   const bucket = supabase.storage.from(MEMORY_BUCKET_ID);
 
   // 2 parallel list calls instead of 7 sequential downloads.
-  const [{ data: rootData }, { data: topicData }] = await Promise.all([
+  const [rootResult, topicResult] = await Promise.all([
     bucket.list(clientId),
     bucket.list(`${clientId}/${MEMORY_TOPIC_DIRECTORY}`),
   ]);
 
-  const existingRoot = new Set((rootData ?? []).map((f) => f.name));
-  const existingTopic = new Set((topicData ?? []).map((f) => f.name));
+  if (rootResult.error) {
+    throw new Error(`Failed to list root memory files: ${getStorageErrorMessage(rootResult.error)}`);
+  }
+  if (topicResult.error) {
+    throw new Error(`Failed to list topic memory files: ${getStorageErrorMessage(topicResult.error)}`);
+  }
+
+  const existingRoot = new Set((rootResult.data ?? []).map((f) => f.name));
+  const existingTopic = new Set((topicResult.data ?? []).map((f) => f.name));
 
   const missingFiles = REQUIRED_MEMORY_FILES.filter(({ path }) => {
     const isRoot = ROOT_MEMORY_FILE_SET.has(path);
