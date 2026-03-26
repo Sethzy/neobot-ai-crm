@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import bundleAnalyzer from "@next/bundle-analyzer";
+import { withSentryConfig } from "@sentry/nextjs";
 
 import { securityHeaders } from "./src/lib/security-headers";
 
@@ -116,4 +117,8 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@anthropic-ai/sdk", "exceljs", "pdf-lib"],
 };
 
-export default withBundleAnalyzer(nextConfig);
+export default withSentryConfig(withBundleAnalyzer(nextConfig), {
+  silent: true,
+  widenClientFileUpload: true,
+  disableLogger: true,
+});

@@ -1,6 +1,7 @@
 "use client";
 /** Error boundary that catches render crashes in the chat panel. */
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { AlertCircle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -29,6 +30,9 @@ export class ChatErrorBoundary extends Component<Props, State> {
       error,
       info.componentStack,
     );
+    Sentry.captureException(error, {
+      contexts: { react: { componentStack: info.componentStack } },
+    });
   }
 
   handleReset = () => {

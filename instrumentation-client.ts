@@ -2,6 +2,7 @@
  * PostHog client-side initialization via Next.js instrumentation hook.
  * @module instrumentation-client
  */
+import "./sentry.client.config";
 import posthog from "posthog-js";
 
 import { getAnalyticsEnvironment } from "@/lib/analytics/posthog-context";

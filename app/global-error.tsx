@@ -2,7 +2,10 @@
 /**
  * Global error boundary — catches errors in the root layout itself.
  * Uses inline styles because the root layout (which loads CSS) may have crashed.
+ * Uses dynamic import for Sentry because static imports may fail if the root layout crashed.
  */
+import { useEffect } from "react";
+
 export default function GlobalError({
   error,
   reset,
@@ -10,6 +13,12 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    import("@sentry/nextjs").then((Sentry) => {
+      Sentry.captureException(error);
+    });
+  }, [error]);
+
   console.error("[GlobalError]", error);
 
   return (

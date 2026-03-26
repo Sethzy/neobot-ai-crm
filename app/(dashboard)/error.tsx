@@ -1,5 +1,7 @@
 "use client";
 /** Dashboard error boundary — catches route-level errors while preserving the sidebar shell. */
+import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { AlertCircle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -10,6 +12,10 @@ export default function DashboardError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
+
   console.error("[DashboardError]", error);
 
   return (

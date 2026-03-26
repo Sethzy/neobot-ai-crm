@@ -1,5 +1,7 @@
 "use client";
 /** Root error boundary — catches unhandled errors outside the dashboard shell. */
+import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { AlertCircle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -10,6 +12,10 @@ export default function RootError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
+
   console.error("[RootError]", error);
 
   return (
