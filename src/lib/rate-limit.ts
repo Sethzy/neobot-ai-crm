@@ -11,6 +11,8 @@ const KEY_PREFIX = "ratelimit:";
 
 /**
  * Check if a request is within the rate limit using a fixed-window counter.
+ * Uses MULTI/EXEC for atomic INCR + EXPIRE so a partial failure can't
+ * leave a key without TTL (which would permanently 429 that user/IP).
  * @param key - Unique identifier (e.g., "chat:userId" or "webhook:ip")
  * @param limit - Max requests per window
  * @param windowSeconds - Window duration in seconds
@@ -28,12 +30,16 @@ export async function checkRateLimit(
   const redisKey = `${KEY_PREFIX}${key}`;
 
   try {
-    const count = await client.incr(redisKey);
+    // Atomic: INCR the counter and set EXPIRE only if no TTL exists (NX).
+    // EXPIRE NX is a no-op when the key already has a TTL, so subsequent
+    // requests in the same window don't reset the window.
+    const results = await client
+      .multi()
+      .incr(redisKey)
+      .expire(redisKey, windowSeconds, "NX")
+      .exec();
 
-    // Set expiry on the first request in this window
-    if (count === 1) {
-      await client.expire(redisKey, windowSeconds);
-    }
+    const count = results[0] as number;
 
     if (count > limit) {
       const ttl = await client.ttl(redisKey);

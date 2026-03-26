@@ -45,4 +45,11 @@ describe("securityHeaders", () => {
     expect(csp?.value).toContain("connect-src");
     expect(csp?.value).toContain("img-src");
   });
+
+  it("does not produce double-protocol origins like https://https://", () => {
+    const csp = securityHeaders.find(
+      (h) => h.key === "Content-Security-Policy-Report-Only",
+    );
+    expect(csp?.value).not.toContain("https://https://");
+  });
 });

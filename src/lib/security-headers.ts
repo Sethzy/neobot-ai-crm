@@ -9,7 +9,12 @@ const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).host
   : "xtewwwycvapskgvfnliq.supabase.co";
 
-const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "us.i.posthog.com";
+// NEXT_PUBLIC_POSTHOG_HOST may be a full URL (https://us.i.posthog.com) or bare host.
+// Normalize to bare host so CSP entries don't produce https://https://...
+const rawPosthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "us.i.posthog.com";
+const posthogHost = rawPosthogHost.startsWith("http")
+  ? new URL(rawPosthogHost).host
+  : rawPosthogHost;
 
 const cspDirectives = [
   "default-src 'self'",
