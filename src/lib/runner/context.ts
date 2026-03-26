@@ -19,7 +19,6 @@ import {
 } from "@/lib/ai/system-prompt";
 import type { CrmVocabConfig } from "@/lib/crm/config";
 import { escapeXml } from "@/lib/runner/system-reminder";
-import { bootstrapMemoryFiles } from "@/lib/memory/bootstrap";
 import { loadMemoryContext } from "@/lib/memory/loader";
 import type { MemoryContext } from "@/lib/memory/loader";
 import {
@@ -291,7 +290,6 @@ async function loadSystemPromptState({
     ? fetchThreadCompactionState(supabase, threadId)
     : Promise.resolve(null);
 
-  await bootstrapMemoryFiles(supabase, clientId);
   [memoryContext, userSkills, systemReminder, compactionState] = await Promise.all([
     loadMemoryContext(supabase, clientId),
     discoverUserSkills(supabase, clientId),

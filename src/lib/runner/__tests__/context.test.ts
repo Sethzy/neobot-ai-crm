@@ -17,13 +17,11 @@ import { SUMMARY_PREFIX } from "../compaction";
 import { assembleContext, assembleSystemOnly } from "../context";
 
 const {
-  mockBootstrapMemoryFiles,
   mockLoadMemoryContext,
   mockBuildSystemReminder,
   mockFetchThreadCompactionState,
   mockDiscoverUserSkills,
 } = vi.hoisted(() => ({
-  mockBootstrapMemoryFiles: vi.fn().mockResolvedValue(undefined),
   mockLoadMemoryContext: vi.fn().mockResolvedValue({
     soul: "soul-content",
     user: "user-content",
@@ -34,10 +32,6 @@ const {
   ),
   mockFetchThreadCompactionState: vi.fn().mockResolvedValue(null),
   mockDiscoverUserSkills: vi.fn().mockResolvedValue([]),
-}));
-
-vi.mock("@/lib/memory/bootstrap", () => ({
-  bootstrapMemoryFiles: mockBootstrapMemoryFiles,
 }));
 
 vi.mock("@/lib/memory/loader", () => ({
@@ -246,7 +240,7 @@ describe("assembleContext", () => {
     expect(compactionMessage).toBeUndefined();
   });
 
-  it("bootstraps before loading memory when clientId is provided", async () => {
+  it("loads memory context when clientId is provided (bootstrap happens at entrypoint)", async () => {
     const supabase = createMockSupabaseClient({
       selectResult: { data: [], error: null },
     });
@@ -258,11 +252,7 @@ describe("assembleContext", () => {
       clientId: "client-123",
     });
 
-    expect(mockBootstrapMemoryFiles).toHaveBeenCalledWith(expect.anything(), "client-123");
     expect(mockLoadMemoryContext).toHaveBeenCalledWith(expect.anything(), "client-123");
-    expect(mockBootstrapMemoryFiles.mock.invocationCallOrder[0]).toBeLessThan(
-      mockLoadMemoryContext.mock.invocationCallOrder[0],
-    );
   });
 
   it("does not load memory when clientId is omitted", async () => {
@@ -276,7 +266,6 @@ describe("assembleContext", () => {
       currentMessage: "Hello!",
     });
 
-    expect(mockBootstrapMemoryFiles).not.toHaveBeenCalled();
     expect(mockLoadMemoryContext).not.toHaveBeenCalled();
   });
 

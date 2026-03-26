@@ -10,13 +10,11 @@ import { createMockSupabaseClient } from "@/test/mocks/supabase";
 import { assembleContext } from "../context";
 
 const {
-  mockBootstrapMemoryFiles,
   mockLoadMemoryContext,
   mockBuildSystemReminder,
   mockFetchThreadCompactionState,
   mockDiscoverUserSkills,
 } = vi.hoisted(() => ({
-  mockBootstrapMemoryFiles: vi.fn().mockResolvedValue(undefined),
   mockLoadMemoryContext: vi.fn().mockResolvedValue({
     soul: "soul-content",
     user: "user-content",
@@ -27,10 +25,6 @@ const {
   ),
   mockFetchThreadCompactionState: vi.fn().mockResolvedValue(null),
   mockDiscoverUserSkills: vi.fn().mockResolvedValue([]),
-}));
-
-vi.mock("@/lib/memory/bootstrap", () => ({
-  bootstrapMemoryFiles: mockBootstrapMemoryFiles,
 }));
 
 vi.mock("@/lib/memory/loader", () => ({
