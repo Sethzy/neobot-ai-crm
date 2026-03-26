@@ -5,7 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { _resetBootstrapCache, bootstrapMemoryFiles } from "../bootstrap";
+import { _resetBootstrapCache, bootstrapMemoryFiles, ensureClientBootstrap } from "../bootstrap";
 import {
   DEFAULT_GROWTH_PLAN_MD,
   DEFAULT_KEY_DECISIONS_MD,
@@ -277,5 +277,104 @@ describe("bootstrapMemoryFiles", () => {
     expect(mock.mockList).toHaveBeenCalledTimes(2);
     expect(mock.mockList).toHaveBeenCalledWith(CLIENT_ID);
     expect(mock.mockList).toHaveBeenCalledWith(`${CLIENT_ID}/memory`);
+  });
+});
+
+describe("ensureClientBootstrap", () => {
+  let mock: ReturnType<typeof createMockStorage>;
+
+  function createMockClientWithDb(opts: { isBootstrapped: boolean }) {
+    mock = createMockStorage();
+
+    if (!opts.isBootstrapped) {
+      mock.mockList
+        .mockResolvedValueOnce({
+          data: [fileEntry("SOUL.md"), fileEntry("USER.md"), fileEntry("MEMORY.md")],
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: [
+            fileEntry("preferences.md"),
+            fileEntry("growth-plan.md"),
+            fileEntry("patterns.md"),
+            fileEntry("key-decisions.md"),
+          ],
+          error: null,
+        });
+    }
+
+    const mockSingle = vi.fn().mockResolvedValue({
+      data: { is_bootstrapped: opts.isBootstrapped },
+      error: null,
+    });
+
+    let updateError: { message: string } | null = null;
+    const updateEq = vi.fn().mockImplementation(() =>
+      Promise.resolve({ data: null, error: updateError }),
+    );
+    const update = vi.fn(() => ({ eq: updateEq }));
+    const select = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({ single: mockSingle }),
+    });
+
+    const mockFrom = vi.fn((table: string) => {
+      if (table === "clients") return { select, update };
+      return {};
+    });
+
+    const client = {
+      ...mock.client,
+      from: mockFrom,
+    } as unknown as SupabaseClient;
+
+    return {
+      client, mockFrom, mockSingle, update, updateEq,
+      setUpdateError: (msg: string) => { updateError = { message: msg }; },
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    _resetBootstrapCache();
+  });
+
+  it("skips bootstrap when is_bootstrapped is true", async () => {
+    const { client } = createMockClientWithDb({ isBootstrapped: true });
+
+    await ensureClientBootstrap(client, CLIENT_ID);
+
+    expect(mock.mockList).not.toHaveBeenCalled();
+    expect(mock.mockUpload).not.toHaveBeenCalled();
+  });
+
+  it("runs bootstrap and sets flag when is_bootstrapped is false", async () => {
+    const { client, update } = createMockClientWithDb({ isBootstrapped: false });
+
+    await ensureClientBootstrap(client, CLIENT_ID);
+
+    expect(mock.mockList).toHaveBeenCalled();
+    expect(mockBootstrapSkills).toHaveBeenCalledWith(client, CLIENT_ID);
+    expect(update).toHaveBeenCalledWith({ is_bootstrapped: true });
+  });
+
+  it("does not set is_bootstrapped if bootstrap throws", async () => {
+    const { client, update } = createMockClientWithDb({ isBootstrapped: false });
+    mock.mockList.mockReset();
+    mock.mockList.mockResolvedValueOnce({
+      data: null,
+      error: { message: "storage down" },
+    });
+
+    await expect(ensureClientBootstrap(client, CLIENT_ID)).rejects.toThrow("storage down");
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("throws when the UPDATE to set is_bootstrapped fails", async () => {
+    const db = createMockClientWithDb({ isBootstrapped: false });
+    db.setUpdateError("connection lost");
+
+    await expect(ensureClientBootstrap(db.client, CLIENT_ID)).rejects.toThrow(
+      "connection lost",
+    );
   });
 });

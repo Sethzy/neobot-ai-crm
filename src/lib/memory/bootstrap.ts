@@ -1,9 +1,9 @@
 /**
- * Bootstraps required memory files in client-scoped storage.
+ * Client storage bootstrap — memory files + skills initialization.
  *
- * Called on every chat message via `assembleContext`. Uses list-based existence
- * checks (2 parallel calls) instead of downloading file content, and caches
- * bootstrapped clients in-process to skip storage calls on warm invocations.
+ * `ensureClientBootstrap()` is the public entrypoint. It checks a durable
+ * `is_bootstrapped` flag on the `clients` table and only runs the full
+ * bootstrap (memory file creation + skill seeding) when needed.
  *
  * @module lib/memory/bootstrap
  */
@@ -95,6 +95,46 @@ export async function bootstrapMemoryFiles(
 
   await bootstrapSkills(supabase, clientId);
   bootstrappedClients.add(clientId);
+}
+
+/**
+ * Durable one-time client storage initialization.
+ *
+ * Checks `is_bootstrapped` on the `clients` row. If false, runs the full
+ * bootstrap (memory files + skills) and sets the flag. If true, returns
+ * immediately — no storage calls at all.
+ *
+ * Call from entrypoints (chat route) BEFORE context assembly. This replaces
+ * the old pattern of calling bootstrapMemoryFiles inside loadSystemPromptState.
+ */
+export async function ensureClientBootstrap(
+  supabase: SupabaseClient,
+  clientId: string,
+): Promise<void> {
+  const { data: client, error: selectError } = await supabase
+    .from("clients")
+    .select("is_bootstrapped")
+    .eq("client_id", clientId)
+    .single();
+
+  if (selectError) {
+    throw new Error(`Failed to check bootstrap status: ${selectError.message}`);
+  }
+
+  if (client?.is_bootstrapped) {
+    return;
+  }
+
+  await bootstrapMemoryFiles(supabase, clientId);
+
+  const { error: updateError } = await supabase
+    .from("clients")
+    .update({ is_bootstrapped: true })
+    .eq("client_id", clientId);
+
+  if (updateError) {
+    throw new Error(`Failed to mark client as bootstrapped: ${updateError.message}`);
+  }
 }
 
 /** Clears the process-scoped bootstrap cache. Exposed for testing. */
