@@ -25,6 +25,7 @@ import {
   isMessageQuotaError,
   messageQuotaErrorCodes,
 } from "@/lib/usage/message-quota";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { type PostRequestBody, postRequestBodySchema } from "./schema";
 
 /** Allows longer streaming runs on Vercel functions (browser tasks take 30-60s). */
@@ -186,6 +187,28 @@ export async function POST(request: Request): Promise<Response> {
   if (authResult.kind === "error") return authResult.response;
   const { supabase, userId } = authResult;
   _t("auth");
+
+  const { allowed, retryAfter } = await checkRateLimit(
+    `chat:${userId}`,
+    30, // 30 requests per minute
+    60,
+  );
+  if (!allowed) {
+    return new Response(
+      JSON.stringify({
+        error:
+          "Rate limit exceeded. Please wait before sending more messages.",
+      }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(retryAfter ?? 60),
+        },
+      },
+    );
+  }
+
   let clientId: string | null = null;
   let didCreateThread = false;
 

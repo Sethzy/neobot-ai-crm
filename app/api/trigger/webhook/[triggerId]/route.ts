@@ -6,6 +6,7 @@ import { after } from "next/server";
 import { z } from "zod";
 
 import { langfuseSpanProcessor } from "@/instrumentation";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/server";
 import { executeTrigger } from "@/lib/triggers/executor";
 import type { TriggerSupabaseClient } from "@/lib/triggers/schemas";
@@ -56,6 +57,20 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ triggerId: string }> },
 ): Promise<Response> {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const { allowed, retryAfter } = await checkRateLimit(
+    `webhook-trigger:${ip}`,
+    60, // 60 requests per minute per IP
+    60,
+  );
+  if (!allowed) {
+    return new Response("Rate limit exceeded", {
+      status: 429,
+      headers: { "Retry-After": String(retryAfter ?? 60) },
+    });
+  }
+
   const { triggerId: rawTriggerId } = await params;
   const parsedTriggerId = triggerIdSchema.safeParse(rawTriggerId);
 
