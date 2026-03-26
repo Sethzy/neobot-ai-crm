@@ -29,8 +29,8 @@ import {
 import { checkRateLimit } from "@/lib/rate-limit";
 import { type PostRequestBody, postRequestBodySchema } from "./schema";
 
-/** Allows longer streaming runs on Vercel functions (browser tasks take 30-60s). */
-export const maxDuration = 120;
+/** Pro-plan ceiling (300s). Most runs finish in <30s; this just prevents early kills on complex subagent work. */
+export const maxDuration = 300;
 
 function getStreamContext() {
   try {
@@ -332,7 +332,14 @@ export async function POST(request: Request): Promise<Response> {
     _t("run_agent_returned");
 
     if (result.status === "queued") {
-      return Response.json({ status: "queued" }, { status: 202 });
+      // 409 Conflict — AI SDK's HttpChatTransport treats 2xx as a stream and
+      // tries to parse the body as SSE. A 202 JSON body causes a client-side
+      // crash ("Cannot read properties of undefined (reading 'state')").
+      // 409 triggers the SDK's error path so the client catch block handles it.
+      return Response.json(
+        { error: "Another response is still in progress. Your message has been queued." },
+        { status: 409 },
+      );
     }
 
     if (body.message?.role === "user") {

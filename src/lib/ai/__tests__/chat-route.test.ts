@@ -117,8 +117,8 @@ function createJsonRequest(body: unknown): Request {
 describe("POST /api/chat", () => {
   const threadId = "770e8400-e29b-41d4-a716-446655440000";
 
-  it("exports a 120 second maxDuration for browser-backed chat runs", () => {
-    expect(maxDuration).toBe(120);
+  it("exports a 300 second maxDuration (Pro-plan ceiling) for chat runs", () => {
+    expect(maxDuration).toBe(300);
   });
 
   /** Returns a mock for the `clients` table — SELECT crm_config_mode_until query. */
@@ -600,7 +600,7 @@ describe("POST /api/chat", () => {
     expect(mockRunAgent).not.toHaveBeenCalled();
   });
 
-  it("returns 202 queued when runner cannot acquire thread lock", async () => {
+  it("returns 409 when runner cannot acquire thread lock (message queued)", async () => {
     mockRunAgent.mockResolvedValue({ status: "queued" });
 
     const response = await POST(
@@ -614,8 +614,10 @@ describe("POST /api/chat", () => {
       }),
     );
 
-    expect(response.status).toBe(202);
-    expect(await response.json()).toEqual({ status: "queued" });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: "Another response is still in progress. Your message has been queued.",
+    });
   });
 
   it("creates thread lazily when thread does not exist and request contains user message", async () => {
