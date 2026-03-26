@@ -4083,7 +4083,7 @@
         {
           "pr": 56,
           "title": "Sandbox: Superpowers quality skills (verification + code review loop)",
-          "status": "in_progress",
+          "status": "done",
           "tasklist": "docs/product/tasks/2026-03-26-pr56-sandbox-superpowers-skills-tasklist.md",
           "decisions": [
             "EXEC-04"
@@ -4091,47 +4091,18 @@
           "dependsOn": [
             "52"
           ],
-          "note": "Bundles trimmed obra/superpowers skills into Sprite. Inner Claude Code self-enforces verification-before-completion and dispatches a code-reviewer subagent before claiming done. Adds Task to ALLOWED_TOOLS for subagent dispatch. No TDD skill (not useful for spreadsheet/artifact work). Reference: https://github.com/obra/superpowers (MIT, Jesse Vincent).",
+          "note": "Bundles trimmed obra/superpowers skills into Sprite with one-time install guard (.installed marker). CLAUDE.md at /workspace/ tells Claude Code to read the meta-skill — no prompt injection. Adds Task to ALLOWED_TOOLS for subagent dispatch. No TDD skill (not useful for spreadsheet/artifact work). Superpowers written once per Sprite; domain skills re-fetched per job (user-editable). Reference: https://github.com/obra/superpowers (MIT, Jesse Vincent).",
           "tasks": [
-            {
-              "id": "PR56-1",
-              "task": "Bundle superpowers skill content as string constants",
-              "done": false
-            },
-            {
-              "id": "PR56-2",
-              "task": "Add Task to ALLOWED_TOOLS",
-              "done": false
-            },
-            {
-              "id": "PR56-3",
-              "task": "writeSuperpowersSkills() writes files to Sprite",
-              "done": false
-            },
-            {
-              "id": "PR56-4",
-              "task": "Inject meta-skill into sandbox prompt",
-              "done": false
-            },
-            {
-              "id": "PR56-5",
-              "task": "Wire into async job setup",
-              "done": false
-            },
-            {
-              "id": "PR56-6",
-              "task": "Increase max turns for review loop",
-              "done": false
-            }
+            { "id": "PR56-1", "task": "Bundle skill content + ensureSuperpowersInstalled() with .installed guard + CLAUDE.md", "done": true },
+            { "id": "PR56-2", "task": "Add Task to ALLOWED_TOOLS + export DEFAULT_MAX_TURNS=100", "done": true },
+            { "id": "PR56-3", "task": "Wire ensureSuperpowersInstalled + DEFAULT_MAX_TURNS into sprite-jobs.ts", "done": true }
           ],
           "testCriteria": [
-            "Superpowers skills written to /skills/superpowers/ on Sprite",
+            "ensureSuperpowersInstalled() writes skills + CLAUDE.md on first job, skips on repeat jobs (.installed guard)",
             "Task tool available in sandbox ALLOWED_TOOLS",
-            "Sandbox prompt includes superpowers meta-skill reference",
-            "Inner Claude Code dispatches code-reviewer subagent before claiming done",
-            "Critical review feedback gets addressed before final output",
-            "Verification-before-completion prevents false done claims",
-            "Existing domain skills (re-analyst, excel_editing) still work alongside superpowers"
+            "/workspace/CLAUDE.md instructs agent to activate verification, review, and receiving-code-review",
+            "DEFAULT_MAX_TURNS=100 used by sprite-jobs.ts (not hardcoded 20)",
+            "Superpowers install is separate from per-job domain skill writes (no interference)"
           ]
         }
       ]
