@@ -5,7 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { _resetBootstrapCache, bootstrapMemoryFiles, ensureClientBootstrap } from "../bootstrap";
+import { bootstrapMemoryFiles, ensureClientBootstrap } from "../bootstrap";
 import {
   DEFAULT_GROWTH_PLAN_MD,
   DEFAULT_KEY_DECISIONS_MD,
@@ -52,7 +52,6 @@ describe("bootstrapMemoryFiles", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    _resetBootstrapCache();
     mock = createMockStorage();
   });
 
@@ -219,32 +218,6 @@ describe("bootstrapMemoryFiles", () => {
     );
   });
 
-  it("skips storage calls on warm invocations (process cache)", async () => {
-    mock.mockList
-      .mockResolvedValueOnce({
-        data: [fileEntry("SOUL.md"), fileEntry("USER.md"), fileEntry("MEMORY.md")],
-        error: null,
-      })
-      .mockResolvedValueOnce({
-        data: [
-          fileEntry("preferences.md"),
-          fileEntry("growth-plan.md"),
-          fileEntry("patterns.md"),
-          fileEntry("key-decisions.md"),
-        ],
-        error: null,
-      });
-
-    await bootstrapMemoryFiles(mock.client, CLIENT_ID);
-    mock.mockList.mockClear();
-
-    // Second call should skip entirely.
-    await bootstrapMemoryFiles(mock.client, CLIENT_ID);
-
-    expect(mock.mockList).not.toHaveBeenCalled();
-    expect(mock.mockUpload).not.toHaveBeenCalled();
-  });
-
   it("throws when a storage list call fails", async () => {
     mock.mockList
       .mockResolvedValueOnce({ data: null, error: { message: "storage unavailable" } })
@@ -335,7 +308,6 @@ describe("ensureClientBootstrap", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    _resetBootstrapCache();
   });
 
   it("skips bootstrap when is_bootstrapped is true", async () => {

@@ -24,9 +24,6 @@ import {
   isStorageConflictError,
 } from "./storage";
 
-/** Process-scoped cache — avoids storage calls on warm serverless invocations. */
-const bootstrappedClients = new Set<string>();
-
 /** Derives the bootstrap file list from the canonical constant + content map. */
 const REQUIRED_MEMORY_FILES = REQUIRED_MEMORY_FILE_PATHS.map((path) => ({
   path,
@@ -55,14 +52,12 @@ async function uploadMissingFile(
  *
  * Idempotent and safe to call on each run. Uses 2 parallel directory list calls
  * to detect missing files (instead of 7 sequential downloads), then uploads
- * missing files in parallel. Skips entirely on warm invocations via process cache.
+ * missing files in parallel. Called by `ensureClientBootstrap()`.
  */
 export async function bootstrapMemoryFiles(
   supabase: SupabaseClient,
   clientId: string,
 ): Promise<void> {
-  if (bootstrappedClients.has(clientId)) return;
-
   const bucket = supabase.storage.from(MEMORY_BUCKET_ID);
 
   // 2 parallel list calls instead of 7 sequential downloads.
@@ -94,7 +89,6 @@ export async function bootstrapMemoryFiles(
   }
 
   await bootstrapSkills(supabase, clientId);
-  bootstrappedClients.add(clientId);
 }
 
 /**
@@ -137,7 +131,3 @@ export async function ensureClientBootstrap(
   }
 }
 
-/** Clears the process-scoped bootstrap cache. Exposed for testing. */
-export function _resetBootstrapCache(): void {
-  bootstrappedClients.clear();
-}
