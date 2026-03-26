@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 import bundleAnalyzer from "@next/bundle-analyzer";
 
+import { securityHeaders } from "./src/lib/security-headers";
+
 const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
 });
@@ -57,6 +59,14 @@ const nextConfig: NextConfig = {
         source: "/areas/:path*",
         destination: "/market/areas/:path*",
         permanent: true,
+      },
+    ];
+  },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: securityHeaders,
       },
     ];
   },
