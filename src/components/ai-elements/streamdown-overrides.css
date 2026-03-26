@@ -1,11 +1,15 @@
 /**
  * Streamdown CSS overrides.
  *
+ * Sizing & layout are left to Streamdown defaults — only colors, controls,
+ * and fullscreen chrome are overridden here.
+ *
  * 1. Pointer-events fix for Tailwind v4 + node_modules incompatibility.
  * 2. Hide SVG/MMD download options — only PNG is needed.
- * 3. Compact inline layout (header + actions share one row).
- * 4. Hide pan/zoom controls.
- * 5. Fullscreen: sidebar-aware, white background, ChatGPT-style layout.
+ * 3. Flexoki chrome on mermaid container.
+ * 4. Flexoki color safety net (override LLM-injected inline styles).
+ * 5. Hide pan/zoom controls.
+ * 6. Fullscreen: sidebar-aware, white background, ChatGPT-style layout.
  */
 
 /* ── 1. Pointer-events fix ─────────────────────────────────────────────── */
@@ -28,33 +32,16 @@
   display: none !important;
 }
 
-/* ── 3. Compact inline layout ──────────────────────────────────────────── */
+/* ── 3. Flexoki chrome on mermaid container ────────────────────────────── */
+/* Only override border/bg color — let Streamdown handle sizing & layout. */
 
-/* Mermaid block container — zero gap/padding, clip children to rounded corners */
 [data-streamdown="mermaid-block"] {
   border-color: var(--border) !important;
   background-color: var(--card) !important;
-  gap: 0 !important;
-  padding: 0 !important;
-  overflow: hidden !important;
+  overflow-x: auto !important;
 }
 
-/* Header row: "mermaid" label — compact, inline with actions */
-[data-streamdown="mermaid-block"] > div:first-child {
-  height: auto !important;
-  padding: 6px 8px !important;
-}
-
-/* Actions bar: overlay on header row (label left, buttons right) */
-[data-streamdown="mermaid-block"] > div:nth-child(2) {
-  position: absolute !important;
-  top: 0 !important;
-  right: 4px !important;
-  margin-top: 0 !important;
-  z-index: 10;
-}
-
-/* Remove the glass-effect container border/bg from the action buttons group */
+/* Strip glass-effect chrome from action buttons group */
 [data-streamdown="mermaid-block-actions"] {
   border: none !important;
   background: transparent !important;
@@ -63,30 +50,48 @@
   box-shadow: none !important;
 }
 
-/* Remove ALL inner container chrome — only the outer mermaid-block border shows.
-   The inner wrapper, mermaid container, and pan/zoom wrapper all have their own
-   border/radius/overflow that create visible "box within box" artifacts. */
-[data-streamdown="mermaid-block"] > div:last-child,
-[data-streamdown="mermaid-block"] > div:last-child > *,
-[data-streamdown="mermaid-block"] > div:last-child > * > * {
-  border: none !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  overflow: visible !important;
-  box-shadow: none !important;
+/* Hide the "mermaid" language label row — users don't need to see it */
+[data-streamdown="mermaid-block"] > div:first-child {
+  display: none !important;
 }
 
-/* Scale SVG to fit container width with breathing room */
-[data-streamdown="mermaid-block"] > div:last-child {
-  padding: 1.25rem !important;
-}
-
+/* Keep SVG readable but not oversized — scale to fit with a floor */
 [data-streamdown="mermaid-block"] svg {
   max-width: 100% !important;
   height: auto !important;
+  min-height: 60px !important;
 }
 
-/* ── 4. Hide pan/zoom controls ─────────────────────────────────────────── */
+/* ── 4. Flexoki color safety net ──────────────────────────────────────── */
+/* Override any inline style/classDef colors the LLM injects.
+   Uses Flexoki light-mode neutrals so diagrams match the design system. */
+
+[data-streamdown="mermaid"] svg .node rect,
+[data-streamdown="mermaid"] svg .node circle,
+[data-streamdown="mermaid"] svg .node ellipse,
+[data-streamdown="mermaid"] svg .node polygon,
+[data-streamdown="mermaid"] svg .node .label-container {
+  fill: #F2F0E5 !important;
+  stroke: #B7B5AC !important;
+}
+
+[data-streamdown="mermaid"] svg .node .label,
+[data-streamdown="mermaid"] svg .nodeLabel {
+  color: #1C1B1A !important;
+  fill: #1C1B1A !important;
+}
+
+[data-streamdown="mermaid"] svg .edgePath .path,
+[data-streamdown="mermaid"] svg .flowchart-link {
+  stroke: #B7B5AC !important;
+}
+
+[data-streamdown="mermaid"] svg marker path {
+  fill: #B7B5AC !important;
+  stroke: #B7B5AC !important;
+}
+
+/* ── 5. Hide pan/zoom controls ─────────────────────────────────────────── */
 
 /* Hide zoom in/out/reset button group */
 [data-streamdown="mermaid"] div:has(> button[title="Zoom in"]) {
@@ -98,7 +103,7 @@
   cursor: default !important;
 }
 
-/* ── 5. Fullscreen: sidebar-aware, ChatGPT-style ───────────────────────── */
+/* ── 6. Fullscreen: sidebar-aware, ChatGPT-style ───────────────────────── */
 
 /* Constrain to main content area — sidebar stays visible.
    The fullscreen portal has role="button" on its outer container. */

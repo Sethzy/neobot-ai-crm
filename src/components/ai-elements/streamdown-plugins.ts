@@ -11,9 +11,10 @@ import "streamdown/styles.css";
 import "./streamdown-overrides.css";
 
 /**
- * Custom mermaid plugin with Sunder theming and LR-friendly layout.
+ * Custom mermaid plugin with Flexoki theme colors.
  * Uses static hex values because Mermaid's SVG renderer cannot resolve
  * CSS variables or oklch(). Values approximate Flexoki light-mode tokens.
+ * Flowchart/sequence layout config lives on the <Streamdown mermaid> prop.
  */
 const mermaid = createMermaidPlugin({
   config: {
@@ -26,12 +27,6 @@ const mermaid = createMermaidPlugin({
       secondaryColor: "#FFFCF0",
       tertiaryColor: "#F2F0E5",
       fontFamily: "Inter, system-ui, sans-serif",
-    },
-    flowchart: {
-      useMaxWidth: false,
-      nodeSpacing: 30,
-      rankSpacing: 40,
-      curve: "basis",
     },
   },
 });
