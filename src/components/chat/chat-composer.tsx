@@ -296,7 +296,7 @@ export function ChatComposer({
           type="file"
         />
 
-        <PromptInput disableAttachments onSubmit={handleSubmit}>
+        <PromptInput onSubmit={handleSubmit}>
           <PromptInputTextarea
             placeholder={placeholder ?? "Send a message..."}
             value={value}

@@ -22,6 +22,15 @@ vi.mock("@/components/ai-elements/message", () => ({
   MessageResponse: ({ children }: { children: string }) => (
     <div data-testid="message-response">{children}</div>
   ),
+  MessageAction: ({ children, label, onClick, ...props }: { children: React.ReactNode; label?: string; onClick?: () => void; tooltip?: string }) => (
+    <button data-testid="message-action" aria-label={label} onClick={onClick} type="button" {...props}>{children}</button>
+  ),
+  MessageActions: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="message-actions">{children}</div>
+  ),
+  MessageToolbar: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="message-toolbar">{children}</div>
+  ),
 }));
 
 vi.mock("@/components/ai-elements/shimmer", () => ({
@@ -56,16 +65,16 @@ vi.mock("./ask-user-question-inline", () => ({
   ),
 }));
 
-let isAtBottom = true;
-const scrollToBottom = vi.fn();
-
-vi.mock("@/hooks/use-scroll-to-bottom", () => ({
-  useScrollToBottom: () => ({
-    containerRef: { current: null },
-    endRef: { current: null },
-    isAtBottom,
-    scrollToBottom,
-  }),
+vi.mock("@/components/ai-elements/conversation", () => ({
+  Conversation: ({ children, className, ...props }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="conversation" className={className} {...props}>{children}</div>
+  ),
+  ConversationContent: ({ children, className, ...props }: { children: React.ReactNode; className?: string }) => (
+    <div data-testid="message-scroll-container" className={className} {...props}>{children}</div>
+  ),
+  ConversationScrollButton: () => (
+    <button data-testid="scroll-to-bottom" aria-label="Scroll to bottom" type="button" />
+  ),
 }));
 
 const userMessage = {
@@ -81,9 +90,6 @@ const assistantMessage = {
 };
 
 describe("MessageList", () => {
-  beforeEach(() => {
-    isAtBottom = true;
-  });
 
   it("keeps the scroll container mounted even with no messages", () => {
     render(<MessageList messages={[]} status="ready" />);
@@ -171,12 +177,10 @@ describe("MessageList", () => {
     expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-has-approval", "true");
   });
 
-  it("shows scroll button when user is not at bottom", () => {
-    isAtBottom = false;
-
+  it("renders the scroll-to-bottom button", () => {
     render(<MessageList messages={[userMessage, assistantMessage]} status="ready" />);
 
-    expect(screen.getByRole("button", { name: /scroll to bottom/i })).toBeInTheDocument();
+    expect(screen.getByTestId("scroll-to-bottom")).toBeInTheDocument();
   });
 
   it("does not render template cards — those live in ChatWelcome", () => {

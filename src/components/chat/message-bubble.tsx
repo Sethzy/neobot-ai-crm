@@ -19,9 +19,13 @@ import { Badge } from "@/components/ui/badge";
 
 import {
   Message,
+  MessageAction,
+  MessageActions,
   MessageContent,
   MessageResponse,
+  MessageToolbar,
 } from "@/components/ai-elements/message";
+import { CopyIcon } from "lucide-react";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { ViewRenderer } from "@/lib/views/renderer";
 import { cn } from "@/lib/utils";
@@ -234,6 +238,23 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
           })}
 
       </MessageContent>
+
+        {!isStreaming && textParts.length > 0 && (
+          <MessageToolbar>
+            <MessageActions>
+              <MessageAction
+                label="Copy"
+                tooltip="Copy to clipboard"
+                onClick={() => {
+                  const text = getMessageText(message);
+                  if (text) void navigator.clipboard.writeText(text);
+                }}
+              >
+                <CopyIcon className="size-4" />
+              </MessageAction>
+            </MessageActions>
+          </MessageToolbar>
+        )}
     </Message>
   );
 });

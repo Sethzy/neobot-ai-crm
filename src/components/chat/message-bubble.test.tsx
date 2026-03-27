@@ -23,6 +23,15 @@ vi.mock("@/components/ai-elements/message", () => ({
   MessageResponse: ({ children }: { children: string }) => (
     <div data-testid="message-response">{children}</div>
   ),
+  MessageAction: ({ children, label, onClick, ...props }: { children: React.ReactNode; label?: string; onClick?: () => void; tooltip?: string }) => (
+    <button data-testid="message-action" aria-label={label} onClick={onClick} type="button" {...props}>{children}</button>
+  ),
+  MessageActions: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="message-actions">{children}</div>
+  ),
+  MessageToolbar: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="message-toolbar">{children}</div>
+  ),
 }));
 
 vi.mock("@/components/ai-elements/reasoning", () => ({
@@ -718,5 +727,48 @@ describe("MessageBubble — skill badge", () => {
     );
 
     expect(screen.queryByTestId("skill-badge")).not.toBeInTheDocument();
+  });
+
+  it("renders a copy button on completed assistant messages", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "a1",
+          role: "assistant",
+          parts: [{ type: "text", text: "Hello from the agent" }],
+        } as ChatUIMessage}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /copy/i })).toBeInTheDocument();
+  });
+
+  it("does not render a copy button on user messages", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "u1",
+          role: "user",
+          parts: [{ type: "text", text: "Hello" }],
+        } as ChatUIMessage}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /copy/i })).not.toBeInTheDocument();
+  });
+
+  it("does not render a copy button while streaming", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "a1",
+          role: "assistant",
+          parts: [{ type: "text", text: "Hello" }],
+        } as ChatUIMessage}
+        isStreaming
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /copy/i })).not.toBeInTheDocument();
   });
 });
