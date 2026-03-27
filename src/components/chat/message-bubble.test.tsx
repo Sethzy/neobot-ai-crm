@@ -4,6 +4,7 @@
  */
 import type React from "react";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { MessageBubble } from "./message-bubble";
@@ -755,6 +756,29 @@ describe("MessageBubble — skill badge", () => {
     );
 
     expect(screen.queryByRole("button", { name: /copy/i })).not.toBeInTheDocument();
+  });
+
+  it("copies message text to clipboard when copy button is clicked", () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      writable: true,
+      configurable: true,
+    });
+
+    render(
+      <MessageBubble
+        message={{
+          id: "a1",
+          role: "assistant",
+          parts: [{ type: "text", text: "Copy this text" }],
+        } as ChatUIMessage}
+      />,
+    );
+
+    screen.getByRole("button", { name: /copy/i }).click();
+
+    expect(writeText).toHaveBeenCalledWith("Copy this text");
   });
 
   it("does not render a copy button while streaming", () => {

@@ -247,7 +247,9 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
                 tooltip="Copy to clipboard"
                 onClick={() => {
                   const text = getMessageText(message);
-                  if (text) void navigator.clipboard.writeText(text);
+                  if (text && navigator.clipboard?.writeText) {
+                    navigator.clipboard.writeText(text).catch(() => {});
+                  }
                 }}
               >
                 <CopyIcon className="size-4" />

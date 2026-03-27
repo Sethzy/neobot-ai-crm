@@ -4,7 +4,7 @@
  */
 import type React from "react";
 import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { MessageList } from "./message-list";
 
@@ -177,10 +177,13 @@ describe("MessageList", () => {
     expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-has-approval", "true");
   });
 
-  it("renders the scroll-to-bottom button", () => {
+  it("composes ConversationScrollButton inside Conversation", () => {
     render(<MessageList messages={[userMessage, assistantMessage]} status="ready" />);
 
-    expect(screen.getByTestId("scroll-to-bottom")).toBeInTheDocument();
+    const conversation = screen.getByTestId("conversation");
+    const scrollButton = screen.getByTestId("scroll-to-bottom");
+    // Scroll button is a child of the Conversation container (not a sibling)
+    expect(conversation.contains(scrollButton)).toBe(true);
   });
 
   it("does not render template cards — those live in ChatWelcome", () => {
