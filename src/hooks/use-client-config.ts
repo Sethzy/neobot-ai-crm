@@ -11,8 +11,7 @@ export const clientConfigKeys = {
 };
 
 async function fetchMyClientConfigId(): Promise<string | null> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase.rpc as any)("get_my_client_config");
+  const { data, error } = await supabase.rpc("get_my_client_config");
   if (error) throw error;
   return data as string | null;
 }

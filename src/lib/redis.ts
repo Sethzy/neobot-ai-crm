@@ -22,7 +22,9 @@ export async function getRedisClient(): Promise<RedisClient | null> {
 
   if (!redisClient) {
     redisClient = createClient({ url: redisUrl });
-    redisClient.on("error", () => {});
+    redisClient.on("error", (err) => {
+      console.error("[redis] connection error:", err.message);
+    });
   }
 
   if (!redisClient.isOpen) {

@@ -64,6 +64,7 @@ export const autopilotConfigSchema = z.object({
   pulse_interval: z.enum(pulseIntervalValues),
   quiet_hours_start: quietHoursTimeSchema.nullable(),
   quiet_hours_end: quietHoursTimeSchema.nullable(),
+  timezone: z.string().nullable(),
   enabled: z.boolean(),
   created_at: z.string().datetime({ offset: true }),
   updated_at: z.string().datetime({ offset: true }),

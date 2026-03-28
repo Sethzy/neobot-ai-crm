@@ -100,10 +100,11 @@ async function fetchAutopilotConfig(
 ): Promise<{
   quiet_hours_start: string | null;
   quiet_hours_end: string | null;
+  timezone: string | null;
 } | null> {
   const { data, error } = await supabase
     .from("autopilot_config")
-    .select("quiet_hours_start, quiet_hours_end")
+    .select("quiet_hours_start, quiet_hours_end, timezone")
     .eq("client_id", clientId)
     .maybeSingle();
 
@@ -258,6 +259,7 @@ export async function runScan({
               quietHoursStart: autopilotConfig.quiet_hours_start,
               quietHoursEnd: autopilotConfig.quiet_hours_end,
               now,
+              timezone: autopilotConfig.timezone ?? undefined,
             })
           ) {
             const nextFireAtAfterNow = advanceNextFireAtPastNow(

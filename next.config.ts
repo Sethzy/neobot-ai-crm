@@ -74,8 +74,6 @@ const nextConfig: NextConfig = {
   experimental: {
     // Work around unstable dev-only Segment Explorer runtime errors in Next 15.
     devtoolSegmentExplorer: false,
-    // Cache Turbopack compilation to disk — faster restarts and page loads
-    turbopackFileSystemCacheForDev: true,
     optimizePackageImports: [
       "lucide-react",
       "date-fns",

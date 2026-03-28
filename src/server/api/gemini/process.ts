@@ -355,8 +355,7 @@ export default async function handler(
       if (userError || !user) {
         return res.status(401).json({ success: false, error: "Unauthorized" });
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: rpcResult } = await (supabase.rpc as any)("get_my_client_config");
+      const { data: rpcResult } = await supabase.rpc("get_my_client_config");
       clientConfigId = rpcResult;
     }
     console.log("[Gemini API] Client config:", clientConfigId ?? "default");

@@ -348,7 +348,6 @@ export type Database = {
           created_at: string
           crm_config_mode_until: string | null
           display_name: string | null
-          is_bootstrapped: boolean
           plan_name: string | null
           quota_exempt: boolean
           stripe_customer_id: string | null
@@ -362,7 +361,6 @@ export type Database = {
           created_at?: string
           crm_config_mode_until?: string | null
           display_name?: string | null
-          is_bootstrapped?: boolean
           plan_name?: string | null
           quota_exempt?: boolean
           stripe_customer_id?: string | null
@@ -376,7 +374,6 @@ export type Database = {
           created_at?: string
           crm_config_mode_until?: string | null
           display_name?: string | null
-          is_bootstrapped?: boolean
           plan_name?: string | null
           quota_exempt?: boolean
           stripe_customer_id?: string | null
@@ -1482,7 +1479,7 @@ export type Database = {
           {
             foreignKeyName: "sprite_sessions_thread_id_fkey"
             columns: ["thread_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "conversation_threads"
             referencedColumns: ["thread_id"]
           },
@@ -2090,3 +2087,4 @@ export const Constants = {
     },
   },
 } as const
+

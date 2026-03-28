@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatMessageQuotaResetDate } from "@/lib/usage/message-quota";
 import { loadCurrentMessageQuota } from "@/lib/usage/message-quota-server";
 
+import { AutopilotCard, type AutopilotConfigData } from "./autopilot-card";
 import { CrmConfigModeCard } from "./crm-config-mode-card";
 import { TelegramConnectCard } from "./telegram-connect-card";
 import { SubmitButton } from "../pricing/submit-button";
@@ -151,13 +152,31 @@ async function loadTelegramChatId(): Promise<string | null> {
   }
 }
 
+/** Loads the autopilot configuration for the current client. */
+async function loadAutopilotConfig(): Promise<AutopilotConfigData | null> {
+  try {
+    const supabase = await createClient();
+    const clientId = await resolveClientId(supabase);
+    const { data } = await supabase
+      .from("autopilot_config")
+      .select("config_id, pulse_interval, quiet_hours_start, quiet_hours_end, timezone, enabled")
+      .eq("client_id", clientId)
+      .single();
+
+    return data;
+  } catch {
+    return null;
+  }
+}
+
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
-  const [client, messageQuota, crmConfigExpiresAt, telegramChatId] = await Promise.all([
+  const [client, messageQuota, crmConfigExpiresAt, telegramChatId, autopilotConfig] = await Promise.all([
     loadCurrentBillingState(),
     loadCurrentMessageQuota(),
     loadCrmConfigModeExpiresAt(),
     loadTelegramChatId(),
+    loadAutopilotConfig(),
   ]);
   const connectionAlert = renderConnectionAlert(
     resolvedSearchParams.connection,
@@ -298,6 +317,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             <TelegramConnectCard initialChatId={telegramChatId} />
           </div>
         </div>
+
+        {autopilotConfig ? <AutopilotCard initialConfig={autopilotConfig} /> : null}
 
         <Card className="border-border/70 bg-card shadow-sm">
           <CardHeader className="gap-2">

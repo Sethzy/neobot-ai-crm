@@ -620,68 +620,6 @@ async function handleFirstMessage(
 }
 
 /**
- * Convert UI messages to Anthropic format with container_upload on first user message.
- * Used for FIRST message only - when we need to upload data to the container.
- */
-function convertUIMessagesToAnthropicWithUpload(
-  messages: Array<{
-    id: string;
-    role: string;
-    parts: Array<{ type: string; text?: string; data?: string; mediaType?: string }>;
-  }>,
-  fileId: string
-): BetaMessageParam[] {
-  const filtered = messages.filter((msg) => msg.role === "user" || msg.role === "assistant");
-  const firstUserIndex = filtered.findIndex((msg) => msg.role === "user");
-
-  return filtered.map((msg, index) => {
-    type ImageMediaType = "image/gif" | "image/jpeg" | "image/png" | "image/webp";
-    const contentParts: Array<
-      | { type: "text"; text: string }
-      | { type: "image"; source: { type: "base64"; media_type: ImageMediaType; data: string } }
-    > = [];
-
-    // Add images first
-    for (const part of msg.parts) {
-      if (part.type === "image" && part.data && part.mediaType) {
-        contentParts.push({
-          type: "image",
-          source: {
-            type: "base64",
-            media_type: part.mediaType as ImageMediaType,
-            data: part.data,
-          },
-        });
-      }
-    }
-
-    // Add text parts
-    const textParts = msg.parts
-      .filter(
-        (p): p is { type: "text"; text: string } =>
-          p.type === "text" && typeof p.text === "string" && p.text.trim() !== ""
-      )
-      .map((p) => ({ type: "text" as const, text: p.text }));
-
-    contentParts.push(...textParts);
-
-    const content = contentParts.length > 0 ? contentParts : [{ type: "text" as const, text: "..." }];
-
-    if (msg.role === "user" && index === firstUserIndex) {
-      return {
-        role: "user" as const,
-        content: [{ type: "container_upload" as const, file_id: fileId }, ...content],
-      };
-    }
-
-    return {
-      role: msg.role as "user" | "assistant",
-      content,
-    };
-  });
-}
-
-/**
  * Convert UI messages to Anthropic format WITHOUT container_upload.
  * Used for FOLLOW-UP messages - data already exists in container from first message.
  */

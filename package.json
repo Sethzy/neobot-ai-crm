@@ -14,13 +14,14 @@
     "test": "vitest",
     "test:run": "vitest run",
     "mcp": "tsx mcp-server.ts",
-    "map:generate": "tsx scripts/generate-sg-map.ts"
+    "map:generate": "tsx scripts/generate-sg-map.ts",
+    "cache-metrics": "node --env-file=.env.local scripts/cache-metrics.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.15",
     "@ai-sdk/gateway": "^3.0.22",
     "@ai-sdk/react": "^3.0.41",
-    "@anthropic-ai/sdk": "^0.71.2",
+    "@anthropic-ai/sdk": "^0.78.0",
     "@base-ui/react": "^1.2.0",
     "@composio/core": "^0.6.4",
     "@composio/vercel": "^0.6.4",
@@ -37,8 +38,10 @@
     "@langfuse/otel": "^5.0.0",
     "@langfuse/tracing": "^5.0.0",
     "@modelcontextprotocol/sdk": "^1.26.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.214.0",
     "@opentelemetry/sdk-trace-node": "^2.6.0",
     "@paper-design/shaders-react": "^0.0.68",
+    "@posthog/ai": "^7.12.2",
     "@radix-ui/react-radio-group": "^1.3.8",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@radix-ui/react-visually-hidden": "^1.2.4",
@@ -47,6 +50,7 @@
     "@react-pdf-viewer/highlight": "^3.12.0",
     "@react-pdf-viewer/page-navigation": "^3.12.0",
     "@remotion/player": "^4.0.409",
+    "@rive-app/react-webgl2": "^4.27.3",
     "@sentry/nextjs": "^10.46.0",
     "@streamdown/cjk": "^1.0.3",
     "@streamdown/code": "^1.1.1",
@@ -56,7 +60,9 @@
     "@supabase/supabase-js": "^2.88.0",
     "@tanstack/react-query": "^5.90.12",
     "@tanstack/react-table": "^8.21.3",
-    "ai": "^6.0.111",
+    "@xyflow/react": "^12.10.1",
+    "ai": "^6.0.116",
+    "ansi-to-react": "^6.2.6",
     "browser-use-sdk": "^3.3.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -77,7 +83,8 @@
     "lenis": "^1.3.17",
     "lucide-react": "^0.561.0",
     "mathjs": "^15.1.1",
-    "motion": "^12.34.5",
+    "media-chrome": "^4.18.3",
+    "motion": "^12.35.0",
     "nanoid": "^5.1.6",
     "next": "^15.1.8",
     "next-themes": "^0.4.6",
@@ -89,6 +96,7 @@
     "react": "^19.2.0",
     "react-day-picker": "^9.14.0",
     "react-dom": "^19.2.0",
+    "react-jsx-parser": "^2.4.1",
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^4.7.3",
     "recharts": "^2.15.4",
@@ -97,13 +105,15 @@
     "resumable-stream": "^2.2.10",
     "shadcn": "^4.0.7",
     "sharp": "^0.34.5",
-    "shiki": "^4.0.2",
+    "shiki": "^3.23.0",
     "sonner": "^2.0.7",
     "streamdown": "^2.5.0",
     "stripe": "^20.4.1",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.1.17",
+    "tokenlens": "^1.3.1",
     "tw-animate-css": "^1.4.0",
+    "use-stick-to-bottom": "^1.1.3",
     "vaul": "^1.1.2",
     "yaml": "^2.8.2",
     "zod": "^4.2.1"
@@ -133,6 +143,11 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vitest": "^4.0.16"
+  },
+  "pnpm": {
+    "overrides": {
+      "import-in-the-middle": "3.0.0"
+    }
   },
   "packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"
 }

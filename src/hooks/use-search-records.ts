@@ -28,8 +28,7 @@ export function useSearchRecords(query: string) {
   return useQuery({
     queryKey: ["search-records", normalizedQuery],
     queryFn: async (): Promise<SearchResult[]> => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RPC not yet in generated types
-      const { data, error } = await (supabase.rpc as any)("search_records", { query: normalizedQuery });
+      const { data, error } = await supabase.rpc("search_records", { query: normalizedQuery });
       if (error) {
         throw error;
       }

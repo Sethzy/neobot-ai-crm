@@ -98,13 +98,22 @@ export async function executeTrigger({
       resultStatus,
     });
 
-  const releaseAndCapture = async (
-    status: Parameters<typeof releaseClaim>[2],
-    resultStatus: Parameters<typeof captureTriggerExecutionEvent>[0]["resultStatus"],
+  /** Releases claim, fires analytics event, and returns the result in one call. */
+  const finish = async (
+    claimStatus: "completed" | "failed" | "failed_permanent" | "queued" | "skipped_thread_busy",
     options?: Parameters<typeof releaseClaim>[3],
-  ): Promise<void> => {
-    await releaseClaim(supabase, payload, status, options);
-    await captureEvent(resultStatus);
+  ): Promise<ExecuteTriggerResult> => {
+    await releaseClaim(supabase, payload, claimStatus, options);
+    await captureEvent(
+      claimStatus === "skipped_thread_busy" ? "skipped_busy" : claimStatus,
+    );
+    return {
+      status: claimStatus === "skipped_thread_busy"
+        ? "skipped_busy"
+        : claimStatus === "failed_permanent"
+          ? "failed"
+          : claimStatus,
+    };
   };
 
   const { data: trigger, error } = await supabase
@@ -133,21 +142,17 @@ export async function executeTrigger({
       });
 
       if (runResult.status === "skipped_busy") {
-        await releaseAndCapture("skipped_thread_busy", "skipped_busy", { advanceNextFireAt: true });
-        return { status: "skipped_busy" };
+        return finish("skipped_thread_busy", { advanceNextFireAt: true });
       }
 
       if (runResult.status === "failed") {
-        await releaseAndCapture("failed", "failed", { advanceNextFireAt: true });
-        return { status: "failed" };
+        return finish("failed", { advanceNextFireAt: true });
       }
 
-      await releaseAndCapture("completed", "completed", { advanceNextFireAt: true });
-      return { status: "completed" };
+      return finish("completed", { advanceNextFireAt: true });
     } catch (error) {
       console.error("[executor] pulse trigger failed:", error);
-      await releaseAndCapture("failed", "failed", { advanceNextFireAt: true });
-      return { status: "failed" };
+      return finish("failed", { advanceNextFireAt: true });
     }
   }
 
@@ -167,8 +172,7 @@ export async function executeTrigger({
       });
 
       if (rssResult.newItems.length === 0) {
-        await releaseAndCapture("completed", "completed", { advanceNextFireAt: true });
-        return { status: "completed" };
+        return finish("completed", { advanceNextFireAt: true });
       }
 
       triggerEventPayload = {
@@ -180,9 +184,10 @@ export async function executeTrigger({
       };
     } catch (error) {
       console.error("[executor] rss trigger failed:", error);
-      const failStatus = hasExhaustedRetries ? "failed_permanent" : "failed";
-      await releaseAndCapture(failStatus, failStatus, { nextFireAt: null, advanceNextFireAt: false });
-      return { status: "failed" };
+      return finish(
+        hasExhaustedRetries ? "failed_permanent" : "failed",
+        { nextFireAt: null, advanceNextFireAt: false },
+      );
     }
   }
 
@@ -213,16 +218,15 @@ export async function executeTrigger({
     );
 
     if (runResult.status === "queued") {
-      await releaseAndCapture("queued", "queued", { advanceNextFireAt: true });
-      return { status: "queued" };
+      return finish("queued", { advanceNextFireAt: true });
     }
 
-    await releaseAndCapture("completed", "completed", { advanceNextFireAt: true });
-    return { status: "completed" };
+    return finish("completed", { advanceNextFireAt: true });
   } catch (error) {
     console.error("[executor] schedule trigger failed:", error);
-    const failStatus = hasExhaustedRetries ? "failed_permanent" : "failed";
-    await releaseAndCapture(failStatus, failStatus, { nextFireAt: null, advanceNextFireAt: false });
-    return { status: "failed" };
+    return finish(
+      hasExhaustedRetries ? "failed_permanent" : "failed",
+      { nextFireAt: null, advanceNextFireAt: false },
+    );
   }
 }
