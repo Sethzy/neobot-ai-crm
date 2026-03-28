@@ -14,7 +14,6 @@ import {
   CRM_SETUP_SYSTEM_PROMPT,
   MARKET_DATA_PROMPT,
   PROPERTY_LISTING_PROMPT,
-  SANDBOX_PROMPT,
   SYSTEM_PROMPT,
 } from "@/lib/ai/system-prompt";
 import type { CrmVocabConfig } from "@/lib/crm/config";
@@ -52,7 +51,6 @@ interface AssembleContextParams {
   includeBrowserAutomation?: boolean;
   includeMarketData?: boolean;
   includePropertyListings?: boolean;
-  includeSandboxTools?: boolean;
   /** When true, injects CRM config mode notice into the system reminder. */
   crmConfigModeActive?: boolean;
   platformInstructions?: string;
@@ -75,7 +73,6 @@ interface AssembleSystemOnlyParams {
   includeBrowserAutomation?: boolean;
   includeMarketData?: boolean;
   includePropertyListings?: boolean;
-  includeSandboxTools?: boolean;
   platformInstructions?: string;
   systemPrompt?: string;
 }
@@ -105,7 +102,6 @@ interface BuildSystemPromptOptions {
   includeBrowserAutomation?: boolean;
   includeMarketData?: boolean;
   includePropertyListings?: boolean;
-  includeSandboxTools?: boolean;
   systemPrompt?: string;
 }
 
@@ -122,10 +118,7 @@ function formatAvailableSkills(userSkills?: SkillMetadata[]): string | null {
     .map((skill) => {
       const safeName = sanitizeSkillPromptText(skill.name);
       const safeDescription = sanitizeSkillPromptText(skill.description);
-      const isSandboxSkill = skill.description?.includes("execute_in_sandbox");
-      const hint = isSandboxSkill
-        ? `execute_in_sandbox({ skills: [${JSON.stringify(skill.slug ?? skill.name)}], task: "..." })`
-        : `read_file(${JSON.stringify(skill.path)})`;
+      const hint = `read_file(${JSON.stringify(skill.path)})`;
 
       return `- **${safeName}** (slug: ${skill.slug ?? skill.name}): ${safeDescription}\n  -> \`${hint}\``;
     })
@@ -141,7 +134,6 @@ function buildSystemPrompt({
   includeBrowserAutomation,
   includeMarketData,
   includePropertyListings,
-  includeSandboxTools,
   systemPrompt,
 }: BuildSystemPromptOptions): string {
   const activeSystemPrompt = systemPrompt ?? SYSTEM_PROMPT;
@@ -166,10 +158,6 @@ function buildSystemPrompt({
 
   if (includePropertyListings) {
     sections.push(PROPERTY_LISTING_PROMPT);
-  }
-
-  if (includeSandboxTools) {
-    sections.push(SANDBOX_PROMPT);
   }
 
   if (instructions && instructions.trim().length > 0) {
@@ -318,7 +306,6 @@ export async function assembleSystemOnly({
   includeBrowserAutomation,
   includeMarketData,
   includePropertyListings,
-  includeSandboxTools,
   platformInstructions,
   systemPrompt,
 }: AssembleSystemOnlyParams): Promise<string> {
@@ -335,8 +322,7 @@ export async function assembleSystemOnly({
     includeBrowserAutomation,
     includeMarketData,
     includePropertyListings,
-    includeSandboxTools,
-  });
+    });
 
   // For subagent system-only assembly, append memory directly to the system string
   // (there's no messages array to inject into).
@@ -365,7 +351,6 @@ export async function assembleContext({
   includeBrowserAutomation,
   includeMarketData,
   includePropertyListings,
-  includeSandboxTools,
   crmConfigModeActive,
   platformInstructions,
   systemPrompt,
@@ -475,29 +460,6 @@ export async function assembleContext({
     }
   }
 
-  // Active background jobs (for agent awareness)
-  if (clientId) {
-    const { data: activeJobs } = await supabase
-      .from("sprite_jobs")
-      .select("id, thread_id, job_type, progress_label, created_at")
-      .eq("client_id", clientId)
-      .in("status", ["starting", "running"]);
-
-    // Filter to only rows that look like sprite jobs (guards against mock data leakage in tests)
-    const validJobs = (activeJobs ?? []).filter(
-      (j: Record<string, unknown>) => typeof j.job_type === "string",
-    );
-    if (validJobs.length > 0) {
-      let jobsContext = "\n\n## Active Background Jobs\n";
-      for (const job of validJobs) {
-        const elapsed = Math.round((Date.now() - new Date(job.created_at as string).getTime()) / 60000);
-        const progress = job.progress_label ? ` — ${job.progress_label}` : "";
-        jobsContext += `- sandbox job running for ${elapsed} min${progress}\n`;
-      }
-      jobsContext += "\nYou can queue another sandbox job — it will start when the current one finishes.\n";
-      injectedMessages.push({ role: "user" as const, content: [{ type: "text" as const, text: jobsContext }] });
-    }
-  }
 
   return {
     system: buildSystemPrompt({
@@ -507,8 +469,7 @@ export async function assembleContext({
       includeBrowserAutomation,
       includeMarketData,
       includePropertyListings,
-      includeSandboxTools,
-    }),
+        }),
     messages: [...injectedMessages, ...modelMessages],
   };
 }

@@ -9,7 +9,6 @@ import {
   BROWSER_AUTOMATION_PROMPT,
   MARKET_DATA_PROMPT,
   PROPERTY_LISTING_PROMPT,
-  SANDBOX_PROMPT,
   SETUP_SYSTEM_PROMPT,
   SYSTEM_PROMPT,
 } from "@/lib/ai/system-prompt";
@@ -211,15 +210,6 @@ describe("PROPERTY_LISTING_PROMPT", () => {
   });
 });
 
-describe("SANDBOX_PROMPT", () => {
-  it("references execute_in_sandbox and general sandbox capabilities", () => {
-    expect(SANDBOX_PROMPT).toContain("execute_in_sandbox");
-    expect(SANDBOX_PROMPT).not.toContain("analyze_spreadsheet");
-    expect(SANDBOX_PROMPT).not.toContain("publish_artifact");
-    expect(SANDBOX_PROMPT).toContain("Skills declare their own package");
-    expect(SANDBOX_PROMPT).toContain("Gather first, then hand off");
-  });
-});
 
 describe("SYSTEM_PROMPT memory instructions", () => {
   it("contains a memory-system section", () => {

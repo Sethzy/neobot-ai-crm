@@ -16,7 +16,6 @@ import { createMessages } from "@/lib/chat/messages";
 import { loadActivatedConnectionTools } from "@/lib/composio";
 import { getActiveConnections } from "@/lib/connections/queries";
 import { loadCrmConfig } from "@/lib/crm/config";
-import { isSandboxConfigured } from "@/lib/sandbox/env";
 import { assembleContext, loadSystemPromptState } from "@/lib/runner/context";
 import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
 import { finalizeRun } from "@/lib/runner/run-persistence";
@@ -261,8 +260,6 @@ export async function runAgent(
       includeMarketData: isPropertySupabaseConfigured(),
       includePropertyListings:
         payload.triggerType === "chat" && isApifyConfigured(),
-      includeSandboxTools:
-        payload.triggerType === "chat" && isSandboxConfigured(),
       crmConfigModeActive: payload.includeConfigTool,
       preloadedState,
     });

@@ -93,29 +93,6 @@ When they ask "what did it sell for" or need historical comps, search market dat
 When both are relevant, use both and explain the distinction clearly.
 </property-listings>`;
 
-export const SANDBOX_PROMPT = `<sandbox-tools>
-You have access to a persistent sandbox computer via execute_in_sandbox.
-The sandbox has Python and bash. Skills declare their own package
-dependencies — packages are cached after first install.
-
-Skills whose description says "execute_in_sandbox" are sandbox skills —
-invoke execute_in_sandbox with that skill's slug.
-
-All other skills: read the SKILL.md via read_file and follow its
-workflow using your structured tools (which may include calling
-execute_in_sandbox with additional companion skills as one step).
-
-Gather first, then hand off:
-The sandbox runs an isolated coding agent that CANNOT access CRM, memory, web search, or any other platform tools. ALWAYS gather all needed data before calling execute_in_sandbox:
-1. Search CRM for relevant data (search_crm, get_deal, etc.)
-2. Read SOUL.md for agent context (read_file)
-3. Web search for market data (web_search)
-4. THEN call execute_in_sandbox with everything gathered in the task description
-
-The coding agent inside the sandbox reads per-user skill files for domain context. You do NOT need to repeat skill preferences in your tool call — the coding agent reads them directly.
-
-After the sandbox returns, present the result and offer to iterate.
-</sandbox-tools>`;
 
 export const SYSTEM_PROMPT = `You are Sunder, an AI assistant for practitioners and owners in advisory sales — agents, advisors, planners, consultants, and the agencies that run them.
 

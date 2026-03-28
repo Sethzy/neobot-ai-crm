@@ -1,12 +1,6 @@
 /**
  * @file DocGen skill registry
- * @deprecated This entire module is deprecated. The hardcoded registry + direct Anthropic
- * Skills API approach is being replaced by:
- * - Vercel Sandbox + Claude Code CLI for Excel generation (see docs/product/designs/sandbox-skill-execution.md)
- * - Per-client SKILL.md files in Supabase Storage for user preferences (see docs/product/designs/instruction-skills.md)
- * - Anthropic's xlsx skill baked into the sandbox snapshot instead of referenced via skill_id
- *
- * Do not add new entries. Will be removed when sandbox execution ships.
+ * @deprecated This entire module is deprecated. Do not add new entries.
  *
  * @description Maps client IDs to their uploaded Claude API skill IDs.
  * Updated manually after uploading skills via Claude Skills API.

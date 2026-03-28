@@ -26,14 +26,6 @@ export const DEFAULT_SKILL_SLUGS = [
   "market-report",
   "re-analyst",
   "frontend-design",
-  // Sandbox skills (PR 55)
-  "pdf_creation",
-  "excel_editing",
-  "docx_editing",
-  "pptx_editing",
-  "pdf_form_filling",
-  "pdf_signing",
-  "publish_website",
 ] as const;
 
 export type DefaultSkillSlug = (typeof DEFAULT_SKILL_SLUGS)[number];
@@ -2054,44 +2046,21 @@ read_file("/agent/SOUL.md")
 
 Note the user's market focus, client context, and any relevant preferences.
 
-### Step 4: Hand off to coding agent
+### Step 4: Analyze and present
 
-Call execute_in_sandbox with the excel_editing and re-analyst skills. Include in the task description:
-- What specific analysis the user wants
-- Number of properties and their addresses
-- Any specific metrics or benchmarks they mentioned
-- Supplementary data from steps 1-3
+Using the gathered data from steps 1-3, perform the analysis the user requested:
+- Calculate yields, mortgage payments, and financial metrics
+- Compare properties side by side
+- Highlight key differences and tradeoffs
 
-\`\`\`
-execute_in_sandbox({
-  skills: ["excel_editing", "re-analyst"],
-  task: "{user's request + enriched context}",
-  inputFiles: ["{uploaded file storage paths or URLs if any}"]
-})
-\`\`\`
-
-**IMPORTANT:**
-- Do NOT calculate yields, mortgage payments, or financial metrics yourself in chat text
-- Do NOT write formulas or Python code in the conversation
-- The sandbox agent has the user's re-analyst skill with their exact preferences and benchmarks
-- Let the coding agent handle ALL computation — it produces proper Excel with live formulas
-
-## After the model is ready
-
-Present the summary and download link. Offer to:
+Present the results clearly with tables and structured data. Offer to:
 - Email it to someone (use send_message)
-- Refine it ("add a sensitivity table", "remove property 3")
+- Refine the analysis ("add a sensitivity table", "remove property 3")
 - Do a follow-up analysis
-
-## Follow-up patterns
-
-For refinements, call execute_in_sandbox again with the new request.
-The sandbox remembers installed packages — no need to re-explain context.
 
 ## Gotchas
 
-- Never approximate financial calculations in chat. Always use the sandbox tool.
-- If the user asks "which is better?" — run the model FIRST, then give your opinion based on the numbers.
+- If the user asks "which is better?" — present the numbers first, then give your opinion based on the data.
 - SG-specific: always mention ABSD/BSD applicability and TDSR if relevant.
 - If the user hasn't set up their re-analyst preferences yet, suggest they do ("want me to set up your analysis preferences first?").
 `,
@@ -2157,38 +2126,17 @@ fetch_url({ url: "{photo URL}" })
 
 Aim for 4-8 photos. If no photos in CRM, ask the user to share some.
 
-### Step 6: Hand off to coding agent
+### Step 6: Present the showcase
 
-Call execute_in_sandbox with the publish_website and frontend-design skills, passing ALL gathered data:
+Using the gathered data from steps 1-5, present a structured property showcase to the user:
+- Property details, pricing, and key features
+- Neighborhood highlights (MRT, schools, amenities)
+- Recent comparable transactions
+- Agent contact details
 
-\`\`\`
-execute_in_sandbox({
-  skills: ["publish_website", "frontend-design"],
-  task: "Build a property showcase page for {address}. Include hero with best photo, photo gallery, property details, neighborhood map with {MRT + schools}, recent transactions table, and agent contact card for {agent name}. Property data: {
-    agent: { name, phone, email, agency },
-    neighborhood: { mrt, schools, amenities },
-    transactions: [ ... ],
-  },
-  photoUrls: ["url1", "url2", ...]
-})
-\`\`\`
-
-**IMPORTANT:**
-- Gather ALL data BEFORE calling execute_in_sandbox
-- The sandbox cannot access CRM, memory, or do web searches
-- Include the agent's contact details — the showcase needs a CTA
-- Include neighborhood data — it's a key selling point
-
-## After the page is live
-
-The tool returns a live preview URL. Present it to the user with a summary of what's included.
-
-For follow-ups ("swap the hero photo", "add a mortgage calculator", "make the cards bigger"), call execute_in_sandbox again with the same skills. Include the existing here.now URL in the task so the agent publishes to the same slug.
-
-When the user is happy, ask if they want to:
-- **Publish permanently** — builds static HTML, uploads to a permanent URL
-- **Send to a client** — use send_message with the preview or permanent link
-- **Keep iterating** — the preview stays live
+Offer to:
+- **Send to a client** — use send_message with the formatted property details
+- **Refine the content** — adjust details, add/remove sections
 
 ## Gotchas
 
@@ -2246,18 +2194,13 @@ read_file("/agent/SOUL.md")
 
 Note the user's market specialization and client focus.
 
-### Step 5: Hand off to coding agent
+### Step 5: Analyze and present
 
-\`\`\`
-execute_in_sandbox({
-  skills: ["excel_editing", "re-analyst"],
-  task: "Build a market report for {area} covering {time period}. Include: transaction volume by month, median price psf trend, price distribution, top transactions. Create charts for each. Data: {paste structured data from steps 2-3}.",
-  inputFiles: []
-})
-\`\`\`
-
-If no files were uploaded, pass the gathered data in the task description.
-The coding agent will create the spreadsheet from scratch.
+Using the gathered data from steps 1-4, present a structured market analysis:
+- Transaction volume trends by month
+- Median price psf trends
+- Price distribution and top transactions
+- Comparison with user's active deals if relevant
 
 ## Gotchas
 
@@ -2268,7 +2211,7 @@ The coding agent will create the spreadsheet from scratch.
 
   "re-analyst": `---
 name: re-analyst
-description: "Your property investment analysis preferences. This skill is read by the coding agent inside the sandbox when building Excel financial models. Customize it by telling me your benchmarks, mortgage details, and analysis preferences."
+description: "Your property investment analysis preferences. Used when building financial models and analysis. Customize it by telling me your benchmarks, mortgage details, and analysis preferences."
 type: inner
 editable: true
 ---
@@ -2322,7 +2265,7 @@ See /skills/re-analyst/references/ for:
 
   "frontend-design": `---
 name: frontend-design
-description: "Your brand and design preferences for generated web pages (showcase pages, pitch pages, etc.). This skill is read by the coding agent inside the sandbox. Customize it by telling me your brand colors, typography, and layout preferences."
+description: "Your brand and design preferences for generated web pages (showcase pages, pitch pages, etc.). Customize it by telling me your brand colors, typography, and layout preferences."
 type: inner
 editable: true
 ---
@@ -2376,200 +2319,6 @@ Edit anytime by telling me your updated brand or design preferences.
 - Accessible: proper alt text, contrast ratios, semantic HTML
 `,
 
-  // ---------------------------------------------------------------------------
-  // Sandbox skills (PR 55) — instructions for Claude Code inside the Sprite
-  // ---------------------------------------------------------------------------
-
-  "pdf_creation": `---
-name: pdf_creation
-description: "Create PDF reports and documents from HTML/CSS. Use execute_in_sandbox when asked to generate PDFs, reports, or formatted documents."
----
-
-## Setup
-First run: \`pip3 install weasyprint\` (cached on subsequent runs).
-
-## Instructions
-For PDF creation from scratch, always use the weasyprint Python package and create the PDF from HTML/CSS. Do not use reportlab.
-
-Include thoughtful design elements, visual hierarchy.
-
-## Fonts (Pre-installed on Sprite)
-Sans Serif: Roboto, Open Sans, Lato, Noto Sans, Liberation Sans, DejaVu Sans
-Serif: EB Garamond, FreeSerif
-Monospace: Fira Code, Noto Mono, DejaVu Sans Mono
-
-Google Fonts via @import also work.
-
-## Page Breaks
-\`\`\`css
-h1, h2, h3, h4 { break-after: avoid; }
-.card, figure, table, tr { break-inside: avoid; }
-p { orphans: 3; widows: 3; }
-\`\`\`
-
-## Flexbox Layout
-\`\`\`css
-.flex-item {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-}
-\`\`\`
-
-Limit horizontal density: Max 3-4 cards per row. Ensure text has enough room.
-
-## Output
-Write the finished PDF to the output directory.
-Write a concise summary of what was generated to summary.txt.
-`,
-
-  "excel_editing": `---
-name: excel_editing
-description: "Create and edit Excel spreadsheets with formulas, formatting, and validation. Use execute_in_sandbox when asked to build spreadsheets, financial models, or data analysis workbooks."
----
-
-## Setup
-First run: \`pip3 install openpyxl pandas xlsxwriter matplotlib\`
-For formula recalculation: \`apt-get update -qq && apt-get install -y -qq libreoffice-calc\`
-
-## Critical Rule: Use Formulas, Not Hardcoded Values
-Always use Excel formulas instead of calculating in Python. This keeps spreadsheets dynamic.
-
-\`\`\`python
-# WRONG
-total = df['Sales'].sum()
-sheet['B10'] = total
-
-# CORRECT
-sheet['B10'] = '=SUM(B2:B9)'
-\`\`\`
-
-## Zero Formula Errors
-Every Excel file must have zero formula errors: #REF!, #DIV/0!, #VALUE!, #N/A, #NAME?
-
-## Library Choice
-| Use Case | Library |
-|---|---|
-| Data analysis, pivots | pandas |
-| Formulas, formatting | openpyxl |
-| Simple data export | pandas to_excel() |
-| Modifying existing files | openpyxl |
-
-## Financial Model Standards — Color Coding
-| Color | Meaning |
-|---|---|
-| Blue text | Hardcoded inputs |
-| Black text | Formulas |
-| Green text | Links from other sheets |
-| Yellow background | Key assumptions |
-
-## Formula Recalculation
-After creating/modifying Excel files with formulas, recalculate via LibreOffice:
-\`\`\`bash
-soffice --headless --calc --convert-to xlsx --outdir /tmp /path/to/file.xlsx
-\`\`\`
-
-## Output
-Write the finished workbook to the output directory.
-Write a concise summary to summary.txt.
-`,
-
-  "docx_editing": `---
-name: docx_editing
-description: "Create and edit Word documents. Use execute_in_sandbox when working with .docx files."
----
-
-## Setup
-First run: \`pip3 install python-docx\`
-
-When editing an existing docx, use python-docx. Always first re-read the document structure to identify text split across multiple runs, then use run-aware replacement that preserves formatting instead of replacing entire paragraph text. Verify results by re-reading the saved document.
-`,
-
-  "pptx_editing": `---
-name: pptx_editing
-description: "Create and edit PowerPoint presentations. Use execute_in_sandbox when working with .pptx files."
----
-
-## Setup
-First run: \`pip3 install python-pptx\`
-
-When editing an existing pptx, use python-pptx. Use blank slide layouts or remove empty text boxes after creation to avoid 'Insert text here' placeholder text. Always read the presentation structure first to understand existing content and layouts.
-`,
-
-  "pdf_form_filling": `---
-name: pdf_form_filling
-description: "Fill out PDF form fields programmatically. Use execute_in_sandbox when completing or filling out PDF forms."
----
-
-## Setup
-First run: \`pip3 install pymupdf\`
-
-When needing to fill out a PDF: Print out with fitz first any fillable fields. If there are fillable fields, then fill them out via the fillable fields. If not then use fitz with coordinates (visually) to fill out the PDF.
-`,
-
-  "pdf_signing": `---
-name: pdf_signing
-description: "Add digital signatures to PDF documents. Use execute_in_sandbox when signing PDFs or adding signatures."
----
-
-## Setup
-First run: \`pip3 install pymupdf\`
-
-When needing to sign a PDF, download Kalam font and use it to render a signature overlay on the PDF.
-`,
-
-  "publish_website": `---
-name: publish_website
-description: "Build and publish a shareable web page to here.now. Use execute_in_sandbox when asked to create a showcase, landing page, or any web page to share."
----
-
-## Setup
-First run: \`pip3 install requests\`
-
-## Instructions
-1. Build the HTML/CSS/JS page for the task.
-2. Publish to here.now using the API below.
-3. Write the live URL to summary.txt.
-
-## Publishing to here.now
-
-\`\`\`python
-import requests, os, json
-
-slug = "suitable-slug-name"  # e.g. "123-main-st-showcase"
-api_key = os.environ.get("HERENOW_API_KEY", "")
-headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
-
-# Read the HTML file
-with open("output.html", "r") as f:
-    html_content = f.read()
-
-# Step 1: Create site
-resp = requests.post("https://here.now/api/v1/publish",
-    headers=headers,
-    json={
-        "slug": slug,
-        "files": [{"path": "index.html", "size": len(html_content.encode()), "contentType": "text/html"}]
-    }
-)
-data = resp.json()
-upload_url = data["files"][0]["uploadUrl"]
-finalize_url = data["finalizeUrl"]
-version_id = data["versionId"]
-
-# Step 2: Upload file
-requests.put(upload_url, data=html_content.encode(), headers={"Content-Type": "text/html"})
-
-# Step 3: Finalize
-requests.post(finalize_url, json={"versionId": version_id}, headers=headers)
-
-print(f"Live at: https://{slug}.here.now/")
-\`\`\`
-
-The live URL is: \`https://{slug}.here.now/\`
-
-If updating an existing site, use the same slug to overwrite.
-`,
 };
 
 // ---------------------------------------------------------------------------

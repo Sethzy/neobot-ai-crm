@@ -10,12 +10,10 @@ const {
   mockCreateCrmTools,
   mockCreateListingTools,
   mockCreateMarketTools,
-  mockCreateSandboxTools,
   mockCreateStorageTools,
   mockCreateTriggerTools,
   mockCreateUtilityTools,
   mockCreateWebTools,
-  mockIsSandboxConfigured,
   mockIsPropertySupabaseConfigured,
 } = vi.hoisted(() => ({
   mockCreateBrowserTools: vi.fn(),
@@ -23,21 +21,15 @@ const {
   mockCreateCrmTools: vi.fn(),
   mockCreateListingTools: vi.fn(),
   mockCreateMarketTools: vi.fn(),
-  mockCreateSandboxTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateTriggerTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
-  mockIsSandboxConfigured: vi.fn(),
   mockIsPropertySupabaseConfigured: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/property-env", () => ({
   isPropertySupabaseConfigured: mockIsPropertySupabaseConfigured,
-}));
-
-vi.mock("@/lib/sandbox/env", () => ({
-  isSandboxConfigured: mockIsSandboxConfigured,
 }));
 
 vi.mock("@/lib/runner/tools", () => ({
@@ -46,7 +38,6 @@ vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createListingTools: mockCreateListingTools,
   createMarketTools: mockCreateMarketTools,
-  createSandboxTools: mockCreateSandboxTools,
   createStorageTools: mockCreateStorageTools,
   createTriggerTools: mockCreateTriggerTools,
   createUtilityTools: mockCreateUtilityTools,
@@ -75,10 +66,6 @@ describe("createRunnerTools", () => {
     mockCreateMarketTools.mockReturnValue({
       search_market_data: { description: "market-tool" },
     });
-    mockCreateSandboxTools.mockReturnValue({
-      analyze_spreadsheet: { description: "sandbox-tool" },
-      publish_artifact: { description: "sandbox-tool" },
-    });
     mockCreateStorageTools.mockReturnValue({
       read_file: { description: "storage-tool" },
     });
@@ -91,7 +78,6 @@ describe("createRunnerTools", () => {
     mockCreateWebTools.mockReturnValue({
       web_search: { description: "web-tool" },
     });
-    mockIsSandboxConfigured.mockReturnValue(true);
     mockIsPropertySupabaseConfigured.mockReturnValue(true);
   });
 
@@ -176,46 +162,4 @@ describe("createRunnerTools", () => {
     expect(tools).not.toHaveProperty("search_99co");
   });
 
-  it("includes sandbox tools for non-subagent runs when sandbox env is configured", () => {
-    const tools = createRunnerTools(
-      "supabase" as never,
-      "client-id",
-      "thread-id",
-    );
-
-    expect(tools).toHaveProperty("analyze_spreadsheet");
-    expect(tools).toHaveProperty("publish_artifact");
-    expect(mockCreateSandboxTools).toHaveBeenCalledWith(
-      "supabase",
-      "client-id",
-      "thread-id",
-    );
-  });
-
-  it("omits sandbox tools when sandbox env is not configured", () => {
-    mockIsSandboxConfigured.mockReturnValue(false);
-
-    const tools = createRunnerTools(
-      "supabase" as never,
-      "client-id",
-      "thread-id",
-    );
-
-    expect(tools).not.toHaveProperty("analyze_spreadsheet");
-    expect(tools).not.toHaveProperty("publish_artifact");
-    expect(mockCreateSandboxTools).not.toHaveBeenCalled();
-  });
-
-  it("omits sandbox tools for subagents", () => {
-    const tools = createRunnerTools(
-      "supabase" as never,
-      "client-id",
-      "thread-id",
-      { isSubagent: true },
-    );
-
-    expect(tools).not.toHaveProperty("analyze_spreadsheet");
-    expect(tools).not.toHaveProperty("publish_artifact");
-    expect(mockCreateSandboxTools).not.toHaveBeenCalled();
-  });
 });

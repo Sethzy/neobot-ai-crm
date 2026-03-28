@@ -114,73 +114,10 @@ export async function bootstrapSkills(
     await Promise.all(innerSlugsWithRefs.map((slug) => backfillReferenceFiles(supabase, clientId, slug)));
   }
 
-  // PR 55: Force-overwrite skills whose bodies changed in the sandbox generalization.
-  await migrateSkillBodies(supabase, clientId);
-
   bootstrappedClients.add(clientId);
-}
-
-/**
- * Force-overwrites skill bodies that changed in the sandbox generalization (PR 55).
- * Uses upsert: true (unlike bootstrapSkills which uses upsert: false).
- * Called from bootstrapSkills after initial seeding completes.
- */
-const MIGRATED_SKILL_SLUGS: DefaultSkillSlug[] = [
-  "deal-comparison",
-  "property-showcase",
-  "market-report",
-  "re-analyst",
-  "frontend-design",
-];
-
-const SKILL_MIGRATION_VERSION = "pr55-sandbox-generalization";
-const migratedClients = new Set<string>();
-
-export async function migrateSkillBodies(
-  supabase: SupabaseClient,
-  clientId: string,
-): Promise<void> {
-  if (migratedClients.has(clientId)) return;
-
-  // Check version marker to avoid repeat migrations
-  const markerPath = `${clientId}/${SKILLS_DIRECTORY}/.migration-${SKILL_MIGRATION_VERSION}`;
-  const { data: marker } = await supabase.storage
-    .from(MEMORY_BUCKET_ID)
-    .download(markerPath);
-  if (marker) {
-    migratedClients.add(clientId);
-    return;
-  }
-
-  let allSucceeded = true;
-  for (const slug of MIGRATED_SKILL_SLUGS) {
-    const content = DEFAULT_SKILL_CONTENT[slug];
-    const storagePath = `${clientId}/${SKILLS_DIRECTORY}/${slug}/SKILL.md`;
-    const { error } = await supabase.storage
-      .from(MEMORY_BUCKET_ID)
-      .upload(storagePath, content, {
-        upsert: true,
-        contentType: MEMORY_TEXT_CONTENT_TYPE,
-      });
-    if (error) {
-      allSucceeded = false;
-    }
-  }
-
-  // Only write version marker if all skills migrated successfully
-  if (!allSucceeded) return;
-  await supabase.storage
-    .from(MEMORY_BUCKET_ID)
-    .upload(markerPath, SKILL_MIGRATION_VERSION, {
-      upsert: true,
-      contentType: MEMORY_TEXT_CONTENT_TYPE,
-    });
-
-  migratedClients.add(clientId);
 }
 
 /** Clears the process-local bootstrap cache. Exposed for tests. */
 export function _resetSkillBootstrapCache(): void {
   bootstrappedClients.clear();
-  migratedClients.clear();
 }

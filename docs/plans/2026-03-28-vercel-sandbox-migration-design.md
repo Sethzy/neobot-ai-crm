@@ -75,27 +75,27 @@ Replaces the current `execute_in_sandbox` tool. Instead of delegating an entire 
 
 ### Tool Definition
 
-```typescript
-{
-  name: "run_command",
-  description: "Execute a shell command in an isolated sandbox environment.",
-  parameters: {
-    command: string,     // shell command to execute
-    timeout?: number,    // seconds, default 60, max 300
-  }
-}
-```
+See Section 8.1 for the verbatim implementation spec. Summary:
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `command` | string | Yes | Shell command to execute |
+| `timeout` | number (max 300) | No | Timeout in seconds, default 60 |
+| `input_data` | string | No | Data written to `/vercel/sandbox/input/context.json` before the command runs. Use to pass tool results (CRM data, search results, etc.) into the sandbox for processing. |
+
+The `input_data` parameter bridges Sunder's storage-outside-sandbox model. Unlike Tasklet (where the sandbox shares a FUSE-mounted filesystem with all tools), Sunder's sandbox is isolated — it can't read tool results directly. `input_data` lets the agent pass gathered data in without hard-coding it into scripts.
 
 ### Execution Flow
 
 1. Agent decides it needs to run code (e.g., "analyze this spreadsheet")
-2. Agent calls `run_command({ command: "python3 analyze.py" })`
+2. Agent calls `run_command({ command: "python3 analyze.py", input_data: "{...CRM data...}" })`
 3. Tool handler checks if a sandbox is already active for this run — if not, creates one from the golden snapshot
 4. Uploads any needed files from Supabase Storage into the sandbox (input files, skill files)
-5. Runs the command via `sandbox.runCommand()`
-6. Returns stdout/stderr (truncated to ~100K chars) to the agent
-7. Agent reads output, iterates if needed (another `run_command` call reuses the same sandbox)
-8. Sandbox destroyed when the runner completes the full agent loop
+5. If `input_data` is provided, writes it to `/vercel/sandbox/input/context.json`
+6. Runs the command via `sandbox.runCommand()`
+7. Returns stdout/stderr (truncated to ~100K chars) to the agent
+8. Agent reads output, iterates if needed (another `run_command` call reuses the same sandbox)
+9. Sandbox destroyed when the runner completes the full agent loop
 
 ### Sandbox Lifecycle: Per-Run, Not Per-Command
 
@@ -218,7 +218,8 @@ These are the exact tool definition and system prompt text that the implementati
 /**
  * @file run_command tool — executes shell commands in Vercel Sandbox.
  *
- * Adapted verbatim from Tasklet's run_command tool spec (v2).
+ * Adapted from Tasklet's run_command tool spec (v2) with one addition:
+ * `input_data` param for bridging Sunder's storage-outside-sandbox model.
  * Reference: tasklet tools/built-in/v2/03-run_command.md
  */
 export const runCommandTool = tool({
@@ -232,8 +233,16 @@ export const runCommandTool = tool({
       .max(300)
       .optional()
       .describe('Timeout in seconds for the command. Defaults to 60 seconds.'),
+    input_data: z
+      .string()
+      .optional()
+      .describe(
+        'Data to make available at /vercel/sandbox/input/context.json before the command runs. ' +
+        'Use this to pass tool results or gathered data into the sandbox for processing. ' +
+        'Your code should read from this file instead of hard-coding data values.'
+      ),
   }),
-  execute: async ({ command, timeout }) => {
+  execute: async ({ command, timeout, input_data }) => {
     // Implementation: see Section 4 (execution flow)
   },
 });
@@ -298,9 +307,20 @@ pip install some-package && python3 script.py
 </executing-code>
 
 <processing-data>
-Use python scripts or jq to run data processing or analysis on tool results in the sandbox.
-IMPORTANT: Never enumerate or hard-code data from tool results in code you write. Instead always read the tool result from the filesystem and process it in code.
-You are *not* capable of correctly enumerating more than a few items accurately, and hard-coding data will lead to errors.
+Use python scripts or jq to run data processing or analysis in the sandbox.
+IMPORTANT: Never enumerate or hard-code data from tool results in code you write.
+Instead, pass data via the input_data parameter of run_command, then read it from
+/vercel/sandbox/input/context.json in your code.
+You are *not* capable of correctly enumerating more than a few items accurately,
+and hard-coding data will lead to errors.
+
+Example flow:
+1. Gather data with structured tools (search_crm, web_search, etc.)
+2. Call run_command with input_data containing the gathered results
+3. Your script reads from /vercel/sandbox/input/context.json:
+   import json
+   with open('/vercel/sandbox/input/context.json') as f:
+       data = json.load(f)
 </processing-data>
 
 </sandbox>`;
@@ -317,6 +337,16 @@ You are *not* capable of correctly enumerating more than a few items accurately,
 | `<subagents>` | Already implemented in Sunder. |
 | `<skills>` | Already implemented in Sunder. |
 | `action_*` params | Deferred — will add across all long-running tools as a separate PR. Adding to only `run_command` while other tools lack it would be inconsistent. |
+
+### 8.4 Deliberate Deviations from Tasklet
+
+| Deviation | Reason |
+|---|---|
+| Added `input_data` param to `run_command` | Tasklet's sandbox shares a FUSE-mounted filesystem with all tools — the sandbox can read tool results directly from `/agent/blocks/`. Sunder's sandbox is isolated — it can't see Supabase Storage or tool results. `input_data` bridges this gap by letting the agent pass gathered data into the sandbox as a file. |
+| `<processing-data>` references `input_data` + `context.json` instead of `/agent/blocks/` | Same reason. The pattern is identical (read data from file, don't hard-code it) but the file path and delivery mechanism differ. |
+| No `action_*` params | Deferred, not rejected. Will add across all long-running tools in a future PR for consistency. |
+| Amazon Linux 2023 instead of Alpine Linux | Vercel Sandbox base OS. Functional difference: `dnf` instead of `apk`, different pre-installed packages. |
+| Pre-installed packages instead of `uv run --with` | Golden snapshot has common packages baked in. Eliminates install-time latency. Agent can still `pip install` for uncommon packages. |
 
 ## 9. Unresolved Questions
 
