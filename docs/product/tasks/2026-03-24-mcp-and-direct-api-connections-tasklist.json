@@ -1,0 +1,265 @@
+{
+  "title": "Add MCP and Direct API Connection Types",
+  "description": "Extend the existing Composio connection lifecycle to support custom MCP servers and Direct API (HTTP) connections, matching Tasklet's 4-type connection model. Computer Use is deferred.",
+  "created": "2026-03-24",
+  "status": "draft-for-review",
+  "context": {
+    "what_exists": [
+      "Full 8-tool connection lifecycle (list, get_details, search, capabilities, create, manage, reauthorize, delete)",
+      "connections table with activated_tools[], tool_schemas JSONB, status lifecycle",
+      "Tool prefixing: {connectionId}__{toolSlug}",
+      "Per-turn system-reminder with connection counts",
+      "Schema caching in DB to avoid API calls per run",
+      "loadActivatedConnectionTools() in activated-tools.ts — builds AI SDK tool() objects from cached schemas",
+      "create_new_connections already accepts type:'mcp' and type:'direct_api' in its Zod schema but returns stub errors"
+    ],
+    "what_needs_to_change": [
+      "DB schema: connections table needs connection_type column + nullable fields for MCP/direct_api metadata",
+      "DB schema: composio_connected_account_id is NOT NULL + UNIQUE — must become nullable for non-Composio connections",
+      "create-connection.ts: implement MCP and direct_api branches (currently return error stubs)",
+      "activated-tools.ts: loadActivatedConnectionTools() must branch on connection_type for execution",
+      "Server-side MCP client: use @modelcontextprotocol/sdk (already in package.json) for discovery + execution",
+      "Server-side HTTP client: generic fetch wrapper for direct_api tool execution",
+      "System prompt: remove 'not yet available in v1' caveat from <creating-new-connections>",
+      "System-reminder: include MCP/direct_api connections in the per-turn display"
+    ],
+    "tasklet_reference_files": [
+      "tasklet tools/built-in/v2/25-create_new_connections.md — tool schema (all 4 types)",
+      "skills-system/03-creating-connections-skill.md — connection type priority",
+      "skills-system/create-direct-api-connection-verbatim.md — full direct_api setup guide",
+      "system-prompt-wholesale/01-v2-system-prompt-verbatim.md lines 242-267 — agent-facing instructions"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "T01",
+      "phase": "DB Schema",
+      "title": "Add connection_type column to connections table",
+      "status": "todo",
+      "description": "New migration: ADD COLUMN connection_type TEXT NOT NULL DEFAULT 'composio' CHECK (connection_type IN ('composio', 'mcp', 'direct_api')). Existing rows get 'composio' default.",
+      "files": ["supabase/migrations/YYYYMMDD_add_connection_type.sql"]
+    },
+    {
+      "id": "T02",
+      "phase": "DB Schema",
+      "title": "Add MCP metadata columns to connections table",
+      "status": "todo",
+      "description": "Same migration as T01: ADD COLUMN server_url TEXT (nullable, for MCP connections — the HTTPS URL of the MCP server). Tasklet spec says: 'The URL of the MCP server to connect to. Must have the https:// prefix.'",
+      "files": ["supabase/migrations/YYYYMMDD_add_connection_type.sql"]
+    },
+    {
+      "id": "T03",
+      "phase": "DB Schema",
+      "title": "Add Direct API metadata columns to connections table",
+      "status": "todo",
+      "description": "Same migration: ADD COLUMN api_config JSONB (nullable, for direct_api connections). Stores: { baseUrl, methods, authConfig, notes, testCases }. Tasklet stores this as a structured object — we use a single JSONB column to avoid wide table sprawl. Auth credentials must NOT be stored in this column — they go in a secrets vault or encrypted field.",
+      "files": ["supabase/migrations/YYYYMMDD_add_connection_type.sql"]
+    },
+    {
+      "id": "T04",
+      "phase": "DB Schema",
+      "title": "Make composio_connected_account_id nullable",
+      "status": "todo",
+      "description": "ALTER COLUMN composio_connected_account_id DROP NOT NULL. MCP and direct_api connections don't have a Composio account ID. Drop the UNIQUE constraint and replace with a partial unique index: CREATE UNIQUE INDEX ON connections (composio_connected_account_id) WHERE composio_connected_account_id IS NOT NULL. Also drop connections_client_toolkit_unique constraint (a client may have multiple MCP connections with different server_urls).",
+      "files": ["supabase/migrations/YYYYMMDD_add_connection_type.sql"]
+    },
+    {
+      "id": "T05",
+      "phase": "DB Schema",
+      "title": "Update get_system_reminder_context() to include connection_type",
+      "status": "todo",
+      "description": "Update the RPC to return connection_type alongside toolkit_slug in active_connection_toolkits so the system-reminder can display MCP and direct_api connections distinctly.",
+      "files": ["supabase/migrations/YYYYMMDD_add_connection_type.sql"]
+    },
+    {
+      "id": "T06",
+      "phase": "Zod Schemas",
+      "title": "Update ConnectionRow / ConnectionInsert / ConnectionUpdate schemas",
+      "status": "todo",
+      "description": "Add connection_type (enum: 'composio' | 'mcp' | 'direct_api', default 'composio'), server_url (string nullable), api_config (unknown nullable). Make composio_connected_account_id nullable.",
+      "files": ["src/lib/connections/schemas.ts"]
+    },
+    {
+      "id": "T07",
+      "phase": "MCP Client",
+      "title": "Create server-side MCP client module",
+      "status": "todo",
+      "description": "New module that wraps @modelcontextprotocol/sdk (already installed). Two functions needed:\n\n1. discoverMcpTools(serverUrl: string): Promise<ToolManifest> — connects to MCP server via SSE/streamable HTTP transport, calls tools/list, returns { tools: Array<{ name, description, inputSchema }> }. Must handle connection errors gracefully.\n\n2. executeMcpTool(serverUrl: string, toolName: string, args: Record<string, unknown>): Promise<unknown> — connects to MCP server, calls call_tool, returns result. Stateless — opens fresh connection per call (matches Temporal AI Agent pattern, avoids connection pooling complexity in serverless).\n\nTasklet spec says serverUrl 'Must have the https:// prefix' — validate this.",
+      "files": ["src/lib/mcp/client.ts"],
+      "notes": "Vercel Functions are stateless so persistent connections aren't viable. Fresh connection per call is correct for serverless."
+    },
+    {
+      "id": "T08",
+      "phase": "Direct API Client",
+      "title": "Create server-side Direct API execution module",
+      "status": "todo",
+      "description": "New module for executing direct_api tool calls. Generic HTTP wrapper that:\n\n1. Reads api_config from connection row (baseUrl, methods, authConfig)\n2. Constructs fetch() call with correct auth headers based on authConfig.type:\n   - 'bearer': Authorization: Bearer {token}\n   - 'header': {headerName}: {headerValue}\n   - 'basic': Authorization: Basic base64(user:pass)\n   - 'query-parameter': append to URL query string\n   - 'custom-oauth': Bearer token with refresh logic\n   - 'none': no auth\n3. Validates method is in the connection's allowed methods array\n4. Returns response body\n\nTasklet reference (create-direct-api-connection-verbatim.md) defines exact authConfig schemas per type — follow those.",
+      "files": ["src/lib/connections/direct-api-client.ts"],
+      "notes": "Auth credentials storage strategy TBD — may need Supabase Vault or encrypted column. For v1 can store in api_config JSONB (server-side only, RLS-protected), but flag for security review."
+    },
+    {
+      "id": "T09",
+      "phase": "Tool: create_new_connections",
+      "title": "Implement MCP branch in create_new_connections",
+      "status": "todo",
+      "description": "Replace the stub error in create-connection.ts for type:'mcp'. Implementation:\n\n1. Validate serverUrl starts with https://\n2. Call discoverMcpTools(serverUrl) to get tool manifest\n3. Insert connection row: connection_type='mcp', server_url=serverUrl, toolkit_slug=displayName (slugified), tool_count=manifest.tools.length, tool_schemas=built from manifest, status='active'\n4. Return { success: true, connectionId, tools: { activated: [], deactivated: [...all tool names] } }\n\nTasklet spec: 'The user can edit or even completely rewrite the value during the setup' — for v1, we skip the UI editing card and trust the agent-provided URL. User can always delete and recreate.",
+      "tasklet_wording": {
+        "tool_schema": {
+          "type": "mcp",
+          "displayName": "A short human-readable display name for the MCP server",
+          "serverUrl": "The URL of the MCP server to connect to. Must have the https:// prefix. The user can edit or even completely rewrite the value during the setup."
+        }
+      },
+      "files": ["src/lib/runner/tools/connections/create-connection.ts"]
+    },
+    {
+      "id": "T10",
+      "phase": "Tool: create_new_connections",
+      "title": "Implement Direct API branch in create_new_connections",
+      "status": "todo",
+      "description": "Replace the stub error in create-connection.ts for type:'direct_api'. Implementation:\n\n1. Validate baseUrl format (no trailing slash, has https://)\n2. Build api_config JSONB from input: { baseUrl, methods, authConfig, notes, testCases }\n3. Generate a single tool from the connection config: tool name = slugified connectionName, description from input\n4. Insert connection row: connection_type='direct_api', api_config=config, toolkit_slug=serviceName (slugified), tool_count=1 (direct_api connections are one generic HTTP tool), status='active'\n5. Return { success: true, connectionId, tools: { activated: [], deactivated: [connectionName] } }\n\nNote: Tasklet's direct_api generates a single HTTP tool per connection. The agent constructs specific API calls using that tool.",
+      "tasklet_wording": {
+        "tool_schema": {
+          "type": "direct_api",
+          "serviceName": "Name of the remote service (e.g., 'OpenAI API', 'Stripe')",
+          "description": "Clear description of what this service does",
+          "connectionName": "Human-readable name (1-32 chars)",
+          "baseUrl": "The base URL of the API. Be extremely careful to find the correct base URL for the API.",
+          "methods": "HTTP methods to allow: GET, POST, PUT, PATCH, DELETE",
+          "authConfig": "Authentication config object. Read /agent/skills/system/creating-connections/create-direct-api-connection.md for schema.",
+          "notes": "Markdown notes for this connection",
+          "testCases": "Test cases to verify the API connection works (max 3)"
+        }
+      },
+      "files": ["src/lib/runner/tools/connections/create-connection.ts"]
+    },
+    {
+      "id": "T11",
+      "phase": "Tool Execution",
+      "title": "Branch loadActivatedConnectionTools() by connection_type",
+      "status": "todo",
+      "description": "The core change. Currently activated-tools.ts always routes execution through composio.tools.execute(). Add branching:\n\nFor each connection:\n- connection_type === 'composio': existing Composio execution path (unchanged)\n- connection_type === 'mcp': execute via executeMcpTool(connection.server_url, toolSlug, args)\n- connection_type === 'direct_api': execute via directApiExecute(connection.api_config, args)\n\nTool registration stays the same: tool({ description, inputSchema, execute: branch_here }).\nPrefixing stays the same: {connectionId}__{toolSlug}.",
+      "files": ["src/lib/composio/activated-tools.ts"]
+    },
+    {
+      "id": "T12",
+      "phase": "Tool Execution",
+      "title": "Handle MCP tool execution in the tool closure",
+      "status": "todo",
+      "description": "Inside the tool() execute function for MCP connections:\n1. Read server_url from the connection row (needs to be passed through or loaded)\n2. Call executeMcpTool(serverUrl, slug, args)\n3. Normalize the MCP result (MCP returns { content: [...] } — extract the text/data)\n4. Return in standard tool response shape",
+      "files": ["src/lib/composio/activated-tools.ts", "src/lib/mcp/client.ts"]
+    },
+    {
+      "id": "T13",
+      "phase": "Tool Execution",
+      "title": "Handle Direct API tool execution in the tool closure",
+      "status": "todo",
+      "description": "Inside the tool() execute function for direct_api connections:\n1. Read api_config from the connection row\n2. The tool's inputSchema accepts { method, path, body?, headers? }\n3. Call directApiExecute() with the stored baseUrl + auth + the agent's requested path/method/body\n4. Return the HTTP response in standard tool response shape",
+      "files": ["src/lib/composio/activated-tools.ts", "src/lib/connections/direct-api-client.ts"]
+    },
+    {
+      "id": "T14",
+      "phase": "System Prompt",
+      "title": "Update <creating-new-connections> to remove v1 caveat",
+      "status": "todo",
+      "description": "Current wording (system-prompt.ts line 207):\n'You can create connections to many services using pre-built integrations. Custom MCP servers, HTTP APIs, and browser-control connections are not yet available in v1; only Composio OAuth integrations are supported.'\n\nReplace with Tasklet's wording:\n'You can create connections to almost any external service using thousands of pre-built integrations, custom MCP servers, any HTTP API, or a remote computer with a browser you can view and control.'\n\nNote: computer_use still returns an error stub, but the system prompt should match Tasklet's framing. The creating-connections skill file (T15) will guide the agent to prefer other types.",
+      "tasklet_wording": "You can create connections to almost any external service using thousands of pre-built integrations, custom MCP servers, any HTTP API, or a remote computer with a browser you can view and control.",
+      "files": ["src/lib/ai/system-prompt.ts"]
+    },
+    {
+      "id": "T15",
+      "phase": "System Prompt",
+      "title": "Add creating-connections skill file to Supabase Storage",
+      "status": "todo",
+      "description": "Create the skill file at the agent-readable path. Content matches Tasklet's creating-connections skill:\n\n## Connection Type Priority\n1. integrations — First choice when available. Use discovery and capability tools before creating.\n2. mcp — Custom MCP server connections when integration coverage is insufficient.\n3. direct_api — HTTP API connections requiring explicit endpoint/auth correctness.\n4. computer_use — Remote browser/desktop runtime. Useful but slower/expensive; prefer when explicitly needed.\n\n## Required Behaviors\n- Verify capability match before creating connection.\n- Avoid hallucinated endpoints/URLs.\n- Offer alternative connection strategies when one path is unavailable.\n- Avoid exhaustive service-list claims; frame capability as broad and extensible.\n\nAlso add the direct API connection guide as a second skill file (Tasklet's create-direct-api-connection.md verbatim content). The agent reads this via read_file before creating direct_api connections.",
+      "tasklet_wording": "Verbatim from skills-system/03-creating-connections-skill.md and skills-system/create-direct-api-connection-verbatim.md",
+      "files": ["Agent skill files in Supabase Storage (not codebase)"],
+      "notes": "These are runtime-readable files, not source code. Upload to Supabase Storage under the system skills path. Alternatively, bundle as a static skill in the codebase if the skill-loading mechanism supports it."
+    },
+    {
+      "id": "T16",
+      "phase": "System Reminder",
+      "title": "Update system-reminder to show connection_type",
+      "status": "todo",
+      "description": "Currently system-reminder shows toolkit slugs only. Update to show connection_type so the agent knows what kind of connection each is:\n\nActive connections:\n  gmail (conn_abc): composio, 3/15 tools active\n  notion-mcp (conn_def): mcp, 2/8 tools active\n  stripe-api (conn_ghi): direct_api, 1/1 tools active\n\nThis helps the agent know which connections can be reauthorized (composio only) vs deleted and recreated (mcp/direct_api).",
+      "files": ["src/lib/runner/system-reminder.ts"]
+    },
+    {
+      "id": "T17",
+      "phase": "Queries",
+      "title": "Update connection queries for new columns",
+      "status": "todo",
+      "description": "Update queries.ts to handle the new columns: connection_type, server_url, api_config. Ensure insertConnection() and updateConnection() pass through these fields. getActiveConnections() already returns full rows so it should work with no changes if the Zod schema (T06) is updated first.",
+      "files": ["src/lib/connections/queries.ts"]
+    },
+    {
+      "id": "T18",
+      "phase": "Testing",
+      "title": "Unit tests for MCP client (discovery + execution)",
+      "status": "todo",
+      "description": "Test discoverMcpTools() and executeMcpTool() with mocked MCP server responses. Verify: HTTPS validation, tool schema parsing, error handling for unreachable servers, timeout handling.",
+      "files": ["src/lib/mcp/__tests__/client.test.ts"]
+    },
+    {
+      "id": "T19",
+      "phase": "Testing",
+      "title": "Unit tests for Direct API client",
+      "status": "todo",
+      "description": "Test directApiExecute() with mocked fetch. Verify: all 6 auth types (none, bearer, header, basic, query-parameter, custom-oauth), method validation against allowed list, URL construction (baseUrl + path), error handling.",
+      "files": ["src/lib/connections/__tests__/direct-api-client.test.ts"]
+    },
+    {
+      "id": "T20",
+      "phase": "Testing",
+      "title": "Unit tests for create_new_connections MCP + direct_api branches",
+      "status": "todo",
+      "description": "Test the tool execute function for both new branches. Verify: connection row inserted correctly, tool manifest stored in tool_schemas, correct response shape. Mock discoverMcpTools() for MCP branch.",
+      "files": ["src/lib/runner/tools/connections/__tests__/create-connection.test.ts"]
+    },
+    {
+      "id": "T21",
+      "phase": "Testing",
+      "title": "Unit tests for loadActivatedConnectionTools branching",
+      "status": "todo",
+      "description": "Test that loadActivatedConnectionTools() correctly branches execution based on connection_type. Verify: composio connections still use composio.tools.execute(), MCP connections use executeMcpTool(), direct_api connections use directApiExecute(). Tool naming prefix unchanged.",
+      "files": ["src/lib/composio/__tests__/activated-tools.test.ts"]
+    },
+    {
+      "id": "T22",
+      "phase": "Testing",
+      "title": "Integration test: MCP connection end-to-end",
+      "status": "todo",
+      "description": "Test the full flow: create MCP connection → tools discovered → activate tools → tool appears in runner → tool call proxied to MCP server. Can use a local test MCP server or mock.",
+      "files": ["src/lib/connections/__tests__/mcp-integration.test.ts"]
+    }
+  ],
+  "deferred": [
+    {
+      "id": "D01",
+      "title": "computer_use connection type",
+      "reason": "Tasklet supports type:'computer_use' for remote browser/desktop. Deferred — requires infrastructure (remote browser provisioning) not in current stack."
+    },
+    {
+      "id": "D02",
+      "title": "MCP connection UI editing card",
+      "reason": "Tasklet says 'The user can edit or even completely rewrite the value during the setup.' Deferred — v1 trusts agent-provided URL. User can delete and recreate."
+    },
+    {
+      "id": "D03",
+      "title": "Direct API test case execution",
+      "reason": "Tasklet runs test cases during connection creation to verify auth works. Deferred — implement after basic direct_api flow works."
+    },
+    {
+      "id": "D04",
+      "title": "MCP connection pooling",
+      "reason": "Fresh connection per call is correct for Vercel Functions (stateless). If latency is a problem, investigate Vercel's long-running functions or a sidecar."
+    },
+    {
+      "id": "D05",
+      "title": "Auth credential encryption",
+      "reason": "Direct API auth credentials stored in api_config JSONB. For production, should use Supabase Vault or encrypted column. Flag for security review before GA."
+    }
+  ],
+  "execution_order": "T01-T05 (migration) → T06 (schemas) → T17 (queries) → T07 (MCP client) → T08 (direct API client) → T09-T10 (create tool branches) → T11-T13 (execution branching) → T14-T16 (system prompt + reminder) → T18-T22 (tests)",
+  "reviewer_notes": "This tasklist is for review by another developer. Key questions to validate: (1) Is the DB schema approach correct — one migration with connection_type + nullable columns, or separate tables per type? (2) Is storing direct_api auth in JSONB acceptable for v1, or does it need encryption from day 1? (3) Should MCP discovery happen at connection creation time (cache manifest) or at tool activation time (lazy discovery)? (4) Is fresh-connection-per-call acceptable for MCP in serverless, or do we need a different transport?"
+}
