@@ -2003,7 +2003,7 @@ Market intel gets stale. Recommended refresh:
 
   "deal-comparison": `---
 name: deal-comparison
-description: "Compare properties side-by-side with a professional Excel financial model. Use when the user uploads xlsx/csv files, asks to compare deals, or wants to know which property is better. Produces a downloadable Excel model with live formulas, sensitivity tables, and color-coded inputs."
+description: "Compare properties side-by-side with financial analysis. Use when the user asks to compare deals, or wants to know which property is better. Calculates yields, mortgage payments, and key metrics with side-by-side breakdowns."
 ---
 
 # Deal Comparison
@@ -2067,7 +2067,7 @@ Present the results clearly with tables and structured data. Offer to:
 
   "property-showcase": `---
 name: property-showcase
-description: "Build a polished property showcase web page with photos, details, neighborhood info, and your contact card. Published to a live preview URL that you can iterate on and then share with clients. Trigger with 'showcase page', 'listing page', 'property page', 'marketing page for [property]'."
+description: "Build a structured property showcase with photos, details, neighborhood info, and your contact card. Trigger with 'showcase page', 'listing page', 'property page', 'marketing page for [property]'."
 ---
 
 # Property Showcase
@@ -2148,7 +2148,7 @@ Offer to:
 
   "market-report": `---
 name: market-report
-description: "Generate a market analysis report with transaction trends, price movements, and area comparisons. Produces an Excel workbook with charts and data tables. Trigger with 'market report', 'area analysis', 'how is the market in [area]', 'transaction trends for [project]'."
+description: "Generate a market analysis with transaction trends, price movements, and area comparisons. Trigger with 'market report', 'area analysis', 'how is the market in [area]', 'transaction trends for [project]'."
 ---
 
 # Market Report

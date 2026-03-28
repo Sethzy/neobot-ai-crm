@@ -113,11 +113,20 @@ The agent works with two filesystems: **Supabase Storage** (persistent, cross-ru
 
 ### Upload Into Sandbox (on first `run_command`)
 
-When the sandbox spins up, the tool handler pre-loads:
-- **Input files** — files the user uploaded in this conversation (spreadsheets, CSVs, PDFs). Tracked in thread/message context.
-- **Skill files** — the client's `SKILL.md` files from Supabase Storage, if the run involves a skill.
+When the sandbox spins up, the tool handler pre-loads three categories:
 
-Files written to `/vercel/sandbox/input/` via `sandbox.writeFiles()`. The system prompt tells the agent: "User files are available at `/vercel/sandbox/input/`."
+1. **Input files** → `/vercel/sandbox/input/`
+   User-uploaded files from this conversation (spreadsheets, CSVs, PDFs). Tracked in thread/message context.
+
+2. **Skill files** → `/vercel/sandbox/skills/{slug}/`
+   The active skill's full directory from Supabase Storage: `SKILL.md` + reference files (e.g., `references/sg-property-taxes.md`, `references/yield-benchmarks.md`). Python scripts can read reference data directly from disk instead of the agent hard-coding it.
+
+3. **Context data** → `/vercel/sandbox/input/context.json`
+   Structured data passed via the `input_data` parameter on `run_command` (CRM results, market data, etc.).
+
+All written via `sandbox.writeFiles()` before the first command executes. The tool handler knows which skill is active because the agent read it earlier in the run (progressive disclosure: catalog → SKILL.md → sandbox execution).
+
+This follows the same pattern as Anthropic's Agent Skills API ("Skill files are copied into the container at `/skills/{directory}/`"), Tasklet (`/agent/skills/{name}/SKILL.md`), and Fintool (`/public/skills/{name}/`). No agent runtime (Claude Code CLI, Agent SDK) is needed — Python scripts read the files directly.
 
 ### Download From Sandbox (before cleanup)
 
@@ -271,9 +280,12 @@ Do NOT use the sandbox to call external services or APIs (e.g., via curl) unless
 
 <using-the-filesystem>
 User files are pre-loaded at /vercel/sandbox/input/ when the sandbox starts.
+Skill files are at /vercel/sandbox/skills/{slug}/ — including SKILL.md and reference data.
 Write output files to /vercel/sandbox/output/ — they will be uploaded to storage and returned as download links after the run.
 
-- /vercel/sandbox/input/ contains user-uploaded files and skill files (read-only).
+- /vercel/sandbox/input/ contains user-uploaded files (read-only).
+- /vercel/sandbox/input/context.json contains structured data passed via input_data (read-only).
+- /vercel/sandbox/skills/{slug}/ contains the active skill's SKILL.md and reference files (read-only). Read reference data directly from here in your scripts.
 - /vercel/sandbox/output/ is where you write results the user should receive.
 - /tmp/ is fast local storage but ephemeral.
 - Prefer /tmp/ for I/O-heavy intermediate work such as extracting large archives or processing many files. Do the work in /tmp/, then copy only the final artifacts to /vercel/sandbox/output/.

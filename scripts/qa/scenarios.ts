@@ -923,67 +923,7 @@ export const scenarios: QaScenario[] = [
       "search_market_data with dataset: agents. Returns agent registry info or not-found.",
   },
   // ── 29: Sandbox (Code Execution) ──────────────────────────────────────
-  // PR 55: execute_in_sandbox (general tool)
-  {
-    surface: "29-sandbox",
-    scenario: "pdf-report-generation",
-    prompt:
-      "Generate a PDF market report for District 10 condos with transaction trends and median prices over the last 12 months.",
-    expectedTools: ["execute_in_sandbox"],
-    sequential: false,
-    notes:
-      "Happy path for execute_in_sandbox with pdf_creation skill. Agent should gather data first, then call execute_in_sandbox. Verify response includes a download link for a PDF.",
-  },
-  {
-    surface: "29-sandbox",
-    scenario: "spreadsheet-analysis",
-    prompt:
-      "I just uploaded a property comparison spreadsheet. Build me a financial model comparing these 3 condos with net yield, mortgage payments, and a sensitivity table.",
-    expectedTools: ["execute_in_sandbox"],
-    sequential: false,
-    notes:
-      "Happy path for execute_in_sandbox with excel_editing skill. Agent should call the tool with skills: ['excel_editing', 're-analyst']. Verify response includes a download link for an xlsx.",
-  },
-  {
-    surface: "29-sandbox",
-    scenario: "word-doc-generation",
-    prompt:
-      "Write a professional thank-you letter to John Chen for choosing us as their property agent. Save it as a Word doc.",
-    expectedTools: ["execute_in_sandbox"],
-    sequential: false,
-    notes:
-      "Tests docx_editing skill. Agent should call execute_in_sandbox with skills: ['docx_editing']. Verify .docx download link in response.",
-  },
-  {
-    surface: "29-sandbox",
-    scenario: "showcase-page-publish",
-    prompt:
-      "Build me a showcase page for the Marina Bay Residences unit I have in my pipeline. Make it shareable.",
-    expectedTools: ["search_crm", "execute_in_sandbox"],
-    sequential: false,
-    notes:
-      "Tests publish_website skill. Agent should gather CRM data first, then call execute_in_sandbox with skills: ['publish_website', 'frontend-design']. Verify response includes a here.now live URL. // TODO: verify expectedTools — agent may also call read_file, web_search.",
-  },
-  // PR 52a: workflow skill orchestration (updated for PR 55 tool names)
-  {
-    surface: "29-sandbox",
-    scenario: "deal-comparison-skill-routing",
-    prompt:
-      "Which of my pipeline properties is the best investment? Compare them side by side.",
-    expectedTools: ["search_crm", "execute_in_sandbox"],
-    sequential: false,
-    notes:
-      "Tests deal-comparison outer workflow skill. Agent should read the skill, search CRM, then call execute_in_sandbox with skills: ['excel_editing', 're-analyst']. // TODO: verify expectedTools — agent may also call read_file.",
-  },
-  // PR 54a: async execution
-  {
-    surface: "29-sandbox",
-    scenario: "async-non-blocking",
-    prompt:
-      "Generate a detailed PDF analysis of my top 5 pipeline deals with charts comparing yield, price PSF, and rental potential.",
-    expectedTools: ["execute_in_sandbox"],
-    sequential: false,
-    notes:
-      "Tests async non-blocking return. Tool should return 'started' immediately. Result delivered via webhook/cron. Verify response mentions 'working on it' or similar.",
-  },
+  // Removed: Sprites sandbox replaced by Vercel Sandbox (run_command tool).
+  // QA scenarios will be re-added when run_command is implemented.
+  // See docs/plans/2026-03-28-vercel-sandbox-migration-design.md
 ];

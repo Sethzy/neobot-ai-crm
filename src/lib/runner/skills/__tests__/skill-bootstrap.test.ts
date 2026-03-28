@@ -51,8 +51,8 @@ describe("bootstrapSkills", () => {
 
     await bootstrapSkills(client, "client-1");
 
-    // 20 bootstrap SKILL.md + 5 migration SKILL.md overwrites = 25
-    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(25);
+    // 13 bootstrap SKILL.md uploads
+    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(13);
     expect(uploadedFiles.some((path) => path.includes("call-prep"))).toBe(true);
     expect(uploadedFiles.some((path) => path.includes("daily-briefing"))).toBe(true);
     // Inner skills also seed reference files
@@ -69,8 +69,8 @@ describe("bootstrapSkills", () => {
 
     expect(uploadedFiles.filter((path) => path.includes("call-prep"))).toHaveLength(0);
     expect(uploadedFiles.filter((path) => path.includes("daily-briefing"))).toHaveLength(0);
-    // 18 bootstrap SKILL.md (20 - 2 existing) + 5 migration overwrites = 23
-    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(23);
+    // 11 bootstrap SKILL.md (13 - 2 existing)
+    expect(uploadedFiles.filter((path) => path.endsWith("SKILL.md"))).toHaveLength(11);
   });
 
   it("is idempotent via the process cache", async () => {
@@ -154,8 +154,8 @@ describe("bootstrapSkills", () => {
 
     await bootstrapSkills(client, "client-1");
 
-    // SKILL.md is NOT re-uploaded by bootstrap (slug exists), but IS force-overwritten by migration
-    expect(uploadedFiles.filter((path) => path.includes("re-analyst/SKILL.md"))).toHaveLength(1);
+    // SKILL.md is NOT re-uploaded by bootstrap (slug already exists)
+    expect(uploadedFiles.filter((path) => path.includes("re-analyst/SKILL.md"))).toHaveLength(0);
     // But reference files SHOULD be backfilled (upsert:false means conflicts are tolerated)
     expect(uploadedFiles.some((path) => path.includes("re-analyst/references/sg-property-taxes.md"))).toBe(true);
     expect(uploadedFiles.some((path) => path.includes("re-analyst/references/yield-benchmarks.md"))).toBe(true);

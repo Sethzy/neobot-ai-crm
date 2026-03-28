@@ -23,6 +23,17 @@ import {
 const SKILLS_DIRECTORY = "skills";
 const RESERVED_SKILL_DIRECTORIES = new Set(["system", "connections", "superpowers"]);
 
+/** Skill slugs removed in the Sprites → Vercel Sandbox migration. Clean up from storage on bootstrap. */
+const DEPRECATED_SKILL_SLUGS = [
+  "pdf_creation",
+  "excel_editing",
+  "docx_editing",
+  "pptx_editing",
+  "pdf_form_filling",
+  "pdf_signing",
+  "publish_website",
+];
+
 const bootstrappedClients = new Set<string>();
 
 async function uploadDefaultSkill(
@@ -105,6 +116,20 @@ export async function bootstrapSkills(
 
   if (missingSlugs.length > 0) {
     await Promise.all(missingSlugs.map((slug) => uploadDefaultSkill(supabase, clientId, slug)));
+  }
+
+  // Remove deprecated sandbox skill directories from storage (idempotent).
+  const deprecatedToRemove = DEPRECATED_SKILL_SLUGS.filter((slug) => existingSlugs.has(slug));
+  if (deprecatedToRemove.length > 0) {
+    await Promise.all(
+      deprecatedToRemove.map(async (slug) => {
+        const dir = `${clientId}/${SKILLS_DIRECTORY}/${slug}`;
+        const { data: files } = await bucket.list(dir);
+        if (files && files.length > 0) {
+          await bucket.remove(files.map((f) => `${dir}/${f.name}`));
+        }
+      }),
+    );
   }
 
   // Backfill reference files for ALL inner skills (even existing ones) so new
