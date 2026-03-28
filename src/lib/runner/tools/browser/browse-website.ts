@@ -1,5 +1,5 @@
 /**
- * Browser automation tool powered by Browser-Use Cloud.
+ * Browser automation tool powered by Browser-Use Cloud (v3 API).
  * @module lib/runner/tools/browser/browse-website
  */
 import { tool } from "ai";
@@ -10,8 +10,12 @@ import { getBrowserUseClient } from "@/lib/browser-use/client";
 import { getProfileForPlatform } from "@/lib/browser-use/profiles";
 import type { Database } from "@/types/database";
 
-const BROWSER_USE_MODEL = "browser-use-2.0";
-const MAX_BROWSER_STEPS = 25;
+/** v3 model tier — bu-mini for cost efficiency, bu-max for complex tasks. */
+const BROWSER_USE_MODEL = "bu-mini" as const;
+
+/** Hard per-call cost ceiling in USD. Browser-Use will stop the session when reached. */
+const MAX_COST_PER_BROWSE_USD = 0.50;
+
 const DOMAIN_PATTERN = /^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
 type BrowserSupabaseClient = SupabaseClient<Database>;
 
@@ -99,37 +103,39 @@ export function createBrowseWebsiteTool(
         profileId = profile.browser_use_profile_id;
       }
 
-      const session = await client.sessions.create(
-        profileId ? { profileId } : {},
-      );
-
-      try {
-        const taskPrompt = outputDescription
-          ? `${goal}\n\nReturn the results in this format: ${outputDescription}`
-          : goal;
-
-        const task = await client.tasks.create({
-          sessionId: session.id,
-          task: taskPrompt,
-          llm: BROWSER_USE_MODEL,
-          maxSteps: MAX_BROWSER_STEPS,
-          ...(startUrl ? { startUrl } : {}),
-          ...(allowedDomains ? { allowedDomains } : {}),
-        });
-        const result = await client.tasks.wait(task.id);
-
-        return {
-          success: Boolean(result.isSuccess),
-          output: result.output,
-          cost: result.cost,
-        };
-      } finally {
-        try {
-          await client.sessions.stop(session.id);
-        } catch {
-          // Ignore cleanup failures so the user still receives the task result.
-        }
+      // Build task prompt — fold startUrl, outputDescription, and allowedDomains into the text
+      // since v3 manages these through the prompt rather than separate API params.
+      const parts = [goal];
+      if (startUrl) {
+        parts.unshift(`Navigate to ${startUrl} first.`);
       }
+      if (allowedDomains?.length) {
+        parts.push(
+          `IMPORTANT: Only navigate within these domains: ${allowedDomains.join(", ")}`,
+        );
+      }
+      if (outputDescription) {
+        parts.push(`Return the results in this format: ${outputDescription}`);
+      }
+      const taskPrompt = parts.join("\n\n");
+
+      const result = await client.run(taskPrompt, {
+        model: BROWSER_USE_MODEL,
+        maxCostUsd: MAX_COST_PER_BROWSE_USD,
+        keepAlive: false,
+        ...(profileId ? { profileId } : {}),
+      });
+
+      return {
+        success: Boolean(result.isTaskSuccessful),
+        output: result.output,
+        cost: {
+          total: result.totalCostUsd,
+          llm: result.llmCostUsd,
+          proxy: result.proxyCostUsd,
+          browser: result.browserCostUsd,
+        },
+      };
     },
   });
 

@@ -37,6 +37,9 @@ import type { Database, Json } from "@/types/database";
 type ChatSupabaseClient = SupabaseClient<Database>;
 type MessageRole = "system" | "user" | "assistant";
 
+/** Return type of {@link loadSystemPromptState} so callers can pre-load and pass it in. */
+export type PreloadedSystemPromptState = Awaited<ReturnType<typeof loadSystemPromptState>>;
+
 interface AssembleContextParams {
   supabase: ChatSupabaseClient;
   threadId: string;
@@ -54,6 +57,8 @@ interface AssembleContextParams {
   crmConfigModeActive?: boolean;
   platformInstructions?: string;
   systemPrompt?: string;
+  /** Pre-loaded state from {@link loadSystemPromptState} — skips redundant IO when provided. */
+  preloadedState?: PreloadedSystemPromptState;
 }
 
 interface AssembledContext {
@@ -260,7 +265,7 @@ function buildCurrentMessageParts(
   return [{ type: "text", text: trimmedCurrentMessage }];
 }
 
-async function loadSystemPromptState({
+export async function loadSystemPromptState({
   supabase,
   threadId,
   clientId,
@@ -364,13 +369,10 @@ export async function assembleContext({
   crmConfigModeActive,
   platformInstructions,
   systemPrompt,
+  preloadedState,
 }: AssembleContextParams): Promise<AssembledContext> {
-  const { memoryContext, userSkills, systemReminder, compactionState } = await loadSystemPromptState({
-    supabase,
-    threadId,
-    clientId,
-    crmConfigModeActive,
-  });
+  const { memoryContext, userSkills, systemReminder, compactionState } = preloadedState
+    ?? await loadSystemPromptState({ supabase, threadId, clientId, crmConfigModeActive });
 
   // Check for stale thread — skip old messages after 4h idle (Dorabot pattern).
   // Agent starts fresh with system prompt + memory + new message.
@@ -393,10 +395,9 @@ export async function assembleContext({
         // Anchor the reset boundary to the thread's last persisted activity so the
         // next inbound message still lands after the cutoff even if app/db clocks differ.
         contextResetAt = thread.updated_at;
-        // Cast needed: context_reset_at added by migration but not yet in generated DB types.
         await supabase
           .from("conversation_threads")
-          .update({ context_reset_at: contextResetAt } as Record<string, unknown>)
+          .update({ context_reset_at: contextResetAt })
           .eq("thread_id", threadId);
       } else {
         contextResetAt = thread.context_reset_at ?? null;

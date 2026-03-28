@@ -6,7 +6,9 @@ import { stepCountIs, streamText, type ToolSet } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { propagateAttributes } from "@langfuse/tracing";
 
-import { captureServerEvent } from "@/lib/analytics/posthog-server";
+import { withTracing } from "@posthog/ai";
+
+import { captureServerEvent, getPostHogServer } from "@/lib/analytics/posthog-server";
 import { gateway, gatewayProviderOptions, TIER_1_MODEL } from "@/lib/ai/gateway";
 import { isApifyConfigured } from "@/lib/apify/env";
 import { isBrowserUseConfigured } from "@/lib/browser-use/client";
@@ -15,7 +17,7 @@ import { loadActivatedConnectionTools } from "@/lib/composio";
 import { getActiveConnections } from "@/lib/connections/queries";
 import { loadCrmConfig } from "@/lib/crm/config";
 import { isSandboxConfigured } from "@/lib/sandbox/env";
-import { assembleContext } from "@/lib/runner/context";
+import { assembleContext, loadSystemPromptState } from "@/lib/runner/context";
 import { completeRun, createRun, markStaleRunsFailed } from "@/lib/runner/run-lifecycle";
 import { finalizeRun } from "@/lib/runner/run-persistence";
 import type { RunType } from "@/lib/runner/run-types";
@@ -33,7 +35,14 @@ import {
 } from "@/lib/usage/message-quota";
 import type { Database, Json } from "@/types/database";
 
-const MAX_STEPS_TIER_1 = 9;
+/** Per-run-type step limits. Chat is tight for responsiveness; background runs get more headroom. */
+const MAX_STEPS: Record<RunType, number> = {
+  chat: 12,
+  webhook: 12,
+  cron: 16,
+  autopilot: 16,
+  subagent: 9,
+};
 
 type ChatSupabaseClient = SupabaseClient<Database>;
 type RunnerTools = ReturnType<typeof createRunnerTools>;
@@ -48,7 +57,7 @@ export type RunAgentResult =
  * Builds per-step overrides for the active model.
  * The only current override is disabling tools on the final allowed step.
  */
-export function buildPrepareStep(_modelId: string, maxSteps = MAX_STEPS_TIER_1) {
+export function buildPrepareStep(_modelId: string, maxSteps: number) {
   return ({ stepNumber }: { stepNumber: number }) => {
     const result: Record<string, unknown> = {};
 
@@ -219,12 +228,23 @@ export async function runAgent(
         return {} as ToolSet;
       });
 
-    const [{ config: crmConfig }, composioTools] = await Promise.all([
+    // Start all IO in one parallel batch — CRM config, Composio tools, and
+    // system prompt state (memory, skills, reminder, compaction) are independent.
+    const [{ config: crmConfig }, composioTools, preloadedState] = await Promise.all([
       loadCrmConfig(supabase, clientId).then((result) => {
         _t("load_crm_config");
         return result;
       }),
       composioPromise,
+      loadSystemPromptState({
+        supabase,
+        threadId,
+        clientId,
+        crmConfigModeActive: payload.includeConfigTool,
+      }).then((state) => {
+        _t("load_system_prompt_state");
+        return state;
+      }),
     ]);
 
     const { system, messages } = await assembleContext({
@@ -244,6 +264,7 @@ export async function runAgent(
       includeSandboxTools:
         payload.triggerType === "chat" && isSandboxConfigured(),
       crmConfigModeActive: payload.includeConfigTool,
+      preloadedState,
     });
     _t("assemble_context");
 
@@ -280,6 +301,8 @@ export async function runAgent(
       ...composioTools,
     };
 
+    const maxSteps = MAX_STEPS[runType];
+
     _t("pre_stream_text");
     const streamResult = await propagateAttributes(
       {
@@ -290,12 +313,22 @@ export async function runAgent(
       },
       async () =>
         streamText({
-          model: gateway(modelId),
+          model: withTracing(gateway(modelId), getPostHogServer(), {
+            posthogDistinctId: clientId,
+            posthogProperties: {
+              thread_id: threadId,
+              run_id: runId,
+              trigger_type: payload.triggerType,
+              run_type: runType,
+              model_id: modelId,
+              environment: process.env.VERCEL_ENV ?? "development",
+            },
+          }),
           system,
           messages,
-          stopWhen: stepCountIs(MAX_STEPS_TIER_1),
+          stopWhen: stepCountIs(maxSteps),
           tools,
-          prepareStep: buildPrepareStep(modelId),
+          prepareStep: buildPrepareStep(modelId, maxSteps),
           providerOptions: gatewayProviderOptions,
           // AI SDK default is 2 retries. We use 6 to match LangChain Deep Agents'
           // recommendation for production agents — covers transient network errors,

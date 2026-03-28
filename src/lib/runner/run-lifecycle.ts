@@ -8,9 +8,7 @@ import type { RunType } from "@/lib/runner/run-types";
 import type { Database } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
-type SupabaseMutationError = { message: string; code?: string | null };
 type RunInsert = Database["public"]["Tables"]["runs"]["Insert"];
-type OptionalRunColumn = "prompt_tokens" | "step_count";
 
 export interface CreateRunInput {
   threadId: string;
@@ -41,26 +39,6 @@ export interface CompleteRunInput {
 export interface MarkStaleRunsInput {
   threadId: string;
   staleMinutes?: number;
-}
-
-function isMissingOptionalRunColumnError(
-  error: SupabaseMutationError | null,
-  columnName: OptionalRunColumn,
-): boolean {
-  if (!error) {
-    return false;
-  }
-
-  const normalizedMessage = error.message.toLowerCase();
-  if (!normalizedMessage.includes(columnName)) {
-    return false;
-  }
-
-  if (error.code === "42703" || error.code === "PGRST204") {
-    return true;
-  }
-
-  return normalizedMessage.includes("does not exist") || normalizedMessage.includes("schema cache");
 }
 
 /**
@@ -122,56 +100,22 @@ export async function completeRun(
   supabase: ChatSupabaseClient,
   { runId, status, model, tokensIn, tokensOut, stepCount, promptTokens }: CompleteRunInput,
 ): Promise<void> {
-  const baseUpdatePayload = {
-    status,
-    model,
-    tokens_in: tokensIn,
-    tokens_out: tokensOut,
-    completed_at: new Date().toISOString(),
-  };
+  const { error } = await supabase
+    .from("runs")
+    .update({
+      status,
+      model,
+      tokens_in: tokensIn,
+      tokens_out: tokensOut,
+      completed_at: new Date().toISOString(),
+      ...(promptTokens !== undefined && { prompt_tokens: promptTokens }),
+      ...(stepCount !== undefined && { step_count: stepCount }),
+    })
+    .eq("run_id", runId);
 
-  let updatePayload = {
-    ...baseUpdatePayload,
-    ...(promptTokens !== undefined && { prompt_tokens: promptTokens }),
-    ...(stepCount !== undefined && { step_count: stepCount }),
-  };
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const { error } = await supabase
-      .from("runs")
-      .update(updatePayload)
-      .eq("run_id", runId);
-
-    if (!error) {
-      return;
-    }
-
-    let didDropOptionalColumn = false;
-
-    if (
-      "step_count" in updatePayload &&
-      isMissingOptionalRunColumnError(error, "step_count")
-    ) {
-      const { step_count: _stepCount, ...nextUpdatePayload } = updatePayload;
-      updatePayload = nextUpdatePayload;
-      didDropOptionalColumn = true;
-    }
-
-    if (
-      "prompt_tokens" in updatePayload &&
-      isMissingOptionalRunColumnError(error, "prompt_tokens")
-    ) {
-      const { prompt_tokens: _promptTokens, ...nextUpdatePayload } = updatePayload;
-      updatePayload = nextUpdatePayload;
-      didDropOptionalColumn = true;
-    }
-
-    if (!didDropOptionalColumn) {
-      throw new Error(`Failed to complete run: ${error.message}`);
-    }
+  if (error) {
+    throw new Error(`Failed to complete run: ${error.message}`);
   }
-
-  throw new Error("Failed to complete run: optional column fallback exhausted");
 }
 
 /**

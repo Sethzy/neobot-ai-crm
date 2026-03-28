@@ -1,46 +1,28 @@
 /**
- * Tests for browse_website tool behavior.
+ * Tests for browse_website tool behavior (v3 Browser-Use API).
  * @module lib/runner/tools/browser/__tests__/browse-website
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  mockCreateTask,
-  mockCreateSession,
-  mockStopSession,
-  mockWaitTask,
+  mockRun,
   MockBrowserUse,
   mockGetProfileForPlatform,
 } = vi.hoisted(() => {
-  const createTask = vi.fn();
-  const createSession = vi.fn();
-  const stopSession = vi.fn();
-  const waitTask = vi.fn();
+  const run = vi.fn();
   const getProfileForPlatform = vi.fn();
   const BrowserUse = vi.fn(function BrowserUse() {
-    return {
-      sessions: {
-        create: createSession,
-        stop: stopSession,
-      },
-      tasks: {
-        create: createTask,
-        wait: waitTask,
-      },
-    };
+    return { run };
   });
 
   return {
-    mockCreateTask: createTask,
-    mockCreateSession: createSession,
-    mockStopSession: stopSession,
-    mockWaitTask: waitTask,
+    mockRun: run,
     MockBrowserUse: BrowserUse,
     mockGetProfileForPlatform: getProfileForPlatform,
   };
 });
 
-vi.mock("browser-use-sdk", () => ({
+vi.mock("browser-use-sdk/v3", () => ({
   BrowserUse: MockBrowserUse,
 }));
 
@@ -54,19 +36,22 @@ const EXECUTION_OPTIONS = { toolCallId: "tool-call", messages: [] } as never;
 const MOCK_SUPABASE = { from: vi.fn() } as never;
 const CLIENT_ID = "660e8400-e29b-41d4-a716-446655440000";
 
+/** Default mock session result from Browser-Use v3. */
+const defaultResult = {
+  isTaskSuccessful: true,
+  output: "Found 5 listings",
+  totalCostUsd: "0.042",
+  llmCostUsd: "0.030",
+  proxyCostUsd: "0.002",
+  browserCostUsd: "0.010",
+};
+
 describe("createBrowseWebsiteTool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv("BROWSER_USE_API_KEY", "bu_test-key");
 
-    mockCreateSession.mockResolvedValue({ id: "session-1" });
-    mockStopSession.mockResolvedValue(undefined);
-    mockCreateTask.mockResolvedValue({ id: "task-1" });
-    mockWaitTask.mockResolvedValue({
-      isSuccess: true,
-      output: "Found 5 listings",
-      cost: "0.042",
-    });
+    mockRun.mockResolvedValue(defaultResult);
     mockGetProfileForPlatform.mockResolvedValue(null);
   });
 
@@ -83,11 +68,16 @@ describe("createBrowseWebsiteTool", () => {
     expect(result).toEqual({
       success: true,
       output: "Found 5 listings",
-      cost: "0.042",
+      cost: {
+        total: "0.042",
+        llm: "0.030",
+        proxy: "0.002",
+        browser: "0.010",
+      },
     });
   });
 
-  it("creates a session and stops it after completion", async () => {
+  it("calls client.run with cost ceiling and keepAlive false", async () => {
     const tools = createBrowseWebsiteTool(MOCK_SUPABASE, CLIENT_ID);
 
     await tools.browse_website.execute(
@@ -95,13 +85,17 @@ describe("createBrowseWebsiteTool", () => {
       EXECUTION_OPTIONS,
     );
 
-    expect(mockCreateSession).toHaveBeenCalledOnce();
-    expect(mockCreateSession).toHaveBeenCalledWith({});
-    expect(mockStopSession).toHaveBeenCalledWith("session-1");
-    expect(mockWaitTask).toHaveBeenCalledWith("task-1");
+    expect(mockRun).toHaveBeenCalledWith(
+      "Search example.com",
+      expect.objectContaining({
+        model: "bu-mini",
+        maxCostUsd: 0.50,
+        keepAlive: false,
+      }),
+    );
   });
 
-  it("creates tasks with the fixed model and step limit", async () => {
+  it("folds startUrl into the task prompt", async () => {
     const tools = createBrowseWebsiteTool(MOCK_SUPABASE, CLIENT_ID);
 
     await tools.browse_website.execute(
@@ -112,14 +106,9 @@ describe("createBrowseWebsiteTool", () => {
       EXECUTION_OPTIONS,
     );
 
-    expect(mockCreateTask).toHaveBeenCalledWith(
-      expect.objectContaining({
-        task: "Search example.com",
-        llm: "browser-use-2.0",
-        maxSteps: 25,
-        startUrl: "https://example.com",
-        sessionId: "session-1",
-      }),
+    expect(mockRun).toHaveBeenCalledWith(
+      expect.stringContaining("Navigate to https://example.com first."),
+      expect.any(Object),
     );
   });
 
@@ -134,15 +123,15 @@ describe("createBrowseWebsiteTool", () => {
       EXECUTION_OPTIONS,
     );
 
-    expect(mockCreateTask).toHaveBeenCalledWith(
-      expect.objectContaining({
-        task:
-          "Search for condos\n\nReturn the results in this format: array of { name, price, url }",
-      }),
+    expect(mockRun).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "Return the results in this format: array of { name, price, url }",
+      ),
+      expect.any(Object),
     );
   });
 
-  it("passes allowedDomains when provided", async () => {
+  it("folds allowedDomains into the task prompt", async () => {
     const tools = createBrowseWebsiteTool(MOCK_SUPABASE, CLIENT_ID);
 
     await tools.browse_website.execute(
@@ -153,10 +142,9 @@ describe("createBrowseWebsiteTool", () => {
       EXECUTION_OPTIONS,
     );
 
-    expect(mockCreateTask).toHaveBeenCalledWith(
-      expect.objectContaining({
-        allowedDomains: ["99.co"],
-      }),
+    expect(mockRun).toHaveBeenCalledWith(
+      expect.stringContaining("Only navigate within these domains: 99.co"),
+      expect.any(Object),
     );
   });
 
@@ -171,10 +159,10 @@ describe("createBrowseWebsiteTool", () => {
   });
 
   it("returns unsuccessful task results without throwing", async () => {
-    mockWaitTask.mockResolvedValueOnce({
-      isSuccess: false,
+    mockRun.mockResolvedValueOnce({
+      ...defaultResult,
+      isTaskSuccessful: false,
       output: "Page not found",
-      cost: "0.01",
     });
 
     const tools = createBrowseWebsiteTool(MOCK_SUPABASE, CLIENT_ID);
@@ -183,15 +171,12 @@ describe("createBrowseWebsiteTool", () => {
       EXECUTION_OPTIONS,
     );
 
-    expect(result).toEqual({
-      success: false,
-      output: "Page not found",
-      cost: "0.01",
-    });
+    expect(result.success).toBe(false);
+    expect(result.output).toBe("Page not found");
   });
 
-  it("rethrows Browser-Use execution errors after session cleanup", async () => {
-    mockWaitTask.mockRejectedValueOnce(new Error("Network error"));
+  it("rethrows Browser-Use execution errors", async () => {
+    mockRun.mockRejectedValueOnce(new Error("Network error"));
 
     const tools = createBrowseWebsiteTool(MOCK_SUPABASE, CLIENT_ID);
 
@@ -201,19 +186,6 @@ describe("createBrowseWebsiteTool", () => {
         EXECUTION_OPTIONS,
       ),
     ).rejects.toThrow("Network error");
-    expect(mockStopSession).toHaveBeenCalledWith("session-1");
-  });
-
-  it("swallows session cleanup errors", async () => {
-    mockStopSession.mockRejectedValueOnce(new Error("already stopped"));
-
-    const tools = createBrowseWebsiteTool(MOCK_SUPABASE, CLIENT_ID);
-    const result = await tools.browse_website.execute(
-      { goal: "Search example.com" },
-      EXECUTION_OPTIONS,
-    );
-
-    expect(result.success).toBe(true);
   });
 
   it("returns an error when BROWSER_USE_API_KEY is missing", async () => {
@@ -229,7 +201,7 @@ describe("createBrowseWebsiteTool", () => {
       success: false,
       error: expect.stringContaining("BROWSER_USE_API_KEY"),
     });
-    expect(mockCreateSession).not.toHaveBeenCalled();
+    expect(mockRun).not.toHaveBeenCalled();
   });
 
   it("returns needsAuth when a platform has no saved profile", async () => {
@@ -252,10 +224,10 @@ describe("createBrowseWebsiteTool", () => {
       CLIENT_ID,
       "propnex",
     );
-    expect(mockCreateSession).not.toHaveBeenCalled();
+    expect(mockRun).not.toHaveBeenCalled();
   });
 
-  it("passes a saved profile id to the Browser-Use session", async () => {
+  it("passes a saved profile id to the Browser-Use run options", async () => {
     mockGetProfileForPlatform.mockResolvedValueOnce({
       browser_use_profile_id: "profile_123",
     });
@@ -270,7 +242,10 @@ describe("createBrowseWebsiteTool", () => {
       EXECUTION_OPTIONS,
     );
 
-    expect(mockCreateSession).toHaveBeenCalledWith({ profileId: "profile_123" });
+    expect(mockRun).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ profileId: "profile_123" }),
+    );
   });
 
   it("does not look up profiles when no platform is specified", async () => {
@@ -281,6 +256,9 @@ describe("createBrowseWebsiteTool", () => {
     );
 
     expect(mockGetProfileForPlatform).not.toHaveBeenCalled();
-    expect(mockCreateSession).toHaveBeenCalledWith({});
+    expect(mockRun).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.not.objectContaining({ profileId: expect.any(String) }),
+    );
   });
 });

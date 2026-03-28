@@ -36,12 +36,14 @@ const {
   mockIsApifyConfigured,
   mockIsPropertySupabaseConfigured,
   mockReleaseMessageQuota,
+  mockLoadSystemPromptState,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
   mockGateway: vi.fn(() => "mock-model"),
   mockCaptureServerEvent: vi.fn(),
   mockAssembleContext: vi.fn(),
+  mockLoadSystemPromptState: vi.fn(),
   mockCreateRun: vi.fn(),
   mockCompleteRun: vi.fn(),
   mockMarkStaleRunsFailed: vi.fn(),
@@ -81,12 +83,18 @@ vi.mock("@/lib/ai/gateway", () => ({
   TIER_1_MODEL: "google/gemini-3-flash",
 }));
 
+vi.mock("@posthog/ai", () => ({
+  withTracing: (model: unknown) => model,
+}));
+
 vi.mock("@/lib/analytics/posthog-server", () => ({
   captureServerEvent: (...args: unknown[]) => mockCaptureServerEvent(...args),
+  getPostHogServer: () => null,
 }));
 
 vi.mock("@/lib/runner/context", () => ({
   assembleContext: mockAssembleContext,
+  loadSystemPromptState: mockLoadSystemPromptState,
 }));
 
 vi.mock("@/lib/runner/run-lifecycle", () => ({
@@ -244,6 +252,12 @@ describe("runAgent", () => {
     mockCreateSubagentTool.mockReturnValue({
       run_subagent: { description: "subagent-tool" },
     });
+    mockLoadSystemPromptState.mockResolvedValue({
+      memoryContext: undefined,
+      userSkills: [],
+      systemReminder: undefined,
+      compactionState: null,
+    });
     mockAssembleContext.mockResolvedValue({
       system: "You are Sunder.",
       messages: [{ role: "user", content: "Hello, Sunder!" }],
@@ -290,7 +304,7 @@ describe("runAgent", () => {
 
     expect(result.status).toBe("streaming");
     expect(mockGateway).toHaveBeenCalledWith("google/gemini-3-flash");
-    expect(mockStepCountIs).toHaveBeenCalledWith(9);
+    expect(mockStepCountIs).toHaveBeenCalledWith(12);
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
         model: "mock-model",
@@ -526,16 +540,16 @@ describe("runAgent", () => {
   });
 
   it("buildPrepareStep no longer injects Anthropic-native compaction edits", () => {
-    const prepareStep = buildPrepareStep("anthropic/claude-sonnet-4-6");
+    const prepareStep = buildPrepareStep("anthropic/claude-sonnet-4-6", 12);
     expect(prepareStep({ stepNumber: 0 } as never)).toBeUndefined();
-    expect(prepareStep({ stepNumber: 8 } as never)).toEqual({ activeTools: [] });
+    expect(prepareStep({ stepNumber: 11 } as never)).toEqual({ activeTools: [] });
   });
 
   it("buildPrepareStep keeps the Gemini path unchanged except for the final-step tool cutoff", () => {
-    const prepareStep = buildPrepareStep("google/gemini-3-flash");
+    const prepareStep = buildPrepareStep("google/gemini-3-flash", 12);
 
     expect(prepareStep({ stepNumber: 0 } as never)).toBeUndefined();
-    expect(prepareStep({ stepNumber: 8 } as never)).toEqual({ activeTools: [] });
+    expect(prepareStep({ stepNumber: 11 } as never)).toEqual({ activeTools: [] });
   });
 
   it("enqueues and returns queued when thread is already running", async () => {
