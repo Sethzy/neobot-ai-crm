@@ -34,7 +34,7 @@ const {
   mockGetActiveConnections,
   mockLoadActivatedConnectionTools,
   mockConsumeMessageQuota,
-  mockIsApifyConfigured,
+  mockIsBrowserUseConfigured,
   mockIsPropertySupabaseConfigured,
   mockReleaseMessageQuota,
   mockLoadSystemPromptState,
@@ -72,7 +72,7 @@ const {
   mockGetActiveConnections: vi.fn(),
   mockLoadActivatedConnectionTools: vi.fn(),
   mockConsumeMessageQuota: vi.fn(),
-  mockIsApifyConfigured: vi.fn(),
+  mockIsBrowserUseConfigured: vi.fn(),
   mockIsPropertySupabaseConfigured: vi.fn(),
   mockReleaseMessageQuota: vi.fn(),
   mockCreateLazyBashTool: vi.fn(),
@@ -149,8 +149,8 @@ vi.mock("@/lib/supabase/property-env", () => ({
   isPropertySupabaseConfigured: mockIsPropertySupabaseConfigured,
 }));
 
-vi.mock("@/lib/apify/env", () => ({
-  isApifyConfigured: mockIsApifyConfigured,
+vi.mock("@/lib/browser-use/client", () => ({
+  isBrowserUseConfigured: mockIsBrowserUseConfigured,
 }));
 
 vi.mock("@/lib/usage/message-quota", () => ({
@@ -304,7 +304,7 @@ describe("runAgent", () => {
     mockMaybeCompactThread.mockResolvedValue(false);
     mockGetActiveConnections.mockResolvedValue([]);
     mockLoadActivatedConnectionTools.mockResolvedValue({});
-    mockIsApifyConfigured.mockReturnValue(true);
+    mockIsBrowserUseConfigured.mockReturnValue(true);
     mockIsPropertySupabaseConfigured.mockReturnValue(true);
     mockConsumeMessageQuota.mockResolvedValue({
       allowed: true,
@@ -614,9 +614,9 @@ describe("runAgent", () => {
     expect(mockCreateMarketTools).not.toHaveBeenCalled();
   });
 
-  it("disables property-listing prompt injection when Apify is not configured", async () => {
+  it("disables property-listing prompt injection when Browser-Use is not configured", async () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
-    mockIsApifyConfigured.mockReturnValue(false);
+    mockIsBrowserUseConfigured.mockReturnValue(false);
 
     await runAgent(validPayload, "mock-supabase-client" as never);
 
@@ -625,8 +625,6 @@ describe("runAgent", () => {
         includePropertyListings: false,
       }),
     );
-    // Listing tools are still registered (stable tool set), but prompt guidance is omitted
-    expect(mockCreateListingTools).toHaveBeenCalled();
   });
 
   it("passes gatewayProviderOptions to streamText", async () => {

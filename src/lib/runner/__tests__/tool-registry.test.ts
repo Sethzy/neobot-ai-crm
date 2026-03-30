@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   mockCreateBrowserTools,
+  mockIsBrowserUseConfigured,
   mockCreateConnectionTools,
   mockCreateCrmTools,
   mockCreateListingTools,
@@ -17,6 +18,7 @@ const {
   mockIsPropertySupabaseConfigured,
 } = vi.hoisted(() => ({
   mockCreateBrowserTools: vi.fn(),
+  mockIsBrowserUseConfigured: vi.fn(),
   mockCreateConnectionTools: vi.fn(),
   mockCreateCrmTools: vi.fn(),
   mockCreateListingTools: vi.fn(),
@@ -26,6 +28,10 @@ const {
   mockCreateUtilityTools: vi.fn(),
   mockCreateWebTools: vi.fn(),
   mockIsPropertySupabaseConfigured: vi.fn(),
+}));
+
+vi.mock("@/lib/browser-use/client", () => ({
+  isBrowserUseConfigured: mockIsBrowserUseConfigured,
 }));
 
 vi.mock("@/lib/supabase/property-env", () => ({
@@ -78,6 +84,7 @@ describe("createRunnerTools", () => {
     mockCreateWebTools.mockReturnValue({
       web_search: { description: "web-tool" },
     });
+    mockIsBrowserUseConfigured.mockReturnValue(true);
     mockIsPropertySupabaseConfigured.mockReturnValue(true);
   });
 
@@ -127,7 +134,7 @@ describe("createRunnerTools", () => {
     expect(mockCreateMarketTools).not.toHaveBeenCalled();
   });
 
-  it("always includes listing tools for non-subagent runs", () => {
+  it("includes listing tools for non-subagent runs when Browser-Use is configured", () => {
     const tools = createRunnerTools(
       "supabase" as never,
       "client-id",
@@ -137,6 +144,20 @@ describe("createRunnerTools", () => {
     expect(tools).toHaveProperty("search_99co");
     expect(tools).toHaveProperty("search_propertyguru");
     expect(mockCreateListingTools).toHaveBeenCalledOnce();
+  });
+
+  it("omits listing tools when Browser-Use is not configured", () => {
+    mockIsBrowserUseConfigured.mockReturnValue(false);
+
+    const tools = createRunnerTools(
+      "supabase" as never,
+      "client-id",
+      "thread-id",
+    );
+
+    expect(tools).not.toHaveProperty("search_99co");
+    expect(tools).not.toHaveProperty("search_propertyguru");
+    expect(mockCreateListingTools).not.toHaveBeenCalled();
   });
 
   it("includes market tools for subagents when property env is configured", () => {

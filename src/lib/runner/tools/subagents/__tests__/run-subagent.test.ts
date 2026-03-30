@@ -15,7 +15,6 @@ const {
   mockCompleteRun,
   mockSaveToolcallBlock,
   mockCreateAgentFileClient,
-  mockIsApifyConfigured,
   mockIsPropertySupabaseConfigured,
 } = vi.hoisted(() => ({
   mockGenerateText: vi.fn(),
@@ -28,7 +27,6 @@ const {
   mockCompleteRun: vi.fn(),
   mockSaveToolcallBlock: vi.fn(),
   mockCreateAgentFileClient: vi.fn(),
-  mockIsApifyConfigured: vi.fn(),
   mockIsPropertySupabaseConfigured: vi.fn(),
 }));
 
@@ -69,10 +67,6 @@ vi.mock("@/lib/supabase/property-env", () => ({
   isPropertySupabaseConfigured: mockIsPropertySupabaseConfigured,
 }));
 
-vi.mock("@/lib/apify/env", () => ({
-  isApifyConfigured: mockIsApifyConfigured,
-}));
-
 import { createSubagentTool } from "../run-subagent";
 
 const CLIENT_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -92,7 +86,6 @@ describe("createSubagentTool", () => {
     mockCreateAgentFileClient.mockReturnValue({
       downloadFile: vi.fn().mockResolvedValue("# Briefing\n\nSummarize the lead."),
     });
-    mockIsApifyConfigured.mockReturnValue(true);
     mockIsPropertySupabaseConfigured.mockReturnValue(true);
     mockGenerateText.mockResolvedValue({
       text: "Final briefing text",

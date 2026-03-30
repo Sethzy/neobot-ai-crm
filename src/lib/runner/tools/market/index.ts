@@ -20,7 +20,7 @@ export function createMarketTools() {
 }
 
 /**
- * Creates the Apify-backed public listing tools without any Supabase dependency.
+ * Creates the Browser-Use-backed public listing tools without any Supabase dependency.
  */
 export function createListingTools() {
   return {

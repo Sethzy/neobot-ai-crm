@@ -4,6 +4,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { isBrowserUseConfigured } from "@/lib/browser-use/client";
 import { loadCrmConfig } from "@/lib/crm/config";
 import {
   createBrowserTools,
@@ -61,7 +62,8 @@ export function createRunnerTools(
   // Market tools eagerly create a Supabase client that throws without env vars.
   // Guard creation so runner startup doesn't crash in environments without property DB.
   const marketTools = isPropertySupabaseConfigured() ? createMarketTools() : {};
-  const listingTools = isSubagent ? {} : createListingTools();
+  const listingTools =
+    isSubagent || !isBrowserUseConfigured() ? {} : createListingTools();
 
   if (isSubagent) {
     return {

@@ -382,10 +382,6 @@ vi.mock("@/lib/supabase/property-env", () => ({
   isPropertySupabaseConfigured: vi.fn(() => false),
 }));
 
-vi.mock("@/lib/apify/env", () => ({
-  isApifyConfigured: vi.fn(() => false),
-}));
-
 vi.mock("@/lib/browser-use/client", () => ({
   isBrowserUseConfigured: vi.fn(() => false),
 }));

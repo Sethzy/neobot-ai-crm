@@ -1,21 +1,110 @@
 /**
- * 99.co public listing search tool backed by Apify.
+ * 99.co public listing search tool backed by Browser-Use Cloud.
  * @module lib/runner/tools/market/search-99co
  */
 import { tool } from "ai";
 import { z } from "zod";
 
-import { runActorSync } from "./apify-client";
+import { runBrowserTask } from "@/lib/browser-use/task-runner";
 
-const SEARCH_99CO_ACTOR_ID = "easyapi~99-co-property-listings-scraper";
 const ALLOWED_99CO_HOSTS = new Set(["99.co", "www.99.co"]);
 const MAX_TOOL_ITEMS = 100;
-const COST_CAP_USD = 1;
+const MAX_COST_PER_SEARCH_USD = 0.05;
+const MAX_STEPS = 20;
+const NINETY_NINE_BASE_URL = "https://www.99.co";
 
-interface Search99coListing {
-  listing_url?: string;
-  photo_urls?: string[];
-  [key: string]: unknown;
+const ninetyNineRawListingSchema = z.object({
+  listing_title: z.string().optional(),
+  listing_url: z.string().optional(),
+  photo_urls: z.array(z.string()).optional(),
+  attributes: z
+    .object({
+      listing_id: z.string().optional(),
+      main_category: z.string().optional(),
+      price: z
+        .object({
+          value: z.number().optional(),
+          formatted_string: z.string().optional(),
+        })
+        .optional(),
+      psf: z
+        .object({
+          formatted_string: z.string().optional(),
+        })
+        .optional(),
+      beds: z
+        .object({
+          value: z.union([z.string(), z.number()]).optional(),
+        })
+        .optional(),
+      bathrooms: z
+        .object({
+          value: z.number().optional(),
+        })
+        .optional(),
+      floorarea_sqft: z
+        .object({
+          value: z.number().optional(),
+        })
+        .optional(),
+      top: z.string().optional(),
+      lease_type: z.string().optional(),
+      posted_at_formatted: z.string().optional(),
+      formatted_address: z.string().optional(),
+      highlights: z.string().nullable().optional(),
+      est_mortgage_formatted: z.string().optional(),
+      lat: z.number().optional(),
+      lng: z.number().optional(),
+    })
+    .optional(),
+  commute_nearest_mrt: z
+    .object({
+      name: z.string().optional(),
+      duration: z.object({ value: z.number().optional() }).optional(),
+      distance: z.object({ value: z.number().optional() }).optional(),
+    })
+    .optional(),
+  agent: z
+    .object({
+      name: z.string().optional(),
+      phone: z.string().optional(),
+      whatsapp: z.string().optional(),
+    })
+    .optional(),
+  usp_tags: z.array(z.string()).optional(),
+});
+
+const ninetyNineTaskOutputSchema = z.array(ninetyNineRawListingSchema);
+
+type NinetyNineRawListing = z.output<typeof ninetyNineRawListingSchema>;
+
+interface NinetyNineListing {
+  id: string;
+  title?: string;
+  url: string;
+  address?: string;
+  postalCode?: string;
+  price: number;
+  priceFormatted?: string;
+  psfFormatted?: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  floorAreaSqft?: number;
+  tenure?: string;
+  builtYear?: number;
+  category?: string;
+  postedAt?: string;
+  highlights?: string;
+  mortgageEstimate?: string;
+  mrtName?: string;
+  mrtDistanceM?: number;
+  mrtWalkingMins?: number;
+  agentName?: string;
+  agentPhone?: string;
+  agentWhatsapp?: string;
+  coordinates?: { lat: number; lng: number };
+  photos?: string[];
+  tags?: string[];
 }
 
 function isAllowed99coSearchUrl(value: string): boolean {
@@ -27,20 +116,117 @@ function isAllowed99coSearchUrl(value: string): boolean {
   );
 }
 
+function buildApiUrl(searchUrl: string): string {
+  const parsed = new URL(searchUrl);
+  const apiUrl = new URL(`${NINETY_NINE_BASE_URL}/api/v11/web/search/listings`);
+  const pathname = parsed.pathname.toLowerCase();
+
+  apiUrl.searchParams.set(
+    "listing_type",
+    parsed.searchParams.get("listing_type") ?? (pathname.includes("/rent") ? "rent" : "sale"),
+  );
+
+  if (pathname === "/singapore/sale/condos-apartments") {
+    apiUrl.searchParams.set("main_category", "condo");
+  } else if (pathname === "/singapore/sale/hdb") {
+    apiUrl.searchParams.set("main_category", "hdb");
+  } else if (pathname === "/singapore/sale/houses") {
+    apiUrl.searchParams.set("main_category", "landed");
+  } else {
+    apiUrl.searchParams.set("main_category", parsed.searchParams.get("main_category") ?? "all");
+  }
+
+  apiUrl.searchParams.set("name", "Singapore");
+  apiUrl.searchParams.set("page_num", "1");
+  apiUrl.searchParams.set("page_size", "36");
+  apiUrl.searchParams.set("path", parsed.pathname);
+  apiUrl.searchParams.set("property_segments", "residential");
+  apiUrl.searchParams.set("query_name", "Singapore");
+  apiUrl.searchParams.set("show_cluster_preview", "true");
+  apiUrl.searchParams.set("show_description", "true");
+  apiUrl.searchParams.set("show_internal_linking", "true");
+  apiUrl.searchParams.set("show_meta_description", "true");
+  apiUrl.searchParams.set("show_nearby", "true");
+  apiUrl.searchParams.set("sort_field", "relevance");
+  apiUrl.searchParams.set("sort_order", "desc");
+
+  for (const [key, value] of parsed.searchParams.entries()) {
+    if (!apiUrl.searchParams.has(key)) {
+      apiUrl.searchParams.set(key, value);
+    }
+  }
+
+  return apiUrl.toString();
+}
+
 function toAbsolute99coUrl(value: string): string {
-  if (value.startsWith("http://") || value.startsWith("https://")) {
+  return new URL(value, NINETY_NINE_BASE_URL).toString();
+}
+
+function parseOptionalNumber(value: string | number | undefined): number | undefined {
+  if (typeof value === "number") {
     return value;
   }
 
-  return `https://www.99.co${value.startsWith("/") ? value : `/${value}`}`;
+  if (typeof value === "string") {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isNaN(parsed) ? undefined : parsed;
+  }
+
+  return undefined;
 }
 
-function sanitize99coListing(listing: Search99coListing): Search99coListing {
+function parsePostalCode(address: string | undefined): string | undefined {
+  if (!address) {
+    return undefined;
+  }
+
+  return address.match(/\b\d{6}\b/)?.[0];
+}
+
+function normalize99coListing(listing: NinetyNineRawListing): NinetyNineListing | null {
+  const listingId = listing.attributes?.listing_id;
+  const priceValue = listing.attributes?.price?.value;
+  const listingUrl = listing.listing_url;
+
+  if (!listingId || typeof priceValue !== "number" || !listingUrl) {
+    return null;
+  }
+
+  const builtYear = listing.attributes?.top
+    ? Number.parseInt(listing.attributes.top, 10)
+    : undefined;
+  const lat = listing.attributes?.lat;
+  const lng = listing.attributes?.lng;
+
   return {
-    ...listing,
-    ...(typeof listing.listing_url === "string"
-      ? { listing_url: toAbsolute99coUrl(listing.listing_url) }
-      : {}),
+    id: listingId,
+    title: listing.listing_title,
+    url: toAbsolute99coUrl(listingUrl),
+    address: listing.attributes?.formatted_address,
+    postalCode: parsePostalCode(listing.attributes?.formatted_address),
+    price: priceValue,
+    priceFormatted: listing.attributes?.price?.formatted_string,
+    psfFormatted: listing.attributes?.psf?.formatted_string,
+    bedrooms: parseOptionalNumber(listing.attributes?.beds?.value),
+    bathrooms: listing.attributes?.bathrooms?.value,
+    floorAreaSqft: listing.attributes?.floorarea_sqft?.value,
+    tenure: listing.attributes?.lease_type,
+    builtYear: Number.isNaN(builtYear ?? Number.NaN) ? undefined : builtYear,
+    category: listing.attributes?.main_category,
+    postedAt: listing.attributes?.posted_at_formatted,
+    highlights: listing.attributes?.highlights ?? undefined,
+    mortgageEstimate: listing.attributes?.est_mortgage_formatted,
+    mrtName: listing.commute_nearest_mrt?.name,
+    mrtDistanceM: listing.commute_nearest_mrt?.distance?.value,
+    mrtWalkingMins: listing.commute_nearest_mrt?.duration?.value,
+    agentName: listing.agent?.name,
+    agentPhone: listing.agent?.phone,
+    agentWhatsapp: listing.agent?.whatsapp,
+    coordinates:
+      typeof lat === "number" && typeof lng === "number" ? { lat, lng } : undefined,
+    photos: listing.photo_urls?.length ? listing.photo_urls : undefined,
+    tags: listing.usp_tags?.length ? listing.usp_tags : undefined,
   };
 }
 
@@ -73,30 +259,54 @@ export function createSearch99coTool() {
       "Search current public 99.co Singapore listings using one or more 99.co search URLs.",
     inputSchema: search99coInputSchema,
     execute: async ({ searchUrls, maxItems }) => {
-      try {
-        const results = await runActorSync<Search99coListing>(
-          SEARCH_99CO_ACTOR_ID,
-          {
-            searchUrls,
-            maxItems: maxItems ?? MAX_TOOL_ITEMS,
-          },
-          { maxTotalChargeUsd: COST_CAP_USD },
-        );
+      const resolvedMaxItems = maxItems ?? MAX_TOOL_ITEMS;
+      const resultMap = new Map<string, NinetyNineListing>();
+      const totalCost = { total: 0, llm: 0, proxy: 0, browser: 0 };
 
-        const sanitizedResults = results.map(sanitize99coListing);
+      for (const searchUrl of searchUrls) {
+        const apiUrl = buildApiUrl(searchUrl);
+        const taskPrompt = [
+          `Navigate to ${searchUrl}.`,
+          `Fetch ${apiUrl}.`,
+          "Read data.main_results.listing_cards from the JSON response.",
+          "Return the listing_cards array exactly.",
+        ].join("\n");
 
-        return {
-          success: true as const,
-          portal: "99co" as const,
-          count: sanitizedResults.length,
-          results: sanitizedResults,
-        };
-      } catch (error) {
-        return {
-          success: false as const,
-          error: error instanceof Error ? error.message : "Unknown 99.co search error",
-        };
+        const taskResult = await runBrowserTask(taskPrompt, {
+          schema: ninetyNineTaskOutputSchema,
+          maxCostUsd: MAX_COST_PER_SEARCH_USD,
+          maxSteps: MAX_STEPS,
+        });
+
+        if (!taskResult.success) {
+          return {
+            success: false as const,
+            error: taskResult.error,
+          };
+        }
+
+        totalCost.total += taskResult.cost.total;
+        totalCost.llm += taskResult.cost.llm;
+        totalCost.proxy += taskResult.cost.proxy;
+        totalCost.browser += taskResult.cost.browser;
+
+        for (const listing of taskResult.output) {
+          const normalizedListing = normalize99coListing(listing);
+          if (normalizedListing) {
+            resultMap.set(normalizedListing.url, normalizedListing);
+          }
+        }
       }
+
+      const results = Array.from(resultMap.values()).slice(0, resolvedMaxItems);
+
+      return {
+        success: true as const,
+        portal: "99co" as const,
+        count: results.length,
+        results,
+        cost: totalCost,
+      };
     },
   });
 

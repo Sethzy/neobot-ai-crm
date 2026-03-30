@@ -10,8 +10,8 @@
 ## Prerequisites
 
 - Logged in with a working chat
-- `APIFY_TOKEN` set in env so listing tools register
-- Apify account has enough credit/quota for a few live runs
+- `BROWSER_USE_API_KEY` set in env so listing tools register
+- Browser-Use Cloud account has enough credit/quota for a few live runs
 - Tool call pills visible in chat
 - Property market data Supabase configured (`PROPERTY_SUPABASE_URL` + `PROPERTY_SUPABASE_ANON_KEY`) so `search_market_data` is available
 
@@ -208,7 +208,7 @@
 
 ## Edge Cases
 
-- [ ] Listing tools are absent when `APIFY_TOKEN` is missing
+- [ ] Listing tools are absent when `BROWSER_USE_API_KEY` is missing
 - [ ] `search_market_data` is absent when property Supabase env is missing
 - [ ] Timeout failures surface as a user-visible scraping timeout message
 - [ ] Listing tools stay unavailable in autopilot and subagent runs

@@ -11,9 +11,8 @@ import { withTracing } from "@posthog/ai";
 import { captureServerEvent, getPostHogServer } from "@/lib/analytics/posthog-server";
 import { gatewayProviderOptions, getLanguageModel } from "@/lib/ai/gateway";
 import { resolveModelId } from "@/lib/ai/models";
-import { getServerEnv } from "@/lib/env";
-import { isApifyConfigured } from "@/lib/apify/env";
 import { isBrowserUseConfigured } from "@/lib/browser-use/client";
+import { getServerEnv } from "@/lib/env";
 import { createMessages } from "@/lib/chat/messages";
 import { isModelVisible } from "@/lib/chat/attachment-config";
 import { loadActivatedConnectionTools } from "@/lib/composio";
@@ -294,7 +293,7 @@ export async function runAgent(
         payload.triggerType === "chat" && isBrowserUseConfigured(),
       includeMarketData: isPropertySupabaseConfigured(),
       includePropertyListings:
-        payload.triggerType === "chat" && isApifyConfigured(),
+        payload.triggerType === "chat" && isBrowserUseConfigured(),
       includeSandbox: !!snapshotId,
       crmConfigModeActive: payload.includeConfigTool,
       preloadedState,

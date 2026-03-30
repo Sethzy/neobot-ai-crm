@@ -4,60 +4,88 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockRunActorSync } = vi.hoisted(() => ({
-  mockRunActorSync: vi.fn(),
+const { mockRunBrowserTask } = vi.hoisted(() => ({
+  mockRunBrowserTask: vi.fn(),
 }));
 
-vi.mock("../apify-client", () => ({
-  runActorSync: mockRunActorSync,
+vi.mock("@/lib/browser-use/task-runner", () => ({
+  runBrowserTask: mockRunBrowserTask,
 }));
 
 import { createSearchPropertyguruTool } from "../search-propertyguru";
 
 const EXECUTION_OPTIONS = { toolCallId: "tool-call", messages: [] } as never;
 
+const PROPERTYGURU_FIXTURE_LISTING = {
+  id: 500088257,
+  localizedTitle: "Coco Palms",
+  url: "https://www.propertyguru.com.sg/listing/for-sale-coco-palms-500088257",
+  fullAddress: "21 Pasir Ris Grove",
+  price: {
+    value: 2377000,
+    pretty: "S$ 2,377,000",
+  },
+  psfText: "S$ 1,711.30 psf",
+  bedrooms: 4,
+  bathrooms: 3,
+  floorArea: 1389,
+  badges: [
+    { name: "unit_type", text: "Condominium" },
+    { name: "tenure", text: "99-year Leasehold" },
+  ],
+  additionalData: {
+    tenure: "L99",
+    districtCode: "D18",
+    districtText: "Pasir Ris / Tampines",
+  },
+  mrt: { nearbyText: "6 min (480 m) from CP1 Pasir Ris MRT Station" },
+  postedOn: { text: "Listed on Mar 30, 2026 (38m ago)" },
+  agent: {
+    name: "Henry Lim",
+    license: "R000000A",
+    profileUrl: "/agent/henry-lim-10353426",
+  },
+  agency: { name: "HUTTONS ASIA PTE LTD" },
+  thumbnail: "https://img.pg/cover.jpg",
+  mediaCarousel: {
+    previewMedia: {
+      images: {
+        items: [{ src: "https://img.pg/1.jpg" }, { src: "https://img.pg/2.jpg" }],
+      },
+    },
+  },
+};
+
 describe("createSearchPropertyguruTool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("uses the corrected pay-per-result actor and hardcodes country for query builder calls", async () => {
-    mockRunActorSync.mockResolvedValueOnce([
-      {
-        id: "24240971",
-        title: "Marina Bay Residences",
-        images: [
-          "https://img/1",
-          "https://img/2",
-          "https://img/3",
-          "https://img/4",
-          "https://img/5",
-          "https://img/6",
-        ],
-      },
-    ]);
+  it("builds a live-compatible search URL and normalizes listingData output", async () => {
+    mockRunBrowserTask.mockResolvedValueOnce({
+      success: true,
+      output: [PROPERTYGURU_FIXTURE_LISTING],
+      cost: { total: 0.03, llm: 0.02, proxy: 0.005, browser: 0.005 },
+    });
 
     const tools = createSearchPropertyguruTool();
     const result = await tools.search_propertyguru.execute(
       {
-        searchQueries: ["marina bay"],
+        searchQueries: ["east coast"],
         listingType: "sale",
         propertyType: "sg_condo",
+        minPrice: 1000000,
+        maxPrice: 3000000,
         maxItems: 10,
       },
       EXECUTION_OPTIONS,
     );
 
-    expect(mockRunActorSync).toHaveBeenCalledWith(
-      "fatihtahta~propertyguru-scraper-ddproperty-batdongsan-ppe",
-      {
-        searchQueries: ["marina bay"],
-        country: "sg",
-        listingType: "sale",
-        propertyType: "sg_condo",
-        maxItems: 10,
-      },
-      { maxTotalChargeUsd: 1 },
+    expect(mockRunBrowserTask).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "https://www.propertyguru.com.sg/property-for-sale?freetext=east+coast&property_type=N&minprice=1000000&maxprice=3000000",
+      ),
+      { schema: expect.anything(), maxCostUsd: 0.05, maxSteps: 20 },
     );
     expect(result).toEqual({
       success: true,
@@ -65,84 +93,77 @@ describe("createSearchPropertyguruTool", () => {
       count: 1,
       results: [
         {
-          id: "24240971",
-          title: "Marina Bay Residences",
-          images: [
-            "https://img/1",
-            "https://img/2",
-            "https://img/3",
-            "https://img/4",
-            "https://img/5",
-            "https://img/6",
-          ],
+          id: 500088257,
+          title: "Coco Palms",
+          url: "https://www.propertyguru.com.sg/listing/for-sale-coco-palms-500088257",
+          address: "21 Pasir Ris Grove",
+          price: 2377000,
+          priceFormatted: "S$ 2,377,000",
+          psfFormatted: "S$ 1,711.30 psf",
+          bedrooms: 4,
+          bathrooms: 3,
+          floorAreaSqft: 1389,
+          propertyType: "Condominium",
+          tenure: "99-year Leasehold",
+          districtCode: "D18",
+          districtText: "Pasir Ris / Tampines",
+          mrtProximity: "6 min (480 m) from CP1 Pasir Ris MRT Station",
+          postedOn: "Listed on Mar 30, 2026 (38m ago)",
+          agentName: "Henry Lim",
+          agentLicense: "R000000A",
+          agencyName: "HUTTONS ASIA PTE LTD",
+          agentProfileUrl: "https://www.propertyguru.com.sg/agent/henry-lim-10353426",
+          thumbnail: "https://img.pg/cover.jpg",
+          images: ["https://img.pg/1.jpg", "https://img.pg/2.jpg"],
         },
       ],
+      cost: { total: 0.03, llm: 0.02, proxy: 0.005, browser: 0.005 },
     });
   });
 
-  it("prefers startUrls mode and omits query-builder-only fields", async () => {
-    mockRunActorSync.mockResolvedValueOnce([]);
+  it("runs every provided startUrl and combines normalized results", async () => {
+    mockRunBrowserTask
+      .mockResolvedValueOnce({
+        success: true,
+        output: [PROPERTYGURU_FIXTURE_LISTING],
+        cost: { total: 0.02, llm: 0.01, proxy: 0.005, browser: 0.005 },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        output: [
+          {
+            ...PROPERTYGURU_FIXTURE_LISTING,
+            id: 500054688,
+            localizedTitle: "Piccadilly Grand",
+            url: "https://www.propertyguru.com.sg/listing/for-sale-piccadilly-grand-500054688",
+          },
+        ],
+        cost: { total: 0.02, llm: 0.01, proxy: 0.005, browser: 0.005 },
+      });
 
     const tools = createSearchPropertyguruTool();
-    await tools.search_propertyguru.execute(
+    const result = await tools.search_propertyguru.execute(
       {
-        searchQueries: ["should be ignored"],
-        startUrls: ["https://www.propertyguru.com.sg/property-for-rent"],
-        listingType: "rent",
-        propertyType: "sg_landed",
-        minPrice: 1000,
-        maxPrice: 5000,
+        startUrls: [
+          "https://www.propertyguru.com.sg/property-for-sale",
+          "https://www.propertyguru.com.sg/property-for-sale?property_type=H",
+        ],
         maxItems: 10,
       },
       EXECUTION_OPTIONS,
     );
 
-    expect(mockRunActorSync).toHaveBeenCalledWith(
-      "fatihtahta~propertyguru-scraper-ddproperty-batdongsan-ppe",
-      {
-        startUrls: ["https://www.propertyguru.com.sg/property-for-rent"],
-        maxItems: 10,
-      },
-      { maxTotalChargeUsd: 1 },
+    expect(mockRunBrowserTask).toHaveBeenCalledTimes(2);
+    expect(mockRunBrowserTask.mock.calls[0]?.[0]).toContain(
+      "https://www.propertyguru.com.sg/property-for-sale",
     );
-  });
-
-  it("requires at least one non-blank search query or a start URL", () => {
-    const tools = createSearchPropertyguruTool();
-
-    expect(
-      tools.search_propertyguru.inputSchema.safeParse({
-        searchQueries: ["   "],
-      }).success,
-    ).toBe(false);
-    expect(
-      tools.search_propertyguru.inputSchema.safeParse({}).success,
-    ).toBe(false);
-  });
-
-  it("rejects non-PropertyGuru Singapore start URLs", () => {
-    const tools = createSearchPropertyguruTool();
-    const parsed = tools.search_propertyguru.inputSchema.safeParse({
-      startUrls: ["https://fake-propertyguru.com.sg/listing/123"],
+    expect(mockRunBrowserTask.mock.calls[1]?.[0]).toContain(
+      "https://www.propertyguru.com.sg/property-for-sale?property_type=H",
+    );
+    expect(result).toMatchObject({
+      success: true,
+      count: 2,
+      cost: { total: 0.04, llm: 0.02, proxy: 0.01, browser: 0.01 },
     });
-
-    expect(parsed.success).toBe(false);
-  });
-
-  it("aligns maxItems with the actor minimum and chat payload ceiling", () => {
-    const tools = createSearchPropertyguruTool();
-
-    expect(
-      tools.search_propertyguru.inputSchema.safeParse({
-        searchQueries: ["marina bay"],
-        maxItems: 9,
-      }).success,
-    ).toBe(false);
-    expect(
-      tools.search_propertyguru.inputSchema.safeParse({
-        searchQueries: ["marina bay"],
-        maxItems: 101,
-      }).success,
-    ).toBe(false);
   });
 });
