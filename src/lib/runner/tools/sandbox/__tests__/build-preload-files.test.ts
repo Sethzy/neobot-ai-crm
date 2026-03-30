@@ -113,6 +113,70 @@ describe("buildPreloadFiles", () => {
   });
 });
 
+function createDelayedMockBucket(files: Record<string, string | null>, delayMs: number) {
+  const delay = () => new Promise((resolve) => setTimeout(resolve, delayMs));
+
+  return {
+    list: vi.fn(async (prefix: string) => {
+      await delay();
+      const entries = Object.keys(files)
+        .filter((p) => p.startsWith(prefix) && p !== prefix)
+        .map((p) => {
+          const relative = p.slice(prefix.length + 1);
+          const parts = relative.split("/");
+          return parts.length === 1
+            ? { name: parts[0], id: "file-id" }
+            : { name: parts[0], id: null };
+        })
+        .filter((v, i, a) => a.findIndex((x) => x.name === v.name) === i);
+      return { data: entries, error: null };
+    }),
+    download: vi.fn(async (path: string) => {
+      await delay();
+      const content = files[path];
+      if (content === null || content === undefined) {
+        return { data: null, error: { message: "Not found" } };
+      }
+      const buf = Buffer.from(content);
+      return {
+        data: { arrayBuffer: async () => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) },
+        error: null,
+      };
+    }),
+  };
+}
+
+describe("parallel skill download", () => {
+  it("downloads files within a skill directory concurrently, not sequentially", async () => {
+    // One skill with 10 reference files — sequential = 10 × 50ms downloads = 500ms+
+    // Parallel = ~50ms for all downloads concurrently
+    const files: Record<string, string | null> = {};
+    const slug = "big-skill";
+    files[`client-1/skills/${slug}/SKILL.md`] = "# Big Skill";
+    for (let i = 0; i < 10; i++) {
+      files[`client-1/skills/${slug}/ref-${i}.md`] = `Reference ${i}`;
+    }
+
+    const delayedBucket = createDelayedMockBucket(files, 50);
+    const mockSupabase = { storage: { from: vi.fn(() => delayedBucket) } };
+
+    const start = Date.now();
+    const result = await buildPreloadFiles({
+      supabase: mockSupabase as any,
+      clientId: "client-1",
+      fileParts: [],
+    });
+    const elapsed = Date.now() - start;
+
+    const skillFiles = result.filter((f) => f.path.startsWith("skills/"));
+    expect(skillFiles).toHaveLength(11); // SKILL.md + 10 refs
+    // Sequential: ~50ms list + 11 × 50ms download = ~600ms
+    // Parallel: ~50ms list + ~50ms all downloads = ~100ms
+    // Budget: 300ms allows parallel, rejects sequential
+    expect(elapsed).toBeLessThan(300);
+  });
+});
+
 describe("generateFileTree", () => {
   it("generates ASCII tree from file list", () => {
     const files: SandboxPreloadFile[] = [

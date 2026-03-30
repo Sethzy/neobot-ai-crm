@@ -31,35 +31,40 @@ async function downloadSkillDirectory(
   slug: string,
 ): Promise<SandboxPreloadFile[]> {
   const prefix = `${clientId}/${SKILLS_DIRECTORY}/${slug}`;
-  const files: SandboxPreloadFile[] = [];
 
-  async function walk(currentPrefix: string, relativePath: string): Promise<void> {
+  async function walk(
+    currentPrefix: string,
+    relativePath: string,
+  ): Promise<SandboxPreloadFile[]> {
     const { data: entries } = await bucket.list(currentPrefix);
-    if (!entries) return;
+    if (!entries) return [];
 
-    for (const entry of entries) {
-      const fullPath = `${currentPrefix}/${entry.name}`;
-      const relPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+    const results = await Promise.all(
+      entries.map(async (entry: { name: string; id: string | null }) => {
+        const fullPath = `${currentPrefix}/${entry.name}`;
+        const relPath = relativePath
+          ? `${relativePath}/${entry.name}`
+          : entry.name;
 
-      if (entry.id === null) {
-        // Directory — recurse
-        await walk(fullPath, relPath);
-      } else {
-        // File — download
-        const { data } = await bucket.download(fullPath);
-        if (data) {
-          const buffer = Buffer.from(await data.arrayBuffer());
-          files.push({
-            path: `${SKILLS_DIRECTORY}/${slug}/${relPath}`,
-            content: buffer,
-          });
+        if (entry.id === null) {
+          return walk(fullPath, relPath);
         }
-      }
-    }
+
+        const { data } = await bucket.download(fullPath);
+        if (!data) return [];
+
+        const buffer = Buffer.from(await data.arrayBuffer());
+        return [{
+          path: `${SKILLS_DIRECTORY}/${slug}/${relPath}`,
+          content: buffer,
+        }];
+      }),
+    );
+
+    return results.flat();
   }
 
-  await walk(prefix, "");
-  return files;
+  return walk(prefix, "");
 }
 
 /**
