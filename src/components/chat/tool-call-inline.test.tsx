@@ -214,6 +214,31 @@ describe("ToolCallInline", () => {
     );
     expect(screen.getByTestId("tool-call-inline")).toBeInTheDocument();
   });
+
+  it("shows a PDF download CTA for generate_pdf output", () => {
+    render(
+      <ToolCallInline
+        name="generate_pdf"
+        state="output-available"
+        input={{ title: "Client summary" }}
+        output={{
+          success: true,
+          download_url: "https://storage.example.com/reports/client-summary.pdf",
+          filename: "client-summary.pdf",
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("pdf-download-link")).toHaveAttribute(
+      "href",
+      "https://storage.example.com/reports/client-summary.pdf",
+    );
+    expect(screen.getByTestId("pdf-download-link")).toHaveAttribute(
+      "download",
+      "client-summary.pdf",
+    );
+    expect(screen.getByText("client-summary.pdf")).toBeInTheDocument();
+  });
 });
 
 describe("approval-requested state", () => {
@@ -389,6 +414,30 @@ describe("connection cards", () => {
     expect(screen.getByText("GOOGLEDRIVE_DOWNLOAD_FILE")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /grant permissions/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /deny/i })).toBeInTheDocument();
+  });
+
+  it("renders both activate and deactivate tool chips in PermissionCard", () => {
+    render(
+      <ToolCallInline
+        name="manage_activated_tools_for_connections"
+        state="approval-requested"
+        approvalId="approval-123"
+        input={{
+          connections: [
+            {
+              connectionId: "conn-123",
+              activate: ["GOOGLEDRIVE_FIND_FILE"],
+              deactivate: ["GOOGLEDRIVE_DOWNLOAD_FILE"],
+            },
+          ],
+        }}
+        output={null}
+        onToolApproval={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("GOOGLEDRIVE_FIND_FILE")).toBeInTheDocument();
+    expect(screen.getByText("Removing GOOGLEDRIVE_DOWNLOAD_FILE")).toBeInTheDocument();
   });
 
   it("preserves tool error rendering after a permission flow fails", async () => {

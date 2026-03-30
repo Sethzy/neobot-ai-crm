@@ -841,6 +841,49 @@ describe("assembleContext", () => {
     ]);
   });
 
+  it("strips non-model-visible historical file parts before converting messages", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: {
+        data: [
+          {
+            message_id: "message-1",
+            created_at: "2026-03-07T09:00:00.000Z",
+            role: "user",
+            content: "Review the proposal",
+            parts: [
+              {
+                type: "file",
+                filename: "proposal.docx",
+                mediaType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                url: "https://storage.example.com/chat-attachments/client-1/proposal.docx",
+              },
+              { type: "text", text: "Review the proposal" },
+            ],
+          },
+        ],
+        error: null,
+      },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "",
+    });
+
+    expect(result.messages).toEqual([
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: "Review the proposal",
+          },
+        ],
+      },
+    ]);
+  });
+
   it("throws when history query fails", async () => {
     const supabase = createMockSupabaseClient({
       selectResult: { data: null, error: { message: "connection refused" } },

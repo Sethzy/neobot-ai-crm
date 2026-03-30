@@ -9,6 +9,7 @@ import {
   buildPlatformInstructions,
   PLATFORM_INSTRUCTIONS,
 } from "@/lib/ai/platform-instructions";
+import { isModelVisible } from "@/lib/chat/attachment-config";
 import {
   BROWSER_AUTOMATION_PROMPT,
   CRM_SETUP_SYSTEM_PROMPT,
@@ -223,7 +224,17 @@ function formatMemoryMessage(memory: MemoryContext, compactionSummary?: string):
 
 function buildUiMessageParts(row: HistoryRow): UIMessage["parts"] | null {
   if (Array.isArray(row.parts) && row.parts.length > 0) {
-    return row.parts as UIMessage["parts"];
+    const filteredParts = (row.parts as UIMessage["parts"]).filter((part) => {
+      if (part.type !== "file") {
+        return true;
+      }
+
+      return isModelVisible(part.mediaType);
+    });
+
+    if (filteredParts.length > 0) {
+      return filteredParts;
+    }
   }
 
   const fallbackText = row.content ?? getTextFromParts(row.parts);

@@ -8,8 +8,10 @@ const {
   mockStreamText,
   mockStepCountIs,
   mockGateway,
+  mockGetLanguageModel,
   mockLoadCrmConfig,
   mockAssembleContext,
+  mockLoadSystemPromptState,
   mockCreateRun,
   mockCompleteRun,
   mockMarkStaleRunsFailed,
@@ -27,12 +29,18 @@ const {
   mockGetActiveConnections,
   mockIsPropertySupabaseConfigured,
   mockLoadActivatedConnectionTools,
+  mockGetServerEnv,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
   mockGateway: vi.fn(() => "mock-model"),
+  mockGetLanguageModel: vi.fn((modelId: string) => `language-model:${modelId}`),
   mockLoadCrmConfig: vi.fn(),
   mockAssembleContext: vi.fn(),
+  mockLoadSystemPromptState: vi.fn().mockResolvedValue({
+    userSkills: [],
+    compactionState: null,
+  }),
   mockCreateRun: vi.fn(),
   mockCompleteRun: vi.fn(),
   mockMarkStaleRunsFailed: vi.fn(),
@@ -50,6 +58,7 @@ const {
   mockGetActiveConnections: vi.fn(),
   mockIsPropertySupabaseConfigured: vi.fn(),
   mockLoadActivatedConnectionTools: vi.fn(),
+  mockGetServerEnv: vi.fn(),
 }));
 
 vi.mock("ai", () => ({ streamText: mockStreamText, stepCountIs: mockStepCountIs }));
@@ -58,6 +67,7 @@ vi.mock("@/lib/chat/messages", () => ({
 }));
 vi.mock("@/lib/ai/gateway", () => ({
   gateway: mockGateway,
+  getLanguageModel: mockGetLanguageModel,
   gatewayProviderOptions: {},
   TIER_1_MODEL: "google/gemini-3-flash",
 }));
@@ -70,6 +80,7 @@ vi.mock("@/lib/crm/config", async (importOriginal) => {
 });
 vi.mock("@/lib/runner/context", () => ({
   assembleContext: mockAssembleContext,
+  loadSystemPromptState: mockLoadSystemPromptState,
 }));
 vi.mock("@/lib/runner/run-lifecycle", () => ({
   createRun: mockCreateRun,
@@ -106,11 +117,17 @@ vi.mock("@/lib/supabase/property-env", () => ({
   isPropertySupabaseConfigured: mockIsPropertySupabaseConfigured,
 }));
 
+vi.mock("@/lib/env", () => ({
+  getServerEnv: (...args: unknown[]) => mockGetServerEnv(...args),
+  _resetForTesting: vi.fn(),
+}));
+
 import { runAgent } from "../run-agent";
 
 describe("stale run cleanup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetServerEnv.mockReturnValue({ SANDBOX_GOLDEN_SNAPSHOT_ID: "" });
     mockMarkStaleRunsFailed.mockResolvedValue(0);
     mockLoadCrmConfig.mockResolvedValue({ config: {}, hasConfig: false });
     mockCreateMessages.mockResolvedValue([]);

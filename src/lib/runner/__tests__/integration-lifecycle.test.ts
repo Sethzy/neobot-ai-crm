@@ -298,10 +298,16 @@ const mockStreamText = vi.fn().mockImplementation((opts: Record<string, unknown>
 });
 const mockStepCountIs = vi.fn(() => vi.fn(() => true));
 const mockGateway = vi.fn(() => "mock-model");
+const mockGetLanguageModel = vi.fn((modelId: string) => `language-model:${modelId}`);
 const mockGenerateText = vi.fn().mockResolvedValue({
   text: "## User Instructions\nNone\n## Workflow\nTest summary\n## Resources\nNone\n## Current Focus\nContinue",
   usage: { totalTokens: 500 },
 });
+const mockLoadSystemPromptState = vi.fn().mockResolvedValue({
+  userSkills: [],
+  compactionState: null,
+});
+const mockGetServerEnv = vi.fn();
 const mockCaptureServerEvent = vi.fn().mockResolvedValue(undefined);
 const mockCaptureServerEvents = vi.fn().mockResolvedValue(undefined);
 
@@ -318,6 +324,7 @@ vi.mock("ai", () => ({
 
 vi.mock("@/lib/ai/gateway", () => ({
   gateway: (...args: unknown[]) => mockGateway(...args),
+  getLanguageModel: (...args: unknown[]) => mockGetLanguageModel(...args),
   gatewayProviderOptions: {},
   TIER_1_MODEL: "google/gemini-3-flash",
   COMPACTION_MODEL: "google/gemini-3-flash",
@@ -326,6 +333,7 @@ vi.mock("@/lib/ai/gateway", () => ({
 vi.mock("@/lib/analytics/posthog-server", () => ({
   captureServerEvent: (...args: unknown[]) => mockCaptureServerEvent(...args),
   captureServerEvents: (...args: unknown[]) => mockCaptureServerEvents(...args),
+  getPostHogServer: () => null,
 }));
 
 vi.mock("@/lib/runner/context", () => ({
@@ -333,6 +341,12 @@ vi.mock("@/lib/runner/context", () => ({
     system: "You are Sunder, a helpful AI agent.",
     messages: [{ role: "user", content: [{ type: "text", text: "Hello" }] }],
   }),
+  loadSystemPromptState: (...args: unknown[]) => mockLoadSystemPromptState(...args),
+}));
+
+vi.mock("@/lib/env", () => ({
+  getServerEnv: (...args: unknown[]) => mockGetServerEnv(...args),
+  _resetForTesting: vi.fn(),
 }));
 
 vi.mock("@/lib/runner/tool-registry", () => ({
@@ -466,6 +480,7 @@ describe("Runner Integration: full lifecycle", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetServerEnv.mockReturnValue({ SANDBOX_GOLDEN_SNAPSHOT_ID: "" });
     capturedOnFinish = null;
     capturedOnError = null;
     supabase = createStatefulSupabase();

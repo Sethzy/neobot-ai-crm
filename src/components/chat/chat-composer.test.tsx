@@ -7,6 +7,8 @@ import userEvent from "@testing-library/user-event";
 import type { ImgHTMLAttributes } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CHAT_ATTACHMENT_ACCEPT } from "@/lib/chat/attachment-config";
+
 const { mockToastError } = vi.hoisted(() => ({
   mockToastError: vi.fn(),
 }));
@@ -52,7 +54,7 @@ describe("ChatComposer", () => {
     expect(screen.getByRole("button", { name: /submit/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/upload attachments/i)).toHaveAttribute(
       "accept",
-      "image/jpeg,image/png,.xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel",
+      CHAT_ATTACHMENT_ACCEPT,
     );
   });
 
