@@ -51,6 +51,21 @@ describe("SYSTEM_PROMPT", () => {
     expect(lower).toContain("trigger");
   });
 
+  it("documents /agent/uploads/ as read-only user-uploaded files", () => {
+    expect(SYSTEM_PROMPT).toContain("/agent/uploads/");
+    expect(SYSTEM_PROMPT).toContain("Read-only");
+    expect(SYSTEM_PROMPT).toContain("user-uploaded files");
+  });
+
+  it("teaches the agent to read uploaded files explicitly", () => {
+    expect(SYSTEM_PROMPT).toContain('read_file("/agent/uploads/');
+  });
+
+  it("teaches the sunder:// download link convention", () => {
+    expect(SYSTEM_PROMPT).toContain("sunder://");
+    expect(SYSTEM_PROMPT).toContain("/api/files/download");
+  });
+
   it("reserves web search for information outside the market database", () => {
     expect(SYSTEM_PROMPT).toContain("isn't in their CRM or the market database");
   });
@@ -354,11 +369,21 @@ describe("SANDBOX_PROMPT", () => {
     expect(SANDBOX_PROMPT).toContain("Never enumerate or hard-code");
   });
 
-  it("mentions output/ for results", () => {
-    expect(SANDBOX_PROMPT).toContain("output/");
+  it("uses agent/home/ instead of output/ for persisted sandbox files", () => {
+    expect(SANDBOX_PROMPT).toContain("agent/home/");
+    expect(SANDBOX_PROMPT).not.toContain("output/");
   });
 
   it("mentions skills/ for reference data", () => {
     expect(SANDBOX_PROMPT).toContain("skills/");
+  });
+
+  it("warns that only agent/home persists after sandbox shutdown", () => {
+    expect(SANDBOX_PROMPT).toContain("Only files in /vercel/sandbox/workspace/agent/home/");
+    expect(SANDBOX_PROMPT).toContain("Everything else is lost");
+  });
+
+  it("warns that sandbox-installed packages are ephemeral", () => {
+    expect(SANDBOX_PROMPT.toLowerCase()).toContain("ephemeral");
   });
 });
