@@ -1798,5 +1798,53 @@ describe("runAgent", () => {
       }),
     );
   });
+
+  it("keeps plain-text uploads persisted but out of the model-visible file parts", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(
+      {
+        ...validPayload,
+        input: "Check the attached note",
+        fileParts: [
+          {
+            type: "file",
+            filename: "notes.txt",
+            mediaType: "text/plain",
+            url: "https://storage.example.com/chat-attachments/client-1/notes.txt",
+          },
+        ],
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockCreateMessages).toHaveBeenCalledWith(
+      "mock-supabase-client",
+      expect.arrayContaining([
+        expect.objectContaining({
+          parts: [
+            {
+              type: "file",
+              filename: "notes.txt",
+              mediaType: "text/plain",
+              url: "https://storage.example.com/chat-attachments/client-1/notes.txt",
+            },
+            { type: "text", text: "Check the attached note" },
+          ],
+        }),
+      ]),
+    );
+    expect(mockAssembleContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentMessageParts: [
+          {
+            type: "text",
+            text: "[User uploaded files are available in the sandbox at /input/. Use bash to list and process them.]",
+          },
+          { type: "text", text: "Check the attached note" },
+        ],
+      }),
+    );
+  });
   });
 });

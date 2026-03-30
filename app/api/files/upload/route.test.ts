@@ -128,6 +128,34 @@ describe("POST /api/files/upload", () => {
     });
   });
 
+  it.each([
+    ["image/webp", "floorplan.webp"],
+    ["application/vnd.openxmlformats-officedocument.presentationml.presentation", "listing-deck.pptx"],
+    ["text/plain", "notes.txt"],
+  ])("accepts %s uploads", async (contentType, filename) => {
+    const extension = filename.split(".").pop();
+    mockUpload.mockResolvedValue({
+      data: { path: `client-1/1700000000000-deadbeef.${extension}` },
+      error: null,
+    });
+    mockGetPublicUrl.mockReturnValue({
+      data: {
+        publicUrl: `https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.${extension}`,
+      },
+    });
+
+    const response = await POST(
+      createFileRequest(new File(["file-data"], filename, { type: contentType })),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      url: `https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.${extension}`,
+      pathname: filename,
+      contentType,
+    });
+  });
+
   it("accepts files up to 10MB", async () => {
     mockUpload.mockResolvedValue({ data: { path: "client-1/1700000000000-deadbeef.pdf" }, error: null });
     mockGetPublicUrl.mockReturnValue({

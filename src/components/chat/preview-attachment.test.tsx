@@ -80,4 +80,32 @@ describe("PreviewAttachment", () => {
 
     expect(screen.getByText("Word")).toBeInTheDocument();
   });
+
+  it("renders a Slides label for PPTX attachments", () => {
+    render(
+      <PreviewAttachment
+        attachment={{
+          filename: "listing-deck.pptx",
+          url: "https://storage.example.com/listing-deck.pptx",
+          contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Slides")).toBeInTheDocument();
+  });
+
+  it("renders a Text label for plain-text attachments", () => {
+    render(
+      <PreviewAttachment
+        attachment={{
+          filename: "notes.txt",
+          url: "https://storage.example.com/notes.txt",
+          contentType: "text/plain",
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Text")).toBeInTheDocument();
+  });
 });
