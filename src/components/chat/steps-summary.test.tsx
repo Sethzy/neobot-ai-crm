@@ -128,6 +128,73 @@ describe("StepsSummary", () => {
     expect(screen.queryByTestId("tool-call-inline")).not.toBeInTheDocument();
   });
 
+  it("renders connection-related tool cards outside the collapsed summary", () => {
+    const connectionParts = [
+      {
+        type: "tool-create_new_connections" as const,
+        toolCallId: "tc-connection",
+        state: "output-available" as const,
+        input: {
+          connection: {
+            type: "integrations",
+            integrations: [{ integrationId: "googledrive" }],
+          },
+        },
+        output: {
+          success: true,
+          results: [
+            {
+              integrationId: "googledrive",
+              displayName: "Google Drive",
+              description: "Access files in Google Drive",
+              connectionStatus: "pending_auth",
+              redirectUrl: "https://auth.example.com/google-drive",
+              composioConnectedAccountId: "acc-123",
+            },
+          ],
+        },
+      },
+      {
+        type: "tool-manage_activated_tools_for_connections" as const,
+        toolCallId: "tc-approval",
+        state: "approval-requested" as const,
+        input: {
+          connections: [
+            {
+              connectionId: "conn-123",
+              activate: ["GOOGLEDRIVE_FIND_FILE"],
+              deactivate: [],
+            },
+          ],
+        },
+        approval: { id: "approval-abc" },
+      },
+      {
+        type: "tool-search_contacts" as const,
+        toolCallId: "tc-hidden",
+        state: "output-available" as const,
+        input: { query: "John" },
+        output: { results: [] },
+      },
+    ];
+
+    render(
+      <StepsSummary
+        parts={connectionParts}
+        isStreaming={false}
+        hasTextParts={false}
+        messageId="1"
+        onToolApproval={vi.fn()}
+      />,
+    );
+
+    const toolCalls = screen.getAllByTestId("tool-call-inline");
+    expect(toolCalls).toHaveLength(2);
+    expect(toolCalls[0]).toHaveAttribute("data-name", "create_new_connections");
+    expect(toolCalls[1]).toHaveAttribute("data-name", "manage_activated_tools_for_connections");
+    expect(toolCalls[1]).toHaveAttribute("data-approval-id", "approval-abc");
+  });
+
   it("shows intermediate parts when expanded", async () => {
     const user = userEvent.setup();
     render(<StepsSummary parts={parts} isStreaming={false} hasTextParts={false} messageId="1" />);

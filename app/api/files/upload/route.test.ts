@@ -84,27 +84,88 @@ describe("POST /api/files/upload", () => {
     await expect(response.json()).resolves.toEqual({ error: "No file uploaded" });
   });
 
-  it("returns 400 when the file exceeds 5MB", async () => {
+  it("accepts PDF uploads", async () => {
+    mockUpload.mockResolvedValue({ data: { path: "client-1/1700000000000-deadbeef.pdf" }, error: null });
+    mockGetPublicUrl.mockReturnValue({
+      data: {
+        publicUrl: "https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.pdf",
+      },
+    });
+
+    const response = await POST(
+      createFileRequest(new File(["pdf-data"], "brief.pdf", { type: "application/pdf" })),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      url: "https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.pdf",
+      pathname: "brief.pdf",
+      contentType: "application/pdf",
+    });
+  });
+
+  it("accepts DOCX uploads", async () => {
+    mockUpload.mockResolvedValue({ data: { path: "client-1/1700000000000-deadbeef.docx" }, error: null });
+    mockGetPublicUrl.mockReturnValue({
+      data: {
+        publicUrl: "https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.docx",
+      },
+    });
+
     const response = await POST(
       createFileRequest(
-        new File([new ArrayBuffer(6 * 1024 * 1024)], "big.jpg", { type: "image/jpeg" }),
+        new File(["docx-data"], "proposal.docx", {
+          type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        }),
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      url: "https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.docx",
+      pathname: "proposal.docx",
+      contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    });
+  });
+
+  it("accepts files up to 10MB", async () => {
+    mockUpload.mockResolvedValue({ data: { path: "client-1/1700000000000-deadbeef.pdf" }, error: null });
+    mockGetPublicUrl.mockReturnValue({
+      data: {
+        publicUrl: "https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.pdf",
+      },
+    });
+
+    const response = await POST(
+      createFileRequest(
+        new File([new ArrayBuffer(10 * 1024 * 1024)], "big.pdf", { type: "application/pdf" }),
+      ),
+    );
+
+    expect(response.status).toBe(200);
+  });
+
+  it("returns 400 when the file exceeds 10MB", async () => {
+    const response = await POST(
+      createFileRequest(
+        new File([new ArrayBuffer(11 * 1024 * 1024)], "big.jpg", { type: "image/jpeg" }),
       ),
     );
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "File size should be less than 5MB",
+      error: "File size should be less than 10MB",
     });
   });
 
   it("returns 400 for unsupported file types", async () => {
     const response = await POST(
-      createFileRequest(new File(["x"], "doc.pdf", { type: "application/pdf" })),
+      createFileRequest(new File(["x"], "archive.zip", { type: "application/zip" })),
     );
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "File type should be JPEG, PNG, XLSX, XLS, or CSV",
+      error: "File type is not supported for chat uploads",
     });
   });
 

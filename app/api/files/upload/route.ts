@@ -8,16 +8,13 @@ import { z } from "zod";
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
+import {
+  ALLOWED_UPLOAD_TYPES,
+  MAX_UPLOAD_SIZE_BYTES,
+} from "@/lib/chat/attachment-config";
 import { getFileExtension } from "@/lib/file-utils";
 
 const BUCKET_ID = "chat-attachments";
-const ALLOWED_UPLOAD_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-excel",
-  "text/csv",
-]);
 
 function isBlobLike(value: unknown): value is Blob {
   return (
@@ -35,11 +32,11 @@ function isBlobLike(value: unknown): value is Blob {
 const fileSchema = z.object({
   file: z
     .custom<Blob>(isBlobLike, { message: "Invalid input" })
-    .refine((file) => file.size <= 5 * 1024 * 1024, {
-      message: "File size should be less than 5MB",
+    .refine((file) => file.size <= MAX_UPLOAD_SIZE_BYTES, {
+      message: "File size should be less than 10MB",
     })
     .refine((file) => ALLOWED_UPLOAD_TYPES.has(file.type), {
-      message: "File type should be JPEG, PNG, XLSX, XLS, or CSV",
+      message: "File type is not supported for chat uploads",
     }),
 });
 

@@ -18,6 +18,47 @@ interface PreviewAttachmentProps {
   onRemove?: () => void;
 }
 
+function getFileTypeLabel(contentType: string): string {
+  if (contentType === "application/pdf") {
+    return "PDF";
+  }
+
+  if (
+    contentType === "application/msword"
+    || contentType.includes("wordprocessingml")
+  ) {
+    return "Word";
+  }
+
+  if (
+    contentType === "application/vnd.ms-excel"
+    || contentType.includes("spreadsheetml")
+  ) {
+    return "Excel";
+  }
+
+  if (
+    contentType === "application/vnd.ms-powerpoint"
+    || contentType.includes("presentationml")
+  ) {
+    return "Slides";
+  }
+
+  if (contentType === "text/csv") {
+    return "CSV";
+  }
+
+  if (contentType === "application/json") {
+    return "JSON";
+  }
+
+  if (contentType.startsWith("text/")) {
+    return "Text";
+  }
+
+  return "File";
+}
+
 export function PreviewAttachment({
   attachment,
   isUploading = false,
@@ -40,7 +81,7 @@ export function PreviewAttachment({
         />
       ) : (
         <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
-          File
+          {getFileTypeLabel(contentType)}
         </div>
       )}
 

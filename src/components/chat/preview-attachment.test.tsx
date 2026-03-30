@@ -63,7 +63,21 @@ describe("PreviewAttachment", () => {
     );
 
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
-    expect(screen.getByText("File")).toBeInTheDocument();
+    expect(screen.getByText("PDF")).toBeInTheDocument();
     expect(screen.getByText("brief.pdf")).toBeInTheDocument();
+  });
+
+  it("renders a Word label for DOCX attachments", () => {
+    render(
+      <PreviewAttachment
+        attachment={{
+          filename: "proposal.docx",
+          url: "https://storage.example.com/proposal.docx",
+          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Word")).toBeInTheDocument();
   });
 });

@@ -1,16 +1,24 @@
 /**
- * Compact pill-style tool call display inspired by Dorabot.
- * Collapsed: rounded pill with dot + tool name + chevron.
- * Expanded: args and result in light gray boxes below the pill.
+ * Compact inline tool renderer with richer connection-specific cards.
  * @module components/chat/tool-call-inline
  */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { JsonView } from "@/components/ui/json-view";
 import { useBrowserAuth } from "@/hooks/use-browser-auth";
 import { getBrowserPlatformConfig } from "@/lib/browser-use/platforms";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 export type ToolPartState =
@@ -34,18 +42,23 @@ interface ToolCallInlineProps {
   onToolApproval?: (approvalId: string, approved: boolean) => void;
 }
 
-/** Check if an output is a successful generate_pdf result with a download URL. */
-function isPdfDownload(
-  toolName: string,
-  output: unknown,
-): output is { success: true; download_url: string; filename?: string } {
-  return (
-    toolName === "generate_pdf" &&
-    output !== null &&
-    typeof output === "object" &&
-    (output as Record<string, unknown>).success === true &&
-    typeof (output as Record<string, unknown>).download_url === "string"
-  );
+interface ConnectionResult {
+  integrationId: string;
+  displayName: string;
+  description: string;
+  connectionStatus: "pending_auth";
+  redirectUrl: string;
+  composioConnectedAccountId: string;
+}
+
+type ConnectionCardStatus = ConnectionResult["connectionStatus"] | "active" | "error";
+
+interface PermissionRequestInput {
+  connections: Array<{
+    connectionId: string;
+    activate: string[];
+    deactivate: string[];
+  }>;
 }
 
 /** Check if browse_website returned an auth-required result. */
@@ -54,17 +67,272 @@ function isBrowserNeedsAuth(
   output: unknown,
 ): output is { success: false; needsAuth: true; platform: string; error?: string } {
   return (
-    toolName === "browse_website" &&
-    output !== null &&
-    typeof output === "object" &&
-    (output as Record<string, unknown>).success === false &&
-    (output as Record<string, unknown>).needsAuth === true &&
-    typeof (output as Record<string, unknown>).platform === "string"
+    toolName === "browse_website"
+    && output !== null
+    && typeof output === "object"
+    && (output as Record<string, unknown>).success === false
+    && (output as Record<string, unknown>).needsAuth === true
+    && typeof (output as Record<string, unknown>).platform === "string"
   );
 }
 
-export function ToolCallInline({ name, state, input, output, errorText, approvalId, onToolApproval }: ToolCallInlineProps) {
+function isConnectionCreation(
+  toolName: string,
+  output: unknown,
+): output is { success: true; results: ConnectionResult[] } {
+  return (
+    toolName === "create_new_connections"
+    && output !== null
+    && typeof output === "object"
+    && (output as Record<string, unknown>).success === true
+    && Array.isArray((output as Record<string, unknown>).results)
+  );
+}
+
+function isToolPermissionRequest(
+  toolName: string,
+  input: unknown,
+): input is PermissionRequestInput {
+  return (
+    toolName === "manage_activated_tools_for_connections"
+    && input !== null
+    && typeof input === "object"
+    && Array.isArray((input as Record<string, unknown>).connections)
+  );
+}
+
+function getRequestedToolSlugs(input: PermissionRequestInput): string[] {
+  const toolSlugs = new Set<string>();
+
+  for (const connection of input.connections) {
+    for (const toolSlug of connection.activate) {
+      toolSlugs.add(toolSlug);
+    }
+  }
+
+  return [...toolSlugs];
+}
+
+function ConnectionModal({
+  integrationName,
+  redirectUrl,
+  isOpen,
+  onOpenChange,
+  onContinue,
+}: {
+  integrationName: string;
+  redirectUrl: string;
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  onContinue: () => void;
+}) {
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Connect {integrationName}</DialogTitle>
+          <DialogDescription>
+            This connection is saved to your account. The agent only gets access after you approve the tools it should use.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex items-center justify-end">
+          <Button
+            type="button"
+            onClick={() => {
+              onContinue();
+              window.open(redirectUrl, "_blank", "noopener,noreferrer");
+              onOpenChange(false);
+            }}
+          >
+            Continue to {integrationName}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ConnectionRow({ result }: { result: ConnectionResult }) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [hasStartedOAuth, setHasStartedOAuth] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionCardStatus>(
+    result.connectionStatus,
+  );
+  const [accountIdentifier, setAccountIdentifier] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`connection-card:${result.composioConnectedAccountId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "connections",
+          filter: `composio_connected_account_id=eq.${result.composioConnectedAccountId}`,
+        },
+        (payload) => {
+          const nextRow = (payload as {
+            new?: { status?: string; account_identifier?: string | null };
+          }).new;
+
+          if (typeof nextRow?.status === "string") {
+            if (nextRow.status === "active") {
+              setConnectionStatus("active");
+            } else if (nextRow.status === "error") {
+              setConnectionStatus("error");
+            }
+          }
+
+          if (typeof nextRow?.account_identifier === "string") {
+            setAccountIdentifier(nextRow.account_identifier);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [result.composioConnectedAccountId]);
+
+  const isConnected = connectionStatus === "active";
+  const hasFailed = connectionStatus === "error";
+
+  return (
+    <div className="rounded-lg border border-border/60 bg-background px-4 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium text-foreground">{result.displayName}</p>
+            {isConnected ? <Badge variant="outline">Connected</Badge> : null}
+            {hasFailed ? <Badge variant="outline">Needs retry</Badge> : null}
+            {!isConnected && !hasFailed && hasStartedOAuth ? (
+              <Badge variant="outline">Awaiting login</Badge>
+            ) : null}
+          </div>
+          <p className="text-sm text-muted-foreground">{result.description}</p>
+          {accountIdentifier ? (
+            <p className="text-xs text-muted-foreground">{accountIdentifier}</p>
+          ) : null}
+        </div>
+
+        {isConnected ? null : (
+          <Button
+            size="sm"
+            type="button"
+            variant={hasStartedOAuth ? "outline" : "default"}
+            onClick={() => setIsModalOpen(true)}
+          >
+            Connect {result.displayName}
+          </Button>
+        )}
+      </div>
+
+      <ConnectionModal
+        integrationName={result.displayName}
+        redirectUrl={result.redirectUrl}
+        isOpen={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        onContinue={() => setHasStartedOAuth(true)}
+      />
+    </div>
+  );
+}
+
+function ConnectionCard({ results }: { results: ConnectionResult[] }) {
+  return (
+    <div
+      className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4"
+      data-testid="connection-card"
+    >
+      <div className="space-y-1">
+        <p className="text-sm font-medium text-foreground">Create new connection?</p>
+        <p className="text-sm text-muted-foreground">It will be saved to your account for future use.</p>
+      </div>
+
+      <div className="space-y-2">
+        {results.map((result) => (
+          <ConnectionRow key={result.composioConnectedAccountId} result={result} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PermissionCard({
+  input,
+  state,
+  approvalId,
+  onToolApproval,
+}: {
+  input: PermissionRequestInput;
+  state: ToolPartState;
+  approvalId?: string;
+  onToolApproval?: (approvalId: string, approved: boolean) => void;
+}) {
+  const requestedToolSlugs = getRequestedToolSlugs(input);
+  const isAwaitingApproval = state === "approval-requested";
+  const isGranted = state === "approval-responded" || state === "output-available";
+  const isDenied = state === "output-denied";
+
+  return (
+    <div
+      className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4"
+      data-testid="permission-card"
+    >
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium text-foreground">Grant permissions to agent?</p>
+          {isGranted ? <Badge variant="outline">Granted</Badge> : null}
+          {isDenied ? <Badge variant="outline">Denied</Badge> : null}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          The agent is requesting access to the following connection tools.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {requestedToolSlugs.map((toolSlug) => (
+          <Badge key={toolSlug} variant="secondary">
+            {toolSlug}
+          </Badge>
+        ))}
+      </div>
+
+      {isAwaitingApproval && onToolApproval && approvalId ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" size="sm" onClick={() => onToolApproval(approvalId, true)}>
+            Grant Permissions
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => onToolApproval(approvalId, false)}
+          >
+            Deny
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function ToolCallInline({
+  name,
+  state,
+  input,
+  output,
+  errorText,
+  approvalId,
+  onToolApproval,
+}: ToolCallInlineProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const connectionCreation = isConnectionCreation(name, output) ? output : null;
+  const permissionRequest = isToolPermissionRequest(name, input) ? input : null;
   const authNeeded = isBrowserNeedsAuth(name, output) ? output : null;
   const authPlatformConfig = authNeeded
     ? getBrowserPlatformConfig(authNeeded.platform)
@@ -74,14 +342,28 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
   const isAwaitingApproval = state === "approval-requested";
   const isDenied = state === "output-denied";
   const hasError = state === "output-error";
-  const pdfResult = isPdfDownload(name, output) ? output : null;
+
+  if (connectionCreation) {
+    return <ConnectionCard results={connectionCreation.results} />;
+  }
+
+  if (permissionRequest) {
+    return (
+      <PermissionCard
+        input={permissionRequest}
+        state={state}
+        approvalId={approvalId}
+        onToolApproval={onToolApproval}
+      />
+    );
+  }
 
   return (
     <div data-testid="tool-call-inline">
       <button
         type="button"
         data-testid="tool-expand-trigger"
-        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors py-0.5"
+        className="flex items-center gap-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
         onClick={() => setIsOpen(!isOpen)}
       >
         <span
@@ -94,15 +376,15 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
           )}
         />
         <span>{name}</span>
-        {isDenied && (
+        {isDenied ? (
           <span className="text-[10px] font-medium text-denied">
             Denied
           </span>
-        )}
+        ) : null}
         <span data-testid="tool-chevron" className="text-[10px] text-muted-foreground/40">›</span>
       </button>
 
-      {isAwaitingApproval && onToolApproval && approvalId && (
+      {isAwaitingApproval && onToolApproval && approvalId ? (
         <div data-testid="tool-approval-actions" className="ml-3 mt-1 flex items-center gap-2">
           <button
             type="button"
@@ -121,25 +403,9 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
             Deny
           </button>
         </div>
-      )}
+      ) : null}
 
-      {pdfResult && (
-        <a
-          data-testid="pdf-download-link"
-          href={pdfResult.download_url}
-          download={pdfResult.filename ?? "document.pdf"}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="ml-3 mt-1 inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
-        >
-          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          {pdfResult.filename ?? "Download PDF"}
-        </a>
-      )}
-
-      {authNeeded && (
+      {authNeeded ? (
         <div
           data-testid="browser-auth-card"
           className="ml-3 mt-1 space-y-2 rounded-md border border-warning/20 bg-warning/5 p-3"
@@ -148,7 +414,7 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
             Access to <span className="font-medium">{authPlatformConfig?.label ?? authNeeded.platform}</span> requires login.
           </p>
 
-          {browserAuthState.status === "awaiting-login" && browserAuthState.liveUrl && (
+          {browserAuthState.status === "awaiting-login" && browserAuthState.liveUrl ? (
             <div className="space-y-2">
               <iframe
                 title={`${authNeeded.platform} login`}
@@ -164,7 +430,7 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
                 Open in new tab
               </a>
             </div>
-          )}
+          ) : null}
 
           {browserAuthState.status === "done" ? (
             <p className="text-xs text-success">
@@ -172,7 +438,9 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
             </p>
           ) : null}
 
-          {browserAuthState.status !== "awaiting-login" && browserAuthState.status !== "verifying" && browserAuthState.status !== "done" && (
+          {browserAuthState.status !== "awaiting-login"
+          && browserAuthState.status !== "verifying"
+          && browserAuthState.status !== "done" ? (
             <button
               type="button"
               className="rounded-md bg-warning px-3 py-1.5 text-xs font-medium text-warning-foreground transition-colors hover:opacity-90"
@@ -180,9 +448,9 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
             >
               Connect {authPlatformConfig?.label ?? authNeeded.platform}
             </button>
-          )}
+          ) : null}
 
-          {browserAuthState.status === "awaiting-login" && (
+          {browserAuthState.status === "awaiting-login" ? (
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -199,13 +467,13 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
                 Cancel
               </button>
             </div>
-          )}
+          ) : null}
 
-          {browserAuthState.status === "verifying" && (
+          {browserAuthState.status === "verifying" ? (
             <p className="text-xs text-foreground">
               Verifying login...
             </p>
-          )}
+          ) : null}
 
           {authNeeded.error ? (
             <p className="text-xs text-muted-foreground">
@@ -213,15 +481,15 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
             </p>
           ) : null}
         </div>
-      )}
+      ) : null}
 
-      {isOpen && (
+      {isOpen ? (
         <div data-testid="tool-details" className="ml-3 mt-0.5 space-y-1.5">
           <div>
-            <p className="text-xs font-medium text-muted-foreground/70 mb-0.5">Arguments</p>
+            <p className="mb-0.5 text-xs font-medium text-muted-foreground/70">Arguments</p>
             <div
               data-testid="tool-arguments"
-              className="rounded bg-muted/30 px-2 py-1.5 overflow-x-auto"
+              className="overflow-x-auto rounded bg-muted/30 px-2 py-1.5"
             >
               <JsonView data={input} />
             </div>
@@ -229,24 +497,24 @@ export function ToolCallInline({ name, state, input, output, errorText, approval
 
           {hasError && errorText ? (
             <div>
-              <p className="text-xs font-medium text-destructive/70 mb-0.5">Error</p>
-              <pre className="rounded bg-destructive/5 px-2 py-1.5 text-xs text-destructive overflow-x-auto">
+              <p className="mb-0.5 text-xs font-medium text-destructive/70">Error</p>
+              <pre className="overflow-x-auto rounded bg-destructive/5 px-2 py-1.5 text-xs text-destructive">
                 {errorText}
               </pre>
             </div>
           ) : !isDenied && output !== undefined ? (
             <div>
-              <p className="text-xs font-medium text-muted-foreground/70 mb-0.5">Result</p>
+              <p className="mb-0.5 text-xs font-medium text-muted-foreground/70">Result</p>
               <div
                 data-testid="tool-result"
-                className="rounded bg-muted/30 px-2 py-1.5 overflow-x-auto"
+                className="overflow-x-auto rounded bg-muted/30 px-2 py-1.5"
               >
                 <JsonView data={output} />
               </div>
             </div>
           ) : null}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

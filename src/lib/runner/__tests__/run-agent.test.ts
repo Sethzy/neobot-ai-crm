@@ -1711,8 +1711,92 @@ describe("runAgent", () => {
       expect(mockAssembleContext).toHaveBeenCalledWith(
         expect.objectContaining({
           includeSandbox: true,
-        }),
-      );
-    });
+      }),
+    );
+  });
+
+  it("filters sandbox-only file parts out of the model-visible message parts", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(
+      {
+        ...validPayload,
+        input: "Review these files",
+        fileParts: [
+          {
+            type: "file",
+            filename: "shot.png",
+            mediaType: "image/png",
+            url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+          },
+          {
+            type: "file",
+            filename: "proposal.docx",
+            mediaType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            url: "https://storage.example.com/chat-attachments/client-1/proposal.docx",
+          },
+          {
+            type: "file",
+            filename: "brief.pdf",
+            mediaType: "application/pdf",
+            url: "https://storage.example.com/chat-attachments/client-1/brief.pdf",
+          },
+        ],
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockCreateMessages).toHaveBeenCalledWith("mock-supabase-client", [
+      {
+        thread_id: validPayload.threadId,
+        role: "user",
+        content: "Review these files",
+        parts: [
+          {
+            type: "file",
+            filename: "shot.png",
+            mediaType: "image/png",
+            url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+          },
+          {
+            type: "file",
+            filename: "proposal.docx",
+            mediaType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            url: "https://storage.example.com/chat-attachments/client-1/proposal.docx",
+          },
+          {
+            type: "file",
+            filename: "brief.pdf",
+            mediaType: "application/pdf",
+            url: "https://storage.example.com/chat-attachments/client-1/brief.pdf",
+          },
+          { type: "text", text: "Review these files" },
+        ],
+      },
+    ]);
+    expect(mockAssembleContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentMessageParts: [
+          {
+            type: "file",
+            filename: "shot.png",
+            mediaType: "image/png",
+            url: "https://storage.example.com/chat-attachments/client-1/shot.png",
+          },
+          {
+            type: "file",
+            filename: "brief.pdf",
+            mediaType: "application/pdf",
+            url: "https://storage.example.com/chat-attachments/client-1/brief.pdf",
+          },
+          {
+            type: "text",
+            text: "[User uploaded files are available in the sandbox at /input/. Use bash to list and process them.]",
+          },
+          { type: "text", text: "Review these files" },
+        ],
+      }),
+    );
+  });
   });
 });

@@ -15,6 +15,7 @@ import { getServerEnv } from "@/lib/env";
 import { isApifyConfigured } from "@/lib/apify/env";
 import { isBrowserUseConfigured } from "@/lib/browser-use/client";
 import { createMessages } from "@/lib/chat/messages";
+import { isModelVisible } from "@/lib/chat/attachment-config";
 import { loadActivatedConnectionTools } from "@/lib/composio";
 import { getActiveConnections } from "@/lib/connections/queries";
 import { loadCrmConfig } from "@/lib/crm/config";
@@ -214,8 +215,22 @@ export async function runAgent(
     }
     const runId = lockResult.runId;
 
+    const allFileParts = payload.fileParts ?? [];
+    const persistedUserMessageParts = [
+      ...allFileParts,
+      ...(input.length > 0 ? [{ type: "text" as const, text: input }] : []),
+    ];
+    const modelVisibleParts = allFileParts.filter((part) => isModelVisible(part.mediaType));
+    const sandboxOnlyParts = allFileParts.filter((part) => !isModelVisible(part.mediaType));
+
     const userMessageParts = [
-      ...(payload.fileParts ?? []),
+      ...modelVisibleParts,
+      ...(sandboxOnlyParts.length > 0
+        ? [{
+            type: "text" as const,
+            text: "[User uploaded files are available in the sandbox at /input/. Use bash to list and process them.]",
+          }]
+        : []),
       ...(input.length > 0 ? [{ type: "text" as const, text: input }] : []),
     ];
 
@@ -281,7 +296,7 @@ export async function runAgent(
           thread_id: threadId,
           role: "user",
           content: input.length > 0 ? input : null,
-          parts: userMessageParts as Json,
+          parts: persistedUserMessageParts as Json,
         },
       ]);
       shouldReleaseConsumedQuota = false;

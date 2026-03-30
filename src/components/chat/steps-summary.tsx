@@ -46,8 +46,17 @@ function getActionText(parts: StepsSummaryProps["parts"]): string {
   return "Thinking...";
 }
 
+function isProminentToolPart(part: { type: string; [key: string]: unknown }): boolean {
+  return (
+    part.type === "tool-create_new_connections"
+    || part.type === "tool-manage_activated_tools_for_connections"
+  );
+}
+
 export function StepsSummary({ parts, isStreaming, hasTextParts, messageId, onToolApproval }: StepsSummaryProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const prominentToolParts = parts.filter((part) => isProminentToolPart(part));
+  const collapsibleParts = parts.filter((part) => !isProminentToolPart(part));
 
   // Activity is complete when: not streaming OR text has started streaming
   const isComplete = !isStreaming || hasTextParts;
@@ -59,6 +68,32 @@ export function StepsSummary({ parts, isStreaming, hasTextParts, messageId, onTo
 
   return (
     <div data-testid="steps-summary">
+      {prominentToolParts.map((part, i) => {
+        const toolPart = part as {
+          type: string;
+          state: ToolPartState;
+          input: unknown;
+          output?: unknown;
+          errorText?: string;
+          approval?: { id: string };
+        };
+        const toolName = toolPart.type.replace(/^tool-/, "");
+
+        return (
+          <div className="mb-2" key={`${messageId}-prominent-${i}`}>
+            <ToolCallInline
+              name={toolName}
+              state={toolPart.state}
+              input={toolPart.input}
+              output={toolPart.output}
+              errorText={toolPart.errorText}
+              approvalId={toolPart.approval?.id}
+              onToolApproval={onToolApproval}
+            />
+          </div>
+        );
+      })}
+
       <button
         type="button"
         data-testid="steps-summary-trigger"
@@ -75,16 +110,16 @@ export function StepsSummary({ parts, isStreaming, hasTextParts, messageId, onTo
         <span className="text-[10px]">{isOpen ? "▼" : "▶"}</span>
       </button>
 
-      {isOpen && (
+      {isOpen && collapsibleParts.length > 0 && (
         <div data-testid="steps-summary-content" className="mt-1 space-y-3 ml-1 border-l border-border/40 pl-3">
-          {parts.map((part, i) => {
+          {collapsibleParts.map((part, i) => {
             const key = `${messageId}-step-${i}`;
 
             if (part.type === "reasoning") {
               return (
                 <Reasoning
                   key={key}
-                  isStreaming={isStreaming && i === parts.length - 1}
+                  isStreaming={isStreaming && i === collapsibleParts.length - 1}
                 >
                   <ReasoningTrigger />
                   <ReasoningContent>{part.text as string}</ReasoningContent>

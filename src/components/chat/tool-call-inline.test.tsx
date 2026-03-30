@@ -10,8 +10,39 @@ const { mockUseBrowserAuth } = vi.hoisted(() => ({
   mockUseBrowserAuth: vi.fn(),
 }));
 
+const {
+  mockCreateSupabaseClient,
+  mockSupabaseChannel,
+  mockSupabaseRemoveChannel,
+} = vi.hoisted(() => {
+  const channel = {
+    on: vi.fn(),
+    subscribe: vi.fn(),
+  };
+
+  channel.on.mockReturnValue(channel);
+  channel.subscribe.mockReturnValue(channel);
+
+  return {
+    mockCreateSupabaseClient: vi.fn(() => ({
+      channel: vi.fn(() => channel),
+      removeChannel: vi.fn(),
+    })),
+    mockSupabaseChannel: channel,
+    mockSupabaseRemoveChannel: vi.fn(),
+  };
+});
+
 vi.mock("@/hooks/use-browser-auth", () => ({
   useBrowserAuth: (...args: unknown[]) => mockUseBrowserAuth(...args),
+}));
+
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => {
+    const client = mockCreateSupabaseClient();
+    client.removeChannel = mockSupabaseRemoveChannel;
+    return client;
+  },
 }));
 
 import { ToolCallInline } from "./tool-call-inline";
@@ -237,6 +268,67 @@ describe("approval-requested state", () => {
     const dot = screen.getByTestId("tool-dot");
     expect(dot.className).toMatch(/animate-pulse/);
     expect(dot.className).toMatch(/bg-approval/);
+  });
+});
+
+describe("connection cards", () => {
+  it("renders ConnectionCard for create_new_connections output", () => {
+    render(
+      <ToolCallInline
+        name="create_new_connections"
+        state="output-available"
+        input={{
+          connection: {
+            type: "integrations",
+            integrations: [{ integrationId: "googledrive" }],
+          },
+        }}
+        output={{
+          success: true,
+          results: [
+            {
+              integrationId: "googledrive",
+              displayName: "Google Drive",
+              description: "Access files in Google Drive",
+              connectionStatus: "pending_auth",
+              redirectUrl: "https://auth.composio.dev/google-drive",
+              composioConnectedAccountId: "acc-123",
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Create new connection?")).toBeInTheDocument();
+    expect(screen.getByText("Google Drive")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /connect google drive/i })).toBeInTheDocument();
+  });
+
+  it("renders PermissionCard from input during approval-requested state", () => {
+    render(
+      <ToolCallInline
+        name="manage_activated_tools_for_connections"
+        state="approval-requested"
+        approvalId="approval-123"
+        input={{
+          connections: [
+            {
+              connectionId: "conn-123",
+              activate: ["GOOGLEDRIVE_FIND_FILE", "GOOGLEDRIVE_DOWNLOAD_FILE"],
+              deactivate: [],
+            },
+          ],
+        }}
+        output={null}
+        onToolApproval={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Grant permissions to agent?")).toBeInTheDocument();
+    expect(screen.getByText("GOOGLEDRIVE_FIND_FILE")).toBeInTheDocument();
+    expect(screen.getByText("GOOGLEDRIVE_DOWNLOAD_FILE")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /grant permissions/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /deny/i })).toBeInTheDocument();
   });
 });
 

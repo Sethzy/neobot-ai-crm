@@ -14,7 +14,12 @@ vi.mock("@/lib/connections/queries", () => ({
   insertConnection: vi.fn(),
 }));
 
+vi.mock("@/lib/composio/catalog", () => ({
+  getToolkitDisplayInfo: vi.fn(),
+}));
+
 import { initiateOAuthFlow } from "@/lib/composio/connection-flow";
+import { getToolkitDisplayInfo } from "@/lib/composio/catalog";
 import { getActiveConnectionsByToolkit, insertConnection } from "@/lib/connections/queries";
 
 import { createCreateConnectionTool } from "../create-connection";
@@ -48,6 +53,11 @@ describe("createCreateConnectionTool", () => {
 
   it("creates a pending integration connection and returns the redirect URL", async () => {
     vi.mocked(getActiveConnectionsByToolkit).mockResolvedValue([]);
+    vi.mocked(getToolkitDisplayInfo).mockResolvedValue({
+      integrationId: "gmail",
+      displayName: "Gmail",
+      description: "Send and read Gmail messages",
+    });
     vi.mocked(initiateOAuthFlow).mockResolvedValue({
       redirectUrl: "https://composio.dev/oauth/redirect",
       connectedAccountId: "composio-acct-123",
@@ -92,8 +102,11 @@ describe("createCreateConnectionTool", () => {
       results: [
         {
           integrationId: "gmail",
+          displayName: "Gmail",
+          description: "Send and read Gmail messages",
           connectionStatus: "pending_auth",
           redirectUrl: "https://composio.dev/oauth/redirect",
+          composioConnectedAccountId: "composio-acct-123",
           existingConnections: undefined,
         },
       ],
@@ -102,6 +115,11 @@ describe("createCreateConnectionTool", () => {
 
   it("defaults toolsToActivate to an empty array", async () => {
     vi.mocked(getActiveConnectionsByToolkit).mockResolvedValue([]);
+    vi.mocked(getToolkitDisplayInfo).mockResolvedValue({
+      integrationId: "slack",
+      displayName: "Slack",
+      description: "Post and read Slack messages",
+    });
     vi.mocked(initiateOAuthFlow).mockResolvedValue({
       redirectUrl: "https://composio.dev/oauth/slack",
       connectedAccountId: "composio-acct-456",
@@ -134,6 +152,17 @@ describe("createCreateConnectionTool", () => {
         } as never,
       ])
       .mockResolvedValueOnce([]);
+    vi.mocked(getToolkitDisplayInfo)
+      .mockResolvedValueOnce({
+        integrationId: "gmail",
+        displayName: "Gmail",
+        description: "Send and read Gmail messages",
+      })
+      .mockResolvedValueOnce({
+        integrationId: "slack",
+        displayName: "Slack",
+        description: "Send and receive Slack messages",
+      });
     vi.mocked(initiateOAuthFlow)
       .mockResolvedValueOnce({
         redirectUrl: "https://composio.dev/oauth/gmail",
@@ -159,6 +188,9 @@ describe("createCreateConnectionTool", () => {
     expect(result.results).toHaveLength(2);
     expect(result.results[0]).toMatchObject({
       integrationId: "gmail",
+      displayName: "Gmail",
+      description: "Send and read Gmail messages",
+      composioConnectedAccountId: "composio-gmail",
       existingConnections: [
         {
           connectionId: "conn-existing",
@@ -168,6 +200,9 @@ describe("createCreateConnectionTool", () => {
     });
     expect(result.results[1]).toMatchObject({
       integrationId: "slack",
+      displayName: "Slack",
+      description: "Send and receive Slack messages",
+      composioConnectedAccountId: "composio-slack",
       existingConnections: undefined,
     });
     expect(initiateOAuthFlow).toHaveBeenNthCalledWith(2, {

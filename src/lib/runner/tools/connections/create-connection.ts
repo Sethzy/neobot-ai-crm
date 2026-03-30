@@ -6,6 +6,7 @@ import { tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
+import { getToolkitDisplayInfo } from "@/lib/composio/catalog";
 import { getCallbackUrl, initiateOAuthFlow } from "@/lib/composio/connection-flow";
 import { getActiveConnectionsByToolkit, insertConnection } from "@/lib/connections/queries";
 import type { Database } from "@/types/database";
@@ -80,8 +81,11 @@ export function createCreateConnectionTool(
 
         const results: Array<{
           integrationId: string;
+          displayName: string;
+          description: string;
           connectionStatus: "pending_auth";
           redirectUrl: string;
+          composioConnectedAccountId: string;
           existingConnections:
             | Array<{ connectionId: string; accountIdentifier: string | null }>
             | undefined;
@@ -89,6 +93,7 @@ export function createCreateConnectionTool(
 
         for (const integration of connection.integrations) {
           const callbackUrl = getCallbackUrl(integration.integrationId);
+          const toolkitDisplayInfo = await getToolkitDisplayInfo(integration.integrationId);
           const existingConnections = await getActiveConnectionsByToolkit(
             supabase,
             clientId,
@@ -113,8 +118,11 @@ export function createCreateConnectionTool(
 
           results.push({
             integrationId: integration.integrationId,
+            displayName: toolkitDisplayInfo.displayName,
+            description: toolkitDisplayInfo.description,
             connectionStatus: "pending_auth",
             redirectUrl,
+            composioConnectedAccountId: connectedAccountId,
             existingConnections:
               existingConnections.length > 0
                 ? existingConnections.map((existingConnection) => ({

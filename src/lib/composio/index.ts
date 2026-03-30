@@ -11,9 +11,11 @@ export {
 export {
   searchIntegrations,
   getToolkitCapabilities,
+  getToolkitDisplayInfo,
   type CatalogIntegration,
   type ToolkitCapability,
   type ToolkitCapabilityTool,
+  type ToolkitDisplayInfo,
 } from "./catalog";
 export { loadActivatedConnectionTools } from "./activated-tools";
 export { loadComposioTools } from "./tools";

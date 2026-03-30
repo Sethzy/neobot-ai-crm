@@ -29,6 +29,21 @@ export interface ToolkitCapability {
   tools: ToolkitCapabilityTool[];
 }
 
+export interface ToolkitDisplayInfo {
+  integrationId: string;
+  displayName: string;
+  description: string;
+}
+
+interface RawComposioTool {
+  description?: string | null;
+  toolkit?: {
+    description?: string | null;
+    name?: string | null;
+    slug?: string | null;
+  } | null;
+}
+
 /**
  * Searches the Composio catalog and deduplicates results by toolkit slug.
  */
@@ -95,4 +110,25 @@ export async function getToolkitCapabilities(
       })),
     } satisfies ToolkitCapability;
   }));
+}
+
+/**
+ * Loads lightweight display metadata for one toolkit slug.
+ */
+export async function getToolkitDisplayInfo(
+  toolkitSlug: string,
+): Promise<ToolkitDisplayInfo> {
+  const composio = getComposio();
+  const [toolkitTool] = await composio.tools.getRawComposioTools({
+    toolkits: [toolkitSlug],
+    limit: 1,
+  }) as RawComposioTool[];
+
+  return {
+    integrationId: toolkitSlug,
+    displayName: toolkitTool?.toolkit?.name ?? toolkitSlug,
+    description: toolkitTool?.toolkit?.description
+      ?? toolkitTool?.description
+      ?? "",
+  };
 }

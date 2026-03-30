@@ -11,7 +11,11 @@ vi.mock("../client", () => ({
 
 import { getComposio } from "../client";
 
-import { getToolkitCapabilities, searchIntegrations } from "../catalog";
+import {
+  getToolkitCapabilities,
+  getToolkitDisplayInfo,
+  searchIntegrations,
+} from "../catalog";
 
 function createMockTool(
   slug: string,
@@ -192,5 +196,49 @@ describe("getToolkitCapabilities", () => {
     createMockComposio([]);
 
     await expect(getToolkitCapabilities([])).resolves.toEqual([]);
+  });
+});
+
+describe("getToolkitDisplayInfo", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("loads lightweight display metadata from the tools API", async () => {
+    const mock = createMockComposio([
+      [
+        {
+          slug: "GOOGLEDRIVE_FIND_FILE",
+          name: "Google Drive Find File",
+          description: "Search Google Drive files",
+          tags: ["drive"],
+          toolkit: {
+            slug: "googledrive",
+            name: "Google Drive",
+            description: "Browse and manage Google Drive files",
+          },
+        } as never,
+      ],
+    ]);
+
+    await expect(getToolkitDisplayInfo("googledrive")).resolves.toEqual({
+      integrationId: "googledrive",
+      displayName: "Google Drive",
+      description: "Browse and manage Google Drive files",
+    });
+    expect(mock.tools.getRawComposioTools).toHaveBeenCalledWith({
+      toolkits: ["googledrive"],
+      limit: 1,
+    });
+  });
+
+  it("falls back to the toolkit slug when the tools API returns no metadata", async () => {
+    createMockComposio([[]]);
+
+    await expect(getToolkitDisplayInfo("gmail")).resolves.toEqual({
+      integrationId: "gmail",
+      displayName: "gmail",
+      description: "",
+    });
   });
 });

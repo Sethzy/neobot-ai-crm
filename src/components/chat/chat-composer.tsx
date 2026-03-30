@@ -25,6 +25,7 @@ import {
   type MessageQuotaStatus,
 } from "@/lib/usage/message-quota";
 import { cn } from "@/lib/utils";
+import { CHAT_ATTACHMENT_ACCEPT } from "@/lib/chat/attachment-config";
 import type { ChatStatus } from "@/types/chat";
 
 import { PreviewAttachment, type Attachment } from "./preview-attachment";
@@ -56,8 +57,6 @@ interface ChatComposerProps {
   messageQuota?: MessageQuotaStatus | null;
 }
 
-const CHAT_ATTACHMENT_ACCEPT =
-  "image/jpeg,image/png,.xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel";
 const PASTEABLE_FILE_TYPES = new Set([
   "text/csv",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

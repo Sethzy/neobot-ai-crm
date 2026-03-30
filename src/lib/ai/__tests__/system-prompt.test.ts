@@ -163,6 +163,14 @@ describe("SYSTEM_PROMPT", () => {
     );
   });
 
+  it("includes Google Workspace guidance for connected Drive, Docs, and Sheets", () => {
+    expect(SYSTEM_PROMPT).toContain("Google Workspace");
+    expect(SYSTEM_PROMPT).toContain("GOOGLEDRIVE_FIND_FILE");
+    expect(SYSTEM_PROMPT).toContain("GOOGLEDOCS");
+    expect(SYSTEM_PROMPT).toContain("GOOGLESHEETS");
+    expect(SYSTEM_PROMPT).toContain("use bash in the sandbox");
+  });
+
   it("includes custom skill discovery and loading guidance", () => {
     expect(SYSTEM_PROMPT).toContain("<custom-skills>");
     expect(SYSTEM_PROMPT).toContain("</custom-skills>");
