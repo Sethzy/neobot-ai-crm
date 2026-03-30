@@ -19,9 +19,9 @@ export interface SandboxContextEntry {
   output: unknown;
 }
 
-/** An artifact synced from sandbox output/ back to Supabase Storage. */
+/** A file synced from sandbox agent/home/ back to Supabase Storage. */
 export interface SyncedArtifact {
-  /** Path relative to output/ (e.g., "rental-analysis.xlsx"). */
+  /** Path relative to agent/home/ (e.g., "rental-analysis.xlsx"). */
   relativePath: string;
   /** Signed download URL from Supabase Storage. */
   downloadUrl: string;

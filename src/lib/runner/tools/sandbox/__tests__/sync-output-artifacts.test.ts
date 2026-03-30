@@ -2,13 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 
 import { syncOutputArtifacts } from "../sync-output-artifacts";
 
-function createMockSandbox(outputFiles: Record<string, string>) {
+type SyncSandbox = Parameters<typeof syncOutputArtifacts>[0]["sandbox"];
+
+function createMockSandbox(outputFiles: Record<string, string>): SyncSandbox {
   return {
     runCommand: vi.fn(async (_cmd: string, args: string[]) => {
       const command = args[1]; // bash -c "<command>"
-      if (command.includes("find") && command.includes("output")) {
+      if (command.includes("find") && command.includes("agent/home")) {
         const paths = Object.keys(outputFiles)
-          .map((p) => `/vercel/sandbox/workspace/output/${p}`)
+          .map((p) => `/vercel/sandbox/workspace/agent/home/${p}`)
           .sort()
           .join("\n");
         return {
@@ -20,7 +22,7 @@ function createMockSandbox(outputFiles: Record<string, string>) {
       return { exitCode: 1, stdout: vi.fn(async () => ""), stderr: vi.fn(async () => "") };
     }),
     readFileToBuffer: vi.fn(async ({ path }: { path: string }) => {
-      const relative = path.replace("/vercel/sandbox/workspace/output/", "");
+      const relative = path.replace("/vercel/sandbox/workspace/agent/home/", "");
       const content = outputFiles[relative];
       if (!content) return null;
       return Buffer.from(content);
@@ -45,8 +47,8 @@ describe("syncOutputArtifacts", () => {
     const fileClient = createMockFileClient();
 
     const artifacts = await syncOutputArtifacts({
-      sandbox: sandbox as any,
-      fileClient: fileClient as any,
+      sandbox,
+      fileClient,
       runId: "run-123",
       priorHashes: new Map(),
     });
@@ -55,6 +57,9 @@ describe("syncOutputArtifacts", () => {
     expect(artifacts[0].relativePath).toBe("rental-analysis.xlsx");
     expect(artifacts[0].downloadUrl).toContain("rental-analysis.xlsx");
     expect(fileClient.uploadArtifact).toHaveBeenCalledOnce();
+    expect(fileClient.uploadArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "home/rental-analysis.xlsx" }),
+    );
   });
 
   it("skips unchanged files on second sync", async () => {
@@ -65,12 +70,12 @@ describe("syncOutputArtifacts", () => {
     const priorHashes = new Map<string, string>();
 
     // First sync
-    await syncOutputArtifacts({ sandbox: sandbox as any, fileClient: fileClient as any, runId: "run-1", priorHashes });
+    await syncOutputArtifacts({ sandbox, fileClient, runId: "run-1", priorHashes });
     expect(fileClient.uploadArtifact).toHaveBeenCalledOnce();
 
     // Second sync — same content
     fileClient.uploadArtifact.mockClear();
-    const artifacts = await syncOutputArtifacts({ sandbox: sandbox as any, fileClient: fileClient as any, runId: "run-1", priorHashes });
+    const artifacts = await syncOutputArtifacts({ sandbox, fileClient, runId: "run-1", priorHashes });
     expect(artifacts).toHaveLength(0);
     expect(fileClient.uploadArtifact).not.toHaveBeenCalled();
   });
@@ -80,8 +85,8 @@ describe("syncOutputArtifacts", () => {
     const fileClient = createMockFileClient();
 
     const artifacts = await syncOutputArtifacts({
-      sandbox: sandbox as any,
-      fileClient: fileClient as any,
+      sandbox,
+      fileClient,
       runId: "run-1",
       priorHashes: new Map(),
     });

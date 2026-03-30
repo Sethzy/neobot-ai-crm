@@ -1,7 +1,7 @@
 /**
- * Syncs output files from sandbox back to Supabase Storage.
+ * Syncs persistent sandbox home files back to Supabase Storage.
  *
- * Called after each `bash` command to make artifacts available as download
+ * Called after each `bash` command to make saved files available as download
  * URLs in the same agent run. Uses SHA-256 hashing to skip unchanged files.
  *
  * @module lib/runner/tools/sandbox/sync-output-artifacts
@@ -10,7 +10,7 @@ import { createHash } from "node:crypto";
 
 import type { SyncedArtifact } from "./types";
 
-const OUTPUT_DIR = "/vercel/sandbox/workspace/output";
+const HOME_DIR = "/vercel/sandbox/workspace/agent/home";
 
 /** Infers MIME type from file extension. */
 function inferContentType(filename: string): string {
@@ -51,25 +51,25 @@ export interface SyncOutputOptions {
       downloadFilename?: string;
     }) => Promise<{ storagePath: string; downloadUrl: string }>;
   };
-  /** Current run ID for artifact namespacing. */
+  /** Current run ID retained for call-site compatibility. */
   runId: string;
   /** Mutable map of path → SHA-256 hash from prior sync calls. */
   priorHashes: Map<string, string>;
 }
 
 /**
- * Scans `/vercel/sandbox/workspace/output/` for files, uploads new or changed
- * ones to Supabase Storage, and returns download URLs.
+ * Scans `/vercel/sandbox/workspace/agent/home/` for files, uploads new or
+ * changed ones to Supabase Storage, and returns download URLs.
  */
 export async function syncOutputArtifacts(
   options: SyncOutputOptions,
 ): Promise<SyncedArtifact[]> {
-  const { sandbox, fileClient, runId, priorHashes } = options;
+  const { sandbox, fileClient, priorHashes } = options;
 
-  // List files in output directory
+  // List files in the persistent home directory.
   const listResult = await sandbox.runCommand("bash", [
     "-c",
-    `find ${OUTPUT_DIR} -type f 2>/dev/null | sort`,
+    `find ${HOME_DIR} -type f 2>/dev/null | sort`,
   ]);
   const stdout = await listResult.stdout();
 
@@ -81,7 +81,7 @@ export async function syncOutputArtifacts(
   const artifacts: SyncedArtifact[] = [];
 
   for (const absolutePath of filePaths) {
-    const relativePath = absolutePath.replace(`${OUTPUT_DIR}/`, "");
+    const relativePath = absolutePath.replace(`${HOME_DIR}/`, "");
 
     // Download file from sandbox
     const buffer = await sandbox.readFileToBuffer({ path: absolutePath });
@@ -92,9 +92,9 @@ export async function syncOutputArtifacts(
     if (priorHashes.get(relativePath) === hash) continue;
     priorHashes.set(relativePath, hash);
 
-    // Upload to Supabase Storage via the real uploadArtifact API
+    // Mirror the sandbox's persistent home tree under the agent home prefix.
     const contentType = inferContentType(relativePath);
-    const artifactPath = `artifacts/sandbox/${runId}/${relativePath}`;
+    const artifactPath = `home/${relativePath}`;
 
     const { downloadUrl } = await fileClient.uploadArtifact({
       path: artifactPath,
