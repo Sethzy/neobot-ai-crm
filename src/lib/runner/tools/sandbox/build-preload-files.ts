@@ -99,28 +99,32 @@ export async function buildPreloadFiles(
   }
 
   // 2. Download chat file attachments (RunnerFilePart from payload.fileParts)
-  const usedNames = new Set<string>();
+  // Reserve context.json — it is written by createLazyBashTool at sandbox init time
+  const usedNames = new Set<string>(["context.json"]);
   for (const part of fileParts) {
     try {
       const response = await fetch(part.url);
-      if (response.ok) {
-        const buffer = Buffer.from(await response.arrayBuffer());
-        const rawName = part.filename ?? "attachment";
-        let safeName = rawName.replace(/[^a-zA-Z0-9._-]/g, "_");
-
-        // Dedup: append counter suffix on collision
-        if (usedNames.has(safeName)) {
-          const dot = safeName.lastIndexOf(".");
-          const base = dot > 0 ? safeName.slice(0, dot) : safeName;
-          const ext = dot > 0 ? safeName.slice(dot) : "";
-          let counter = 2;
-          while (usedNames.has(`${base}_${counter}${ext}`)) counter++;
-          safeName = `${base}_${counter}${ext}`;
-        }
-        usedNames.add(safeName);
-
-        files.push({ path: `input/${safeName}`, content: buffer });
+      if (!response.ok) {
+        console.warn(`[sandbox] Attachment fetch failed: ${response.status} for ${part.filename ?? part.url}`);
+        continue;
       }
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const rawName = part.filename ?? "attachment";
+      let safeName = rawName.replace(/[^a-zA-Z0-9._-]/g, "_");
+
+      // Dedup: append counter suffix on collision
+      if (usedNames.has(safeName)) {
+        const dot = safeName.lastIndexOf(".");
+        const base = dot > 0 ? safeName.slice(0, dot) : safeName;
+        const ext = dot > 0 ? safeName.slice(dot) : "";
+        let counter = 2;
+        while (usedNames.has(`${base}_${counter}${ext}`)) counter++;
+        safeName = `${base}_${counter}${ext}`;
+      }
+      usedNames.add(safeName);
+
+      files.push({ path: `input/${safeName}`, content: buffer });
     } catch (error) {
       console.warn("[sandbox] Attachment download failed (non-fatal):", error);
     }

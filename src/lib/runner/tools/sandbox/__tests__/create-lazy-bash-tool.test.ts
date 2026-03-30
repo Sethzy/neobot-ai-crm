@@ -99,6 +99,43 @@ describe("createLazyBashTool", () => {
     await cleanup();
   });
 
+  it("retries initialization after a transient failure", async () => {
+    const { Sandbox } = await import("@vercel/sandbox");
+    const createMock = Sandbox.create as ReturnType<typeof vi.fn>;
+    createMock.mockClear();
+
+    // First call: Sandbox.create rejects
+    createMock.mockRejectedValueOnce(new Error("transient network error"));
+
+    const { tool: bashTool, cleanup } = createLazyBashTool({
+      snapshotId: "snap_test",
+      getPreloadFiles: async () => [],
+      getContextEntries: () => [],
+      fileClient: {} as any,
+      runId: "run-1",
+    });
+
+    // First call fails
+    await expect(
+      (bashTool as any).execute({ command: "echo 1" }, {} as any),
+    ).rejects.toThrow("transient network error");
+
+    // Restore normal behavior — second call should retry and succeed
+    createMock.mockResolvedValueOnce({
+      sandboxId: "sbx_retry",
+      runCommand: vi.fn(async () => ({ exitCode: 0, stdout: vi.fn(async () => ""), stderr: vi.fn(async () => "") })),
+      readFileToBuffer: vi.fn(async () => null),
+      writeFiles: vi.fn(async () => {}),
+      stop: vi.fn(async () => {}),
+    });
+
+    const result = await (bashTool as any).execute({ command: "echo 2" }, {} as any);
+    expect(result.stdout).toBe("hello"); // from the default bash mock
+    expect(createMock).toHaveBeenCalledTimes(2);
+
+    await cleanup();
+  });
+
   it("cleanup is safe when sandbox was never created", async () => {
     const { cleanup } = createLazyBashTool({
       snapshotId: "snap_test",

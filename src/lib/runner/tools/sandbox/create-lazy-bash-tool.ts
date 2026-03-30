@@ -7,7 +7,7 @@
  *
  * @module lib/runner/tools/sandbox/create-lazy-bash-tool
  */
-import { tool } from "ai";
+import { tool, type Tool } from "ai";
 import type { Sandbox } from "@vercel/sandbox";
 import { z } from "zod";
 
@@ -42,7 +42,7 @@ export interface LazyBashToolOptions {
 
 export interface LazyBashToolResult {
   /** AI SDK tool to register in the tools object. */
-  tool: ReturnType<typeof tool>;
+  tool: Tool<{ command: string }, any>;
   /** Call in onFinish/onError to stop the sandbox. */
   cleanup: () => Promise<void>;
   /** Whether the sandbox has been created (for testing). */
@@ -69,7 +69,13 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
   /** Concurrency-safe init: second call awaits the same promise as the first. */
   async function initialize(): Promise<void> {
     if (initialized) return;
-    if (!initPromise) initPromise = doInitialize();
+    if (!initPromise) {
+      initPromise = doInitialize().catch((error) => {
+        // Reset so the next bash call can retry instead of replaying the rejection
+        initPromise = null;
+        throw error;
+      });
+    }
     await initPromise;
   }
 
@@ -161,7 +167,7 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
       let artifacts: SyncedArtifact[] = [];
       try {
         artifacts = await syncOutputArtifacts({
-          sandbox,
+          sandbox: sandbox!,
           fileClient,
           runId,
           priorHashes: artifactHashes,

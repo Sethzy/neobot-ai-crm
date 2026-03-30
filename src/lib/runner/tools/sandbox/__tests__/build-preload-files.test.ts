@@ -112,6 +112,28 @@ describe("buildPreloadFiles", () => {
     vi.unstubAllGlobals();
   });
 
+  it("renames attachment named context.json to avoid overwriting generated context", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(10),
+    })));
+
+    const { client } = createMockSupabase({});
+    const result = await buildPreloadFiles({
+      supabase: client as any,
+      clientId: "client-1",
+      fileParts: [
+        { type: "file" as const, filename: "context.json", mediaType: "application/json", url: "https://example.com/ctx.json" },
+      ],
+    });
+
+    const paths = result.map((f) => f.path);
+    expect(paths).not.toContain("input/context.json");
+    expect(paths).toContain("input/context_2.json");
+
+    vi.unstubAllGlobals();
+  });
+
   it("deduplicates attachment filenames on collision", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({
       ok: true,
