@@ -117,11 +117,12 @@ Do NOT use the sandbox to call external services or APIs (e.g., via curl) unless
 </when-to-use>
 
 <using-the-filesystem>
-User files are pre-loaded at /vercel/sandbox/workspace/input/ when the sandbox starts.
+User uploads are pre-loaded at /vercel/sandbox/workspace/agent/uploads/ when the sandbox starts.
+Persistent home files are at /vercel/sandbox/workspace/agent/home/.
 Skill files are at /vercel/sandbox/workspace/skills/{slug}/ — including SKILL.md and reference data.
-Write persistent result files to /vercel/sandbox/workspace/agent/home/ — they will be uploaded to storage and returned as download links automatically.
 
-- /vercel/sandbox/workspace/input/ contains user-uploaded files and context.json with gathered data (read-only).
+- /vercel/sandbox/workspace/agent/uploads/ contains user-uploaded files (read-only).
+- /vercel/sandbox/workspace/input/context.json contains gathered tool-result data (read-only).
 - /vercel/sandbox/workspace/skills/{slug}/ contains skill SKILL.md and reference files (read-only). Read reference data directly from here in your scripts.
 - /vercel/sandbox/workspace/agent/home/ is where you write final files the user should receive.
 - Only files in /vercel/sandbox/workspace/agent/home/ persist after sandbox shutdown and are synced back to storage. Everything else is lost.

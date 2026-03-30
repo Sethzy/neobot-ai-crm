@@ -365,6 +365,14 @@ describe("SANDBOX_PROMPT", () => {
     expect(SANDBOX_PROMPT).toContain("input/context.json");
   });
 
+  it("uses agent/uploads/ for user files, not input/", () => {
+    expect(SANDBOX_PROMPT).toContain("agent/uploads/");
+    // input/ should only appear as input/context.json, never as a general user-file directory
+    const inputRefs = SANDBOX_PROMPT.match(/\/input\//g) ?? [];
+    const contextJsonRefs = SANDBOX_PROMPT.match(/\/input\/context\.json/g) ?? [];
+    expect(inputRefs.length).toBe(contextJsonRefs.length);
+  });
+
   it("warns against hard-coding data", () => {
     expect(SANDBOX_PROMPT).toContain("Never enumerate or hard-code");
   });
