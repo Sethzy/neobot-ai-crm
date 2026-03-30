@@ -1,6 +1,6 @@
 # Vercel Sandbox Migration — Design Doc
 
-**Status:** Draft v1
+**Status:** DEPRECATED — Superseded by `2026-03-28-vercel-sandbox-migration-design-v2.md`
 **Date:** 2026-03-28
 **Scope:** Replace Sprites (Fly.io) + nested Claude Code agent with Vercel Sandbox + direct `run_command` tool
 
@@ -372,16 +372,56 @@ Example flow:
 
 5. **Cost at scale.** 2-vCPU sandbox for 5 minutes ≈ $0.03. At ~10 sandbox runs/client/day = $0.30/client/day ≈ $9/client/month. Acceptable, but monitor.
 
-## 9. Reference Materials
+6. **`bash-tool` vs custom `run_command`.** Evaluate whether Vercel's `bash-tool` npm package can serve as the inner tool implementation. It provides file pre-loading, AI SDK tool definition, and logging hooks out of the box. If it supports custom params (timeout, input_data) or is easily extended, use it. If not, a custom `run_command` is ~30 lines. Build-time decision, not architecture decision.
 
-| Reference | Key takeaway |
+## 10. Architecture Reference: `call-summary-agent-with-sandbox`
+
+The primary architecture reference for this migration is `vercel-labs/call-summary-agent-with-sandbox`. It demonstrates the exact pattern Sunder needs: agent runs outside the sandbox, pre-loads files, scripts execute inside, no agent CLI in the container.
+
+### The Pattern (from the reference)
+
+```typescript
+// 1. Create sandbox (in agent's prepareCall hook)
+const sandbox = await Sandbox.create({
+  timeout: ms('10m'),
+});
+
+// 2. Pre-load files via bash-tool
+const { tools } = await createBashTool({
+  sandbox,
+  files: {
+    "gong-calls/123-discovery-call.md": transcriptMarkdown,
+    "gong-calls/metadata.json": JSON.stringify(metadata),
+  },
+});
+
+// 3. Agent uses bash tool to run commands against pre-loaded files
+// (agent decides what to grep, what scripts to write and run)
+
+// 4. Sandbox auto-terminates on timeout or scope exit
+```
+
+### How Sunder Maps to This
+
+| call-summary-agent | Sunder |
 |---|---|
-| Tasklet `11-direct-tool-access-vs-nested-agent-runtime.md` | Direct tools on main agent. No nested agent in sandbox. |
-| Tasklet `01-core-runtime-model.md` | Sandbox is infrastructure for `run_command`, not a workspace. |
-| Tasklet `03-run_command.md` | Tool spec: `command` + `timeout`, max 300s. |
-| Fintool lessons (Bustamante) | S3-first architecture, bash tool with 180s timeout, skill shadowing. |
-| Fintool `vercel-testing-bash-is-all-you-need.md` | Hybrid bash+SQL beats pure bash for structured data. |
-| `vercel-labs/coding-agent-template` | `Sandbox.create()`, `runCommand({ detached: true })`, golden snapshot patterns. |
-| `vercel-labs/call-summary-agent-with-sandbox` | `createBashTool({ sandbox })`, ephemeral per-run sandbox. |
-| `vercel-labs/openreview` | Durable workflow steps, `finally`-block cleanup, `Sandbox.get()` per tool call. |
+| `Sandbox.create({ timeout })` in `prepareCall` | Lazy create on first `run_command` call, from golden snapshot |
+| `createBashTool({ sandbox, files })` | `run_command` tool with file pre-loading in tool handler |
+| `files: { "gong-calls/transcript.md": content }` | `files: { "input/deals.xlsx": xlsx, "skills/re-analyst/SKILL.md": skill, "input/context.json": data }` |
+| `onBeforeBashCall` / `onAfterBashCall` hooks | Logging in tool handler (Langfuse trace) |
+| Auto-terminate on timeout | `sandbox.stop()` in runner's `finally` block |
+| Single tool: bash | Single tool: `run_command` (with `input_data` + `timeout` extensions) |
+
+### Other Reference Repos (for specific patterns)
+
+| Repo | What to reference it for |
+|---|---|
+| `vercel-labs/coding-agent-template` | Sandbox creation with golden snapshots, `keepAlive` reconnection, multi-agent dispatch. **Not** the file pre-loading pattern (it runs agent CLIs inside). |
+| `vercel-labs/openreview` | Durable workflow steps (`"use step"`), `finally`-block cleanup, `Sandbox.get()` per tool call for serverless durability. |
+| `anthropics/skills` | Canonical skill directory structure (SKILL.md + reference files). Shows how `pptx`, `mcp-builder`, and other skills bundle companion files. Scripts read them directly from `/skills/{dir}/`. |
+| `vercel-labs/bash-tool` | The npm package `call-summary-agent` uses. Handles `sandbox.writeFile()` under the hood. Evaluate as implementation dependency. |
+| Tasklet `run_command` spec | Tool schema: `command` + `timeout`, max 300s, default 60s. |
+| Tasklet `11-direct-tool-access-vs-nested-agent-runtime.md` | Architectural rationale: direct tools on main agent, no nested agent in sandbox. |
+| Fintool lessons (Bustamante) | S3-first architecture, bash 180s timeout + 100K output limit, skill shadowing. |
+| Fintool `vercel-testing-bash-is-all-you-need.md` | Hybrid bash+SQL beats pure bash for structured data queries. |
 | Vercel Sandbox docs | Stable SDK: create, runCommand, writeFiles, readFile, snapshot, stop. |
