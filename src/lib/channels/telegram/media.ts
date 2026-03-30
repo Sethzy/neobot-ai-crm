@@ -8,6 +8,9 @@ import type { Api } from "grammy";
 
 import type { Database } from "@/types/database";
 
+const TELEGRAM_UPLOAD_BUCKET = "agent-files";
+const TELEGRAM_UPLOAD_URL_EXPIRY_SECONDS = 60 * 60;
+
 const MEDIA_FALLBACKS: Record<string, { ext: string; mime: string }> = {
   photo: { ext: "jpg", mime: "image/jpeg" },
   video: { ext: "mp4", mime: "video/mp4" },
@@ -48,8 +51,8 @@ export function resolveFileId(
 }
 
 /**
- * Downloads one Telegram file and uploads it into the `chat-attachments`
- * bucket, returning a public URL suitable for existing chat file parts.
+ * Downloads one Telegram file and uploads it into the unified agent-files
+ * bucket, returning a signed URL and workspace-relative storage path.
  */
 export async function downloadAndStoreTelegramFile(
   api: Api,
@@ -58,7 +61,7 @@ export async function downloadAndStoreTelegramFile(
   fileId: string,
   fallbackExt: string,
   fallbackMime: string,
-): Promise<{ url: string; mimeType: string } | null> {
+): Promise<{ url: string; mimeType: string; storagePath: string } | null> {
   try {
     const file = await api.getFile(fileId);
     const filePath = file.file_path;
@@ -79,9 +82,10 @@ export async function downloadAndStoreTelegramFile(
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
-    const storagePath = `${clientId}/telegram/${Date.now()}_${file.file_unique_id}.${extension}`;
+    const relativeStoragePath = `uploads/telegram/${Date.now()}_${file.file_unique_id}.${extension}`;
+    const storagePath = `${clientId}/${relativeStoragePath}`;
     const { error } = await supabase.storage
-      .from("chat-attachments")
+      .from(TELEGRAM_UPLOAD_BUCKET)
       .upload(storagePath, buffer, { contentType: mimeType });
 
     if (error) {
@@ -89,11 +93,20 @@ export async function downloadAndStoreTelegramFile(
       return null;
     }
 
-    const { data } = supabase.storage
-      .from("chat-attachments")
-      .getPublicUrl(storagePath);
+    const signedUrlResponse = await supabase.storage
+      .from(TELEGRAM_UPLOAD_BUCKET)
+      .createSignedUrl(storagePath, TELEGRAM_UPLOAD_URL_EXPIRY_SECONDS);
 
-    return { url: data.publicUrl, mimeType };
+    if (signedUrlResponse.error || !signedUrlResponse.data?.signedUrl) {
+      console.error("[telegram/media] Failed to sign upload:", signedUrlResponse.error);
+      return null;
+    }
+
+    return {
+      url: signedUrlResponse.data.signedUrl,
+      mimeType,
+      storagePath: relativeStoragePath,
+    };
   } catch (error) {
     console.error("[telegram/media] Download failed:", error);
     return null;

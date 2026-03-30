@@ -2,9 +2,13 @@
  * Tests for Telegram media helper functions.
  * @module lib/channels/telegram/media.test
  */
-import { describe, expect, it } from "vitest";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Api } from "grammy";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getMediaFallbacks, resolveFileId } from "./media";
+import type { Database } from "@/types/database";
+
+import { downloadAndStoreTelegramFile, getMediaFallbacks, resolveFileId } from "./media";
 
 describe("resolveFileId", () => {
   it("picks the largest photo file id", () => {
@@ -50,6 +54,68 @@ describe("getMediaFallbacks", () => {
     expect(getMediaFallbacks("unknown")).toEqual({
       ext: "bin",
       mime: "application/octet-stream",
+    });
+  });
+});
+
+describe("downloadAndStoreTelegramFile", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(new Uint8Array([1, 2, 3]), {
+      status: 200,
+      headers: { "Content-Type": "image/jpeg" },
+    })));
+  });
+
+  it("uploads Telegram media to agent-files/uploads/telegram and returns storagePath", async () => {
+    const mockUpload = vi.fn().mockResolvedValue({ data: { path: "ok" }, error: null });
+    const mockCreateSignedUrl = vi.fn().mockResolvedValue({
+      data: {
+        signedUrl: "https://storage.example.com/agent-files/client-1/uploads/telegram/1700000000000_unique-file.jpg?token=signed",
+      },
+      error: null,
+    });
+    const mockFrom = vi.fn(() => ({
+      upload: mockUpload,
+      createSignedUrl: mockCreateSignedUrl,
+    }));
+    const supabase = {
+      storage: {
+        from: mockFrom,
+      },
+    } as unknown as SupabaseClient<Database>;
+    const api = {
+      token: "telegram-token",
+      getFile: vi.fn().mockResolvedValue({
+        file_path: "photos/file_10.jpg",
+        file_unique_id: "unique-file",
+      }),
+    } as unknown as Pick<Api, "token" | "getFile"> as Api;
+
+    const result = await downloadAndStoreTelegramFile(
+      api,
+      supabase,
+      "client-1",
+      "file-123",
+      "jpg",
+      "image/jpeg",
+    );
+
+    expect(mockFrom).toHaveBeenCalledWith("agent-files");
+    expect(mockUpload).toHaveBeenCalledWith(
+      "client-1/uploads/telegram/1700000000000_unique-file.jpg",
+      expect.any(Buffer),
+      { contentType: "image/jpeg" },
+    );
+    expect(mockCreateSignedUrl).toHaveBeenCalledWith(
+      "client-1/uploads/telegram/1700000000000_unique-file.jpg",
+      3600,
+    );
+    expect(result).toEqual({
+      url: "https://storage.example.com/agent-files/client-1/uploads/telegram/1700000000000_unique-file.jpg?token=signed",
+      mimeType: "image/jpeg",
+      storagePath: "uploads/telegram/1700000000000_unique-file.jpg",
     });
   });
 });

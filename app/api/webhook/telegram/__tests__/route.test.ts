@@ -137,7 +137,7 @@ function createWebhookSupabase(config: MockWebhookSupabaseConfig = {}) {
           records.inserts.push({ table, value });
           return takeResult(config.mappingInsertResults, { data: null, error: null });
         }),
-        update: vi.fn().mockImplementation((_value: unknown) => {
+        update: vi.fn().mockImplementation(() => {
           const updateChain = {
             eq: vi.fn(() => updateChain),
             then: async (onfulfilled?: ((value: MockSupabaseResult) => unknown) | null) => {
@@ -995,8 +995,9 @@ describe("POST /api/webhook/telegram", () => {
     mockCreateAdminClient.mockResolvedValue(supabase);
     mockCreateTelegramBot.mockReturnValue({ api });
     mockDownloadAndStoreTelegramFile.mockResolvedValueOnce({
-      url: "https://storage.example.com/chat-attachments/client-1/telegram/photo.jpg",
+      url: "https://storage.example.com/agent-files/client-1/uploads/telegram/photo.jpg?token=signed",
       mimeType: "image/jpeg",
+      storagePath: "uploads/telegram/photo.jpg",
     });
 
     const response = await POST(
@@ -1021,8 +1022,9 @@ describe("POST /api/webhook/telegram", () => {
         input: "",
         fileParts: [{
           type: "file",
-          url: "https://storage.example.com/chat-attachments/client-1/telegram/photo.jpg",
+          url: "https://storage.example.com/agent-files/client-1/uploads/telegram/photo.jpg?token=signed",
           mediaType: "image/jpeg",
+          storagePath: "uploads/telegram/photo.jpg",
         }],
       }),
       supabase,

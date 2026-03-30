@@ -264,6 +264,7 @@ export async function extractInboundFiles(
       type: "file" as const,
       url: storedFile.url,
       mediaType: storedFile.mimeType,
+      storagePath: storedFile.storagePath,
     }];
   }
 
