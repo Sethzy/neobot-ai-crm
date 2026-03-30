@@ -25,15 +25,17 @@ export interface BuildPreloadFilesOptions {
 type StorageBucket = ReturnType<SupabaseClient["storage"]["from"]>;
 
 /**
- * Downloads all files in a skill directory recursively from Supabase Storage.
+ * Recursively downloads all files under a Supabase Storage prefix.
+ *
+ * @param bucket - Supabase Storage bucket reference.
+ * @param storagePrefix - Full storage path prefix (e.g., "client-1/uploads").
+ * @param outputPrefix - Sandbox-relative path prefix (e.g., "agent/uploads").
  */
-async function downloadSkillDirectory(
+export async function downloadStorageDirectory(
   bucket: StorageBucket,
-  clientId: string,
-  slug: string,
+  storagePrefix: string,
+  outputPrefix: string,
 ): Promise<SandboxPreloadFile[]> {
-  const prefix = `${clientId}/${SKILLS_DIRECTORY}/${slug}`;
-
   async function walk(
     currentPrefix: string,
     relativePath: string,
@@ -56,17 +58,14 @@ async function downloadSkillDirectory(
         if (!data) return [];
 
         const buffer = Buffer.from(await data.arrayBuffer());
-        return [{
-          path: `${SKILLS_DIRECTORY}/${slug}/${relPath}`,
-          content: buffer,
-        }];
+        return [{ path: `${outputPrefix}/${relPath}`, content: buffer }];
       }),
     );
 
     return results.flat();
   }
 
-  return walk(prefix, "");
+  return walk(storagePrefix, "");
 }
 
 /**
@@ -95,7 +94,9 @@ export async function buildPreloadFiles(
       .filter((name: string) => !EXCLUDED_SKILL_DIRS.has(name));
 
     const skillFiles = await Promise.all(
-      slugs.map((slug: string) => downloadSkillDirectory(bucket, clientId, slug)),
+      slugs.map((slug: string) =>
+        downloadStorageDirectory(bucket, `${clientId}/${SKILLS_DIRECTORY}/${slug}`, `${SKILLS_DIRECTORY}/${slug}`),
+      ),
     );
     files.push(...skillFiles.flat());
   }

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { SandboxPreloadFile } from "../types";
-import { buildPreloadFiles, generateFileTree } from "../build-preload-files";
+import { buildPreloadFiles, downloadStorageDirectory, generateFileTree } from "../build-preload-files";
 
 type BuildPreloadSupabase = Parameters<typeof buildPreloadFiles>[0]["supabase"];
 
@@ -305,5 +305,57 @@ describe("generateFileTree", () => {
 
   it("returns '(no files)' for empty list", () => {
     expect(generateFileTree([])).toBe("(no files)");
+  });
+});
+
+describe("downloadStorageDirectory", () => {
+  it("downloads files recursively from a storage prefix", async () => {
+    const { bucket } = createMockSupabase({
+      "client-1/home/report.csv": "a,b\n1,2",
+      "client-1/home/scripts/clean.py": "import pandas",
+      "client-1/home/scripts/utils/helpers.py": "def helper(): pass",
+    });
+
+    const result = await downloadStorageDirectory(bucket, "client-1/home", "agent/home");
+
+    const paths = result.map((f) => f.path).sort();
+    expect(paths).toEqual([
+      "agent/home/report.csv",
+      "agent/home/scripts/clean.py",
+      "agent/home/scripts/utils/helpers.py",
+    ]);
+  });
+
+  it("returns empty array when directory does not exist", async () => {
+    const { bucket } = createMockSupabase({});
+
+    const result = await downloadStorageDirectory(bucket, "client-1/nonexistent", "agent/nonexistent");
+
+    expect(result).toEqual([]);
+  });
+
+  it("downloads files concurrently within a directory", async () => {
+    const files: Record<string, string | null> = {};
+    for (let i = 0; i < 10; i++) {
+      files[`client-1/uploads/file-${i}.csv`] = `data-${i}`;
+    }
+
+    const bucket = createMockBucket(files);
+    const originalDownload = bucket.download;
+    let concurrentCount = 0;
+    let maxConcurrent = 0;
+
+    bucket.download = vi.fn(async (path: string) => {
+      concurrentCount++;
+      maxConcurrent = Math.max(maxConcurrent, concurrentCount);
+      const result = await originalDownload(path);
+      concurrentCount--;
+      return result;
+    });
+
+    await downloadStorageDirectory(bucket, "client-1/uploads", "agent/uploads");
+
+    // Promise.all means all downloads should be in-flight at once
+    expect(maxConcurrent).toBeGreaterThan(1);
   });
 });
