@@ -34,12 +34,31 @@ export async function downloadStorageDirectory(
   storagePrefix: string,
   outputPrefix: string,
 ): Promise<SandboxPreloadFile[]> {
+  const PAGE_SIZE = 100;
+
+  /** Lists all entries under a prefix, paginating past Supabase's 100-item default. */
+  async function listAll(prefix: string) {
+    const allEntries: { name: string; id: string | null }[] = [];
+    let offset = 0;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { data: page } = await bucket.list(prefix, { limit: PAGE_SIZE, offset });
+      if (!page || page.length === 0) break;
+      allEntries.push(...page);
+      if (page.length < PAGE_SIZE) break;
+      offset += PAGE_SIZE;
+    }
+
+    return allEntries;
+  }
+
   async function walk(
     currentPrefix: string,
     relativePath: string,
   ): Promise<SandboxPreloadFile[]> {
-    const { data: entries } = await bucket.list(currentPrefix);
-    if (!entries) return [];
+    const entries = await listAll(currentPrefix);
+    if (entries.length === 0) return [];
 
     const results = await Promise.all(
       entries.map(async (entry: { name: string; id: string | null }) => {

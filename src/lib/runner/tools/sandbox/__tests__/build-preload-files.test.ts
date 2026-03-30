@@ -39,6 +39,38 @@ function createMockBucket(files: Record<string, string | null>) {
   };
 }
 
+/** Mock bucket that respects limit/offset pagination like real Supabase. */
+function createPaginatedMockBucket(files: Record<string, string | null>, pageSize: number) {
+  return {
+    list: vi.fn(async (prefix: string, options?: { limit?: number; offset?: number }) => {
+      const limit = options?.limit ?? pageSize;
+      const offset = options?.offset ?? 0;
+      const allEntries = Object.keys(files)
+        .filter((p) => p.startsWith(prefix) && p !== prefix)
+        .map((p) => {
+          const relative = p.slice(prefix.length + 1);
+          const parts = relative.split("/");
+          return parts.length === 1
+            ? { name: parts[0], id: "file-id" }
+            : { name: parts[0], id: null };
+        })
+        .filter((v, i, a) => a.findIndex((x) => x.name === v.name) === i);
+      return { data: allEntries.slice(offset, offset + limit), error: null };
+    }),
+    download: vi.fn(async (path: string) => {
+      const content = files[path];
+      if (content === null || content === undefined) {
+        return { data: null, error: { message: "Not found" } };
+      }
+      const buf = Buffer.from(content);
+      return {
+        data: { arrayBuffer: async () => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) },
+        error: null,
+      };
+    }),
+  };
+}
+
 function createMockSupabase(files: Record<string, string | null>) {
   const bucket = createMockBucket(files);
   const client = {
@@ -299,6 +331,23 @@ describe("downloadStorageDirectory", () => {
       "agent/home/scripts/clean.py",
       "agent/home/scripts/utils/helpers.py",
     ]);
+  });
+
+  it("paginates when directory has >100 files", async () => {
+    // Supabase list() defaults to 100 entries per page — we must paginate
+    const files: Record<string, string | null> = {};
+    for (let i = 0; i < 150; i++) {
+      files[`client-1/uploads/file-${String(i).padStart(3, "0")}.csv`] = `data-${i}`;
+    }
+
+    const bucket = createPaginatedMockBucket(files, 100);
+    const result = await downloadStorageDirectory(bucket, "client-1/uploads", "agent/uploads");
+
+    expect(result).toHaveLength(150);
+    // Verify first and last file present
+    const paths = result.map((f) => f.path).sort();
+    expect(paths[0]).toBe("agent/uploads/file-000.csv");
+    expect(paths[149]).toBe("agent/uploads/file-149.csv");
   });
 
   it("returns empty array when directory does not exist", async () => {
