@@ -30,21 +30,24 @@ function createMockFileClient(): LazyBashToolOptions["fileClient"] {
   };
 }
 
-// Mock @vercel/sandbox
+// Shared mock sandbox — same instance returned by every Sandbox.create() call
+const sharedMockSandbox = {
+  sandboxId: "sbx_test",
+  runCommand: vi.fn(async () => ({
+    exitCode: 0,
+    stdout: vi.fn(async () => ""),
+    stderr: vi.fn(async () => ""),
+  })),
+  readFile: vi.fn(async () => null),
+  readFileToBuffer: vi.fn(async () => null),
+  writeFiles: vi.fn(async () => {}),
+  mkDir: vi.fn(async () => {}),
+  stop: vi.fn(async () => {}),
+};
+
 vi.mock("@vercel/sandbox", () => ({
   Sandbox: {
-    create: vi.fn(async () => ({
-      sandboxId: "sbx_test",
-      runCommand: vi.fn(async () => ({
-        exitCode: 0,
-        stdout: vi.fn(async () => ""),
-        stderr: vi.fn(async () => ""),
-      })),
-      readFile: vi.fn(async () => null),
-      readFileToBuffer: vi.fn(async () => null),
-      writeFiles: vi.fn(async () => {}),
-      stop: vi.fn(async () => {}),
-    })),
+    create: vi.fn(async () => sharedMockSandbox),
   },
 }));
 
@@ -73,6 +76,10 @@ vi.mock("@/lib/env", () => ({
 }));
 
 describe("createLazyBashTool", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("does not create sandbox until first execute", async () => {
     const { Sandbox } = await import("@vercel/sandbox");
 
@@ -127,13 +134,27 @@ describe("createLazyBashTool", () => {
     await cleanup();
   });
 
-  it("creates /agent/home and updates sandbox instructions on first execute", async () => {
-    const { Sandbox } = await import("@vercel/sandbox");
+  it("creates agent/home/ directory in sandbox via mkDir at boot", async () => {
+    const { tool: bashTool, cleanup } = createLazyBashTool({
+      snapshotId: "snap_test",
+      getPreloadFiles: async () => [],
+      getContextEntries: () => [],
+      fileClient: createMockFileClient(),
+      runId: "run-1",
+    });
+
+    await asExecutableTool(bashTool).execute({ command: "echo hi" }, {});
+
+    expect(sharedMockSandbox.mkDir).toHaveBeenCalledWith(
+      expect.stringContaining("agent/home"),
+    );
+
+    await cleanup();
+  });
+
+  it("updates sandbox instructions on first execute", async () => {
     const { createBashTool } = await import("bash-tool");
-    const createSandboxMock = Sandbox.create as ReturnType<typeof vi.fn>;
     const createBashToolMock = createBashTool as ReturnType<typeof vi.fn>;
-    createSandboxMock.mockClear();
-    createBashToolMock.mockClear();
 
     const { tool: bashTool, cleanup } = createLazyBashTool({
       snapshotId: "snap_test",
@@ -145,11 +166,6 @@ describe("createLazyBashTool", () => {
 
     await asExecutableTool(bashTool).execute({ command: "echo ready" }, {});
 
-    const sandbox = await createSandboxMock.mock.results[0]?.value;
-    expect(sandbox.runCommand).toHaveBeenCalledWith("bash", [
-      "-c",
-      "mkdir -p /vercel/sandbox/workspace/agent/home",
-    ]);
     expect(createBashToolMock).toHaveBeenCalledWith(expect.objectContaining({
       extraInstructions: expect.stringContaining("Files preloaded in workspace"),
     }));
@@ -187,6 +203,7 @@ describe("createLazyBashTool", () => {
       runCommand: vi.fn(async () => ({ exitCode: 0, stdout: vi.fn(async () => ""), stderr: vi.fn(async () => "") })),
       readFileToBuffer: vi.fn(async () => null),
       writeFiles: vi.fn(async () => {}),
+      mkDir: vi.fn(async () => {}),
       stop: vi.fn(async () => {}),
     });
 

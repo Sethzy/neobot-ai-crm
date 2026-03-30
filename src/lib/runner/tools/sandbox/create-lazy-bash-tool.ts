@@ -149,16 +149,8 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
       );
     }
 
-    const mkdirResult = await sandbox.runCommand("bash", [
-      "-c",
-      "mkdir -p /vercel/sandbox/workspace/agent/home",
-    ]);
-    if (mkdirResult.exitCode !== 0) {
-      const stderr = typeof mkdirResult.stderr === "function"
-        ? await mkdirResult.stderr()
-        : String(mkdirResult.stderr ?? "");
-      throw new Error(`Failed to create agent/home directory: ${stderr}`);
-    }
+    // 2b. Ensure agent/home/ directory exists for artifact sync target
+    await sandbox.mkDir(`${WORKSPACE}/agent/home`);
 
     // 3. Create bash-tool instance
     const fileSummary = generateFileSummary(allFiles);
