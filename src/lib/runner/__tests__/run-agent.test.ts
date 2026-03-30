@@ -378,6 +378,26 @@ describe("runAgent", () => {
       validPayload.clientId,
       { allowMutations: true },
     );
+
+    // Verify preloaded state is loaded once in parallel and forwarded to assembleContext.
+    expect(mockLoadSystemPromptState).toHaveBeenCalledOnce();
+    expect(mockLoadSystemPromptState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        supabase: "mock-supabase-client",
+        threadId: validPayload.threadId,
+        clientId: validPayload.clientId,
+      }),
+    );
+    expect(mockAssembleContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        preloadedState: {
+          memoryContext: undefined,
+          userSkills: [],
+          systemReminder: undefined,
+          compactionState: null,
+        },
+      }),
+    );
   });
 
   it("passes the persisted run type when claiming a chat run", async () => {
