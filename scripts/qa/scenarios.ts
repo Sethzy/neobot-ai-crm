@@ -922,8 +922,38 @@ export const scenarios: QaScenario[] = [
     notes:
       "search_market_data with dataset: agents. Returns agent registry info or not-found.",
   },
-  // ── 29: Sandbox (Code Execution) ──────────────────────────────────────
-  // Removed: Sprites sandbox replaced by Vercel Sandbox (run_command tool).
-  // QA scenarios will be re-added when run_command is implemented.
-  // See docs/plans/2026-03-28-vercel-sandbox-migration-design.md
+  // ── 29: Sandbox (Code Execution) — PR 59: Vercel Sandbox + bash-tool ──
+  {
+    surface: "29-sandbox",
+    scenario: "bash-tool-data-analysis",
+    prompt: "I've uploaded a CSV with my property deals. Can you analyze the totals by district and tell me which district had the highest average price?",
+    expectedTools: ["bash"],
+    sequential: false,
+    notes:
+      "Happy path: agent calls bash with a Python/pandas command to analyze uploaded CSV. Verifies sandbox is lazily created on first bash call. Requires SANDBOX_GOLDEN_SNAPSHOT_ID to be set.",
+    tokenBudget: 80_000,
+    latencyBudgetMs: 60_000,
+  },
+  {
+    surface: "29-sandbox",
+    scenario: "bash-tool-generate-output-file",
+    prompt: "Write a Python script that generates a sample property comparison CSV with 5 fake entries, then run it and give me the file.",
+    expectedTools: ["bash"],
+    sequential: false,
+    notes:
+      "Verifies artifact sync: agent writes to output/, bash-tool returns artifacts with downloadUrl. Result should include a clickable download link.",
+    tokenBudget: 80_000,
+    latencyBudgetMs: 60_000,
+  },
+  {
+    surface: "29-sandbox",
+    scenario: "bash-tool-skill-preload",
+    prompt: "Run a bash command to list all files under /vercel/sandbox/workspace/skills/ and show me the structure.",
+    expectedTools: ["bash"],
+    sequential: false,
+    notes:
+      "Verifies skill file preloading. Requires client to have at least one skill in Supabase Storage. Output should show skills/{slug}/SKILL.md path structure. // TODO: verify expectedTools — agent may prepend a context-gathering step.",
+    tokenBudget: 40_000,
+    latencyBudgetMs: 40_000,
+  },
 ];

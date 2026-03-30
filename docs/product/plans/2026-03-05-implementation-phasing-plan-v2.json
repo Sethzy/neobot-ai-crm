@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 — Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-26: PRs 47a-47f production hardening done",
+    "updated": "2026-03-30: Added PR 59 (Vercel Sandbox + bash-tool migration) to Phase 6. Replaces Sprites sandbox with ephemeral Vercel Sandbox using bash-tool package. Lazy init, parallel skill downloads, artifact sync, initPromise race guard.",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md §17",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -10,7 +10,7 @@
     "estimatedPRs": 44,
     "keptPRs": 27,
     "cutPRs": 19,
-    "donePRs": 71,
+    "donePRs": 72,
     "hardeningPRs": 6,
     "statusOptions": [
       "pending",
@@ -73,7 +73,8 @@
       "2026-03-23: PR 56 scope expanded from runner parallelization to full context pipeline redesign. Adds prompt cache stability (append-only messages, stable tools, system reminder as message, memory after cache boundary), DB-cached Composio schemas, fraction-based compaction (Deep Agents pattern). Revises PR 22c text truncation decision (removed for cache stability). Design doc: references/deepagents/01-context-pipeline-design-doc.md.",
       "2026-03-24: Marked PR 56 done. Updated QA Surfaces 19 and 20 for the cache-stable context pipeline, added automated QA scenarios for reminder/prefix checks, and documented Gemini implicit caching spike results.",
       "2026-03-24: Added PR 58 (OpenAgent data enrichment) to Phase 3 as out-of-plan scope exception. Two parts: (1) System prompt teaches agent to chain search_market_data (name resolution) → web_scrape on openagent.sg/property/{slug} for REALIS-enriched property data (unit-level transactions, profitability, ownership, buyer profiles). Zero new tools — leverages existing web_scrape (Exa) at $0.001/call. (2) Agent contact enrichment pipeline: Python scraper fetches phone, WhatsApp, email, photo for 37K CEA agents from openagent.sg/agent/{regNo}. Migration 003 adds contact columns to cea_agents. Plan: docs/product/plans/agent-contact-enrichment-plan.md.",
-      "2026-03-24: Marked PRs 52 and 53 done (sandbox Excel analysis + artifact publishing). Added PR 52a (sandbox workflow skills) as formal Phase 6 entry — was previously only mentioned in 2026-03-23 changelog. 3 outer workflow skills (deal-comparison, property-showcase, market-report) + 2 inner coding skills (re-analyst, frontend-design) + SG domain references + system prompt guidance. 9 tasks. Tasklist: docs/product/tasks/2026-03-23-pr52a-sandbox-workflow-skills-tasklist.md."
+      "2026-03-24: Marked PRs 52 and 53 done (sandbox Excel analysis + artifact publishing). Added PR 52a (sandbox workflow skills) as formal Phase 6 entry — was previously only mentioned in 2026-03-23 changelog. 3 outer workflow skills (deal-comparison, property-showcase, market-report) + 2 inner coding skills (re-analyst, frontend-design) + SG domain references + system prompt guidance. 9 tasks. Tasklist: docs/product/tasks/2026-03-23-pr52a-sandbox-workflow-skills-tasklist.md.",
+      "2026-03-30: Added PR 59 (Vercel Sandbox + bash-tool migration) to Phase 6. Out-of-plan architecture migration replacing Sprites/Fly.io with ephemeral Vercel Sandbox + bash-tool. Single bash tool registered lazily in runner. Parallel skill file downloads. SHA-256 artifact dedup. Replaces PRs 52–56 (Sprites-based sandbox)."
     ]
   },
   "phases": [
@@ -4093,9 +4094,21 @@
           ],
           "note": "Bundles trimmed obra/superpowers skills into Sprite with one-time install guard (.installed marker). CLAUDE.md at /workspace/ tells Claude Code to read the meta-skill — no prompt injection. Adds Task to ALLOWED_TOOLS for subagent dispatch. No TDD skill (not useful for spreadsheet/artifact work). Superpowers written once per Sprite; domain skills re-fetched per job (user-editable). Reference: https://github.com/obra/superpowers (MIT, Jesse Vincent).",
           "tasks": [
-            { "id": "PR56-1", "task": "Bundle skill content + ensureSuperpowersInstalled() with .installed guard + CLAUDE.md", "done": true },
-            { "id": "PR56-2", "task": "Add Task to ALLOWED_TOOLS + export DEFAULT_MAX_TURNS=100", "done": true },
-            { "id": "PR56-3", "task": "Wire ensureSuperpowersInstalled + DEFAULT_MAX_TURNS into sprite-jobs.ts", "done": true }
+            {
+              "id": "PR56-1",
+              "task": "Bundle skill content + ensureSuperpowersInstalled() with .installed guard + CLAUDE.md",
+              "done": true
+            },
+            {
+              "id": "PR56-2",
+              "task": "Add Task to ALLOWED_TOOLS + export DEFAULT_MAX_TURNS=100",
+              "done": true
+            },
+            {
+              "id": "PR56-3",
+              "task": "Wire ensureSuperpowersInstalled + DEFAULT_MAX_TURNS into sprite-jobs.ts",
+              "done": true
+            }
           ],
           "testCriteria": [
             "ensureSuperpowersInstalled() writes skills + CLAUDE.md on first job, skips on repeat jobs (.installed guard)",
@@ -4103,6 +4116,70 @@
             "/workspace/CLAUDE.md instructs agent to activate verification, review, and receiving-code-review",
             "DEFAULT_MAX_TURNS=100 used by sprite-jobs.ts (not hardcoded 20)",
             "Superpowers install is separate from per-job domain skill writes (no interference)"
+          ]
+        },
+        {
+          "pr": 59,
+          "title": "Sandbox: Vercel Sandbox + bash-tool migration (replaces Sprites)",
+          "status": "done",
+          "tasklist": "docs/product/tasks/2026-03-28-vercel-sandbox-bash-tool-migration-tdd-tasklist.md",
+          "note": "Out-of-plan architecture migration. Replaces Sprites/Fly.io (PRs 52–56) with ephemeral Vercel Sandbox + bash-tool package. Key changes: (1) Provider: @vercel/sandbox + bash-tool replaces @fly/sprites. (2) Lazy init: sandbox created on first bash call, not at run start. (3) Single bash tool registered in runner instead of execute_in_sandbox. (4) Preload: skill files + attachments via sandbox.writeFiles(); context.json serializes accumulated tool results. (5) Artifact sync: SHA-256 hash dedup after each bash call, uploads to Supabase Storage via agent file client. (6) Cleanup: sandbox.stop() in onFinish/onError stream callbacks. (7) No async queue, no Sprites sessions table, no per-client persistence — ephemeral per-run. Tasklist: docs/product/tasks/2026-03-28-vercel-sandbox-bash-tool-migration-tdd-tasklist.md. Follow-up: docs/product/tasks/2026-03-30-sandbox-finish-wiring-and-parallel-skills-tasklist.md.",
+          "tasks": [
+            {
+              "id": "PR59-1",
+              "task": "Add @vercel/sandbox + bash-tool deps, env validation (SANDBOX_GOLDEN_SNAPSHOT_ID, VERCEL_TOKEN, VERCEL_TEAM_ID, VERCEL_PROJECT_ID)",
+              "done": true
+            },
+            {
+              "id": "PR59-2",
+              "task": "Create sandbox types (SandboxPreloadFile, SandboxContextEntry, SyncedArtifact)",
+              "done": true
+            },
+            {
+              "id": "PR59-3",
+              "task": "buildContextJson: serialize tool results with denylist + multimodal exclusion + 500KB truncation",
+              "done": true
+            },
+            {
+              "id": "PR59-4",
+              "task": "buildPreloadFiles: download skill directories from Supabase Storage (parallel per-skill), sanitize attachment filenames, deduplicate collisions",
+              "done": true
+            },
+            {
+              "id": "PR59-5",
+              "task": "syncOutputArtifacts: scan output/ dir, SHA-256 hash dedup, upload via fileClient.uploadArtifact()",
+              "done": true
+            },
+            {
+              "id": "PR59-6",
+              "task": "createLazyBashTool: lazy sandbox init with initPromise race guard, doInitialize() creates sandbox + writeFiles + bash-tool instance, cleanup in onFinish/onError",
+              "done": true
+            },
+            {
+              "id": "PR59-7",
+              "task": "Add SANDBOX_PROMPT to system-prompt.ts, thread includeSandbox flag through context.ts",
+              "done": true
+            },
+            {
+              "id": "PR59-8",
+              "task": "Wire lazy bash tool into run-agent.ts: conditional registration, toolResultAccumulator, onStepFinish, sandboxCleanup",
+              "done": true
+            },
+            {
+              "id": "PR59-9",
+              "task": "Parallelize skill file downloads within each skill directory (Promise.all on entries)",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "createLazyBashTool tests pass: lazy init, race guard, retry on transient failure, cleanup safety",
+            "buildPreloadFiles tests pass: skill dirs, excluded dirs, attachment sanitization, context.json reservation, filename dedup, parallel download timing",
+            "Sandbox not created until first bash tool call (lazy init verified in test)",
+            "Two concurrent bash calls create only one sandbox (initPromise race guard)",
+            "Transient sandbox creation failure allows retry on next call (initPromise reset in .catch)",
+            "Artifact sync uploads new/changed files, skips unchanged (SHA-256 hash dedup)",
+            "SANDBOX_GOLDEN_SNAPSHOT_ID missing → bash returns error message, does not crash runner",
+            "All tests pass: npx vitest run src/lib/runner/tools/sandbox/__tests__/"
           ]
         }
       ]
