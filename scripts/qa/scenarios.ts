@@ -285,26 +285,6 @@ export const scenarios: QaScenario[] = [
       "configure_crm updates deal_stages in crm_config. Requires CRM config mode to be active (PR 48).",
   },
 
-  // ── 05: Knowledge Base ─────────────────────────────────────────────────
-  {
-    surface: "05-knowledge-base",
-    scenario: "list-documents",
-    prompt: "What documents do I have in my knowledge base?",
-    expectedTools: ["run_sql"],
-    sequential: false,
-    notes:
-      "Agent queries vault_files. read_file (directory listing on /agent/vault/) is also acceptable.",
-  },
-  {
-    surface: "05-knowledge-base",
-    scenario: "search-kb-keyword",
-    prompt: "Search my knowledge base for anything about stamp duty",
-    expectedTools: ["search_knowledge"],
-    sequential: false,
-    notes:
-      "search_knowledge uses Postgres full-text search on vault_files. Returns up to 5 matching filenames and summaries.",
-  },
-
   // ── 06: File & Memory ──────────────────────────────────────────────────
   {
     surface: "06-file-memory",

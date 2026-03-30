@@ -1,6 +1,6 @@
 # Agent Tools Inventory — v2 (Source of Truth)
 
-**Total: 35 tools** | Read-only: 15 | Write/Mutating: 16 | Approval-gated: 4
+**Total: 34 tools** | Read-only: 14 | Write/Mutating: 16 | Approval-gated: 4
 
 **Previous version:** [agent-tools-inventory-v1.md](agent-tools-inventory-v1.md) (v1, 53 tools)
 
@@ -27,82 +27,81 @@
 | 2 | `web_scrape` | `tools/web/scrape.ts` | Extract markdown content from a webpage via Exa |
 | 3 | `calculate_drive_time` | `tools/web/drive-time.ts` | Calculate traffic-aware driving time/distance via Google Maps Routes |
 
-## Storage (3 tools)
+## Storage (2 tools)
 
 | # | Tool | File | Description |
 |---|------|------|-------------|
 | 4 | `read_file` | `tools/storage/index.ts` | Read file content or list a directory tree |
 | 5 | `write_file` | `tools/storage/index.ts` | Write, edit, or delete files in the client workspace |
-| 6 | `search_knowledge` | `tools/storage/index.ts` | Search Knowledge Base files by keyword |
 
 ## CRM — Read (1 tool)
 
 | # | Tool | File | Description |
 |---|------|------|-------------|
-| 7 | `search_crm` | `tools/crm/search.ts` | Search any CRM entity (contacts, companies, deals, interactions, tasks, deal_contacts) with free-text query and key-value filters |
+| 6 | `search_crm` | `tools/crm/search.ts` | Search any CRM entity (contacts, companies, deals, interactions, tasks, deal_contacts) with free-text query and key-value filters |
 
 ## CRM — Write (6 tools)
 
 | # | Tool | File | Description |
 |---|------|------|-------------|
-| 8 | `create_record` | `tools/crm/create-record.ts` | Create contacts, companies, or deals. Built-in duplicate detection, batch support (up to 50). |
-| 9 | `update_record` | `tools/crm/update-record.ts` | Update contacts, companies, or deals by ID. Partial patches, custom field deep-merge, deal stage analytics. Batch support. |
-| 10 | `link_records` | `tools/crm/link-records.ts` | Link or unlink CRM records. contact↔deal (junction table with role), contact→company (FK), deal→company (FK). |
-| 11 | `create_interaction` | `tools/crm/interactions.ts` | Record a CRM interaction (call, email, meeting, etc.) linked to a contact and optionally a deal |
-| 12 | `create_task` | `tools/crm/tasks.ts` | Create a new CRM follow-up task with optional contact/deal linkage and custom fields |
-| 13 | `update_task` | `tools/crm/tasks.ts` | Update an existing CRM task by ID. Partial patches, custom field deep-merge. |
+| 7 | `create_record` | `tools/crm/create-record.ts` | Create contacts, companies, or deals. Built-in duplicate detection, batch support (up to 50). |
+| 8 | `update_record` | `tools/crm/update-record.ts` | Update contacts, companies, or deals by ID. Partial patches, custom field deep-merge, deal stage analytics. Batch support. |
+| 9 | `link_records` | `tools/crm/link-records.ts` | Link or unlink CRM records. contact↔deal (junction table with role), contact→company (FK), deal→company (FK). |
+| 10 | `create_interaction` | `tools/crm/interactions.ts` | Record a CRM interaction (call, email, meeting, etc.) linked to a contact and optionally a deal |
+| 11 | `create_task` | `tools/crm/tasks.ts` | Create a new CRM follow-up task with optional contact/deal linkage and custom fields |
+| 12 | `update_task` | `tools/crm/tasks.ts` | Update an existing CRM task by ID. Partial patches, custom field deep-merge. |
 
 ## CRM — Delete (1 tool, approval-gated)
 
 | # | Tool | File | Approval | Description |
 |---|------|------|----------|-------------|
-| 14 | `delete_records` | `tools/crm/delete-records.ts` | **Yes** | Delete CRM records by ID. All 5 entity types. Requires reason for audit trail. Batch support with partial failure. |
+| 13 | `delete_records` | `tools/crm/delete-records.ts` | **Yes** | Delete CRM records by ID. All 5 entity types. Requires reason for audit trail. Batch support with partial failure. |
 
 ## CRM — Setup (1 tool, setup mode only)
 
 | # | Tool | File | Description |
 |---|------|------|-------------|
-| 15 | `configure_crm` | `tools/crm/configure-crm.ts` | Configure CRM vocabulary (contact types, deal stages, interaction types, custom fields, etc.) |
+| 14 | `configure_crm` | `tools/crm/configure-crm.ts` | Configure CRM vocabulary (contact types, deal stages, interaction types, custom fields, etc.) |
 
 ## Utility (8 tools)
 
 | # | Tool | File | Description |
 |---|------|------|-------------|
-| 16 | `ask_user_question` | `tools/utility/ask-user-question.ts` | Ask the user a structured question with 2-4 options |
-| 17 | `manage_todo` | `tools/utility/todo.ts` | Manage agent todos (add/update/delete) — internal scratchpad (Tasklet parity: `manage_tasks`) |
-| 18 | `list_todo` | `tools/utility/todo.ts` | List all agent todos for the current thread (Tasklet parity: `list_tasks`) |
-| 19 | `rename_chat` | `tools/utility/rename-chat.ts` | Rename the current conversation thread |
-| 20 | `send_message` | `tools/utility/send-message.ts` | Send a message to the user (stub — delivery not yet implemented) |
-| 21 | `calculate` | `tools/utility/calculate.ts` | Evaluate scalar math expressions (arithmetic, trig, unit conversion) |
-| 22 | `run_sql` | `tools/utility/sql.ts` | Run a read-only SQL query against all client-accessible tables (CRM, vault_files, agent_triggers, etc.). Optional purpose field for audit. |
-| 23 | `get_agent_db_schema` | `tools/utility/sql.ts` | Get available tables, columns, and row counts |
+| 15 | `ask_user_question` | `tools/utility/ask-user-question.ts` | Ask the user a structured question with 2-4 options |
+| 16 | `manage_todo` | `tools/utility/todo.ts` | Manage agent todos (add/update/delete) — internal scratchpad (Tasklet parity: `manage_tasks`) |
+| 17 | `list_todo` | `tools/utility/todo.ts` | List all agent todos for the current thread (Tasklet parity: `list_tasks`) |
+| 18 | `rename_chat` | `tools/utility/rename-chat.ts` | Rename the current conversation thread |
+| 19 | `send_message` | `tools/utility/send-message.ts` | Send a message to the user (stub — delivery not yet implemented) |
+| 20 | `calculate` | `tools/utility/calculate.ts` | Evaluate scalar math expressions (arithmetic, trig, unit conversion) |
+| 21 | `run_sql` | `tools/utility/sql.ts` | Run a read-only SQL query against all client-accessible tables (CRM, agent_todo, agent_triggers, etc.). Optional purpose field for audit. |
+| 22 | `get_agent_db_schema` | `tools/utility/sql.ts` | Get available tables, columns, and row counts |
 
 ## Triggers (3 tools)
 
 | # | Tool | File | Approval | Description |
 |---|------|------|----------|-------------|
-| 24 | `search_triggers` | `tools/triggers/search-triggers.ts` | No | Search available trigger types by keywords |
-| 25 | `setup_trigger` | `tools/triggers/setup-trigger.ts` | No | Create a new trigger instance (schedule/webhook/RSS) |
-| 26 | `manage_active_triggers` | `tools/triggers/manage-triggers.ts` | **Delete only** | List, view, delete, simulate, or edit active triggers |
+| 23 | `search_triggers` | `tools/triggers/search-triggers.ts` | No | Search available trigger types by keywords |
+| 24 | `setup_trigger` | `tools/triggers/setup-trigger.ts` | No | Create a new trigger instance (schedule/webhook/RSS) |
+| 25 | `manage_active_triggers` | `tools/triggers/manage-triggers.ts` | **Delete only** | List, view, delete, simulate, or edit active triggers |
 
 ## Connections (8 tools)
 
 | # | Tool | File | Approval | Description |
 |---|------|------|----------|-------------|
-| 27 | `list_users_connections` | `tools/connections/list-connections.ts` | No | List all user's connections with status and tool counts |
-| 28 | `search_for_integrations` | `tools/connections/search-integrations.ts` | No | Search Composio integration catalog by keywords |
-| 29 | `get_integrations_capabilities` | `tools/connections/get-integration-capabilities.ts` | No | List capabilities for given integrations |
-| 30 | `get_details_for_connections` | `tools/connections/get-connection-details.ts` | No | Get detailed info + available tools for connections |
-| 31 | `create_new_connections` | `tools/connections/create-connection.ts` | No | Create a new connection (OAuth integrations in v1) |
-| 32 | `manage_activated_tools_for_connections` | `tools/connections/manage-tools.ts` | **Yes** | Activate/deactivate tools for connections |
-| 33 | `reauthorize_connection` | `tools/connections/reauthorize-connection.ts` | No | Re-authorize an expired connection |
-| 34 | `delete_connection` | `tools/connections/delete-connection.ts` | **Yes** | Permanently delete a connection |
+| 26 | `list_users_connections` | `tools/connections/list-connections.ts` | No | List all user's connections with status and tool counts |
+| 27 | `search_for_integrations` | `tools/connections/search-integrations.ts` | No | Search Composio integration catalog by keywords |
+| 28 | `get_integrations_capabilities` | `tools/connections/get-integration-capabilities.ts` | No | List capabilities for given integrations |
+| 29 | `get_details_for_connections` | `tools/connections/get-connection-details.ts` | No | Get detailed info + available tools for connections |
+| 30 | `create_new_connections` | `tools/connections/create-connection.ts` | No | Create a new connection (OAuth integrations in v1) |
+| 31 | `manage_activated_tools_for_connections` | `tools/connections/manage-tools.ts` | **Yes** | Activate/deactivate tools for connections |
+| 32 | `reauthorize_connection` | `tools/connections/reauthorize-connection.ts` | No | Re-authorize an expired connection |
+| 33 | `delete_connection` | `tools/connections/delete-connection.ts` | **Yes** | Permanently delete a connection |
 
 ## Subagents (1 tool)
 
 | # | Tool | File | Description |
 |---|------|------|-------------|
-| 35 | `run_subagent` | `tools/subagents/run-subagent.ts` | Run a subagent from a markdown instruction file with optional payload. Max 9 steps, 120s timeout. |
+| 34 | `run_subagent` | `tools/subagents/run-subagent.ts` | Run a subagent from a markdown instruction file with optional payload. Max 9 steps, 120s timeout. |
 
 ---
 
@@ -111,8 +110,8 @@
 | Gate | Controls |
 |------|----------|
 | `crmMode: "setup"` | Swaps all CRM tools for `configure_crm` only |
-| `allowWriteTools` | Gates CRM write tools (#8-13) and delete (#14) |
-| `allowDeleteTools` | Additionally gates `delete_records` (#14) |
+| `allowWriteTools` | Gates CRM write tools (#7-12) and delete (#13) |
+| `allowDeleteTools` | Additionally gates `delete_records` (#13) |
 | `allowMutations` | Gates trigger writes and connection writes |
 
 ## Approval-Gated Tools

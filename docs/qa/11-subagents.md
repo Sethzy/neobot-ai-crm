@@ -38,7 +38,7 @@ Not applicable — subagents are invisible backend operations. Results appear as
 
 ### 11.2 Subagent for document analysis
 
-1. Upload a long document to knowledge base or storage
+1. Upload a long document to storage
 2. In chat: "Analyze the document at [path] and give me the key takeaways"
 3. **Expected:** Agent spawns subagent for document analysis
 4. **Expected:** Subagent reads and processes the document

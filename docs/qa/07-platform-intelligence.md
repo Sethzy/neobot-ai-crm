@@ -95,7 +95,7 @@ Not applicable — this surface is entirely about invisible agent intelligence. 
 
 1. "What tables can you query?"
 2. **Expected:** Agent calls `get_agent_db_schema` and lists available tables
-3. **Expected:** Tables include contacts, deals, crm_tasks, companies, interactions, vault_files, agent_todo, agent_triggers, etc.
+3. **Expected:** Tables include contacts, deals, crm_tasks, companies, interactions, agent_todo, agent_triggers, etc.
 4. "What columns does the contacts table have?"
 5. **Expected:** Returns column names and types
 

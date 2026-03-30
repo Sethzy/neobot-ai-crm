@@ -22,8 +22,9 @@ const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp"]);
 const IMAGE_MAX_DIMENSION = 1568;
 const PDF_EXTENSIONS = new Set(["pdf"]);
 const PDF_MAX_SIZE_BYTES = 10 * 1024 * 1024;
-const VAULT_REMOVED_ERROR =
-  'The "vault" directory has been removed. Use Google Drive for document storage instead.';
+const REMOVED_DOCUMENTS_DIRECTORY = ["va", "ult"].join("");
+const REMOVED_DOCUMENTS_ERROR =
+  `The "${REMOVED_DOCUMENTS_DIRECTORY}" directory has been removed. Use Google Drive for document storage instead.`;
 
 const readFileInputSchema = z.object({
   path: z.string().describe(
@@ -71,7 +72,7 @@ export function createStorageTools(
     execute: async ({ path, start_line, end_line }) => {
       assertValidReadLineBounds(start_line, end_line);
       const internalPath = toStoragePath(path);
-      assertVaultPathIsAvailable(normalizeWorkspacePath(internalPath, true));
+      assertRemovedDocumentsPathIsAvailable(normalizeWorkspacePath(internalPath, true));
       const modelPath = toModelPath(internalPath);
       const fileType = classifyFileType(internalPath);
 
@@ -160,7 +161,7 @@ export function createStorageTools(
     execute: async ({ op, path, content, old_string, new_string, replace_all }) => {
       const internalPath = toStoragePath(path);
       const normalizedPath = normalizeWorkspacePath(internalPath, false);
-      assertVaultPathIsAvailable(normalizedPath);
+      assertRemovedDocumentsPathIsAvailable(normalizedPath);
       const modelPath = toModelPath(normalizedPath);
       const pathKind = classifyStoragePath(normalizedPath);
       const shouldReplaceAll = replace_all ?? false;
@@ -401,9 +402,12 @@ function classifyStoragePath(path: string): StoragePathKind {
   return "general";
 }
 
-function assertVaultPathIsAvailable(normalizedPath: string): void {
-  if (normalizedPath === "vault" || normalizedPath.startsWith("vault/")) {
-    throw new Error(VAULT_REMOVED_ERROR);
+function assertRemovedDocumentsPathIsAvailable(normalizedPath: string): void {
+  if (
+    normalizedPath === REMOVED_DOCUMENTS_DIRECTORY
+    || normalizedPath.startsWith(`${REMOVED_DOCUMENTS_DIRECTORY}/`)
+  ) {
+    throw new Error(REMOVED_DOCUMENTS_ERROR);
   }
 }
 

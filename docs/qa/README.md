@@ -2,7 +2,7 @@
 
 > **Created:** 2026-03-10
 > **Updated:** 2026-03-23
-> **Total surfaces:** 28
+> **Total surfaces:** 25
 > **Coverage:** 50+ done PRs across Phases 1-5
 
 ## Execution Order
@@ -15,7 +15,6 @@ Test in this order (dependency-safe — each surface builds on the previous):
 | 2 | Chat Core | [02-chat-core.md](02-chat-core.md) | Yes | 20-25 min | [ ] |
 | 3 | CRM Tools via Chat | [03-crm-tools-via-chat.md](03-crm-tools-via-chat.md) | Partial | 30-40 min | [ ] |
 | 4 | CRM Pages | [04-crm-pages.md](04-crm-pages.md) | Yes | 20-25 min | [ ] |
-| 5 | Knowledge Base | [05-knowledge-base.md](05-knowledge-base.md) | Yes | 15 min | [ ] |
 | 6 | File & Memory | [06-file-and-memory.md](06-file-and-memory.md) | Partial | 25-30 min | [ ] |
 | 7 | Platform Intelligence | [07-platform-intelligence.md](07-platform-intelligence.md) | No | 25-30 min | [ ] |
 | 8 | Triggers & Automations | [08-triggers-and-automations.md](08-triggers-and-automations.md) | Yes | 30-40 min | [ ] |
@@ -68,7 +67,6 @@ Walk through each "Manual QA Scenario" as a real user. Check boxes as you go. Wr
 | 2. Chat Core | 1, 2, 3, 4 |
 | 3. CRM Tools | 5, 6, 15c, 15d, 15e |
 | 4. CRM Pages | 10, 11, 15c, 15d |
-| 5. Knowledge Base | 12a |
 | 6. File & Memory | 7, 13, 14 |
 | 7. Platform Intelligence | 15 |
 | 8. Triggers & Automations | 18, 19, 20, 20a |

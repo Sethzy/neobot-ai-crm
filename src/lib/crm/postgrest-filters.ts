@@ -1,5 +1,5 @@
 /**
- * Shared PostgREST search filter builders for CRM and knowledge base query hooks.
+ * Shared PostgREST search filter builders for CRM query hooks.
  * @module lib/crm/postgrest-filters
  */
 

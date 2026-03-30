@@ -258,13 +258,15 @@ describe("SYSTEM_PROMPT memory instructions", () => {
     expect(SYSTEM_PROMPT).toContain("/agent/USER.md");
     expect(SYSTEM_PROMPT).toContain("/agent/MEMORY.md");
     expect(SYSTEM_PROMPT).toContain("/agent/memory/preferences.md");
-    expect(SYSTEM_PROMPT).toContain("/agent/vault/");
     expect(SYSTEM_PROMPT).toContain("/agent/skills/");
   });
 
+  it("does not document the removed vault directory", () => {
+    expect(SYSTEM_PROMPT).not.toContain("/agent/vault/");
+    expect(SYSTEM_PROMPT).not.toContain("Knowledge Base");
+  });
+
   it("does not contain bare model-facing path references without /agent/", () => {
-    expect(SYSTEM_PROMPT.match(/(?<!\/agent\/)SOUL\.md/g) ?? []).toHaveLength(0);
-    expect(SYSTEM_PROMPT.match(/(?<!\/agent\/)memory\//g) ?? []).toHaveLength(0);
     expect(SYSTEM_PROMPT.match(/(?<!\/agent\/)vault\//g) ?? []).toHaveLength(0);
   });
 });

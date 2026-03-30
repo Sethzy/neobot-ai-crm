@@ -56,7 +56,7 @@ const tools: ToolRow[] = [
   { capability: 'CRM & Pipeline', icon: 'dashboard', replaces: [{ name: 'HubSpot', domain: 'hubspot.com' }, { name: 'Follow Up Boss', domain: 'followupboss.com' }], monthlyCost: 99, status: 'included' },
   { capability: 'Booking & Scheduling', icon: 'calendar', replaces: [{ name: 'Calendly', domain: 'calendly.com' }, { name: 'Cal.com', domain: 'cal.com' }], monthlyCost: 49, status: 'included' },
   { capability: 'Forms & Lead Capture', icon: 'form', replaces: [{ name: 'Typeform', domain: 'typeform.com' }, { name: 'Tally', domain: 'tally.so' }], monthlyCost: 49, status: 'included' },
-  { capability: 'Document Vault', icon: 'folderOpen', replaces: [{ name: 'Notion', domain: 'notion.so' }, { name: 'Dropbox', domain: 'dropbox.com' }], monthlyCost: 29, status: 'included' },
+  { capability: 'Document Hub', icon: 'folderOpen', replaces: [{ name: 'Notion', domain: 'notion.so' }, { name: 'Dropbox', domain: 'dropbox.com' }], monthlyCost: 29, status: 'included' },
   { capability: 'Voice Transcription', icon: 'microphone', replaces: [{ name: 'Otter.ai', domain: 'otter.ai' }, { name: 'Fireflies', domain: 'fireflies.ai' }], monthlyCost: 29, status: 'included' },
   { capability: 'WhatsApp Automation', icon: 'whatsapp', replaces: [{ name: 'WATI', domain: 'wati.io' }, { name: 'Respond.io', domain: 'respond.io' }], monthlyCost: 99, status: 'included' },
   { capability: 'AI Workflow Engine', icon: 'automations', replaces: [{ name: 'Zapier', domain: 'zapier.com' }, { name: 'Make', domain: 'make.com' }], monthlyCost: 69, status: 'included' },
