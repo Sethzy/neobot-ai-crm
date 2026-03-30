@@ -278,16 +278,22 @@ export function createSearchPropertyguruTool() {
               }),
             );
       const resolvedMaxItems = maxItems ?? MAX_TOOL_ITEMS;
-      const results: PropertyGuruListing[] = [];
+      const resultMap = new Map<string, PropertyGuruListing>();
       const totalCost = { total: 0, llm: 0, proxy: 0, browser: 0 };
 
       for (const searchUrl of targetUrls) {
+        if (resultMap.size >= resolvedMaxItems) {
+          break;
+        }
+
+        const remainingItems = resolvedMaxItems - resultMap.size;
         const taskPrompt = [
           `Navigate to ${searchUrl}.`,
           "Wait for the page to fully load.",
           "Read the JSON from window.__NEXT_DATA__.",
-          "Extract props.pageProps.pageData.data.listingsData[].listingData.",
-          "Return the listingData array exactly.",
+          `Collect up to ${remainingItems} listings across the current and subsequent result pages until you reach the limit or there are no more pages.`,
+          "Extract props.pageProps.pageData.data.listingsData[].listingData from each visited result page.",
+          "Return a single combined listingData array exactly.",
         ].join("\n");
 
         const taskResult = await runBrowserTask(taskPrompt, {
@@ -307,18 +313,21 @@ export function createSearchPropertyguruTool() {
         totalCost.llm += taskResult.cost.llm;
         totalCost.proxy += taskResult.cost.proxy;
         totalCost.browser += taskResult.cost.browser;
-        const normalizedResults = taskResult.output
-          .map(normalizePropertyGuruListing)
-          .filter((listing): listing is PropertyGuruListing => listing !== null);
-
-        results.push(...normalizedResults);
+        for (const listing of taskResult.output) {
+          const normalizedListing = normalizePropertyGuruListing(listing);
+          if (normalizedListing) {
+            resultMap.set(normalizedListing.url, normalizedListing);
+          }
+        }
       }
+
+      const results = Array.from(resultMap.values()).slice(0, resolvedMaxItems);
 
       return {
         success: true as const,
         portal: "propertyguru" as const,
-        count: results.slice(0, resolvedMaxItems).length,
-        results: results.slice(0, resolvedMaxItems),
+        count: results.length,
+        results,
         cost: totalCost,
       };
     },

@@ -12,6 +12,15 @@ const MAX_TOOL_ITEMS = 100;
 const MAX_COST_PER_SEARCH_USD = 0.05;
 const MAX_STEPS = 20;
 const NINETY_NINE_BASE_URL = "https://www.99.co";
+const NINETY_NINE_PAGE_SIZE = 36;
+const MAIN_CATEGORY_BY_PATH = {
+  "/singapore/sale/condos-apartments": "condo",
+  "/singapore/sale/hdb": "hdb",
+  "/singapore/sale/houses": "landed",
+  "/singapore/rent/condos-apartments": "condo",
+  "/singapore/rent/hdb": "hdb",
+  "/singapore/rent/houses": "landed",
+} as const;
 
 const ninetyNineRawListingSchema = z.object({
   listing_title: z.string().optional(),
@@ -116,7 +125,14 @@ function isAllowed99coSearchUrl(value: string): boolean {
   );
 }
 
-function buildApiUrl(searchUrl: string): string {
+function getMainCategory(pathname: string, fallbackCategory: string | null): string {
+  return MAIN_CATEGORY_BY_PATH[pathname as keyof typeof MAIN_CATEGORY_BY_PATH] ?? fallbackCategory ?? "all";
+}
+
+function buildApiUrl(
+  searchUrl: string,
+  options: { pageNumber: number; pageSize: number },
+): string {
   const parsed = new URL(searchUrl);
   const apiUrl = new URL(`${NINETY_NINE_BASE_URL}/api/v11/web/search/listings`);
   const pathname = parsed.pathname.toLowerCase();
@@ -126,19 +142,14 @@ function buildApiUrl(searchUrl: string): string {
     parsed.searchParams.get("listing_type") ?? (pathname.includes("/rent") ? "rent" : "sale"),
   );
 
-  if (pathname === "/singapore/sale/condos-apartments") {
-    apiUrl.searchParams.set("main_category", "condo");
-  } else if (pathname === "/singapore/sale/hdb") {
-    apiUrl.searchParams.set("main_category", "hdb");
-  } else if (pathname === "/singapore/sale/houses") {
-    apiUrl.searchParams.set("main_category", "landed");
-  } else {
-    apiUrl.searchParams.set("main_category", parsed.searchParams.get("main_category") ?? "all");
-  }
+  apiUrl.searchParams.set(
+    "main_category",
+    getMainCategory(pathname, parsed.searchParams.get("main_category")),
+  );
 
   apiUrl.searchParams.set("name", "Singapore");
-  apiUrl.searchParams.set("page_num", "1");
-  apiUrl.searchParams.set("page_size", "36");
+  apiUrl.searchParams.set("page_num", String(options.pageNumber));
+  apiUrl.searchParams.set("page_size", String(options.pageSize));
   apiUrl.searchParams.set("path", parsed.pathname);
   apiUrl.searchParams.set("property_segments", "residential");
   apiUrl.searchParams.set("query_name", "Singapore");
@@ -264,37 +275,57 @@ export function createSearch99coTool() {
       const totalCost = { total: 0, llm: 0, proxy: 0, browser: 0 };
 
       for (const searchUrl of searchUrls) {
-        const apiUrl = buildApiUrl(searchUrl);
-        const taskPrompt = [
-          `Navigate to ${searchUrl}.`,
-          `Fetch ${apiUrl}.`,
-          "Read data.main_results.listing_cards from the JSON response.",
-          "Return the listing_cards array exactly.",
-        ].join("\n");
-
-        const taskResult = await runBrowserTask(taskPrompt, {
-          schema: ninetyNineTaskOutputSchema,
-          maxCostUsd: MAX_COST_PER_SEARCH_USD,
-          maxSteps: MAX_STEPS,
-        });
-
-        if (!taskResult.success) {
-          return {
-            success: false as const,
-            error: taskResult.error,
-          };
+        if (resultMap.size >= resolvedMaxItems) {
+          break;
         }
 
-        totalCost.total += taskResult.cost.total;
-        totalCost.llm += taskResult.cost.llm;
-        totalCost.proxy += taskResult.cost.proxy;
-        totalCost.browser += taskResult.cost.browser;
+        let pageNumber = 1;
+        while (resultMap.size < resolvedMaxItems) {
+          const remainingItems = resolvedMaxItems - resultMap.size;
+          const pageSize = Math.min(NINETY_NINE_PAGE_SIZE, remainingItems);
+          const apiUrl = buildApiUrl(searchUrl, { pageNumber, pageSize });
+          const taskPrompt = [
+            `Navigate to ${searchUrl}.`,
+            `Fetch ${apiUrl}.`,
+            "Read data.main_results.listing_cards from the JSON response.",
+            "Return the listing_cards array exactly.",
+          ].join("\n");
 
-        for (const listing of taskResult.output) {
-          const normalizedListing = normalize99coListing(listing);
-          if (normalizedListing) {
-            resultMap.set(normalizedListing.url, normalizedListing);
+          const taskResult = await runBrowserTask(taskPrompt, {
+            schema: ninetyNineTaskOutputSchema,
+            maxCostUsd: MAX_COST_PER_SEARCH_USD,
+            maxSteps: MAX_STEPS,
+          });
+
+          if (!taskResult.success) {
+            return {
+              success: false as const,
+              error: taskResult.error,
+            };
           }
+
+          totalCost.total += taskResult.cost.total;
+          totalCost.llm += taskResult.cost.llm;
+          totalCost.proxy += taskResult.cost.proxy;
+          totalCost.browser += taskResult.cost.browser;
+
+          if (taskResult.output.length === 0) {
+            break;
+          }
+
+          const existingCount = resultMap.size;
+          for (const listing of taskResult.output) {
+            const normalizedListing = normalize99coListing(listing);
+            if (normalizedListing) {
+              resultMap.set(normalizedListing.url, normalizedListing);
+            }
+          }
+
+          if (taskResult.output.length < pageSize || resultMap.size === existingCount) {
+            break;
+          }
+
+          pageNumber += 1;
         }
       }
 

@@ -16,6 +16,55 @@ import { createSearch99coTool } from "../search-99co";
 
 const EXECUTION_OPTIONS = { toolCallId: "tool-call", messages: [] } as never;
 
+function createFixtureListing(overrides?: Partial<typeof NINETY_NINE_FIXTURE_LISTING>) {
+  return {
+    ...NINETY_NINE_FIXTURE_LISTING,
+    ...overrides,
+    attributes: {
+      ...NINETY_NINE_FIXTURE_LISTING.attributes,
+      ...overrides?.attributes,
+      price: {
+        ...NINETY_NINE_FIXTURE_LISTING.attributes.price,
+        ...overrides?.attributes?.price,
+      },
+      psf: {
+        ...NINETY_NINE_FIXTURE_LISTING.attributes.psf,
+        ...overrides?.attributes?.psf,
+      },
+      beds: {
+        ...NINETY_NINE_FIXTURE_LISTING.attributes.beds,
+        ...overrides?.attributes?.beds,
+      },
+      bathrooms: {
+        ...NINETY_NINE_FIXTURE_LISTING.attributes.bathrooms,
+        ...overrides?.attributes?.bathrooms,
+      },
+      floorarea_sqft: {
+        ...NINETY_NINE_FIXTURE_LISTING.attributes.floorarea_sqft,
+        ...overrides?.attributes?.floorarea_sqft,
+      },
+    },
+    commute_nearest_mrt: {
+      ...NINETY_NINE_FIXTURE_LISTING.commute_nearest_mrt,
+      ...overrides?.commute_nearest_mrt,
+      duration: {
+        ...NINETY_NINE_FIXTURE_LISTING.commute_nearest_mrt.duration,
+        ...overrides?.commute_nearest_mrt?.duration,
+      },
+      distance: {
+        ...NINETY_NINE_FIXTURE_LISTING.commute_nearest_mrt.distance,
+        ...overrides?.commute_nearest_mrt?.distance,
+      },
+    },
+    agent: {
+      ...NINETY_NINE_FIXTURE_LISTING.agent,
+      ...overrides?.agent,
+    },
+    usp_tags: overrides?.usp_tags ?? NINETY_NINE_FIXTURE_LISTING.usp_tags,
+    photo_urls: overrides?.photo_urls ?? NINETY_NINE_FIXTURE_LISTING.photo_urls,
+  };
+}
+
 const NINETY_NINE_FIXTURE_LISTING = {
   listing_title: "1 Bed Condo for Sale in Fourth Avenue Residences",
   listing_url: "/singapore/sale/property/fourth-avenue-residences-condo-9p2puTqAFeWF9nYSgzsAeT",
@@ -56,7 +105,7 @@ const NINETY_NINE_FIXTURE_LISTING = {
 
 describe("createSearch99coTool", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    mockRunBrowserTask.mockReset();
   });
 
   it("builds a live-compatible v11 URL and normalizes listing card output", async () => {
@@ -81,6 +130,8 @@ describe("createSearch99coTool", () => {
       expect.stringContaining("https://www.99.co/api/v11/web/search/listings"),
       { schema: expect.anything(), maxCostUsd: 0.05, maxSteps: 20 },
     );
+    expect(mockRunBrowserTask.mock.calls[0]?.[0]).toContain("page_num=1");
+    expect(mockRunBrowserTask.mock.calls[0]?.[0]).toContain("page_size=10");
     expect(result).toEqual({
       success: true,
       portal: "99co",
@@ -168,6 +219,152 @@ describe("createSearch99coTool", () => {
       success: true,
       count: 2,
       cost: { total: 0.04, llm: 0.02, proxy: 0.01, browser: 0.01 },
+    });
+  });
+
+  it("paginates within a single search URL until maxItems is satisfied", async () => {
+    const firstPage = Array.from({ length: 36 }, (_, index) =>
+      createFixtureListing({
+        listing_title: `Listing ${index + 1}`,
+        listing_url: `/singapore/sale/property/listing-${index + 1}`,
+        attributes: {
+          listing_id: `listing-${index + 1}`,
+          formatted_address: `Address ${index + 1} 12345${String(index).padStart(1, "0")}`,
+        },
+      }),
+    );
+    const secondPage = Array.from({ length: 8 }, (_, index) =>
+      createFixtureListing({
+        listing_title: `Listing ${index + 37}`,
+        listing_url: `/singapore/sale/property/listing-${index + 37}`,
+        attributes: {
+          listing_id: `listing-${index + 37}`,
+          formatted_address: `Address ${index + 37} 22345${String(index).padStart(1, "0")}`,
+        },
+      }),
+    );
+
+    mockRunBrowserTask
+      .mockResolvedValueOnce({
+        success: true,
+        output: firstPage,
+        cost: { total: 0.02, llm: 0.01, proxy: 0.005, browser: 0.005 },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        output: secondPage,
+        cost: { total: 0.02, llm: 0.01, proxy: 0.005, browser: 0.005 },
+      });
+
+    const tools = createSearch99coTool();
+    const result = await tools.search_99co.execute(
+      {
+        searchUrls: ["https://www.99.co/singapore/sale?query_ids=district-10"],
+        maxItems: 40,
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(mockRunBrowserTask).toHaveBeenCalledTimes(2);
+    expect(mockRunBrowserTask.mock.calls[0]?.[0]).toContain("page_num=1");
+    expect(mockRunBrowserTask.mock.calls[0]?.[0]).toContain("page_size=36");
+    expect(mockRunBrowserTask.mock.calls[1]?.[0]).toContain("page_num=2");
+    expect(mockRunBrowserTask.mock.calls[1]?.[0]).toContain("page_size=4");
+    expect(result).toMatchObject({
+      success: true,
+      count: 40,
+      cost: { total: 0.04, llm: 0.02, proxy: 0.01, browser: 0.01 },
+    });
+  });
+
+  it("maps rent category paths to the correct main_category", async () => {
+    mockRunBrowserTask.mockResolvedValueOnce({
+      success: true,
+      output: [NINETY_NINE_FIXTURE_LISTING],
+      cost: { total: 0.02, llm: 0.01, proxy: 0.005, browser: 0.005 },
+    });
+
+    const tools = createSearch99coTool();
+    await tools.search_99co.execute(
+      {
+        searchUrls: [
+          "https://www.99.co/singapore/rent/hdb?query_ids=planning-area-bedok",
+        ],
+        maxItems: 5,
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(mockRunBrowserTask.mock.calls[0]?.[0]).toContain("listing_type=rent");
+    expect(mockRunBrowserTask.mock.calls[0]?.[0]).toContain("main_category=hdb");
+  });
+
+  it("returns tool-level failures from Browser-Use", async () => {
+    mockRunBrowserTask.mockResolvedValueOnce({
+      success: false,
+      error: "99.co task failed",
+    });
+
+    const tools = createSearch99coTool();
+    const result = await tools.search_99co.execute(
+      {
+        searchUrls: ["https://www.99.co/singapore/sale?query_ids=district-10"],
+        maxItems: 5,
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "99.co task failed",
+    });
+  });
+
+  it("filters malformed listing cards and supports empty task output", async () => {
+    mockRunBrowserTask
+      .mockResolvedValueOnce({
+        success: true,
+        output: [
+          createFixtureListing(),
+          createFixtureListing({
+            listing_url: undefined,
+            attributes: {
+              listing_id: "bad-listing",
+            },
+          }),
+        ],
+        cost: { total: 0.02, llm: 0.01, proxy: 0.005, browser: 0.005 },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        output: [],
+        cost: { total: 0.02, llm: 0.01, proxy: 0.005, browser: 0.005 },
+      });
+
+    const tools = createSearch99coTool();
+    const partialResult = await tools.search_99co.execute(
+      {
+        searchUrls: ["https://www.99.co/singapore/sale?query_ids=district-10"],
+        maxItems: 10,
+      },
+      EXECUTION_OPTIONS,
+    );
+    const emptyResult = await tools.search_99co.execute(
+      {
+        searchUrls: ["https://www.99.co/singapore/sale?query_ids=district-10"],
+        maxItems: 10,
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(partialResult).toMatchObject({
+      success: true,
+      count: 1,
+    });
+    expect(emptyResult).toMatchObject({
+      success: true,
+      count: 0,
+      results: [],
     });
   });
 });
