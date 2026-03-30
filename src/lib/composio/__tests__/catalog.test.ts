@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../client", () => ({
   getComposio: vi.fn(),
+  COMPOSIO_TOOL_FETCH_LIMIT: 200,
 }));
 
 import { getComposio } from "../client";
@@ -85,6 +86,7 @@ describe("searchIntegrations", () => {
 
     expect(mock.tools.getRawComposioTools).toHaveBeenCalledWith({
       search: "calendar",
+      limit: 200,
     });
   });
 
@@ -158,6 +160,7 @@ describe("getToolkitCapabilities", () => {
 
     expect(mock.tools.getRawComposioTools).toHaveBeenCalledWith({
       toolkits: ["gmail"],
+      limit: 200,
     });
   });
 

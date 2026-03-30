@@ -6,7 +6,7 @@ import { tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import { getComposio } from "@/lib/composio/client";
+import { COMPOSIO_TOOL_FETCH_LIMIT, getComposio } from "@/lib/composio/client";
 import { getConnectionsByIds } from "@/lib/connections/queries";
 import type { Database } from "@/types/database";
 
@@ -46,6 +46,7 @@ export function createGetConnectionDetailsTool(
           connections.map(async (connection) => {
             const rawTools = (await composio.tools.getRawComposioTools({
               toolkits: [connection.toolkit_slug],
+              limit: COMPOSIO_TOOL_FETCH_LIMIT,
             })) as RawConnectionTool[];
             const activatedToolSlugs = new Set(connection.activated_tools);
 

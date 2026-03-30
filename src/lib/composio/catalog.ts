@@ -2,7 +2,7 @@
  * Composio catalog search and toolkit capability helpers.
  * @module lib/composio/catalog
  */
-import { getComposio } from "./client";
+import { COMPOSIO_TOOL_FETCH_LIMIT, getComposio } from "./client";
 
 export interface CatalogIntegration {
   integrationId: string;
@@ -36,7 +36,11 @@ export async function searchIntegrations(
   keyword: string,
 ): Promise<CatalogIntegration[]> {
   const composio = getComposio();
-  const tools = await composio.tools.getRawComposioTools({ search: keyword });
+  // SDK types don't include `limit` on SearchOnlyParams, but the API supports it
+  const tools = await composio.tools.getRawComposioTools({
+    search: keyword,
+    limit: COMPOSIO_TOOL_FETCH_LIMIT,
+  } as Parameters<typeof composio.tools.getRawComposioTools>[0]);
   const seenIntegrations = new Map<string, CatalogIntegration>();
 
   for (const tool of tools) {
@@ -74,6 +78,7 @@ export async function getToolkitCapabilities(
   return Promise.all(toolkitSlugs.map(async (toolkitSlug) => {
     const tools = await composio.tools.getRawComposioTools({
       toolkits: [toolkitSlug],
+      limit: COMPOSIO_TOOL_FETCH_LIMIT,
     });
 
     return {

@@ -43,6 +43,7 @@ vi.mock("@/lib/connections/queries", () => ({
 
 vi.mock("@/lib/composio", () => ({
   getComposio: (...args: unknown[]) => mockGetComposio(...args),
+  COMPOSIO_TOOL_FETCH_LIMIT: 200,
 }));
 
 import { GET } from "../route";
@@ -277,6 +278,7 @@ describe("GET /api/connections/callback", () => {
     });
     expect(getRawComposioTools).toHaveBeenCalledWith({
       toolkits: ["gmail"],
+      limit: 200,
     });
     expect(mockGetConnectionByConnectedAccountId).toHaveBeenCalledWith(
       { marker: "server-client" },

@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { authenticateRequest } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
-import { getComposio } from "@/lib/composio";
+import { COMPOSIO_TOOL_FETCH_LIMIT, getComposio } from "@/lib/composio";
 import {
   deleteConnection,
   getConnectionByConnectedAccountId,
@@ -187,6 +187,7 @@ export async function GET(request: Request): Promise<Response> {
     }
     const rawTools = await composio.tools.getRawComposioTools({
       toolkits: [connectedAccount.toolkit.slug],
+      limit: COMPOSIO_TOOL_FETCH_LIMIT,
     });
     const nextConnectionState = {
       composio_connected_account_id: connectedAccount.id,

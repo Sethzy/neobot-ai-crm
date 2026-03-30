@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/composio/client", () => ({
   getComposio: vi.fn(),
+  COMPOSIO_TOOL_FETCH_LIMIT: 200,
 }));
 
 vi.mock("@/lib/connections/queries", () => ({
@@ -73,7 +74,7 @@ describe("createManageToolsTool", () => {
   });
 
   it("activates and deactivates tools per connection", async () => {
-    mockComposioCatalog();
+    const composio = mockComposioCatalog();
     vi.mocked(getConnectionById).mockResolvedValue(MOCK_CONNECTION as never);
     vi.mocked(updateConnectionActivatedTools).mockResolvedValue({} as never);
 
@@ -94,6 +95,10 @@ describe("createManageToolsTool", () => {
       EXECUTION_OPTIONS,
     );
 
+    expect(composio.tools.getRawComposioTools).toHaveBeenCalledWith({
+      toolkits: ["gmail"],
+      limit: 200,
+    });
     expect(updateConnectionActivatedTools).toHaveBeenCalledWith(
       {} as never,
       CLIENT_ID,

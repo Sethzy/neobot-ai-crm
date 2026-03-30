@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-30: Added Phase 7 (Documents + Connections Polish). PR 60: vault teardown (kill Knowledge Base, drop vault_files table) shipped and marked done. PR 61: Composio limit fix (getRawComposioTools truncation at 20). PR 62: Google workspace + chat upload expansion + connection UI cards. Supersedes PR 12a (Knowledge Base).",
+    "updated": "2026-03-30: PR 16 (model selector) un-cut and marked done — user-facing model picker (Gemini Flash 3 + MiniMax M2.7), cookie persistence, queue-aware, gateway caching: auto. Added Phase 7 (Documents + Connections Polish). PR 60: vault teardown shipped. PR 61: Composio limit fix. PR 62: Google workspace + chat upload expansion + connection UI cards.",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -10,7 +10,7 @@
     "estimatedPRs": 44,
     "keptPRs": 27,
     "cutPRs": 19,
-    "donePRs": 74,
+    "donePRs": 75,
     "hardeningPRs": 6,
     "statusOptions": [
       "pending",
@@ -4252,7 +4252,7 @@
         {
           "pr": 61,
           "title": "Composio getRawComposioTools limit fix",
-          "status": "in_progress",
+          "status": "done",
           "simplified": false,
           "designDoc": "docs/plans/2026-03-30-connection-ui-cards-design.md",
           "note": "Bug fix. getRawComposioTools() defaults to limit:20, truncating tool discovery for all connections. Google Drive has 89 tools, Docs 35, Sheets 48 \u2014 all truncated to 20. Affects tool counts, activation validation, and capability discovery. Four call sites: catalog.ts, manage-tools.ts, get-connection-details.ts, callback/route.ts.",
@@ -4260,27 +4260,27 @@
             {
               "id": "PR61-1",
               "task": "Pass limit:200 (or paginate) in src/lib/composio/catalog.ts getRawComposioTools call",
-              "done": false
+              "done": true
             },
             {
               "id": "PR61-2",
               "task": "Pass limit:200 in src/lib/runner/tools/connections/manage-tools.ts getRawComposioTools call",
-              "done": false
+              "done": true
             },
             {
               "id": "PR61-3",
               "task": "Pass limit:200 in src/lib/runner/tools/connections/get-connection-details.ts getRawComposioTools call",
-              "done": false
+              "done": true
             },
             {
               "id": "PR61-4",
               "task": "Pass limit:200 in app/api/connections/callback/route.ts getRawComposioTools call",
-              "done": false
+              "done": true
             },
             {
               "id": "PR61-5",
               "task": "Verify tool counts for Gmail and any other connected toolkits are now correct",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -4405,13 +4405,12 @@
       },
       {
         "pr": 16,
-        "title": "Model routing",
-        "reason": "Use Gemini Flash for everything. Add tiers when cost matters.",
+        "title": "Model routing — simplified as user-facing model selector",
+        "reason": "Originally cut ('use Gemini Flash for everything'). Restored as a user-selectable model picker (not LLM-based routing). Copies Vercel chatbot pattern: cookie-persisted model selection, per-message selectedChatModel in payload, allowedModelIds validation, queue persistence, batch split on model change, gateway caching: auto for MiniMax. Shipped 2026-03-30.",
+        "status": "done",
         "decisions": [
           "LLM-03",
-          "LLM-04",
-          "LLM-08",
-          "LLM-09"
+          "LLM-04"
         ]
       },
       {

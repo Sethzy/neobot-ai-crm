@@ -2,7 +2,7 @@
  * Barrel exports for Composio integration helpers.
  * @module lib/composio
  */
-export { getComposio } from "./client";
+export { COMPOSIO_TOOL_FETCH_LIMIT, getComposio } from "./client";
 export {
   initiateOAuthFlow,
   type InitiateOAuthFlowParams,

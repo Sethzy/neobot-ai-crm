@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/composio/client", () => ({
   getComposio: vi.fn(),
+  COMPOSIO_TOOL_FETCH_LIMIT: 200,
 }));
 
 import { getComposio } from "@/lib/composio/client";
@@ -96,6 +97,7 @@ describe("createGetConnectionDetailsTool", () => {
 
     expect(composio.tools.getRawComposioTools).toHaveBeenCalledWith({
       toolkits: ["gmail"],
+      limit: 200,
     });
     expect(result.success).toBe(true);
     expect(result.connections[0].tools.activated).toEqual([
