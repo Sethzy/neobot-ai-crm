@@ -63,7 +63,6 @@ const customersNavItems: NavigationItem[] = [
 
 /** DATABASE section — data-centric surfaces */
 const databaseNavItems: NavigationItem[] = [
-  { label: "Knowledge", href: "/knowledge", icon: "knowledge" },
   { label: "Workspace", href: "/cases", icon: "workspace" },
   { label: "Channels", href: "/channels", icon: "channels" },
 ];
