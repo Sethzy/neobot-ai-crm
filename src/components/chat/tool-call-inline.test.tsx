@@ -1,8 +1,8 @@
 /**
- * Tests for the subtle inline tool call display.
+ * Tests for the inline tool call display and connection-specific cards.
  * @module components/chat/tool-call-inline.test
  */
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -12,6 +12,9 @@ const { mockUseBrowserAuth } = vi.hoisted(() => ({
 
 const {
   mockCreateSupabaseClient,
+  mockSupabaseEq,
+  mockSupabaseMaybeSingle,
+  mockSupabaseSelect,
   mockSupabaseChannel,
   mockSupabaseRemoveChannel,
 } = vi.hoisted(() => {
@@ -19,15 +22,22 @@ const {
     on: vi.fn(),
     subscribe: vi.fn(),
   };
+  const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+  const eq = vi.fn(() => ({ maybeSingle }));
+  const select = vi.fn(() => ({ eq }));
 
   channel.on.mockReturnValue(channel);
   channel.subscribe.mockReturnValue(channel);
 
   return {
     mockCreateSupabaseClient: vi.fn(() => ({
+      from: vi.fn(() => ({ select })),
       channel: vi.fn(() => channel),
       removeChannel: vi.fn(),
     })),
+    mockSupabaseEq: eq,
+    mockSupabaseMaybeSingle: maybeSingle,
+    mockSupabaseSelect: select,
     mockSupabaseChannel: channel,
     mockSupabaseRemoveChannel: vi.fn(),
   };
@@ -272,6 +282,56 @@ describe("approval-requested state", () => {
 });
 
 describe("connection cards", () => {
+  it("hydrates the current connection status on mount", async () => {
+    mockSupabaseMaybeSingle.mockResolvedValueOnce({
+      data: {
+        status: "active",
+        account_identifier: "owner@example.com",
+      },
+      error: null,
+    });
+
+    render(
+      <ToolCallInline
+        name="create_new_connections"
+        state="output-available"
+        input={{
+          connection: {
+            type: "integrations",
+            integrations: [{ integrationId: "googledrive" }],
+          },
+        }}
+        output={{
+          success: true,
+          results: [
+            {
+              integrationId: "googledrive",
+              displayName: "Google Drive",
+              description: "Access files in Google Drive",
+              connectionStatus: "pending_auth",
+              redirectUrl: "https://auth.composio.dev/google-drive",
+              composioConnectedAccountId: "acc-123",
+            },
+          ],
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Connected")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("owner@example.com")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /connect google drive/i }),
+    ).not.toBeInTheDocument();
+    expect(mockSupabaseSelect).toHaveBeenCalledWith("status, account_identifier");
+    expect(mockSupabaseEq).toHaveBeenCalledWith(
+      "composio_connected_account_id",
+      "acc-123",
+    );
+  });
+
   it("renders ConnectionCard for create_new_connections output", () => {
     render(
       <ToolCallInline
@@ -329,6 +389,35 @@ describe("connection cards", () => {
     expect(screen.getByText("GOOGLEDRIVE_DOWNLOAD_FILE")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /grant permissions/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /deny/i })).toBeInTheDocument();
+  });
+
+  it("preserves tool error rendering after a permission flow fails", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ToolCallInline
+        name="manage_activated_tools_for_connections"
+        state="output-error"
+        input={{
+          connections: [
+            {
+              connectionId: "conn-123",
+              activate: ["GOOGLEDRIVE_FIND_FILE"],
+              deactivate: [],
+            },
+          ],
+        }}
+        errorText="Activation failed because the connection is no longer active."
+      />,
+    );
+
+    expect(screen.queryByTestId("permission-card")).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("tool-expand-trigger"));
+
+    expect(
+      screen.getByText("Activation failed because the connection is no longer active."),
+    ).toBeInTheDocument();
   });
 });
 

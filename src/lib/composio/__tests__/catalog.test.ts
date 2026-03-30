@@ -241,4 +241,15 @@ describe("getToolkitDisplayInfo", () => {
       description: "",
     });
   });
+
+  it("falls back to the toolkit slug when the lookup errors", async () => {
+    const mock = createMockComposio([]);
+    mock.tools.getRawComposioTools.mockRejectedValueOnce(new Error("catalog unavailable"));
+
+    await expect(getToolkitDisplayInfo("googledrive")).resolves.toEqual({
+      integrationId: "googledrive",
+      displayName: "googledrive",
+      description: "",
+    });
+  });
 });

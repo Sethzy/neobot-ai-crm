@@ -1,6 +1,6 @@
 # QA Surface 12: Approvals
 
-> **PRs covered:** 33 (gate implementation), 34 (events + UI), untracked (harness fix: approval persistence order + orphan expiry)
+> **PRs covered:** 33 (gate implementation), 34 (events + UI), 62 (permission card UI), untracked (harness fix: approval persistence order + orphan expiry)
 > **Dogfoodable:** Yes
 > **Time estimate:** 20-25 min manual
 > **v2 tools:** `create_record`, `delete_records`, `search_crm`, `update_record`, `manage_activated_tools_for_connections`, `delete_connection`
@@ -61,9 +61,10 @@
 ### 12.3 Connection tool activation gating (PR 33)
 
 1. Ask agent to activate tools for a connection (e.g., "Activate the send email tool on Gmail")
-2. **Expected:** `manage_activated_tools_for_connections` shows approval card (always approval-gated)
-3. Approve the activation
-4. **Expected:** Tool activates normally
+2. **Expected:** `manage_activated_tools_for_connections` shows the permission card during the approval-requested state
+3. **Expected:** The card renders requested tool chips plus `Grant` / `Deny` actions before execution
+4. Approve the activation
+5. **Expected:** Tool activates normally
 
 **Notes / failures:**
 
@@ -144,6 +145,17 @@
 
 ---
 
+### 12.10 Permission card error fallback (PR 62)
+
+1. Trigger a connection-tool activation that is expected to fail after approval (for example, use a stale or disconnected account)
+2. Approve the action if the gate appears
+3. **Expected:** If execution fails, chat shows the tool error details instead of getting stuck on the permission card UI
+4. **Expected:** The failure is still attributable to `manage_activated_tools_for_connections`
+
+**Notes / failures:**
+
+---
+
 ## Edge Cases
 
 - [ ] Approve after long delay (minutes) — still works, not expired
@@ -151,10 +163,11 @@
 - [ ] Refresh page with pending approval — card still renders
 - [ ] Deny then immediately ask agent to retry the same action — new approval card appears
 - [ ] Approval in trigger thread vs chat thread — both work correctly
+- [ ] Approved connection-tool activation fails downstream — explicit error text renders instead of a stale permission card
 
 ---
 
 ## Pass / Fail Criteria
 
-- **Pass:** `delete_records` and `manage_activated_tools_for_connections` and `delete_connection` show approval gates. Approved actions execute; denied actions don't. `approval_events` table tracks all decisions. Non-destructive tools (`create_record`, `update_record`, `search_crm`) bypass the gate. Subagents can't access delete tools.
-- **Fail:** `delete_records` auto-executes without approval. Denied actions still execute. No `approval_events` rows. Gate triggers on non-destructive actions (false positives). Approval events created AFTER message (orphan risk). Partial-run approval events stuck as pending.
+- **Pass:** `delete_records`, `manage_activated_tools_for_connections`, and `delete_connection` show approval gates. Connection-tool approvals render the richer permission card with tool chips. Approved actions execute, denied actions do not, downstream failures still render explicit errors, `approval_events` tracks all decisions, non-destructive tools bypass the gate, and subagents cannot access delete tools.
+- **Fail:** `delete_records` auto-executes without approval, denied actions still execute, no `approval_events` rows exist, connection-tool approvals do not show the permission card/tool chips, post-approval failures disappear behind stale cards, gate triggers on non-destructive actions, approval events are created after the message, or partial-run approvals stay pending.

@@ -568,6 +568,24 @@ export const scenarios: QaScenario[] = [
     notes:
       "get_integrations_capabilities returns tools, quality scores, and notes for given integrationIds. Agent may call search_for_integrations first (acceptable extra).",
   },
+  {
+    surface: "10-connections",
+    scenario: "google-drive-capabilities",
+    prompt: "What can a Google Drive connection do for me?",
+    expectedTools: ["get_integrations_capabilities"],
+    sequential: false,
+    notes:
+      "PR 62 Google Workspace coverage. Agent should inspect Google Drive capabilities; search_for_integrations is an acceptable extra call.",
+  },
+  {
+    surface: "10-connections",
+    scenario: "google-drive-connection-card",
+    prompt: "Connect my Google Drive so you can search and download files for me.",
+    expectedTools: ["create_new_connections"],
+    sequential: false,
+    notes:
+      "PR 62 connection-card flow. Agent should create the Google Drive connection and rely on the in-chat connection card rather than pasting raw OAuth URLs into assistant text.",
+  },
 
   // ── 11: Subagents ──────────────────────────────────────────────────────
   {
@@ -644,6 +662,15 @@ export const scenarios: QaScenario[] = [
     sequential: true,
     notes:
       "Sequential after non-destructive-bypasses-gate (creates QA Test Keep). Tests that a new approval card appears after prior denial. Runner can't approve — just verify gate fires again.",
+  },
+  {
+    surface: "12-approvals",
+    scenario: "google-drive-tools-approval-card",
+    prompt: "Activate the Google Drive file search and download tools on my Google Drive connection.",
+    expectedTools: ["manage_activated_tools_for_connections"],
+    sequential: false,
+    notes:
+      "PR 62 permission-card flow. Approval gate should fire and the chat UI should render the permission card from tool input with chips for the requested Google Drive actions.",
   },
 
   // ── 17: Calculate Tool ─────────────────────────────────────────────────

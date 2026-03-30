@@ -1,6 +1,6 @@
 # QA Surface 19: System Prompt & Reminders
 
-> **PRs covered:** 15 (platform instructions, system-reminder), 15c (CRM vocabulary injection), 22 (context recovery), 22c (context management alignment), 56 (context pipeline redesign)
+> **PRs covered:** 15 (platform instructions, system-reminder), 15c (CRM vocabulary injection), 22 (context recovery), 22c (context management alignment), 56 (context pipeline redesign), 62 (Google Workspace guidance)
 > **Dogfoodable:** No (invisible backend — test via chat behavior)
 > **Time estimate:** 20-25 min manual
 > **Components:** `system-prompt.ts`, `system-reminder.ts`, `context.ts`, `platform-instructions.ts`
@@ -160,6 +160,18 @@ The runner now separates a stable system prefix from per-turn dynamic context. T
 
 ---
 
+### 19.11 Google Workspace guidance without vault regressions (PR 62)
+
+1. In a fresh thread, ask: "What can you do if I connect Google Drive or Google Docs?"
+2. **Expected:** Agent describes Drive / Docs / Sheets capabilities through connection tools
+3. **Expected:** Agent does not refer to a deprecated vault or Knowledge Base workflow
+4. If a Google connection already exists, ask: "Can you search my Drive for the Q1 pipeline file?"
+5. **Expected:** Agent plans to use the Google Drive connection tools rather than describing an internal vault lookup
+
+**Notes / failures:**
+
+---
+
 ## Edge Cases
 
 - [ ] Empty USER.md + SOUL.md + MEMORY.md — agent still works with platform instructions only
@@ -168,10 +180,11 @@ The runner now separates a stable system prefix from per-turn dynamic context. T
 - [ ] System-reminder with 0 todos, 0 triggers, 0 connections — all zero counts render cleanly
 - [ ] Custom instructions (if feature exists) — injected in the stable system prefix
 - [ ] Consecutive turns with unchanged setup — system string remains byte-for-byte stable
+- [ ] Connection guidance mentions Google Workspace tools but not vault / Knowledge Base language
 
 ---
 
 ## Pass / Fail Criteria
 
-- **Pass:** Agent knows current time, user identity, CRM vocabulary, and accurate counts from context. System-reminder is injected as a user message, memory payload stays outside the system string, and repeated turns keep a stable prompt prefix. MEMORY.md truncation at 200 lines works. XML escaping prevents injection. RPC fallback doesn't crash.
-- **Fail:** Agent doesn't know the time or user name. CRM vocabulary goes stale after config change. Dynamic reminder or memory data leaks into the system string. Memory content is missing from context. System-reminder crashes on special characters. RPC failure crashes the agent.
+- **Pass:** Agent knows current time, user identity, CRM vocabulary, and accurate counts from context. System-reminder is injected as a user message, memory payload stays outside the system string, repeated turns keep a stable prompt prefix, Google Workspace guidance is present without vault regressions, MEMORY.md truncation at 200 lines works, XML escaping prevents injection, and RPC fallback does not crash.
+- **Fail:** Agent does not know the time or user name, CRM vocabulary goes stale after config change, dynamic reminder or memory data leaks into the system string, memory content is missing from context, Google Workspace guidance regresses into vault language, system-reminder crashes on special characters, or RPC failure crashes the agent.

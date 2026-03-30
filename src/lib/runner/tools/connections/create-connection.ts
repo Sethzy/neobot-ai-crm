@@ -93,7 +93,12 @@ export function createCreateConnectionTool(
 
         for (const integration of connection.integrations) {
           const callbackUrl = getCallbackUrl(integration.integrationId);
-          const toolkitDisplayInfo = await getToolkitDisplayInfo(integration.integrationId);
+          const toolkitDisplayInfo = await getToolkitDisplayInfo(integration.integrationId)
+            .catch(() => ({
+              integrationId: integration.integrationId,
+              displayName: integration.integrationId,
+              description: "",
+            }));
           const existingConnections = await getActiveConnectionsByToolkit(
             supabase,
             clientId,
@@ -136,7 +141,7 @@ export function createCreateConnectionTool(
         return {
           success: true,
           message:
-            "Send these authorization links to the user. After they complete authorization, use list_users_connections to verify the connections were created.",
+            "Connection cards are ready in chat for the user to complete authorization. After they finish, use list_users_connections to verify the connections were created.",
           results,
         };
       },

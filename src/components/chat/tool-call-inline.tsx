@@ -163,6 +163,36 @@ function ConnectionRow({ result }: { result: ConnectionResult }) {
 
   useEffect(() => {
     const supabase = createClient();
+    let isCancelled = false;
+
+    const applyConnectionSnapshot = (snapshot: {
+      status?: string | null;
+      account_identifier?: string | null;
+    }) => {
+      if (snapshot.status === "active") {
+        setConnectionStatus("active");
+      } else if (snapshot.status === "error") {
+        setConnectionStatus("error");
+      } else if (typeof snapshot.status === "string") {
+        setHasStartedOAuth(true);
+      }
+
+      if (typeof snapshot.account_identifier === "string") {
+        setAccountIdentifier(snapshot.account_identifier);
+      }
+    };
+
+    void supabase
+      .from("connections")
+      .select("status, account_identifier")
+      .eq("composio_connected_account_id", result.composioConnectedAccountId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!isCancelled && data) {
+          applyConnectionSnapshot(data);
+        }
+      });
+
     const channel = supabase
       .channel(`connection-card:${result.composioConnectedAccountId}`)
       .on(
@@ -178,22 +208,15 @@ function ConnectionRow({ result }: { result: ConnectionResult }) {
             new?: { status?: string; account_identifier?: string | null };
           }).new;
 
-          if (typeof nextRow?.status === "string") {
-            if (nextRow.status === "active") {
-              setConnectionStatus("active");
-            } else if (nextRow.status === "error") {
-              setConnectionStatus("error");
-            }
-          }
-
-          if (typeof nextRow?.account_identifier === "string") {
-            setAccountIdentifier(nextRow.account_identifier);
+          if (nextRow) {
+            applyConnectionSnapshot(nextRow);
           }
         },
       )
       .subscribe();
 
     return () => {
+      isCancelled = true;
       void supabase.removeChannel(channel);
     };
   }, [result.composioConnectedAccountId]);
@@ -347,7 +370,7 @@ export function ToolCallInline({
     return <ConnectionCard results={connectionCreation.results} />;
   }
 
-  if (permissionRequest) {
+  if (permissionRequest && state !== "output-error") {
     return (
       <PermissionCard
         input={permissionRequest}

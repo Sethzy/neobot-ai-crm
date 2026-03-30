@@ -1,6 +1,6 @@
 # QA Surface 9: Chat Advanced
 
-> **PRs covered:** 22a (multimodal/images), 22b (tool output rendering + approval UI), 22 (compaction), 22c (block storage + context management), 22d (read_file image + negative lines), 22e (absolute agent paths)
+> **PRs covered:** 22a (multimodal/images), 22b (tool output rendering + approval UI), 22 (compaction), 22c (block storage + context management), 22d (read_file image + negative lines), 22e (absolute agent paths), 62 (expanded chat attachments + model-visible filtering)
 > **Dogfoodable:** Yes
 > **Time estimate:** 25-30 min manual
 
@@ -9,7 +9,7 @@
 ## Prerequisites
 
 - Logged in with working chat
-- A few test images (JPEG, PNG — varying sizes up to 5MB)
+- A few test files (JPEG, PNG, WebP, PDF, DOCX, TXT — varying sizes up to 10MB)
 - A thread with 50+ messages OR willingness to generate one (for compaction testing)
 - Supabase Storage dashboard open
 
@@ -23,6 +23,7 @@
 - [ ] Stop button appears during streaming
 - [ ] No console errors during normal chat flow
 - [ ] Image thumbnails render in message bubbles
+- [ ] Non-image attachments render file-type labels in the composer and message bubbles
 
 ---
 
@@ -203,12 +204,39 @@
 
 ---
 
+### 9.14 Expanded attachment types + multi-file previews (PR 62)
+
+1. Click the paperclip/attachment button in chat input
+2. Select a WebP image, a PDF, a DOCX file, and a plain-text file in one picker action
+3. **Expected:** All files upload successfully
+4. **Expected:** The WebP shows an image preview, while the PDF / DOCX / TXT previews show file-type labels (for example `PDF`, `Word`, `Text`)
+5. Send the message with a short instruction such as "Review these files"
+6. **Expected:** All attachments appear in the user message bubble and the thread stays stable
+
+**Notes / failures:**
+
+---
+
+### 9.15 Model-visible filter prevents unsupported-media crashes (PR 62)
+
+1. Attach one PDF and one DOCX file in the same message
+2. Send: "Summarize what you can read directly and tell me if anything needs sandbox processing"
+3. **Expected:** Chat does not crash with a Gemini unsupported-media error
+4. **Expected:** The PDF remains usable to the model, while the Office file is treated as sandbox-only
+5. If logs or traces are available, verify the runner emits a separate sandbox notice for the non-model-visible file
+
+**Notes / failures:**
+
+---
+
 ## Edge Cases
 
-- [ ] Upload image > 5MB — validation error, not crash
-- [ ] Upload non-image file via image picker — rejected or handled
+- [ ] Upload file > 10MB — validation error, not crash
+- [ ] Upload unsupported file type (for example ZIP) — rejected cleanly
 - [ ] PNG with transparency — renders correctly
-- [ ] Multiple images in one message — all display
+- [ ] Multiple mixed file types in one message — all display with the right preview treatment
+- [ ] WebP image upload — renders like JPEG/PNG
+- [ ] Plain-text upload — shows a `Text` label and does not crash chat
 - [ ] Tool call with very large result (> 5KB) — truncated inline, full in block storage
 - [ ] Compaction on thread with only 2 messages — doesn't trigger (below threshold)
 - [ ] read_file on non-image binary file — graceful error (not image support, not crash)
@@ -219,5 +247,5 @@
 
 ## Pass / Fail Criteria
 
-- **Pass:** Images upload, paste, preview, and display correctly. Agent can see image content. Tool outputs render as formatted JSON trees. Compaction works on long threads with structured summaries. Block storage persists all tool calls. read_file handles images. Stop button works.
-- **Fail:** Images don't display, tool output is raw JSON, compaction loses key context, block storage missing, image read_file returns binary garbage, stop button doesn't stop.
+- **Pass:** Images and common document attachments upload, preview, and display correctly. Office files no longer crash Gemini runs, PDF remains model-visible, and tool outputs still render as formatted JSON trees. Compaction, block storage, read_file image support, and the stop button continue to work.
+- **Fail:** Attachments fail to upload, non-image previews are wrong or missing, Office files still crash the run, tool output is raw JSON, compaction loses key context, block storage is missing, image read_file returns binary garbage, or the stop button does not stop.

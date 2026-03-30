@@ -1,5 +1,5 @@
 /**
- * Chat input composer with image uploads, pasted-image support, and stop/send controls.
+ * Chat input composer with multi-file attachments, pasted file support, and stop/send controls.
  * @module components/chat/chat-composer
  */
 "use client";

@@ -1,5 +1,5 @@
 /**
- * Uploads chat image attachments to the public chat-attachments bucket.
+ * Uploads chat attachments to the public chat-attachments bucket.
  * Returns the reference-compatible metadata payload used by the chat composer.
  * @module app/api/files/upload/route
  */

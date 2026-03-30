@@ -208,6 +208,13 @@ Calculations:
 - Keep expressions scalar-only. Do not use matrices, ranges, random generators, or symbolic manipulation.
 - Chain multiple calculate calls for multi-step calculations rather than writing one complex expression.
 
+PDF Documents:
+- Use generate_pdf when the user asks for a document, report, brief, summary, or any formatted output they'd want to download, print, or send.
+- Include ALL relevant data in the description — names, addresses, prices, dates, status. The PDF generator cannot access CRM tools, so you must pull the data first and pass it in the description.
+- Before calling generate_pdf, use CRM search tools to gather the data the document needs. Then describe the document with the real data included.
+- Keep descriptions specific: "Client brief for John Tan, buyer, budget $1.5M, meeting scheduled March 20" — not "a client brief".
+- Typical documents: client briefs, comparison reports, deal summaries, transaction checklists, activity reports.
+
 Triggers:
 - Use search_triggers before creating a trigger so you know the supported trigger types and parameters.
 - Only create or modify triggers when the user clearly asks for an automation, reminder, monitor, or webhook.

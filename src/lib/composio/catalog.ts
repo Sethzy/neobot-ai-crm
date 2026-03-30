@@ -119,16 +119,25 @@ export async function getToolkitDisplayInfo(
   toolkitSlug: string,
 ): Promise<ToolkitDisplayInfo> {
   const composio = getComposio();
-  const [toolkitTool] = await composio.tools.getRawComposioTools({
-    toolkits: [toolkitSlug],
-    limit: 1,
-  }) as RawComposioTool[];
 
-  return {
-    integrationId: toolkitSlug,
-    displayName: toolkitTool?.toolkit?.name ?? toolkitSlug,
-    description: toolkitTool?.toolkit?.description
-      ?? toolkitTool?.description
-      ?? "",
-  };
+  try {
+    const [toolkitTool] = await composio.tools.getRawComposioTools({
+      toolkits: [toolkitSlug],
+      limit: 1,
+    }) as RawComposioTool[];
+
+    return {
+      integrationId: toolkitSlug,
+      displayName: toolkitTool?.toolkit?.name ?? toolkitSlug,
+      description: toolkitTool?.toolkit?.description
+        ?? toolkitTool?.description
+        ?? "",
+    };
+  } catch {
+    return {
+      integrationId: toolkitSlug,
+      displayName: toolkitSlug,
+      description: "",
+    };
+  }
 }

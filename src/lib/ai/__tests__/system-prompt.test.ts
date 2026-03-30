@@ -171,6 +171,12 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT).toContain("use bash in the sandbox");
   });
 
+  it("retains PDF document guidance alongside the new Google Workspace section", () => {
+    expect(SYSTEM_PROMPT).toContain("PDF Documents:");
+    expect(SYSTEM_PROMPT).toContain("Use generate_pdf");
+    expect(SYSTEM_PROMPT).toContain("Google Workspace");
+  });
+
   it("includes custom skill discovery and loading guidance", () => {
     expect(SYSTEM_PROMPT).toContain("<custom-skills>");
     expect(SYSTEM_PROMPT).toContain("</custom-skills>");

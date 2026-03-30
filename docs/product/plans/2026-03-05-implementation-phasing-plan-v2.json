@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-30: PR 16 (model selector) un-cut and marked done — user-facing model picker (Gemini Flash 3 + MiniMax M2.7), cookie persistence, queue-aware, gateway caching: auto. Added Phase 7 (Documents + Connections Polish). PR 60: vault teardown shipped. PR 61: Composio limit fix. PR 62: Google workspace + chat upload expansion + connection UI cards.",
+    "updated": "2026-03-30: Marked PR 62 done — Google Workspace via Composio, expanded chat attachments, model-visible filtering, and connection/permission cards shipped. QA surfaces 9, 10, 12, and 19 updated.",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -10,7 +10,7 @@
     "estimatedPRs": 44,
     "keptPRs": 27,
     "cutPRs": 19,
-    "donePRs": 75,
+    "donePRs": 76,
     "hardeningPRs": 6,
     "statusOptions": [
       "pending",
@@ -75,7 +75,8 @@
       "2026-03-24: Added PR 58 (OpenAgent data enrichment) to Phase 3 as out-of-plan scope exception. Two parts: (1) System prompt teaches agent to chain search_market_data (name resolution) \u2192 web_scrape on openagent.sg/property/{slug} for REALIS-enriched property data (unit-level transactions, profitability, ownership, buyer profiles). Zero new tools \u2014 leverages existing web_scrape (Exa) at $0.001/call. (2) Agent contact enrichment pipeline: Python scraper fetches phone, WhatsApp, email, photo for 37K CEA agents from openagent.sg/agent/{regNo}. Migration 003 adds contact columns to cea_agents. Plan: docs/product/plans/agent-contact-enrichment-plan.md.",
       "2026-03-24: Marked PRs 52 and 53 done (sandbox Excel analysis + artifact publishing). Added PR 52a (sandbox workflow skills) as formal Phase 6 entry \u2014 was previously only mentioned in 2026-03-23 changelog. 3 outer workflow skills (deal-comparison, property-showcase, market-report) + 2 inner coding skills (re-analyst, frontend-design) + SG domain references + system prompt guidance. 9 tasks. Tasklist: docs/product/tasks/2026-03-23-pr52a-sandbox-workflow-skills-tasklist.md.",
       "2026-03-30: Added PR 59 (Vercel Sandbox + bash-tool migration) to Phase 6. Out-of-plan architecture migration replacing Sprites/Fly.io with ephemeral Vercel Sandbox + bash-tool. Single bash tool registered lazily in runner. Parallel skill file downloads. SHA-256 artifact dedup. Replaces PRs 52\u201356 (Sprites-based sandbox).",
-      "2026-03-30: Added Phase 7 (Documents + Connections Polish) with 3 PRs. PR 60 tears down the vault/Knowledge Base feature entirely (supersedes PR 12a) \u2014 Google Drive via Composio replaces it. PR 61 fixes Composio getRawComposioTools() limit:20 truncation affecting all connections (89 Drive tools, 35 Docs tools, 48 Sheets tools were truncated to 20 each). PR 62 adds Google workspace support (no custom code \u2014 Composio googledrive/googledocs/googlesheets toolkits), widens chat uploads (PDF, DOCX, PPTX, WebP, text formats, 10MB limit, multi-file), adds model-visible file filter (Gemini rejects Office formats \u2014 only images+PDF go to model, rest is sandbox-only), and adds rich connection UI cards (ConnectionCard, ConnectionModal, PermissionCard) replacing generic tool approval pills. Design docs: docs/plans/2026-03-30-vault-teardown-google-drive-design.md (PR 60), docs/plans/2026-03-30-connection-ui-cards-design.md (PRs 61-62). Handover: docs/product/handovers/2026-03-30-vault-teardown-google-workspace-handover.md."
+      "2026-03-30: Added Phase 7 (Documents + Connections Polish) with 3 PRs. PR 60 tears down the vault/Knowledge Base feature entirely (supersedes PR 12a) \u2014 Google Drive via Composio replaces it. PR 61 fixes Composio getRawComposioTools() limit:20 truncation affecting all connections (89 Drive tools, 35 Docs tools, 48 Sheets tools were truncated to 20 each). PR 62 adds Google workspace support (no custom code \u2014 Composio googledrive/googledocs/googlesheets toolkits), widens chat uploads (PDF, DOCX, PPTX, WebP, text formats, 10MB limit, multi-file), adds model-visible file filter (Gemini rejects Office formats \u2014 only images+PDF go to model, rest is sandbox-only), and adds rich connection UI cards (ConnectionCard, ConnectionModal, PermissionCard) replacing generic tool approval pills. Design docs: docs/plans/2026-03-30-vault-teardown-google-drive-design.md (PR 60), docs/plans/2026-03-30-connection-ui-cards-design.md (PRs 61-62). Handover: docs/product/handovers/2026-03-30-vault-teardown-google-workspace-handover.md.",
+      "2026-03-30: Marked PR 62 done. Updated QA Surface 9 (chat attachments), Surface 10 (connections), Surface 12 (approvals), and Surface 19 (system prompt/reminders) plus automated QA scenarios for Google Workspace connection and permission-card flows."
     ]
   },
   "phases": [
@@ -4293,7 +4294,7 @@
         {
           "pr": 62,
           "title": "Google workspace + chat upload expansion + connection UI cards",
-          "status": "in_progress",
+          "status": "done",
           "simplified": false,
           "decisions": [
             "CONN-02"
@@ -4304,67 +4305,67 @@
             {
               "id": "PR62-1",
               "task": "Add MODEL_VISIBLE_TYPES allowlist in run-agent.ts \u2014 split file parts into model-visible (images+PDF) vs sandbox-only, inject text part for sandbox-only files",
-              "done": false
+              "done": true
             },
             {
               "id": "PR62-2",
               "task": "Widen ALLOWED_UPLOAD_TYPES in upload route + CHAT_ATTACHMENT_ACCEPT in chat-composer (PDF, DOCX, DOC, PPTX, PPT, WebP, TXT, MD, HTML, XML, JSON), bump size limit to 10MB",
-              "done": false
+              "done": true
             },
             {
               "id": "PR62-3",
               "task": "Add multiple attribute to file input, loop uploads in handleFileChange",
-              "done": false
+              "done": true
             },
             {
               "id": "PR62-4",
               "task": "Update PreviewAttachment with file type labels (PDF, Word, Excel, PowerPoint) based on contentType",
-              "done": false
+              "done": true
             },
             {
               "id": "PR62-5",
               "task": "Switch catalog.ts from raw tool metadata to composio.toolkits.get(slug) for proper display names and descriptions",
-              "done": false
+              "done": true
             },
             {
               "id": "PR62-6",
               "task": "Enrich create-connection.ts tool result with displayName, description, composioConnectedAccountId",
-              "done": false
+              "done": true
             },
             {
               "id": "PR62-7",
               "task": "Enrich manage-tools.ts tool result with displayName, description, accountIdentifier",
-              "done": false
+              "done": true
             },
             {
               "id": "PR62-8",
               "task": "Build ConnectionCard component in tool-call-inline.tsx with Realtime subscription for OAuth status",
-              "done": false
+              "done": true
             },
             {
               "id": "PR62-9",
               "task": "Build ConnectionModal (shadcn Dialog with OAuth redirect)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR62-10",
               "task": "Build PermissionCard component in tool-call-inline.tsx with tool chips and Grant/Deny actions",
-              "done": false
+              "done": true
             },
             {
               "id": "PR62-11",
               "task": "Add detection logic in ToolCallInline to route create_new_connections and manage_activated_tools to card components",
-              "done": false
+              "done": true
             },
             {
               "id": "PR62-12",
               "task": "Update system prompt: remove vault references, add Google Workspace guidance",
-              "done": false
+              "done": true
             },
             {
               "id": "PR62-13",
               "task": "Tests: model-visible filter, upload route new MIME types, connection card states",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [

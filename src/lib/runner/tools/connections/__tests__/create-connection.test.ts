@@ -96,21 +96,48 @@ describe("createCreateConnectionTool", () => {
         tool_count: 0,
       }),
     );
-    expect(result).toEqual({
-      success: true,
-      message: expect.stringContaining("authorization"),
-      results: [
-        {
-          integrationId: "gmail",
-          displayName: "Gmail",
-          description: "Send and read Gmail messages",
-          connectionStatus: "pending_auth",
-          redirectUrl: "https://composio.dev/oauth/redirect",
-          composioConnectedAccountId: "composio-acct-123",
-          existingConnections: undefined,
-        },
-      ],
+    expect(result.success).toBe(true);
+    expect(result.message).toContain("Connection cards");
+    expect(result.results).toEqual([
+      {
+        integrationId: "gmail",
+        displayName: "Gmail",
+        description: "Send and read Gmail messages",
+        connectionStatus: "pending_auth",
+        redirectUrl: "https://composio.dev/oauth/redirect",
+        composioConnectedAccountId: "composio-acct-123",
+        existingConnections: undefined,
+      },
+    ]);
+  });
+
+  it("falls back to the integration slug when display metadata lookup fails", async () => {
+    vi.mocked(getActiveConnectionsByToolkit).mockResolvedValue([]);
+    vi.mocked(getToolkitDisplayInfo).mockRejectedValue(new Error("catalog unavailable"));
+    vi.mocked(initiateOAuthFlow).mockResolvedValue({
+      redirectUrl: "https://composio.dev/oauth/drive",
+      connectedAccountId: "composio-acct-789",
     });
+    vi.mocked(insertConnection).mockResolvedValue({} as never);
+
+    const { create_new_connections } = createCreateConnectionTool({} as never, CLIENT_ID);
+    const result = await create_new_connections.execute(
+      {
+        connection: {
+          type: "integrations",
+          integrations: [{ integrationId: "googledrive" }],
+        },
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result.results).toEqual([
+      expect.objectContaining({
+        integrationId: "googledrive",
+        displayName: "googledrive",
+        description: "",
+      }),
+    ]);
   });
 
   it("defaults toolsToActivate to an empty array", async () => {

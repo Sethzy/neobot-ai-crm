@@ -1,6 +1,6 @@
 # QA Surface 10: Connections (OAuth)
 
-> **PRs covered:** 25 (Composio + OAuth), 26 (connection tools), 26a (system skill files)
+> **PRs covered:** 25 (Composio + OAuth), 26 (connection tools), 26a (system skill files), 62 (Google Workspace + connection cards)
 > **Dogfoodable:** Partial (UI elements yes, OAuth flow requires real credentials)
 > **Time estimate:** 20-25 min manual
 > **v2 tools:** `list_users_connections`, `search_for_integrations`, `get_integrations_capabilities`, `get_details_for_connections`, `create_new_connections`, `manage_activated_tools_for_connections` (approval-gated), `reauthorize_connection`, `delete_connection` (approval-gated)
@@ -11,7 +11,7 @@
 
 - Logged in with working chat
 - Composio account configured with API key in env
-- A test OAuth app to connect (Gmail is the primary target)
+- A test OAuth app to connect (Gmail or Google Drive is the primary target)
 - Supabase dashboard open to check `connections` table
 - Access to a real Gmail account for OAuth testing
 
@@ -67,14 +67,17 @@
 
 1. "Connect my Gmail"
 2. **Expected:** Agent calls `create_new_connections` for Gmail
-3. **Expected:** Agent returns an OAuth URL for you to click
-4. Click the OAuth URL
-5. **Expected:** Google OAuth consent screen appears
-6. Complete the OAuth flow
+3. **Expected:** Chat renders a connection card with a `Connect Gmail` button instead of relying on a raw pasted OAuth URL
+4. Click the card button
+5. **Expected:** A connection modal appears before redirecting to Google
+6. Continue to the OAuth flow and complete it
 7. **Expected:** Redirected back to app, connection created
-8. **Verify in Supabase:** `connections` row exists with Gmail integration, active status
-9. In chat: "Is Gmail connected now?"
-10. **Expected:** `list_users_connections` shows Gmail as active
+8. **Expected:** The connection card updates to `Connected` via Realtime
+9. **Verify in Supabase:** `connections` row exists with Gmail integration, active status
+10. Reload the page or revisit the thread
+11. **Expected:** The card hydrates the settled state instead of regressing to a pending `Connect` button
+12. In chat: "Is Gmail connected now?"
+13. **Expected:** `list_users_connections` shows Gmail as active
 
 **Notes / failures:**
 
@@ -177,10 +180,25 @@
 
 ---
 
+### 10.13 Google Workspace connection flow (PR 62)
+
+1. "Connect my Google Drive so you can search and download files"
+2. **Expected:** Agent calls `create_new_connections` for Google Drive and chat renders the Google Drive connection card
+3. Complete the OAuth flow from the card
+4. "Activate the Google Drive file search and download tools"
+5. **Expected:** `manage_activated_tools_for_connections` runs behind the approval flow and the connection remains saved on the account
+6. "What can you do with my connected Google Workspace?"
+7. **Expected:** Agent describes Drive / Docs / Sheets capabilities and does not refer to a deprecated vault or Knowledge Base workflow
+
+**Notes / failures:**
+
+---
+
 ## Edge Cases
 
 - [ ] OAuth popup blocked — agent provides direct URL as fallback
 - [ ] OAuth cancelled (user denies consent) — graceful error, no dangling connection row
+- [ ] Reload or revisit the thread after OAuth completion — connection card hydrates the settled state
 - [ ] Token refresh — after hours, connection still works (Composio handles refresh)
 - [ ] Activate a tool that doesn't exist — error handled
 - [ ] Deactivate all tools on a connection — connection still exists but no tools
@@ -192,5 +210,5 @@
 
 ## Pass / Fail Criteria
 
-- **Pass:** Can search integrations, create OAuth connection, activate/deactivate tools, use connected service via agent, skill files are created. System-reminder shows connection state. Bundled system skills serve correctly. Can reauth and delete connections.
-- **Fail:** OAuth flow breaks, connection not persisted, tools can't be activated, skill files missing, system-reminder doesn't reflect connections, bundled skills return 404.
+- **Pass:** Can search integrations, create OAuth connections through the in-chat connection cards, activate/deactivate tools, use connected services via the agent, and keep the settled connection state after reload. Skill files are created, system-reminder shows connection state, bundled system skills serve correctly, and reauth/delete still work.
+- **Fail:** OAuth flow breaks, the connection card never settles, reload regresses a connected account back to pending, tools cannot be activated, skill files are missing, system-reminder does not reflect connections, or bundled skills return 404.
