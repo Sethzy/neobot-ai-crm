@@ -97,4 +97,55 @@ describe("getServerEnv", () => {
 
     expect(() => getServerEnv()).toThrow(/AI_GATEWAY_API_KEY/);
   });
+
+  describe("sandbox env vars", () => {
+    it("exposes optional SANDBOX_GOLDEN_SNAPSHOT_ID", () => {
+      stubAllRequired();
+      vi.stubEnv("SANDBOX_GOLDEN_SNAPSHOT_ID", "snap_abc123");
+      _resetForTesting();
+      const env = getServerEnv();
+      expect(env.SANDBOX_GOLDEN_SNAPSHOT_ID).toBe("snap_abc123");
+    });
+
+    it("SANDBOX_GOLDEN_SNAPSHOT_ID defaults to undefined", () => {
+      stubAllRequired();
+      _resetForTesting();
+      const env = getServerEnv();
+      expect(env.SANDBOX_GOLDEN_SNAPSHOT_ID).toBeUndefined();
+    });
+
+    it("exposes optional VERCEL_OIDC_TOKEN", () => {
+      stubAllRequired();
+      vi.stubEnv("VERCEL_OIDC_TOKEN", "oidc_token_123");
+      _resetForTesting();
+      const env = getServerEnv();
+      expect(env.VERCEL_OIDC_TOKEN).toBe("oidc_token_123");
+    });
+
+    it("exposes optional VERCEL_TOKEN", () => {
+      stubAllRequired();
+      vi.stubEnv("VERCEL_TOKEN", "vercel_token_123");
+      _resetForTesting();
+      const env = getServerEnv();
+      expect(env.VERCEL_TOKEN).toBe("vercel_token_123");
+    });
+
+    it("exposes optional VERCEL_TEAM_ID and VERCEL_PROJECT_ID", () => {
+      stubAllRequired();
+      vi.stubEnv("VERCEL_TEAM_ID", "team_abc");
+      vi.stubEnv("VERCEL_PROJECT_ID", "prj_xyz");
+      _resetForTesting();
+      const env = getServerEnv();
+      expect(env.VERCEL_TEAM_ID).toBe("team_abc");
+      expect(env.VERCEL_PROJECT_ID).toBe("prj_xyz");
+    });
+
+    it("trims whitespace from sandbox vars", () => {
+      stubAllRequired();
+      vi.stubEnv("SANDBOX_GOLDEN_SNAPSHOT_ID", "  snap_abc123  ");
+      _resetForTesting();
+      const env = getServerEnv();
+      expect(env.SANDBOX_GOLDEN_SNAPSHOT_ID).toBe("snap_abc123");
+    });
+  });
 });

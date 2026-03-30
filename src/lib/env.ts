@@ -23,6 +23,13 @@ const serverEnvSchema = z.object({
   SENTRY_DSN: z.string().min(1).optional(),
   CRON_SECRET: z.string().min(1).optional(),
   SUNDER_INTERNAL_SECRET: z.string().min(1).optional(),
+
+  // Vercel Sandbox (bash tool)
+  SANDBOX_GOLDEN_SNAPSHOT_ID: z.string().trim().optional(),
+  VERCEL_OIDC_TOKEN: z.string().trim().optional(),
+  VERCEL_TOKEN: z.string().trim().optional(),
+  VERCEL_TEAM_ID: z.string().trim().optional(),
+  VERCEL_PROJECT_ID: z.string().trim().optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
@@ -67,6 +74,12 @@ export function getServerEnv(): ServerEnv {
     CRON_SECRET: process.env.CRON_SECRET?.trim() || undefined,
     SUNDER_INTERNAL_SECRET:
       process.env.SUNDER_INTERNAL_SECRET?.trim() || undefined,
+    SANDBOX_GOLDEN_SNAPSHOT_ID:
+      process.env.SANDBOX_GOLDEN_SNAPSHOT_ID?.trim() || undefined,
+    VERCEL_OIDC_TOKEN: process.env.VERCEL_OIDC_TOKEN?.trim() || undefined,
+    VERCEL_TOKEN: process.env.VERCEL_TOKEN?.trim() || undefined,
+    VERCEL_TEAM_ID: process.env.VERCEL_TEAM_ID?.trim() || undefined,
+    VERCEL_PROJECT_ID: process.env.VERCEL_PROJECT_ID?.trim() || undefined,
   };
 
   const result = serverEnvSchema.safeParse(raw);
