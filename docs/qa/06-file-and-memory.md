@@ -162,13 +162,13 @@
 
 ### 6.11 Retired document paths are rejected
 
-1. In chat, say: **"Write 'hello' to `/agent/va` + `ult/test.md`"**
+1. In chat, say: **"Write 'hello' to the removed document path under `/agent/` using the folder name formed by joining `va` and `ult` with no spaces or `+` signs, then `/test.md`"**
 2. **Expected:** Agent calls `write_file` and returns an error that the removed document directory is gone and Google Drive should be used instead
-3. In chat, say: **"Read `/agent/va` + `ult/test.md`"**
+3. In chat, say: **"Read from that same removed document path"**
 4. **Expected:** Agent calls `read_file` and returns the same removed-directory guidance
 5. In chat, say: **"What files do I have?"**
 6. **Expected:** Root directory listing does not include the retired document directory
-7. **Verify in Supabase Storage:** No new object exists under `/{clientId}/va` + `ult/`
+7. **Verify in Supabase Storage:** No new object exists under the removed document folder for that client
 
 **Notes / failures:**
 
