@@ -101,7 +101,19 @@ export async function buildPreloadFiles(
     files.push(...skillFiles.flat());
   }
 
-  // 2. Download chat file attachments (RunnerFilePart from payload.fileParts)
+  // 2. Download all files from uploads/
+  const uploadFiles = await downloadStorageDirectory(
+    bucket, `${clientId}/uploads`, "agent/uploads",
+  );
+  files.push(...uploadFiles);
+
+  // 3. Download all files from home/
+  const homeFiles = await downloadStorageDirectory(
+    bucket, `${clientId}/home`, "agent/home",
+  );
+  files.push(...homeFiles);
+
+  // 4. Download chat file attachments (RunnerFilePart from payload.fileParts)
   // Reserve context.json — it is written by createLazyBashTool at sandbox init time
   const usedNames = new Set<string>(["context.json"]);
   for (const part of fileParts) {

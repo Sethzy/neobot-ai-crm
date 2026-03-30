@@ -77,6 +77,52 @@ describe("buildPreloadFiles", () => {
     expect(contextFile).toBeUndefined();
   });
 
+  it("preloads uploads/ files into agent/uploads/", async () => {
+    const { client } = createMockSupabase({
+      "client-1/uploads/1711792800-deals.csv": "a,b\n1,2",
+      "client-1/uploads/1711793000-listing.pdf": "fake-pdf-bytes",
+    });
+
+    const result = await buildPreloadFiles({
+      supabase: asBuildPreloadSupabase(client),
+      clientId: "client-1",
+      fileParts: [],
+    });
+
+    const paths = result.map((f) => f.path);
+    expect(paths).toContain("agent/uploads/1711792800-deals.csv");
+    expect(paths).toContain("agent/uploads/1711793000-listing.pdf");
+  });
+
+  it("preloads home/ files recursively into agent/home/", async () => {
+    const { client } = createMockSupabase({
+      "client-1/home/report.csv": "x,y\n3,4",
+      "client-1/home/scripts/clean.py": "import pandas",
+    });
+
+    const result = await buildPreloadFiles({
+      supabase: asBuildPreloadSupabase(client),
+      clientId: "client-1",
+      fileParts: [],
+    });
+
+    const paths = result.map((f) => f.path);
+    expect(paths).toContain("agent/home/report.csv");
+    expect(paths).toContain("agent/home/scripts/clean.py");
+  });
+
+  it("handles empty uploads/ and home/ gracefully", async () => {
+    const { client } = createMockSupabase({});
+
+    const result = await buildPreloadFiles({
+      supabase: asBuildPreloadSupabase(client),
+      clientId: "client-1",
+      fileParts: [],
+    });
+
+    expect(result).toEqual([]);
+  });
+
   it("excludes system and connections skill directories", async () => {
     const { client } = createMockSupabase({
       "client-1/skills/system/tools/SKILL.md": "system skill",
@@ -172,7 +218,7 @@ describe("buildPreloadFiles", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const { client, bucket } = createMockSupabase({
-      "client-1/uploads/deals.csv": "a,b\n1,2",
+      "client-1/attachments/deals.csv": "a,b\n1,2",
     });
     const result = await buildPreloadFiles({
       supabase: asBuildPreloadSupabase(client),
@@ -183,16 +229,16 @@ describe("buildPreloadFiles", () => {
           filename: "deals.csv",
           mediaType: "text/csv",
           url: "https://expired.example.com/deals.csv",
-          storagePath: "uploads/deals.csv",
+          storagePath: "attachments/deals.csv",
         },
       ],
     });
 
-    expect(bucket.download).toHaveBeenCalledWith("client-1/uploads/deals.csv");
+    expect(bucket.download).toHaveBeenCalledWith("client-1/attachments/deals.csv");
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(result).toEqual([
-      { path: "input/deals.csv", content: Buffer.from("a,b\n1,2") },
-    ]);
+    const attachmentFile = result.find((f) => f.path === "input/deals.csv");
+    expect(attachmentFile).toBeDefined();
+    expect(attachmentFile!.content).toEqual(Buffer.from("a,b\n1,2"));
 
     vi.unstubAllGlobals();
   });
