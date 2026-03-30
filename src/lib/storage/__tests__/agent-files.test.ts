@@ -405,6 +405,22 @@ describe("createAgentFileClient", () => {
     });
   });
 
+  it("rejects artifact uploads to removed vault paths", async () => {
+    const client = createAgentFileClient(supabase.client, CLIENT_ID);
+
+    await expect(
+      client.uploadArtifact({
+        path: "vault/result.xlsx",
+        content: Buffer.from("xlsx"),
+        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        expiresInSeconds: 3_600,
+      }),
+    ).rejects.toThrow(
+      'The "vault" directory has been removed. Use Google Drive for document storage instead.',
+    );
+    expect(supabase.mockUpload).not.toHaveBeenCalled();
+  });
+
   it("surfaces signed URL failures after uploading an artifact", async () => {
     supabase.mockUpload.mockResolvedValue({ data: { path: "ok" }, error: null });
     supabase.mockCreateSignedUrl.mockResolvedValue({

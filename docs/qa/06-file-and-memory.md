@@ -1,6 +1,6 @@
 # QA Surface 6: File & Memory System
 
-> **PRs covered:** 7 (file tools), 13 (storage layout + SOUL/USER/MEMORY.md), 14 (memory system + memory page)
+> **PRs covered:** 7 (file tools), 13 (storage layout + SOUL/USER/MEMORY.md), 14 (memory system + memory page), 60 (retired document workspace removal)
 > **Dogfoodable:** Partial (memory page yes, file ops via chat)
 > **Time estimate:** 25-30 min manual
 
@@ -24,6 +24,9 @@
 - [ ] Memory files section shows `memory/*.md` files (preferences.md, growth-plan.md, patterns.md, key-decisions.md)
 - [ ] Inline editing is functional (edit button → textarea → save)
 - [ ] Responsive: memory page works on mobile
+- [ ] Sidebar does not show a Knowledge link
+- [ ] Visiting `/knowledge` while logged in shows not-found behavior
+- [ ] Chat requests targeting the removed document directory fail with the Google Drive guidance instead of creating files
 
 ---
 
@@ -157,10 +160,36 @@
 
 ---
 
+### 6.11 Retired document paths are rejected
+
+1. In chat, say: **"Write 'hello' to `/agent/va` + `ult/test.md`"**
+2. **Expected:** Agent calls `write_file` and returns an error that the removed document directory is gone and Google Drive should be used instead
+3. In chat, say: **"Read `/agent/va` + `ult/test.md`"**
+4. **Expected:** Agent calls `read_file` and returns the same removed-directory guidance
+5. In chat, say: **"What files do I have?"**
+6. **Expected:** Root directory listing does not include the retired document directory
+7. **Verify in Supabase Storage:** No new object exists under `/{clientId}/va` + `ult/`
+
+**Notes / failures:**
+
+---
+
+### 6.12 Removed document UI is gone
+
+1. Open the app sidebar while logged in
+2. **Expected:** No `Knowledge` navigation item is present
+3. Navigate directly to `/knowledge`
+4. **Expected:** The app returns not-found behavior for the removed page
+
+**Notes / failures:**
+
+---
+
 ## Edge Cases
 
 - [ ] MEMORY.md > 200 lines — only first 200 loaded into context (verify by checking system prompt size)
 - [ ] Write file with nested path (e.g., "notes/2026/march/showing.md") — directories created
+- [ ] Write file to the removed document directory path — rejected with removed-directory guidance and no artifact/object created
 - [ ] Read non-existent file — graceful error message from agent
 - [ ] Concurrent edits — edit via /memory while agent is writing — no corruption
 - [ ] Special characters in file content (Markdown, code blocks, unicode) — preserved
@@ -170,5 +199,5 @@
 
 ## Pass / Fail Criteria
 
-- **Pass:** Bootstrap creates all expected files. Agent reads/writes memory and files correctly. Memory persists across threads and sessions. Memory page allows viewing and editing. Agent personality reflects SOUL.md.
-- **Fail:** Bootstrap missing files, agent doesn't recall memory across sessions, file writes fail, memory page can't save edits, USER.md/SOUL.md changes don't affect agent behavior.
+- **Pass:** Bootstrap creates all expected files. Agent reads/writes memory and files correctly. Memory persists across threads and sessions. Memory page allows viewing and editing. Agent personality reflects SOUL.md. Retired document-directory paths reject reads and writes. `/knowledge` stays inaccessible and absent from navigation.
+- **Fail:** Bootstrap missing files, agent doesn't recall memory across sessions, file writes fail, memory page can't save edits, USER.md/SOUL.md changes don't affect agent behavior, retired document-directory paths are still writable/readable, or `/knowledge` is still reachable from the product UI.

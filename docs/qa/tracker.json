@@ -1,11 +1,11 @@
 {
-  "lastUpdated": "2026-03-30T00:00:00Z",
+  "lastUpdated": "2026-03-30T08:35:00Z",
   "surfaces": [
     { "id": "01", "name": "Auth & Landing", "status": "pending", "lastRun": null, "report": null },
     { "id": "02", "name": "Chat Core", "status": "warn", "lastRun": "2026-03-13T00:00:00Z", "report": "docs/qa/reports/qa-report-02-17-20260313-32ab.md" },
     { "id": "03", "name": "CRM Tools via Chat", "status": "warn", "lastRun": "2026-03-14T03:00:00Z", "report": "docs/qa/reports/qa-report-03-20260314-4089.md" },
     { "id": "04", "name": "CRM Pages", "status": "pending", "lastRun": null, "report": null },
-    { "id": "06", "name": "File & Memory", "status": "warn", "lastRun": "2026-03-13T00:00:00Z", "report": "docs/qa/reports/qa-report-03-05-06-20260313-bda2.md" },
+    { "id": "06", "name": "File & Memory", "status": "pending", "lastRun": null, "report": null },
     { "id": "07", "name": "Platform Intelligence", "status": "pending", "lastRun": null, "report": null },
     { "id": "08", "name": "Triggers & Automations", "status": "pending", "lastRun": null, "report": null },
     { "id": "09", "name": "Chat Advanced", "status": "pending", "lastRun": null, "report": null },

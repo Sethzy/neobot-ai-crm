@@ -9,7 +9,7 @@
 - `crm_sql` merged into `run_sql` (single read-only SQL tool for all tables)
 - `show_view` removed (inline-mode migration — views now rendered via `pipeJsonRender()`, no tool call needed)
 - Added: `calculate` (PR 8b), `run_subagent` (PR 30)
-- Net: 53 → 35
+- Net: 53 → 34
 
 **Related docs (all in this folder):**
 - [crm-tool-consolidation.md](crm-tool-consolidation.md) — design doc for CRM 28→8 consolidation

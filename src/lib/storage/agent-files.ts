@@ -252,6 +252,7 @@ export function createAgentFileClient(supabase: SupabaseClient, clientId: string
     downloadFilename?: string;
   }): Promise<{ storagePath: string; downloadUrl: string }> {
     const normalizedPath = normalizeWorkspacePath(options.path, false);
+    assertRemovedDocumentsPathIsAvailable(normalizedPath);
     const storagePath = resolveStoragePath(clientId, normalizedPath);
 
     const { error: uploadError } = await supabase.storage.from(AGENT_FILES_BUCKET).upload(

@@ -1,7 +1,7 @@
 # Sunder QA Plan — Surface-Based Testing
 
 > **Created:** 2026-03-10
-> **Updated:** 2026-03-23
+> **Updated:** 2026-03-30
 > **Total surfaces:** 25
 > **Coverage:** 50+ done PRs across Phases 1-5
 
@@ -67,7 +67,7 @@ Walk through each "Manual QA Scenario" as a real user. Check boxes as you go. Wr
 | 2. Chat Core | 1, 2, 3, 4 |
 | 3. CRM Tools | 5, 6, 15c, 15d, 15e |
 | 4. CRM Pages | 10, 11, 15c, 15d |
-| 6. File & Memory | 7, 13, 14 |
+| 6. File & Memory | 7, 13, 14, 60 |
 | 7. Platform Intelligence | 15 |
 | 8. Triggers & Automations | 18, 19, 20, 20a |
 | 9. Chat Advanced | 22, 22a, 22b, 22c, 22d, 22e |

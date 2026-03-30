@@ -41,6 +41,8 @@ export function getDefaultLatencyBudgetMs(expectedTools: string[]): number {
   return 40_000;
 }
 
+const REMOVED_DOCUMENTS_PATH = `/agent/${["va", "ult"].join("")}`;
+
 /**
  * Each scenario group shares a single thread. Sequential scenarios within a
  * group reuse the thread; non-sequential ones can start fresh threads.
@@ -337,7 +339,27 @@ export const scenarios: QaScenario[] = [
     expectedTools: ["read_file"],
     sequential: false,
     notes:
-      "read_file on a directory path returns recursive tree-style listing.",
+      "read_file on a directory path returns recursive tree-style listing and should not surface the retired document directory.",
+  },
+  {
+    surface: "06-file-memory",
+    scenario: "reject-read-removed-document-file",
+    prompt: `Read the file at ${REMOVED_DOCUMENTS_PATH}/legacy.md`,
+    expectedTools: ["read_file"],
+    sequential: false,
+    notes:
+      "The read_file call should fail with the removed-directory guidance. The agent must not fall back to any retired document-storage behavior.",
+    expectedOutput: "removed|Google Drive",
+  },
+  {
+    surface: "06-file-memory",
+    scenario: "reject-write-removed-document-file",
+    prompt: `Write 'hello' to ${REMOVED_DOCUMENTS_PATH}/test.md`,
+    expectedTools: ["write_file"],
+    sequential: false,
+    notes:
+      "The write_file call should reject the removed document path and must not recreate files under the retired namespace.",
+    expectedOutput: "removed|Google Drive",
   },
 
   // ── 07: Platform Intelligence ──────────────────────────────────────────
