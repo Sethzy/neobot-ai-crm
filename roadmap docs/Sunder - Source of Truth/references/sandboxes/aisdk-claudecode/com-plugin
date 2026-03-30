@@ -1,0 +1,423 @@
+# Claude Agent SDK — SaaS Production Architecture Reference
+
+## What Is the Claude Agent SDK
+
+The Claude Agent SDK (formerly Claude Code SDK) exposes the same agentic loop, built-in tools, and context management that power Claude Code as a programmable library (Python and TypeScript). Unlike stateless API calls, the Agent SDK runs as a long-running process that maintains conversational state, executes shell commands, manages files, and handles tool execution within a persistent environment.
+
+**Key distinction from raw API calls:** You don't build the tool loop yourself. The SDK handles orchestration — tool execution, context management, retries, compaction — so you consume a stream of messages (reasoning, tool calls, tool results, final output).
+
+---
+
+## Why Use the Agent SDK vs. CLI Shell-Out vs. Raw API
+
+### Raw API (e.g., Vercel AI SDK with Anthropic provider)
+- Stateless request/response
+- You build the tool loop, context management, retries
+- Provider-agnostic (swap Claude for GPT, Gemini, etc.)
+- Best for: chatbots, simple tool-calling agents, WhatsApp bots (like Sunder)
+
+### CLI Shell-Out (spawning `claude` as subprocess)
+- Fire-and-forget: spawn process, wait for stdout
+- Gets Claude Code's full agentic loop (file editing, bash, retries) for free
+- No programmatic control mid-execution
+- Best for: CI/CD, dev-time scripting, one-shot tasks
+
+### Agent SDK (library)
+- Full programmatic control: typed callbacks for every event, mid-loop interception
+- Custom tools via in-process MCP servers (no separate processes)
+- Token-level streaming, progress events, conversation state management
+- Runs in-process (no subprocess lifecycle management)
+- Locks you into Claude (no provider-agnostic switching)
+- Best for: production agents that need filesystem access, complex multi-step document processing, code generation platforms
+
+---
+
+## Core SDK Concepts
+
+### `query()` — The Main Entry Point
+
+```typescript
+import { query } from "@anthropic-ai/claude-agent-sdk";
+
+for await (const message of query({
+  prompt: "Process this invoice and extract line items",
+  options: {
+    model: "sonnet",                        // or "opus", "haiku"
+    allowedTools: ["Read", "Bash", "Glob"], // whitelist tools
+    permissionMode: "bypassPermissions",    // auto-approve in sandboxed envs
+    maxTurns: 50,                           // cap runaway loops
+    systemPrompt: "You are a document processing agent...",
+    mcpServers: [customToolServer],         // your custom tools
+  }
+})) {
+  // Each iteration yields: reasoning, tool call, tool result, or final outcome
+}
+```
+
+`query()` creates a fresh session each call — no memory of previous interactions. You manage conversation continuity externally (database, session resumption).
+
+### `ClaudeSDKClient` — For Long-Running Interactive Sessions
+
+Provides a class instance with methods for session management. Better for long-running applications where you need fine-grained lifecycle control. Supports bidirectional conversations, custom tools via hooks, and streaming.
+
+### Built-In Tools
+
+Read, Write, Edit, MultiEdit, Bash, Glob, Grep, WebSearch, WebFetch, Agent (subagents), NotebookEdit, AskUserQuestion. These are the same tools Claude Code uses internally.
+
+### Custom Tools (In-Process MCP Servers)
+
+Register your own domain-specific tools alongside built-in ones. Custom tools run as in-process MCP servers — no separate processes needed.
+
+```typescript
+import { tool, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
+
+const crmServer = createSdkMcpServer({
+  name: "my-crm",
+  version: "1.0.0",
+  tools: [
+    tool("update_contact", "Update a CRM contact record", {
+      contact_id: "string",
+      fields: "object"
+    }, async (args) => {
+      const result = await supabase.from('contacts').update(args.fields)
+        .eq('id', args.contact_id);
+      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+    }),
+    tool("log_activity", "Log an agent activity", {
+      type: "string",
+      description: "string"
+    }, async (args) => {
+      // ... write to activity log
+      return { content: [{ type: "text", text: "Activity logged" }] };
+    })
+  ]
+});
+
+// Pass to query options
+options: { mcpServers: [crmServer] }
+```
+
+### Permissions & Security Hooks
+
+```typescript
+options: {
+  permissionMode: "bypassPermissions", // use in sandboxed envs only
+  canUseTool: async (toolName, input) => {
+    // Intercept and control tool execution
+    if (toolName === "Bash" && input.command?.includes("rm -rf")) {
+      return { behavior: "deny", message: "Destructive commands blocked" };
+    }
+    if (toolName === "Write" && input.file_path?.includes(".env")) {
+      return { behavior: "deny", message: "Cannot modify env files" };
+    }
+    return { behavior: "allow", updatedInput: input };
+  }
+}
+```
+
+### Structured Output
+
+```typescript
+const reviewSchema = {
+  type: "object",
+  properties: {
+    issues: { type: "array", items: { /* ... */ } },
+    summary: { type: "string" },
+    score: { type: "number" }
+  },
+  required: ["issues", "summary", "score"]
+};
+
+options: {
+  outputFormat: { type: "json_schema", schema: reviewSchema }
+}
+```
+
+### Skills & CLAUDE.md
+
+The SDK supports Claude Code's filesystem-based configuration (skills, CLAUDE.md, hooks) but loads nothing by default. Opt in explicitly:
+
+```typescript
+options: {
+  settingSources: ["user", "project"],  // load from ~/.claude/ and ./.claude/
+  allowedTools: ["Skill", "Read", "Write", "Bash"]
+}
+```
+
+### System Prompt Control
+
+```typescript
+// Option 1: Custom system prompt (recommended for SaaS)
+options: { systemPrompt: "You are a freight document reconciliation agent..." }
+
+// Option 2: Use Claude Code's default system prompt
+options: { systemPrompt: { type: "preset", preset: "claude_code" } }
+```
+
+---
+
+## Vercel AI SDK Integration
+
+### Community Provider: `ai-sdk-provider-claude-code`
+
+This unofficial community provider wraps the Claude Agent SDK as a Vercel AI SDK provider. Gives you `streamText()`, `generateObject()`, `useChat()` — all the AI SDK patterns.
+
+```bash
+npm install ai-sdk-provider-claude-code ai@^6.0.0
+```
+
+```typescript
+import { streamText } from 'ai';
+import { claudeCode } from 'ai-sdk-provider-claude-code';
+
+const result = streamText({
+  model: claudeCode('sonnet', {
+    systemPrompt: 'You are a document processing agent...',
+    permissionMode: 'bypassPermissions',
+    allowedTools: ['Read', 'Bash', 'Glob'],
+  }),
+  prompt: 'Process this invoice',
+});
+```
+
+**Key options exposed:**
+- `spawnClaudeCodeProcess` — redirect where the CLI subprocess runs (e.g., inside a Vercel Sandbox)
+- `persistSession: false` — disable session persistence to disk
+- `sandbox: { enabled: true }` — enable sandboxed execution
+- `streamingInput: 'always'` — enable mid-session message injection
+- `sessionId` — deterministic session tracking
+- `agents` — define subagent configurations with their own tools and MCP servers
+
+**Version compatibility:** v3.x supports AI SDK v6 stable. v2.x for AI SDK v5.
+
+---
+
+## Hosting Architecture for Multi-Tenant SaaS
+
+### The Core Problem
+
+The Agent SDK is a long-running process, not a stateless API call. Serving hundreds of SaaS users means each user session needs isolated compute. The sandbox has no UI — your users interact with your Next.js frontend; the sandbox is headless compute behind your API routes.
+
+### Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Your Next.js App (Vercel)                              │
+│  ┌──────────────┐    ┌──────────────────────────────┐   │
+│  │  Chat UI /   │    │  API Routes                  │   │
+│  │  Dashboard   │◄──►│  POST /api/chat              │   │
+│  │  (useChat)   │    │  POST /api/process-docs      │   │
+│  └──────────────┘    └──────────┬───────────────────┘   │
+└─────────────────────────────────┼───────────────────────┘
+                                  │
+                    ┌─────────────▼─────────────┐
+                    │  Orchestration Layer       │
+                    │  - Map userId → sandbox    │
+                    │  - Load tenant config      │
+                    │  - Stream results back     │
+                    └─────────────┬─────────────┘
+                                  │
+              ┌───────────────────┼───────────────────┐
+              │                   │                   │
+    ┌─────────▼──────┐ ┌─────────▼──────┐ ┌─────────▼──────┐
+    │ Sandbox:       │ │ Sandbox:       │ │ Sandbox:       │
+    │ tenant-alice   │ │ tenant-bob     │ │ tenant-carol   │
+    │                │ │                │ │                │
+    │ Agent SDK      │ │ Agent SDK      │ │ Agent SDK      │
+    │ + Custom Tools │ │ + Custom Tools │ │ + Custom Tools │
+    │ + Skill Files  │ │ + Skill Files  │ │ + Skill Files  │
+    │ + Uploaded Docs│ │ + Uploaded Docs│ │ + Uploaded Docs│
+    └────────────────┘ └────────────────┘ └────────────────┘
+              │                   │                   │
+              └───────────────────┼───────────────────┘
+                                  │
+                        ┌─────────▼─────────┐
+                        │  Supabase         │
+                        │  - User data      │
+                        │  - CRM state      │
+                        │  - Conv history   │
+                        │  - Agent memory   │
+                        └───────────────────┘
+```
+
+### Vercel Sandbox — Per-User Persistent Sandboxes
+
+Vercel Sandbox runs Firecracker microVMs. As of March 2026, persistent sandboxes (beta) auto-save filesystem state on stop and restore on resume — no manual snapshot management.
+
+**Key abstraction:** A sandbox is the durable identity (name + filesystem state + config). A session is the ephemeral compute tied to that state.
+
+```typescript
+import { Sandbox } from '@vercel/sandbox';
+
+// Create a named, persistent sandbox for a user
+const sandbox = await Sandbox.create({ name: 'tenant-alice-workspace' });
+await sandbox.runCommand('npm', ['install', '@anthropic-ai/claude-agent-sdk']);
+// ... load tenant docs, skill files, etc.
+await sandbox.stop();
+// Filesystem automatically snapshotted. Storage is free — you only pay for active compute.
+
+// Later, when alice sends another message:
+const sandbox = await Sandbox.get({ name: 'tenant-alice-workspace' });
+// Resumes with all files intact. New session boots from snapshot.
+// If stopped and you run a command, SDK transparently creates a new session.
+```
+
+**Pricing:** $0.128 per active CPU hour. Active CPU billing means I/O wait time is excluded (up to 95% lower cost for bursty workloads). State storage is not charged. Each sandbox gets up to 8 vCPUs, 2048 MB RAM per vCPU. Max runtime: 5 hours (Pro/Enterprise), 45 minutes (Hobby).
+
+**Persistence details:**
+- When stopped: session shuts down, filesystem auto-snapshotted
+- When resumed: new session boots from snapshot
+- Persistence enabled by default in beta SDK
+- Can be disabled per-session with `persistent: false`
+
+**Authentication:** Vercel OIDC tokens (recommended, automatic in production on Vercel) or access tokens for external environments.
+
+**Networking:** Fine-grained egress control. Credentials brokering injects secrets into outbound requests without exposing them inside the sandbox — the agent never sees API keys.
+
+### Deployment Pattern: Hybrid Sessions (Recommended for SaaS)
+
+Ephemeral-ish containers that persist state between interactions. Agent spins up on user action, processes, spins down. State survives across sessions.
+
+```typescript
+// API route: POST /api/chat
+export async function POST(req: Request) {
+  const { userId, message } = await req.json();
+
+  // Get or create persistent sandbox for this user
+  let sandbox: Sandbox;
+  try {
+    sandbox = await Sandbox.get({ name: `tenant-${userId}` });
+  } catch {
+    sandbox = await Sandbox.create({ name: `tenant-${userId}` });
+    // First-time setup: install deps, load tenant config
+    await sandbox.runCommand('npm', ['install', '@anthropic-ai/claude-agent-sdk']);
+    await sandbox.writeFile('/workspace/skills/crm.md', tenantSkillContent);
+  }
+
+  // Run agent inside sandbox via the AI SDK provider
+  const result = streamText({
+    model: claudeCode('sonnet', {
+      systemPrompt: loadTenantSystemPrompt(userId),
+      permissionMode: 'bypassPermissions',
+      allowedTools: ['Read', 'Bash', 'Glob', 'Skill'],
+      spawnClaudeCodeProcess: /* point at sandbox */,
+      maxTurns: 30,
+    }),
+    prompt: message,
+  });
+
+  // Stream back to frontend (standard AI SDK pattern)
+  return result.toDataStreamResponse();
+}
+```
+
+### Other Sandbox Providers
+
+| Provider | Isolation | Persistence | Best For |
+|----------|-----------|-------------|----------|
+| **Vercel Sandbox** | Firecracker microVM | Auto-snapshot (beta) | Vercel-native stacks |
+| **E2B** | Firecracker microVM | Yes | AI agent sandboxes, good SDK |
+| **Fly.io Sprites** | Persistent VMs | 100GB NVMe, survives indefinitely | Long-running agents, stateful workloads |
+| **Modal** | gVisor containers | No persistent sessions | GPU/ML workloads, Python-first |
+| **Cloudflare Sandboxes** | V8 isolates + Containers | While container active | Cloudflare-native stacks |
+| **Daytona** | Containers | Varies | Fast container starts |
+
+---
+
+## Container Complexity — What You're Managing
+
+### Lifecycle Management
+- Registry of which sandboxes are alive, which tenant they belong to, current state
+- Cold start latency: Vercel Sandbox boots in sub-seconds (Firecracker), but first-time setup (npm install, file loading) takes longer
+- Strategy: pre-seed common dependencies via snapshots, then clone per tenant
+
+### State Hydration & Teardown
+- Each sandbox boots empty on first creation. Load: system prompt, skill files, uploaded documents, conversation history from Supabase
+- On teardown: extract results, persist back to Supabase before sandbox sleeps
+- With Vercel persistent sandboxes, filesystem survives — so you only hydrate once per tenant
+
+### Idle Timeout Tuning
+- WhatsApp conversations are bursty (3 messages/minute then silence for hours)
+- Keep alive = $0.128/hr per sandbox. Kill + cold start = latency penalty
+- Vercel's persistent sandboxes solve this: filesystem saved for free when idle, compute cost only when active
+
+### Resource Contention
+- Each sandbox: ~1 GiB RAM minimum
+- 100 concurrent users = 100 GiB RAM at peak
+- OOM risk: the SDK can OOM if agents use multiple subagents without resource management
+- Set `maxTurns` to cap runaway loops
+
+### Networking & Credential Injection
+- Each sandbox needs outbound HTTPS to api.anthropic.com + your Supabase endpoint
+- Vercel Sandbox supports credentials brokering — injects secrets on egress, never enters sandbox scope
+- Prevents tenant data cross-contamination
+
+### Observability
+- Standard logging/monitoring (Datadog, Grafana) works since containers are just servers
+- Vercel provides Observability → Sandboxes view with real-time log streaming
+- Agent sessions don't timeout, but set `maxTurns` to prevent infinite loops
+
+---
+
+## Cost Model
+
+### Token Costs (Dominant)
+The primary cost driver. A typical agentic session uses significantly more tokens than a single API call because the agent loop involves multiple rounds of reasoning + tool calls + tool results.
+
+### Sandbox Compute Costs
+- Vercel: $0.128/active CPU hour (I/O wait excluded)
+- Fly.io Sprites: $0.07/CPU-hour, $0.04375/GB-hour
+- E2B: Usage-based, varies by plan
+- State storage on Vercel: free
+
+### Example Math
+100 users × 20 messages/day × 30 seconds average compute per message:
+- Active CPU time: ~16.7 hours/day = ~$2.13/day in sandbox costs
+- Token costs will be 10-50x this depending on model and turn count
+
+### Cost Controls
+- `maxTurns` — cap loop iterations
+- `maxBudgetUsd` — hard budget limit per query
+- Use Haiku for simple tasks, Sonnet for complex ones
+- Use snapshots to eliminate repeated setup costs (npm install, etc.)
+
+---
+
+## When to Use What — Decision Framework
+
+### Use Raw API (Vercel AI SDK + Anthropic provider)
+- Stateless chat interactions (WhatsApp bots, customer support)
+- Simple tool calling with typed tools you define
+- Provider-agnostic requirement (want to swap models)
+- No filesystem access needed
+- **→ This is Sunder's current architecture. It's the right choice.**
+
+### Use Agent SDK
+- Agent needs to read/write/execute in a filesystem
+- Complex multi-step document processing (RedDoc's reconciliation pipeline)
+- Need Claude Code's built-in file editing, bash, context compaction
+- Building a coding assistant or code generation platform
+- Willing to lock into Claude as provider
+
+### Use CLI Shell-Out
+- CI/CD pipelines, automated code reviews
+- One-shot tasks where you just want a result
+- Dev-time scripting
+- Don't need programmatic mid-execution control
+
+---
+
+## Key Links
+
+- **Agent SDK Overview:** https://platform.claude.com/docs/en/agent-sdk/overview
+- **Hosting Guide:** https://platform.claude.com/docs/en/agent-sdk/hosting
+- **Secure Deployment:** https://platform.claude.com/docs/en/agent-sdk/secure-deployment
+- **TypeScript SDK Reference:** https://platform.claude.com/docs/en/agent-sdk/typescript
+- **Python SDK Reference:** https://platform.claude.com/docs/en/agent-sdk/python
+- **Custom Tools:** https://platform.claude.com/docs/en/agent-sdk/custom-tools
+- **Permissions:** https://platform.claude.com/docs/en/agent-sdk/permissions
+- **Cost Tracking:** https://platform.claude.com/docs/en/agent-sdk/cost-tracking
+- **Vercel AI SDK Provider (community):** https://github.com/ben-vargas/ai-sdk-provider-claude-code
+- **Vercel Sandbox Docs:** https://vercel.com/docs/vercel-sandbox
+- **Vercel Sandbox Persistent Sandboxes (beta, Mar 2026):** https://vercel.com/changelog/vercel-sandbox-persistent-sandboxes-beta
+- **Vercel Sandbox + Claude Agent SDK Guide:** https://vercel.com/kb/guide/using-vercel-sandbox-claude-agent-sdk
