@@ -1,6 +1,34 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createLazyBashTool } from "../create-lazy-bash-tool";
+import {
+  createLazyBashTool,
+  type LazyBashToolOptions,
+  type LazyBashToolResult,
+} from "../create-lazy-bash-tool";
+
+interface ToolExecutionResult {
+  stdout?: string;
+  stderr: string;
+  exitCode: number;
+  artifacts?: unknown[];
+}
+
+interface ExecutableTool {
+  execute: (input: { command: string }, options: unknown) => Promise<ToolExecutionResult>;
+}
+
+function asExecutableTool(tool: LazyBashToolResult["tool"]): ExecutableTool {
+  return tool as unknown as ExecutableTool;
+}
+
+function createMockFileClient(): LazyBashToolOptions["fileClient"] {
+  return {
+    uploadArtifact: vi.fn(async () => ({
+      storagePath: "home/mock.txt",
+      downloadUrl: "https://storage.example.com/home/mock.txt",
+    })),
+  };
+}
 
 // Mock @vercel/sandbox
 vi.mock("@vercel/sandbox", () => ({
@@ -22,7 +50,7 @@ vi.mock("@vercel/sandbox", () => ({
 
 // Mock bash-tool
 vi.mock("bash-tool", () => ({
-  createBashTool: vi.fn(async ({ sandbox }: any) => ({
+  createBashTool: vi.fn(async ({ sandbox }: { sandbox: unknown }) => ({
     bash: {
       execute: vi.fn(async () => ({ stdout: "hello", stderr: "", exitCode: 0 })),
     },
@@ -52,7 +80,7 @@ describe("createLazyBashTool", () => {
       snapshotId: "snap_test",
       getPreloadFiles: async () => [],
       getContextEntries: () => [],
-      fileClient: {} as any,
+      fileClient: createMockFileClient(),
       runId: "run-1",
     });
 
@@ -68,11 +96,11 @@ describe("createLazyBashTool", () => {
       snapshotId: "",
       getPreloadFiles: async () => [],
       getContextEntries: () => [],
-      fileClient: {} as any,
+      fileClient: createMockFileClient(),
       runId: "run-1",
     });
 
-    const result = await (bashTool as any).execute({ command: "echo hello" }, {} as any);
+    const result = await asExecutableTool(bashTool).execute({ command: "echo hello" }, {});
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("SANDBOX_GOLDEN_SNAPSHOT_ID");
   });
@@ -85,17 +113,50 @@ describe("createLazyBashTool", () => {
       snapshotId: "snap_test",
       getPreloadFiles: async () => [],
       getContextEntries: () => [],
-      fileClient: {} as any,
+      fileClient: createMockFileClient(),
       runId: "run-1",
     });
 
     // Fire two calls concurrently — both hit initialize() before first completes
     await Promise.all([
-      (bashTool as any).execute({ command: "echo 1" }, {} as any),
-      (bashTool as any).execute({ command: "echo 2" }, {} as any),
+      asExecutableTool(bashTool).execute({ command: "echo 1" }, {}),
+      asExecutableTool(bashTool).execute({ command: "echo 2" }, {}),
     ]);
 
     expect(Sandbox.create).toHaveBeenCalledTimes(1);
+    await cleanup();
+  });
+
+  it("creates /agent/home and updates sandbox instructions on first execute", async () => {
+    const { Sandbox } = await import("@vercel/sandbox");
+    const { createBashTool } = await import("bash-tool");
+    const createSandboxMock = Sandbox.create as ReturnType<typeof vi.fn>;
+    const createBashToolMock = createBashTool as ReturnType<typeof vi.fn>;
+    createSandboxMock.mockClear();
+    createBashToolMock.mockClear();
+
+    const { tool: bashTool, cleanup } = createLazyBashTool({
+      snapshotId: "snap_test",
+      getPreloadFiles: async () => [],
+      getContextEntries: () => [],
+      fileClient: createMockFileClient(),
+      runId: "run-1",
+    });
+
+    await asExecutableTool(bashTool).execute({ command: "echo ready" }, {});
+
+    const sandbox = await createSandboxMock.mock.results[0]?.value;
+    expect(sandbox.runCommand).toHaveBeenCalledWith("bash", [
+      "-c",
+      "mkdir -p /vercel/sandbox/workspace/agent/home",
+    ]);
+    expect(createBashToolMock).toHaveBeenCalledWith(expect.objectContaining({
+      extraInstructions: expect.stringContaining("/workspace/agent/home/"),
+    }));
+    expect(createBashToolMock).toHaveBeenCalledWith(expect.objectContaining({
+      extraInstructions: expect.not.stringContaining("output/"),
+    }));
+
     await cleanup();
   });
 
@@ -111,13 +172,13 @@ describe("createLazyBashTool", () => {
       snapshotId: "snap_test",
       getPreloadFiles: async () => [],
       getContextEntries: () => [],
-      fileClient: {} as any,
+      fileClient: createMockFileClient(),
       runId: "run-1",
     });
 
     // First call fails
     await expect(
-      (bashTool as any).execute({ command: "echo 1" }, {} as any),
+      asExecutableTool(bashTool).execute({ command: "echo 1" }, {}),
     ).rejects.toThrow("transient network error");
 
     // Restore normal behavior — second call should retry and succeed
@@ -129,7 +190,7 @@ describe("createLazyBashTool", () => {
       stop: vi.fn(async () => {}),
     });
 
-    const result = await (bashTool as any).execute({ command: "echo 2" }, {} as any);
+    const result = await asExecutableTool(bashTool).execute({ command: "echo 2" }, {});
     expect(result.stdout).toBe("hello"); // from the default bash mock
     expect(createMock).toHaveBeenCalledTimes(2);
 
@@ -141,7 +202,7 @@ describe("createLazyBashTool", () => {
       snapshotId: "snap_test",
       getPreloadFiles: async () => [],
       getContextEntries: () => [],
-      fileClient: {} as any,
+      fileClient: createMockFileClient(),
       runId: "run-1",
     });
 

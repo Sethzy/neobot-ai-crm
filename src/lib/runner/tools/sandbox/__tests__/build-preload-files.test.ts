@@ -3,6 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import type { SandboxPreloadFile } from "../types";
 import { buildPreloadFiles, generateFileTree } from "../build-preload-files";
 
+type BuildPreloadSupabase = Parameters<typeof buildPreloadFiles>[0]["supabase"];
+
+function asBuildPreloadSupabase(value: unknown): BuildPreloadSupabase {
+  return value as BuildPreloadSupabase;
+}
+
 /** Minimal mock for Supabase storage bucket. */
 function createMockBucket(files: Record<string, string | null>) {
   return {
@@ -49,7 +55,7 @@ describe("buildPreloadFiles", () => {
     });
 
     const result = await buildPreloadFiles({
-      supabase: client as any,
+      supabase: asBuildPreloadSupabase(client),
       clientId: "client-1",
       fileParts: [],
     });
@@ -62,7 +68,7 @@ describe("buildPreloadFiles", () => {
   it("does not include context.json (owned by createLazyBashTool)", async () => {
     const { client } = createMockSupabase({});
     const result = await buildPreloadFiles({
-      supabase: client as any,
+      supabase: asBuildPreloadSupabase(client),
       clientId: "client-1",
       fileParts: [],
     });
@@ -79,7 +85,7 @@ describe("buildPreloadFiles", () => {
     });
 
     const result = await buildPreloadFiles({
-      supabase: client as any,
+      supabase: asBuildPreloadSupabase(client),
       clientId: "client-1",
       fileParts: [],
     });
@@ -98,7 +104,7 @@ describe("buildPreloadFiles", () => {
 
     const { client } = createMockSupabase({});
     const result = await buildPreloadFiles({
-      supabase: client as any,
+      supabase: asBuildPreloadSupabase(client),
       clientId: "client-1",
       fileParts: [
         { type: "file" as const, filename: "my deals (2024).xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", url: "https://example.com/file.xlsx" },
@@ -120,7 +126,7 @@ describe("buildPreloadFiles", () => {
 
     const { client } = createMockSupabase({});
     const result = await buildPreloadFiles({
-      supabase: client as any,
+      supabase: asBuildPreloadSupabase(client),
       clientId: "client-1",
       fileParts: [
         { type: "file" as const, filename: "context.json", mediaType: "application/json", url: "https://example.com/ctx.json" },
@@ -142,7 +148,7 @@ describe("buildPreloadFiles", () => {
 
     const { client } = createMockSupabase({});
     const result = await buildPreloadFiles({
-      supabase: client as any,
+      supabase: asBuildPreloadSupabase(client),
       clientId: "client-1",
       fileParts: [
         { type: "file" as const, filename: "report.xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", url: "https://example.com/a.xlsx" },
@@ -157,6 +163,62 @@ describe("buildPreloadFiles", () => {
       "input/report_2.xlsx",
       "input/report_3.xlsx",
     ]);
+
+    vi.unstubAllGlobals();
+  });
+
+  it("downloads attachments by storagePath from Supabase before falling back to URL fetch", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { client, bucket } = createMockSupabase({
+      "client-1/uploads/deals.csv": "a,b\n1,2",
+    });
+    const result = await buildPreloadFiles({
+      supabase: asBuildPreloadSupabase(client),
+      clientId: "client-1",
+      fileParts: [
+        {
+          type: "file" as const,
+          filename: "deals.csv",
+          mediaType: "text/csv",
+          url: "https://expired.example.com/deals.csv",
+          storagePath: "uploads/deals.csv",
+        },
+      ],
+    });
+
+    expect(bucket.download).toHaveBeenCalledWith("client-1/uploads/deals.csv");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result).toEqual([
+      { path: "input/deals.csv", content: Buffer.from("a,b\n1,2") },
+    ]);
+
+    vi.unstubAllGlobals();
+  });
+
+  it("falls back to URL fetch when storagePath is missing", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(10),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { client } = createMockSupabase({});
+    await buildPreloadFiles({
+      supabase: asBuildPreloadSupabase(client),
+      clientId: "client-1",
+      fileParts: [
+        {
+          type: "file" as const,
+          filename: "legacy.csv",
+          mediaType: "text/csv",
+          url: "https://legacy.example.com/legacy.csv",
+        },
+      ],
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("https://legacy.example.com/legacy.csv");
 
     vi.unstubAllGlobals();
   });
@@ -211,7 +273,7 @@ describe("parallel skill download", () => {
 
     const start = Date.now();
     const result = await buildPreloadFiles({
-      supabase: mockSupabase as any,
+      supabase: asBuildPreloadSupabase(mockSupabase),
       clientId: "client-1",
       fileParts: [],
     });

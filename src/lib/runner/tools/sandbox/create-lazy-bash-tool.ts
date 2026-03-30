@@ -19,6 +19,32 @@ import type { SandboxContextEntry, SandboxPreloadFile, SyncedArtifact } from "./
 const WORKSPACE = "/vercel/sandbox/workspace";
 const SANDBOX_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
+type SandboxModule = typeof import("@vercel/sandbox");
+type SandboxCreateOptions = Parameters<SandboxModule["Sandbox"]["create"]>[0];
+
+interface BashCommandResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+  [key: string]: unknown;
+}
+
+interface BashToolModule {
+  createBashTool: (options: {
+    sandbox: Sandbox;
+    extraInstructions: string;
+    maxOutputLength: number;
+  }) => Promise<{
+    bash: {
+      execute: (input: { command: string }) => Promise<BashCommandResult>;
+    };
+  }>;
+}
+
+interface LazyBashExecutionResult extends BashCommandResult {
+  artifacts: SyncedArtifact[];
+}
+
 export interface LazyBashToolOptions {
   /** Golden snapshot ID from env. */
   snapshotId: string;
@@ -42,7 +68,7 @@ export interface LazyBashToolOptions {
 
 export interface LazyBashToolResult {
   /** AI SDK tool to register in the tools object. */
-  tool: Tool<{ command: string }, any>;
+  tool: Tool<{ command: string }, LazyBashExecutionResult>;
   /** Call in onFinish/onError to stop the sandbox. */
   cleanup: () => Promise<void>;
   /** Whether the sandbox has been created (for testing). */
@@ -61,7 +87,7 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
 
   // Mutable state — captured in closure
   let sandbox: Sandbox | null = null;
-  let bashExecute: ((input: { command: string }) => Promise<any>) | null = null;
+  let bashExecute: ((input: { command: string }) => Promise<BashCommandResult>) | null = null;
   let initialized = false;
   let initPromise: Promise<void> | null = null;
   const artifactHashes = new Map<string, string>();
@@ -82,26 +108,29 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
   async function doInitialize(): Promise<void> {
 
     // Dynamic import to avoid loading @vercel/sandbox when sandbox isn't used
-    const { Sandbox } = await import("@vercel/sandbox");
-    const { createBashTool } = await import("bash-tool");
+    const sandboxModule = await import("@vercel/sandbox");
+    const { createBashTool } = await import("bash-tool") as BashToolModule;
+    const SandboxClass = sandboxModule.Sandbox;
 
     // 1. Create sandbox from golden snapshot
     const { getServerEnv } = await import("@/lib/env");
     const env = getServerEnv();
 
-    const sandboxOptions: Record<string, unknown> = {
-      source: { type: "snapshot", snapshotId },
-      timeout: SANDBOX_TIMEOUT_MS,
-    };
+    const sandboxOptions: SandboxCreateOptions =
+      env.VERCEL_TOKEN && env.VERCEL_TEAM_ID && env.VERCEL_PROJECT_ID
+        ? {
+          source: { type: "snapshot", snapshotId },
+          timeout: SANDBOX_TIMEOUT_MS,
+          token: env.VERCEL_TOKEN,
+          teamId: env.VERCEL_TEAM_ID,
+          projectId: env.VERCEL_PROJECT_ID,
+        }
+        : {
+          source: { type: "snapshot", snapshotId },
+          timeout: SANDBOX_TIMEOUT_MS,
+        };
 
-    // Local dev fallback: explicit token auth requires team + project
-    if (env.VERCEL_TOKEN && env.VERCEL_TEAM_ID && env.VERCEL_PROJECT_ID) {
-      sandboxOptions.token = env.VERCEL_TOKEN;
-      sandboxOptions.teamId = env.VERCEL_TEAM_ID;
-      sandboxOptions.projectId = env.VERCEL_PROJECT_ID;
-    }
-
-    sandbox = await Sandbox.create(sandboxOptions as any);
+    sandbox = await SandboxClass.create(sandboxOptions);
 
     // 2. Build and upload preload files
     const preloadFiles = await getPreloadFiles();
@@ -120,12 +149,24 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
       );
     }
 
+    const mkdirResult = await sandbox.runCommand("bash", [
+      "-c",
+      "mkdir -p /vercel/sandbox/workspace/agent/home",
+    ]);
+    if (mkdirResult.exitCode !== 0) {
+      const stderr = typeof mkdirResult.stderr === "function"
+        ? await mkdirResult.stderr()
+        : String(mkdirResult.stderr ?? "");
+      throw new Error(`Failed to create agent/home directory: ${stderr}`);
+    }
+
     // 3. Create bash-tool instance
     const fileTree = generateFileTree(allFiles);
     const extraInstructions = [
       `\nFiles preloaded in workspace:`,
       fileTree,
-      `\nWrite output files to output/ — they will be synced to storage automatically.`,
+      `\nWrite persistent result files to /vercel/sandbox/workspace/agent/home/.`,
+      `Only files saved in /vercel/sandbox/workspace/agent/home/ are synced back to storage automatically.`,
     ].join("\n");
 
     const { bash } = await createBashTool({
@@ -134,7 +175,7 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
       maxOutputLength: 100_000,
     });
 
-    bashExecute = bash.execute as any;
+    bashExecute = bash.execute;
     initialized = true;
   }
 
@@ -143,7 +184,7 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
     description: [
       "Execute a bash command in an isolated sandbox environment.",
       "The sandbox has Python 3 (pandas, openpyxl, matplotlib, numpy), Node 22, LibreOffice, and standard CLI tools.",
-      "User files are at input/, skill references at skills/, write results to output/.",
+      "User files are at input/, skill references at skills/, and persistent results belong in agent/home/.",
     ].join(" "),
     inputSchema: z.object({
       command: z.string().describe("The bash command to execute."),

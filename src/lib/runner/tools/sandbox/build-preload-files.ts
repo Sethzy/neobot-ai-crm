@@ -22,11 +22,13 @@ export interface BuildPreloadFilesOptions {
   fileParts: RunnerFilePart[];
 }
 
+type StorageBucket = ReturnType<SupabaseClient["storage"]["from"]>;
+
 /**
  * Downloads all files in a skill directory recursively from Supabase Storage.
  */
 async function downloadSkillDirectory(
-  bucket: ReturnType<SupabaseClient["storage"]["from"]>,
+  bucket: StorageBucket,
   clientId: string,
   slug: string,
 ): Promise<SandboxPreloadFile[]> {
@@ -103,13 +105,10 @@ export async function buildPreloadFiles(
   const usedNames = new Set<string>(["context.json"]);
   for (const part of fileParts) {
     try {
-      const response = await fetch(part.url);
-      if (!response.ok) {
-        console.warn(`[sandbox] Attachment fetch failed: ${response.status} for ${part.filename ?? part.url}`);
+      const buffer = await downloadAttachmentContent(bucket, clientId, part);
+      if (!buffer) {
         continue;
       }
-
-      const buffer = Buffer.from(await response.arrayBuffer());
       const rawName = part.filename ?? "attachment";
       let safeName = rawName.replace(/[^a-zA-Z0-9._-]/g, "_");
 
@@ -131,6 +130,35 @@ export async function buildPreloadFiles(
   }
 
   return files;
+}
+
+/**
+ * Downloads a chat attachment from Supabase Storage when a durable path is
+ * available, then falls back to the transient signed URL for legacy payloads.
+ */
+async function downloadAttachmentContent(
+  bucket: StorageBucket,
+  clientId: string,
+  part: RunnerFilePart,
+): Promise<Buffer | null> {
+  if (part.storagePath) {
+    const { data, error } = await bucket.download(`${clientId}/${part.storagePath}`);
+    if (data) {
+      return Buffer.from(await data.arrayBuffer());
+    }
+
+    console.warn(
+      `[sandbox] Attachment storage download failed: ${error?.message ?? "unknown error"} for ${part.storagePath}`,
+    );
+  }
+
+  const response = await fetch(part.url);
+  if (!response.ok) {
+    console.warn(`[sandbox] Attachment fetch failed: ${response.status} for ${part.filename ?? part.url}`);
+    return null;
+  }
+
+  return Buffer.from(await response.arrayBuffer());
 }
 
 /**
