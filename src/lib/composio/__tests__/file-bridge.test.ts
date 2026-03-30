@@ -29,7 +29,7 @@ vi.mock(import("node:fs/promises"), async (importOriginal) => {
   };
 });
 
-import { bridgeDownloadedFile, findDownloadedFile } from "../file-bridge";
+import { bridgeDownloadedFile, findDownloadedFile, resolveAgentPathForUpload } from "../file-bridge";
 
 describe("findDownloadedFile", () => {
   it("returns null for non-object data", () => {
@@ -238,5 +238,65 @@ describe("bridgeDownloadedFile", () => {
     expect(mockFileClient.uploadArtifact).toHaveBeenCalledWith(
       expect.objectContaining({ contentType: "application/octet-stream" }),
     );
+  });
+});
+
+describe("resolveAgentPathForUpload", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("downloads from storage and writes to temp path", async () => {
+    const mockBuffer = new ArrayBuffer(8);
+    const mockFileClient = {
+      downloadBinary: vi.fn().mockResolvedValue({
+        buffer: mockBuffer,
+        mimeType: "application/pdf",
+      }),
+    };
+    mockMkdir.mockResolvedValue(undefined);
+    mockWriteFile.mockResolvedValue(undefined);
+
+    const tempPath = await resolveAgentPathForUpload({
+      agentPath: "/agent/home/report.pdf",
+      fileClient: mockFileClient as never,
+    });
+
+    expect(mockFileClient.downloadBinary).toHaveBeenCalledWith("home/report.pdf");
+    expect(mockMkdir).toHaveBeenCalledWith("/tmp/composio-uploads", { recursive: true });
+    expect(mockWriteFile).toHaveBeenCalledWith(
+      "/tmp/composio-uploads/report.pdf",
+      expect.any(Buffer),
+    );
+    expect(tempPath).toBe("/tmp/composio-uploads/report.pdf");
+  });
+
+  it("strips /agent/ prefix correctly for uploads path", async () => {
+    const mockFileClient = {
+      downloadBinary: vi.fn().mockResolvedValue({
+        buffer: new ArrayBuffer(4),
+        mimeType: "text/csv",
+      }),
+    };
+    mockMkdir.mockResolvedValue(undefined);
+    mockWriteFile.mockResolvedValue(undefined);
+
+    await resolveAgentPathForUpload({
+      agentPath: "/agent/uploads/1711792800-deals.csv",
+      fileClient: mockFileClient as never,
+    });
+
+    expect(mockFileClient.downloadBinary).toHaveBeenCalledWith("uploads/1711792800-deals.csv");
+  });
+
+  it("throws if path does not start with /agent/", async () => {
+    const mockFileClient = { downloadBinary: vi.fn() };
+
+    await expect(resolveAgentPathForUpload({
+      agentPath: "/tmp/some-file.txt",
+      fileClient: mockFileClient as never,
+    })).rejects.toThrow("must start with /agent/");
+
+    expect(mockFileClient.downloadBinary).not.toHaveBeenCalled();
   });
 });

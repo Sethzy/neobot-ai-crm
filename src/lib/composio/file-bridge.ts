@@ -2,10 +2,11 @@
  * Helpers for bridging Composio file downloads/uploads to agent storage.
  * @module lib/composio/file-bridge
  */
-import { readFile, unlink } from "node:fs/promises";
-import { basename } from "node:path";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { basename, join } from "node:path";
 
 import type { AgentFileClient } from "@/lib/storage/agent-files";
+import { AGENT_ROOT } from "@/lib/storage/agent-paths";
 
 /** Shape produced by Composio's FileToolModifier for downloaded files. */
 export interface ComposioFileDownloadResult {
@@ -86,4 +87,36 @@ export async function bridgeDownloadedFile(options: BridgeDownloadedFileOptions)
   }
 
   return `/agent/home/${filename}`;
+}
+
+const UPLOAD_TEMP_DIR = "/tmp/composio-uploads";
+
+interface ResolveAgentPathOptions {
+  agentPath: string;
+  fileClient: Pick<AgentFileClient, "downloadBinary">;
+}
+
+/**
+ * Downloads a file from agent storage to a local temp path so Composio
+ * can read it for upload to a connection (e.g. Google Drive).
+ *
+ * @returns The local temp file path.
+ */
+export async function resolveAgentPathForUpload(options: ResolveAgentPathOptions): Promise<string> {
+  const { agentPath, fileClient } = options;
+
+  if (!agentPath.startsWith(AGENT_ROOT)) {
+    throw new Error(`Upload path "${agentPath}" must start with ${AGENT_ROOT}`);
+  }
+
+  const storagePath = agentPath.slice(AGENT_ROOT.length);
+  const filename = basename(storagePath);
+
+  const { buffer } = await fileClient.downloadBinary(storagePath);
+
+  await mkdir(UPLOAD_TEMP_DIR, { recursive: true });
+  const tempPath = join(UPLOAD_TEMP_DIR, filename);
+  await writeFile(tempPath, Buffer.from(buffer));
+
+  return tempPath;
 }
