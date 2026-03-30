@@ -25,7 +25,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Streamdown } from "streamdown";
+import { Streamdown, type Components } from "streamdown";
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
   from: UIMessage["role"];
@@ -318,6 +318,56 @@ export const MessageBranchPage = ({
 
 export type MessageResponseProps = ComponentProps<typeof Streamdown>;
 
+export function rewriteSunderHref(href?: string): string | undefined {
+  if (!href) {
+    return href;
+  }
+
+  if (!href.startsWith("sunder:///agent/")) {
+    return href;
+  }
+
+  const workspacePath = href.replace("sunder:///agent/", "");
+  return `/api/files/download?path=${encodeURIComponent(workspacePath)}`;
+}
+
+function rewriteSunderMarkdownLinks(markdown: string): string {
+  // Skip rewriting inside code blocks (fenced ``` or indented) to avoid mangling literal examples
+  const codeBlockPattern = /(```[\s\S]*?```|`[^`]+`)/g;
+  const parts = markdown.split(codeBlockPattern);
+
+  return parts.map((part, index) => {
+    // Odd indices are code block matches — leave them untouched
+    if (index % 2 === 1) return part;
+    return part.replace(/sunder:\/\/\/agent\/([^\s)]+)/g, (_match, workspacePath: string) => (
+      `/api/files/download?path=${encodeURIComponent(workspacePath)}`
+    ));
+  }).join("");
+}
+
+const messageComponents: Components = {
+  a: ({ href, children, ...props }) => {
+    const resolvedHref = rewriteSunderHref(href);
+
+    if (!resolvedHref) {
+      return <span {...props}>{children}</span>;
+    }
+
+    const isExternalLink = /^https?:\/\//.test(resolvedHref);
+
+    return (
+      <a
+        href={resolvedHref}
+        rel={isExternalLink ? "noopener noreferrer" : undefined}
+        target={isExternalLink ? "_blank" : undefined}
+        {...props}
+      >
+        {children}
+      </a>
+    );
+  },
+};
+
 export const MessageResponse = memo(
   ({ className, ...props }: MessageResponseProps) => (
     <Streamdown
@@ -325,6 +375,7 @@ export const MessageResponse = memo(
         "size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
         className
       )}
+      components={messageComponents}
       plugins={streamdownPlugins}
       mermaid={{
         config: {
@@ -334,7 +385,11 @@ export const MessageResponse = memo(
       }}
       controls={{ mermaid: { download: true, copy: true, fullscreen: true, panZoom: false } }}
       {...props}
-    />
+    >
+      {typeof props.children === "string"
+        ? rewriteSunderMarkdownLinks(props.children)
+        : props.children}
+    </Streamdown>
   ),
   (prevProps, nextProps) =>
     prevProps.children === nextProps.children &&
