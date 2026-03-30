@@ -103,11 +103,27 @@ describe("createAgentFileClient", () => {
     });
     const client = createAgentFileClient(supabase.client, CLIENT_ID);
 
-    const result = await client.downloadBinary("vault/photo.png");
+    const result = await client.downloadBinary("memory/photo.png");
 
     expect(result.mimeType).toBe("image/png");
     expect(Array.from(new Uint8Array(result.buffer))).toEqual(Array.from(bytes));
-    expect(supabase.mockDownload).toHaveBeenCalledWith(`${CLIENT_ID}/vault/photo.png`);
+    expect(supabase.mockDownload).toHaveBeenCalledWith(`${CLIENT_ID}/memory/photo.png`);
+  });
+
+  it("rejects direct text reads from removed vault paths", async () => {
+    const client = createAgentFileClient(supabase.client, CLIENT_ID);
+
+    await expect(client.downloadFile("vault/legacy.md")).rejects.toThrow(
+      'The "vault" directory has been removed. Use Google Drive for document storage instead.',
+    );
+  });
+
+  it("rejects binary reads from removed vault paths", async () => {
+    const client = createAgentFileClient(supabase.client, CLIENT_ID);
+
+    await expect(client.downloadBinary("vault/photo.png")).rejects.toThrow(
+      'The "vault" directory has been removed. Use Google Drive for document storage instead.',
+    );
   });
 
   it("surfaces storage download errors for binary files", async () => {
@@ -117,8 +133,8 @@ describe("createAgentFileClient", () => {
     });
     const client = createAgentFileClient(supabase.client, CLIENT_ID);
 
-    await expect(client.downloadBinary("vault/missing.png")).rejects.toThrow(
-      'Failed to read file "vault/missing.png": Object not found',
+    await expect(client.downloadBinary("memory/missing.png")).rejects.toThrow(
+      'Failed to read file "memory/missing.png": Object not found',
     );
   });
 
@@ -172,6 +188,36 @@ describe("createAgentFileClient", () => {
     );
   });
 
+  it("rejects direct directory listings for removed vault paths", async () => {
+    const client = createAgentFileClient(supabase.client, CLIENT_ID);
+
+    await expect(client.listDirectory("vault")).rejects.toThrow(
+      'The "vault" directory has been removed. Use Google Drive for document storage instead.',
+    );
+  });
+
+  it("hides a legacy vault directory from the workspace root listing", async () => {
+    supabase.mockList.mockResolvedValueOnce({
+      data: [
+        { name: "MEMORY.md", id: "f1" },
+        { name: "memory", id: null },
+        { name: "vault", id: null },
+      ],
+      error: null,
+    });
+
+    supabase.mockList.mockResolvedValueOnce({
+      data: [],
+      error: null,
+    });
+
+    const client = createAgentFileClient(supabase.client, CLIENT_ID);
+    const result = await client.listDirectory("");
+
+    expect(result).toBe(["MEMORY.md", "memory/"].join("\n"));
+    expect(result).not.toContain("vault/");
+  });
+
   it("uploads with upsert and text content type", async () => {
     supabase.mockUpload.mockResolvedValue({ data: { path: "ok" }, error: null });
     const client = createAgentFileClient(supabase.client, CLIENT_ID);
@@ -182,6 +228,14 @@ describe("createAgentFileClient", () => {
       `${CLIENT_ID}/memory/preferences.md`,
       "Prefers concise summaries.",
       { upsert: true, contentType: "text/plain; charset=utf-8" },
+    );
+  });
+
+  it("rejects writes to removed vault paths", async () => {
+    const client = createAgentFileClient(supabase.client, CLIENT_ID);
+
+    await expect(client.uploadFile("vault/new.md", "x")).rejects.toThrow(
+      'The "vault" directory has been removed. Use Google Drive for document storage instead.',
     );
   });
 
@@ -226,6 +280,14 @@ describe("createAgentFileClient", () => {
     expect(result).toBe("qux bar qux baz");
   });
 
+  it("rejects edits to removed vault paths", async () => {
+    const client = createAgentFileClient(supabase.client, CLIENT_ID);
+
+    await expect(client.editFile("vault/existing.md", "a", "b")).rejects.toThrow(
+      'The "vault" directory has been removed. Use Google Drive for document storage instead.',
+    );
+  });
+
   it("deletes a client-scoped file path", async () => {
     supabase.mockRemove.mockResolvedValue({ data: [{ name: "old.md" }], error: null });
     const client = createAgentFileClient(supabase.client, CLIENT_ID);
@@ -233,6 +295,14 @@ describe("createAgentFileClient", () => {
     await client.deleteFile("memory/old.md");
 
     expect(supabase.mockRemove).toHaveBeenCalledWith([`${CLIENT_ID}/memory/old.md`]);
+  });
+
+  it("rejects deletes for removed vault paths", async () => {
+    const client = createAgentFileClient(supabase.client, CLIENT_ID);
+
+    await expect(client.deleteFile("vault/obsolete.md")).rejects.toThrow(
+      'The "vault" directory has been removed. Use Google Drive for document storage instead.',
+    );
   });
 
   it("allows writes to SOUL.md (unlocked for onboarding)", async () => {

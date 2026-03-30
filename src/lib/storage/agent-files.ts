@@ -7,6 +7,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 /** Supabase Storage bucket for all client-scoped agent files. */
 export const AGENT_FILES_BUCKET = "agent-files";
 
+/** Error raised when callers try to use the removed vault workspace. */
+const VAULT_REMOVED_ERROR =
+  'The "vault" directory has been removed. Use Google Drive for document storage instead.';
+
 /**
  * Normalizes and validates a workspace-relative path.
  *
@@ -42,12 +46,24 @@ function resolveStoragePath(clientId: string, inputPath: string, allowEmpty = fa
 }
 
 /**
+ * Rejects access to the retired Knowledge Base workspace.
+ *
+ * @param normalizedPath - Normalized workspace-relative path.
+ */
+function assertVaultPathIsAvailable(normalizedPath: string): void {
+  if (normalizedPath === "vault" || normalizedPath.startsWith("vault/")) {
+    throw new Error(VAULT_REMOVED_ERROR);
+  }
+}
+
+/**
  * Prevents agent writes to protected root files.
  *
  * @param inputPath - Workspace-relative path.
  */
 function assertWritable(inputPath: string): void {
   const normalizedPath = normalizeWorkspacePath(inputPath, false);
+  assertVaultPathIsAvailable(normalizedPath);
   const segments = normalizedPath.split("/");
 
   if (segments[0] !== "skills") {
@@ -78,7 +94,9 @@ export function createAgentFileClient(supabase: SupabaseClient, clientId: string
    * @param path - Relative workspace file path.
    */
   async function downloadObject(path: string): Promise<Blob | string> {
-    const storagePath = resolveStoragePath(clientId, path);
+    const normalizedPath = normalizeWorkspacePath(path, false);
+    assertVaultPathIsAvailable(normalizedPath);
+    const storagePath = resolveStoragePath(clientId, normalizedPath);
     const { data, error } = await supabase.storage.from(AGENT_FILES_BUCKET).download(storagePath);
 
     if (error || !data) {
@@ -148,7 +166,9 @@ export function createAgentFileClient(supabase: SupabaseClient, clientId: string
    * @param depth - Current recursion depth.
    */
   async function listDirectory(path: string, depth = 0): Promise<string> {
-    const storagePath = resolveStoragePath(clientId, path, true);
+    const normalizedPath = normalizeWorkspacePath(path, true);
+    assertVaultPathIsAvailable(normalizedPath);
+    const storagePath = resolveStoragePath(clientId, normalizedPath, true);
     const { data, error } = await supabase.storage.from(AGENT_FILES_BUCKET).list(storagePath, {
       sortBy: { column: "name", order: "asc" },
     });
@@ -166,6 +186,7 @@ export function createAgentFileClient(supabase: SupabaseClient, clientId: string
       .sort((left, right) => left.name.localeCompare(right.name));
     const directories = data
       .filter((item) => item.id === null)
+      .filter((item) => !(normalizedPath.length === 0 && item.name === "vault"))
       .sort((left, right) => left.name.localeCompare(right.name));
 
     const indent = "  ".repeat(depth);
@@ -177,8 +198,8 @@ export function createAgentFileClient(supabase: SupabaseClient, clientId: string
 
     for (const directory of directories) {
       lines.push(`${indent}${directory.name}/`);
-      const nextPath = path
-        ? `${normalizeWorkspacePath(path, true)}/${directory.name}`
+      const nextPath = normalizedPath
+        ? `${normalizedPath}/${directory.name}`
         : directory.name;
       const nested = await listDirectory(nextPath, depth + 1);
       if (nested.length > 0) {
