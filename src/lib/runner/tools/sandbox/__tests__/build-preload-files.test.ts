@@ -111,6 +111,33 @@ describe("buildPreloadFiles", () => {
 
     vi.unstubAllGlobals();
   });
+
+  it("deduplicates attachment filenames on collision", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(10),
+    })));
+
+    const { client } = createMockSupabase({});
+    const result = await buildPreloadFiles({
+      supabase: client as any,
+      clientId: "client-1",
+      fileParts: [
+        { type: "file" as const, filename: "report.xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", url: "https://example.com/a.xlsx" },
+        { type: "file" as const, filename: "report.xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", url: "https://example.com/b.xlsx" },
+        { type: "file" as const, filename: "report.xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", url: "https://example.com/c.xlsx" },
+      ],
+    });
+
+    const paths = result.map((f) => f.path).sort();
+    expect(paths).toEqual([
+      "input/report.xlsx",
+      "input/report_2.xlsx",
+      "input/report_3.xlsx",
+    ]);
+
+    vi.unstubAllGlobals();
+  });
 });
 
 function createDelayedMockBucket(files: Record<string, string | null>, delayMs: number) {

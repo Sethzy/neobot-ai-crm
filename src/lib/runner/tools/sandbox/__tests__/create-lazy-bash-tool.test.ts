@@ -77,6 +77,28 @@ describe("createLazyBashTool", () => {
     expect(result.stderr).toContain("SANDBOX_GOLDEN_SNAPSHOT_ID");
   });
 
+  it("only creates one sandbox even if two execute calls race", async () => {
+    const { Sandbox } = await import("@vercel/sandbox");
+    (Sandbox.create as ReturnType<typeof vi.fn>).mockClear();
+
+    const { tool: bashTool, cleanup } = createLazyBashTool({
+      snapshotId: "snap_test",
+      getPreloadFiles: async () => [],
+      getContextEntries: () => [],
+      fileClient: {} as any,
+      runId: "run-1",
+    });
+
+    // Fire two calls concurrently — both hit initialize() before first completes
+    await Promise.all([
+      (bashTool as any).execute({ command: "echo 1" }, {} as any),
+      (bashTool as any).execute({ command: "echo 2" }, {} as any),
+    ]);
+
+    expect(Sandbox.create).toHaveBeenCalledTimes(1);
+    await cleanup();
+  });
+
   it("cleanup is safe when sandbox was never created", async () => {
     const { cleanup } = createLazyBashTool({
       snapshotId: "snap_test",

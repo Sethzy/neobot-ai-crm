@@ -8,6 +8,7 @@
  * @module lib/runner/tools/sandbox/create-lazy-bash-tool
  */
 import { tool } from "ai";
+import type { Sandbox } from "@vercel/sandbox";
 import { z } from "zod";
 
 import { buildContextJson } from "./build-context-json";
@@ -59,13 +60,20 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
   const { snapshotId, getPreloadFiles, getContextEntries, fileClient, runId } = options;
 
   // Mutable state — captured in closure
-  let sandbox: any = null;
+  let sandbox: Sandbox | null = null;
   let bashExecute: ((input: { command: string }) => Promise<any>) | null = null;
   let initialized = false;
+  let initPromise: Promise<void> | null = null;
   const artifactHashes = new Map<string, string>();
 
+  /** Concurrency-safe init: second call awaits the same promise as the first. */
   async function initialize(): Promise<void> {
     if (initialized) return;
+    if (!initPromise) initPromise = doInitialize();
+    await initPromise;
+  }
+
+  async function doInitialize(): Promise<void> {
 
     // Dynamic import to avoid loading @vercel/sandbox when sandbox isn't used
     const { Sandbox } = await import("@vercel/sandbox");
@@ -158,8 +166,8 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
           runId,
           priorHashes: artifactHashes,
         });
-      } catch {
-        // Non-fatal — don't fail the bash call if artifact sync fails
+      } catch (error) {
+        console.warn("[sandbox] Artifact sync failed (non-fatal):", error);
       }
 
       return {

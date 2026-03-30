@@ -302,7 +302,7 @@ export async function runAgent(
     // ── Sandbox bash tool (lazy) ──
     const toolResultAccumulator: SandboxContextEntry[] = [];
     let sandboxCleanup: (() => Promise<void>) | null = null;
-    const sandboxTools: Record<string, any> = {};
+    const sandboxTools: ToolSet = {};
 
     if (snapshotId) {
       const fileClient = createAgentFileClient(supabase, clientId);
