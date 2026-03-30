@@ -10,6 +10,7 @@ export interface Attachment {
   filename: string;
   url: string;
   contentType: string;
+  storagePath?: string;
 }
 
 interface PreviewAttachmentProps {
@@ -65,23 +66,43 @@ export function PreviewAttachment({
   onRemove,
 }: PreviewAttachmentProps) {
   const { filename, url, contentType } = attachment;
+  const previewContent = contentType.startsWith("image/") ? (
+    <img
+      alt={filename || "An image attachment"}
+      className="size-full object-cover"
+      height={64}
+      src={url}
+      width={64}
+    />
+  ) : (
+    <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
+      {getFileTypeLabel(contentType)}
+    </div>
+  );
+  const filenameLabel = (
+    <div className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/80 to-transparent px-1 py-0.5 text-[10px] text-white">
+      {filename}
+    </div>
+  );
 
   return (
     <div
       className="group relative size-16 overflow-hidden rounded-lg border bg-muted"
       data-testid="input-attachment-preview"
     >
-      {contentType.startsWith("image/") ? (
-        <img
-          alt={filename || "An image attachment"}
-          className="size-full object-cover"
-          height={64}
-          src={url}
-          width={64}
-        />
+      {!isUploading && url ? (
+        <a
+          aria-label={filename}
+          className="block size-full"
+          href={url}
+        >
+          {previewContent}
+          {filenameLabel}
+        </a>
       ) : (
-        <div className="flex size-full items-center justify-center text-xs text-muted-foreground">
-          {getFileTypeLabel(contentType)}
+        <div className="size-full">
+          {previewContent}
+          {filenameLabel}
         </div>
       )}
 
@@ -97,7 +118,7 @@ export function PreviewAttachment({
       {onRemove ? (
         <Button
           aria-label={`Remove ${filename}`}
-          className="absolute right-0.5 top-0.5 size-4 rounded-full p-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+          className="absolute right-0.5 top-0.5 z-10 size-4 rounded-full p-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
           onClick={onRemove}
           size="sm"
           type="button"
@@ -106,10 +127,6 @@ export function PreviewAttachment({
           <X className="size-2" />
         </Button>
       ) : null}
-
-      <div className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/80 to-transparent px-1 py-0.5 text-[10px] text-white">
-        {filename}
-      </div>
     </div>
   );
 }

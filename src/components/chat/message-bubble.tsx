@@ -30,6 +30,7 @@ import { Shimmer } from "@/components/ai-elements/shimmer";
 import { ViewRenderer } from "@/lib/views/renderer";
 import { cn } from "@/lib/utils";
 import { AskUserQuestionInline, type AskUserQuestion } from "./ask-user-question-inline";
+import { resolveFilePartUrl, type ChatFilePart } from "./file-parts";
 import { getMessageText, type ChatUIMessage } from "./message-content";
 import { PreviewAttachment, type Attachment } from "./preview-attachment";
 import { StepsSummary } from "./steps-summary";
@@ -45,8 +46,12 @@ interface MessageBubbleProps {
   onQuestionSubmit?: (text: string) => void;
 }
 
-function filePartToAttachment(part: { filename?: string; url: string; mediaType: string }): Attachment {
-  return { filename: part.filename ?? "file", url: part.url, contentType: part.mediaType };
+function filePartToAttachment(part: ChatFilePart): Attachment {
+  return {
+    filename: part.filename ?? "file",
+    url: resolveFilePartUrl(part),
+    contentType: part.mediaType,
+  };
 }
 
 /** Matches /agent/skills/{slug}/SKILL.md — excludes system/ and connections/. */
@@ -168,17 +173,13 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
         )}
 
         {fileParts.length > 0 ? (
-          <div className={cn("mb-2 flex flex-wrap gap-2", intermediateParts.length > 0 || textParts.length > 0 ? "" : "mb-0")}>
-            {fileParts.map((part, index) => (
-              <PreviewAttachment
-                attachment={{
-                  filename: part.filename ?? "file",
-                  url: part.url,
-                  contentType: part.mediaType,
-                }}
-                key={`${message.id}-file-${index}`}
-              />
-            ))}
+            <div className={cn("mb-2 flex flex-wrap gap-2", intermediateParts.length > 0 || textParts.length > 0 ? "" : "mb-0")}>
+              {fileParts.map((part, index) => (
+                <PreviewAttachment
+                  attachment={filePartToAttachment(part)}
+                  key={`${message.id}-file-${index}`}
+                />
+              ))}
           </div>
         ) : null}
 

@@ -4,7 +4,6 @@
  */
 import type React from "react";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { MessageBubble } from "./message-bubble";
@@ -77,8 +76,10 @@ vi.mock("./steps-summary", () => ({
 }));
 
 vi.mock("./preview-attachment", () => ({
-  PreviewAttachment: ({ attachment }: { attachment: { filename: string } }) => (
-    <div data-testid="preview-attachment">{attachment.filename}</div>
+  PreviewAttachment: ({ attachment }: { attachment: { filename: string; url: string } }) => (
+    attachment.url
+      ? <a data-testid="preview-attachment" href={attachment.url}>{attachment.filename}</a>
+      : <div data-testid="preview-attachment">{attachment.filename}</div>
   ),
 }));
 
@@ -181,6 +182,29 @@ describe("MessageBubble — user messages", () => {
 
     expect(screen.getByTestId("preview-attachment")).toHaveTextContent("screenshot.png");
     expect(screen.getByText("What is shown here?")).toBeInTheDocument();
+  });
+
+  it("resolves storagePath to a download URL for user file parts", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "storage-user-1",
+          role: "user",
+          parts: [{
+            type: "file",
+            filename: "report.pdf",
+            mediaType: "application/pdf",
+            url: "https://expired.example.com/report.pdf",
+            storagePath: "uploads/report.pdf",
+          }],
+        } as ChatUIMessage}
+      />,
+    );
+
+    expect(screen.getByTestId("preview-attachment")).toHaveAttribute(
+      "href",
+      "/api/files/download?path=uploads%2Freport.pdf",
+    );
   });
 });
 
@@ -438,6 +462,51 @@ describe("MessageBubble — assistant messages", () => {
     expect(screen.getByTestId("preview-attachment")).toHaveTextContent("report.png");
     expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-parts-count", "1");
     expect(screen.getByText("This shows the current pipeline.")).toBeInTheDocument();
+  });
+
+  it("resolves storagePath for assistant file parts too", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "storage-assistant-1",
+          role: "assistant",
+          parts: [{
+            type: "file",
+            filename: "output.csv",
+            mediaType: "text/csv",
+            url: "https://expired.example.com/output.csv",
+            storagePath: "home/output.csv",
+          }],
+        } as ChatUIMessage}
+      />,
+    );
+
+    expect(screen.getByTestId("preview-attachment")).toHaveAttribute(
+      "href",
+      "/api/files/download?path=home%2Foutput.csv",
+    );
+  });
+
+  it("falls back to the original URL when storagePath is missing", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "storage-fallback-1",
+          role: "assistant",
+          parts: [{
+            type: "file",
+            filename: "legacy.pdf",
+            mediaType: "application/pdf",
+            url: "https://legacy.example.com/legacy.pdf",
+          }],
+        } as ChatUIMessage}
+      />,
+    );
+
+    expect(screen.getByTestId("preview-attachment")).toHaveAttribute(
+      "href",
+      "https://legacy.example.com/legacy.pdf",
+    );
   });
 });
 

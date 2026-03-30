@@ -20,6 +20,10 @@ describe("PreviewAttachment", () => {
     const image = screen.getByRole("img");
     expect(image).toHaveAttribute("src", "https://storage.example.com/photo.jpg");
     expect(image).toHaveAttribute("alt", "photo.jpg");
+    expect(screen.getByRole("link", { name: /photo.jpg/i })).toHaveAttribute(
+      "href",
+      "https://storage.example.com/photo.jpg",
+    );
   });
 
   it("renders the attachment filename label", () => {
@@ -65,6 +69,21 @@ describe("PreviewAttachment", () => {
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
     expect(screen.getByText("PDF")).toBeInTheDocument();
     expect(screen.getByText("brief.pdf")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /brief.pdf/i })).toHaveAttribute(
+      "href",
+      "https://storage.example.com/brief.pdf",
+    );
+  });
+
+  it("does not render a link while an attachment is uploading", () => {
+    render(
+      <PreviewAttachment
+        attachment={{ filename: "uploading.jpg", url: "https://storage.example.com/uploading.jpg", contentType: "image/jpeg" }}
+        isUploading
+      />,
+    );
+
+    expect(screen.queryByRole("link", { name: /uploading.jpg/i })).not.toBeInTheDocument();
   });
 
   it("renders a Word label for DOCX attachments", () => {

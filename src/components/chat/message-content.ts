@@ -3,8 +3,11 @@
  * @module components/chat/message-content
  */
 import type { UIMessage } from "ai";
+import type { ChatMessagePart } from "./file-parts";
 
-export type ChatUIMessage = Pick<UIMessage, "id" | "role" | "parts">;
+export type ChatUIMessage = Omit<UIMessage, "parts"> & {
+  parts: ChatMessagePart[];
+};
 
 export function getMessageText(message: ChatUIMessage): string {
   return message.parts
