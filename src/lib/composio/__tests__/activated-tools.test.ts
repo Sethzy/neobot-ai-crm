@@ -4,8 +4,11 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { mockUpdateConnection } = vi.hoisted(() => ({
+const { mockUpdateConnection, mockBridgeDownloadedFile, mockFindDownloadedFile, mockResolveAgentPathForUpload } = vi.hoisted(() => ({
   mockUpdateConnection: vi.fn(),
+  mockBridgeDownloadedFile: vi.fn(),
+  mockFindDownloadedFile: vi.fn(),
+  mockResolveAgentPathForUpload: vi.fn(),
 }));
 
 vi.mock("../client", () => ({
@@ -13,6 +16,11 @@ vi.mock("../client", () => ({
 }));
 vi.mock("@/lib/connections/queries", () => ({
   updateConnection: (...args: unknown[]) => mockUpdateConnection(...args),
+}));
+vi.mock("../file-bridge", () => ({
+  findDownloadedFile: (...args: unknown[]) => mockFindDownloadedFile(...args),
+  bridgeDownloadedFile: (...args: unknown[]) => mockBridgeDownloadedFile(...args),
+  resolveAgentPathForUpload: (...args: unknown[]) => mockResolveAgentPathForUpload(...args),
 }));
 
 import { getComposio } from "../client";
@@ -325,5 +333,165 @@ describe("loadActivatedConnectionTools", () => {
     ]);
 
     expect(result).toEqual({});
+  });
+});
+
+describe("file bridge integration", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    mockBridgeDownloadedFile.mockReset();
+    mockFindDownloadedFile.mockReset();
+    mockResolveAgentPathForUpload.mockReset();
+    mockUpdateConnection.mockReset();
+  });
+
+  it("bridges downloaded file when Composio result contains file data", async () => {
+    const fileData = {
+      uri: "/tmp/composio/report.xlsx",
+      file_downloaded: true,
+      s3url: "https://s3.example.com/file.xlsx",
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    };
+    const mockExecute = vi.fn().mockResolvedValue({ data: fileData, successful: true });
+    vi.mocked(getComposio).mockReturnValue({
+      tools: { getRawComposioTools: vi.fn(), execute: mockExecute },
+    } as never);
+
+    mockFindDownloadedFile.mockReturnValue(fileData);
+    mockBridgeDownloadedFile.mockResolvedValue("/agent/home/report.xlsx");
+
+    const mockFileClient = { uploadArtifact: vi.fn(), downloadBinary: vi.fn() };
+    const mockGetSandbox = vi.fn().mockReturnValue(null);
+
+    const tools = await loadActivatedConnectionTools([
+      createMockConnection({
+        id: "conn-file-dl",
+        toolkit_slug: "googledrive",
+        activated_tools: ["GOOGLEDRIVE_DOWNLOAD_FILE"],
+        tool_schemas: {
+          GOOGLEDRIVE_DOWNLOAD_FILE: {
+            description: "Download file",
+            inputParameters: { type: "object", properties: { file_id: { type: "string" } } },
+          },
+        },
+      }),
+    ], {
+      fileClient: mockFileClient as never,
+      getSandbox: mockGetSandbox,
+    });
+
+    const dlTool = tools["conn-file-dl__GOOGLEDRIVE_DOWNLOAD_FILE"];
+    const result = await (dlTool as { execute: (args: Record<string, unknown>) => Promise<{ data: Record<string, unknown> }> }).execute({ file_id: "abc123" });
+
+    expect(mockBridgeDownloadedFile).toHaveBeenCalledWith({
+      fileData,
+      fileClient: mockFileClient,
+      getSandbox: mockGetSandbox,
+    });
+    expect(result.data.uri).toBe("/agent/home/report.xlsx");
+    expect(result.data.message).toContain("/agent/home/report.xlsx");
+  });
+
+  it("passes through non-file results unchanged", async () => {
+    const nonFileResult = { data: { threads: [{ id: "t1" }] }, successful: true };
+    const mockExecute = vi.fn().mockResolvedValue(nonFileResult);
+    vi.mocked(getComposio).mockReturnValue({
+      tools: { getRawComposioTools: vi.fn(), execute: mockExecute },
+    } as never);
+
+    mockFindDownloadedFile.mockReturnValue(null);
+
+    const tools = await loadActivatedConnectionTools([
+      createMockConnection({
+        id: "conn-search",
+        toolkit_slug: "googledrive",
+        activated_tools: ["GOOGLEDRIVE_SEARCH_DOCUMENTS"],
+        tool_schemas: {
+          GOOGLEDRIVE_SEARCH_DOCUMENTS: {
+            description: "Search docs",
+            inputParameters: { type: "object", properties: {} },
+          },
+        },
+      }),
+    ], {
+      fileClient: { uploadArtifact: vi.fn(), downloadBinary: vi.fn() } as never,
+      getSandbox: () => null,
+    });
+
+    const tool = tools["conn-search__GOOGLEDRIVE_SEARCH_DOCUMENTS"];
+    const result = await (tool as { execute: (args: Record<string, unknown>) => Promise<unknown> }).execute({});
+
+    expect(mockBridgeDownloadedFile).not.toHaveBeenCalled();
+    expect(result).toEqual(nonFileResult);
+  });
+
+  it("resolves /agent/ paths in arguments for upload direction", async () => {
+    const mockExecute = vi.fn().mockResolvedValue({ data: { fileId: "new123" }, successful: true });
+    vi.mocked(getComposio).mockReturnValue({
+      tools: { getRawComposioTools: vi.fn(), execute: mockExecute },
+    } as never);
+
+    mockFindDownloadedFile.mockReturnValue(null);
+    mockResolveAgentPathForUpload.mockResolvedValue("/tmp/composio-uploads/report.pdf");
+
+    const mockFileClient = { uploadArtifact: vi.fn(), downloadBinary: vi.fn() };
+
+    const tools = await loadActivatedConnectionTools([
+      createMockConnection({
+        id: "conn-upload",
+        toolkit_slug: "googledrive",
+        activated_tools: ["GOOGLEDRIVE_UPLOAD_FILE"],
+        tool_schemas: {
+          GOOGLEDRIVE_UPLOAD_FILE: {
+            description: "Upload file",
+            inputParameters: {
+              type: "object",
+              properties: { filePath: { type: "string" } },
+            },
+          },
+        },
+      }),
+    ], {
+      fileClient: mockFileClient as never,
+      getSandbox: () => null,
+    });
+
+    const tool = tools["conn-upload__GOOGLEDRIVE_UPLOAD_FILE"];
+    await (tool as { execute: (args: Record<string, unknown>) => Promise<unknown> }).execute({ filePath: "/agent/home/report.pdf" });
+
+    expect(mockResolveAgentPathForUpload).toHaveBeenCalledWith({
+      agentPath: "/agent/home/report.pdf",
+      fileClient: mockFileClient,
+    });
+    expect(mockExecute).toHaveBeenCalledWith("GOOGLEDRIVE_UPLOAD_FILE", expect.objectContaining({
+      arguments: expect.objectContaining({ filePath: "/tmp/composio-uploads/report.pdf" }),
+    }));
+  });
+
+  it("works without fileClient (no bridge, passthrough)", async () => {
+    const mockExecute = vi.fn().mockResolvedValue({ data: { success: true }, successful: true });
+    vi.mocked(getComposio).mockReturnValue({
+      tools: { getRawComposioTools: vi.fn(), execute: mockExecute },
+    } as never);
+
+    const tools = await loadActivatedConnectionTools([
+      createMockConnection({
+        id: "conn-no-bridge",
+        toolkit_slug: "gmail",
+        activated_tools: ["GMAIL_SEND_EMAIL"],
+        tool_schemas: {
+          GMAIL_SEND_EMAIL: {
+            description: "Send email",
+            inputParameters: { type: "object", properties: {} },
+          },
+        },
+      }),
+    ]);
+
+    const tool = tools["conn-no-bridge__GMAIL_SEND_EMAIL"];
+    const result = await (tool as { execute: (args: Record<string, unknown>) => Promise<{ data: { success: boolean } }> }).execute({});
+
+    expect(result.data.success).toBe(true);
+    expect(mockBridgeDownloadedFile).not.toHaveBeenCalled();
   });
 });

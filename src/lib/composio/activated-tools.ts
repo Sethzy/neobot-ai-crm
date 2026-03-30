@@ -10,7 +10,11 @@ import { updateConnection } from "@/lib/connections/queries";
 import type { ConnectionRow } from "@/lib/connections/schemas";
 import type { Database } from "@/types/database";
 
+import type { AgentFileClient } from "@/lib/storage/agent-files";
+import { AGENT_ROOT } from "@/lib/storage/agent-paths";
+
 import { getComposio } from "./client";
+import { bridgeDownloadedFile, findDownloadedFile, resolveAgentPathForUpload } from "./file-bridge";
 
 const EMPTY_TOOL_INPUT_SCHEMA = {
   type: "object" as const,
@@ -22,6 +26,10 @@ type ChatSupabaseClient = SupabaseClient<Database>;
 interface LoadActivatedConnectionToolsOptions {
   supabase?: ChatSupabaseClient;
   clientId?: string;
+  /** Agent file client for persisting downloaded files to storage. */
+  fileClient?: Pick<AgentFileClient, "uploadArtifact" | "downloadBinary">;
+  /** Returns the active sandbox instance, or null if not yet booted. */
+  getSandbox?: () => { writeFiles: (files: { path: string; content: Buffer }[]) => Promise<void> } | null;
 }
 
 /**
@@ -92,12 +100,49 @@ export async function loadActivatedConnectionTools(
           inputSchema: jsonSchema(
             schema.inputParameters ?? EMPTY_TOOL_INPUT_SCHEMA,
           ),
-          execute: async (args) =>
-            composio.tools.execute(slug, {
+          execute: async (args) => {
+            let resolvedArgs = args as Record<string, unknown>;
+
+            // Upload direction: resolve /agent/ paths to local temp files
+            if (options?.fileClient) {
+              for (const [key, value] of Object.entries(resolvedArgs)) {
+                if (typeof value === "string" && value.startsWith(AGENT_ROOT)) {
+                  const tempPath = await resolveAgentPathForUpload({
+                    agentPath: value,
+                    fileClient: options.fileClient,
+                  });
+                  resolvedArgs = { ...resolvedArgs, [key]: tempPath };
+                }
+              }
+            }
+
+            const result = await composio.tools.execute(slug, {
               connectedAccountId: connection.composio_connected_account_id,
-              arguments: args,
+              arguments: resolvedArgs,
               dangerouslySkipVersionCheck: true,
-            }),
+            });
+
+            // Download direction: persist files to agent storage
+            const fileData = findDownloadedFile(result?.data);
+            if (options?.fileClient && fileData?.file_downloaded && fileData.uri) {
+              const agentPath = await bridgeDownloadedFile({
+                fileData,
+                fileClient: options.fileClient,
+                getSandbox: options.getSandbox ?? (() => null),
+              });
+
+              return {
+                ...result,
+                data: {
+                  ...(typeof result?.data === "object" ? result.data : {}),
+                  uri: agentPath,
+                  message: `File downloaded and saved to ${agentPath}`,
+                },
+              };
+            }
+
+            return result;
+          },
         });
       }
 
