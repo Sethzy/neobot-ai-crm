@@ -1066,10 +1066,10 @@ describe("runAgent", () => {
     );
     expect(mockLoadActivatedConnectionTools).toHaveBeenCalledWith([
       { id: "conn-1" },
-    ], {
+    ], expect.objectContaining({
       supabase: "mock-supabase-client",
       clientId: validPayload.clientId,
-    });
+    }));
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
         tools: expect.objectContaining({
@@ -1097,10 +1097,10 @@ describe("runAgent", () => {
 
     expect(mockLoadActivatedConnectionTools).toHaveBeenCalledWith([
       { id: "conn-1" },
-    ], {
+    ], expect.objectContaining({
       supabase: "mock-supabase-client",
       clientId: validPayload.clientId,
-    });
+    }));
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
         tools: expect.not.objectContaining({
