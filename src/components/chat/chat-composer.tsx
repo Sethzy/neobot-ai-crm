@@ -4,7 +4,6 @@
  */
 "use client";
 
-import type { FileUIPart } from "ai";
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -28,11 +27,12 @@ import { cn } from "@/lib/utils";
 import { CHAT_ATTACHMENT_ACCEPT } from "@/lib/chat/attachment-config";
 import type { ChatStatus } from "@/types/chat";
 
+import type { ChatFilePart } from "./file-parts";
 import { PreviewAttachment, type Attachment } from "./preview-attachment";
 
 interface ChatSubmitInput {
   text: string;
-  files: FileUIPart[];
+  files: ChatFilePart[];
 }
 
 interface ChatComposerProps {
@@ -63,12 +63,13 @@ const PASTEABLE_FILE_TYPES = new Set([
   "application/vnd.ms-excel",
 ]);
 
-function toFilePart(attachment: Attachment): FileUIPart {
+function toFilePart(attachment: Attachment): ChatFilePart {
   return {
     type: "file",
     url: attachment.url,
     filename: attachment.filename,
     mediaType: attachment.contentType,
+    ...(attachment.storagePath ? { storagePath: attachment.storagePath } : {}),
   };
 }
 
@@ -137,6 +138,7 @@ export function ChatComposer({
 
       const payload = await response.json() as {
         url: string;
+        storagePath?: string;
         pathname: string;
         contentType: string;
       };
@@ -145,6 +147,7 @@ export function ChatComposer({
         url: payload.url,
         filename: payload.pathname,
         contentType: payload.contentType,
+        storagePath: payload.storagePath,
       };
     } catch {
       toast.error("Failed to upload file.");

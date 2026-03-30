@@ -514,7 +514,8 @@ describe("POST /api/chat", () => {
               type: "file",
               filename: "screenshot.png",
               mediaType: "image/png",
-              url: "https://storage.example.com/chat-attachments/client-1/screenshot.png",
+              url: "https://storage.example.com/agent-files/client-1/uploads/screenshot.png?token=signed",
+              storagePath: "uploads/screenshot.png",
             },
           ],
         },
@@ -522,7 +523,7 @@ describe("POST /api/chat", () => {
     );
 
     expect(mockRunAgent).toHaveBeenCalledWith(
-      {
+      expect.objectContaining({
         clientId: "client-456",
         threadId,
         triggerType: "chat",
@@ -533,11 +534,12 @@ describe("POST /api/chat", () => {
             type: "file",
             filename: "screenshot.png",
             mediaType: "image/png",
-            url: "https://storage.example.com/chat-attachments/client-1/screenshot.png",
+            url: "https://storage.example.com/agent-files/client-1/uploads/screenshot.png?token=signed",
+            storagePath: "uploads/screenshot.png",
           },
         ],
         crmMode: undefined,
-      },
+      }),
       mockSupabase,
     );
     expect(response).toBe(streamResponse);

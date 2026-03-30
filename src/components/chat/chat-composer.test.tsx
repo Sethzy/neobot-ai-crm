@@ -20,9 +20,11 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("next/image", () => ({
-  default: ({ unoptimized: _unoptimized, ...props }: ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => (
-    <img {...props} alt={props.alt ?? ""} />
-  ),
+  default: (props: ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => {
+    const { unoptimized, ...imageProps } = props;
+    void unoptimized;
+    return <img {...imageProps} alt={imageProps.alt ?? ""} />;
+  },
 }));
 
 import { ChatComposer } from "./chat-composer";
@@ -143,7 +145,8 @@ describe("ChatComposer", () => {
     mockFetch.mockResolvedValue(
       new Response(
         JSON.stringify({
-          url: "https://storage.example.com/chat-attachments/client-1/photo.png",
+          url: "https://storage.example.com/agent-files/client-1/uploads/photo.png?token=signed",
+          storagePath: "uploads/photo.png",
           pathname: "photo.png",
           contentType: "image/png",
         }),
@@ -172,9 +175,10 @@ describe("ChatComposer", () => {
       files: [
         {
           type: "file",
-          url: "https://storage.example.com/chat-attachments/client-1/photo.png",
+          url: "https://storage.example.com/agent-files/client-1/uploads/photo.png?token=signed",
           filename: "photo.png",
           mediaType: "image/png",
+          storagePath: "uploads/photo.png",
         },
       ],
     });
@@ -186,7 +190,8 @@ describe("ChatComposer", () => {
     mockFetch.mockResolvedValue(
       new Response(
         JSON.stringify({
-          url: "https://storage.example.com/chat-attachments/client-1/deals.csv",
+          url: "https://storage.example.com/agent-files/client-1/uploads/deals.csv?token=signed",
+          storagePath: "uploads/deals.csv",
           pathname: "deals.csv",
           contentType: "text/csv",
         }),
@@ -215,9 +220,10 @@ describe("ChatComposer", () => {
       files: [
         {
           type: "file",
-          url: "https://storage.example.com/chat-attachments/client-1/deals.csv",
+          url: "https://storage.example.com/agent-files/client-1/uploads/deals.csv?token=signed",
           filename: "deals.csv",
           mediaType: "text/csv",
+          storagePath: "uploads/deals.csv",
         },
       ],
     });
@@ -229,7 +235,8 @@ describe("ChatComposer", () => {
     mockFetch.mockResolvedValue(
       new Response(
         JSON.stringify({
-          url: "https://storage.example.com/chat-attachments/client-1/pasted.png",
+          url: "https://storage.example.com/agent-files/client-1/uploads/pasted.png?token=signed",
+          storagePath: "uploads/pasted.png",
           pathname: "pasted.png",
           contentType: "image/png",
         }),
@@ -267,9 +274,10 @@ describe("ChatComposer", () => {
       files: [
         {
           type: "file",
-          url: "https://storage.example.com/chat-attachments/client-1/pasted.png",
+          url: "https://storage.example.com/agent-files/client-1/uploads/pasted.png?token=signed",
           filename: "pasted.png",
           mediaType: "image/png",
+          storagePath: "uploads/pasted.png",
         },
       ],
     });

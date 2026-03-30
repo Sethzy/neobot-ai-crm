@@ -36,7 +36,7 @@ export const maxDuration = 300;
 function getStreamContext() {
   try {
     return createResumableStreamContext({ waitUntil: after });
-  } catch (_) {
+  } catch {
     return null;
   }
 }
@@ -59,20 +59,28 @@ function getTextFromUnknownParts(parts: unknown[]): string | null {
 
 function getFilePartsFromUnknownParts(parts: unknown[]): RunnerFilePart[] {
   return parts
-    .filter((part): part is { type: string; url?: unknown; filename?: unknown; mediaType?: unknown } =>
+    .filter((part): part is {
+      type: string;
+      url?: unknown;
+      filename?: unknown;
+      mediaType?: unknown;
+      storagePath?: unknown;
+    } =>
       typeof part === "object" && part !== null && "type" in part
     )
     .filter((part): part is RunnerFilePart =>
       part.type === "file" &&
       typeof part.url === "string" &&
       typeof part.mediaType === "string" &&
-      (part.filename === undefined || typeof part.filename === "string"),
+      (part.filename === undefined || typeof part.filename === "string") &&
+      (part.storagePath === undefined || typeof part.storagePath === "string"),
     )
     .map((part) => ({
       type: "file",
       url: part.url,
       mediaType: part.mediaType,
       ...(part.filename ? { filename: part.filename } : {}),
+      ...(part.storagePath ? { storagePath: part.storagePath } : {}),
     }));
 }
 
@@ -387,7 +395,7 @@ export async function POST(request: Request): Promise<Response> {
 
         try {
           await clearActiveStreamId(threadId);
-        } catch (_) {
+        } catch {
           // Ignore Redis cleanup failures to avoid breaking completed responses.
         }
       },
@@ -412,7 +420,7 @@ export async function POST(request: Request): Promise<Response> {
           const streamId = generateId();
           await setActiveStreamId(threadId, streamId);
           await streamContext.createNewResumableStream(streamId, () => sseStream);
-        } catch (_) {
+        } catch {
           clearActiveStreamId(threadId).catch(() => {});
         }
       },

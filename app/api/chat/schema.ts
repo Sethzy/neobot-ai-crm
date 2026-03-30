@@ -14,6 +14,7 @@ const filePartSchema = z.object({
   url: z.string().url(),
   filename: z.string().min(1).optional(),
   mediaType: z.string().min(1),
+  storagePath: z.string().min(1).optional(),
 });
 
 const userMessageSchema = z.object({
