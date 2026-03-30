@@ -2,9 +2,34 @@
  * Tests for Composio file bridge helpers — download detection, storage persistence, upload resolution.
  * @module lib/composio/__tests__/file-bridge
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { findDownloadedFile } from "../file-bridge";
+const { mockReadFile, mockUnlink, mockMkdir, mockWriteFile } = vi.hoisted(() => ({
+  mockReadFile: vi.fn(),
+  mockUnlink: vi.fn(),
+  mockMkdir: vi.fn(),
+  mockWriteFile: vi.fn(),
+}));
+
+vi.mock(import("node:fs/promises"), async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    default: {
+      ...actual,
+      readFile: mockReadFile,
+      unlink: mockUnlink,
+      mkdir: mockMkdir,
+      writeFile: mockWriteFile,
+    },
+    readFile: mockReadFile,
+    unlink: mockUnlink,
+    mkdir: mockMkdir,
+    writeFile: mockWriteFile,
+  };
+});
+
+import { bridgeDownloadedFile, findDownloadedFile } from "../file-bridge";
 
 describe("findDownloadedFile", () => {
   it("returns null for non-object data", () => {
@@ -69,5 +94,149 @@ describe("findDownloadedFile", () => {
       file_downloaded: true,
       s3url: "https://s3.example.com/file.xlsx",
     })).toBeNull();
+  });
+});
+
+describe("bridgeDownloadedFile", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("uploads file to agent storage and returns agent path", async () => {
+    const mockBuffer = Buffer.from("file content");
+    mockReadFile.mockResolvedValue(mockBuffer);
+    mockUnlink.mockResolvedValue(undefined);
+
+    const mockFileClient = {
+      uploadArtifact: vi.fn().mockResolvedValue({
+        storagePath: "home/report.xlsx",
+        downloadUrl: "https://signed-url",
+      }),
+    };
+
+    const result = await bridgeDownloadedFile({
+      fileData: {
+        uri: "/tmp/composio/1711792800-report.xlsx",
+        file_downloaded: true,
+        s3url: "https://s3.example.com/file.xlsx",
+        mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      },
+      fileClient: mockFileClient as never,
+      getSandbox: () => null,
+    });
+
+    expect(result).toBe("/agent/home/1711792800-report.xlsx");
+    expect(mockFileClient.uploadArtifact).toHaveBeenCalledWith({
+      path: "home/1711792800-report.xlsx",
+      content: mockBuffer,
+      contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      expiresInSeconds: 604800,
+    });
+    expect(mockUnlink).toHaveBeenCalledWith("/tmp/composio/1711792800-report.xlsx");
+  });
+
+  it("pushes file to sandbox when sandbox is active", async () => {
+    const mockBuffer = Buffer.from("file content");
+    mockReadFile.mockResolvedValue(mockBuffer);
+    mockUnlink.mockResolvedValue(undefined);
+
+    const mockSandbox = { writeFiles: vi.fn().mockResolvedValue(undefined) };
+    const mockFileClient = {
+      uploadArtifact: vi.fn().mockResolvedValue({
+        storagePath: "home/data.csv",
+        downloadUrl: "https://signed-url",
+      }),
+    };
+
+    await bridgeDownloadedFile({
+      fileData: {
+        uri: "/tmp/composio/data.csv",
+        file_downloaded: true,
+        s3url: "https://s3.example.com/data.csv",
+        mimeType: "text/csv",
+      },
+      fileClient: mockFileClient as never,
+      getSandbox: () => mockSandbox as never,
+    });
+
+    expect(mockSandbox.writeFiles).toHaveBeenCalledWith([{
+      path: "/vercel/sandbox/workspace/agent/home/data.csv",
+      content: mockBuffer,
+    }]);
+  });
+
+  it("skips sandbox push when sandbox is null", async () => {
+    mockReadFile.mockResolvedValue(Buffer.from("content"));
+    mockUnlink.mockResolvedValue(undefined);
+
+    const mockFileClient = {
+      uploadArtifact: vi.fn().mockResolvedValue({
+        storagePath: "home/file.txt",
+        downloadUrl: "https://signed-url",
+      }),
+    };
+
+    await bridgeDownloadedFile({
+      fileData: {
+        uri: "/tmp/composio/file.txt",
+        file_downloaded: true,
+        s3url: "https://s3.example.com/file.txt",
+        mimeType: "text/plain",
+      },
+      fileClient: mockFileClient as never,
+      getSandbox: () => null,
+    });
+
+    expect(mockFileClient.uploadArtifact).toHaveBeenCalled();
+    expect(mockUnlink).toHaveBeenCalled();
+  });
+
+  it("cleans up temp file even if upload fails", async () => {
+    mockReadFile.mockResolvedValue(Buffer.from("content"));
+    mockUnlink.mockResolvedValue(undefined);
+
+    const mockFileClient = {
+      uploadArtifact: vi.fn().mockRejectedValue(new Error("upload failed")),
+    };
+
+    await expect(bridgeDownloadedFile({
+      fileData: {
+        uri: "/tmp/composio/file.txt",
+        file_downloaded: true,
+        s3url: "https://s3.example.com/file.txt",
+        mimeType: "text/plain",
+      },
+      fileClient: mockFileClient as never,
+      getSandbox: () => null,
+    })).rejects.toThrow("upload failed");
+
+    expect(mockUnlink).toHaveBeenCalledWith("/tmp/composio/file.txt");
+  });
+
+  it("falls back to application/octet-stream when mimeType is empty", async () => {
+    mockReadFile.mockResolvedValue(Buffer.from("binary"));
+    mockUnlink.mockResolvedValue(undefined);
+
+    const mockFileClient = {
+      uploadArtifact: vi.fn().mockResolvedValue({
+        storagePath: "home/unknown.bin",
+        downloadUrl: "https://signed-url",
+      }),
+    };
+
+    await bridgeDownloadedFile({
+      fileData: {
+        uri: "/tmp/composio/unknown.bin",
+        file_downloaded: true,
+        s3url: "https://s3.example.com/unknown.bin",
+        mimeType: "",
+      },
+      fileClient: mockFileClient as never,
+      getSandbox: () => null,
+    });
+
+    expect(mockFileClient.uploadArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({ contentType: "application/octet-stream" }),
+    );
   });
 });
