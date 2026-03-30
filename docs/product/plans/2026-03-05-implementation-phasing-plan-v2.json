@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-30: Marked PR 62 done — Google Workspace via Composio, expanded chat attachments, model-visible filtering, and connection/permission cards shipped. QA surfaces 9, 10, 12, and 19 updated.",
+    "updated": "2026-03-30: Added PRs 63-65 to Phase 7. PR 63: unified agent filesystem (collapse 3 buckets into 1, sandbox persistence model, storagePath, sunder:// links). PR 64: sandbox workspace preload (preload uploads/ + home/ at boot). PR 65: Composio file bridge (connection tool downloads persist to storage + sandbox). Dependency chain: 63 → 64 → 65.",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -4380,6 +4380,104 @@
             "System prompt contains Google Workspace guidance, no vault references"
           ],
           "tasklist": "docs/product/tasks/2026-03-30-pr62-google-workspace-uploads-cards-tasklist.md"
+        },
+        {
+          "pr": 63,
+          "title": "Unified agent filesystem",
+          "status": "in_progress",
+          "simplified": false,
+          "decisions": [
+            "DATA-02",
+            "DATA-09",
+            "EXEC-04"
+          ],
+          "designDoc": "docs/plans/2026-03-30-unified-agent-filesystem-design.md",
+          "note": "Collapse three storage buckets (chat-attachments, client-files, agent-files) into one (agent-files). Uploads land in /agent/uploads/ (read-only), agent outputs in /agent/home/. Sandbox switches from auto-sync output/ to explicit /workspace/agent/home/ persist. storagePath in message parts + /api/files/download solves signed URL expiry. sunder:// protocol for agent download links. Depends on PR 60 (vault teardown) and PR 62 (upload expansion).",
+          "tasks": [
+            { "id": "PR63-1", "task": "Add uploads/ write protection to assertWritable", "done": false },
+            { "id": "PR63-2", "task": "Upload route: change bucket to agent-files, path to uploads/, add storagePath", "done": false },
+            { "id": "PR63-3", "task": "Telegram upload route: same bucket change", "done": false },
+            { "id": "PR63-4", "task": "Add storagePath to file part schemas (runner, chat, composer)", "done": false },
+            { "id": "PR63-5", "task": "Create /api/files/download endpoint for on-demand signed URLs", "done": false },
+            { "id": "PR63-6", "task": "Chat attachment renderer: resolve storagePath on render", "done": false },
+            { "id": "PR63-7", "task": "sunder:// markdown link rewriting in chat renderer", "done": false },
+            { "id": "PR63-8", "task": "Sandbox sync: change OUTPUT_DIR to agent/home, artifactPath to home/", "done": false },
+            { "id": "PR63-9", "task": "Sandbox instructions: update bash tool description and extraInstructions", "done": false },
+            { "id": "PR63-10", "task": "Sandbox preload: create agent/home/ dir, fetch by storagePath with URL fallback", "done": false },
+            { "id": "PR63-11", "task": "System prompt: filesystem, tool-usage, sandbox prompt, sunder:// guidance", "done": false },
+            { "id": "PR63-12", "task": "Cleanup: remove chat-attachments/client-files/PDF_STORAGE_BUCKET references", "done": false }
+          ],
+          "testCriteria": [
+            "Uploads land in agent-files/{clientId}/uploads/ (not chat-attachments)",
+            "read_file('/agent/uploads/') lists uploaded files",
+            "write_file to /agent/uploads/ throws read-only error",
+            "Sandbox artifacts sync from agent/home/ to home/ storage path (not artifacts/sandbox/{runId}/)",
+            "storagePath present in upload response and message parts",
+            "/api/files/download returns redirect with fresh signed URL",
+            "Old messages without storagePath fall back to stored URL",
+            "sunder:// links in agent markdown rewrite to /api/files/download",
+            "grep -ri chat-attachments returns zero hits",
+            "System prompt contains uploads/, home/, sunder:// guidance"
+          ],
+          "tasklist": "docs/product/tasks/2026-03-30-pr63-unified-agent-filesystem-tasklist.md"
+        },
+        {
+          "pr": 64,
+          "title": "Sandbox workspace preload",
+          "status": "in_progress",
+          "simplified": false,
+          "decisions": [
+            "EXEC-04",
+            "TASKLET-01"
+          ],
+          "designDoc": "docs/plans/2026-03-30-sandbox-workspace-preload-design.md",
+          "note": "Expand sandbox preload to download uploads/ and home/ from Supabase Storage at boot. Removes redundant per-message attachment preload (fileParts). Caps file tree in extraInstructions to directory summaries. Exports getSandbox getter for PR 65 Composio bridge. Depends on PR 63 (uploads in agent-files).",
+          "tasks": [
+            { "id": "PR64-1", "task": "Preload uploads/ directory into sandbox at boot", "done": false },
+            { "id": "PR64-2", "task": "Preload home/ directory into sandbox at boot", "done": false },
+            { "id": "PR64-3", "task": "Remove redundant attachment preload loop and fileParts parameter", "done": false },
+            { "id": "PR64-4", "task": "Cap file tree in extraInstructions to directory summaries (generateFileSummary)", "done": false },
+            { "id": "PR64-5", "task": "Export getSandbox getter from createLazyBashTool", "done": false },
+            { "id": "PR64-6", "task": "Ensure agent/home/ directory exists at preload even when empty (.keep)", "done": false },
+            { "id": "PR64-7", "task": "Update bash tool description to reference agent/uploads/ and agent/home/", "done": false }
+          ],
+          "testCriteria": [
+            "Past uploads appear in sandbox at /workspace/agent/uploads/",
+            "Past home files appear in sandbox at /workspace/agent/home/",
+            "fileParts parameter removed from BuildPreloadFilesOptions",
+            "No input/ files from attachment preload (only input/context.json from createLazyBashTool)",
+            "extraInstructions shows directory summaries not individual filenames",
+            "getSandbox() returns null before first bash call, returns sandbox after",
+            "agent/home/ directory exists in sandbox even when no home files in storage",
+            "Parallel preload completes within acceptable latency (<500ms for 15 files with 50ms mock delay)"
+          ],
+          "tasklist": "docs/product/tasks/2026-03-30-pr64-sandbox-workspace-preload-tasklist.md"
+        },
+        {
+          "pr": 65,
+          "title": "Composio file bridge",
+          "status": "in_progress",
+          "simplified": false,
+          "decisions": [
+            "CONN-02",
+            "EXEC-04"
+          ],
+          "designDoc": "docs/plans/2026-03-30-composio-file-bridge-design.md",
+          "note": "Connection tools that download files (e.g. GOOGLEDRIVE_DOWNLOAD_FILE) persist binaries to agent-files/home/ and push to active sandbox via getSandbox getter. Uses @composio/core autoUploadDownloadFiles (default true) and detects { uri, file_downloaded } result shape from FileToolModifier. Upload direction: agent paths starting with /agent/ resolved from storage to temp file for Composio. Depends on PR 64 (getSandbox getter).",
+          "tasks": [
+            { "id": "PR65-1", "task": "Bridge downloaded files: detect { uri, file_downloaded } in tool results, persist to home/, push to sandbox", "done": false },
+            { "id": "PR65-2", "task": "Bridge uploaded files: detect /agent/ paths in arguments, resolve from storage to temp file", "done": false },
+            { "id": "PR65-3", "task": "Wire fileClient and getSandbox into loadActivatedConnectionTools from run-agent.ts", "done": false }
+          ],
+          "testCriteria": [
+            "Connection tool file download lands in agent-files/{clientId}/home/",
+            "Downloaded file pushed to active sandbox if running",
+            "Downloaded file available via preload if sandbox boots after download",
+            "Non-file tool results pass through unchanged",
+            "Upload with /agent/ path resolves from storage and passes local path to Composio",
+            "Temp files cleaned up after bridge operations"
+          ],
+          "tasklist": "docs/product/tasks/2026-03-30-pr65-composio-file-bridge-tasklist.md"
         }
       ]
     }
