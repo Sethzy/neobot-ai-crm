@@ -37,6 +37,9 @@ const {
   mockIsPropertySupabaseConfigured,
   mockReleaseMessageQuota,
   mockLoadSystemPromptState,
+  mockCreateLazyBashTool,
+  mockGetServerEnv,
+  mockCreateAgentFileClient,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
@@ -70,6 +73,9 @@ const {
   mockIsApifyConfigured: vi.fn(),
   mockIsPropertySupabaseConfigured: vi.fn(),
   mockReleaseMessageQuota: vi.fn(),
+  mockCreateLazyBashTool: vi.fn(),
+  mockGetServerEnv: vi.fn(),
+  mockCreateAgentFileClient: vi.fn(),
 }));
 
 vi.mock("ai", () => ({
@@ -166,6 +172,23 @@ vi.mock("@/lib/usage/message-quota", () => ({
 
 vi.mock("@/lib/chat/messages", () => ({
   createMessages: (...args: unknown[]) => mockCreateMessages(...args),
+}));
+
+vi.mock("@/lib/runner/tools/sandbox", () => ({
+  createLazyBashTool: (...args: unknown[]) => mockCreateLazyBashTool(...args),
+}));
+
+vi.mock("@/lib/runner/tools/sandbox/build-preload-files", () => ({
+  buildPreloadFiles: vi.fn(async () => []),
+}));
+
+vi.mock("@/lib/env", () => ({
+  getServerEnv: (...args: unknown[]) => mockGetServerEnv(...args),
+  _resetForTesting: vi.fn(),
+}));
+
+vi.mock("@/lib/storage/agent-files", () => ({
+  createAgentFileClient: (...args: unknown[]) => mockCreateAgentFileClient(...args),
 }));
 
 vi.mock("@/lib/runner/compaction", () => ({
@@ -295,6 +318,20 @@ describe("runAgent", () => {
       toUIMessageStreamResponse: vi.fn(() => new Response("streamed")),
     });
     mockCreateMessages.mockResolvedValue([]);
+    mockGetServerEnv.mockReturnValue({
+      SANDBOX_GOLDEN_SNAPSHOT_ID: undefined,
+      VERCEL_TOKEN: undefined,
+      VERCEL_TEAM_ID: undefined,
+      VERCEL_PROJECT_ID: undefined,
+    });
+    mockCreateLazyBashTool.mockReturnValue({
+      tool: { description: "bash-tool", inputSchema: {} },
+      cleanup: vi.fn(async () => {}),
+      hasInitialized: () => false,
+    });
+    mockCreateAgentFileClient.mockReturnValue({
+      uploadArtifact: vi.fn(),
+    });
   });
 
   it("streams when lock is acquired", async () => {
@@ -1551,5 +1588,67 @@ describe("runAgent", () => {
     }
 
     process.env.VERCEL_ENV = originalVercelEnv;
+  });
+
+  describe("sandbox bash tool", () => {
+    it("includes bash in tools when SANDBOX_GOLDEN_SNAPSHOT_ID is set", async () => {
+      mockGetServerEnv.mockReturnValue({
+        SANDBOX_GOLDEN_SNAPSHOT_ID: "snap_test",
+        VERCEL_TOKEN: undefined,
+        VERCEL_TEAM_ID: undefined,
+        VERCEL_PROJECT_ID: undefined,
+      });
+      mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+      await runAgent(validPayload, "mock-supabase-client" as never);
+
+      expect(mockCreateLazyBashTool).toHaveBeenCalledOnce();
+      expect(mockStreamText).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tools: expect.objectContaining({
+            bash: expect.any(Object),
+          }),
+        }),
+      );
+    });
+
+    it("does not include bash when SANDBOX_GOLDEN_SNAPSHOT_ID is not set", async () => {
+      mockGetServerEnv.mockReturnValue({
+        SANDBOX_GOLDEN_SNAPSHOT_ID: undefined,
+        VERCEL_TOKEN: undefined,
+        VERCEL_TEAM_ID: undefined,
+        VERCEL_PROJECT_ID: undefined,
+      });
+      mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+      await runAgent(validPayload, "mock-supabase-client" as never);
+
+      expect(mockCreateLazyBashTool).not.toHaveBeenCalled();
+      expect(mockStreamText).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tools: expect.not.objectContaining({
+            bash: expect.anything(),
+          }),
+        }),
+      );
+    });
+
+    it("passes includeSandbox to assembleContext when snapshot is configured", async () => {
+      mockGetServerEnv.mockReturnValue({
+        SANDBOX_GOLDEN_SNAPSHOT_ID: "snap_test",
+        VERCEL_TOKEN: undefined,
+        VERCEL_TEAM_ID: undefined,
+        VERCEL_PROJECT_ID: undefined,
+      });
+      mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+      await runAgent(validPayload, "mock-supabase-client" as never);
+
+      expect(mockAssembleContext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          includeSandbox: true,
+        }),
+      );
+    });
   });
 });

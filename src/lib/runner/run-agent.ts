@@ -10,6 +10,7 @@ import { withTracing } from "@posthog/ai";
 
 import { captureServerEvent, getPostHogServer } from "@/lib/analytics/posthog-server";
 import { gateway, gatewayProviderOptions, TIER_1_MODEL } from "@/lib/ai/gateway";
+import { getServerEnv } from "@/lib/env";
 import { isApifyConfigured } from "@/lib/apify/env";
 import { isBrowserUseConfigured } from "@/lib/browser-use/client";
 import { createMessages } from "@/lib/chat/messages";
@@ -23,6 +24,10 @@ import type { RunType } from "@/lib/runner/run-types";
 import type { RunnerPayload } from "@/lib/runner/schemas";
 import { createRunnerTools } from "@/lib/runner/tool-registry";
 import { createSubagentTool } from "@/lib/runner/tools";
+import { createLazyBashTool } from "@/lib/runner/tools/sandbox";
+import { buildPreloadFiles } from "@/lib/runner/tools/sandbox/build-preload-files";
+import type { SandboxContextEntry } from "@/lib/runner/tools/sandbox/types";
+import { createAgentFileClient } from "@/lib/storage/agent-files";
 import { enqueueMessage } from "@/lib/runner/thread-queue";
 import { isPropertySupabaseConfigured } from "@/lib/supabase/property-env";
 import {
@@ -246,6 +251,8 @@ export async function runAgent(
       }),
     ]);
 
+    const snapshotId = getServerEnv().SANDBOX_GOLDEN_SNAPSHOT_ID ?? "";
+
     const { system, messages } = await assembleContext({
       supabase,
       threadId,
@@ -260,6 +267,7 @@ export async function runAgent(
       includeMarketData: isPropertySupabaseConfigured(),
       includePropertyListings:
         payload.triggerType === "chat" && isApifyConfigured(),
+      includeSandbox: !!snapshotId,
       crmConfigModeActive: payload.includeConfigTool,
       preloadedState,
     });
@@ -290,12 +298,37 @@ export async function runAgent(
       crmConfig,
       crmMode,
     });
+
+    // ── Sandbox bash tool (lazy) ──
+    const toolResultAccumulator: SandboxContextEntry[] = [];
+    let sandboxCleanup: (() => Promise<void>) | null = null;
+    const sandboxTools: Record<string, any> = {};
+
+    if (snapshotId) {
+      const fileClient = createAgentFileClient(supabase, clientId);
+      const { tool: bashTool, cleanup } = createLazyBashTool({
+        snapshotId,
+        getPreloadFiles: () =>
+          buildPreloadFiles({
+            supabase,
+            clientId,
+            fileParts: payload.fileParts ?? [],
+          }),
+        getContextEntries: () => toolResultAccumulator,
+        fileClient,
+        runId: `${threadId}-${runId}`,
+      });
+
+      sandboxTools.bash = bashTool;
+      sandboxCleanup = cleanup;
+    }
     _t("create_tools");
 
     const tools: CombinedRunnerTools = {
       ...runnerTools,
       ...subagentTools,
       ...composioTools,
+      ...sandboxTools,
     };
 
     const maxSteps = MAX_STEPS[runType];
@@ -332,11 +365,26 @@ export async function runAgent(
           // 429 rate limits, and 5xx from the gateway. Uses exponential backoff.
           maxRetries: 6,
           experimental_telemetry: { isEnabled: true },
+          onStepFinish: ({ toolResults }) => {
+            if (toolResults) {
+              for (const result of toolResults) {
+                toolResultAccumulator.push({
+                  toolCallId: result.toolCallId,
+                  toolName: result.toolName,
+                  input: result.input,
+                  output: result.output,
+                });
+              }
+            }
+          },
           onError: async ({ error }) => {
             console.error(`[runner] streamText onError for thread=${threadId} run=${runId}:`, error);
+            if (sandboxCleanup) await sandboxCleanup();
             await recordFailedRun(error, "stream");
           },
           onFinish: async ({ text, steps, totalUsage }) => {
+            if (sandboxCleanup) await sandboxCleanup();
+
             if (hasRecordedTerminalState) {
               console.warn(`[runner] onFinish skipped (terminal state already recorded) for thread=${threadId} run=${runId}`);
               return;
