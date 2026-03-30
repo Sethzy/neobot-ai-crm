@@ -22,6 +22,25 @@ export interface BuildPreloadFilesOptions {
 
 type StorageBucket = ReturnType<SupabaseClient["storage"]["from"]>;
 
+const STORAGE_PAGE_SIZE = 100;
+
+/** Lists all entries under a prefix, paginating past Supabase's 100-item default. */
+async function listAll(bucket: StorageBucket, prefix: string) {
+  const allEntries: { name: string; id: string | null }[] = [];
+  let offset = 0;
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data: page } = await bucket.list(prefix, { limit: STORAGE_PAGE_SIZE, offset });
+    if (!page || page.length === 0) break;
+    allEntries.push(...page);
+    if (page.length < STORAGE_PAGE_SIZE) break;
+    offset += STORAGE_PAGE_SIZE;
+  }
+
+  return allEntries;
+}
+
 /**
  * Recursively downloads all files under a Supabase Storage prefix.
  *
@@ -34,30 +53,11 @@ export async function downloadStorageDirectory(
   storagePrefix: string,
   outputPrefix: string,
 ): Promise<SandboxPreloadFile[]> {
-  const PAGE_SIZE = 100;
-
-  /** Lists all entries under a prefix, paginating past Supabase's 100-item default. */
-  async function listAll(prefix: string) {
-    const allEntries: { name: string; id: string | null }[] = [];
-    let offset = 0;
-
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      const { data: page } = await bucket.list(prefix, { limit: PAGE_SIZE, offset });
-      if (!page || page.length === 0) break;
-      allEntries.push(...page);
-      if (page.length < PAGE_SIZE) break;
-      offset += PAGE_SIZE;
-    }
-
-    return allEntries;
-  }
-
   async function walk(
     currentPrefix: string,
     relativePath: string,
   ): Promise<SandboxPreloadFile[]> {
-    const entries = await listAll(currentPrefix);
+    const entries = await listAll(bucket, currentPrefix);
     if (entries.length === 0) return [];
 
     const results = await Promise.all(
@@ -103,9 +103,9 @@ export async function buildPreloadFiles(
   const bucket = supabase.storage.from(MEMORY_BUCKET_ID);
   const files: SandboxPreloadFile[] = [];
 
-  // 1. Download all user skill directories
-  const { data: skillDirs } = await bucket.list(`${clientId}/${SKILLS_DIRECTORY}`);
-  if (skillDirs) {
+  // 1. Download all user skill directories (paginated)
+  const skillDirs = await listAll(bucket, `${clientId}/${SKILLS_DIRECTORY}`);
+  if (skillDirs.length > 0) {
     const slugs = skillDirs
       .filter((e: { id: string | null }) => e.id === null)
       .map((e: { name: string }) => e.name)
