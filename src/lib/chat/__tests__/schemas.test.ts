@@ -106,6 +106,25 @@ describe("conversationMessageSchema", () => {
     expect(conversationMessageSchema.parse(row)).toEqual(row);
   });
 
+  test("accepts storagePath on file parts", () => {
+    const row: ConversationMessage = {
+      message_id: "550e8400-e29b-41d4-a716-446655440000",
+      thread_id: "660e8400-e29b-41d4-a716-446655440000",
+      role: "user",
+      content: null,
+      parts: [{
+        type: "file",
+        filename: "report.csv",
+        mediaType: "text/csv",
+        url: "https://storage.example.com/agent-files/client-1/uploads/report.csv",
+        storagePath: "uploads/report.csv",
+      }],
+      created_at: "2026-03-01T00:00:00Z",
+    };
+
+    expect(conversationMessageSchema.parse(row)).toEqual(row);
+  });
+
   test("rejects invalid role", () => {
     expect(() =>
       conversationMessageSchema.parse({

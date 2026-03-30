@@ -1,5 +1,5 @@
 /**
- * Uploads chat attachments to the public chat-attachments bucket.
+ * Uploads chat attachments to the unified agent-files bucket.
  * Returns the reference-compatible metadata payload used by the chat composer.
  * @module app/api/files/upload/route
  */
@@ -12,9 +12,14 @@ import {
   ALLOWED_UPLOAD_TYPES,
   MAX_UPLOAD_SIZE_BYTES,
 } from "@/lib/chat/attachment-config";
-import { getFileExtension } from "@/lib/file-utils";
 
-const BUCKET_ID = "chat-attachments";
+const BUCKET_ID = "agent-files";
+const UPLOAD_URL_EXPIRY_SECONDS = 60 * 60;
+
+function sanitizeUploadFilename(filename: string): string {
+  const sanitized = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+  return sanitized.length > 0 ? sanitized : "upload";
+}
 
 function isBlobLike(value: unknown): value is Blob {
   return (
@@ -66,9 +71,10 @@ export async function POST(request: Request) {
     const filename = typeof filenameField === "string" && filenameField.trim().length > 0
       ? filenameField.trim()
       : (fileEntry as File).name;
-    const fileExtension = getFileExtension(filename) || "jpg";
-    const storageFilename = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${fileExtension}`;
-    const storagePath = `${clientId}/${storageFilename}`;
+    const sanitizedFilename = sanitizeUploadFilename(filename);
+    const storageFilename = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${sanitizedFilename}`;
+    const relativeStoragePath = `uploads/${storageFilename}`;
+    const storagePath = `${clientId}/${relativeStoragePath}`;
 
     const { error: uploadError } = await supabase.storage
       .from(BUCKET_ID)
@@ -81,9 +87,13 @@ export async function POST(request: Request) {
       return jsonError("Upload failed", 500);
     }
 
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from(BUCKET_ID).getPublicUrl(storagePath);
+    const signedUrlResponse = await supabase.storage
+      .from(BUCKET_ID)
+      .createSignedUrl(storagePath, UPLOAD_URL_EXPIRY_SECONDS);
+
+    if (signedUrlResponse.error || !signedUrlResponse.data?.signedUrl) {
+      return jsonError("Upload failed", 500);
+    }
 
     await captureServerEvent({
       distinctId: clientId,
@@ -95,7 +105,8 @@ export async function POST(request: Request) {
     });
 
     return Response.json({
-      url: publicUrl,
+      url: signedUrlResponse.data.signedUrl,
+      storagePath: relativeStoragePath,
       pathname: filename,
       contentType: fileEntry.type,
     });

@@ -14,6 +14,7 @@ export const runnerFilePartSchema = z.object({
   filename: z.string().min(1).optional(),
   mediaType: z.string().min(1),
   url: z.string().min(1),
+  storagePath: z.string().min(1).optional(),
 });
 
 export const runnerPayloadSchema = z.object({

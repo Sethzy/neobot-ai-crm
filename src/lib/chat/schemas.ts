@@ -34,6 +34,7 @@ const filePartSchema = z.object({
   mediaType: z.string().min(1),
   url: z.string().min(1),
   filename: z.string().optional(),
+  storagePath: z.string().min(1).optional(),
 });
 
 const stepStartPartSchema = z.object({

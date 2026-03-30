@@ -88,6 +88,24 @@ describe("runnerPayloadSchema", () => {
 
     expect(runnerPayloadSchema.parse(valid)).toEqual(valid);
   });
+
+  test("accepts storagePath on file parts", () => {
+    const valid = {
+      clientId: "550e8400-e29b-41d4-a716-446655440000",
+      threadId: "660e8400-e29b-41d4-a716-446655440000",
+      triggerType: "chat" as const,
+      input: "",
+      fileParts: [{
+        type: "file" as const,
+        filename: "report.csv",
+        mediaType: "text/csv",
+        url: "https://storage.example.com/agent-files/client-1/uploads/report.csv",
+        storagePath: "uploads/report.csv",
+      }],
+    };
+
+    expect(runnerPayloadSchema.parse(valid)).toEqual(valid);
+  });
 });
 
 describe("toolResultEnvelopeSchema", () => {

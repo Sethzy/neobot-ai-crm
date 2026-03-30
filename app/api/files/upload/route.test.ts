@@ -7,23 +7,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   mockGetUser,
   mockResolveClientId,
+  mockFrom,
   mockUpload,
-  mockGetPublicUrl,
+  mockCreateSignedUrl,
 } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockResolveClientId: vi.fn(),
+  mockFrom: vi.fn(),
   mockUpload: vi.fn(),
-  mockGetPublicUrl: vi.fn(),
+  mockCreateSignedUrl: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
     auth: { getUser: mockGetUser },
     storage: {
-      from: () => ({
+      from: mockFrom.mockImplementation(() => ({
         upload: mockUpload,
-        getPublicUrl: mockGetPublicUrl,
-      }),
+        createSignedUrl: mockCreateSignedUrl,
+      })),
     },
   }),
 }));
@@ -53,11 +55,15 @@ describe("POST /api/files/upload", () => {
 
     mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
     mockResolveClientId.mockResolvedValue("client-1");
-    mockUpload.mockResolvedValue({ data: { path: "client-1/1700000000000-deadbeef.png" }, error: null });
-    mockGetPublicUrl.mockReturnValue({
+    mockUpload.mockResolvedValue({
+      data: { path: "client-1/uploads/1700000000000-deadbeef-screenshot.png" },
+      error: null,
+    });
+    mockCreateSignedUrl.mockResolvedValue({
       data: {
-        publicUrl: "https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.png",
+        signedUrl: "https://storage.example.com/agent-files/client-1/uploads/1700000000000-deadbeef-screenshot.png?token=signed",
       },
+      error: null,
     });
   });
 
@@ -85,11 +91,16 @@ describe("POST /api/files/upload", () => {
   });
 
   it("accepts PDF uploads", async () => {
-    mockUpload.mockResolvedValue({ data: { path: "client-1/1700000000000-deadbeef.pdf" }, error: null });
-    mockGetPublicUrl.mockReturnValue({
+    mockUpload.mockResolvedValue({
       data: {
-        publicUrl: "https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.pdf",
+        path: "client-1/uploads/1700000000000-deadbeef-brief.pdf",
       },
+    });
+    mockCreateSignedUrl.mockResolvedValue({
+      data: {
+        signedUrl: "https://storage.example.com/agent-files/client-1/uploads/1700000000000-deadbeef-brief.pdf?token=signed",
+      },
+      error: null,
     });
 
     const response = await POST(
@@ -98,18 +109,24 @@ describe("POST /api/files/upload", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      url: "https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.pdf",
+      url: "https://storage.example.com/agent-files/client-1/uploads/1700000000000-deadbeef-brief.pdf?token=signed",
+      storagePath: "uploads/1700000000000-deadbeef-brief.pdf",
       pathname: "brief.pdf",
       contentType: "application/pdf",
     });
   });
 
   it("accepts DOCX uploads", async () => {
-    mockUpload.mockResolvedValue({ data: { path: "client-1/1700000000000-deadbeef.docx" }, error: null });
-    mockGetPublicUrl.mockReturnValue({
+    mockUpload.mockResolvedValue({
       data: {
-        publicUrl: "https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.docx",
+        path: "client-1/uploads/1700000000000-deadbeef-proposal.docx",
       },
+    });
+    mockCreateSignedUrl.mockResolvedValue({
+      data: {
+        signedUrl: "https://storage.example.com/agent-files/client-1/uploads/1700000000000-deadbeef-proposal.docx?token=signed",
+      },
+      error: null,
     });
 
     const response = await POST(
@@ -122,7 +139,8 @@ describe("POST /api/files/upload", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      url: "https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.docx",
+      url: "https://storage.example.com/agent-files/client-1/uploads/1700000000000-deadbeef-proposal.docx?token=signed",
+      storagePath: "uploads/1700000000000-deadbeef-proposal.docx",
       pathname: "proposal.docx",
       contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     });
@@ -133,15 +151,15 @@ describe("POST /api/files/upload", () => {
     ["application/vnd.openxmlformats-officedocument.presentationml.presentation", "listing-deck.pptx"],
     ["text/plain", "notes.txt"],
   ])("accepts %s uploads", async (contentType, filename) => {
-    const extension = filename.split(".").pop();
     mockUpload.mockResolvedValue({
-      data: { path: `client-1/1700000000000-deadbeef.${extension}` },
+      data: { path: `client-1/uploads/1700000000000-deadbeef-${filename}` },
       error: null,
     });
-    mockGetPublicUrl.mockReturnValue({
+    mockCreateSignedUrl.mockResolvedValue({
       data: {
-        publicUrl: `https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.${extension}`,
+        signedUrl: `https://storage.example.com/agent-files/client-1/uploads/1700000000000-deadbeef-${filename}?token=signed`,
       },
+      error: null,
     });
 
     const response = await POST(
@@ -150,18 +168,24 @@ describe("POST /api/files/upload", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      url: `https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.${extension}`,
+      url: `https://storage.example.com/agent-files/client-1/uploads/1700000000000-deadbeef-${filename}?token=signed`,
+      storagePath: `uploads/1700000000000-deadbeef-${filename}`,
       pathname: filename,
       contentType,
     });
   });
 
   it("accepts files up to 10MB", async () => {
-    mockUpload.mockResolvedValue({ data: { path: "client-1/1700000000000-deadbeef.pdf" }, error: null });
-    mockGetPublicUrl.mockReturnValue({
+    mockUpload.mockResolvedValue({
       data: {
-        publicUrl: "https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.pdf",
+        path: "client-1/uploads/1700000000000-deadbeef-big.pdf",
       },
+    });
+    mockCreateSignedUrl.mockResolvedValue({
+      data: {
+        signedUrl: "https://storage.example.com/agent-files/client-1/uploads/1700000000000-deadbeef-big.pdf?token=signed",
+      },
+      error: null,
     });
 
     const response = await POST(
@@ -204,12 +228,14 @@ describe("POST /api/files/upload", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      url: "https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.png",
+      url: "https://storage.example.com/agent-files/client-1/uploads/1700000000000-deadbeef-screenshot.png?token=signed",
+      storagePath: "uploads/1700000000000-deadbeef-screenshot.png",
       pathname: "screenshot.png",
       contentType: "image/png",
     });
+    expect(mockFrom).toHaveBeenCalledWith("agent-files");
     expect(mockUpload).toHaveBeenCalledWith(
-      "client-1/1700000000000-deadbeef.png",
+      "client-1/uploads/1700000000000-deadbeef-screenshot.png",
       expect.objectContaining({ byteLength: 10 }),
       {
         contentType: "image/png",
@@ -219,11 +245,16 @@ describe("POST /api/files/upload", () => {
   });
 
   it("uploads valid spreadsheet attachments and preserves their content type", async () => {
-    mockUpload.mockResolvedValue({ data: { path: "client-1/1700000000000-deadbeef.csv" }, error: null });
-    mockGetPublicUrl.mockReturnValue({
+    mockUpload.mockResolvedValue({
       data: {
-        publicUrl: "https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.csv",
+        path: "client-1/uploads/1700000000000-deadbeef-deals.csv",
       },
+    });
+    mockCreateSignedUrl.mockResolvedValue({
+      data: {
+        signedUrl: "https://storage.example.com/agent-files/client-1/uploads/1700000000000-deadbeef-deals.csv?token=signed",
+      },
+      error: null,
     });
 
     const response = await POST(
@@ -232,12 +263,13 @@ describe("POST /api/files/upload", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      url: "https://storage.example.com/chat-attachments/client-1/1700000000000-deadbeef.csv",
+      url: "https://storage.example.com/agent-files/client-1/uploads/1700000000000-deadbeef-deals.csv?token=signed",
+      storagePath: "uploads/1700000000000-deadbeef-deals.csv",
       pathname: "deals.csv",
       contentType: "text/csv",
     });
     expect(mockUpload).toHaveBeenCalledWith(
-      "client-1/1700000000000-deadbeef.csv",
+      "client-1/uploads/1700000000000-deadbeef-deals.csv",
       expect.anything(),
       {
         contentType: "text/csv",
@@ -255,5 +287,37 @@ describe("POST /api/files/upload", () => {
 
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({ error: "Upload failed" });
+  });
+
+  it("preserves sanitized original filename with short uuid for collision safety", async () => {
+    mockUpload.mockResolvedValue({
+      data: {
+        path: "client-1/uploads/1700000000000-deadbeef-deals_report.csv",
+      },
+      error: null,
+    });
+    mockCreateSignedUrl.mockResolvedValue({
+      data: {
+        signedUrl: "https://storage.example.com/agent-files/client-1/uploads/1700000000000-deadbeef-deals_report.csv?token=signed",
+      },
+      error: null,
+    });
+
+    const response = await POST(
+      createFileRequest(new File(["a,b\n1,2"], "deals report.csv", { type: "text/csv" })),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockUpload).toHaveBeenCalledWith(
+      "client-1/uploads/1700000000000-deadbeef-deals_report.csv",
+      expect.anything(),
+      expect.anything(),
+    );
+    await expect(response.json()).resolves.toEqual({
+      url: "https://storage.example.com/agent-files/client-1/uploads/1700000000000-deadbeef-deals_report.csv?token=signed",
+      storagePath: "uploads/1700000000000-deadbeef-deals_report.csv",
+      pathname: "deals report.csv",
+      contentType: "text/csv",
+    });
   });
 });
