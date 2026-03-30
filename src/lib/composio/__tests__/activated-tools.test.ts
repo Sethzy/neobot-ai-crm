@@ -432,7 +432,7 @@ describe("file bridge integration", () => {
     } as never);
 
     mockFindDownloadedFile.mockReturnValue(null);
-    mockResolveAgentPathForUpload.mockResolvedValue("/tmp/composio-uploads/report.pdf");
+    mockResolveAgentPathForUpload.mockResolvedValue("/tmp/composio-uploads/report-abcd1234.pdf");
 
     const mockFileClient = { uploadArtifact: vi.fn(), downloadBinary: vi.fn() };
 
@@ -464,7 +464,7 @@ describe("file bridge integration", () => {
       fileClient: mockFileClient,
     });
     expect(mockExecute).toHaveBeenCalledWith("GOOGLEDRIVE_UPLOAD_FILE", expect.objectContaining({
-      arguments: expect.objectContaining({ filePath: "/tmp/composio-uploads/report.pdf" }),
+      arguments: expect.objectContaining({ filePath: "/tmp/composio-uploads/report-abcd1234.pdf" }),
     }));
   });
 

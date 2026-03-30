@@ -1069,6 +1069,8 @@ describe("runAgent", () => {
     ], expect.objectContaining({
       supabase: "mock-supabase-client",
       clientId: validPayload.clientId,
+      fileClient: expect.objectContaining({ uploadArtifact: expect.any(Function) }),
+      getSandbox: expect.any(Function),
     }));
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1100,6 +1102,8 @@ describe("runAgent", () => {
     ], expect.objectContaining({
       supabase: "mock-supabase-client",
       clientId: validPayload.clientId,
+      fileClient: expect.objectContaining({ uploadArtifact: expect.any(Function) }),
+      getSandbox: expect.any(Function),
     }));
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({

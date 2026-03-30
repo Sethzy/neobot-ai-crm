@@ -265,10 +265,10 @@ describe("resolveAgentPathForUpload", () => {
     expect(mockFileClient.downloadBinary).toHaveBeenCalledWith("home/report.pdf");
     expect(mockMkdir).toHaveBeenCalledWith("/tmp/composio-uploads", { recursive: true });
     expect(mockWriteFile).toHaveBeenCalledWith(
-      "/tmp/composio-uploads/report.pdf",
+      expect.stringMatching(/^\/tmp\/composio-uploads\/report-[a-f0-9]{8}\.pdf$/),
       expect.any(Buffer),
     );
-    expect(tempPath).toBe("/tmp/composio-uploads/report.pdf");
+    expect(tempPath).toMatch(/^\/tmp\/composio-uploads\/report-[a-f0-9]{8}\.pdf$/);
   });
 
   it("strips /agent/ prefix correctly for uploads path", async () => {

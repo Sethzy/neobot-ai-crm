@@ -10,6 +10,8 @@ import { updateConnection } from "@/lib/connections/queries";
 import type { ConnectionRow } from "@/lib/connections/schemas";
 import type { Database } from "@/types/database";
 
+import { unlink } from "node:fs/promises";
+
 import type { AgentFileClient } from "@/lib/storage/agent-files";
 import { AGENT_ROOT } from "@/lib/storage/agent-paths";
 
@@ -102,6 +104,7 @@ export async function loadActivatedConnectionTools(
           ),
           execute: async (args) => {
             let resolvedArgs = args as Record<string, unknown>;
+            const uploadTempPaths: string[] = [];
 
             // Upload direction: resolve /agent/ paths to local temp files
             if (options?.fileClient) {
@@ -111,37 +114,45 @@ export async function loadActivatedConnectionTools(
                     agentPath: value,
                     fileClient: options.fileClient,
                   });
+                  uploadTempPaths.push(tempPath);
                   resolvedArgs = { ...resolvedArgs, [key]: tempPath };
                 }
               }
             }
 
-            const result = await composio.tools.execute(slug, {
-              connectedAccountId: connection.composio_connected_account_id,
-              arguments: resolvedArgs,
-              dangerouslySkipVersionCheck: true,
-            });
-
-            // Download direction: persist files to agent storage
-            const fileData = findDownloadedFile(result?.data);
-            if (options?.fileClient && fileData?.file_downloaded && fileData.uri) {
-              const agentPath = await bridgeDownloadedFile({
-                fileData,
-                fileClient: options.fileClient,
-                getSandbox: options.getSandbox ?? (() => null),
+            try {
+              const result = await composio.tools.execute(slug, {
+                connectedAccountId: connection.composio_connected_account_id,
+                arguments: resolvedArgs,
+                dangerouslySkipVersionCheck: true,
               });
 
-              return {
-                ...result,
-                data: {
-                  ...(typeof result?.data === "object" ? result.data : {}),
-                  uri: agentPath,
-                  message: `File downloaded and saved to ${agentPath}`,
-                },
-              };
-            }
+              // Download direction: persist files to agent storage
+              const fileData = findDownloadedFile(result?.data);
+              if (options?.fileClient && fileData?.file_downloaded && fileData.uri) {
+                const agentPath = await bridgeDownloadedFile({
+                  fileData,
+                  fileClient: options.fileClient,
+                  getSandbox: options.getSandbox ?? (() => null),
+                });
 
-            return result;
+                return {
+                  ...result,
+                  data: {
+                    ...(typeof result?.data === "object" ? result.data : {}),
+                    uri: agentPath,
+                    message: `File downloaded and saved to ${agentPath}`,
+                  },
+                };
+              }
+
+              return result;
+            } finally {
+              // Clean up upload temp files
+              await Promise.all(
+                uploadTempPaths.map((p) => unlink(p).catch(() => {})),
+              );
+            }
           },
         });
       }

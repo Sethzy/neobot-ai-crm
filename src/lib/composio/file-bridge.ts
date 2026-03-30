@@ -2,8 +2,9 @@
  * Helpers for bridging Composio file downloads/uploads to agent storage.
  * @module lib/composio/file-bridge
  */
+import { randomBytes } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { basename, extname, join } from "node:path";
 
 import type { AgentFileClient } from "@/lib/storage/agent-files";
 import { AGENT_ROOT } from "@/lib/storage/agent-paths";
@@ -110,12 +111,16 @@ export async function resolveAgentPathForUpload(options: ResolveAgentPathOptions
   }
 
   const storagePath = agentPath.slice(AGENT_ROOT.length);
-  const filename = basename(storagePath);
+  const rawName = basename(storagePath);
+  const ext = extname(rawName);
+  const stem = rawName.slice(0, rawName.length - ext.length);
+  const uniqueSuffix = randomBytes(4).toString("hex");
+  const uniqueName = `${stem}-${uniqueSuffix}${ext}`;
 
   const { buffer } = await fileClient.downloadBinary(storagePath);
 
   await mkdir(UPLOAD_TEMP_DIR, { recursive: true });
-  const tempPath = join(UPLOAD_TEMP_DIR, filename);
+  const tempPath = join(UPLOAD_TEMP_DIR, uniqueName);
   await writeFile(tempPath, Buffer.from(buffer));
 
   return tempPath;
