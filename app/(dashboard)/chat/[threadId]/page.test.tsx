@@ -15,9 +15,14 @@ const mockCreateClient = vi.fn();
 const mockResolveClientId = vi.fn();
 const mockListMessages = vi.fn();
 const mockLoadCurrentMessageQuota = vi.fn();
+const mockCookies = vi.fn();
 
 vi.mock("next/navigation", () => ({
   redirect: vi.fn(),
+}));
+
+vi.mock("next/headers", () => ({
+  cookies: () => mockCookies(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -41,10 +46,12 @@ vi.mock("./chat-thread-page-client", () => ({
     threadId,
     initialMessages,
     initialQuota,
+    initialChatModel,
   }: {
     threadId: string;
     initialMessages: Array<{ id: string; role: string; parts: unknown[] }>;
     initialQuota?: { messagesRemaining: number } | null;
+    initialChatModel: string;
   }) => (
     <div>
       <div data-testid="thread-id">{threadId}</div>
@@ -53,6 +60,7 @@ vi.mock("./chat-thread-page-client", () => ({
         {String((initialMessages[0]?.parts?.[0] as { text?: string } | undefined)?.text ?? "")}
       </div>
       <div data-testid="quota-remaining">{String(initialQuota?.messagesRemaining ?? "none")}</div>
+      <div data-testid="initial-chat-model">{initialChatModel}</div>
     </div>
   ),
 }));
@@ -83,6 +91,9 @@ function createThreadLookupSupabase(options: {
 describe("/chat/[threadId] page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCookies.mockResolvedValue({
+      get: vi.fn(() => ({ value: "minimax/minimax-m2.7" })),
+    });
     mockLoadCurrentMessageQuota.mockResolvedValue({
       clientId: "client-123",
       planName: "Free",
@@ -116,6 +127,7 @@ describe("/chat/[threadId] page", () => {
     expect(screen.getByTestId("initial-message-count")).toHaveTextContent("1");
     expect(screen.getByTestId("first-message-text")).toHaveTextContent("Loaded from server");
     expect(screen.getByTestId("quota-remaining")).toHaveTextContent("80");
+    expect(screen.getByTestId("initial-chat-model")).toHaveTextContent("minimax/minimax-m2.7");
     expect(screen.getByTestId("data-stream-handler")).toBeInTheDocument();
     expect(mockListMessages).toHaveBeenCalledWith(supabase, VALID_THREAD_ID);
   });

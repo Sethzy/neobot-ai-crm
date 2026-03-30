@@ -3,14 +3,14 @@
  */
 
 import { createGateway } from "@ai-sdk/gateway";
-import type { GatewayProviderOptions } from "@ai-sdk/gateway";
 import type { JSONValue } from "ai";
+import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 
 /**
  * Tier-1 model used for interactive chat and tool-calling runs.
  * This follows the approved LLM-05 decision.
  */
-export const TIER_1_MODEL = "google/gemini-3-flash";
+export const TIER_1_MODEL = DEFAULT_CHAT_MODEL;
 
 /**
  * Cheap, fast model used for background summarization tasks (thread compaction).
@@ -28,18 +28,28 @@ export const gateway = createGateway({
 });
 
 /**
- * BYOK provider options — routes requests through the gateway but bills to
- * our own Gemini API key instead of consuming Vercel AI Gateway credits.
- * Spread into every `streamText` / `generateText` call's options.
+ * Shared language-model lookup used by runtime callsites that accept a dynamic model ID.
+ * v1 does not wrap reasoning models; the selected ID is forwarded directly.
+ */
+export function getLanguageModel(modelId: string) {
+  return gateway.languageModel(modelId);
+}
+
+/**
+ * Gateway provider options shared across runtime calls.
+ * Automatic caching must always be enabled so explicit-cache providers like
+ * MiniMax receive cache markers, while Google BYOK remains optional.
  */
 export const gatewayProviderOptions:
-  | Record<string, Record<string, JSONValue>>
-  | undefined = process.env.GEMINI_API_KEY
-  ? ({
-      gateway: {
-        byok: {
-          google: [{ apiKey: process.env.GEMINI_API_KEY }],
-        },
-      } satisfies GatewayProviderOptions,
-    } as Record<string, Record<string, JSONValue>>)
-  : undefined;
+  Record<string, Record<string, JSONValue>> = {
+    gateway: {
+      caching: "auto",
+      ...(process.env.GEMINI_API_KEY
+        ? {
+            byok: {
+              google: [{ apiKey: process.env.GEMINI_API_KEY }],
+            },
+          }
+        : {}),
+    } as Record<string, JSONValue>,
+  } as Record<string, Record<string, JSONValue>>;

@@ -14,9 +14,14 @@ import type { MessageQuotaStatus } from "@/lib/usage/message-quota";
 interface ChatDraftPageProps {
   id: string;
   initialQuota?: MessageQuotaStatus | null;
+  initialChatModel: string;
 }
 
-export function ChatDraftPage({ id, initialQuota = null }: ChatDraftPageProps) {
+export function ChatDraftPage({
+  id,
+  initialQuota = null,
+  initialChatModel,
+}: ChatDraftPageProps) {
   const searchParams = useSearchParams();
   const initialPrompt = searchParams?.get("prompt") ?? undefined;
 
@@ -29,6 +34,7 @@ export function ChatDraftPage({ id, initialQuota = null }: ChatDraftPageProps) {
           initialQuota={initialQuota}
           autoResume={false}
           initialPrompt={initialPrompt}
+          initialChatModel={initialChatModel}
         />
       </ChatErrorBoundary>
     </div>

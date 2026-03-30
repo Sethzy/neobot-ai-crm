@@ -7,9 +7,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   mockStreamText,
   mockStepCountIs,
-  mockGateway,
+  mockGetLanguageModel,
   mockLoadCrmConfig,
   mockAssembleContext,
+  mockLoadSystemPromptState,
   mockCreateRun,
   mockCompleteRun,
   mockMarkStaleRunsFailed,
@@ -26,12 +27,14 @@ const {
   mockGetActiveConnections,
   mockIsPropertySupabaseConfigured,
   mockLoadActivatedConnectionTools,
+  mockGetServerEnv,
 } = vi.hoisted(() => ({
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
-  mockGateway: vi.fn(() => "mock-model"),
+  mockGetLanguageModel: vi.fn(() => "mock-model"),
   mockLoadCrmConfig: vi.fn(),
   mockAssembleContext: vi.fn(),
+  mockLoadSystemPromptState: vi.fn(),
   mockCreateRun: vi.fn(),
   mockCompleteRun: vi.fn(),
   mockMarkStaleRunsFailed: vi.fn(),
@@ -48,14 +51,18 @@ const {
   mockGetActiveConnections: vi.fn(),
   mockIsPropertySupabaseConfigured: vi.fn(),
   mockLoadActivatedConnectionTools: vi.fn(),
+  mockGetServerEnv: vi.fn(),
 }));
 
 vi.mock("ai", () => ({ streamText: mockStreamText, stepCountIs: mockStepCountIs }));
 vi.mock("@/lib/chat/messages", () => ({
   createMessages: mockCreateMessages,
 }));
+vi.mock("@posthog/ai", () => ({
+  withTracing: (model: unknown) => model,
+}));
 vi.mock("@/lib/ai/gateway", () => ({
-  gateway: mockGateway,
+  getLanguageModel: mockGetLanguageModel,
   gatewayProviderOptions: {},
   TIER_1_MODEL: "google/gemini-3-flash",
 }));
@@ -68,6 +75,7 @@ vi.mock("@/lib/crm/config", async (importOriginal) => {
 });
 vi.mock("@/lib/runner/context", () => ({
   assembleContext: mockAssembleContext,
+  loadSystemPromptState: mockLoadSystemPromptState,
 }));
 vi.mock("@/lib/runner/run-lifecycle", () => ({
   createRun: mockCreateRun,
@@ -99,6 +107,11 @@ vi.mock("@/lib/composio", () => ({
 
 vi.mock("@/lib/supabase/property-env", () => ({
   isPropertySupabaseConfigured: mockIsPropertySupabaseConfigured,
+}));
+
+vi.mock("@/lib/env", () => ({
+  getServerEnv: (...args: unknown[]) => mockGetServerEnv(...args),
+  _resetForTesting: vi.fn(),
 }));
 
 import { runAgent } from "../run-agent";
@@ -143,9 +156,21 @@ describe("per-thread serialization", () => {
       system: "prompt",
       messages: [{ role: "user", content: "test" }],
     });
+    mockLoadSystemPromptState.mockResolvedValue({
+      memoryContext: undefined,
+      userSkills: [],
+      systemReminder: undefined,
+      compactionState: null,
+    });
     mockGetActiveConnections.mockResolvedValue([]);
     mockLoadActivatedConnectionTools.mockResolvedValue({});
     mockIsPropertySupabaseConfigured.mockReturnValue(true);
+    mockGetServerEnv.mockReturnValue({
+      SANDBOX_GOLDEN_SNAPSHOT_ID: undefined,
+      VERCEL_TOKEN: undefined,
+      VERCEL_TEAM_ID: undefined,
+      VERCEL_PROJECT_ID: undefined,
+    });
     mockStreamText.mockReturnValue({
       toUIMessageStreamResponse: vi.fn(() => new Response("streamed")),
     });

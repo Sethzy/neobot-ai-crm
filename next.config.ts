@@ -95,6 +95,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "xtewwwycvapskgvfnliq.supabase.co",
       },
+      {
+        protocol: "https",
+        hostname: "models.dev",
+      },
     ],
   },
   eslint: {

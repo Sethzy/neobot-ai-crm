@@ -4,6 +4,7 @@
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ImgHTMLAttributes } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockToastError } = vi.hoisted(() => ({
@@ -14,6 +15,12 @@ vi.mock("sonner", () => ({
   toast: {
     error: mockToastError,
   },
+}));
+
+vi.mock("next/image", () => ({
+  default: ({ unoptimized: _unoptimized, ...props }: ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => (
+    <img {...props} alt={props.alt ?? ""} />
+  ),
 }));
 
 import { ChatComposer } from "./chat-composer";
@@ -27,6 +34,8 @@ describe("ChatComposer", () => {
     onValueChange: vi.fn(),
     onSubmit: vi.fn(),
     onStop: vi.fn(),
+    selectedChatModel: "google/gemini-3-flash",
+    onSelectedChatModelChange: vi.fn(),
   };
 
   beforeEach(() => {
@@ -38,12 +47,30 @@ describe("ChatComposer", () => {
     render(<ChatComposer {...baseProps} />);
 
     expect(screen.getByPlaceholderText(/send a message/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /gemini flash 3/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /attach files/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /submit/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/upload attachments/i)).toHaveAttribute(
       "accept",
       "image/jpeg,image/png,.xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel",
     );
+  });
+
+  it("lets the user switch the selected chat model", async () => {
+    const onSelectedChatModelChange = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <ChatComposer
+        {...baseProps}
+        onSelectedChatModelChange={onSelectedChatModelChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /gemini flash 3/i }));
+    await user.click(screen.getByRole("button", { name: /minimax m2\.7/i }));
+
+    expect(onSelectedChatModelChange).toHaveBeenCalledWith("minimax/minimax-m2.7");
   });
 
   it("shows monthly quota usage and an upgrade link when quota data is provided", () => {

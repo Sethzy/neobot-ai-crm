@@ -15,12 +15,14 @@ interface ChatThreadPageClientProps {
   threadId: string;
   initialMessages: UIMessage[];
   initialQuota?: MessageQuotaStatus | null;
+  initialChatModel?: string;
 }
 
 export function ChatThreadPageClient({
   threadId,
   initialMessages,
   initialQuota = null,
+  initialChatModel,
 }: ChatThreadPageClientProps) {
   return (
     <ChatErrorBoundary>
@@ -28,6 +30,7 @@ export function ChatThreadPageClient({
         chatId={threadId}
         initialMessages={initialMessages}
         initialQuota={initialQuota}
+        initialChatModel={initialChatModel}
         autoResume
       />
     </ChatErrorBoundary>

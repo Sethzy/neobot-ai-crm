@@ -22,6 +22,7 @@ export const runnerPayloadSchema = z.object({
   triggerType: z.enum(triggerTypeValues),
   consumeMessageQuota: z.boolean().optional(),
   input: z.string(),
+  selectedChatModel: z.string().optional(),
   channel: z.enum(runnerChannelValues).optional(),
   fileParts: z.array(runnerFilePartSchema).optional(),
   crmMode: z.enum(["normal", "setup"]).optional(),

@@ -414,6 +414,81 @@ describe("POST /api/chat", () => {
     );
   });
 
+  it("passes selectedChatModel through to runAgent when the model is allowed", async () => {
+    const streamResponse = new Response("streamed", {
+      headers: { "Content-Type": "text/event-stream" },
+    });
+    const wrappedStream = new ReadableStream();
+    const mockStreamResult = {
+      toUIMessageStream: vi.fn(() => new ReadableStream()),
+    };
+    mockCreateUIMessageStream.mockReturnValue(wrappedStream);
+    mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
+    mockRunAgent.mockResolvedValue({
+      status: "streaming",
+      streamResult: mockStreamResult,
+    });
+
+    await POST(
+      createJsonRequest({
+        id: threadId,
+        selectedChatModel: "minimax/minimax-m2.7",
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Use MiniMax for this." }],
+        },
+      }),
+    );
+
+    expect(mockRunAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedChatModel: "minimax/minimax-m2.7",
+      }),
+      mockSupabase,
+    );
+  });
+
+  it("returns 400 when selectedChatModel is not in the allowed model set", async () => {
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        selectedChatModel: "invalid/model-id",
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Hello" }],
+        },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "Invalid selected chat model.",
+    });
+    expect(mockRunAgent).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when selectedChatModel is an empty string", async () => {
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        selectedChatModel: "",
+        message: {
+          id: "11111111-1111-4111-8111-111111111111",
+          role: "user",
+          parts: [{ type: "text", text: "Hello" }],
+        },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "Invalid selected chat model.",
+    });
+    expect(mockRunAgent).not.toHaveBeenCalled();
+  });
+
   it("accepts image-only user messages and forwards file parts to the runner", async () => {
     const streamResponse = new Response("streamed", {
       headers: { "Content-Type": "text/event-stream" },

@@ -5,6 +5,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { UIMessage } from "ai";
+import type { ImgHTMLAttributes } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { threadKeys } from "@/hooks/use-threads";
@@ -29,6 +30,12 @@ const { mockUseMessageQuota } = vi.hoisted(() => ({
 
 vi.mock("react-markdown", () => ({
   default: ({ children }: { children: string }) => <div>{children}</div>,
+}));
+
+vi.mock("next/image", () => ({
+  default: ({ unoptimized: _unoptimized, ...props }: ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => (
+    <img {...props} alt={props.alt ?? ""} />
+  ),
 }));
 
 vi.mock("sonner", () => ({
@@ -136,6 +143,7 @@ describe("ChatPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", mockFetch);
+    document.cookie = "chat-model=; path=/; max-age=0";
 
     mockUseChat.mockReturnValue({
       id: "thread-1",
@@ -214,6 +222,7 @@ describe("ChatPanel", () => {
       role: "user",
       parts: [{ type: "text", text: "Hello" }],
     });
+    expect(result.body.selectedChatModel).toBe("google/gemini-3-flash");
     expect(result.body.messages).toBeUndefined();
   });
 
@@ -246,7 +255,34 @@ describe("ChatPanel", () => {
 
     expect(result.body.id).toBe("thread-1");
     expect(result.body.messages).toEqual(continuationMessages);
+    expect(result.body.selectedChatModel).toBe("google/gemini-3-flash");
     expect(result.body.message).toBeUndefined();
+  });
+
+  it("updates the selected chat model for later requests and persists it in a cookie", async () => {
+    const user = userEvent.setup();
+
+    render(<ChatPanel chatId="thread-1" />);
+
+    await user.click(screen.getByRole("button", { name: /gemini flash 3/i }));
+    await user.click(screen.getByRole("button", { name: /minimax m2\.7/i }));
+
+    expect(document.cookie).toContain("chat-model=minimax/minimax-m2.7");
+
+    const options = mockTransportConstructor.mock.calls[0][0] as {
+      prepareSendMessagesRequest: (payload: { id: string; messages: UIMessage[] }) => {
+        body: Record<string, unknown>;
+      };
+    };
+
+    const result = options.prepareSendMessagesRequest({
+      id: "thread-1",
+      messages: [
+        { id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] } as UIMessage,
+      ],
+    });
+
+    expect(result.body.selectedChatModel).toBe("minimax/minimax-m2.7");
   });
 
   it("prepareSendMessagesRequest does not treat historical approvals as a continuation", () => {

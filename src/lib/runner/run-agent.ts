@@ -9,7 +9,8 @@ import { propagateAttributes } from "@langfuse/tracing";
 import { withTracing } from "@posthog/ai";
 
 import { captureServerEvent, getPostHogServer } from "@/lib/analytics/posthog-server";
-import { gateway, gatewayProviderOptions, TIER_1_MODEL } from "@/lib/ai/gateway";
+import { gatewayProviderOptions, getLanguageModel } from "@/lib/ai/gateway";
+import { resolveModelId } from "@/lib/ai/models";
 import { getServerEnv } from "@/lib/env";
 import { isApifyConfigured } from "@/lib/apify/env";
 import { isBrowserUseConfigured } from "@/lib/browser-use/client";
@@ -121,7 +122,7 @@ export async function runAgent(
     : (_label: string) => {};
 
   const { clientId, threadId, input } = payload;
-  const modelId = TIER_1_MODEL;
+  const modelId = resolveModelId(payload.selectedChatModel);
   const crmMode = payload.crmMode ?? "normal";
 
   const runType: RunType = payload.triggerType === "pulse"
@@ -205,6 +206,7 @@ export async function runAgent(
         content: input,
         fileParts: payload.fileParts,
         channel: payload.channel ?? "web",
+        selectedChatModel: payload.selectedChatModel,
         ...(payload.triggerType === "chat" ? {} : { triggerType: payload.triggerType }),
       });
       shouldReleaseConsumedQuota = false;
@@ -332,6 +334,20 @@ export async function runAgent(
     };
 
     const maxSteps = MAX_STEPS[runType];
+    const postHogServer = getPostHogServer();
+    const model = postHogServer
+      ? withTracing(getLanguageModel(modelId), postHogServer, {
+          posthogDistinctId: clientId,
+          posthogProperties: {
+            thread_id: threadId,
+            run_id: runId,
+            trigger_type: payload.triggerType,
+            run_type: runType,
+            model_id: modelId,
+            environment: process.env.VERCEL_ENV ?? "development",
+          },
+        })
+      : getLanguageModel(modelId);
 
     _t("pre_stream_text");
     const streamResult = await propagateAttributes(
@@ -343,17 +359,7 @@ export async function runAgent(
       },
       async () =>
         streamText({
-          model: withTracing(gateway(modelId), getPostHogServer(), {
-            posthogDistinctId: clientId,
-            posthogProperties: {
-              thread_id: threadId,
-              run_id: runId,
-              trigger_type: payload.triggerType,
-              run_type: runType,
-              model_id: modelId,
-              environment: process.env.VERCEL_ENV ?? "development",
-            },
-          }),
+          model,
           system,
           messages,
           stopWhen: stepCountIs(maxSteps),

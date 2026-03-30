@@ -4,6 +4,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { allowedModelIds } from "@/lib/ai/models";
 import {
   type RunnerFilePart,
   runnerChannelValues,
@@ -23,6 +24,7 @@ export interface EnqueueMessageInput {
   fileParts?: RunnerFilePart[];
   channel?: QueuedChannel;
   triggerType?: QueuedTriggerType;
+  selectedChatModel?: string;
 }
 
 export interface QueueScope {
@@ -41,6 +43,7 @@ export interface DrainedQueuedMessage {
   triggerType: QueuedTriggerType;
   channel?: QueuedChannel;
   fileParts?: RunnerFilePart[];
+  selectedChatModel?: string;
 }
 
 function isQueuedTriggerType(value: unknown): value is QueuedTriggerType {
@@ -60,6 +63,10 @@ function isQueuedChannel(value: unknown): value is QueuedChannel {
   return runnerChannelValues.includes(value as QueuedChannel);
 }
 
+function parseQueuedSelectedChatModel(value: unknown): string | undefined {
+  return typeof value === "string" && allowedModelIds.has(value) ? value : undefined;
+}
+
 function extractQueuedMessage(content: Json): DrainedQueuedMessage {
   if (typeof content === "string") {
     return {
@@ -74,6 +81,7 @@ function extractQueuedMessage(content: Json): DrainedQueuedMessage {
       triggerType: isQueuedTriggerType(content.triggerType) ? content.triggerType : "chat",
       channel: isQueuedChannel(content.channel) ? content.channel : undefined,
       fileParts: parseQueuedFileParts(content.fileParts),
+      selectedChatModel: parseQueuedSelectedChatModel(content.selectedChatModel),
     };
   }
 
@@ -88,7 +96,15 @@ function extractQueuedMessage(content: Json): DrainedQueuedMessage {
  */
 export async function enqueueMessage(
   supabase: ChatSupabaseClient,
-  { threadId, clientId, content, fileParts, channel = "web", triggerType }: EnqueueMessageInput,
+  {
+    threadId,
+    clientId,
+    content,
+    fileParts,
+    channel = "web",
+    triggerType,
+    selectedChatModel,
+  }: EnqueueMessageInput,
 ): Promise<void> {
   const { error } = await supabase.from("thread_queue_records").insert({
     thread_id: threadId,
@@ -99,6 +115,7 @@ export async function enqueueMessage(
       channel,
       ...(triggerType && triggerType !== "chat" ? { triggerType } : {}),
       ...(fileParts && fileParts.length > 0 ? { fileParts } : {}),
+      ...(selectedChatModel ? { selectedChatModel } : {}),
     },
   });
 

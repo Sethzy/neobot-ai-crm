@@ -95,6 +95,31 @@ describe("enqueueMessage", () => {
     });
   });
 
+  it("persists the selected chat model alongside queued chat text", async () => {
+    const client = createMockSupabaseClient({
+      insertResult: { data: [], error: null },
+    });
+
+    await enqueueMessage(client as never, {
+      threadId: "thread-1",
+      clientId: "client-1",
+      content: "Use MiniMax for this one",
+      selectedChatModel: "minimax/minimax-m2.7",
+    });
+
+    const insertCall = client.calls.methods.find((call) => call.method === "insert");
+    expect(insertCall?.args[0]).toEqual({
+      thread_id: "thread-1",
+      client_id: "client-1",
+      channel: "web",
+      content: {
+        text: "Use MiniMax for this one",
+        channel: "web",
+        selectedChatModel: "minimax/minimax-m2.7",
+      },
+    });
+  });
+
   it("throws on insert failure", async () => {
     const client = createMockSupabaseClient({
       insertResult: { data: null, error: { message: "insert failed" } },
@@ -224,6 +249,36 @@ describe("drainQueue", () => {
         text: "Telegram follow up",
         triggerType: "chat",
         channel: "telegram",
+      },
+    ]);
+  });
+
+  it("hydrates the queued selected chat model when draining rows", async () => {
+    const client = createMockSupabaseClient({
+      rpcResults: {
+        drain_thread_queue: {
+          data: [
+            {
+              queue_id: "q1",
+              content: {
+                text: "Use MiniMax for this one",
+                selectedChatModel: "minimax/minimax-m2.7",
+              },
+              created_at: "2026-03-01T00:00:01Z",
+            },
+          ],
+          error: null,
+        },
+      },
+    });
+
+    await expect(
+      drainQueue(client as never, { threadId: "thread-1", clientId: "client-1" }),
+    ).resolves.toEqual([
+      {
+        text: "Use MiniMax for this one",
+        triggerType: "chat",
+        selectedChatModel: "minimax/minimax-m2.7",
       },
     ]);
   });

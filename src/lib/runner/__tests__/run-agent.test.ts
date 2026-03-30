@@ -8,6 +8,7 @@ const {
   mockStreamText,
   mockStepCountIs,
   mockGateway,
+  mockGetLanguageModel,
   mockCaptureServerEvent,
   mockAssembleContext,
   mockCreateRun,
@@ -44,6 +45,7 @@ const {
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(() => vi.fn(() => true)),
   mockGateway: vi.fn(() => "mock-model"),
+  mockGetLanguageModel: vi.fn((modelId: string) => `language-model:${modelId}`),
   mockCaptureServerEvent: vi.fn(),
   mockAssembleContext: vi.fn(),
   mockLoadSystemPromptState: vi.fn(),
@@ -85,6 +87,7 @@ vi.mock("ai", () => ({
 
 vi.mock("@/lib/ai/gateway", () => ({
   gateway: mockGateway,
+  getLanguageModel: mockGetLanguageModel,
   gatewayProviderOptions: {},
   TIER_1_MODEL: "google/gemini-3-flash",
 }));
@@ -340,11 +343,12 @@ describe("runAgent", () => {
     const result = await runAgent(validPayload, "mock-supabase-client" as never);
 
     expect(result.status).toBe("streaming");
-    expect(mockGateway).toHaveBeenCalledWith("google/gemini-3-flash");
+    expect(mockGetLanguageModel).toHaveBeenCalledWith("google/gemini-3-flash");
+    expect(mockGateway).not.toHaveBeenCalled();
     expect(mockStepCountIs).toHaveBeenCalledWith(12);
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "mock-model",
+        model: "language-model:google/gemini-3-flash",
         system: "You are Sunder.",
         messages: [{ role: "user", content: "Hello, Sunder!" }],
         stopWhen: expect.any(Function),
@@ -433,6 +437,44 @@ describe("runAgent", () => {
           systemReminder: undefined,
           compactionState: null,
         },
+      }),
+    );
+  });
+
+  it("uses an allowed selected chat model for the stream call", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(
+      {
+        ...validPayload,
+        selectedChatModel: "minimax/minimax-m2.7",
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockGetLanguageModel).toHaveBeenCalledWith("minimax/minimax-m2.7");
+    expect(mockStreamText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "language-model:minimax/minimax-m2.7",
+      }),
+    );
+  });
+
+  it("falls back to the default model when a non-http caller passes an invalid model id", async () => {
+    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
+
+    await runAgent(
+      {
+        ...validPayload,
+        selectedChatModel: "invalid/provider-model",
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(mockGetLanguageModel).toHaveBeenCalledWith("google/gemini-3-flash");
+    expect(mockStreamText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "language-model:google/gemini-3-flash",
       }),
     );
   });
@@ -926,6 +968,28 @@ describe("runAgent", () => {
           url: "https://storage.example.com/chat-attachments/client-1/shot.png",
         },
       ],
+    });
+  });
+
+  it("preserves the selected chat model when queueing a busy chat run", async () => {
+    mockCreateRun.mockResolvedValue({ created: false });
+
+    const result = await runAgent(
+      {
+        ...validPayload,
+        input: "Use MiniMax for this one",
+        selectedChatModel: "minimax/minimax-m2.7",
+      },
+      "mock-supabase-client" as never,
+    );
+
+    expect(result).toEqual({ status: "queued" });
+    expect(mockEnqueueMessage).toHaveBeenCalledWith("mock-supabase-client", {
+      threadId: validPayload.threadId,
+      clientId: validPayload.clientId,
+      content: "Use MiniMax for this one",
+      channel: "web",
+      selectedChatModel: "minimax/minimax-m2.7",
     });
   });
 

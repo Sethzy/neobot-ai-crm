@@ -8,7 +8,7 @@ import { DefaultChatTransport, type FileUIPart, type UIMessage } from "ai";
 import { useChat } from "@ai-sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle } from "@/components/icons/lucide-compat";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAutoResume } from "@/hooks/use-auto-resume";
 import { mapDbMessageToUiMessage } from "@/lib/chat/message-normalization";
@@ -16,9 +16,16 @@ import { createClient } from "@/lib/supabase/client";
 import { messageQuotaKeys, useMessageQuota } from "@/hooks/use-message-quota";
 import { threadKeys } from "@/hooks/use-threads";
 import {
+  CHAT_MODEL_COOKIE_MAX_AGE,
+  CHAT_MODEL_COOKIE_NAME,
+  DEFAULT_CHAT_MODEL,
+  resolveModelId,
+} from "@/lib/ai/models";
+import {
   type MessageQuotaStatus,
   messageQuotaErrorCodes,
 } from "@/lib/usage/message-quota";
+import type { Json } from "@/types/database";
 import { ChatComposer } from "./chat-composer";
 import { ChatWelcome } from "./chat-welcome";
 import { useDataStream } from "./data-stream-provider";
@@ -46,6 +53,8 @@ interface ChatPanelProps {
   autoResume?: boolean;
   /** Pre-filled prompt text for the composer (e.g. from ?prompt= query param). */
   initialPrompt?: string;
+  /** Initial model restored from the persisted chat-model cookie. */
+  initialChatModel?: string;
 }
 
 interface ParsedChatError {
@@ -100,8 +109,13 @@ export function ChatPanel({
   initialQuota = null,
   autoResume = false,
   initialPrompt,
+  initialChatModel = DEFAULT_CHAT_MODEL,
 }: ChatPanelProps) {
   const [composerValue, setComposerValue] = useState(initialPrompt ?? "");
+  const [selectedChatModel, setSelectedChatModel] = useState(
+    resolveModelId(initialChatModel),
+  );
+  const currentModelIdRef = useRef(resolveModelId(initialChatModel));
   const { setDataStream } = useDataStream();
   const queryClient = useQueryClient();
   const { data: messageQuota } = useMessageQuota(initialQuota);
@@ -122,13 +136,27 @@ export function ChatPanel({
 
           return {
             body: isToolApprovalContinuation
-              ? { id, messages }
-              : { id, message: lastMessage },
+              ? {
+                  id,
+                  messages,
+                  selectedChatModel: currentModelIdRef.current,
+                }
+              : {
+                  id,
+                  message: lastMessage,
+                  selectedChatModel: currentModelIdRef.current,
+                },
           };
         },
       }),
     [],
   );
+
+  useEffect(() => {
+    currentModelIdRef.current = selectedChatModel;
+    document.cookie =
+      `${CHAT_MODEL_COOKIE_NAME}=${selectedChatModel}; path=/; max-age=${CHAT_MODEL_COOKIE_MAX_AGE}`;
+  }, [selectedChatModel]);
 
   const { messages, sendMessage, status, error, stop, resumeStream, setMessages, addToolApprovalResponse } = useChat({
     id: chatId,
@@ -190,16 +218,23 @@ export function ChatPanel({
             message_id: string;
             role: string;
             content: string | null;
-            parts: unknown;
+            parts: Json | null;
           };
 
           // Only append background-job messages — normal chat messages are
           // handled by useChat and would duplicate if appended here.
           const parts = Array.isArray(newRow.parts) ? newRow.parts : [];
           const isBackgroundJob = parts.some(
-            (p: Record<string, unknown>) =>
-              p.type === "data" &&
-              (p.data as Record<string, unknown>)?.source === "background-job",
+            (part) =>
+              typeof part === "object" &&
+              part !== null &&
+              "type" in part &&
+              part.type === "data" &&
+              "data" in part &&
+              typeof part.data === "object" &&
+              part.data !== null &&
+              "source" in part.data &&
+              part.data.source === "background-job",
           );
           if (!isBackgroundJob) return;
 
@@ -263,10 +298,11 @@ export function ChatPanel({
       }
 
       try {
-        await sendMessage({
-          text: text.length > 0 ? text : "",
-          ...(files.length > 0 ? { files } : {}),
-        });
+        if (files.length > 0) {
+          await sendMessage(text.length > 0 ? { text, files } : { files });
+        } else {
+          await sendMessage({ text });
+        }
       } catch (submitError) {
         const parsedSubmitError = submitError instanceof Error
           ? parseChatError(submitError)
@@ -312,8 +348,10 @@ export function ChatPanel({
           <MessageList messages={messages} status={status} onToolApproval={handleToolApproval} onQuestionSubmit={handleQuestionSubmit} />
           <ChatComposer
             status={status}
+            selectedChatModel={selectedChatModel}
             value={composerValue}
             onValueChange={setComposerValue}
+            onSelectedChatModelChange={setSelectedChatModel}
             onSubmit={handleSubmit}
             onStop={stop}
             messageQuota={messageQuota}
@@ -322,8 +360,10 @@ export function ChatPanel({
       ) : (
         <ChatWelcome
           status={status}
+          selectedChatModel={selectedChatModel}
           composerValue={composerValue}
           onComposerValueChange={setComposerValue}
+          onSelectedChatModelChange={setSelectedChatModel}
           onSubmit={handleSubmit}
           onStop={stop}
           messageQuota={messageQuota}

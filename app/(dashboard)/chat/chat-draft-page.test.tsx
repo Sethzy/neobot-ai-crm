@@ -12,11 +12,12 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/components/chat/chat-panel", () => ({
-  ChatPanel: ({ chatId, autoResume, initialPrompt, initialQuota }: { chatId: string; autoResume?: boolean; initialPrompt?: string; initialQuota?: { messagesRemaining: number } | null }) => (
+  ChatPanel: ({ chatId, autoResume, initialPrompt, initialQuota, initialChatModel }: { chatId: string; autoResume?: boolean; initialPrompt?: string; initialQuota?: { messagesRemaining: number } | null; initialChatModel?: string }) => (
     <div>
       <div data-testid="chat-id">{chatId}</div>
       <div data-testid="auto-resume">{String(autoResume)}</div>
       <div data-testid="quota-remaining">{String(initialQuota?.messagesRemaining ?? "none")}</div>
+      <div data-testid="initial-chat-model">{initialChatModel ?? "none"}</div>
       {initialPrompt ? <div data-testid="initial-prompt">{initialPrompt}</div> : null}
     </div>
   ),
@@ -36,11 +37,13 @@ describe("ChatDraftPage", () => {
           periodStart: "2026-03-01",
           nextResetDate: "2026-04-01",
         }}
+        initialChatModel="minimax/minimax-m2.7"
       />,
     );
 
     expect(screen.getByTestId("chat-id")).toHaveTextContent("thread-draft");
     expect(screen.getByTestId("auto-resume")).toHaveTextContent("false");
     expect(screen.getByTestId("quota-remaining")).toHaveTextContent("80");
+    expect(screen.getByTestId("initial-chat-model")).toHaveTextContent("minimax/minimax-m2.7");
   });
 });

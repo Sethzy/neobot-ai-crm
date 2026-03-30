@@ -76,6 +76,18 @@ describe("runnerPayloadSchema", () => {
 
     expect(runnerPayloadSchema.parse(valid)).toEqual(valid);
   });
+
+  test("accepts an optional selected chat model", () => {
+    const valid = {
+      clientId: "550e8400-e29b-41d4-a716-446655440000",
+      threadId: "660e8400-e29b-41d4-a716-446655440000",
+      triggerType: "chat" as const,
+      input: "Use MiniMax for this.",
+      selectedChatModel: "minimax/minimax-m2.7",
+    };
+
+    expect(runnerPayloadSchema.parse(valid)).toEqual(valid);
+  });
 });
 
 describe("toolResultEnvelopeSchema", () => {

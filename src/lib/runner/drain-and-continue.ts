@@ -4,6 +4,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { resolveModelId } from "@/lib/ai/models";
 import { runAgent } from "@/lib/runner/run-agent";
 import {
   drainQueue,
@@ -55,6 +56,8 @@ function splitQueuedMessages(messages: DrainedQueuedMessage[]): {
   }
 
   let nextIndex = 1;
+  const firstModelId = resolveModelId(firstMessage.selectedChatModel);
+
   while (true) {
     const nextMessage = messages[nextIndex];
     if (!nextMessage || nextMessage.triggerType !== "chat") {
@@ -62,6 +65,10 @@ function splitQueuedMessages(messages: DrainedQueuedMessage[]): {
     }
 
     if (nextMessage.fileParts && nextMessage.fileParts.length > 0) {
+      break;
+    }
+
+    if (resolveModelId(nextMessage.selectedChatModel) !== firstModelId) {
       break;
     }
 
@@ -96,6 +103,7 @@ export async function drainAndContinue(
       channel: queuedMessage.channel,
       fileParts: queuedMessage.fileParts,
       triggerType: queuedMessage.triggerType,
+      selectedChatModel: queuedMessage.selectedChatModel,
     });
   }
 
@@ -114,6 +122,9 @@ export async function drainAndContinue(
         ? buildQueuedInput(nextBatch)
         : firstQueuedMessage.text,
       ...(firstQueuedMessage.fileParts ? { fileParts: firstQueuedMessage.fileParts } : {}),
+      ...(firstQueuedMessage.selectedChatModel
+        ? { selectedChatModel: firstQueuedMessage.selectedChatModel }
+        : {}),
     },
     supabase,
   );

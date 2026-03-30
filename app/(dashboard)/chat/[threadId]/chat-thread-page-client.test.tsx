@@ -14,17 +14,20 @@ vi.mock("@/components/chat/chat-panel", () => ({
     initialMessages,
     autoResume,
     initialQuota,
+    initialChatModel,
   }: {
     chatId: string;
     initialMessages: UIMessage[];
     autoResume?: boolean;
     initialQuota?: { messagesRemaining: number } | null;
+    initialChatModel?: string;
   }) => (
     <div>
       <div data-testid="chat-id">{chatId}</div>
       <div data-testid="initial-message-count">{initialMessages.length}</div>
       <div data-testid="auto-resume">{String(autoResume)}</div>
       <div data-testid="quota-remaining">{String(initialQuota?.messagesRemaining ?? "none")}</div>
+      <div data-testid="initial-chat-model">{initialChatModel ?? "none"}</div>
     </div>
   ),
 }));
@@ -48,6 +51,7 @@ describe("ChatThreadPageClient", () => {
           periodStart: "2026-03-01",
           nextResetDate: "2026-04-01",
         }}
+        initialChatModel="minimax/minimax-m2.7"
       />,
     );
 
@@ -55,5 +59,6 @@ describe("ChatThreadPageClient", () => {
     expect(screen.getByTestId("initial-message-count")).toHaveTextContent("1");
     expect(screen.getByTestId("auto-resume")).toHaveTextContent("true");
     expect(screen.getByTestId("quota-remaining")).toHaveTextContent("80");
+    expect(screen.getByTestId("initial-chat-model")).toHaveTextContent("minimax/minimax-m2.7");
   });
 });

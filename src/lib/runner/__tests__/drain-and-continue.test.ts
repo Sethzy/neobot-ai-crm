@@ -42,7 +42,13 @@ describe("drainAndContinue", () => {
   });
 
   it("starts follow-up run with single drained message", async () => {
-    mockDrainQueue.mockResolvedValue([{ text: "Only message", triggerType: "chat" }]);
+    mockDrainQueue.mockResolvedValue([
+      {
+        text: "Only message",
+        triggerType: "chat",
+        selectedChatModel: "minimax/minimax-m2.7",
+      },
+    ]);
     mockRunAgent.mockResolvedValue({ status: "streaming" });
 
     await drainAndContinue("supabase" as never, { clientId: CLIENT, threadId: THREAD });
@@ -53,6 +59,7 @@ describe("drainAndContinue", () => {
         threadId: THREAD,
         triggerType: "chat",
         input: "Only message",
+        selectedChatModel: "minimax/minimax-m2.7",
       },
       "supabase",
     );
@@ -60,8 +67,16 @@ describe("drainAndContinue", () => {
 
   it("batches multiple drained messages into one follow-up run input", async () => {
     mockDrainQueue.mockResolvedValue([
-      { text: "First question", triggerType: "chat" },
-      { text: "Second question", triggerType: "chat" },
+      {
+        text: "First question",
+        triggerType: "chat",
+        selectedChatModel: "google/gemini-3-flash",
+      },
+      {
+        text: "Second question",
+        triggerType: "chat",
+        selectedChatModel: "google/gemini-3-flash",
+      },
     ]);
     mockRunAgent.mockResolvedValue({ status: "streaming" });
 
@@ -73,9 +88,46 @@ describe("drainAndContinue", () => {
         threadId: THREAD,
         triggerType: "chat",
         input: "Messages received while processing:\n1. First question\n2. Second question",
+        selectedChatModel: "google/gemini-3-flash",
       },
       "supabase",
     );
+  });
+
+  it("stops batching when the selected chat model changes", async () => {
+    mockDrainQueue.mockResolvedValue([
+      {
+        text: "Use Gemini for this first reply",
+        triggerType: "chat",
+        selectedChatModel: "google/gemini-3-flash",
+      },
+      {
+        text: "Then switch to MiniMax",
+        triggerType: "chat",
+        selectedChatModel: "minimax/minimax-m2.7",
+      },
+    ]);
+    mockRunAgent.mockResolvedValue({ status: "streaming" });
+
+    await drainAndContinue("supabase" as never, { clientId: CLIENT, threadId: THREAD });
+
+    expect(mockRunAgent).toHaveBeenCalledWith(
+      {
+        clientId: CLIENT,
+        threadId: THREAD,
+        triggerType: "chat",
+        input: "Use Gemini for this first reply",
+        selectedChatModel: "google/gemini-3-flash",
+      },
+      "supabase",
+    );
+    expect(mockEnqueueMessage).toHaveBeenCalledWith("supabase", {
+      threadId: THREAD,
+      clientId: CLIENT,
+      content: "Then switch to MiniMax",
+      triggerType: "chat",
+      selectedChatModel: "minimax/minimax-m2.7",
+    });
   });
 
   it("does not throw when follow-up run result is queued", async () => {

@@ -29,8 +29,10 @@ const CATEGORIES = Object.keys(CATEGORY_LABELS) as Array<AutomationTemplate["cat
 
 interface ChatWelcomeProps {
   status: ChatStatus;
+  selectedChatModel: string;
   composerValue: string;
   onComposerValueChange: (value: string) => void;
+  onSelectedChatModelChange: (modelId: string) => void;
   onSubmit: (message: { text: string; files: FileUIPart[] }) => void;
   onStop: () => void;
   messageQuota?: MessageQuotaStatus | null;
@@ -38,8 +40,10 @@ interface ChatWelcomeProps {
 
 export function ChatWelcome({
   status,
+  selectedChatModel,
   composerValue,
   onComposerValueChange,
+  onSelectedChatModelChange,
   onSubmit,
   onStop,
   messageQuota,
@@ -69,8 +73,10 @@ export function ChatWelcome({
         {/* Centered composer */}
         <ChatComposer
           status={status}
+          selectedChatModel={selectedChatModel}
           value={composerValue}
           onValueChange={onComposerValueChange}
+          onSelectedChatModelChange={onSelectedChatModelChange}
           onSubmit={onSubmit}
           onStop={onStop}
           messageQuota={messageQuota}

@@ -18,6 +18,7 @@ import { resolveApprovalEvent } from "@/lib/approvals/queries";
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { generateTitleFromUserMessage } from "@/lib/ai/title";
+import { allowedModelIds } from "@/lib/ai/models";
 import { ensureClientBootstrap } from "@/lib/memory/bootstrap";
 import { clearActiveStreamId, setActiveStreamId } from "@/lib/redis";
 import { runAgent } from "@/lib/runner/run-agent";
@@ -158,6 +159,10 @@ export async function POST(request: Request): Promise<Response> {
     body = postRequestBodySchema.parse(await request.json());
   } catch {
     return jsonError("Invalid request body.", 400);
+  }
+
+  if (body.selectedChatModel !== undefined && !allowedModelIds.has(body.selectedChatModel)) {
+    return jsonError("Invalid selected chat model.", 400);
   }
 
   const threadId = body.id;
@@ -323,6 +328,7 @@ export async function POST(request: Request): Promise<Response> {
         triggerType: "chat",
         consumeMessageQuota: body.message?.role === "user",
         input,
+        selectedChatModel: body.selectedChatModel,
         ...(fileParts.length > 0 ? { fileParts } : {}),
         crmMode: body.crmMode,
         ...(isCrmConfigModeActive ? { includeConfigTool: true } : {}),

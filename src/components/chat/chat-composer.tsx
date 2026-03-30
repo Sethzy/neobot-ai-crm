@@ -18,6 +18,7 @@ import {
   PromptInputTools,
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input";
+import { ModelSelector } from "@/components/ai-elements/model-selector";
 import { Paperclip } from "@/components/icons/lucide-compat";
 import {
   formatMessageQuotaResetDate,
@@ -35,10 +36,14 @@ interface ChatSubmitInput {
 
 interface ChatComposerProps {
   status: ChatStatus;
+  /** Currently selected model ID for the next outgoing chat message. */
+  selectedChatModel: string;
   /** Current text value of the composer (controlled). */
   value: string;
   /** Called when the composer text changes (typing, clearing on submit). */
   onValueChange: (value: string) => void;
+  /** Called when the user picks a different model from the selector. */
+  onSelectedChatModelChange: (modelId: string) => void;
   onSubmit: (message: ChatSubmitInput) => void;
   onStop: () => void;
   /** Optional CSS class for the outer wrapper div. */
@@ -88,8 +93,10 @@ function removeQueuedFilenames(currentQueue: string[], filenamesToRemove: string
 
 export function ChatComposer({
   status,
+  selectedChatModel,
   value,
   onValueChange,
+  onSelectedChatModelChange,
   onSubmit,
   onStop,
   className,
@@ -307,6 +314,12 @@ export function ChatComposer({
 
           <PromptInputFooter className="items-center">
             <PromptInputTools>
+              <ModelSelector
+                disabled={isGenerating || isQuotaExhausted}
+                onValueChange={onSelectedChatModelChange}
+                value={selectedChatModel}
+              />
+
               <PromptInputButton
                 aria-label="Attach files"
                 disabled={isGenerating || isQuotaExhausted}
