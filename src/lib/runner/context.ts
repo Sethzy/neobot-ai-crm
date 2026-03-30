@@ -14,6 +14,7 @@ import {
   CRM_SETUP_SYSTEM_PROMPT,
   MARKET_DATA_PROMPT,
   PROPERTY_LISTING_PROMPT,
+  SANDBOX_PROMPT,
   SYSTEM_PROMPT,
 } from "@/lib/ai/system-prompt";
 import type { CrmVocabConfig } from "@/lib/crm/config";
@@ -51,6 +52,7 @@ interface AssembleContextParams {
   includeBrowserAutomation?: boolean;
   includeMarketData?: boolean;
   includePropertyListings?: boolean;
+  includeSandbox?: boolean;
   /** When true, injects CRM config mode notice into the system reminder. */
   crmConfigModeActive?: boolean;
   platformInstructions?: string;
@@ -73,6 +75,7 @@ interface AssembleSystemOnlyParams {
   includeBrowserAutomation?: boolean;
   includeMarketData?: boolean;
   includePropertyListings?: boolean;
+  includeSandbox?: boolean;
   platformInstructions?: string;
   systemPrompt?: string;
 }
@@ -102,6 +105,7 @@ interface BuildSystemPromptOptions {
   includeBrowserAutomation?: boolean;
   includeMarketData?: boolean;
   includePropertyListings?: boolean;
+  includeSandbox?: boolean;
   systemPrompt?: string;
 }
 
@@ -134,6 +138,7 @@ function buildSystemPrompt({
   includeBrowserAutomation,
   includeMarketData,
   includePropertyListings,
+  includeSandbox,
   systemPrompt,
 }: BuildSystemPromptOptions): string {
   const activeSystemPrompt = systemPrompt ?? SYSTEM_PROMPT;
@@ -158,6 +163,10 @@ function buildSystemPrompt({
 
   if (includePropertyListings) {
     sections.push(PROPERTY_LISTING_PROMPT);
+  }
+
+  if (includeSandbox) {
+    sections.push(SANDBOX_PROMPT);
   }
 
   if (instructions && instructions.trim().length > 0) {
@@ -306,6 +315,7 @@ export async function assembleSystemOnly({
   includeBrowserAutomation,
   includeMarketData,
   includePropertyListings,
+  includeSandbox,
   platformInstructions,
   systemPrompt,
 }: AssembleSystemOnlyParams): Promise<string> {
@@ -322,7 +332,8 @@ export async function assembleSystemOnly({
     includeBrowserAutomation,
     includeMarketData,
     includePropertyListings,
-    });
+    includeSandbox,
+  });
 
   // For subagent system-only assembly, append memory directly to the system string
   // (there's no messages array to inject into).
@@ -351,6 +362,7 @@ export async function assembleContext({
   includeBrowserAutomation,
   includeMarketData,
   includePropertyListings,
+  includeSandbox,
   crmConfigModeActive,
   platformInstructions,
   systemPrompt,
@@ -469,7 +481,8 @@ export async function assembleContext({
       includeBrowserAutomation,
       includeMarketData,
       includePropertyListings,
-        }),
+      includeSandbox,
+    }),
     messages: [...injectedMessages, ...modelMessages],
   };
 }

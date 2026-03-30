@@ -1119,4 +1119,35 @@ describe("session reset for stale threads", () => {
     );
   });
 
+  it("includes SANDBOX_PROMPT in system prompt when includeSandbox is true", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Analyze this spreadsheet",
+      clientId: "client-123",
+      includeSandbox: true,
+    });
+    expect(result.system).toContain("<sandbox>");
+    expect(result.system).toContain("/vercel/sandbox/workspace");
+  });
+
+  it("excludes SANDBOX_PROMPT when includeSandbox is false", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Hello",
+      clientId: "client-123",
+      includeSandbox: false,
+    });
+    expect(result.system).not.toContain("<sandbox>");
+  });
+
 });

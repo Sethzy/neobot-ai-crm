@@ -9,6 +9,7 @@ import {
   BROWSER_AUTOMATION_PROMPT,
   MARKET_DATA_PROMPT,
   PROPERTY_LISTING_PROMPT,
+  SANDBOX_PROMPT,
   SETUP_SYSTEM_PROMPT,
   SYSTEM_PROMPT,
 } from "@/lib/ai/system-prompt";
@@ -316,5 +317,32 @@ describe("SETUP_SYSTEM_PROMPT", () => {
   it("does not tell the model to use unavailable normal-mode CRM tools", () => {
     expect(SETUP_SYSTEM_PROMPT).not.toContain("search_crm");
     expect(SETUP_SYSTEM_PROMPT).not.toContain("create_record");
+  });
+});
+
+describe("SANDBOX_PROMPT", () => {
+  it("is exported", () => {
+    expect(SANDBOX_PROMPT).toBeDefined();
+    expect(typeof SANDBOX_PROMPT).toBe("string");
+  });
+
+  it("mentions /vercel/sandbox/workspace paths", () => {
+    expect(SANDBOX_PROMPT).toContain("/vercel/sandbox/workspace");
+  });
+
+  it("mentions input/context.json for data passing", () => {
+    expect(SANDBOX_PROMPT).toContain("input/context.json");
+  });
+
+  it("warns against hard-coding data", () => {
+    expect(SANDBOX_PROMPT).toContain("Never enumerate or hard-code");
+  });
+
+  it("mentions output/ for results", () => {
+    expect(SANDBOX_PROMPT).toContain("output/");
+  });
+
+  it("mentions skills/ for reference data", () => {
+    expect(SANDBOX_PROMPT).toContain("skills/");
   });
 });
