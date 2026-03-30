@@ -57,7 +57,6 @@ describe("buildPreloadFiles", () => {
     const result = await buildPreloadFiles({
       supabase: asBuildPreloadSupabase(client),
       clientId: "client-1",
-      fileParts: [],
     });
 
     const paths = result.map((f) => f.path);
@@ -70,7 +69,6 @@ describe("buildPreloadFiles", () => {
     const result = await buildPreloadFiles({
       supabase: asBuildPreloadSupabase(client),
       clientId: "client-1",
-      fileParts: [],
     });
 
     const contextFile = result.find((f) => f.path === "input/context.json");
@@ -86,7 +84,6 @@ describe("buildPreloadFiles", () => {
     const result = await buildPreloadFiles({
       supabase: asBuildPreloadSupabase(client),
       clientId: "client-1",
-      fileParts: [],
     });
 
     const paths = result.map((f) => f.path);
@@ -103,7 +100,6 @@ describe("buildPreloadFiles", () => {
     const result = await buildPreloadFiles({
       supabase: asBuildPreloadSupabase(client),
       clientId: "client-1",
-      fileParts: [],
     });
 
     const paths = result.map((f) => f.path);
@@ -117,10 +113,23 @@ describe("buildPreloadFiles", () => {
     const result = await buildPreloadFiles({
       supabase: asBuildPreloadSupabase(client),
       clientId: "client-1",
-      fileParts: [],
     });
 
     expect(result).toEqual([]);
+  });
+
+  it("does not produce input/ files from fileParts (attachment preload removed)", async () => {
+    const { client } = createMockSupabase({
+      "client-1/uploads/1711792800-deals.csv": "data",
+    });
+
+    const result = await buildPreloadFiles({
+      supabase: asBuildPreloadSupabase(client),
+      clientId: "client-1",
+    });
+
+    const inputFiles = result.filter((f) => f.path.startsWith("input/"));
+    expect(inputFiles).toHaveLength(0);
   });
 
   it("excludes system and connections skill directories", async () => {
@@ -133,7 +142,6 @@ describe("buildPreloadFiles", () => {
     const result = await buildPreloadFiles({
       supabase: asBuildPreloadSupabase(client),
       clientId: "client-1",
-      fileParts: [],
     });
 
     const paths = result.map((f) => f.path);
@@ -142,132 +150,6 @@ describe("buildPreloadFiles", () => {
     expect(paths).toContain("skills/re-analyst/SKILL.md");
   });
 
-  it("sanitizes attachment filenames", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      arrayBuffer: async () => new ArrayBuffer(10),
-    })));
-
-    const { client } = createMockSupabase({});
-    const result = await buildPreloadFiles({
-      supabase: asBuildPreloadSupabase(client),
-      clientId: "client-1",
-      fileParts: [
-        { type: "file" as const, filename: "my deals (2024).xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", url: "https://example.com/file.xlsx" },
-      ],
-    });
-
-    const attachmentFile = result.find((f) => f.path.startsWith("input/") && f.path !== "input/context.json");
-    expect(attachmentFile).toBeDefined();
-    expect(attachmentFile!.path).toBe("input/my_deals__2024_.xlsx");
-
-    vi.unstubAllGlobals();
-  });
-
-  it("renames attachment named context.json to avoid overwriting generated context", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      arrayBuffer: async () => new ArrayBuffer(10),
-    })));
-
-    const { client } = createMockSupabase({});
-    const result = await buildPreloadFiles({
-      supabase: asBuildPreloadSupabase(client),
-      clientId: "client-1",
-      fileParts: [
-        { type: "file" as const, filename: "context.json", mediaType: "application/json", url: "https://example.com/ctx.json" },
-      ],
-    });
-
-    const paths = result.map((f) => f.path);
-    expect(paths).not.toContain("input/context.json");
-    expect(paths).toContain("input/context_2.json");
-
-    vi.unstubAllGlobals();
-  });
-
-  it("deduplicates attachment filenames on collision", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      arrayBuffer: async () => new ArrayBuffer(10),
-    })));
-
-    const { client } = createMockSupabase({});
-    const result = await buildPreloadFiles({
-      supabase: asBuildPreloadSupabase(client),
-      clientId: "client-1",
-      fileParts: [
-        { type: "file" as const, filename: "report.xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", url: "https://example.com/a.xlsx" },
-        { type: "file" as const, filename: "report.xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", url: "https://example.com/b.xlsx" },
-        { type: "file" as const, filename: "report.xlsx", mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", url: "https://example.com/c.xlsx" },
-      ],
-    });
-
-    const paths = result.map((f) => f.path).sort();
-    expect(paths).toEqual([
-      "input/report.xlsx",
-      "input/report_2.xlsx",
-      "input/report_3.xlsx",
-    ]);
-
-    vi.unstubAllGlobals();
-  });
-
-  it("downloads attachments by storagePath from Supabase before falling back to URL fetch", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { client, bucket } = createMockSupabase({
-      "client-1/attachments/deals.csv": "a,b\n1,2",
-    });
-    const result = await buildPreloadFiles({
-      supabase: asBuildPreloadSupabase(client),
-      clientId: "client-1",
-      fileParts: [
-        {
-          type: "file" as const,
-          filename: "deals.csv",
-          mediaType: "text/csv",
-          url: "https://expired.example.com/deals.csv",
-          storagePath: "attachments/deals.csv",
-        },
-      ],
-    });
-
-    expect(bucket.download).toHaveBeenCalledWith("client-1/attachments/deals.csv");
-    expect(fetchMock).not.toHaveBeenCalled();
-    const attachmentFile = result.find((f) => f.path === "input/deals.csv");
-    expect(attachmentFile).toBeDefined();
-    expect(attachmentFile!.content).toEqual(Buffer.from("a,b\n1,2"));
-
-    vi.unstubAllGlobals();
-  });
-
-  it("falls back to URL fetch when storagePath is missing", async () => {
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      arrayBuffer: async () => new ArrayBuffer(10),
-    }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { client } = createMockSupabase({});
-    await buildPreloadFiles({
-      supabase: asBuildPreloadSupabase(client),
-      clientId: "client-1",
-      fileParts: [
-        {
-          type: "file" as const,
-          filename: "legacy.csv",
-          mediaType: "text/csv",
-          url: "https://legacy.example.com/legacy.csv",
-        },
-      ],
-    });
-
-    expect(fetchMock).toHaveBeenCalledWith("https://legacy.example.com/legacy.csv");
-
-    vi.unstubAllGlobals();
-  });
 });
 
 function createDelayedMockBucket(files: Record<string, string | null>, delayMs: number) {
@@ -321,7 +203,6 @@ describe("parallel skill download", () => {
     const result = await buildPreloadFiles({
       supabase: asBuildPreloadSupabase(mockSupabase),
       clientId: "client-1",
-      fileParts: [],
     });
     const elapsed = Date.now() - start;
 

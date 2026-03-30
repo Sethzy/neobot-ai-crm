@@ -329,7 +329,6 @@ export async function runAgent(
           buildPreloadFiles({
             supabase,
             clientId,
-            fileParts: payload.fileParts ?? [],
           }),
         getContextEntries: () => toolResultAccumulator,
         fileClient,

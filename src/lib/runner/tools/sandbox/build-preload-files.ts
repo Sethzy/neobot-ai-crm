@@ -9,7 +9,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { MEMORY_BUCKET_ID } from "@/lib/memory/constants";
-import type { RunnerFilePart } from "@/lib/runner/schemas";
 
 import type { SandboxPreloadFile } from "./types";
 
@@ -19,7 +18,6 @@ const EXCLUDED_SKILL_DIRS = new Set(["system", "connections", "superpowers"]);
 export interface BuildPreloadFilesOptions {
   supabase: SupabaseClient;
   clientId: string;
-  fileParts: RunnerFilePart[];
 }
 
 type StorageBucket = ReturnType<SupabaseClient["storage"]["from"]>;
@@ -71,9 +69,10 @@ export async function downloadStorageDirectory(
 /**
  * Builds the complete list of files to preload into the sandbox.
  *
- * Two categories:
+ * Three categories:
  * 1. User-authored skill directories → `skills/{slug}/...`
- * 2. Chat attachments → `input/{filename}`
+ * 2. Uploaded files → `agent/uploads/...`
+ * 3. Persistent home files → `agent/home/...`
  *
  * Note: context.json is NOT built here. It is owned by createLazyBashTool
  * which has access to the latest tool results via getContextEntries().
@@ -81,7 +80,7 @@ export async function downloadStorageDirectory(
 export async function buildPreloadFiles(
   options: BuildPreloadFilesOptions,
 ): Promise<SandboxPreloadFile[]> {
-  const { supabase, clientId, fileParts } = options;
+  const { supabase, clientId } = options;
   const bucket = supabase.storage.from(MEMORY_BUCKET_ID);
   const files: SandboxPreloadFile[] = [];
 
@@ -113,65 +112,7 @@ export async function buildPreloadFiles(
   );
   files.push(...homeFiles);
 
-  // 4. Download chat file attachments (RunnerFilePart from payload.fileParts)
-  // Reserve context.json — it is written by createLazyBashTool at sandbox init time
-  const usedNames = new Set<string>(["context.json"]);
-  for (const part of fileParts) {
-    try {
-      const buffer = await downloadAttachmentContent(bucket, clientId, part);
-      if (!buffer) {
-        continue;
-      }
-      const rawName = part.filename ?? "attachment";
-      let safeName = rawName.replace(/[^a-zA-Z0-9._-]/g, "_");
-
-      // Dedup: append counter suffix on collision
-      if (usedNames.has(safeName)) {
-        const dot = safeName.lastIndexOf(".");
-        const base = dot > 0 ? safeName.slice(0, dot) : safeName;
-        const ext = dot > 0 ? safeName.slice(dot) : "";
-        let counter = 2;
-        while (usedNames.has(`${base}_${counter}${ext}`)) counter++;
-        safeName = `${base}_${counter}${ext}`;
-      }
-      usedNames.add(safeName);
-
-      files.push({ path: `input/${safeName}`, content: buffer });
-    } catch (error) {
-      console.warn("[sandbox] Attachment download failed (non-fatal):", error);
-    }
-  }
-
   return files;
-}
-
-/**
- * Downloads a chat attachment from Supabase Storage when a durable path is
- * available, then falls back to the transient signed URL for legacy payloads.
- */
-async function downloadAttachmentContent(
-  bucket: StorageBucket,
-  clientId: string,
-  part: RunnerFilePart,
-): Promise<Buffer | null> {
-  if (part.storagePath) {
-    const { data, error } = await bucket.download(`${clientId}/${part.storagePath}`);
-    if (data) {
-      return Buffer.from(await data.arrayBuffer());
-    }
-
-    console.warn(
-      `[sandbox] Attachment storage download failed: ${error?.message ?? "unknown error"} for ${part.storagePath}`,
-    );
-  }
-
-  const response = await fetch(part.url);
-  if (!response.ok) {
-    console.warn(`[sandbox] Attachment fetch failed: ${response.status} for ${part.filename ?? part.url}`);
-    return null;
-  }
-
-  return Buffer.from(await response.arrayBuffer());
 }
 
 /**
