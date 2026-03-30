@@ -80,27 +80,6 @@ async function createOpaqueJpegArrayBuffer(): Promise<ArrayBuffer> {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
 }
 
-function createSupabaseMock() {
-  const upsert = vi.fn().mockResolvedValue({ data: null, error: null });
-  const deleteBuilder = {
-    eq: vi.fn().mockReturnThis(),
-    then: undefined as unknown,
-  };
-  deleteBuilder.then = (resolve: (value: unknown) => void) =>
-    Promise.resolve({ data: null, error: null }).then(resolve);
-
-  const deleteRows = vi.fn(() => deleteBuilder);
-  const from = vi.fn(() => ({ upsert, delete: deleteRows }));
-
-  return {
-    supabase: { from },
-    upsert,
-    deleteRows,
-    eq: deleteBuilder.eq,
-    from,
-  };
-}
-
 describe("createStorageTools", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -113,6 +92,23 @@ describe("createStorageTools", () => {
     expect(mockCreateAgentFileClient).toHaveBeenCalledWith("mock-supabase", CLIENT_ID);
     expect(tools.read_file).toBeDefined();
     expect(tools.write_file).toBeDefined();
+  });
+
+  it("exposes only read_file and write_file storage tools", () => {
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    expect(tools).toHaveProperty("read_file");
+    expect(tools).toHaveProperty("write_file");
+    expect(tools).not.toHaveProperty("search_knowledge");
+  });
+
+  it("does not mention /agent/vault/ in storage tool path descriptions", () => {
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    expect(tools.read_file.inputSchema.shape.path.description).toContain("/agent/home/");
+    expect(tools.read_file.inputSchema.shape.path.description).not.toContain("/agent/vault/");
+    expect(tools.write_file.inputSchema.shape.path.description).toContain("/agent/home/notes.md");
+    expect(tools.write_file.inputSchema.shape.path.description).not.toContain("/agent/vault/");
   });
 
   it("describes image/PDF reads and negative line indices to the model", () => {
@@ -188,7 +184,7 @@ describe("createStorageTools", () => {
     const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
 
     await expect(
-      tools.read_file.execute({ path: "vault/photo.png", end_line: 0 }, EXECUTION_OPTIONS),
+      tools.read_file.execute({ path: "home/photo.png", end_line: 0 }, EXECUTION_OPTIONS),
     ).rejects.toThrow("end_line cannot be 0");
   });
 
@@ -217,6 +213,16 @@ describe("createStorageTools", () => {
       tools.read_file.execute({ path: "MEMORY.md" }, EXECUTION_OPTIONS),
     ).rejects.toThrow("Permission denied");
     expect(mockFileClient.listDirectory).not.toHaveBeenCalled();
+  });
+
+  it("rejects read_file for removed vault paths", async () => {
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    await expect(
+      tools.read_file.execute({ path: "/agent/vault/report.pdf" }, EXECUTION_OPTIONS),
+    ).rejects.toThrow(
+      'The "vault" directory has been removed. Use Google Drive for document storage instead.',
+    );
   });
 
   it("strips /agent/ prefix before reading text files and returns canonical output paths", async () => {
@@ -261,15 +267,15 @@ describe("createStorageTools", () => {
     const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
 
     const result = await tools.read_file.execute(
-      { path: "/agent/vault/photo.png" },
+      { path: "/agent/home/photo.png" },
       EXECUTION_OPTIONS,
     );
 
-    expect(mockFileClient.downloadBinary).toHaveBeenCalledWith("vault/photo.png");
+    expect(mockFileClient.downloadBinary).toHaveBeenCalledWith("home/photo.png");
     expect(result).toMatchObject({
       success: true,
       type: "image",
-      path: "/agent/vault/photo.png",
+      path: "/agent/home/photo.png",
     });
   });
 
@@ -319,6 +325,19 @@ describe("createStorageTools", () => {
     });
   });
 
+  it("rejects write_file for removed vault paths", async () => {
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
+
+    await expect(
+      tools.write_file.execute(
+        { op: "write", path: "/agent/vault/notes.md", content: "x" },
+        EXECUTION_OPTIONS,
+      ),
+    ).rejects.toThrow(
+      'The "vault" directory has been removed. Use Google Drive for document storage instead.',
+    );
+  });
+
   it("write_file edit op delegates to file client", async () => {
     mockFileClient.editFile.mockResolvedValue("updated");
     const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
@@ -365,8 +384,7 @@ describe("createStorageTools", () => {
 
   it("strips /agent/ prefix before storage writes and returns canonical paths", async () => {
     mockFileClient.uploadFile.mockResolvedValue(undefined);
-    const { supabase } = createSupabaseMock();
-    const tools = createStorageTools(supabase as never, CLIENT_ID);
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
 
     const result = await tools.write_file.execute(
       {
@@ -388,21 +406,20 @@ describe("createStorageTools", () => {
     });
   });
 
-  it("returns canonical /agent/ paths for vault write ops", async () => {
+  it("returns canonical /agent/ paths for home write ops", async () => {
     mockFileClient.uploadFile.mockResolvedValue(undefined);
-    const { supabase } = createSupabaseMock();
-    const tools = createStorageTools(supabase as never, CLIENT_ID);
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
 
     const result = await tools.write_file.execute(
-      { op: "write", path: "/agent/vault/notes.md", content: "vault content" },
+      { op: "write", path: "/agent/home/notes.md", content: "home content" },
       EXECUTION_OPTIONS,
     );
 
-    expect(mockFileClient.uploadFile).toHaveBeenCalledWith("vault/notes.md", "vault content");
+    expect(mockFileClient.uploadFile).toHaveBeenCalledWith("home/notes.md", "home content");
     expect(result).toMatchObject({
       success: true,
-      path: "/agent/vault/notes.md",
-      path_kind: "vault",
+      path: "/agent/home/notes.md",
+      path_kind: "general",
     });
   });
 
@@ -460,13 +477,12 @@ describe("createStorageTools", () => {
     });
   });
 
-  it("write_file classifies vault and skills paths for path-aware handling", async () => {
+  it("write_file classifies home and skills paths for path-aware handling", async () => {
     mockFileClient.uploadFile.mockResolvedValue(undefined);
-    const { supabase } = createSupabaseMock();
-    const tools = createStorageTools(supabase as never, CLIENT_ID);
+    const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
 
-    const vaultResult = await tools.write_file.execute(
-      { op: "write", path: "vault/lead-notes.md", content: "..." },
+    const homeResult = await tools.write_file.execute(
+      { op: "write", path: "home/lead-notes.md", content: "..." },
       EXECUTION_OPTIONS,
     );
     const skillResult = await tools.write_file.execute(
@@ -474,11 +490,11 @@ describe("createStorageTools", () => {
       EXECUTION_OPTIONS,
     );
 
-    expect(vaultResult).toEqual({
+    expect(homeResult).toEqual({
       success: true,
       op: "write",
-      path: "/agent/vault/lead-notes.md",
-      path_kind: "vault",
+      path: "/agent/home/lead-notes.md",
+      path_kind: "general",
     });
     expect(skillResult).toEqual({
       success: true,
@@ -486,96 +502,6 @@ describe("createStorageTools", () => {
       path: "/agent/skills/gmail/SKILL.md",
       path_kind: "skills",
     });
-  });
-
-  it("write_file syncs vault metadata on write", async () => {
-    mockFileClient.uploadFile.mockResolvedValue(undefined);
-    const { supabase, upsert, from } = createSupabaseMock();
-    const tools = createStorageTools(supabase as never, CLIENT_ID);
-
-    await tools.write_file.execute(
-      { op: "write", path: "vault/Lead Notes.md", content: "prefers WhatsApp follow-up" },
-      EXECUTION_OPTIONS,
-    );
-
-    expect(from).toHaveBeenCalledWith("vault_files");
-    expect(upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        client_id: CLIENT_ID,
-        filename: "Lead Notes.md",
-        storage_path: "vault/Lead Notes.md",
-        title: "lead-notes",
-        content: "prefers WhatsApp follow-up",
-        needs_reprocess: true,
-      }),
-      { onConflict: "client_id,storage_path" },
-    );
-  });
-
-  it("write_file normalizes vault paths before storage write and metadata sync", async () => {
-    mockFileClient.uploadFile.mockResolvedValue(undefined);
-    const { supabase, upsert } = createSupabaseMock();
-    const tools = createStorageTools(supabase as never, CLIENT_ID);
-
-    await tools.write_file.execute(
-      { op: "write", path: "//vault\\\\Lead Notes.md", content: "prefers WhatsApp follow-up" },
-      EXECUTION_OPTIONS,
-    );
-
-    expect(mockFileClient.uploadFile).toHaveBeenCalledWith(
-      "vault/Lead Notes.md",
-      "prefers WhatsApp follow-up",
-    );
-    expect(upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        storage_path: "vault/Lead Notes.md",
-      }),
-      { onConflict: "client_id,storage_path" },
-    );
-  });
-
-  it("write_file retries transient vault metadata upsert failures", async () => {
-    mockFileClient.uploadFile.mockResolvedValue(undefined);
-
-    const upsert = vi
-      .fn()
-      .mockResolvedValueOnce({ data: null, error: { message: "connection reset by peer" } })
-      .mockResolvedValueOnce({ data: null, error: { message: "network timeout" } })
-      .mockResolvedValueOnce({ data: null, error: null });
-
-    const supabase = {
-      from: vi.fn(() => ({ upsert })),
-    };
-    const tools = createStorageTools(supabase as never, CLIENT_ID);
-
-    await expect(
-      tools.write_file.execute(
-        { op: "write", path: "vault/lead-notes.md", content: "..." },
-        EXECUTION_OPTIONS,
-      ),
-    ).resolves.toEqual({
-      success: true,
-      op: "write",
-      path: "/agent/vault/lead-notes.md",
-      path_kind: "vault",
-    });
-
-    expect(upsert).toHaveBeenCalledTimes(3);
-  });
-
-  it("write_file removes vault metadata row on delete", async () => {
-    mockFileClient.deleteFile.mockResolvedValue(undefined);
-    const { supabase, deleteRows, eq } = createSupabaseMock();
-    const tools = createStorageTools(supabase as never, CLIENT_ID);
-
-    await tools.write_file.execute(
-      { op: "delete", path: "vault/obsolete.md" },
-      EXECUTION_OPTIONS,
-    );
-
-    expect(deleteRows).toHaveBeenCalled();
-    expect(eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
-    expect(eq).toHaveBeenCalledWith("storage_path", "vault/obsolete.md");
   });
 
   it("bubbles protected-file errors from write operations", async () => {
@@ -597,13 +523,13 @@ describe("createStorageTools", () => {
     mockFileClient.downloadFile.mockResolvedValue("not-image-content");
     const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
 
-    const result = await tools.read_file.execute({ path: "vault/photo.png" }, EXECUTION_OPTIONS);
+    const result = await tools.read_file.execute({ path: "home/photo.png" }, EXECUTION_OPTIONS);
 
-    expect(mockFileClient.downloadBinary).toHaveBeenCalledWith("vault/photo.png");
+    expect(mockFileClient.downloadBinary).toHaveBeenCalledWith("home/photo.png");
     expect(result).toMatchObject({
       success: true,
       type: "image",
-      path: "/agent/vault/photo.png",
+      path: "/agent/home/photo.png",
     });
     expect(result).toHaveProperty("data");
     expect(result).toHaveProperty("mediaType");
@@ -617,13 +543,13 @@ describe("createStorageTools", () => {
     mockFileClient.downloadFile.mockResolvedValue("not-image-content");
     const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
 
-    const result = await tools.read_file.execute({ path: "vault/PHOTO.PNG" }, EXECUTION_OPTIONS);
+    const result = await tools.read_file.execute({ path: "home/PHOTO.PNG" }, EXECUTION_OPTIONS);
 
-    expect(mockFileClient.downloadBinary).toHaveBeenCalledWith("vault/PHOTO.PNG");
+    expect(mockFileClient.downloadBinary).toHaveBeenCalledWith("home/PHOTO.PNG");
     expect(result).toMatchObject({
       success: true,
       type: "image",
-      path: "/agent/vault/PHOTO.PNG",
+      path: "/agent/home/PHOTO.PNG",
     });
   });
 
@@ -634,12 +560,12 @@ describe("createStorageTools", () => {
     });
     const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
 
-    const result = await tools.read_file.execute({ path: "vault/photo.jpg" }, EXECUTION_OPTIONS);
+    const result = await tools.read_file.execute({ path: "home/photo.jpg" }, EXECUTION_OPTIONS);
 
     expect(result).toMatchObject({
       success: true,
       type: "image",
-      path: "/agent/vault/photo.jpg",
+      path: "/agent/home/photo.jpg",
       mediaType: "image/jpeg",
     });
   });
@@ -651,12 +577,12 @@ describe("createStorageTools", () => {
     });
     const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
 
-    const result = await tools.read_file.execute({ path: "vault/photo.jpg" }, EXECUTION_OPTIONS);
+    const result = await tools.read_file.execute({ path: "home/photo.jpg" }, EXECUTION_OPTIONS);
 
     expect(result).toMatchObject({
       success: true,
       type: "image",
-      path: "/agent/vault/photo.jpg",
+      path: "/agent/home/photo.jpg",
       mediaType: "image/jpeg",
     });
 
@@ -670,7 +596,7 @@ describe("createStorageTools", () => {
     mockFileClient.downloadFile.mockResolvedValue(
       JSON.stringify({
         success: true,
-        path: "vault/photo.png",
+        path: "home/photo.png",
         type: "image",
         data: TINY_TRANSPARENT_PNG_BASE64,
         mediaType: "image/png",
@@ -685,55 +611,10 @@ describe("createStorageTools", () => {
 
     expect(result).toEqual({
       success: true,
-      path: "/agent/vault/photo.png",
+      path: "/agent/home/photo.png",
       type: "image",
       data: TINY_TRANSPARENT_PNG_BASE64,
       mediaType: "image/png",
-    });
-  });
-
-  it("prefixes search_knowledge storage_path values with /agent/", async () => {
-    const mockSearchSupabase = {
-      from: vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            textSearch: vi.fn(() => ({
-              limit: vi.fn(() =>
-                Promise.resolve({
-                  data: [
-                    {
-                      filename: "notes.md",
-                      storage_path: "vault/notes.md",
-                      title: "notes",
-                      summary: "Some notes",
-                    },
-                  ],
-                  error: null,
-                })
-              ),
-            })),
-          })),
-        })),
-      })),
-    };
-    const tools = createStorageTools(mockSearchSupabase as never, CLIENT_ID);
-
-    const result = await tools.search_knowledge.execute(
-      { query: "notes" },
-      EXECUTION_OPTIONS,
-    );
-
-    expect(result).toEqual({
-      success: true,
-      query: "notes",
-      results: [
-        {
-          filename: "notes.md",
-          storage_path: "/agent/vault/notes.md",
-          title: "notes",
-          summary: "Some notes",
-        },
-      ],
     });
   });
 
@@ -834,11 +715,11 @@ describe("read_file toModelOutput", () => {
 
     const result = await tools.read_file.toModelOutput?.({
       toolCallId: "call-1",
-      input: { path: "vault/photo.png" },
+      input: { path: "home/photo.png" },
       output: {
         success: true,
         type: "image",
-        path: "vault/photo.png",
+        path: "home/photo.png",
         data: "base64encodeddata",
         mediaType: "image/png",
       },
@@ -911,13 +792,13 @@ describe("read_file PDF support", () => {
     });
     const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
 
-    const result = await tools.read_file.execute({ path: "vault/report.pdf" }, EXECUTION_OPTIONS);
+    const result = await tools.read_file.execute({ path: "home/report.pdf" }, EXECUTION_OPTIONS);
 
-    expect(mockFileClient.downloadBinary).toHaveBeenCalledWith("vault/report.pdf");
+    expect(mockFileClient.downloadBinary).toHaveBeenCalledWith("home/report.pdf");
     expect(result).toMatchObject({
       success: true,
       type: "pdf",
-      path: "/agent/vault/report.pdf",
+      path: "/agent/home/report.pdf",
       mediaType: "application/pdf",
     });
     expect(result).toHaveProperty("data");
@@ -932,7 +813,7 @@ describe("read_file PDF support", () => {
     });
     const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
 
-    const result = await tools.read_file.execute({ path: "vault/Report.PDF" }, EXECUTION_OPTIONS);
+    const result = await tools.read_file.execute({ path: "home/Report.PDF" }, EXECUTION_OPTIONS);
 
     expect(result).toMatchObject({ success: true, type: "pdf" });
   });
@@ -946,7 +827,7 @@ describe("read_file PDF support", () => {
     const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
 
     await expect(
-      tools.read_file.execute({ path: "vault/huge.pdf" }, EXECUTION_OPTIONS),
+      tools.read_file.execute({ path: "home/huge.pdf" }, EXECUTION_OPTIONS),
     ).rejects.toThrow("10 MB");
   });
 
@@ -958,7 +839,7 @@ describe("read_file PDF support", () => {
     });
     const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
 
-    const result = await tools.read_file.execute({ path: "vault/exact.pdf" }, EXECUTION_OPTIONS);
+    const result = await tools.read_file.execute({ path: "home/exact.pdf" }, EXECUTION_OPTIONS);
 
     expect(result).toMatchObject({ success: true, type: "pdf" });
   });
@@ -972,15 +853,15 @@ describe("read_file PDF support", () => {
     const tools = createStorageTools("mock-supabase" as never, CLIENT_ID);
 
     const result = await tools.read_file.execute(
-      { path: "/agent/vault/report.pdf" },
+      { path: "/agent/home/report.pdf" },
       EXECUTION_OPTIONS,
     );
 
-    expect(mockFileClient.downloadBinary).toHaveBeenCalledWith("vault/report.pdf");
+    expect(mockFileClient.downloadBinary).toHaveBeenCalledWith("home/report.pdf");
     expect(result).toMatchObject({
       success: true,
       type: "pdf",
-      path: "/agent/vault/report.pdf",
+      path: "/agent/home/report.pdf",
     });
   });
 });
@@ -998,14 +879,14 @@ describe("read_file toModelOutput for PDFs", () => {
     const pdfOutput = {
       success: true,
       type: "pdf" as const,
-      path: "/agent/vault/report.pdf",
+      path: "/agent/home/report.pdf",
       data: "base64pdfdata",
       mediaType: "application/pdf",
     };
 
     const result = await toModelOutput({
       toolCallId: "call-pdf",
-      input: { path: "vault/report.pdf" },
+      input: { path: "home/report.pdf" },
       output: pdfOutput,
     });
 
