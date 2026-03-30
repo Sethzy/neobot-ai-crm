@@ -133,3 +133,46 @@ export function generateFileTree(files: SandboxPreloadFile[]): string {
   }
   return lines.join("\n");
 }
+
+/**
+ * Generates a compact directory summary for extraInstructions.
+ *
+ * Contract:
+ * - agent/uploads/ (N files) — total files under agent/uploads/
+ * - agent/home/ (N files) — total files under agent/home/
+ * - skills/ (N skills) — count of top-level skill directories
+ * - input/context.json — listed explicitly
+ * - Empty directories omitted
+ * - Individual filenames never listed
+ */
+export function generateFileSummary(files: SandboxPreloadFile[]): string {
+  if (files.length === 0) return "(no files)";
+
+  let uploadCount = 0;
+  let homeCount = 0;
+  const skillSlugs = new Set<string>();
+  const explicitFiles: string[] = [];
+
+  for (const file of files) {
+    if (file.path.startsWith("agent/uploads/")) {
+      uploadCount++;
+    } else if (file.path.startsWith("agent/home/")) {
+      homeCount++;
+    } else if (file.path.startsWith("skills/")) {
+      const slug = file.path.split("/")[1];
+      if (slug) skillSlugs.add(slug);
+    } else {
+      explicitFiles.push(file.path);
+    }
+  }
+
+  const lines: string[] = [];
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+  if (uploadCount > 0) lines.push(`  agent/uploads/ (${plural(uploadCount, "file")})`);
+  if (homeCount > 0) lines.push(`  agent/home/ (${plural(homeCount, "file")})`);
+  if (skillSlugs.size > 0) lines.push(`  skills/ (${plural(skillSlugs.size, "skill")})`);
+  for (const f of explicitFiles.sort()) lines.push(`  ${f}`);
+
+  return lines.join("\n");
+}

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { SandboxPreloadFile } from "../types";
-import { buildPreloadFiles, downloadStorageDirectory, generateFileTree } from "../build-preload-files";
+import { buildPreloadFiles, downloadStorageDirectory, generateFileSummary, generateFileTree } from "../build-preload-files";
 
 type BuildPreloadSupabase = Parameters<typeof buildPreloadFiles>[0]["supabase"];
 
@@ -232,6 +232,54 @@ describe("generateFileTree", () => {
 
   it("returns '(no files)' for empty list", () => {
     expect(generateFileTree([])).toBe("(no files)");
+  });
+});
+
+describe("generateFileSummary", () => {
+  it("shows agent directories with file counts and skills by directory count", () => {
+    const files: SandboxPreloadFile[] = [
+      { path: "agent/uploads/deals.csv", content: Buffer.from("") },
+      { path: "agent/uploads/listing.pdf", content: Buffer.from("") },
+      { path: "agent/uploads/photo.jpg", content: Buffer.from("") },
+      { path: "agent/home/report.xlsx", content: Buffer.from("") },
+      { path: "agent/home/scripts/clean.py", content: Buffer.from("") },
+      { path: "skills/re-analyst/SKILL.md", content: Buffer.from("") },
+      { path: "skills/re-analyst/references/taxes.md", content: Buffer.from("") },
+      { path: "skills/market-report/SKILL.md", content: Buffer.from("") },
+      { path: "input/context.json", content: Buffer.from("") },
+    ];
+    const summary = generateFileSummary(files);
+    expect(summary).toContain("agent/uploads/ (3 files)");
+    expect(summary).toContain("agent/home/ (2 files)");
+    expect(summary).toContain("skills/ (2 skills)");
+    expect(summary).toContain("input/context.json");
+    // Must NOT list individual filenames for agent/ directories
+    expect(summary).not.toContain("deals.csv");
+    expect(summary).not.toContain("report.xlsx");
+    expect(summary).not.toContain("SKILL.md");
+  });
+
+  it("uses singular 'file' for count of 1", () => {
+    const files: SandboxPreloadFile[] = [
+      { path: "agent/home/report.xlsx", content: Buffer.from("") },
+    ];
+    const summary = generateFileSummary(files);
+    expect(summary).toContain("agent/home/ (1 file)");
+    expect(summary).not.toContain("1 files");
+  });
+
+  it("omits empty directories", () => {
+    const files: SandboxPreloadFile[] = [
+      { path: "input/context.json", content: Buffer.from("") },
+    ];
+    const summary = generateFileSummary(files);
+    expect(summary).not.toContain("agent/uploads/");
+    expect(summary).not.toContain("agent/home/");
+    expect(summary).toContain("input/context.json");
+  });
+
+  it("returns '(no files)' for empty list", () => {
+    expect(generateFileSummary([])).toBe("(no files)");
   });
 });
 

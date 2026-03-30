@@ -12,7 +12,7 @@ import type { Sandbox } from "@vercel/sandbox";
 import { z } from "zod";
 
 import { buildContextJson } from "./build-context-json";
-import { generateFileTree } from "./build-preload-files";
+import { generateFileSummary } from "./build-preload-files";
 import { syncOutputArtifacts } from "./sync-output-artifacts";
 import type { SandboxContextEntry, SandboxPreloadFile, SyncedArtifact } from "./types";
 
@@ -161,12 +161,11 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
     }
 
     // 3. Create bash-tool instance
-    const fileTree = generateFileTree(allFiles);
+    const fileSummary = generateFileSummary(allFiles);
     const extraInstructions = [
       `\nFiles preloaded in workspace:`,
-      fileTree,
-      `\nWrite persistent result files to /vercel/sandbox/workspace/agent/home/.`,
-      `Only files saved in /vercel/sandbox/workspace/agent/home/ are synced back to storage automatically.`,
+      fileSummary,
+      `\nUse \`ls\` to discover individual files.`,
     ].join("\n");
 
     const { bash } = await createBashTool({

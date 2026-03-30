@@ -151,10 +151,10 @@ describe("createLazyBashTool", () => {
       "mkdir -p /vercel/sandbox/workspace/agent/home",
     ]);
     expect(createBashToolMock).toHaveBeenCalledWith(expect.objectContaining({
-      extraInstructions: expect.stringContaining("/workspace/agent/home/"),
+      extraInstructions: expect.stringContaining("Files preloaded in workspace"),
     }));
     expect(createBashToolMock).toHaveBeenCalledWith(expect.objectContaining({
-      extraInstructions: expect.not.stringContaining("output/"),
+      extraInstructions: expect.stringContaining("`ls`"),
     }));
 
     await cleanup();
