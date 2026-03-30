@@ -131,7 +131,6 @@ npx tsx scripts/qa/analyze.ts scripts/qa/output/qa-all-20260313-a3f2.json --save
 |---|---------|-----------|------------------|
 | 02 | Chat Core | 3 | rename_chat |
 | 03 | CRM Tools | 22 | create_record, search_crm, update_record, delete_records, link_records, create_interaction, create_task, update_task, configure_crm |
-| 05 | Knowledge Base | 2 | run_sql, search_knowledge |
 | 06 | File & Memory | 6 | read_file, write_file |
 | 07 | Platform Intelligence | 15 | run_sql, get_agent_db_schema, manage_todo, list_todo, web_search, web_scrape, calculate_drive_time, ask_user_question |
 | 08 | Triggers | 5 | setup_trigger, manage_active_triggers, search_triggers |
