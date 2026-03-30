@@ -1791,7 +1791,7 @@ describe("runAgent", () => {
           },
           {
             type: "text",
-            text: "[User uploaded files are available in the sandbox at /input/. Use bash to list and process them.]",
+            text: "[User uploaded files are available in the sandbox at agent/uploads/. Use bash to list and process them.]",
           },
           { type: "text", text: "Review these files" },
         ],
@@ -1839,7 +1839,7 @@ describe("runAgent", () => {
         currentMessageParts: [
           {
             type: "text",
-            text: "[User uploaded files are available in the sandbox at /input/. Use bash to list and process them.]",
+            text: "[User uploaded files are available in the sandbox at agent/uploads/. Use bash to list and process them.]",
           },
           { type: "text", text: "Check the attached note" },
         ],

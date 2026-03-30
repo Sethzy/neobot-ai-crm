@@ -177,7 +177,7 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
     description: [
       "Execute a bash command in an isolated sandbox environment.",
       "The sandbox has Python 3 (pandas, openpyxl, matplotlib, numpy), Node 22, LibreOffice, and standard CLI tools.",
-      "User files are at input/, skill references at skills/, and persistent results belong in agent/home/.",
+      "User uploads are at agent/uploads/, skill references at skills/, and persistent results belong in agent/home/.",
     ].join(" "),
     inputSchema: z.object({
       command: z.string().describe("The bash command to execute."),

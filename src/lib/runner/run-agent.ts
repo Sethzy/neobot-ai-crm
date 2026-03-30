@@ -228,7 +228,7 @@ export async function runAgent(
       ...(sandboxOnlyParts.length > 0
         ? [{
             type: "text" as const,
-            text: "[User uploaded files are available in the sandbox at /input/. Use bash to list and process them.]",
+            text: "[User uploaded files are available in the sandbox at agent/uploads/. Use bash to list and process them.]",
           }]
         : []),
       ...(input.length > 0 ? [{ type: "text" as const, text: input }] : []),
