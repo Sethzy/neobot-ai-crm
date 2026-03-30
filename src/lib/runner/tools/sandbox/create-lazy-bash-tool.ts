@@ -7,6 +7,8 @@
  *
  * @module lib/runner/tools/sandbox/create-lazy-bash-tool
  */
+import { createHash } from "node:crypto";
+
 import { tool, type Tool } from "ai";
 import type { Sandbox } from "@vercel/sandbox";
 import { z } from "zod";
@@ -153,6 +155,17 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
 
     // 2b. Ensure agent/home/ directory exists for artifact sync target
     await sandbox.mkDir(`${WORKSPACE}/agent/home`);
+
+    // 2c. Seed artifact hash baseline from preloaded home/ files so the
+    //     first sync doesn't re-upload them as "new" artifacts.
+    const HOME_PREFIX = "agent/home/";
+    for (const file of preloadFiles) {
+      if (file.path.startsWith(HOME_PREFIX)) {
+        const relativePath = file.path.slice(HOME_PREFIX.length);
+        const hash = createHash("sha256").update(file.content).digest("hex");
+        artifactHashes.set(relativePath, hash);
+      }
+    }
 
     // 3. Create bash-tool instance
     const fileSummary = generateFileSummary(allFiles);

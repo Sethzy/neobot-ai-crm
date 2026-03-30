@@ -176,6 +176,52 @@ describe("createLazyBashTool", () => {
     await cleanup();
   });
 
+  it("does not re-upload preloaded home/ files on first sync", async () => {
+    const homeContent = Buffer.from("existing report data");
+    const preloadFiles = [
+      { path: "agent/home/report.csv", content: homeContent },
+    ];
+
+    // Mock runCommand: the sync calls `find ... -type f` to list home files
+    sharedMockSandbox.runCommand.mockImplementation(async (_cmd: string, args: string[]) => {
+      const cmdStr = args.join(" ");
+      if (cmdStr.includes("find") && cmdStr.includes("agent/home")) {
+        return {
+          exitCode: 0,
+          stdout: async () => "/vercel/sandbox/workspace/agent/home/report.csv",
+          stderr: async () => "",
+        };
+      }
+      return { exitCode: 0, stdout: async () => "", stderr: async () => "" };
+    });
+
+    // Mock readFileToBuffer: sync reads the file content for hashing
+    sharedMockSandbox.readFileToBuffer.mockImplementation(
+      async ({ path }: { path: string }) => {
+        if (path.endsWith("report.csv")) return homeContent;
+        return null;
+      },
+    );
+
+    const mockFileClient = createMockFileClient();
+
+    const { tool: bashTool, cleanup } = createLazyBashTool({
+      snapshotId: "snap_test",
+      getPreloadFiles: async () => preloadFiles,
+      getContextEntries: () => [],
+      fileClient: mockFileClient,
+      runId: "run-1",
+    });
+
+    await asExecutableTool(bashTool).execute({ command: "ls" }, {});
+
+    // The preloaded home file should NOT be re-uploaded because its hash
+    // was seeded into priorHashes during initialization
+    expect(mockFileClient.uploadArtifact).not.toHaveBeenCalled();
+
+    await cleanup();
+  });
+
   it("retries initialization after a transient failure", async () => {
     const { Sandbox } = await import("@vercel/sandbox");
     const createMock = Sandbox.create as ReturnType<typeof vi.fn>;
