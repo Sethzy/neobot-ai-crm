@@ -71,6 +71,10 @@ function assertWritable(inputPath: string): void {
   assertRemovedDocumentsPathIsAvailable(normalizedPath);
   const segments = normalizedPath.split("/");
 
+  if (segments[0] === "uploads") {
+    throw new Error(`Path "${normalizedPath}" is read-only and cannot be modified by the agent.`);
+  }
+
   if (segments[0] !== "skills") {
     return;
   }

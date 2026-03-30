@@ -239,6 +239,18 @@ describe("createAgentFileClient", () => {
     );
   });
 
+  it("rejects writes to uploads/", async () => {
+    const client = createAgentFileClient(supabase.client, CLIENT_ID);
+
+    await expect(client.uploadFile("uploads/photo.png", "x")).rejects.toThrow("read-only");
+  });
+
+  it("rejects writes to nested uploads/ paths", async () => {
+    const client = createAgentFileClient(supabase.client, CLIENT_ID);
+
+    await expect(client.uploadFile("uploads/2026/photo.png", "x")).rejects.toThrow("read-only");
+  });
+
   it("edits by replacing a unique match", async () => {
     supabase.mockDownload.mockResolvedValue({
       data: createDownloadPayload("hello world"),
@@ -288,6 +300,12 @@ describe("createAgentFileClient", () => {
     );
   });
 
+  it("rejects edits to uploads/", async () => {
+    const client = createAgentFileClient(supabase.client, CLIENT_ID);
+
+    await expect(client.editFile("uploads/notes.md", "a", "b")).rejects.toThrow("read-only");
+  });
+
   it("deletes a client-scoped file path", async () => {
     supabase.mockRemove.mockResolvedValue({ data: [{ name: "old.md" }], error: null });
     const client = createAgentFileClient(supabase.client, CLIENT_ID);
@@ -303,6 +321,12 @@ describe("createAgentFileClient", () => {
     await expect(client.deleteFile("vault/obsolete.md")).rejects.toThrow(
       'The "vault" directory has been removed. Use Google Drive for document storage instead.',
     );
+  });
+
+  it("rejects deletes for uploads/", async () => {
+    const client = createAgentFileClient(supabase.client, CLIENT_ID);
+
+    await expect(client.deleteFile("uploads/photo.png")).rejects.toThrow("read-only");
   });
 
   it("allows writes to SOUL.md (unlocked for onboarding)", async () => {
