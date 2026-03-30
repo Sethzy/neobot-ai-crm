@@ -214,6 +214,52 @@ describe("createLazyBashTool", () => {
     await cleanup();
   });
 
+  it("getSandbox returns null before sandbox is initialized", () => {
+    const { getSandbox } = createLazyBashTool({
+      snapshotId: "snap_test",
+      getPreloadFiles: async () => [],
+      getContextEntries: () => [],
+      fileClient: {} as any,
+      runId: "run-1",
+    });
+
+    expect(getSandbox()).toBeNull();
+  });
+
+  it("getSandbox returns live sandbox instance after first execute", async () => {
+    const { tool: bashTool, getSandbox, cleanup } = createLazyBashTool({
+      snapshotId: "snap_test",
+      getPreloadFiles: async () => [],
+      getContextEntries: () => [],
+      fileClient: createMockFileClient(),
+      runId: "run-1",
+    });
+
+    expect(getSandbox()).toBeNull();
+
+    await asExecutableTool(bashTool).execute({ command: "echo hi" }, {});
+
+    expect(getSandbox()).toBe(sharedMockSandbox);
+
+    await cleanup();
+  });
+
+  it("getSandbox returns null after cleanup", async () => {
+    const { tool: bashTool, getSandbox, cleanup } = createLazyBashTool({
+      snapshotId: "snap_test",
+      getPreloadFiles: async () => [],
+      getContextEntries: () => [],
+      fileClient: createMockFileClient(),
+      runId: "run-1",
+    });
+
+    await asExecutableTool(bashTool).execute({ command: "echo hi" }, {});
+    expect(getSandbox()).not.toBeNull();
+
+    await cleanup();
+    expect(getSandbox()).toBeNull();
+  });
+
   it("cleanup is safe when sandbox was never created", async () => {
     const { cleanup } = createLazyBashTool({
       snapshotId: "snap_test",

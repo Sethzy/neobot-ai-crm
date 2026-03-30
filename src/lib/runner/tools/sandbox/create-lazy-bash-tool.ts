@@ -73,6 +73,8 @@ export interface LazyBashToolResult {
   cleanup: () => Promise<void>;
   /** Whether the sandbox has been created (for testing). */
   hasInitialized: () => boolean;
+  /** Returns the live Vercel Sandbox instance, or null if not yet booted. */
+  getSandbox: () => Sandbox | null;
 }
 
 /**
@@ -232,5 +234,6 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
     tool: bashTool,
     cleanup,
     hasInitialized: () => initialized,
+    getSandbox: () => sandbox,
   };
 }
