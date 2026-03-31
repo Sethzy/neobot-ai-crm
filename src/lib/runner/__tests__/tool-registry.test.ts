@@ -79,7 +79,7 @@ describe("createRunnerTools", () => {
       search_triggers: { description: "trigger-tool" },
     });
     mockCreateUtilityTools.mockReturnValue({
-      calculate: { description: "utility-tool" },
+      run_sql: { description: "utility-tool" },
     });
     mockCreateWebTools.mockReturnValue({
       web_search: { description: "web-tool" },

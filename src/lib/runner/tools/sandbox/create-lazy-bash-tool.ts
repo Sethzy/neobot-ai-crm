@@ -36,6 +36,8 @@ interface BashToolModule {
     sandbox: Sandbox;
     extraInstructions: string;
     maxOutputLength: number;
+    onBeforeBashCall?: (input: { command: string }) => { command: string } | undefined;
+    onAfterBashCall?: (input: { command: string; result: BashCommandResult }) => { result: BashCommandResult } | undefined;
   }) => Promise<{
     bash: {
       execute: (input: { command: string }) => Promise<BashCommandResult>;
@@ -179,6 +181,19 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
       sandbox,
       extraInstructions,
       maxOutputLength: 100_000,
+      onBeforeBashCall: ({ command }) => {
+        console.log(`[sandbox] $ ${command}`);
+        return undefined;
+      },
+      onAfterBashCall: ({ command, result }) => {
+        const lines = result.stdout.split("\n");
+        const preview = lines.slice(0, 8).join("\n");
+        const suffix = lines.length > 8 ? `\n... (${lines.length} lines)` : "";
+        console.log(`[sandbox] ${preview}${suffix}`);
+        if (result.stderr) console.warn(`[sandbox] stderr: ${result.stderr.slice(0, 500)}`);
+        if (result.exitCode !== 0) console.warn(`[sandbox] exit code: ${result.exitCode}`);
+        return undefined;
+      },
     });
 
     bashExecute = bash.execute;

@@ -7,7 +7,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 
 import { createAskUserQuestionTool } from "./ask-user-question";
-import { createCalculateTool } from "./calculate";
 import { createRenameChatTool } from "./rename-chat";
 import { createSendMessageTool } from "./send-message";
 import { createSqlTools } from "./sql";
@@ -33,7 +32,6 @@ export function createUtilityTools(
   const includeSendMessage = options?.includeSendMessage ?? !isSubagent;
 
   return {
-    ...createCalculateTool(),
     ...(!isSubagent ? createTodoTools(supabase, clientId, threadId) : {}),
     ...createSqlTools(supabase),
     ...(!isSubagent ? createAskUserQuestionTool() : {}),
