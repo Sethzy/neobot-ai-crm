@@ -119,6 +119,16 @@ const COMPACTION_STATE_COLUMNS = [
   "compaction_summary_tokens_used",
 ].join(", ");
 
+/** Columns for the combined thread metadata query (compaction + staleness). */
+const THREAD_METADATA_COLUMNS = `${COMPACTION_STATE_COLUMNS}, updated_at, context_reset_at`;
+
+/** Combined thread state: compaction info + staleness fields, loaded in one query. */
+export interface ThreadMetadata {
+  updatedAt: string;
+  contextResetAt: string | null;
+  compactionState: ThreadCompactionState | null;
+}
+
 export interface PersistThreadCompactionStateInput {
   threadId: string;
   clientId: string;
@@ -239,6 +249,39 @@ export async function fetchThreadCompactionState(
   }
 
   return threadCompactionStateSchema.parse(threadRow);
+}
+
+/**
+ * Loads compaction state AND staleness fields (updated_at, context_reset_at)
+ * from a single conversation_threads query. Eliminates the duplicate round-trip
+ * that previously happened between loadSystemPromptState and assembleContext.
+ */
+export async function fetchThreadMetadata(
+  supabase: ChatSupabaseClient,
+  threadId: string,
+): Promise<ThreadMetadata | null> {
+  const { data, error } = await supabase
+    .from("conversation_threads")
+    .select(THREAD_METADATA_COLUMNS)
+    .eq("thread_id", threadId)
+    .maybeSingle();
+
+  const row = data as Record<string, unknown> | null;
+
+  if (error || !row) {
+    return null;
+  }
+
+  let compactionState: ThreadCompactionState | null = null;
+  if (row.compaction_summary != null) {
+    compactionState = threadCompactionStateSchema.parse(row);
+  }
+
+  return {
+    updatedAt: row.updated_at as string,
+    contextResetAt: (row.context_reset_at as string) ?? null,
+    compactionState,
+  };
 }
 
 /**

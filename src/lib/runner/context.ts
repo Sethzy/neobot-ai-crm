@@ -24,8 +24,10 @@ import { loadMemoryContext } from "@/lib/memory/loader";
 import type { MemoryContext } from "@/lib/memory/loader";
 import {
   fetchThreadCompactionState,
+  fetchThreadMetadata,
   isAfterThreadCompactionBoundary,
   type ThreadCompactionState,
+  type ThreadMetadata,
 } from "@/lib/runner/compaction";
 import { getTextFromParts } from "@/lib/runner/message-utils";
 import {
@@ -286,31 +288,44 @@ export async function loadSystemPromptState({
   userSkills: SkillMetadata[];
   systemReminder?: string;
   compactionState: ThreadCompactionState | null;
+  /** Combined thread metadata (compaction + staleness) from a single query. */
+  threadMetadata: ThreadMetadata | null;
 }> {
   let memoryContext: MemoryContext | undefined;
   let userSkills: SkillMetadata[] = [];
   let systemReminder: string | undefined;
-  let compactionState: ThreadCompactionState | null = null;
+  let threadMetadata: ThreadMetadata | null = null;
 
   if (!clientId) {
-    return { memoryContext, userSkills, systemReminder, compactionState };
+    return { memoryContext, userSkills, systemReminder, compactionState: null, threadMetadata };
   }
 
   const reminderPromise = buildSystemReminder(supabase, clientId, threadId, {
     crmConfigModeActive,
   });
-  const compactionPromise = includeCompactionState
-    ? fetchThreadCompactionState(supabase, threadId)
+
+  // When compaction state is needed, use the combined fetchThreadMetadata query
+  // to also load staleness fields (updated_at, context_reset_at) in the same
+  // round-trip — eliminates the duplicate conversation_threads query that
+  // assembleContext previously ran separately.
+  const threadMetadataPromise = includeCompactionState
+    ? fetchThreadMetadata(supabase, threadId)
     : Promise.resolve(null);
 
-  [memoryContext, userSkills, systemReminder, compactionState] = await Promise.all([
+  [memoryContext, userSkills, systemReminder, threadMetadata] = await Promise.all([
     loadMemoryContext(supabase, clientId),
     discoverUserSkills(supabase, clientId),
     reminderPromise,
-    compactionPromise,
+    threadMetadataPromise,
   ]);
 
-  return { memoryContext, userSkills, systemReminder, compactionState };
+  return {
+    memoryContext,
+    userSkills,
+    systemReminder,
+    compactionState: threadMetadata?.compactionState ?? null,
+    threadMetadata,
+  };
 }
 
 /**
@@ -379,37 +394,29 @@ export async function assembleContext({
   systemPrompt,
   preloadedState,
 }: AssembleContextParams): Promise<AssembledContext> {
-  const { memoryContext, userSkills, systemReminder, compactionState } = preloadedState
+  const { memoryContext, userSkills, systemReminder, compactionState, threadMetadata } = preloadedState
     ?? await loadSystemPromptState({ supabase, threadId, clientId, crmConfigModeActive });
 
   // Check for stale thread — skip old messages after 4h idle (Dorabot pattern).
   // Agent starts fresh with system prompt + memory + new message.
   // Old messages stay in DB — user can still scroll back in the UI.
+  // Thread staleness fields (updated_at, context_reset_at) are preloaded by
+  // loadSystemPromptState via fetchThreadMetadata — no extra query needed.
   let contextResetAt: string | null = null;
 
-  if (clientId) {
-    const { data: threadRow } = await supabase
-      .from("conversation_threads")
-      .select("updated_at, context_reset_at")
-      .eq("thread_id", threadId)
-      .maybeSingle();
-
-    const thread = threadRow as { updated_at: string; context_reset_at: string | null } | null;
-
-    if (thread) {
-      const gap = Date.now() - new Date(thread.updated_at).getTime();
-      if (gap > IDLE_TIMEOUT_MS) {
-        // Thread is stale — set (or advance) context_reset_at so old messages are skipped.
-        // Anchor the reset boundary to the thread's last persisted activity so the
-        // next inbound message still lands after the cutoff even if app/db clocks differ.
-        contextResetAt = thread.updated_at;
-        await supabase
-          .from("conversation_threads")
-          .update({ context_reset_at: contextResetAt })
-          .eq("thread_id", threadId);
-      } else {
-        contextResetAt = thread.context_reset_at ?? null;
-      }
+  if (clientId && threadMetadata) {
+    const gap = Date.now() - new Date(threadMetadata.updatedAt).getTime();
+    if (gap > IDLE_TIMEOUT_MS) {
+      // Thread is stale — set (or advance) context_reset_at so old messages are skipped.
+      // Anchor the reset boundary to the thread's last persisted activity so the
+      // next inbound message still lands after the cutoff even if app/db clocks differ.
+      contextResetAt = threadMetadata.updatedAt;
+      await supabase
+        .from("conversation_threads")
+        .update({ context_reset_at: contextResetAt })
+        .eq("thread_id", threadId);
+    } else {
+      contextResetAt = threadMetadata.contextResetAt;
     }
   }
 

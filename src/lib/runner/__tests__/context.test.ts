@@ -20,6 +20,7 @@ const {
   mockLoadMemoryContext,
   mockBuildSystemReminder,
   mockFetchThreadCompactionState,
+  mockFetchThreadMetadata,
   mockDiscoverUserSkills,
 } = vi.hoisted(() => ({
   mockLoadMemoryContext: vi.fn().mockResolvedValue({
@@ -31,6 +32,11 @@ const {
     "<system-reminder>\nCurrent time: 2026-03-05 14:30:00 UTC\nOpen todos: 0\n</system-reminder>",
   ),
   mockFetchThreadCompactionState: vi.fn().mockResolvedValue(null),
+  mockFetchThreadMetadata: vi.fn().mockResolvedValue({
+    updatedAt: new Date().toISOString(),
+    contextResetAt: null,
+    compactionState: null,
+  }),
   mockDiscoverUserSkills: vi.fn().mockResolvedValue([]),
 }));
 
@@ -53,6 +59,7 @@ vi.mock("@/lib/runner/compaction", async (importOriginal) => {
   return {
     ...actual,
     fetchThreadCompactionState: mockFetchThreadCompactionState,
+    fetchThreadMetadata: mockFetchThreadMetadata,
   };
 });
 
@@ -188,7 +195,7 @@ describe("assembleContext", () => {
   });
 
   it("injects compaction summary as part of the memory message, not in system string", async () => {
-    mockFetchThreadCompactionState.mockResolvedValueOnce({
+    const compactionState = {
       thread_id: "thread-1",
       client_id: "client-123",
       compaction_summary: `${SUMMARY_PREFIX}\nOlder thread summary`,
@@ -196,6 +203,11 @@ describe("assembleContext", () => {
       compaction_compacted_through_message_id: "message-2",
       compaction_summary_model: "google/gemini-2.5-flash-lite",
       compaction_summary_tokens_used: 99,
+    };
+    mockFetchThreadMetadata.mockResolvedValueOnce({
+      updatedAt: new Date().toISOString(),
+      contextResetAt: null,
+      compactionState,
     });
     const supabase = createMockSupabaseClient({
       selectResult: { data: [], error: null },
@@ -287,7 +299,7 @@ describe("assembleContext", () => {
       "thread-1",
       expect.objectContaining({}),
     );
-    expect(mockFetchThreadCompactionState).toHaveBeenCalledWith(
+    expect(mockFetchThreadMetadata).toHaveBeenCalledWith(
       expect.anything(),
       "thread-1",
     );
@@ -597,7 +609,7 @@ describe("assembleContext", () => {
   });
 
   it("queries messages from the compaction cutoff timestamp onward when a summary exists", async () => {
-    mockFetchThreadCompactionState.mockResolvedValueOnce({
+    const compactionState = {
       thread_id: "thread-1",
       client_id: "client-123",
       compaction_summary: `${SUMMARY_PREFIX}\nOlder thread summary`,
@@ -605,6 +617,11 @@ describe("assembleContext", () => {
       compaction_compacted_through_message_id: "message-2",
       compaction_summary_model: "google/gemini-2.5-flash-lite",
       compaction_summary_tokens_used: 99,
+    };
+    mockFetchThreadMetadata.mockResolvedValueOnce({
+      updatedAt: new Date().toISOString(),
+      contextResetAt: null,
+      compactionState,
     });
     const supabase = createMockSupabaseClient({
       selectResult: { data: [], error: null },
@@ -683,7 +700,7 @@ describe("assembleContext", () => {
   });
 
   it("filters out the compacted-through boundary message while keeping later messages at the same timestamp", async () => {
-    mockFetchThreadCompactionState.mockResolvedValueOnce({
+    const compactionState = {
       thread_id: "thread-1",
       client_id: "client-123",
       compaction_summary: `${SUMMARY_PREFIX}\nOlder thread summary`,
@@ -691,6 +708,11 @@ describe("assembleContext", () => {
       compaction_compacted_through_message_id: "message-2",
       compaction_summary_model: "google/gemini-2.5-flash-lite",
       compaction_summary_tokens_used: 99,
+    };
+    mockFetchThreadMetadata.mockResolvedValueOnce({
+      updatedAt: new Date().toISOString(),
+      contextResetAt: null,
+      compactionState,
     });
     const supabase = createMockSupabaseClient({
       selectResult: {
@@ -926,7 +948,7 @@ describe("assembleSystemOnly", () => {
     expect(system).not.toContain("Do not include me");
     expect(system).not.toContain("<compaction-summary>");
     expect(supabase.calls.from).not.toContain("conversation_messages");
-    expect(mockFetchThreadCompactionState).not.toHaveBeenCalled();
+    expect(mockFetchThreadMetadata).not.toHaveBeenCalled();
   });
 
   it("does not inject parent-specific runtime instructions", async () => {
@@ -1044,21 +1066,14 @@ describe("session reset for stale threads", () => {
     const resetAt = "2026-03-23T10:00:00.000Z";
     // Thread was active recently (1h ago) — use existing context_reset_at, don't re-trigger
     const recentUpdatedAt = new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString();
+    mockFetchThreadMetadata.mockResolvedValueOnce({
+      updatedAt: recentUpdatedAt,
+      contextResetAt: resetAt,
+      compactionState: null,
+    });
     const supabase = createMockSupabaseClient({
       selectResult: { data: [], error: null },
     });
-
-    const originalFrom = supabase.from.bind(supabase);
-    supabase.from = ((table: string) => {
-      const query = originalFrom(table);
-      if (table === "conversation_threads") {
-        query.maybeSingle = async () => ({
-          data: { updated_at: recentUpdatedAt, context_reset_at: resetAt },
-          error: null,
-        });
-      }
-      return query;
-    }) as typeof supabase.from;
 
     await assembleContext({
       supabase: supabase as never,
@@ -1077,6 +1092,11 @@ describe("session reset for stale threads", () => {
 
   it("does not set context_reset_at when thread was recently active", async () => {
     const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString();
+    mockFetchThreadMetadata.mockResolvedValueOnce({
+      updatedAt: oneHourAgo,
+      contextResetAt: null,
+      compactionState: null,
+    });
     const supabase = createMockSupabaseClient({
       selectResult: { data: [], error: null },
     });
@@ -1086,10 +1106,6 @@ describe("session reset for stale threads", () => {
     supabase.from = ((table: string) => {
       const query = originalFrom(table);
       if (table === "conversation_threads") {
-        query.maybeSingle = async () => ({
-          data: { updated_at: oneHourAgo, context_reset_at: null },
-          error: null,
-        });
         const originalUpdate = query.update.bind(query);
         query.update = (...args: unknown[]) => {
           updateCalls.push(args);
@@ -1112,6 +1128,11 @@ describe("session reset for stale threads", () => {
 
   it("sets context_reset_at to the last persisted thread activity when the thread is stale", async () => {
     const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
+    mockFetchThreadMetadata.mockResolvedValueOnce({
+      updatedAt: fiveHoursAgo,
+      contextResetAt: null,
+      compactionState: null,
+    });
     const supabase = createMockSupabaseClient({
       selectResult: { data: [], error: null },
       updateResult: { data: [], error: null },
@@ -1122,10 +1143,6 @@ describe("session reset for stale threads", () => {
     supabase.from = ((table: string) => {
       const query = originalFrom(table);
       if (table === "conversation_threads") {
-        query.maybeSingle = async () => ({
-          data: { updated_at: fiveHoursAgo, context_reset_at: null },
-          error: null,
-        });
         const originalUpdate = query.update.bind(query);
         query.update = (...args: unknown[]) => {
           updateCalls.push(args);
@@ -1175,7 +1192,7 @@ describe("session reset for stale threads", () => {
       includeSandbox: true,
     });
     expect(result.system).toContain("<sandbox>");
-    expect(result.system).toContain("/vercel/sandbox/workspace");
+    expect(result.system).toContain("agent/home/");
   });
 
   it("excludes SANDBOX_PROMPT when includeSandbox is false", async () => {
