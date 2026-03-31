@@ -1,0 +1,66 @@
+{
+  "title": "System Prompt Separate Prompts Refactor Tracker",
+  "created": "2026-03-31",
+  "status": "in-progress",
+  "prompts": [
+    {
+      "id": "A",
+      "name": "BROWSER_AUTOMATION_PROMPT",
+      "export": "BROWSER_AUTOMATION_PROMPT",
+      "tasklet_equivalent": "no equivalent — Tasklet uses Computer Use, not a browser tool",
+      "status": "approved",
+      "feedback": "Condensed opening into two paragraphs. Flipped clarification rule from 'clarify if vague' to 'always clarify'. Rest unchanged.",
+      "changes": [
+        "Collapsed 'When to clarify first', opening line, and 'When to use browse_website vs web_scrape' into two tight paragraphs",
+        "Changed clarification rule from conditional to absolute: always use ask_user_question before calling browse_website"
+      ]
+    },
+    {
+      "id": "B",
+      "name": "MARKET_DATA_PROMPT",
+      "export": "MARKET_DATA_PROMPT",
+      "tasklet_equivalent": "no equivalent — Sunder-specific Singapore property market dataset",
+      "status": "approved",
+      "feedback": "Restructured around the 4 actual datasets. Made OpenAgent scrape mandatory for URA data.",
+      "changes": [
+        "Replaced use-case descriptions with the 4 actual dataset names (agents, transactions, hdb, ura)",
+        "Collapsed 'How to use it well' into inline mode descriptions",
+        "Changed OpenAgent step from optional ('For richer...') to mandatory ('MUST also scrape') for all private residential queries"
+      ]
+    },
+    {
+      "id": "C",
+      "name": "PROPERTY_LISTING_PROMPT",
+      "export": "PROPERTY_LISTING_PROMPT",
+      "tasklet_equivalent": "no equivalent — Sunder-specific 99.co / PropertyGuru scrapers",
+      "status": "approved",
+      "feedback": "Simplified to just what each tool returns plus a default platform rule.",
+      "changes": [
+        "Removed use-case bullet lists and routing heuristics",
+        "Added what each tool returns as plain descriptions",
+        "Added default: use PropertyGuru unless user specifies otherwise"
+      ]
+    },
+    {
+      "id": "D",
+      "name": "SANDBOX_PROMPT",
+      "export": "SANDBOX_PROMPT",
+      "tasklet_equivalent": "<sandbox> section in Tasklet v2 system prompt",
+      "status": "approved",
+      "feedback": "No structural drift vs Tasklet. Trimmed filesystem layout repeat from <using-the-filesystem> — layout is already in top-level <filesystem> tag.",
+      "changes": [
+        "Removed duplicate filesystem layout table from <using-the-filesystem>",
+        "Kept only sandbox-specific notes: agent/home/ persistence, /tmp/ ephemeral preference"
+      ]
+    },
+    {
+      "id": "E",
+      "name": "CRM_SETUP_SYSTEM_PROMPT",
+      "export": "CRM_SETUP_SYSTEM_PROMPT",
+      "tasklet_equivalent": "no equivalent — Sunder-specific CRM setup mode",
+      "status": "approved",
+      "feedback": "No changes needed.",
+      "changes": []
+    }
+  ]
+}
