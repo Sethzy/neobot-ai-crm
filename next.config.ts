@@ -116,7 +116,7 @@ const nextConfig: NextConfig = {
     };
     return config;
   },
-  serverExternalPackages: ["@anthropic-ai/sdk", "exceljs", "pdf-lib"],
+  serverExternalPackages: ["@anthropic-ai/sdk", "exceljs", "pdf-lib", "bash-tool", "just-bash"],
 };
 
 export default withSentryConfig(withBundleAnalyzer(nextConfig), {

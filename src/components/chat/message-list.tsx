@@ -36,11 +36,16 @@ interface MessageListProps {
 export const MessageList = memo(function MessageList({ messages, status, onToolApproval, onQuestionSubmit }: MessageListProps) {
   const isStreaming = status === "streaming";
 
+  // Deduplicate by message ID — keep last occurrence so streaming updates win over stale copies.
+  const uniqueMessages = messages.filter(
+    (message, index, self) => self.findLastIndex((m) => m.id === message.id) === index,
+  );
+
   return (
     <Conversation className="relative flex-1 min-h-0">
       <ConversationContent className="mx-auto max-w-2xl !gap-3 px-4 py-6">
-        {messages.map((message, index) => {
-          const isLastMessage = index === messages.length - 1;
+        {uniqueMessages.map((message, index) => {
+          const isLastMessage = index === uniqueMessages.length - 1;
           const isLastAssistantMessage = isLastMessage && message.role === "assistant";
 
           return (
