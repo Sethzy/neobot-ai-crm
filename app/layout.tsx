@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { Agentation } from "agentation";
 import { Toaster } from "sonner";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -67,6 +68,7 @@ export default function RootLayout({
         />
         <Providers>{children}</Providers>
         <Toaster position="bottom-right" richColors />
+        {process.env.NODE_ENV === "development" && <Agentation />}
       </body>
     </html>
   );
