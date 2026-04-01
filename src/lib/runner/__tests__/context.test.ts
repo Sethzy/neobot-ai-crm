@@ -297,7 +297,6 @@ describe("assembleContext", () => {
       expect.anything(),
       "client-123",
       "thread-1",
-      expect.objectContaining({}),
     );
     expect(mockFetchThreadMetadata).toHaveBeenCalledWith(
       expect.anything(),

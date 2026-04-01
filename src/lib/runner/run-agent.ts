@@ -271,7 +271,6 @@ export async function runAgent(
         supabase,
         threadId,
         clientId,
-        crmConfigModeActive: payload.includeConfigTool,
       }).then((state) => {
         _t("load_system_prompt_state");
         return state;
@@ -295,7 +294,6 @@ export async function runAgent(
       includePropertyListings:
         payload.triggerType === "chat" && isBrowserUseConfigured(),
       includeSandbox: !!snapshotId,
-      crmConfigModeActive: payload.includeConfigTool,
       preloadedState,
     });
     _t("assemble_context");
@@ -318,7 +316,6 @@ export async function runAgent(
       allowConnectionMutations: payload.triggerType !== "pulse",
       crmMode,
       crmConfig,
-      includeConfigTool: payload.includeConfigTool,
     });
     const subagentTools = createSubagentTool(supabase, clientId, threadId, {
       parentRunId: lockResult.runId,

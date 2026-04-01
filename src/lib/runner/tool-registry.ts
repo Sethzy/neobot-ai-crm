@@ -29,8 +29,6 @@ export interface CreateRunnerToolsOptions {
   crmConfig?: Awaited<ReturnType<typeof loadCrmConfig>>["config"];
   isSubagent?: boolean;
   includeSendMessage?: boolean;
-  /** Only relevant for chat-triggered runs. When true, includes configure_crm in the tool registry. */
-  includeConfigTool?: boolean;
 }
 
 /**
@@ -48,7 +46,6 @@ export function createRunnerTools(
     allowDeleteTools: !isSubagent,
     mode: options?.crmMode ?? "normal",
     config: options?.crmConfig,
-    includeConfigTool: options?.includeConfigTool,
   });
   const storageTools = createStorageTools(supabase, clientId);
   const webTools = createWebTools();

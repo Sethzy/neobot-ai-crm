@@ -207,32 +207,14 @@ describe("runAgent CRM configuration", () => {
     );
   });
 
-  it("passes includeConfigTool to createCrmTools when payload has it", async () => {
-    await runAgent(
-      {
-        ...validPayload,
-        includeConfigTool: true,
-      },
-      "mock-supabase-client" as never,
-    );
-
-    expect(mockCreateCrmTools).toHaveBeenCalledWith(
-      "mock-supabase-client",
-      validPayload.clientId,
-      expect.objectContaining({
-        includeConfigTool: true,
-      }),
-    );
-  });
-
-  it("does not pass includeConfigTool when payload omits it", async () => {
+  it("always builds CRM tools without a config-mode registry flag", async () => {
     await runAgent(validPayload, "mock-supabase-client" as never);
 
     expect(mockCreateCrmTools).toHaveBeenCalledWith(
       "mock-supabase-client",
       validPayload.clientId,
-      expect.objectContaining({
-        includeConfigTool: undefined,
+      expect.not.objectContaining({
+        includeConfigTool: expect.anything(),
       }),
     );
   });

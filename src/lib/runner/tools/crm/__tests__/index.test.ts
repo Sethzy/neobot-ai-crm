@@ -25,12 +25,13 @@ describe("createCrmTools", () => {
     ]);
   });
 
-  it("returns all 8 expected CRM tools when writes are enabled", () => {
+  it("returns all 9 expected CRM tools when writes are enabled", () => {
     const { client } = createMockSupabase();
 
     const tools = createCrmTools(client, CLIENT_ID, { allowWriteTools: true });
 
     expect(Object.keys(tools).sort()).toEqual([
+      "configure_crm",
       "create_interaction",
       "create_record",
       "create_task",
@@ -53,6 +54,7 @@ describe("createCrmTools", () => {
     const toolNames = Object.keys(tools).sort();
 
     expect(toolNames).not.toContain("delete_records");
+    expect(toolNames).not.toContain("configure_crm");
     expect(toolNames).toContain("create_record");
     expect(toolNames).toContain("update_record");
   });
@@ -76,38 +78,15 @@ describe("createCrmTools", () => {
     expect(Object.keys(tools)).toEqual(["configure_crm"]);
   });
 
-  it("includes configure_crm and disable_crm_config_mode when includeConfigTool is true", () => {
-    const { client } = createMockSupabase();
-
-    const tools = createCrmTools(client, CLIENT_ID, { includeConfigTool: true });
-
-    const toolNames = Object.keys(tools).sort();
-    expect(toolNames).toContain("configure_crm");
-    expect(toolNames).toContain("disable_crm_config_mode");
-    // Normal tools are still present
-    expect(toolNames).toContain("search_crm");
-    expect(toolNames).toContain("create_record");
-    expect(toolNames).toContain("update_record");
-  });
-
-  it("does NOT include configure_crm without includeConfigTool", () => {
+  it("always includes configure_crm for normal chat runs", () => {
     const { client } = createMockSupabase();
 
     const tools = createCrmTools(client, CLIENT_ID);
 
-    const toolNames = Object.keys(tools);
-    expect(toolNames).not.toContain("configure_crm");
-    expect(toolNames).not.toContain("disable_crm_config_mode");
-  });
-
-  it("setup mode ignores includeConfigTool — returns only configure_crm", () => {
-    const { client } = createMockSupabase();
-
-    const tools = createCrmTools(client, CLIENT_ID, {
-      mode: "setup",
-      includeConfigTool: true,
-    });
-
-    expect(Object.keys(tools)).toEqual(["configure_crm"]);
+    const toolNames = Object.keys(tools).sort();
+    expect(toolNames).toContain("configure_crm");
+    expect(toolNames).toContain("search_crm");
+    expect(toolNames).toContain("create_record");
+    expect(toolNames).toContain("update_record");
   });
 });

@@ -28,11 +28,9 @@ interface CreateCrmToolsOptions {
   allowWriteTools?: boolean;
   /**
    * Deliberate RUNNER-06 exception: subagents cannot surface approval cards,
-   * so approval-gated delete tools can be withheld from their registry.
+   * so approval-gated CRM tools are withheld from their registry.
    */
   allowDeleteTools?: boolean;
-  /** When true, includes configure_crm + disable_crm_config_mode alongside normal tools. */
-  includeConfigTool?: boolean;
 }
 
 /**
@@ -48,7 +46,6 @@ export function createCrmTools(
     allowDeleteTools = true,
     mode = "normal",
     config = CRM_DEFAULTS,
-    includeConfigTool = false,
   } = options ?? {};
 
   if (mode === "setup") {
@@ -81,10 +78,7 @@ export function createCrmTools(
     update_task: taskTools.update_task,
     ...(allowDeleteTools ? {
       delete_records: createDeleteRecordsTool(supabase, clientId).delete_records,
-    } : {}),
-    ...(includeConfigTool ? {
       ...createConfigureCrmTool(supabase, clientId),
-      ...createDisableConfigModeTool(clientId),
     } : {}),
   };
 }

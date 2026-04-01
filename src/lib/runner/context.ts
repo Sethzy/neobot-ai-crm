@@ -56,8 +56,6 @@ interface AssembleContextParams {
   includeMarketData?: boolean;
   includePropertyListings?: boolean;
   includeSandbox?: boolean;
-  /** When true, injects CRM config mode notice into the system reminder. */
-  crmConfigModeActive?: boolean;
   platformInstructions?: string;
   systemPrompt?: string;
   /** Pre-loaded state from {@link loadSystemPromptState} — skips redundant IO when provided. */
@@ -279,9 +277,8 @@ export async function loadSystemPromptState({
   supabase,
   threadId,
   clientId,
-  crmConfigModeActive,
   includeCompactionState = true,
-}: Pick<AssembleContextParams, "supabase" | "threadId" | "clientId" | "crmConfigModeActive"> & {
+}: Pick<AssembleContextParams, "supabase" | "threadId" | "clientId"> & {
   includeCompactionState?: boolean;
 }): Promise<{
   memoryContext?: MemoryContext;
@@ -300,9 +297,7 @@ export async function loadSystemPromptState({
     return { memoryContext, userSkills, systemReminder, compactionState: null, threadMetadata };
   }
 
-  const reminderPromise = buildSystemReminder(supabase, clientId, threadId, {
-    crmConfigModeActive,
-  });
+  const reminderPromise = buildSystemReminder(supabase, clientId, threadId);
 
   // When compaction state is needed, use the combined fetchThreadMetadata query
   // to also load staleness fields (updated_at, context_reset_at) in the same
@@ -389,13 +384,12 @@ export async function assembleContext({
   includeMarketData,
   includePropertyListings,
   includeSandbox,
-  crmConfigModeActive,
   platformInstructions,
   systemPrompt,
   preloadedState,
 }: AssembleContextParams): Promise<AssembledContext> {
   const { memoryContext, userSkills, systemReminder, compactionState, threadMetadata } = preloadedState
-    ?? await loadSystemPromptState({ supabase, threadId, clientId, crmConfigModeActive });
+    ?? await loadSystemPromptState({ supabase, threadId, clientId });
 
   // Check for stale thread — skip old messages after 4h idle (Dorabot pattern).
   // Agent starts fresh with system prompt + memory + new message.

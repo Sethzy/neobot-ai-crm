@@ -216,19 +216,7 @@ describe("buildSystemReminder", () => {
     expect(result).toContain("Active connections: none");
   });
 
-  it("includes CRM config mode line when crmConfigModeActive is true", async () => {
-    const supabase = createReminderSupabase();
-
-    const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID, {
-      crmConfigModeActive: true,
-    });
-
-    expect(result).toContain("CRM configuration mode: ACTIVE");
-    expect(result).toContain("configure_crm");
-    expect(result).toContain("disable_crm_config_mode");
-  });
-
-  it("does not include CRM config mode line by default", async () => {
+  it("does not include a CRM config mode runtime reminder", async () => {
     const supabase = createReminderSupabase();
 
     const result = await buildSystemReminder(supabase as never, CLIENT_ID, THREAD_ID);

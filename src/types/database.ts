@@ -363,7 +363,6 @@ export type Database = {
         Row: {
           client_id: string
           created_at: string
-          crm_config_mode_until: string | null
           display_name: string | null
           is_bootstrapped: boolean
           plan_name: string | null
@@ -377,7 +376,6 @@ export type Database = {
         Insert: {
           client_id?: string
           created_at?: string
-          crm_config_mode_until?: string | null
           display_name?: string | null
           is_bootstrapped?: boolean
           plan_name?: string | null
@@ -391,7 +389,6 @@ export type Database = {
         Update: {
           client_id?: string
           created_at?: string
-          crm_config_mode_until?: string | null
           display_name?: string | null
           is_bootstrapped?: boolean
           plan_name?: string | null
@@ -2002,4 +1999,3 @@ export const Constants = {
     },
   },
 } as const
-

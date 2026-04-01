@@ -15,6 +15,7 @@ const {
   mockClearActiveStreamId,
   mockCreateNewResumableStream,
   mockCreateResumableStreamContext,
+  mockEnsureClientBootstrap,
 } = vi.hoisted(() => ({
   mockRunAgent: vi.fn(),
   mockCreateClient: vi.fn(),
@@ -26,6 +27,7 @@ const {
   mockClearActiveStreamId: vi.fn(),
   mockCreateNewResumableStream: vi.fn(),
   mockCreateResumableStreamContext: vi.fn(),
+  mockEnsureClientBootstrap: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/runner/run-agent", () => ({
@@ -51,12 +53,25 @@ vi.mock("@/lib/ai/title", () => ({
 }));
 
 vi.mock("@/lib/redis", () => ({
+  getRedisClient: vi.fn().mockResolvedValue(null),
   setActiveStreamId: mockSetActiveStreamId,
   clearActiveStreamId: mockClearActiveStreamId,
 }));
 
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 29 }),
+}));
+
+vi.mock("@/lib/memory/bootstrap", () => ({
+  ensureClientBootstrap: mockEnsureClientBootstrap,
+}));
+
 vi.mock("resumable-stream", () => ({
   createResumableStreamContext: mockCreateResumableStreamContext,
+}));
+
+vi.mock("next/server", () => ({
+  after: vi.fn(),
 }));
 
 import { POST } from "../../../../app/api/chat/route";
@@ -124,14 +139,18 @@ describe("POST /api/chat crmMode", () => {
     );
 
     expect(mockRunAgent).toHaveBeenCalledWith(
-      {
+      expect.objectContaining({
         clientId: "client-456",
         threadId,
         triggerType: "chat",
+        consumeMessageQuota: true,
         input: "Reconfigure my CRM",
         crmMode: "setup",
-      },
-      expect.anything(),
+      }),
+      expect.objectContaining({
+        auth: expect.any(Object),
+        from: expect.any(Function),
+      }),
     );
   });
 });

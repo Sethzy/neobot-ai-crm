@@ -27,7 +27,6 @@ export const runnerPayloadSchema = z.object({
   channel: z.enum(runnerChannelValues).optional(),
   fileParts: z.array(runnerFilePartSchema).optional(),
   crmMode: z.enum(["normal", "setup"]).optional(),
-  includeConfigTool: z.boolean().optional(),
   instructions: z.string().optional(),
 });
 

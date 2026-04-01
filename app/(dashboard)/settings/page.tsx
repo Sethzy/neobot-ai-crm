@@ -1,5 +1,5 @@
 /**
- * Settings page with billing, CRM configuration mode, and agent-skill controls.
+ * Settings page with billing, connection, and agent-skill controls.
  * @module app/(dashboard)/settings/page
  */
 import Link from "next/link";
@@ -18,7 +18,6 @@ import { formatMessageQuotaResetDate } from "@/lib/usage/message-quota";
 import { loadCurrentMessageQuota } from "@/lib/usage/message-quota-server";
 
 import { AutopilotCard, type AutopilotConfigData } from "./autopilot-card";
-import { CrmConfigModeCard } from "./crm-config-mode-card";
 import { TelegramConnectCard } from "./telegram-connect-card";
 import { SubmitButton } from "../pricing/submit-button";
 
@@ -113,27 +112,6 @@ function getStatusVariant(status: string | null) {
   }
 }
 
-/** Loads the CRM config mode expiry for the current client. Returns ISO string if active, null otherwise. */
-async function loadCrmConfigModeExpiresAt(): Promise<string | null> {
-  try {
-    const supabase = await createClient();
-    const clientId = await resolveClientId(supabase);
-    const { data } = await supabase
-      .from("clients")
-      .select("crm_config_mode_until")
-      .eq("client_id", clientId)
-      .single();
-
-    if (data?.crm_config_mode_until && new Date(data.crm_config_mode_until) > new Date()) {
-      return data.crm_config_mode_until;
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 /** Loads the connected Telegram chat id for the current client, or null when disconnected. */
 async function loadTelegramChatId(): Promise<string | null> {
   try {
@@ -171,10 +149,9 @@ async function loadAutopilotConfig(): Promise<AutopilotConfigData | null> {
 
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
-  const [client, messageQuota, crmConfigExpiresAt, telegramChatId, autopilotConfig] = await Promise.all([
+  const [client, messageQuota, telegramChatId, autopilotConfig] = await Promise.all([
     loadCurrentBillingState(),
     loadCurrentMessageQuota(),
-    loadCrmConfigModeExpiresAt(),
     loadTelegramChatId(),
     loadAutopilotConfig(),
   ]);
@@ -199,7 +176,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           <div className="space-y-2">
             <h1 className="text-3xl font-semibold tracking-tight">Workspace controls</h1>
             <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-              Manage your billing plan, CRM configuration, and agent skills. Stripe remains the
+              Manage your billing plan, channel connections, and agent skills. Stripe remains the
               source of truth for paid subscriptions, while Sunder mirrors the current plan into
               the client row for product logic and gating.
             </p>
@@ -313,7 +290,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           </Card>
 
           <div className="space-y-4">
-            <CrmConfigModeCard initialExpiresAt={crmConfigExpiresAt} />
             <TelegramConnectCard initialChatId={telegramChatId} />
           </div>
         </div>

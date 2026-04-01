@@ -231,23 +231,9 @@ export async function POST(request: Request): Promise<Response> {
     clientId = resolvedClientId;
     _t("resolve_client_id");
 
-    // Fire bootstrap early — overlaps with CRM config check + thread lookup.
+    // Fire bootstrap early — overlaps with thread lookup.
     // No-op SELECT on already-bootstrapped clients (99%+ of requests).
     const bootstrapPromise = ensureClientBootstrap(supabase, resolvedClientId);
-
-    // Check if CRM config mode is active (non-null and not expired)
-    // TODO: Could be combined with an existing client query to avoid an extra round-trip.
-    const { data: clientRow } = await supabase
-      .from("clients")
-      .select("crm_config_mode_until")
-      .eq("client_id", resolvedClientId)
-      .single();
-    _t("crm_config_mode_check");
-
-    const isCrmConfigModeActive = Boolean(
-      clientRow?.crm_config_mode_until &&
-      new Date(clientRow.crm_config_mode_until) > new Date(),
-    );
 
     const { data: thread, error: threadLookupError } = await supabase
       .from("conversation_threads")
@@ -339,7 +325,6 @@ export async function POST(request: Request): Promise<Response> {
         selectedChatModel: body.selectedChatModel,
         ...(fileParts.length > 0 ? { fileParts } : {}),
         crmMode: body.crmMode,
-        ...(isCrmConfigModeActive ? { includeConfigTool: true } : {}),
       },
       supabase,
     );

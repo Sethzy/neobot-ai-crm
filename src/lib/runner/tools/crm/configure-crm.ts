@@ -1,5 +1,5 @@
 /**
- * CRM configuration tool (available in setup mode and when config mode is active).
+ * CRM configuration tool.
  * @module lib/runner/tools/crm/configure-crm
  */
 import { tool } from "ai";
@@ -191,6 +191,7 @@ export function createConfigureCrmTool(
       "Re-call with confirm_removals: true to proceed. " +
       "Data Modification Warning: Only use this after the user has explicitly asked to configure or reconfigure CRM.",
     inputSchema,
+    needsApproval: true,
     execute: async ({ confirm_removals, ...input }) => {
       const updates = Object.fromEntries(
         Object.entries(input).filter(([, value]) => value !== undefined),

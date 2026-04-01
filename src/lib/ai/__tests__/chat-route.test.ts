@@ -121,20 +121,8 @@ describe("POST /api/chat", () => {
     expect(maxDuration).toBe(300);
   });
 
-  /** Returns a mock for the `clients` table — SELECT crm_config_mode_until query. */
-  function createClientLookup() {
-    const single = vi.fn().mockResolvedValue({
-      data: { crm_config_mode_until: null },
-      error: null,
-    });
-    const eq = vi.fn(() => ({ single }));
-    const select = vi.fn(() => ({ eq }));
-    return { select, single };
-  }
-
   function createThreadLookup(options: { threadExists: boolean; error?: { message: string } | null }) {
     const { threadExists, error = null } = options;
-    const clientLookup = createClientLookup();
     const maybeSingle = vi.fn().mockResolvedValue(
       threadExists
         ? { data: { thread_id: threadId }, error }
@@ -144,32 +132,24 @@ describe("POST /api/chat", () => {
     const secondEq = vi.fn(() => ({ eq: thirdEq }));
     const firstEq = vi.fn(() => ({ eq: secondEq }));
     const select = vi.fn(() => ({ eq: firstEq }));
-    const from = vi.fn((table: string) => {
-      if (table === "clients") return clientLookup;
-      return { select };
-    });
+    const from = vi.fn(() => ({ select }));
 
     return { from };
   }
 
   function createMissingThreadWithInsert() {
-    const clientLookup = createClientLookup();
     const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
     const thirdEq = vi.fn(() => ({ maybeSingle }));
     const secondEq = vi.fn(() => ({ eq: thirdEq }));
     const firstEq = vi.fn(() => ({ eq: secondEq }));
     const select = vi.fn(() => ({ eq: firstEq }));
     const insert = vi.fn().mockResolvedValue({ error: null });
-    const from = vi.fn((table: string) => {
-      if (table === "clients") return clientLookup;
-      return { select, insert };
-    });
+    const from = vi.fn(() => ({ select, insert }));
 
     return { from, insert };
   }
 
   function createMissingThreadWithInsertAndUpdate() {
-    const clientLookup = createClientLookup();
     const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
     const thirdEq = vi.fn(() => ({ maybeSingle }));
     const secondEq = vi.fn(() => ({ eq: thirdEq }));
@@ -183,10 +163,7 @@ describe("POST /api/chat", () => {
     const deleteThreadEq = vi.fn(() => ({ eq: deleteClientEq }));
     const deleteRow = vi.fn(() => ({ eq: deleteThreadEq }));
 
-    const from = vi.fn((table: string) => {
-      if (table === "clients") return clientLookup;
-      return { select, insert, update, delete: deleteRow };
-    });
+    const from = vi.fn(() => ({ select, insert, update, delete: deleteRow }));
     return { from, insert, update, updateEq, deleteRow, deleteThreadEq, deleteClientEq };
   }
 
