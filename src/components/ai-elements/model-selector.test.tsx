@@ -2,21 +2,9 @@
  * @fileoverview Tests for the main /chat model selector.
  */
 
-import { render } from "@testing-library/react";
-import type { ImgHTMLAttributes, ReactNode } from "react";
+import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-
-const { mockNextImage } = vi.hoisted(() => ({
-  mockNextImage: vi.fn(
-    ({ unoptimized: _unoptimized, ...props }: ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => (
-      <img {...props} alt={props.alt ?? ""} />
-    ),
-  ),
-}));
-
-vi.mock("next/image", () => ({
-  default: (props: ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => mockNextImage(props),
-}));
 
 vi.mock("@/components/ui/popover", () => ({
   Popover: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -29,7 +17,7 @@ vi.mock("@/components/ui/popover", () => ({
 import { ModelSelector } from "./model-selector";
 
 describe("ModelSelector", () => {
-  it("marks remote provider SVGs as unoptimized", () => {
+  it("renders all models with cost indicators", () => {
     render(
       <ModelSelector
         onValueChange={vi.fn()}
@@ -37,13 +25,9 @@ describe("ModelSelector", () => {
       />,
     );
 
-    expect(mockNextImage).toHaveBeenCalled();
-    expect(
-      mockNextImage.mock.calls.every(([props]) =>
-        typeof props.src === "string" &&
-        props.src.startsWith("https://models.dev/logos/") &&
-        props.unoptimized === true
-      ),
-    ).toBe(true);
+    expect(screen.getAllByText("Gemini Flash 3").length).toBeGreaterThan(0);
+    expect(screen.getByText("$")).toBeDefined();
+    expect(screen.getByText("MiniMax M2.7")).toBeDefined();
+    expect(screen.getByText("$$")).toBeDefined();
   });
 });

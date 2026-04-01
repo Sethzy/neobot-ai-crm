@@ -3,7 +3,6 @@
  */
 "use client";
 
-import Image from "next/image";
 import { useMemo, useState } from "react";
 
 import { Check, ChevronDown } from "@/components/icons/lucide-compat";
@@ -22,10 +21,6 @@ interface ModelSelectorProps {
   value: string;
   onValueChange: (modelId: string) => void;
   disabled?: boolean;
-}
-
-function getProviderLogoSrc(provider: string): string {
-  return `https://models.dev/logos/${provider}.svg`;
 }
 
 export function ModelSelector({
@@ -50,17 +45,7 @@ export function ModelSelector({
           type="button"
           variant="ghost"
         >
-          <span className="flex min-w-0 items-center gap-2">
-            <Image
-              alt=""
-              className="shrink-0"
-              height={16}
-              src={getProviderLogoSrc(selectedModel.provider)}
-              unoptimized
-              width={16}
-            />
-            <span className="truncate">{selectedModel.name}</span>
-          </span>
+          <span className="truncate">{selectedModel.name}</span>
           <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
@@ -77,10 +62,7 @@ export function ModelSelector({
             return (
               <button
                 aria-pressed={isSelected}
-                className={cn(
-                  "flex w-full items-start gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-muted",
-                  isSelected && "bg-muted",
-                )}
+                className="flex w-full items-start gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-muted"
                 key={model.id}
                 onClick={() => {
                   onValueChange(model.id);
@@ -88,15 +70,6 @@ export function ModelSelector({
                 }}
                 type="button"
               >
-                <Image
-                  alt=""
-                  className="mt-0.5 shrink-0"
-                  height={18}
-                  src={getProviderLogoSrc(model.provider)}
-                  unoptimized
-                  width={18}
-                />
-
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2 text-sm font-medium text-foreground">
                     {model.name}
