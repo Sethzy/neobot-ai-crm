@@ -34,8 +34,7 @@ export function createDeleteRecordsTool(
         "Permanently delete one or more CRM records by ID. This is irreversible. " +
         "Supports batch deletion (up to 50 records per call). " +
         "For deal_contacts links, use link_records with action 'unlink' instead. " +
-        "DESTRUCTIVE: This action requires user approval before execution.",
-      needsApproval: true,
+        "DESTRUCTIVE: Use ask_user_question to confirm with the user before calling.",
       inputSchema: z.object({
         entity: z.enum(DELETE_ENTITIES).describe("CRM entity type to delete."),
         ids: z

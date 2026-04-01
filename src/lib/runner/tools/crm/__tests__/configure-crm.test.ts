@@ -11,13 +11,6 @@ const CLIENT_ID = "660e8400-e29b-41d4-a716-446655440000";
 const EXECUTION_OPTIONS = { toolCallId: "tool-call", messages: [] } as never;
 
 describe("createConfigureCrmTool", () => {
-  it("requires approval before executing", () => {
-    const { client } = createMockSupabase();
-    const tools = createConfigureCrmTool(client, CLIENT_ID);
-
-    expect(tools.configure_crm).toHaveProperty("needsApproval", true);
-  });
-
   it("upserts deduplicated vocabulary updates and returns the resolved config", async () => {
     const updatedRow = {
       config_id: "cfg-1",

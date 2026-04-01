@@ -97,13 +97,6 @@ describe("delete_records", () => {
     });
   });
 
-  it("has needsApproval set to true", () => {
-    const { client } = createMockSupabase();
-    const tools = createDeleteRecordsTool(client, CLIENT_ID);
-    // Access the raw tool definition
-    expect((tools.delete_records as unknown as { needsApproval: boolean }).needsApproval).toBe(true);
-  });
-
   describe("schema validation", () => {
     it("rejects invalid entity type", () => {
       const { client } = createMockSupabase();

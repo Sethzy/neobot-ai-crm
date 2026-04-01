@@ -180,7 +180,6 @@ export function createManageTriggersTool(
       invocation_message: z.string().min(1).max(200).nullable().optional(),
       payload: z.record(z.string(), z.unknown()).optional(),
     }),
-    ...(readOnly ? {} : { needsApproval: ({ action }: { action: TriggerAction }) => action === "delete" }),
     execute: async (input) => {
       const action = input.action as TriggerAction;
 

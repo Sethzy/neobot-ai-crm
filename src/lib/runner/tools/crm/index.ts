@@ -10,7 +10,6 @@ import type { Database } from "@/types/database";
 import { createConfigureCrmTool } from "./configure-crm";
 import { createCreateRecordTool } from "./create-record";
 import { createDeleteRecordsTool } from "./delete-records";
-import { createDisableConfigModeTool } from "./disable-config-mode";
 import { createInteractionTools } from "./interactions";
 import { createLinkRecordsTool } from "./link-records";
 import { createSearchCrmTool } from "./search";
@@ -26,10 +25,7 @@ interface CreateCrmToolsOptions {
    * Enables mutating CRM tools for the active run.
    */
   allowWriteTools?: boolean;
-  /**
-   * Deliberate RUNNER-06 exception: subagents cannot surface approval cards,
-   * so approval-gated CRM tools are withheld from their registry.
-   */
+  /** Excludes destructive + schema-modifying CRM tools (delete_records, configure_crm) from subagent registries. */
   allowDeleteTools?: boolean;
 }
 

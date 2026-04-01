@@ -191,7 +191,6 @@ export function createConfigureCrmTool(
       "Re-call with confirm_removals: true to proceed. " +
       "Data Modification Warning: Only use this after the user has explicitly asked to configure or reconfigure CRM.",
     inputSchema,
-    needsApproval: true,
     execute: async ({ confirm_removals, ...input }) => {
       const updates = Object.fromEntries(
         Object.entries(input).filter(([, value]) => value !== undefined),

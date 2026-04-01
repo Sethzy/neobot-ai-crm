@@ -45,12 +45,6 @@ describe("createDeleteConnectionTool", () => {
     vi.clearAllMocks();
   });
 
-  it("has needsApproval set to true", () => {
-    const { delete_connection } = createDeleteConnectionTool({} as never, CLIENT_ID);
-
-    expect(delete_connection).toHaveProperty("needsApproval", true);
-  });
-
   it("deletes both the Composio account and the local row", async () => {
     const deleteRemote = vi.fn().mockResolvedValue(undefined);
     vi.mocked(getConnectionById).mockResolvedValue(MOCK_CONNECTION as never);
