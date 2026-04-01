@@ -24,7 +24,9 @@ import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
 import { companyKeys, type CompanyWithCounts, usePaginatedCompanies } from "@/hooks/use-companies";
 import { useUpdateCompany } from "@/hooks/use-update-company";
+import { buildColumnsFromConfig } from "@/lib/crm/build-columns";
 import { CRM_DEFAULTS } from "@/lib/crm/config";
+import { COMPANY_DEFAULT_FIELDS } from "@/lib/crm/field-definitions";
 import { formatCrmDate, formatCrmEnumLabel, getCompanyIndustryBadgeVariant } from "@/lib/crm/display";
 import { type Company } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
@@ -283,53 +285,70 @@ export default function CompaniesPage() {
   });
 
   const rows = data?.rows ?? [];
-  const columns = useMemo<ColumnDef<CompanyWithCounts>[]>(
-    () => [
-      {
-        accessorKey: "name",
-        header: "Name",
-        cell: ({ row }) => (
-          <Link
-            href={`/customers/companies/${row.original.company_id}`}
-            className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
-            onClick={(event) => event.stopPropagation()}
-          >
-            {row.original.name}
-          </Link>
-        ),
-      },
-      {
-        accessorKey: "industry",
-        header: "Industry",
-        cell: ({ row }) => (
-          <CompanyIndustryCell
-            companyId={row.original.company_id}
-            industry={row.original.industry}
-            industryOptions={industryOptions}
-          />
-        ),
-      },
-      {
-        accessorKey: "phone",
-        header: "Phone",
-        cell: ({ row }) => (
-          <CompanyPhoneCell companyId={row.original.company_id} phone={row.original.phone} />
-        ),
-      },
-      {
-        accessorKey: "email",
-        header: "Email",
-        cell: ({ row }) => (
-          <CompanyEmailCell companyId={row.original.company_id} email={row.original.email} />
-        ),
-      },
-      {
-        accessorKey: "website",
-        header: "Website",
-        cell: ({ row }) => (
-          <CompanyWebsiteCell companyId={row.original.company_id} website={row.original.website} />
-        ),
-      },
+
+  /**
+   * Build columns from config, then override specific keys with the existing
+   * rich cell renderers. The companies field definitions include the standard
+   * CRM fields; columns not covered by field definitions (contact_count,
+   * deal_count) are appended as static columns after the config-driven set.
+   */
+  const crmConfig = crmConfigResult?.config;
+  const columns = useMemo<ColumnDef<CompanyWithCounts>[]>(() => {
+    const companyFields = crmConfig?.company_fields ?? COMPANY_DEFAULT_FIELDS;
+    const base = buildColumnsFromConfig<CompanyWithCounts>(companyFields, "companies");
+
+    const configured = base.map((col) => {
+      switch (col.id) {
+        case "name":
+          return {
+            ...col,
+            cell: ({ row }: { row: { original: CompanyWithCounts } }) => (
+              <Link
+                href={`/customers/companies/${row.original.company_id}`}
+                className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {row.original.name}
+              </Link>
+            ),
+          };
+        case "industry":
+          return {
+            ...col,
+            cell: ({ row }: { row: { original: CompanyWithCounts } }) => (
+              <CompanyIndustryCell
+                companyId={row.original.company_id}
+                industry={row.original.industry}
+                industryOptions={industryOptions}
+              />
+            ),
+          };
+        case "website":
+          return {
+            ...col,
+            cell: ({ row }: { row: { original: CompanyWithCounts } }) => (
+              <CompanyWebsiteCell companyId={row.original.company_id} website={row.original.website} />
+            ),
+          };
+        case "updated_at":
+          return {
+            ...col,
+            cell: ({ row }: { row: { original: CompanyWithCounts } }) => (
+              <span className="whitespace-nowrap text-muted-foreground">
+                {formatCrmDate(row.original.updated_at)}
+              </span>
+            ),
+          };
+        default:
+          return col;
+      }
+    });
+
+    /**
+     * Append the computed count columns that don't exist in the field
+     * definitions (they come from a JOIN aggregate, not a direct column).
+     */
+    const countColumns: ColumnDef<CompanyWithCounts>[] = [
       {
         accessorKey: "contact_count",
         header: "Contacts",
@@ -340,18 +359,10 @@ export default function CompaniesPage() {
         header: "Deals",
         cell: ({ row }) => <span className="tabular-nums">{row.original.deal_count}</span>,
       },
-      {
-        accessorKey: "updated_at",
-        header: "Updated",
-        cell: ({ row }) => (
-          <span className="whitespace-nowrap text-muted-foreground">
-            {formatCrmDate(row.original.updated_at)}
-          </span>
-        ),
-      },
-    ],
-    [industryOptions],
-  );
+    ];
+
+    return [...configured, ...countColumns];
+  }, [crmConfig, industryOptions]);
 
   return (
     <CrmListPanelLayout

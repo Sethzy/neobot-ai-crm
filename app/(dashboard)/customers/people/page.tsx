@@ -25,6 +25,8 @@ import { type CompanyWithCounts, useCompanies } from "@/hooks/use-companies";
 import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
 import { useUpdateContact } from "@/hooks/use-update-contact";
+import { buildColumnsFromConfig } from "@/lib/crm/build-columns";
+import { CONTACT_DEFAULT_FIELDS } from "@/lib/crm/field-definitions";
 import { buildCrmSelectOptions, formatContactFullName, formatCrmDate, formatCrmEnumLabel } from "@/lib/crm/display";
 import { contactTypeValues } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
@@ -307,72 +309,90 @@ export default function PeoplePage() {
   });
 
   const rows = data?.rows ?? [];
-  const columns = useMemo<ColumnDef<ContactWithCompany>[]>(
-    () => [
-      {
-        accessorKey: "contact_id",
-        header: "Name",
-        sortingFn: (rowA, rowB) =>
-          formatContactFullName(rowA.original).localeCompare(formatContactFullName(rowB.original)),
-        cell: ({ row }) => (
-          <Link
-            href={`/customers/people/${row.original.contact_id}`}
-            className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
-            onClick={(event) => event.stopPropagation()}
-          >
-            {formatContactFullName(row.original)}
-          </Link>
-        ),
-      },
-      {
-        accessorKey: "email",
-        header: "Email",
-        cell: ({ row }) => (
-          <ContactEmailCell contactId={row.original.contact_id} email={row.original.email} />
-        ),
-      },
-      {
-        accessorKey: "phone",
-        header: "Phone",
-        cell: ({ row }) => (
-          <ContactPhoneCell contactId={row.original.contact_id} phone={row.original.phone} />
-        ),
-      },
-      {
-        id: "company",
-        header: "Company",
-        accessorFn: (row) => row.companies?.name ?? "",
-        cell: ({ row }) => (
-          <ContactCompanyCell
-            contactId={row.original.contact_id}
-            company={row.original.companies}
-            companies={companies}
-          />
-        ),
-      },
-      {
-        accessorKey: "type",
-        header: "Type",
-        cell: ({ row }) => (
-          <ContactTypeCell
-            contactId={row.original.contact_id}
-            type={row.original.type}
-            contactTypes={contactTypes}
-          />
-        ),
-      },
-      {
-        accessorKey: "updated_at",
-        header: "Updated",
-        cell: ({ row }) => (
-          <span className="whitespace-nowrap text-muted-foreground">
-            {formatCrmDate(row.original.updated_at)}
-          </span>
-        ),
-      },
-    ],
-    [companies, contactTypes],
-  );
+
+  /**
+   * Build columns from the config-driven field definition array, then override
+   * specific column keys to restore the rich cell renderers (links, quick-edit,
+   * badges). The field definitions use logical keys (`emails`, `phones`,
+   * `company_id`) that don't always match actual DB column names, so each
+   * override reads from `row.original` directly instead of relying on the base
+   * accessorFn.
+   */
+  const crmConfig = crmConfigResult?.config;
+  const columns = useMemo<ColumnDef<ContactWithCompany>[]>(() => {
+    const contactFields = crmConfig?.contact_fields ?? CONTACT_DEFAULT_FIELDS;
+    const base = buildColumnsFromConfig<ContactWithCompany>(contactFields, "contacts");
+
+    return base.map((col) => {
+      switch (col.id) {
+        case "name":
+          return {
+            ...col,
+            /** Sort by the rendered full name rather than the raw column value. */
+            sortingFn: (rowA: { original: ContactWithCompany }, rowB: { original: ContactWithCompany }) =>
+              formatContactFullName(rowA.original).localeCompare(formatContactFullName(rowB.original)),
+            cell: ({ row }: { row: { original: ContactWithCompany } }) => (
+              <Link
+                href={`/customers/people/${row.original.contact_id}`}
+                className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {formatContactFullName(row.original)}
+              </Link>
+            ),
+          };
+        case "emails":
+          return {
+            ...col,
+            cell: ({ row }: { row: { original: ContactWithCompany } }) => (
+              <ContactEmailCell contactId={row.original.contact_id} email={row.original.email} />
+            ),
+          };
+        case "phones":
+          return {
+            ...col,
+            cell: ({ row }: { row: { original: ContactWithCompany } }) => (
+              <ContactPhoneCell contactId={row.original.contact_id} phone={row.original.phone} />
+            ),
+          };
+        case "company_id":
+          return {
+            ...col,
+            /** Read from the joined companies object rather than the raw FK. */
+            accessorFn: (row: ContactWithCompany) => row.companies?.name ?? "",
+            cell: ({ row }: { row: { original: ContactWithCompany } }) => (
+              <ContactCompanyCell
+                contactId={row.original.contact_id}
+                company={row.original.companies}
+                companies={companies}
+              />
+            ),
+          };
+        case "type":
+          return {
+            ...col,
+            cell: ({ row }: { row: { original: ContactWithCompany } }) => (
+              <ContactTypeCell
+                contactId={row.original.contact_id}
+                type={row.original.type}
+                contactTypes={contactTypes}
+              />
+            ),
+          };
+        case "updated_at":
+          return {
+            ...col,
+            cell: ({ row }: { row: { original: ContactWithCompany } }) => (
+              <span className="whitespace-nowrap text-muted-foreground">
+                {formatCrmDate(row.original.updated_at)}
+              </span>
+            ),
+          };
+        default:
+          return col;
+      }
+    });
+  }, [crmConfig, companies, contactTypes]);
 
   return (
     <CrmListPanelLayout

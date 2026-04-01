@@ -30,6 +30,8 @@ import { useRecordDrawer } from "@/hooks/use-record-drawer";
 import { dealKeys, type DealWithContact, useDeals, usePaginatedDeals } from "@/hooks/use-deals";
 import { useUpdateDeal } from "@/hooks/use-update-deal";
 import { useViewPreference, type ViewType } from "@/hooks/use-view-preference";
+import { buildColumnsFromConfig } from "@/lib/crm/build-columns";
+import { DEAL_DEFAULT_FIELDS } from "@/lib/crm/field-definitions";
 import { dealStageValues, type Deal } from "@/lib/crm/schemas";
 import { formatContactFullName, formatCrmDate, formatCrmEnumLabel, formatCrmPrice, formatDealStageLabel } from "@/lib/crm/display";
 import { supabase } from "@/lib/supabase";
@@ -295,63 +297,92 @@ export default function DealsPage() {
     [boardData, sortBy],
   );
 
-  const columns = useMemo<ColumnDef<DealWithContact>[]>(
-    () => [
-      {
-        accessorKey: "address",
-        header: "Address",
-        cell: ({ row }) => (
-          <Link
-            href={`/customers/deals/${row.original.deal_id}`}
-            className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
-            onClick={(event) => event.stopPropagation()}
-          >
-            {row.original.address}
-          </Link>
-        ),
-      },
-      {
-        accessorKey: "stage",
-        header: "Stage",
-        cell: ({ row }) => (
-          <DealStageCell
-            dealId={row.original.deal_id}
-            stage={row.original.stage}
-            stages={stages}
-          />
-        ),
-      },
-      {
-        accessorKey: "price",
-        header: "Price",
-        cell: ({ row }) => (
-          <DealPriceCell dealId={row.original.deal_id} price={row.original.price} />
-        ),
-      },
-      {
-        id: "contact",
-        accessorFn: (row) => getPrimaryContactLabel(row),
-        header: "Contact",
-        enableSorting: false,
-      },
-      {
-        id: "company",
-        accessorFn: (row) => row.companies?.name ?? "",
-        header: "Company",
-        enableSorting: false,
-      },
-      {
-        accessorKey: "updated_at",
-        header: "Updated",
-        cell: ({ row }) => (
-          <span className="whitespace-nowrap text-muted-foreground">
-            {formatCrmDate(row.original.updated_at)}
-          </span>
-        ),
-      },
-    ],
-    [stages],
-  );
+  /**
+   * Build columns from the config-driven field definition array, then override
+   * specific keys with the existing rich cell renderers.
+   *
+   * Field key mapping notes:
+   * - `name`        → renders as the deal address link (deals use `address` as display name)
+   * - `amount`      → maps to the `price` DB column via DealPriceCell
+   * - `stage`       → DealStageCell with inline quick-edit
+   * - `company_id`  → reads from the joined `companies` object
+   * - `point_of_contact` → reads from `deal_contacts` join as primary contact label
+   * - `address`     → plain text (secondary address field)
+   * - `updated_at`  → formatted date
+   */
+  const crmConfig = crmConfigResult?.config;
+  const columns = useMemo<ColumnDef<DealWithContact>[]>(() => {
+    const dealFields = crmConfig?.deal_fields ?? DEAL_DEFAULT_FIELDS;
+    const base = buildColumnsFromConfig<DealWithContact>(dealFields, "deals");
+
+    return base.map((col) => {
+      switch (col.id) {
+        case "name":
+          /** The deal "name" field renders the address as the primary link. */
+          return {
+            ...col,
+            accessorFn: (row: DealWithContact) => row.address,
+            cell: ({ row }: { row: { original: DealWithContact } }) => (
+              <Link
+                href={`/customers/deals/${row.original.deal_id}`}
+                className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {row.original.address}
+              </Link>
+            ),
+          };
+        case "amount":
+          /** `amount` in field definitions maps to the `price` column in the DB. */
+          return {
+            ...col,
+            accessorFn: (row: DealWithContact) => row.price,
+            cell: ({ row }: { row: { original: DealWithContact } }) => (
+              <DealPriceCell dealId={row.original.deal_id} price={row.original.price} />
+            ),
+          };
+        case "stage":
+          return {
+            ...col,
+            cell: ({ row }: { row: { original: DealWithContact } }) => (
+              <DealStageCell
+                dealId={row.original.deal_id}
+                stage={row.original.stage}
+                stages={stages}
+              />
+            ),
+          };
+        case "company_id":
+          return {
+            ...col,
+            accessorFn: (row: DealWithContact) => row.companies?.name ?? "",
+            enableSorting: false,
+            cell: undefined,
+          };
+        case "point_of_contact":
+          return {
+            ...col,
+            accessorFn: (row: DealWithContact) => getPrimaryContactLabel(row),
+            enableSorting: false,
+            cell: undefined,
+          };
+        case "address":
+          /** Secondary address field — plain text, no link override needed. */
+          return col;
+        case "updated_at":
+          return {
+            ...col,
+            cell: ({ row }: { row: { original: DealWithContact } }) => (
+              <span className="whitespace-nowrap text-muted-foreground">
+                {formatCrmDate(row.original.updated_at)}
+              </span>
+            ),
+          };
+        default:
+          return col;
+      }
+    });
+  }, [crmConfig, stages]);
 
   const stageColumns = useMemo(
     () =>
