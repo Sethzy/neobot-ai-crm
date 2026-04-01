@@ -9,7 +9,6 @@
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import Link from "next/link";
-import { usePanelRef } from "react-resizable-panels";
 import { ExternalLink, X } from "lucide-react";
 
 import {
@@ -34,9 +33,10 @@ interface CrmListPanelLayoutProps {
   fullPageRoutePrefix: string;
 }
 
-const PANEL_DEFAULT_SIZE = 35;
-const PANEL_MIN_SIZE = 25;
-const PANEL_MAX_SIZE = 50;
+const PANEL_LIST_SIZE = "65%";
+const PANEL_DETAIL_SIZE = "35%";
+const PANEL_DETAIL_MIN = "25%";
+const PANEL_DETAIL_MAX = "50%";
 
 export function CrmListPanelLayout({
   objectType,
@@ -46,23 +46,6 @@ export function CrmListPanelLayout({
 }: CrmListPanelLayoutProps) {
   const { isOpen, recordId, close } = useRecordDrawer();
   const isMobile = useIsMobile();
-  const detailPanelRef = usePanelRef();
-
-  // Expand/collapse the right panel when recordId changes.
-  useEffect(() => {
-    const panel = detailPanelRef.current;
-    if (!panel) return;
-
-    if (recordId) {
-      if (panel.isCollapsed()) {
-        panel.expand();
-      }
-    } else {
-      if (!panel.isCollapsed()) {
-        panel.collapse();
-      }
-    }
-  }, [recordId, detailPanelRef]);
 
   // Close panel on Escape key.
   useEffect(() => {
@@ -94,49 +77,49 @@ export function CrmListPanelLayout({
     );
   }
 
-  // Desktop: resizable panel layout.
+  // Desktop: when no record is selected, render children directly (no panel overhead).
+  if (!isOpen || !recordId) {
+    return children;
+  }
+
+  // Desktop with detail panel open: resizable two-pane layout.
   return (
     <ResizablePanelGroup orientation="horizontal" className="flex min-h-0 flex-1">
-      <ResizablePanel defaultSize={isOpen ? 100 - PANEL_DEFAULT_SIZE : 100} minSize={40}>
+      <ResizablePanel defaultSize={PANEL_LIST_SIZE} minSize="40%">
         {children}
       </ResizablePanel>
 
-      {isOpen ? <ResizableHandle withHandle /> : null}
+      <ResizableHandle withHandle />
 
       <ResizablePanel
-        panelRef={detailPanelRef}
-        collapsible
-        collapsedSize={0}
-        defaultSize={isOpen ? PANEL_DEFAULT_SIZE : 0}
-        minSize={PANEL_MIN_SIZE}
-        maxSize={PANEL_MAX_SIZE}
+        defaultSize={PANEL_DETAIL_SIZE}
+        minSize={PANEL_DETAIL_MIN}
+        maxSize={PANEL_DETAIL_MAX}
       >
-        {recordId ? (
-          <div className="flex h-full flex-col border-t border-border/60 bg-card">
-            {/* Panel header */}
-            <div className="flex items-center justify-between border-b border-border/40 px-3 py-2">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Close panel"
-                onClick={close}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href={`${fullPageRoutePrefix}/${recordId}`}>
-                  Open
-                  <ExternalLink className="ml-1 h-3 w-3" />
-                </Link>
-              </Button>
-            </div>
-
-            {/* Panel body */}
-            <div className="flex-1 overflow-y-auto">
-              {renderPanelContent(recordId)}
-            </div>
+        <div className="flex h-full flex-col border-t border-border/60 bg-card">
+          {/* Panel header */}
+          <div className="flex items-center justify-between border-b border-border/40 px-3 py-2">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Close panel"
+              onClick={close}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href={`${fullPageRoutePrefix}/${recordId}`}>
+                Open
+                <ExternalLink className="ml-1 h-3 w-3" />
+              </Link>
+            </Button>
           </div>
-        ) : null}
+
+          {/* Panel body */}
+          <div className="flex-1 overflow-y-auto">
+            {renderPanelContent(recordId)}
+          </div>
+        </div>
       </ResizablePanel>
     </ResizablePanelGroup>
   );
