@@ -16,6 +16,7 @@ import { AUTOMATION_TEMPLATES, type AutomationTemplate } from "@/lib/automations
 import type { ChatStatus } from "@/types/chat";
 
 import { ChatComposer } from "./chat-composer";
+import { MessageQuotaPill } from "./message-quota-pill";
 
 /** Tab labels mapped from template category IDs. */
 const CATEGORY_LABELS: Record<AutomationTemplate["category"], string> = {
@@ -70,6 +71,11 @@ export function ChatWelcome({
           What can I do for you?
         </h1>
 
+        {/* Quota pill */}
+        {messageQuota ? (
+          <MessageQuotaPill quota={messageQuota} />
+        ) : null}
+
         {/* Centered composer */}
         <ChatComposer
           status={status}
@@ -79,7 +85,7 @@ export function ChatWelcome({
           onSelectedChatModelChange={onSelectedChatModelChange}
           onSubmit={onSubmit}
           onStop={onStop}
-          messageQuota={messageQuota}
+          disabled={(messageQuota?.messagesRemaining ?? 1) <= 0}
           className="px-0 pb-0"
           innerClassName="max-w-none"
           placeholder="Describe a task or responsibility"

@@ -28,6 +28,7 @@ import {
 import type { Json } from "@/types/database";
 import { ChatComposer } from "./chat-composer";
 import { ChatWelcome } from "./chat-welcome";
+import { MessageQuotaPill } from "./message-quota-pill";
 import { useDataStream } from "./data-stream-provider";
 import { MessageList } from "./message-list";
 
@@ -164,16 +165,6 @@ export function ChatPanel({
     generateId: () => crypto.randomUUID(),
     experimental_throttle: STREAM_UI_THROTTLE_MS,
     transport,
-    sendAutomaticallyWhen: ({ messages: currentMessages }) => {
-      const lastMessage = currentMessages.at(-1);
-      return lastMessage?.parts?.some(
-        (part) =>
-          "state" in part &&
-          part.state === "approval-responded" &&
-          "approval" in part &&
-          (part.approval as { approved?: boolean })?.approved === true,
-      ) ?? false;
-    },
     onData: (dataPart) => {
       if (!shouldStoreDataPartForClient(dataPart)) {
         return;
@@ -340,7 +331,7 @@ export function ChatPanel({
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col bg-card">
       {error ? (
         <div className="mx-auto mt-3 flex w-full max-w-2xl items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           <AlertCircle className="h-4 w-4" />
@@ -351,6 +342,9 @@ export function ChatPanel({
       {hasMessages ? (
         <>
           <MessageList messages={messages} status={status} onToolApproval={handleToolApproval} onQuestionSubmit={handleQuestionSubmit} />
+          {messageQuota ? (
+            <MessageQuotaPill quota={messageQuota} className="pb-1 pt-2" />
+          ) : null}
           <ChatComposer
             status={status}
             selectedChatModel={selectedChatModel}
@@ -359,7 +353,7 @@ export function ChatPanel({
             onSelectedChatModelChange={setSelectedChatModel}
             onSubmit={handleSubmit}
             onStop={stop}
-            messageQuota={messageQuota}
+            disabled={(messageQuota?.messagesRemaining ?? 1) <= 0}
           />
         </>
       ) : (

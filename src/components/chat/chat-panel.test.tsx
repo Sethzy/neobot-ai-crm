@@ -721,53 +721,14 @@ describe("ChatPanel", () => {
     });
   });
 
-  it("configures sendAutomaticallyWhen for auto-resume after tool approval", () => {
+  it("does not set sendAutomaticallyWhen in useChat options", () => {
     render(<ChatPanel chatId="thread-1" />);
 
     const options = mockUseChat.mock.calls[0][0] as {
-      sendAutomaticallyWhen?: (ctx: { messages: UIMessage[] }) => boolean;
+      sendAutomaticallyWhen?: unknown;
     };
 
-    expect(typeof options.sendAutomaticallyWhen).toBe("function");
-
-    // Should return false for normal messages
-    expect(
-      options.sendAutomaticallyWhen?.({
-        messages: [
-          { id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] } as UIMessage,
-        ],
-      }),
-    ).toBe(false);
-
-    // Should return true when last message has an approved tool approval
-    expect(
-      options.sendAutomaticallyWhen?.({
-        messages: [
-          {
-            id: "u1",
-            role: "user",
-            parts: [
-              { type: "tool-write_file", state: "approval-responded", approval: { approved: true } },
-            ],
-          } as UIMessage,
-        ],
-      }),
-    ).toBe(true);
-
-    // Should return false when tool approval was denied
-    expect(
-      options.sendAutomaticallyWhen?.({
-        messages: [
-          {
-            id: "u1",
-            role: "user",
-            parts: [
-              { type: "tool-write_file", state: "approval-responded", approval: { approved: false } },
-            ],
-          } as UIMessage,
-        ],
-      }),
-    ).toBe(false);
+    expect(options.sendAutomaticallyWhen).toBeUndefined();
   });
 
   it("wires onQuestionSubmit to send user answer via sendMessage", async () => {

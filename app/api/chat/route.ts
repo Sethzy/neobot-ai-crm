@@ -181,18 +181,27 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError("Invalid request body: normal user turns must use `message`.", 400);
   }
 
-  const latestUserMessage = body.message?.role === "user"
-    ? body.message
-    : getLatestUserMessage(body.messages);
-  const input = latestUserMessage
-    ? getTextFromUnknownParts(latestUserMessage.parts) ?? ""
-    : null;
-  const fileParts = latestUserMessage
-    ? getFilePartsFromUnknownParts(latestUserMessage.parts)
-    : [];
+  // Approval continuations carry no new user message — use empty input so the
+  // model context doesn't duplicate the last user turn from history.
+  let input: string;
+  let fileParts: RunnerFilePart[] = [];
 
-  if (input === null || (input.length === 0 && fileParts.length === 0)) {
-    return jsonError("Invalid request body: could not resolve latest user message text.", 400);
+  if (isApprovalContinuation) {
+    input = "";
+  } else {
+    const latestUserMessage = body.message?.role === "user"
+      ? body.message
+      : getLatestUserMessage(body.messages);
+    input = latestUserMessage
+      ? getTextFromUnknownParts(latestUserMessage.parts) ?? ""
+      : "";
+    fileParts = latestUserMessage
+      ? getFilePartsFromUnknownParts(latestUserMessage.parts)
+      : [];
+
+    if (input.length === 0 && fileParts.length === 0) {
+      return jsonError("Invalid request body: could not resolve latest user message text.", 400);
+    }
   }
 
   _t("body_parsed");
