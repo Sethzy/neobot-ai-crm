@@ -62,7 +62,7 @@ async function fetchCompanies(filters: CompanyFilters): Promise<CompanyWithCount
   let query = supabase
     .from("companies")
     .select("*")
-    .order("updated_at", { ascending: false });
+    .order("created_at", { ascending: false });
 
   if (filters.search?.trim()) {
     query = query.or(
@@ -114,7 +114,7 @@ async function fetchPaginatedCompanies({
   let query = supabase
     .from("companies")
     .select("*", { count: "exact" })
-    .order("updated_at", { ascending: false })
+    .order("created_at", { ascending: false })
     .range(from, to);
 
   if (search?.trim()) {

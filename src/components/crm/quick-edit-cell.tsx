@@ -375,7 +375,7 @@ export function QuickEditCell({
           <PopoverContent
             className="w-[var(--radix-popover-trigger-width)] min-w-[180px] p-0"
             align="start"
-            sideOffset={-36}
+            sideOffset={-20}
             onClick={stopEventPropagation}
             onOpenAutoFocus={(event) => event.preventDefault()}
           >
@@ -465,7 +465,14 @@ export function QuickEditCell({
     }
 
     return (
-      <div className="flex items-center gap-1">
+      <div
+        className="flex items-center gap-1"
+        onBlur={(event) => {
+          if (!isDialogEditor && !event.currentTarget.contains(event.relatedTarget as Node)) {
+            cancelEditing();
+          }
+        }}
+      >
         <Input
           ref={inputRef}
           aria-label={ariaLabel}
@@ -521,11 +528,11 @@ export function QuickEditCell({
             <span
               className={cn(
                 "min-w-0 flex-1 truncate text-sm",
-                !resolvedDisplayValue ? "text-muted-foreground" : "text-foreground/85",
+                !resolvedDisplayValue ? "text-muted-foreground" : "text-foreground",
               )}
               title={resolvedDisplayValue || undefined}
             >
-              {resolvedDisplayValue || "\u2014"}
+              {resolvedDisplayValue}
             </span>
           ) : null}
 

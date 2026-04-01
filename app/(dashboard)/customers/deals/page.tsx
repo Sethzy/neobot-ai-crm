@@ -8,14 +8,17 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
+import { Handshake } from "lucide-react";
 import { RefreshCw } from "@/components/icons/lucide-compat";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
+import { CrmListPanelLayout } from "@/components/crm/crm-list-panel-layout";
 import { DealKanbanCard } from "@/components/crm/deal-kanban-card";
 import { DealStageMenu } from "@/components/crm/deal-stage-menu";
 import { KanbanBoard } from "@/components/crm/kanban-board";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
+import { DealDrawerContent } from "@/components/crm/record-drawer/deal-drawer-content";
 import { ViewToggle } from "@/components/crm/view-toggle";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -23,6 +26,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import type { DateRangeFilterValue, FilterDef, FilterValues } from "@/components/ui/filter-overlay";
 import { useCrmConfig } from "@/hooks/use-crm-config";
+import { useRecordDrawer } from "@/hooks/use-record-drawer";
 import { dealKeys, type DealWithContact, useDeals, usePaginatedDeals } from "@/hooks/use-deals";
 import { useUpdateDeal } from "@/hooks/use-update-deal";
 import { useViewPreference, type ViewType } from "@/hooks/use-view-preference";
@@ -71,7 +75,7 @@ function getPrimaryContactLabel(deal: DealWithContact) {
     deal.deal_contacts.find((dealContact) => dealContact.is_primary) ??
     deal.deal_contacts[0];
 
-  return primaryContact?.contacts ? formatContactFullName(primaryContact.contacts) : "—";
+  return primaryContact?.contacts ? formatContactFullName(primaryContact.contacts) : "";
 }
 
 function sortDealsByOption(sortBy: PipelineSortOption) {
@@ -185,6 +189,7 @@ function DealBoardCard({ deal, stages }: DealBoardCardProps) {
 export default function DealsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { recordId, open } = useRecordDrawer();
   const queryClient = useQueryClient();
   const { data: crmConfigResult } = useCrmConfig();
   const { view, setView } = useViewPreference("deals");
@@ -361,18 +366,24 @@ export default function DealsPage() {
   const activeRefetch = isBoardView ? refetchBoard : refetchTable;
 
   return (
-    <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-2">
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground">Deals</h1>
-              <p className="text-sm text-muted-foreground">
-                {isBoardView
-                  ? "Track the pipeline and move deals forward from the board."
-                  : "Track the pipeline and update deal progress in place."}
-              </p>
-            </div>
+    <CrmListPanelLayout
+      objectType="deal"
+      fullPageRoutePrefix="/customers/deals"
+      renderPanelContent={(id) => <DealDrawerContent dealId={id} />}
+    >
+    <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+      <div className="flex flex-col gap-3 bg-sidebar px-4 py-3 md:px-8 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Handshake className="h-4 w-4 text-muted-foreground" />
+            <h1 className="text-sm font-medium text-foreground">Deals</h1>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {isBoardView
+              ? "Track the pipeline and move deals forward from the board."
+              : "Track the pipeline and update deal progress in place."}
+          </p>
+        </div>
             <div className="flex flex-wrap items-center gap-2">
               {isBoardView ? (
                 <label className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -407,6 +418,7 @@ export default function DealsPage() {
             </div>
           </div>
 
+      <div className="mr-2 flex-1 space-y-6 rounded-t-xl border-l border-t border-border/60 bg-card px-3 pt-3 md:px-4">
           <FilterBar
             searchValue={search}
             onSearchChange={(value) => {
@@ -425,7 +437,6 @@ export default function DealsPage() {
               setFilterValues({});
             }}
           />
-        </div>
 
         {isBoardView ? (
           isBoardLoading ? (
@@ -454,7 +465,7 @@ export default function DealsPage() {
               groupBy={(deal) => deal.stage}
               getItemId={(deal) => deal.deal_id}
               renderCard={(deal) => <DealBoardCard deal={deal} stages={stages} />}
-              onCardClick={(dealId) => router.push(`/customers/deals/${dealId}`)}
+              onCardClick={(dealId) => open(dealId)}
               emptyStateMessage="No deals in this stage yet."
             />
           )
@@ -483,7 +494,7 @@ export default function DealsPage() {
                 }
               : undefined}
             rowActions={(row) => [
-              { id: "view", label: "View", href: `/customers/deals/${row.deal_id}` },
+              { id: "view", label: "View", onSelect: () => open(row.deal_id) },
               {
                 id: "open",
                 label: "Open in New Tab",
@@ -503,10 +514,13 @@ export default function DealsPage() {
                 },
               },
             ]}
-            onRowClick={(row) => router.push(`/customers/deals/${row.deal_id}`)}
+            onRowClick={(row) => open(row.deal_id)}
+            selectedRowId={recordId ?? undefined}
+            getRowId={(row) => row.deal_id}
           />
         )}
       </div>
     </div>
+    </CrmListPanelLayout>
   );
 }

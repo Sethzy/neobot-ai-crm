@@ -8,12 +8,14 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
+import { MoreHorizontal, Users } from "lucide-react";
 import { RefreshCw } from "@/components/icons/lucide-compat";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import { CrmListPanelLayout } from "@/components/crm/crm-list-panel-layout";
 import { DictionaryValue, contactTypeDictionaryMap } from "@/components/crm/dictionary-value";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
+import { ContactDrawerContent } from "@/components/crm/record-drawer/contact-drawer-content";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { DateRangeFilterValue, FilterDef, FilterValues } from "@/components/ui/filter-overlay";
@@ -21,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { contactKeys, type ContactWithCompany, type ContactType, usePaginatedContacts } from "@/hooks/use-contacts";
 import { type CompanyWithCounts, useCompanies } from "@/hooks/use-companies";
 import { useCrmConfig } from "@/hooks/use-crm-config";
+import { useRecordDrawer } from "@/hooks/use-record-drawer";
 import { useUpdateContact } from "@/hooks/use-update-contact";
 import { buildCrmSelectOptions, formatContactFullName, formatCrmDate, formatCrmEnumLabel } from "@/lib/crm/display";
 import { contactTypeValues } from "@/lib/crm/schemas";
@@ -120,9 +123,7 @@ function ContactLinkEditCell({
         >
           {value}
         </a>
-      ) : (
-        <span className="text-sm text-muted-foreground">{"\u2014"}</span>
-      )}
+      ) : null}
     </QuickEditCell>
   );
 }
@@ -229,15 +230,13 @@ function ContactCompanyCell({ contactId, company, companies }: ContactCompanyCel
         >
           {company.name}
         </Link>
-      ) : (
-        <span className="text-sm text-muted-foreground">{"\u2014"}</span>
-      )}
+      ) : null}
     </QuickEditCell>
   );
 }
 
 export default function PeoplePage() {
-  const router = useRouter();
+  const { recordId, open } = useRecordDrawer();
   const queryClient = useQueryClient();
   const { data: crmConfigResult } = useCrmConfig();
   const { data: companies = [] } = useCompanies({});
@@ -376,81 +375,98 @@ export default function PeoplePage() {
   );
 
   return (
-    <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
-      <DataTable
-        title={(
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">People</h1>
-        )}
-        columns={columns}
-        data={rows}
-        isLoading={isLoading}
-        error={isError ? <span>Unable to load people.</span> : null}
-        emptyState={(
-          <EmptyState
-            iconName="contacts"
-            title={search.trim() || Object.keys(filterValues).length > 0 ? "No results match your filters" : "No people yet"}
-            description={search.trim() || Object.keys(filterValues).length > 0
-              ? "Try adjusting or clearing your filters."
-              : "Your AI agent will create contacts as it processes conversations."}
-          />
-        )}
-        pagination={data
-          ? {
-              page: data.page,
-              pageSize: data.pageSize,
-              total: data.total,
-              totalPages: data.totalPages,
-              onPageChange: setPage,
-            }
-          : undefined}
-        refreshButton={(
-          <Button type="button" variant="ghost" size="icon" aria-label="Refresh people" onClick={() => void refetch()}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        )}
-        rowActions={(row) => [
-          {
-            id: "view",
-            label: "View",
-            href: `/customers/people/${row.contact_id}`,
-          },
-          {
-            id: "open",
-            label: "Open in New Tab",
-            href: `/customers/people/${row.contact_id}`,
-            newTab: true,
-          },
-          {
-            id: "delete",
-            label: "Delete",
-            destructive: true,
-            onSelect: () => {
-              if (!window.confirm(`Delete ${formatContactFullName(row)}? This cannot be undone.`)) {
-                return;
+    <CrmListPanelLayout
+      objectType="contact"
+      fullPageRoutePrefix="/customers/people"
+      renderPanelContent={(id) => <ContactDrawerContent contactId={id} />}
+    >
+      <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+        <div className="flex items-center justify-between bg-sidebar px-4 py-3 md:px-8">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <h1 className="text-sm font-medium text-foreground">People</h1>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button type="button" variant="ghost" size="icon" aria-label="Refresh people" onClick={() => void refetch()}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button type="button" variant="ghost" size="icon" aria-label="More table actions">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+            <Button type="button" variant="outline" size="sm">Export</Button>
+          </div>
+        </div>
+        <div className="mr-2 flex-1 rounded-t-xl border-l border-t border-border/60 bg-card px-3 pt-3 md:px-4">
+        <DataTable
+          columns={columns}
+          data={rows}
+          isLoading={isLoading}
+          error={isError ? <span>Unable to load people.</span> : null}
+          emptyState={(
+            <EmptyState
+              iconName="contacts"
+              title={search.trim() || Object.keys(filterValues).length > 0 ? "No results match your filters" : "No people yet"}
+              description={search.trim() || Object.keys(filterValues).length > 0
+                ? "Try adjusting or clearing your filters."
+                : "Your AI agent will create contacts as it processes conversations."}
+            />
+          )}
+          pagination={data
+            ? {
+                page: data.page,
+                pageSize: data.pageSize,
+                total: data.total,
+                totalPages: data.totalPages,
+                onPageChange: setPage,
               }
-
-              deletePerson.mutate({ contactId: row.contact_id });
+            : undefined}
+          rowActions={(row) => [
+            {
+              id: "view",
+              label: "View",
+              onSelect: () => open(row.contact_id),
             },
-          },
-        ]}
-        onRowClick={(row) => router.push(`/customers/people/${row.contact_id}`)}
-        searchValue={search}
-        onSearchChange={(value) => {
-          setPage(1);
-          setSearch(value);
-        }}
-        searchPlaceholder="Search people..."
-        filters={filters}
-        filterValues={filterValues}
-        onFiltersApply={(nextValues) => {
-          setPage(1);
-          setFilterValues(nextValues);
-        }}
-        onFiltersClear={() => {
-          setPage(1);
-          setFilterValues({});
-        }}
-      />
-    </div>
+            {
+              id: "open",
+              label: "Open in New Tab",
+              href: `/customers/people/${row.contact_id}`,
+              newTab: true,
+            },
+            {
+              id: "delete",
+              label: "Delete",
+              destructive: true,
+              onSelect: () => {
+                if (!window.confirm(`Delete ${formatContactFullName(row)}? This cannot be undone.`)) {
+                  return;
+                }
+
+                deletePerson.mutate({ contactId: row.contact_id });
+              },
+            },
+          ]}
+          onRowClick={(row) => open(row.contact_id)}
+          selectedRowId={recordId ?? undefined}
+          getRowId={(row) => row.contact_id}
+          searchValue={search}
+          onSearchChange={(value) => {
+            setPage(1);
+            setSearch(value);
+          }}
+          searchPlaceholder="Search people..."
+          filters={filters}
+          filterValues={filterValues}
+          onFiltersApply={(nextValues) => {
+            setPage(1);
+            setFilterValues(nextValues);
+          }}
+          onFiltersClear={() => {
+            setPage(1);
+            setFilterValues({});
+          }}
+        />
+        </div>
+      </div>
+    </CrmListPanelLayout>
   );
 }

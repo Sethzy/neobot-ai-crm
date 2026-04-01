@@ -8,17 +8,20 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
+import { Building2, MoreHorizontal } from "lucide-react";
 import { RefreshCw } from "@/components/icons/lucide-compat";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CrmListPanelLayout } from "@/components/crm/crm-list-panel-layout";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
+import { CompanyDrawerContent } from "@/components/crm/record-drawer/company-drawer-content";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { DateRangeFilterValue, FilterDef, FilterValues } from "@/components/ui/filter-overlay";
 import { useCrmConfig } from "@/hooks/use-crm-config";
+import { useRecordDrawer } from "@/hooks/use-record-drawer";
 import { companyKeys, type CompanyWithCounts, usePaginatedCompanies } from "@/hooks/use-companies";
 import { useUpdateCompany } from "@/hooks/use-update-company";
 import { CRM_DEFAULTS } from "@/lib/crm/config";
@@ -120,9 +123,7 @@ function CompanyLinkEditCell({
         >
           {displayValue ? displayValue(value) : value}
         </a>
-      ) : (
-        <span className="text-sm text-muted-foreground">{"\u2014"}</span>
-      )}
+      ) : null}
     </QuickEditCell>
   );
 }
@@ -215,15 +216,13 @@ function CompanyIndustryCell({ companyId, industry, industryOptions }: CompanyIn
         <Badge variant={getCompanyIndustryBadgeVariant(industry)}>
           {formatCrmEnumLabel(industry)}
         </Badge>
-      ) : (
-        <span className="text-sm text-muted-foreground">{"\u2014"}</span>
-      )}
+      ) : null}
     </QuickEditCell>
   );
 }
 
 export default function CompaniesPage() {
-  const router = useRouter();
+  const { recordId, open } = useRecordDrawer();
   const queryClient = useQueryClient();
   const { data: crmConfigResult } = useCrmConfig();
   const [page, setPage] = useState(1);
@@ -355,77 +354,94 @@ export default function CompaniesPage() {
   );
 
   return (
-    <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
-      <DataTable
-        title={(
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Companies</h1>
-        )}
-        columns={columns}
-        data={rows}
-        isLoading={isLoading}
-        error={isError ? <span>Unable to load companies.</span> : null}
-        emptyState={(
-          <EmptyState
-            iconName="building"
-            title={search.trim() || Object.keys(filterValues).length > 0 ? "No results match your filters" : "No companies yet"}
-            description={search.trim() || Object.keys(filterValues).length > 0
-              ? "Try adjusting or clearing your filters."
-              : "Your AI agent will create companies as it processes conversations."}
-          />
-        )}
-        pagination={data
-          ? {
-              page: data.page,
-              pageSize: data.pageSize,
-              total: data.total,
-              totalPages: data.totalPages,
-              onPageChange: setPage,
-            }
-          : undefined}
-        refreshButton={(
-          <Button type="button" variant="ghost" size="icon" aria-label="Refresh companies" onClick={() => void refetch()}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        )}
-        rowActions={(row) => [
-          { id: "view", label: "View", href: `/customers/companies/${row.company_id}` },
-          {
-            id: "open",
-            label: "Open in New Tab",
-            href: `/customers/companies/${row.company_id}`,
-            newTab: true,
-          },
-          {
-            id: "delete",
-            label: "Delete",
-            destructive: true,
-            onSelect: () => {
-              if (!window.confirm(`Delete ${row.name}? This cannot be undone.`)) {
-                return;
+    <CrmListPanelLayout
+      objectType="company"
+      fullPageRoutePrefix="/customers/companies"
+      renderPanelContent={(id) => <CompanyDrawerContent companyId={id} />}
+    >
+      <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+        <div className="flex items-center justify-between bg-sidebar px-4 py-3 md:px-8">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+            <h1 className="text-sm font-medium text-foreground">Companies</h1>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button type="button" variant="ghost" size="icon" aria-label="Refresh companies" onClick={() => void refetch()}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button type="button" variant="ghost" size="icon" aria-label="More table actions">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+            <Button type="button" variant="outline" size="sm">Export</Button>
+          </div>
+        </div>
+        <div className="mr-2 flex-1 rounded-t-xl border-l border-t border-border/60 bg-card px-3 pt-3 md:px-4">
+        <DataTable
+          columns={columns}
+          data={rows}
+          isLoading={isLoading}
+          error={isError ? <span>Unable to load companies.</span> : null}
+          emptyState={(
+            <EmptyState
+              iconName="building"
+              title={search.trim() || Object.keys(filterValues).length > 0 ? "No results match your filters" : "No companies yet"}
+              description={search.trim() || Object.keys(filterValues).length > 0
+                ? "Try adjusting or clearing your filters."
+                : "Your AI agent will create companies as it processes conversations."}
+            />
+          )}
+          pagination={data
+            ? {
+                page: data.page,
+                pageSize: data.pageSize,
+                total: data.total,
+                totalPages: data.totalPages,
+                onPageChange: setPage,
               }
-
-              deleteCompany.mutate({ companyId: row.company_id });
+            : undefined}
+          rowActions={(row) => [
+            { id: "view", label: "View", onSelect: () => open(row.company_id) },
+            {
+              id: "open",
+              label: "Open in New Tab",
+              href: `/customers/companies/${row.company_id}`,
+              newTab: true,
             },
-          },
-        ]}
-        onRowClick={(row) => router.push(`/customers/companies/${row.company_id}`)}
-        searchValue={search}
-        onSearchChange={(value) => {
-          setPage(1);
-          setSearch(value);
-        }}
-        searchPlaceholder="Search companies..."
-        filters={filters}
-        filterValues={filterValues}
-        onFiltersApply={(nextValues) => {
-          setPage(1);
-          setFilterValues(nextValues);
-        }}
-        onFiltersClear={() => {
-          setPage(1);
-          setFilterValues({});
-        }}
-      />
-    </div>
+            {
+              id: "delete",
+              label: "Delete",
+              destructive: true,
+              onSelect: () => {
+                if (!window.confirm(`Delete ${row.name}? This cannot be undone.`)) {
+                  return;
+                }
+
+                deleteCompany.mutate({ companyId: row.company_id });
+              },
+            },
+          ]}
+          onRowClick={(row) => open(row.company_id)}
+          selectedRowId={recordId ?? undefined}
+          getRowId={(row) => row.company_id}
+          searchValue={search}
+          onSearchChange={(value) => {
+            setPage(1);
+            setSearch(value);
+          }}
+          searchPlaceholder="Search companies..."
+          filters={filters}
+          filterValues={filterValues}
+          onFiltersApply={(nextValues) => {
+            setPage(1);
+            setFilterValues(nextValues);
+          }}
+          onFiltersClear={() => {
+            setPage(1);
+            setFilterValues({});
+          }}
+        />
+        </div>
+      </div>
+    </CrmListPanelLayout>
   );
 }

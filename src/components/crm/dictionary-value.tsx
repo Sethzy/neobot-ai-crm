@@ -303,7 +303,7 @@ export function DictionaryValue({
         </span>
       ) : null}
       <span>{entry.label}</span>
-      {entry.color ? renderDictionaryColor(entry.color, colorClassName) : null}
+      {/* Color dot removed to match Twenty-style clean table rows */}
     </span>
   );
 }

@@ -129,7 +129,7 @@ export function FilterBar({
           <Button
             type="button"
             variant="outline"
-            className="h-9 shrink-0"
+            className="h-9 shrink-0 bg-card"
             onClick={() => setIsOverlayOpen(true)}
           >
             <Filter className="h-4 w-4 opacity-80" />
@@ -146,7 +146,7 @@ export function FilterBar({
           </Button>
         ) : null}
         {filters.length > 0 ? (
-          <Button type="button" variant="outline" className="h-9 shrink-0">
+          <Button type="button" variant="outline" className="h-9 shrink-0 bg-card">
             <SlidersHorizontal className="h-4 w-4 opacity-80" />
             <span>Perspectives</span>
           </Button>

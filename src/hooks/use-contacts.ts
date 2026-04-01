@@ -60,7 +60,7 @@ async function fetchContacts({ search, type }: ContactFilters): Promise<ContactW
   let query = supabase
     .from("contacts")
     .select("*, companies!contacts_company_id_fkey(company_id, name)")
-    .order("updated_at", { ascending: false });
+    .order("created_at", { ascending: false });
 
   if (search?.trim()) {
     query = query.or(buildSearchExpression(search, ["first_name", "last_name", "email", "phone"]));
@@ -96,7 +96,7 @@ async function fetchPaginatedContacts({
   let query = supabase
     .from("contacts")
     .select("*, companies!contacts_company_id_fkey(company_id, name)", { count: "exact" })
-    .order("updated_at", { ascending: false })
+    .order("created_at", { ascending: false })
     .range(from, to);
 
   if (search?.trim()) {

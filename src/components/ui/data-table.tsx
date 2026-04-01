@@ -50,6 +50,10 @@ export interface DataTableProps<TData> {
   emptyState?: React.ReactNode
   rowActions?: (row: TData) => RowActionItem[]
   onRowClick?: (row: TData) => void
+  /** Highlights the row matching this id (used by the inline detail panel). */
+  selectedRowId?: string
+  /** Extracts a unique id from a row for selection highlighting. */
+  getRowId?: (row: TData) => string
   searchValue?: string
   onSearchChange?: (value: string) => void
   searchPlaceholder?: string
@@ -163,6 +167,8 @@ export function DataTable<TData>({
   emptyState,
   rowActions,
   onRowClick,
+  selectedRowId,
+  getRowId,
   searchValue,
   onSearchChange,
   searchPlaceholder = "Search",
@@ -187,7 +193,7 @@ export function DataTable<TData>({
         enableSorting: false,
         cell: ({ row }) => (
           <div
-            className="flex justify-end"
+            className="flex justify-end opacity-0 transition-opacity group-hover/row:opacity-100"
             data-actions-cell
             onClick={(event) => event.stopPropagation()}
           >
@@ -221,53 +227,49 @@ export function DataTable<TData>({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-lg border border-border bg-card shadow-sm",
+        "overflow-hidden",
         className
       )}
     >
-      {(title || refreshButton || actions || hasToolbar) && (
-        <div className="border-b border-border px-4 py-3">
-          {(title || refreshButton || actions) && (
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                {typeof title === "string" ? (
-                  <h2 className="text-base font-semibold">{title}</h2>
-                ) : (
-                  title
-                )}
-              </div>
-              {(refreshButton || actions) && (
-                <div className="flex min-h-[2.25rem] flex-wrap items-center gap-2">
-                  {refreshButton}
-                  <Button type="button" variant="ghost" size="icon" aria-label="More table actions">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                  <Button type="button" variant="outline" size="sm">
-                    Export
-                  </Button>
-                  {actions}
-                </div>
-              )}
+      {(title || refreshButton || actions) && (
+        <div className="flex items-center justify-between pb-3">
+          <div className="min-w-0">
+            {typeof title === "string" ? (
+              <h2 className="text-lg font-semibold">{title}</h2>
+            ) : (
+              title
+            )}
+          </div>
+          {(refreshButton || actions) && (
+            <div className="flex items-center gap-2">
+              {refreshButton}
+              <Button type="button" variant="ghost" size="icon" aria-label="More table actions">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+              <Button type="button" variant="outline" size="sm">
+                Export
+              </Button>
+              {actions}
             </div>
           )}
-          {hasToolbar ? (
-            <div className={cn(title || refreshButton || actions ? "mt-3 border-t border-border pt-3" : "")}>
-              <FilterBar
-                searchValue={searchValue}
-                onSearchChange={onSearchChange}
-                searchPlaceholder={searchPlaceholder}
-                filters={filters}
-                values={filterValues}
-                onApply={onFiltersApply}
-                onClear={onFiltersClear}
-              />
-            </div>
-          ) : null}
         </div>
       )}
+      {hasToolbar ? (
+        <div className="flex items-center justify-between pb-2">
+          <FilterBar
+            searchValue={searchValue}
+            onSearchChange={onSearchChange}
+            searchPlaceholder={searchPlaceholder}
+            filters={filters}
+            values={filterValues}
+            onApply={onFiltersApply}
+            onClear={onFiltersClear}
+          />
+        </div>
+      ) : null}
       <div className="overflow-x-auto">
         <table className="min-w-[640px] w-full border-collapse">
-          <thead className="border-b border-border bg-background">
+          <thead className="border-y border-border">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
@@ -278,7 +280,7 @@ export function DataTable<TData>({
                     <th
                       key={header.id}
                       className={cn(
-                        "px-4 py-3 text-left text-xs font-medium text-muted-foreground",
+                        "px-3 py-1.5 text-left text-xs font-medium text-muted-foreground",
                         isActionsColumn ? "w-[1%] text-right" : ""
                       )}
                     >
@@ -318,12 +320,15 @@ export function DataTable<TData>({
               : error
                 ? renderTableState(error, colSpan, "text-destructive")
                 : table.getRowModel().rows.length > 0
-                  ? table.getRowModel().rows.map((row) => (
+                  ? table.getRowModel().rows.map((row) => {
+                      const isSelected = Boolean(selectedRowId && getRowId && getRowId(row.original) === selectedRowId)
+                      return (
                       <tr
                         key={row.id}
                         className={cn(
-                          "border-t border-border/30",
-                          onRowClick ? "cursor-pointer transition-colors hover:bg-muted/50" : ""
+                          "group/row border-b border-border",
+                          onRowClick ? "cursor-pointer transition-colors hover:bg-muted/50" : "",
+                          isSelected && "bg-muted/60"
                         )}
                         onClick={(event) => {
                           if (!onRowClick) {
@@ -358,7 +363,7 @@ export function DataTable<TData>({
                             <td
                               key={cell.id}
                               className={cn(
-                                "px-4 py-3 text-sm text-foreground/85",
+                                "px-3 py-1 text-sm text-foreground",
                                 isActionsColumn ? "w-[1%] whitespace-nowrap text-right" : ""
                               )}
                             >
@@ -367,7 +372,7 @@ export function DataTable<TData>({
                           )
                         })}
                       </tr>
-                    ))
+                    )})
                   : renderTableState(
                       emptyState ?? <span className="text-muted-foreground">No results.</span>,
                       colSpan
@@ -375,7 +380,7 @@ export function DataTable<TData>({
           </tbody>
         </table>
       </div>
-      {pagination ? (
+      {pagination && pagination.totalPages > 1 ? (
         <div className="flex flex-col gap-3 border-t border-border px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <p>
             Showing {startResult} to {endResult} of {pagination.total} results

@@ -70,7 +70,7 @@ async function fetchDeals(filters: DealFilters): Promise<DealWithContact[]> {
   let query = supabase
     .from("deals")
     .select("*, deal_contacts!deal_contacts_deal_id_fkey(contact_id, role, is_primary, contacts!deal_contacts_contact_id_fkey(first_name, last_name)), companies!deals_company_id_fkey(company_id, name)")
-    .order("updated_at", { ascending: false });
+    .order("created_at", { ascending: false });
 
   query = applyDealFilters(query, filters);
 
@@ -98,7 +98,7 @@ async function fetchPaginatedDeals({
   let query = supabase
     .from("deals")
     .select("*, deal_contacts!deal_contacts_deal_id_fkey(contact_id, role, is_primary, contacts!deal_contacts_contact_id_fkey(first_name, last_name)), companies!deals_company_id_fkey(company_id, name)", { count: "exact" })
-    .order("updated_at", { ascending: false })
+    .order("created_at", { ascending: false })
     .range(from, to);
 
   query = applyDealFilters(query, { search, stage, createdAt });
