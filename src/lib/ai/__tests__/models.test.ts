@@ -8,7 +8,6 @@ import {
   allowedModelIds,
   chatModels,
   DEFAULT_CHAT_MODEL,
-  modelsByProvider,
   resolveModelId,
 } from "@/lib/ai/models";
 
@@ -28,19 +27,6 @@ describe("chat model catalog", () => {
           id: "minimax/minimax-m2.7",
           provider: "minimax",
         }),
-      ]),
-    );
-  });
-
-  it("groups models by provider for the selector UI", () => {
-    expect(modelsByProvider.google).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ id: "google/gemini-3-flash" }),
-      ]),
-    );
-    expect(modelsByProvider.minimax).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ id: "minimax/minimax-m2.7" }),
       ]),
     );
   });

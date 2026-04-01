@@ -7,10 +7,12 @@ export interface ChatModel {
   id: string;
   /** Human-readable label shown in the picker. */
   name: string;
-  /** Provider slug used for grouping and provider logos. */
+  /** Provider slug used for provider logos. */
   provider: string;
   /** Short helper copy shown in the selector list. */
   description: string;
+  /** Relative cost tier displayed as repeated '$' signs (1 = $, 2 = $$, etc.). */
+  cost: number;
 }
 
 /**
@@ -32,30 +34,20 @@ export const chatModels: ChatModel[] = [
     name: "Gemini Flash 3",
     provider: "google",
     description: "Fast and cost-effective for everyday work",
+    cost: 1,
   },
   {
     id: "minimax/minimax-m2.7",
     name: "MiniMax M2.7",
     provider: "minimax",
     description: "Better suited for deep analysis and code-heavy tasks",
+    cost: 2,
   },
 ];
 
 /** Fast validation set derived from the catalog. */
 export const allowedModelIds = new Set(chatModels.map((model) => model.id));
 
-/** Provider-grouped view of the catalog for selector rendering. */
-export const modelsByProvider = chatModels.reduce(
-  (accumulator, model) => {
-    if (!accumulator[model.provider]) {
-      accumulator[model.provider] = [];
-    }
-
-    accumulator[model.provider].push(model);
-    return accumulator;
-  },
-  {} as Record<string, ChatModel[]>,
-);
 
 /**
  * Resolves a possibly-invalid selected model to a safe runtime model ID.
