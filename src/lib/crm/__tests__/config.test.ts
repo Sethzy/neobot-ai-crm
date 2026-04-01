@@ -15,6 +15,11 @@ import {
   type CustomFieldDefinition,
   type CrmConfigRow,
 } from "../config";
+import {
+  CONTACT_DEFAULT_FIELDS,
+  COMPANY_DEFAULT_FIELDS,
+  DEAL_DEFAULT_FIELDS,
+} from "../field-definitions";
 
 const CLIENT_ID = "660e8400-e29b-41d4-a716-446655440000";
 
@@ -218,6 +223,78 @@ describe("buildCustomFieldsSchema", () => {
 
     expect(schema.parse({})).toEqual({});
     expect(schema.parse({ policy_number: "POL-002" })).toEqual({ policy_number: "POL-002" });
+  });
+});
+
+describe("resolveCrmConfig — field arrays", () => {
+  it("returns default field arrays when config row is null", () => {
+    const config = resolveCrmConfig(null);
+    expect(config.contact_fields).toEqual(CONTACT_DEFAULT_FIELDS);
+    expect(config.company_fields).toEqual(COMPANY_DEFAULT_FIELDS);
+    expect(config.deal_fields).toEqual(DEAL_DEFAULT_FIELDS);
+  });
+
+  it("returns default field arrays when config row has no field arrays", () => {
+    const row: CrmConfigRow = {
+      deal_label: "Deal",
+      deal_stages: ["a", "b"],
+      contact_types: null,
+      interaction_types: null,
+      deal_contact_roles: null,
+      company_label: "Company",
+      company_industries: null,
+      deal_custom_fields: [],
+      contact_custom_fields: [],
+      company_custom_fields: [],
+      task_custom_fields: [],
+    };
+    const config = resolveCrmConfig(row);
+    expect(config.contact_fields).toEqual(CONTACT_DEFAULT_FIELDS);
+    expect(config.company_fields).toEqual(COMPANY_DEFAULT_FIELDS);
+    expect(config.deal_fields).toEqual(DEAL_DEFAULT_FIELDS);
+  });
+
+  it("uses stored field arrays when present in config row", () => {
+    const customContactFields = [
+      { key: "name", label: "Name", type: "full_name", source: "column", tier: "indestructible", visible: true, order: 0, editable: false, required: true },
+      { key: "budget", label: "Budget", type: "currency", source: "custom", tier: "custom", visible: true, order: 1, editable: true, required: false },
+    ];
+    const row: CrmConfigRow = {
+      deal_label: "Deal",
+      deal_stages: null,
+      contact_types: null,
+      interaction_types: null,
+      deal_contact_roles: null,
+      company_label: "Company",
+      company_industries: null,
+      deal_custom_fields: [],
+      contact_custom_fields: [],
+      company_custom_fields: [],
+      task_custom_fields: [],
+      contact_fields: customContactFields,
+    };
+    const config = resolveCrmConfig(row);
+    expect(config.contact_fields).toHaveLength(2);
+    expect(config.contact_fields[1].key).toBe("budget");
+  });
+
+  it("falls back to defaults when stored field arrays are malformed", () => {
+    const row: CrmConfigRow = {
+      deal_label: "Deal",
+      deal_stages: null,
+      contact_types: null,
+      interaction_types: null,
+      deal_contact_roles: null,
+      company_label: "Company",
+      company_industries: null,
+      deal_custom_fields: [],
+      contact_custom_fields: [],
+      company_custom_fields: [],
+      task_custom_fields: [],
+      contact_fields: "not an array",
+    };
+    const config = resolveCrmConfig(row);
+    expect(config.contact_fields).toEqual(CONTACT_DEFAULT_FIELDS);
   });
 });
 

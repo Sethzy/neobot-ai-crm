@@ -6,6 +6,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import type { Database } from "@/types/database";
+import {
+  type FieldDefinition,
+  fieldDefinitionSchema,
+  CONTACT_DEFAULT_FIELDS,
+  COMPANY_DEFAULT_FIELDS,
+  DEAL_DEFAULT_FIELDS,
+} from "./field-definitions";
 
 /** Supported custom field data types for configurable CRM schemas. */
 export const customFieldTypeValues = [
@@ -48,6 +55,9 @@ export interface CrmVocabConfig {
   contact_custom_fields: CustomFieldDefinition[];
   company_custom_fields: CustomFieldDefinition[];
   task_custom_fields: CustomFieldDefinition[];
+  contact_fields: FieldDefinition[];
+  company_fields: FieldDefinition[];
+  deal_fields: FieldDefinition[];
 }
 
 /** Loose DB row shape for crm_config before runtime normalization. */
@@ -63,6 +73,9 @@ export interface CrmConfigRow {
   contact_custom_fields: unknown;
   company_custom_fields: unknown;
   task_custom_fields: unknown;
+  contact_fields?: unknown;
+  company_fields?: unknown;
+  deal_fields?: unknown;
 }
 
 /** Real-estate defaults used when a client has not configured CRM vocab yet. */
@@ -85,6 +98,9 @@ export const CRM_DEFAULTS: CrmVocabConfig = {
   contact_custom_fields: [],
   company_custom_fields: [],
   task_custom_fields: [],
+  contact_fields: CONTACT_DEFAULT_FIELDS,
+  company_fields: COMPANY_DEFAULT_FIELDS,
+  deal_fields: DEAL_DEFAULT_FIELDS,
 };
 
 /** Removes duplicate entries from a string array (preserves first occurrence order). */
@@ -139,6 +155,16 @@ function parseCustomFields(value: unknown): CustomFieldDefinition[] {
   return Array.from(byKey.values());
 }
 
+/** Parses a stored field definition array, falling back to defaults on failure. */
+function parseFieldArray(value: unknown, defaults: FieldDefinition[]): FieldDefinition[] {
+  if (!Array.isArray(value) || value.length === 0) return defaults;
+  try {
+    return value.map((f) => fieldDefinitionSchema.parse(f));
+  } catch {
+    return defaults;
+  }
+}
+
 /**
  * Resolves a raw crm_config row into runtime-safe CRM config.
  * Tolerates legacy object-array rows and malformed custom-field definitions.
@@ -160,6 +186,9 @@ export function resolveCrmConfig(row: CrmConfigRow | null): CrmVocabConfig {
     contact_custom_fields: parseCustomFields(row.contact_custom_fields),
     company_custom_fields: parseCustomFields(row.company_custom_fields),
     task_custom_fields: parseCustomFields(row.task_custom_fields),
+    contact_fields: parseFieldArray(row.contact_fields, CONTACT_DEFAULT_FIELDS),
+    company_fields: parseFieldArray(row.company_fields, COMPANY_DEFAULT_FIELDS),
+    deal_fields: parseFieldArray(row.deal_fields, DEAL_DEFAULT_FIELDS),
   };
 }
 
