@@ -8,7 +8,7 @@
  */
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -288,6 +288,8 @@ export function AskUserQuestionInline({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Map<number, string | null>>(new Map());
   const [dismissed, setDismissed] = useState(false);
+  /** Guards against double-submission from React strict mode or rapid clicks. */
+  const submittedRef = useRef(false);
   const isMultiQuestion = questions.length > 1;
   const currentQuestion = questions[currentIndex];
 
@@ -296,6 +298,9 @@ export function AskUserQuestionInline({
    * Skipped questions (null answers) are omitted entirely.
    */
   const formatAndSubmit = useCallback((finalAnswers: Map<number, string | null>) => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+
     const lines: string[] = [];
     questions.forEach((q, i) => {
       const answer = finalAnswers.get(i);
@@ -310,33 +315,29 @@ export function AskUserQuestionInline({
 
   /** Record answer for current question and advance or submit. */
   const handleAnswer = useCallback((text: string) => {
-    setAnswers((prev) => {
-      const next = new Map(prev);
-      next.set(currentIndex, text);
+    const next = new Map(answers);
+    next.set(currentIndex, text);
+    setAnswers(next);
 
-      if (currentIndex < questions.length - 1) {
-        setCurrentIndex(currentIndex + 1);
-      } else {
-        formatAndSubmit(next);
-      }
-      return next;
-    });
-  }, [currentIndex, questions.length, formatAndSubmit]);
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+    } else {
+      formatAndSubmit(next);
+    }
+  }, [answers, currentIndex, questions.length, formatAndSubmit]);
 
   /** Skip current question (null answer) and advance or submit. */
   const handleSkip = useCallback(() => {
-    setAnswers((prev) => {
-      const next = new Map(prev);
-      next.set(currentIndex, null);
+    const next = new Map(answers);
+    next.set(currentIndex, null);
+    setAnswers(next);
 
-      if (currentIndex < questions.length - 1) {
-        setCurrentIndex(currentIndex + 1);
-      } else {
-        formatAndSubmit(next);
-      }
-      return next;
-    });
-  }, [currentIndex, questions.length, formatAndSubmit]);
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+    } else {
+      formatAndSubmit(next);
+    }
+  }, [answers, currentIndex, questions.length, formatAndSubmit]);
 
   /** Dismiss entire widget — closes silently, no answer recorded, no message sent. */
   const handleDismiss = useCallback(() => {
