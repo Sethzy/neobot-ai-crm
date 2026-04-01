@@ -13,6 +13,13 @@ import {
   resolveCrmConfig,
   type CrmConfigRow,
 } from "@/lib/crm/config";
+import {
+  type FieldDefinition,
+  fieldDefinitionSchema,
+  CONTACT_DEFAULT_FIELDS,
+  COMPANY_DEFAULT_FIELDS,
+  DEAL_DEFAULT_FIELDS,
+} from "@/lib/crm/field-definitions";
 import type { Database } from "@/types/database";
 
 const vocabularyFieldSchema = z.array(z.string().trim().min(2)).min(1).max(30);
@@ -63,6 +70,12 @@ const inputSchema = z.object({
     .describe("Custom field definitions for companies."),
   task_custom_fields: taskCustomFieldsSchema.optional()
     .describe("Custom field definitions for CRM tasks."),
+  contact_fields: z.array(fieldDefinitionSchema).optional()
+    .describe("Full contact field definitions array. Include ALL fields (defaults + custom). Omitting a custom field removes it."),
+  company_fields: z.array(fieldDefinitionSchema).optional()
+    .describe("Full company field definitions array."),
+  deal_fields: z.array(fieldDefinitionSchema).optional()
+    .describe("Full deal field definitions array."),
   confirm_removals: z.boolean().optional()
     .describe("Set true to confirm removing values or custom fields that existing records still use."),
 });
@@ -176,6 +189,47 @@ async function checkCustomFieldDefinitionRemovals(
   return counts;
 }
 
+/** Default field arrays per entity, used for tier enforcement validation. */
+const defaultFieldsByEntity: Record<string, FieldDefinition[]> = {
+  contact_fields: CONTACT_DEFAULT_FIELDS,
+  company_fields: COMPANY_DEFAULT_FIELDS,
+  deal_fields: DEAL_DEFAULT_FIELDS,
+};
+
+/**
+ * Validate field array changes against tier rules.
+ * Returns error message if invalid, null if OK.
+ */
+function validateFieldChanges(
+  incoming: FieldDefinition[],
+  defaults: FieldDefinition[],
+  entityName: string,
+): string | null {
+  for (const field of incoming) {
+    if (field.tier === "indestructible" && !field.visible) {
+      return `Cannot hide indestructible field "${field.label}" on ${entityName}`;
+    }
+  }
+
+  const defaultKeys = new Set(defaults.filter((f) => f.tier !== "custom").map((f) => f.key));
+  const incomingKeys = new Set(incoming.map((f) => f.key));
+  for (const key of defaultKeys) {
+    if (!incomingKeys.has(key)) {
+      return `Cannot delete default field "${key}" on ${entityName}. You can hide it instead.`;
+    }
+  }
+
+  for (const field of incoming) {
+    const original = defaults.find((d) => d.key === field.key);
+    if (original && original.tier !== "custom") {
+      if (field.type !== original.type) return `Cannot change type of default field "${field.key}"`;
+      if (field.source !== original.source) return `Cannot change source of default field "${field.key}"`;
+    }
+  }
+
+  return null;
+}
+
 /**
  * Creates the configure_crm tool for explicit setup/reconfiguration flows.
  */
@@ -198,6 +252,17 @@ export function createConfigureCrmTool(
 
       if (Object.keys(updates).length === 0) {
         return { success: false as const, error: "No fields to update." };
+      }
+
+      // Validate field array tier rules before any DB work
+      for (const fieldKey of ["contact_fields", "company_fields", "deal_fields"] as const) {
+        if (updates[fieldKey]) {
+          const defaults = defaultFieldsByEntity[fieldKey];
+          const validationError = validateFieldChanges(updates[fieldKey]!, defaults, fieldKey);
+          if (validationError) {
+            return { success: false as const, error: validationError };
+          }
+        }
       }
 
       for (const key of Object.keys(vocabularyEntityMap) as VocabularyFieldName[]) {
@@ -269,7 +334,7 @@ export function createConfigureCrmTool(
           { onConflict: "client_id" },
         )
         .select(
-          "deal_label, company_label, deal_stages, contact_types, interaction_types, deal_contact_roles, company_industries, deal_custom_fields, contact_custom_fields, company_custom_fields, task_custom_fields",
+          "deal_label, company_label, deal_stages, contact_types, interaction_types, deal_contact_roles, company_industries, deal_custom_fields, contact_custom_fields, company_custom_fields, task_custom_fields, contact_fields, company_fields, deal_fields",
         )
         .single();
 

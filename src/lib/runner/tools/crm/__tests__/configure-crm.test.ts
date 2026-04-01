@@ -356,6 +356,73 @@ describe("createConfigureCrmTool", () => {
     });
   });
 
+  it("accepts contact_fields with custom field appended", async () => {
+    const { client } = createMockSupabase({
+      crm_config: [
+        { data: null, error: null },
+        { data: { config_id: "cfg-1", client_id: CLIENT_ID }, error: null },
+      ],
+    });
+    const tools = createConfigureCrmTool(client, CLIENT_ID);
+
+    // Must include ALL default fields + the new custom one
+    const { CONTACT_DEFAULT_FIELDS } = await import("@/lib/crm/field-definitions");
+    const fieldsWithBudget = [
+      ...CONTACT_DEFAULT_FIELDS,
+      { key: "budget", label: "Budget", type: "currency" as const, source: "custom" as const, tier: "custom" as const, visible: true, order: 12, editable: true, required: false },
+    ];
+
+    const result = await tools.configure_crm.execute(
+      { contact_fields: fieldsWithBudget },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toMatchObject({ success: true });
+  });
+
+  it("rejects hiding an indestructible field", async () => {
+    const { client } = createMockSupabase({
+      crm_config: { data: null, error: null },
+    });
+    const tools = createConfigureCrmTool(client, CLIENT_ID);
+
+    const result = await tools.configure_crm.execute(
+      {
+        contact_fields: [
+          { key: "name", label: "Name", type: "full_name", source: "column", tier: "indestructible", visible: false, order: 0, editable: false, required: true },
+        ],
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: expect.stringContaining("indestructible"),
+    });
+  });
+
+  it("rejects deleting a default-tier field from field array", async () => {
+    const { client } = createMockSupabase({
+      crm_config: { data: null, error: null },
+    });
+    const tools = createConfigureCrmTool(client, CLIENT_ID);
+
+    // Only include name (indestructible), omit all default-tier fields like emails, phones, etc.
+    const result = await tools.configure_crm.execute(
+      {
+        contact_fields: [
+          { key: "name", label: "Name", type: "full_name", source: "column", tier: "indestructible", visible: true, order: 0, editable: false, required: true },
+        ],
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: expect.stringContaining("Cannot delete"),
+    });
+  });
+
   it("allows confirmed removals and returns the updated config", async () => {
     const updatedRow = {
       config_id: "cfg-1",
