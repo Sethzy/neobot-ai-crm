@@ -260,12 +260,16 @@ export function ChatPanel({
   );
 
   const isLoading = status === "submitted" || status === "streaming";
+  // Ref mirrors isLoading so handleSubmit always reads the freshest value,
+  // avoiding a race between useAutoResume's resumeStream and a user send.
+  const isLoadingRef = useRef(false);
+  isLoadingRef.current = isLoading;
   const parsedError = useMemo(() => parseChatError(error), [error]);
   const errorMessage = parsedError?.message ?? null;
 
   const handleSubmit = useCallback(
     async ({ text, files }: { text: string; files: FileUIPart[] }) => {
-      if ((text.length === 0 && files.length === 0) || isLoading) {
+      if ((text.length === 0 && files.length === 0) || isLoadingRef.current) {
         return;
       }
 
@@ -321,7 +325,8 @@ export function ChatPanel({
         }
       }
     },
-    [chatId, isLoading, queryClient, refreshQuota, sendMessage],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isLoadingRef (stable ref) replaces isLoading to avoid stale closure race
+    [chatId, queryClient, refreshQuota, sendMessage],
   );
 
   const handleQuestionSubmit = useCallback(
