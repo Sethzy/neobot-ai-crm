@@ -19,10 +19,15 @@ vi.mock("next/navigation", () => ({
     replace: mockReplace,
   }),
   useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/customers/deals",
 }));
 
 vi.mock("@/hooks/use-crm-config", () => ({
   useCrmConfig: vi.fn(),
+}));
+
+vi.mock("@/hooks/use-mobile", () => ({
+  useIsMobile: vi.fn(() => false),
 }));
 
 vi.mock("@/hooks/use-deals", async () => {

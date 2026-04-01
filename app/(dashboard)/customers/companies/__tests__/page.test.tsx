@@ -16,7 +16,10 @@ const mockMutateAsync = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: mockPush,
+    replace: vi.fn(),
   }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/customers/companies",
 }));
 
 vi.mock("@/hooks/use-crm-config", () => ({
