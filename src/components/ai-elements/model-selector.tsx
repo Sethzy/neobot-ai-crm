@@ -45,7 +45,10 @@ export function ModelSelector({
           type="button"
           variant="ghost"
         >
-          <span className="truncate">{selectedModel.name}</span>
+          <span className="flex items-center gap-1.5 truncate">
+            {selectedModel.name}
+            <span className="text-xs text-muted-foreground">{"$".repeat(selectedModel.cost)}</span>
+          </span>
           <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
         </Button>
       </PopoverTrigger>

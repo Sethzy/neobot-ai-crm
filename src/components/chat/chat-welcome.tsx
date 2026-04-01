@@ -9,7 +9,6 @@
 import type { FileUIPart } from "ai";
 import { useCallback, useMemo, useState } from "react";
 
-import { Sparkles } from "@/components/icons/lucide-compat";
 import type { MessageQuotaStatus } from "@/lib/usage/message-quota";
 import { cn } from "@/lib/utils";
 import { AUTOMATION_TEMPLATES, type AutomationTemplate } from "@/lib/automations/templates";
@@ -24,6 +23,14 @@ const CATEGORY_LABELS: Record<AutomationTemplate["category"], string> = {
   operations: "Operations",
   research: "Research",
   marketing: "Marketing",
+};
+
+/** Flexoki accent colors per category for tab underlines. */
+const CATEGORY_COLORS: Record<AutomationTemplate["category"], string> = {
+  sales: "var(--flexoki-green)",
+  operations: "var(--flexoki-blue)",
+  research: "var(--flexoki-purple)",
+  marketing: "var(--flexoki-orange)",
 };
 
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as Array<AutomationTemplate["category"]>;
@@ -64,56 +71,67 @@ export function ChatWelcome({
   );
 
   return (
-    <div className="flex flex-1 flex-col items-center overflow-y-auto px-4 pt-[8vh] pb-8">
-      <div className="w-full max-w-[780px] space-y-8">
-        {/* Hero heading */}
-        <h1 className="text-center text-[2.5rem] leading-tight font-bold tracking-tight text-foreground">
+    <div className="flex flex-1 flex-col items-center overflow-y-auto px-4 pt-24 pb-8">
+      <div className="w-full max-w-[780px]">
+        {/* Hero heading — Fraunces serif for editorial weight */}
+        <h1
+          className="text-center leading-tight font-semibold text-foreground"
+          style={{ fontSize: "2.75rem", fontFamily: "var(--font-playfair), serif", letterSpacing: "-0.01em" }}
+        >
           What can I do for you?
         </h1>
 
         {/* Quota pill */}
         {messageQuota ? (
-          <MessageQuotaPill quota={messageQuota} />
+          <div className="mt-4">
+            <MessageQuotaPill quota={messageQuota} />
+          </div>
         ) : null}
 
-        {/* Centered composer */}
-        <ChatComposer
-          status={status}
-          selectedChatModel={selectedChatModel}
-          value={composerValue}
-          onValueChange={onComposerValueChange}
-          onSelectedChatModelChange={onSelectedChatModelChange}
-          onSubmit={onSubmit}
-          onStop={onStop}
-          disabled={(messageQuota?.messagesRemaining ?? 1) <= 0}
-          className="px-0 pb-0"
-          innerClassName="max-w-none"
-          placeholder="Describe a task or responsibility"
-        />
+        {/* Centered composer — the hero action */}
+        <div className="mt-10">
+          <ChatComposer
+            status={status}
+            selectedChatModel={selectedChatModel}
+            value={composerValue}
+            onValueChange={onComposerValueChange}
+            onSelectedChatModelChange={onSelectedChatModelChange}
+            onSubmit={onSubmit}
+            onStop={onStop}
+            disabled={(messageQuota?.messagesRemaining ?? 1) <= 0}
+            className="px-0 pb-0"
+            innerClassName="max-w-none"
+            placeholder="Describe a task or responsibility"
+          />
+        </div>
 
-        {/* Template section */}
-        <div className="space-y-5">
-          {/* Category tabs */}
-          <div className="flex items-center justify-center gap-6">
-            {CATEGORIES.map((category) => (
-              <button
-                key={category}
-                type="button"
-                onClick={() => setActiveCategory(category)}
-                className={cn(
-                  "text-sm font-medium transition-colors",
-                  activeCategory === category
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {CATEGORY_LABELS[category]}
-              </button>
-            ))}
+        {/* Template section — generous separation from composer */}
+        <div className="mt-12">
+          {/* Category tabs with underline indicator */}
+          <div className="flex items-center justify-center gap-6 border-b border-border/40">
+            {CATEGORIES.map((category) => {
+              const isActive = activeCategory === category;
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() => setActiveCategory(category)}
+                  className={cn(
+                    "-mb-px border-b-2 pb-2.5 text-sm font-medium transition-colors",
+                    isActive
+                      ? "text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
+                  )}
+                  style={isActive ? { borderColor: CATEGORY_COLORS[category] } : undefined}
+                >
+                  {CATEGORY_LABELS[category]}
+                </button>
+              );
+            })}
           </div>
 
           {/* Template cards grid */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filteredTemplates.map((template) => (
               <TemplateCard
                 key={template.id}
@@ -140,17 +158,13 @@ function TemplateCard({
     <button
       type="button"
       onClick={() => onClick(template)}
-      className="flex flex-col items-start rounded-xl border border-border/50 bg-card p-5 text-left transition-colors hover:border-border hover:bg-accent/30"
+      className="flex flex-col items-start rounded-lg p-4 text-left transition-colors hover:bg-accent/40"
     >
       <span className="text-sm font-semibold text-foreground">
         {template.title}
       </span>
-      <span className="mt-2 flex-1 text-xs leading-relaxed text-muted-foreground">
+      <span className="mt-1.5 flex-1 text-xs leading-relaxed text-muted-foreground">
         {template.description}
-      </span>
-      <span className="mt-3 flex items-center gap-1.5 text-xs font-medium text-primary">
-        <Sparkles className="h-3 w-3" />
-        Try it
       </span>
     </button>
   );

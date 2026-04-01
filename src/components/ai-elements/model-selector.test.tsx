@@ -26,7 +26,7 @@ describe("ModelSelector", () => {
     );
 
     expect(screen.getAllByText("Gemini Flash 3").length).toBeGreaterThan(0);
-    expect(screen.getByText("$")).toBeDefined();
+    expect(screen.getAllByText("$").length).toBeGreaterThan(0);
     expect(screen.getByText("MiniMax M2.7")).toBeDefined();
     expect(screen.getByText("$$")).toBeDefined();
   });

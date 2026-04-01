@@ -279,7 +279,9 @@ export function ChatComposer({
                 onValueChange={onSelectedChatModelChange}
                 value={selectedChatModel}
               />
+            </PromptInputTools>
 
+            <PromptInputTools className="gap-0.5">
               <PromptInputButton
                 aria-label="Attach files"
                 disabled={isGenerating || disabled}
@@ -288,13 +290,13 @@ export function ChatComposer({
               >
                 <Paperclip className="size-4" />
               </PromptInputButton>
-            </PromptInputTools>
 
-            <PromptInputSubmit
-              status={status}
-              disabled={isSubmitDisabled}
-              onStop={onStop}
-            />
+              <PromptInputSubmit
+                status={status}
+                disabled={isSubmitDisabled}
+                onStop={onStop}
+              />
+            </PromptInputTools>
           </PromptInputFooter>
         </PromptInput>
       </div>

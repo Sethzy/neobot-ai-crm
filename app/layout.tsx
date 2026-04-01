@@ -6,10 +6,16 @@ import { Agentation } from "agentation";
 import { Toaster } from "sonner";
 import { Providers } from "./providers";
 import "./globals.css";
-import { Geist } from "next/font/google";
+import { Geist, Playfair_Display } from "next/font/google";
 import { cn } from "@/lib/utils";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+
+const playfairDisplay = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-playfair",
+  display: "swap",
+});
 
 const figtree = localFont({
   src: [
@@ -60,7 +66,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en" className={cn(GeistSans.variable, GeistMono.variable, figtree.variable, fraunces.variable, "font-sans", geist.variable)}>
+    <html lang="en" className={cn(GeistSans.variable, GeistMono.variable, figtree.variable, fraunces.variable, playfairDisplay.variable, "font-sans", geist.variable)}>
       <body>
         <script
           type="application/ld+json"
