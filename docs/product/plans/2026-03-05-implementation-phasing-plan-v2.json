@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-31: Marked PR 57b done. Browser-Use listing-tool migration shipped; QA Surface 28 and property-listing automated scenarios updated.",
+    "updated": "2026-04-01: Marked PR 15f done. Configurable CRM columns — config-driven table layout with field definition tiers, renderers, and configure_crm expansion.",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -10,7 +10,7 @@
     "estimatedPRs": 44,
     "keptPRs": 27,
     "cutPRs": 19,
-    "donePRs": 80,
+    "donePRs": 81,
     "hardeningPRs": 6,
     "statusOptions": [
       "pending",
@@ -1185,6 +1185,37 @@
             "User asks 'show me all contacts and deals for PropNex' \u2192 agent can search_companies then use get_company_contacts and get_company_deals",
             "search_contacts and search_deals can filter by company_id",
             "search_tasks supports free-text lookup by task title/description"
+          ]
+        },
+        {
+          "pr": "15f",
+          "title": "Configurable CRM columns — config-driven table layout",
+          "status": "done",
+          "simplified": false,
+          "decisions": ["TOOL-01", "DATA-01", "DATA-09"],
+          "dependsOn": ["15c", "15d", "15e"],
+          "note": "All CRM table columns (People, Companies, Deals) are now config-driven via FieldDefinition arrays in crm_config. Three tiers: indestructible (Name — always visible), default (core fields — hideable but not deletable), custom (user/agent-created — fully mutable). Agent can add, hide, rename, reorder columns via configure_crm. New DB columns added: city, job_title, linkedin, x_link on contacts; linkedin on companies; name, close_date, point_of_contact_id on deals. price renamed to amount. Config history snapshots via crm_config_history table. Default field definitions modeled after Twenty CRM. Design doc: docs/plans/2026-04-01-configurable-crm-columns-design.md",
+          "tasks": [
+            {"id": "PR15f-1", "task": "FieldDefinition type + Zod schema + default field arrays for contacts/companies/deals (3 tiers: indestructible/default/custom)", "done": true},
+            {"id": "PR15f-2", "task": "DB migrations: new columns on contacts/companies/deals + crm_config_history table + price→amount rename", "done": true},
+            {"id": "PR15f-3", "task": "Field arrays integrated into CrmVocabConfig + parseFieldArray loader", "done": true},
+            {"id": "PR15f-4", "task": "Field renderers: getFieldValue + formatFieldDisplay + renderFieldCell (React) for all 14 field types", "done": true},
+            {"id": "PR15f-5", "task": "buildColumnsFromConfig shared column generator replaces hardcoded column arrays", "done": true},
+            {"id": "PR15f-6", "task": "configure_crm expanded with field array management + tier enforcement (canonical tier lookup, not trust-incoming)", "done": true},
+            {"id": "PR15f-7", "task": "PATCH /api/crm/config saves config history snapshots before mutation", "done": true},
+            {"id": "PR15f-8", "task": "All 3 CRM pages refactored to use config-driven columns with page-level overrides for rich rendering", "done": true},
+            {"id": "PR15f-9", "task": "Data migration: field array columns added to crm_config table", "done": true}
+          ],
+          "testCriteria": [
+            "People/Companies/Deals pages render columns from config, not hardcoded arrays",
+            "Agent adds a custom field via configure_crm → new column appears in table",
+            "Agent hides a default field → column disappears, data preserved",
+            "Agent renames a field → column header updates",
+            "Agent cannot hide indestructible Name field (tier enforcement)",
+            "Inline editing (QuickEditCell) works for editable fields",
+            "Config history snapshot saved before every config mutation",
+            "Default field arrays match pre-feature tables for uncustomized users",
+            "price→amount rename complete end-to-end (DB, types, hooks, tools, UI)"
           ]
         },
         {

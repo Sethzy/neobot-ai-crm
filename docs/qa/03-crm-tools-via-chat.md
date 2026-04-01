@@ -1,6 +1,6 @@
 # QA Surface 3: CRM Tools via Chat
 
-> **PRs covered:** 5 (schema), 6 (CRM tools), 15c (configurability + custom fields), 15d (companies), 15e (read parity + introspection), CRM consolidation (28→8 tools), 48 (CRM config mode — time-limited activation from Settings)
+> **PRs covered:** 5 (schema), 6 (CRM tools), 15c (configurability + custom fields), 15d (companies), 15e (read parity + introspection), 15f (configurable columns), CRM consolidation (28→8 tools), 48 (CRM config mode — time-limited activation from Settings)
 > **Dogfoodable:** Partial (via chat UI)
 > **Time estimate:** 30-40 min manual (lots of agent prompts)
 > **v2 tools:** `search_crm`, `create_record`, `update_record`, `delete_records`, `link_records`, `create_interaction`, `create_task`, `update_task`, `configure_crm`
@@ -153,6 +153,29 @@
 
 ---
 
+### 3.11 Config-driven column management (PR 15f)
+
+**Prerequisite:** CRM configuration mode must be activated from Settings before the agent can use `configure_crm`.
+
+1. **Add a custom column:** "I need to track 'budget' on my contacts"
+2. **Expected:** `configure_crm` adding a field to contact_fields with key: "budget", type: "number", source: "custom", tier: "custom", visible: true
+3. **Verify:** Refresh People page — Budget column appears
+4. **Hide a default column:** "Hide the city column from contacts"
+5. **Expected:** `configure_crm` setting visible: false on the city field entry
+6. **Verify:** Refresh People page — City column gone, but data still in DB
+7. **Rename a column:** "Rename Email to Work Email on contacts"
+8. **Expected:** `configure_crm` updating label to "Work Email" on the emails field entry
+9. **Verify:** Refresh People page — column header says "Work Email"
+10. **Try to hide Name:** "Hide the name column from contacts"
+11. **Expected:** Agent refuses — tier enforcement blocks hiding indestructible fields
+12. **Bulk onboarding configure:** "I'm an insurance advisor. Set up my CRM for insurance — rename deals to policies, change stages to quote/application/underwriting/bound/lost, add policy_number and coverage_amount fields"
+13. **Expected:** `configure_crm` with bulk updates to deal_label, deal_stages, and deal_fields
+14. **Verify:** Deals page now shows "Policies" with new stages and custom columns
+
+**Notes / failures:**
+
+---
+
 ## Edge Cases
 
 - [ ] Create contact with minimal info (just a name) — should succeed (first_name + last_name minimum)
@@ -167,6 +190,8 @@
 - [ ] Batch create with intra-batch duplicates (same name twice) — returns error with duplicate list
 - [ ] update_record with custom_fields — deep merge preserves existing keys not in patch
 - [ ] link_records unlink action — removes relationship (junction delete for contact_deal, null FK for contact_company/deal_company)
+- [ ] Configure CRM to add a field, then remove it — warning about data exists, requires confirm_removals
+- [ ] Config history snapshot saved — check crm_config_history table after configure_crm call
 
 ---
 

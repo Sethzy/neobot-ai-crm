@@ -1,6 +1,6 @@
 # QA Surface 4: CRM Pages
 
-> **PRs covered:** 10 (contacts page), 11 (deals + tasks pages), 15c (dynamic labels + custom fields in drawers), 15d (companies page + drawers), 9 (Supabase Realtime live updates)
+> **PRs covered:** 10 (contacts page), 11 (deals + tasks pages), 15c (dynamic labels + custom fields in drawers), 15d (companies page + drawers), 15f (config-driven columns), 9 (Supabase Realtime live updates)
 > **Dogfoodable:** Yes — primary dogfood target
 > **Time estimate:** 25-30 min manual
 
@@ -193,6 +193,46 @@
 4. Navigate back to CRM Contacts
 5. **Expected:** New contact visible (fresh subscription on mount)
 6. **Verify:** No console errors about stale subscriptions or memory leaks
+
+**Notes / failures:**
+
+---
+
+### PR 15f: Config-driven columns
+
+### 4.13 Config-driven column rendering
+
+1. Open People page with default config
+2. **Expected:** Columns match pre-feature layout: Name, Email, Phone, Company, Type, Updated
+3. Open Companies page
+4. **Expected:** Columns include Name, Website, Address, Phone, Email, Industry, Updated
+5. Open Deals page
+6. **Expected:** Columns include Name, Amount, Stage, Company, Address, Updated
+
+**Notes / failures:**
+
+---
+
+### 4.14 Custom field columns appear after config change
+
+1. Via agent: "Add a 'Priority' select field to contacts with options high/medium/low"
+2. Refresh People page
+3. **Expected:** Priority column appears as the last column with select badges
+4. Via agent: "Create a contact — Alice Wong, priority high"
+5. **Expected:** Alice appears with "high" badge in the Priority column
+
+**Notes / failures:**
+
+---
+
+### 4.15 Column visibility toggle
+
+1. Via agent: "Hide the Phone column from contacts"
+2. Refresh People page
+3. **Expected:** Phone column gone, existing phone data preserved in DB
+4. Via agent: "Show the Phone column again"
+5. Refresh People page
+6. **Expected:** Phone column reappears with all data intact
 
 **Notes / failures:**
 

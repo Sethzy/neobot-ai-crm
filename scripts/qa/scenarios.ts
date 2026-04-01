@@ -286,6 +286,63 @@ export const scenarios: QaScenario[] = [
     notes:
       "configure_crm updates deal_stages in crm_config. Requires CRM config mode to be active (PR 48).",
   },
+  {
+    surface: "03-crm-tools",
+    scenario: "configure-crm-add-custom-field",
+    prompt:
+      "I need to track 'budget' as a number field on my contacts",
+    expectedTools: ["configure_crm"],
+    sequential: false,
+    activateCrmConfigMode: true,
+    notes:
+      "PR 15f. configure_crm adds a custom field to contact_fields with key: budget, type: number, source: custom, tier: custom, visible: true.",
+  },
+  {
+    surface: "03-crm-tools",
+    scenario: "configure-crm-hide-column",
+    prompt:
+      "Hide the city column from my contacts table",
+    expectedTools: ["configure_crm"],
+    sequential: true,
+    activateCrmConfigMode: true,
+    notes:
+      "PR 15f. configure_crm sets visible: false on the city field entry in contact_fields. Data preserved in DB.",
+  },
+  {
+    surface: "03-crm-tools",
+    scenario: "configure-crm-rename-column",
+    prompt:
+      "Rename the Email column to Work Email on contacts",
+    expectedTools: ["configure_crm"],
+    sequential: true,
+    activateCrmConfigMode: true,
+    notes:
+      "PR 15f. configure_crm updates label to 'Work Email' on the emails field entry in contact_fields.",
+  },
+  {
+    surface: "03-crm-tools",
+    scenario: "configure-crm-tier-enforcement",
+    prompt:
+      "Hide the name column from contacts",
+    expectedTools: [],
+    sequential: false,
+    activateCrmConfigMode: true,
+    notes:
+      "PR 15f. Agent should REFUSE — Name is tier: indestructible. No configure_crm call expected. Agent explains the field cannot be hidden.",
+    expectedOutput: "cannot|required|indestructible|always visible|can't hide",
+  },
+  {
+    surface: "03-crm-tools",
+    scenario: "configure-crm-bulk-onboarding",
+    prompt:
+      "I'm an insurance advisor. Set up my CRM for insurance — rename deals to policies, change stages to quote, application, underwriting, bound, lost. Add policy_number as a text field and coverage_amount as a currency field on policies.",
+    expectedTools: ["configure_crm"],
+    sequential: false,
+    activateCrmConfigMode: true,
+    notes:
+      "PR 15f. Bulk onboarding reconfiguration — configure_crm updates deal_label, deal_stages, and appends custom fields to deal_fields.",
+    tokenBudget: 60_000,
+  },
 
   // ── 06: File & Memory ──────────────────────────────────────────────────
   {
