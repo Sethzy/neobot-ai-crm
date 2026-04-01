@@ -1,9 +1,9 @@
 # QA Surface 29: Sandbox (Code Execution)
 
-> **PRs covered:** 52 (analyze_spreadsheet — Sprites + Excel, superseded), 53 (publish_artifact — showcase pages, superseded), 52a (sandbox workflow skills — outer + inner, superseded), 54a (async execution — webhook + cron delivery, superseded), 55 (general escape hatch — execute_in_sandbox, per-client Sprites, superseded), 59 (Vercel Sandbox + bash-tool migration — active)
+> **PRs covered:** 52 (analyze_spreadsheet — Sprites + Excel, superseded), 53 (publish_artifact — showcase pages, superseded), 52a (sandbox workflow skills — outer + inner, superseded), 54a (async execution — webhook + cron delivery, superseded), 55 (general escape hatch — execute_in_sandbox, per-client Sprites, superseded), 59 (Vercel Sandbox + bash-tool migration — active), 63 (unified agent filesystem), 64 (sandbox workspace preload), 65 (Composio file bridge)
 > **Dogfoodable:** Partial (requires SANDBOX_GOLDEN_SNAPSHOT_ID env var + live Vercel Sandbox snapshot)
-> **Time estimate:** 20-30 min manual
-> **v2 tools:** `bash`
+> **Time estimate:** 30-40 min manual
+> **v2 tools:** `bash`, representative Composio file tools such as `GOOGLEDRIVE_FIND_FILE`, `GOOGLEDRIVE_DOWNLOAD_FILE`, `GOOGLEDRIVE_UPLOAD_FILE`
 
 > **Note:** PRs 52–55 were Sprites/Fly.io-based (per-client persistent VMs, async execution, `execute_in_sandbox` tool). PR 59 replaced all of that with ephemeral Vercel Sandbox + `bash-tool`. Scenarios 29.1–29.14 below are **superseded** and no longer valid. Active QA coverage starts at 29.15.
 
@@ -15,6 +15,7 @@
 - `VERCEL_TOKEN` + `VERCEL_TEAM_ID` + `VERCEL_PROJECT_ID` set for local dev (OIDC auto-configures on Vercel deployment)
 - At least one skill in `skills/` for the test client (to verify skill preloading)
 - Optional: xlsx or CSV file for file attachment tests
+- Optional but recommended: a connected Google Drive account with file find/download/upload tools activated
 
 ---
 
@@ -26,6 +27,10 @@
 - [ ] Download links are clickable and download valid files
 - [ ] SANDBOX_GOLDEN_SNAPSHOT_ID missing → agent returns graceful error, not an exception
 - [ ] Second bash call in same run reuses existing sandbox (no double create)
+- [ ] Uploaded files render after reload via `storagePath`-backed download resolution
+- [ ] Files under `/agent/uploads/` are visible to bash in `/workspace/agent/uploads/` but remain read-only to agent file tools
+- [ ] Files under `/agent/home/` persist across later bash runs without re-uploading
+- [ ] Google Drive download/upload flows bridge through `/agent/home/` instead of dumping file bytes into chat
 
 ---
 
@@ -125,6 +130,83 @@
 
 ---
 
+### PR 63: Unified agent filesystem
+
+### 29.23 Uploaded files resolve through `storagePath` and stay read-only
+
+1. Upload a file in chat, then refresh the thread or reopen it from the sidebar
+2. Click the rendered attachment or download link from the older message
+3. **Expected:** The file still opens/downloads successfully even if the original signed URL has expired
+4. **Verify in network tools:** The request goes through `/api/files/download` before redirecting to a fresh signed URL
+5. In chat, ask the agent to overwrite that same path under `/agent/uploads/`
+6. **Expected:** The agent gets a read-only error for `/agent/uploads/` and does not modify the uploaded file
+
+**Notes / failures:**
+
+---
+
+### PR 64: Sandbox workspace preload
+
+### 29.24 `/agent/home/` persists across later bash runs
+
+1. In chat, ask the agent to create a file in `/agent/home/` using bash, such as `python3 - <<'PY'` writing `agent/home/qa-home-check.txt`
+2. After that run finishes, send a second message asking the agent to read `/workspace/agent/home/qa-home-check.txt` in a new bash command
+3. **Expected:** The second bash run finds the file immediately from preload; the agent does not need to recreate it
+4. **Verify:** The file path is under `/workspace/agent/home/`, not `output/` or `input/`
+
+**Notes / failures:**
+
+---
+
+### 29.25 `/agent/uploads/` is preloaded into bash workspace
+
+1. Upload a file in chat before any bash call
+2. Ask the agent to run `find /workspace/agent/uploads -maxdepth 2 -type f | sort`
+3. **Expected:** Bash lists the uploaded file under `/workspace/agent/uploads/`
+4. **Expected:** The file is available without the old per-message `input/` attachment preload loop
+
+**Notes / failures:**
+
+---
+
+### 29.26 Empty `/agent/home/` still exists on first sandbox boot
+
+1. Use a client/thread with no files stored under `home/`
+2. Trigger the first `bash` call with: "Run `ls -la /workspace/agent/home` and tell me what you see"
+3. **Expected:** The directory exists even when empty
+4. **Expected:** Bash does not fail with "No such file or directory"
+
+**Notes / failures:**
+
+---
+
+### PR 65: Composio file bridge
+
+### 29.27 Google Drive download bridges into `/agent/home/`
+
+1. Ensure Google Drive is connected and `GOOGLEDRIVE_FIND_FILE` plus `GOOGLEDRIVE_DOWNLOAD_FILE` are active
+2. In chat, ask the agent to find a known Drive file and download it so it can analyze it later
+3. **Expected:** The agent uses Google Drive connection tools rather than asking for a manual upload
+4. **Expected:** The resulting file is saved under `/agent/home/…`, not pasted into the chat as a raw binary/text blob
+5. If a sandbox is already active, ask the agent to list `/workspace/agent/home/`
+6. **Expected:** The downloaded Drive file is already present in the live sandbox workspace
+
+**Notes / failures:**
+
+---
+
+### 29.28 Google Drive upload resolves `/agent/` paths back to local temp files
+
+1. Ensure there is a file in `/agent/home/` from either a prior bash run or scenario 29.27
+2. In chat, ask the agent to upload that file to Google Drive
+3. **Expected:** The agent passes the `/agent/home/...` path to the connection tool and the upload succeeds
+4. **Expected:** The tool does not fail because of a missing local file path inside Composio
+5. **Verify in Google Drive:** A new file appears with the expected content
+
+**Notes / failures:**
+
+---
+
 ## Edge Cases
 
 - [ ] `SANDBOX_GOLDEN_SNAPSHOT_ID` not set → bash tool returns error, runner does not crash
@@ -137,6 +219,11 @@
 - [ ] Run ends with error → `onError` callback stops sandbox (no orphan Vercel Sandbox instance)
 - [ ] Output file written but unchanged on second bash call → artifact sync skips re-upload (SHA-256 match)
 - [ ] No bash calls in a run → no sandbox created, no cost incurred
+- [ ] Old chat messages missing `storagePath` still fall back to the stored URL and remain downloadable
+- [ ] `/agent/uploads/` paths reject write/edit/delete attempts while still listing correctly in `read_file`
+- [ ] Drive download occurs before first bash call → file lands in storage and appears once sandbox boots later
+- [ ] Drive download occurs after bash is already active → file is pushed into the live sandbox without waiting for a reboot
+- [ ] Drive upload from `/agent/home/...` cleans up temp files and does not leak raw local temp paths into agent-visible output
 
 ---
 
@@ -170,5 +257,5 @@
 
 ## Pass / Fail Criteria
 
-- **Pass:** Bash tool lazily creates Vercel Sandbox on first call; skill files and attachments preloaded to workspace; output files returned as download links; context.json contains prior tool results; graceful error when SANDBOX_GOLDEN_SNAPSHOT_ID missing; no double sandbox creation on concurrent calls; sandbox stopped after run
-- **Fail:** Sandbox created at run start (not lazy); sandbox not stopped after run (resource leak); bash tool crashes runner; attachments not accessible at expected paths; output files not returned as downloads; unhandled error when snapshot ID missing
+- **Pass:** Bash tool lazily creates Vercel Sandbox on first call; uploads and home files preload into `/workspace/agent/`; `/agent/uploads/` remains read-only while attachment links keep resolving through `storagePath`; output files return as downloads; context.json contains prior tool results; Google Drive download/upload flows bridge cleanly through `/agent/home/`; graceful error when `SANDBOX_GOLDEN_SNAPSHOT_ID` is missing; no double sandbox creation on concurrent calls; sandbox stops after run
+- **Fail:** Sandbox creates at run start; sandbox is not stopped after run; bash crashes the runner; uploads/home are missing from the workspace; older attachment links break after reload; `/agent/uploads/` is writable; Drive file download/upload bypasses `/agent/home/` or leaks raw temp paths/bytes; or missing snapshot configuration causes an unhandled exception

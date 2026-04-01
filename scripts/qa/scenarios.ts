@@ -921,6 +921,25 @@ export const scenarios: QaScenario[] = [
     notes:
       "Important edge case. Agent should reject the invalid host before any listing tool call and explain that the portal URL is not valid.",
   },
+  {
+    surface: "28-property-listing-tools",
+    scenario: "search-99co-rent-hdb-category",
+    prompt: "Search 99.co for HDB rentals in Bedok and show me the best current options.",
+    expectedTools: ["search_99co"],
+    sequential: false,
+    notes:
+      "PR57b regression check. Rent category paths should stay category-specific after the Browser-Use migration instead of falling back to generic inventory.",
+  },
+  {
+    surface: "28-property-listing-tools",
+    scenario: "search-propertyguru-start-url",
+    prompt:
+      "Use this exact PropertyGuru URL and shortlist the top 5 options for me: https://www.propertyguru.com.sg/property-for-sale?property_type=H",
+    expectedTools: ["search_propertyguru"],
+    sequential: false,
+    notes:
+      "PR57b direct-URL mode. Agent should use startUrls and preserve the migrated Browser-Use listing envelope rather than reconstructing the query from scratch.",
+  },
   // PR 55: search_market_data
   {
     surface: "28-property-listing-tools",
@@ -976,6 +995,18 @@ export const scenarios: QaScenario[] = [
   },
   {
     surface: "29-sandbox",
+    scenario: "bash-tool-home-preload-follow-up",
+    prompt:
+      "Now run another bash command and inspect the CSV you just generated from /workspace/agent/home/. Tell me how many data rows it has without recreating the file.",
+    expectedTools: ["bash"],
+    sequential: true,
+    notes:
+      "PR 64 follow-up. Verifies that a file created in a prior bash run is available again from /workspace/agent/home/ via preload, rather than being regenerated.",
+    tokenBudget: 60_000,
+    latencyBudgetMs: 45_000,
+  },
+  {
+    surface: "29-sandbox",
     scenario: "bash-tool-skill-preload",
     prompt: "Run a bash command to list all files under /vercel/sandbox/workspace/skills/ and show me the structure.",
     expectedTools: ["bash"],
@@ -984,5 +1015,40 @@ export const scenarios: QaScenario[] = [
       "Verifies skill file preloading. Requires client to have at least one skill in Supabase Storage. Output should show skills/{slug}/SKILL.md path structure. // TODO: verify expectedTools — agent may prepend a context-gathering step.",
     tokenBudget: 40_000,
     latencyBudgetMs: 40_000,
+  },
+  {
+    surface: "29-sandbox",
+    scenario: "agent-uploads-read-only",
+    prompt:
+      "Try to overwrite /agent/uploads/qa-readonly-check.txt with the text 'hello'. If you cannot, tell me exactly why.",
+    expectedTools: ["write_file"],
+    sequential: false,
+    notes:
+      "PR 63 edge case. /agent/uploads/ should reject agent writes even when the path is otherwise valid. Response should explain that uploads are read-only.",
+    expectedOutput: "read-only|cannot be modified|cannot be changed",
+  },
+  {
+    surface: "29-sandbox",
+    scenario: "google-drive-download-bridges-to-agent-home",
+    prompt:
+      "Find a Google Drive file named 'Q1 pipeline' or something close to it, download it, and save it so you can analyze it later from /agent/home/.",
+    expectedTools: ["GOOGLEDRIVE_FIND_FILE", "GOOGLEDRIVE_DOWNLOAD_FILE"],
+    sequential: false,
+    notes:
+      "PR 65 happy path. Verifies connected Google Drive file downloads bridge into /agent/home/ instead of returning raw file bytes to the model. Requires an active Google Drive connection with these tools enabled.",
+    tokenBudget: 80_000,
+    latencyBudgetMs: 60_000,
+  },
+  {
+    surface: "29-sandbox",
+    scenario: "google-drive-upload-resolves-agent-home-path",
+    prompt:
+      "Take the file you just downloaded into /agent/home/ and upload it back to my Google Drive as 'qa-sandbox-bridge-copy'.",
+    expectedTools: ["GOOGLEDRIVE_UPLOAD_FILE"],
+    sequential: true,
+    notes:
+      "PR 65 follow-up. Verifies /agent/home/ paths are resolved to local temp files before passing to Composio. Requires the previous download scenario to have produced a file in /agent/home/.",
+    tokenBudget: 80_000,
+    latencyBudgetMs: 60_000,
   },
 ];

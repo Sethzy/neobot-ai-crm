@@ -1,6 +1,6 @@
 # QA Surface 28: Property Listing Tools
 
-> **PRs covered:** 55 (search_market_data), 57 (search_99co + search_propertyguru), 58 (OpenAgent REALIS enrichment)
+> **PRs covered:** 55 (search_market_data), 57 (search_99co + search_propertyguru), 57b (Browser-Use migration for listing tools), 58 (OpenAgent REALIS enrichment)
 > **Dogfoodable:** Partial (via chat UI)
 > **Time estimate:** 30-40 min manual
 > **v2 tools:** `search_99co`, `search_propertyguru`, `search_market_data`, `web_scrape`
@@ -85,6 +85,43 @@
 3. **Expected:** Tool args use `startUrls` and do not depend on the query-builder-only fields.
 4. **Expected:** Agent summarizes the returned listings and preserves portal-native fields rather than flattening them into a made-up schema.
 5. **Verify:** Tool pill args contain `startUrls` and the result envelope has `success: true`.
+
+**Notes / failures:**
+
+---
+
+### PR 57b: Browser-Use migration for listing tools
+
+### 28.16 99.co rent category path stays category-specific
+
+1. In a new thread, type: **"Search 99.co for HDB rentals in Bedok and show me the best current options."**
+2. **Expected tool calls:** `search_99co`
+3. **Expected:** Agent returns rental HDB listings, not generic mixed inventory.
+4. **Expected:** Tool output remains in the standard `{ success, portal, count, results }` envelope.
+5. **Verify:** Tool pill args contain a rent URL and the results clearly reflect HDB rental inventory.
+
+**Notes / failures:**
+
+---
+
+### 28.17 PropertyGuru direct URL mode still works after Browser-Use rewrite
+
+1. In a new thread, paste a valid PropertyGuru Singapore results URL and ask: **"Use this exact PropertyGuru search URL and shortlist the top 5 options."**
+2. **Expected tool calls:** `search_propertyguru`
+3. **Expected:** Tool args use `startUrls` and do not require the agent to reconstruct the search from scratch.
+4. **Expected:** Agent returns live PropertyGuru listings with the migrated Browser-Use envelope and normalized portal fields.
+5. **Verify:** Tool pill args contain `startUrls`, and the result envelope has `success: true`.
+
+**Notes / failures:**
+
+---
+
+### 28.18 Listing tools disappear cleanly when Browser-Use is unavailable
+
+1. In an environment where `BROWSER_USE_API_KEY` is unset, open chat and ask: **"Search 99.co for condos under $2M in District 10."**
+2. **Expected:** No `search_99co` or `search_propertyguru` tool pill appears.
+3. **Expected:** Agent responds conversationally that live listing search is unavailable rather than trying a broken tool call.
+4. **Verify:** Listing tools are absent from the run and the message does not claim live search succeeded.
 
 **Notes / failures:**
 
@@ -209,6 +246,8 @@
 ## Edge Cases
 
 - [ ] Listing tools are absent when `BROWSER_USE_API_KEY` is missing
+- [ ] 99.co rent category URLs keep the correct category instead of silently falling back to `main_category=all`
+- [ ] PropertyGuru start-url mode still works after the Browser-Use migration
 - [ ] `search_market_data` is absent when property Supabase env is missing
 - [ ] Timeout failures surface as a user-visible scraping timeout message
 - [ ] Listing tools stay unavailable in autopilot and subagent runs
@@ -223,5 +262,5 @@
 
 ## Pass / Fail Criteria
 
-- **Pass:** Chat routes live portal requests to the correct listing tool, rejects invalid portal URLs early, preserves the success/error envelope, combines listing data with market data correctly when both are requested, `search_market_data` correctly routes across all 4 datasets (agents, transactions, hdb, ura) in both search and stats modes, and agent chains search_market_data → web_scrape on OpenAgent for REALIS-enriched property queries.
-- **Fail:** Agent falls back to `browse_website` for normal listing searches, uses the wrong tool family, accepts invalid portal hosts, returns malformed/non-live listing results, `search_market_data` returns wrong dataset or mode, agent routes HDB queries to OpenAgent, or agent fails to slugify project names correctly for OpenAgent URLs.
+- **Pass:** Chat routes live portal requests to the correct listing tool, rejects invalid portal URLs early, preserves the success/error envelope, keeps 99.co rent-category routing correct after the Browser-Use migration, supports PropertyGuru `startUrls`, combines listing data with market data correctly when both are requested, `search_market_data` correctly routes across all 4 datasets (agents, transactions, hdb, ura) in both search and stats modes, and agent chains search_market_data → web_scrape on OpenAgent for REALIS-enriched property queries.
+- **Fail:** Agent falls back to `browse_website` for normal listing searches, uses the wrong tool family, accepts invalid portal hosts, returns malformed/non-live listing results, loses 99.co category specificity on rent URLs, breaks PropertyGuru direct-URL mode, `search_market_data` returns wrong dataset or mode, agent routes HDB queries to OpenAgent, or agent fails to slugify project names correctly for OpenAgent URLs.
