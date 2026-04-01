@@ -61,7 +61,7 @@ const {
   mockGetServerEnv: vi.fn(),
 }));
 
-vi.mock("ai", () => ({ streamText: mockStreamText, stepCountIs: mockStepCountIs }));
+vi.mock("ai", () => ({ streamText: mockStreamText, stepCountIs: mockStepCountIs, hasToolCall: () => () => false }));
 vi.mock("@/lib/chat/messages", () => ({
   createMessages: mockCreateMessages,
 }));

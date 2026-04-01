@@ -64,6 +64,7 @@ const {
 vi.mock("ai", () => ({
   streamText: mockStreamText,
   stepCountIs: mockStepCountIs,
+  hasToolCall: () => () => false,
 }));
 
 vi.mock("@/lib/ai/gateway", () => ({

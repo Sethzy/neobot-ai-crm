@@ -314,6 +314,7 @@ const mockCaptureServerEvents = vi.fn().mockResolvedValue(undefined);
 vi.mock("ai", () => ({
   streamText: (...args: unknown[]) => mockStreamText(...args),
   stepCountIs: (...args: unknown[]) => mockStepCountIs(...args),
+  hasToolCall: () => () => false,
   generateText: (...args: unknown[]) => mockGenerateText(...args),
   convertToModelMessages: (msgs: unknown[]) =>
     (msgs as { role: string; content: string }[]).map((m) => ({

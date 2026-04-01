@@ -2,7 +2,7 @@
  * Runner core loop entrypoint for streaming model calls.
  * @module lib/runner/run-agent
  */
-import { stepCountIs, streamText, type ToolSet } from "ai";
+import { hasToolCall, stepCountIs, streamText, type ToolSet } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { propagateAttributes } from "@langfuse/tracing";
 
@@ -387,7 +387,7 @@ export async function runAgent(
           model,
           system,
           messages,
-          stopWhen: stepCountIs(maxSteps),
+          stopWhen: [stepCountIs(maxSteps), hasToolCall("ask_user_question")],
           tools,
           prepareStep: buildPrepareStep(modelId, maxSteps),
           providerOptions: gatewayProviderOptions,

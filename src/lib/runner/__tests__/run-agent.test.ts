@@ -83,6 +83,7 @@ const {
 vi.mock("ai", () => ({
   streamText: mockStreamText,
   stepCountIs: mockStepCountIs,
+  hasToolCall: () => () => false,
 }));
 
 vi.mock("@/lib/ai/gateway", () => ({
@@ -351,7 +352,7 @@ describe("runAgent", () => {
         model: "language-model:google/gemini-3-flash",
         system: "You are Sunder.",
         messages: [{ role: "user", content: "Hello, Sunder!" }],
-        stopWhen: expect.any(Function),
+        stopWhen: expect.arrayContaining([expect.any(Function)]),
         tools: expect.objectContaining({
           search_contacts: { description: "tool" },
           create_contact: { description: "tool" },
