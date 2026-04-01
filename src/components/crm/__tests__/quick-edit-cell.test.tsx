@@ -116,7 +116,7 @@ describe("QuickEditCell", () => {
     expect(screen.getByRole("button", { name: /edit email/i })).toBeInTheDocument();
   });
 
-  it("lets desktop select editors cancel without saving", async () => {
+  it("lets desktop select editors cancel without saving via Escape", async () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockResolvedValue(undefined);
 
@@ -134,12 +134,11 @@ describe("QuickEditCell", () => {
     );
 
     await user.click(screen.getByRole("button", { name: /edit status/i }));
-    expect(screen.getByRole("combobox", { name: /status/i })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/search status/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /cancel/i }));
+    await user.keyboard("{Escape}");
 
     expect(onSave).not.toHaveBeenCalled();
-    expect(screen.queryByRole("combobox", { name: /status/i })).not.toBeInTheDocument();
     expect(screen.getByText("Open")).toBeInTheDocument();
   });
 });

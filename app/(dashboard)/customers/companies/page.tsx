@@ -105,7 +105,11 @@ function CompanyLinkEditCell({
   displayValue,
 }: CompanyLinkEditCellProps) {
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <QuickEditCell
+      ariaLabel={ariaLabel}
+      value={value}
+      onSave={onSave}
+    >
       {value ? (
         <a
           href={hrefBuilder(value)}
@@ -117,15 +121,9 @@ function CompanyLinkEditCell({
           {displayValue ? displayValue(value) : value}
         </a>
       ) : (
-        <span className="text-muted-foreground">—</span>
+        <span className="text-sm text-muted-foreground">{"\u2014"}</span>
       )}
-      <QuickEditCell
-        ariaLabel={ariaLabel}
-        value={value}
-        hideDisplayValue
-        onSave={onSave}
-      />
-    </div>
+    </QuickEditCell>
   );
 }
 
@@ -199,30 +197,28 @@ function CompanyIndustryCell({ companyId, industry, industryOptions }: CompanyIn
   const updateCompany = useUpdateCompany(companyId);
 
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <QuickEditCell
+      ariaLabel="Industry"
+      value={industry}
+      type="select"
+      options={industryOptions.map((option) => ({
+        value: option,
+        label: formatCrmEnumLabel(option),
+      }))}
+      onSave={async (nextValue) => {
+        await updateCompany.mutateAsync({
+          industry: toNullableTextValue(nextValue) as Company["industry"],
+        });
+      }}
+    >
       {industry ? (
         <Badge variant={getCompanyIndustryBadgeVariant(industry)}>
           {formatCrmEnumLabel(industry)}
         </Badge>
       ) : (
-        <span className="text-muted-foreground">—</span>
+        <span className="text-sm text-muted-foreground">{"\u2014"}</span>
       )}
-      <QuickEditCell
-        ariaLabel="Industry"
-        value={industry}
-        hideDisplayValue
-        type="select"
-        options={industryOptions.map((option) => ({
-          value: option,
-          label: formatCrmEnumLabel(option),
-        }))}
-        onSave={async (nextValue) => {
-          await updateCompany.mutateAsync({
-            industry: toNullableTextValue(nextValue) as Company["industry"],
-          });
-        }}
-      />
-    </div>
+    </QuickEditCell>
   );
 }
 

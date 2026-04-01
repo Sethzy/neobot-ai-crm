@@ -31,23 +31,21 @@ function TaskStatusCell({ taskId, status }: { taskId: string; status: CrmTask["s
   const updateTask = useUpdateCrmTask(taskId);
 
   return (
-    <div className="flex min-w-0 items-center gap-2" onClick={(event) => event.stopPropagation()}>
-      <TaskStatusBadge status={status} />
-      <QuickEditCell
-        ariaLabel="Status"
-        value={status}
-        hideDisplayValue
-        type="select"
-        options={taskStatusOptions}
-        onSave={async (nextValue) => {
-          if (typeof nextValue !== "string") {
-            return;
-          }
+    <QuickEditCell
+      ariaLabel="Status"
+      value={status}
+      type="select"
+      options={taskStatusOptions}
+      onSave={async (nextValue) => {
+        if (typeof nextValue !== "string") {
+          return;
+        }
 
-          await updateTask.mutateAsync({ status: nextValue as CrmTask["status"] });
-        }}
-      />
-    </div>
+        await updateTask.mutateAsync({ status: nextValue as CrmTask["status"] });
+      }}
+    >
+      <TaskStatusBadge status={status} />
+    </QuickEditCell>
   );
 }
 
@@ -55,18 +53,16 @@ function TaskDueDateCell({ taskId, dueDate }: { taskId: string; dueDate: string 
   const updateTask = useUpdateCrmTask(taskId);
 
   return (
-    <div className="flex min-w-0 items-center gap-2" onClick={(event) => event.stopPropagation()}>
+    <QuickEditCell
+      ariaLabel="Due Date"
+      value={dueDate}
+      type="date"
+      onSave={async (nextValue) => {
+        await updateTask.mutateAsync({ due_date: typeof nextValue === "string" ? nextValue : null });
+      }}
+    >
       <span className="whitespace-nowrap text-muted-foreground">{formatCrmDate(dueDate)}</span>
-      <QuickEditCell
-        ariaLabel="Due Date"
-        value={dueDate}
-        hideDisplayValue
-        type="date"
-        onSave={async (nextValue) => {
-          await updateTask.mutateAsync({ due_date: typeof nextValue === "string" ? nextValue : null });
-        }}
-      />
-    </div>
+    </QuickEditCell>
   );
 }
 
@@ -177,7 +173,7 @@ export function CrmTasksTable({ tasks, onRowClick }: CrmTasksTableProps) {
           {table.getRowModel().rows.map((row) => (
             <tr
               key={row.id}
-              className="cursor-pointer border-t border-border/30 transition-colors hover:bg-muted/40"
+              className="group/row cursor-pointer border-t border-border/30 transition-colors hover:bg-muted/40"
               onClick={(event) => handleRowClick(event, row.original.task_id)}
             >
               {row.getVisibleCells().map((cell) => (

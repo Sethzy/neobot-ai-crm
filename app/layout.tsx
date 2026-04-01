@@ -66,7 +66,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
         />
         <Providers>{children}</Providers>
-        <Toaster position="bottom-center" richColors />
+        <Toaster position="bottom-right" richColors />
       </body>
     </html>
   );

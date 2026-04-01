@@ -107,7 +107,11 @@ function ContactLinkEditCell({
   linkClassName,
 }: ContactLinkEditCellProps) {
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <QuickEditCell
+      ariaLabel={ariaLabel}
+      value={value}
+      onSave={onSave}
+    >
       {value ? (
         <a
           href={hrefBuilder(value)}
@@ -117,15 +121,9 @@ function ContactLinkEditCell({
           {value}
         </a>
       ) : (
-        <span className="text-muted-foreground">—</span>
+        <span className="text-sm text-muted-foreground">{"\u2014"}</span>
       )}
-      <QuickEditCell
-        ariaLabel={ariaLabel}
-        value={value}
-        hideDisplayValue
-        onSave={onSave}
-      />
-    </div>
+    </QuickEditCell>
   );
 }
 
@@ -177,30 +175,28 @@ function ContactTypeCell({ contactId, type, contactTypes }: ContactTypeCellProps
   const options = useMemo(() => buildCrmSelectOptions(contactTypes, type), [contactTypes, type]);
 
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <QuickEditCell
+      ariaLabel="Type"
+      value={type}
+      type="select"
+      options={options}
+      onSave={async (nextValue) => {
+        const nextType = toNullableTextValue(nextValue);
+
+        if (!nextType) {
+          return;
+        }
+
+        await updateContact.mutateAsync({ type: nextType });
+      }}
+    >
       <DictionaryValue
         value={type}
         map={contactTypeDictionaryMap}
         fallback={<span>{formatCrmEnumLabel(type)}</span>}
         className="text-sm"
       />
-      <QuickEditCell
-        ariaLabel="Type"
-        value={type}
-        hideDisplayValue
-        type="select"
-        options={options}
-        onSave={async (nextValue) => {
-          const nextType = toNullableTextValue(nextValue);
-
-          if (!nextType) {
-            return;
-          }
-
-          await updateContact.mutateAsync({ type: nextType });
-        }}
-      />
-    </div>
+    </QuickEditCell>
   );
 }
 
@@ -212,7 +208,19 @@ function ContactCompanyCell({ contactId, company, companies }: ContactCompanyCel
   const options = useMemo(() => buildCompanyOptions(companies, company), [companies, company]);
 
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <QuickEditCell
+      ariaLabel="Company"
+      value={company?.company_id ?? noCompanyOptionValue}
+      type="select"
+      options={options}
+      onSave={async (nextValue) => {
+        const nextCompanyId = typeof nextValue === "string" && nextValue !== noCompanyOptionValue
+          ? nextValue
+          : null;
+
+        await updateContact.mutateAsync({ company_id: nextCompanyId });
+      }}
+    >
       {company?.company_id ? (
         <Link
           href={`/customers/companies/${company.company_id}`}
@@ -222,23 +230,9 @@ function ContactCompanyCell({ contactId, company, companies }: ContactCompanyCel
           {company.name}
         </Link>
       ) : (
-        <span className="text-muted-foreground">—</span>
+        <span className="text-sm text-muted-foreground">{"\u2014"}</span>
       )}
-      <QuickEditCell
-        ariaLabel="Company"
-        value={company?.company_id ?? noCompanyOptionValue}
-        hideDisplayValue
-        type="select"
-        options={options}
-        onSave={async (nextValue) => {
-          const nextCompanyId = typeof nextValue === "string" && nextValue !== noCompanyOptionValue
-            ? nextValue
-            : null;
-
-          await updateContact.mutateAsync({ company_id: nextCompanyId });
-        }}
-      />
-    </div>
+    </QuickEditCell>
   );
 }
 

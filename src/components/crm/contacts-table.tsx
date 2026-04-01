@@ -161,7 +161,7 @@ export function ContactsTable({ contacts, onRowClick }: ContactsTableProps) {
           {table.getRowModel().rows.map((row) => (
             <tr
               key={row.id}
-              className="cursor-pointer border-t border-border/30 transition-colors hover:bg-muted/40"
+              className="group/row cursor-pointer border-t border-border/30 transition-colors hover:bg-muted/40"
               onClick={(event) => handleRowClick(event, row.original.contact_id)}
             >
               {row.getVisibleCells().map((cell) => (

@@ -1,12 +1,21 @@
 /**
  * Compact inline editor for dense CRM list and board surfaces.
+ * Hover reveals copy + edit icons; clicking edit transforms the cell in-place.
  * @module components/crm/quick-edit-cell
  */
 "use client";
 
-import { Check, Loader2, Pencil } from "@/components/icons/lucide-compat";
+import { Check, Copy, Loader2, Pencil } from "@/components/icons/lucide-compat";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -26,7 +36,8 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { type KeyboardEvent, type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type QuickEditCellType = "text" | "number" | "select" | "date";
 
@@ -58,6 +69,12 @@ interface QuickEditCellProps {
   parseValue?: (draft: string) => ParsedQuickEditValue;
   /** Called after a parsed value is ready to persist. */
   onSave: (value: string | number | null) => Promise<void> | void;
+  /**
+   * Custom read-mode content (e.g. a link or badge) rendered by the parent.
+   * When provided, this replaces the default display span and is hidden during edit mode
+   * so the input can take over the full cell width without doubling up.
+   */
+  children?: React.ReactNode;
 }
 
 const savedIndicatorDurationMs = 1500;
@@ -119,11 +136,11 @@ function resolveDisplayValue(
 ): string {
   if (displayValue !== undefined) {
     const normalizedDisplayValue = displayValue?.trim();
-    return normalizedDisplayValue && normalizedDisplayValue.length > 0 ? normalizedDisplayValue : "—";
+    return normalizedDisplayValue && normalizedDisplayValue.length > 0 ? normalizedDisplayValue : "";
   }
 
   if (value == null || value === "") {
-    return "—";
+    return "";
   }
 
   if (type === "select" && typeof value === "string") {
@@ -186,6 +203,7 @@ export function QuickEditCell({
   options = [],
   parseValue,
   onSave,
+  children,
 }: QuickEditCellProps) {
   const isMobile = useIsMobile();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -200,6 +218,8 @@ export function QuickEditCell({
     () => resolveDisplayValue(value, displayValue, type, options),
     [displayValue, options, type, value],
   );
+
+  const hasCopyableValue = value != null && value !== "";
 
   useEffect(() => {
     if (!isEditing) {
@@ -234,6 +254,21 @@ export function QuickEditCell({
       savedTimerRef.current = null;
     }, savedIndicatorDurationMs);
   }, []);
+
+  const handleCopy = useCallback(
+    (event: MouseEvent) => {
+      event.stopPropagation();
+
+      if (!hasCopyableValue) {
+        return;
+      }
+
+      void navigator.clipboard.writeText(String(value)).then(() => {
+        toast(`${ariaLabel} copied to clipboard`);
+      });
+    },
+    [ariaLabel, hasCopyableValue, value],
+  );
 
   const startEditing = useCallback(() => {
     setDraft(toDraftValue(value, type));
@@ -310,29 +345,15 @@ export function QuickEditCell({
 
   const renderEditor = (isDialogEditor: boolean) => {
     if (type === "select") {
-      return (
-        <div className="flex items-center gap-2">
+      if (isDialogEditor) {
+        return (
           <Select
             value={draft || undefined}
             onValueChange={(nextValue) => {
               setDraft(nextValue);
-
-              if (!isDialogEditor) {
-                void commitValue(nextValue);
-              }
             }}
           >
-            <SelectTrigger
-              aria-label={ariaLabel}
-              className="w-full"
-              onClick={stopEventPropagation}
-              onKeyDown={(event) => {
-                if (event.key === "Escape" && !isDialogEditor) {
-                  event.preventDefault();
-                  cancelEditing();
-                }
-              }}
-            >
+            <SelectTrigger aria-label={ariaLabel} className="w-full">
               <SelectValue placeholder={`Select ${ariaLabel.toLowerCase()}`} />
             </SelectTrigger>
             <SelectContent>
@@ -343,31 +364,85 @@ export function QuickEditCell({
               ))}
             </SelectContent>
           </Select>
-          {!isDialogEditor ? (
-            <Button type="button" variant="ghost" size="sm" onClick={cancelEditing}>
-              Cancel
-            </Button>
-          ) : null}
-        </div>
+        );
+      }
+
+      return (
+        <Popover open onOpenChange={(nextOpen) => !nextOpen && cancelEditing()}>
+          <PopoverTrigger asChild>
+            <span className="block w-full" />
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-[var(--radix-popover-trigger-width)] min-w-[180px] p-0"
+            align="start"
+            sideOffset={-36}
+            onClick={stopEventPropagation}
+            onOpenAutoFocus={(event) => event.preventDefault()}
+          >
+            <Command>
+              <CommandInput placeholder={`Search ${ariaLabel.toLowerCase()}...`} />
+              <CommandList>
+                <CommandEmpty>No results.</CommandEmpty>
+                <CommandGroup>
+                  {options.map((option) => (
+                    <CommandItem
+                      key={option.value}
+                      value={option.label}
+                      data-checked={option.value === (draft || value)}
+                      onSelect={() => {
+                        setDraft(option.value);
+                        void commitValue(option.value);
+                      }}
+                    >
+                      {option.label}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       );
     }
 
     if (type === "date") {
       return (
         <div className="space-y-2" onClick={stopEventPropagation}>
-          <Input
-            ref={inputRef}
-            aria-label={ariaLabel}
-            type="date"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={handleInputKeyDown}
-            onBlur={(event) => {
-              if (!isDialogEditor) {
-                void commitValue(event.currentTarget.value);
-              }
-            }}
-          />
+          <div className="flex items-center gap-1">
+            <Input
+              ref={inputRef}
+              aria-label={ariaLabel}
+              type="date"
+              className="h-7 text-sm"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={handleInputKeyDown}
+              onBlur={(event) => {
+                if (!isDialogEditor) {
+                  void commitValue(event.currentTarget.value);
+                }
+              }}
+            />
+            {!isDialogEditor ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                aria-label={`Save ${ariaLabel}`}
+                disabled={isSaving}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void commitValue(draft);
+                }}
+              >
+                {isSaving ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Check className="h-3.5 w-3.5" />
+                )}
+              </Button>
+            ) : null}
+          </div>
           {!isDialogEditor && draft ? (
             <div className="rounded-md border border-border/60 p-1">
               <Calendar
@@ -390,29 +465,48 @@ export function QuickEditCell({
     }
 
     return (
-      <Input
-        ref={inputRef}
-        aria-label={ariaLabel}
-        type={inputType ?? (type === "number" ? "number" : "text")}
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={handleInputKeyDown}
-        onBlur={(event) => {
-          if (!isDialogEditor) {
-            void commitValue(event.currentTarget.value);
-          }
-        }}
-        onClick={stopEventPropagation}
-      />
+      <div className="flex items-center gap-1">
+        <Input
+          ref={inputRef}
+          aria-label={ariaLabel}
+          type={inputType ?? (type === "number" ? "number" : "text")}
+          className="h-7 text-sm"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={handleInputKeyDown}
+          onClick={stopEventPropagation}
+        />
+        {!isDialogEditor ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Save ${ariaLabel}`}
+            disabled={isSaving}
+            onClick={(event) => {
+              event.stopPropagation();
+              void commitValue(draft);
+            }}
+          >
+            {isSaving ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Check className="h-3.5 w-3.5" />
+            )}
+          </Button>
+        ) : null}
+      </div>
     );
   };
 
+  const isDesktopEditing = isEditing && !isMobile;
+
   return (
     <div
-      className="flex min-w-0 items-center gap-2"
+      className="flex min-w-0 items-center gap-1"
       onClick={stopEventPropagation}
     >
-      {isEditing && !isMobile ? (
+      {isDesktopEditing ? (
         <div className="min-w-0 flex-1 space-y-1">
           {renderEditor(false)}
           {errorMessage ? (
@@ -421,31 +515,49 @@ export function QuickEditCell({
         </div>
       ) : (
         <>
-          {!hideDisplayValue ? (
+          {children ? (
+            <span className="min-w-0 flex-1 truncate">{children}</span>
+          ) : !hideDisplayValue ? (
             <span
               className={cn(
                 "min-w-0 flex-1 truncate text-sm",
-                resolvedDisplayValue === "—" ? "text-muted-foreground" : "text-foreground/85",
+                !resolvedDisplayValue ? "text-muted-foreground" : "text-foreground/85",
               )}
-              title={resolvedDisplayValue}
+              title={resolvedDisplayValue || undefined}
             >
-              {resolvedDisplayValue}
+              {resolvedDisplayValue || "\u2014"}
             </span>
           ) : null}
+
           {isSaving ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
           ) : isSaved ? (
-            <Check className="h-3.5 w-3.5 text-success" aria-label={`${ariaLabel} saved`} />
-          ) : null}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            aria-label={`Edit ${ariaLabel}`}
-            onClick={startEditing}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
+            <Check className="h-3.5 w-3.5 shrink-0 text-success" aria-label={`${ariaLabel} saved`} />
+          ) : (
+            <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/row:opacity-100">
+              {hasCopyableValue ? (
+                <button
+                  type="button"
+                  className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-foreground/70"
+                  aria-label={`Copy ${ariaLabel}`}
+                  onClick={handleCopy}
+                >
+                  <Copy className="h-3 w-3" />
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-foreground/70"
+                aria-label={`Edit ${ariaLabel}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  startEditing();
+                }}
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+            </span>
+          )}
         </>
       )}
 
