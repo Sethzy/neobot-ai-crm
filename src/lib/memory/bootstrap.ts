@@ -105,11 +105,20 @@ export async function ensureClientBootstrap(
   supabase: SupabaseClient,
   clientId: string,
 ): Promise<void> {
-  const { data: client, error: selectError } = await supabase
+  let { data: client, error: selectError } = await supabase
     .from("clients")
     .select("is_bootstrapped")
     .eq("client_id", clientId)
     .single();
+
+  // Retry once on transient network failures (e.g. Turbopack HMR aborting in-flight fetches).
+  if (selectError?.message?.includes("fetch failed")) {
+    ({ data: client, error: selectError } = await supabase
+      .from("clients")
+      .select("is_bootstrapped")
+      .eq("client_id", clientId)
+      .single());
+  }
 
   if (selectError) {
     throw new Error(`Failed to check bootstrap status: ${selectError.message}`);
