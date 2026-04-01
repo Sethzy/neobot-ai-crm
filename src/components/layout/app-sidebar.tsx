@@ -63,7 +63,6 @@ const customersNavItems: NavigationItem[] = [
 
 /** DATABASE section — data-centric surfaces */
 const databaseNavItems: NavigationItem[] = [
-  { label: "Workspace", href: "/cases", icon: "workspace" },
   { label: "Channels", href: "/channels", icon: "channels" },
 ];
 
@@ -123,10 +122,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
 
   const renderNavItems = (items: NavigationItem[]) =>
     items.map((item) => {
-      const isActive =
-        item.href === "/cases"
-          ? pathname.startsWith("/cases")
-          : pathname.startsWith(item.href);
+      const isActive = pathname.startsWith(item.href);
 
       return (
         <SidebarMenuItem key={item.label}>

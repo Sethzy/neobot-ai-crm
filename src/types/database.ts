@@ -297,36 +297,6 @@ export type Database = {
           },
         ]
       }
-      cases: {
-        Row: {
-          created_at: string | null
-          created_by: string | null
-          id: string
-          name: string | null
-          updated_at: string | null
-          validation_review_completed_at: string | null
-          validation_review_completed_by: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          name?: string | null
-          updated_at?: string | null
-          validation_review_completed_at?: string | null
-          validation_review_completed_by?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          name?: string | null
-          updated_at?: string | null
-          validation_review_completed_at?: string | null
-          validation_review_completed_by?: string | null
-        }
-        Relationships: []
-      }
       client_message_usage_monthly: {
         Row: {
           client_id: string
@@ -1049,90 +1019,6 @@ export type Database = {
           },
         ]
       }
-      documents: {
-        Row: {
-          case_id: string | null
-          created_at: string | null
-          duplicate_status: string | null
-          filename: string | null
-          gemini_response: Json | null
-          id: string
-          is_heterogeneous: boolean | null
-          is_reviewed: boolean | null
-          ocr_poor_pages: number[] | null
-          page_ranges: Json | null
-          primary_tag: string | null
-          processed_at: string | null
-          processing_error: string | null
-          renamed_filename: string | null
-          reviewed_at: string | null
-          source: string | null
-          status: string | null
-          storage_path: string | null
-          updated_at: string | null
-          whatsapp_message_id: string | null
-        }
-        Insert: {
-          case_id?: string | null
-          created_at?: string | null
-          duplicate_status?: string | null
-          filename?: string | null
-          gemini_response?: Json | null
-          id?: string
-          is_heterogeneous?: boolean | null
-          is_reviewed?: boolean | null
-          ocr_poor_pages?: number[] | null
-          page_ranges?: Json | null
-          primary_tag?: string | null
-          processed_at?: string | null
-          processing_error?: string | null
-          renamed_filename?: string | null
-          reviewed_at?: string | null
-          source?: string | null
-          status?: string | null
-          storage_path?: string | null
-          updated_at?: string | null
-          whatsapp_message_id?: string | null
-        }
-        Update: {
-          case_id?: string | null
-          created_at?: string | null
-          duplicate_status?: string | null
-          filename?: string | null
-          gemini_response?: Json | null
-          id?: string
-          is_heterogeneous?: boolean | null
-          is_reviewed?: boolean | null
-          ocr_poor_pages?: number[] | null
-          page_ranges?: Json | null
-          primary_tag?: string | null
-          processed_at?: string | null
-          processing_error?: string | null
-          renamed_filename?: string | null
-          reviewed_at?: string | null
-          source?: string | null
-          status?: string | null
-          storage_path?: string | null
-          updated_at?: string | null
-          whatsapp_message_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "documents_case_id_fkey"
-            columns: ["case_id"]
-            isOneToOne: false
-            referencedRelation: "cases"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "documents_whatsapp_message_id_fkey"
-            columns: ["whatsapp_message_id"]
-            isOneToOne: false
-            referencedRelation: "whatsapp_messages"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       interactions: {
         Row: {
           client_id: string
@@ -1205,65 +1091,6 @@ export type Database = {
           },
         ]
       }
-      report_history: {
-        Row: {
-          ai_summary: string | null
-          case_id: string
-          created_at: string
-          file_path: string
-          file_size_bytes: number | null
-          generated_at: string
-          generated_by: string
-          id: string
-          name: string
-          prompt: string | null
-          report_type: string
-          splits_count: number
-          tags_included: string[]
-          updated_at: string
-        }
-        Insert: {
-          ai_summary?: string | null
-          case_id: string
-          created_at?: string
-          file_path: string
-          file_size_bytes?: number | null
-          generated_at?: string
-          generated_by: string
-          id?: string
-          name: string
-          prompt?: string | null
-          report_type: string
-          splits_count: number
-          tags_included: string[]
-          updated_at?: string
-        }
-        Update: {
-          ai_summary?: string | null
-          case_id?: string
-          created_at?: string
-          file_path?: string
-          file_size_bytes?: number | null
-          generated_at?: string
-          generated_by?: string
-          id?: string
-          name?: string
-          prompt?: string | null
-          report_type?: string
-          splits_count?: number
-          tags_included?: string[]
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "report_history_case_id_fkey"
-            columns: ["case_id"]
-            isOneToOne: false
-            referencedRelation: "cases"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       runs: {
         Row: {
           client_id: string
@@ -1331,99 +1158,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "conversation_threads"
             referencedColumns: ["thread_id"]
-          },
-        ]
-      }
-      splits: {
-        Row: {
-          created_at: string | null
-          document_date: string | null
-          document_id: string
-          end_page: number
-          extend_processor_id: string | null
-          extracted_data: Json | null
-          extraction_error: string | null
-          extraction_metadata: Json | null
-          extraction_status: string | null
-          id: string
-          identifier: string | null
-          low_confidence_fields: Json | null
-          observation: string | null
-          original_extracted_data: Json | null
-          page_height: number | null
-          page_width: number | null
-          potential_duplicate: string | null
-          schema_version: string | null
-          split_index: number
-          start_page: number
-          tag_id: string
-          updated_at: string | null
-          validation_failures: Json | null
-        }
-        Insert: {
-          created_at?: string | null
-          document_date?: string | null
-          document_id: string
-          end_page: number
-          extend_processor_id?: string | null
-          extracted_data?: Json | null
-          extraction_error?: string | null
-          extraction_metadata?: Json | null
-          extraction_status?: string | null
-          id?: string
-          identifier?: string | null
-          low_confidence_fields?: Json | null
-          observation?: string | null
-          original_extracted_data?: Json | null
-          page_height?: number | null
-          page_width?: number | null
-          potential_duplicate?: string | null
-          schema_version?: string | null
-          split_index: number
-          start_page: number
-          tag_id: string
-          updated_at?: string | null
-          validation_failures?: Json | null
-        }
-        Update: {
-          created_at?: string | null
-          document_date?: string | null
-          document_id?: string
-          end_page?: number
-          extend_processor_id?: string | null
-          extracted_data?: Json | null
-          extraction_error?: string | null
-          extraction_metadata?: Json | null
-          extraction_status?: string | null
-          id?: string
-          identifier?: string | null
-          low_confidence_fields?: Json | null
-          observation?: string | null
-          original_extracted_data?: Json | null
-          page_height?: number | null
-          page_width?: number | null
-          potential_duplicate?: string | null
-          schema_version?: string | null
-          split_index?: number
-          start_page?: number
-          tag_id?: string
-          updated_at?: string | null
-          validation_failures?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "splits_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "documents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "splits_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "documents_with_status"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -1551,7 +1285,6 @@ export type Database = {
       }
       user_instructions: {
         Row: {
-          case_id: string | null
           created_at: string
           description: string
           id: string
@@ -1559,7 +1292,6 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          case_id?: string | null
           created_at?: string
           description: string
           id?: string
@@ -1567,22 +1299,13 @@ export type Database = {
           user_id: string
         }
         Update: {
-          case_id?: string | null
           created_at?: string
           description?: string
           id?: string
           title?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_instructions_case_id_fkey"
-            columns: ["case_id"]
-            isOneToOne: false
-            referencedRelation: "cases"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       whatsapp_contacts: {
         Row: {
@@ -1613,9 +1336,7 @@ export type Database = {
       }
       whatsapp_messages: {
         Row: {
-          case_id: string | null
           contact_id: string | null
-          document_id: string | null
           filename: string | null
           id: string
           message_text: string | null
@@ -1629,9 +1350,7 @@ export type Database = {
           whatsapp_timestamp: string
         }
         Insert: {
-          case_id?: string | null
           contact_id?: string | null
-          document_id?: string | null
           filename?: string | null
           id?: string
           message_text?: string | null
@@ -1645,9 +1364,7 @@ export type Database = {
           whatsapp_timestamp: string
         }
         Update: {
-          case_id?: string | null
           contact_id?: string | null
-          document_id?: string | null
           filename?: string | null
           id?: string
           message_text?: string | null
@@ -1662,112 +1379,16 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "whatsapp_messages_case_id_fkey"
-            columns: ["case_id"]
-            isOneToOne: false
-            referencedRelation: "cases"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "whatsapp_messages_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "whatsapp_contacts"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "whatsapp_messages_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "documents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "whatsapp_messages_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "documents_with_status"
-            referencedColumns: ["id"]
-          },
         ]
       }
     }
-    Views: {
-      documents_with_status: {
-        Row: {
-          case_id: string | null
-          computed_status: string | null
-          created_at: string | null
-          filename: string | null
-          gemini_response: Json | null
-          id: string | null
-          is_heterogeneous: boolean | null
-          is_reviewed: boolean | null
-          ocr_confidence: string | null
-          ocr_poor_pages: number[] | null
-          page_ranges: Json | null
-          primary_tag: string | null
-          processed_at: string | null
-          processing_error: string | null
-          renamed_filename: string | null
-          reviewed_at: string | null
-          status: string | null
-          storage_path: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          case_id?: string | null
-          computed_status?: never
-          created_at?: string | null
-          filename?: string | null
-          gemini_response?: Json | null
-          id?: string | null
-          is_heterogeneous?: boolean | null
-          is_reviewed?: boolean | null
-          ocr_confidence?: string | null
-          ocr_poor_pages?: number[] | null
-          page_ranges?: Json | null
-          primary_tag?: string | null
-          processed_at?: string | null
-          processing_error?: string | null
-          renamed_filename?: string | null
-          reviewed_at?: string | null
-          status?: string | null
-          storage_path?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          case_id?: string | null
-          computed_status?: never
-          created_at?: string | null
-          filename?: string | null
-          gemini_response?: Json | null
-          id?: string | null
-          is_heterogeneous?: boolean | null
-          is_reviewed?: boolean | null
-          ocr_confidence?: string | null
-          ocr_poor_pages?: number[] | null
-          page_ranges?: Json | null
-          primary_tag?: string | null
-          processed_at?: string | null
-          processing_error?: string | null
-          renamed_filename?: string | null
-          reviewed_at?: string | null
-          status?: string | null
-          storage_path?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "documents_case_id_fkey"
-            columns: ["case_id"]
-            isOneToOne: false
-            referencedRelation: "cases"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-    }
+    Views: {}
     Functions: {
       autopilot_interval_to_cron: {
         Args: { p_pulse_interval: string }

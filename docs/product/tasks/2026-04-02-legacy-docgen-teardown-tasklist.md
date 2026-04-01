@@ -4,7 +4,14 @@
 
 **Why now:** This stack is outside the current product direction, bypasses the approved AI SDK runtime, duplicates chat infrastructure, and leaves a large amount of legacy debug logging in hot paths.
 
-**Status:** Planning only. Do not implement from this tasklist until approved for execution.
+**Status:** Complete
+
+## Execution Notes
+
+- `/cases` was deleted outright. No redirect remains.
+- The retired UI, hooks, Pages Router bridges, direct-provider document pipeline, and report history helpers were deleted.
+- `cases`, `documents`, `splits`, `report_history`, and their dependent foreign keys/view were removed through a new forward-only teardown migration.
+- Remaining build/test failures outside this teardown are tracked separately. The known production build blocker is the pre-existing Browser-Use type error in `app/api/browser/session/cleanup/route.ts`.
 
 ## Scope
 
@@ -51,6 +58,8 @@ This teardown does **not** remove:
 ## Assumptions
 
 - The old analyst/docgen/case-processing product is fully retired, not being replaced in-place.
+- `/cases` should be deleted outright. Do not replace it with a redirect.
+- `cases`, `documents`, `splits`, and `report_history` are fully dead data model concepts and should be dropped after UI/API removal.
 - Existing customer-facing workflows should route to `/chat` or CRM surfaces, not to a reduced "read-only cases" shell.
 - Historical migrations stay on disk. Teardown should happen via new forward-only cleanup migrations where DB/storage removal is required.
 - The safest order is: remove user-facing entrypoints first, then server/API code, then storage/database glue, then docs/tests cleanup.
@@ -131,7 +140,9 @@ This teardown does **not** remove:
 1. Run a code search for `analyst`, `docgen`, `gemini/process`, `report_history`, `splits`, `useReportHistory`, and `/api/analyst/chat`.
 2. Capture all live route entrypoints that still expose the old product.
 3. Confirm whether `/cases` should be fully removed or reduced to a redirect.
+  Decision: fully remove it. No redirect.
 4. Confirm whether `documents`, `splits`, `cases`, and `report_history` tables are entirely dead after UI/API removal.
+  Decision: yes. Treat them as fully retired and drop them in teardown migrations.
 
 **Exit Criteria**
 - No ambiguity remains about whether this is a feature removal versus a backend-only cleanup.
@@ -149,7 +160,7 @@ This teardown does **not** remove:
 **Steps**
 1. Remove the `AI Analyst` tab and `Reports` tab from the case detail page.
 2. Remove lazy imports and preload hooks for analyst/docgen/library sections.
-3. Decide whether `/cases` and `/cases/[caseId]` are deleted entirely or replaced with redirects.
+3. Delete `/cases` and `/cases/[caseId]` entirely. Do not add redirects.
 4. Remove any route-level counts or badges that depend on report history.
 5. Update tests so the old surface is no longer expected.
 
@@ -195,7 +206,7 @@ This teardown does **not** remove:
 5. Remove report-related tests.
 
 **Decision checkpoint**
-- If the `report_history` table has no remaining non-legacy use, drop it in the teardown migration. Otherwise, explicitly document the surviving owner.
+- `report_history` has no remaining owner. Drop it in the teardown migration.
 
 ## Task 5: Delete Gemini Processing Pipeline
 
@@ -214,7 +225,7 @@ This teardown does **not** remove:
 1. Remove the `/api/gemini/process` endpoint and the `pages/api` bridge.
 2. Delete provider-specific Gemini helper modules that only exist for this pipeline.
 3. Remove `triggerGeminiProcessing()` from the upload processor.
-4. Decide whether the entire upload queue/case-documents flow should also be removed with this product.
+4. Remove the entire upload queue/case-documents flow with this product.
 5. Remove associated tests and mocks.
 
 **Important**
@@ -267,7 +278,7 @@ This teardown does **not** remove:
 4. Regenerate DB types.
 
 **Decision checkpoint**
-- If any of these tables still support a live non-docgen workflow, stop and split the teardown so we do not over-delete.
+- These assets are confirmed dead for the current product direction. Drop them once code removal lands cleanly.
 
 ## Task 9: Remove Legacy Debug Logging In The Removed Slice
 
@@ -322,6 +333,11 @@ Expected end state:
 - no legacy debug logs remain from this slice
 - build, lint, and tests pass
 
+Actual verification on 2026-04-02:
+
+- `pnpm build`: teardown compiles cleanly; build still fails on the pre-existing Browser-Use type mismatch in `app/api/browser/session/cleanup/route.ts`
+- `pnpm test:run`: teardown-owned failures were removed; the suite still has unrelated baseline failures elsewhere in the repo
+
 ## Suggested Commit Breakdown
 
 1. `chore(legacy-docgen): remove cases entry surface and analyst ui`
@@ -332,7 +348,4 @@ Expected end state:
 
 ## Open Questions To Resolve Before Execution
 
-1. Should `/cases` be deleted entirely, or temporarily redirect to `/chat`?
-2. Are `cases`, `documents`, and `splits` fully dead product concepts, or is any subset still needed?
-3. Should `report_history` be dropped now, or left one release behind for data export/backfill?
-4. Do we want a short-lived migration period where the UI is removed first and DB teardown lands second?
+1. UI/API removal should land before DB teardown so the schema drop stays the last reversible step.

@@ -2,8 +2,6 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
-import { UploadProvider } from "@/contexts/upload-context";
-import { HighlightProvider } from "@/contexts/highlight-context";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -20,9 +18,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <UploadProvider>
-        <HighlightProvider>{children}</HighlightProvider>
-      </UploadProvider>
+      {children}
     </QueryClientProvider>
   );
 }

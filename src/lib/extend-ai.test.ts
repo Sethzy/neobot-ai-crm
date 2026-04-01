@@ -8,14 +8,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
-// Mock gemini utilities
-vi.mock("./gemini.js", () => ({
+// Mock retry utilities
+vi.mock("./retry.js", () => ({
   sleep: vi.fn().mockResolvedValue(undefined),
   shouldRetry: vi.fn().mockReturnValue(true),
   calculateBackoff: vi.fn().mockReturnValue(1000),
 }));
 
-import { sleep, shouldRetry, calculateBackoff } from "./gemini.js";
+import { sleep, shouldRetry, calculateBackoff } from "./retry.js";
 
 describe("runExtraction with raw fetch", () => {
   beforeEach(() => {

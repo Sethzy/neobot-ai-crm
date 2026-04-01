@@ -81,9 +81,6 @@ const nextConfig: NextConfig = {
       "framer-motion",
       "class-variance-authority",
       "recharts",
-      "@react-pdf-viewer/core",
-      "@react-pdf-viewer/default-layout",
-      "@react-pdf-viewer/highlight",
       "react-day-picker",
       "react-markdown",
       "jszip",
@@ -116,7 +113,7 @@ const nextConfig: NextConfig = {
     };
     return config;
   },
-  serverExternalPackages: ["@anthropic-ai/sdk", "exceljs", "pdf-lib", "bash-tool", "just-bash"],
+  serverExternalPackages: ["bash-tool", "just-bash"],
 };
 
 export default withSentryConfig(withBundleAnalyzer(nextConfig), {

@@ -10,7 +10,6 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: "*",
         allow: "/",
         disallow: [
-          "/cases/",
           "/instructions",
           "/auth/",
           "/update-password",

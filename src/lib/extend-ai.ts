@@ -1,10 +1,9 @@
 /**
  * @file ExtendAI raw fetch client
  * @description Direct fetch to ExtendAI API for document extraction.
- * Reuses retry utilities from gemini.ts for consistency.
  */
 
-import { sleep, shouldRetry, calculateBackoff } from "./gemini";
+import { sleep, shouldRetry, calculateBackoff } from "./retry";
 
 const MAX_RETRIES = 3;
 const EXTEND_API_URL = "https://api.extend.ai/processor_runs";

@@ -20,10 +20,8 @@ Copy `.env.example` to `.env.local` and fill in required values.
 ## Routing
 
 - UI routes live in `app/**`.
-- API routes are currently bridged through `pages/api/**` to preserve existing behavior:
-  - `/api/chat`
-  - `/api/docgen/generate`
-  - `/api/gemini/process`
+- API routes live in `app/api/**`.
+- The primary chat entrypoint is `/api/chat`.
 
 ## Notes
 

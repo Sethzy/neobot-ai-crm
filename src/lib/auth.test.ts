@@ -55,16 +55,6 @@ describe("getAuthRedirect", () => {
       expect(redirect).toBeNull();
     });
 
-    it("redirects to login from protected route /cases", () => {
-      const redirect = getAuthRedirect("/cases", null);
-      expect(redirect).toBe("/login");
-    });
-
-    it("redirects to login from protected route /cases/123", () => {
-      const redirect = getAuthRedirect("/cases/123", null);
-      expect(redirect).toBe("/login");
-    });
-
     it("redirects to login from any protected route", () => {
       const redirect = getAuthRedirect("/settings", null);
       expect(redirect).toBe("/login");
@@ -85,16 +75,6 @@ describe("getAuthRedirect", () => {
     it("redirects from register to /chat", () => {
       const redirect = getAuthRedirect("/register", mockSession);
       expect(redirect).toBe("/chat");
-    });
-
-    it("allows access to /cases", () => {
-      const redirect = getAuthRedirect("/cases", mockSession);
-      expect(redirect).toBeNull();
-    });
-
-    it("allows access to /cases/123", () => {
-      const redirect = getAuthRedirect("/cases/123", mockSession);
-      expect(redirect).toBeNull();
     });
 
     it("allows access to forgot-password (for password change)", () => {

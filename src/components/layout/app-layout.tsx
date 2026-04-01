@@ -1,6 +1,5 @@
 /**
  * Main application layout with sidebar and content area.
- * Initializes upload processor to auto-handle queued files.
  * @module components/layout/app-layout
  */
 'use client';
@@ -8,9 +7,6 @@
 import { useEffect, useState } from "react";
 import { AppSidebar } from "./app-sidebar";
 import { CommandMenu } from "@/components/command-menu";
-import { UploadProgressPanel } from "@/components/documents/upload-progress-panel";
-import { useUpload } from "@/contexts/upload-context";
-import { useUploadProcessor } from "@/hooks/use-upload-processor";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
@@ -21,11 +17,7 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { queue, isUploading, isPanelVisible, dismissPanel, reportTask, clearReportTask } = useUpload();
   const [isCommandMenuOpen, setIsCommandMenuOpen] = useState(false);
-
-  // Initialize upload processor - auto-processes pending queue items
-  useUploadProcessor();
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -65,15 +57,6 @@ export function AppLayout({ children }: AppLayoutProps) {
             <Logo />
           </header>
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
-          {isPanelVisible && (
-            <UploadProgressPanel
-              queue={queue}
-              isUploading={isUploading}
-              onDismiss={dismissPanel}
-              reportTask={reportTask}
-              onClearReportTask={clearReportTask}
-            />
-          )}
         </SidebarInset>
         <CommandMenu open={isCommandMenuOpen} onOpenChange={setIsCommandMenuOpen} />
       </SidebarProvider>

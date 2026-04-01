@@ -83,13 +83,13 @@ describe("AppSidebar", () => {
     expect(screen.getByText("Memory")).toBeInTheDocument();
   });
 
-  it("renders customer and database section nav items without Knowledge", () => {
+  it("renders customer and database section nav items without Knowledge or Workspace", () => {
     render(<AppSidebar />, { wrapper });
     expect(screen.getByText("People")).toBeInTheDocument();
     expect(screen.getByText("Companies")).toBeInTheDocument();
     expect(screen.getByText("Deals")).toBeInTheDocument();
     expect(screen.queryByText("Knowledge")).not.toBeInTheDocument();
-    expect(screen.getByText("Workspace")).toBeInTheDocument();
+    expect(screen.queryByText("Workspace")).not.toBeInTheDocument();
     expect(screen.getByText("Channels")).toBeInTheDocument();
   });
 
