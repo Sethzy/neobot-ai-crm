@@ -70,12 +70,15 @@ export const catalog = defineCatalog(schema, {
       props: z.object({
         name: z.string().min(1),
         type: z.string().min(1).nullable(),
+        phone: z.string().min(1).nullable(),
+        email: z.string().min(1).nullable(),
+        company: z.string().min(1).nullable(),
         subtitle: z.string().min(1).nullable(),
       }),
       slots: [],
       description:
-        "Compact CRM contact card with name, optional type badge, and optional subtitle.",
-      example: { name: "John Tan", type: "buyer", subtitle: "Looking for 3BR in Bishan" },
+        "Compact CRM contact card with name, type badge, and structured contact details (phone, email, company). Details render as a single line below the name separated by dots. Use subtitle only as a fallback when no structured fields are available.",
+      example: { name: "John Tan", type: "buyer", phone: "9123-4567", email: "john@example.com", company: "PropNex" },
     },
     TaskItem: {
       props: z.object({

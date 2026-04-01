@@ -20,7 +20,20 @@ describe("ContactCard", () => {
     expect(screen.getByText("Buyer")).toBeInTheDocument();
   });
 
-  it("renders the subtitle when present", () => {
+  it("renders structured details as dot-separated line", () => {
+    render(
+      <ContactCard
+        name="John Tan"
+        phone="9123-4567"
+        email="john@example.com"
+        company="PropNex"
+      />,
+    );
+
+    expect(screen.getByText("PropNex \u00B7 9123-4567 \u00B7 john@example.com")).toBeInTheDocument();
+  });
+
+  it("renders subtitle as fallback when no structured fields", () => {
     render(
       <ContactCard
         name="John Tan"
