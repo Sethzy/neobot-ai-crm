@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-03-30: Added PRs 63-65 to Phase 7. PR 63: unified agent filesystem (collapse 3 buckets into 1, sandbox persistence model, storagePath, sunder:// links). PR 64: sandbox workspace preload (preload uploads/ + home/ at boot). PR 65: Composio file bridge (connection tool downloads persist to storage + sandbox). Dependency chain: 63 → 64 → 65.",
+    "updated": "2026-03-31: Marked PR 57b done. Browser-Use listing-tool migration shipped; QA Surface 28 and property-listing automated scenarios updated.",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -10,7 +10,7 @@
     "estimatedPRs": 44,
     "keptPRs": 27,
     "cutPRs": 19,
-    "donePRs": 76,
+    "donePRs": 80,
     "hardeningPRs": 6,
     "statusOptions": [
       "pending",
@@ -76,7 +76,10 @@
       "2026-03-24: Marked PRs 52 and 53 done (sandbox Excel analysis + artifact publishing). Added PR 52a (sandbox workflow skills) as formal Phase 6 entry \u2014 was previously only mentioned in 2026-03-23 changelog. 3 outer workflow skills (deal-comparison, property-showcase, market-report) + 2 inner coding skills (re-analyst, frontend-design) + SG domain references + system prompt guidance. 9 tasks. Tasklist: docs/product/tasks/2026-03-23-pr52a-sandbox-workflow-skills-tasklist.md.",
       "2026-03-30: Added PR 59 (Vercel Sandbox + bash-tool migration) to Phase 6. Out-of-plan architecture migration replacing Sprites/Fly.io with ephemeral Vercel Sandbox + bash-tool. Single bash tool registered lazily in runner. Parallel skill file downloads. SHA-256 artifact dedup. Replaces PRs 52\u201356 (Sprites-based sandbox).",
       "2026-03-30: Added Phase 7 (Documents + Connections Polish) with 3 PRs. PR 60 tears down the vault/Knowledge Base feature entirely (supersedes PR 12a) \u2014 Google Drive via Composio replaces it. PR 61 fixes Composio getRawComposioTools() limit:20 truncation affecting all connections (89 Drive tools, 35 Docs tools, 48 Sheets tools were truncated to 20 each). PR 62 adds Google workspace support (no custom code \u2014 Composio googledrive/googledocs/googlesheets toolkits), widens chat uploads (PDF, DOCX, PPTX, WebP, text formats, 10MB limit, multi-file), adds model-visible file filter (Gemini rejects Office formats \u2014 only images+PDF go to model, rest is sandbox-only), and adds rich connection UI cards (ConnectionCard, ConnectionModal, PermissionCard) replacing generic tool approval pills. Design docs: docs/plans/2026-03-30-vault-teardown-google-drive-design.md (PR 60), docs/plans/2026-03-30-connection-ui-cards-design.md (PRs 61-62). Handover: docs/product/handovers/2026-03-30-vault-teardown-google-workspace-handover.md.",
-      "2026-03-30: Marked PR 62 done. Updated QA Surface 9 (chat attachments), Surface 10 (connections), Surface 12 (approvals), and Surface 19 (system prompt/reminders) plus automated QA scenarios for Google Workspace connection and permission-card flows."
+      "2026-03-30: Marked PR 62 done. Updated QA Surface 9 (chat attachments), Surface 10 (connections), Surface 12 (approvals), and Surface 19 (system prompt/reminders) plus automated QA scenarios for Google Workspace connection and permission-card flows.",
+      "2026-03-30: Added PR 57b (Replace Apify listing tools with Browser-Use Tasks) to Phase 3. Rewires search_propertyguru and search_99co from Apify actors to Browser-Use Cloud Tasks. Motivated by: 99.co Apify actor sunsetting Oct 2026, $60/mo Apify cost vs ~$5-8/mo Browser-Use, vendor lock-in. Parity test confirmed all critical fields recoverable via structured JSON (PropertyGuru __NEXT_DATA__, 99.co /api/v10 endpoint). Two-commit strategy: (1) wire Browser-Use, (2) delete Apify (independently revertable). Design doc: docs/plans/2026-03-30-browser-use-listing-tools-design.md. Parity test: docs/debug/listing-tools-parity-test.md.",
+      "2026-03-31: Marked PR 57b done. Replaced Apify-backed search_99co/search_propertyguru with Browser-Use tasks, gated listing tools on BROWSER_USE_API_KEY, updated QA Surface 28, and added automated scenarios for 99.co rent-path routing and PropertyGuru startUrl mode.",
+      "2026-03-30: Marked PRs 63-65 done. Updated QA Surface 29 (Sandbox) for the unified agent filesystem, sandbox workspace preload, and Composio file bridge, and added automated QA scenarios covering uploads read-only protection, /agent/home preload across runs, and Google Drive file download/upload bridge flows."
     ]
   },
   "phases": [
@@ -2102,27 +2105,27 @@
             {
               "id": "PR50-4",
               "task": "Create src/lib/runner/tools/browser/index.ts barrel, add createBrowserTools to src/lib/runner/tools/index.ts exports",
-              "done": false
+              "done": true
             },
             {
               "id": "PR50-5",
               "task": "Edit tool-registry.ts \u2014 add browser tools gated on BROWSER_USE_API_KEY env var. Chat-only: exclude from subagent branch (same pattern as includeConfigTool).",
-              "done": false
+              "done": true
             },
             {
               "id": "PR50-6",
               "task": "Edit system-prompt.ts \u2014 add browser tool instructions. Key rules: (1) Clarify with ask_user_question when site, action, filters, or output format are materially ambiguous. If the request already specifies these clearly, proceed directly. (2) Write the goal as a maximally descriptive instruction: specific actions, specific data fields, specific format. (3) When to use browse_website vs web_scrape: web_scrape for known URLs with static content; browse_website for interaction (search, filter, click, forms). (4) If results are wrong or empty, report to user and ask how to refine \u2014 do not retry automatically. (5) Each call is capped at 25 steps (~$0.16 max).",
-              "done": false
+              "done": true
             },
             {
               "id": "PR50-7",
               "task": "Edit app/api/chat/route.ts \u2014 bump maxDuration from 60 to 120",
-              "done": false
+              "done": true
             },
             {
               "id": "PR50-8",
               "task": "Unit tests: browse_website tool (env var guard, task creation with correct params, success/failure handling, session cleanup on error), barrel registration, tool-registry env gating. Follow scrape.test.ts mock pattern.",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -2147,42 +2150,42 @@
             {
               "id": "PR50b-1",
               "task": "DB migration: browser_profiles table (client_id, platform, browser_use_profile_id, label). RLS + updated_at trigger. Follow connections migration pattern.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR50b-2",
               "task": "Create src/lib/browser-use/profiles.ts \u2014 profile CRUD (getProfileForPlatform, upsertProfile, listProfiles). Strict error semantics: throw on DB failures, return null only for true absence. Validate rows.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR50b-3",
               "task": "Extend browse_website tool with platform parameter. Single profile lookup (no duplicate fetch). When platform is set and no profile exists, return { success: false, needsAuth: true, platform }. When profile exists, pass profileId to createSession().",
-              "done": false
+              "done": true
             },
             {
               "id": "PR50b-4",
               "task": "Create app/api/browser/session/route.ts \u2014 POST creates Browser-Use profile via profiles.createProfile() API (explicit, opaque ID), creates session with profile, returns liveUrl + profileId + sessionId.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR50b-5",
               "task": "Create app/api/browser/verify/route.ts \u2014 POST runs verification task with structured output schema z.object({ loggedIn: z.boolean() }), saves profile to DB via upsertProfile(), stops session.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR50b-6",
               "task": "Frontend: render auth card from browse_website tool output when needsAuth is true. Show 'Connect [platform]' button that opens liveUrl in iframe (or new tab fallback). 'Done' button calls verify API. Success/failure state. No new message part protocol \u2014 use existing tool output rendering.",
-              "done": false
+              "done": true
             },
             {
               "id": "PR50b-7",
               "task": "Update system-prompt.ts \u2014 add platform profile usage guidance. When tool returns needsAuth, tell user to connect. After login saved, user manually retries their request (no auto-resume).",
-              "done": false
+              "done": true
             },
             {
               "id": "PR50b-8",
               "task": "Unit tests: profile CRUD (strict error semantics), browse_website with platform param (profile hit/miss), session route, verify route (structured output parsing), migration SQL contract test.",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -2380,6 +2383,72 @@
             "Listing tools register when only APIFY_TOKEN is set (no property Supabase) \u2014 no crash",
             "All PR57 tests pass: npx vitest run src/lib/runner/tools/market/__tests__/apify-client.test.ts src/lib/runner/tools/market/__tests__/search-99co.test.ts src/lib/runner/tools/market/__tests__/search-propertyguru.test.ts src/lib/ai/__tests__/system-prompt.test.ts src/lib/runner/__tests__/context.test.ts src/lib/runner/__tests__/tool-registry.test.ts"
           ]
+        },
+        {
+          "pr": "57b",
+          "title": "Replace Apify listing tools with Browser-Use Tasks",
+          "status": "done",
+          "simplified": true,
+          "decisions": [
+            "SERVICE-12"
+          ],
+          "dependsOn": [
+            "57",
+            "50"
+          ],
+          "note": "Rewire search_propertyguru and search_99co from Apify actors to Browser-Use Cloud Tasks. Both portals expose structured JSON (PropertyGuru: __NEXT_DATA__, 99.co: /api/v11/web/search/listings). Same tool names and input schemas, with normalized live-listing output including MRT, district, tenure, mortgage, coordinates, and absolute portal links. Two-commit strategy: (1) wire Browser-Use wrappers, (2) delete Apify plumbing. Design doc: docs/plans/2026-03-30-browser-use-listing-tools-design.md. Parity test: docs/debug/listing-tools-parity-test.md.",
+          "tasks": [
+            {
+              "id": "PR57b-1",
+              "task": "task-runner.ts \u2014 shared Browser-Use Task helper (create task, poll completion, enforce $0.05 cost cap, parse structured output)",
+              "done": true
+            },
+            {
+              "id": "PR57b-2",
+              "task": "Rewrite search-propertyguru.ts \u2014 same input schema, Browser-Use Task internals. Prompt extracts __NEXT_DATA__ JSON. Upgraded output schema with bonus fields (tenure, district, MRT, agency, CEA license).",
+              "done": true
+            },
+            {
+              "id": "PR57b-3",
+              "task": "Rewrite search-99co.ts \u2014 same input schema, Browser-Use Task internals. Prompt fetches /api/v10/web/search/listings. Upgraded output schema with bonus fields (xvalue, highlights, coordinates, postal code, sqm).",
+              "done": true
+            },
+            {
+              "id": "PR57b-4",
+              "task": "Unit tests \u2014 mock client.run() for both tools. Test: field normalization, relative URL prefixing, error cases (timeout, cost cap, empty results, malformed response), Zod partial data handling.",
+              "done": true
+            },
+            {
+              "id": "PR57b-5",
+              "task": "Update tool-registry.ts \u2014 gate on BROWSER_USE_API_KEY instead of APIFY_TOKEN. Update context.ts if prompt injection path references Apify.",
+              "done": true
+            },
+            {
+              "id": "PR57b-6",
+              "task": "Commit 2: Delete apify-client.ts, remove APIFY_API_TOKEN env var refs, delete apify-client.test.ts. Clean break, independently revertable.",
+              "done": true
+            },
+            {
+              "id": "PR57b-7",
+              "task": "Manual integration smoke test \u2014 one live Browser-Use call per portal, compare results against parity test doc.",
+              "done": true
+            },
+            {
+              "id": "PR57b-8",
+              "task": "v2 plan update + design doc finalization",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "In chat: 'Search 99.co for 3-bed condos in D10 under $2M' \u2192 agent calls search_99co \u2192 returns { success: true, portal: '99co', count: N, results: [...] } with mortgageEstimate, highlights, coordinates",
+            "In chat: 'Find condos for sale on PropertyGuru in East Coast' \u2192 agent calls search_propertyguru \u2192 returns listings with tenure, district, MRT proximity, agency name",
+            "BROWSER_USE_API_KEY not set \u2192 tools not registered",
+            "APIFY_API_TOKEN no longer referenced anywhere in codebase",
+            "Cost per search < $0.05 (confirmed via cost.total in response)",
+            "Cloudflare challenge auto-resolves (PropertyGuru loads within 20 steps)",
+            "99.co API fetch returns structured JSON within browser context",
+            "All PR57b tests pass: npx vitest run src/lib/runner/tools/market/"
+          ]
         }
       ]
     },
@@ -2565,7 +2634,7 @@
             {
               "id": "PR38-13",
               "task": "Chat welcome state for new users: when a brand-new user lands on /chat with no threads, show a warm welcome card with the agent's first message pre-loaded (not a blank chat). Returning users see the normal chat empty state with template cards.",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -2796,27 +2865,27 @@
             {
               "id": "PR42ap-1",
               "task": "Polish StatMetric: tighter padding, better label/value hierarchy, trend indicator alignment",
-              "done": false
+              "done": true
             },
             {
               "id": "PR42ap-2",
               "task": "Polish DealCard and ContactCard: consistent card dimensions, badge positioning, truncation for long text",
-              "done": false
+              "done": true
             },
             {
               "id": "PR42ap-3",
               "task": "Polish TaskItem: better row density, status indicator, overdue visual treatment",
-              "done": false
+              "done": true
             },
             {
               "id": "PR42ap-4",
               "task": "Polish chart panels (bar, donut, funnel): improved color palette, better empty states, consistent sizing",
-              "done": false
+              "done": true
             },
             {
               "id": "PR42ap-5",
               "task": "Responsive pass: verify all components render well on mobile widths inside chat bubble",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -4384,7 +4453,7 @@
         {
           "pr": 63,
           "title": "Unified agent filesystem",
-          "status": "in_progress",
+          "status": "done",
           "simplified": false,
           "decisions": [
             "DATA-02",
@@ -4394,18 +4463,66 @@
           "designDoc": "docs/plans/2026-03-30-unified-agent-filesystem-design.md",
           "note": "Collapse three storage buckets (chat-attachments, client-files, agent-files) into one (agent-files). Uploads land in /agent/uploads/ (read-only), agent outputs in /agent/home/. Sandbox switches from auto-sync output/ to explicit /workspace/agent/home/ persist. storagePath in message parts + /api/files/download solves signed URL expiry. sunder:// protocol for agent download links. Depends on PR 60 (vault teardown) and PR 62 (upload expansion).",
           "tasks": [
-            { "id": "PR63-1", "task": "Add uploads/ write protection to assertWritable", "done": false },
-            { "id": "PR63-2", "task": "Upload route: change bucket to agent-files, path to uploads/, add storagePath", "done": false },
-            { "id": "PR63-3", "task": "Telegram upload route: same bucket change", "done": false },
-            { "id": "PR63-4", "task": "Add storagePath to file part schemas (runner, chat, composer)", "done": false },
-            { "id": "PR63-5", "task": "Create /api/files/download endpoint for on-demand signed URLs", "done": false },
-            { "id": "PR63-6", "task": "Chat attachment renderer: resolve storagePath on render", "done": false },
-            { "id": "PR63-7", "task": "sunder:// markdown link rewriting in chat renderer", "done": false },
-            { "id": "PR63-8", "task": "Sandbox sync: change OUTPUT_DIR to agent/home, artifactPath to home/", "done": false },
-            { "id": "PR63-9", "task": "Sandbox instructions: update bash tool description and extraInstructions", "done": false },
-            { "id": "PR63-10", "task": "Sandbox preload: create agent/home/ dir, fetch by storagePath with URL fallback", "done": false },
-            { "id": "PR63-11", "task": "System prompt: filesystem, tool-usage, sandbox prompt, sunder:// guidance", "done": false },
-            { "id": "PR63-12", "task": "Cleanup: remove chat-attachments/client-files/PDF_STORAGE_BUCKET references", "done": false }
+            {
+              "id": "PR63-1",
+              "task": "Add uploads/ write protection to assertWritable",
+              "done": false
+            },
+            {
+              "id": "PR63-2",
+              "task": "Upload route: change bucket to agent-files, path to uploads/, add storagePath",
+              "done": false
+            },
+            {
+              "id": "PR63-3",
+              "task": "Telegram upload route: same bucket change",
+              "done": false
+            },
+            {
+              "id": "PR63-4",
+              "task": "Add storagePath to file part schemas (runner, chat, composer)",
+              "done": false
+            },
+            {
+              "id": "PR63-5",
+              "task": "Create /api/files/download endpoint for on-demand signed URLs",
+              "done": false
+            },
+            {
+              "id": "PR63-6",
+              "task": "Chat attachment renderer: resolve storagePath on render",
+              "done": false
+            },
+            {
+              "id": "PR63-7",
+              "task": "sunder:// markdown link rewriting in chat renderer",
+              "done": false
+            },
+            {
+              "id": "PR63-8",
+              "task": "Sandbox sync: change OUTPUT_DIR to agent/home, artifactPath to home/",
+              "done": false
+            },
+            {
+              "id": "PR63-9",
+              "task": "Sandbox instructions: update bash tool description and extraInstructions",
+              "done": false
+            },
+            {
+              "id": "PR63-10",
+              "task": "Sandbox preload: create agent/home/ dir, fetch by storagePath with URL fallback",
+              "done": false
+            },
+            {
+              "id": "PR63-11",
+              "task": "System prompt: filesystem, tool-usage, sandbox prompt, sunder:// guidance",
+              "done": false
+            },
+            {
+              "id": "PR63-12",
+              "task": "Cleanup: remove chat-attachments/client-files/PDF_STORAGE_BUCKET references",
+              "done": false
+            }
           ],
           "testCriteria": [
             "Uploads land in agent-files/{clientId}/uploads/ (not chat-attachments)",
@@ -4433,13 +4550,41 @@
           "designDoc": "docs/plans/2026-03-30-sandbox-workspace-preload-design.md",
           "note": "Expand sandbox preload to download uploads/ and home/ from Supabase Storage at boot. Removes redundant per-message attachment preload (fileParts). Caps file tree in extraInstructions to directory summaries. Exports getSandbox getter for PR 65 Composio bridge. Depends on PR 63 (uploads in agent-files).",
           "tasks": [
-            { "id": "PR64-1", "task": "Preload uploads/ directory into sandbox at boot", "done": false },
-            { "id": "PR64-2", "task": "Preload home/ directory into sandbox at boot", "done": false },
-            { "id": "PR64-3", "task": "Remove redundant attachment preload loop and fileParts parameter", "done": false },
-            { "id": "PR64-4", "task": "Cap file tree in extraInstructions to directory summaries (generateFileSummary)", "done": false },
-            { "id": "PR64-5", "task": "Export getSandbox getter from createLazyBashTool", "done": false },
-            { "id": "PR64-6", "task": "Ensure agent/home/ directory exists at preload even when empty (.keep)", "done": false },
-            { "id": "PR64-7", "task": "Update bash tool description to reference agent/uploads/ and agent/home/", "done": false }
+            {
+              "id": "PR64-1",
+              "task": "Preload uploads/ directory into sandbox at boot",
+              "done": false
+            },
+            {
+              "id": "PR64-2",
+              "task": "Preload home/ directory into sandbox at boot",
+              "done": false
+            },
+            {
+              "id": "PR64-3",
+              "task": "Remove redundant attachment preload loop and fileParts parameter",
+              "done": false
+            },
+            {
+              "id": "PR64-4",
+              "task": "Cap file tree in extraInstructions to directory summaries (generateFileSummary)",
+              "done": false
+            },
+            {
+              "id": "PR64-5",
+              "task": "Export getSandbox getter from createLazyBashTool",
+              "done": false
+            },
+            {
+              "id": "PR64-6",
+              "task": "Ensure agent/home/ directory exists at preload even when empty (.keep)",
+              "done": false
+            },
+            {
+              "id": "PR64-7",
+              "task": "Update bash tool description to reference agent/uploads/ and agent/home/",
+              "done": false
+            }
           ],
           "testCriteria": [
             "Past uploads appear in sandbox at /workspace/agent/uploads/",
@@ -4465,9 +4610,21 @@
           "designDoc": "docs/plans/2026-03-30-composio-file-bridge-design.md",
           "note": "Connection tools that download files (e.g. GOOGLEDRIVE_DOWNLOAD_FILE) persist binaries to agent-files/home/ and push to active sandbox via getSandbox getter. Uses @composio/core autoUploadDownloadFiles (default true) and detects { uri, file_downloaded } result shape from FileToolModifier. Upload direction: agent paths starting with /agent/ resolved from storage to temp file for Composio. Depends on PR 64 (getSandbox getter).",
           "tasks": [
-            { "id": "PR65-1", "task": "Bridge downloaded files: detect { uri, file_downloaded } in tool results, persist to home/, push to sandbox", "done": false },
-            { "id": "PR65-2", "task": "Bridge uploaded files: detect /agent/ paths in arguments, resolve from storage to temp file", "done": false },
-            { "id": "PR65-3", "task": "Wire fileClient and getSandbox into loadActivatedConnectionTools from run-agent.ts", "done": false }
+            {
+              "id": "PR65-1",
+              "task": "Bridge downloaded files: detect { uri, file_downloaded } in tool results, persist to home/, push to sandbox",
+              "done": false
+            },
+            {
+              "id": "PR65-2",
+              "task": "Bridge uploaded files: detect /agent/ paths in arguments, resolve from storage to temp file",
+              "done": false
+            },
+            {
+              "id": "PR65-3",
+              "task": "Wire fileClient and getSandbox into loadActivatedConnectionTools from run-agent.ts",
+              "done": false
+            }
           ],
           "testCriteria": [
             "Connection tool file download lands in agent-files/{clientId}/home/",
@@ -4504,7 +4661,7 @@
       },
       {
         "pr": 16,
-        "title": "Model routing — simplified as user-facing model selector",
+        "title": "Model routing \u2014 simplified as user-facing model selector",
         "reason": "Originally cut ('use Gemini Flash for everything'). Restored as a user-selectable model picker (not LLM-based routing). Copies Vercel chatbot pattern: cookie-persisted model selection, per-message selectedChatModel in payload, allowedModelIds validation, queue persistence, batch split on model change, gateway caching: auto for MiniMax. Shipped 2026-03-30.",
         "status": "done",
         "decisions": [
