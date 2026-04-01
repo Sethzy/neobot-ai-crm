@@ -146,7 +146,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
     });
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-border bg-background">
+    <Sidebar collapsible="icon" className="bg-background">
       {/* Logo — tighter vertical padding */}
       <SidebarHeader className="px-3 pt-3 pb-2">
         <div className="flex items-center justify-between gap-2">
