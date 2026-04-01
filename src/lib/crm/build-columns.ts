@@ -6,7 +6,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 
 import type { FieldDefinition } from "./field-definitions";
-import { getFieldValue, formatFieldDisplay } from "./field-renderers";
+import { getFieldValue, renderFieldCell } from "./field-renderers";
 
 type EntityType = "contacts" | "companies" | "deals";
 
@@ -26,9 +26,6 @@ export function buildColumnsFromConfig<TData extends Record<string, unknown>>(
       accessorFn: (row: TData) => getFieldValue(row as Record<string, unknown>, field.key, field.source),
       header: field.label,
       size: field.width,
-      cell: ({ getValue }: { getValue: () => unknown }) => {
-        const value = getValue();
-        return formatFieldDisplay(field.type, value) ?? "";
-      },
+      cell: ({ getValue }: { getValue: () => unknown }) => renderFieldCell(field.type, getValue()),
     }));
 }

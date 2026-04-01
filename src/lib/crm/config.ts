@@ -251,7 +251,7 @@ export async function loadCrmConfig(
   const { data, error } = await supabase
     .from("crm_config")
     .select(
-      "deal_label, company_label, deal_stages, contact_types, interaction_types, deal_contact_roles, company_industries, deal_custom_fields, contact_custom_fields, company_custom_fields, task_custom_fields",
+      "deal_label, company_label, deal_stages, contact_types, interaction_types, deal_contact_roles, company_industries, deal_custom_fields, contact_custom_fields, company_custom_fields, task_custom_fields, contact_fields, company_fields, deal_fields",
     )
     .eq("client_id", clientId)
     .maybeSingle();

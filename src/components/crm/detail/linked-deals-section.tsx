@@ -13,7 +13,7 @@ export interface LinkedDealItem {
   id: string;
   address: string;
   stage: string;
-  price: number | null;
+  amount: number | null;
   href: string;
 }
 
@@ -48,7 +48,7 @@ export function LinkedDealsSection({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="font-medium text-foreground">{deal.address}</p>
-              <p className="mt-2 text-sm text-muted-foreground">{formatCrmPrice(deal.price)}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{formatCrmPrice(deal.amount)}</p>
             </div>
             <StageBadge stage={deal.stage} />
           </div>

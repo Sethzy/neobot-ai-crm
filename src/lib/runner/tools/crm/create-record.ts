@@ -174,7 +174,7 @@ function buildDealRow(
     client_id: clientId,
     address: record.address as string,
     stage: (record.stage as string) ?? defaultDealStage,
-    price: record.price as number | undefined,
+    amount: record.amount as number | undefined,
     notes: (record.notes as string) ?? null,
     custom_fields: (record.custom_fields as Record<string, unknown>) ?? {},
   };

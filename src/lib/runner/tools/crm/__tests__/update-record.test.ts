@@ -103,8 +103,8 @@ describe("update_record", () => {
     });
 
     it("fires deal_stage_changed event when stage changes", async () => {
-      const existingDeal = { stage: "leads", price: 500000 };
-      const updatedDeal = { deal_id: "d1", stage: "offer", price: 500000 };
+      const existingDeal = { stage: "leads", amount: 500000 };
+      const updatedDeal = { deal_id: "d1", stage: "offer", amount: 500000 };
       const { client } = createMockSupabase({
         deals: [
           // First from("deals") → fetch previous stage
@@ -136,8 +136,8 @@ describe("update_record", () => {
     });
 
     it("does not fire analytics when stage is same", async () => {
-      const existingDeal = { stage: "leads", price: 500000 };
-      const updatedDeal = { deal_id: "d1", stage: "leads", price: 600000 };
+      const existingDeal = { stage: "leads", amount: 500000 };
+      const updatedDeal = { deal_id: "d1", stage: "leads", amount: 600000 };
       const { client } = createMockSupabase({
         deals: [
           { data: existingDeal, error: null },
@@ -149,7 +149,7 @@ describe("update_record", () => {
       await tools.update_record.execute(
         {
           entity: "deals",
-          updates: [{ id: "d1", fields: { stage: "leads", price: 600000 } }],
+          updates: [{ id: "d1", fields: { stage: "leads", amount: 600000 } }],
         },
         EXEC_OPTIONS,
       );

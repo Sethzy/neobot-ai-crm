@@ -268,7 +268,7 @@ export function DataTable<TData>({
         </div>
       ) : null}
       <div className="overflow-x-auto">
-        <table className="min-w-[640px] w-full border-collapse">
+        <table className="w-full border-collapse">
           <thead className="border-y border-border">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>

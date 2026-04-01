@@ -72,8 +72,8 @@ describe("CustomersPage", () => {
     } as never);
     vi.mocked(useDeals).mockReturnValue({
       data: [
-        { deal_id: "deal-1", stage: "negotiation", price: 1_500_000 },
-        { deal_id: "deal-2", stage: "negotiation", price: 600_000 },
+        { deal_id: "deal-1", stage: "negotiation", amount: 1_500_000 },
+        { deal_id: "deal-2", stage: "negotiation", amount: 600_000 },
       ],
       isLoading: false,
       isError: false,

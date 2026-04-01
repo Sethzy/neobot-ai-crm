@@ -25,9 +25,9 @@ describe("summarizePipelineStages", () => {
     expect(
       summarizePipelineStages(
         [
-          { stage: "negotiation", price: 1_500_000 },
-          { stage: "offer", price: 300_000 },
-          { stage: "negotiation", price: 600_000 },
+          { stage: "negotiation", amount: 1_500_000 },
+          { stage: "offer", amount: 300_000 },
+          { stage: "negotiation", amount: 600_000 },
         ] as never,
         ["offer", "negotiation"],
       ),
@@ -49,9 +49,9 @@ describe("PipelineOverview", () => {
 
     vi.mocked(useDeals).mockReturnValue({
       data: [
-        { deal_id: "deal-1", stage: "negotiation", price: 1_500_000 },
-        { deal_id: "deal-2", stage: "offer", price: 300_000 },
-        { deal_id: "deal-3", stage: "negotiation", price: 600_000 },
+        { deal_id: "deal-1", stage: "negotiation", amount: 1_500_000 },
+        { deal_id: "deal-2", stage: "offer", amount: 300_000 },
+        { deal_id: "deal-3", stage: "negotiation", amount: 600_000 },
       ],
       isLoading: false,
       isError: false,

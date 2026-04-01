@@ -78,7 +78,7 @@ describe("DealsPage", () => {
             client_id: "client-1",
             address: "123 Bishan Street 13",
             stage: "leads",
-            price: 1850000,
+            amount: 1850000,
             company_id: null,
             notes: null,
             custom_fields: {},
@@ -105,7 +105,7 @@ describe("DealsPage", () => {
           client_id: "client-1",
           address: "123 Bishan Street 13",
           stage: "leads",
-          price: 1850000,
+          amount: 1850000,
           company_id: null,
           notes: null,
           custom_fields: {},
@@ -124,8 +124,8 @@ describe("DealsPage", () => {
   it("renders table and board inside one deals workspace", () => {
     render(<DealsPage />, { wrapper: createWrapper() });
 
-    expect(screen.getByRole("button", { name: /table/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /board/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /table view/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /board view/i })).toBeInTheDocument();
   });
 
   it("keeps search text when switching from table to board", async () => {
@@ -134,7 +134,7 @@ describe("DealsPage", () => {
     render(<DealsPage />, { wrapper: createWrapper() });
 
     await user.type(screen.getByPlaceholderText(/search deals/i), "Bishan");
-    await user.click(screen.getByRole("button", { name: /board/i }));
+    await user.click(screen.getByRole("radio", { name: /board view/i }));
 
     expect(screen.getByDisplayValue("Bishan")).toBeInTheDocument();
   });
@@ -144,7 +144,7 @@ describe("DealsPage", () => {
 
     render(<DealsPage />, { wrapper: createWrapper() });
 
-    await user.click(screen.getByRole("button", { name: /board/i }));
+    await user.click(screen.getByRole("radio", { name: /board view/i }));
 
     expect(screen.getByText(/move deals forward from the board/i)).toBeInTheDocument();
     expect(screen.queryByText(/drag them between lanes/i)).not.toBeInTheDocument();
@@ -166,7 +166,7 @@ describe("DealsPage", () => {
       { enabled: false },
     );
 
-    await user.click(screen.getByRole("button", { name: /board/i }));
+    await user.click(screen.getByRole("radio", { name: /board view/i }));
 
     await waitFor(() => {
       expect(vi.mocked(usePaginatedDeals)).toHaveBeenLastCalledWith(

@@ -46,7 +46,7 @@ describe("configurable CRM entity schemas", () => {
       company_id: null,
       address: "123 Orchard Road",
       stage: "underwriting",
-      price: 1500000,
+      amount: 1500000,
       notes: null,
       custom_fields: {},
       created_at: ISO,

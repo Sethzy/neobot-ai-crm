@@ -99,10 +99,12 @@ export const COMPANY_DEFAULT_FIELDS: FieldDefinition[] = [
   { key: "name", label: "Name", type: "text", source: "column", tier: "indestructible", visible: true, order: 0, editable: true, required: true },
   { key: "website", label: "Website", type: "url", source: "column", tier: "default", visible: true, order: 1, editable: true, required: false },
   { key: "address", label: "Address", type: "text", source: "column", tier: "default", visible: true, order: 2, editable: true, required: false },
-  { key: "industry", label: "Industry", type: "select", source: "column", tier: "default", visible: true, order: 3, editable: true, required: false, options: ["property_agency", "insurance", "financial_services", "legal", "other"] },
-  { key: "linkedin", label: "Linkedin", type: "url", source: "column", tier: "default", visible: false, order: 4, editable: true, required: false },
-  { key: "created_at", label: "Created", type: "date", source: "column", tier: "default", visible: false, order: 5, editable: false, required: false },
-  { key: "updated_at", label: "Updated", type: "date", source: "column", tier: "default", visible: true, order: 6, editable: false, required: false },
+  { key: "phone", label: "Phone", type: "phone", source: "column", tier: "default", visible: true, order: 3, editable: true, required: false },
+  { key: "email", label: "Email", type: "email", source: "column", tier: "default", visible: true, order: 4, editable: true, required: false },
+  { key: "industry", label: "Industry", type: "select", source: "column", tier: "default", visible: true, order: 5, editable: true, required: false, options: ["property_agency", "insurance", "financial_services", "legal", "other"] },
+  { key: "linkedin", label: "Linkedin", type: "url", source: "column", tier: "default", visible: false, order: 6, editable: true, required: false },
+  { key: "created_at", label: "Created", type: "date", source: "column", tier: "default", visible: false, order: 7, editable: false, required: false },
+  { key: "updated_at", label: "Updated", type: "date", source: "column", tier: "default", visible: true, order: 8, editable: false, required: false },
 ];
 
 /** Deals: default fields shipped with every new client. */

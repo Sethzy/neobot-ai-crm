@@ -14,7 +14,7 @@ const sampleDeals = [
     client_id: "cl-1",
     address: "123 Orchard Road",
     stage: "negotiation" as const,
-    price: 1500000,
+    amount: 1500000,
     notes: "Hot lead",
     companies: { company_id: "co-1", name: "PropNex" },
     created_at: "2026-02-01T00:00:00+08:00",
@@ -28,7 +28,7 @@ const sampleDeals = [
     client_id: "cl-1",
     address: "456 Bukit Timah Road",
     stage: "lost" as const,
-    price: null,
+    amount: null,
     notes: null,
     companies: null,
     created_at: "2026-02-15T00:00:00+08:00",
@@ -78,7 +78,7 @@ describe("DealsTable", () => {
     expect(onRowClick).toHaveBeenCalledTimes(1);
   });
 
-  it("shows placeholders for missing contact and price", () => {
+  it("shows placeholders for missing contact and amount", () => {
     render(<DealsTable deals={sampleDeals} />);
 
     const row = screen.getByText("456 Bukit Timah Road").closest("tr");

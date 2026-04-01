@@ -268,7 +268,7 @@ describe("search_crm", () => {
 
       expect(result).toEqual({ success: true, records: mockLinks, count: 1 });
       expect(builders.deal_contacts.select).toHaveBeenCalledWith(
-        "*, deals(deal_id, address, stage, price)",
+        "*, deals(deal_id, address, stage, amount)",
       );
       expect(builders.deal_contacts.order).toHaveBeenCalledWith("is_primary", {
         ascending: false,

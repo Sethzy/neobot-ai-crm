@@ -8,8 +8,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, Users } from "lucide-react";
-import { RefreshCw } from "@/components/icons/lucide-compat";
+import { Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { CrmListPanelLayout } from "@/components/crm/crm-list-panel-layout";
@@ -19,7 +18,7 @@ import { ContactDrawerContent } from "@/components/crm/record-drawer/contact-dra
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { DateRangeFilterValue, FilterDef, FilterValues } from "@/components/ui/filter-overlay";
-import { Button } from "@/components/ui/button";
+
 import { contactKeys, type ContactWithCompany, type ContactType, usePaginatedContacts } from "@/hooks/use-contacts";
 import { type CompanyWithCounts, useCompanies } from "@/hooks/use-companies";
 import { useCrmConfig } from "@/hooks/use-crm-config";
@@ -332,13 +331,16 @@ export default function PeoplePage() {
             sortingFn: (rowA: { original: ContactWithCompany }, rowB: { original: ContactWithCompany }) =>
               formatContactFullName(rowA.original).localeCompare(formatContactFullName(rowB.original)),
             cell: ({ row }: { row: { original: ContactWithCompany } }) => (
-              <Link
-                href={`/customers/people/${row.original.contact_id}`}
+              <button
+                type="button"
                 className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
-                onClick={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  open(row.original.contact_id);
+                }}
               >
                 {formatContactFullName(row.original)}
-              </Link>
+              </button>
             ),
           };
         case "emails":
@@ -397,7 +399,6 @@ export default function PeoplePage() {
   return (
     <CrmListPanelLayout
       objectType="contact"
-      fullPageRoutePrefix="/customers/people"
       renderPanelContent={(id) => <ContactDrawerContent contactId={id} />}
     >
       <div className="flex min-h-0 flex-1 flex-col overflow-auto">
@@ -405,15 +406,6 @@ export default function PeoplePage() {
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-muted-foreground" />
             <h1 className="text-sm font-medium text-foreground">People</h1>
-          </div>
-          <div className="flex items-center gap-1">
-            <Button type="button" variant="ghost" size="icon" aria-label="Refresh people" onClick={() => void refetch()}>
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-            <Button type="button" variant="ghost" size="icon" aria-label="More table actions">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-            <Button type="button" variant="outline" size="sm">Export</Button>
           </div>
         </div>
         <div className="mr-2 flex-1 rounded-t-xl border-l border-t border-border/60 bg-card px-3 pt-3 md:px-4">
@@ -445,12 +437,6 @@ export default function PeoplePage() {
               id: "view",
               label: "View",
               onSelect: () => open(row.contact_id),
-            },
-            {
-              id: "open",
-              label: "Open in New Tab",
-              href: `/customers/people/${row.contact_id}`,
-              newTab: true,
             },
             {
               id: "delete",

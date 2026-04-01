@@ -4,12 +4,11 @@
  */
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Handshake } from "lucide-react";
-import { RefreshCw } from "@/components/icons/lucide-compat";
+
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
@@ -20,7 +19,7 @@ import { KanbanBoard } from "@/components/crm/kanban-board";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { DealDrawerContent } from "@/components/crm/record-drawer/deal-drawer-content";
 import { ViewToggle } from "@/components/crm/view-toggle";
-import { Button } from "@/components/ui/button";
+
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -39,8 +38,8 @@ import { supabase } from "@/lib/supabase";
 const pageSize = 20;
 
 const pipelineSortOptions = {
-  price_desc: "Price (high to low)",
-  price_asc: "Price (low to high)",
+  amount_desc: "Price (high to low)",
+  amount_asc: "Price (low to high)",
   updated_desc: "Updated (newest first)",
   address_asc: "Address (A-Z)",
 } as const;
@@ -53,9 +52,9 @@ interface DealStageCellProps {
   stages: string[];
 }
 
-interface DealPriceCellProps {
+interface DealAmountCellProps {
   dealId: string;
-  price: number | null;
+  amount: number | null;
 }
 
 interface DealBoardCardProps {
@@ -82,15 +81,15 @@ function getPrimaryContactLabel(deal: DealWithContact) {
 
 function sortDealsByOption(sortBy: PipelineSortOption) {
   return (
-    leftDeal: Pick<DealWithContact, "address" | "price" | "updated_at">,
-    rightDeal: Pick<DealWithContact, "address" | "price" | "updated_at">,
+    leftDeal: Pick<DealWithContact, "address" | "amount" | "updated_at">,
+    rightDeal: Pick<DealWithContact, "address" | "amount" | "updated_at">,
   ) => {
-    if (sortBy === "price_desc") {
-      return (rightDeal.price ?? Number.NEGATIVE_INFINITY) - (leftDeal.price ?? Number.NEGATIVE_INFINITY);
+    if (sortBy === "amount_desc") {
+      return (rightDeal.amount ?? Number.NEGATIVE_INFINITY) - (leftDeal.amount ?? Number.NEGATIVE_INFINITY);
     }
 
-    if (sortBy === "price_asc") {
-      return (leftDeal.price ?? Number.POSITIVE_INFINITY) - (rightDeal.price ?? Number.POSITIVE_INFINITY);
+    if (sortBy === "amount_asc") {
+      return (leftDeal.amount ?? Number.POSITIVE_INFINITY) - (rightDeal.amount ?? Number.POSITIVE_INFINITY);
     }
 
     if (sortBy === "address_asc") {
@@ -146,18 +145,18 @@ function DealStageCell({ dealId, stage, stages }: DealStageCellProps) {
   );
 }
 
-function DealPriceCell({ dealId, price }: DealPriceCellProps) {
+function DealAmountCell({ dealId, amount }: DealAmountCellProps) {
   const updateDeal = useUpdateDeal(dealId);
 
   return (
     <QuickEditCell
       ariaLabel="Price"
-      value={price}
-      displayValue={formatCrmPrice(price)}
+      value={amount}
+      displayValue={formatCrmPrice(amount)}
       type="number"
       onSave={async (nextValue) => {
         await updateDeal.mutateAsync({
-          price: typeof nextValue === "number" ? nextValue : null,
+          amount: typeof nextValue === "number" ? nextValue : null,
         });
       }}
     />
@@ -197,7 +196,7 @@ export default function DealsPage() {
   const { view, setView } = useViewPreference("deals");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<PipelineSortOption>("price_desc");
+  const [sortBy, setSortBy] = useState<PipelineSortOption>("amount_desc");
   const [filterValues, setFilterValues] = useState<FilterValues>(() => {
     const stageQuery = searchParams?.get("stage")?.trim();
 
@@ -303,7 +302,7 @@ export default function DealsPage() {
    *
    * Field key mapping notes:
    * - `name`        → renders as the deal address link (deals use `address` as display name)
-   * - `amount`      → maps to the `price` DB column via DealPriceCell
+   * - `amount`      → maps to the `amount` DB column via DealAmountCell
    * - `stage`       → DealStageCell with inline quick-edit
    * - `company_id`  → reads from the joined `companies` object
    * - `point_of_contact` → reads from `deal_contacts` join as primary contact label
@@ -323,22 +322,25 @@ export default function DealsPage() {
             ...col,
             accessorFn: (row: DealWithContact) => row.address,
             cell: ({ row }: { row: { original: DealWithContact } }) => (
-              <Link
-                href={`/customers/deals/${row.original.deal_id}`}
+              <button
+                type="button"
                 className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
-                onClick={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  open(row.original.deal_id);
+                }}
               >
                 {row.original.address}
-              </Link>
+              </button>
             ),
           };
         case "amount":
-          /** `amount` in field definitions maps to the `price` column in the DB. */
+          /** `amount` in field definitions maps to the `amount` column in the DB. */
           return {
             ...col,
-            accessorFn: (row: DealWithContact) => row.price,
+            accessorFn: (row: DealWithContact) => row.amount,
             cell: ({ row }: { row: { original: DealWithContact } }) => (
-              <DealPriceCell dealId={row.original.deal_id} price={row.original.price} />
+              <DealAmountCell dealId={row.original.deal_id} amount={row.original.amount} />
             ),
           };
         case "stage":
@@ -399,7 +401,6 @@ export default function DealsPage() {
   return (
     <CrmListPanelLayout
       objectType="deal"
-      fullPageRoutePrefix="/customers/deals"
       renderPanelContent={(id) => <DealDrawerContent dealId={id} />}
     >
     <div className="flex min-h-0 flex-1 flex-col overflow-auto">
@@ -433,15 +434,6 @@ export default function DealsPage() {
                   </select>
                 </label>
               ) : null}
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label="Refresh deals"
-                onClick={() => void activeRefetch()}
-              >
-                <RefreshCw className="h-4 w-4" />
-              </Button>
               <ViewToggle current={activeView} views={["table", "kanban"]} onChange={(nextView) => {
                 setView(nextView);
                 router.replace(buildDealsHref(searchParams, nextView));
@@ -526,12 +518,6 @@ export default function DealsPage() {
               : undefined}
             rowActions={(row) => [
               { id: "view", label: "View", onSelect: () => open(row.deal_id) },
-              {
-                id: "open",
-                label: "Open in New Tab",
-                href: `/customers/deals/${row.deal_id}`,
-                newTab: true,
-              },
               {
                 id: "delete",
                 label: "Delete",

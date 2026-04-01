@@ -98,7 +98,7 @@ describe("deal schemas", () => {
     client_id: "660e8400-e29b-41d4-a716-446655440000",
     address: "123 Orchard Road, #08-01",
     stage: "negotiation" as const,
-    price: 1500000,
+    amount: 1500000,
     notes: "3BR condo",
     custom_fields: {},
     created_at: ISO,
@@ -114,12 +114,12 @@ describe("deal schemas", () => {
   });
 
   test("allows nullable fields in row", () => {
-    const nullableRow = { ...validRow, price: null, notes: null };
+    const nullableRow = { ...validRow, amount: null, notes: null };
     expect(dealSchema.parse(nullableRow)).toEqual(nullableRow);
   });
 
-  test("rejects negative price", () => {
-    const invalid = { ...validRow, price: -1 };
+  test("rejects negative amount", () => {
+    const invalid = { ...validRow, amount: -1 };
     expect(() => dealSchema.parse(invalid)).toThrow();
   });
 
@@ -136,7 +136,7 @@ describe("deal schemas", () => {
       client_id: validRow.client_id,
       address: "1 Holland Ave",
       stage: "offer" as const,
-      price: null,
+      amount: null,
       notes: null,
     };
     expect(dealInsertSchema.parse(insert)).toEqual(insert);

@@ -36,7 +36,7 @@ export function DealKanbanCard({ deal, footer }: DealKanbanCardProps) {
       <div className="flex flex-col gap-1 text-xs text-muted-foreground">
         <div className="flex items-center justify-between gap-2">
           <span>Value</span>
-          <span className="font-medium text-foreground">{formatCrmPrice(deal.price)}</span>
+          <span className="font-medium text-foreground">{formatCrmPrice(deal.amount)}</span>
         </div>
         <div className="flex items-center justify-between gap-2">
           <span>Updated</span>

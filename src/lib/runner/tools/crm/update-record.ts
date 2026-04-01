@@ -129,12 +129,12 @@ async function updateOne(
 
   // --- Deal stage analytics: read previous stage before update ---
   let previousStage: string | null = null;
-  let previousPrice: number | null = null;
+  let previousAmount: number | null = null;
 
   if (entity === "deals" && updates.stage) {
     const { data: existingDeal, error: fetchError } = await supabase
       .from("deals")
-      .select("stage, price")
+      .select("stage, amount")
       .eq("deal_id", recordId)
       .eq("client_id", clientId)
       .maybeSingle();
@@ -144,7 +144,7 @@ async function updateOne(
     }
 
     previousStage = existingDeal?.stage ?? null;
-    previousPrice = existingDeal?.price ?? null;
+    previousAmount = existingDeal?.amount ?? null;
   }
 
   // --- Custom fields deep merge ---
@@ -186,7 +186,7 @@ async function updateOne(
         from_stage: previousStage,
         to_stage: data.stage,
         deal_value:
-          typeof data.price === "number" ? data.price : previousPrice,
+          typeof data.amount === "number" ? data.amount : previousAmount,
       },
     });
   }

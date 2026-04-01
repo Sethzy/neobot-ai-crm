@@ -33,7 +33,7 @@ describe("useUpdateDeal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSingle.mockResolvedValue({ data: { custom_fields: {} }, error: null });
-    mockMaybeSingle.mockResolvedValue({ data: { stage: "leads", price: 500000 }, error: null });
+    mockMaybeSingle.mockResolvedValue({ data: { stage: "leads", amount: 500000 }, error: null });
     mockSelectEq.mockReturnValue({ single: mockSingle });
     mockSelect.mockReturnValue({ eq: mockSelectEq });
     mockEq.mockResolvedValue({ error: null });

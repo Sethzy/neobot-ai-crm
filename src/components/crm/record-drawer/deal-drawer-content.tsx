@@ -105,11 +105,11 @@ export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
           />
           <InlineEditField
             label="Price"
-            value={formatCrmPrice(deal.price)}
+            value={formatCrmPrice(deal.amount)}
             onSave={async (nextValue) => {
               const numericPriceString = nextValue.replace(/[^\d.-]/g, "");
               if (!numericPriceString) {
-                await updateDeal.mutateAsync({ price: null });
+                await updateDeal.mutateAsync({ amount: null });
                 return;
               }
 
@@ -118,7 +118,7 @@ export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
                 throw new Error("Price must be a valid number.");
               }
 
-              await updateDeal.mutateAsync({ price: Math.round(parsedPrice) });
+              await updateDeal.mutateAsync({ amount: Math.round(parsedPrice) });
             }}
           />
           <InlineEditField

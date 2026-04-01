@@ -125,7 +125,7 @@ export const dealSchema = z.object({
   company_id: z.string().uuid().nullable(),
   address: z.string().min(1),
   stage: configurableVocabularySchema,
-  price: z.number().int().nonnegative().nullable(),
+  amount: z.number().int().nonnegative().nullable(),
   notes: z.string().nullable(),
   custom_fields: jsonObjectSchema,
   created_at: isoDateTimeSchema,
@@ -138,7 +138,7 @@ export const dealInsertSchema = z.object({
   company_id: z.string().uuid().nullable().optional(),
   address: z.string().min(1),
   stage: configurableVocabularySchema.optional(),
-  price: z.number().int().nonnegative().nullable().optional(),
+  amount: z.number().int().nonnegative().nullable().optional(),
   notes: z.string().nullable().optional(),
   custom_fields: jsonObjectSchema.optional(),
 });

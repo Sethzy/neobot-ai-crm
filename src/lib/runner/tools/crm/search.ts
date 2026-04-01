@@ -216,7 +216,7 @@ async function searchDealContacts(
   // contact_id path
   const { data, error } = await supabase
     .from("deal_contacts")
-    .select("*, deals(deal_id, address, stage, price)")
+    .select("*, deals(deal_id, address, stage, amount)")
     .eq("client_id", clientId)
     .eq("contact_id", String(contactId))
     .order("is_primary", { ascending: false })

@@ -39,7 +39,7 @@ export function DealsTable({ deals, onRowClick }: DealsTableProps) {
         header: "Stage",
         cell: (info) => <StageBadge stage={info.getValue()} />,
       }),
-      columnHelper.accessor("price", {
+      columnHelper.accessor("amount", {
         header: "Price",
         cell: (info) => <span className="tabular-nums text-foreground/80">{formatCrmPrice(info.getValue())}</span>,
       }),

@@ -88,7 +88,7 @@ export async function fetchDashboardStats(
       .gte("created_at", startOfWeekIso),
     supabase
       .from("deals")
-      .select("price", { count: "exact" }),
+      .select("amount", { count: "exact" }),
     supabase
       .from("crm_tasks")
       .select("*", { count: "exact", head: true })
@@ -132,7 +132,7 @@ export async function fetchDashboardStats(
   }
 
   const dealsTotalValue = (dealsResult.data ?? []).reduce((sum, deal) => {
-    return sum + (typeof deal.price === "number" ? deal.price : 0);
+    return sum + (typeof deal.amount === "number" ? deal.amount : 0);
   }, 0);
 
   return {

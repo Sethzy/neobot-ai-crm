@@ -53,14 +53,14 @@ export function summarizePipelineStages(
 
     if (existingSummary) {
       existingSummary.count += 1;
-      existingSummary.totalValue += deal.price ?? 0;
+      existingSummary.totalValue += deal.amount ?? 0;
       continue;
     }
 
     summariesByStage.set(deal.stage, {
       stage: deal.stage,
       count: 1,
-      totalValue: deal.price ?? 0,
+      totalValue: deal.amount ?? 0,
     });
   }
 

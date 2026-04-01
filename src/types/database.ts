@@ -752,14 +752,17 @@ export type Database = {
         Row: {
           client_id: string
           company_custom_fields: Json
+          company_fields: Json | null
           company_industries: Json | null
           company_label: string
           config_id: string
           contact_custom_fields: Json
+          contact_fields: Json | null
           contact_types: Json | null
           created_at: string
           deal_contact_roles: Json | null
           deal_custom_fields: Json
+          deal_fields: Json | null
           deal_label: string
           deal_stages: Json | null
           interaction_types: Json | null
@@ -770,14 +773,17 @@ export type Database = {
         Insert: {
           client_id: string
           company_custom_fields?: Json
+          company_fields?: Json | null
           company_industries?: Json | null
           company_label?: string
           config_id?: string
           contact_custom_fields?: Json
+          contact_fields?: Json | null
           contact_types?: Json | null
           created_at?: string
           deal_contact_roles?: Json | null
           deal_custom_fields?: Json
+          deal_fields?: Json | null
           deal_label?: string
           deal_stages?: Json | null
           interaction_types?: Json | null
@@ -788,14 +794,17 @@ export type Database = {
         Update: {
           client_id?: string
           company_custom_fields?: Json
+          company_fields?: Json | null
           company_industries?: Json | null
           company_label?: string
           config_id?: string
           contact_custom_fields?: Json
+          contact_fields?: Json | null
           contact_types?: Json | null
           created_at?: string
           deal_contact_roles?: Json | null
           deal_custom_fields?: Json
+          deal_fields?: Json | null
           deal_label?: string
           deal_stages?: Json | null
           interaction_types?: Json | null
@@ -808,6 +817,35 @@ export type Database = {
             foreignKeyName: "crm_config_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
+      crm_config_history: {
+        Row: {
+          client_id: string
+          config_snapshot: Json
+          created_at: string
+          id: string
+        }
+        Insert: {
+          client_id: string
+          config_snapshot: Json
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          client_id?: string
+          config_snapshot?: Json
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_config_history_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["client_id"]
           },
@@ -960,37 +998,37 @@ export type Database = {
       deals: {
         Row: {
           address: string
+          amount: number | null
           client_id: string
           company_id: string | null
           created_at: string
           custom_fields: Json
           deal_id: string
           notes: string | null
-          price: number | null
           stage: string
           updated_at: string
         }
         Insert: {
           address: string
+          amount?: number | null
           client_id: string
           company_id?: string | null
           created_at?: string
           custom_fields?: Json
           deal_id?: string
           notes?: string | null
-          price?: number | null
           stage?: string
           updated_at?: string
         }
         Update: {
           address?: string
+          amount?: number | null
           client_id?: string
           company_id?: string | null
           created_at?: string
           custom_fields?: Json
           deal_id?: string
           notes?: string | null
-          price?: number | null
           stage?: string
           updated_at?: string
         }

@@ -24,7 +24,7 @@ vi.mock("@/hooks/use-deals", () => ({
       stage: "offer",
       company_id: "co-1",
       companies: { company_id: "co-1", name: "PropNex" },
-      price: 1200000,
+      amount: 1200000,
       notes: "Awaiting valuation report.",
       custom_fields: { policy_number: "P-123", coverage_amount: 250000 },
       created_at: "2026-03-01T00:00:00+08:00",

@@ -29,8 +29,9 @@ describe("createConfigureCrmTool", () => {
     };
     const { client, builderHistory } = createMockSupabase({
       crm_config: [
-        { data: null, error: null },
-        { data: updatedRow, error: null },
+        { data: null, error: null },   // loadCrmConfig
+        { data: null, error: null },   // history snapshot (no existing row)
+        { data: updatedRow, error: null }, // upsert
       ],
     });
     const tools = createConfigureCrmTool(client, CLIENT_ID);
@@ -40,7 +41,7 @@ describe("createConfigureCrmTool", () => {
       EXECUTION_OPTIONS,
     );
 
-    expect(builderHistory.crm_config[1]?.upsert).toHaveBeenCalledWith(
+    expect(builderHistory.crm_config[2]?.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         client_id: CLIENT_ID,
         deal_label: "Policy",
@@ -77,8 +78,9 @@ describe("createConfigureCrmTool", () => {
     };
     const { client, builderHistory } = createMockSupabase({
       crm_config: [
-        { data: null, error: null },
-        { data: updatedRow, error: null },
+        { data: null, error: null },   // loadCrmConfig
+        { data: null, error: null },   // history snapshot (no existing row)
+        { data: updatedRow, error: null }, // upsert
       ],
     });
     const tools = createConfigureCrmTool(client, CLIENT_ID);
@@ -88,7 +90,7 @@ describe("createConfigureCrmTool", () => {
       EXECUTION_OPTIONS,
     );
 
-    expect(builderHistory.crm_config[1]?.upsert).toHaveBeenCalledWith(
+    expect(builderHistory.crm_config[2]?.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         client_id: CLIENT_ID,
         deal_label: "Policy",
@@ -119,8 +121,9 @@ describe("createConfigureCrmTool", () => {
     };
     const { client, builderHistory } = createMockSupabase({
       crm_config: [
-        { data: null, error: null },
-        { data: updatedRow, error: null },
+        { data: null, error: null },   // loadCrmConfig
+        { data: null, error: null },   // history snapshot (no existing row)
+        { data: updatedRow, error: null }, // upsert
       ],
     });
     const tools = createConfigureCrmTool(client, CLIENT_ID);
@@ -134,7 +137,7 @@ describe("createConfigureCrmTool", () => {
       EXECUTION_OPTIONS,
     );
 
-    expect(builderHistory.crm_config[1]?.upsert).toHaveBeenCalledWith(
+    expect(builderHistory.crm_config[2]?.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         client_id: CLIENT_ID,
         company_label: "Brokerage",
@@ -424,6 +427,23 @@ describe("createConfigureCrmTool", () => {
   });
 
   it("allows confirmed removals and returns the updated config", async () => {
+    const existingRow = {
+      config_id: "cfg-1",
+      client_id: CLIENT_ID,
+      deal_label: "Policy",
+      company_label: "Company",
+      deal_stages: ["lead", "quoted", "bound"],
+      contact_types: null,
+      interaction_types: null,
+      deal_contact_roles: null,
+      company_industries: null,
+      deal_custom_fields: [
+        { key: "coverage_amount", label: "Coverage Amount", type: "currency" },
+      ],
+      contact_custom_fields: [],
+      company_custom_fields: [],
+      task_custom_fields: [],
+    };
     const updatedRow = {
       config_id: "cfg-1",
       client_id: CLIENT_ID,
@@ -441,27 +461,13 @@ describe("createConfigureCrmTool", () => {
     };
     const { client, builderHistory } = createMockSupabase({
       crm_config: [
-        {
-          data: {
-            config_id: "cfg-1",
-            client_id: CLIENT_ID,
-            deal_label: "Policy",
-            company_label: "Company",
-            deal_stages: ["lead", "quoted", "bound"],
-            contact_types: null,
-            interaction_types: null,
-            deal_contact_roles: null,
-            company_industries: null,
-            deal_custom_fields: [
-              { key: "coverage_amount", label: "Coverage Amount", type: "currency" },
-            ],
-            contact_custom_fields: [],
-            company_custom_fields: [],
-            task_custom_fields: [],
-          },
-          error: null,
-        },
-        { data: updatedRow, error: null },
+        { data: existingRow, error: null },   // loadCrmConfig
+        { data: existingRow, error: null },   // history snapshot
+        { data: updatedRow, error: null },    // upsert
+      ],
+      crm_config_history: [
+        { data: null, error: null },          // insert snapshot
+        { data: [], error: null },            // select for trim
       ],
       deals: {
         data: [
@@ -481,7 +487,7 @@ describe("createConfigureCrmTool", () => {
       EXECUTION_OPTIONS,
     );
 
-    expect(builderHistory.crm_config[1]?.upsert).toHaveBeenCalled();
+    expect(builderHistory.crm_config[2]?.upsert).toHaveBeenCalled();
     expect(result).toMatchObject({
       success: true,
       resolved_config: expect.objectContaining({

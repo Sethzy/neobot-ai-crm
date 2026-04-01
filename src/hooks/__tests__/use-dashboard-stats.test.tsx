@@ -92,7 +92,7 @@ describe("useDashboardStats", () => {
     const peopleNewBuilder = createResolvedBuilder({ count: 3, error: null });
     const dealsBuilder = createResolvedBuilder({
       count: 12,
-      data: [{ price: 1_500_000 }, { price: 600_000 }, { price: null }],
+      data: [{ amount: 1_500_000 }, { amount: 600_000 }, { amount: null }],
       error: null,
     });
     const openTasksBuilder = createResolvedBuilder({ count: 8, error: null });
@@ -133,7 +133,7 @@ describe("useDashboardStats", () => {
       head: true,
     });
     expect(peopleNewBuilder.gte).toHaveBeenCalledWith("created_at", expect.any(String));
-    expect(dealsBuilder.select).toHaveBeenCalledWith("price", { count: "exact" });
+    expect(dealsBuilder.select).toHaveBeenCalledWith("amount", { count: "exact" });
     expect(openTasksBuilder.eq).toHaveBeenCalledWith("status", "open");
     expect(overdueTasksBuilder.not).toHaveBeenCalledWith("due_date", "is", null);
     expect(dueTodayTasksBuilder.gte).toHaveBeenCalledWith("due_date", expect.any(String));

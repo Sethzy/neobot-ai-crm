@@ -8,12 +8,11 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Building2, MoreHorizontal } from "lucide-react";
-import { RefreshCw } from "@/components/icons/lucide-compat";
+import { Building2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+
 import { CrmListPanelLayout } from "@/components/crm/crm-list-panel-layout";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { CompanyDrawerContent } from "@/components/crm/record-drawer/company-drawer-content";
@@ -303,13 +302,16 @@ export default function CompaniesPage() {
           return {
             ...col,
             cell: ({ row }: { row: { original: CompanyWithCounts } }) => (
-              <Link
-                href={`/customers/companies/${row.original.company_id}`}
+              <button
+                type="button"
                 className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
-                onClick={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  open(row.original.company_id);
+                }}
               >
                 {row.original.name}
-              </Link>
+              </button>
             ),
           };
         case "industry":
@@ -321,6 +323,20 @@ export default function CompaniesPage() {
                 industry={row.original.industry}
                 industryOptions={industryOptions}
               />
+            ),
+          };
+        case "phone":
+          return {
+            ...col,
+            cell: ({ row }: { row: { original: CompanyWithCounts } }) => (
+              <CompanyPhoneCell companyId={row.original.company_id} phone={row.original.phone} />
+            ),
+          };
+        case "email":
+          return {
+            ...col,
+            cell: ({ row }: { row: { original: CompanyWithCounts } }) => (
+              <CompanyEmailCell companyId={row.original.company_id} email={row.original.email} />
             ),
           };
         case "website":
@@ -367,7 +383,6 @@ export default function CompaniesPage() {
   return (
     <CrmListPanelLayout
       objectType="company"
-      fullPageRoutePrefix="/customers/companies"
       renderPanelContent={(id) => <CompanyDrawerContent companyId={id} />}
     >
       <div className="flex min-h-0 flex-1 flex-col overflow-auto">
@@ -375,15 +390,6 @@ export default function CompaniesPage() {
           <div className="flex items-center gap-2">
             <Building2 className="h-4 w-4 text-muted-foreground" />
             <h1 className="text-sm font-medium text-foreground">Companies</h1>
-          </div>
-          <div className="flex items-center gap-1">
-            <Button type="button" variant="ghost" size="icon" aria-label="Refresh companies" onClick={() => void refetch()}>
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-            <Button type="button" variant="ghost" size="icon" aria-label="More table actions">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-            <Button type="button" variant="outline" size="sm">Export</Button>
           </div>
         </div>
         <div className="mr-2 flex-1 rounded-t-xl border-l border-t border-border/60 bg-card px-3 pt-3 md:px-4">
@@ -412,12 +418,6 @@ export default function CompaniesPage() {
             : undefined}
           rowActions={(row) => [
             { id: "view", label: "View", onSelect: () => open(row.company_id) },
-            {
-              id: "open",
-              label: "Open in New Tab",
-              href: `/customers/companies/${row.company_id}`,
-              newTab: true,
-            },
             {
               id: "delete",
               label: "Delete",

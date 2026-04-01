@@ -93,8 +93,8 @@ export function DealHighlights({
         <HighlightFieldCard label="Price">
           <InlineEditField
             label="Price"
-            value={deal.price === null ? null : String(deal.price)}
-            displayValue={formatCrmPrice(deal.price)}
+            value={deal.amount === null ? null : String(deal.amount)}
+            displayValue={formatCrmPrice(deal.amount)}
             type="number"
             onSave={onPriceSave}
           />

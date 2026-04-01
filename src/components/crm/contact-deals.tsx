@@ -78,7 +78,7 @@ export function ContactDeals({ contactId }: ContactDealsProps) {
                 <td className="px-4 py-3">
                   {deal ? <Badge variant={dealStageBadgeVariantMap[deal.stage]}>{deal.stage}</Badge> : <span className="text-muted-foreground">—</span>}
                 </td>
-                <td className="px-4 py-3 text-sm text-foreground/80">{deal ? formatCrmPrice(deal.price) : <span className="text-muted-foreground">—</span>}</td>
+                <td className="px-4 py-3 text-sm text-foreground/80">{deal ? formatCrmPrice(deal.amount) : <span className="text-muted-foreground">—</span>}</td>
                 <td className="px-4 py-3 text-sm text-muted-foreground">{deal ? formatCrmDate(deal.updated_at) : "—"}</td>
               </tr>
             );

@@ -109,10 +109,7 @@ describe("CompaniesPage", () => {
   it("preserves contact links while adding explicit edit affordances", () => {
     render(<CompaniesPage />, { wrapper: createWrapper() });
 
-    expect(screen.getByRole("link", { name: "Acme Realty" })).toHaveAttribute(
-      "href",
-      "/customers/companies/company-1",
-    );
+    expect(screen.getByRole("button", { name: "Acme Realty" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "+6591234567" })).toHaveAttribute(
       "href",
       "tel:+6591234567",

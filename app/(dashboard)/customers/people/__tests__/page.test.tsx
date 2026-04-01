@@ -141,13 +141,10 @@ describe("PeoplePage", () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it("keeps name and contact channels as links in read mode", () => {
+  it("keeps name as button and contact channels as links in read mode", () => {
     render(<PeoplePage />, { wrapper: createWrapper() });
 
-    expect(screen.getByRole("link", { name: /sarah chen/i })).toHaveAttribute(
-      "href",
-      "/customers/people/contact-1",
-    );
+    expect(screen.getByRole("button", { name: /sarah chen/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /sarah@example.com/i })).toHaveAttribute(
       "href",
       "mailto:sarah@example.com",

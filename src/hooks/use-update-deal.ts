@@ -13,7 +13,7 @@ import { type Deal } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
 type DealUpdate = Partial<
-  Pick<Deal, "address" | "stage" | "price" | "notes" | "company_id" | "custom_fields">
+  Pick<Deal, "address" | "stage" | "amount" | "notes" | "company_id" | "custom_fields">
 >;
 
 /**
@@ -25,23 +25,23 @@ export function useUpdateDeal(dealId: string) {
   return useMutation({
     mutationFn: async (updates: DealUpdate) => {
       let previousStage: string | null = null;
-      let previousPrice: number | null = null;
+      let previousAmount: number | null = null;
 
       if (updates.stage) {
         const cachedDeal = queryClient.getQueryData<DealWithContact>(dealKeys.detail(dealId));
 
         if (cachedDeal) {
           previousStage = cachedDeal.stage;
-          previousPrice = cachedDeal.price;
+          previousAmount = cachedDeal.amount;
         } else {
           const { data: currentDeal } = await supabase
             .from("deals")
-            .select("stage, price")
+            .select("stage, amount")
             .eq("deal_id", dealId)
             .maybeSingle();
 
           previousStage = currentDeal?.stage ?? null;
-          previousPrice = currentDeal?.price ?? null;
+          previousAmount = currentDeal?.amount ?? null;
         }
       }
 
@@ -66,9 +66,9 @@ export function useUpdateDeal(dealId: string) {
           from_stage: previousStage,
           to_stage: updates.stage,
           deal_value:
-            typeof mergedUpdates.price === "number"
-              ? mergedUpdates.price
-              : previousPrice,
+            typeof mergedUpdates.amount === "number"
+              ? mergedUpdates.amount
+              : previousAmount,
         });
       }
     },

@@ -198,6 +198,7 @@ const defaultFieldsByEntity: Record<string, FieldDefinition[]> = {
 
 /**
  * Validate field array changes against tier rules.
+ * Uses the CANONICAL tier from defaults — never trusts the incoming payload's tier.
  * Returns error message if invalid, null if OK.
  */
 function validateFieldChanges(
@@ -205,8 +206,14 @@ function validateFieldChanges(
   defaults: FieldDefinition[],
   entityName: string,
 ): string | null {
+  const defaultsByKey = new Map(defaults.map((d) => [d.key, d]));
+
   for (const field of incoming) {
-    if (field.tier === "indestructible" && !field.visible) {
+    // Look up canonical tier from defaults; fall back to incoming tier for custom fields
+    const canonical = defaultsByKey.get(field.key);
+    const effectiveTier = canonical ? canonical.tier : field.tier;
+
+    if (effectiveTier === "indestructible" && !field.visible) {
       return `Cannot hide indestructible field "${field.label}" on ${entityName}`;
     }
   }
@@ -220,10 +227,18 @@ function validateFieldChanges(
   }
 
   for (const field of incoming) {
-    const original = defaults.find((d) => d.key === field.key);
+    const original = defaultsByKey.get(field.key);
     if (original && original.tier !== "custom") {
       if (field.type !== original.type) return `Cannot change type of default field "${field.key}"`;
       if (field.source !== original.source) return `Cannot change source of default field "${field.key}"`;
+    }
+  }
+
+  // Overwrite tier on incoming fields to match canonical defaults (prevents tier spoofing)
+  for (const field of incoming) {
+    const canonical = defaultsByKey.get(field.key);
+    if (canonical) {
+      field.tier = canonical.tier;
     }
   }
 
@@ -321,6 +336,34 @@ export function createConfigureCrmTool(
             in_use_custom_fields: inUseCustomFields,
             message: "Some custom fields still contain stored values. Re-call with confirm_removals: true to proceed.",
           };
+        }
+      }
+
+      // Snapshot current config to history before writing (same pattern as PATCH route)
+      if (currentConfig) {
+        const { data: currentRow } = await supabase
+          .from("crm_config")
+          .select("*")
+          .eq("client_id", clientId)
+          .maybeSingle();
+
+        if (currentRow) {
+          await supabase.from("crm_config_history").insert({
+            client_id: clientId,
+            config_snapshot: currentRow,
+          });
+
+          // Trim to last 20 versions
+          const { data: history } = await supabase
+            .from("crm_config_history")
+            .select("id")
+            .eq("client_id", clientId)
+            .order("created_at", { ascending: false });
+
+          if (history && history.length > 20) {
+            const idsToDelete = history.slice(20).map((h: { id: string }) => h.id);
+            await supabase.from("crm_config_history").delete().in("id", idsToDelete);
+          }
         }
       }
 
