@@ -1,0 +1,87 @@
+{
+  "search_id": "search_e30b9b49326f40b187c962e52dffc65d",
+  "status": "ok",
+  "results": [
+    {
+      "url": "https://help.openai.com/en/articles/8983778-chat-and-file-retention-policies-in-chatgpt",
+      "title": "Chat and File Retention Policies in ChatGPT | OpenAI Help Center",
+      "publish_date": null,
+      "excerpts": [
+        "All Collections\nChatGPT\nFile uploads\nChat and File Retention Policies in ChatGPT\n ... \nSection Title: **Files**\nContent:\nFiles uploaded during a conversation (e.g., documents, images) are tied to that conversation's lifecycle.\nIf you delete the conversation that contained an uploaded file:\nThe file (if still active) is immediately scheduled for deletion alongside the chat.\nThe 30-day maximum deletion timeline applies, unless the file had already expired naturally\n ... \nSection Title: Compliance API Considerations (Enterprise Only)\nContent:\n**Files uploaded into conversations expire independently** of chat retention settings.\nAfter a file expires or a conversation reaches the configured retention period, it becomes **unavailable via Compliance API immediately** , but OpenAI\u2019s internal backups may retain it **for up to 30 additional days** (not accessible via Compliance API).\nIf a file has expired (after 48 hours for Enterprise users), you may encounter errors when trying to access or delete it via the Compliance API, such as:\n```\n{  \n  \"error\":   \n    {  \n     \"message\": \"File not found in workspace.\",  \n     \"type\": \"invalid_request_error\"  \n    }  \n}\n```"
+      ]
+    },
+    {
+      "url": "https://www.facebook.com/groups/1085388718508013/posts/2698448457202023/",
+      "title": "The Game-Changing File Storage Feature for Paid Users",
+      "publish_date": null,
+      "excerpts": [
+        "The ChatGPT Library is a centralised storage system where users can access all their uploaded and generated files in one place, across different conversations. This update solves one of the platform's most persistent frustrations: managing and reusing files across conversations. What Is the ChatGPT Library Feature? The"
+      ]
+    },
+    {
+      "url": "https://www.reddit.com/r/ChatGPTPro/comments/1kaon2z/when_a_chat_is_reaching_maximum_storagelength/",
+      "title": "When a chat is reaching maximum storage/length ...",
+      "publish_date": null,
+      "excerpts": [
+        "You can utilize meta prompts with ChatGPT to figure out what format works best for your data. You can utilize definitions, inference, and symbolic language or a"
+      ]
+    },
+    {
+      "url": "https://help.openai.com/en/articles/20001052-file-storage-and-library-in-chatgpt",
+      "title": "File storage and Library in\u00a0ChatGPT\u00a0 | OpenAI Help Center",
+      "publish_date": null,
+      "excerpts": [
+        "All Collections\nChatGPT\nFile storage and Library in ChatGPT\nSection Title: File storage and Library in ChatGPT\nContent:\nUpdated: yesterday\nLibrary is currently only available to ChatGPT Plus, Pro, and Business users outside of the outside of the European Economic Area, Switzerland, and the United Kingdom.\nThe files you upload to and create in ChatGPT are now saved to your [**Library**](https://chatgpt.com/library) , so you can find and reuse them later. Library is currently only available on web.\nChatGPT automatically saves uploaded and created files, including files uploaded in chats (for example: documents, spreadsheets, presentations, and images) in a dedicated, secure location so they can be easily accessed later. Generated images will continue to appear in the [Images](https://chatgpt.com/images/) tab.\n ... \nSection Title: File storage and Library in ChatGPT > **What files are saved?**\nContent:\nChatGPT automatically saves uploaded and created files, including files uploaded in chats (for example: documents, spreadsheets, presentations, and images) in a dedicated, secure location so they can be easily accessed later.\nGenerated images will continue to appear in the [Images](https://chatgpt.com/images/) tab.\n ... \nSection Title: File storage and Library in ChatGPT > **What are the file size restrictions?**\nContent:\nAll files uploaded to a GPT or a ChatGPT conversation have a hard limit of 512MB per file.\nAll text and document files uploaded to a GPT or to a ChatGPT conversation are capped at 2M tokens per file. This limitation does not apply to spreadsheets.\nFor CSV files or spreadsheets, the file size cannot exceed approximately 50MB, depending on the size of each row.\nFor images, there's a limit of 20MB per image.\n ... \nSection Title: File storage and Library in ChatGPT > **Do files uploaded in Temporary Chats get saved?**\nContent:\nNo, files uploaded while using [**Temporary Chat**](https://help.openai.com/en/articles/8914046-temporary-chat-faq) are not saved to your account or Library.\nSection Title: File storage and Library in ChatGPT > **How will OpenAI use my saved files and chats?**\nContent:\nOpenAI uses your files and chats according to your settings and data controls. For example, if you have turned on [Memory](https://help.openai.com/en/articles/8590148-memory-faq) , files and chats may be used to help ChatGPT remember useful details about you between chats.\nSection Title: File storage and Library in ChatGPT > **Do files uploaded using ChatGPT Health get saved?**\nContent:\nNo, where ChatGPT Health is available, files uploaded when you\u2019re using [ChatGPT Health](https://help.openai.com/en/articles/20001036-what-is-chatgpt-health) are not saved to your account.\n ... \nSection Title: File storage and Library in ChatGPT > Need more help? Contact us\nContent:\nAI Chat\nChat now\nAI Phone Call (beta)\n1-888-GPT-0090\nCalls may be recorded to improve OpenAI services. [Learn more.](https://help.openai.com/en/articles/11391933-1-888-gpt-0090-openai-help-over-phone)\nSection Title: File storage and Library in ChatGPT > Was this article helpful?\nContent:\nSubmit\n[ChatGPT](https://chatgpt.com) [API](https://platform.openai.com/docs/) [Service Status](https://status.openai.com) Cookie Preferences"
+      ]
+    },
+    {
+      "url": "https://embracethered.com/blog/posts/2025/chatgpt-how-does-chat-history-memory-preferences-work/",
+      "title": "\n     How ChatGPT Remembers You: A Deep Dive into Its Memory and Chat History Features \u00b7  Embrace The Red\n  ",
+      "publish_date": "2025-05-05",
+      "excerpts": [
+        "Section Title: Analyzing the Memory Features > Notable Past Conversation Topics Highlights\nContent:\n```\nNOTABLE PAST CONVERSATION TOPICS HIGHLIGHTS\n\nBelow are high-level topic notes from past conversations. Use them to help maintain continuity in future discussions. 1. In early 2024, the user frequently tested AI-model vulnerabilities by requesting \n   web-page titles and summaries and by attempting to store contextual knowledge from \n   dynamic sites like *wuzzi.net*. These discussions assessed LLM handling of external \n   content, memory persistence, and instruction-injection via web references. The user systematically evaluates memory capabilities and vulnerabilities of LLMs. **Confidence = high**\n\n2. From late 2023 through 2024, the user consistently requested command-line scripting \n   and automation techniques in Python, PowerShell, and Bash for security monitoring, \n   logging, file enumeration, process tracking, and API integrations."
+      ]
+    },
+    {
+      "url": "https://developers.openai.com/api/docs/guides/tools-file-search/",
+      "title": "File search | OpenAI API",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: File search\nContent:\nAllow models to search your files for relevant information before generating a response.\nFile search is a tool available in the Responses API .\nIt enables models to retrieve information in a knowledge base of previously uploaded files through semantic and keyword search.\nBy creating vector stores and uploading files to them, you can augment the models\u2019 inherent knowledge by giving them access to these knowledge bases or `vector_stores` .\nTo learn more about how vector stores and semantic search work, refer to our retrieval guide .\nThis is a hosted tool managed by OpenAI, meaning you don\u2019t have to implement code on your end to handle its execution.\nWhen the model decides to use it, it will automatically call the tool, retrieve information from your files, and return an output."
+      ]
+    },
+    {
+      "url": "https://www.reddit.com/r/ai_news_byte_sized/comments/1s3etj8/chatgpt_adds_file_management_features_across/",
+      "title": "ChatGPT Adds File Management Features Across ...",
+      "publish_date": null,
+      "excerpts": [
+        "TL;DR: ChatGPT now lets users manage files across conversations, evolving into a workspace tool beyond simple chat. Upvote"
+      ]
+    },
+    {
+      "url": "https://community.openai.com/t/open-ai-api-file-upload-limitations-on-chat-completions-api/1372667",
+      "title": "Open AI API file upload limitations on Chat Completions APi - API - OpenAI Developer Community",
+      "publish_date": "2026-01-27",
+      "excerpts": [
+        "Skip to last reply Skip to top\nSkip to main content\n[Docs](https://platform.openai.com/overview \"Docs\")\n[API](https://platform.openai.com/docs/api-reference \"API\")\n[Support](https://help.openai.com/en/articles/6614161-how-can-i-contact-support \"Support\")\nSign Up Log In\n\u200b\n\u200b\nWelcome to the OpenAI Developer Community, a forum for **developers to meet and chat with other developers** while building with OpenAI\u2019s APIs and developer platform.\nThis is not a place for ChatGPT discussion (with the exception of ChatGPT developer tools, like Codex). ChatGPT discussion takes place in the [OpenAI Discord community](https://discord.com/invite/openai) .\nWhat to know:\nThis forum is community-run and maintained. Not all posts are monitored. To get in touch with OpenAI, reach out at https://help.openai.com/en/?q=contact .\nDiscussions related to the ChatGPT app and plans will be hidden, and your account may be suspended. (We must keep conversations focused on technical topics related to building with OpenAI, for the sake of the larger community here.)\nBefore posting a new topic, please [search the forum](https://community.openai.com/search) for similar topics. This prevents duplicate discussions.\nYour use of this forum means you agree to the community guidelines, which include being nice, productive, and constructive. Read the full community guidelines: [FAQ - OpenAI Developer Community](https://community.openai.com/faq)\n ... \nSection Title: Open AI API file upload limitations on Chat Completions APi > post by merefield on Jan 27\nContent:\nmerefield Regular\nJan 27\nChat Completions aren\u2019t intended to be used with file storage, see the table on this page:\nhttps://platform.openai.com/docs/guides/migrate-to-responses\nYou probably want to use Responses API if file upload is what you are after \u2026\n2\n\u200b\n\u200b\n ... \nSection Title: Open AI API file upload limitations on Chat Completions APi > post by _j on Jan 28 > Related topics\nContent:\nAPI\nfile-uploads , vector-store , file-search |3 |969 |Sep 2025 |\n|How many Files, images, can we send in a user message in Chat Completions API?\nAPI |1 |116 |Jun 2025 |\n|[[Responses API] File Upload in Query vs ChatGPT](/t/responses-api-file-upload-in-query-vs-chatgpt/1144473)\nAPI\nfile-uploads |3 |2.9k |Oct 2025 |\n|In Assistants, Is there a limit to File size and number of files?\nAPI |6 |9.2k |Nov 2023 |\n|Why Can\u2019t I Upload Files Over 50MB to OpenAI via Both Windows App and Browser?\nGPT builders\nfile-uploads |3 |508 |Nov 2024 |\nDeveloper Community\nConnect with other developers building with the OpenAI Platform.\nHelp\n[Support](https://help.openai.com/en/articles/6614161-how-can-i-contact-support)\nDeveloper Resources\n[API Documentation](https://platform.openai.com/overview)\n[Service status](https://status.openai.com)\n[Cookbook](https://github.com/openai/openai-cookbook)"
+      ]
+    },
+    {
+      "url": "https://help.openai.com/zh-hant-hk/articles/9903489-data-residency-and-inference-residency-for-chatgpt",
+      "title": "Data residency and inference residency for ChatGPT",
+      "publish_date": null,
+      "excerpts": [
+        "4 days ago \u2014 Data residency for ChatGPT allows customers to keep their customer content stored at rest in a specific geographic region. Inference residency for ChatGPT"
+      ]
+    },
+    {
+      "url": "https://www.republicworld.com/tech/chatgpt-s-new-file-library-feature-makes-it-easier-to-find-reuse-uploads",
+      "title": "ChatGPT's New File Library Feature Makes It Easier to Find, Reuse Uploads | Republic World",
+      "publish_date": "2026-03-25",
+      "excerpts": [
+        "Section Title: ... > With the new system, ChatGPT now includes a more structured way to manage files, allowing u...\nContent:\ninfo desk\nTech News\n2 min read\nFollow : [](https://news.google.com/publications/CAAqBwgKMMGSkQswztSlAw?hl=en-IN&gl=IN&ceid=IN%3Aen)\n\u27a6 Share\nChatGPT has added a new functionality. | Image:\nOpenAI\nOpenAI has introduced a new file management experience in ChatGPT, aimed at making it easier for users to find, reuse, and build on the files they upload or generate within chats. The update, announced via an official post on X, focuses on improving how files are stored and accessed across conversations, addressing a long-standing limitation where uploaded content was often difficult to retrieve later."
+      ]
+    }
+  ],
+  "warnings": null
+}

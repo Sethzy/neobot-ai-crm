@@ -1,0 +1,87 @@
+{
+  "search_id": "search_c31dde1a13c443d39445bcbb2049f1ea",
+  "status": "ok",
+  "results": [
+    {
+      "url": "https://www.reddit.com/r/ChatGPTCoding/comments/1lmkxgv/what_is_your_strategy_to_keep_your_instruction/",
+      "title": "What is your strategy to keep your instruction and memory ...",
+      "publish_date": null,
+      "excerpts": [
+        "But basically I've kept my CLAUDE .md file quite simple with just a list of 10 or so bullets at the end of Claude's own analysis of my"
+      ]
+    },
+    {
+      "url": "https://www.sigmainfo.net/blog/salesforce-file-upload-explained-architecture-object-relationships-and-external-integration-via-rest-apis/",
+      "title": "Salesforce Files Architecture Explained: Objects, Sharing & APIs",
+      "publish_date": "2026-01-08",
+      "excerpts": [
+        "Section Title: ... > Category\nContent:\n[Salesforce and CRM solutions](https://www.sigmainfo.net/blog/category/salesforce-crm-solutions/)"
+      ]
+    },
+    {
+      "url": "https://dev.to/programmingcentral/stop-treating-ai-like-a-typewriter-the-ultimate-guide-to-file-uploads-attachments-in-chat-51pe",
+      "title": "Stop Treating AI Like a Typewriter: The Ultimate Guide to File Uploads & Attachments in Chat - DEV Community",
+      "publish_date": "2026-02-12",
+      "excerpts": [
+        "Section Title: ... > Security and Storage: The \"Bouncer\" and the \"Locker\"\nContent:\nAllowing file uploads is one of the most dangerous features you can add to a web application. A user could upload a malicious script, a massive file that crashes your server, or illegal content. This requires **Validation** and **Storage Strategies** .\n ... \nSection Title: ... > 2. Storage (The Locker)\nContent:\nOnce validated, where does the file live?\n**Temporary (In-Memory):** For simple chats, keeping the file in RAM just long enough to process it. Fast but volatile.\n**Ephemeral Storage (Vercel Blob):** For longer interactions or streaming where the model might need to \"look\" at the file multiple times.\n**Permanent Storage (Database):** For persistent history (e.g., legal document review), stored permanently linked to a user ID.\n ... \nSection Title: ... > Advanced Implementation: Secure Multi-Modal Chat\nContent:\nThis implementation demonstrates a robust, production-ready architecture. It separates concerns: the client handles UI and file selection, while the server manages security, storage, and AI inference."
+      ]
+    },
+    {
+      "url": "https://improvado.io/blog/claude-vs-chatgpt-vs-gemini-vs-deepseek",
+      "title": "Claude vs ChatGPT vs Gemini: Best AI Comparison 2026 | Improvado",
+      "publish_date": "2026-03-26",
+      "excerpts": [
+        "Section Title: AI Assistants: Complete Comparison Guide 2026 > ... > Test #1: Output format\nContent:\n**Key insight** : ChatGPT and DeepSeek provided structured text, Gemini \u2013 HTML code, while Claude delivered an HTML file and provided its preview right within UI. Among all models tested, Claude demonstrated the best implementation readiness, making it the best choice for landing page creation.\nStop Managing CSVs, Start Managing Strategy\nManual data uploads are the #1 bottleneck for AI-driven marketing ops. Improvado automates the flow of real-time data from 500+ sources directly into BigQuery, creating a \"live,\" analysis-ready foundation for any AI assistant or model your team uses.\n[Automate Your AI Data Feed](https://improvado.io/register/talk-to-an-expert)"
+      ]
+    },
+    {
+      "url": "https://www.datastudios.org/post/chatgpt-gemini-claude-for-spreadsheets-full-comparison-of-features-uploads-and-automations-202",
+      "title": "ChatGPT, Gemini, Claude for spreadsheets: full comparison of features, uploads, and automations (2025)",
+      "publish_date": "2025-08-06",
+      "excerpts": [
+        "Section Title: ... > AI chatbots can now read, edit, and generate spreadsheets directly in chat.\nContent:\nChat-based AI tools are no longer limited to answering questions or generating texts. Today, they are increasingly used for working with data, analyzing spreadsheets, generating pivot tables, creating charts, and even automating reporting tasks. Whether you're dealing with CSV exports, Excel financial statements, or raw logs, ChatGPT, Gemini, and Claude can all process them\u2014but with different levels of capability and integration.\nIn this article, we break down the **latest spreadsheet features** of these three AI assistants as of **mid-2025 and beyond** , including file upload support, data analysis, integrations with cloud storage, and practical use cases.\n ... \nSection Title: ... > Claude processes large spreadsheets and supports in-cell automation at scale.\nContent:\nClaude, developed by Anthropic, allows users to upload spreadsheets (CSV, XLSX) both via **chat interface** and the **Files API** . The Opus 4 model, available to Claude Pro or Max users, supports a **context window of 200,000 tokens** , which enables it to work with extended datasets and multi-tab Excel files in one go.\nAlthough Claude does not run code like ChatGPT, it excels at **summarizing tables** , **answering questions about structure** , **detecting outliers** , and **extracting specific patterns** from spreadsheets. It handles up to **20 files per chat** , with each file maxing out at 30 MB via chat or 500 MB via API."
+      ]
+    },
+    {
+      "url": "https://medium.com/@aftab001x/the-truth-about-ai-chatbot-data-privacy-what-chatgpt-gemini-and-claude-really-do-with-your-a4b46bfb8294",
+      "title": "The Truth About AI Chatbot Data Privacy: What ChatGPT, Gemini, and Claude Really Do With Your Conversations | by Aftab | Feb, 2026 | Medium",
+      "publish_date": "2026-02-24",
+      "excerpts": [
+        "Section Title: ... > 1. Conversation Data (The Big One)\nContent:\n**What it includes:**\nEvery prompt you type\nEvery response the AI generates\nContext: previous messages in conversation\nAttachments: files, images, documents you upload\nTimestamps\n**What happens to it:**\n**ChatGPT (OpenAI):** By default, uses conversations to train models. You can opt out, but data still retained for 30 days for \u201csafety and abuse monitoring.\u201d Exception: Enterprise customers excluded from training.\n**Gemini (Google):** Conversations saved for 18 months by default (adjustable to 3 or 36 months). Used to improve models. Human reviewers may examine conversations. Integration with Google ecosystem means data merged with search history, Gmail, YouTube activity.\n**Claude (Anthropic):** Shifted policy September 2025. Previously didn\u2019t use data for training by default. Now: **opt-in/opt-out hybrid** . If you don\u2019t respond to policy change, default is consent. If you opt in, data retained 5 years. If you opt out, 30 days retention."
+      ]
+    },
+    {
+      "url": "https://creatoreconomy.so/p/chatgpt-claude-gemini-the-best-ai-model-for-each-task-2025",
+      "title": "ChatGPT vs Claude vs Gemini: The Best AI Model for Each Task (Oct 2025)",
+      "publish_date": "2025-10-29",
+      "excerpts": [
+        "Section Title: ... > 3 tips to get the most out of projects\nContent:\nI create AI projects for everything that I work on. Here\u2019s exactly how I set them up:\n**Attach Google Workspace files.** This ensures that my project always has the latest updates from my Google Docs and other files. I also like to add plain text files and Deep Research outputs as context.\n**Include your output style in the prompt.** For example, my preferred style is: \u201cUse short bold stems followed by 2-3 short sentences so it\u2019s easy to skim.\u201d This way, AI always writes how I want.\n**Get AI to iterate on your prompt.** After a long chat where AI finally nails the output, I ask: \u201cCan you update the prompt to one shot this?\u201d This way, AI is always helping me improve my project prompt.\nNow let\u2019s cover 9 projects that I rely on every day for product, creator, and personal tasks."
+      ]
+    },
+    {
+      "url": "https://martinfowler.com/articles/gen-ai-patterns/",
+      "title": "Emerging Patterns in Building GenAI Products - Martin Fowler",
+      "publish_date": "2025-02-25",
+      "excerpts": [
+        "[](https://martinfowler.com)\n[Refactoring](https://refactoring.com)\nAgile\nArchitecture\nAbout\n[Thoughtworks](https://www.thoughtworks.com)\n[](https://www.twitter.com/martinfowler \"Twitter stream\")\n[](https://toot.thoughtworks.com/@mfowler \"Mastodon stream\")\n[](https://www.linkedin.com/in/martin-fowler-com/ \"LinkedIn\")\n[](https://bsky.app/profile/martinfowler.com \"BlueSky\")\n ... \nSection Title: Emerging Patterns in Building GenAI Products\nContent:\nBharani is CTO Thoughtworks India and Middle East with a focus on business platforms and data engineering. He is a member of Thoughtworks Technology Advisory Board and contributes to the creation of Thoughtworks Technology Radar.\nMartin Fowler\nI've been educating professional software developers for three decades,\nand during that time I've seen many \u201cgame-changing developments\u201d, most of\nwhich fizzle. I'm inclined to think that while there's a stunning amount\nof hype with AI, some of it will have a genuine impact. My part in this is\nto help my colleagues communicate what they have learned from day-to-day\nwork with clients all over the world\napplication architecture\ngenerative AI"
+      ]
+    },
+    {
+      "url": "https://levelup.gitconnected.com/ai-context-file-claude-gemini-39f670186427",
+      "title": "Stop Getting Bad AI Code! Use a Claude / Gemini Context File | Level Up Coding",
+      "publish_date": "2025-11-30",
+      "excerpts": [
+        "Section Title: ... > My `claude.md` strategy for turning Claude Code into a real pair programmer.\nContent:\nIt\u2019s generic. It doesn\u2019t know your architecture. It ignores your patterns. It [writes massive code](https://youtu.be/dvmGoSGJ9cA) , and you spend more time fixing its \"help\" than it would have taken to write it yourself.\nIt\u2019s frustrating.\nToday, we\u2019re fixing that. We\u2019re talking about an important file you can create for AI-assisted development: the **context file** ."
+      ]
+    },
+    {
+      "url": "https://spicyadvisory.com/blog/switch-chatgpt-to-claude-gemini-migration-guide",
+      "title": "How to Switch from ChatGPT to Claude or Gemini Without Losing Your Data (2026 Guide) | Spicy Advisory",
+      "publish_date": "2026-03-26",
+      "excerpts": [
+        "Section Title: ... > Claude vs Gemini \u2014 Migration Comparison\nContent:\n| Feature | Claude | Gemini |\n| **Memory transfer** | Built-in import tool via prompt | Built-in import tool via prompt |\n| **Chat history import** | Upload to Projects | Direct ZIP upload (up to 5 GB) |\n| **Custom GPT equivalent** | Projects (instructions + files + persistent context) | Gems (instructions + Drive files) |\n| **Processing time** | ~24 hours for memory | Immediate for memory, minutes for chats |\n| **Data privacy** | Not used for training (by default) | Used for training (opt-out available) |\n| **Plan requirement** | Memory import: all plans. Projects: Pro/Max | Import tool: Gemini Advanced |\n| **API actions in GPT equivalent** | Not yet | Not yet |\n ... \nSection Title: ... > Future-Proof Your AI Workflow\nContent:\n**Store your instructions in portable formats.** Keep a markdown file with your system prompt, tone preferences, and common instructions. When you switch platforms, you copy-paste instead of recreating from memory. **Maintain a \u201cDigital Passport.\u201d** Create a single document that describes who you are, what you do, your communication style, your current projects, and your preferences. Update it quarterly. This becomes your migration kit for any AI assistant. **Don\u2019t over-rely on platform-specific features.** Custom GPTs with API actions, Claude\u2019s MCP integrations, Gemini\u2019s Workspace hooks \u2014 these are powerful but not portable. Build core workflows around transferable patterns (clear instructions, uploaded context, structured prompts) and use platform-specific features as a bonus layer.\n ... \nSection Title: ... > Can I transfer my ChatGPT conversations to Claude or Gemini?\nContent:\nYes. For Claude, download your ChatGPT export ZIP and upload the conversations.json file to a Claude Project. For Gemini, use the native Chat Import tool (currently in beta) to upload your ZIP directly. In both cases, your full conversation history becomes accessible in the new platform.\n ... \nSection Title: ... > Are my Custom GPTs transferable to Claude Projects or Gemini Gems?\nContent:\nNot directly \u2014 there\u2019s no automated transfer tool. You need to manually copy each GPT\u2019s instructions, re-upload knowledge files, and test the behavior on the new platform. Claude Projects are the closest functional equivalent to Custom GPTs, supporting custom instructions, file uploads, and persistent context. Gemini Gems support instructions and Drive file connections but don\u2019t yet offer API actions or code execution.\n**Need help migrating your team\u2019s AI workflows?** Spicy Advisory helps companies switch AI platforms without losing momentum. From individual workflow audits to full enterprise migration programs, we make the transition structured and measurable. Learn about our enterprise AI training programs ."
+      ]
+    }
+  ],
+  "warnings": null
+}
