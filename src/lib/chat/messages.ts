@@ -59,6 +59,8 @@ export async function createMessage(
 
 /**
  * Persists multiple message rows in one insert.
+ * Pre-generates `message_id` so a retry after a transient fetch failure
+ * can use upsert (ON CONFLICT DO NOTHING) to avoid duplicates.
  */
 export async function createMessages(
   supabase: ChatSupabaseClient,
@@ -68,10 +70,30 @@ export async function createMessages(
     return [];
   }
 
+  const messagesWithIds = messages.map((m) => ({
+    ...m,
+    message_id: crypto.randomUUID(),
+  }));
+
   const { data, error } = await supabase
     .from("conversation_messages")
-    .insert(messages)
+    .insert(messagesWithIds)
     .select("*");
+
+  // Retry once on transient network failures. Uses upsert with ignoreDuplicates
+  // in case the first insert succeeded but the response was lost.
+  if (error?.message?.includes("fetch failed")) {
+    const { data: retryData, error: retryError } = await supabase
+      .from("conversation_messages")
+      .upsert(messagesWithIds, { onConflict: "message_id", ignoreDuplicates: true })
+      .select("*");
+
+    if (retryError) {
+      throw new Error(retryError.message);
+    }
+
+    return retryData ?? [];
+  }
 
   if (error) {
     throw new Error(error.message);
