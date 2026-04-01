@@ -155,8 +155,10 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
       );
     }
 
-    // 2b. Ensure agent/home/ directory exists for artifact sync target
-    await sandbox.mkDir(`${WORKSPACE}/agent/home`);
+    // 2b. Ensure agent/home/ directory exists for artifact sync target.
+    //     Use runCommand + mkdir -p because sandbox.mkDir() does not create
+    //     intermediate directories and fails with 400 if parents are missing.
+    await sandbox.runCommand("bash", ["-c", `mkdir -p ${WORKSPACE}/agent/home`]);
 
     // 2c. Seed artifact hash baseline from preloaded home/ files so the
     //     first sync doesn't re-upload them as "new" artifacts.

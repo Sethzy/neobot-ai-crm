@@ -134,7 +134,7 @@ describe("createLazyBashTool", () => {
     await cleanup();
   });
 
-  it("creates agent/home/ directory in sandbox via mkDir at boot", async () => {
+  it("creates agent/home/ directory in sandbox via mkdir -p at boot", async () => {
     const { tool: bashTool, cleanup } = createLazyBashTool({
       snapshotId: "snap_test",
       getPreloadFiles: async () => [],
@@ -145,8 +145,11 @@ describe("createLazyBashTool", () => {
 
     await asExecutableTool(bashTool).execute({ command: "echo hi" }, {});
 
-    expect(sharedMockSandbox.mkDir).toHaveBeenCalledWith(
-      expect.stringContaining("agent/home"),
+    // Uses runCommand("bash", ["-c", "mkdir -p ..."]) instead of mkDir()
+    // because sandbox.mkDir() does not create intermediate directories.
+    expect(sharedMockSandbox.runCommand).toHaveBeenCalledWith(
+      "bash",
+      ["-c", expect.stringContaining("agent/home")],
     );
 
     await cleanup();
