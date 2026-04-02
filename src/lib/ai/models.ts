@@ -2,6 +2,16 @@
  * @fileoverview Chat model catalog and helper utilities for user-selected chat models.
  */
 
+/** Per-token pricing in USD per 1 million tokens. */
+export interface ModelPricing {
+  /** Cost per 1M non-cached input tokens. */
+  inputPerM: number;
+  /** Cost per 1M output tokens. */
+  outputPerM: number;
+  /** Cost per 1M cache-read input tokens. */
+  cacheReadPerM: number;
+}
+
 export interface ChatModel {
   /** Vercel AI Gateway model ID. */
   id: string;
@@ -13,6 +23,8 @@ export interface ChatModel {
   description: string;
   /** Relative cost tier displayed as repeated '$' signs (1 = $, 2 = $$, etc.). */
   cost: number;
+  /** Per-token pricing for LLM cost tracking. */
+  pricing: ModelPricing;
 }
 
 /**
@@ -35,6 +47,7 @@ export const chatModels: ChatModel[] = [
     provider: "google",
     description: "Fast and cost-effective for everyday work",
     cost: 1,
+    pricing: { inputPerM: 0.50, outputPerM: 3.00, cacheReadPerM: 0.125 },
   },
   {
     id: "minimax/minimax-m2.7",
@@ -42,12 +55,18 @@ export const chatModels: ChatModel[] = [
     provider: "minimax",
     description: "Better suited for deep analysis and code-heavy tasks",
     cost: 2,
+    pricing: { inputPerM: 0.30, outputPerM: 1.20, cacheReadPerM: 0.06 },
   },
 ];
 
 /** Fast validation set derived from the catalog. */
 export const allowedModelIds = new Set(chatModels.map((model) => model.id));
 
+/** Pricing lookup by model ID. Returns `null` for unknown models. */
+const pricingByModelId = new Map(chatModels.map((m) => [m.id, m.pricing]));
+export function getModelPricing(modelId: string): ModelPricing | null {
+  return pricingByModelId.get(modelId) ?? null;
+}
 
 /**
  * Resolves a possibly-invalid selected model to a safe runtime model ID.

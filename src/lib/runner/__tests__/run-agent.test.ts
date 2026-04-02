@@ -1544,6 +1544,8 @@ describe("runAgent", () => {
       tokensOut: 50,
       promptTokens: 100,
       stepCount: 0,
+      costUsd: 0.0002,
+      cacheReadTokens: undefined,
     });
     expect(mockDrainAndContinue).toHaveBeenCalledWith("mock-supabase-client", {
       clientId: validPayload.clientId,
@@ -1601,6 +1603,8 @@ describe("runAgent", () => {
       tokensOut: 100,
       promptTokens: 200,
       stepCount: 3,
+      costUsd: 0.0004,
+      cacheReadTokens: undefined,
     });
   });
 

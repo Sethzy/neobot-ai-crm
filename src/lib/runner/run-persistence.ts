@@ -6,6 +6,8 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { computeRunCost } from "@/lib/ai/cost";
+import { getModelPricing } from "@/lib/ai/models";
 import { createApprovalEvent, expireApprovalEvent } from "@/lib/approvals/queries";
 import { captureServerEvents } from "@/lib/analytics/posthog-server";
 import { createMessages } from "@/lib/chat/messages";
@@ -36,7 +38,11 @@ export interface FinalizeRunInput {
   triggerType?: "chat" | "webhook" | "cron" | "pulse";
   steps: ReadonlyArray<StepLike>;
   text: string;
-  totalUsage: { inputTokens?: number; outputTokens?: number };
+  totalUsage: {
+    inputTokens?: number;
+    outputTokens?: number;
+    inputTokenDetails?: { cacheReadTokens?: number };
+  };
   logLabel: string;
 }
 
@@ -77,6 +83,10 @@ export async function finalizeRun({
   const contentText = contentTextFromParts.length > 0 ? contentTextFromParts : fallbackContentText;
   const hasNonStepParts = rawParts.some((part) => part.type !== "step-start");
 
+  const pricing = getModelPricing(modelId);
+  const costUsd = pricing ? computeRunCost(totalUsage, pricing) : undefined;
+  const cacheReadTokens = totalUsage.inputTokenDetails?.cacheReadTokens ?? undefined;
+
   const baseRunCompletion = {
     runId,
     model: modelId,
@@ -84,6 +94,8 @@ export async function finalizeRun({
     tokensOut: totalUsage.outputTokens ?? 0,
     stepCount: steps.length,
     promptTokens: totalUsage.inputTokens ?? 0,
+    costUsd,
+    cacheReadTokens,
   };
 
   const approvalRequests = extractApprovalRequests(rawParts);

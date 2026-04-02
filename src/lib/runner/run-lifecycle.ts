@@ -34,6 +34,10 @@ export interface CompleteRunInput {
   stepCount?: number;
   /** Input token count for fraction-based compaction trigger. */
   promptTokens?: number;
+  /** Estimated run cost in USD, computed from per-token pricing. */
+  costUsd?: number;
+  /** Number of input tokens served from prompt cache. */
+  cacheReadTokens?: number;
 }
 
 export interface MarkStaleRunsInput {
@@ -98,7 +102,7 @@ export async function createSubagentRun(
  */
 export async function completeRun(
   supabase: ChatSupabaseClient,
-  { runId, status, model, tokensIn, tokensOut, stepCount, promptTokens }: CompleteRunInput,
+  { runId, status, model, tokensIn, tokensOut, stepCount, promptTokens, costUsd, cacheReadTokens }: CompleteRunInput,
 ): Promise<void> {
   const { error } = await supabase
     .from("runs")
@@ -110,6 +114,8 @@ export async function completeRun(
       completed_at: new Date().toISOString(),
       ...(promptTokens !== undefined && { prompt_tokens: promptTokens }),
       ...(stepCount !== undefined && { step_count: stepCount }),
+      ...(costUsd !== undefined && { cost_usd: costUsd }),
+      ...(cacheReadTokens !== undefined && { cache_read_tokens: cacheReadTokens }),
     })
     .eq("run_id", runId);
 

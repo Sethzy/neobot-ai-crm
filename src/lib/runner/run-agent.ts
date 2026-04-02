@@ -9,8 +9,9 @@ import { propagateAttributes } from "@langfuse/tracing";
 import { withTracing } from "@posthog/ai";
 
 import { captureServerEvent, getPostHogServer } from "@/lib/analytics/posthog-server";
+import { computeRunCost } from "@/lib/ai/cost";
 import { gatewayProviderOptions, getLanguageModel } from "@/lib/ai/gateway";
-import { resolveModelId } from "@/lib/ai/models";
+import { getModelPricing, resolveModelId } from "@/lib/ai/models";
 import { isBrowserUseConfigured } from "@/lib/browser-use/client";
 import { getServerEnv } from "@/lib/env";
 import { createMessages } from "@/lib/chat/messages";
@@ -433,6 +434,9 @@ export async function runAgent(
               logLabel: "runner",
             });
 
+            const pricing = getModelPricing(modelId);
+            const costUsd = pricing ? computeRunCost(totalUsage, pricing) : undefined;
+
             await captureServerEvent({
               distinctId: clientId,
               event: "agent_run_completed",
@@ -444,6 +448,11 @@ export async function runAgent(
                 steps: steps.length,
                 total_tokens: getTotalTokenCount(totalUsage),
                 tools_called: extractUniqueToolNames(steps),
+                model_id: modelId,
+                tokens_in: totalUsage.inputTokens ?? 0,
+                tokens_out: totalUsage.outputTokens ?? 0,
+                cache_read_tokens: totalUsage.inputTokenDetails?.cacheReadTokens ?? 0,
+                cost_usd: costUsd,
               },
             });
           },

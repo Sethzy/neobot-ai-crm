@@ -363,6 +363,51 @@ describe("finalizeRun", () => {
       parts,
     );
   });
+
+  it("passes costUsd and cacheReadTokens to completeRun when model has pricing", async () => {
+    mockBuildAssistantPartsFromSteps.mockReturnValue([{ type: "text", text: "hi" }]);
+    mockGetAssistantTextFromParts.mockReturnValue("hi");
+
+    await finalizeRun(
+      makeInput({
+        modelId: "minimax/minimax-m2.7",
+        totalUsage: {
+          inputTokens: 30_000,
+          outputTokens: 200,
+          inputTokenDetails: { cacheReadTokens: 25_000 },
+        },
+      }),
+    );
+
+    expect(mockCompleteRun).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        status: "completed",
+        costUsd: expect.closeTo(0.00324, 5),
+        cacheReadTokens: 25_000,
+      }),
+    );
+  });
+
+  it("passes undefined costUsd for unknown models", async () => {
+    mockBuildAssistantPartsFromSteps.mockReturnValue([{ type: "text", text: "hi" }]);
+    mockGetAssistantTextFromParts.mockReturnValue("hi");
+
+    await finalizeRun(
+      makeInput({
+        modelId: "unknown/model",
+        totalUsage: { inputTokens: 100, outputTokens: 50 },
+      }),
+    );
+
+    expect(mockCompleteRun).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        costUsd: undefined,
+        cacheReadTokens: undefined,
+      }),
+    );
+  });
 });
 
 describe("extractApprovalRequests", () => {
