@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
 import { CrmListPanelLayout } from "@/components/crm/crm-list-panel-layout";
+import { CrmListPageShell } from "@/components/crm/crm-list-page-shell";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { CompanyDrawerContent } from "@/components/crm/record-drawer/company-drawer-content";
 import { DataTable } from "@/components/ui/data-table";
@@ -381,18 +382,14 @@ export default function CompaniesPage() {
   }, [crmConfig, industryOptions]);
 
   return (
-    <CrmListPanelLayout
-      objectType="company"
-      renderPanelContent={(id) => <CompanyDrawerContent companyId={id} />}
+    <CrmListPageShell
+      icon={<Building2 className="h-4 w-4 text-muted-foreground" />}
+      title="Companies"
     >
-      <div className="flex min-h-0 flex-1 flex-col overflow-auto">
-        <div className="flex items-center justify-between bg-sidebar px-4 py-3 md:px-8">
-          <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-            <h1 className="text-sm font-medium text-foreground">Companies</h1>
-          </div>
-        </div>
-        <div className="mr-2 flex-1 rounded-t-xl border-l border-t border-border/60 bg-card px-3 pt-3 md:px-4">
+      <CrmListPanelLayout
+        objectType="company"
+        renderPanelContent={(id) => <CompanyDrawerContent companyId={id} />}
+      >
         <DataTable
           columns={columns}
           data={rows}
@@ -451,8 +448,7 @@ export default function CompaniesPage() {
             setFilterValues({});
           }}
         />
-        </div>
-      </div>
-    </CrmListPanelLayout>
+      </CrmListPanelLayout>
+    </CrmListPageShell>
   );
 }

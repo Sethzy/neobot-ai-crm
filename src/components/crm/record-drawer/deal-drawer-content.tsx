@@ -68,7 +68,7 @@ export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
   const dealCustomFields = crmConfigResult?.config.deal_custom_fields ?? [];
 
   return (
-    <div className="space-y-6 overflow-y-auto p-6">
+    <div className="relative space-y-6 overflow-y-auto p-6">
       <header className="space-y-1">
         <h2 className="text-lg font-semibold">{deal.address}</h2>
         <StageBadge stage={deal.stage} />

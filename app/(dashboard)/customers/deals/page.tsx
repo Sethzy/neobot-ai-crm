@@ -13,6 +13,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { CrmListPanelLayout } from "@/components/crm/crm-list-panel-layout";
+import { CrmListPageShell } from "@/components/crm/crm-list-page-shell";
 import { DealKanbanCard } from "@/components/crm/deal-kanban-card";
 import { DealStageMenu } from "@/components/crm/deal-stage-menu";
 import { KanbanBoard } from "@/components/crm/kanban-board";
@@ -399,49 +400,45 @@ export default function DealsPage() {
   const activeRefetch = isBoardView ? refetchBoard : refetchTable;
 
   return (
-    <CrmListPanelLayout
-      objectType="deal"
-      renderPanelContent={(id) => <DealDrawerContent dealId={id} />}
-    >
-    <div className="flex min-h-0 flex-1 flex-col overflow-auto">
-      <div className="flex flex-col gap-3 bg-sidebar px-4 py-3 md:px-8 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Handshake className="h-4 w-4 text-muted-foreground" />
-            <h1 className="text-sm font-medium text-foreground">Deals</h1>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {isBoardView
-              ? "Track the pipeline and move deals forward from the board."
-              : "Track the pipeline and update deal progress in place."}
-          </p>
+    <CrmListPageShell
+      icon={<Handshake className="h-4 w-4 text-muted-foreground" />}
+      title="Deals"
+      bodyClassName="space-y-6"
+      description={
+        isBoardView
+          ? "Track the pipeline and move deals forward from the board."
+          : "Track the pipeline and update deal progress in place."
+      }
+      headerActions={
+        <div className="flex flex-wrap items-center gap-2">
+          {isBoardView ? (
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Sort by</span>
+              <select
+                aria-label="Sort deals"
+                className="h-9 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value as PipelineSortOption)}
+              >
+                {Object.entries(pipelineSortOptions).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <ViewToggle current={activeView} views={["table", "kanban"]} onChange={(nextView) => {
+            setView(nextView);
+            router.replace(buildDealsHref(searchParams, nextView));
+          }} />
         </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {isBoardView ? (
-                <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>Sort by</span>
-                  <select
-                    aria-label="Sort deals"
-                    className="h-9 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-                    value={sortBy}
-                    onChange={(event) => setSortBy(event.target.value as PipelineSortOption)}
-                  >
-                    {Object.entries(pipelineSortOptions).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-              <ViewToggle current={activeView} views={["table", "kanban"]} onChange={(nextView) => {
-                setView(nextView);
-                router.replace(buildDealsHref(searchParams, nextView));
-              }} />
-            </div>
-          </div>
-
-      <div className="mr-2 flex-1 space-y-6 rounded-t-xl border-l border-t border-border/60 bg-card px-3 pt-3 md:px-4">
+      }
+    >
+      <CrmListPanelLayout
+        objectType="deal"
+        renderPanelContent={(id) => <DealDrawerContent dealId={id} />}
+      >
           <FilterBar
             searchValue={search}
             onSearchChange={(value) => {
@@ -534,10 +531,9 @@ export default function DealsPage() {
             onRowClick={(row) => open(row.deal_id)}
             selectedRowId={recordId ?? undefined}
             getRowId={(row) => row.deal_id}
-          />
-        )}
-      </div>
-    </div>
-    </CrmListPanelLayout>
+            />
+          )}
+      </CrmListPanelLayout>
+    </CrmListPageShell>
   );
 }

@@ -178,6 +178,7 @@ export function contactDetailQueryOptions(contactId: string) {
 
       return data as ContactWithCompany;
     },
+    staleTime: 30_000,
   });
 }
 
@@ -256,6 +257,7 @@ export function useContact(contactId: string) {
   return useQuery({
     ...contactDetailQueryOptions(contactId),
     enabled: Boolean(contactId),
+    placeholderData: keepPreviousData,
   });
 }
 

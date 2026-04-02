@@ -75,24 +75,32 @@ export function CrmListPanelLayout({
     <ResizablePanelGroup
       key={isOpen ? "open" : "closed"}
       orientation="horizontal"
-      className="flex min-h-0 flex-1"
+      className="flex min-h-0 min-w-0 flex-1"
     >
       <ResizablePanel
-        defaultSize={isOpen ? 65 : 100}
-        minSize={40}
-        className="flex flex-col overflow-hidden"
+        defaultSize={isOpen ? "65%" : "100%"}
+        minSize="40%"
+        className="flex min-w-0 flex-col overflow-hidden"
       >
         {children}
       </ResizablePanel>
 
       {isOpen ? (
         <>
-          <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={35} minSize={25} maxSize={50}>
+          <ResizableHandle
+            withHandle
+            className="bg-transparent after:hidden [&>div]:bg-transparent"
+          />
+          <ResizablePanel
+            defaultSize="35%"
+            minSize="25%"
+            maxSize="50%"
+            className="min-w-0 overflow-hidden rounded-t-xl border-l border-r border-t border-border/60 bg-card"
+          >
             {recordId ? (
-              <div className="flex h-full flex-col border-t border-border/60 bg-card">
+              <div className="flex h-full min-w-0 flex-col overflow-hidden bg-card">
                 {/* Panel header */}
-                <div className="flex items-center border-b border-border/40 px-3 py-2">
+                <div className="flex min-w-0 items-center px-3 py-2">
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -104,7 +112,7 @@ export function CrmListPanelLayout({
                 </div>
 
                 {/* Panel body */}
-                <div className="flex-1 overflow-y-auto">
+                <div className="min-w-0 flex-1 overflow-y-auto">
                   {renderPanelContent(recordId)}
                 </div>
               </div>

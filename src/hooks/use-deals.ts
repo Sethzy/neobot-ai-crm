@@ -155,6 +155,7 @@ export function dealDetailQueryOptions(dealId: string) {
   return queryOptions({
     queryKey: dealKeys.detail(dealId),
     queryFn: () => fetchDeal(dealId),
+    staleTime: 30_000,
   });
 }
 
@@ -261,6 +262,7 @@ export function useDeal(dealId: string) {
   return useQuery({
     ...dealDetailQueryOptions(dealId),
     enabled: Boolean(dealId),
+    placeholderData: keepPreviousData,
   });
 }
 

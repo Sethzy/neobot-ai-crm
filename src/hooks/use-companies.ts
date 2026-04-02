@@ -180,6 +180,7 @@ export function companiesQueryOptions(filters: CompanyFilters) {
   return queryOptions({
     queryKey: companyKeys.list(filters),
     queryFn: () => fetchCompanies(filters),
+    staleTime: 5 * 60_000,
   });
 }
 
@@ -206,6 +207,7 @@ export function companyDetailQueryOptions(companyId: string) {
 
       return data as Company;
     },
+    staleTime: 30_000,
   });
 }
 
@@ -293,6 +295,7 @@ export function useCompany(companyId: string) {
   return useQuery({
     ...companyDetailQueryOptions(companyId),
     enabled: Boolean(companyId),
+    placeholderData: keepPreviousData,
   });
 }
 

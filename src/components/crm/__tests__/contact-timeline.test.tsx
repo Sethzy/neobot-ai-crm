@@ -80,6 +80,21 @@ describe("ContactTimeline", () => {
     expect(screen.getByText(/no activity recorded/i)).toBeInTheDocument();
   });
 
+  it("shows a lightweight inline loading state while activity is fetching", async () => {
+    const { useContactInteractions } = await import("@/hooks/use-contact-relations");
+
+    vi.mocked(useContactInteractions).mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    } as never);
+
+    render(<ContactTimeline contactId="c-1" />, { wrapper: createWrapper() });
+
+    expect(screen.getByText(/loading activity/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/loading/i)).toBeInTheDocument();
+  });
+
   it("shows error state and retries when timeline query fails", async () => {
     const { useContactInteractions } = await import("@/hooks/use-contact-relations");
     const mockRefetch = vi.fn();

@@ -227,7 +227,7 @@ export function DataTable<TData>({
   return (
     <div
       className={cn(
-        "overflow-hidden",
+        "min-w-0 overflow-hidden",
         className
       )}
     >
@@ -255,7 +255,7 @@ export function DataTable<TData>({
         </div>
       )}
       {hasToolbar ? (
-        <div className="flex items-center justify-between pb-2">
+        <div className="flex min-w-0 items-center justify-between pb-2">
           <FilterBar
             searchValue={searchValue}
             onSearchChange={onSearchChange}

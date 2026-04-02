@@ -8,6 +8,7 @@ import { AppIcon } from "@/components/icons/app-icons";
 import { interactionTypeIconMap } from "@/components/crm/interaction-timeline";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { useContactInteractions } from "@/hooks/use-contact-relations";
 import { formatCrmDateTime } from "@/lib/crm/display";
 
@@ -20,16 +21,9 @@ export function ContactTimeline({ contactId }: ContactTimelineProps) {
 
   if (isLoading) {
     return (
-      <div className="animate-pulse space-y-4">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="flex gap-3">
-            <div className="h-8 w-8 rounded-full bg-muted/30" />
-            <div className="flex-1 space-y-2">
-              <div className="h-4 w-48 rounded bg-muted/30" />
-              <div className="h-3 w-32 rounded bg-muted/20" />
-            </div>
-          </div>
-        ))}
+      <div className="flex min-h-10 items-center gap-2 text-sm text-muted-foreground">
+        <Spinner className="size-3.5" />
+        <span>Loading activity...</span>
       </div>
     );
   }
