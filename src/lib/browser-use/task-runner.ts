@@ -6,8 +6,8 @@ import { z } from "zod";
 
 import { getBrowserUseClient } from "./client";
 
-/** Cost-efficient Browser-Use model for listing extraction tasks. */
-const BROWSER_USE_MODEL = "bu-mini" as const;
+/** Browser Use v2 expects one of its supported named LLM identifiers. */
+const BROWSER_USE_MODEL = "browser-use-2.0" as const;
 
 interface RunBrowserTaskOptions<TSchema extends z.ZodType> {
   /** Structured output contract enforced by Browser-Use. */
@@ -58,11 +58,9 @@ export async function runBrowserTask<TSchema extends z.ZodType>(
   try {
     result = await client.run(prompt, {
       schema: options.schema,
-      model: BROWSER_USE_MODEL,
-      maxCostUsd: options.maxCostUsd,
+      llm: BROWSER_USE_MODEL,
       maxSteps: options.maxSteps,
-      keepAlive: false,
-    } as never);
+    });
   } catch (error) {
     return {
       success: false,
@@ -71,7 +69,7 @@ export async function runBrowserTask<TSchema extends z.ZodType>(
     };
   }
 
-  if (!result.isTaskSuccessful) {
+  if (result.isSuccess !== true) {
     return {
       success: false,
       error: typeof result.output === "string" ? result.output : "Browser task failed",
@@ -82,10 +80,10 @@ export async function runBrowserTask<TSchema extends z.ZodType>(
     success: true,
     output: result.output as z.output<TSchema>,
     cost: {
-      total: Number(result.totalCostUsd),
-      llm: Number(result.llmCostUsd),
-      proxy: Number(result.proxyCostUsd),
-      browser: Number(result.browserCostUsd),
+      total: Number(result.cost ?? 0),
+      llm: 0,
+      proxy: 0,
+      browser: 0,
     },
   };
 }

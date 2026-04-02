@@ -2,7 +2,7 @@
  * Shared Browser-Use Cloud client singleton.
  * @module lib/browser-use/client
  */
-import { BrowserUse } from "browser-use-sdk/v3";
+import { BrowserUse } from "browser-use-sdk";
 
 let browserUseClient: BrowserUse | null = null;
 let browserUseApiKey: string | null = null;
