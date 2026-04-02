@@ -11,6 +11,7 @@ import { createHash } from "node:crypto";
 
 import { tool, type Tool } from "ai";
 import type { Sandbox } from "@vercel/sandbox";
+import type { CommandResult } from "bash-tool";
 import { z } from "zod";
 
 import { buildContextJson } from "./build-context-json";
@@ -24,26 +25,7 @@ const SANDBOX_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 type SandboxModule = typeof import("@vercel/sandbox");
 type SandboxCreateOptions = Parameters<SandboxModule["Sandbox"]["create"]>[0];
 
-interface BashCommandResult {
-  stdout: string;
-  stderr: string;
-  exitCode: number;
-  [key: string]: unknown;
-}
-
-interface BashToolModule {
-  createBashTool: (options: {
-    sandbox: Sandbox;
-    extraInstructions: string;
-    maxOutputLength: number;
-    onBeforeBashCall?: (input: { command: string }) => { command: string } | undefined;
-    onAfterBashCall?: (input: { command: string; result: BashCommandResult }) => { result: BashCommandResult } | undefined;
-  }) => Promise<{
-    bash: {
-      execute: (input: { command: string }) => Promise<BashCommandResult>;
-    };
-  }>;
-}
+type BashCommandResult = CommandResult;
 
 interface LazyBashExecutionResult extends BashCommandResult {
   artifacts: SyncedArtifact[];
@@ -115,12 +97,17 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
 
     // Dynamic import to avoid loading @vercel/sandbox when sandbox isn't used
     const sandboxModule = await import("@vercel/sandbox");
-    const { createBashTool } = await import("bash-tool") as BashToolModule;
+    const { createBashTool } = await import("bash-tool");
     const SandboxClass = sandboxModule.Sandbox;
 
     // 1. Create sandbox from golden snapshot
     const { getServerEnv } = await import("@/lib/env");
     const env = getServerEnv();
+
+    // Inject web research API keys so sandbox scripts can call Brave/Exa directly.
+    const sandboxEnv: Record<string, string> = {};
+    if (env.BRAVE_SEARCH_API_KEY) sandboxEnv.BRAVE_SEARCH_API_KEY = env.BRAVE_SEARCH_API_KEY;
+    if (env.EXA_API_KEY) sandboxEnv.EXA_API_KEY = env.EXA_API_KEY;
 
     const sandboxOptions: SandboxCreateOptions =
       env.VERCEL_TOKEN && env.VERCEL_TEAM_ID && env.VERCEL_PROJECT_ID
@@ -130,10 +117,12 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
           token: env.VERCEL_TOKEN,
           teamId: env.VERCEL_TEAM_ID,
           projectId: env.VERCEL_PROJECT_ID,
+          env: sandboxEnv,
         }
         : {
           source: { type: "snapshot", snapshotId },
           timeout: SANDBOX_TIMEOUT_MS,
+          env: sandboxEnv,
         };
 
     sandbox = await SandboxClass.create(sandboxOptions);
@@ -179,7 +168,7 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
       `\nUse \`ls\` to discover individual files.`,
     ].join("\n");
 
-    const { bash } = await createBashTool({
+    const bashToolkit = await createBashTool({
       sandbox,
       extraInstructions,
       maxOutputLength: 100_000,
@@ -187,7 +176,7 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
         console.log(`[sandbox] $ ${command}`);
         return undefined;
       },
-      onAfterBashCall: ({ command, result }) => {
+      onAfterBashCall: ({ result }) => {
         const lines = result.stdout.split("\n");
         const preview = lines.slice(0, 8).join("\n");
         const suffix = lines.length > 8 ? `\n... (${lines.length} lines)` : "";
@@ -198,7 +187,7 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
       },
     });
 
-    bashExecute = bash.execute;
+    bashExecute = ({ command }) => bashToolkit.sandbox.executeCommand(command);
     initialized = true;
   }
 
