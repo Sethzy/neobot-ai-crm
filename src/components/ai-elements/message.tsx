@@ -12,7 +12,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { streamdownPlugins } from "./streamdown-plugins";
+import { useMermaidPlugin } from "./use-mermaid-plugin";
 import type { UIMessage } from "ai";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
@@ -369,28 +369,33 @@ const messageComponents: Components = {
 };
 
 export const MessageResponse = memo(
-  ({ className, ...props }: MessageResponseProps) => (
-    <Streamdown
-      className={cn(
-        "size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
-        className
-      )}
-      components={messageComponents}
-      plugins={streamdownPlugins}
-      mermaid={{
-        config: {
-          flowchart: { useMaxWidth: true, nodeSpacing: 30, rankSpacing: 40, curve: "basis" },
-          sequence: { actorMargin: 50, boxMargin: 10 },
-        },
-      }}
-      controls={{ mermaid: { download: true, copy: true, fullscreen: true, panZoom: false } }}
-      {...props}
-    >
-      {typeof props.children === "string"
-        ? rewriteSunderMarkdownLinks(props.children)
-        : props.children}
-    </Streamdown>
-  ),
+  ({ className, ...props }: MessageResponseProps) => {
+    const content = typeof props.children === "string" ? props.children : undefined;
+    const plugins = useMermaidPlugin(content);
+
+    return (
+      <Streamdown
+        className={cn(
+          "size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+          className
+        )}
+        components={messageComponents}
+        plugins={plugins}
+        mermaid={{
+          config: {
+            flowchart: { useMaxWidth: true, nodeSpacing: 30, rankSpacing: 40, curve: "basis" },
+            sequence: { actorMargin: 50, boxMargin: 10 },
+          },
+        }}
+        controls={{ mermaid: { download: true, copy: true, fullscreen: true, panZoom: false } }}
+        {...props}
+      >
+        {content
+          ? rewriteSunderMarkdownLinks(content)
+          : props.children}
+      </Streamdown>
+    );
+  },
   (prevProps, nextProps) =>
     prevProps.children === nextProps.children &&
     nextProps.isAnimating === prevProps.isAnimating

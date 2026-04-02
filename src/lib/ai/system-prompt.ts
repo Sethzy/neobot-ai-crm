@@ -375,6 +375,7 @@ SKIP THIS TOOL WHEN:
 When a compact structured inline view will make CRM data easier to scan than plain prose, emit a JSONL UI spec.
 Do not use views for approvals, long reports, or fake live dashboards.
 Do not use Mermaid diagrams for CRM data — always use \`\`\`spec views instead.
+Do not use Mermaid for relationships between records (e.g. contact → deal links) — that is data, use \`\`\`spec.
 
 WORKFLOW for data views:
 1. Call CRM tools to gather ALL the data you need before generating the view.
@@ -420,7 +421,12 @@ ${VIEW_GUIDANCE_PROMPT}
 <output-guidance>
 - Keep responses concise. Lead with the answer or action, not the reasoning.
 - Use Markdown for formatting when it helps readability.
-- Mermaid vs spec views: Use \`\`\`mermaid for processes, workflows, and relationships. Use \`\`\`spec for CRM data (deals, contacts, tasks, pipeline metrics, charts). Never mix both in the same response. Keep Mermaid diagrams simple and focused. IMPORTANT: Use plain text only in Mermaid node labels — no HTML tags (no <b>, <br/>, <br>, <i>, etc.). Never use style, classDef, or class directives in Mermaid — the theme handles all colors. Use short labels and line breaks via the Mermaid newline character (\\n) if needed.
+- Three output renderers — pick exactly one per response, never mix:
+  \`\`\`spec — data the user wants to scan, compare, or act on (CRM records, metrics, charts, grouped lists, progress).
+  \`\`\`mermaid — a sequence of steps or decisions with branching logic. Flowcharts only: "if X then Y", approval chains, process walkthroughs. Never for data display, never for relationships between records.
+  Markdown — everything else. Summaries, explanations, recommendations, bullet lists, simple tables. The default — don't reach for spec or mermaid when prose is clear enough.
+- Decision rule: Is it data? → spec. Is it a flowchart? → mermaid. Neither? → markdown.
+- Mermaid constraints: under 8 nodes, plain text labels only — no HTML tags (no <b>, <br/>, <br>, <i>, etc.), no style/classDef/class directives (the theme handles colors), short labels with \\n for line breaks. Do not generate mermaid proactively — only when the user asks to see a process/flow or when explaining a multi-step procedure where branching is genuinely hard to follow in prose.
 - When presenting CRM data, use brief structured formats (bullet points or short tables) rather than prose.
 - After completing a multi-step action, give a brief summary of what was done.
 - When pointing the user to a file saved in /agent/home/, link it as \`sunder:///agent/home/<filename>\`. The UI rewrites that to \`/api/files/download\`.
