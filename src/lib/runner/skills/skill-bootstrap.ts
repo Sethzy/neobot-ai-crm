@@ -23,7 +23,7 @@ import {
 const SKILLS_DIRECTORY = "skills";
 const RESERVED_SKILL_DIRECTORIES = new Set(["system", "connections", "superpowers"]);
 
-/** Skill slugs removed in the Sprites → Vercel Sandbox migration. Clean up from storage on bootstrap. */
+/** Skill slugs removed in the Vercel Sandbox migration. Clean up from storage on bootstrap. */
 const DEPRECATED_SKILL_SLUGS = [
   "pdf_creation",
   "excel_editing",

@@ -80,13 +80,14 @@ export async function releaseTriggerClaim(
     advanceNextFireAt?: boolean;
   },
 ): Promise<void> {
-  const { data, error } = await supabase.rpc("release_trigger_claim", {
-    p_next_fire_at: options?.nextFireAt ?? null,
+  const rpcArgs = {
     p_advance_next_fire_at: options?.advanceNextFireAt ?? true,
     p_trigger_id: triggerId,
     p_run_id: runId,
     p_status: status,
-  });
+    ...(typeof options?.nextFireAt === "string" ? { p_next_fire_at: options.nextFireAt } : {}),
+  };
+  const { data, error } = await supabase.rpc("release_trigger_claim", rpcArgs);
 
   if (error) {
     throw new Error(`Failed to release trigger claim: ${error.message}`);

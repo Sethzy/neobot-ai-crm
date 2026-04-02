@@ -62,6 +62,9 @@ function normalizeCrmVocabularyConfig(config: PartialCrmVocabularyConfig): CrmVo
     contact_custom_fields: config.contact_custom_fields ?? CRM_DEFAULTS.contact_custom_fields,
     company_custom_fields: config.company_custom_fields ?? CRM_DEFAULTS.company_custom_fields,
     task_custom_fields: config.task_custom_fields ?? CRM_DEFAULTS.task_custom_fields,
+    contact_fields: config.contact_fields ?? CRM_DEFAULTS.contact_fields,
+    company_fields: config.company_fields ?? CRM_DEFAULTS.company_fields,
+    deal_fields: config.deal_fields ?? CRM_DEFAULTS.deal_fields,
   };
 }
 

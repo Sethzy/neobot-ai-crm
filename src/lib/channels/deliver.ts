@@ -5,6 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { TELEGRAM_CHANNEL } from "@/lib/channels/telegram/webhook";
+import type { QuestionOption } from "@/lib/channels/telegram/questions";
 import { extractApprovalPartsFromPersisted, type PersistedPart } from "@/lib/runner/message-utils";
 import type { Database } from "@/types/database";
 
@@ -13,7 +14,7 @@ type AskUserQuestionOption = string | { label?: string; description?: string };
 type AskUserQuestionOutput = {
   questions?: Array<{
     question?: string;
-    options?: AskUserQuestionOption[];
+    options?: QuestionOption[];
     type?: "single_select" | "multi_select" | "rank_priorities";
   }>;
 };
@@ -73,15 +74,22 @@ function extractQuestionOutputs(parts?: ReadonlyArray<PersistedPart>) {
           return [];
         }
 
-        const options = question.options.flatMap((option) => {
-          if (typeof option === "string") return [option];
-          if (typeof option === "object" && option !== null && typeof option.label === "string") {
-            return option.description
-              ? [{ label: option.label, description: option.description }]
-              : [option.label];
+        const options: QuestionOption[] = [];
+
+        for (const option of question.options as AskUserQuestionOption[]) {
+          if (typeof option === "string") {
+            options.push(option);
+            continue;
           }
-          return [];
-        });
+
+          if (typeof option === "object" && option !== null && typeof option.label === "string") {
+            options.push(
+              typeof option.description === "string"
+                ? { label: option.label, description: option.description }
+                : option.label,
+            );
+          }
+        }
 
         return [{
           question: question.question,

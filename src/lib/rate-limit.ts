@@ -9,6 +9,24 @@ export interface RateLimitResult {
 
 const KEY_PREFIX = "ratelimit:";
 
+function parseRedisIntegerReply(reply: unknown): number | null {
+  if (typeof reply === "number" && Number.isFinite(reply)) {
+    return reply;
+  }
+
+  if (typeof reply === "bigint") {
+    const count = Number(reply);
+    return Number.isSafeInteger(count) ? count : null;
+  }
+
+  if (typeof reply === "string") {
+    const count = Number.parseInt(reply, 10);
+    return Number.isNaN(count) ? null : count;
+  }
+
+  return null;
+}
+
 /**
  * Check if a request is within the rate limit using a fixed-window counter.
  * Uses MULTI/EXEC for atomic INCR + EXPIRE so a partial failure can't
@@ -39,7 +57,10 @@ export async function checkRateLimit(
       .expire(redisKey, windowSeconds, "NX")
       .exec();
 
-    const count = results[0] as number;
+    const count = parseRedisIntegerReply(results[0]);
+    if (count === null) {
+      throw new Error("Unexpected Redis INCR reply type");
+    }
 
     if (count > limit) {
       const ttl = await client.ttl(redisKey);
