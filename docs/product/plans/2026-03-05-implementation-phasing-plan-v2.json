@@ -4744,7 +4744,7 @@
       {
         "pr": 27,
         "title": "Vercel Sandbox integration \u2014 setup",
-        "reason": "Originally cut. Restored as PR 52 (Sandbox Excel Analysis) in Phase 6 with simplified scope. NOTE: 2026-03-23 architecture revision superseded Vercel Sandbox with Sprites/Fly.io persistent VMs. See changelog entry for details.",
+        "reason": "Originally cut. Restored as PR 52 (Sandbox Excel Analysis) in Phase 6 with simplified scope. NOTE: PRs 52-56 (Sprites/Fly.io era) superseded by PR 59 (Vercel Sandbox + bash-tool).",
         "decisions": [
           "EXEC-04",
           "EXEC-05",
@@ -4755,7 +4755,7 @@
       {
         "pr": 28,
         "title": "Vercel Sandbox integration \u2014 artifacts",
-        "reason": "Originally cut. Restored as PR 53 (Sandbox Artifact Publishing) in Phase 6 with simplified scope. NOTE: 2026-03-23 architecture revision superseded Vercel Sandbox with Sprites/Fly.io persistent VMs. Pre-scaffolded React template, not full Tasklet instant-app pattern.",
+        "reason": "Originally cut. Restored as PR 53 (Sandbox Artifact Publishing) in Phase 6 with simplified scope. NOTE: PRs 52-56 (Sprites/Fly.io era) superseded by PR 59 (Vercel Sandbox + bash-tool).",
         "decisions": [
           "EXEC-07",
           "EXEC-08",
