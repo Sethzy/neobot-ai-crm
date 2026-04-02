@@ -11,7 +11,7 @@
  */
 "use client";
 
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { SPEC_DATA_PART_TYPE } from "@json-render/core";
 import { useJsonRenderMessage } from "@json-render/react";
 
@@ -75,26 +75,38 @@ function extractSkillSlug(parts: ChatUIMessage["parts"]): string | null {
 export const MessageBubble = memo(function MessageBubble({ message, isStreaming = false, isLast = false, onToolApproval, onQuestionSubmit }: MessageBubbleProps) {
   const isUserMessage = message.role === "user";
   const { spec, hasSpec } = useJsonRenderMessage(message.parts);
+  const skillSlug = useMemo(() => extractSkillSlug(message.parts), [message.parts]);
 
-  const fileParts = message.parts.filter(
-    (part): part is Extract<ChatUIMessage["parts"][number], { type: "file" }> => part.type === "file",
+  const fileParts = useMemo(
+    () => message.parts.filter(
+      (part): part is Extract<ChatUIMessage["parts"][number], { type: "file" }> => part.type === "file",
+    ),
+    [message.parts],
   );
-  const textParts = message.parts.filter((p) => p.type === "text");
+  const textParts = useMemo(
+    () => message.parts.filter((p) => p.type === "text"),
+    [message.parts],
+  );
 
   // Extract ask_user_question tool parts — these render inline (not collapsed in StepsSummary)
-  const allIntermediateParts = message.parts.filter(
-    (p) => p.type === "reasoning" || p.type.startsWith("tool-"),
+  const allIntermediateParts = useMemo(
+    () => message.parts.filter(
+      (p) => p.type === "reasoning" || p.type.startsWith("tool-"),
+    ),
+    [message.parts],
   );
-  const askQuestionParts = allIntermediateParts.filter(
-    (p) => p.type === "tool-ask_user_question" && (p as { state?: string }).state === "output-available",
+  const askQuestionParts = useMemo(
+    () => allIntermediateParts.filter(
+      (p) => p.type === "tool-ask_user_question" && (p as { state?: string }).state === "output-available",
+    ),
+    [allIntermediateParts],
   );
-  const intermediateParts = allIntermediateParts.filter(
-    (p) => p.type !== "tool-ask_user_question",
+  const intermediateParts = useMemo(
+    () => allIntermediateParts.filter(
+      (p) => p.type !== "tool-ask_user_question",
+    ),
+    [allIntermediateParts],
   );
-
-  // Track whether we inserted the spec inline via the segment builder.
-  // If not but hasSpec is true, we render it at the end as a fallback.
-  let specInserted = false;
 
   /**
    * Build ordered segments from parts: text / spec.
@@ -102,25 +114,29 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
    * but spec data parts (`SPEC_DATA_PART_TYPE`) get their own segment so the
    * ViewRenderer appears at the exact position the LLM placed the ```spec fence.
    */
-  const segments: Array<
-    | { kind: "text"; parts: Array<{ type: "text"; text: string }> }
-    | { kind: "spec" }
-  > = [];
+  const { segments, specInserted } = useMemo(() => {
+    let inserted = false;
+    const segs: Array<
+      | { kind: "text"; parts: Array<{ type: "text"; text: string }> }
+      | { kind: "spec" }
+    > = [];
 
-  for (const part of message.parts) {
-    if (part.type === "text") {
-      const lastSeg = segments[segments.length - 1];
-      if (lastSeg?.kind === "text") {
-        lastSeg.parts.push(part as { type: "text"; text: string });
-      } else {
-        segments.push({ kind: "text", parts: [part as { type: "text"; text: string }] });
+    for (const part of message.parts) {
+      if (part.type === "text") {
+        const lastSeg = segs[segs.length - 1];
+        if (lastSeg?.kind === "text") {
+          lastSeg.parts.push(part as { type: "text"; text: string });
+        } else {
+          segs.push({ kind: "text", parts: [part as { type: "text"; text: string }] });
+        }
+      } else if (part.type === SPEC_DATA_PART_TYPE && !inserted) {
+        segs.push({ kind: "spec" });
+        inserted = true;
       }
-    } else if (part.type === SPEC_DATA_PART_TYPE && !specInserted) {
-      segments.push({ kind: "spec" });
-      specInserted = true;
     }
-    // tool- and reasoning parts are handled by StepsSummary, not segments
-  }
+
+    return { segments: segs, specInserted: inserted };
+  }, [message.parts]);
 
   const hasParts = fileParts.length > 0 || allIntermediateParts.length > 0 || textParts.length > 0 || hasSpec;
   const isLoadingSpec = isLast && isStreaming;
@@ -156,15 +172,11 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
   return (
     <Message from="assistant" data-testid="message-bubble">
       <MessageContent>
-        {(() => {
-          const skillSlug = extractSkillSlug(message.parts);
-          if (!skillSlug) return null;
-          return (
-            <Badge variant="outline" data-testid="skill-badge" className="mb-2 text-xs">
-              {skillSlug}
-            </Badge>
-          );
-        })()}
+        {skillSlug ? (
+          <Badge variant="outline" data-testid="skill-badge" className="mb-2 text-xs">
+            {skillSlug}
+          </Badge>
+        ) : null}
 
         {isStreaming && !hasParts && (
           <Shimmer as="span" className="text-xs" duration={2}>

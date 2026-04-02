@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 
+import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -431,7 +432,11 @@ export function ToolCallInline({
             isDenied && "bg-denied",
           )}
         />
-        <span>{name}</span>
+        {isRunning ? (
+          <Shimmer as="span" className="text-xs" duration={2}>{name}</Shimmer>
+        ) : (
+          <span>{name}</span>
+        )}
         {isDenied ? (
           <span className="text-[10px] font-medium text-denied">
             Denied

@@ -7,17 +7,49 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Shimmer } from "@/components/ai-elements/shimmer";
+import { cn } from "@/lib/utils";
 
 import {
   Reasoning,
   ReasoningContent,
   ReasoningTrigger,
+  useReasoning,
 } from "@/components/ai-elements/reasoning";
 
 import { ToolCallInline, type ToolPartState } from "./tool-call-inline";
+
+/** Compact trigger content that matches ToolCallInline's visual style (dot + text-xs + ›). */
+function CompactReasoningTriggerContent() {
+  const { isStreaming, isOpen, duration } = useReasoning();
+  const label =
+    isStreaming || duration === 0
+      ? "Thinking..."
+      : duration === undefined
+        ? "Thought for a few seconds"
+        : `Thought for ${duration} seconds`;
+
+  return (
+    <>
+      <span className={cn(
+        "h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50",
+        isStreaming && "animate-pulse bg-foreground/50",
+      )} />
+      {isStreaming ? (
+        <Shimmer as="span" className="text-xs" duration={1}>
+          {label}
+        </Shimmer>
+      ) : (
+        <span>{label}</span>
+      )}
+      <span className="text-[10px] text-muted-foreground/40">
+        {isOpen ? "▾" : "›"}
+      </span>
+    </>
+  );
+}
 
 interface StepsSummaryProps {
   /** Intermediate parts only (reasoning + tool-*). */
@@ -53,13 +85,28 @@ function isProminentToolPart(part: { type: string; [key: string]: unknown }): bo
   );
 }
 
+const AUTO_CLOSE_DELAY = 600;
+
 export function StepsSummary({ parts, isStreaming, hasTextParts, messageId, onToolApproval }: StepsSummaryProps) {
-  const [isOpen, setIsOpen] = useState(false);
   const prominentToolParts = parts.filter((part) => isProminentToolPart(part));
   const collapsibleParts = parts.filter((part) => !isProminentToolPart(part));
 
   // Activity is complete when: not streaming OR text has started streaming
   const isComplete = !isStreaming || hasTextParts;
+
+  // Auto-open while streaming (like Vercel ai-chatbot pattern), auto-close on completion
+  const [isOpen, setIsOpen] = useState(() => !isComplete);
+  const hasAutoClosedRef = useRef(false);
+
+  useEffect(() => {
+    if (isComplete && isOpen && !hasAutoClosedRef.current) {
+      const timer = setTimeout(() => {
+        setIsOpen(false);
+        hasAutoClosedRef.current = true;
+      }, AUTO_CLOSE_DELAY);
+      return () => clearTimeout(timer);
+    }
+  }, [isComplete, isOpen]);
 
   const stepCount = parts.length;
   const summaryText = isComplete
@@ -111,7 +158,7 @@ export function StepsSummary({ parts, isStreaming, hasTextParts, messageId, onTo
       </button>
 
       {isOpen && collapsibleParts.length > 0 && (
-        <div data-testid="steps-summary-content" className="mt-1 space-y-3 ml-1 border-l border-border/40 pl-3">
+        <div data-testid="steps-summary-content" className="mt-1 space-y-2 ml-1 border-l border-border/40 pl-3">
           {collapsibleParts.map((part, i) => {
             const key = `${messageId}-step-${i}`;
 
@@ -120,9 +167,14 @@ export function StepsSummary({ parts, isStreaming, hasTextParts, messageId, onTo
                 <Reasoning
                   key={key}
                   isStreaming={isStreaming && i === collapsibleParts.length - 1}
+                  className="mb-0"
                 >
-                  <ReasoningTrigger />
-                  <ReasoningContent>{part.text as string}</ReasoningContent>
+                  <ReasoningTrigger className="text-xs gap-1.5">
+                    <CompactReasoningTriggerContent />
+                  </ReasoningTrigger>
+                  <ReasoningContent className="mt-1 text-xs">
+                    {part.text as string}
+                  </ReasoningContent>
                 </Reasoning>
               );
             }

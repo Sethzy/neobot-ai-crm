@@ -73,7 +73,7 @@ export function ChatWelcome({
   return (
     <div className="flex flex-1 flex-col items-center overflow-y-auto px-4 pt-24 pb-8">
       <div className="w-full max-w-[780px]">
-        {/* Hero heading — Fraunces serif for editorial weight */}
+        {/* Hero heading — Playfair Display for editorial weight */}
         <h1
           className="text-center leading-tight font-semibold text-foreground"
           style={{ fontSize: "2.75rem", fontFamily: "var(--font-playfair), serif", letterSpacing: "-0.01em" }}
@@ -117,12 +117,12 @@ export function ChatWelcome({
                   type="button"
                   onClick={() => setActiveCategory(category)}
                   className={cn(
-                    "-mb-px border-b-2 pb-2.5 text-sm font-medium transition-colors",
+                    "-mb-px border-b-2 py-2.5 text-sm font-medium transition-all",
                     isActive
                       ? "text-foreground"
                       : "border-transparent text-muted-foreground hover:text-foreground",
                   )}
-                  style={isActive ? { borderColor: CATEGORY_COLORS[category] } : undefined}
+                  style={{ borderColor: isActive ? CATEGORY_COLORS[category] : "transparent" }}
                 >
                   {CATEGORY_LABELS[category]}
                 </button>
@@ -163,7 +163,7 @@ function TemplateCard({
       <span className="text-sm font-semibold text-foreground">
         {template.title}
       </span>
-      <span className="mt-1.5 flex-1 text-xs leading-relaxed text-muted-foreground">
+      <span className="mt-1.5 flex-1 text-[0.8125rem] leading-relaxed text-muted-foreground">
         {template.description}
       </span>
     </button>
