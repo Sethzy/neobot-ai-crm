@@ -119,5 +119,9 @@ const nextConfig: NextConfig = {
 export default withSentryConfig(withBundleAnalyzer(nextConfig), {
   silent: true,
   widenClientFileUpload: true,
-  disableLogger: true,
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+  },
 });

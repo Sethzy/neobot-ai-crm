@@ -22,8 +22,8 @@
   },
   "include": [
     "next-env.d.ts",
-    "instrumentation.ts",
     "middleware.ts",
+    "instrumentation-client.ts",
     "app/**/*.ts",
     "app/**/*.tsx",
     "src/**/*.ts",
