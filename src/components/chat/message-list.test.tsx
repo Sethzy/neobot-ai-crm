@@ -33,6 +33,16 @@ vi.mock("@/components/ai-elements/message", () => ({
   ),
 }));
 
+vi.mock("@/components/ai-elements/reasoning", () => ({
+  Reasoning: ({ children, isStreaming }: { children: React.ReactNode; isStreaming?: boolean }) => (
+    <div data-testid="reasoning-block" data-streaming={isStreaming}>{children}</div>
+  ),
+  ReasoningTrigger: () => <div data-testid="reasoning-trigger" />,
+  ReasoningContent: ({ children }: { children: string }) => (
+    <div data-testid="reasoning-content">{children}</div>
+  ),
+}));
+
 vi.mock("@/components/ai-elements/shimmer", () => ({
   Shimmer: ({ children, className }: { children: string; className?: string }) => (
     <span data-testid="shimmer" className={className}>{children}</span>
@@ -40,14 +50,8 @@ vi.mock("@/components/ai-elements/shimmer", () => ({
 }));
 
 vi.mock("./tool-call-inline", () => ({
-  ToolCallInline: ({ name }: { name: string }) => (
-    <div data-testid="tool-call-inline">{name}</div>
-  ),
-}));
-
-vi.mock("./steps-summary", () => ({
-  StepsSummary: ({ isStreaming, onToolApproval }: { parts: Array<{ type: string }>; isStreaming: boolean; hasTextParts: boolean; messageId: string; onToolApproval?: unknown }) => (
-    <div data-testid="steps-summary" data-streaming={isStreaming} data-has-approval={!!onToolApproval} />
+  ToolCallInline: ({ name, onToolApproval }: { name: string; onToolApproval?: unknown }) => (
+    <div data-testid="tool-call-inline" data-has-approval={!!onToolApproval}>{name}</div>
   ),
 }));
 
@@ -115,7 +119,7 @@ describe("MessageList", () => {
     };
     render(<MessageList messages={[userMessage, streamingAssistant]} status="streaming" />);
 
-    expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-streaming", "true");
+    expect(screen.getByTestId("reasoning-block")).toHaveAttribute("data-streaming", "true");
   });
 
   it("does not mark messages as streaming when status is ready", () => {
@@ -129,7 +133,7 @@ describe("MessageList", () => {
     };
     render(<MessageList messages={[userMessage, withReasoning]} status="ready" />);
 
-    expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-streaming", "false");
+    expect(screen.getByTestId("reasoning-block")).toHaveAttribute("data-streaming", "false");
   });
 
   it("shows thinking shimmer inside a MessageBubble when status is submitted", () => {
@@ -164,17 +168,17 @@ describe("MessageList", () => {
 
   it("forwards onToolApproval through to MessageBubble", () => {
     const onToolApproval = vi.fn();
-    const withReasoning = {
+    const withTool = {
       id: "2",
       role: "assistant" as const,
       parts: [
-        { type: "reasoning" as const, text: "Thinking..." },
+        { type: "tool-run_sql" as const, toolCallId: "tc1", state: "output-available" as const, input: {}, output: {} },
         { type: "text" as const, text: "Answer." },
       ],
     };
-    render(<MessageList messages={[userMessage, withReasoning]} status="ready" onToolApproval={onToolApproval} />);
+    render(<MessageList messages={[userMessage, withTool]} status="ready" onToolApproval={onToolApproval} />);
 
-    expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-has-approval", "true");
+    expect(screen.getByTestId("tool-call-inline")).toHaveAttribute("data-has-approval", "true");
   });
 
   it("composes ConversationScrollButton inside Conversation", () => {

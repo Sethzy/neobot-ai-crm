@@ -86,9 +86,9 @@ vi.mock("@/hooks/use-message-quota", () => ({
   useMessageQuota: (...args: unknown[]) => mockUseMessageQuota(...args),
 }));
 
-vi.mock("./steps-summary", () => ({
-  StepsSummary: ({ isStreaming, onToolApproval }: { parts: Array<{ type: string }>; isStreaming: boolean; hasTextParts: boolean; messageId: string; onToolApproval?: unknown }) => (
-    <div data-testid="steps-summary" data-streaming={isStreaming} data-has-approval={!!onToolApproval} />
+vi.mock("./tool-call-inline", () => ({
+  ToolCallInline: ({ name, onToolApproval }: { name: string; onToolApproval?: unknown }) => (
+    <div data-testid="tool-call-inline" data-name={name} data-has-approval={!!onToolApproval}>{name}</div>
   ),
 }));
 
@@ -567,7 +567,7 @@ describe("ChatPanel", () => {
           id: "a1",
           role: "assistant",
           parts: [
-            { type: "reasoning", text: "Thinking..." },
+            { type: "tool-run_sql", toolCallId: "tc1", state: "output-available", input: {}, output: {} },
             { type: "text", text: "Done." },
           ],
         },
@@ -587,9 +587,9 @@ describe("ChatPanel", () => {
 
     render(<ChatPanel chatId="thread-1" />);
 
-    // The steps-summary should have data-has-approval="true" because
-    // ChatPanel wires addToolApprovalResponse → MessageList → MessageBubble → StepsSummary
-    expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-has-approval", "true");
+    // ToolCallInline should have data-has-approval="true" because
+    // ChatPanel wires addToolApprovalResponse → MessageList → MessageBubble → ToolCallInline
+    expect(screen.getByTestId("tool-call-inline")).toHaveAttribute("data-has-approval", "true");
   });
 
   it("pushes /chat/{id} before sending from the draft route", async () => {
