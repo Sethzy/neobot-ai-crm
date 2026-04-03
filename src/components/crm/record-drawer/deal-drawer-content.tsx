@@ -4,11 +4,17 @@
  */
 "use client";
 
+import { type ReactNode, useState } from "react";
+import { formatDistanceToNow } from "date-fns";
+import { Clock3, House, ListTodo, Users } from "lucide-react";
+
+import { LinkedContactsSection } from "@/components/crm/detail/linked-contacts-section";
+import { LinkedTasksSection } from "@/components/crm/detail/linked-tasks-section";
 import { InteractionTimeline } from "@/components/crm/interaction-timeline";
 import { InlineEditField } from "@/components/crm/inline-edit-field";
 import { StageBadge } from "@/components/crm/stage-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDealInteractions } from "@/hooks/use-contact-relations";
+import { useDealInteractions, useDealTasks } from "@/hooks/use-contact-relations";
 import { useCompanies } from "@/hooks/use-companies";
 import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useDeal } from "@/hooks/use-deals";
@@ -25,21 +31,28 @@ import { dealStageValues, type Deal } from "@/lib/crm/schemas";
 
 import { CustomFieldEditors } from "./custom-field-editors";
 import { DrawerSection } from "./drawer-section";
+import { RecordDetailPanelShell } from "./record-detail-panel-shell";
 
 interface DealDrawerContentProps {
   /** Deal id selected in the drawer. */
   dealId: string;
+  /** Optional close control for inline desktop panels. */
+  closeButton?: ReactNode;
 }
+
+type DealDrawerTab = "home" | "contacts" | "timeline" | "tasks";
 
 /**
  * Renders deal details, linked contacts, and interaction timeline.
  */
-export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
+export function DealDrawerContent({ dealId, closeButton }: DealDrawerContentProps) {
   const { data: deal, isLoading, isError } = useDeal(dealId);
   const { data: interactions = [] } = useDealInteractions(dealId);
+  const { data: linkedTasks = [] } = useDealTasks(dealId);
   const { data: companies = [] } = useCompanies({});
   const { data: crmConfigResult } = useCrmConfig();
   const updateDeal = useUpdateDeal(dealId);
+  const [activeTab, setActiveTab] = useState<DealDrawerTab>("home");
 
   if (isLoading) {
     return (
@@ -66,111 +79,129 @@ export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
     })),
   ];
   const dealCustomFields = crmConfigResult?.config.deal_custom_fields ?? [];
+  const tabs: Array<{ id: DealDrawerTab; label: string; icon: ReactNode }> = [
+    { id: "home", label: "Home", icon: <House className="h-4 w-4" /> },
+    { id: "contacts", label: "Contacts", icon: <Users className="h-4 w-4" /> },
+    { id: "timeline", label: "Timeline", icon: <Clock3 className="h-4 w-4" /> },
+    { id: "tasks", label: "Tasks", icon: <ListTodo className="h-4 w-4" /> },
+  ];
 
   return (
-    <div className="relative space-y-6 overflow-y-auto p-6">
-      <header className="space-y-1">
-        <h2 className="text-lg font-semibold">{deal.address}</h2>
-        <StageBadge stage={deal.stage} />
-      </header>
+    <div className="min-h-0 overflow-y-auto">
+      <RecordDetailPanelShell
+        title={deal.address}
+        meta={`Updated ${formatDistanceToNow(new Date(deal.updated_at), { addSuffix: true })}`}
+        closeButton={closeButton}
+        badge={<StageBadge stage={deal.stage} />}
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      >
+        {activeTab === "home" ? (
+          <div className="space-y-6">
+            <DrawerSection title="Fields">
+              <div className="space-y-0.5">
+                <InlineEditField
+                  label="Address"
+                  value={deal.address}
+                  onSave={async (nextValue) => {
+                    await updateDeal.mutateAsync({ address: nextValue.trim() });
+                  }}
+                />
+                <InlineEditField
+                  label="Stage"
+                  value={deal.stage}
+                  type="select"
+                  options={dealStageOptions}
+                  onSave={async (nextValue) => {
+                    await updateDeal.mutateAsync({ stage: nextValue as Deal["stage"] });
+                  }}
+                />
+                <InlineEditField
+                  label="Company"
+                  value={deal.company_id}
+                  type="select"
+                  options={companyOptions}
+                  onSave={async (nextValue) => {
+                    await updateDeal.mutateAsync({
+                      company_id: nextValue === "__none__" ? null : nextValue,
+                    });
+                  }}
+                />
+                <InlineEditField
+                  label="Price"
+                  value={formatCrmPrice(deal.amount)}
+                  onSave={async (nextValue) => {
+                    const numericPriceString = nextValue.replace(/[^\d.-]/g, "");
+                    if (!numericPriceString) {
+                      await updateDeal.mutateAsync({ amount: null });
+                      return;
+                    }
 
-      <DrawerSection title="Details">
-        <div className="space-y-0.5">
-          <InlineEditField
-            label="Address"
-            value={deal.address}
-            onSave={async (nextValue) => {
-              await updateDeal.mutateAsync({ address: nextValue.trim() });
-            }}
-          />
-          <InlineEditField
-            label="Stage"
-            value={deal.stage}
-            type="select"
-            options={dealStageOptions}
-            onSave={async (nextValue) => {
-              await updateDeal.mutateAsync({ stage: nextValue as Deal["stage"] });
-            }}
-          />
-          <InlineEditField
-            label="Company"
-            value={deal.company_id}
-            type="select"
-            options={companyOptions}
-            onSave={async (nextValue) => {
-              await updateDeal.mutateAsync({
-                company_id: nextValue === "__none__" ? null : nextValue,
-              });
-            }}
-          />
-          <InlineEditField
-            label="Price"
-            value={formatCrmPrice(deal.amount)}
-            onSave={async (nextValue) => {
-              const numericPriceString = nextValue.replace(/[^\d.-]/g, "");
-              if (!numericPriceString) {
-                await updateDeal.mutateAsync({ amount: null });
-                return;
-              }
+                    const parsedPrice = Number(numericPriceString);
+                    if (Number.isNaN(parsedPrice)) {
+                      throw new Error("Price must be a valid number.");
+                    }
 
-              const parsedPrice = Number(numericPriceString);
-              if (Number.isNaN(parsedPrice)) {
-                throw new Error("Price must be a valid number.");
-              }
-
-              await updateDeal.mutateAsync({ amount: Math.round(parsedPrice) });
-            }}
-          />
-          <InlineEditField
-            label="Notes"
-            value={deal.notes}
-            type="textarea"
-            onSave={async (nextValue) => {
-              await updateDeal.mutateAsync({ notes: toNullableValue(nextValue) });
-            }}
-          />
-        </div>
-      </DrawerSection>
-
-      {dealCustomFields.length > 0 ? (
-        <DrawerSection title="Custom Fields">
-          <CustomFieldEditors
-            definitions={dealCustomFields}
-            values={(deal.custom_fields as Record<string, unknown> | null | undefined) ?? {}}
-            onSaveField={async (definition, nextValue) => {
-              await updateDeal.mutateAsync({
-                custom_fields: {
-                  [definition.key]: parseCustomFieldInputValue(definition.type, nextValue),
-                },
-              });
-            }}
-          />
-        </DrawerSection>
-      ) : null}
-
-      <DrawerSection title="Contacts">
-        {deal.deal_contacts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No linked contacts.</p>
-        ) : (
-          <div className="space-y-2">
-            {deal.deal_contacts.map((dealContact) => (
-              <div
-                key={dealContact.contact_id}
-                className="flex items-center justify-between rounded-lg border border-border/30 px-3 py-2 text-sm"
-              >
-                <span className="font-medium text-foreground/90">
-                  {dealContact.contacts ? formatContactFullName(dealContact.contacts) : "—"}
-                </span>
-                <span className="text-xs text-muted-foreground">{formatCrmEnumLabel(dealContact.role)}</span>
+                    await updateDeal.mutateAsync({ amount: Math.round(parsedPrice) });
+                  }}
+                />
+                <InlineEditField
+                  label="Notes"
+                  value={deal.notes}
+                  type="textarea"
+                  onSave={async (nextValue) => {
+                    await updateDeal.mutateAsync({ notes: toNullableValue(nextValue) });
+                  }}
+                />
               </div>
-            ))}
-          </div>
-        )}
-      </DrawerSection>
+            </DrawerSection>
 
-      <DrawerSection title="Activity">
-        <InteractionTimeline interactions={interactions} />
-      </DrawerSection>
+            {dealCustomFields.length > 0 ? (
+              <DrawerSection title="Custom Fields">
+                <CustomFieldEditors
+                  definitions={dealCustomFields}
+                  values={(deal.custom_fields as Record<string, unknown> | null | undefined) ?? {}}
+                  onSaveField={async (definition, nextValue) => {
+                    await updateDeal.mutateAsync({
+                      custom_fields: {
+                        [definition.key]: parseCustomFieldInputValue(definition.type, nextValue),
+                      },
+                    });
+                  }}
+                />
+              </DrawerSection>
+            ) : null}
+          </div>
+        ) : null}
+
+        {activeTab === "contacts" ? (
+          <DrawerSection title="Contacts">
+            <LinkedContactsSection
+              contacts={deal.deal_contacts.map((dealContact) => ({
+                id: dealContact.contact_id,
+                name: dealContact.contacts ? formatContactFullName(dealContact.contacts) : "—",
+                badge: formatCrmEnumLabel(dealContact.role),
+                meta: dealContact.is_primary ? "Primary contact" : null,
+                href: `/customers/people?detail=${dealContact.contact_id}`,
+              }))}
+              emptyLabel="No linked contacts."
+            />
+          </DrawerSection>
+        ) : null}
+
+        {activeTab === "timeline" ? (
+          <DrawerSection title="Activity">
+            <InteractionTimeline interactions={interactions} />
+          </DrawerSection>
+        ) : null}
+
+        {activeTab === "tasks" ? (
+          <DrawerSection title="Tasks">
+            <LinkedTasksSection tasks={linkedTasks} emptyLabel="No linked tasks." />
+          </DrawerSection>
+        ) : null}
+      </RecordDetailPanelShell>
     </div>
   );
 }

@@ -92,8 +92,10 @@ describe("CompanyDrawerContent", () => {
 
     expect(screen.getByText("PropNex Realty")).toBeInTheDocument();
     expect(screen.getByText("Property Agency")).toBeInTheDocument();
-    expect(screen.getByText("Sarah Tan")).toBeInTheDocument();
-    expect(screen.getByText("123 Orchard Road")).toBeInTheDocument();
+    expect(screen.getByText("Home")).toBeInTheDocument();
+    expect(screen.getByText("Contacts")).toBeInTheDocument();
+    expect(screen.getByText("Deals")).toBeInTheDocument();
+    expect(screen.getByText("Fields")).toBeInTheDocument();
   });
 
   it("renders configured company custom fields", () => {

@@ -2,7 +2,7 @@
  * Tests deal drawer content rendering states.
  * @module components/crm/record-drawer/__tests__/deal-drawer-content
  */
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DealDrawerContent } from "../deal-drawer-content";
@@ -45,6 +45,7 @@ vi.mock("@/hooks/use-deals", () => ({
 
 vi.mock("@/hooks/use-contact-relations", () => ({
   useDealInteractions: () => ({ data: [], isLoading: false, isError: false }),
+  useDealTasks: () => ({ data: [], isLoading: false, isError: false }),
 }));
 
 vi.mock("@/components/crm/interaction-timeline", () => ({
@@ -114,15 +115,19 @@ describe("DealDrawerContent", () => {
     expect(screen.getByText("Bishan St 22 #12-34")).toBeInTheDocument();
     expect(screen.getByText("Offer")).toBeInTheDocument();
     expect(screen.getByText(/Price:/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: /contacts/i }));
     expect(screen.getByText("Sarah Tan")).toBeInTheDocument();
   });
 
-  it("renders required sections", () => {
+  it("renders the tabbed side-panel navigation", () => {
     render(<DealDrawerContent dealId="d-1" />);
 
-    expect(screen.getByText("Details")).toBeInTheDocument();
+    expect(screen.getByText("Home")).toBeInTheDocument();
     expect(screen.getByText("Contacts")).toBeInTheDocument();
-    expect(screen.getByText("Activity")).toBeInTheDocument();
+    expect(screen.getByText("Timeline")).toBeInTheDocument();
+    expect(screen.getByText("Tasks")).toBeInTheDocument();
+    expect(screen.getByText("Fields")).toBeInTheDocument();
   });
 
   it("uses config-driven stages and renders deal custom fields in the drawer", () => {

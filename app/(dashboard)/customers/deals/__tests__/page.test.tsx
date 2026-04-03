@@ -30,6 +30,10 @@ vi.mock("@/hooks/use-mobile", () => ({
   useIsMobile: vi.fn(() => false),
 }));
 
+vi.mock("@/hooks/use-client-id", () => ({
+  useClientId: vi.fn(() => ({ data: "client-1", isLoading: false })),
+}));
+
 vi.mock("@/hooks/use-deals", async () => {
   const actual = await vi.importActual<typeof import("@/hooks/use-deals")>("@/hooks/use-deals");
 

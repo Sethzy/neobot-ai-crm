@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useEffect, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Clock3, House, ListTodo } from "lucide-react";
 
@@ -36,6 +36,8 @@ import { RecordDetailPanelShell } from "./record-detail-panel-shell";
 interface ContactDrawerContentProps {
   /** Contact id selected in the drawer. */
   contactId: string;
+  /** Optional close control for inline desktop panels. */
+  closeButton?: ReactNode;
 }
 
 type ContactDrawerTab = "home" | "timeline" | "tasks";
@@ -43,7 +45,7 @@ type ContactDrawerTab = "home" | "timeline" | "tasks";
 /**
  * Renders contact details, linked deals, and activity timeline.
  */
-export function ContactDrawerContent({ contactId }: ContactDrawerContentProps) {
+export function ContactDrawerContent({ contactId, closeButton }: ContactDrawerContentProps) {
   const { data: contact, isLoading, isError } = useContact(contactId);
   const { data: linkedDeals = [] } = useContactDeals(contactId);
   const { data: linkedTasks = [] } = useContactTasks(contactId);
@@ -51,10 +53,6 @@ export function ContactDrawerContent({ contactId }: ContactDrawerContentProps) {
   const { data: crmConfigResult } = useCrmConfig();
   const updateContact = useUpdateContact(contactId);
   const [activeTab, setActiveTab] = useState<ContactDrawerTab>("home");
-
-  useEffect(() => {
-    setActiveTab("home");
-  }, [contactId]);
 
   if (isLoading) {
     return (
@@ -82,17 +80,18 @@ export function ContactDrawerContent({ contactId }: ContactDrawerContentProps) {
     })),
   ];
   const contactCustomFields = crmConfigResult?.config.contact_custom_fields ?? [];
-  const tabs = [
+  const tabs: Array<{ id: ContactDrawerTab; label: string; icon: ReactNode }> = [
     { id: "home", label: "Home", icon: <House className="h-4 w-4" /> },
     { id: "timeline", label: "Timeline", icon: <Clock3 className="h-4 w-4" /> },
     { id: "tasks", label: "Tasks", icon: <ListTodo className="h-4 w-4" /> },
-  ] satisfies Array<{ id: ContactDrawerTab; label: string; icon: React.ReactNode }>;
+  ];
 
   return (
     <div className="min-h-0 overflow-y-auto">
       <RecordDetailPanelShell
         title={formatContactFullName(contact)}
         meta={`Updated ${formatDistanceToNow(new Date(contact.updated_at), { addSuffix: true })}`}
+        closeButton={closeButton}
         badge={(
           <Badge variant={contactTypeBadgeVariantMap[contact.type] ?? "secondary"}>
             {formatCrmEnumLabel(contact.type)}

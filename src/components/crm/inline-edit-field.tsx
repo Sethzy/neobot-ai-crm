@@ -334,7 +334,7 @@ export function InlineEditField({
           inputMode={type === "number" ? "decimal" : undefined}
           value={draft}
           disabled={isSaving}
-          className={cn("h-8 w-[220px]", editorClassName)}
+          className={cn("h-8 w-[220px]", !hideLabel && "text-right", editorClassName)}
           onChange={(event) => setDraft(event.target.value)}
         onBlur={() => {
           void handleCommit(draft);

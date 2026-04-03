@@ -398,13 +398,15 @@ export default function PeoplePage() {
   }, [crmConfig, companies, contactTypes]);
 
   return (
-    <CrmListPageShell
-      icon={<Users className="h-4 w-4 text-muted-foreground" />}
-      title="People"
+    <CrmListPanelLayout
+      objectType="contact"
+      renderPanelContent={(id, { closeButton }) => (
+        <ContactDrawerContent key={id} contactId={id} closeButton={closeButton} />
+      )}
     >
-      <CrmListPanelLayout
-        objectType="contact"
-        renderPanelContent={(id) => <ContactDrawerContent contactId={id} />}
+      <CrmListPageShell
+        icon={<Users className="h-4 w-4 text-muted-foreground" />}
+        title="People"
       >
         <DataTable
           columns={columns}
@@ -468,7 +470,7 @@ export default function PeoplePage() {
             setFilterValues({});
           }}
         />
-      </CrmListPanelLayout>
-    </CrmListPageShell>
+      </CrmListPageShell>
+    </CrmListPanelLayout>
   );
 }

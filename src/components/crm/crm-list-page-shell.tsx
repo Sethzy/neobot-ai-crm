@@ -38,6 +38,7 @@ export function CrmListPageShell({
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto">
       <div
+        data-crm-list-page-header
         className={
           hasHeaderMeta
             ? "flex flex-col gap-3 bg-sidebar px-4 py-3 md:px-8 lg:flex-row lg:items-start lg:justify-between"
@@ -58,7 +59,7 @@ export function CrmListPageShell({
 
       <div
         className={[
-          "mx-3 min-h-0 min-w-0 flex-1 rounded-t-xl border-l border-t border-border/60 bg-card px-4 pt-4 md:mx-4",
+          "ml-3 min-h-0 min-w-0 flex-1 rounded-t-xl border-l border-t border-border/60 bg-card px-4 pt-4 md:ml-4",
           bodyClassName,
         ]
           .filter(Boolean)

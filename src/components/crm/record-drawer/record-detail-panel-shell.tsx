@@ -22,6 +22,8 @@ interface RecordDetailPanelShellProps<TId extends string = string> {
   title: string;
   /** Secondary metadata line, typically a relative timestamp. */
   meta?: ReactNode;
+  /** Optional close button rendered top-right of the header (inline panel mode). */
+  closeButton?: ReactNode;
   /** Optional badge or status chip shown below the title. */
   badge?: ReactNode;
   /** Available tabs for the side panel. */
@@ -41,6 +43,7 @@ interface RecordDetailPanelShellProps<TId extends string = string> {
 export function RecordDetailPanelShell<TId extends string = string>({
   title,
   meta,
+  closeButton,
   badge,
   tabs,
   activeTab,
@@ -51,6 +54,9 @@ export function RecordDetailPanelShell<TId extends string = string>({
     <div className="min-h-0 min-w-0 space-y-5 p-5">
       <header className="space-y-3">
         <div className="space-y-2">
+          {closeButton ? (
+            <div className="flex items-center justify-end">{closeButton}</div>
+          ) : null}
           <div className="flex items-start justify-between gap-3">
             <h2 className="min-w-0 text-[1.85rem] font-semibold tracking-tight text-foreground">
               {title}

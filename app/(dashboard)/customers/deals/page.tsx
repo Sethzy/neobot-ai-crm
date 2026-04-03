@@ -4,10 +4,11 @@
  */
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Handshake } from "lucide-react";
+import posthog from "posthog-js";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -15,7 +16,6 @@ import { toast } from "sonner";
 import { CrmListPanelLayout } from "@/components/crm/crm-list-panel-layout";
 import { CrmListPageShell } from "@/components/crm/crm-list-page-shell";
 import { DealKanbanCard } from "@/components/crm/deal-kanban-card";
-import { DealStageMenu } from "@/components/crm/deal-stage-menu";
 import { KanbanBoard } from "@/components/crm/kanban-board";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { DealDrawerContent } from "@/components/crm/record-drawer/deal-drawer-content";
@@ -33,7 +33,16 @@ import { useViewPreference, type ViewType } from "@/hooks/use-view-preference";
 import { buildColumnsFromConfig } from "@/lib/crm/build-columns";
 import { DEAL_DEFAULT_FIELDS } from "@/lib/crm/field-definitions";
 import { dealStageValues, type Deal } from "@/lib/crm/schemas";
-import { formatContactFullName, formatCrmDate, formatCrmEnumLabel, formatCrmPrice, formatDealStageLabel } from "@/lib/crm/display";
+import {
+  formatCompactCurrency,
+  formatContactFullName,
+  formatCrmDate,
+  formatCrmEnumLabel,
+  formatCrmPrice,
+  formatDealStageLabel,
+  getDealStageToneClass,
+  getDealStageTopBorderClass,
+} from "@/lib/crm/display";
 import { supabase } from "@/lib/supabase";
 
 const pageSize = 20;
@@ -58,10 +67,6 @@ interface DealAmountCellProps {
   amount: number | null;
 }
 
-interface DealBoardCardProps {
-  deal: DealWithContact;
-  stages: string[];
-}
 
 function getDateRangeValue(value: unknown): DateRangeFilterValue | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -164,30 +169,6 @@ function DealAmountCell({ dealId, amount }: DealAmountCellProps) {
   );
 }
 
-function DealBoardCard({ deal, stages }: DealBoardCardProps) {
-  const updateDeal = useUpdateDeal(deal.deal_id);
-
-  return (
-    <DealKanbanCard
-      deal={deal}
-      footer={
-        <DealStageMenu
-          currentStage={deal.stage}
-          stages={stages}
-          onChange={async (nextStage) => {
-            try {
-              await updateDeal.mutateAsync({ stage: nextStage as Deal["stage"] });
-            } catch (error) {
-              toast.error("Unable to update deal stage.");
-              throw error;
-            }
-          }}
-        />
-      }
-    />
-  );
-}
-
 export default function DealsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -265,13 +246,11 @@ export default function DealsPage() {
     data: tableData,
     isLoading: isTableLoading,
     isError: isTableError,
-    refetch: refetchTable,
   } = usePaginatedDeals(tableFilters, { enabled: activeView === "table" });
   const {
     data: boardData = [],
     isLoading: isBoardLoading,
     isError: isBoardError,
-    refetch: refetchBoard,
   } = useDeals(sharedFilters, { enabled: activeView === "kanban" });
 
   const deleteDeal = useMutation({
@@ -291,10 +270,53 @@ export default function DealsPage() {
     },
   });
 
+  const updateDealStage = useMutation({
+    mutationFn: async ({
+      dealId,
+      fromStage,
+      toStage,
+    }: {
+      dealId: string;
+      fromStage: string;
+      toStage: string;
+    }) => {
+      const { error } = await supabase
+        .from("deals")
+        .update({ stage: toStage })
+        .eq("deal_id", dealId);
+
+      if (error) {
+        throw error;
+      }
+
+      posthog.capture("deal_stage_changed", {
+        from_stage: fromStage,
+        to_stage: toStage,
+        deal_value: boardData.find((deal) => deal.deal_id === dealId)?.amount ?? null,
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: dealKeys.all });
+    },
+    onError: () => {
+      toast.error("Unable to update deal stage.");
+    },
+  });
+
   const tableRows = tableData?.rows ?? [];
   const sortedBoardDeals = useMemo(
     () => [...boardData].sort(sortDealsByOption(sortBy)),
     [boardData, sortBy],
+  );
+  const handleBoardColumnChange = useCallback(
+    async (dealId: string, fromStage: string, toStage: string) => {
+      await updateDealStage.mutateAsync({
+        dealId,
+        fromStage,
+        toStage,
+      });
+    },
+    [updateDealStage],
   );
 
   /**
@@ -385,59 +407,69 @@ export default function DealsPage() {
           return col;
       }
     });
-  }, [crmConfig, stages]);
+  }, [crmConfig, open, stages]);
 
   const stageColumns = useMemo(
     () =>
       stages.map((stage) => ({
         key: stage,
         label: formatDealStageLabel(stage as Deal["stage"]),
+        toneClassName: getDealStageToneClass(stage),
+        topBorderClassName: getDealStageTopBorderClass(stage),
       })),
     [stages],
   );
 
-  const isBoardView = activeView === "kanban";
-  const activeRefetch = isBoardView ? refetchBoard : refetchTable;
+  const getColumnSummary = useCallback(
+    (_columnKey: string, columnItems: DealWithContact[]) => {
+      const total = columnItems.reduce((sum, deal) => sum + (deal.amount ?? 0), 0);
+      return total > 0 ? formatCompactCurrency(total) : undefined;
+    },
+    [],
+  );
 
+  const isBoardView = activeView === "kanban";
   return (
-    <CrmListPageShell
-      icon={<Handshake className="h-4 w-4 text-muted-foreground" />}
-      title="Deals"
-      bodyClassName="space-y-6"
-      description={
-        isBoardView
-          ? "Track the pipeline and move deals forward from the board."
-          : "Track the pipeline and update deal progress in place."
-      }
-      headerActions={
-        <div className="flex flex-wrap items-center gap-2">
-          {isBoardView ? (
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>Sort by</span>
-              <select
-                aria-label="Sort deals"
-                className="h-9 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-                value={sortBy}
-                onChange={(event) => setSortBy(event.target.value as PipelineSortOption)}
-              >
-                {Object.entries(pipelineSortOptions).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          <ViewToggle current={activeView} views={["table", "kanban"]} onChange={(nextView) => {
-            setView(nextView);
-            router.replace(buildDealsHref(searchParams, nextView));
-          }} />
-        </div>
-      }
+    <CrmListPanelLayout
+      objectType="deal"
+      renderPanelContent={(id, { closeButton }) => (
+        <DealDrawerContent key={id} dealId={id} closeButton={closeButton} />
+      )}
     >
-      <CrmListPanelLayout
-        objectType="deal"
-        renderPanelContent={(id) => <DealDrawerContent dealId={id} />}
+      <CrmListPageShell
+        icon={<Handshake className="h-4 w-4 text-muted-foreground" />}
+        title="Deals"
+        bodyClassName="space-y-6"
+        description={
+          isBoardView
+            ? "Track the pipeline and move deals forward from the board."
+            : "Track the pipeline and update deal progress in place."
+        }
+        headerActions={
+          <div className="flex flex-wrap items-center gap-2">
+            {isBoardView ? (
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Sort by</span>
+                <select
+                  aria-label="Sort deals"
+                  className="h-9 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                  value={sortBy}
+                  onChange={(event) => setSortBy(event.target.value as PipelineSortOption)}
+                >
+                  {Object.entries(pipelineSortOptions).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            <ViewToggle current={activeView} views={["table", "kanban"]} onChange={(nextView) => {
+              setView(nextView);
+              router.replace(buildDealsHref(searchParams, nextView));
+            }} />
+          </div>
+        }
       >
           <FilterBar
             searchValue={search}
@@ -484,8 +516,10 @@ export default function DealsPage() {
               columns={stageColumns}
               groupBy={(deal) => deal.stage}
               getItemId={(deal) => deal.deal_id}
-              renderCard={(deal) => <DealBoardCard deal={deal} stages={stages} />}
+              getColumnSummary={getColumnSummary}
+              renderCard={(deal) => <DealKanbanCard deal={deal} />}
               onCardClick={(dealId) => open(dealId)}
+              onColumnChange={handleBoardColumnChange}
               emptyStateMessage="No deals in this stage yet."
             />
           )
@@ -533,7 +567,7 @@ export default function DealsPage() {
             getRowId={(row) => row.deal_id}
             />
           )}
-      </CrmListPanelLayout>
-    </CrmListPageShell>
+      </CrmListPageShell>
+    </CrmListPanelLayout>
   );
 }

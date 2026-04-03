@@ -39,6 +39,7 @@ vi.mock("@/hooks/use-contacts", () => ({
 
 vi.mock("@/hooks/use-contact-relations", () => ({
   useContactDeals: () => ({ data: [], isLoading: false, isError: false }),
+  useContactTasks: () => ({ data: [], isLoading: false, isError: false }),
 }));
 
 vi.mock("@/components/crm/contact-timeline", () => ({
@@ -116,12 +117,14 @@ describe("ContactDrawerContent", () => {
     expect(screen.getByText("Email:sarah@example.com:text")).toBeInTheDocument();
   });
 
-  it("renders required sections", () => {
+  it("renders the tabbed side-panel navigation", () => {
     render(<ContactDrawerContent contactId="c-1" />);
 
-    expect(screen.getByText("Details")).toBeInTheDocument();
+    expect(screen.getByText("Home")).toBeInTheDocument();
+    expect(screen.getByText("Timeline")).toBeInTheDocument();
+    expect(screen.getByText("Tasks")).toBeInTheDocument();
+    expect(screen.getByText("Fields")).toBeInTheDocument();
     expect(screen.getByText("Deals")).toBeInTheDocument();
-    expect(screen.getByText("Activity")).toBeInTheDocument();
   });
 
   it("uses config-driven contact types and renders contact custom fields", () => {

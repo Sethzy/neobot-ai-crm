@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useEffect, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { BriefcaseBusiness, House, Users } from "lucide-react";
 
@@ -34,6 +34,8 @@ import { RecordDetailPanelShell } from "./record-detail-panel-shell";
 interface CompanyDrawerContentProps {
   /** Company id selected in the drawer. */
   companyId: string;
+  /** Optional close control for inline desktop panels. */
+  closeButton?: ReactNode;
 }
 
 type CompanyDrawerTab = "home" | "contacts" | "deals";
@@ -41,17 +43,13 @@ type CompanyDrawerTab = "home" | "contacts" | "deals";
 /**
  * Renders company details together with linked contacts and deals.
  */
-export function CompanyDrawerContent({ companyId }: CompanyDrawerContentProps) {
+export function CompanyDrawerContent({ companyId, closeButton }: CompanyDrawerContentProps) {
   const { data: company, isLoading, isError } = useCompany(companyId);
   const { data: linkedContacts = [] } = useCompanyContacts(companyId);
   const { data: linkedDeals = [] } = useCompanyDeals(companyId);
   const { data: crmConfigResult } = useCrmConfig();
   const updateCompany = useUpdateCompany(companyId);
   const [activeTab, setActiveTab] = useState<CompanyDrawerTab>("home");
-
-  useEffect(() => {
-    setActiveTab("home");
-  }, [companyId]);
 
   if (isLoading) {
     return (
@@ -72,17 +70,18 @@ export function CompanyDrawerContent({ companyId }: CompanyDrawerContentProps) {
     : CRM_DEFAULTS.company_industries;
   const companyIndustryOptions = buildCrmSelectOptions(companyIndustryValues, company.industry);
   const companyCustomFields = crmConfigResult?.config.company_custom_fields ?? [];
-  const tabs = [
+  const tabs: Array<{ id: CompanyDrawerTab; label: string; icon: ReactNode }> = [
     { id: "home", label: "Home", icon: <House className="h-4 w-4" /> },
     { id: "contacts", label: "Contacts", icon: <Users className="h-4 w-4" /> },
     { id: "deals", label: "Deals", icon: <BriefcaseBusiness className="h-4 w-4" /> },
-  ] satisfies Array<{ id: CompanyDrawerTab; label: string; icon: React.ReactNode }>;
+  ];
 
   return (
     <div className="min-h-0 overflow-y-auto">
       <RecordDetailPanelShell
         title={company.name}
         meta={`Updated ${formatDistanceToNow(new Date(company.updated_at), { addSuffix: true })}`}
+        closeButton={closeButton}
         badge={company.industry ? (
           <Badge variant={getCompanyIndustryBadgeVariant(company.industry)}>
             {formatCrmEnumLabel(company.industry)}

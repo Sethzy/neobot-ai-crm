@@ -4,7 +4,6 @@
  */
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -266,7 +265,7 @@ export default function CompaniesPage() {
     [filterValues.createdAt, filterValues.hasEmail, filterValues.hasPhone, filterValues.industry, page, search],
   );
 
-  const { data, isLoading, isError, refetch } = usePaginatedCompanies(queryFilters);
+  const { data, isLoading, isError } = usePaginatedCompanies(queryFilters);
   const deleteCompany = useMutation({
     mutationFn: async ({ companyId }: { companyId: string }) => {
       const { error } = await supabase.from("companies").delete().eq("company_id", companyId);
@@ -379,16 +378,18 @@ export default function CompaniesPage() {
     ];
 
     return [...configured, ...countColumns];
-  }, [crmConfig, industryOptions]);
+  }, [crmConfig, industryOptions, open]);
 
   return (
-    <CrmListPageShell
-      icon={<Building2 className="h-4 w-4 text-muted-foreground" />}
-      title="Companies"
+    <CrmListPanelLayout
+      objectType="company"
+      renderPanelContent={(id, { closeButton }) => (
+        <CompanyDrawerContent key={id} companyId={id} closeButton={closeButton} />
+      )}
     >
-      <CrmListPanelLayout
-        objectType="company"
-        renderPanelContent={(id) => <CompanyDrawerContent companyId={id} />}
+      <CrmListPageShell
+        icon={<Building2 className="h-4 w-4 text-muted-foreground" />}
+        title="Companies"
       >
         <DataTable
           columns={columns}
@@ -448,7 +449,7 @@ export default function CompaniesPage() {
             setFilterValues({});
           }}
         />
-      </CrmListPanelLayout>
-    </CrmListPageShell>
+      </CrmListPageShell>
+    </CrmListPanelLayout>
   );
 }

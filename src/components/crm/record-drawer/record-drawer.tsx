@@ -48,9 +48,9 @@ export function RecordDrawer({ isOpen, recordId, objectType, onClose }: RecordDr
         </VisuallyHidden>
         {recordId ? (
           <>
-            {objectType === "contact" ? <ContactDrawerContent contactId={recordId} /> : null}
-            {objectType === "deal" ? <DealDrawerContent dealId={recordId} /> : null}
-            {objectType === "company" ? <CompanyDrawerContent companyId={recordId} /> : null}
+            {objectType === "contact" ? <ContactDrawerContent key={recordId} contactId={recordId} /> : null}
+            {objectType === "deal" ? <DealDrawerContent key={recordId} dealId={recordId} /> : null}
+            {objectType === "company" ? <CompanyDrawerContent key={recordId} companyId={recordId} /> : null}
             {objectType === "task" ? <TaskDrawerContent taskId={recordId} /> : null}
           </>
         ) : null}
