@@ -5,7 +5,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ChevronUp } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -27,13 +27,13 @@ export function CollapsibleFieldGroup({
   children,
 }: CollapsibleFieldGroupProps) {
   return (
-    <Collapsible defaultOpen={defaultOpen}>
-      <CollapsibleTrigger className="flex w-full items-center justify-between py-1.5 text-sm text-muted-foreground hover:text-foreground">
+    <Collapsible defaultOpen={defaultOpen} className="group/collapsible">
+      <CollapsibleTrigger className="flex w-full items-center justify-between py-1 text-sm text-muted-foreground transition-colors hover:text-foreground">
         <span className="font-medium">{label}</span>
-        <ChevronUp className="h-4 w-4 transition-transform duration-200 [[data-state=closed]_&]:rotate-180" />
+        <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-180" />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="space-y-0.5">{children}</div>
+        <div className="pt-0.5">{children}</div>
       </CollapsibleContent>
     </Collapsible>
   );

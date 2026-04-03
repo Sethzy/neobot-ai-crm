@@ -14,7 +14,7 @@ interface DrawerSectionProps {
  */
 export function DrawerSection({ title, children }: DrawerSectionProps) {
   return (
-    <section className="space-y-3">
+    <section className="space-y-2">
       <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">{title}</h3>
       {children}
     </section>

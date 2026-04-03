@@ -113,7 +113,7 @@ export function ContactDrawerContent({ contactId, closeButton }: ContactDrawerCo
       footer={<RecordDetailPanelFooter />}
     >
       {activeTab === "home" ? (
-        <div className="space-y-6">
+        <div className="space-y-5">
           <DrawerSection title="Fields">
             <CollapsibleFieldGroup label="General">
               <InlineEditField

@@ -264,7 +264,7 @@ export function InlineEditField({
           }}
           disabled={isSaving}
         >
-            <SelectTrigger className="h-8 min-w-[150px]">
+            <SelectTrigger className="h-7 min-w-[120px] text-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -303,7 +303,7 @@ export function InlineEditField({
               type="button"
               variant="outline"
               size="sm"
-              className={cn("h-8 w-[220px] justify-start text-left text-sm font-normal", editorClassName)}
+              className={cn("h-7 w-full justify-start text-left text-sm font-normal", editorClassName)}
               disabled={isSaving}
             >
               <CalendarIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
@@ -337,7 +337,7 @@ export function InlineEditField({
           inputMode={type === "number" ? "decimal" : undefined}
           value={draft}
           disabled={isSaving}
-          className={cn("h-8 w-[220px]", !hideLabel && "text-right", editorClassName)}
+          className={cn("h-7 w-full text-sm", !hideLabel && "text-right", editorClassName)}
           onChange={(event) => setDraft(event.target.value)}
         onBlur={() => {
           void handleCommit(draft);
@@ -352,7 +352,7 @@ export function InlineEditField({
       role="button"
       tabIndex={0}
       className={cn(
-        "group flex items-start justify-between gap-3 rounded-md px-1 py-1.5 transition-colors hover:bg-muted/30",
+        "group flex items-center gap-3 rounded-md px-1 py-1 transition-colors hover:bg-muted/30",
         hideLabel && "justify-start",
         isTextareaField && !hideLabel && "items-start",
         containerClassName,
@@ -361,28 +361,22 @@ export function InlineEditField({
       onKeyDown={handleContainerKeyDown}
     >
       {hideLabel ? null : (
-        <div className="flex items-center gap-2">
+        <div className="flex w-[110px] shrink-0 items-center gap-2">
           {icon ? (
-            <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground/60">
+            <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground/50">
               {icon}
             </span>
           ) : null}
-          <span className={cn("text-sm text-muted-foreground", labelClassName)}>{label}</span>
+          <span className={cn("truncate text-sm text-muted-foreground", labelClassName)}>{label}</span>
         </div>
       )}
 
       <div
         className={cn(
-          "flex items-center gap-2",
-          isEditing
-            ? isTextareaField
-              ? "w-full max-w-full"
-              : "max-w-[220px]"
-            : hideLabel
-              ? "min-w-0"
-              : isTextareaField
-                ? "min-w-0 flex-1 items-start max-w-full"
-                : "min-w-0 max-w-[220px]",
+          "flex min-w-0 flex-1 items-center gap-1.5",
+          isEditing && !isTextareaField && "max-w-[220px]",
+          isEditing && isTextareaField && "w-full",
+          !isEditing && isTextareaField && "items-start",
         )}
       >
         {isEditing ? (
@@ -391,13 +385,12 @@ export function InlineEditField({
           <>
             <span
               className={cn(
-                "text-sm text-foreground/80",
+                "min-w-0 flex-1 text-sm text-foreground/80",
                 isTextareaField
-                  ? "line-clamp-4 w-full whitespace-pre-wrap break-words text-left"
+                  ? "line-clamp-4 whitespace-pre-wrap break-words text-left"
                   : hideLabel
-                    ? "w-full whitespace-normal break-words"
-                    : "truncate",
-                hideLabel ? "text-left" : isTextareaField ? "text-left" : "text-right",
+                    ? "whitespace-normal break-words text-left"
+                    : "truncate text-right",
                 displayClassName,
               )}
             >
