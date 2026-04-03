@@ -104,10 +104,24 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
     const { getServerEnv } = await import("@/lib/env");
     const env = getServerEnv();
 
-    // Inject web research API keys so sandbox scripts can call Brave/Exa directly.
-    const sandboxEnv: Record<string, string> = {};
-    if (env.BRAVE_SEARCH_API_KEY) sandboxEnv.BRAVE_SEARCH_API_KEY = env.BRAVE_SEARCH_API_KEY;
-    if (env.EXA_API_KEY) sandboxEnv.EXA_API_KEY = env.EXA_API_KEY;
+    // Credential brokering: inject auth headers at the network layer so API keys
+    // never exist inside the sandbox VM. The sandbox intercepts outbound HTTPS
+    // requests to approved domains and overwrites the specified headers.
+    const brokerRules: Record<string, Array<{ transform: Array<{ headers: Record<string, string> }> }>> = {};
+    if (env.BRAVE_SEARCH_API_KEY) {
+      brokerRules["api.search.brave.com"] = [{
+        transform: [{ headers: { "X-Subscription-Token": env.BRAVE_SEARCH_API_KEY } }],
+      }];
+    }
+    if (env.EXA_API_KEY) {
+      brokerRules["api.exa.ai"] = [{
+        transform: [{ headers: { "x-api-key": env.EXA_API_KEY } }],
+      }];
+    }
+
+    const networkPolicy = Object.keys(brokerRules).length > 0
+      ? { allow: { ...brokerRules, "*": [] as Array<{ transform: Array<{ headers: Record<string, string> }> }> } }
+      : undefined;
 
     const sandboxOptions: SandboxCreateOptions =
       env.VERCEL_TOKEN && env.VERCEL_TEAM_ID && env.VERCEL_PROJECT_ID
@@ -117,12 +131,12 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
           token: env.VERCEL_TOKEN,
           teamId: env.VERCEL_TEAM_ID,
           projectId: env.VERCEL_PROJECT_ID,
-          env: sandboxEnv,
+          ...(networkPolicy && { networkPolicy }),
         }
         : {
           source: { type: "snapshot", snapshotId },
           timeout: SANDBOX_TIMEOUT_MS,
-          env: sandboxEnv,
+          ...(networkPolicy && { networkPolicy }),
         };
 
     sandbox = await SandboxClass.create(sandboxOptions);
@@ -166,6 +180,9 @@ export function createLazyBashTool(options: LazyBashToolOptions): LazyBashToolRe
       `\nFiles preloaded in workspace:`,
       fileSummary,
       `\nUse \`ls\` to discover individual files.`,
+      `\nAPI credentials are injected automatically — do NOT pass auth headers or look for API key env vars:`,
+      `- Brave Search: curl -s "https://api.search.brave.com/res/v1/web/search?q=your+query"`,
+      `- Exa: curl -s -X POST "https://api.exa.ai/contents" -H "Content-Type: application/json" -d '{"urls":["..."]}'`,
     ].join("\n");
 
     const bashToolkit = await createBashTool({
