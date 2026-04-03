@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { useMermaidPlugin } from "./use-mermaid-plugin";
-import { BrainIcon, ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import {
   createContext,
@@ -133,7 +133,7 @@ export const Reasoning = memo(
     return (
       <ReasoningContext.Provider value={contextValue}>
         <Collapsible
-          className={cn("not-prose mb-2", className)}
+          className={cn("not-prose", className)}
           onOpenChange={handleOpenChange}
           open={isOpen}
           {...props}
@@ -177,17 +177,14 @@ export const ReasoningTrigger = memo(
     return (
       <CollapsibleTrigger
         className={cn(
-          "inline-flex max-w-full items-center gap-1.5 text-xs leading-none text-muted-foreground transition-colors hover:text-foreground",
+          "inline-flex items-center gap-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground",
           className
         )}
         {...props}
       >
         {children ?? (
           <>
-            <BrainIcon className="size-3.5 shrink-0" />
-            <span className="min-w-0 truncate">
-              {getThinkingMessage(isStreaming, duration)}
-            </span>
+            {getThinkingMessage(isStreaming, duration)}
             <ChevronDownIcon
               className={cn(
                 "size-3.5 shrink-0 transition-transform",
@@ -214,7 +211,7 @@ export const ReasoningContent = memo(
     return (
       <CollapsibleContent
         className={cn(
-          "mt-1.5 text-xs",
+          "mt-2 max-h-32 overflow-y-auto text-xs [&>.space-y-4]:space-y-1.5",
           "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-muted-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
           className
         )}
