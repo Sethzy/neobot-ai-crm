@@ -45,33 +45,14 @@ vi.mock("@/components/ai-elements/reasoning", () => ({
 }));
 
 vi.mock("./tool-call-inline", () => ({
-  ToolCallInline: ({ name, state }: { name: string; state: string }) => (
-    <div data-testid="tool-call-inline" data-name={name} data-state={state}>{name}</div>
+  ToolCallInline: ({ name, state, onToolApproval }: { name: string; state: string; onToolApproval?: unknown }) => (
+    <div data-testid="tool-call-inline" data-name={name} data-state={state} data-has-approval={!!onToolApproval}>{name}</div>
   ),
 }));
 
 vi.mock("@/components/ai-elements/shimmer", () => ({
   Shimmer: ({ children, className }: { children: string; className?: string }) => (
     <span data-testid="shimmer" className={className}>{children}</span>
-  ),
-}));
-
-vi.mock("./steps-summary", () => ({
-  StepsSummary: ({ parts, isStreaming, hasTextParts, messageId, onToolApproval }: {
-    parts: Array<{ type: string }>;
-    isStreaming: boolean;
-    hasTextParts: boolean;
-    messageId: string;
-    onToolApproval?: unknown;
-  }) => (
-    <div
-      data-testid="steps-summary"
-      data-parts-count={parts.length}
-      data-streaming={isStreaming}
-      data-has-text-parts={hasTextParts}
-      data-message-id={messageId}
-      data-has-approval={!!onToolApproval}
-    />
   ),
 }));
 
@@ -158,7 +139,6 @@ describe("MessageBubble — user messages", () => {
 
     expect(screen.queryByTestId("reasoning-block")).not.toBeInTheDocument();
     expect(screen.queryByTestId("tool-call-inline")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("steps-summary")).not.toBeInTheDocument();
   });
 
   it("renders file parts above user text", () => {
@@ -244,7 +224,7 @@ describe("MessageBubble — assistant messages", () => {
     expect(msg).toHaveAttribute("data-from", "assistant");
   });
 
-  it("renders intermediate parts via StepsSummary", () => {
+  it("renders reasoning parts inline", () => {
     render(
       <MessageBubble
         message={{
@@ -258,13 +238,11 @@ describe("MessageBubble — assistant messages", () => {
       />,
     );
 
-    const summary = screen.getByTestId("steps-summary");
-    expect(summary).toBeInTheDocument();
-    expect(summary).toHaveAttribute("data-parts-count", "1");
+    expect(screen.getByTestId("reasoning-block")).toBeInTheDocument();
     expect(screen.getByText("Here is my answer.")).toBeInTheDocument();
   });
 
-  it("does not render StepsSummary when no intermediate parts exist", () => {
+  it("does not render reasoning or tool parts when only text exists", () => {
     render(
       <MessageBubble
         message={{
@@ -275,11 +253,12 @@ describe("MessageBubble — assistant messages", () => {
       />,
     );
 
-    expect(screen.queryByTestId("steps-summary")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("reasoning-block")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("tool-call-inline")).not.toBeInTheDocument();
     expect(screen.getByText("Simple response")).toBeInTheDocument();
   });
 
-  it("groups reasoning + tool parts in StepsSummary, renders text after", () => {
+  it("renders reasoning and tool parts inline with text", () => {
     render(
       <MessageBubble
         message={{
@@ -294,12 +273,12 @@ describe("MessageBubble — assistant messages", () => {
       />,
     );
 
-    const summary = screen.getByTestId("steps-summary");
-    expect(summary).toHaveAttribute("data-parts-count", "2");
+    expect(screen.getByTestId("reasoning-block")).toBeInTheDocument();
+    expect(screen.getByTestId("tool-call-inline")).toBeInTheDocument();
     expect(screen.getByTestId("message-response")).toBeInTheDocument();
   });
 
-  it("includes all tool parts in StepsSummary", () => {
+  it("renders all tool parts inline", () => {
     render(
       <MessageBubble
         message={{
@@ -326,14 +305,25 @@ describe("MessageBubble — assistant messages", () => {
       />,
     );
 
-    const summary = screen.getByTestId("steps-summary");
-    expect(summary).toHaveAttribute("data-parts-count", "2");
+    expect(screen.getAllByTestId("tool-call-inline")).toHaveLength(2);
   });
 
   it("shows shimmer when streaming with no parts", () => {
     render(
       <MessageBubble
         message={{ id: "2", role: "assistant", parts: [] }}
+        isStreaming
+      />,
+    );
+
+    expect(screen.getByTestId("shimmer")).toBeInTheDocument();
+    expect(screen.getByText("Thinking...")).toBeInTheDocument();
+  });
+
+  it("shows shimmer when streaming with only non-renderable parts like data-chat-title", () => {
+    render(
+      <MessageBubble
+        message={{ id: "2", role: "assistant", parts: [{ type: "data-chat-title" as never, data: "My Title" }] }}
         isStreaming
       />,
     );
@@ -353,7 +343,7 @@ describe("MessageBubble — assistant messages", () => {
     expect(screen.queryByTestId("shimmer")).not.toBeInTheDocument();
   });
 
-  it("passes isStreaming to StepsSummary", () => {
+  it("passes isStreaming to the last reasoning block", () => {
     render(
       <MessageBubble
         message={{
@@ -367,60 +357,10 @@ describe("MessageBubble — assistant messages", () => {
       />,
     );
 
-    const summary = screen.getByTestId("steps-summary");
-    expect(summary).toHaveAttribute("data-streaming", "true");
+    expect(screen.getByTestId("reasoning-block")).toHaveAttribute("data-streaming", "true");
   });
 
-  it("passes hasTextParts to StepsSummary", () => {
-    const { rerender } = render(
-      <MessageBubble
-        message={{
-          id: "9",
-          role: "assistant",
-          parts: [
-            { type: "reasoning", text: "Thinking..." },
-            { type: "text", text: "Answer." },
-          ],
-        }}
-      />,
-    );
-
-    expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-has-text-parts", "true");
-
-    rerender(
-      <MessageBubble
-        message={{
-          id: "10",
-          role: "assistant",
-          parts: [
-            { type: "reasoning", text: "Still thinking..." },
-          ],
-        }}
-        isStreaming
-      />,
-    );
-
-    expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-has-text-parts", "false");
-  });
-
-  it("passes messageId to StepsSummary", () => {
-    render(
-      <MessageBubble
-        message={{
-          id: "msg-42",
-          role: "assistant",
-          parts: [
-            { type: "reasoning", text: "Thinking..." },
-            { type: "text", text: "Done." },
-          ],
-        }}
-      />,
-    );
-
-    expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-message-id", "msg-42");
-  });
-
-  it("forwards onToolApproval to StepsSummary", () => {
+  it("forwards onToolApproval to ToolCallInline", () => {
     const onToolApproval = vi.fn();
     render(
       <MessageBubble
@@ -428,7 +368,7 @@ describe("MessageBubble — assistant messages", () => {
           id: "3",
           role: "assistant",
           parts: [
-            { type: "reasoning", text: "..." },
+            { type: "tool-run_sql" as const, toolCallId: "tc1", state: "output-available" as const, input: {}, output: {} },
             { type: "text", text: "Answer." },
           ],
         }}
@@ -436,10 +376,10 @@ describe("MessageBubble — assistant messages", () => {
       />,
     );
 
-    expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-has-approval", "true");
+    expect(screen.getByTestId("tool-call-inline")).toHaveAttribute("data-has-approval", "true");
   });
 
-  it("renders file parts for assistant messages without including them in StepsSummary", () => {
+  it("renders file parts inline alongside reasoning and text", () => {
     render(
       <MessageBubble
         message={{
@@ -460,7 +400,7 @@ describe("MessageBubble — assistant messages", () => {
     );
 
     expect(screen.getByTestId("preview-attachment")).toHaveTextContent("report.png");
-    expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-parts-count", "1");
+    expect(screen.getByTestId("reasoning-block")).toBeInTheDocument();
     expect(screen.getByText("This shows the current pipeline.")).toBeInTheDocument();
   });
 
@@ -542,7 +482,7 @@ describe("MessageBubble — ask_user_question", () => {
     expect(screen.getByTestId("ask-user-question-inline")).toHaveAttribute("data-question-count", "1");
   });
 
-  it("excludes ask_user_question from StepsSummary", () => {
+  it("renders ask_user_question inline alongside reasoning", () => {
     render(
       <MessageBubble
         message={{
@@ -554,8 +494,8 @@ describe("MessageBubble — ask_user_question", () => {
               type: "tool-ask_user_question" as const,
               toolCallId: "tc-ask-2",
               state: "output-available" as const,
-              input: { questions: [] },
-              output: { questions: [], status: "awaiting_response" },
+              input: { questions: [{ question: "Pick one", options: ["A"], type: "single_select" }] },
+              output: { questions: [{ question: "Pick one", options: ["A"], type: "single_select" }], status: "awaiting_response" },
             },
             { type: "text", text: "Here are your options:" },
           ],
@@ -564,8 +504,8 @@ describe("MessageBubble — ask_user_question", () => {
       />,
     );
 
-    // StepsSummary should only have the reasoning part (1), not the ask_user_question
-    expect(screen.getByTestId("steps-summary")).toHaveAttribute("data-parts-count", "1");
+    expect(screen.getByTestId("reasoning-block")).toBeInTheDocument();
+    expect(screen.getByTestId("ask-user-question-inline")).toBeInTheDocument();
   });
 
   it("renders ask_user_question as disabled when onQuestionSubmit is not provided", () => {

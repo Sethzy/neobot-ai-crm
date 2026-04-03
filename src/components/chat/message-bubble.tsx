@@ -1,7 +1,7 @@
 /**
  * Renders one chat message with role-based layout and parts-based rendering.
- * User messages: right-aligned bubble. Assistant messages: flat layout with
- * AI Elements Message/Reasoning and compact pill-style tool calls.
+ * User messages: right-aligned bubble. Assistant messages: flat inline layout
+ * using a single parts.map(switch) — each part renders at its natural position.
  *
  * Inline spec rendering: uses `useJsonRenderMessage` from `@json-render/react`
  * and `SPEC_DATA_PART_TYPE` from `@json-render/core` to detect spec data parts
@@ -25,15 +25,19 @@ import {
   MessageResponse,
   MessageToolbar,
 } from "@/components/ai-elements/message";
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningTrigger,
+} from "@/components/ai-elements/reasoning";
 import { CopyIcon } from "lucide-react";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { ViewRenderer } from "@/lib/views/renderer";
-import { cn } from "@/lib/utils";
 import { AskUserQuestionInline, type AskUserQuestion } from "./ask-user-question-inline";
 import { resolveFilePartUrl, type ChatFilePart } from "./file-parts";
 import { getMessageText, type ChatUIMessage } from "./message-content";
 import { PreviewAttachment, type Attachment } from "./preview-attachment";
-import { StepsSummary } from "./steps-summary";
+import { ToolCallInline, type ToolPartState } from "./tool-call-inline";
 
 interface MessageBubbleProps {
   message: ChatUIMessage;
@@ -77,68 +81,34 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
   const { spec, hasSpec } = useJsonRenderMessage(message.parts);
   const skillSlug = useMemo(() => extractSkillSlug(message.parts), [message.parts]);
 
+  // Lightweight precomputations for both user and assistant paths
   const fileParts = useMemo(
     () => message.parts.filter(
       (part): part is Extract<ChatUIMessage["parts"][number], { type: "file" }> => part.type === "file",
     ),
     [message.parts],
   );
-  const textParts = useMemo(
-    () => message.parts.filter((p) => p.type === "text"),
+  const hasTextParts = useMemo(
+    () => message.parts.some((p) => p.type === "text"),
+    [message.parts],
+  );
+  const hasRenderableParts = useMemo(
+    () => message.parts.some((p) =>
+      p.type === "text" || p.type === "reasoning" || p.type === "file" || p.type.startsWith("tool-"),
+    ),
     [message.parts],
   );
 
-  // Extract ask_user_question tool parts — these render inline (not collapsed in StepsSummary)
-  const allIntermediateParts = useMemo(
-    () => message.parts.filter(
-      (p) => p.type === "reasoning" || p.type.startsWith("tool-"),
-    ),
+  // Assistant-only: indices for streaming and spec tracking
+  const lastReasoningIndex = useMemo(
+    () => message.parts.findLastIndex((p) => p.type === "reasoning"),
     [message.parts],
   );
-  const askQuestionParts = useMemo(
-    () => allIntermediateParts.filter(
-      (p) => p.type === "tool-ask_user_question" && (p as { state?: string }).state === "output-available",
-    ),
-    [allIntermediateParts],
-  );
-  const intermediateParts = useMemo(
-    () => allIntermediateParts.filter(
-      (p) => p.type !== "tool-ask_user_question",
-    ),
-    [allIntermediateParts],
+  const specPartIndex = useMemo(
+    () => message.parts.findIndex((p) => p.type === SPEC_DATA_PART_TYPE),
+    [message.parts],
   );
 
-  /**
-   * Build ordered segments from parts: text / spec.
-   * Tool parts and reasoning go through StepsSummary separately (unchanged),
-   * but spec data parts (`SPEC_DATA_PART_TYPE`) get their own segment so the
-   * ViewRenderer appears at the exact position the LLM placed the ```spec fence.
-   */
-  const { segments, specInserted } = useMemo(() => {
-    let inserted = false;
-    const segs: Array<
-      | { kind: "text"; parts: Array<{ type: "text"; text: string }> }
-      | { kind: "spec" }
-    > = [];
-
-    for (const part of message.parts) {
-      if (part.type === "text") {
-        const lastSeg = segs[segs.length - 1];
-        if (lastSeg?.kind === "text") {
-          lastSeg.parts.push(part as { type: "text"; text: string });
-        } else {
-          segs.push({ kind: "text", parts: [part as { type: "text"; text: string }] });
-        }
-      } else if (part.type === SPEC_DATA_PART_TYPE && !inserted) {
-        segs.push({ kind: "spec" });
-        inserted = true;
-      }
-    }
-
-    return { segments: segs, specInserted: inserted };
-  }, [message.parts]);
-
-  const hasParts = fileParts.length > 0 || allIntermediateParts.length > 0 || textParts.length > 0 || hasSpec;
   const isLoadingSpec = isLast && isStreaming;
 
   if (isUserMessage) {
@@ -159,7 +129,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
             </div>
           ) : null}
 
-          {textParts.length > 0 ? (
+          {hasTextParts ? (
             <div className="max-w-full rounded-2xl rounded-br-md bg-foreground px-3.5 py-2 text-sm leading-normal text-background">
               <p className="whitespace-pre-wrap">{getMessageText(message)}</p>
             </div>
@@ -178,81 +148,113 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
           </Badge>
         ) : null}
 
-        {isStreaming && !hasParts && (
+        {isStreaming && !hasRenderableParts && !hasSpec && (
           <Shimmer as="span" className="text-xs" duration={2}>
             Thinking...
           </Shimmer>
         )}
 
-        {fileParts.length > 0 ? (
-            <div className={cn("mb-2 flex flex-wrap gap-2", intermediateParts.length > 0 || textParts.length > 0 ? "" : "mb-0")}>
-              {fileParts.map((part, index) => (
-                <PreviewAttachment
-                  attachment={filePartToAttachment(part)}
-                  key={`${message.id}-file-${index}`}
-                />
-              ))}
-          </div>
-        ) : null}
+        {message.parts.map((part, index) => {
+          const key = `${message.id}-part-${index}`;
 
-        {intermediateParts.length > 0 && (
-          <StepsSummary
-            parts={intermediateParts}
-            isStreaming={isStreaming}
-            hasTextParts={textParts.length > 0}
-            messageId={message.id}
-            onToolApproval={onToolApproval}
-          />
-        )}
+          if (part.type === "file") {
+            return (
+              <PreviewAttachment
+                key={key}
+                attachment={filePartToAttachment(part as ChatFilePart)}
+              />
+            );
+          }
 
-        {segments.map((seg, i) => {
-          if (seg.kind === "text") {
-            return seg.parts.map((tp, j) => (
+          if (part.type === "text") {
+            return (
               <MessageResponse
-                key={`${message.id}-text-${i}-${j}`}
+                key={key}
                 isAnimating={isStreaming}
               >
-                {tp.text}
+                {(part as { text: string }).text}
               </MessageResponse>
-            ));
+            );
           }
-          if (seg.kind === "spec" && hasSpec) {
+
+          if (part.type === "reasoning") {
+            return (
+              <Reasoning
+                key={key}
+                isStreaming={isStreaming && index === lastReasoningIndex}
+              >
+                <ReasoningTrigger />
+                <ReasoningContent>
+                  {(part as { text: string }).text}
+                </ReasoningContent>
+              </Reasoning>
+            );
+          }
+
+          if (part.type === SPEC_DATA_PART_TYPE && index === specPartIndex && hasSpec) {
             return (
               <ViewRenderer
-                key={`${message.id}-spec`}
+                key={key}
                 spec={spec}
                 loading={isLoadingSpec}
               />
             );
           }
+
+          if (
+            part.type === "tool-ask_user_question"
+            && (part as { state?: string }).state === "output-available"
+            && !isStreaming
+          ) {
+            const output = (part as { output?: { questions?: AskUserQuestion[] } }).output;
+            if (!output?.questions) return null;
+            return (
+              <AskUserQuestionInline
+                key={key}
+                questions={output.questions}
+                onSubmit={onQuestionSubmit ?? (() => {})}
+                disabled={!onQuestionSubmit}
+              />
+            );
+          }
+
+          if (part.type.startsWith("tool-")) {
+            const toolPart = part as {
+              type: string;
+              state: ToolPartState;
+              input: unknown;
+              output?: unknown;
+              errorText?: string;
+              approval?: { id: string };
+            };
+            return (
+              <ToolCallInline
+                key={key}
+                name={toolPart.type.replace(/^tool-/, "")}
+                state={toolPart.state}
+                input={toolPart.input}
+                output={toolPart.output}
+                errorText={toolPart.errorText}
+                approvalId={toolPart.approval?.id}
+                onToolApproval={onToolApproval}
+              />
+            );
+          }
+
           return null;
         })}
 
         {/* Fallback: render spec at end if hasSpec but no inline position found */}
-        {hasSpec && !specInserted && (
+        {hasSpec && specPartIndex === -1 && (
           <ViewRenderer
             spec={spec}
             loading={isLoadingSpec}
           />
         )}
 
-        {!isStreaming && askQuestionParts.length > 0 &&
-          askQuestionParts.map((part, i) => {
-            const output = (part as { output?: { questions?: AskUserQuestion[] } }).output;
-            if (!output?.questions) return null;
-            return (
-              <AskUserQuestionInline
-                key={`${message.id}-ask-${i}`}
-                questions={output.questions}
-                onSubmit={onQuestionSubmit ?? (() => {})}
-                disabled={!onQuestionSubmit}
-              />
-            );
-          })}
-
       </MessageContent>
 
-        {!isStreaming && textParts.length > 0 && (
+        {!isStreaming && hasTextParts && (
           <MessageToolbar>
             <MessageActions>
               <MessageAction
