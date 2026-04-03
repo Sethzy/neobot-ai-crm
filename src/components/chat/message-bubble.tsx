@@ -99,9 +99,13 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
     [message.parts],
   );
 
-  // Assistant-only: indices for streaming and spec tracking
-  const lastReasoningIndex = useMemo(
-    () => message.parts.findLastIndex((p) => p.type === "reasoning"),
+  // Assistant-only: track which reasoning block is still actively streaming.
+  // A reasoning part is "active" only when it's the very last renderable part —
+  // once a text part, tool call, or new reasoning block appears after it, it's done.
+  const lastRenderableIndex = useMemo(
+    () => message.parts.findLastIndex((p) =>
+      p.type === "reasoning" || p.type === "text" || p.type.startsWith("tool-"),
+    ),
     [message.parts],
   );
   const specPartIndex = useMemo(
@@ -181,7 +185,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
             return (
               <Reasoning
                 key={key}
-                isStreaming={isStreaming && index === lastReasoningIndex}
+                isStreaming={isStreaming && index === lastRenderableIndex}
               >
                 <ReasoningTrigger />
                 <ReasoningContent>

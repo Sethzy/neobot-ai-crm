@@ -4,9 +4,8 @@
  */
 "use client";
 
-import { useEffect, useState } from "react";
-
-import { Shimmer } from "@/components/ai-elements/shimmer";
+import { useEffect, useRef, useState } from "react";
+import { LoaderCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -394,7 +393,29 @@ export function ToolCallInline({
     ? getBrowserPlatformConfig(authNeeded.platform)
     : null;
   const { state: browserAuthState, connect, verify, reset } = useBrowserAuth(authNeeded?.platform);
-  const isRunning = state === "input-available" || state === "input-streaming";
+  const isActuallyRunning = state === "input-available" || state === "input-streaming";
+  const isDone = state === "output-available" || state === "output-error" || state === "output-denied";
+
+  // Minimum display duration so fast tools still flash a loading indicator.
+  // Initialise to true — every tool starts in a "running" visual state and
+  // only clears after at least MIN_DISPLAY_MS once the result arrives.
+  const [showRunning, setShowRunning] = useState(true);
+  const runningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (isActuallyRunning) {
+      setShowRunning(true);
+      if (runningTimerRef.current) clearTimeout(runningTimerRef.current);
+      runningTimerRef.current = null;
+    } else if (isDone && showRunning) {
+      runningTimerRef.current = setTimeout(() => setShowRunning(false), 400);
+    }
+    return () => {
+      if (runningTimerRef.current) clearTimeout(runningTimerRef.current);
+    };
+  }, [isActuallyRunning, isDone]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isRunning = showRunning;
   const isAwaitingApproval = state === "approval-requested";
   const isDenied = state === "output-denied";
   const hasError = state === "output-error";
@@ -423,20 +444,19 @@ export function ToolCallInline({
         className="flex items-center gap-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span
-          data-testid="tool-dot"
-          className={cn(
-            "h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50",
-            isRunning && "animate-pulse bg-foreground/50",
-            isAwaitingApproval && "animate-pulse bg-approval",
-            isDenied && "bg-denied",
-          )}
-        />
         {isRunning ? (
-          <Shimmer as="span" className="text-xs" duration={2}>{name}</Shimmer>
+          <LoaderCircle data-testid="tool-dot" className="size-3 shrink-0 animate-spin text-muted-foreground" />
         ) : (
-          <span>{name}</span>
+          <span
+            data-testid="tool-dot"
+            className={cn(
+              "h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/50",
+              isAwaitingApproval && "animate-pulse bg-approval",
+              isDenied && "bg-denied",
+            )}
+          />
         )}
+        <span>{name}</span>
         {isDenied ? (
           <span className="text-[10px] font-medium text-denied">
             Denied
