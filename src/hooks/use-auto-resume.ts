@@ -32,7 +32,12 @@ export function useAutoResume({
 
     const mostRecentMessage = initialMessages.at(-1);
     if (mostRecentMessage?.role === "user") {
-      resumeStream();
+      resumeStream().catch(() => {
+        // Swallow errors — the stream may no longer exist after session
+        // switches. The AI SDK's finally block can crash with a stale
+        // activeResponse reference; this prevents the uncaught rejection
+        // from surfacing as a TypeError overlay.
+      });
     }
 
     // Intentional one-time check on mount.
