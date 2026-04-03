@@ -6,11 +6,12 @@
 
 import { type ReactNode, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { BriefcaseBusiness, House, Users } from "lucide-react";
+import { BriefcaseBusiness, Building2, Globe, House, Mail, MapPin, Phone, StickyNote, Users } from "lucide-react";
 
 import { LinkedContactsSection } from "@/components/crm/detail/linked-contacts-section";
 import { LinkedDealsSection } from "@/components/crm/detail/linked-deals-section";
 import { InlineEditField } from "@/components/crm/inline-edit-field";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompanyContacts, useCompanyDeals } from "@/hooks/use-company-relations";
@@ -27,8 +28,10 @@ import {
   toNullableValue,
 } from "@/lib/crm/display";
 
+import { CollapsibleFieldGroup } from "./collapsible-field-group";
 import { CustomFieldEditors } from "./custom-field-editors";
 import { DrawerSection } from "./drawer-section";
+import { RecordDetailPanelFooter } from "./record-detail-panel-footer";
 import { RecordDetailPanelShell } from "./record-detail-panel-shell";
 
 interface CompanyDrawerContentProps {
@@ -77,126 +80,139 @@ export function CompanyDrawerContent({ companyId, closeButton }: CompanyDrawerCo
   ];
 
   return (
-    <div className="min-h-0 overflow-y-auto">
-      <RecordDetailPanelShell
-        title={company.name}
-        meta={`Updated ${formatDistanceToNow(new Date(company.updated_at), { addSuffix: true })}`}
-        closeButton={closeButton}
-        badge={company.industry ? (
-          <Badge variant={getCompanyIndustryBadgeVariant(company.industry)}>
-            {formatCrmEnumLabel(company.industry)}
-          </Badge>
-        ) : null}
-        tabs={tabs}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      >
-        {activeTab === "home" ? (
-          <div className="space-y-6">
-            <DrawerSection title="Fields">
-              <div className="space-y-0.5">
-                <InlineEditField
-                  label="Name"
-                  value={company.name}
-                  onSave={async (nextValue) => {
-                    await updateCompany.mutateAsync({ name: nextValue.trim() });
-                  }}
-                />
-                <InlineEditField
-                  label="Industry"
-                  value={company.industry}
-                  type="select"
-                  options={companyIndustryOptions}
-                  onSave={async (nextValue) => {
-                    await updateCompany.mutateAsync({ industry: nextValue });
-                  }}
-                />
-                <InlineEditField
-                  label="Website"
-                  value={company.website}
-                  onSave={async (nextValue) => {
-                    await updateCompany.mutateAsync({ website: toNullableValue(nextValue) });
-                  }}
-                />
-                <InlineEditField
-                  label="Phone"
-                  value={company.phone}
-                  onSave={async (nextValue) => {
-                    await updateCompany.mutateAsync({ phone: toNullableValue(nextValue) });
-                  }}
-                />
-                <InlineEditField
-                  label="Email"
-                  value={company.email}
-                  onSave={async (nextValue) => {
-                    await updateCompany.mutateAsync({ email: toNullableValue(nextValue) });
-                  }}
-                />
-                <InlineEditField
-                  label="Address"
-                  value={company.address}
-                  onSave={async (nextValue) => {
-                    await updateCompany.mutateAsync({ address: toNullableValue(nextValue) });
-                  }}
-                />
-                <InlineEditField
-                  label="Notes"
-                  value={company.notes}
-                  type="textarea"
-                  onSave={async (nextValue) => {
-                    await updateCompany.mutateAsync({ notes: toNullableValue(nextValue) });
-                  }}
-                />
-              </div>
+    <RecordDetailPanelShell
+      title={company.name}
+      meta={`Updated ${formatDistanceToNow(new Date(company.updated_at), { addSuffix: true })}`}
+      closeButton={closeButton}
+      avatar={
+        <Avatar size="sm">
+          <AvatarFallback className="bg-emerald-500/10 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+            {company.name.charAt(0).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+      }
+      badge={company.industry ? (
+        <Badge variant={getCompanyIndustryBadgeVariant(company.industry)}>
+          {formatCrmEnumLabel(company.industry)}
+        </Badge>
+      ) : null}
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      footer={<RecordDetailPanelFooter />}
+    >
+      {activeTab === "home" ? (
+        <div className="space-y-6">
+          <DrawerSection title="Fields">
+            <CollapsibleFieldGroup label="General">
+              <InlineEditField
+                icon={<Building2 className="h-4 w-4" />}
+                label="Name"
+                value={company.name}
+                onSave={async (nextValue) => {
+                  await updateCompany.mutateAsync({ name: nextValue.trim() });
+                }}
+              />
+              <InlineEditField
+                icon={<BriefcaseBusiness className="h-4 w-4" />}
+                label="Industry"
+                value={company.industry}
+                type="select"
+                options={companyIndustryOptions}
+                onSave={async (nextValue) => {
+                  await updateCompany.mutateAsync({ industry: nextValue });
+                }}
+              />
+              <InlineEditField
+                icon={<Globe className="h-4 w-4" />}
+                label="Website"
+                value={company.website}
+                onSave={async (nextValue) => {
+                  await updateCompany.mutateAsync({ website: toNullableValue(nextValue) });
+                }}
+              />
+              <InlineEditField
+                icon={<Phone className="h-4 w-4" />}
+                label="Phone"
+                value={company.phone}
+                onSave={async (nextValue) => {
+                  await updateCompany.mutateAsync({ phone: toNullableValue(nextValue) });
+                }}
+              />
+              <InlineEditField
+                icon={<Mail className="h-4 w-4" />}
+                label="Email"
+                value={company.email}
+                onSave={async (nextValue) => {
+                  await updateCompany.mutateAsync({ email: toNullableValue(nextValue) });
+                }}
+              />
+              <InlineEditField
+                icon={<MapPin className="h-4 w-4" />}
+                label="Address"
+                value={company.address}
+                onSave={async (nextValue) => {
+                  await updateCompany.mutateAsync({ address: toNullableValue(nextValue) });
+                }}
+              />
+              <InlineEditField
+                icon={<StickyNote className="h-4 w-4" />}
+                label="Notes"
+                value={company.notes}
+                type="textarea"
+                onSave={async (nextValue) => {
+                  await updateCompany.mutateAsync({ notes: toNullableValue(nextValue) });
+                }}
+              />
+            </CollapsibleFieldGroup>
+          </DrawerSection>
+
+          {companyCustomFields.length > 0 ? (
+            <DrawerSection title="Custom Fields">
+              <CustomFieldEditors
+                definitions={companyCustomFields}
+                values={(company.custom_fields as Record<string, unknown> | null | undefined) ?? {}}
+                onSaveField={async (definition, nextValue) => {
+                  await updateCompany.mutateAsync({
+                    custom_fields: {
+                      [definition.key]: parseCustomFieldInputValue(definition.type, nextValue),
+                    },
+                  });
+                }}
+              />
             </DrawerSection>
+          ) : null}
+        </div>
+      ) : null}
 
-            {companyCustomFields.length > 0 ? (
-              <DrawerSection title="Custom Fields">
-                <CustomFieldEditors
-                  definitions={companyCustomFields}
-                  values={(company.custom_fields as Record<string, unknown> | null | undefined) ?? {}}
-                  onSaveField={async (definition, nextValue) => {
-                    await updateCompany.mutateAsync({
-                      custom_fields: {
-                        [definition.key]: parseCustomFieldInputValue(definition.type, nextValue),
-                      },
-                    });
-                  }}
-                />
-              </DrawerSection>
-            ) : null}
-          </div>
-        ) : null}
+      {activeTab === "contacts" ? (
+        <DrawerSection title="Contacts">
+          <LinkedContactsSection
+            contacts={linkedContacts.map((contact) => ({
+              id: contact.contact_id,
+              name: formatContactFullName(contact),
+              badge: formatCrmEnumLabel(contact.type),
+              href: `/customers/people?detail=${contact.contact_id}`,
+            }))}
+            emptyLabel="No linked contacts."
+          />
+        </DrawerSection>
+      ) : null}
 
-        {activeTab === "contacts" ? (
-          <DrawerSection title="Contacts">
-            <LinkedContactsSection
-              contacts={linkedContacts.map((contact) => ({
-                id: contact.contact_id,
-                name: formatContactFullName(contact),
-                badge: formatCrmEnumLabel(contact.type),
-                href: `/customers/people?detail=${contact.contact_id}`,
-              }))}
-              emptyLabel="No linked contacts."
-            />
-          </DrawerSection>
-        ) : null}
-
-        {activeTab === "deals" ? (
-          <DrawerSection title="Deals">
-            <LinkedDealsSection
-              deals={linkedDeals.map((deal) => ({
-                id: deal.deal_id,
-                address: deal.address,
-                stage: deal.stage,
-                amount: deal.amount,
-                href: `/customers/deals?detail=${deal.deal_id}`,
-              }))}
-              emptyLabel="No linked deals."
-            />
-          </DrawerSection>
-        ) : null}
-      </RecordDetailPanelShell>
-    </div>
+      {activeTab === "deals" ? (
+        <DrawerSection title="Deals">
+          <LinkedDealsSection
+            deals={linkedDeals.map((deal) => ({
+              id: deal.deal_id,
+              address: deal.address,
+              stage: deal.stage,
+              amount: deal.amount,
+              href: `/customers/deals?detail=${deal.deal_id}`,
+            }))}
+            emptyLabel="No linked deals."
+          />
+        </DrawerSection>
+      ) : null}
+    </RecordDetailPanelShell>
   );
 }

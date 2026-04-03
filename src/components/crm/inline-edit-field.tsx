@@ -34,6 +34,8 @@ interface SelectOption {
 type InlineEditType = "text" | "textarea" | "select" | "date" | "number";
 
 interface InlineEditFieldProps {
+  /** Optional leading icon rendered before the label (e.g. a lucide icon at h-4 w-4). */
+  icon?: React.ReactNode;
   /** Field label rendered on the left side. */
   label: string;
   /** Current field value from query data. */
@@ -85,6 +87,7 @@ function parseDateValue(value: string): Date | null {
 }
 
 export function InlineEditField({
+  icon,
   label,
   value,
   displayValue,
@@ -358,7 +361,14 @@ export function InlineEditField({
       onKeyDown={handleContainerKeyDown}
     >
       {hideLabel ? null : (
-        <span className={cn("text-sm text-muted-foreground", labelClassName)}>{label}</span>
+        <div className="flex items-center gap-2">
+          {icon ? (
+            <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground/60">
+              {icon}
+            </span>
+          ) : null}
+          <span className={cn("text-sm text-muted-foreground", labelClassName)}>{label}</span>
+        </div>
       )}
 
       <div

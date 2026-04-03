@@ -126,7 +126,8 @@ describe("DealDrawerContent", () => {
     expect(screen.getByText("Home")).toBeInTheDocument();
     expect(screen.getByText("Contacts")).toBeInTheDocument();
     expect(screen.getByText("Timeline")).toBeInTheDocument();
-    expect(screen.getByText("Tasks")).toBeInTheDocument();
+    // "Tasks" is in the "+1 More" overflow dropdown (4th tab, maxVisibleTabs=3)
+    expect(screen.getByText("+1 More")).toBeInTheDocument();
     expect(screen.getByText("Fields")).toBeInTheDocument();
   });
 

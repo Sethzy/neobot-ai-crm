@@ -120,7 +120,7 @@ export function CrmListPanelLayout({
 
         {isOpen && recordId ? (
           <div className="ml-1 flex w-[400px] shrink-0 flex-col overflow-hidden bg-sidebar">
-            <div className="min-w-0 flex-1 overflow-y-auto rounded-tl-xl border-l border-t border-border/60 bg-card">
+            <div className="min-w-0 flex-1 overflow-hidden rounded-tl-xl border-l border-t border-border/60 bg-card">
               {renderPanelContent(recordId, {
                 closeButton: (
                   <Button
