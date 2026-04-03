@@ -258,13 +258,19 @@ export function InlineEditField({
       return (
         <Select
           value={draft}
+          open
           onValueChange={(nextValue) => {
             setDraft(nextValue);
             void handleCommit(nextValue);
           }}
+          onOpenChange={(open) => {
+            if (!open) {
+              setIsEditing(false);
+            }
+          }}
           disabled={isSaving}
         >
-            <SelectTrigger className="h-7 min-w-[120px] text-sm">
+          <SelectTrigger className="h-7 min-w-0 border-0 bg-transparent px-0 text-sm shadow-none focus:ring-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -303,7 +309,7 @@ export function InlineEditField({
               type="button"
               variant="outline"
               size="sm"
-              className={cn("h-7 w-full justify-start text-left text-sm font-normal", editorClassName)}
+              className={cn("h-7 w-full justify-start border-0 bg-transparent px-0 text-left text-sm font-normal shadow-none hover:bg-muted/30", editorClassName)}
               disabled={isSaving}
             >
               <CalendarIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
@@ -337,7 +343,7 @@ export function InlineEditField({
           inputMode={type === "number" ? "decimal" : undefined}
           value={draft}
           disabled={isSaving}
-          className={cn("h-7 w-full text-sm", !hideLabel && "text-right", editorClassName)}
+          className={cn("h-7 w-full rounded border-border/50 text-sm shadow-none focus-visible:ring-1", editorClassName)}
           onChange={(event) => setDraft(event.target.value)}
         onBlur={() => {
           void handleCommit(draft);
@@ -374,8 +380,6 @@ export function InlineEditField({
       <div
         className={cn(
           "flex min-w-0 flex-1 items-center gap-1.5",
-          isEditing && !isTextareaField && "max-w-[220px]",
-          isEditing && isTextareaField && "w-full",
           !isEditing && isTextareaField && "items-start",
         )}
       >
