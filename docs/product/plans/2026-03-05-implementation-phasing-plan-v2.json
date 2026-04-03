@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-04-01: Marked PR 15f done. Configurable CRM columns — config-driven table layout with field definition tiers, renderers, and configure_crm expansion.",
+    "updated": "2026-04-03: Added PR 66 (Langfuse agent improvement loop — online evals, datasets, annotation queues) to Phase 4.",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -79,7 +79,8 @@
       "2026-03-30: Marked PR 62 done. Updated QA Surface 9 (chat attachments), Surface 10 (connections), Surface 12 (approvals), and Surface 19 (system prompt/reminders) plus automated QA scenarios for Google Workspace connection and permission-card flows.",
       "2026-03-30: Added PR 57b (Replace Apify listing tools with Browser-Use Tasks) to Phase 3. Rewires search_propertyguru and search_99co from Apify actors to Browser-Use Cloud Tasks. Motivated by: 99.co Apify actor sunsetting Oct 2026, $60/mo Apify cost vs ~$5-8/mo Browser-Use, vendor lock-in. Parity test confirmed all critical fields recoverable via structured JSON (PropertyGuru __NEXT_DATA__, 99.co /api/v10 endpoint). Two-commit strategy: (1) wire Browser-Use, (2) delete Apify (independently revertable). Design doc: docs/plans/2026-03-30-browser-use-listing-tools-design.md. Parity test: docs/debug/listing-tools-parity-test.md.",
       "2026-03-31: Marked PR 57b done. Replaced Apify-backed search_99co/search_propertyguru with Browser-Use tasks, gated listing tools on BROWSER_USE_API_KEY, updated QA Surface 28, and added automated scenarios for 99.co rent-path routing and PropertyGuru startUrl mode.",
-      "2026-03-30: Marked PRs 63-65 done. Updated QA Surface 29 (Sandbox) for the unified agent filesystem, sandbox workspace preload, and Composio file bridge, and added automated QA scenarios covering uploads read-only protection, /agent/home preload across runs, and Google Drive file download/upload bridge flows."
+      "2026-03-30: Marked PRs 63-65 done. Updated QA Surface 29 (Sandbox) for the unified agent filesystem, sandbox workspace preload, and Composio file bridge, and added automated QA scenarios covering uploads read-only protection, /agent/home preload across runs, and Google Drive file download/upload bridge flows.",
+      "2026-04-03: Added PR 66 (Langfuse agent improvement loop) to Phase 4. Restores cut PR 40 (eval harness + observability) in practical Langfuse-native form. Three phases: (1) online LLM-as-judge evaluators + trace metadata enrichment, (2) golden dataset from QA traces + offline eval script, (3) annotation queues + trace-to-dataset promotion. Architecture adapted from LangChain 'Traces Start the Agent Improvement Loop' guide. Reference: roadmap docs/Sunder - Source of Truth/references/langchain-improvement-loop/01-traces-start-agent-improvement-loop.md."
     ]
   },
   "phases": [
@@ -3459,6 +3460,75 @@
             "All tools registered on every run including browser and market",
             "Compaction triggers at 85% of model context window using previous run prompt_tokens",
             "Cache hit rate 95%+ on turns 2-50 (once caching enabled)"
+          ]
+        },
+        {
+          "pr": 66,
+          "title": "Langfuse agent improvement loop — online evals, datasets, annotation queues",
+          "status": "pending",
+          "simplified": false,
+          "decisions": [
+            "EVAL-01",
+            "EVAL-02",
+            "EVAL-03",
+            "EVAL-04"
+          ],
+          "note": "Closes the trace → eval → improvement loop using Langfuse. Restores cut PR 40 (eval harness + observability) in a practical, Langfuse-native form. Architecture adapted from LangChain 'Traces Start the Agent Improvement Loop' conceptual guide, mapped to Langfuse equivalents. Reference: roadmap docs/Sunder - Source of Truth/references/langchain-improvement-loop/01-traces-start-agent-improvement-loop.md. Three phases: (1) online LLM-as-judge evaluators + trace metadata enrichment, (2) golden dataset from QA traces + offline eval script, (3) annotation queues + trace-to-dataset promotion. Langfuse covers ~80% of LangSmith's loop — missing unsupervised clustering (Insights Agent) and native coding-agent-in-the-loop. Workarounds: /qa skill for targeted checks, debug-trace skill as primitive trace-informed coding agent.",
+          "tasks": [
+            {
+              "id": "PR66-1",
+              "task": "Set up 3 online LLM-as-judge evaluators in Langfuse: (1) tool selection correctness, (2) safety gate compliance (approval-gated tools not auto-executed), (3) CRM data accuracy (no hallucinated fields/values)",
+              "done": false
+            },
+            {
+              "id": "PR66-2",
+              "task": "Add environment (dev/staging/prod) and prompt_version metadata tags to all Langfuse traces in run-agent.ts",
+              "done": false
+            },
+            {
+              "id": "PR66-3",
+              "task": "Add code-based online evaluator: tool call schema validation (tool args match Zod schemas, no extra fields)",
+              "done": false
+            },
+            {
+              "id": "PR66-4",
+              "task": "Create golden dataset in Langfuse from 20-30 representative QA traces covering core surfaces (CRM CRUD, memory read/write, trigger setup, connection management, approval flow)",
+              "done": false
+            },
+            {
+              "id": "PR66-5",
+              "task": "Build offline eval script (src/lib/eval/run-offline-eval.ts) that replays dataset items against the agent, logs scores to Langfuse, and outputs a comparison report",
+              "done": false
+            },
+            {
+              "id": "PR66-6",
+              "task": "Wire offline eval into CI as optional check — run against golden dataset on prompt/tool changes, flag regressions",
+              "done": false
+            },
+            {
+              "id": "PR66-7",
+              "task": "Configure Langfuse annotation queues: route low-scoring production traces (eval score < threshold) and user thumbs-down traces into review queue",
+              "done": false
+            },
+            {
+              "id": "PR66-8",
+              "task": "Build trace → dataset item promotion workflow: reviewed/corrected annotations become new dataset items with ground truth labels",
+              "done": false
+            },
+            {
+              "id": "PR66-9",
+              "task": "Document the improvement loop process — weekly review cadence, eval score thresholds, dataset growth targets, prompt versioning convention",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "All production traces have environment and prompt_version metadata",
+            "Online evaluators auto-score new traces within 60s of completion",
+            "Golden dataset contains 20+ items covering 5+ tool surfaces",
+            "Offline eval script replays dataset and produces per-item + aggregate scores",
+            "Low-scoring traces appear in annotation queue within 5 min",
+            "Annotated traces can be promoted to dataset items with one action",
+            "Regression detected: changing a tool description causes an offline eval score drop that is flagged"
           ]
         }
       ]
