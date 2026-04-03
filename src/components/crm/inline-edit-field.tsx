@@ -1,10 +1,12 @@
 /**
  * Inline field editor for CRM drawer surfaces.
+ * Twenty-style: values left-aligned, empty fields show placeholder,
+ * edit mode wraps value in a subtle chip border with no layout shift.
  * @module components/crm/inline-edit-field
  */
 "use client";
 
-import { Check, CalendarIcon, Loader2, Pencil } from "@/components/icons/lucide-compat";
+import { Check, CalendarIcon, Loader2 } from "@/components/icons/lucide-compat";
 import { format } from "date-fns";
 import {
   type KeyboardEvent,
@@ -18,10 +20,8 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 interface SelectOption {
@@ -225,33 +225,49 @@ export function InlineEditField({
   const dateFromDraft = useMemo(() => (draft ? parseDateValue(draft) : null), [draft]);
   const dateFromValue = useMemo(() => (value ? parseDateValue(value) : null), [value]);
 
-  const resolvedDisplayValue = useMemo(() => {
+  /** Whether the field has a real value (not empty/null). */
+  const hasValue = useMemo(() => {
     if (displayValue !== undefined) {
-      const normalizedDisplayValue = displayValue?.trim();
-      return normalizedDisplayValue && normalizedDisplayValue.length > 0 ? normalizedDisplayValue : "—";
+      return Boolean(displayValue?.trim());
     }
 
     if (type === "select") {
-      if (!value) {
-        return "—";
-      }
+      return Boolean(value);
+    }
 
+    if (type === "date") {
+      return Boolean(dateFromValue);
+    }
+
+    return Boolean(value?.trim());
+  }, [dateFromValue, displayValue, type, value]);
+
+  /** Resolved text to show in display mode. */
+  const resolvedDisplayValue = useMemo(() => {
+    if (displayValue !== undefined) {
+      const normalized = displayValue?.trim();
+      return normalized && normalized.length > 0 ? normalized : null;
+    }
+
+    if (type === "select") {
+      if (!value) return null;
       return options.find((option) => option.value === value)?.label ?? value;
     }
 
     if (type === "date") {
-      if (!dateFromValue) {
-        return "—";
-      }
-
+      if (!dateFromValue) return null;
       return format(dateFromValue, "d MMM yyyy");
     }
 
-    const normalizedValue = value?.trim();
-    return normalizedValue && normalizedValue.length > 0 ? normalizedValue : "—";
+    const normalized = value?.trim();
+    return normalized && normalized.length > 0 ? normalized : null;
   }, [dateFromValue, displayValue, options, type, value]);
 
   const isTextareaField = type === "textarea";
+
+  // ---------------------------------------------------------------------------
+  // Edit-mode renderers
+  // ---------------------------------------------------------------------------
 
   const renderEditor = (inputElementRef: RefObject<HTMLInputElement | HTMLTextAreaElement | null>) => {
     if (type === "select") {
@@ -263,14 +279,14 @@ export function InlineEditField({
             setDraft(nextValue);
             void handleCommit(nextValue);
           }}
-          onOpenChange={(open) => {
-            if (!open) {
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) {
               setIsEditing(false);
             }
           }}
           disabled={isSaving}
         >
-          <SelectTrigger className="h-7 min-w-0 border-0 bg-transparent px-0 text-sm shadow-none focus:ring-0">
+          <SelectTrigger className="h-auto min-w-0 border-0 bg-transparent p-0 text-sm shadow-none focus:ring-0 [&>svg]:hidden">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -286,12 +302,16 @@ export function InlineEditField({
 
     if (type === "textarea") {
       return (
-          <Textarea
-            ref={inputElementRef as RefObject<HTMLTextAreaElement>}
-            rows={3}
-            className={cn("min-h-20 w-full", editorClassName)}
-            value={draft}
-            disabled={isSaving}
+        <textarea
+          ref={inputElementRef as RefObject<HTMLTextAreaElement>}
+          rows={3}
+          className={cn(
+            "w-full resize-none bg-transparent text-sm text-foreground/80 placeholder:text-muted-foreground/40 focus:outline-none",
+            editorClassName,
+          )}
+          value={draft}
+          disabled={isSaving}
+          placeholder={label}
           onChange={(event) => setDraft(event.target.value)}
           onBlur={() => {
             void handleCommit(draft);
@@ -307,16 +327,21 @@ export function InlineEditField({
           <PopoverTrigger asChild>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className={cn("h-7 w-full justify-start border-0 bg-transparent px-0 text-left text-sm font-normal shadow-none hover:bg-muted/30", editorClassName)}
+              className={cn(
+                "h-auto w-full justify-start p-0 text-sm font-normal text-foreground/80 shadow-none hover:bg-transparent",
+                editorClassName,
+              )}
               disabled={isSaving}
             >
-              <CalendarIcon className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-              {dateFromDraft ? format(dateFromDraft, "d MMM yyyy") : "Select date"}
+              <CalendarIcon className="mr-1.5 h-3.5 w-3.5 text-muted-foreground/50" />
+              {dateFromDraft ? format(dateFromDraft, "d MMM yyyy") : (
+                <span className="text-muted-foreground/40">{label}</span>
+              )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="end">
+          <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="single"
               selected={dateFromDraft ?? undefined}
@@ -336,15 +361,20 @@ export function InlineEditField({
       );
     }
 
+    // Text / number input
     return (
-        <Input
-          ref={inputElementRef as RefObject<HTMLInputElement>}
-          type={inputType ?? (type === "number" ? "number" : "text")}
-          inputMode={type === "number" ? "decimal" : undefined}
-          value={draft}
-          disabled={isSaving}
-          className={cn("h-7 w-full rounded border-border/50 text-sm shadow-none focus-visible:ring-1", editorClassName)}
-          onChange={(event) => setDraft(event.target.value)}
+      <input
+        ref={inputElementRef as RefObject<HTMLInputElement>}
+        type={inputType ?? (type === "number" ? "number" : "text")}
+        inputMode={type === "number" ? "decimal" : undefined}
+        value={draft}
+        disabled={isSaving}
+        placeholder={label}
+        className={cn(
+          "w-full bg-transparent text-sm text-foreground/80 placeholder:text-muted-foreground/40 focus:outline-none",
+          editorClassName,
+        )}
+        onChange={(event) => setDraft(event.target.value)}
         onBlur={() => {
           void handleCommit(draft);
         }}
@@ -353,12 +383,17 @@ export function InlineEditField({
     );
   };
 
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
+
   return (
     <div
       role="button"
       tabIndex={0}
       className={cn(
-        "group flex items-center gap-3 rounded-md px-1 py-1 transition-colors hover:bg-muted/30",
+        "group flex items-center gap-3 rounded-md px-1 py-1 transition-colors",
+        !isEditing && "hover:bg-muted/30",
         hideLabel && "justify-start",
         isTextareaField && !hideLabel && "items-start",
         containerClassName,
@@ -366,47 +401,55 @@ export function InlineEditField({
       onClick={handleStartEditing}
       onKeyDown={handleContainerKeyDown}
     >
+      {/* Label column */}
       {hideLabel ? null : (
         <div className="flex w-[110px] shrink-0 items-center gap-2">
           {icon ? (
-            <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground/50">
+            <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground/40">
               {icon}
             </span>
           ) : null}
-          <span className={cn("truncate text-sm text-muted-foreground", labelClassName)}>{label}</span>
+          <span className={cn("truncate text-sm text-muted-foreground/70", labelClassName)}>{label}</span>
         </div>
       )}
 
+      {/* Value column */}
       <div
         className={cn(
           "flex min-w-0 flex-1 items-center gap-1.5",
+          isEditing && !isTextareaField && !hideLabel && "rounded-md border border-border/50 px-2 py-0.5",
+          isEditing && isTextareaField && !hideLabel && "rounded-md border border-border/50 px-2 py-1",
           !isEditing && isTextareaField && "items-start",
         )}
       >
         {isEditing ? (
-          renderEditor(inputRef)
+          <>
+            {renderEditor(inputRef)}
+            {isSaving ? (
+              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground/50" />
+            ) : null}
+          </>
         ) : (
           <>
             <span
               className={cn(
-                "min-w-0 flex-1 text-sm text-foreground/80",
+                "min-w-0 flex-1 text-sm",
+                hasValue ? "text-foreground/80" : "text-muted-foreground/40",
                 isTextareaField
-                  ? "line-clamp-4 whitespace-pre-wrap break-words text-left"
+                  ? "line-clamp-4 whitespace-pre-wrap break-words"
                   : hideLabel
-                    ? "whitespace-normal break-words text-left"
-                    : "truncate text-right",
+                    ? "whitespace-normal break-words"
+                    : "truncate",
                 displayClassName,
               )}
             >
-              {resolvedDisplayValue}
+              {resolvedDisplayValue ?? label}
             </span>
             {isSaving ? (
-              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground/60" />
+              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground/50" />
             ) : isSaved ? (
               <Check className="h-3.5 w-3.5 shrink-0 text-success" />
-            ) : (
-              <Pencil className="h-3 w-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100" />
-            )}
+            ) : null}
           </>
         )}
       </div>
