@@ -20,6 +20,7 @@ export interface ExecuteTriggerInput {
 
 export interface ExecuteTriggerResult {
   status: "completed" | "failed" | "claim_mismatch" | "queued" | "skipped_busy";
+  traceId?: string;
 }
 
 function toAnalyticsTriggerType(
@@ -217,11 +218,14 @@ export async function executeTrigger({
       supabase,
     );
 
+    const traceId = runResult.status === "streaming" ? runResult.traceId : undefined;
+
     if (runResult.status === "queued") {
       return finish("queued", { advanceNextFireAt: true });
     }
 
-    return finish("completed", { advanceNextFireAt: true });
+    const finishResult = await finish("completed", { advanceNextFireAt: true });
+    return { ...finishResult, traceId };
   } catch (error) {
     console.error("[executor] schedule trigger failed:", error);
     return finish(

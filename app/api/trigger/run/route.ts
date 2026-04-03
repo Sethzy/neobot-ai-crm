@@ -3,6 +3,7 @@
  * @module app/api/trigger/run/route
  */
 import { langfuseSpanProcessor } from "@/instrumentation";
+import { runEvaluatorsForTrace } from "@/lib/eval/run-evaluators";
 import { createAdminClient } from "@/lib/supabase/server";
 import { executeTrigger } from "@/lib/triggers/executor";
 import { requireCronSecret } from "@/lib/triggers/route-auth";
@@ -49,6 +50,17 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     await langfuseSpanProcessor.forceFlush();
+    if (result.traceId) {
+      // Brief delay for Langfuse async ingestion, then run evaluators.
+      // Fire-and-forget — evaluator failures are logged, not propagated.
+      setTimeout(async () => {
+        try {
+          await runEvaluatorsForTrace(result.traceId!);
+        } catch (err) {
+          console.error("[trigger/run] evaluator failed:", err);
+        }
+      }, 2000);
+    }
     return Response.json({ status: result.status });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown execution error";

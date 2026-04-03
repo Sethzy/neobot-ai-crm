@@ -416,6 +416,7 @@ vi.mock("@/lib/storage/tool-blocks", () => ({
 
 vi.mock("@langfuse/tracing", () => ({
   propagateAttributes: vi.fn((_attrs: unknown, fn: () => unknown) => fn()),
+  getActiveTraceId: () => "mock-trace-id",
 }));
 
 vi.mock("@json-render/core", () => ({

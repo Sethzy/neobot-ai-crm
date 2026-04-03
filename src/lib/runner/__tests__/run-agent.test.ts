@@ -93,6 +93,11 @@ vi.mock("@/lib/ai/gateway", () => ({
   TIER_1_MODEL: "google/gemini-3-flash",
 }));
 
+vi.mock("@langfuse/tracing", () => ({
+  propagateAttributes: (_attrs: unknown, fn: () => unknown) => fn(),
+  getActiveTraceId: () => "mock-trace-id",
+}));
+
 vi.mock("@posthog/ai", () => ({
   withTracing: (model: unknown) => model,
 }));

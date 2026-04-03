@@ -67,6 +67,11 @@ vi.mock("ai", () => ({
   hasToolCall: () => () => false,
 }));
 
+vi.mock("@langfuse/tracing", () => ({
+  propagateAttributes: (_attrs: unknown, fn: () => unknown) => fn(),
+  getActiveTraceId: () => "mock-trace-id",
+}));
+
 vi.mock("@/lib/ai/gateway", () => ({
   gateway: mockGateway,
   getLanguageModel: mockGetLanguageModel,

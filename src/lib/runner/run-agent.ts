@@ -4,7 +4,7 @@
  */
 import { hasToolCall, stepCountIs, streamText, type ToolSet } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { propagateAttributes } from "@langfuse/tracing";
+import { propagateAttributes, getActiveTraceId } from "@langfuse/tracing";
 
 import { withTracing } from "@posthog/ai";
 
@@ -56,7 +56,7 @@ type CombinedRunnerTools = RunnerTools & ToolSet;
 type StreamResult = ReturnType<typeof streamText<CombinedRunnerTools>>;
 
 export type RunAgentResult =
-  | { status: "streaming"; streamResult: StreamResult }
+  | { status: "streaming"; streamResult: StreamResult; traceId?: string }
   | { status: "queued" };
 
 /**
@@ -373,6 +373,7 @@ export async function runAgent(
       : getLanguageModel(modelId);
 
     _t("pre_stream_text");
+    let langfuseTraceId: string | undefined;
     const streamResult = await propagateAttributes(
       {
         traceName: `sunder-${payload.triggerType}`,
@@ -380,8 +381,9 @@ export async function runAgent(
         userId: clientId,
         tags: [payload.triggerType],
       },
-      async () =>
-        streamText({
+      async () => {
+        langfuseTraceId = getActiveTraceId();
+        return streamText({
           model,
           system,
           messages,
@@ -456,11 +458,12 @@ export async function runAgent(
               },
             });
           },
-        }),
+        });
+      },
     );
 
     _t("stream_text_returned");
-    return { status: "streaming", streamResult };
+    return { status: "streaming", streamResult, traceId: langfuseTraceId };
   } catch (error) {
     if (shouldReleaseConsumedQuota && consumedQuota) {
       try {

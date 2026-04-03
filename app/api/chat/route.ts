@@ -10,6 +10,7 @@ import { createResumableStreamContext } from "resumable-stream";
 import { pipeJsonRender } from "@json-render/core";
 
 import { langfuseSpanProcessor } from "@/instrumentation";
+import { runEvaluatorsForTrace } from "@/lib/eval/run-evaluators";
 import {
   captureServerEvent,
   captureServerEvents,
@@ -395,7 +396,14 @@ export async function POST(request: Request): Promise<Response> {
       },
     });
 
-    after(async () => langfuseSpanProcessor.forceFlush());
+    after(async () => {
+      await langfuseSpanProcessor.forceFlush();
+      if (result.traceId) {
+        // Brief delay for Langfuse async ingestion pipeline
+        await new Promise((r) => setTimeout(r, 2000));
+        await runEvaluatorsForTrace(result.traceId);
+      }
+    });
 
     _t("response_returned");
     return createUIMessageStreamResponse({
