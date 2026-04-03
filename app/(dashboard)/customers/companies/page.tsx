@@ -13,7 +13,6 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
 import { CrmListPanelLayout } from "@/components/crm/crm-list-panel-layout";
-import { CrmListPageShell } from "@/components/crm/crm-list-page-shell";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { CompanyDrawerContent } from "@/components/crm/record-drawer/company-drawer-content";
 import { DataTable } from "@/components/ui/data-table";
@@ -383,14 +382,12 @@ export default function CompaniesPage() {
   return (
     <CrmListPanelLayout
       objectType="company"
+      icon={<Building2 className="h-4 w-4 text-muted-foreground" />}
+      title="Companies"
       renderPanelContent={(id, { closeButton }) => (
         <CompanyDrawerContent key={id} companyId={id} closeButton={closeButton} />
       )}
     >
-      <CrmListPageShell
-        icon={<Building2 className="h-4 w-4 text-muted-foreground" />}
-        title="Companies"
-      >
         <DataTable
           columns={columns}
           data={rows}
@@ -449,7 +446,6 @@ export default function CompaniesPage() {
             setFilterValues({});
           }}
         />
-      </CrmListPageShell>
     </CrmListPanelLayout>
   );
 }

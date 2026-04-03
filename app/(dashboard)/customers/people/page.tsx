@@ -12,7 +12,6 @@ import { Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { CrmListPanelLayout } from "@/components/crm/crm-list-panel-layout";
-import { CrmListPageShell } from "@/components/crm/crm-list-page-shell";
 import { DictionaryValue, contactTypeDictionaryMap } from "@/components/crm/dictionary-value";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { ContactDrawerContent } from "@/components/crm/record-drawer/contact-drawer-content";
@@ -400,14 +399,12 @@ export default function PeoplePage() {
   return (
     <CrmListPanelLayout
       objectType="contact"
+      icon={<Users className="h-4 w-4 text-muted-foreground" />}
+      title="People"
       renderPanelContent={(id, { closeButton }) => (
         <ContactDrawerContent key={id} contactId={id} closeButton={closeButton} />
       )}
     >
-      <CrmListPageShell
-        icon={<Users className="h-4 w-4 text-muted-foreground" />}
-        title="People"
-      >
         <DataTable
           columns={columns}
           data={rows}
@@ -470,7 +467,6 @@ export default function PeoplePage() {
             setFilterValues({});
           }}
         />
-      </CrmListPageShell>
     </CrmListPanelLayout>
   );
 }

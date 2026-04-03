@@ -1,13 +1,14 @@
 /**
  * Generic layout that pairs a CRM list page with an inline detail side panel.
- * On desktop, the panel sits to the right of the page content with a border gutter.
+ * Header renders at full width above the body+panel flex row so it never
+ * gets squished when the panel is open (matches Twenty's layout pattern).
  * On mobile, falls back to the existing Sheet-based RecordDrawer overlay.
  * @module components/crm/crm-list-panel-layout
  */
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,17 @@ import { RecordDrawer, type RecordObjectType } from "./record-drawer/record-draw
 interface CrmListPanelLayoutProps {
   /** Entity type for the mobile Sheet fallback. */
   objectType: RecordObjectType;
-  /** The list page content (CrmListPageShell wrapping a DataTable). */
+  /** Leading icon rendered next to the page title. */
+  icon: ReactNode;
+  /** Primary page title shown in the dashboard header. */
+  title: string;
+  /** Optional secondary text shown below the title. */
+  description?: ReactNode;
+  /** Optional controls aligned to the right side of the header. */
+  headerActions?: ReactNode;
+  /** Optional additional classes for the card body wrapper. */
+  bodyClassName?: string;
+  /** Main page content rendered inside the rounded card surface. */
   children: ReactNode;
   /** Renders the detail panel body for a given record id (desktop only). */
   renderPanelContent: (recordId: string, options: { closeButton: ReactNode }) => ReactNode;
@@ -27,13 +38,16 @@ interface CrmListPanelLayoutProps {
 
 export function CrmListPanelLayout({
   objectType,
+  icon,
+  title,
+  description,
+  headerActions,
+  bodyClassName,
   children,
   renderPanelContent,
 }: CrmListPanelLayoutProps) {
   const { isOpen, recordId, close } = useRecordDrawer();
   const isMobile = useIsMobile();
-  const listShellRef = useRef<HTMLDivElement | null>(null);
-  const [panelOffsetTop, setPanelOffsetTop] = useState(0);
 
   // Close panel on Escape key.
   useEffect(() => {
@@ -50,85 +64,79 @@ export function CrmListPanelLayout({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, close]);
 
-  useLayoutEffect(() => {
-    if (isMobile) {
-      return;
-    }
+  const hasHeaderMeta = Boolean(description) || Boolean(headerActions);
 
-    const listShellElement = listShellRef.current;
-    const headerElement = listShellElement?.querySelector<HTMLElement>("[data-crm-list-page-header]");
+  const headerElement = (
+    <div
+      className={
+        hasHeaderMeta
+          ? "flex shrink-0 flex-col gap-3 bg-sidebar px-4 py-3 md:px-8 lg:flex-row lg:items-start lg:justify-between"
+          : "flex shrink-0 items-center justify-between bg-sidebar px-4 py-3 md:px-8"
+      }
+    >
+      <div className={description ? "space-y-1" : undefined}>
+        <div className="flex items-center gap-2">
+          {icon}
+          <h1 className="text-sm font-medium text-foreground">{title}</h1>
+        </div>
+        {description ? (
+          <p className="text-sm text-muted-foreground">{description}</p>
+        ) : null}
+      </div>
+      {headerActions}
+    </div>
+  );
 
-    if (!headerElement) {
-      return;
-    }
-
-    const updatePanelOffset = () => {
-      setPanelOffsetTop(headerElement.getBoundingClientRect().height);
-    };
-
-    updatePanelOffset();
-
-    if (typeof ResizeObserver === "undefined") {
-      window.addEventListener("resize", updatePanelOffset);
-      return () => window.removeEventListener("resize", updatePanelOffset);
-    }
-
-    const resizeObserver = new ResizeObserver(() => {
-      updatePanelOffset();
-    });
-    resizeObserver.observe(headerElement);
-    window.addEventListener("resize", updatePanelOffset);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener("resize", updatePanelOffset);
-    };
-  }, [children, isMobile]);
+  const bodyClasses = [
+    "ml-3 min-h-0 min-w-0 flex-1 overflow-auto rounded-t-xl border-l border-t border-border/60 bg-card px-4 pt-4 md:ml-4",
+    bodyClassName,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   // Mobile: render children normally + Sheet overlay.
   if (isMobile) {
     return (
-      <>
-        {children}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        {headerElement}
+        <div className={bodyClasses}>{children}</div>
         <RecordDrawer
           isOpen={isOpen}
           recordId={recordId}
           objectType={objectType}
           onClose={close}
         />
-      </>
+      </div>
     );
   }
 
-  // Desktop: flex layout — list page on the left, detail panel on the right.
+  // Desktop: header full-width, then body + panel in a flex row below.
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-sidebar">
-      <div ref={listShellRef} className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        {children}
-      </div>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-sidebar">
+      {headerElement}
 
-      {isOpen && recordId ? (
-        <div
-          className="ml-1 flex w-[400px] shrink-0 flex-col overflow-hidden bg-sidebar"
-          style={{ paddingTop: `${panelOffsetTop}px` }}
-        >
-          {/* Panel body — card inset with rounded top-left corner */}
-          <div className="min-w-0 flex-1 overflow-y-auto rounded-tl-xl border-l border-t border-border/60 bg-card">
-            {renderPanelContent(recordId, {
-              closeButton: (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Close panel"
-                  onClick={close}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              ),
-            })}
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+        <div className={bodyClasses}>{children}</div>
+
+        {isOpen && recordId ? (
+          <div className="ml-1 flex w-[400px] shrink-0 flex-col overflow-hidden bg-sidebar">
+            <div className="min-w-0 flex-1 overflow-y-auto rounded-tl-xl border-l border-t border-border/60 bg-card">
+              {renderPanelContent(recordId, {
+                closeButton: (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Close panel"
+                    onClick={close}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                ),
+              })}
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </div>
   );
 }

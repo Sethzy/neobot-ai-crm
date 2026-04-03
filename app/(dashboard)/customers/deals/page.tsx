@@ -14,7 +14,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { CrmListPanelLayout } from "@/components/crm/crm-list-panel-layout";
-import { CrmListPageShell } from "@/components/crm/crm-list-page-shell";
 import { DealKanbanCard } from "@/components/crm/deal-kanban-card";
 import { KanbanBoard } from "@/components/crm/kanban-board";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
@@ -420,6 +419,16 @@ export default function DealsPage() {
     [stages],
   );
 
+  /** Maps a raw deal.stage value to the matching config key, tolerating case/delimiter differences. */
+  const matchStageToConfigKey = useMemo(() => {
+    const normalize = (s: string) => s.toLowerCase().replace(/[\s_-]+/g, "_");
+    const map = new Map<string, string>();
+    for (const stage of stages) {
+      map.set(normalize(stage), stage);
+    }
+    return (rawStage: string) => map.get(normalize(rawStage)) ?? rawStage;
+  }, [stages]);
+
   const getColumnSummary = useCallback(
     (_columnKey: string, columnItems: DealWithContact[]) => {
       const total = columnItems.reduce((sum, deal) => sum + (deal.amount ?? 0), 0);
@@ -432,45 +441,43 @@ export default function DealsPage() {
   return (
     <CrmListPanelLayout
       objectType="deal"
+      icon={<Handshake className="h-4 w-4 text-muted-foreground" />}
+      title="Deals"
+      bodyClassName="space-y-6"
+      description={
+        isBoardView
+          ? "Track the pipeline and move deals forward from the board."
+          : "Track the pipeline and update deal progress in place."
+      }
+      headerActions={
+        <div className="flex flex-wrap items-center gap-2">
+          {isBoardView ? (
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Sort by</span>
+              <select
+                aria-label="Sort deals"
+                className="h-9 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value as PipelineSortOption)}
+              >
+                {Object.entries(pipelineSortOptions).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <ViewToggle current={activeView} views={["table", "kanban"]} onChange={(nextView) => {
+            setView(nextView);
+            router.replace(buildDealsHref(searchParams, nextView));
+          }} />
+        </div>
+      }
       renderPanelContent={(id, { closeButton }) => (
         <DealDrawerContent key={id} dealId={id} closeButton={closeButton} />
       )}
     >
-      <CrmListPageShell
-        icon={<Handshake className="h-4 w-4 text-muted-foreground" />}
-        title="Deals"
-        bodyClassName="space-y-6"
-        description={
-          isBoardView
-            ? "Track the pipeline and move deals forward from the board."
-            : "Track the pipeline and update deal progress in place."
-        }
-        headerActions={
-          <div className="flex flex-wrap items-center gap-2">
-            {isBoardView ? (
-              <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>Sort by</span>
-                <select
-                  aria-label="Sort deals"
-                  className="h-9 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-                  value={sortBy}
-                  onChange={(event) => setSortBy(event.target.value as PipelineSortOption)}
-                >
-                  {Object.entries(pipelineSortOptions).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-            <ViewToggle current={activeView} views={["table", "kanban"]} onChange={(nextView) => {
-              setView(nextView);
-              router.replace(buildDealsHref(searchParams, nextView));
-            }} />
-          </div>
-        }
-      >
           <FilterBar
             searchValue={search}
             onSearchChange={(value) => {
@@ -514,7 +521,7 @@ export default function DealsPage() {
               boardLabel="By Stage"
               items={sortedBoardDeals}
               columns={stageColumns}
-              groupBy={(deal) => deal.stage}
+              groupBy={(deal) => matchStageToConfigKey(deal.stage)}
               getItemId={(deal) => deal.deal_id}
               getColumnSummary={getColumnSummary}
               renderCard={(deal) => <DealKanbanCard deal={deal} />}
@@ -567,7 +574,6 @@ export default function DealsPage() {
             getRowId={(row) => row.deal_id}
             />
           )}
-      </CrmListPageShell>
     </CrmListPanelLayout>
   );
 }

@@ -20,10 +20,12 @@ vi.mock("@/hooks/use-record-drawer", () => ({
 }));
 
 describe("CrmListPanelLayout", () => {
-  it("renders the list content and detail panel side by side on desktop", () => {
+  it("renders the header at full width and detail panel side by side with body on desktop", () => {
     render(
       <CrmListPanelLayout
         objectType="contact"
+        icon={<span data-testid="header-icon">icon</span>}
+        title="People"
         renderPanelContent={(recordId, { closeButton }) => (
           <div>
             {closeButton}
@@ -35,6 +37,8 @@ describe("CrmListPanelLayout", () => {
       </CrmListPanelLayout>,
     );
 
+    expect(screen.getByTestId("header-icon")).toBeInTheDocument();
+    expect(screen.getByText("People")).toBeInTheDocument();
     expect(screen.getByTestId("list-content")).toBeInTheDocument();
     expect(screen.getByTestId("drawer-content")).toBeInTheDocument();
     expect(screen.getByText("contact-1")).toBeInTheDocument();
