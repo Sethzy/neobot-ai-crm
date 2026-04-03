@@ -52,6 +52,7 @@ export function createRunnerTools(
   const utilityTools = createUtilityTools(supabase, clientId, threadId, {
     isSubagent,
     includeSendMessage: options?.includeSendMessage ?? !isSubagent,
+    crmConfig: options?.crmConfig,
   });
   const connectionTools = createConnectionTools(supabase, clientId, {
     allowMutations: isSubagent ? false : (options?.allowConnectionMutations ?? true),

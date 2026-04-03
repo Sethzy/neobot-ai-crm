@@ -4,6 +4,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import type { CrmVocabConfig } from "@/lib/crm/config";
 import type { Database } from "@/types/database";
 
 import { createAskUserQuestionTool } from "./ask-user-question";
@@ -17,6 +18,8 @@ export interface CreateUtilityToolsOptions {
   isSubagent?: boolean;
   /** Allows explicit control over whether outbound messaging is included. */
   includeSendMessage?: boolean;
+  /** Resolved CRM config for the active run, if already loaded upstream. */
+  crmConfig?: CrmVocabConfig;
 }
 
 /**
@@ -33,7 +36,7 @@ export function createUtilityTools(
 
   return {
     ...(!isSubagent ? createTodoTools(supabase, clientId, threadId) : {}),
-    ...createSqlTools(supabase),
+    ...createSqlTools(supabase, options?.crmConfig),
     ...(!isSubagent ? createAskUserQuestionTool() : {}),
     ...(!isSubagent ? createRenameChatTool(supabase, clientId, threadId) : {}),
     ...(includeSendMessage ? createSendMessageTool() : {}),

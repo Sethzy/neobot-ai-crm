@@ -5,8 +5,71 @@
 import { describe, expect, it } from "vitest";
 
 import { CRM_DEFAULTS } from "@/lib/crm/config";
+import type { FieldDefinition } from "@/lib/crm/field-definitions";
 
-import { buildPlatformInstructions } from "../platform-instructions";
+import {
+  buildPlatformInstructions,
+  formatFieldDefinitions,
+  formatFieldDefinitionsForSchemaTool,
+} from "../platform-instructions";
+
+describe("formatFieldDefinitions", () => {
+  it("formats a basic visible editable text field with label and type only", () => {
+    const fields: FieldDefinition[] = [
+      {
+        key: "name",
+        label: "Name",
+        type: "text",
+        source: "column",
+        tier: "indestructible",
+        visible: true,
+        order: 0,
+        editable: true,
+        required: true,
+      },
+    ];
+
+    expect(formatFieldDefinitions(fields)).toBe("Name (text, required)");
+  });
+
+  it("omits keys from the passive prompt formatter", () => {
+    const fields: FieldDefinition[] = [
+      {
+        key: "emails",
+        label: "Email",
+        type: "email",
+        source: "column",
+        tier: "default",
+        visible: true,
+        order: 0,
+        editable: true,
+        required: false,
+      },
+    ];
+
+    expect(formatFieldDefinitions(fields)).toBe("Email (email)");
+  });
+});
+
+describe("formatFieldDefinitionsForSchemaTool", () => {
+  it("includes keys for explicit schema inspection", () => {
+    const fields: FieldDefinition[] = [
+      {
+        key: "emails",
+        label: "Email",
+        type: "email",
+        source: "column",
+        tier: "default",
+        visible: true,
+        order: 0,
+        editable: true,
+        required: false,
+      },
+    ];
+
+    expect(formatFieldDefinitionsForSchemaTool(fields)).toBe("emails — Email (email)");
+  });
+});
 
 describe("buildPlatformInstructions", () => {
   it("appends the CRM vocabulary block to the base platform instructions", () => {
@@ -56,6 +119,27 @@ describe("buildPlatformInstructions", () => {
     expect(instructions).toContain("Life &amp; Health");
     expect(instructions).toContain("Property &lt;General&gt;");
     expect(instructions).not.toContain(`Policy & Claim <Case>`);
+  });
+
+  it("includes field definitions for all three CRM entities", () => {
+    const instructions = buildPlatformInstructions(CRM_DEFAULTS);
+
+    expect(instructions).toContain("Contact fields:");
+    expect(instructions).toContain("Company fields:");
+    expect(instructions).toContain("Deal fields:");
+    expect(instructions).toContain("Name (full_name, required, read-only)");
+  });
+
+  it("shows relation fields with target entity", () => {
+    const instructions = buildPlatformInstructions(CRM_DEFAULTS);
+
+    expect(instructions).toContain("Company (relation → companies)");
+  });
+
+  it("shows hidden fields with [hidden] marker", () => {
+    const instructions = buildPlatformInstructions(CRM_DEFAULTS);
+
+    expect(instructions).toContain("City (text) [hidden]");
   });
 
   it("falls back to CRM defaults when callers pass a partial runtime config", () => {

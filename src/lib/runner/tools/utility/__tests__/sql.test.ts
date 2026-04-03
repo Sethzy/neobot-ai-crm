@@ -4,6 +4,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CRM_DEFAULTS } from "@/lib/crm/config";
 import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
 import { createSqlTools } from "../sql";
@@ -273,5 +274,62 @@ describe("get_agent_db_schema", () => {
       success: false,
       error: "function not found",
     });
+  });
+
+  it("returns crm_fields alongside raw schema when crmConfig is provided", async () => {
+    const mockSchema = [
+      { table: "contacts", row_count: 5, columns: [] },
+    ];
+
+    const supabase = createMockSupabaseClient({
+      rpcResults: {
+        get_client_accessible_schema: { data: mockSchema, error: null },
+      },
+    });
+
+    const tools = createSqlTools(supabase as never, CRM_DEFAULTS);
+    const result = await tools.get_agent_db_schema.execute({}, EXECUTION_OPTIONS);
+
+    expect(result).toHaveProperty("success", true);
+    expect(result).toHaveProperty("schema", mockSchema);
+    expect(result).toHaveProperty("crm_fields");
+
+    const crmFields = (result as { crm_fields: Record<string, string> }).crm_fields;
+    expect(crmFields.contacts).toContain("name — Name");
+    expect(crmFields.contacts).toContain("emails — Email");
+    expect(crmFields.companies).toContain("name — Name");
+    expect(crmFields.deals).toContain("name — Name");
+  });
+
+  it("omits crm_fields when crmConfig is not provided", async () => {
+    const mockSchema = [
+      { table: "contacts", row_count: 5, columns: [] },
+    ];
+
+    const supabase = createMockSupabaseClient({
+      rpcResults: {
+        get_client_accessible_schema: { data: mockSchema, error: null },
+      },
+    });
+
+    const tools = createSqlTools(supabase as never);
+    const result = await tools.get_agent_db_schema.execute({}, EXECUTION_OPTIONS);
+
+    expect(result).toEqual({ success: true, schema: mockSchema });
+    expect(result).not.toHaveProperty("crm_fields");
+  });
+
+  it("returns strict error on RPC failure without crm_fields", async () => {
+    const supabase = createMockSupabaseClient({
+      rpcResults: {
+        get_client_accessible_schema: { data: null, error: { message: "rpc error" } },
+      },
+    });
+
+    const tools = createSqlTools(supabase as never, CRM_DEFAULTS);
+    const result = await tools.get_agent_db_schema.execute({}, EXECUTION_OPTIONS);
+
+    expect(result).toEqual({ success: false, error: "rpc error" });
+    expect(result).not.toHaveProperty("crm_fields");
   });
 });

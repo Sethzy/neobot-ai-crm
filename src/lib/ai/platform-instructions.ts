@@ -3,6 +3,7 @@
  * @module lib/ai/platform-instructions
  */
 import { CRM_DEFAULTS, type CrmVocabConfig } from "@/lib/crm/config";
+import type { FieldDefinition } from "@/lib/crm/field-definitions";
 import { escapeXml } from "@/lib/runner/system-reminder";
 
 const BASE_PLATFORM_INSTRUCTIONS = `<platform-instructions>
@@ -48,6 +49,76 @@ Do not rename threads that already have a meaningful specific title.
 </platform-instructions>`;
 
 type PartialCrmVocabularyConfig = Partial<CrmVocabConfig>;
+
+interface FieldDefinitionFormatOptions {
+  includeKey: boolean;
+}
+
+/**
+ * Formats one field definition for prompt or explicit schema-inspection contexts.
+ * Passive prompt output omits keys because they may not match storage/write names.
+ */
+function formatSingleFieldDefinition(
+  field: FieldDefinition,
+  options: FieldDefinitionFormatOptions,
+): string {
+  const annotations: string[] = [];
+
+  if (field.type === "relation" && field.related_entity) {
+    annotations.push(`relation → ${field.related_entity}`);
+  } else {
+    annotations.push(field.type);
+  }
+
+  if (field.required) annotations.push("required");
+  if (!field.editable) annotations.push("read-only");
+  if (field.source === "custom") annotations.push("custom");
+
+  const extras: string[] = [];
+  if (!field.visible) extras.push("hidden");
+  if ((field.type === "select" || field.type === "tags") && field.options && field.options.length > 0) {
+    extras.push(`options: ${field.options.map(escapeXml).join(", ")}`);
+  }
+
+  const extrasSuffix = extras.length > 0 ? ` [${extras.join("; ")}]` : "";
+  const escapedLabel = escapeXml(field.label);
+
+  if (options.includeKey) {
+    return `${escapeXml(field.key)} — ${escapedLabel} (${annotations.join(", ")})${extrasSuffix}`;
+  }
+
+  return `${escapedLabel} (${annotations.join(", ")})${extrasSuffix}`;
+}
+
+/**
+ * Formats field definitions for passive prompt injection.
+ * Omits keys because display keys can diverge from write/storage field names.
+ */
+export function formatFieldDefinitions(fields: FieldDefinition[]): string {
+  if (fields.length === 0) {
+    return "";
+  }
+
+  return [...fields]
+    .sort((a, b) => a.order - b.order)
+    .map((field) => formatSingleFieldDefinition(field, { includeKey: false }))
+    .join("; ");
+}
+
+/**
+ * Formats field definitions for explicit schema inspection tool responses.
+ * Includes keys so the model can cross-reference them with raw database schema.
+ */
+export function formatFieldDefinitionsForSchemaTool(fields: FieldDefinition[]): string {
+  if (fields.length === 0) {
+    return "";
+  }
+
+  return [...fields]
+    .sort((a, b) => a.order - b.order)
+    .map((field) => formatSingleFieldDefinition(field, { includeKey: true }))
+    .join("; ");
+}
 
 function normalizeCrmVocabularyConfig(config: PartialCrmVocabularyConfig): CrmVocabConfig {
   return {
@@ -99,6 +170,21 @@ function formatCustomFieldDefinitionSummary(config: CrmVocabConfig) {
   return lines.join("\n");
 }
 
+function formatFieldDefinitionsSummary(config: CrmVocabConfig) {
+  const collections = [
+    ["Contact fields", config.contact_fields],
+    ["Company fields", config.company_fields],
+    ["Deal fields", config.deal_fields],
+  ] as const;
+
+  return collections
+    .map(([label, definitions]) => {
+      const summary = formatFieldDefinitions(definitions);
+      return `${label}: ${summary || "none"}`;
+    })
+    .join("\n");
+}
+
 function buildCrmVocabularyBlock(config: PartialCrmVocabularyConfig) {
   const normalizedConfig = normalizeCrmVocabularyConfig(config);
 
@@ -111,6 +197,7 @@ Company industries: ${normalizedConfig.company_industries.map(escapeXml).join(",
 Interaction types: ${normalizedConfig.interaction_types.map(escapeXml).join(", ")}
 Deal contact roles: ${normalizedConfig.deal_contact_roles.map(escapeXml).join(", ")}
 ${formatCustomFieldDefinitionSummary(normalizedConfig)}
+${formatFieldDefinitionsSummary(normalizedConfig)}
 </crm-vocabulary>`;
 }
 

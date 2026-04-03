@@ -6,6 +6,8 @@ import { tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
+import { formatFieldDefinitionsForSchemaTool } from "@/lib/ai/platform-instructions";
+import type { CrmVocabConfig } from "@/lib/crm/config";
 import type { Database } from "@/types/database";
 
 /**
@@ -37,7 +39,10 @@ export function validateAndCleanSql(query: string): { cleaned: string; error: st
 /**
  * Creates SQL helper tools backed by read-only database RPC functions.
  */
-export function createSqlTools(supabase: SupabaseClient<Database>) {
+export function createSqlTools(
+  supabase: SupabaseClient<Database>,
+  crmConfig?: CrmVocabConfig,
+) {
 
   const run_sql = tool({
     description:
@@ -86,6 +91,18 @@ export function createSqlTools(supabase: SupabaseClient<Database>) {
 
       if (error) {
         return { success: false as const, error: error.message };
+      }
+
+      if (crmConfig) {
+        return {
+          success: true as const,
+          schema: data,
+          crm_fields: {
+            contacts: formatFieldDefinitionsForSchemaTool(crmConfig.contact_fields),
+            companies: formatFieldDefinitionsForSchemaTool(crmConfig.company_fields),
+            deals: formatFieldDefinitionsForSchemaTool(crmConfig.deal_fields),
+          },
+        };
       }
 
       return { success: true as const, schema: data };

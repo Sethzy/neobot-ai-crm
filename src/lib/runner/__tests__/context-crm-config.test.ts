@@ -121,4 +121,22 @@ describe("assembleContext CRM configuration", () => {
     expect(result.system).toContain("<market-data>");
     expect(result.system).toContain("search_market_data");
   });
+
+  it("includes field definitions in the system prompt", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    const result = await assembleContext({
+      supabase: supabase as never,
+      threadId: "thread-1",
+      currentMessage: "Show my contacts",
+      clientId: "client-123",
+      crmConfig: CRM_DEFAULTS,
+    });
+
+    expect(result.system).toContain("Contact fields:");
+    expect(result.system).toContain("Company fields:");
+    expect(result.system).toContain("Deal fields:");
+  });
 });
