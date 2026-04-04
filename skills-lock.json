@@ -11,6 +11,11 @@
       "sourceType": "github",
       "computedHash": "4a543f93d3edc770a684aa554321ca113debc74b276e1cdc4b8a5a8c44932ab7"
     },
+    "ai-sdk": {
+      "source": "vercel/ai",
+      "sourceType": "github",
+      "computedHash": "81af098a4ce6f0e323c1bd02b8e79df3bbaed57cbf1c4060f58ddc95de5545a1"
+    },
     "dogfood": {
       "source": "vercel-labs/agent-browser",
       "sourceType": "github",
@@ -44,7 +49,7 @@
     "sandbox": {
       "source": "vercel/sandbox",
       "sourceType": "github",
-      "computedHash": "4ddc9e05ef1b6f3c333790fc7ddf504d2cd9033dc43cdd41e4b048bd4f661eab"
+      "computedHash": "2ad9d47902e26dc238e78ce7e731a69581312ed99837635fa06b04e6fe1f68dd"
     },
     "shadcn": {
       "source": "shadcn/ui",
@@ -60,6 +65,11 @@
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
       "computedHash": "4365be772fd3b41994a72ad478472c6d680678e7f3859860ab010e9c46e48ee0"
+    },
+    "workflow": {
+      "source": "vercel/workflow",
+      "sourceType": "github",
+      "computedHash": "7991ded1613b2e31fa9f5eabc238049e2186c76d8d3747aa79188fcbd10a0c31"
     }
   }
 }
