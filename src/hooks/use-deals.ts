@@ -10,6 +10,7 @@ import { useClientId } from "@/hooks/use-client-id";
 import { useRealtimeTable } from "@/hooks/use-realtime";
 import { buildSearchExpression } from "@/lib/crm/postgrest-filters";
 import { type Company, type Contact, type Deal, type DealContact } from "@/lib/crm/schemas";
+import { applyViewFilters, resolveSymbolicDates } from "@/lib/crm/view-filters";
 import { supabase } from "@/lib/supabase";
 
 export type DealContactJoin = Pick<DealContact, "contact_id" | "role" | "is_primary"> & {
@@ -25,6 +26,8 @@ export interface DealFilters {
   search?: string;
   stage?: Deal["stage"];
   createdAt?: DealDateRangeFilter;
+  viewFilters?: Record<string, unknown>;
+  viewSort?: { column: string; ascending: boolean };
 }
 
 export interface DealDateRangeFilter {
@@ -69,8 +72,13 @@ export const dealKeys = {
 async function fetchDeals(filters: DealFilters): Promise<DealWithContact[]> {
   let query = supabase
     .from("deals")
-    .select("*, deal_contacts!deal_contacts_deal_id_fkey(contact_id, role, is_primary, contacts!deal_contacts_contact_id_fkey(first_name, last_name)), companies!deals_company_id_fkey(company_id, name)")
-    .order("created_at", { ascending: false });
+    .select("*, deal_contacts!deal_contacts_deal_id_fkey(contact_id, role, is_primary, contacts!deal_contacts_contact_id_fkey(first_name, last_name)), companies!deals_company_id_fkey(company_id, name)");
+
+  if (filters.viewSort) {
+    query = query.order(filters.viewSort.column, { ascending: filters.viewSort.ascending });
+  } else {
+    query = query.order("created_at", { ascending: false });
+  }
 
   query = applyDealFilters(query, filters);
 
@@ -87,6 +95,8 @@ async function fetchPaginatedDeals({
   search,
   stage,
   createdAt,
+  viewFilters,
+  viewSort,
   page = 1,
   pageSize = 20,
 }: PaginatedDealFilters): Promise<PaginatedDealsResult> {
@@ -98,10 +108,15 @@ async function fetchPaginatedDeals({
   let query = supabase
     .from("deals")
     .select("*, deal_contacts!deal_contacts_deal_id_fkey(contact_id, role, is_primary, contacts!deal_contacts_contact_id_fkey(first_name, last_name)), companies!deals_company_id_fkey(company_id, name)", { count: "exact" })
-    .order("created_at", { ascending: false })
     .range(from, to);
 
-  query = applyDealFilters(query, { search, stage, createdAt });
+  if (viewSort) {
+    query = query.order(viewSort.column, { ascending: viewSort.ascending });
+  } else {
+    query = query.order("created_at", { ascending: false });
+  }
+
+  query = applyDealFilters(query, { search, stage, createdAt, viewFilters, viewSort });
 
   const { data, count, error } = await query;
 
@@ -268,12 +283,11 @@ export function useDeal(dealId: string) {
 
 export { fetchDeals, fetchDeal, fetchPaginatedDeals };
 
-function applyDealFilters<TQuery extends {
-  or: (filter: string) => TQuery;
-  eq: (column: string, value: string) => TQuery;
-  gte: (column: string, value: string) => TQuery;
-  lte: (column: string, value: string) => TQuery;
-}>(query: TQuery, filters: DealFilters): TQuery {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyDealFilters<TQuery extends Record<string, (...args: any[]) => TQuery>>(
+  query: TQuery,
+  filters: DealFilters,
+): TQuery {
   let nextQuery = query;
 
   if (filters.search?.trim()) {
@@ -290,6 +304,11 @@ function applyDealFilters<TQuery extends {
 
   if (filters.createdAt?.to) {
     nextQuery = nextQuery.lte("created_at", filters.createdAt.to);
+  }
+
+  if (filters.viewFilters && Object.keys(filters.viewFilters).length > 0) {
+    const resolved = resolveSymbolicDates(filters.viewFilters);
+    nextQuery = applyViewFilters(nextQuery, resolved);
   }
 
   return nextQuery;

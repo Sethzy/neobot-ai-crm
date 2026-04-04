@@ -10,6 +10,7 @@ import { useClientId } from "@/hooks/use-client-id";
 import { useRealtimeTable } from "@/hooks/use-realtime";
 import { buildSearchExpression } from "@/lib/crm/postgrest-filters";
 import { type Contact, type CrmTask, type Deal } from "@/lib/crm/schemas";
+import { applyViewFilters, resolveSymbolicDates } from "@/lib/crm/view-filters";
 import { supabase } from "@/lib/supabase";
 
 export type CrmTaskWithRelations = CrmTask & {
@@ -20,6 +21,8 @@ export type CrmTaskWithRelations = CrmTask & {
 export interface CrmTaskFilters {
   status?: CrmTask["status"];
   search?: string;
+  viewFilters?: Record<string, unknown>;
+  viewSort?: { column: string; ascending: boolean };
 }
 
 /**
@@ -39,8 +42,13 @@ export const crmTaskKeys = {
 async function fetchCrmTasks(filters: CrmTaskFilters): Promise<CrmTaskWithRelations[]> {
   let query = supabase
     .from("crm_tasks")
-    .select("*, contacts!crm_tasks_contact_id_fkey(first_name, last_name), deals!crm_tasks_deal_id_fkey(address)")
-    .order("due_date", { ascending: true, nullsFirst: false });
+    .select("*, contacts!crm_tasks_contact_id_fkey(first_name, last_name), deals!crm_tasks_deal_id_fkey(address)");
+
+  if (filters.viewSort) {
+    query = query.order(filters.viewSort.column, { ascending: filters.viewSort.ascending });
+  } else {
+    query = query.order("due_date", { ascending: true, nullsFirst: false });
+  }
 
   if (filters.status) {
     query = query.eq("status", filters.status);
@@ -48,6 +56,11 @@ async function fetchCrmTasks(filters: CrmTaskFilters): Promise<CrmTaskWithRelati
 
   if (filters.search?.trim()) {
     query = query.or(buildSearchExpression(filters.search, ["title", "description"]));
+  }
+
+  if (filters.viewFilters && Object.keys(filters.viewFilters).length > 0) {
+    const resolved = resolveSymbolicDates(filters.viewFilters);
+    query = applyViewFilters(query, resolved);
   }
 
   const { data, error } = await query;

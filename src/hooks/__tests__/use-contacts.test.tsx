@@ -49,6 +49,9 @@ function createThenableBuilder(data: unknown[], error: { message: string } | nul
     order: vi.fn().mockReturnThis(),
     or: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
+    gte: vi.fn().mockReturnThis(),
+    lte: vi.fn().mockReturnThis(),
     single: vi.fn().mockResolvedValue({ data: data[0] ?? null, error }),
     then: undefined as unknown,
   };
@@ -129,6 +132,29 @@ describe("useContacts", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(builder.eq).toHaveBeenCalledWith("type", "buyer");
+  });
+
+  it("applies saved view filters and sort overrides", async () => {
+    const builder = createThenableBuilder([]);
+    mockFrom.mockReturnValue(builder);
+
+    const { result } = renderHook(
+      () =>
+        useContacts({
+          viewFilters: { created_at_after: "2026-04-01" },
+          viewSort: {
+            column: "first_name",
+            ascending: true,
+          },
+        }),
+      {
+        wrapper: createWrapper(),
+      },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(builder.order).toHaveBeenCalledWith("first_name", { ascending: true });
+    expect(builder.gte).toHaveBeenCalledWith("created_at", "2026-04-01");
   });
 
   it("wires realtime invalidation for contacts and companies tables", async () => {

@@ -49,8 +49,10 @@ function createThenableBuilder(data: unknown[], error: { message: string } | nul
     order: vi.fn().mockReturnThis(),
     or: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
     gte: vi.fn().mockReturnThis(),
     lte: vi.fn().mockReturnThis(),
+    ilike: vi.fn().mockReturnThis(),
     single: vi.fn().mockResolvedValue({ data: data[0] ?? null, error }),
     then: undefined as unknown,
   };
@@ -156,6 +158,29 @@ describe("useDeals", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(builder.gte).toHaveBeenCalledWith("created_at", "2026-03-01T00:00:00+08:00");
     expect(builder.lte).toHaveBeenCalledWith("created_at", "2026-03-31T23:59:59+08:00");
+  });
+
+  it("applies saved view filters and sort overrides", async () => {
+    const builder = createThenableBuilder([]);
+    mockFrom.mockReturnValue(builder);
+
+    const { result } = renderHook(
+      () =>
+        useDeals({
+          viewFilters: { stage: ["offer", "closing"] },
+          viewSort: {
+            column: "amount",
+            ascending: false,
+          },
+        }),
+      {
+        wrapper: createWrapper(),
+      },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(builder.order).toHaveBeenCalledWith("amount", { ascending: false });
+    expect(builder.in).toHaveBeenCalledWith("stage", ["offer", "closing"]);
   });
 
   it("wires realtime invalidation for deals and deal_contacts tables", async () => {

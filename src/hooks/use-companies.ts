@@ -10,6 +10,7 @@ import { useClientId } from "@/hooks/use-client-id";
 import { useRealtimeTable } from "@/hooks/use-realtime";
 import { buildSearchExpression } from "@/lib/crm/postgrest-filters";
 import { type Company } from "@/lib/crm/schemas";
+import { applyViewFilters, resolveSymbolicDates } from "@/lib/crm/view-filters";
 import { supabase } from "@/lib/supabase";
 
 import { fetchCompanyRelationCounts } from "./use-company-relations";
@@ -17,6 +18,8 @@ import { fetchCompanyRelationCounts } from "./use-company-relations";
 export interface CompanyFilters {
   search?: string;
   industry?: NonNullable<Company["industry"]>;
+  viewFilters?: Record<string, unknown>;
+  viewSort?: { column: string; ascending: boolean };
 }
 
 export interface CompanyDateRangeFilter {
@@ -61,8 +64,13 @@ export const companyKeys = {
 async function fetchCompanies(filters: CompanyFilters): Promise<CompanyWithCounts[]> {
   let query = supabase
     .from("companies")
-    .select("*")
-    .order("created_at", { ascending: false });
+    .select("*");
+
+  if (filters.viewSort) {
+    query = query.order(filters.viewSort.column, { ascending: filters.viewSort.ascending });
+  } else {
+    query = query.order("created_at", { ascending: false });
+  }
 
   if (filters.search?.trim()) {
     query = query.or(
@@ -72,6 +80,11 @@ async function fetchCompanies(filters: CompanyFilters): Promise<CompanyWithCount
 
   if (filters.industry) {
     query = query.eq("industry", filters.industry);
+  }
+
+  if (filters.viewFilters && Object.keys(filters.viewFilters).length > 0) {
+    const resolved = resolveSymbolicDates(filters.viewFilters);
+    query = applyViewFilters(query, resolved);
   }
 
   const { data, error } = await query;
@@ -103,6 +116,8 @@ async function fetchPaginatedCompanies({
   hasEmail,
   hasPhone,
   createdAt,
+  viewFilters,
+  viewSort,
   page = 1,
   pageSize = 20,
 }: PaginatedCompanyFilters): Promise<PaginatedCompaniesResult> {
@@ -114,8 +129,13 @@ async function fetchPaginatedCompanies({
   let query = supabase
     .from("companies")
     .select("*", { count: "exact" })
-    .order("created_at", { ascending: false })
     .range(from, to);
+
+  if (viewSort) {
+    query = query.order(viewSort.column, { ascending: viewSort.ascending });
+  } else {
+    query = query.order("created_at", { ascending: false });
+  }
 
   if (search?.trim()) {
     query = query.or(
@@ -149,6 +169,11 @@ async function fetchPaginatedCompanies({
 
   if (createdAt?.to) {
     query = query.lte("created_at", createdAt.to);
+  }
+
+  if (viewFilters && Object.keys(viewFilters).length > 0) {
+    const resolved = resolveSymbolicDates(viewFilters);
+    query = applyViewFilters(query, resolved);
   }
 
   const { data, count, error } = await query;

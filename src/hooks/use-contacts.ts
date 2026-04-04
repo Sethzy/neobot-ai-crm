@@ -10,6 +10,7 @@ import { useClientId } from "@/hooks/use-client-id";
 import { useRealtimeTable } from "@/hooks/use-realtime";
 import { buildSearchExpression } from "@/lib/crm/postgrest-filters";
 import { type Company, type Contact } from "@/lib/crm/schemas";
+import { applyViewFilters, resolveSymbolicDates } from "@/lib/crm/view-filters";
 import { supabase } from "@/lib/supabase";
 
 export type ContactType = Contact["type"];
@@ -20,6 +21,8 @@ export type ContactWithCompany = Contact & {
 export interface ContactFilters {
   search?: string;
   type?: ContactType;
+  viewFilters?: Record<string, unknown>;
+  viewSort?: { column: string; ascending: boolean };
 }
 
 export interface ContactDateRangeFilter {
@@ -56,11 +59,16 @@ export const contactKeys = {
   detail: (contactId: string) => [...contactKeys.details(), contactId] as const,
 };
 
-async function fetchContacts({ search, type }: ContactFilters): Promise<ContactWithCompany[]> {
+async function fetchContacts({ search, type, viewFilters, viewSort }: ContactFilters): Promise<ContactWithCompany[]> {
   let query = supabase
     .from("contacts")
-    .select("*, companies!contacts_company_id_fkey(company_id, name)")
-    .order("created_at", { ascending: false });
+    .select("*, companies!contacts_company_id_fkey(company_id, name)");
+
+  if (viewSort) {
+    query = query.order(viewSort.column, { ascending: viewSort.ascending });
+  } else {
+    query = query.order("created_at", { ascending: false });
+  }
 
   if (search?.trim()) {
     query = query.or(buildSearchExpression(search, ["first_name", "last_name", "email", "phone"]));
@@ -68,6 +76,11 @@ async function fetchContacts({ search, type }: ContactFilters): Promise<ContactW
 
   if (type) {
     query = query.eq("type", type);
+  }
+
+  if (viewFilters && Object.keys(viewFilters).length > 0) {
+    const resolved = resolveSymbolicDates(viewFilters);
+    query = applyViewFilters(query, resolved);
   }
 
   const { data, error } = await query;
@@ -85,6 +98,8 @@ async function fetchPaginatedContacts({
   hasEmail,
   hasPhone,
   createdAt,
+  viewFilters,
+  viewSort,
   page = 1,
   pageSize = 20,
 }: PaginatedContactFilters): Promise<PaginatedContactsResult> {
@@ -96,8 +111,13 @@ async function fetchPaginatedContacts({
   let query = supabase
     .from("contacts")
     .select("*, companies!contacts_company_id_fkey(company_id, name)", { count: "exact" })
-    .order("created_at", { ascending: false })
     .range(from, to);
+
+  if (viewSort) {
+    query = query.order(viewSort.column, { ascending: viewSort.ascending });
+  } else {
+    query = query.order("created_at", { ascending: false });
+  }
 
   if (search?.trim()) {
     query = query.or(buildSearchExpression(search, ["first_name", "last_name", "email", "phone"]));
@@ -129,6 +149,11 @@ async function fetchPaginatedContacts({
 
   if (createdAt?.to) {
     query = query.lte("created_at", createdAt.to);
+  }
+
+  if (viewFilters && Object.keys(viewFilters).length > 0) {
+    const resolved = resolveSymbolicDates(viewFilters);
+    query = applyViewFilters(query, resolved);
   }
 
   const { data, count, error } = await query;

@@ -50,6 +50,8 @@ function createThenableBuilder(data: unknown[], error: { message: string } | nul
     or: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     in: vi.fn().mockReturnThis(),
+    gte: vi.fn().mockReturnThis(),
+    lte: vi.fn().mockReturnThis(),
     single: vi.fn().mockResolvedValue({ data: data[0] ?? null, error }),
     then: undefined as unknown,
   };
@@ -169,6 +171,29 @@ describe("useCompanies", () => {
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(builder.eq).toHaveBeenCalledWith("industry", "developer");
+  });
+
+  it("applies saved view filters and sort overrides", async () => {
+    const builder = createThenableBuilder([]);
+    mockFrom.mockReturnValue(builder);
+
+    const { result } = renderHook(
+      () =>
+        useCompanies({
+          viewFilters: { industry: "developer" },
+          viewSort: {
+            column: "name",
+            ascending: true,
+          },
+        }),
+      {
+        wrapper: createWrapper(),
+      },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(builder.order).toHaveBeenCalledWith("name", { ascending: true });
     expect(builder.eq).toHaveBeenCalledWith("industry", "developer");
   });
 });

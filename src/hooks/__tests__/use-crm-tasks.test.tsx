@@ -45,6 +45,9 @@ function createThenableBuilder(data: unknown[], error: { message: string } | nul
     order: vi.fn().mockReturnThis(),
     or: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
+    gte: vi.fn().mockReturnThis(),
+    lte: vi.fn().mockReturnThis(),
     then: undefined as unknown,
   };
 
@@ -122,6 +125,33 @@ describe("useCrmTasks", () => {
     expect(builder.or).toHaveBeenCalledWith(
       'title.ilike."%follow%",description.ilike."%follow%"',
     );
+  });
+
+  it("applies saved view filters and sort overrides", async () => {
+    const builder = createThenableBuilder([]);
+    mockFrom.mockReturnValue(builder);
+
+    const { result } = renderHook(
+      () =>
+        useCrmTasks({
+          viewFilters: {
+            status: "todo",
+            due_date_before: "2026-04-30",
+          },
+          viewSort: {
+            column: "created_at",
+            ascending: false,
+          },
+        }),
+      {
+        wrapper: createWrapper(),
+      },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(builder.order).toHaveBeenCalledWith("created_at", { ascending: false });
+    expect(builder.eq).toHaveBeenCalledWith("status", "todo");
+    expect(builder.lte).toHaveBeenCalledWith("due_date", "2026-04-30");
   });
 
   it("wires realtime invalidation for crm_tasks table", async () => {
