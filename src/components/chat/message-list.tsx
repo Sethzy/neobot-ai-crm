@@ -63,7 +63,12 @@ export const MessageList = memo(function MessageList({ messages, status, onToolA
           );
         })}
 
-        {status === "submitted" && (
+        {status === "submitted" &&
+          !messages.some((msg) =>
+            msg.parts?.some(
+              (part) => "state" in part && (part as { state: string }).state === "approval-responded",
+            ),
+          ) && (
           <MessageBubble
             message={thinkingPlaceholder}
             isStreaming

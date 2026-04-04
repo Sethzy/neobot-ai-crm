@@ -40,8 +40,6 @@ interface ToolCallInlineProps {
   approvalId?: string;
   /** Callback for approve/deny actions. Receives (approvalId, approved). */
   onToolApproval?: (approvalId: string, approved: boolean) => void;
-  /** True when this tool is the last renderable part and the message is still streaming. */
-  isStreamingTail?: boolean;
 }
 
 interface ConnectionResult {
@@ -386,7 +384,6 @@ export function ToolCallInline({
   errorText,
   approvalId,
   onToolApproval,
-  isStreamingTail = false,
 }: ToolCallInlineProps) {
   const [isOpen, setIsOpen] = useState(false);
   const connectionCreation = isConnectionCreation(name, output) ? output : null;
@@ -396,7 +393,7 @@ export function ToolCallInline({
     ? getBrowserPlatformConfig(authNeeded.platform)
     : null;
   const { state: browserAuthState, connect, verify, reset } = useBrowserAuth(authNeeded?.platform);
-  const isRunning = state === "input-available" || state === "input-streaming" || isStreamingTail;
+  const isRunning = state === "input-available" || state === "input-streaming";
   const isAwaitingApproval = state === "approval-requested";
   const isDenied = state === "output-denied";
   const hasError = state === "output-error";
