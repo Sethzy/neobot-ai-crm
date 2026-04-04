@@ -808,7 +808,7 @@ describe("MessageBubble — skill badge", () => {
     expect(writeText).toHaveBeenCalledWith("Copy this text");
   });
 
-  it("renders the copy button as non-interactive while streaming", () => {
+  it("does not render a copy button while streaming", () => {
     render(
       <MessageBubble
         message={{
@@ -820,7 +820,6 @@ describe("MessageBubble — skill badge", () => {
       />,
     );
 
-    // Toolbar is in the DOM but visually hidden — button should still exist
-    expect(screen.getByRole("button", { name: /copy/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /copy/i })).not.toBeInTheDocument();
   });
 });

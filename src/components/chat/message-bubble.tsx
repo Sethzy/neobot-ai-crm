@@ -144,7 +144,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
   }
 
   return (
-    <Message from="assistant" data-testid="message-bubble" className={!isStreaming && isLast ? "animate-message-in" : undefined}>
+    <Message from="assistant" data-testid="message-bubble">
       <MessageContent>
         {skillSlug ? (
           <Badge variant="outline" data-testid="skill-badge" className="mb-2 text-xs">
@@ -241,6 +241,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
                 errorText={toolPart.errorText}
                 approvalId={toolPart.approval?.id}
                 onToolApproval={onToolApproval}
+                isStreamingTail={isStreaming && index === lastRenderableIndex}
               />
             );
           }
@@ -258,23 +259,21 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
 
       </MessageContent>
 
-        {hasTextParts && (
-          <MessageToolbar className={isStreaming ? "pointer-events-none opacity-0" : "animate-in fade-in duration-300"}>
-            <MessageActions>
-              <MessageAction
-                label="Copy"
-                tooltip="Copy to clipboard"
-                onClick={() => {
-                  const text = getMessageText(message);
-                  if (text && navigator.clipboard?.writeText) {
-                    navigator.clipboard.writeText(text).catch(() => {});
-                  }
-                }}
-              >
-                <CopyIcon className="size-4" />
-              </MessageAction>
-            </MessageActions>
-          </MessageToolbar>
+        {!isStreaming && hasTextParts && (
+          <MessageActions>
+            <MessageAction
+              label="Copy"
+              tooltip="Copy to clipboard"
+              onClick={() => {
+                const text = getMessageText(message);
+                if (text && navigator.clipboard?.writeText) {
+                  navigator.clipboard.writeText(text).catch(() => {});
+                }
+              }}
+            >
+              <CopyIcon className="size-4" />
+            </MessageAction>
+          </MessageActions>
         )}
     </Message>
   );
