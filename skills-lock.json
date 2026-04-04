@@ -16,6 +16,16 @@
       "sourceType": "github",
       "computedHash": "81af098a4ce6f0e323c1bd02b8e79df3bbaed57cbf1c4060f58ddc95de5545a1"
     },
+    "blaxel-cli": {
+      "source": "blaxel-ai/agent-skills",
+      "sourceType": "github",
+      "computedHash": "c3b98d4b48002e824ec61fa114f1cd23b501b60e12563658ca6259f533bc1514"
+    },
+    "blaxel-sdk": {
+      "source": "blaxel-ai/agent-skills",
+      "sourceType": "github",
+      "computedHash": "91e6466bdcab5492c6f86f81534dd7c74371f45e03a0a1395ffc1dcd465556e0"
+    },
     "dogfood": {
       "source": "vercel-labs/agent-browser",
       "sourceType": "github",
