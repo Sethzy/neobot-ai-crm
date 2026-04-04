@@ -286,10 +286,10 @@ export function InlineEditField({
           }}
           disabled={isSaving}
         >
-          <SelectTrigger className="h-auto min-w-0 border-0 bg-transparent p-0 text-sm shadow-none focus:ring-0 [&>svg]:hidden">
+          <SelectTrigger className="-ml-2 h-auto w-auto gap-1 rounded-md border border-border/50 px-2 py-0.5 text-sm shadow-none focus:ring-0">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent position="popper" side="bottom" sideOffset={4}>
+          <SelectContent position="popper" side="bottom" align="start" sideOffset={4}>
             {options.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
@@ -417,8 +417,8 @@ export function InlineEditField({
       <div
         className={cn(
           "flex min-w-0 flex-1 items-center gap-1.5",
-          isEditing && !isTextareaField && !hideLabel && "-ml-2 rounded-md border border-border/50 px-2 py-0.5",
-          isEditing && isTextareaField && !hideLabel && "-ml-2 rounded-md border border-border/50 px-2 py-1",
+          isEditing && type !== "select" && !isTextareaField && !hideLabel && "-ml-2 rounded-md border border-border/50 px-2 py-0.5",
+          isEditing && type !== "select" && isTextareaField && !hideLabel && "-ml-2 rounded-md border border-border/50 px-2 py-1",
           !isEditing && isTextareaField && "items-start",
         )}
       >
