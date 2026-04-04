@@ -11,6 +11,7 @@ import {
   crmTaskInsertSchema,
   crmTaskSchema,
   crmTaskStatusValues,
+  crmViewSchema,
   dealContactInsertSchema,
   dealContactRoleValues,
   dealContactSchema,
@@ -344,5 +345,55 @@ describe("crm config schemas", () => {
       interaction_types: null,
     };
     expect(crmConfigInsertSchema.parse(insert)).toEqual(insert);
+  });
+});
+
+describe("crmViewSchema", () => {
+  test("validates a complete view row", () => {
+    const result = crmViewSchema.safeParse({
+      view_id: "a1b2c3d4-e5f6-4890-abcd-ef1234567890",
+      client_id: "c1d2e3f4-a5b6-4890-8def-123456789abc",
+      name: "Active pipeline",
+      entity_type: "deals",
+      filters: { stage: ["leads", "offer"] },
+      sort: { column: "created_at", ascending: false },
+      is_default: false,
+      is_seeded: true,
+      created_at: "2026-04-05T00:00:00+00:00",
+      updated_at: "2026-04-05T00:00:00+00:00",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  test("accepts null sort", () => {
+    const result = crmViewSchema.safeParse({
+      view_id: "a1b2c3d4-e5f6-4890-abcd-ef1234567890",
+      client_id: "c1d2e3f4-a5b6-4890-8def-123456789abc",
+      name: "Overdue",
+      entity_type: "tasks",
+      filters: { status: "todo", due_date_before: "$today" },
+      sort: null,
+      is_default: false,
+      is_seeded: true,
+      created_at: "2026-04-05T00:00:00+00:00",
+      updated_at: "2026-04-05T00:00:00+00:00",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  test("rejects invalid entity_type", () => {
+    const result = crmViewSchema.safeParse({
+      view_id: "a1b2c3d4-e5f6-4890-abcd-ef1234567890",
+      client_id: "c1d2e3f4-a5b6-4890-8def-123456789abc",
+      name: "Test",
+      entity_type: "widgets",
+      filters: {},
+      sort: null,
+      is_default: false,
+      is_seeded: false,
+      created_at: "2026-04-05T00:00:00+00:00",
+      updated_at: "2026-04-05T00:00:00+00:00",
+    });
+    expect(result.success).toBe(false);
   });
 });

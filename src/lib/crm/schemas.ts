@@ -258,6 +258,39 @@ export const crmTaskInsertSchema = z.object({
 export type CrmTask = z.infer<typeof crmTaskSchema>;
 export type CrmTaskInsert = z.infer<typeof crmTaskInsertSchema>;
 
+/** Entity types that support saved views. */
+export const crmViewEntityTypes = [
+  "contacts",
+  "companies",
+  "deals",
+  "tasks",
+] as const;
+
+/** Full `crm_views` row validator. */
+export const crmViewSchema = z.object({
+  view_id: z.string().uuid(),
+  client_id: z.string().uuid(),
+  name: z.string().min(1),
+  entity_type: z.enum(crmViewEntityTypes),
+  filters: z.record(
+    z.string(),
+    z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string())]),
+  ),
+  sort: z
+    .object({
+      column: z.string(),
+      ascending: z.boolean(),
+    })
+    .nullable(),
+  is_default: z.boolean(),
+  is_seeded: z.boolean(),
+  created_at: isoDateTimeSchema,
+  updated_at: isoDateTimeSchema,
+});
+
+export type CrmView = z.infer<typeof crmViewSchema>;
+export type CrmViewEntityType = (typeof crmViewEntityTypes)[number];
+
 /** Full `crm_config` row validator with strict JSONB value validation. */
 export const crmConfigSchema = z.object({
   config_id: z.string().uuid(),
