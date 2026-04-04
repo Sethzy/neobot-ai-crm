@@ -17,6 +17,8 @@ interface PreviewAttachmentProps {
   attachment: Attachment;
   isUploading?: boolean;
   onRemove?: () => void;
+  /** When provided, image thumbnails become clickable and call this with the image URL. */
+  onImageClick?: (url: string) => void;
 }
 
 function getFileTypeLabel(contentType: string): string {
@@ -64,6 +66,7 @@ export function PreviewAttachment({
   attachment,
   isUploading = false,
   onRemove,
+  onImageClick,
 }: PreviewAttachmentProps) {
   const { filename, url, contentType } = attachment;
   const previewContent = contentType.startsWith("image/") ? (
@@ -91,14 +94,26 @@ export function PreviewAttachment({
       data-testid="input-attachment-preview"
     >
       {!isUploading && url ? (
-        <a
-          aria-label={filename}
-          className="block size-full"
-          href={url}
-        >
-          {previewContent}
-          {filenameLabel}
-        </a>
+        contentType.startsWith("image/") && onImageClick ? (
+          <button
+            type="button"
+            aria-label={filename}
+            className="block size-full cursor-zoom-in"
+            onClick={() => onImageClick(url)}
+          >
+            {previewContent}
+            {filenameLabel}
+          </button>
+        ) : (
+          <a
+            aria-label={filename}
+            className="block size-full"
+            href={url}
+          >
+            {previewContent}
+            {filenameLabel}
+          </a>
+        )
       ) : (
         <div className="size-full">
           {previewContent}

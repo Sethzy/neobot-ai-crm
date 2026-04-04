@@ -127,4 +127,37 @@ describe("PreviewAttachment", () => {
 
     expect(screen.getByText("Text")).toBeInTheDocument();
   });
+
+  it("renders a zoom-in button instead of a link when onImageClick is provided for images", () => {
+    const onImageClick = vi.fn();
+    render(
+      <PreviewAttachment attachment={imageAttachment} onImageClick={onImageClick} />,
+    );
+
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    const button = screen.getByRole("button", { name: /photo.jpg/i });
+    expect(button).toHaveClass("cursor-zoom-in");
+
+    fireEvent.click(button);
+    expect(onImageClick).toHaveBeenCalledWith("https://storage.example.com/photo.jpg");
+  });
+
+  it("still renders a link for non-image attachments even when onImageClick is provided", () => {
+    const onImageClick = vi.fn();
+    render(
+      <PreviewAttachment
+        attachment={{
+          filename: "brief.pdf",
+          url: "https://storage.example.com/brief.pdf",
+          contentType: "application/pdf",
+        }}
+        onImageClick={onImageClick}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: /brief.pdf/i })).toHaveAttribute(
+      "href",
+      "https://storage.example.com/brief.pdf",
+    );
+  });
 });

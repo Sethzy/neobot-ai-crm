@@ -11,7 +11,7 @@
  */
 "use client";
 
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { SPEC_DATA_PART_TYPE } from "@json-render/core";
 import { useJsonRenderMessage } from "@json-render/react";
 
@@ -34,6 +34,7 @@ import { CopyIcon } from "lucide-react";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { ViewRenderer } from "@/lib/views/renderer";
 import { AskUserQuestionInline, type AskUserQuestion } from "./ask-user-question-inline";
+import { ImageLightbox } from "./image-lightbox";
 import { resolveFilePartUrl, type ChatFilePart } from "./file-parts";
 import { getMessageText, type ChatUIMessage } from "./message-content";
 import { PreviewAttachment, type Attachment } from "./preview-attachment";
@@ -80,6 +81,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
   const isUserMessage = message.role === "user";
   const { spec, hasSpec } = useJsonRenderMessage(message.parts);
   const skillSlug = useMemo(() => extractSkillSlug(message.parts), [message.parts]);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   // Lightweight precomputations for both user and assistant paths
   const fileParts = useMemo(
@@ -117,33 +119,38 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
 
   if (isUserMessage) {
     return (
-      <div
-        data-testid="message-bubble"
-        className="flex w-full justify-end"
-      >
-        <div className="flex max-w-[80%] flex-col items-end gap-2">
-          {fileParts.length > 0 ? (
-            <div className="flex flex-wrap justify-end gap-2">
-              {fileParts.map((part, index) => (
-                <PreviewAttachment
-                  attachment={filePartToAttachment(part)}
-                  key={`${message.id}-file-${index}`}
-                />
-              ))}
-            </div>
-          ) : null}
+      <>
+        <div
+          data-testid="message-bubble"
+          className="flex w-full justify-end"
+        >
+          <div className="flex max-w-[80%] flex-col items-end gap-2">
+            {fileParts.length > 0 ? (
+              <div className="flex flex-wrap justify-end gap-2">
+                {fileParts.map((part, index) => (
+                  <PreviewAttachment
+                    attachment={filePartToAttachment(part)}
+                    key={`${message.id}-file-${index}`}
+                    onImageClick={setLightboxSrc}
+                  />
+                ))}
+              </div>
+            ) : null}
 
-          {hasTextParts ? (
-            <div className="max-w-full rounded-2xl rounded-br-md bg-foreground px-3.5 py-2 text-sm leading-normal text-background">
-              <p className="whitespace-pre-wrap">{getMessageText(message)}</p>
-            </div>
-          ) : null}
+            {hasTextParts ? (
+              <div className="max-w-full rounded-2xl rounded-br-md bg-foreground px-3.5 py-2 text-sm leading-normal text-background">
+                <p className="whitespace-pre-wrap">{getMessageText(message)}</p>
+              </div>
+            ) : null}
+          </div>
         </div>
-      </div>
+        <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      </>
     );
   }
 
   return (
+    <>
     <Message from="assistant" data-testid="message-bubble">
       <MessageContent>
         {skillSlug ? (
@@ -166,6 +173,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
               <PreviewAttachment
                 key={key}
                 attachment={filePartToAttachment(part as ChatFilePart)}
+                onImageClick={setLightboxSrc}
               />
             );
           }
@@ -276,5 +284,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
           </MessageActions>
         )}
     </Message>
+    <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+    </>
   );
 });
