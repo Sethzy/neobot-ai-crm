@@ -6,7 +6,7 @@ import { tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import { CRM_DEFAULTS, type CrmVocabConfig } from "@/lib/crm/config";
+import { CRM_DEFAULTS, matchVocabularyValue, type CrmVocabConfig } from "@/lib/crm/config";
 import type { Database, JsonObject } from "@/types/database";
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 
@@ -29,7 +29,7 @@ const ENTITY_ROUTING: Record<UpdateEntity, { table: "contacts" | "companies" | "
 export function createUpdateRecordTool(
   supabase: SupabaseClient<Database>,
   clientId: string,
-  _config: CrmVocabConfig = CRM_DEFAULTS,
+  config: CrmVocabConfig = CRM_DEFAULTS,
 ) {
   return {
     update_record: tool({
@@ -60,7 +60,7 @@ export function createUpdateRecordTool(
         // Single update: return { record }
         if (updates.length === 1) {
           const { id, fields } = updates[0];
-          const result = await updateOne(supabase, clientId, entity, table, pk, id, fields);
+          const result = await updateOne(supabase, clientId, entity, table, pk, id, fields, config);
           if (!result.success) {
             return { success: false as const, error: result.error };
           }
@@ -77,7 +77,7 @@ export function createUpdateRecordTool(
         let hasError = false;
 
         for (const { id, fields } of updates) {
-          const result = await updateOne(supabase, clientId, entity, table, pk, id, fields);
+          const result = await updateOne(supabase, clientId, entity, table, pk, id, fields, config);
           if (result.success) {
             results.push({ id, success: true, record: result.record });
           } else {
@@ -117,6 +117,7 @@ async function updateOne(
   pk: string,
   recordId: string,
   fields: Record<string, unknown>,
+  config: CrmVocabConfig,
 ): Promise<{ success: true; record: unknown } | { success: false; error: string }> {
   // Filter out undefined values
   const updates = Object.fromEntries(
@@ -125,6 +126,17 @@ async function updateOne(
 
   if (Object.keys(updates).length === 0) {
     return { success: false, error: "No fields to update" };
+  }
+
+  // Normalize configurable vocabulary values to match config keys
+  if (entity === "deals" && typeof updates.stage === "string") {
+    updates.stage = matchVocabularyValue(updates.stage, config.deal_stages);
+  }
+  if (entity === "contacts" && typeof updates.type === "string") {
+    updates.type = matchVocabularyValue(updates.type, config.contact_types);
+  }
+  if (entity === "companies" && typeof updates.industry === "string") {
+    updates.industry = matchVocabularyValue(updates.industry, config.company_industries);
   }
 
   // --- Deal stage analytics: read previous stage before update ---

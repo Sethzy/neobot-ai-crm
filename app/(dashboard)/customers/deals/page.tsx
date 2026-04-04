@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Handshake } from "lucide-react";
+import { Handshake, Plus } from "lucide-react";
 import posthog from "posthog-js";
 
 import { useRouter, useSearchParams } from "next/navigation";
@@ -19,17 +19,20 @@ import { KanbanBoard } from "@/components/crm/kanban-board";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { DealDrawerContent } from "@/components/crm/record-drawer/deal-drawer-content";
 import { ViewToggle } from "@/components/crm/view-toggle";
+import { Button } from "@/components/ui/button";
 
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import type { DateRangeFilterValue, FilterDef, FilterValues } from "@/components/ui/filter-overlay";
+import { useClientId } from "@/hooks/use-client-id";
 import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
 import { dealKeys, type DealWithContact, useDeals, usePaginatedDeals } from "@/hooks/use-deals";
 import { useUpdateDeal } from "@/hooks/use-update-deal";
 import { useViewPreference, type ViewType } from "@/hooks/use-view-preference";
 import { buildColumnsFromConfig } from "@/lib/crm/build-columns";
+import { matchVocabularyValue } from "@/lib/crm/config";
 import { DEAL_DEFAULT_FIELDS } from "@/lib/crm/field-definitions";
 import { dealStageValues, type Deal } from "@/lib/crm/schemas";
 import {
@@ -173,6 +176,7 @@ export default function DealsPage() {
   const searchParams = useSearchParams();
   const { recordId, open } = useRecordDrawer();
   const queryClient = useQueryClient();
+  const { data: clientId } = useClientId();
   const { data: crmConfigResult } = useCrmConfig();
   const { view, setView } = useViewPreference("deals");
   const [page, setPage] = useState(1);
@@ -251,6 +255,26 @@ export default function DealsPage() {
     isLoading: isBoardLoading,
     isError: isBoardError,
   } = useDeals(sharedFilters, { enabled: activeView === "kanban" });
+
+  const createDeal = useMutation({
+    mutationFn: async () => {
+      if (!clientId) throw new Error("Not authenticated");
+      const { data, error } = await supabase
+        .from("deals")
+        .insert({ client_id: clientId, address: "Untitled Deal", stage: stages[0] })
+        .select("deal_id")
+        .single();
+      if (error) throw error;
+      return data.deal_id;
+    },
+    onSuccess: async (dealId: string) => {
+      await queryClient.invalidateQueries({ queryKey: dealKeys.all });
+      open(dealId);
+    },
+    onError: () => {
+      toast.error("Unable to create deal.");
+    },
+  });
 
   const deleteDeal = useMutation({
     mutationFn: async ({ dealId }: { dealId: string }) => {
@@ -420,14 +444,10 @@ export default function DealsPage() {
   );
 
   /** Maps a raw deal.stage value to the matching config key, tolerating case/delimiter differences. */
-  const matchStageToConfigKey = useMemo(() => {
-    const normalize = (s: string) => s.toLowerCase().replace(/[\s_-]+/g, "_");
-    const map = new Map<string, string>();
-    for (const stage of stages) {
-      map.set(normalize(stage), stage);
-    }
-    return (rawStage: string) => map.get(normalize(rawStage)) ?? rawStage;
-  }, [stages]);
+  const matchStageToConfigKey = useCallback(
+    (rawStage: string) => matchVocabularyValue(rawStage, stages),
+    [stages],
+  );
 
   const getColumnSummary = useCallback(
     (_columnKey: string, columnItems: DealWithContact[]) => {
@@ -472,6 +492,10 @@ export default function DealsPage() {
             setView(nextView);
             router.replace(buildDealsHref(searchParams, nextView));
           }} />
+          <Button size="sm" onClick={() => createDeal.mutate()} disabled={!clientId || createDeal.isPending}>
+            <Plus className="h-4 w-4" />
+            New
+          </Button>
         </div>
       }
       renderPanelContent={(id, { closeButton }) => (

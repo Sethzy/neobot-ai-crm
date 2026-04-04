@@ -11,6 +11,7 @@ import {
   CRM_DEFAULTS,
   customFieldDefinitionSchema,
   loadCrmConfig,
+  matchVocabularyValue,
   resolveCrmConfig,
   type CustomFieldDefinition,
   type CrmConfigRow,
@@ -345,5 +346,38 @@ describe("loadCrmConfig", () => {
     expect(result.config.company_custom_fields).toEqual([
       { key: "tier", label: "Tier", type: "text" },
     ]);
+  });
+});
+
+describe("matchVocabularyValue", () => {
+  const stages = ["lead", "qualified", "proposal_sent", "negotiation", "won"];
+
+  it("returns exact match unchanged", () => {
+    expect(matchVocabularyValue("lead", stages)).toBe("lead");
+    expect(matchVocabularyValue("proposal_sent", stages)).toBe("proposal_sent");
+  });
+
+  it("matches case-insensitively", () => {
+    expect(matchVocabularyValue("Lead", stages)).toBe("lead");
+    expect(matchVocabularyValue("NEGOTIATION", stages)).toBe("negotiation");
+    expect(matchVocabularyValue("Won", stages)).toBe("won");
+  });
+
+  it("matches spaces to underscores", () => {
+    expect(matchVocabularyValue("Proposal Sent", stages)).toBe("proposal_sent");
+    expect(matchVocabularyValue("proposal sent", stages)).toBe("proposal_sent");
+  });
+
+  it("matches hyphens to underscores", () => {
+    expect(matchVocabularyValue("proposal-sent", stages)).toBe("proposal_sent");
+  });
+
+  it("returns raw value when no config entry matches", () => {
+    expect(matchVocabularyValue("lost", stages)).toBe("lost");
+    expect(matchVocabularyValue("Unknown Stage", stages)).toBe("Unknown Stage");
+  });
+
+  it("returns raw value for empty config array", () => {
+    expect(matchVocabularyValue("lead", [])).toBe("lead");
   });
 });

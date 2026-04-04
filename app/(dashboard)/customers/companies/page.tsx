@@ -7,7 +7,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Building2 } from "lucide-react";
+import { Building2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -15,9 +15,11 @@ import { Badge } from "@/components/ui/badge";
 import { CrmListPanelLayout } from "@/components/crm/crm-list-panel-layout";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { CompanyDrawerContent } from "@/components/crm/record-drawer/company-drawer-content";
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { DateRangeFilterValue, FilterDef, FilterValues } from "@/components/ui/filter-overlay";
+import { useClientId } from "@/hooks/use-client-id";
 import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
 import { companyKeys, type CompanyWithCounts, usePaginatedCompanies } from "@/hooks/use-companies";
@@ -224,6 +226,7 @@ function CompanyIndustryCell({ companyId, industry, industryOptions }: CompanyIn
 export default function CompaniesPage() {
   const { recordId, open } = useRecordDrawer();
   const queryClient = useQueryClient();
+  const { data: clientId } = useClientId();
   const { data: crmConfigResult } = useCrmConfig();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -265,6 +268,27 @@ export default function CompaniesPage() {
   );
 
   const { data, isLoading, isError } = usePaginatedCompanies(queryFilters);
+
+  const createCompany = useMutation({
+    mutationFn: async () => {
+      if (!clientId) throw new Error("Not authenticated");
+      const { data, error } = await supabase
+        .from("companies")
+        .insert({ client_id: clientId, name: "New Company" })
+        .select("company_id")
+        .single();
+      if (error) throw error;
+      return data.company_id;
+    },
+    onSuccess: async (companyId: string) => {
+      await queryClient.invalidateQueries({ queryKey: companyKeys.all });
+      open(companyId);
+    },
+    onError: () => {
+      toast.error("Unable to create company.");
+    },
+  });
+
   const deleteCompany = useMutation({
     mutationFn: async ({ companyId }: { companyId: string }) => {
       const { error } = await supabase.from("companies").delete().eq("company_id", companyId);
@@ -384,6 +408,12 @@ export default function CompaniesPage() {
       objectType="company"
       icon={<Building2 className="h-4 w-4 text-muted-foreground" />}
       title="Companies"
+      headerActions={
+        <Button size="sm" onClick={() => createCompany.mutate()} disabled={!clientId || createCompany.isPending}>
+          <Plus className="h-4 w-4" />
+          New
+        </Button>
+      }
       renderPanelContent={(id, { closeButton }) => (
         <CompanyDrawerContent key={id} companyId={id} closeButton={closeButton} />
       )}

@@ -108,6 +108,21 @@ export function deduplicateStrings(values: string[]): string[] {
   return Array.from(new Set(values));
 }
 
+/** Normalizes a string for case/delimiter-insensitive vocabulary matching. */
+function normalizeVocabKey(s: string): string {
+  return s.toLowerCase().replace(/[\s_-]+/g, "_");
+}
+
+/**
+ * Maps a raw vocabulary value to its canonical config entry, tolerating
+ * case and delimiter differences (e.g. "Proposal Sent" → "proposal_sent").
+ * Returns the original value unchanged when no config entry matches.
+ */
+export function matchVocabularyValue(raw: string, configValues: readonly string[]): string {
+  const normalized = normalizeVocabKey(raw);
+  return configValues.find((v) => normalizeVocabKey(v) === normalized) ?? raw;
+}
+
 function parseStringArray(value: unknown): string[] | null {
   if (!Array.isArray(value) || value.length === 0) {
     return null;

@@ -8,19 +8,21 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Users } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { CrmListPanelLayout } from "@/components/crm/crm-list-panel-layout";
 import { DictionaryValue, contactTypeDictionaryMap } from "@/components/crm/dictionary-value";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { ContactDrawerContent } from "@/components/crm/record-drawer/contact-drawer-content";
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { DateRangeFilterValue, FilterDef, FilterValues } from "@/components/ui/filter-overlay";
 
 import { contactKeys, type ContactWithCompany, type ContactType, usePaginatedContacts } from "@/hooks/use-contacts";
 import { type CompanyWithCounts, useCompanies } from "@/hooks/use-companies";
+import { useClientId } from "@/hooks/use-client-id";
 import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
 import { useUpdateContact } from "@/hooks/use-update-contact";
@@ -239,6 +241,7 @@ function ContactCompanyCell({ contactId, company, companies }: ContactCompanyCel
 export default function PeoplePage() {
   const { recordId, open } = useRecordDrawer();
   const queryClient = useQueryClient();
+  const { data: clientId } = useClientId();
   const { data: crmConfigResult } = useCrmConfig();
   const { data: companies = [] } = useCompanies({});
   const [page, setPage] = useState(1);
@@ -290,6 +293,27 @@ export default function PeoplePage() {
 
   const contactTypes = crmConfigResult?.config.contact_types ?? contactTypeValues;
   const { data, isLoading, isError, refetch } = usePaginatedContacts(queryFilters);
+
+  const createContact = useMutation({
+    mutationFn: async () => {
+      if (!clientId) throw new Error("Not authenticated");
+      const { data, error } = await supabase
+        .from("contacts")
+        .insert({ client_id: clientId, first_name: "New", last_name: "Contact", type: contactTypes[0] })
+        .select("contact_id")
+        .single();
+      if (error) throw error;
+      return data.contact_id;
+    },
+    onSuccess: async (contactId: string) => {
+      await queryClient.invalidateQueries({ queryKey: contactKeys.all });
+      open(contactId);
+    },
+    onError: () => {
+      toast.error("Unable to create contact.");
+    },
+  });
+
   const deletePerson = useMutation({
     mutationFn: async ({ contactId }: { contactId: string }) => {
       const { error } = await supabase.from("contacts").delete().eq("contact_id", contactId);
@@ -401,6 +425,12 @@ export default function PeoplePage() {
       objectType="contact"
       icon={<Users className="h-4 w-4 text-muted-foreground" />}
       title="People"
+      headerActions={
+        <Button size="sm" onClick={() => createContact.mutate()} disabled={!clientId || createContact.isPending}>
+          <Plus className="h-4 w-4" />
+          New
+        </Button>
+      }
       renderPanelContent={(id, { closeButton }) => (
         <ContactDrawerContent key={id} contactId={id} closeButton={closeButton} />
       )}

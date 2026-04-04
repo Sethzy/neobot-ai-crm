@@ -9,6 +9,7 @@ import { z } from "zod";
 import {
   buildCustomFieldsSchema,
   CRM_DEFAULTS,
+  matchVocabularyValue,
   type CrmVocabConfig,
 } from "@/lib/crm/config";
 import type { Database } from "@/types/database";
@@ -135,12 +136,14 @@ function buildContactRow(
   clientId: string,
   record: Record<string, unknown>,
   defaultContactType: string,
+  contactTypes: readonly string[],
 ) {
+  const rawType = (record.type as string) ?? defaultContactType;
   return {
     client_id: clientId,
     first_name: record.first_name as string,
     last_name: record.last_name as string,
-    type: (record.type as string) ?? defaultContactType,
+    type: matchVocabularyValue(rawType, contactTypes),
     email: (record.email as string) ?? null,
     phone: (record.phone as string) ?? null,
     notes: (record.notes as string) ?? null,
@@ -151,11 +154,13 @@ function buildContactRow(
 function buildCompanyRow(
   clientId: string,
   record: Record<string, unknown>,
+  companyIndustries: readonly string[],
 ) {
+  const rawIndustry = record.industry as string | undefined;
   return {
     client_id: clientId,
     name: record.name as string,
-    industry: (record.industry as string) ?? null,
+    industry: rawIndustry ? matchVocabularyValue(rawIndustry, companyIndustries) : null,
     website: (record.website as string) ?? null,
     phone: (record.phone as string) ?? null,
     email: (record.email as string) ?? null,
@@ -169,11 +174,13 @@ function buildDealRow(
   clientId: string,
   record: Record<string, unknown>,
   defaultDealStage: string,
+  dealStages: readonly string[],
 ) {
+  const rawStage = (record.stage as string) ?? defaultDealStage;
   return {
     client_id: clientId,
     address: record.address as string,
-    stage: (record.stage as string) ?? defaultDealStage,
+    stage: matchVocabularyValue(rawStage, dealStages),
     amount: record.amount as number | undefined,
     notes: (record.notes as string) ?? null,
     custom_fields: (record.custom_fields as Record<string, unknown>) ?? {},
@@ -286,11 +293,11 @@ export function createCreateRecordTool(
         const rows = records.map((record) => {
           switch (entity) {
             case "contacts":
-              return buildContactRow(clientId, record, defaultContactType);
+              return buildContactRow(clientId, record, defaultContactType, config.contact_types);
             case "companies":
-              return buildCompanyRow(clientId, record);
+              return buildCompanyRow(clientId, record, config.company_industries);
             case "deals":
-              return buildDealRow(clientId, record, defaultDealStage);
+              return buildDealRow(clientId, record, defaultDealStage, config.deal_stages);
           }
         });
 
