@@ -128,6 +128,43 @@ describe("create_record", () => {
       expect(result).toEqual({ success: true, records: created, count: 2 });
     });
 
+    it("creates a record_note when notes field is provided", async () => {
+      const inserted = { contact_id: "c1", first_name: "John", last_name: "Tan" };
+      const { client, builderHistory } = createMockSupabase({
+        contacts: [
+          { data: [], error: null },
+          { data: inserted, error: null },
+        ],
+        record_notes: { data: null, error: null },
+      });
+      const tools = createCreateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.create_record.execute(
+        {
+          entity: "contacts",
+          records: [{ first_name: "John", last_name: "Tan", notes: "Prefers email" }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result).toEqual({ success: true, record: inserted });
+      // Notes should not be in the insert payload
+      const insertBuilder = builderHistory.contacts[1];
+      expect(insertBuilder.insert).toHaveBeenCalledWith(
+        expect.not.objectContaining({ notes: expect.anything() }),
+      );
+      // Should have inserted into record_notes
+      expect(builderHistory.record_notes).toHaveLength(1);
+      expect(builderHistory.record_notes[0].insert).toHaveBeenCalledWith([
+        expect.objectContaining({
+          client_id: CLIENT_ID,
+          record_type: "contact",
+          record_id: "c1",
+          body: "Prefers email",
+        }),
+      ]);
+    });
+
     it("applies default contact type", async () => {
       const inserted = { contact_id: "c1" };
       const { client, builderHistory } = createMockSupabase({

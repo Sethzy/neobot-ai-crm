@@ -8,6 +8,8 @@ import { type ReactNode, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Banknote, Building2, Clock3, House, Kanban, ListTodo, MapPin, StickyNote, Users } from "lucide-react";
 
+import { DrawerNotesTab } from "./drawer-notes-tab";
+
 import { LinkedContactsSection } from "@/components/crm/detail/linked-contacts-section";
 import { LinkedTasksSection } from "@/components/crm/detail/linked-tasks-section";
 import { InteractionTimeline } from "@/components/crm/interaction-timeline";
@@ -26,7 +28,6 @@ import {
   formatCrmEnumLabel,
   formatCrmPrice,
   parseCustomFieldInputValue,
-  toNullableValue,
 } from "@/lib/crm/display";
 import { dealStageValues, type Deal } from "@/lib/crm/schemas";
 
@@ -43,7 +44,7 @@ interface DealDrawerContentProps {
   closeButton?: ReactNode;
 }
 
-type DealDrawerTab = "home" | "contacts" | "timeline" | "tasks";
+type DealDrawerTab = "home" | "contacts" | "timeline" | "tasks" | "notes";
 
 /**
  * Renders deal details, linked contacts, and interaction timeline.
@@ -87,6 +88,7 @@ export function DealDrawerContent({ dealId, closeButton }: DealDrawerContentProp
     { id: "contacts", label: "Contacts", icon: <Users className="h-4 w-4" /> },
     { id: "timeline", label: "Timeline", icon: <Clock3 className="h-4 w-4" /> },
     { id: "tasks", label: "Tasks", icon: <ListTodo className="h-4 w-4" /> },
+    { id: "notes", label: "Notes", icon: <StickyNote className="h-4 w-4" /> },
   ];
 
   return (
@@ -160,15 +162,6 @@ export function DealDrawerContent({ dealId, closeButton }: DealDrawerContentProp
                   await updateDeal.mutateAsync({ amount: Math.round(parsedPrice) });
                 }}
               />
-              <InlineEditField
-                icon={<StickyNote className="h-4 w-4" />}
-                label="Notes"
-                value={deal.notes}
-                type="textarea"
-                onSave={async (nextValue) => {
-                  await updateDeal.mutateAsync({ notes: toNullableValue(nextValue) });
-                }}
-              />
             </CollapsibleFieldGroup>
           </DrawerSection>
 
@@ -215,6 +208,13 @@ export function DealDrawerContent({ dealId, closeButton }: DealDrawerContentProp
         <DrawerSection title="Tasks">
           <LinkedTasksSection tasks={linkedTasks} emptyLabel="No linked tasks." />
         </DrawerSection>
+      ) : null}
+
+      {activeTab === "notes" ? (
+        <DrawerNotesTab
+          recordType="deal"
+          recordId={dealId}
+        />
       ) : null}
     </RecordDetailPanelShell>
   );

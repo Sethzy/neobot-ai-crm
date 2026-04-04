@@ -146,7 +146,6 @@ function buildContactRow(
     type: matchVocabularyValue(rawType, contactTypes),
     email: (record.email as string) ?? null,
     phone: (record.phone as string) ?? null,
-    notes: (record.notes as string) ?? null,
     custom_fields: (record.custom_fields as Record<string, unknown>) ?? {},
   };
 }
@@ -165,7 +164,6 @@ function buildCompanyRow(
     phone: (record.phone as string) ?? null,
     email: (record.email as string) ?? null,
     address: (record.address as string) ?? null,
-    notes: (record.notes as string) ?? null,
     custom_fields: (record.custom_fields as Record<string, unknown>) ?? {},
   };
 }
@@ -182,9 +180,60 @@ function buildDealRow(
     address: record.address as string,
     stage: matchVocabularyValue(rawStage, dealStages),
     amount: record.amount as number | undefined,
-    notes: (record.notes as string) ?? null,
     custom_fields: (record.custom_fields as Record<string, unknown>) ?? {},
   };
+}
+
+/** Maps plural entity names to record_notes record_type values. */
+const RECORD_TYPE_MAP: Record<CreateEntity, "contact" | "company" | "deal"> = {
+  contacts: "contact",
+  companies: "company",
+  deals: "deal",
+};
+
+/** Maps plural entity names to primary key column names. */
+const PK_MAP: Record<CreateEntity, string> = {
+  contacts: "contact_id",
+  companies: "company_id",
+  deals: "deal_id",
+};
+
+/**
+ * Creates record_notes rows for any input records that included a `notes` field.
+ * Best-effort — note insertion failures don't fail the overall create.
+ */
+async function insertRecordNotes(
+  supabase: SupabaseClient<Database>,
+  clientId: string,
+  entity: CreateEntity,
+  inputRecords: Record<string, unknown>[],
+  createdRecords: Record<string, unknown>[],
+) {
+  const recordType = RECORD_TYPE_MAP[entity];
+  const pk = PK_MAP[entity];
+  const noteRows: Array<{
+    client_id: string;
+    record_type: string;
+    record_id: string;
+    body: string;
+  }> = [];
+
+  for (let i = 0; i < inputRecords.length; i++) {
+    const noteBody = inputRecords[i].notes;
+    const created = createdRecords[i];
+    if (typeof noteBody === "string" && noteBody.trim() && created?.[pk]) {
+      noteRows.push({
+        client_id: clientId,
+        record_type: recordType,
+        record_id: created[pk] as string,
+        body: noteBody,
+      });
+    }
+  }
+
+  if (noteRows.length > 0) {
+    await supabase.from("record_notes").insert(noteRows);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -316,6 +365,8 @@ export function createCreateRecordTool(
             return { success: false as const, error: error.message };
           }
 
+          await insertRecordNotes(supabase, clientId, entity, records, [data]);
+
           await captureServerEvent({
             distinctId: clientId,
             event: "crm_record_created",
@@ -340,6 +391,8 @@ export function createCreateRecordTool(
         }
 
         const created = data ?? [];
+
+        await insertRecordNotes(supabase, clientId, entity, records, created);
 
         await captureServerEvents(
           created.map(() => ({

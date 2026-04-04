@@ -17,7 +17,7 @@ describe("create_task", () => {
       client_id: CLIENT_ID,
       title: "Follow up with John",
       description: "Call about pricing",
-      status: "open",
+      status: "todo",
       due_date: "2026-03-05T00:00:00Z",
       contact_id: "550e8400-e29b-41d4-a716-446655440001",
       deal_id: null,
@@ -48,7 +48,7 @@ describe("create_task", () => {
     );
   });
 
-  it("defaults status to open", async () => {
+  it("defaults status to todo", async () => {
     const { client, builders } = createMockSupabase({
       crm_tasks: { data: {}, error: null },
     });
@@ -60,7 +60,7 @@ describe("create_task", () => {
     );
 
     expect(builders.crm_tasks.insert).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "open" }),
+      expect.objectContaining({ status: "todo" }),
     );
   });
 
@@ -105,7 +105,7 @@ describe("update_task", () => {
       client_id: CLIENT_ID,
       title: "Follow up with John",
       description: null,
-      status: "completed",
+      status: "done",
       due_date: "2026-03-05T00:00:00Z",
       contact_id: "550e8400-e29b-41d4-a716-446655440001",
       deal_id: null,
@@ -120,7 +120,7 @@ describe("update_task", () => {
     const result = await tools.update_task.execute(
       {
         task_id: "550e8400-e29b-41d4-a716-446655440032",
-        status: "completed",
+        status: "done",
       },
       EXECUTION_OPTIONS,
     );
@@ -153,7 +153,7 @@ describe("update_task", () => {
     const result = await tools.update_task.execute(
       {
         task_id: "550e8400-e29b-41d4-a716-446655440032",
-        status: "completed",
+        status: "done",
       },
       EXECUTION_OPTIONS,
     );

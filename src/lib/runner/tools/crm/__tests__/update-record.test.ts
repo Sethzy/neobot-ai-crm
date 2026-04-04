@@ -159,6 +159,89 @@ describe("update_record", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // Notes → record_notes redirect
+  // ---------------------------------------------------------------------------
+  describe("notes redirect", () => {
+    it("creates a record_note when notes field is provided alongside other fields", async () => {
+      const updated = { contact_id: "c1", first_name: "John", email: "john@test.com" };
+      const { client, builderHistory } = createMockSupabase({
+        contacts: { data: updated, error: null },
+        record_notes: { data: null, error: null },
+      });
+      const tools = createUpdateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.update_record.execute(
+        {
+          entity: "contacts",
+          updates: [{ id: "c1", fields: { email: "john@test.com", notes: "Prefers email" } }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result).toEqual({ success: true, record: updated });
+      // Notes should not be in the update payload
+      const updateBuilder = builderHistory.contacts[0];
+      expect(updateBuilder.update).toHaveBeenCalledWith(
+        expect.not.objectContaining({ notes: expect.anything() }),
+      );
+      // Should have inserted into record_notes
+      expect(builderHistory.record_notes).toHaveLength(1);
+      expect(builderHistory.record_notes[0].insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          client_id: CLIENT_ID,
+          record_type: "contact",
+          record_id: "c1",
+          body: "Prefers email",
+        }),
+      );
+    });
+
+    it("creates a record_note when notes is the only field", async () => {
+      const { client, builderHistory } = createMockSupabase({
+        record_notes: { data: null, error: null },
+      });
+      const tools = createUpdateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.update_record.execute(
+        {
+          entity: "deals",
+          updates: [{ id: "d1", fields: { notes: "Client wants to close by June" } }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result.success).toBe(true);
+      // Should have inserted into record_notes without touching the deals table
+      expect(builderHistory.record_notes).toHaveLength(1);
+      expect(builderHistory.record_notes[0].insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          record_type: "deal",
+          record_id: "d1",
+          body: "Client wants to close by June",
+        }),
+      );
+      // Should not have queried or updated the deals table
+      expect(builderHistory.deals).toBeUndefined();
+    });
+
+    it("ignores empty notes string", async () => {
+      const { client } = createMockSupabase();
+      const tools = createUpdateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.update_record.execute(
+        {
+          entity: "contacts",
+          updates: [{ id: "c1", fields: { notes: "" } }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      // Empty notes + no other fields = no fields to update
+      expect(result).toEqual({ success: false, error: "No fields to update" });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Custom fields merge
   // ---------------------------------------------------------------------------
   describe("custom fields", () => {

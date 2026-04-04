@@ -8,6 +8,8 @@ import { type ReactNode, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { BriefcaseBusiness, Building2, Globe, House, Mail, MapPin, Phone, StickyNote, Users } from "lucide-react";
 
+import { DrawerNotesTab } from "./drawer-notes-tab";
+
 import { LinkedContactsSection } from "@/components/crm/detail/linked-contacts-section";
 import { LinkedDealsSection } from "@/components/crm/detail/linked-deals-section";
 import { InlineEditField } from "@/components/crm/inline-edit-field";
@@ -41,7 +43,7 @@ interface CompanyDrawerContentProps {
   closeButton?: ReactNode;
 }
 
-type CompanyDrawerTab = "home" | "contacts" | "deals";
+type CompanyDrawerTab = "home" | "contacts" | "deals" | "notes";
 
 /**
  * Renders company details together with linked contacts and deals.
@@ -77,6 +79,7 @@ export function CompanyDrawerContent({ companyId, closeButton }: CompanyDrawerCo
     { id: "home", label: "Home", icon: <House className="h-4 w-4" /> },
     { id: "contacts", label: "Contacts", icon: <Users className="h-4 w-4" /> },
     { id: "deals", label: "Deals", icon: <BriefcaseBusiness className="h-4 w-4" /> },
+    { id: "notes", label: "Notes", icon: <StickyNote className="h-4 w-4" /> },
   ];
 
   return (
@@ -155,15 +158,6 @@ export function CompanyDrawerContent({ companyId, closeButton }: CompanyDrawerCo
                   await updateCompany.mutateAsync({ address: toNullableValue(nextValue) });
                 }}
               />
-              <InlineEditField
-                icon={<StickyNote className="h-4 w-4" />}
-                label="Notes"
-                value={company.notes}
-                type="textarea"
-                onSave={async (nextValue) => {
-                  await updateCompany.mutateAsync({ notes: toNullableValue(nextValue) });
-                }}
-              />
             </CollapsibleFieldGroup>
           </DrawerSection>
 
@@ -197,6 +191,13 @@ export function CompanyDrawerContent({ companyId, closeButton }: CompanyDrawerCo
             emptyLabel="No linked contacts."
           />
         </DrawerSection>
+      ) : null}
+
+      {activeTab === "notes" ? (
+        <DrawerNotesTab
+          recordType="company"
+          recordId={companyId}
+        />
       ) : null}
 
       {activeTab === "deals" ? (

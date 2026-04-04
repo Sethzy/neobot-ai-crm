@@ -116,7 +116,8 @@ describe("search_crm", () => {
       );
 
       expect(result).toEqual({ success: true, records: mockDeals, count: 1 });
-      expect(builders.deals.or).toHaveBeenCalled();
+      // Single search column uses .ilike() directly instead of .or()
+      expect(builders.deals.ilike).toHaveBeenCalled();
     });
 
     it("filters deals by stage and company_id", async () => {
@@ -222,11 +223,11 @@ describe("search_crm", () => {
       const tools = createSearchCrmTool(client, CLIENT_ID);
 
       await tools.search_crm.execute(
-        { entity: "tasks", filters: { status: "open" } },
+        { entity: "tasks", filters: { status: "todo" } },
         EXEC_OPTIONS,
       );
 
-      expect(builders.crm_tasks.eq).toHaveBeenCalledWith("status", "open");
+      expect(builders.crm_tasks.eq).toHaveBeenCalledWith("status", "todo");
     });
   });
 
@@ -288,6 +289,42 @@ describe("search_crm", () => {
         success: false,
         error: "deal_contacts requires a deal_id or contact_id filter.",
       });
+    });
+  });
+
+  describe("record_notes", () => {
+    it("searches notes by body text", async () => {
+      const mockNotes = [{ note_id: "n1", record_type: "contact", record_id: "c1", body: "Discussed pricing" }];
+      const { client, builders } = createMockSupabase({
+        record_notes: { data: mockNotes, error: null },
+      });
+      const tools = createSearchCrmTool(client, CLIENT_ID);
+
+      const result = await tools.search_crm.execute(
+        { entity: "record_notes", query: "pricing" },
+        EXEC_OPTIONS,
+      );
+
+      expect(result).toEqual({ success: true, records: mockNotes, count: 1 });
+      // Single search column uses .ilike() directly
+      expect(builders.record_notes.ilike).toHaveBeenCalled();
+      expect(builders.record_notes.order).toHaveBeenCalledWith("created_at", { ascending: false });
+    });
+
+    it("filters notes by record_type and record_id", async () => {
+      const mockNotes = [{ note_id: "n1", body: "Some note" }];
+      const { client, builders } = createMockSupabase({
+        record_notes: { data: mockNotes, error: null },
+      });
+      const tools = createSearchCrmTool(client, CLIENT_ID);
+
+      await tools.search_crm.execute(
+        { entity: "record_notes", filters: { record_type: "contact", record_id: "c1" } },
+        EXEC_OPTIONS,
+      );
+
+      expect(builders.record_notes.eq).toHaveBeenCalledWith("record_type", "contact");
+      expect(builders.record_notes.eq).toHaveBeenCalledWith("record_id", "c1");
     });
   });
 

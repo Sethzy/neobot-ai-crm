@@ -82,8 +82,9 @@ describe("PostgREST query serialization", () => {
     expect(requestUrl).toBeDefined();
 
     expect(requestUrl.searchParams.get("client_id")).toBe(`eq.${CLIENT_ID}`);
-    const orFilter = requestUrl.searchParams.get("or");
-    expect(orFilter).toContain("address.ilike.\"%Blk 123, #08-01 (A)\\_\\%%\"");
-    expect(orFilter).toContain("notes.ilike.\"%Blk 123, #08-01 (A)\\_\\%%\"");
+    // Deals now only search by address (notes moved to record_notes table).
+    // Single-column search uses .ilike() directly instead of .or().
+    const addressFilter = requestUrl.searchParams.get("address");
+    expect(addressFilter).toContain("ilike.%Blk 123, #08-01 (A)\\_\\%%");
   });
 });

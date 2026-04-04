@@ -33,7 +33,6 @@ describe("contact schemas", () => {
     email: "john@example.com",
     phone: "+6591234567",
     type: "buyer" as const,
-    notes: "Met at property viewing",
     custom_fields: {},
     created_at: ISO,
     updated_at: ISO,
@@ -66,7 +65,6 @@ describe("contact schemas", () => {
       type: "seller" as const,
       email: null,
       phone: null,
-      notes: null,
     };
     expect(contactInsertSchema.parse(insert)).toEqual(insert);
   });
@@ -99,7 +97,6 @@ describe("deal schemas", () => {
     address: "123 Orchard Road, #08-01",
     stage: "negotiation" as const,
     amount: 1500000,
-    notes: "3BR condo",
     custom_fields: {},
     created_at: ISO,
     updated_at: ISO,
@@ -114,7 +111,7 @@ describe("deal schemas", () => {
   });
 
   test("allows nullable fields in row", () => {
-    const nullableRow = { ...validRow, amount: null, notes: null };
+    const nullableRow = { ...validRow, amount: null };
     expect(dealSchema.parse(nullableRow)).toEqual(nullableRow);
   });
 
@@ -137,7 +134,6 @@ describe("deal schemas", () => {
       address: "1 Holland Ave",
       stage: "offer" as const,
       amount: null,
-      notes: null,
     };
     expect(dealInsertSchema.parse(insert)).toEqual(insert);
   });
@@ -258,7 +254,7 @@ describe("crm task schemas", () => {
     deal_id: null,
     title: "Follow up with buyer",
     description: "Call and confirm preferred district",
-    status: "open" as const,
+    status: "todo" as const,
     due_date: ISO,
     custom_fields: {},
     created_at: ISO,

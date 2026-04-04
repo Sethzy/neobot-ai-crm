@@ -6,15 +6,16 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { applyCommittedRecordPatch } from "@/hooks/crm-cache-updates";
 import { mergeCustomFieldPatch } from "@/hooks/crm-custom-fields";
-import { contactKeys } from "@/hooks/use-contacts";
+import { contactKeys, type ContactWithCompany } from "@/hooks/use-contacts";
 import { type Contact } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
 type ContactUpdate = Partial<
   Pick<
     Contact,
-    "first_name" | "last_name" | "phone" | "email" | "type" | "notes" | "company_id" | "custom_fields"
+    "first_name" | "last_name" | "phone" | "email" | "type" | "company_id" | "custom_fields"
   >
 >;
 
@@ -41,8 +42,18 @@ export function useUpdateContact(contactId: string) {
       if (error) {
         throw error;
       }
+
+      return mergedUpdates;
     },
-    onSuccess: () => {
+    onSuccess: (savedUpdates) => {
+      applyCommittedRecordPatch<ContactWithCompany>({
+        queryClient,
+        detailKey: contactKeys.detail(contactId),
+        listKeyPrefix: contactKeys.lists(),
+        idKey: "contact_id",
+        recordId: contactId,
+        updates: savedUpdates,
+      });
       void queryClient.invalidateQueries({ queryKey: contactKeys.all });
     },
   });

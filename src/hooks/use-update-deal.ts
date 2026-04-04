@@ -7,13 +7,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import posthog from "posthog-js";
 
+import { applyCommittedRecordPatch } from "@/hooks/crm-cache-updates";
 import { mergeCustomFieldPatch } from "@/hooks/crm-custom-fields";
 import { dealKeys, type DealWithContact } from "@/hooks/use-deals";
 import { type Deal } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
 type DealUpdate = Partial<
-  Pick<Deal, "address" | "stage" | "amount" | "notes" | "company_id" | "custom_fields">
+  Pick<Deal, "address" | "stage" | "amount" | "company_id" | "custom_fields">
 >;
 
 /**
@@ -71,8 +72,18 @@ export function useUpdateDeal(dealId: string) {
               : previousAmount,
         });
       }
+
+      return mergedUpdates;
     },
-    onSuccess: () => {
+    onSuccess: (savedUpdates) => {
+      applyCommittedRecordPatch<DealWithContact>({
+        queryClient,
+        detailKey: dealKeys.detail(dealId),
+        listKeyPrefix: dealKeys.lists(),
+        idKey: "deal_id",
+        recordId: dealId,
+        updates: savedUpdates,
+      });
       void queryClient.invalidateQueries({ queryKey: dealKeys.all });
     },
   });

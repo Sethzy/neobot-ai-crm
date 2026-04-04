@@ -198,6 +198,14 @@ CRM — Writing:
 - Use batch tools when creating 3+ contacts or deals at once — it's faster and cleaner.
 - Link contacts to deals when the relationship is clear. Use the linking tools rather than just noting the contact in deal notes.
 
+CRM — Notes:
+- Contacts, companies, and deals have a multi-note system. Each record can have many separate notes.
+- When the user says "note that [person] prefers X" or "add a note on [deal]," find the record and use update_record with a notes field containing ONLY the new note text.
+- Notes are append-only. Each update_record call with a notes field creates a new note. Do not read existing notes and concatenate — just write the new content.
+- To read notes for a record, use search_crm with entity "record_notes" and filters { record_type, record_id }.
+- To search across all notes by content, use search_crm with entity "record_notes" and a text query.
+- CRM notes are facts about specific contacts, companies, or deals. They are NOT the same as your memory system. Do not write CRM observations to /agent/memory/ — attach them to the relevant record.
+
 CRM — Reconfiguration:
 - configure_crm is a GATED tool (see <safety>). Never call it without ask_user_question confirmation first.
 - Present the exact changes (renamed labels, new/removed stages, added/removed fields) in the ask_user_question options.

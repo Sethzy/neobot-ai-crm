@@ -26,9 +26,10 @@ describe("CRM display color helpers", () => {
   });
 
   it("exposes semantic task status classes", () => {
-    expect(taskStatusToneClassMap.open).toBe("bg-status-open/10 text-status-open");
-    expect(taskStatusToneClassMap.completed).toBe("bg-status-completed/10 text-status-completed");
-    expect(taskStatusTopBorderMap.open).toBe("border-t-status-open");
+    expect(taskStatusToneClassMap.todo).toBe("bg-status-todo/10 text-status-todo");
+    expect(taskStatusToneClassMap.in_progress).toBe("bg-status-in-progress/10 text-status-in-progress");
+    expect(taskStatusToneClassMap.done).toBe("bg-status-done/10 text-status-done");
+    expect(taskStatusTopBorderMap.todo).toBe("border-t-status-todo");
   });
 
   it("keeps avatar color assignment deterministic", () => {

@@ -123,11 +123,11 @@ describe("QuickEditCell", () => {
     render(
       <QuickEditCell
         ariaLabel="Status"
-        value="open"
+        value="todo"
         type="select"
         options={[
-          { value: "open", label: "Open" },
-          { value: "completed", label: "Completed" },
+          { value: "todo", label: "To do" },
+          { value: "done", label: "Done" },
         ]}
         onSave={onSave}
       />,

@@ -21,6 +21,13 @@ const ENTITY_ROUTING: Record<DeleteEntity, { table: string; pk: string }> = {
   tasks: { table: "crm_tasks", pk: "task_id" },
 };
 
+/** Entities that have record_notes (polymorphic notes table). */
+const RECORD_TYPE_MAP: Partial<Record<DeleteEntity, "contact" | "company" | "deal">> = {
+  contacts: "contact",
+  companies: "company",
+  deals: "deal",
+};
+
 /**
  * Creates the delete_records tool.
  */
@@ -64,6 +71,16 @@ export function createDeleteRecordsTool(
             failedIds.push(id);
           } else {
             deletedIds.push(id);
+            // Clean up record_notes for entities that have them.
+            const recordType = RECORD_TYPE_MAP[entity];
+            if (recordType) {
+              await supabase
+                .from("record_notes")
+                .delete()
+                .eq("record_type", recordType)
+                .eq("record_id", id)
+                .eq("client_id", clientId);
+            }
           }
         }
 

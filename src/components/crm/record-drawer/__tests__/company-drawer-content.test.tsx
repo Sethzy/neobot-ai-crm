@@ -28,7 +28,6 @@ vi.mock("@/hooks/use-companies", () => ({
       phone: "+6562201000",
       email: "info@propnex.com",
       address: "480 Lorong 6 Toa Payoh",
-      notes: "Top-tier brokerage",
       custom_fields: { tier: "a" },
       created_at: "2026-03-01T00:00:00+08:00",
       updated_at: "2026-03-04T00:00:00+08:00",
@@ -84,7 +83,6 @@ describe("CompanyDrawerContent", () => {
     expect(screen.getByTestId("inline-Name")).toBeInTheDocument();
     expect(screen.getByTestId("inline-Industry")).toBeInTheDocument();
     expect(screen.getByTestId("inline-Website")).toBeInTheDocument();
-    expect(screen.getByTestId("inline-Notes")).toBeInTheDocument();
   });
 
   it("renders company header, related contacts, and related deals", () => {
@@ -95,6 +93,7 @@ describe("CompanyDrawerContent", () => {
     expect(screen.getByText("Home")).toBeInTheDocument();
     expect(screen.getByText("Contacts")).toBeInTheDocument();
     expect(screen.getByText("Deals")).toBeInTheDocument();
+    expect(screen.getByText("Notes")).toBeInTheDocument();
     expect(screen.getByText("Fields")).toBeInTheDocument();
   });
 

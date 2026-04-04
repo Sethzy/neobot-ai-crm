@@ -24,7 +24,7 @@ vi.mock("@/hooks/use-crm-tasks", () => ({
       deal_id: "d-1",
       title: "Follow up with Sarah",
       description: "Call about Sunday viewing.",
-      status: "open",
+      status: "todo",
       due_date: "2026-03-10T00:00:00+08:00",
       custom_fields: { priority_note: "Call after 6pm" },
       created_at: "2026-03-01T00:00:00+08:00",
@@ -84,7 +84,7 @@ describe("TaskDrawerContent", () => {
     render(<TaskDrawerContent taskId="t-1" />);
 
     expect(screen.getByText("Follow up with Sarah")).toBeInTheDocument();
-    expect(screen.getByText("Open")).toBeInTheDocument();
+    expect(screen.getByText("To do")).toBeInTheDocument();
   });
 
   it("renders linked contact and deal", () => {

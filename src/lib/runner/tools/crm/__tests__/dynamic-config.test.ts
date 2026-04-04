@@ -58,7 +58,7 @@ describe("task tools configurable custom fields", () => {
       deal_id: null,
       title: "Review policy",
       description: null,
-      status: "open",
+      status: "todo",
       due_date: null,
       custom_fields: { priority: "high" },
       created_at: "2026-03-01T00:00:00Z",
@@ -71,12 +71,12 @@ describe("task tools configurable custom fields", () => {
 
     expect(tools.create_task.inputSchema.safeParse({
       title: "Review policy",
-      status: "open",
+      status: "todo",
       custom_fields: { priority: "high" },
     }).success).toBe(true);
     expect(tools.create_task.inputSchema.safeParse({
       title: "Review policy",
-      status: "in_progress",
+      status: "pending",
     }).success).toBe(false);
     expect(tools.create_task.inputSchema.safeParse({
       title: "Review policy",

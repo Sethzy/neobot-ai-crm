@@ -18,6 +18,7 @@ export type RealtimeTableName =
   | "deal_contacts"
   | "interactions"
   | "crm_tasks"
+  | "record_notes"
   | "agent_triggers";
 
 export interface UseRealtimeTableOptions {
@@ -42,7 +43,10 @@ export function useRealtimeTable({
 }: UseRealtimeTableOptions): void {
   const queryClient = useQueryClient();
   const queryKeysRef = useRef(queryKeys);
-  queryKeysRef.current = queryKeys;
+
+  useEffect(() => {
+    queryKeysRef.current = queryKeys;
+  }, [queryKeys]);
 
   useEffect(() => {
     if (!enabled || !filter) {

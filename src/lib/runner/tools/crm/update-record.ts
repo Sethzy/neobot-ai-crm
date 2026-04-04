@@ -23,6 +23,13 @@ const ENTITY_ROUTING: Record<UpdateEntity, { table: "contacts" | "companies" | "
   deals: { table: "deals", pk: "deal_id" },
 };
 
+/** Maps plural entity names to record_notes record_type values. */
+const RECORD_TYPE_MAP: Record<UpdateEntity, "contact" | "company" | "deal"> = {
+  contacts: "contact",
+  companies: "company",
+  deals: "deal",
+};
+
 /**
  * Creates the update_record tool.
  */
@@ -124,6 +131,21 @@ async function updateOne(
     Object.entries(fields).filter(([, value]) => value !== undefined),
   );
 
+  // Extract notes — written to record_notes instead of the legacy column.
+  const noteBody = typeof updates.notes === "string" ? updates.notes.trim() : null;
+  delete updates.notes;
+
+  // If the only field was notes, just create the note and return.
+  if (Object.keys(updates).length === 0 && noteBody) {
+    await supabase.from("record_notes").insert({
+      client_id: clientId,
+      record_type: RECORD_TYPE_MAP[entity],
+      record_id: recordId,
+      body: noteBody,
+    });
+    return { success: true, record: { [pk]: recordId, note_added: true } };
+  }
+
   if (Object.keys(updates).length === 0) {
     return { success: false, error: "No fields to update" };
   }
@@ -187,6 +209,16 @@ async function updateOne(
 
   if (error) {
     return { success: false, error: error.message };
+  }
+
+  // --- Create record_note if notes was provided alongside other fields ---
+  if (noteBody) {
+    await supabase.from("record_notes").insert({
+      client_id: clientId,
+      record_type: RECORD_TYPE_MAP[entity],
+      record_id: recordId,
+      body: noteBody,
+    });
   }
 
   // --- Deal stage changed analytics ---

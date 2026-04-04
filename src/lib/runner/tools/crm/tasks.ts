@@ -37,7 +37,7 @@ export function createTaskTools(
     inputSchema: z.object({
       title: z.string().min(1).describe("Task title."),
       description: z.string().optional().describe("Task description."),
-      status: z.enum(crmTaskStatusValues).optional().describe("Task status (open, completed). Defaults to 'open'."),
+      status: z.enum(crmTaskStatusValues).optional().describe("Task status (todo, in_progress, done). Defaults to 'todo'."),
       due_date: flexibleTimestampSchema
         .optional()
         .describe("ISO-8601 due timestamp or YYYY-MM-DD date."),
@@ -55,7 +55,7 @@ export function createTaskTools(
           client_id: clientId,
           title,
           description: description ?? null,
-          status: status ?? "open",
+          status: status ?? "todo",
           due_date: normalizedDueDate,
           contact_id: contact_id ?? null,
           deal_id: deal_id ?? null,
@@ -93,7 +93,7 @@ export function createTaskTools(
       task_id: z.string().uuid().describe("UUID of the task to update. Use search_crm to find this."),
       title: z.string().min(1).optional().describe("Updated task title."),
       description: z.string().nullable().optional().describe("Updated task description or null."),
-      status: z.enum(crmTaskStatusValues).optional().describe("Updated task status (open, completed)."),
+      status: z.enum(crmTaskStatusValues).optional().describe("Updated task status (todo, in_progress, done)."),
       due_date: flexibleTimestampSchema
         .nullable()
         .optional()

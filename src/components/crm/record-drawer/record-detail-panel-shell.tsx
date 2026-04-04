@@ -44,7 +44,7 @@ interface RecordDetailPanelShellProps<TId extends string = string> {
   /** Called when a different tab is selected. */
   onTabChange: (tabId: TId) => void;
   /** Maximum tabs to show inline before overflow dropdown. */
-  maxVisibleTabs?: number;
+  maxVisibleTabs?: number; // Default: 4
   /** Optional footer node rendered pinned at the panel bottom. */
   footer?: ReactNode;
   /** Active tab content. */
@@ -64,7 +64,7 @@ export function RecordDetailPanelShell<TId extends string = string>({
   tabs,
   activeTab,
   onTabChange,
-  maxVisibleTabs = 3,
+  maxVisibleTabs = 4,
   footer,
   children,
 }: RecordDetailPanelShellProps<TId>) {

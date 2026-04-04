@@ -66,7 +66,7 @@ async function fetchCompanies(filters: CompanyFilters): Promise<CompanyWithCount
 
   if (filters.search?.trim()) {
     query = query.or(
-      buildSearchExpression(filters.search, ["name", "website", "phone", "email", "address", "notes"]),
+      buildSearchExpression(filters.search, ["name", "website", "phone", "email", "address"]),
     );
   }
 
@@ -119,7 +119,7 @@ async function fetchPaginatedCompanies({
 
   if (search?.trim()) {
     query = query.or(
-      buildSearchExpression(search, ["name", "website", "phone", "email", "address", "notes"]),
+      buildSearchExpression(search, ["name", "website", "phone", "email", "address"]),
     );
   }
 

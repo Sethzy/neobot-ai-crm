@@ -89,7 +89,6 @@ describe("useCompanies", () => {
         phone: null,
         email: null,
         address: null,
-        notes: null,
         custom_fields: {},
         created_at: "2026-03-01T00:00:00+08:00",
         updated_at: "2026-03-04T00:00:00+08:00",

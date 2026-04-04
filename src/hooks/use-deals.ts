@@ -277,7 +277,7 @@ function applyDealFilters<TQuery extends {
   let nextQuery = query;
 
   if (filters.search?.trim()) {
-    nextQuery = nextQuery.or(buildSearchExpression(filters.search, ["address", "notes"]));
+    nextQuery = nextQuery.ilike("address", `%${filters.search}%`);
   }
 
   if (filters.stage) {

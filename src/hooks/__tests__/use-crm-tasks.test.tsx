@@ -58,10 +58,10 @@ describe("crmTaskKeys", () => {
   it("builds stable CRM task key namespaces", () => {
     expect(crmTaskKeys.all).toEqual(["crm-tasks"]);
     expect(crmTaskKeys.lists()).toEqual(["crm-tasks", "list"]);
-    expect(crmTaskKeys.list({ status: "open", search: "follow" })).toEqual([
+    expect(crmTaskKeys.list({ status: "todo", search: "follow" })).toEqual([
       "crm-tasks",
       "list",
-      { status: "open", search: "follow" },
+      { status: "todo", search: "follow" },
     ]);
   });
 });
@@ -76,7 +76,7 @@ describe("useCrmTasks", () => {
       {
         task_id: "task-1",
         title: "Follow up",
-        status: "open",
+        status: "todo",
         contacts: { first_name: "John", last_name: "Smith" },
         deals: { address: "123 Orchard Road" },
       },

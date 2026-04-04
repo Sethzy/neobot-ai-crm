@@ -25,7 +25,6 @@ vi.mock("@/hooks/use-deals", () => ({
       company_id: "co-1",
       companies: { company_id: "co-1", name: "PropNex" },
       amount: 1200000,
-      notes: "Awaiting valuation report.",
       custom_fields: { policy_number: "P-123", coverage_amount: 250000 },
       created_at: "2026-03-01T00:00:00+08:00",
       updated_at: "2026-03-04T00:00:00+08:00",
@@ -106,7 +105,6 @@ describe("DealDrawerContent", () => {
     expect(screen.getByTestId("inline-Stage")).toBeInTheDocument();
     expect(screen.getByTestId("inline-Company")).toBeInTheDocument();
     expect(screen.getByTestId("inline-Price")).toBeInTheDocument();
-    expect(screen.getByTestId("inline-Notes")).toBeInTheDocument();
   });
 
   it("renders deal header and pricing details", () => {
@@ -126,7 +124,8 @@ describe("DealDrawerContent", () => {
     expect(screen.getByText("Home")).toBeInTheDocument();
     expect(screen.getByText("Contacts")).toBeInTheDocument();
     expect(screen.getByText("Timeline")).toBeInTheDocument();
-    // "Tasks" is in the "+1 More" overflow dropdown (4th tab, maxVisibleTabs=3)
+    expect(screen.getByText("Tasks")).toBeInTheDocument();
+    // "Notes" is in the "+1 More" overflow dropdown (5th tab, maxVisibleTabs=4)
     expect(screen.getByText("+1 More")).toBeInTheDocument();
     expect(screen.getByText("Fields")).toBeInTheDocument();
   });

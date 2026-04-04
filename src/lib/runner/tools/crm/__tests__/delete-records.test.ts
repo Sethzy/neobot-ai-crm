@@ -11,9 +11,10 @@ const CLIENT_ID = "660e8400-e29b-41d4-a716-446655440000";
 const EXEC_OPTIONS = { toolCallId: "tool-call", messages: [] } as never;
 
 describe("delete_records", () => {
-  it("deletes a single contact", async () => {
-    const { client, builders } = createMockSupabase({
+  it("deletes a single contact and its record_notes", async () => {
+    const { client, builders, builderHistory } = createMockSupabase({
       contacts: { data: null, error: null },
+      record_notes: { data: null, error: null },
     });
     const tools = createDeleteRecordsTool(client, CLIENT_ID);
 
@@ -26,11 +27,17 @@ describe("delete_records", () => {
     expect(builders.contacts.delete).toHaveBeenCalled();
     expect(builders.contacts.eq).toHaveBeenCalledWith("contact_id", "c1");
     expect(builders.contacts.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
+    // Should also clean up record_notes
+    expect(builderHistory.record_notes).toHaveLength(1);
+    expect(builderHistory.record_notes[0].delete).toHaveBeenCalled();
+    expect(builderHistory.record_notes[0].eq).toHaveBeenCalledWith("record_type", "contact");
+    expect(builderHistory.record_notes[0].eq).toHaveBeenCalledWith("record_id", "c1");
   });
 
   it("deletes multiple deals in batch", async () => {
     const { client } = createMockSupabase({
       deals: { data: null, error: null },
+      record_notes: { data: null, error: null },
     });
     const tools = createDeleteRecordsTool(client, CLIENT_ID);
 
@@ -81,6 +88,7 @@ describe("delete_records", () => {
         { data: null, error: { message: "not found" } },
         { data: null, error: null },
       ],
+      record_notes: { data: null, error: null },
     });
     const tools = createDeleteRecordsTool(client, CLIENT_ID);
 

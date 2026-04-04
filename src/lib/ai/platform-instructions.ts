@@ -25,7 +25,7 @@ You can run read-only sql queries against client-accessible tables.
 Use get_agent_db_schema first to inspect tables and columns.
 Use run_sql for single-statement SELECT/CTE analysis.
 
-CRM tables available: contacts, companies, deals, interactions, crm_tasks, deal_contacts.
+CRM tables available: contacts, companies, deals, interactions, crm_tasks, deal_contacts, record_notes.
 RLS is enforced: you can only read rows for the current client.
 Prefer search_crm for simple lookups; use run_sql when you need JOINs or aggregations.
 </sql-db>

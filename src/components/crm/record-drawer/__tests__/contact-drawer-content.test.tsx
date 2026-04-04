@@ -27,7 +27,6 @@ vi.mock("@/hooks/use-contacts", () => ({
       company_id: "co-1",
       companies: { company_id: "co-1", name: "PropNex" },
       type: "seller",
-      notes: "Prefers evening calls.",
       custom_fields: { segment: "vip" },
       created_at: "2026-03-01T00:00:00+08:00",
       updated_at: "2026-03-04T00:00:00+08:00",
@@ -105,7 +104,6 @@ describe("ContactDrawerContent", () => {
     expect(screen.getByTestId("inline-Email")).toBeInTheDocument();
     expect(screen.getByTestId("inline-Company")).toBeInTheDocument();
     expect(screen.getByTestId("inline-Type")).toBeInTheDocument();
-    expect(screen.getByTestId("inline-Notes")).toBeInTheDocument();
   });
 
   it("renders contact header and details", () => {
@@ -123,6 +121,7 @@ describe("ContactDrawerContent", () => {
     expect(screen.getByText("Home")).toBeInTheDocument();
     expect(screen.getByText("Timeline")).toBeInTheDocument();
     expect(screen.getByText("Tasks")).toBeInTheDocument();
+    expect(screen.getByText("Notes")).toBeInTheDocument();
     expect(screen.getByText("Fields")).toBeInTheDocument();
     expect(screen.getByText("Deals")).toBeInTheDocument();
   });

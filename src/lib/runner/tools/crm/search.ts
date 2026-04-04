@@ -25,6 +25,7 @@ const SEARCH_ENTITIES = [
   "interactions",
   "tasks",
   "deal_contacts",
+  "record_notes",
 ] as const;
 
 type SearchEntity = (typeof SEARCH_ENTITIES)[number];
@@ -44,11 +45,11 @@ const ENTITY_CONFIG: Record<
   },
   companies: {
     table: "companies",
-    searchColumns: ["name", "website", "phone", "email", "address", "notes"],
+    searchColumns: ["name", "website", "phone", "email", "address"],
   },
   deals: {
     table: "deals",
-    searchColumns: ["address", "notes"],
+    searchColumns: ["address"],
   },
   interactions: {
     table: "interactions",
@@ -59,6 +60,11 @@ const ENTITY_CONFIG: Record<
     table: "crm_tasks",
     searchColumns: ["title", "description"],
     orderBy: { column: "due_date", ascending: true },
+  },
+  record_notes: {
+    table: "record_notes",
+    searchColumns: ["body"],
+    orderBy: { column: "created_at", ascending: false },
   },
 };
 
@@ -108,10 +114,11 @@ export function createSearchCrmTool(
   return {
     search_crm: tool({
       description:
-        "Default tool for reading CRM data. Search any entity (contacts, companies, deals, interactions, tasks, deal_contacts) " +
+        "Default tool for reading CRM data. Search any entity (contacts, companies, deals, interactions, tasks, deal_contacts, record_notes) " +
         "with free-text query and key-value filters. Returns matching records sorted by relevance. " +
         "For relationships: use entity 'deal_contacts' with a deal_id or contact_id filter, " +
         "or filter contacts/deals by company_id. " +
+        "For notes: use entity 'record_notes' with record_type and record_id filters to read notes, or a free-text query to search note content. " +
         "Use this before creating records to check for duplicates. " +
         "For JOINs, aggregations, or complex filters, escalate to run_sql.",
       inputSchema: searchInputSchema,

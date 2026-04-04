@@ -47,7 +47,6 @@ describe("ContactDeals", () => {
             address: "123 Orchard Road",
             stage: "negotiation",
             amount: 1500000,
-            notes: null,
             created_at: "2026-02-01T00:00:00+08:00",
             updated_at: "2026-03-01T00:00:00+08:00",
           },

@@ -8,6 +8,8 @@ import { type ReactNode, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Building2, Clock3, House, ListTodo, Mail, Phone, StickyNote, Tag } from "lucide-react";
 
+import { DrawerNotesTab } from "./drawer-notes-tab";
+
 import { ContactTimeline } from "@/components/crm/contact-timeline";
 import { LinkedTasksSection } from "@/components/crm/detail/linked-tasks-section";
 import { InlineEditField } from "@/components/crm/inline-edit-field";
@@ -43,7 +45,7 @@ interface ContactDrawerContentProps {
   closeButton?: ReactNode;
 }
 
-type ContactDrawerTab = "home" | "timeline" | "tasks";
+type ContactDrawerTab = "home" | "timeline" | "tasks" | "notes";
 
 /**
  * Renders contact details, linked deals, and activity timeline.
@@ -88,6 +90,7 @@ export function ContactDrawerContent({ contactId, closeButton }: ContactDrawerCo
     { id: "home", label: "Home", icon: <House className="h-4 w-4" /> },
     { id: "timeline", label: "Timeline", icon: <Clock3 className="h-4 w-4" /> },
     { id: "tasks", label: "Tasks", icon: <ListTodo className="h-4 w-4" /> },
+    { id: "notes", label: "Notes", icon: <StickyNote className="h-4 w-4" /> },
   ];
 
   return (
@@ -154,15 +157,6 @@ export function ContactDrawerContent({ contactId, closeButton }: ContactDrawerCo
                   await updateContact.mutateAsync({ type: nextValue as Contact["type"] });
                 }}
               />
-              <InlineEditField
-                icon={<StickyNote className="h-4 w-4" />}
-                label="Notes"
-                value={contact.notes}
-                type="textarea"
-                onSave={async (nextValue) => {
-                  await updateContact.mutateAsync({ notes: toNullableValue(nextValue) });
-                }}
-              />
             </CollapsibleFieldGroup>
           </DrawerSection>
 
@@ -212,6 +206,13 @@ export function ContactDrawerContent({ contactId, closeButton }: ContactDrawerCo
         <DrawerSection title="Tasks">
           <LinkedTasksSection tasks={linkedTasks} emptyLabel="No linked tasks." />
         </DrawerSection>
+      ) : null}
+
+      {activeTab === "notes" ? (
+        <DrawerNotesTab
+          recordType="contact"
+          recordId={contactId}
+        />
       ) : null}
     </RecordDetailPanelShell>
   );

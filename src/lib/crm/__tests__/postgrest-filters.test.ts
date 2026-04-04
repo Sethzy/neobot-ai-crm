@@ -32,7 +32,7 @@ describe("buildSearchExpression", () => {
   });
 
   it("works with a 2-column filter", () => {
-    const filter = buildSearchExpression("orchard", ["address", "notes"]);
-    expect(filter).toBe('address.ilike."%orchard%",notes.ilike."%orchard%"');
+    const filter = buildSearchExpression("orchard", ["address", "body"]);
+    expect(filter).toBe('address.ilike."%orchard%",body.ilike."%orchard%"');
   });
 });
