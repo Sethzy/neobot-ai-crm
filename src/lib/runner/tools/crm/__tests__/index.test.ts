@@ -25,7 +25,7 @@ describe("createCrmTools", () => {
     ]);
   });
 
-  it("returns all 9 expected CRM tools when writes are enabled", () => {
+  it("returns all 10 expected CRM tools when writes are enabled", () => {
     const { client } = createMockSupabase();
 
     const tools = createCrmTools(client, CLIENT_ID, { allowWriteTools: true });
@@ -37,6 +37,7 @@ describe("createCrmTools", () => {
       "create_task",
       "delete_records",
       "link_records",
+      "manage_views",
       "search_crm",
       "update_record",
       "update_task",

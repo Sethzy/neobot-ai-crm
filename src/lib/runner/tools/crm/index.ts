@@ -15,6 +15,7 @@ import { createLinkRecordsTool } from "./link-records";
 import { createSearchCrmTool } from "./search";
 import { createTaskTools } from "./tasks";
 import { createUpdateRecordTool } from "./update-record";
+import { createViewTools } from "./views";
 
 interface CreateCrmToolsOptions {
   /** Explicit CRM tool mode for the current run. */
@@ -63,6 +64,7 @@ export function createCrmTools(
   const linkRecordTools = createLinkRecordsTool(supabase, clientId, config);
   const interactionTools = createInteractionTools(supabase, clientId, config);
   const taskTools = createTaskTools(supabase, clientId, config);
+  const viewTools = createViewTools(supabase, clientId);
 
   return {
     ...readTools,
@@ -72,6 +74,7 @@ export function createCrmTools(
     create_interaction: interactionTools.create_interaction,
     create_task: taskTools.create_task,
     update_task: taskTools.update_task,
+    manage_views: viewTools.manage_views,
     ...(allowDeleteTools ? {
       delete_records: createDeleteRecordsTool(supabase, clientId).delete_records,
       ...createConfigureCrmTool(supabase, clientId),
