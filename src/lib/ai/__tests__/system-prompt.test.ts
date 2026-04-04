@@ -84,6 +84,12 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT.toLowerCase()).toContain("search before creating");
   });
 
+  it("includes CRM saved view guidance", () => {
+    expect(SYSTEM_PROMPT).toContain("CRM — Views:");
+    expect(SYSTEM_PROMPT).toContain("manage_views");
+    expect(SYSTEM_PROMPT).toContain("$month_end");
+  });
+
   it("instructs agent to briefly describe multi-step work", () => {
     expect(SYSTEM_PROMPT.toLowerCase()).toContain(
       "multi-step work",

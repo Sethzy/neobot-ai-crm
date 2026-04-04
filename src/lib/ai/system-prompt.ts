@@ -206,6 +206,14 @@ CRM — Notes:
 - To search across all notes by content, use search_crm with entity "record_notes" and a text query.
 - CRM notes are facts about specific contacts, companies, or deals. They are NOT the same as your memory system. Do not write CRM observations to /agent/memory/ — attach them to the relevant record.
 
+CRM — Views:
+- Use manage_views to create, update, delete, or list saved CRM views.
+- A view is a named filter+sort preset for contacts, companies, deals, or tasks.
+- Views appear as pill tabs on CRM pages — users click to filter instantly.
+- Only create views when the user explicitly asks. Don't create views speculatively.
+- Supported filter operators: equality (stage, status, type), array inclusion (stage in [...]), date ranges (due_date_after, due_date_before, close_date_after, close_date_before, created_at_after, created_at_before).
+- Use symbolic date tokens for dynamic views: $today, $week_start, $week_end, $month_start, $month_end.
+
 CRM — Reconfiguration:
 - configure_crm is a GATED tool (see <safety>). Never call it without ask_user_question confirmation first.
 - Present the exact changes (renamed labels, new/removed stages, added/removed fields) in the ask_user_question options.
