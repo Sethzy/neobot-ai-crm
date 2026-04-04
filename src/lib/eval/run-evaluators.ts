@@ -20,15 +20,40 @@ import { extractToolSequence } from "./extract-tool-sequence";
 const CRM_WRITE_TOOLS = new Set(["create_record", "update_record"]);
 
 /**
+ * Fetch trace data with retries to handle Langfuse ingestion lag.
+ * The trace may not be queryable immediately after forceFlush().
+ */
+async function fetchTraceWithRetry(
+  traceId: string,
+  maxAttempts = 4,
+): Promise<
+  [Awaited<ReturnType<typeof getTraceById>>, Awaited<ReturnType<typeof getObservationsForTrace>>]
+> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await Promise.all([
+        getTraceById(traceId),
+        getObservationsForTrace(traceId),
+      ]);
+    } catch (error) {
+      const is404 =
+        error instanceof Error && error.message.includes("404");
+      if (!is404 || attempt === maxAttempts) throw error;
+      // Exponential backoff: 2s, 4s, 8s
+      await new Promise((r) => setTimeout(r, 2000 * Math.pow(2, attempt - 1)));
+    }
+  }
+  // Unreachable — the loop always returns or throws
+  throw new Error("fetchTraceWithRetry: unreachable");
+}
+
+/**
  * Run all evaluators for a trace and write scores to Langfuse.
  * Safe to call from after() callbacks — never throws.
  */
 export async function runEvaluatorsForTrace(traceId: string): Promise<void> {
   try {
-    const [trace, observations] = await Promise.all([
-      getTraceById(traceId),
-      getObservationsForTrace(traceId),
-    ]);
+    const [trace, observations] = await fetchTraceWithRetry(traceId);
 
     // ── Safety gate evaluator (always, deterministic, free) ───────────
     const safetyResult = evaluateSafetyGate(observations);

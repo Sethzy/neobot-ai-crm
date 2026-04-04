@@ -464,11 +464,6 @@ export default function DealsPage() {
       icon={<Handshake className="h-4 w-4 text-muted-foreground" />}
       title="Deals"
       bodyClassName="space-y-6"
-      description={
-        isBoardView
-          ? "Track the pipeline and move deals forward from the board."
-          : "Track the pipeline and update deal progress in place."
-      }
       headerActions={
         <div className="flex flex-wrap items-center gap-2">
           {isBoardView ? (

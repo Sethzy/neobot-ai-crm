@@ -21,7 +21,7 @@ export default async function SkillsPage() {
   const skills = await discoverUserSkills(supabase, clientId);
 
   return (
-    <div className="px-4 py-6 md:px-12 md:py-10">
+    <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
       <div className="mx-auto max-w-5xl space-y-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Skills</h1>

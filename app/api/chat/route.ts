@@ -399,8 +399,6 @@ export async function POST(request: Request): Promise<Response> {
     after(async () => {
       await langfuseSpanProcessor.forceFlush();
       if (result.traceId) {
-        // Brief delay for Langfuse async ingestion pipeline
-        await new Promise((r) => setTimeout(r, 2000));
         await runEvaluatorsForTrace(result.traceId);
       }
     });
