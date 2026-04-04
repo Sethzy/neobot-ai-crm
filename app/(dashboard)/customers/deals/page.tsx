@@ -18,6 +18,7 @@ import { DealKanbanCard } from "@/components/crm/deal-kanban-card";
 import { KanbanBoard } from "@/components/crm/kanban-board";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { DealDrawerContent } from "@/components/crm/record-drawer/deal-drawer-content";
+import { ViewPicker } from "@/components/crm/view-picker";
 import { ViewToggle } from "@/components/crm/view-toggle";
 import { Button } from "@/components/ui/button";
 
@@ -27,6 +28,7 @@ import { FilterBar } from "@/components/ui/filter-bar";
 import type { DateRangeFilterValue, FilterDef, FilterValues } from "@/components/ui/filter-overlay";
 import { useClientId } from "@/hooks/use-client-id";
 import { useCrmConfig } from "@/hooks/use-crm-config";
+import { useCrmViews } from "@/hooks/use-crm-views";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
 import { dealKeys, type DealWithContact, useDeals, usePaginatedDeals } from "@/hooks/use-deals";
 import { useUpdateDeal } from "@/hooks/use-update-deal";
@@ -190,7 +192,10 @@ export default function DealsPage() {
 
   const rawViewParam = searchParams?.get("view") ?? null;
   const queryView = normalizeDealsView(rawViewParam);
-  const activeView = queryView ?? (view === "kanban" ? "kanban" : "table");
+  const activeLayout = queryView ?? (view === "kanban" ? "kanban" : "table");
+  const savedViewId = searchParams?.get("savedView") ?? null;
+  const { data: views } = useCrmViews("deals");
+  const activeSavedView = views?.find((viewItem) => viewItem.view_id === savedViewId) ?? null;
 
   useEffect(() => {
     if (!queryView) {
@@ -229,11 +234,18 @@ export default function DealsPage() {
 
   const sharedFilters = useMemo(
     () => ({
-      search: search.trim() || undefined,
-      stage: typeof filterValues.stage === "string" ? (filterValues.stage as Deal["stage"]) : undefined,
-      createdAt: getDateRangeValue(filterValues.createdAt),
+      ...(activeSavedView
+        ? {
+            viewFilters: activeSavedView.filters as Record<string, unknown>,
+            viewSort: activeSavedView.sort as { column: string; ascending: boolean } | undefined,
+          }
+        : {
+            search: search.trim() || undefined,
+            stage: typeof filterValues.stage === "string" ? (filterValues.stage as Deal["stage"]) : undefined,
+            createdAt: getDateRangeValue(filterValues.createdAt),
+          }),
     }),
-    [filterValues.createdAt, filterValues.stage, search],
+    [activeSavedView, filterValues.createdAt, filterValues.stage, search],
   );
 
   const tableFilters = useMemo(
@@ -249,12 +261,12 @@ export default function DealsPage() {
     data: tableData,
     isLoading: isTableLoading,
     isError: isTableError,
-  } = usePaginatedDeals(tableFilters, { enabled: activeView === "table" });
+  } = usePaginatedDeals(tableFilters, { enabled: activeLayout === "table" });
   const {
     data: boardData = [],
     isLoading: isBoardLoading,
     isError: isBoardError,
-  } = useDeals(sharedFilters, { enabled: activeView === "kanban" });
+  } = useDeals(sharedFilters, { enabled: activeLayout === "kanban" });
 
   const createDeal = useMutation({
     mutationFn: async () => {
@@ -328,8 +340,8 @@ export default function DealsPage() {
 
   const tableRows = tableData?.rows ?? [];
   const sortedBoardDeals = useMemo(
-    () => [...boardData].sort(sortDealsByOption(sortBy)),
-    [boardData, sortBy],
+    () => (activeSavedView?.sort ? boardData : [...boardData].sort(sortDealsByOption(sortBy))),
+    [activeSavedView?.sort, boardData, sortBy],
   );
   const handleBoardColumnChange = useCallback(
     async (dealId: string, fromStage: string, toStage: string) => {
@@ -457,7 +469,25 @@ export default function DealsPage() {
     [],
   );
 
-  const isBoardView = activeView === "kanban";
+  const hasLocalFilters = search.trim().length > 0 || Object.keys(filterValues).length > 0;
+  const hasActiveFiltering = Boolean(activeSavedView) || hasLocalFilters;
+  const isBoardView = activeLayout === "kanban";
+
+  function handleSavedViewChange(viewId: string | null) {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+
+    if (viewId) {
+      params.set("savedView", viewId);
+    } else {
+      params.delete("savedView");
+    }
+
+    const nextQuery = params.toString();
+    router.replace(
+      nextQuery.length > 0 ? "/customers/deals?" + nextQuery : "/customers/deals",
+    );
+  }
+
   return (
     <CrmListPanelLayout
       objectType="deal"
@@ -466,7 +496,7 @@ export default function DealsPage() {
       bodyClassName="space-y-6"
       headerActions={
         <div className="flex flex-wrap items-center gap-2">
-          {isBoardView ? (
+          {isBoardView && !activeSavedView ? (
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>Sort by</span>
               <select
@@ -483,7 +513,7 @@ export default function DealsPage() {
               </select>
             </label>
           ) : null}
-          <ViewToggle current={activeView} views={["table", "kanban"]} onChange={(nextView) => {
+          <ViewToggle current={activeLayout} views={["table", "kanban"]} onChange={(nextView) => {
             setView(nextView);
             router.replace(buildDealsHref(searchParams, nextView));
           }} />
@@ -497,24 +527,36 @@ export default function DealsPage() {
         <DealDrawerContent key={id} dealId={id} closeButton={closeButton} />
       )}
     >
-          <FilterBar
-            searchValue={search}
-            onSearchChange={(value) => {
-              setPage(1);
-              setSearch(value);
-            }}
-            searchPlaceholder="Search deals..."
-            filters={filters}
-            values={filterValues}
-            onApply={(nextValues) => {
-              setPage(1);
-              setFilterValues(nextValues);
-            }}
-            onClear={() => {
-              setPage(1);
-              setFilterValues({});
-            }}
-          />
+      <ViewPicker
+        entityType="deals"
+        activeViewId={activeSavedView?.view_id ?? null}
+        onViewChange={handleSavedViewChange}
+      />
+
+      {activeSavedView ? (
+        <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          Saved view active: {activeSavedView.name}
+        </div>
+      ) : (
+        <FilterBar
+          searchValue={search}
+          onSearchChange={(value) => {
+            setPage(1);
+            setSearch(value);
+          }}
+          searchPlaceholder="Search deals..."
+          filters={filters}
+          values={filterValues}
+          onApply={(nextValues) => {
+            setPage(1);
+            setFilterValues(nextValues);
+          }}
+          onClear={() => {
+            setPage(1);
+            setFilterValues({});
+          }}
+        />
+      )}
 
         {isBoardView ? (
           isBoardLoading ? (
@@ -530,8 +572,8 @@ export default function DealsPage() {
           ) : sortedBoardDeals.length === 0 ? (
             <EmptyState
               iconName="deals"
-              title={search.trim() || Object.keys(filterValues).length > 0 ? "No results match your filters" : "No deals yet"}
-              description={search.trim() || Object.keys(filterValues).length > 0
+              title={hasActiveFiltering ? "No results match your filters" : "No deals yet"}
+              description={hasActiveFiltering
                 ? "Try adjusting or clearing your filters."
                 : "Your AI agent will create deals as it processes conversations."}
             />
@@ -558,8 +600,8 @@ export default function DealsPage() {
             emptyState={(
               <EmptyState
                 iconName="deals"
-                title={search.trim() || Object.keys(filterValues).length > 0 ? "No results match your filters" : "No deals yet"}
-                description={search.trim() || Object.keys(filterValues).length > 0
+                title={hasActiveFiltering ? "No results match your filters" : "No deals yet"}
+                description={hasActiveFiltering
                   ? "Try adjusting or clearing your filters."
                   : "Your AI agent will create deals as it processes conversations."}
               />

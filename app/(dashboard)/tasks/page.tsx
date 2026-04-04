@@ -7,6 +7,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { AppIcon } from "@/components/icons/app-icons";
@@ -15,6 +16,7 @@ import { CrmTasksTable } from "@/components/crm/crm-tasks-table";
 import { KanbanBoard } from "@/components/crm/kanban-board";
 import { RecordDrawer } from "@/components/crm/record-drawer";
 import { TaskKanbanCard } from "@/components/crm/task-kanban-card";
+import { ViewPicker } from "@/components/crm/view-picker";
 import { crmTaskStatusLabelMap } from "@/components/crm/task-status-badge";
 import { ViewToggle } from "@/components/crm/view-toggle";
 import { Button } from "@/components/ui/button";
@@ -22,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { crmTaskKeys } from "@/hooks/use-crm-tasks";
 import { useCrmTasks } from "@/hooks/use-crm-tasks";
 import { useClientId } from "@/hooks/use-client-id";
+import { useCrmViews } from "@/hooks/use-crm-views";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
 import { useUpdateCrmTaskMutation } from "@/hooks/use-update-crm-task";
 import { useViewPreference } from "@/hooks/use-view-preference";
@@ -41,12 +44,17 @@ const taskStatusColumns = crmTaskStatusValues.map((status) => ({
 }));
 
 export default function TasksPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
   const { isOpen, recordId, open, close } = useRecordDrawer();
   const { view, setView } = useViewPreference("tasks");
   const queryClient = useQueryClient();
   const { data: clientId } = useClientId();
   const updateTask = useUpdateCrmTaskMutation();
+  const savedViewId = searchParams?.get("savedView") ?? null;
+  const { data: views } = useCrmViews("tasks");
+  const activeSavedView = views?.find((viewItem) => viewItem.view_id === savedViewId) ?? null;
 
   const createTask = useMutation({
     mutationFn: async () => {
@@ -89,14 +97,35 @@ export default function TasksPage() {
   );
 
   const filters = useMemo(() => {
+    if (activeSavedView) {
+      return {
+        viewFilters: activeSavedView.filters as Record<string, unknown>,
+        viewSort: activeSavedView.sort as { column: string; ascending: boolean } | undefined,
+      };
+    }
+
     const normalizedSearch = search.trim();
 
     return {
       search: normalizedSearch.length > 0 ? normalizedSearch : undefined,
     };
-  }, [search]);
+  }, [activeSavedView, search]);
 
   const { data: tasks = [], isLoading, isError, refetch } = useCrmTasks(filters);
+  const hasLocalFilters = search.trim().length > 0;
+  const hasActiveFiltering = Boolean(activeSavedView) || hasLocalFilters;
+
+  function handleViewChange(viewId: string | null) {
+    const params = new URLSearchParams(searchParams?.toString());
+    if (viewId) {
+      params.set("savedView", viewId);
+    } else {
+      params.delete("savedView");
+    }
+
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? "?" + nextQuery : "/tasks");
+  }
 
   return (
     <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
@@ -107,26 +136,40 @@ export default function TasksPage() {
         </p>
       </div>
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <AppIcon
-            name="search"
-            className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60"
-          />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search tasks by title or description..."
-            className="h-12 w-full border-border/50 pl-11 shadow-sm focus-visible:ring-1"
-          />
+      <div className="mt-6 space-y-3">
+        <ViewPicker
+          entityType="tasks"
+          activeViewId={activeSavedView?.view_id ?? null}
+          onViewChange={handleViewChange}
+        />
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          {!activeSavedView ? (
+            <div className="relative flex-1">
+              <AppIcon
+                name="search"
+                className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60"
+              />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search tasks by title or description..."
+                className="h-12 w-full border-border/50 pl-11 shadow-sm focus-visible:ring-1"
+              />
+            </div>
+          ) : (
+            <div className="flex-1 rounded-lg border border-border/60 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+              Saved view active: {activeSavedView.name}
+            </div>
+          )}
+
+          <ViewToggle current={view} views={["table", "kanban", "calendar"]} onChange={setView} />
+
+          <Button size="sm" onClick={() => createTask.mutate()} disabled={!clientId || createTask.isPending}>
+            <Plus className="h-4 w-4" />
+            New
+          </Button>
         </div>
-
-        <ViewToggle current={view} views={["table", "kanban", "calendar"]} onChange={setView} />
-
-        <Button size="sm" onClick={() => createTask.mutate()} disabled={!clientId || createTask.isPending}>
-          <Plus className="h-4 w-4" />
-          New
-        </Button>
       </div>
 
       <div className="mt-6">
@@ -155,7 +198,7 @@ export default function TasksPage() {
           <div className="rounded-xl border border-border/40 bg-card p-10 text-center shadow-sm md:p-20">
             <AppIcon name="tasks" className="mx-auto h-12 w-12 text-muted-foreground/40" />
             <p className="mt-6 text-muted-foreground">
-              {filters.search ? "No tasks match your search" : "No tasks yet"}
+              {hasActiveFiltering ? "No tasks match your filters" : "No tasks yet"}
             </p>
           </div>
         ) : view === "table" ? (

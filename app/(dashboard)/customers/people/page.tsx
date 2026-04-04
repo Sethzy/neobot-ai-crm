@@ -9,12 +9,14 @@ import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Users } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { CrmListPanelLayout } from "@/components/crm/crm-list-panel-layout";
 import { DictionaryValue, contactTypeDictionaryMap } from "@/components/crm/dictionary-value";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { ContactDrawerContent } from "@/components/crm/record-drawer/contact-drawer-content";
+import { ViewPicker } from "@/components/crm/view-picker";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -24,6 +26,7 @@ import { contactKeys, type ContactWithCompany, type ContactType, usePaginatedCon
 import { type CompanyWithCounts, useCompanies } from "@/hooks/use-companies";
 import { useClientId } from "@/hooks/use-client-id";
 import { useCrmConfig } from "@/hooks/use-crm-config";
+import { useCrmViews } from "@/hooks/use-crm-views";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
 import { useUpdateContact } from "@/hooks/use-update-contact";
 import { buildColumnsFromConfig } from "@/lib/crm/build-columns";
@@ -239,14 +242,19 @@ function ContactCompanyCell({ contactId, company, companies }: ContactCompanyCel
 }
 
 export default function PeoplePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { recordId, open } = useRecordDrawer();
   const queryClient = useQueryClient();
   const { data: clientId } = useClientId();
   const { data: crmConfigResult } = useCrmConfig();
   const { data: companies = [] } = useCompanies({});
+  const { data: views } = useCrmViews("contacts");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<FilterValues>({});
+  const savedViewId = searchParams?.get("savedView") ?? null;
+  const activeSavedView = views?.find((view) => view.view_id === savedViewId) ?? null;
 
   const filters = useMemo<FilterDef[]>(
     () => [
@@ -280,19 +288,28 @@ export default function PeoplePage() {
 
   const queryFilters = useMemo(
     () => ({
-      search: search.trim() || undefined,
-      type: typeof filterValues.type === "string" ? (filterValues.type as ContactType) : undefined,
-      hasEmail: typeof filterValues.hasEmail === "boolean" ? filterValues.hasEmail : undefined,
-      hasPhone: typeof filterValues.hasPhone === "boolean" ? filterValues.hasPhone : undefined,
-      createdAt: getDateRangeValue(filterValues.createdAt),
+      ...(activeSavedView
+        ? {
+            viewFilters: activeSavedView.filters as Record<string, unknown>,
+            viewSort: activeSavedView.sort as { column: string; ascending: boolean } | undefined,
+          }
+        : {
+            search: search.trim() || undefined,
+            type: typeof filterValues.type === "string" ? (filterValues.type as ContactType) : undefined,
+            hasEmail: typeof filterValues.hasEmail === "boolean" ? filterValues.hasEmail : undefined,
+            hasPhone: typeof filterValues.hasPhone === "boolean" ? filterValues.hasPhone : undefined,
+            createdAt: getDateRangeValue(filterValues.createdAt),
+          }),
       page,
       pageSize,
     }),
-    [filterValues.createdAt, filterValues.hasEmail, filterValues.hasPhone, filterValues.type, page, search],
+    [activeSavedView, filterValues.createdAt, filterValues.hasEmail, filterValues.hasPhone, filterValues.type, page, search],
   );
 
   const contactTypes = crmConfigResult?.config.contact_types ?? contactTypeValues;
   const { data, isLoading, isError, refetch } = usePaginatedContacts(queryFilters);
+  const hasLocalFilters = search.trim().length > 0 || Object.keys(filterValues).length > 0;
+  const hasActiveFiltering = Boolean(activeSavedView) || hasLocalFilters;
 
   const createContact = useMutation({
     mutationFn: async () => {
@@ -330,6 +347,21 @@ export default function PeoplePage() {
       toast.error("Unable to delete this person.");
     },
   });
+
+  function handleSavedViewChange(viewId: string | null) {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+
+    if (viewId) {
+      params.set("savedView", viewId);
+    } else {
+      params.delete("savedView");
+    }
+
+    const nextQuery = params.toString();
+    router.replace(
+      nextQuery.length > 0 ? "/customers/people?" + nextQuery : "/customers/people",
+    );
+  }
 
   const rows = data?.rows ?? [];
 
@@ -435,6 +467,18 @@ export default function PeoplePage() {
         <ContactDrawerContent key={id} contactId={id} closeButton={closeButton} />
       )}
     >
+      <ViewPicker
+        entityType="contacts"
+        activeViewId={activeSavedView?.view_id ?? null}
+        onViewChange={handleSavedViewChange}
+      />
+
+      {activeSavedView ? (
+        <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          Saved view active: {activeSavedView.name}
+        </div>
+      ) : null}
+
         <DataTable
           columns={columns}
           data={rows}
@@ -443,8 +487,8 @@ export default function PeoplePage() {
           emptyState={(
             <EmptyState
               iconName="contacts"
-              title={search.trim() || Object.keys(filterValues).length > 0 ? "No results match your filters" : "No people yet"}
-              description={search.trim() || Object.keys(filterValues).length > 0
+              title={hasActiveFiltering ? "No results match your filters" : "No people yet"}
+              description={hasActiveFiltering
                 ? "Try adjusting or clearing your filters."
                 : "Your AI agent will create contacts as it processes conversations."}
             />
@@ -480,19 +524,19 @@ export default function PeoplePage() {
           onRowClick={(row) => open(row.contact_id)}
           selectedRowId={recordId ?? undefined}
           getRowId={(row) => row.contact_id}
-          searchValue={search}
-          onSearchChange={(value) => {
+          searchValue={activeSavedView ? undefined : search}
+          onSearchChange={activeSavedView ? undefined : (value) => {
             setPage(1);
             setSearch(value);
           }}
           searchPlaceholder="Search people..."
-          filters={filters}
-          filterValues={filterValues}
-          onFiltersApply={(nextValues) => {
+          filters={activeSavedView ? [] : filters}
+          filterValues={activeSavedView ? {} : filterValues}
+          onFiltersApply={activeSavedView ? undefined : (nextValues) => {
             setPage(1);
             setFilterValues(nextValues);
           }}
-          onFiltersClear={() => {
+          onFiltersClear={activeSavedView ? undefined : () => {
             setPage(1);
             setFilterValues({});
           }}
