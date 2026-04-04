@@ -16,6 +16,8 @@ import { useMemo, useState, type MouseEvent } from "react";
 
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { TaskStatusBadge } from "@/components/crm/task-status-badge";
+import { formatDistanceToNow } from "date-fns";
+
 import { useUpdateCrmTask } from "@/hooks/use-update-crm-task";
 import { formatContactFullName, formatCrmDate, formatCrmEnumLabel } from "@/lib/crm/display";
 import type { CrmTaskWithRelations } from "@/hooks/use-crm-tasks";
@@ -106,17 +108,15 @@ export function CrmTasksTable({ tasks, onRowClick }: CrmTasksTableProps) {
           return formatContactFullName(contact);
         },
       }),
-      columnHelper.accessor("deals", {
-        id: "deal",
-        header: "Deal",
-        enableSorting: false,
+      columnHelper.accessor("created_at", {
+        header: "Created",
         cell: (info) => {
-          const deal = info.getValue();
-          if (!deal) {
-            return <span className="text-muted-foreground">—</span>;
-          }
-
-          return deal.address;
+          const createdAt = info.getValue();
+          return (
+            <span className="whitespace-nowrap text-muted-foreground">
+              {formatDistanceToNow(new Date(createdAt), { addSuffix: true })}
+            </span>
+          );
         },
       }),
     ],

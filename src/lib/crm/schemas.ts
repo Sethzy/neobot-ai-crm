@@ -55,7 +55,6 @@ export const contactSchema = z.object({
   email: z.string().nullable(),
   phone: z.string().nullable(),
   type: configurableVocabularySchema,
-  notes: z.string().nullable(),
   custom_fields: jsonObjectSchema,
   created_at: isoDateTimeSchema,
   updated_at: isoDateTimeSchema,
@@ -70,7 +69,6 @@ export const contactInsertSchema = z.object({
   email: z.string().nullable().optional(),
   phone: z.string().nullable().optional(),
   type: configurableVocabularySchema,
-  notes: z.string().nullable().optional(),
   custom_fields: jsonObjectSchema.optional(),
 });
 
@@ -96,7 +94,6 @@ export const companySchema = z.object({
   phone: z.string().nullable(),
   email: z.string().nullable(),
   address: z.string().nullable(),
-  notes: z.string().nullable(),
   custom_fields: jsonObjectSchema,
   created_at: isoDateTimeSchema,
   updated_at: isoDateTimeSchema,
@@ -111,7 +108,6 @@ export const companyInsertSchema = z.object({
   phone: z.string().nullable().optional(),
   email: z.string().nullable().optional(),
   address: z.string().nullable().optional(),
-  notes: z.string().nullable().optional(),
   custom_fields: jsonObjectSchema.optional(),
 });
 
@@ -126,7 +122,6 @@ export const dealSchema = z.object({
   address: z.string().min(1),
   stage: configurableVocabularySchema,
   amount: z.number().int().nonnegative().nullable(),
-  notes: z.string().nullable(),
   custom_fields: jsonObjectSchema,
   created_at: isoDateTimeSchema,
   updated_at: isoDateTimeSchema,
@@ -139,7 +134,6 @@ export const dealInsertSchema = z.object({
   address: z.string().min(1),
   stage: configurableVocabularySchema.optional(),
   amount: z.number().int().nonnegative().nullable().optional(),
-  notes: z.string().nullable().optional(),
   custom_fields: jsonObjectSchema.optional(),
 });
 
@@ -213,8 +207,24 @@ export const interactionInsertSchema = z.object({
 export type Interaction = z.infer<typeof interactionSchema>;
 export type InteractionInsert = z.infer<typeof interactionInsertSchema>;
 
-/** CRM tasks use binary status only (not the broader agent task lifecycle). */
-export const crmTaskStatusValues = ["open", "completed"] as const;
+/** Supported CRM record types that can own notes. */
+export const recordNoteTypeValues = ["contact", "company", "deal"] as const;
+
+/** Full `record_notes` row validator. */
+export const recordNoteSchema = z.object({
+  note_id: z.string().uuid(),
+  client_id: z.string().uuid(),
+  record_type: z.enum(recordNoteTypeValues),
+  record_id: z.string().uuid(),
+  body: z.string(),
+  created_at: isoDateTimeSchema,
+  updated_at: isoDateTimeSchema,
+});
+
+export type RecordNote = z.infer<typeof recordNoteSchema>;
+
+/** CRM task status values: to do → in progress → done. */
+export const crmTaskStatusValues = ["todo", "in_progress", "done"] as const;
 
 const crmTaskStatusSchema = z.enum(crmTaskStatusValues);
 

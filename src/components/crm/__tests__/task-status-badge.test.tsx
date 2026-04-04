@@ -8,18 +8,26 @@ import { describe, expect, it } from "vitest";
 import { TaskStatusBadge } from "../task-status-badge";
 
 describe("TaskStatusBadge", () => {
-  it("renders open status as outline badge", () => {
-    const { container } = render(<TaskStatusBadge status="open" />);
+  it("renders todo status as outline badge", () => {
+    const { container } = render(<TaskStatusBadge status="todo" />);
 
-    expect(screen.getByText("Open")).toBeInTheDocument();
+    expect(screen.getByText("To do")).toBeInTheDocument();
     const badge = container.querySelector("[data-slot='badge']");
     expect(badge).toHaveAttribute("data-variant", "outline");
   });
 
-  it("renders completed status as success badge", () => {
-    const { container } = render(<TaskStatusBadge status="completed" />);
+  it("renders in_progress status as secondary badge", () => {
+    const { container } = render(<TaskStatusBadge status="in_progress" />);
 
-    expect(screen.getByText("Completed")).toBeInTheDocument();
+    expect(screen.getByText("In progress")).toBeInTheDocument();
+    const badge = container.querySelector("[data-slot='badge']");
+    expect(badge).toHaveAttribute("data-variant", "secondary");
+  });
+
+  it("renders done status as success badge", () => {
+    const { container } = render(<TaskStatusBadge status="done" />);
+
+    expect(screen.getByText("Done")).toBeInTheDocument();
     const badge = container.querySelector("[data-slot='badge']");
     expect(badge).toHaveAttribute("data-variant", "success");
   });

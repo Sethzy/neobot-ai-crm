@@ -43,14 +43,16 @@ export const DEAL_STAGE_LEFT_BORDER_CLASSES: Record<(typeof dealStageValues)[num
 
 /** Tone classes for task status badges. Uses Layer 3 status tokens. */
 export const TASK_STATUS_TONE_CLASSES: Record<(typeof crmTaskStatusValues)[number], string> = {
-  open:      "bg-status-open/10 text-status-open",
-  completed: "bg-status-completed/10 text-status-completed",
+  todo:        "bg-status-todo/10 text-status-todo",
+  in_progress: "bg-status-in-progress/10 text-status-in-progress",
+  done:        "bg-status-done/10 text-status-done",
 };
 
 /** Top border classes for task board columns. Uses Layer 3 status tokens. */
 export const TASK_STATUS_TOP_BORDER_CLASSES: Record<(typeof crmTaskStatusValues)[number], string> = {
-  open:      "border-t-status-open",
-  completed: "border-t-status-completed",
+  todo:        "border-t-status-todo",
+  in_progress: "border-t-status-in-progress",
+  done:        "border-t-status-done",
 };
 
 /**
@@ -64,7 +66,7 @@ export const AVATAR_COLORS = [
   "bg-stage-offer/20 text-foreground",
   "bg-stage-closing/20 text-foreground",
   "bg-stage-lost/20 text-foreground",
-  "bg-status-open/20 text-foreground",
+  "bg-status-todo/20 text-foreground",
   "bg-filetype-presentation/20 text-foreground",
   "bg-filetype-document/20 text-foreground",
 ] as const;

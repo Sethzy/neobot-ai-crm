@@ -79,14 +79,14 @@ vi.mock("@dnd-kit/core", async () => {
 });
 
 const columns = [
-  { key: "open", label: "Open" },
-  { key: "completed", label: "Completed" },
+  { key: "todo", label: "To do" },
+  { key: "done", label: "Done" },
 ];
 
 const items = [
-  { id: "1", title: "Task A", status: "open" },
-  { id: "2", title: "Task B", status: "completed" },
-  { id: "3", title: "Task C", status: "open" },
+  { id: "1", title: "Task A", status: "todo" },
+  { id: "2", title: "Task B", status: "done" },
+  { id: "3", title: "Task C", status: "todo" },
 ];
 
 function getColumn(label: string) {
@@ -116,13 +116,13 @@ describe("KanbanBoard", () => {
       />,
     );
 
-    const openColumn = screen.getByText("Open").closest("section");
-    const completedColumn = screen.getByText("Completed").closest("section");
+    const todoColumn = screen.getByText("To do").closest("section");
+    const doneColumn = screen.getByText("Done").closest("section");
 
-    expect(openColumn).not.toBeNull();
-    expect(completedColumn).not.toBeNull();
-    expect(within(openColumn as HTMLElement).getByText("2")).toBeInTheDocument();
-    expect(within(completedColumn as HTMLElement).getByText("1")).toBeInTheDocument();
+    expect(todoColumn).not.toBeNull();
+    expect(doneColumn).not.toBeNull();
+    expect(within(todoColumn as HTMLElement).getByText("2")).toBeInTheDocument();
+    expect(within(doneColumn as HTMLElement).getByText("1")).toBeInTheDocument();
   });
 
   it("renders cards in correct columns", () => {
@@ -163,7 +163,7 @@ describe("KanbanBoard", () => {
   it("shows zero count and empty state for empty columns", () => {
     render(
       <KanbanBoard
-        items={[{ id: "1", title: "Task A", status: "open" }]}
+        items={[{ id: "1", title: "Task A", status: "todo" }]}
         columns={[...columns, { key: "blocked", label: "Blocked" }]}
         groupBy={(item) => item.status}
         renderCard={(item) => <div>{item.title}</div>}
@@ -234,7 +234,7 @@ describe("KanbanBoard", () => {
       latestDndContextProps?.onDragStart?.({
         active: {
           id: "1",
-          data: { current: { columnKey: "open" } },
+          data: { current: { columnKey: "todo" } },
         },
       });
     });
@@ -243,15 +243,15 @@ describe("KanbanBoard", () => {
       void latestDndContextProps?.onDragEnd?.({
         active: {
           id: "1",
-          data: { current: { columnKey: "open" } },
+          data: { current: { columnKey: "todo" } },
         },
-        over: { id: "completed" },
+        over: { id: "done" },
       });
     });
 
-    expect(onColumnChange).toHaveBeenCalledWith("1", "open", "completed");
-    expect(within(getColumn("Open")).queryByText("Task A")).not.toBeInTheDocument();
-    expect(within(getColumn("Completed")).getByText("Task A")).toBeInTheDocument();
+    expect(onColumnChange).toHaveBeenCalledWith("1", "todo", "done");
+    expect(within(getColumn("To do")).queryByText("Task A")).not.toBeInTheDocument();
+    expect(within(getColumn("Done")).getByText("Task A")).toBeInTheDocument();
 
     await act(async () => {
       resolveMove();
@@ -284,7 +284,7 @@ describe("KanbanBoard", () => {
       latestDndContextProps?.onDragStart?.({
         active: {
           id: "1",
-          data: { current: { columnKey: "open" } },
+          data: { current: { columnKey: "todo" } },
         },
       });
     });
@@ -293,23 +293,23 @@ describe("KanbanBoard", () => {
       void latestDndContextProps?.onDragEnd?.({
         active: {
           id: "1",
-          data: { current: { columnKey: "open" } },
+          data: { current: { columnKey: "todo" } },
         },
-        over: { id: "completed" },
+        over: { id: "done" },
       });
     });
 
-    expect(within(getColumn("Completed")).getByText("Task A")).toBeInTheDocument();
+    expect(within(getColumn("Done")).getByText("Task A")).toBeInTheDocument();
 
     await act(async () => {
       rejectMove(new Error("Unable to update stage"));
     });
 
     await waitFor(() => {
-      expect(within(getColumn("Open")).getByText("Task A")).toBeInTheDocument();
+      expect(within(getColumn("To do")).getByText("Task A")).toBeInTheDocument();
     });
 
-    expect(within(getColumn("Completed")).queryByText("Task A")).not.toBeInTheDocument();
+    expect(within(getColumn("Done")).queryByText("Task A")).not.toBeInTheDocument();
   });
 
   it("still calls onCardClick when the user clicks without dragging", async () => {

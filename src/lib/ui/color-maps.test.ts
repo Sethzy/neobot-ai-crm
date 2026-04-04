@@ -43,8 +43,9 @@ describe("DEAL_STAGE_LEFT_BORDER_CLASSES", () => {
 
 describe("TASK_STATUS_TONE_CLASSES", () => {
   it("uses semantic status tokens", () => {
-    expect(TASK_STATUS_TONE_CLASSES.open).toBe("bg-status-open/10 text-status-open");
-    expect(TASK_STATUS_TONE_CLASSES.completed).toBe("bg-status-completed/10 text-status-completed");
+    expect(TASK_STATUS_TONE_CLASSES.todo).toBe("bg-status-todo/10 text-status-todo");
+    expect(TASK_STATUS_TONE_CLASSES.in_progress).toBe("bg-status-in-progress/10 text-status-in-progress");
+    expect(TASK_STATUS_TONE_CLASSES.done).toBe("bg-status-done/10 text-status-done");
   });
   it("contains no raw Tailwind palette classes", () => {
     const values = Object.values(TASK_STATUS_TONE_CLASSES).join(" ");
@@ -54,8 +55,9 @@ describe("TASK_STATUS_TONE_CLASSES", () => {
 
 describe("TASK_STATUS_TOP_BORDER_CLASSES", () => {
   it("uses semantic status tokens", () => {
-    expect(TASK_STATUS_TOP_BORDER_CLASSES.open).toBe("border-t-status-open");
-    expect(TASK_STATUS_TOP_BORDER_CLASSES.completed).toBe("border-t-status-completed");
+    expect(TASK_STATUS_TOP_BORDER_CLASSES.todo).toBe("border-t-status-todo");
+    expect(TASK_STATUS_TOP_BORDER_CLASSES.in_progress).toBe("border-t-status-in-progress");
+    expect(TASK_STATUS_TOP_BORDER_CLASSES.done).toBe("border-t-status-done");
   });
 });
 

@@ -1,11 +1,14 @@
 /**
  * Card body for CRM task items rendered inside kanban/calendar views.
- * Styled to match Twenty CRM card layout with avatar initials.
+ * Layout mirrors Twenty CRM: title, status badge, due date, contact, created date.
  * @module components/crm/task-kanban-card
  */
+import { formatDistanceToNow } from "date-fns";
+
 import { AppIcon } from "@/components/icons/app-icons";
+import { TaskStatusBadge } from "@/components/crm/task-status-badge";
 import type { CrmTaskWithRelations } from "@/hooks/use-crm-tasks";
-import { formatContactFullName, formatCrmDate, avatarColorFor } from "@/lib/crm/display";
+import { formatContactFullName, formatCrmDate } from "@/lib/crm/display";
 
 interface TaskKanbanCardProps {
   /** CRM task row rendered as card content. */
@@ -16,57 +19,46 @@ export function TaskKanbanCard({ task }: TaskKanbanCardProps) {
   const contactName = task.contacts
     ? formatContactFullName(task.contacts)
     : null;
-  const initial = task.title.charAt(0).toUpperCase();
 
   return (
     <div className="space-y-1.5">
-      {/* Title with avatar initial */}
-      <div className="flex items-center gap-2">
-        <span
-          className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold ${avatarColorFor(task.title)}`}
-        >
-          {initial}
-        </span>
-        <span className="truncate text-sm font-medium text-foreground">
-          {task.title}
-        </span>
-      </div>
+      {/* Title */}
+      <span className="block truncate text-sm font-medium text-foreground">
+        {task.title}
+      </span>
 
-      {/* Metadata rows */}
+      {/* Field rows */}
       <div className="space-y-1 text-xs text-muted-foreground">
-        {task.due_date ? (
-          <div className="flex items-center gap-1.5">
-            <AppIcon name="schedule" className="h-3.5 w-3.5 shrink-0" />
-            <span>{formatCrmDate(task.due_date)}</span>
-          </div>
-        ) : null}
-        {task.deals?.address ? (
-          <div className="flex items-center gap-1.5">
-            <AppIcon name="building" className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">{task.deals.address}</span>
-          </div>
-        ) : null}
-        {contactName ? (
-          <div className="flex items-center gap-1.5">
-            <AppIcon name="person" className="h-3.5 w-3.5 shrink-0" />
-            <span className="inline-flex items-center gap-1.5 truncate">
-              <span
-                className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[8px] font-medium ${avatarColorFor(contactName)}`}
-              >
-                {contactName.charAt(0).toUpperCase()}
-              </span>
-              {contactName}
-            </span>
-          </div>
-        ) : null}
-      </div>
+        {/* Status */}
+        <div className="flex items-center gap-1.5">
+          <AppIcon name="check" className="h-3.5 w-3.5 shrink-0" />
+          <TaskStatusBadge status={task.status} />
+        </div>
 
-      {/* Description preview */}
-      {task.description?.trim().length ? (
-        <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground/70">
-          {task.description}
-        </p>
-      ) : null}
+        {/* Due Date */}
+        <div className="flex items-center gap-1.5">
+          <AppIcon name="calendar" className="h-3.5 w-3.5 shrink-0" />
+          <span className={task.due_date ? "" : "text-muted-foreground/40"}>
+            {task.due_date ? formatCrmDate(task.due_date) : "Due Date"}
+          </span>
+        </div>
+
+        {/* Contact */}
+        <div className="flex items-center gap-1.5">
+          <AppIcon name="person" className="h-3.5 w-3.5 shrink-0" />
+          <span className={contactName ? "truncate" : "text-muted-foreground/40"}>
+            {contactName ?? "Contact"}
+          </span>
+        </div>
+
+        {/* Created date */}
+        <div className="flex items-center gap-1.5">
+          <AppIcon name="schedule" className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

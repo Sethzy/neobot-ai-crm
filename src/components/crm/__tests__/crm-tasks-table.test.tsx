@@ -49,7 +49,7 @@ const tasks = [
     deal_id: "deal-1",
     title: "Follow up with John",
     description: null,
-    status: "open" as const,
+    status: "todo" as const,
     due_date: "2026-03-05T00:00:00+08:00",
     created_at: "2026-03-01T00:00:00+08:00",
     updated_at: "2026-03-01T00:00:00+08:00",
@@ -72,10 +72,10 @@ describe("CrmTasksTable", () => {
 
     await user.click(screen.getByRole("button", { name: /edit status/i }));
     await user.click(screen.getByRole("combobox", { name: /status/i }));
-    await user.click(await screen.findByRole("option", { name: /completed/i }));
+    await user.click(await screen.findByRole("option", { name: /done/i }));
 
     await waitFor(() => {
-      expect(mockMutateAsync).toHaveBeenCalledWith({ status: "completed" });
+      expect(mockMutateAsync).toHaveBeenCalledWith({ status: "done" });
     });
     expect(onRowClick).not.toHaveBeenCalled();
   });

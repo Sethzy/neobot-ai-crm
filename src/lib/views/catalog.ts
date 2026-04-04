@@ -84,14 +84,14 @@ export const catalog = defineCatalog(schema, {
       props: z.object({
         title: z.string().min(1),
         dueDate: z.string().min(1).nullable(),
-        status: z.enum(["open", "completed"]).nullable(),
+        status: z.enum(["todo", "in_progress", "done"]).nullable(),
         contactName: z.string().min(1).nullable(),
         dealAddress: z.string().min(1).nullable(),
       }),
       slots: [],
       description:
         "Single CRM task row with title, due date, status, and optional contact or deal context.",
-      example: { title: "Follow up with John", dueDate: "2026-03-15", status: "open", contactName: "John Tan" },
+      example: { title: "Follow up with John", dueDate: "2026-03-15", status: "todo", contactName: "John Tan" },
     },
     BarChartPanel: {
       props: z.object({

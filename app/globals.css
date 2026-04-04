@@ -80,8 +80,9 @@
   --stage-closing:     var(--flexoki-green);
   --stage-lost:        var(--flexoki-re);
   /* Layer 3 — Task status tokens */
-  --status-open:       var(--flexoki-cyan);
-  --status-completed:  var(--flexoki-green);
+  --status-todo:        var(--flexoki-cyan);
+  --status-in-progress: var(--flexoki-yellow);
+  --status-done:        var(--flexoki-green);
   /* Layer 3 — File type tokens */
   --filetype-spreadsheet:  var(--flexoki-green);
   --filetype-pdf:          var(--flexoki-re);
@@ -230,8 +231,9 @@
   --color-stage-offer: var(--stage-offer);
   --color-stage-closing: var(--stage-closing);
   --color-stage-lost: var(--stage-lost);
-  --color-status-open: var(--status-open);
-  --color-status-completed: var(--status-completed);
+  --color-status-todo: var(--status-todo);
+  --color-status-in-progress: var(--status-in-progress);
+  --color-status-done: var(--status-done);
   --color-filetype-spreadsheet: var(--filetype-spreadsheet);
   --color-filetype-pdf: var(--filetype-pdf);
   --color-filetype-document: var(--filetype-document);

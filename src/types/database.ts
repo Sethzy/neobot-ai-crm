@@ -277,42 +277,6 @@ export type Database = {
           },
         ]
       }
-      cases: {
-        Row: {
-          case_name: string
-          case_opened_at: string
-          case_ref: string
-          created_at: string
-          created_by: string
-          description: string | null
-          event_date: string | null
-          id: string
-          updated_at: string
-        }
-        Insert: {
-          case_name: string
-          case_opened_at?: string
-          case_ref: string
-          created_at?: string
-          created_by: string
-          description?: string | null
-          event_date?: string | null
-          id?: string
-          updated_at?: string
-        }
-        Update: {
-          case_name?: string
-          case_opened_at?: string
-          case_ref?: string
-          created_at?: string
-          created_by?: string
-          description?: string | null
-          event_date?: string | null
-          id?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       client_message_usage_monthly: {
         Row: {
           client_id: string
@@ -349,7 +313,6 @@ export type Database = {
         Row: {
           client_id: string
           created_at: string
-          crm_config_mode_until: string | null
           display_name: string | null
           is_bootstrapped: boolean
           plan_name: string | null
@@ -363,7 +326,6 @@ export type Database = {
         Insert: {
           client_id?: string
           created_at?: string
-          crm_config_mode_until?: string | null
           display_name?: string | null
           is_bootstrapped?: boolean
           plan_name?: string | null
@@ -377,7 +339,6 @@ export type Database = {
         Update: {
           client_id?: string
           created_at?: string
-          crm_config_mode_until?: string | null
           display_name?: string | null
           is_bootstrapped?: boolean
           plan_name?: string | null
@@ -399,8 +360,8 @@ export type Database = {
           custom_fields: Json
           email: string | null
           industry: string | null
+          linkedin: string | null
           name: string
-          notes: string | null
           phone: string | null
           updated_at: string
           website: string | null
@@ -413,8 +374,8 @@ export type Database = {
           custom_fields?: Json
           email?: string | null
           industry?: string | null
+          linkedin?: string | null
           name: string
-          notes?: string | null
           phone?: string | null
           updated_at?: string
           website?: string | null
@@ -427,8 +388,8 @@ export type Database = {
           custom_fields?: Json
           email?: string | null
           industry?: string | null
+          linkedin?: string | null
           name?: string
-          notes?: string | null
           phone?: string | null
           updated_at?: string
           website?: string | null
@@ -498,46 +459,58 @@ export type Database = {
       }
       contacts: {
         Row: {
+          city: string | null
           client_id: string
           company_id: string | null
           contact_id: string
           created_at: string
+          created_by: string | null
           custom_fields: Json
           email: string | null
           first_name: string
+          job_title: string | null
           last_name: string
-          notes: string | null
+          linkedin: string | null
           phone: string | null
           type: string
           updated_at: string
+          x_link: string | null
         }
         Insert: {
+          city?: string | null
           client_id: string
           company_id?: string | null
           contact_id?: string
           created_at?: string
+          created_by?: string | null
           custom_fields?: Json
           email?: string | null
           first_name: string
+          job_title?: string | null
           last_name: string
-          notes?: string | null
+          linkedin?: string | null
           phone?: string | null
           type: string
           updated_at?: string
+          x_link?: string | null
         }
         Update: {
+          city?: string | null
           client_id?: string
           company_id?: string | null
           contact_id?: string
           created_at?: string
+          created_by?: string | null
           custom_fields?: Json
           email?: string | null
           first_name?: string
+          job_title?: string | null
           last_name?: string
-          notes?: string | null
+          linkedin?: string | null
           phone?: string | null
           type?: string
           updated_at?: string
+          x_link?: string | null
         }
         Relationships: [
           {
@@ -741,14 +714,17 @@ export type Database = {
         Row: {
           client_id: string
           company_custom_fields: Json
+          company_fields: Json | null
           company_industries: Json | null
           company_label: string
           config_id: string
           contact_custom_fields: Json
+          contact_fields: Json | null
           contact_types: Json | null
           created_at: string
           deal_contact_roles: Json | null
           deal_custom_fields: Json
+          deal_fields: Json | null
           deal_label: string
           deal_stages: Json | null
           interaction_types: Json | null
@@ -759,14 +735,17 @@ export type Database = {
         Insert: {
           client_id: string
           company_custom_fields?: Json
+          company_fields?: Json | null
           company_industries?: Json | null
           company_label?: string
           config_id?: string
           contact_custom_fields?: Json
+          contact_fields?: Json | null
           contact_types?: Json | null
           created_at?: string
           deal_contact_roles?: Json | null
           deal_custom_fields?: Json
+          deal_fields?: Json | null
           deal_label?: string
           deal_stages?: Json | null
           interaction_types?: Json | null
@@ -777,14 +756,17 @@ export type Database = {
         Update: {
           client_id?: string
           company_custom_fields?: Json
+          company_fields?: Json | null
           company_industries?: Json | null
           company_label?: string
           config_id?: string
           contact_custom_fields?: Json
+          contact_fields?: Json | null
           contact_types?: Json | null
           created_at?: string
           deal_contact_roles?: Json | null
           deal_custom_fields?: Json
+          deal_fields?: Json | null
           deal_label?: string
           deal_stages?: Json | null
           interaction_types?: Json | null
@@ -797,6 +779,35 @@ export type Database = {
             foreignKeyName: "crm_config_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
+      crm_config_history: {
+        Row: {
+          client_id: string
+          config_snapshot: Json
+          created_at: string
+          id: string
+        }
+        Insert: {
+          client_id: string
+          config_snapshot: Json
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          client_id?: string
+          config_snapshot?: Json
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_config_history_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["client_id"]
           },
@@ -949,37 +960,43 @@ export type Database = {
       deals: {
         Row: {
           address: string
+          amount: number | null
           client_id: string
+          close_date: string | null
           company_id: string | null
           created_at: string
           custom_fields: Json
           deal_id: string
-          notes: string | null
-          price: number | null
+          name: string | null
+          point_of_contact_id: string | null
           stage: string
           updated_at: string
         }
         Insert: {
           address: string
+          amount?: number | null
           client_id: string
+          close_date?: string | null
           company_id?: string | null
           created_at?: string
           custom_fields?: Json
           deal_id?: string
-          notes?: string | null
-          price?: number | null
+          name?: string | null
+          point_of_contact_id?: string | null
           stage?: string
           updated_at?: string
         }
         Update: {
           address?: string
+          amount?: number | null
           client_id?: string
+          close_date?: string | null
           company_id?: string | null
           created_at?: string
           custom_fields?: Json
           deal_id?: string
-          notes?: string | null
-          price?: number | null
+          name?: string | null
+          point_of_contact_id?: string | null
           stage?: string
           updated_at?: string
         }
@@ -998,97 +1015,12 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["company_id"]
           },
-        ]
-      }
-      documents: {
-        Row: {
-          case_id: string
-          created_at: string
-          created_by: string
-          description: string | null
-          document_date: string | null
-          duplicate_status: string | null
-          file_hash: string
-          file_size: number
-          file_type: string
-          filename: string
-          gemini_response: Json | null
-          id: string
-          is_heterogeneous: boolean | null
-          is_reviewed: boolean | null
-          original_filename: string
-          page_ranges: Json | null
-          primary_tag: string | null
-          processed_at: string | null
-          processing_error: string | null
-          renamed_filename: string | null
-          reviewed_at: string | null
-          status: string
-          storage_path: string
-          tags: Json | null
-          updated_at: string
-        }
-        Insert: {
-          case_id: string
-          created_at?: string
-          created_by: string
-          description?: string | null
-          document_date?: string | null
-          duplicate_status?: string | null
-          file_hash: string
-          file_size: number
-          file_type: string
-          filename: string
-          gemini_response?: Json | null
-          id?: string
-          is_heterogeneous?: boolean | null
-          is_reviewed?: boolean | null
-          original_filename: string
-          page_ranges?: Json | null
-          primary_tag?: string | null
-          processed_at?: string | null
-          processing_error?: string | null
-          renamed_filename?: string | null
-          reviewed_at?: string | null
-          status?: string
-          storage_path: string
-          tags?: Json | null
-          updated_at?: string
-        }
-        Update: {
-          case_id?: string
-          created_at?: string
-          created_by?: string
-          description?: string | null
-          document_date?: string | null
-          duplicate_status?: string | null
-          file_hash?: string
-          file_size?: number
-          file_type?: string
-          filename?: string
-          gemini_response?: Json | null
-          id?: string
-          is_heterogeneous?: boolean | null
-          is_reviewed?: boolean | null
-          original_filename?: string
-          page_ranges?: Json | null
-          primary_tag?: string | null
-          processed_at?: string | null
-          processing_error?: string | null
-          renamed_filename?: string | null
-          reviewed_at?: string | null
-          status?: string
-          storage_path?: string
-          tags?: Json | null
-          updated_at?: string
-        }
-        Relationships: [
           {
-            foreignKeyName: "documents_case_id_fkey"
-            columns: ["case_id"]
+            foreignKeyName: "deals_point_of_contact_id_fkey"
+            columns: ["point_of_contact_id"]
             isOneToOne: false
-            referencedRelation: "cases"
-            referencedColumns: ["id"]
+            referencedRelation: "contacts"
+            referencedColumns: ["contact_id"]
           },
         ]
       }
@@ -1164,62 +1096,41 @@ export type Database = {
           },
         ]
       }
-      report_history: {
+      record_notes: {
         Row: {
-          ai_summary: string | null
-          case_id: string
+          body: string
+          client_id: string
           created_at: string
-          file_path: string
-          file_size_bytes: number | null
-          generated_at: string
-          generated_by: string
-          id: string
-          name: string
-          prompt: string | null
-          report_type: string
-          splits_count: number
-          tags_included: string[]
+          note_id: string
+          record_id: string
+          record_type: string
           updated_at: string
         }
         Insert: {
-          ai_summary?: string | null
-          case_id: string
+          body?: string
+          client_id: string
           created_at?: string
-          file_path: string
-          file_size_bytes?: number | null
-          generated_at?: string
-          generated_by: string
-          id?: string
-          name: string
-          prompt?: string | null
-          report_type: string
-          splits_count: number
-          tags_included: string[]
+          note_id?: string
+          record_id: string
+          record_type: string
           updated_at?: string
         }
         Update: {
-          ai_summary?: string | null
-          case_id?: string
+          body?: string
+          client_id?: string
           created_at?: string
-          file_path?: string
-          file_size_bytes?: number | null
-          generated_at?: string
-          generated_by?: string
-          id?: string
-          name?: string
-          prompt?: string | null
-          report_type?: string
-          splits_count?: number
-          tags_included?: string[]
+          note_id?: string
+          record_id?: string
+          record_type?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "report_history_case_id_fkey"
-            columns: ["case_id"]
+            foreignKeyName: "record_notes_client_id_fkey"
+            columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "cases"
-            referencedColumns: ["id"]
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
           },
         ]
       }
@@ -1292,204 +1203,6 @@ export type Database = {
           },
           {
             foreignKeyName: "runs_thread_id_fkey"
-            columns: ["thread_id"]
-            isOneToOne: false
-            referencedRelation: "conversation_threads"
-            referencedColumns: ["thread_id"]
-          },
-        ]
-      }
-      splits: {
-        Row: {
-          created_at: string | null
-          dismissed_rule_ids: string[] | null
-          document_date: string | null
-          document_id: string
-          end_page: number
-          extend_dashboard_url: string | null
-          extend_processor_id: string | null
-          extracted_data: Json | null
-          extraction_error: string | null
-          extraction_metadata: Json | null
-          extraction_status: string | null
-          id: string
-          identifier: string | null
-          low_confidence_fields: Json | null
-          observation: string | null
-          original_extracted_data: Json | null
-          page_height: number | null
-          page_width: number | null
-          potential_duplicate: string | null
-          schema_version: string | null
-          split_index: number
-          start_page: number
-          tag_id: string
-          updated_at: string | null
-          validation_failures: Json | null
-        }
-        Insert: {
-          created_at?: string | null
-          dismissed_rule_ids?: string[] | null
-          document_date?: string | null
-          document_id: string
-          end_page: number
-          extend_dashboard_url?: string | null
-          extend_processor_id?: string | null
-          extracted_data?: Json | null
-          extraction_error?: string | null
-          extraction_metadata?: Json | null
-          extraction_status?: string | null
-          id?: string
-          identifier?: string | null
-          low_confidence_fields?: Json | null
-          observation?: string | null
-          original_extracted_data?: Json | null
-          page_height?: number | null
-          page_width?: number | null
-          potential_duplicate?: string | null
-          schema_version?: string | null
-          split_index: number
-          start_page: number
-          tag_id: string
-          updated_at?: string | null
-          validation_failures?: Json | null
-        }
-        Update: {
-          created_at?: string | null
-          dismissed_rule_ids?: string[] | null
-          document_date?: string | null
-          document_id?: string
-          end_page?: number
-          extend_dashboard_url?: string | null
-          extend_processor_id?: string | null
-          extracted_data?: Json | null
-          extraction_error?: string | null
-          extraction_metadata?: Json | null
-          extraction_status?: string | null
-          id?: string
-          identifier?: string | null
-          low_confidence_fields?: Json | null
-          observation?: string | null
-          original_extracted_data?: Json | null
-          page_height?: number | null
-          page_width?: number | null
-          potential_duplicate?: string | null
-          schema_version?: string | null
-          split_index?: number
-          start_page?: number
-          tag_id?: string
-          updated_at?: string | null
-          validation_failures?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "splits_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "documents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "splits_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "documents_with_status"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      sprite_jobs: {
-        Row: {
-          claimed_at: string | null
-          claimed_by: string | null
-          client_id: string
-          completed_at: string | null
-          created_at: string
-          id: string
-          job_meta: Json
-          job_type: string
-          progress_label: string | null
-          result_meta: Json | null
-          sprite_name: string
-          status: string
-          thread_id: string
-        }
-        Insert: {
-          claimed_at?: string | null
-          claimed_by?: string | null
-          client_id: string
-          completed_at?: string | null
-          created_at?: string
-          id?: string
-          job_meta?: Json
-          job_type: string
-          progress_label?: string | null
-          result_meta?: Json | null
-          sprite_name: string
-          status?: string
-          thread_id: string
-        }
-        Update: {
-          claimed_at?: string | null
-          claimed_by?: string | null
-          client_id?: string
-          completed_at?: string | null
-          created_at?: string
-          id?: string
-          job_meta?: Json
-          job_type?: string
-          progress_label?: string | null
-          result_meta?: Json | null
-          sprite_name?: string
-          status?: string
-          thread_id?: string
-        }
-        Relationships: []
-      }
-      sprite_sessions: {
-        Row: {
-          client_id: string
-          created_at: string
-          destroyed_at: string | null
-          id: string
-          last_active_at: string
-          preview_url: string | null
-          sprite_name: string
-          status: string
-          thread_id: string
-        }
-        Insert: {
-          client_id: string
-          created_at?: string
-          destroyed_at?: string | null
-          id?: string
-          last_active_at?: string
-          preview_url?: string | null
-          sprite_name: string
-          status?: string
-          thread_id: string
-        }
-        Update: {
-          client_id?: string
-          created_at?: string
-          destroyed_at?: string | null
-          id?: string
-          last_active_at?: string
-          preview_url?: string | null
-          sprite_name?: string
-          status?: string
-          thread_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sprite_sessions_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "sprite_sessions_thread_id_fkey"
             columns: ["thread_id"]
             isOneToOne: false
             referencedRelation: "conversation_threads"
@@ -1621,7 +1334,6 @@ export type Database = {
       }
       user_instructions: {
         Row: {
-          case_id: string | null
           created_at: string
           description: string
           id: string
@@ -1629,7 +1341,6 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          case_id?: string | null
           created_at?: string
           description: string
           id?: string
@@ -1637,22 +1348,13 @@ export type Database = {
           user_id: string
         }
         Update: {
-          case_id?: string | null
           created_at?: string
           description?: string
           id?: string
           title?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_instructions_case_id_fkey"
-            columns: ["case_id"]
-            isOneToOne: false
-            referencedRelation: "cases"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       user_profiles: {
         Row: {
@@ -1675,162 +1377,9 @@ export type Database = {
         }
         Relationships: []
       }
-      vault_files: {
-        Row: {
-          client_id: string
-          content: string | null
-          content_type: string | null
-          created_at: string
-          file_id: string
-          filename: string
-          fts: unknown
-          needs_reprocess: boolean
-          size_bytes: number | null
-          storage_path: string
-          summary: string | null
-          tags: string[]
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          client_id: string
-          content?: string | null
-          content_type?: string | null
-          created_at?: string
-          file_id?: string
-          filename: string
-          fts?: unknown
-          needs_reprocess?: boolean
-          size_bytes?: number | null
-          storage_path: string
-          summary?: string | null
-          tags?: string[]
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          client_id?: string
-          content?: string | null
-          content_type?: string | null
-          created_at?: string
-          file_id?: string
-          filename?: string
-          fts?: unknown
-          needs_reprocess?: boolean
-          size_bytes?: number | null
-          storage_path?: string
-          summary?: string | null
-          tags?: string[]
-          title?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "vault_files_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-        ]
-      }
     }
     Views: {
-      documents_with_status: {
-        Row: {
-          case_id: string | null
-          computed_status: string | null
-          created_at: string | null
-          created_by: string | null
-          description: string | null
-          document_date: string | null
-          file_hash: string | null
-          file_size: number | null
-          file_type: string | null
-          filename: string | null
-          gemini_response: Json | null
-          id: string | null
-          is_heterogeneous: boolean | null
-          is_reviewed: boolean | null
-          ocr_confidence: string | null
-          original_filename: string | null
-          page_ranges: Json | null
-          primary_tag: string | null
-          processed_at: string | null
-          processing_error: string | null
-          renamed_filename: string | null
-          reviewed_at: string | null
-          status: string | null
-          storage_path: string | null
-          tags: Json | null
-          updated_at: string | null
-        }
-        Insert: {
-          case_id?: string | null
-          computed_status?: never
-          created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          document_date?: string | null
-          file_hash?: string | null
-          file_size?: number | null
-          file_type?: string | null
-          filename?: string | null
-          gemini_response?: Json | null
-          id?: string | null
-          is_heterogeneous?: boolean | null
-          is_reviewed?: boolean | null
-          ocr_confidence?: string | null
-          original_filename?: string | null
-          page_ranges?: Json | null
-          primary_tag?: string | null
-          processed_at?: string | null
-          processing_error?: string | null
-          renamed_filename?: string | null
-          reviewed_at?: string | null
-          status?: string | null
-          storage_path?: string | null
-          tags?: Json | null
-          updated_at?: string | null
-        }
-        Update: {
-          case_id?: string | null
-          computed_status?: never
-          created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          document_date?: string | null
-          file_hash?: string | null
-          file_size?: number | null
-          file_type?: string | null
-          filename?: string | null
-          gemini_response?: Json | null
-          id?: string | null
-          is_heterogeneous?: boolean | null
-          is_reviewed?: boolean | null
-          ocr_confidence?: string | null
-          original_filename?: string | null
-          page_ranges?: Json | null
-          primary_tag?: string | null
-          processed_at?: string | null
-          processing_error?: string | null
-          renamed_filename?: string | null
-          reviewed_at?: string | null
-          status?: string | null
-          storage_path?: string | null
-          tags?: Json | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "documents_case_id_fkey"
-            columns: ["case_id"]
-            isOneToOne: false
-            referencedRelation: "cases"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       autopilot_interval_to_cron: {
@@ -2099,3 +1648,4 @@ export const Constants = {
     },
   },
 } as const
+

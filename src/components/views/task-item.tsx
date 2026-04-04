@@ -10,14 +10,14 @@ import { cn } from "@/lib/utils";
 export interface TaskItemProps {
   title: string;
   dueDate?: string;
-  status?: "open" | "completed";
+  status?: "todo" | "in_progress" | "done";
   contactName?: string;
   dealAddress?: string;
 }
 
 /** Returns true when the task is open and past its due date. */
 function isOverdue(dueDate: string | undefined, status: string | undefined): boolean {
-  if (!dueDate || status === "completed") return false;
+  if (!dueDate || status === "done") return false;
   const due = new Date(dueDate);
   if (Number.isNaN(due.getTime())) return false;
   const today = new Date();

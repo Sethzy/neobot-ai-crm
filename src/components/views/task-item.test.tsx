@@ -25,12 +25,12 @@ describe("TaskItem", () => {
       <TaskItem
         title="Call Sarah"
         dueDate="2099-03-08"
-        status="open"
+        status="todo"
       />,
     );
 
     expect(screen.getByText("2099-03-08")).toBeInTheDocument();
-    expect(screen.getByTestId("task-status-badge")).toHaveTextContent("open");
+    expect(screen.getByTestId("task-status-badge")).toHaveTextContent("todo");
   });
 
   it("renders linked contact and deal context", () => {
@@ -51,7 +51,7 @@ describe("TaskItem", () => {
       <TaskItem
         title="Old task"
         dueDate="2020-01-01"
-        status="open"
+        status="todo"
       />,
     );
 
@@ -60,12 +60,12 @@ describe("TaskItem", () => {
     expect(container.firstChild).toHaveClass("border-l-warning");
   });
 
-  it("does not show overdue for completed tasks", () => {
+  it("does not show overdue for done tasks", () => {
     render(
       <TaskItem
         title="Done task"
         dueDate="2020-01-01"
-        status="completed"
+        status="done"
       />,
     );
 

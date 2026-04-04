@@ -6,13 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import type { CrmTask } from "@/lib/crm/schemas";
 
 export const crmTaskStatusLabelMap: Record<CrmTask["status"], string> = {
-  open: "Open",
-  completed: "Completed",
+  todo: "To do",
+  in_progress: "In progress",
+  done: "Done",
 };
 
-const crmTaskStatusVariantMap: Record<CrmTask["status"], "outline" | "success"> = {
-  open: "outline",
-  completed: "success",
+const crmTaskStatusVariantMap: Record<CrmTask["status"], "outline" | "secondary" | "success"> = {
+  todo: "outline",
+  in_progress: "secondary",
+  done: "success",
 };
 
 interface TaskStatusBadgeProps {
