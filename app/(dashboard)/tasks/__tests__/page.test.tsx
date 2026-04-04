@@ -10,6 +10,20 @@ import TasksPage from "../page";
 
 vi.mock("@/hooks/use-crm-tasks", () => ({
   useCrmTasks: vi.fn(),
+  crmTaskKeys: { all: ["crm-tasks"] },
+}));
+
+vi.mock("@tanstack/react-query", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@tanstack/react-query")>();
+  return {
+    ...actual,
+    useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+    useMutation: () => ({ mutateAsync: vi.fn() }),
+  };
+});
+
+vi.mock("@/lib/supabase", () => ({
+  supabase: { from: vi.fn() },
 }));
 
 vi.mock("@/components/crm/crm-tasks-table", () => ({
@@ -22,6 +36,18 @@ vi.mock("@/hooks/use-record-drawer", () => ({
     recordId: null,
     open: vi.fn(),
     close: vi.fn(),
+  }),
+}));
+
+vi.mock("@/hooks/use-client-id", () => ({
+  useClientId: () => ({
+    data: "client-1",
+  }),
+}));
+
+vi.mock("@/hooks/use-update-crm-task", () => ({
+  useUpdateCrmTaskMutation: () => ({
+    mutateAsync: vi.fn().mockResolvedValue(undefined),
   }),
 }));
 

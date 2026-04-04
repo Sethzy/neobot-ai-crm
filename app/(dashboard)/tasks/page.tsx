@@ -4,7 +4,10 @@
  */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { AppIcon } from "@/components/icons/app-icons";
 import { CrmTasksCalendar } from "@/components/crm/crm-tasks-calendar";
@@ -16,14 +19,18 @@ import { crmTaskStatusLabelMap } from "@/components/crm/task-status-badge";
 import { ViewToggle } from "@/components/crm/view-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { crmTaskKeys } from "@/hooks/use-crm-tasks";
 import { useCrmTasks } from "@/hooks/use-crm-tasks";
+import { useClientId } from "@/hooks/use-client-id";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
+import { useUpdateCrmTaskMutation } from "@/hooks/use-update-crm-task";
 import { useViewPreference } from "@/hooks/use-view-preference";
 import {
   taskStatusTopBorderMap,
   taskStatusToneClassMap,
 } from "@/lib/crm/display";
 import { crmTaskStatusValues } from "@/lib/crm/schemas";
+import { supabase } from "@/lib/supabase";
 
 /** Static kanban column definitions for task statuses (all inputs are module-level constants). */
 const taskStatusColumns = crmTaskStatusValues.map((status) => ({
@@ -37,6 +44,49 @@ export default function TasksPage() {
   const [search, setSearch] = useState("");
   const { isOpen, recordId, open, close } = useRecordDrawer();
   const { view, setView } = useViewPreference("tasks");
+  const queryClient = useQueryClient();
+  const { data: clientId } = useClientId();
+  const updateTask = useUpdateCrmTaskMutation();
+
+  const createTask = useMutation({
+    mutationFn: async () => {
+      if (!clientId) throw new Error("Not authenticated");
+      const { data, error } = await supabase
+        .from("crm_tasks")
+        .insert({ client_id: clientId, title: "New Task", status: "todo" })
+        .select("task_id")
+        .single();
+      if (error) throw error;
+      return data.task_id;
+    },
+    onSuccess: async (taskId: string) => {
+      await queryClient.invalidateQueries({ queryKey: crmTaskKeys.all });
+      open(taskId);
+    },
+    onError: () => {
+      toast.error("Unable to create task.");
+    },
+  });
+
+  const handleBoardColumnChange = useCallback(
+    async (taskId: string, _fromStatus: string, toStatus: string) => {
+      await updateTask.mutateAsync({
+        taskId,
+        updates: { status: toStatus as (typeof crmTaskStatusValues)[number] },
+      });
+    },
+    [updateTask],
+  );
+
+  const handleCalendarTaskDateChange = useCallback(
+    async (taskId: string, nextDueDate: string) => {
+      await updateTask.mutateAsync({
+        taskId,
+        updates: { due_date: nextDueDate },
+      });
+    },
+    [updateTask],
+  );
 
   const filters = useMemo(() => {
     const normalizedSearch = search.trim();
@@ -72,6 +122,11 @@ export default function TasksPage() {
         </div>
 
         <ViewToggle current={view} views={["table", "kanban", "calendar"]} onChange={setView} />
+
+        <Button size="sm" onClick={() => createTask.mutate()} disabled={!clientId || createTask.isPending}>
+          <Plus className="h-4 w-4" />
+          New
+        </Button>
       </div>
 
       <div className="mt-6">
@@ -106,7 +161,11 @@ export default function TasksPage() {
         ) : view === "table" ? (
           <CrmTasksTable tasks={tasks} onRowClick={open} />
         ) : view === "calendar" ? (
-          <CrmTasksCalendar tasks={tasks} onTaskClick={open} />
+          <CrmTasksCalendar
+            onTaskClick={open}
+            onTaskDateChange={handleCalendarTaskDateChange}
+            tasks={tasks}
+          />
         ) : (
           <KanbanBoard
             boardLabel="By Status"
@@ -116,6 +175,7 @@ export default function TasksPage() {
             getItemId={(task) => task.task_id}
             renderCard={(task) => <TaskKanbanCard task={task} />}
             onCardClick={open}
+            onColumnChange={handleBoardColumnChange}
           />
         )}
       </div>
