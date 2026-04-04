@@ -1,75 +1,116 @@
 /**
- * Tests for auto-resume stream behavior.
+ * Tests for auto-resume poll-based stream recovery.
  * @module hooks/__tests__/use-auto-resume
  */
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import type { UIMessage } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useAutoResume } from "../use-auto-resume";
 
-const mockUseDataStream = vi.fn();
-const mockResumeStream = vi.fn();
 const mockSetMessages = vi.fn();
 
-vi.mock("@/components/chat/data-stream-provider", () => ({
-  useDataStream: () => mockUseDataStream(),
+/* ---------- Supabase mock ---------- */
+
+let mockQueryResult: { data: Array<{ message_id: string; role: string; content: string | null; parts: null }> | null } = { data: null };
+
+const mockOrder = vi.fn(() => Promise.resolve(mockQueryResult));
+const mockEq = vi.fn(() => ({ order: mockOrder }));
+const mockSelect = vi.fn(() => ({ eq: mockEq }));
+const mockFrom = vi.fn(() => ({ select: mockSelect }));
+
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({ from: mockFrom }),
 }));
+
+vi.mock("@/lib/chat/message-normalization", () => ({
+  mapDbMessageToUiMessage: (row: { message_id: string; role: string }) => ({
+    id: row.message_id,
+    role: row.role,
+    parts: [],
+  }),
+}));
+
+/* ---------- helpers ---------- */
 
 function TestHookComponent({
   autoResume,
+  chatId,
   initialMessages,
 }: {
   autoResume: boolean;
+  chatId: string;
   initialMessages: UIMessage[];
 }) {
-  useAutoResume({
+  const { isWaitingForResponse } = useAutoResume({
     autoResume,
+    chatId,
     initialMessages,
-    resumeStream: mockResumeStream,
     setMessages: mockSetMessages,
   });
-  return null;
+  return <div data-testid="waiting">{String(isWaitingForResponse)}</div>;
 }
+
+const userMsg: UIMessage = { id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] };
+const assistantMsg: UIMessage = { id: "a1", role: "assistant", parts: [{ type: "text", text: "Hi there" }] };
 
 describe("useAutoResume", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockQueryResult = { data: null };
   });
 
-  it("calls resumeStream once when autoResume is true and most recent message is user", () => {
-    mockUseDataStream.mockReturnValue({
-      dataStream: [],
-      setDataStream: vi.fn(),
-    });
-
+  it("does not poll when autoResume is false", () => {
     render(
-      <TestHookComponent
-        autoResume
-        initialMessages={[
-          { id: "u1", role: "user", parts: [{ type: "text", text: "Resume me" }] } as UIMessage,
-        ]}
-      />,
+      <TestHookComponent autoResume={false} chatId="thread-1" initialMessages={[userMsg]} />,
     );
 
-    expect(mockResumeStream).toHaveBeenCalledTimes(1);
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  it("does not call resumeStream when autoResume is false", () => {
-    mockUseDataStream.mockReturnValue({
-      dataStream: [],
-      setDataStream: vi.fn(),
-    });
-
+  it("does not poll when last message is assistant", () => {
     render(
-      <TestHookComponent
-        autoResume={false}
-        initialMessages={[
-          { id: "u1", role: "user", parts: [{ type: "text", text: "Do not resume" }] } as UIMessage,
-        ]}
-      />,
+      <TestHookComponent autoResume chatId="thread-1" initialMessages={[userMsg, assistantMsg]} />,
     );
 
-    expect(mockResumeStream).not.toHaveBeenCalled();
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it("calls setMessages when assistant response found on first poll", async () => {
+    mockQueryResult = {
+      data: [
+        { message_id: "u1", role: "user", content: "Hello", parts: null },
+        { message_id: "a1", role: "assistant", content: "Hi", parts: null },
+      ],
+    };
+
+    render(
+      <TestHookComponent autoResume chatId="thread-1" initialMessages={[userMsg]} />,
+    );
+
+    await waitFor(() => {
+      expect(mockSetMessages).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ id: "u1", role: "user" }),
+          expect.objectContaining({ id: "a1", role: "assistant" }),
+        ]),
+      );
+    });
+  });
+
+  it("sets isWaitingForResponse to true while polling", async () => {
+    mockQueryResult = {
+      data: [{ message_id: "u1", role: "user", content: "Hello", parts: null }],
+    };
+
+    const { getByTestId } = render(
+      <TestHookComponent autoResume chatId="thread-1" initialMessages={[userMsg]} />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId("waiting").textContent).toBe("true");
+    });
+
+    expect(mockSetMessages).not.toHaveBeenCalled();
   });
 });
