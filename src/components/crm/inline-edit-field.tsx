@@ -1,12 +1,16 @@
 /**
  * Inline field editor for CRM drawer surfaces.
- * Twenty-style: values left-aligned, empty fields show placeholder,
- * edit mode wraps value in a subtle chip border with no layout shift.
+ * Modeled after Twenty CRM's RecordInlineCell pattern:
+ * - Fixed row height (no layout shift on edit)
+ * - Label+icon column anchored with self-start + fixed h-7
+ * - Text/number edit: inline chip border with py-0, same line-height
+ * - Select edit: Popover portal dropdown (no inline trigger)
+ * - Values left-aligned, empty fields show label as placeholder
  * @module components/crm/inline-edit-field
  */
 "use client";
 
-import { Check, CalendarIcon, Loader2 } from "@/components/icons/lucide-compat";
+import { Check, CalendarIcon, ChevronDown, Loader2 } from "@/components/icons/lucide-compat";
 import { format } from "date-fns";
 import {
   type KeyboardEvent,
@@ -18,10 +22,8 @@ import {
   useState,
 } from "react";
 
-import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 interface SelectOption {
@@ -225,23 +227,6 @@ export function InlineEditField({
   const dateFromDraft = useMemo(() => (draft ? parseDateValue(draft) : null), [draft]);
   const dateFromValue = useMemo(() => (value ? parseDateValue(value) : null), [value]);
 
-  /** Whether the field has a real value (not empty/null). */
-  const hasValue = useMemo(() => {
-    if (displayValue !== undefined) {
-      return Boolean(displayValue?.trim());
-    }
-
-    if (type === "select") {
-      return Boolean(value);
-    }
-
-    if (type === "date") {
-      return Boolean(dateFromValue);
-    }
-
-    return Boolean(value?.trim());
-  }, [dateFromValue, displayValue, type, value]);
-
   /** Resolved text to show in display mode. */
   const resolvedDisplayValue = useMemo(() => {
     if (displayValue !== undefined) {
@@ -263,125 +248,43 @@ export function InlineEditField({
     return normalized && normalized.length > 0 ? normalized : null;
   }, [dateFromValue, displayValue, options, type, value]);
 
+  /** Whether the field has a real value (not empty/null). */
+  const hasValue = resolvedDisplayValue !== null;
+
   const isTextareaField = type === "textarea";
+  const isSelectField = type === "select";
+  const isDateField = type === "date";
 
   // ---------------------------------------------------------------------------
-  // Edit-mode renderers
+  // Display value element (shared between display and select-edit modes)
   // ---------------------------------------------------------------------------
 
-  const renderEditor = (inputElementRef: RefObject<HTMLInputElement | HTMLTextAreaElement | null>) => {
-    if (type === "select") {
-      return (
-        <Select
-          value={draft}
-          open
-          onValueChange={(nextValue) => {
-            setDraft(nextValue);
-            void handleCommit(nextValue);
-          }}
-          onOpenChange={(nextOpen) => {
-            if (!nextOpen) {
-              setIsEditing(false);
-            }
-          }}
-          disabled={isSaving}
-        >
-          <SelectTrigger className="-ml-2 h-auto w-auto gap-1 rounded-md border border-border/50 px-2 py-0.5 text-sm shadow-none focus:ring-0">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent position="popper" side="bottom" align="start" sideOffset={4}>
-            {options.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      );
-    }
+  const displayElement = (
+    <span
+      className={cn(
+        "min-w-0 flex-1 text-sm leading-[20px]",
+        hasValue ? "text-foreground/80" : "text-muted-foreground/40",
+        isTextareaField
+          ? "line-clamp-4 whitespace-pre-wrap break-words"
+          : hideLabel
+            ? "whitespace-normal break-words"
+            : "truncate",
+        displayClassName,
+      )}
+    >
+      {resolvedDisplayValue ?? label}
+    </span>
+  );
 
-    if (type === "textarea") {
-      return (
-        <textarea
-          ref={inputElementRef as RefObject<HTMLTextAreaElement>}
-          rows={3}
-          className={cn(
-            "w-full resize-none bg-transparent text-sm text-foreground/80 placeholder:text-muted-foreground/40 focus:outline-none",
-            editorClassName,
-          )}
-          value={draft}
-          disabled={isSaving}
-          placeholder={label}
-          onChange={(event) => setDraft(event.target.value)}
-          onBlur={() => {
-            void handleCommit(draft);
-          }}
-          onKeyDown={handleInputKeyDown}
-        />
-      );
-    }
+  // ---------------------------------------------------------------------------
+  // Status indicator (saving / saved)
+  // ---------------------------------------------------------------------------
 
-    if (type === "date") {
-      return (
-        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className={cn(
-                "h-auto w-full justify-start p-0 text-sm font-normal text-foreground/80 shadow-none hover:bg-transparent",
-                editorClassName,
-              )}
-              disabled={isSaving}
-            >
-              <CalendarIcon className="mr-1.5 h-3.5 w-3.5 text-muted-foreground/50" />
-              {dateFromDraft ? format(dateFromDraft, "d MMM yyyy") : (
-                <span className="text-muted-foreground/40">{label}</span>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={dateFromDraft ?? undefined}
-              onSelect={(nextDate) => {
-                if (!nextDate) {
-                  return;
-                }
-
-                const serializedDate = toLocalIsoMidnight(nextDate);
-                setDraft(serializedDate);
-                void handleCommit(serializedDate);
-              }}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
-      );
-    }
-
-    // Text / number input
-    return (
-      <input
-        ref={inputElementRef as RefObject<HTMLInputElement>}
-        type={inputType ?? (type === "number" ? "number" : "text")}
-        inputMode={type === "number" ? "decimal" : undefined}
-        value={draft}
-        disabled={isSaving}
-        placeholder={label}
-        className={cn(
-          "w-full bg-transparent text-sm text-foreground/80 placeholder:text-muted-foreground/40 focus:outline-none",
-          editorClassName,
-        )}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={() => {
-          void handleCommit(draft);
-        }}
-        onKeyDown={handleInputKeyDown}
-      />
-    );
-  };
+  const statusIndicator = isSaving ? (
+    <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground/50" />
+  ) : isSaved ? (
+    <Check className="h-3.5 w-3.5 shrink-0 text-success" />
+  ) : null;
 
   // ---------------------------------------------------------------------------
   // Render
@@ -392,7 +295,7 @@ export function InlineEditField({
       role="button"
       tabIndex={0}
       className={cn(
-        "group flex items-center gap-3 rounded-md px-1 py-1 transition-colors",
+        "group flex min-h-[28px] items-center gap-3 rounded-md px-1 transition-colors",
         !isEditing && "hover:bg-muted/30",
         hideLabel && "justify-start",
         isTextareaField && !hideLabel && "items-start",
@@ -401,57 +304,149 @@ export function InlineEditField({
       onClick={handleStartEditing}
       onKeyDown={handleContainerKeyDown}
     >
-      {/* Label column */}
+      {/* Label column — fixed height, self-start so icon never shifts */}
       {hideLabel ? null : (
-        <div className="flex w-[110px] shrink-0 items-center gap-2">
+        <div className="flex h-7 w-[110px] shrink-0 items-center gap-2 self-start">
           {icon ? (
             <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground/40">
               {icon}
             </span>
           ) : null}
-          <span className={cn("truncate text-sm text-muted-foreground/70", labelClassName)}>{label}</span>
+          <span className={cn("truncate text-sm leading-[20px] text-muted-foreground/70", labelClassName)}>{label}</span>
         </div>
       )}
 
       {/* Value column */}
       <div
         className={cn(
-          "flex min-w-0 flex-1 items-center gap-1.5",
-          isEditing && type !== "select" && !isTextareaField && !hideLabel && "-ml-2 rounded-md border border-border/50 px-2 py-0.5",
-          isEditing && type !== "select" && isTextareaField && !hideLabel && "-ml-2 rounded-md border border-border/50 px-2 py-1",
+          "flex min-h-[20px] min-w-0 flex-1 items-center gap-1.5",
           !isEditing && isTextareaField && "items-start",
         )}
       >
-        {isEditing ? (
-          <>
-            {renderEditor(inputRef)}
-            {isSaving ? (
-              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground/50" />
-            ) : null}
-          </>
-        ) : (
-          <>
-            <span
+        {/* --- Text / Number edit: inline chip --- */}
+        {isEditing && !isSelectField && !isDateField && !isTextareaField ? (
+          <div className="-ml-2 flex min-h-[24px] w-full items-center gap-1.5 rounded-md border border-border/50 px-2">
+            <input
+              ref={inputRef as RefObject<HTMLInputElement>}
+              type={inputType ?? (type === "number" ? "number" : "text")}
+              inputMode={type === "number" ? "decimal" : undefined}
+              value={draft}
+              disabled={isSaving}
+              placeholder={label}
               className={cn(
-                "min-w-0 flex-1 text-sm",
-                hasValue ? "text-foreground/80" : "text-muted-foreground/40",
-                isTextareaField
-                  ? "line-clamp-4 whitespace-pre-wrap break-words"
-                  : hideLabel
-                    ? "whitespace-normal break-words"
-                    : "truncate",
-                displayClassName,
+                "w-full bg-transparent text-sm leading-[20px] text-foreground/80 placeholder:text-muted-foreground/40 focus:outline-none",
+                editorClassName,
               )}
-            >
-              {resolvedDisplayValue ?? label}
-            </span>
-            {isSaving ? (
-              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground/50" />
-            ) : isSaved ? (
-              <Check className="h-3.5 w-3.5 shrink-0 text-success" />
-            ) : null}
+              onChange={(event) => setDraft(event.target.value)}
+              onBlur={() => { void handleCommit(draft); }}
+              onKeyDown={handleInputKeyDown}
+            />
+            {isSaving ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground/50" /> : null}
+          </div>
+        ) : null}
+
+        {/* --- Textarea edit: inline chip --- */}
+        {isEditing && isTextareaField ? (
+          <div className="-ml-2 flex w-full items-start rounded-md border border-border/50 px-2 py-1">
+            <textarea
+              ref={inputRef as RefObject<HTMLTextAreaElement>}
+              rows={3}
+              className={cn(
+                "w-full resize-none bg-transparent text-sm leading-[20px] text-foreground/80 placeholder:text-muted-foreground/40 focus:outline-none",
+                editorClassName,
+              )}
+              value={draft}
+              disabled={isSaving}
+              placeholder={label}
+              onChange={(event) => setDraft(event.target.value)}
+              onBlur={() => { void handleCommit(draft); }}
+              onKeyDown={handleInputKeyDown}
+            />
+            {isSaving ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground/50" /> : null}
+          </div>
+        ) : null}
+
+        {/* --- Select edit: Popover portal dropdown --- */}
+        {isEditing && isSelectField ? (
+          <Popover
+            open
+            onOpenChange={(nextOpen) => {
+              if (!nextOpen) {
+                setIsEditing(false);
+              }
+            }}
+          >
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="-ml-2 flex min-h-[24px] items-center gap-1.5 rounded-md border border-border/50 px-2 text-sm leading-[20px] text-foreground/80"
+              >
+                {resolvedDisplayValue ?? label}
+                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" side="bottom" sideOffset={4} className="w-auto min-w-[180px] p-1">
+              {options.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-sm px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted/50",
+                    option.value === draft && "bg-muted/40",
+                  )}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setDraft(option.value);
+                    void handleCommit(option.value);
+                  }}
+                >
+                  <span>{option.label}</span>
+                  {option.value === currentValue ? (
+                    <Check className="h-4 w-4 shrink-0 text-foreground/60" />
+                  ) : null}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+        ) : null}
+
+        {/* --- Date edit: Popover calendar --- */}
+        {isEditing && isDateField ? (
+          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="-ml-2 flex min-h-[24px] items-center gap-1.5 rounded-md border border-border/50 px-2 text-sm leading-[20px] text-foreground/80"
+              >
+                <CalendarIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+                {dateFromDraft ? format(dateFromDraft, "d MMM yyyy") : (
+                  <span className="text-muted-foreground/40">{label}</span>
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={4}>
+              <Calendar
+                mode="single"
+                selected={dateFromDraft ?? undefined}
+                onSelect={(nextDate) => {
+                  if (!nextDate) return;
+                  const serializedDate = toLocalIsoMidnight(nextDate);
+                  setDraft(serializedDate);
+                  void handleCommit(serializedDate);
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        ) : null}
+
+        {/* --- Display mode (all field types) --- */}
+        {!isEditing ? (
+          <>
+            {displayElement}
+            {statusIndicator}
           </>
-        )}
+        ) : null}
       </div>
     </div>
   );
