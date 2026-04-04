@@ -891,6 +891,53 @@ export type Database = {
           },
         ]
       }
+      crm_views: {
+        Row: {
+          client_id: string
+          created_at: string
+          entity_type: string
+          filters: Json
+          is_default: boolean
+          is_seeded: boolean
+          name: string
+          sort: Json | null
+          updated_at: string
+          view_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          entity_type: string
+          filters?: Json
+          is_default?: boolean
+          is_seeded?: boolean
+          name: string
+          sort?: Json | null
+          updated_at?: string
+          view_id?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          entity_type?: string
+          filters?: Json
+          is_default?: boolean
+          is_seeded?: boolean
+          name?: string
+          sort?: Json | null
+          updated_at?: string
+          view_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_views_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
       deal_contacts: {
         Row: {
           client_id: string
@@ -1648,4 +1695,3 @@ export const Constants = {
     },
   },
 } as const
-
