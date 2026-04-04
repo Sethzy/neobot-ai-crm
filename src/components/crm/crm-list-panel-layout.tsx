@@ -1,14 +1,14 @@
 /**
- * Generic layout that pairs a CRM list page with an inline detail side panel.
- * Header renders at full width above the body+panel flex row so it never
- * gets squished when the panel is open (matches Twenty's layout pattern).
+ * Generic layout that pairs a CRM list page with a resizable inline detail side panel.
+ * Header renders at full width above the body+panel row. The panel left edge
+ * is draggable to resize (like Twenty CRM's command menu side panel).
  * On mobile, falls back to the existing Sheet-based RecordDrawer overlay.
  * @module components/crm/crm-list-panel-layout
  */
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,10 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
 
 import { RecordDrawer, type RecordObjectType } from "./record-drawer/record-drawer";
+
+const DEFAULT_PANEL_WIDTH = 420;
+const MIN_PANEL_WIDTH = 320;
+const MAX_PANEL_WIDTH = 700;
 
 interface CrmListPanelLayoutProps {
   /** Entity type for the mobile Sheet fallback. */
@@ -48,6 +52,10 @@ export function CrmListPanelLayout({
 }: CrmListPanelLayoutProps) {
   const { isOpen, recordId, close } = useRecordDrawer();
   const isMobile = useIsMobile();
+  const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(0);
 
   // Close panel on Escape key.
   useEffect(() => {
@@ -63,6 +71,38 @@ export function CrmListPanelLayout({
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, close]);
+
+  const handleDragStart = useCallback((event: React.MouseEvent) => {
+    event.preventDefault();
+    isDraggingRef.current = true;
+    startXRef.current = event.clientX;
+    startWidthRef.current = panelWidth;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, [panelWidth]);
+
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+      const delta = startXRef.current - event.clientX;
+      const nextWidth = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, startWidthRef.current + delta));
+      setPanelWidth(nextWidth);
+    };
+
+    const handleMouseUp = () => {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
 
   const hasHeaderMeta = Boolean(description) || Boolean(headerActions);
 
@@ -110,7 +150,9 @@ export function CrmListPanelLayout({
     );
   }
 
-  // Desktop: header full-width, then body + panel in a flex row below.
+  const panelIsOpen = isOpen && recordId;
+
+  // Desktop: header full-width, then body + resizable panel below.
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-sidebar">
       {headerElement}
@@ -118,23 +160,35 @@ export function CrmListPanelLayout({
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
         <div className={bodyClasses}>{children}</div>
 
-        {isOpen && recordId ? (
-          <div className="ml-1 flex w-[400px] shrink-0 flex-col overflow-hidden bg-sidebar">
-            <div className="min-w-0 flex-1 overflow-hidden rounded-tl-xl border-l border-t border-border/60 bg-card">
-              {renderPanelContent(recordId, {
-                closeButton: (
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Close panel"
-                    onClick={close}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                ),
-              })}
+        {panelIsOpen ? (
+          <>
+            {/* Drag handle */}
+            <div
+              className="w-1.5 shrink-0 cursor-col-resize bg-sidebar transition-colors hover:bg-border/50 active:bg-border"
+              onMouseDown={handleDragStart}
+            />
+
+            {/* Panel */}
+            <div
+              className="flex shrink-0 flex-col overflow-hidden bg-sidebar"
+              style={{ width: panelWidth }}
+            >
+              <div className="min-w-0 flex-1 overflow-hidden rounded-tl-xl border-l border-t border-border/60 bg-card">
+                {renderPanelContent(recordId, {
+                  closeButton: (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Close panel"
+                      onClick={close}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  ),
+                })}
+              </div>
             </div>
-          </div>
+          </>
         ) : null}
       </div>
     </div>
