@@ -144,7 +144,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
   }
 
   return (
-    <Message from="assistant" data-testid="message-bubble">
+    <Message from="assistant" data-testid="message-bubble" className={!isStreaming && isLast ? "animate-message-in" : undefined}>
       <MessageContent>
         {skillSlug ? (
           <Badge variant="outline" data-testid="skill-badge" className="mb-2 text-xs">
@@ -258,8 +258,8 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
 
       </MessageContent>
 
-        {!isStreaming && hasTextParts && (
-          <MessageToolbar>
+        {hasTextParts && (
+          <MessageToolbar className={isStreaming ? "pointer-events-none opacity-0" : "animate-in fade-in duration-300"}>
             <MessageActions>
               <MessageAction
                 label="Copy"

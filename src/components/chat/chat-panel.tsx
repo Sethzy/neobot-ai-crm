@@ -159,7 +159,7 @@ export function ChatPanel({
       `${CHAT_MODEL_COOKIE_NAME}=${selectedChatModel}; path=/; max-age=${CHAT_MODEL_COOKIE_MAX_AGE}`;
   }, [selectedChatModel]);
 
-  const { messages, sendMessage, status, error, stop, resumeStream, setMessages, addToolApprovalResponse } = useChat({
+  const { messages, sendMessage, status, error, setMessages, addToolApprovalResponse } = useChat({
     id: chatId,
     messages: initialMessages,
     generateId: () => crypto.randomUUID(),
@@ -181,10 +181,10 @@ export function ChatPanel({
     },
   });
 
-  useAutoResume({
+  const { isWaitingForResponse } = useAutoResume({
     autoResume,
+    chatId,
     initialMessages,
-    resumeStream,
     setMessages,
   });
 
@@ -250,9 +250,10 @@ export function ChatPanel({
     [addToolApprovalResponse],
   );
 
-  const isLoading = status === "submitted" || status === "streaming";
+  const effectiveStatus = isWaitingForResponse ? "submitted" : status;
+  const isLoading = effectiveStatus === "submitted" || effectiveStatus === "streaming";
   // Ref mirrors isLoading so handleSubmit always reads the freshest value,
-  // avoiding a race between useAutoResume's resumeStream and a user send.
+  // avoiding a race between useAutoResume's polling and a user send.
   const isLoadingRef = useRef(false);
   isLoadingRef.current = isLoading;
   const parsedError = useMemo(() => parseChatError(error), [error]);
@@ -341,30 +342,28 @@ export function ChatPanel({
 
       {hasMessages ? (
         <>
-          <MessageList messages={messages} status={status} onToolApproval={handleToolApproval} onQuestionSubmit={handleQuestionSubmit} />
+          <MessageList messages={messages} status={effectiveStatus} onToolApproval={handleToolApproval} onQuestionSubmit={handleQuestionSubmit} />
           {messageQuota ? (
             <MessageQuotaPill quota={messageQuota} className="pb-1 pt-2" />
           ) : null}
           <ChatComposer
-            status={status}
+            status={effectiveStatus}
             selectedChatModel={selectedChatModel}
             value={composerValue}
             onValueChange={setComposerValue}
             onSelectedChatModelChange={setSelectedChatModel}
             onSubmit={handleSubmit}
-            onStop={stop}
             disabled={(messageQuota?.messagesRemaining ?? 1) <= 0}
           />
         </>
       ) : (
         <ChatWelcome
-          status={status}
+          status={effectiveStatus}
           selectedChatModel={selectedChatModel}
           composerValue={composerValue}
           onComposerValueChange={setComposerValue}
           onSelectedChatModelChange={setSelectedChatModel}
           onSubmit={handleSubmit}
-          onStop={stop}
           messageQuota={messageQuota}
         />
       )}

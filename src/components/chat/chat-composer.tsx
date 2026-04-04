@@ -41,7 +41,7 @@ interface ChatComposerProps {
   /** Called when the user picks a different model from the selector. */
   onSelectedChatModelChange: (modelId: string) => void;
   onSubmit: (message: ChatSubmitInput) => void;
-  onStop: () => void;
+  onStop?: () => void;
   /** Optional CSS class for the outer wrapper div. */
   className?: string;
   /** Optional CSS class for the inner max-width container. */

@@ -80,6 +80,21 @@ export const Reasoning = memo(
     const hasEverStreamedRef = useRef(isStreaming);
     const [hasAutoClosed, setHasAutoClosed] = useState(false);
     const startTimeRef = useRef<number | null>(null);
+    const resolvedDuration = useMemo(() => {
+      if (durationProp !== undefined) {
+        return durationProp;
+      }
+
+      if (duration !== undefined) {
+        return duration;
+      }
+
+      if (!isStreaming && startTimeRef.current !== null) {
+        return Math.ceil((Date.now() - startTimeRef.current) / MS_IN_S);
+      }
+
+      return undefined;
+    }, [duration, durationProp, isStreaming]);
 
     // Track when streaming starts and compute duration
     useEffect(() => {
@@ -126,8 +141,8 @@ export const Reasoning = memo(
     );
 
     const contextValue = useMemo(
-      () => ({ duration, isOpen, isStreaming, setIsOpen }),
-      [duration, isOpen, isStreaming, setIsOpen]
+      () => ({ duration: resolvedDuration, isOpen, isStreaming, setIsOpen }),
+      [isOpen, isStreaming, resolvedDuration, setIsOpen]
     );
 
     return (
@@ -212,7 +227,7 @@ export const ReasoningContent = memo(
       <CollapsibleContent
         className={cn(
           "mt-2 max-h-32 overflow-y-auto text-xs [&>.space-y-4]:space-y-1.5",
-          "data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-muted-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
+          "text-muted-foreground outline-none data-[state=open]:animate-in data-[state=open]:slide-in-from-top-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-1 data-[state=closed]:duration-200",
           className
         )}
         {...props}

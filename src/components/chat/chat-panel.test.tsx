@@ -466,9 +466,7 @@ describe("ChatPanel", () => {
     ])).toEqual([{ thread_id: "thread-2", title: "Existing" }]);
   });
 
-  it("keeps the stop button enabled while streaming", async () => {
-    const user = userEvent.setup();
-
+  it("disables the composer while streaming (stop removed for resume compatibility)", () => {
     mockUseChat.mockReturnValue({
       id: "thread-1",
       messages: [
@@ -480,7 +478,7 @@ describe("ChatPanel", () => {
       setMessages,
       regenerate: vi.fn(),
       clearError: vi.fn(),
-      stop,
+      stop: vi.fn(),
       resumeStream: vi.fn(),
       addToolResult: vi.fn(),
       addToolOutput: vi.fn(),
@@ -490,11 +488,6 @@ describe("ChatPanel", () => {
     render(<ChatPanel chatId="thread-1" />);
 
     expect(screen.getByPlaceholderText(/send a message/i)).toBeDisabled();
-    expect(screen.getByRole("button", { name: /stop/i })).toBeEnabled();
-
-    await user.click(screen.getByRole("button", { name: /stop/i }));
-
-    expect(stop).toHaveBeenCalledTimes(1);
   });
 
   it("renders API errors", () => {

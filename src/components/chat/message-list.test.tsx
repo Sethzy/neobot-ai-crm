@@ -114,7 +114,6 @@ describe("MessageList", () => {
       role: "assistant" as const,
       parts: [
         { type: "reasoning" as const, text: "Thinking..." },
-        { type: "text" as const, text: "Hi there!" },
       ],
     };
     render(<MessageList messages={[userMessage, streamingAssistant]} status="streaming" />);

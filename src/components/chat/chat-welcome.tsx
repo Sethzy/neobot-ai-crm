@@ -42,7 +42,7 @@ interface ChatWelcomeProps {
   onComposerValueChange: (value: string) => void;
   onSelectedChatModelChange: (modelId: string) => void;
   onSubmit: (message: { text: string; files: FileUIPart[] }) => void;
-  onStop: () => void;
+  onStop?: () => void;
   messageQuota?: MessageQuotaStatus | null;
 }
 

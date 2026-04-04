@@ -360,6 +360,24 @@ describe("MessageBubble — assistant messages", () => {
     expect(screen.getByTestId("reasoning-block")).toHaveAttribute("data-streaming", "true");
   });
 
+  it("stops streaming the reasoning block once text appears after it", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "8b",
+          role: "assistant",
+          parts: [
+            { type: "reasoning", text: "Thinking hard..." },
+            { type: "text", text: "Here is the answer." },
+          ],
+        }}
+        isStreaming
+      />,
+    );
+
+    expect(screen.getByTestId("reasoning-block")).toHaveAttribute("data-streaming", "false");
+  });
+
   it("forwards onToolApproval to ToolCallInline", () => {
     const onToolApproval = vi.fn();
     render(
@@ -790,7 +808,7 @@ describe("MessageBubble — skill badge", () => {
     expect(writeText).toHaveBeenCalledWith("Copy this text");
   });
 
-  it("does not render a copy button while streaming", () => {
+  it("renders the copy button as non-interactive while streaming", () => {
     render(
       <MessageBubble
         message={{
@@ -802,6 +820,7 @@ describe("MessageBubble — skill badge", () => {
       />,
     );
 
-    expect(screen.queryByRole("button", { name: /copy/i })).not.toBeInTheDocument();
+    // Toolbar is in the DOM but visually hidden — button should still exist
+    expect(screen.getByRole("button", { name: /copy/i })).toBeInTheDocument();
   });
 });

@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -393,29 +393,7 @@ export function ToolCallInline({
     ? getBrowserPlatformConfig(authNeeded.platform)
     : null;
   const { state: browserAuthState, connect, verify, reset } = useBrowserAuth(authNeeded?.platform);
-  const isActuallyRunning = state === "input-available" || state === "input-streaming";
-  const isDone = state === "output-available" || state === "output-error" || state === "output-denied";
-
-  // Minimum display duration so fast tools still flash a loading indicator.
-  // Initialise to true — every tool starts in a "running" visual state and
-  // only clears after at least MIN_DISPLAY_MS once the result arrives.
-  const [showRunning, setShowRunning] = useState(true);
-  const runningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (isActuallyRunning) {
-      setShowRunning(true);
-      if (runningTimerRef.current) clearTimeout(runningTimerRef.current);
-      runningTimerRef.current = null;
-    } else if (isDone && showRunning) {
-      runningTimerRef.current = setTimeout(() => setShowRunning(false), 400);
-    }
-    return () => {
-      if (runningTimerRef.current) clearTimeout(runningTimerRef.current);
-    };
-  }, [isActuallyRunning, isDone]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const isRunning = showRunning;
+  const isRunning = state === "input-available" || state === "input-streaming";
   const isAwaitingApproval = state === "approval-requested";
   const isDenied = state === "output-denied";
   const hasError = state === "output-error";

@@ -2,7 +2,7 @@
  * Tests for the inline tool call display and connection-specific cards.
  * @module components/chat/tool-call-inline.test
  */
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -152,7 +152,7 @@ describe("ToolCallInline", () => {
     expect(screen.queryByText(/Result/i)).not.toBeInTheDocument();
   });
 
-  it("shows pulsing dot when state is input-available (running)", () => {
+  it("shows a spinner when state is input-available (running)", () => {
     render(
       <ToolCallInline
         name="search_contacts"
@@ -161,7 +161,7 @@ describe("ToolCallInline", () => {
       />,
     );
 
-    expect(screen.getByTestId("tool-dot").className).toMatch(/animate-pulse/);
+    expect(screen.getByTestId("tool-dot").getAttribute("class")).toMatch(/animate-spin/);
   });
 
   it("does not show expand trigger when no output yet", () => {
@@ -298,11 +298,42 @@ describe("approval-requested state", () => {
   });
 
   it("shows amber pulsing dot when awaiting approval", () => {
+    vi.useFakeTimers();
+
     render(<ToolCallInline {...approvalProps} />);
 
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
     const dot = screen.getByTestId("tool-dot");
-    expect(dot.className).toMatch(/animate-pulse/);
-    expect(dot.className).toMatch(/bg-approval/);
+    expect(dot.getAttribute("class")).toMatch(/animate-pulse/);
+    expect(dot.getAttribute("class")).toMatch(/bg-approval/);
+
+    vi.useRealTimers();
+  });
+
+  it("shows static dot when tool completes", () => {
+    const { rerender } = render(
+      <ToolCallInline
+        name="search_contacts"
+        state="input-available"
+        input={{ query: "John" }}
+      />,
+    );
+
+    rerender(
+      <ToolCallInline
+        name="search_contacts"
+        state="output-available"
+        input={{ query: "John" }}
+        output={{ results: [] }}
+      />,
+    );
+
+    const dot = screen.getByTestId("tool-dot");
+    expect(dot.tagName).toBe("SPAN");
+    expect(dot.getAttribute("class")).not.toMatch(/animate-spin/);
   });
 });
 
@@ -472,6 +503,8 @@ describe("connection cards", () => {
 
 describe("output-denied state", () => {
   it("shows an orange denial indicator dot (not pulsing)", () => {
+    vi.useFakeTimers();
+
     render(
       <ToolCallInline
         name="write_file"
@@ -480,9 +513,15 @@ describe("output-denied state", () => {
       />,
     );
 
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
     const dot = screen.getByTestId("tool-dot");
-    expect(dot.className).toMatch(/bg-denied/);
-    expect(dot.className).not.toMatch(/animate-pulse/);
+    expect(dot.getAttribute("class")).toMatch(/bg-denied/);
+    expect(dot.getAttribute("class")).not.toMatch(/animate-pulse/);
+
+    vi.useRealTimers();
   });
 
   it("shows 'Denied' label after tool name", () => {
