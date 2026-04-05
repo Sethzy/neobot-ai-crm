@@ -1,8 +1,8 @@
 # QA Surface 16: CRM Working Surfaces
 
-> **PRs covered:** 46 (view switching, deals board, tasks calendar, quick edit)
+> **PRs covered:** 46 (view switching, deals board, tasks calendar, quick edit), 67 (saved views — pill tabs, view filtering)
 > **Dogfoodable:** Yes
-> **Time estimate:** 30-40 min manual
+> **Time estimate:** 40-50 min manual
 
 > **Note:** Basic CRM page rendering is tested in [Surface 4: CRM Pages](04-crm-pages.md). This surface covers the enhanced working surfaces: view switching, board/calendar views, and inline quick editing.
 
@@ -190,8 +190,91 @@
 
 ---
 
+### 16.12 Saved view pill tabs — seeded defaults (PR 67)
+
+1. Navigate to `/tasks`
+2. **Expected:** Pill tabs visible: "All", "Overdue", "Due this week", "Done"
+3. Navigate to `/customers/deals`
+4. **Expected:** Pill tabs visible: "All", "Active pipeline", "Closing this month"
+5. Navigate to `/customers/people`
+6. **Expected:** Pill tabs visible: "All", "Buyers", "Sellers"
+7. Navigate to `/customers/companies`
+8. **Expected:** "All" only (no seeded defaults for companies)
+
+**Notes / failures:**
+
+---
+
+### 16.13 Saved view filtering (PR 67)
+
+1. On `/tasks`, click "Overdue" pill
+2. **Expected:** Table shows only tasks with status=todo and due_date before today
+3. **Expected:** URL updates to include `?savedView=<uuid>`
+4. **Expected:** Search bar and filter controls are hidden/disabled
+5. Click "All"
+6. **Expected:** Full unfiltered task list restored, search bar reappears
+7. On `/customers/deals`, click "Active pipeline"
+8. **Expected:** Table shows only non-lost deals
+
+**Notes / failures:**
+
+---
+
+### 16.14 Saved view URL persistence (PR 67)
+
+1. On `/tasks`, click "Due this week"
+2. Copy the URL (should contain `?savedView=<uuid>`)
+3. Navigate to `/customers/deals`
+4. Paste the copied URL back into the browser
+5. **Expected:** Tasks page loads with "Due this week" view active
+6. Add `?savedView=nonexistent-uuid` to any CRM page URL
+7. **Expected:** Falls back to "All" (no error)
+
+**Notes / failures:**
+
+---
+
+### 16.15 Saved view pagination reset (PR 67)
+
+1. On `/customers/deals`, paginate to page 2 or 3
+2. Click "Active pipeline" pill
+3. **Expected:** Table resets to page 1, shows filtered results
+4. Click "All"
+5. **Expected:** Back to page 1, full list
+
+**Notes / failures:**
+
+---
+
+### 16.16 Saved view realtime sync (PR 67)
+
+1. Open `/customers/deals` in the browser
+2. In a separate chat window, ask the agent: "Create a view called 'Big deals' for deals in the offer stage"
+3. **Expected:** "Big deals" pill appears on the deals page without refreshing
+4. Ask the agent: "Delete the Big deals view"
+5. **Expected:** Pill disappears without refreshing
+
+**Notes / failures:**
+
+---
+
+### 16.17 Saved view pills — mobile scroll (PR 67)
+
+1. Resize browser to 375px width (mobile)
+2. Navigate to `/tasks` (has 4 pills: All, Overdue, Due this week, Done)
+3. **Expected:** Pills scroll horizontally, no layout breakage
+4. Scroll to reveal all pills, click one
+5. **Expected:** View filtering works on mobile
+
+**Notes / failures:**
+
+---
+
 ## Edge Cases
 
+- [ ] Saved view with symbolic date ($today) — "Overdue" shows correct tasks relative to current date
+- [ ] Delete a seeded default view → it's gone, not re-created until next signup
+- [ ] Switch saved view while on board/kanban layout — filters apply to board too
 - [ ] Quick edit with invalid data (e.g., non-numeric price) — validation error shown, edit stays open
 - [ ] Quick edit on mobile — opens one-field dialog instead of inline editor
 - [ ] Empty board column (no deals in a stage) — column renders, not hidden
@@ -205,5 +288,5 @@
 
 ## Pass / Fail Criteria
 
-- **Pass:** View toggles work and persist preference. Board shows deals by stage with working stage movement. Calendar shows tasks by date with day drill-down. Quick edit works for high-value fields on all entity pages. Filters carry across views. Detail pages preserved. Mobile uses dialog fallback.
-- **Fail:** View switching crashes. Board stage movement doesn't persist. Calendar doesn't show tasks. Quick edit silently fails or corrupts data. Filters lost on view switch. Detail pages broken.
+- **Pass:** View toggles work and persist preference. Board shows deals by stage with working stage movement. Calendar shows tasks by date with day drill-down. Quick edit works for high-value fields on all entity pages. Filters carry across views. Detail pages preserved. Mobile uses dialog fallback. Saved view pill tabs appear with seeded defaults, filter server-side, persist via URL, reset pagination, update via realtime.
+- **Fail:** View switching crashes. Board stage movement doesn't persist. Calendar doesn't show tasks. Quick edit silently fails or corrupts data. Filters lost on view switch. Detail pages broken. Saved view pills missing, filtering broken, stale after agent creates view.

@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-04-03: Added PR 66 (Langfuse agent improvement loop — online evals, datasets, annotation queues) to Phase 4.",
+    "updated": "2026-04-05: Added out-of-plan PR 67 (CRM saved views — manage_views tool, pill tab picker, seeded defaults) to Phase 4, marked done.",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -10,7 +10,7 @@
     "estimatedPRs": 44,
     "keptPRs": 27,
     "cutPRs": 19,
-    "donePRs": 81,
+    "donePRs": 82,
     "hardeningPRs": 6,
     "statusOptions": [
       "pending",
@@ -3529,6 +3529,37 @@
             "Low-scoring traces appear in annotation queue within 5 min",
             "Annotated traces can be promoted to dataset items with one action",
             "Regression detected: changing a tool description causes an offline eval score drop that is flagged"
+          ]
+        },
+        {
+          "pr": 67,
+          "title": "CRM saved views (manage_views tool + pill tabs + seeded defaults)",
+          "status": "done",
+          "simplified": true,
+          "decisions": [],
+          "note": "Out-of-plan addition. Reverses scope exclusions from PR 42a and PR 46 (both said 'no saved_views table'). Agent-only creation via manage_views tool, pill tab view picker on all 4 CRM list pages, server-side filtering, config-driven seeded defaults, realtime-synced. Requirements: docs/product/ideations/2026-04-05-crm-saved-views-requirements.md. Plan: docs/product/plans/2026-04-05-001-feat-crm-saved-views-plan.md.",
+          "tasklist": "docs/product/tasks/2026-04-05-crm-saved-views-tasklist.md",
+          "tasks": [
+            { "id": "PR67-1", "task": "Shared filter contract (view-filters.ts) with symbolic date resolution and entity-column whitelist validation", "done": true },
+            { "id": "PR67-2", "task": "Database migration: crm_views table with RLS (get_my_client_id), realtime publication, unique index", "done": true },
+            { "id": "PR67-3", "task": "Zod schema (crmViewSchema, crmViewEntityTypes) in schemas.ts", "done": true },
+            { "id": "PR67-4", "task": "manage_views agent tool with CRUD operations, filter/sort validation against entity whitelist", "done": true },
+            { "id": "PR67-5", "task": "System prompt guidance for manage_views", "done": true },
+            { "id": "PR67-6", "task": "useCrmViews hook with realtime invalidation", "done": true },
+            { "id": "PR67-7", "task": "Extend CRM data hooks (useCrmTasks, useDeals, useContacts, useCompanies) with viewFilters and viewSort params", "done": true },
+            { "id": "PR67-8", "task": "ViewPicker pill tab component", "done": true },
+            { "id": "PR67-9", "task": "Wire ViewPicker into all 4 CRM list pages with authoritative view state and URL persistence", "done": true },
+            { "id": "PR67-10", "task": "Bootstrap trigger: config-driven seed defaults on signup + backfill for existing clients", "done": true }
+          ],
+          "testCriteria": [
+            "User asks agent to create a view — pill tab appears on correct CRM page via realtime",
+            "Clicking a saved view pill filters the table server-side without full page reload",
+            "Active view is authoritative: local search/filter state cleared while view is selected",
+            "URL param ?savedView=<id> persists active view across navigation",
+            "Seeded defaults appear on new accounts (Overdue, Due this week, Done, Active pipeline, Buyers, Sellers)",
+            "Agent can list, update, and delete saved views",
+            "Invalid filter keys rejected by manage_views with clear error message",
+            "Pagination resets to page 1 when switching views"
           ]
         }
       ]

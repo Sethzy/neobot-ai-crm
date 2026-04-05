@@ -344,6 +344,36 @@ export const scenarios: QaScenario[] = [
     tokenBudget: 60_000,
   },
 
+  // ── 03: Saved Views (PR 67) ────────────────────────────────────────────
+  {
+    surface: "03-crm-tools",
+    scenario: "create-saved-view",
+    prompt:
+      "Create a saved view called 'Hot leads' for my deals that are in the leads stage",
+    expectedTools: ["manage_views"],
+    sequential: false,
+    notes:
+      "PR 67. Agent calls manage_views with operation: create, entity_type: deals, filters: { stage: 'leads' }.",
+  },
+  {
+    surface: "03-crm-tools",
+    scenario: "list-saved-views",
+    prompt: "What saved views do I have for tasks?",
+    expectedTools: ["manage_views"],
+    sequential: false,
+    notes:
+      "PR 67. Agent calls manage_views with operation: list, entity_type: tasks. Returns seeded defaults (Overdue, Due this week, Done).",
+  },
+  {
+    surface: "03-crm-tools",
+    scenario: "delete-saved-view",
+    prompt: "Delete the 'Hot leads' view",
+    expectedTools: ["manage_views"],
+    sequential: true,
+    notes:
+      "PR 67. Agent calls manage_views with operation: delete. Requires the create scenario to have run first.",
+  },
+
   // ── 06: File & Memory ──────────────────────────────────────────────────
   {
     surface: "06-file-memory",

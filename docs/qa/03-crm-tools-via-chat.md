@@ -1,9 +1,9 @@
 # QA Surface 3: CRM Tools via Chat
 
-> **PRs covered:** 5 (schema), 6 (CRM tools), 15c (configurability + custom fields), 15d (companies), 15e (read parity + introspection), 15f (configurable columns), CRM consolidation (28→8 tools), 48 (CRM config mode — time-limited activation from Settings)
+> **PRs covered:** 5 (schema), 6 (CRM tools), 15c (configurability + custom fields), 15d (companies), 15e (read parity + introspection), 15f (configurable columns), CRM consolidation (28→8 tools), 48 (CRM config mode — time-limited activation from Settings), 67 (saved views — manage_views tool)
 > **Dogfoodable:** Partial (via chat UI)
-> **Time estimate:** 30-40 min manual (lots of agent prompts)
-> **v2 tools:** `search_crm`, `create_record`, `update_record`, `delete_records`, `link_records`, `create_interaction`, `create_task`, `update_task`, `configure_crm`
+> **Time estimate:** 35-45 min manual (lots of agent prompts)
+> **v2 tools:** `search_crm`, `create_record`, `update_record`, `delete_records`, `link_records`, `create_interaction`, `create_task`, `update_task`, `configure_crm`, `manage_views`
 
 ---
 
@@ -176,8 +176,44 @@
 
 ---
 
+### 3.12 Create a saved view via manage_views (PR 67)
+
+1. "Create a view called 'Hot leads' for deals in the leads stage"
+2. **Expected:** Agent calls `manage_views` with operation: create, entity_type: deals, filters: { stage: "leads" }
+3. **Verify in Supabase:** `crm_views` row exists with correct client_id, entity_type, filters
+4. **Verify in UI:** Navigate to `/customers/deals` — "Hot leads" pill tab appears
+
+**Notes / failures:**
+
+---
+
+### 3.13 List and delete saved views (PR 67)
+
+1. "List my saved views for deals"
+2. **Expected:** Agent calls `manage_views` with operation: list, entity_type: deals — returns seeded + user-created views
+3. "Delete the Hot leads view"
+4. **Expected:** Agent calls `manage_views` with operation: delete, view_id: <uuid>
+5. **Verify in UI:** "Hot leads" pill disappears from `/customers/deals`
+
+**Notes / failures:**
+
+---
+
+### 3.14 manage_views rejects invalid filter keys (PR 67)
+
+1. "Create a view for contacts where hasEmail is true"
+2. **Expected:** `manage_views` returns error — `hasEmail` not in allowed filter keys for contacts
+3. Agent explains valid filter keys or rephrases using a valid filter
+
+**Notes / failures:**
+
+---
+
 ## Edge Cases
 
+- [ ] manage_views with symbolic date tokens ($today, $week_start) — creates view successfully, filters resolve at query time
+- [ ] manage_views update with invalid sort column — returns validation error
+- [ ] Create view with duplicate name on same entity — unique constraint error handled gracefully
 - [ ] Create contact with minimal info (just a name) — should succeed (first_name + last_name minimum)
 - [ ] Create deal with no price — should succeed (price is optional, address is required)
 - [ ] Search with no results — agent says "no results found" gracefully
@@ -197,5 +233,5 @@
 
 ## Pass / Fail Criteria
 
-- **Pass:** All CRUD operations work for contacts, deals, tasks, companies, and interactions via consolidated v2 tools. CRM configurability changes vocabulary and custom fields. Relationship reads via search_crm with entity: deal_contacts work. Schema info is available from system-reminder context.
-- **Fail:** Tool calls fail silently, data not persisted to DB, configurability doesn't propagate to tool schemas, relationship reads return wrong data.
+- **Pass:** All CRUD operations work for contacts, deals, tasks, companies, and interactions via consolidated v2 tools. CRM configurability changes vocabulary and custom fields. Relationship reads via search_crm with entity: deal_contacts work. Schema info is available from system-reminder context. manage_views creates/lists/updates/deletes saved views, validates filter keys against entity whitelist.
+- **Fail:** Tool calls fail silently, data not persisted to DB, configurability doesn't propagate to tool schemas, relationship reads return wrong data. manage_views accepts invalid filter keys that error at query time.
