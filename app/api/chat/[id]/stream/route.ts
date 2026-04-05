@@ -13,7 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 function getStreamContext() {
   try {
     return createResumableStreamContext({ waitUntil: after });
-  } catch (_) {
+  } catch {
     return null;
   }
 }
@@ -65,7 +65,7 @@ export async function GET(
     }
 
     return new Response(resumedStream, { headers: UI_MESSAGE_STREAM_HEADERS });
-  } catch (_) {
+  } catch {
     return new Response(null, { status: 204 });
   }
 }

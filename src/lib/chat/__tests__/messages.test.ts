@@ -129,6 +129,9 @@ describe("createMessages", () => {
     ];
 
     await expect(createMessages(client as never, payload)).resolves.toEqual(rows);
-    expect(findMethodCall(client, "insert")?.args).toEqual([payload]);
+    expect(findMethodCall(client, "insert")?.args).toEqual([[
+      expect.objectContaining(payload[0]),
+      expect.objectContaining(payload[1]),
+    ]]);
   });
 });

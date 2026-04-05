@@ -3,7 +3,7 @@
  * @module app/(dashboard)/customers/companies/__tests__/page
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,7 +11,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import CompaniesPage from "../page";
 
 const mockPush = vi.fn();
+const mockOpen = vi.fn();
 const mockMutateAsync = vi.fn();
+const mockCaptureTimelineActivity = vi.fn();
+const mockFrom = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -45,6 +48,36 @@ vi.mock("@/hooks/use-mobile", () => ({
   useIsMobile: vi.fn(() => false),
 }));
 
+vi.mock("@/hooks/use-client-id", () => ({
+  useClientId: () => ({ data: "client-1", isLoading: false }),
+}));
+
+vi.mock("@/hooks/use-record-drawer", () => ({
+  useRecordDrawer: () => ({
+    recordId: null,
+    open: mockOpen,
+  }),
+}));
+
+vi.mock("@/lib/crm/timeline-capture", () => ({
+  captureTimelineActivity: (...args: unknown[]) => mockCaptureTimelineActivity(...args),
+}));
+
+vi.mock("@/lib/supabase", () => ({
+  supabase: {
+    from: (...args: unknown[]) => mockFrom(...args),
+    channel: () => ({
+      on() {
+        return this;
+      },
+      subscribe() {
+        return { unsubscribe: vi.fn() };
+      },
+    }),
+    removeChannel: vi.fn(),
+  },
+}));
+
 function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -62,6 +95,7 @@ describe("CompaniesPage", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mockMutateAsync.mockResolvedValue(undefined);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
 
     const { useCrmConfig } = await import("@/hooks/use-crm-config");
     const { usePaginatedCompanies } = await import("@/hooks/use-companies");
@@ -152,5 +186,107 @@ describe("CompaniesPage", () => {
     await user.type(screen.getByRole("textbox", { name: /website/i }), "acme.example{Enter}");
 
     expect(mockMutateAsync).toHaveBeenCalledWith({ website: "https://acme.example" });
+  });
+
+  it("captures a created timeline activity when a company is created from the page", async () => {
+    const user = userEvent.setup();
+    const insertSingle = vi.fn().mockResolvedValue({
+      data: {
+        company_id: "company-2",
+        client_id: "client-1",
+        name: "New Company",
+        industry: null,
+        phone: null,
+        email: null,
+        website: null,
+        address: null,
+        custom_fields: {},
+        created_at: "2026-04-05T10:00:00+08:00",
+        updated_at: "2026-04-05T10:00:00+08:00",
+      },
+      error: null,
+    });
+    const insertSelect = vi.fn().mockReturnValue({ single: insertSingle });
+    const insert = vi.fn().mockReturnValue({ select: insertSelect });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "companies") {
+        return { insert };
+      }
+
+      return {};
+    });
+
+    render(<CompaniesPage />, { wrapper: createWrapper() });
+
+    await user.click(screen.getByRole("button", { name: /^new$/i }));
+
+    await waitFor(() => {
+      expect(mockCaptureTimelineActivity).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clientId: "client-1",
+          recordType: "company",
+          recordId: "company-2",
+          action: "created",
+          actorType: "user",
+          after: expect.objectContaining({
+            company_id: "company-2",
+          }),
+        }),
+      );
+    });
+    expect(mockOpen).toHaveBeenCalledWith("company-2");
+  });
+
+  it("captures a deleted timeline activity when a company is deleted from the page", async () => {
+    const user = userEvent.setup();
+    const selectSingle = vi.fn().mockResolvedValue({
+      data: {
+        company_id: "company-1",
+        client_id: "client-1",
+        name: "Acme Realty",
+        industry: "agency",
+        phone: "+6591234567",
+        email: "hello@acme.example",
+        website: "https://acme.example/",
+        address: "1 Maxwell Road",
+        custom_fields: {},
+        created_at: "2026-03-01T00:00:00+08:00",
+        updated_at: "2026-03-05T00:00:00+08:00",
+      },
+      error: null,
+    });
+    const selectEq = vi.fn().mockReturnValue({ single: selectSingle });
+    const select = vi.fn().mockReturnValue({ eq: selectEq });
+    const deleteEq = vi.fn().mockResolvedValue({ error: null });
+    const deleteBuilder = vi.fn().mockReturnValue({ eq: deleteEq });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "companies") {
+        return { select, delete: deleteBuilder };
+      }
+
+      return {};
+    });
+
+    render(<CompaniesPage />, { wrapper: createWrapper() });
+
+    await user.click(screen.getByRole("button", { name: "Open row actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(mockCaptureTimelineActivity).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clientId: "client-1",
+          recordType: "company",
+          recordId: "company-1",
+          action: "deleted",
+          actorType: "user",
+          before: expect.objectContaining({
+            company_id: "company-1",
+          }),
+        }),
+      );
+    });
   });
 });

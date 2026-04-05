@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { CRM_DEFAULTS, type CrmVocabConfig } from "@/lib/crm/config";
+import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 import type { Database } from "@/types/database";
 
 /** Supported relationship types. */
@@ -162,6 +163,13 @@ async function linkFk(
     return { success: false as const, error: `target_id (${fkColumn.replace("_id", "")}_id) is required to link.` };
   }
 
+  const { data: existingRecord, error: readError } = await supabase
+    .from(table)
+    .select("*")
+    .eq(pk, sourceId)
+    .eq("client_id", clientId)
+    .maybeSingle();
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from(table)
@@ -175,6 +183,19 @@ async function linkFk(
     return { success: false as const, error: error.message };
   }
 
+  if (!readError && existingRecord) {
+    void captureTimelineActivity({
+      supabase,
+      clientId,
+      recordType: table === "contacts" ? "contact" : "deal",
+      recordId: sourceId,
+      action: "updated",
+      actorType: "agent",
+      before: existingRecord as Record<string, unknown>,
+      after: data as Record<string, unknown>,
+    });
+  }
+
   return { success: true as const, link: data };
 }
 
@@ -186,6 +207,13 @@ async function unlinkFk(
   sourceId: string,
   fkColumn: string,
 ) {
+  const { data: existingRecord, error: readError } = await supabase
+    .from(table)
+    .select("*")
+    .eq(pk, sourceId)
+    .eq("client_id", clientId)
+    .maybeSingle();
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from(table)
@@ -197,6 +225,19 @@ async function unlinkFk(
 
   if (error) {
     return { success: false as const, error: error.message };
+  }
+
+  if (!readError && existingRecord) {
+    void captureTimelineActivity({
+      supabase,
+      clientId,
+      recordType: table === "contacts" ? "contact" : "deal",
+      recordId: sourceId,
+      action: "updated",
+      actorType: "agent",
+      before: existingRecord as Record<string, unknown>,
+      after: data as Record<string, unknown>,
+    });
   }
 
   return { success: true as const, removed: data };

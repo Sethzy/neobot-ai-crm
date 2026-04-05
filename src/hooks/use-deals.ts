@@ -77,7 +77,7 @@ async function fetchDeals(filters: DealFilters): Promise<DealWithContact[]> {
   if (filters.viewSort) {
     query = query.order(filters.viewSort.column, { ascending: filters.viewSort.ascending });
   } else {
-    query = query.order("created_at", { ascending: false });
+    query = query.order("updated_at", { ascending: false });
   }
 
   query = applyDealFilters(query, filters);
@@ -113,7 +113,7 @@ async function fetchPaginatedDeals({
   if (viewSort) {
     query = query.order(viewSort.column, { ascending: viewSort.ascending });
   } else {
-    query = query.order("created_at", { ascending: false });
+    query = query.order("updated_at", { ascending: false });
   }
 
   query = applyDealFilters(query, { search, stage, createdAt, viewFilters, viewSort });
@@ -277,33 +277,39 @@ export function useDeal(dealId: string) {
   return useQuery({
     ...dealDetailQueryOptions(dealId),
     enabled: Boolean(dealId),
-    placeholderData: keepPreviousData,
   });
 }
 
 export { fetchDeals, fetchDeal, fetchPaginatedDeals };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function applyDealFilters<TQuery extends Record<string, (...args: any[]) => TQuery>>(
+function applyDealFilters<TQuery>(
   query: TQuery,
   filters: DealFilters,
 ): TQuery {
-  let nextQuery = query;
+  const queryBuilder = query as {
+    eq: (column: string, value: unknown) => unknown;
+    gte: (column: string, value: unknown) => unknown;
+    lte: (column: string, value: unknown) => unknown;
+    or: (filters: string) => unknown;
+  };
+  let nextQuery: unknown = queryBuilder;
 
   if (filters.search?.trim()) {
-    nextQuery = nextQuery.ilike("address", `%${filters.search}%`);
+    nextQuery = (nextQuery as typeof queryBuilder).or(
+      buildSearchExpression(filters.search, ["address"]),
+    );
   }
 
   if (filters.stage) {
-    nextQuery = nextQuery.eq("stage", filters.stage);
+    nextQuery = (nextQuery as typeof queryBuilder).eq("stage", filters.stage);
   }
 
   if (filters.createdAt?.from) {
-    nextQuery = nextQuery.gte("created_at", filters.createdAt.from);
+    nextQuery = (nextQuery as typeof queryBuilder).gte("created_at", filters.createdAt.from);
   }
 
   if (filters.createdAt?.to) {
-    nextQuery = nextQuery.lte("created_at", filters.createdAt.to);
+    nextQuery = (nextQuery as typeof queryBuilder).lte("created_at", filters.createdAt.to);
   }
 
   if (filters.viewFilters && Object.keys(filters.viewFilters).length > 0) {
@@ -311,5 +317,5 @@ function applyDealFilters<TQuery extends Record<string, (...args: any[]) => TQue
     nextQuery = applyViewFilters(nextQuery, resolved);
   }
 
-  return nextQuery;
+  return nextQuery as TQuery;
 }

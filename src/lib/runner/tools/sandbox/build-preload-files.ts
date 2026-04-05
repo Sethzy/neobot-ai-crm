@@ -29,7 +29,7 @@ async function listAll(bucket: StorageBucket, prefix: string) {
   const allEntries: { name: string; id: string | null }[] = [];
   let offset = 0;
 
-  // eslint-disable-next-line no-constant-condition
+   
   while (true) {
     const { data: page } = await bucket.list(prefix, { limit: STORAGE_PAGE_SIZE, offset });
     if (!page || page.length === 0) break;

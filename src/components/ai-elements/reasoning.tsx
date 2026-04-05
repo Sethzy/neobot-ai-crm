@@ -88,13 +88,8 @@ export const Reasoning = memo(
       if (duration !== undefined) {
         return duration;
       }
-
-      if (!isStreaming && startTimeRef.current !== null) {
-        return Math.ceil((Date.now() - startTimeRef.current) / MS_IN_S);
-      }
-
       return undefined;
-    }, [duration, durationProp, isStreaming]);
+    }, [duration, durationProp]);
 
     // Track when streaming starts and compute duration
     useEffect(() => {

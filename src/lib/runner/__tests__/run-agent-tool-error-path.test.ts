@@ -253,6 +253,8 @@ describe("runAgent tool-error completion path", () => {
       tokensOut: 7,
       promptTokens: 42,
       stepCount: 1,
+      costUsd: 0.000042,
+      cacheReadTokens: undefined,
     });
     expect(mockDrainAndContinue).toHaveBeenCalledWith("mock-supabase-client", {
       clientId: validPayload.clientId,

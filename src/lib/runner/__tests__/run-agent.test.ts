@@ -410,6 +410,7 @@ describe("runAgent", () => {
       validPayload.clientId,
       validPayload.threadId,
       {
+        crmConfig: expect.objectContaining({ deal_label: "Policy" }),
         isSubagent: false,
         includeSendMessage: true,
       },

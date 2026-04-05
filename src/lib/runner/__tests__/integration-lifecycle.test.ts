@@ -9,8 +9,6 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Json } from "@/types/database";
-
 // ---------------------------------------------------------------------------
 // 1) Stateful in-memory Supabase mock
 // ---------------------------------------------------------------------------
@@ -44,14 +42,14 @@ function createStatefulSupabase(seed?: Partial<InMemoryTables>) {
   };
 
   /** Build a chainable query builder for a specific table. */
-  function buildChain(tableName: keyof InMemoryTables) {
-    let op: "select" | "insert" | "update" | "delete" = "select";
-    let insertPayload: InMemoryRow[] = [];
-    let updatePayload: InMemoryRow = {};
-    let filters: Array<{ column: string; op: string; value: unknown }> = [];
-    let selectColumns = "*";
-    let orderBy: Array<{ column: string; ascending: boolean }> = [];
-    let limitN: number | null = null;
+    function buildChain(tableName: keyof InMemoryTables) {
+      let op: "select" | "insert" | "update" | "delete" = "select";
+      let insertPayload: InMemoryRow[] = [];
+      let updatePayload: InMemoryRow = {};
+      const filters: Array<{ column: string; op: string; value: unknown }> = [];
+      let selectColumns = "*";
+      const orderBy: Array<{ column: string; ascending: boolean }> = [];
+      let limitN: number | null = null;
 
     function applyFilters(rows: InMemoryRow[]): InMemoryRow[] {
       let result = rows;
@@ -126,6 +124,7 @@ function createStatefulSupabase(seed?: Partial<InMemoryTables>) {
     };
 
     async function resolveQuery() {
+      void selectColumns;
       const table = tables[tableName];
 
       if (op === "insert") {
@@ -160,7 +159,6 @@ function createStatefulSupabase(seed?: Partial<InMemoryTables>) {
       }
 
       if (op === "delete") {
-        const before = table.length;
         const keep: InMemoryRow[] = [];
         const removed: InMemoryRow[] = [];
         for (const row of table) {

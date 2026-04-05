@@ -8,6 +8,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import TasksPage from "../page";
 
+const mockInvalidateQueries = vi.fn();
+const mockOpen = vi.fn();
+const mockCaptureTimelineActivity = vi.fn();
+const mockFrom = vi.fn();
+const mockUseMutation = vi.fn();
+const mockPush = vi.fn();
+const mockReplace = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: mockPush,
+    replace: mockReplace,
+  }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 vi.mock("@/hooks/use-crm-tasks", () => ({
   useCrmTasks: vi.fn(),
   crmTaskKeys: { all: ["crm-tasks"] },
@@ -17,13 +33,24 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@tanstack/react-query")>();
   return {
     ...actual,
-    useQueryClient: () => ({ invalidateQueries: vi.fn() }),
-    useMutation: () => ({ mutateAsync: vi.fn() }),
+    useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
+    useMutation: (...args: unknown[]) => mockUseMutation(...args),
   };
 });
 
 vi.mock("@/lib/supabase", () => ({
-  supabase: { from: vi.fn() },
+  supabase: {
+    from: (...args: unknown[]) => mockFrom(...args),
+    channel: () => ({
+      on() {
+        return this;
+      },
+      subscribe() {
+        return { unsubscribe: vi.fn() };
+      },
+    }),
+    removeChannel: vi.fn(),
+  },
 }));
 
 vi.mock("@/components/crm/crm-tasks-table", () => ({
@@ -34,7 +61,7 @@ vi.mock("@/hooks/use-record-drawer", () => ({
   useRecordDrawer: () => ({
     isOpen: false,
     recordId: null,
-    open: vi.fn(),
+    open: mockOpen,
     close: vi.fn(),
   }),
 }));
@@ -51,9 +78,32 @@ vi.mock("@/hooks/use-update-crm-task", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-crm-views", () => ({
+  useCrmViews: () => ({
+    data: [],
+  }),
+}));
+
+vi.mock("@/lib/crm/timeline-capture", () => ({
+  captureTimelineActivity: (...args: unknown[]) => mockCaptureTimelineActivity(...args),
+}));
+
 describe("TasksPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseMutation.mockImplementation((options: {
+      mutationFn: (variables?: unknown) => Promise<unknown>;
+      onSuccess?: (data: unknown) => Promise<void> | void;
+      onError?: (error: unknown) => void;
+    }) => ({
+      mutate: (variables?: unknown) => {
+        void options.mutationFn(variables)
+          .then((data) => options.onSuccess?.(data))
+          .catch((error) => options.onError?.(error));
+      },
+      mutateAsync: vi.fn(),
+      isPending: false,
+    }));
   });
 
   it("shows error state and retries when tasks query fails", async () => {
@@ -103,5 +153,60 @@ describe("TasksPage", () => {
     await user.type(screen.getByPlaceholderText(/search tasks/i), "  follow up  ");
 
     expect(vi.mocked(useCrmTasks)).toHaveBeenLastCalledWith({ search: "follow up" });
+  });
+
+  it("captures a created timeline activity when a task is created from the page", async () => {
+    const { useCrmTasks } = await import("@/hooks/use-crm-tasks");
+    vi.mocked(useCrmTasks).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    } as never);
+
+    const insertSingle = vi.fn().mockResolvedValue({
+      data: {
+        task_id: "task-2",
+        client_id: "client-1",
+        title: "New Task",
+        status: "todo",
+        description: null,
+        due_date: null,
+        contact_id: null,
+        deal_id: null,
+        custom_fields: {},
+        created_at: "2026-04-05T10:00:00+08:00",
+        updated_at: "2026-04-05T10:00:00+08:00",
+      },
+      error: null,
+    });
+    const insertSelect = vi.fn().mockReturnValue({ single: insertSingle });
+    const insert = vi.fn().mockReturnValue({ select: insertSelect });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "crm_tasks") {
+        return { insert };
+      }
+
+      return {};
+    });
+
+    const user = userEvent.setup();
+    render(<TasksPage />);
+
+    await user.click(screen.getByRole("button", { name: /^new$/i }));
+
+    expect(mockCaptureTimelineActivity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: "client-1",
+        recordType: "task",
+        recordId: "task-2",
+        action: "created",
+        actorType: "user",
+        after: expect.objectContaining({
+          task_id: "task-2",
+        }),
+      }),
+    );
+    expect(mockOpen).toHaveBeenCalledWith("task-2");
   });
 });

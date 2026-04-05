@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { companyKeys } from "@/hooks/use-companies";
 import { useUpdateCompany } from "@/hooks/use-update-company";
 
+const mockCaptureTimelineActivity = vi.fn();
 const mockFrom = vi.fn();
 const mockSelect = vi.fn();
 const mockSelectEq = vi.fn();
@@ -21,6 +22,10 @@ vi.mock("@/lib/supabase", () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
   },
+}));
+
+vi.mock("@/lib/crm/timeline-capture", () => ({
+  captureTimelineActivity: (...args: unknown[]) => mockCaptureTimelineActivity(...args),
 }));
 
 function createWrapper(queryClient: QueryClient) {
@@ -47,6 +52,17 @@ describe("useUpdateCompany", () => {
       },
     });
     const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
+    queryClient.setQueryData(companyKeys.detail("company-1"), {
+      company_id: "company-1",
+      client_id: "client-1",
+      name: "PropNex",
+      industry: "property_agency",
+      website: null,
+      phone: null,
+      email: null,
+      address: null,
+      custom_fields: {},
+    });
 
     const { result } = renderHook(() => useUpdateCompany("company-1"), {
       wrapper: createWrapper(queryClient),
@@ -57,6 +73,23 @@ describe("useUpdateCompany", () => {
     expect(mockFrom).toHaveBeenCalledWith("companies");
     expect(mockUpdate).toHaveBeenCalledWith({ phone: "+6591112222" });
     expect(mockEq).toHaveBeenCalledWith("company_id", "company-1");
+    expect(mockCaptureTimelineActivity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: expect.any(String),
+        recordType: "company",
+        recordId: "company-1",
+        action: "updated",
+        actorType: "user",
+        before: expect.objectContaining({
+          company_id: "company-1",
+          phone: null,
+        }),
+        after: expect.objectContaining({
+          company_id: "company-1",
+          phone: "+6591112222",
+        }),
+      }),
+    );
     expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: companyKeys.all });
   });
 
@@ -75,6 +108,17 @@ describe("useUpdateCompany", () => {
         queries: { retry: false },
         mutations: { retry: false },
       },
+    });
+    queryClient.setQueryData(companyKeys.detail("company-1"), {
+      company_id: "company-1",
+      client_id: "client-1",
+      name: "PropNex",
+      industry: "property_agency",
+      website: null,
+      phone: null,
+      email: null,
+      address: null,
+      custom_fields: { tier: "a", hq: "Singapore" },
     });
 
     const { result } = renderHook(() => useUpdateCompany("company-1"), {

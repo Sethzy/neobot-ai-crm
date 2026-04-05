@@ -2,7 +2,7 @@
  * Tests company drawer content rendering states.
  * @module components/crm/record-drawer/__tests__/company-drawer-content
  */
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CRM_DEFAULTS } from "@/lib/crm/config";
@@ -60,6 +60,14 @@ vi.mock("@/components/crm/inline-edit-field", () => ({
   InlineEditField: (props: { label: string; value: string | null; type?: string }) => inlineFieldSpy(props),
 }));
 
+vi.mock("@/components/crm/timeline/unified-timeline", () => ({
+  UnifiedTimeline: () => <div>Unified Timeline</div>,
+}));
+
+vi.mock("../drawer-files-tab", () => ({
+  DrawerFilesTab: () => <div>Files Tab</div>,
+}));
+
 describe("CompanyDrawerContent", () => {
   beforeEach(() => {
     inlineFieldSpy.mockClear();
@@ -93,8 +101,18 @@ describe("CompanyDrawerContent", () => {
     expect(screen.getByText("Home")).toBeInTheDocument();
     expect(screen.getByText("Contacts")).toBeInTheDocument();
     expect(screen.getByText("Deals")).toBeInTheDocument();
+    expect(screen.getByText("Timeline")).toBeInTheDocument();
     expect(screen.getByText("Notes")).toBeInTheDocument();
+    expect(screen.getByText("Files")).toBeInTheDocument();
     expect(screen.getByText("Fields")).toBeInTheDocument();
+  });
+
+  it("renders the unified timeline on the timeline tab", () => {
+    render(<CompanyDrawerContent companyId="co-1" />);
+
+    fireEvent.click(screen.getByRole("tab", { name: /timeline/i }));
+
+    expect(screen.getByText("Unified Timeline")).toBeInTheDocument();
   });
 
   it("renders configured company custom fields", () => {

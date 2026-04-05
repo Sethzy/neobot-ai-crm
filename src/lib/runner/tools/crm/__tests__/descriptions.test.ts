@@ -6,7 +6,6 @@ import { describe, expect, it } from "vitest";
 
 import { createCreateRecordTool } from "../create-record";
 import { createUpdateRecordTool } from "../update-record";
-import { createDeleteRecordsTool } from "../delete-records";
 import { createLinkRecordsTool } from "../link-records";
 import { createInteractionTools } from "../interactions";
 import { createTaskTools } from "../tasks";

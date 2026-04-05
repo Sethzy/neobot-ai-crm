@@ -33,6 +33,7 @@ import {
   taskStatusToneClassMap,
 } from "@/lib/crm/display";
 import { crmTaskStatusValues } from "@/lib/crm/schemas";
+import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 import { supabase } from "@/lib/supabase";
 
 /** Static kanban column definitions for task statuses (all inputs are module-level constants). */
@@ -62,14 +63,24 @@ export default function TasksPage() {
       const { data, error } = await supabase
         .from("crm_tasks")
         .insert({ client_id: clientId, title: "New Task", status: "todo" })
-        .select("task_id")
+        .select("*")
         .single();
       if (error) throw error;
-      return data.task_id;
+      return data;
     },
-    onSuccess: async (taskId: string) => {
+    onSuccess: async (createdTask) => {
+      void captureTimelineActivity({
+        supabase,
+        clientId: createdTask.client_id,
+        recordType: "task",
+        recordId: createdTask.task_id,
+        action: "created",
+        actorType: "user",
+        after: createdTask,
+      });
+
       await queryClient.invalidateQueries({ queryKey: crmTaskKeys.all });
-      open(taskId);
+      open(createdTask.task_id);
     },
     onError: () => {
       toast.error("Unable to create task.");

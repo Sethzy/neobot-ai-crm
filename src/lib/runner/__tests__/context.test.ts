@@ -9,7 +9,6 @@ import {
   MARKET_DATA_PROMPT,
   PROPERTY_LISTING_PROMPT,
   SETUP_SYSTEM_PROMPT,
-  SYSTEM_PROMPT,
 } from "@/lib/ai/system-prompt";
 import { createMockSupabaseClient } from "@/test/mocks/supabase";
 

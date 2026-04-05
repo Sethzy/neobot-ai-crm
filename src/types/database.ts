@@ -6,6 +6,8 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+export type JsonObject = { [key: string]: Json | undefined }
+
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -1143,6 +1145,56 @@ export type Database = {
           },
         ]
       }
+      record_attachments: {
+        Row: {
+          attachment_id: string
+          client_id: string
+          content_type: string
+          created_at: string
+          file_category: string
+          file_size: number
+          filename: string
+          record_id: string
+          record_type: string
+          storage_path: string
+          updated_at: string
+        }
+        Insert: {
+          attachment_id?: string
+          client_id: string
+          content_type: string
+          created_at?: string
+          file_category: string
+          file_size: number
+          filename: string
+          record_id: string
+          record_type: string
+          storage_path: string
+          updated_at?: string
+        }
+        Update: {
+          attachment_id?: string
+          client_id?: string
+          content_type?: string
+          created_at?: string
+          file_category?: string
+          file_size?: number
+          filename?: string
+          record_id?: string
+          record_type?: string
+          storage_path?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "record_attachments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
       record_notes: {
         Row: {
           body: string
@@ -1174,6 +1226,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "record_notes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
+      timeline_activities: {
+        Row: {
+          actor_label: string | null
+          actor_type: string
+          client_id: string
+          created_at: string
+          happened_at: string
+          id: string
+          name: string
+          properties: Json | null
+          record_id: string
+          record_type: string
+          updated_at: string
+        }
+        Insert: {
+          actor_label?: string | null
+          actor_type?: string
+          client_id: string
+          created_at?: string
+          happened_at?: string
+          id?: string
+          name: string
+          properties?: Json | null
+          record_id: string
+          record_type: string
+          updated_at?: string
+        }
+        Update: {
+          actor_label?: string | null
+          actor_type?: string
+          client_id?: string
+          created_at?: string
+          happened_at?: string
+          id?: string
+          name?: string
+          properties?: Json | null
+          record_id?: string
+          record_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timeline_activities_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
@@ -1547,6 +1649,19 @@ export type Database = {
           title: string
           type: string
         }[]
+      }
+      upsert_timeline_activity: {
+        Args: {
+          p_actor_label: string
+          p_actor_type: string
+          p_client_id: string
+          p_happened_at?: string
+          p_name: string
+          p_properties: Json
+          p_record_id: string
+          p_record_type: string
+        }
+        Returns: string
       }
     }
     Enums: {

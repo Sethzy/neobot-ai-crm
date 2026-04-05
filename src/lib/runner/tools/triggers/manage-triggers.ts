@@ -45,7 +45,8 @@ function formatTriggerArguments(trigger: Pick<TriggerRow, "cron_expression" | "p
 }
 
 function formatTriggerForResponse(trigger: TriggerRow) {
-  const { webhook_secret: _secret, ...rest } = trigger;
+  const { webhook_secret: webhookSecret, ...rest } = trigger;
+  void webhookSecret;
   return {
     ...rest,
     instruction_path: toModelPath(trigger.instruction_path),

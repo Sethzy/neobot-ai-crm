@@ -9,8 +9,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { applyCommittedRecordPatch } from "@/hooks/crm-cache-updates";
 import { mergeCustomFieldPatch } from "@/hooks/crm-custom-fields";
 import { contactKeys, type ContactWithCompany } from "@/hooks/use-contacts";
+import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 import { type Contact } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
+import type { Database } from "@/types/database";
 
 type ContactUpdate = Partial<
   Pick<
@@ -18,6 +20,11 @@ type ContactUpdate = Partial<
     "first_name" | "last_name" | "phone" | "email" | "type" | "company_id" | "custom_fields"
   >
 >;
+type ContactRow = Database["public"]["Tables"]["contacts"]["Row"];
+interface UpdateContactResult {
+  beforeSnapshot: ContactRow;
+  savedUpdates: ContactUpdate;
+}
 
 /**
  * Returns a mutation for updating one contact row.
@@ -25,8 +32,23 @@ type ContactUpdate = Partial<
 export function useUpdateContact(contactId: string) {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<UpdateContactResult, Error, ContactUpdate>({
     mutationFn: async (updates: ContactUpdate) => {
+      const cachedSnapshot = queryClient.getQueryData(contactKeys.detail(contactId)) as ContactRow | undefined;
+      const beforeSnapshot: ContactRow = cachedSnapshot
+        ?? await supabase
+          .from("contacts")
+          .select("*")
+          .eq("contact_id", contactId)
+          .single()
+          .then(({ data, error }) => {
+            if (error) {
+              throw error;
+            }
+
+            return data;
+          });
+
       const mergedUpdates = await mergeCustomFieldPatch({
         table: "contacts",
         idColumn: "contact_id",
@@ -43,9 +65,12 @@ export function useUpdateContact(contactId: string) {
         throw error;
       }
 
-      return mergedUpdates;
+      return {
+        beforeSnapshot,
+        savedUpdates: mergedUpdates,
+      };
     },
-    onSuccess: (savedUpdates) => {
+    onSuccess: ({ beforeSnapshot, savedUpdates }) => {
       applyCommittedRecordPatch<ContactWithCompany>({
         queryClient,
         detailKey: contactKeys.detail(contactId),
@@ -54,6 +79,23 @@ export function useUpdateContact(contactId: string) {
         recordId: contactId,
         updates: savedUpdates,
       });
+
+      const afterSnapshot = {
+        ...beforeSnapshot,
+        ...savedUpdates,
+      };
+
+      void captureTimelineActivity({
+        supabase,
+        clientId: beforeSnapshot.client_id,
+        recordType: "contact",
+        recordId: contactId,
+        action: "updated",
+        actorType: "user",
+        before: beforeSnapshot,
+        after: afterSnapshot,
+      });
+
       void queryClient.invalidateQueries({ queryKey: contactKeys.all });
     },
   });

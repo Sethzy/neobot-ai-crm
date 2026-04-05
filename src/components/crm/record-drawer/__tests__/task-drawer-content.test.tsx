@@ -2,7 +2,7 @@
  * Tests CRM task drawer content rendering states.
  * @module components/crm/record-drawer/__tests__/task-drawer-content
  */
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TaskDrawerContent } from "../task-drawer-content";
@@ -66,6 +66,10 @@ vi.mock("@/components/crm/inline-edit-field", () => ({
   InlineEditField: (props: { label: string; value: string | null; type?: string }) => inlineFieldSpy(props),
 }));
 
+vi.mock("@/components/crm/timeline/unified-timeline", () => ({
+  UnifiedTimeline: () => <div>Unified Timeline</div>,
+}));
+
 describe("TaskDrawerContent", () => {
   beforeEach(() => {
     inlineFieldSpy.mockClear();
@@ -85,6 +89,8 @@ describe("TaskDrawerContent", () => {
 
     expect(screen.getByText("Follow up with Sarah")).toBeInTheDocument();
     expect(screen.getByText("To do")).toBeInTheDocument();
+    expect(screen.getByText("Home")).toBeInTheDocument();
+    expect(screen.getByText("Timeline")).toBeInTheDocument();
   });
 
   it("renders linked contact and deal", () => {
@@ -104,5 +110,13 @@ describe("TaskDrawerContent", () => {
       value: "Call after 6pm",
       type: "text",
     });
+  });
+
+  it("renders the unified timeline on the timeline tab", () => {
+    render(<TaskDrawerContent taskId="t-1" />);
+
+    fireEvent.click(screen.getByRole("tab", { name: /timeline/i }));
+
+    expect(screen.getByText("Unified Timeline")).toBeInTheDocument();
   });
 });

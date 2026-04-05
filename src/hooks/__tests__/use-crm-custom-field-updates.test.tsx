@@ -20,15 +20,27 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 vi.mock("@/hooks/use-contacts", () => ({
-  contactKeys: { all: ["contacts"] },
+  contactKeys: {
+    all: ["contacts"],
+    lists: () => ["contacts", "list"],
+    detail: (contactId: string) => ["contacts", "detail", contactId],
+  },
 }));
 
 vi.mock("@/hooks/use-deals", () => ({
-  dealKeys: { all: ["deals"] },
+  dealKeys: {
+    all: ["deals"],
+    lists: () => ["deals", "list"],
+    detail: (dealId: string) => ["deals", "detail", dealId],
+  },
 }));
 
 vi.mock("@/hooks/use-crm-tasks", () => ({
-  crmTaskKeys: { all: ["crm-tasks"] },
+  crmTaskKeys: {
+    all: ["crm-tasks"],
+    lists: () => ["crm-tasks", "list"],
+    detail: (taskId: string) => ["crm-tasks", "detail", taskId],
+  },
 }));
 
 function createWrapper() {
@@ -68,10 +80,17 @@ describe("CRM custom-field update hooks", () => {
   });
 
   it("merges contact custom_fields patches before updating", async () => {
-    const selectBuilder = createSelectBuilder({ custom_fields: { source: "referral" } });
+    const snapshotBuilder = createSelectBuilder({
+      client_id: "client-1",
+      custom_fields: { source: "referral" },
+    });
+    const customFieldsBuilder = createSelectBuilder({
+      custom_fields: { source: "referral" },
+    });
     const updateBuilder = createUpdateBuilder();
     mockFrom
-      .mockReturnValueOnce(selectBuilder)
+      .mockReturnValueOnce(snapshotBuilder)
+      .mockReturnValueOnce(customFieldsBuilder)
       .mockReturnValueOnce(updateBuilder);
 
     const { result } = renderHook(() => useUpdateContact("contact-1"), {
@@ -88,10 +107,17 @@ describe("CRM custom-field update hooks", () => {
   });
 
   it("merges deal custom_fields patches before updating", async () => {
-    const selectBuilder = createSelectBuilder({ custom_fields: { policy_number: "P-123" } });
+    const snapshotBuilder = createSelectBuilder({
+      client_id: "client-1",
+      custom_fields: { policy_number: "P-123" },
+    });
+    const customFieldsBuilder = createSelectBuilder({
+      custom_fields: { policy_number: "P-123" },
+    });
     const updateBuilder = createUpdateBuilder();
     mockFrom
-      .mockReturnValueOnce(selectBuilder)
+      .mockReturnValueOnce(snapshotBuilder)
+      .mockReturnValueOnce(customFieldsBuilder)
       .mockReturnValueOnce(updateBuilder);
 
     const { result } = renderHook(() => useUpdateDeal("deal-1"), {
@@ -108,10 +134,17 @@ describe("CRM custom-field update hooks", () => {
   });
 
   it("merges task custom_fields patches before updating", async () => {
-    const selectBuilder = createSelectBuilder({ custom_fields: { owner: "Sarah" } });
+    const snapshotBuilder = createSelectBuilder({
+      client_id: "client-1",
+      custom_fields: { owner: "Sarah" },
+    });
+    const customFieldsBuilder = createSelectBuilder({
+      custom_fields: { owner: "Sarah" },
+    });
     const updateBuilder = createUpdateBuilder();
     mockFrom
-      .mockReturnValueOnce(selectBuilder)
+      .mockReturnValueOnce(snapshotBuilder)
+      .mockReturnValueOnce(customFieldsBuilder)
       .mockReturnValueOnce(updateBuilder);
 
     const { result } = renderHook(() => useUpdateCrmTask("task-1"), {

@@ -2,7 +2,7 @@
  * Tests for the unified create_record tool.
  * @module lib/runner/tools/crm/__tests__/create-record.test
  */
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createCreateRecordTool } from "../create-record";
 import { createMockSupabase } from "./mock-supabase";
@@ -15,7 +15,16 @@ vi.mock("@/lib/analytics/posthog-server", () => ({
   captureServerEvents: vi.fn(),
 }));
 
+const mockCaptureTimelineActivity = vi.fn();
+vi.mock("@/lib/crm/timeline-capture", () => ({
+  captureTimelineActivity: (...args: unknown[]) => mockCaptureTimelineActivity(...args),
+}));
+
 describe("create_record", () => {
+  beforeEach(() => {
+    mockCaptureTimelineActivity.mockReset();
+  });
+
   // ---------------------------------------------------------------------------
   // Contacts
   // ---------------------------------------------------------------------------
@@ -38,6 +47,16 @@ describe("create_record", () => {
       );
 
       expect(result).toEqual({ success: true, record: inserted });
+      expect(mockCaptureTimelineActivity).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clientId: CLIENT_ID,
+          recordType: "contact",
+          recordId: "c1",
+          action: "created",
+          actorType: "agent",
+          after: inserted,
+        }),
+      );
     });
 
     it("returns possible_duplicates when dedup finds match", async () => {

@@ -14,15 +14,19 @@ type TypeBreakdownChartProps = {
 };
 
 export function TypeBreakdownChart({ title, data }: TypeBreakdownChartProps) {
-  if (data.length === 0) return null;
-
   const { topEntry, total } = useMemo(() => {
+    if (data.length === 0) {
+      return { topEntry: null, total: 0 };
+    }
+
     const sorted = [...data].sort((a, b) => b.count - a.count);
     return {
       topEntry: sorted[0],
       total: data.reduce((sum, d) => sum + d.count, 0),
     };
   }, [data]);
+
+  if (!topEntry) return null;
 
   const pct = total > 0 ? Math.round((topEntry.count / total) * 100) : 0;
 

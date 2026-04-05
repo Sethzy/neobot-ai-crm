@@ -258,13 +258,18 @@ export function WhatsAppPhoneMockup({ isVisible = false }: WhatsAppPhoneMockupPr
     if (!shouldAnimate) {
       hasStartedRef.current = false
       clearAllTimers()
-      // Keep a stable static frame when paused so UI never appears "stuck" mid-typing.
-      setVisibleCount(1)
-      setStreamingText('')
-      setIsStreaming(false)
-      setShowTyping(false)
-      setIsFading(false)
-      return
+      const resetId = window.setTimeout(() => {
+        // Keep a stable static frame when paused so UI never appears "stuck" mid-typing.
+        setVisibleCount(1)
+        setStreamingText('')
+        setIsStreaming(false)
+        setShowTyping(false)
+        setIsFading(false)
+      }, 0)
+
+      return () => {
+        window.clearTimeout(resetId)
+      }
     }
 
     hasStartedRef.current = true

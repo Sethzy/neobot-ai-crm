@@ -7,7 +7,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/types/database";
 
 type ApprovalSupabaseClient = SupabaseClient<Database>;
-type ApprovalEventRow = Database["public"]["Tables"]["approval_events"]["Row"];
 
 /** Mirrors the CHECK constraint in the approval_events migration. */
 type ApprovalEventStatus = "pending" | "approved" | "denied" | "expired";

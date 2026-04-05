@@ -19,7 +19,7 @@ describe("buildContainsIlikeLiteral", () => {
   });
 
   it("preserves commas and quotes safely via JSON quoting", () => {
-    expect(buildContainsIlikeLiteral('john, "vip"')).toBe('"%john, \\\"vip\\\"%"');
+    expect(buildContainsIlikeLiteral('john, "vip"')).toBe('"%john, \\"vip\\"%"');
   });
 });
 

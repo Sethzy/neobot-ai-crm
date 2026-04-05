@@ -54,6 +54,9 @@ vi.mock("@vercel/sandbox", () => ({
 // Mock bash-tool
 vi.mock("bash-tool", () => ({
   createBashTool: vi.fn(async ({ sandbox }: { sandbox: unknown }) => ({
+    sandbox: {
+      executeCommand: vi.fn(async () => ({ stdout: "hello", stderr: "", exitCode: 0 })),
+    },
     bash: {
       execute: vi.fn(async () => ({ stdout: "hello", stderr: "", exitCode: 0 })),
     },
@@ -62,7 +65,7 @@ vi.mock("bash-tool", () => ({
         execute: vi.fn(async () => ({ stdout: "hello", stderr: "", exitCode: 0 })),
       },
     },
-    sandbox,
+    originalSandbox: sandbox,
   })),
 }));
 
@@ -268,7 +271,7 @@ describe("createLazyBashTool", () => {
       snapshotId: "snap_test",
       getPreloadFiles: async () => [],
       getContextEntries: () => [],
-      fileClient: {} as any,
+      fileClient: {} as Record<string, never>,
       runId: "run-1",
     });
 

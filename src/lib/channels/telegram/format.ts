@@ -64,10 +64,10 @@ export function markdownToTelegramHtml(text: string): string {
     "<blockquote expandable>$1</blockquote>",
   );
 
-  result = result.replace(/\x00CB(\d+)\x00/g, (_, index) => codeBlocks[Number(index)]);
-  result = result.replace(/\x00IC(\d+)\x00/g, (_, index) => inlineCodes[Number(index)]);
-  result = result.replace(/\x00LK(\d+)\x00/g, (_, index) => links[Number(index)]);
-  result = result.replace(/\x00HT(\d+)\x00/g, (_, index) => htmlTags[Number(index)]);
+  result = result.replace(CODE_BLOCK_TOKEN_PATTERN, (_, index) => codeBlocks[Number(index)]);
+  result = result.replace(INLINE_CODE_TOKEN_PATTERN, (_, index) => inlineCodes[Number(index)]);
+  result = result.replace(LINK_TOKEN_PATTERN, (_, index) => links[Number(index)]);
+  result = result.replace(HTML_TAG_TOKEN_PATTERN, (_, index) => htmlTags[Number(index)]);
 
   return result;
 }
@@ -124,3 +124,7 @@ export function sanitizeTelegramHtml(html: string): string {
     },
   ) + stack.reverse().map((tag) => `</${tag}>`).join("");
 }
+const CODE_BLOCK_TOKEN_PATTERN = new RegExp(String.raw`\u0000CB(\d+)\u0000`, "g");
+const INLINE_CODE_TOKEN_PATTERN = new RegExp(String.raw`\u0000IC(\d+)\u0000`, "g");
+const LINK_TOKEN_PATTERN = new RegExp(String.raw`\u0000LK(\d+)\u0000`, "g");
+const HTML_TAG_TOKEN_PATTERN = new RegExp(String.raw`\u0000HT(\d+)\u0000`, "g");

@@ -112,7 +112,7 @@ describe("useDeals", () => {
     expect(builder.order).toHaveBeenCalledWith("updated_at", { ascending: false });
   });
 
-  it("applies escaped search filter across address and notes", async () => {
+  it("applies escaped search filter across address", async () => {
     const builder = createThenableBuilder([]);
     mockFrom.mockReturnValue(builder);
 
@@ -122,7 +122,7 @@ describe("useDeals", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(builder.or).toHaveBeenCalledWith(
-      'address.ilike."%oak%",notes.ilike."%oak%"',
+      'address.ilike."%oak%"',
     );
   });
 

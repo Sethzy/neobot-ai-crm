@@ -18,7 +18,7 @@ describe("DEFAULT_SOUL_MD", () => {
   it("is non-empty and contains Sunder identity", () => {
     expect(DEFAULT_SOUL_MD.length).toBeGreaterThan(0);
     expect(DEFAULT_SOUL_MD).toContain("Sunder");
-    expect(DEFAULT_SOUL_MD).toContain("Singapore");
+    expect(DEFAULT_SOUL_MD).toContain("Have opinions");
   });
 });
 

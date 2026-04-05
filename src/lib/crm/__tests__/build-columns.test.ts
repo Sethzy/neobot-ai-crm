@@ -55,7 +55,7 @@ describe("buildColumnsFromConfig", () => {
     // accessorFn should extract from custom_fields for custom source
     const row = { custom_fields: { budget: 1500000 } };
     if (budgetCol && "accessorFn" in budgetCol && budgetCol.accessorFn) {
-      const value = budgetCol.accessorFn(row as any, 0);
+      const value = budgetCol.accessorFn(row as Record<string, unknown>, 0);
       expect(value).toBe(1500000);
     }
   });

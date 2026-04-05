@@ -20,6 +20,7 @@ export async function GET(request: Request): Promise<Response> {
   const { supabase, userId } = authResult;
   const requestUrl = new URL(request.url);
   const rawPath = requestUrl.searchParams.get("path");
+  const downloadFilename = requestUrl.searchParams.get("filename")?.trim();
 
   if (!rawPath || rawPath.trim().length === 0) {
     return jsonError("Missing path.", 400);
@@ -34,14 +35,20 @@ export async function GET(request: Request): Promise<Response> {
 
   // Only allow downloads from user-facing directories
   const firstSegment = normalizedPath.split("/")[0];
-  if (firstSegment !== "uploads" && firstSegment !== "home") {
-    return jsonError("Downloads are restricted to uploads/ and home/.", 403);
+  if (firstSegment !== "uploads" && firstSegment !== "home" && firstSegment !== "attachments") {
+    return jsonError("Downloads are restricted to uploads/, home/, and attachments/.", 403);
   }
 
   const clientId = await resolveClientId(supabase, userId);
-  const signedUrlResponse = await supabase.storage
-    .from(AGENT_FILES_BUCKET)
-    .createSignedUrl(`${clientId}/${normalizedPath}`, DOWNLOAD_URL_EXPIRY_SECONDS);
+  const signedUrlResponse = downloadFilename
+    ? await supabase.storage
+      .from(AGENT_FILES_BUCKET)
+      .createSignedUrl(`${clientId}/${normalizedPath}`, DOWNLOAD_URL_EXPIRY_SECONDS, {
+        download: downloadFilename,
+      })
+    : await supabase.storage
+      .from(AGENT_FILES_BUCKET)
+      .createSignedUrl(`${clientId}/${normalizedPath}`, DOWNLOAD_URL_EXPIRY_SECONDS);
 
   if (signedUrlResponse.error || !signedUrlResponse.data?.signedUrl) {
     return jsonError("Failed to download file.", 500);

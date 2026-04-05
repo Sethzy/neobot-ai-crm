@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { AUTOMATION_TEMPLATES, type AutomationTemplate } from "../templates";
+import { AUTOMATION_TEMPLATES } from "../templates";
 
 describe("AUTOMATION_TEMPLATES", () => {
   it("exports a non-empty array of templates", () => {

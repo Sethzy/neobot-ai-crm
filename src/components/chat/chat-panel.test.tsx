@@ -33,9 +33,11 @@ vi.mock("react-markdown", () => ({
 }));
 
 vi.mock("next/image", () => ({
-  default: ({ unoptimized: _unoptimized, ...props }: ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => (
-    <img {...props} alt={props.alt ?? ""} />
-  ),
+  default: (props: ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => {
+    const { unoptimized, ...imgProps } = props;
+    void unoptimized;
+    return <img {...imgProps} alt={imgProps.alt ?? ""} />;
+  },
 }));
 
 vi.mock("sonner", () => ({

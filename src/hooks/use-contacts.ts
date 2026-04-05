@@ -67,7 +67,7 @@ async function fetchContacts({ search, type, viewFilters, viewSort }: ContactFil
   if (viewSort) {
     query = query.order(viewSort.column, { ascending: viewSort.ascending });
   } else {
-    query = query.order("created_at", { ascending: false });
+    query = query.order("updated_at", { ascending: false });
   }
 
   if (search?.trim()) {
@@ -116,7 +116,7 @@ async function fetchPaginatedContacts({
   if (viewSort) {
     query = query.order(viewSort.column, { ascending: viewSort.ascending });
   } else {
-    query = query.order("created_at", { ascending: false });
+    query = query.order("updated_at", { ascending: false });
   }
 
   if (search?.trim()) {
@@ -282,7 +282,6 @@ export function useContact(contactId: string) {
   return useQuery({
     ...contactDetailQueryOptions(contactId),
     enabled: Boolean(contactId),
-    placeholderData: keepPreviousData,
   });
 }
 

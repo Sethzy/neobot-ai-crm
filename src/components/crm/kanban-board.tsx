@@ -14,7 +14,6 @@ import {
   useSensor,
   useSensors,
   type Announcements,
-  type DragCancelEvent,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
@@ -556,7 +555,7 @@ function DraggableKanbanBoardContent<T>({
     setActiveItemId(String(event.active.id));
   }
 
-  function handleDragCancel(_event: DragCancelEvent) {
+  function handleDragCancel() {
     setActiveItemId(null);
     suppressPostDragClick();
   }

@@ -12,6 +12,9 @@ import DealsPage from "../page";
 
 const mockPush = vi.fn();
 const mockReplace = vi.fn();
+const mockOpen = vi.fn();
+const mockCaptureTimelineActivity = vi.fn();
+const mockFrom = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -32,6 +35,32 @@ vi.mock("@/hooks/use-mobile", () => ({
 
 vi.mock("@/hooks/use-client-id", () => ({
   useClientId: vi.fn(() => ({ data: "client-1", isLoading: false })),
+}));
+
+vi.mock("@/hooks/use-record-drawer", () => ({
+  useRecordDrawer: () => ({
+    recordId: null,
+    open: mockOpen,
+  }),
+}));
+
+vi.mock("@/lib/crm/timeline-capture", () => ({
+  captureTimelineActivity: (...args: unknown[]) => mockCaptureTimelineActivity(...args),
+}));
+
+vi.mock("@/lib/supabase", () => ({
+  supabase: {
+    from: (...args: unknown[]) => mockFrom(...args),
+    channel: () => ({
+      on() {
+        return this;
+      },
+      subscribe() {
+        return { unsubscribe: vi.fn() };
+      },
+    }),
+    removeChannel: vi.fn(),
+  },
 }));
 
 vi.mock("@/hooks/use-deals", async () => {
@@ -61,6 +90,7 @@ describe("DealsPage", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     localStorage.clear();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
 
     const { useCrmConfig } = await import("@/hooks/use-crm-config");
     const { useDeals, usePaginatedDeals } = await import("@/hooks/use-deals");
@@ -150,7 +180,7 @@ describe("DealsPage", () => {
 
     await user.click(screen.getByRole("radio", { name: /board view/i }));
 
-    expect(screen.getByText(/move deals forward from the board/i)).toBeInTheDocument();
+    expect(screen.getByText("By Stage")).toBeInTheDocument();
     expect(screen.queryByText(/drag them between lanes/i)).not.toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /sort deals/i })).toBeInTheDocument();
   });
@@ -180,6 +210,104 @@ describe("DealsPage", () => {
       expect(vi.mocked(useDeals)).toHaveBeenLastCalledWith(
         expect.any(Object),
         { enabled: true },
+      );
+    });
+  });
+
+  it("captures a created timeline activity when a deal is created from the page", async () => {
+    const user = userEvent.setup();
+    const insertSingle = vi.fn().mockResolvedValue({
+      data: {
+        deal_id: "deal-2",
+        client_id: "client-1",
+        address: "Untitled Deal",
+        stage: "leads",
+        amount: null,
+        company_id: null,
+        custom_fields: {},
+        created_at: "2026-04-05T10:00:00+08:00",
+        updated_at: "2026-04-05T10:00:00+08:00",
+      },
+      error: null,
+    });
+    const insertSelect = vi.fn().mockReturnValue({ single: insertSingle });
+    const insert = vi.fn().mockReturnValue({ select: insertSelect });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "deals") {
+        return { insert };
+      }
+
+      return {};
+    });
+
+    render(<DealsPage />, { wrapper: createWrapper() });
+
+    await user.click(screen.getByRole("button", { name: /^new$/i }));
+
+    await waitFor(() => {
+      expect(mockCaptureTimelineActivity).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clientId: "client-1",
+          recordType: "deal",
+          recordId: "deal-2",
+          action: "created",
+          actorType: "user",
+          after: expect.objectContaining({
+            deal_id: "deal-2",
+          }),
+        }),
+      );
+    });
+    expect(mockOpen).toHaveBeenCalledWith("deal-2");
+  });
+
+  it("captures a deleted timeline activity when a deal is deleted from the page", async () => {
+    const user = userEvent.setup();
+    const selectSingle = vi.fn().mockResolvedValue({
+      data: {
+        deal_id: "deal-1",
+        client_id: "client-1",
+        address: "123 Bishan Street 13",
+        stage: "leads",
+        amount: 1850000,
+        company_id: null,
+        custom_fields: {},
+        created_at: "2026-03-01T00:00:00+08:00",
+        updated_at: "2026-03-05T00:00:00+08:00",
+      },
+      error: null,
+    });
+    const selectEq = vi.fn().mockReturnValue({ single: selectSingle });
+    const select = vi.fn().mockReturnValue({ eq: selectEq });
+    const deleteEq = vi.fn().mockResolvedValue({ error: null });
+    const deleteBuilder = vi.fn().mockReturnValue({ eq: deleteEq });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "deals") {
+        return { select, delete: deleteBuilder };
+      }
+
+      return {};
+    });
+
+    render(<DealsPage />, { wrapper: createWrapper() });
+
+    await user.click(screen.getByRole("button", { name: "Open row actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(mockCaptureTimelineActivity).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clientId: "client-1",
+          recordType: "deal",
+          recordId: "deal-1",
+          action: "deleted",
+          actorType: "user",
+          before: expect.objectContaining({
+            deal_id: "deal-1",
+          }),
+        }),
       );
     });
   });

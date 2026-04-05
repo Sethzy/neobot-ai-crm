@@ -18,17 +18,22 @@ vi.mock("@/lib/analytics/posthog-server", () => ({
   captureServerEvent: vi.fn(),
 }));
 
-vi.mock("@/lib/stripe/stripe", () => ({
-  getStripeClient: () => ({
-    webhooks: {
-      constructEvent: (...args: unknown[]) => mockConstructEvent(...args),
-    },
-  }),
-  syncBillingStateFromDeletedSubscription: (...args: unknown[]) =>
-    mockSyncBillingStateFromDeletedSubscription(...args),
-  syncBillingStateFromSubscriptionId: (...args: unknown[]) =>
-    mockSyncBillingStateFromSubscriptionId(...args),
-}));
+vi.mock("@/lib/stripe/stripe", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/stripe/stripe")>();
+
+  return {
+    ...actual,
+    getStripeClient: () => ({
+      webhooks: {
+        constructEvent: (...args: unknown[]) => mockConstructEvent(...args),
+      },
+    }),
+    syncBillingStateFromDeletedSubscription: (...args: unknown[]) =>
+      mockSyncBillingStateFromDeletedSubscription(...args),
+    syncBillingStateFromSubscriptionId: (...args: unknown[]) =>
+      mockSyncBillingStateFromSubscriptionId(...args),
+  };
+});
 
 describe("POST /api/stripe/webhook", () => {
   beforeEach(() => {
@@ -76,11 +81,23 @@ describe("POST /api/stripe/webhook", () => {
       })
       .mockReturnValueOnce({
         type: "invoice.paid",
-        data: { object: { subscription: "sub_invoice" } },
+        data: {
+          object: {
+            parent: {
+              subscription_details: { subscription: "sub_invoice" },
+            },
+          },
+        },
       })
       .mockReturnValueOnce({
         type: "invoice.payment_failed",
-        data: { object: { subscription: { id: "sub_failed" } } },
+        data: {
+          object: {
+            parent: {
+              subscription_details: { subscription: { id: "sub_failed" } },
+            },
+          },
+        },
       })
       .mockReturnValueOnce({
         type: "customer.subscription.updated",

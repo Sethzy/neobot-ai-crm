@@ -2,7 +2,7 @@
  * Tests contact drawer content rendering states.
  * @module components/crm/record-drawer/__tests__/contact-drawer-content
  */
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ContactDrawerContent } from "../contact-drawer-content";
@@ -41,8 +41,8 @@ vi.mock("@/hooks/use-contact-relations", () => ({
   useContactTasks: () => ({ data: [], isLoading: false, isError: false }),
 }));
 
-vi.mock("@/components/crm/contact-timeline", () => ({
-  ContactTimeline: () => <div>Contact Timeline</div>,
+vi.mock("@/components/crm/timeline/unified-timeline", () => ({
+  UnifiedTimeline: () => <div>Unified Timeline</div>,
 }));
 
 vi.mock("@/hooks/use-update-contact", () => ({
@@ -92,6 +92,10 @@ vi.mock("@/components/crm/inline-edit-field", () => ({
   InlineEditField: (props: { label: string; value: string | null; type?: string }) => inlineFieldSpy(props),
 }));
 
+vi.mock("../drawer-files-tab", () => ({
+  DrawerFilesTab: () => <div>Files Tab</div>,
+}));
+
 describe("ContactDrawerContent", () => {
   beforeEach(() => {
     inlineFieldSpy.mockClear();
@@ -122,8 +126,17 @@ describe("ContactDrawerContent", () => {
     expect(screen.getByText("Timeline")).toBeInTheDocument();
     expect(screen.getByText("Tasks")).toBeInTheDocument();
     expect(screen.getByText("Notes")).toBeInTheDocument();
+    expect(screen.getByText("Files")).toBeInTheDocument();
     expect(screen.getByText("Fields")).toBeInTheDocument();
     expect(screen.getByText("Deals")).toBeInTheDocument();
+  });
+
+  it("renders the unified timeline on the timeline tab", () => {
+    render(<ContactDrawerContent contactId="c-1" />);
+
+    fireEvent.click(screen.getByRole("tab", { name: /timeline/i }));
+
+    expect(screen.getByText("Unified Timeline")).toBeInTheDocument();
   });
 
   it("uses config-driven contact types and renders contact custom fields", () => {

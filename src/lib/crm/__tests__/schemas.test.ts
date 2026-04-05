@@ -29,6 +29,7 @@ describe("contact schemas", () => {
   const validRow = {
     contact_id: "550e8400-e29b-41d4-a716-446655440000",
     client_id: "660e8400-e29b-41d4-a716-446655440000",
+    company_id: null,
     first_name: "John",
     last_name: "Smith",
     email: "john@example.com",
@@ -95,6 +96,7 @@ describe("deal schemas", () => {
   const validRow = {
     deal_id: "750e8400-e29b-41d4-a716-446655440000",
     client_id: "660e8400-e29b-41d4-a716-446655440000",
+    company_id: null,
     address: "123 Orchard Road, #08-01",
     stage: "negotiation" as const,
     amount: 1500000,
@@ -286,32 +288,35 @@ describe("crm task schemas", () => {
       deal_id: null,
       title: "Prepare comparables",
       description: null,
-      status: "completed" as const,
+      status: "done" as const,
       due_date: null,
     };
     expect(crmTaskInsertSchema.parse(insert)).toEqual(insert);
   });
 
   test("crmTaskStatusValues contains allowed values", () => {
-    expect(crmTaskStatusValues).toEqual(["open", "completed"]);
+    expect(crmTaskStatusValues).toEqual(["todo", "in_progress", "done"]);
   });
 });
 
 describe("crm config schemas", () => {
-  const validRow = {
-    config_id: "a50e8400-e29b-41d4-a716-446655440000",
-    client_id: "660e8400-e29b-41d4-a716-446655440000",
-    deal_label: "Deal",
-    deal_stages: [{ id: "leads", name: "Leads" }],
-    contact_types: ["buyer", "seller"],
-    task_types: [{ id: "follow_up", name: "Follow up" }],
-    interaction_types: [{ id: "call", name: "Call" }],
-    deal_contact_roles: ["buyer", "agent"],
-    deal_custom_fields: [],
-    contact_custom_fields: [],
-    task_custom_fields: [],
-    created_at: ISO,
-    updated_at: ISO,
+    const validRow = {
+      config_id: "a50e8400-e29b-41d4-a716-446655440000",
+      client_id: "660e8400-e29b-41d4-a716-446655440000",
+      deal_label: "Deal",
+      company_label: "Company",
+      deal_stages: [{ id: "leads", name: "Leads" }],
+      contact_types: ["buyer", "seller"],
+      task_types: [{ id: "follow_up", name: "Follow up" }],
+      interaction_types: [{ id: "call", name: "Call" }],
+      deal_contact_roles: ["buyer", "agent"],
+      company_industries: null,
+      deal_custom_fields: [],
+      contact_custom_fields: [],
+      company_custom_fields: [],
+      task_custom_fields: [],
+      created_at: ISO,
+      updated_at: ISO,
   };
 
   test("validates a valid crm config row", () => {
@@ -326,6 +331,7 @@ describe("crm config schemas", () => {
       task_types: null,
       interaction_types: null,
       deal_contact_roles: null,
+      company_industries: null,
     };
     expect(crmConfigSchema.parse(nullableRow)).toEqual(nullableRow);
   });

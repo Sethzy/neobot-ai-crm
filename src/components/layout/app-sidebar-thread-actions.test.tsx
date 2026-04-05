@@ -74,20 +74,22 @@ vi.mock("@/components/ui/sidebar", () => ({
     children,
     asChild,
     isActive,
-    tooltip: _tooltip,
+    tooltip,
     ...props
   }: React.PropsWithChildren<{
     asChild?: boolean;
     isActive?: boolean;
     tooltip?: string;
-  }>) =>
-    asChild ? (
+  }>) => {
+    void tooltip;
+    return asChild ? (
       <div data-active={isActive}>{children}</div>
     ) : (
       <button type="button" data-active={isActive} {...props}>
         {children}
       </button>
-    ),
+    );
+  },
   SidebarGroup: ({ children }: React.PropsWithChildren) => <section>{children}</section>,
   SidebarGroupLabel: ({ children }: React.PropsWithChildren) => <h2>{children}</h2>,
   SidebarMenuSub: ({ children }: React.PropsWithChildren) => <ul>{children}</ul>,
@@ -95,13 +97,16 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarMenuSubButton: ({
     children,
     isActive,
-    href: _href,
+    href,
     ...props
-  }: React.PropsWithChildren<{ isActive?: boolean; href?: string }>) => (
-    <button type="button" data-active={isActive} {...props}>
-      {children}
-    </button>
-  ),
+  }: React.PropsWithChildren<{ isActive?: boolean; href?: string }>) => {
+    void href;
+    return (
+      <button type="button" data-active={isActive} {...props}>
+        {children}
+      </button>
+    );
+  },
   useSidebar: () => ({
     state: "expanded" as const,
     open: true,

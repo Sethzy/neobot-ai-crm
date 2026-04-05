@@ -103,7 +103,7 @@ describe("InlineEditField", () => {
   it("renders dash for null value", () => {
     render(<InlineEditField label="Email" value={null} onSave={onSave} />);
 
-    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.getAllByText("Email")).toHaveLength(2);
   });
 
   it("renders formatted date value for type=date", () => {

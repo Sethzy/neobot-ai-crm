@@ -11,7 +11,6 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  type DragCancelEvent,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
@@ -145,7 +144,7 @@ export function CalendarMonthGrid({
     setActiveTaskId(String(active.id));
   };
 
-  const handleDragCancel = (_event: DragCancelEvent) => {
+  const handleDragCancel = () => {
     setActiveTaskId(null);
   };
 

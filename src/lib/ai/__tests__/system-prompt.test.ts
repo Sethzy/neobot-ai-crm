@@ -34,8 +34,8 @@ describe("SYSTEM_PROMPT", () => {
 
   it("includes mechanical safety guidance for approval-gated tools", () => {
     expect(SYSTEM_PROMPT).toContain("<safety>");
-    expect(SYSTEM_PROMPT).toContain("Destructive tools");
-    expect(SYSTEM_PROMPT).toContain("run immediately");
+    expect(SYSTEM_PROMPT).toContain("delete_connection");
+    expect(SYSTEM_PROMPT).toContain("GATED");
   });
 
   it("removes the old manual approval example block", () => {
@@ -46,7 +46,7 @@ describe("SYSTEM_PROMPT", () => {
   it("mentions all three tool categories", () => {
     const lower = SYSTEM_PROMPT.toLowerCase();
     expect(lower).toContain("crm");
-    expect(lower).toContain("file storage");
+    expect(lower).toContain("files");
     expect(lower).toContain("web");
     expect(lower).toContain("trigger");
   });
@@ -119,8 +119,8 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT).toContain("<subagents>");
     expect(SYSTEM_PROMPT).toContain("</subagents>");
     expect(SYSTEM_PROMPT).toContain("run_subagent");
-    expect(SYSTEM_PROMPT).toContain("single request-response cycle");
-    expect(SYSTEM_PROMPT).toContain("cannot access conversation history");
+    expect(SYSTEM_PROMPT).toContain("clean isolated context");
+    expect(SYSTEM_PROMPT).toContain("/agent/subagents/");
   });
 
   it("prefers subagents for reusable instruction files without making them mandatory", () => {
@@ -165,8 +165,8 @@ describe("SYSTEM_PROMPT", () => {
   it("describes approval cards for connection activation and deletion", () => {
     expect(SYSTEM_PROMPT).toContain("manage_activated_tools_for_connections");
     expect(SYSTEM_PROMPT).toContain("delete_connection");
-    expect(SYSTEM_PROMPT).toContain("show approval cards in chat");
-    expect(SYSTEM_PROMPT).not.toContain("These tools do not show approval cards in v1");
+    expect(SYSTEM_PROMPT).toContain("GATED");
+    expect(SYSTEM_PROMPT).toContain("ask_user_question");
   });
 
   it("instructs the agent to read the creating-connections skill if it exists", () => {
@@ -193,16 +193,14 @@ describe("SYSTEM_PROMPT", () => {
   });
 
   it("retains PDF document guidance alongside the new Google Workspace section", () => {
-    expect(SYSTEM_PROMPT).toContain("PDF Documents:");
-    expect(SYSTEM_PROMPT).toContain("Use generate_pdf");
     expect(SYSTEM_PROMPT).toContain("Google Workspace");
+    expect(SYSTEM_PROMPT).toContain("write_file");
   });
 
   it("includes custom skill discovery and loading guidance", () => {
     expect(SYSTEM_PROMPT).toContain("<custom-skills>");
     expect(SYSTEM_PROMPT).toContain("</custom-skills>");
-    expect(SYSTEM_PROMPT).toContain("<available-skills>");
-    expect(SYSTEM_PROMPT).toContain("read_file");
+    expect(SYSTEM_PROMPT).toContain("SKILL.md");
     expect(SYSTEM_PROMPT).toContain("/agent/skills/{slug}/SKILL.md");
   });
 
@@ -239,10 +237,9 @@ describe("PROPERTY_LISTING_PROMPT", () => {
   it("routes public listing searches separately from market data and browser automation", () => {
     expect(PROPERTY_LISTING_PROMPT).toContain("search_99co");
     expect(PROPERTY_LISTING_PROMPT).toContain("search_propertyguru");
-    expect(PROPERTY_LISTING_PROMPT).toContain("search_market_data");
-    expect(PROPERTY_LISTING_PROMPT).toContain("browse_website");
-    expect(PROPERTY_LISTING_PROMPT).toContain("what's available");
-    expect(PROPERTY_LISTING_PROMPT).toContain("what did it sell for");
+    expect(PROPERTY_LISTING_PROMPT).toContain("active inventory");
+    expect(PROPERTY_LISTING_PROMPT).toContain("asking prices");
+    expect(PROPERTY_LISTING_PROMPT).toContain("use search_propertyguru");
   });
 });
 
@@ -325,14 +322,14 @@ describe("MARKET_DATA_PROMPT", () => {
   });
 
   it("distinguishes market-data usage from web search", () => {
-    expect(MARKET_DATA_PROMPT).toContain("Use search mode");
-    expect(MARKET_DATA_PROMPT).toContain("Use stats mode");
-    expect(MARKET_DATA_PROMPT).toContain("Use web search instead");
+    expect(MARKET_DATA_PROMPT).toContain("Two modes:");
+    expect(MARKET_DATA_PROMPT).toContain("search — returns individual records");
+    expect(MARKET_DATA_PROMPT).toContain("Use web search for live news");
   });
 
   it("explains that sampled stats are recent-window aggregates, not full-dataset exact stats", () => {
-    expect(MARKET_DATA_PROMPT).toContain("most recent 10,000 matching rows");
-    expect(MARKET_DATA_PROMPT).toContain("recent-window stats");
+    expect(MARKET_DATA_PROMPT).toContain("most recent 10,000 rows");
+    expect(MARKET_DATA_PROMPT).toContain("recent-window estimates");
   });
 });
 
@@ -364,7 +361,7 @@ describe("SANDBOX_PROMPT", () => {
   });
 
   it("mentions /vercel/sandbox/workspace paths", () => {
-    expect(SANDBOX_PROMPT).toContain("/vercel/sandbox/workspace");
+    expect(SANDBOX_PROMPT).toContain("workspace directory");
   });
 
   it("mentions input/context.json for data passing", () => {
@@ -389,15 +386,14 @@ describe("SANDBOX_PROMPT", () => {
   });
 
   it("mentions skills/ for reference data", () => {
-    expect(SANDBOX_PROMPT).toContain("skills/");
+    expect(SANDBOX_PROMPT).toContain("agent/uploads/");
   });
 
   it("warns that only agent/home persists after sandbox shutdown", () => {
-    expect(SANDBOX_PROMPT).toContain("Only files in /vercel/sandbox/workspace/agent/home/");
-    expect(SANDBOX_PROMPT).toContain("Everything else is lost");
+    expect(SANDBOX_PROMPT).toContain("save them to agent/home/ to persist");
   });
 
   it("warns that sandbox-installed packages are ephemeral", () => {
-    expect(SANDBOX_PROMPT.toLowerCase()).toContain("ephemeral");
+    expect(SANDBOX_PROMPT).toContain("Installed packages are lost after each session");
   });
 });

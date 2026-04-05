@@ -173,12 +173,20 @@ describe("configurable CRM entity schemas", () => {
     }).deal_label).toBe("Policy");
   });
 
-  it("still keeps crm task status binary even while other vocab becomes configurable", () => {
-    expect(() =>
+  it("keeps crm task status constrained to the shipped todo/in_progress/done set", () => {
+    expect(
       crmTaskInsertSchema.parse({
         client_id: "660e8400-e29b-41d4-a716-446655440000",
         title: "Follow up",
         status: "in_progress",
+      }).status,
+    ).toBe("in_progress");
+
+    expect(() =>
+      crmTaskInsertSchema.parse({
+        client_id: "660e8400-e29b-41d4-a716-446655440000",
+        title: "Follow up",
+        status: "queued",
       }),
     ).toThrow();
   });

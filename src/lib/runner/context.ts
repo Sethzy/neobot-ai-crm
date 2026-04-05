@@ -23,7 +23,6 @@ import { escapeXml } from "@/lib/runner/system-reminder";
 import { loadMemoryContext } from "@/lib/memory/loader";
 import type { MemoryContext } from "@/lib/memory/loader";
 import {
-  fetchThreadCompactionState,
   fetchThreadMetadata,
   isAfterThreadCompactionBoundary,
   type ThreadCompactionState,
@@ -288,13 +287,14 @@ export async function loadSystemPromptState({
   /** Combined thread metadata (compaction + staleness) from a single query. */
   threadMetadata: ThreadMetadata | null;
 }> {
-  let memoryContext: MemoryContext | undefined;
-  let userSkills: SkillMetadata[] = [];
-  let systemReminder: string | undefined;
-  let threadMetadata: ThreadMetadata | null = null;
-
   if (!clientId) {
-    return { memoryContext, userSkills, systemReminder, compactionState: null, threadMetadata };
+    return {
+      memoryContext: undefined,
+      userSkills: [],
+      systemReminder: undefined,
+      compactionState: null,
+      threadMetadata: null,
+    };
   }
 
   const reminderPromise = buildSystemReminder(supabase, clientId, threadId);
@@ -307,7 +307,7 @@ export async function loadSystemPromptState({
     ? fetchThreadMetadata(supabase, threadId)
     : Promise.resolve(null);
 
-  [memoryContext, userSkills, systemReminder, threadMetadata] = await Promise.all([
+  const [memoryContext, userSkills, systemReminder, threadMetadata] = await Promise.all([
     loadMemoryContext(supabase, clientId),
     discoverUserSkills(supabase, clientId),
     reminderPromise,

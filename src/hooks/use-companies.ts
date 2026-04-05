@@ -69,7 +69,7 @@ async function fetchCompanies(filters: CompanyFilters): Promise<CompanyWithCount
   if (filters.viewSort) {
     query = query.order(filters.viewSort.column, { ascending: filters.viewSort.ascending });
   } else {
-    query = query.order("created_at", { ascending: false });
+    query = query.order("updated_at", { ascending: false });
   }
 
   if (filters.search?.trim()) {
@@ -134,7 +134,7 @@ async function fetchPaginatedCompanies({
   if (viewSort) {
     query = query.order(viewSort.column, { ascending: viewSort.ascending });
   } else {
-    query = query.order("created_at", { ascending: false });
+    query = query.order("updated_at", { ascending: false });
   }
 
   if (search?.trim()) {

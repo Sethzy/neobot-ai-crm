@@ -89,6 +89,7 @@ Everything in `roadmap docs/` is supporting reference material — useful for un
 - **Session Boundaries:** If the user's request isn't directly related to the current context and can be safely started in a fresh session, suggest starting from scratch to avoid context confusion.
 - **Commit after each PR.** Use the PR number in the commit message (e.g., `feat(pr11): CRM deals and tasks pages`).
 - **Always use Context7 MCP** Use when you need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask. Grounding in context before starting each PR is a good idea.
+- **Always use Supabase MCP for migrations.**
 
 ## Conventions
 

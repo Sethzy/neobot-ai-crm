@@ -2,7 +2,7 @@
  * Tests for the unified delete_records tool.
  * @module lib/runner/tools/crm/__tests__/delete-records.test
  */
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createDeleteRecordsTool } from "../delete-records";
 import { createMockSupabase } from "./mock-supabase";
@@ -10,10 +10,28 @@ import { createMockSupabase } from "./mock-supabase";
 const CLIENT_ID = "660e8400-e29b-41d4-a716-446655440000";
 const EXEC_OPTIONS = { toolCallId: "tool-call", messages: [] } as never;
 
+const mockCaptureTimelineActivity = vi.fn();
+vi.mock("@/lib/crm/timeline-capture", () => ({
+  captureTimelineActivity: (...args: unknown[]) => mockCaptureTimelineActivity(...args),
+}));
+
 describe("delete_records", () => {
+  beforeEach(() => {
+    mockCaptureTimelineActivity.mockReset();
+  });
+
   it("deletes a single contact and its record_notes", async () => {
-    const { client, builders, builderHistory } = createMockSupabase({
-      contacts: { data: null, error: null },
+    const existingContact = {
+      contact_id: "c1",
+      client_id: CLIENT_ID,
+      first_name: "John",
+      last_name: "Tan",
+    };
+    const { client, builderHistory } = createMockSupabase({
+      contacts: [
+        { data: existingContact, error: null },
+        { data: null, error: null },
+      ],
       record_notes: { data: null, error: null },
     });
     const tools = createDeleteRecordsTool(client, CLIENT_ID);
@@ -24,14 +42,25 @@ describe("delete_records", () => {
     );
 
     expect(result).toEqual({ success: true, deleted_count: 1, ids: ["c1"] });
-    expect(builders.contacts.delete).toHaveBeenCalled();
-    expect(builders.contacts.eq).toHaveBeenCalledWith("contact_id", "c1");
-    expect(builders.contacts.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
+    const deleteBuilder = builderHistory.contacts[1];
+    expect(deleteBuilder.delete).toHaveBeenCalled();
+    expect(deleteBuilder.eq).toHaveBeenCalledWith("contact_id", "c1");
+    expect(deleteBuilder.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
     // Should also clean up record_notes
     expect(builderHistory.record_notes).toHaveLength(1);
     expect(builderHistory.record_notes[0].delete).toHaveBeenCalled();
     expect(builderHistory.record_notes[0].eq).toHaveBeenCalledWith("record_type", "contact");
     expect(builderHistory.record_notes[0].eq).toHaveBeenCalledWith("record_id", "c1");
+    expect(mockCaptureTimelineActivity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: CLIENT_ID,
+        recordType: "contact",
+        recordId: "c1",
+        action: "deleted",
+        actorType: "agent",
+        before: existingContact,
+      }),
+    );
   });
 
   it("deletes multiple deals in batch", async () => {
@@ -84,8 +113,11 @@ describe("delete_records", () => {
   it("returns partial failure when some deletes fail", async () => {
     const { client } = createMockSupabase({
       contacts: [
+        { data: { contact_id: "c1" }, error: null },
         { data: null, error: null },
+        { data: { contact_id: "c2" }, error: null },
         { data: null, error: { message: "not found" } },
+        { data: { contact_id: "c3" }, error: null },
         { data: null, error: null },
       ],
       record_notes: { data: null, error: null },

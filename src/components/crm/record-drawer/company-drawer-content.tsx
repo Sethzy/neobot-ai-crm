@@ -6,13 +6,15 @@
 
 import { type ReactNode, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { BriefcaseBusiness, Building2, Globe, House, Mail, MapPin, Phone, StickyNote, Users } from "lucide-react";
+import { BriefcaseBusiness, Building2, Clock3, Globe, House, Mail, MapPin, Paperclip, Phone, StickyNote, Users } from "lucide-react";
 
+import { DrawerFilesTab } from "./drawer-files-tab";
 import { DrawerNotesTab } from "./drawer-notes-tab";
 
 import { LinkedContactsSection } from "@/components/crm/detail/linked-contacts-section";
 import { LinkedDealsSection } from "@/components/crm/detail/linked-deals-section";
 import { InlineEditField } from "@/components/crm/inline-edit-field";
+import { UnifiedTimeline } from "@/components/crm/timeline/unified-timeline";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -43,10 +45,10 @@ interface CompanyDrawerContentProps {
   closeButton?: ReactNode;
 }
 
-type CompanyDrawerTab = "home" | "contacts" | "deals" | "notes";
+type CompanyDrawerTab = "home" | "contacts" | "deals" | "timeline" | "notes" | "files";
 
 /**
- * Renders company details together with linked contacts and deals.
+ * Renders company details together with linked records and the unified activity timeline.
  */
 export function CompanyDrawerContent({ companyId, closeButton }: CompanyDrawerContentProps) {
   const { data: company, isLoading, isError } = useCompany(companyId);
@@ -79,7 +81,9 @@ export function CompanyDrawerContent({ companyId, closeButton }: CompanyDrawerCo
     { id: "home", label: "Home", icon: <House className="h-4 w-4" /> },
     { id: "contacts", label: "Contacts", icon: <Users className="h-4 w-4" /> },
     { id: "deals", label: "Deals", icon: <BriefcaseBusiness className="h-4 w-4" /> },
+    { id: "timeline", label: "Timeline", icon: <Clock3 className="h-4 w-4" /> },
     { id: "notes", label: "Notes", icon: <StickyNote className="h-4 w-4" /> },
+    { id: "files", label: "Files", icon: <Paperclip className="h-4 w-4" /> },
   ];
 
   return (
@@ -102,6 +106,7 @@ export function CompanyDrawerContent({ companyId, closeButton }: CompanyDrawerCo
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
+      maxVisibleTabs={6}
       footer={<RecordDetailPanelFooter />}
     >
       {activeTab === "home" ? (
@@ -198,6 +203,22 @@ export function CompanyDrawerContent({ companyId, closeButton }: CompanyDrawerCo
           recordType="company"
           recordId={companyId}
         />
+      ) : null}
+
+      {activeTab === "files" ? (
+        <DrawerFilesTab
+          recordType="company"
+          recordId={companyId}
+        />
+      ) : null}
+
+      {activeTab === "timeline" ? (
+        <DrawerSection title="Activity">
+          <UnifiedTimeline
+            recordType="company"
+            recordId={companyId}
+          />
+        </DrawerSection>
       ) : null}
 
       {activeTab === "deals" ? (

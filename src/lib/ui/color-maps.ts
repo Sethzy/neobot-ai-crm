@@ -81,6 +81,15 @@ export const FILETYPE_COLOR_CLASSES: Record<string, string> = {
   doc:  "text-filetype-document",
   pptx: "text-filetype-presentation",
   ppt:  "text-filetype-presentation",
+  jpg:  "text-filetype-image",
+  jpeg: "text-filetype-image",
+  png:  "text-filetype-image",
+  webp: "text-filetype-image",
+  gif:  "text-filetype-image",
+  svg:  "text-filetype-image",
+  bmp:  "text-filetype-image",
+  tif:  "text-filetype-image",
+  tiff: "text-filetype-image",
 };
 
 /** File type label → icon wrapper background + text classes (for tools-dropdown). */
@@ -89,6 +98,7 @@ export const FILETYPE_ICON_CLASSES: Record<string, string> = {
   PDF:          "bg-filetype-pdf/10 text-filetype-pdf",
   Document:     "bg-filetype-document/10 text-filetype-document",
   Presentation: "bg-filetype-presentation/10 text-filetype-presentation",
+  Image:        "bg-filetype-image/10 text-filetype-image",
 };
 
 /** Market transaction type badge classes. */

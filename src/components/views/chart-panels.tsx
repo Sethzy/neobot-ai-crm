@@ -242,7 +242,6 @@ export function FunnelChartPanel({
   footerText,
 }: FunnelChartPanelProps) {
   const safeData = ensureArray(data);
-  const chartConfig = buildSegmentConfig(safeData, nameKey);
 
   /* Render funnel as stacked horizontal bars for clearer stage visualization.
    * Recharts' FunnelChart looks broken when most values are 0 — a horizontal

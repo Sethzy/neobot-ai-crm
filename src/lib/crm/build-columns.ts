@@ -16,8 +16,9 @@ type EntityType = "contacts" | "companies" | "deals";
  */
 export function buildColumnsFromConfig<TData extends Record<string, unknown>>(
   fields: FieldDefinition[],
-  _entityType: EntityType,
+  entityType: EntityType,
 ): ColumnDef<TData, unknown>[] {
+  void entityType;
   return fields
     .filter((f) => f.visible)
     .sort((a, b) => a.order - b.order)

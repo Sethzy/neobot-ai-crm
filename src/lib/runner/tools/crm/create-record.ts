@@ -7,7 +7,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import {
-  buildCustomFieldsSchema,
   CRM_DEFAULTS,
   matchVocabularyValue,
   type CrmVocabConfig,
@@ -17,6 +16,7 @@ import {
   captureServerEvent,
   captureServerEvents,
 } from "@/lib/analytics/posthog-server";
+import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 
 import { buildIlikePattern } from "./filter-utils";
 
@@ -376,6 +376,16 @@ export function createCreateRecordTool(
             },
           });
 
+          void captureTimelineActivity({
+            supabase,
+            clientId,
+            recordType: RECORD_TYPE_MAP[entity],
+            recordId: String(data[PK_MAP[entity]]),
+            action: "created",
+            actorType: "agent",
+            after: data as Record<string, unknown>,
+          });
+
           return { success: true as const, record: data };
         }
 
@@ -404,6 +414,18 @@ export function createCreateRecordTool(
             },
           })),
         );
+
+        for (const createdRecord of created as Record<string, unknown>[]) {
+          void captureTimelineActivity({
+            supabase,
+            clientId,
+            recordType: RECORD_TYPE_MAP[entity],
+            recordId: String(createdRecord[PK_MAP[entity]]),
+            action: "created",
+            actorType: "agent",
+            after: createdRecord,
+          });
+        }
 
         return {
           success: true as const,

@@ -90,11 +90,16 @@ export default async function PricingPage({
   const messageQuota = await loadCurrentMessageQuota();
   const billingNotice = getBillingNotice(normalizeSearchParam(billing));
 
-  let pricingError: string | null = null;
-  const paidPlans = await listStripePlans().catch((error: unknown) => {
-    pricingError = error instanceof Error ? error.message : "Failed to load Stripe plans.";
-    return [];
-  });
+  const { paidPlans, pricingError } = await listStripePlans()
+    .then((plans) => ({
+      paidPlans: plans,
+      pricingError: null,
+    }))
+    .catch((error: unknown) => ({
+      paidPlans: [],
+      pricingError:
+        error instanceof Error ? error.message : "Failed to load Stripe plans.",
+    }));
 
   const paidPlanMap = new Map(paidPlans.map((plan) => [plan.name, plan]));
 

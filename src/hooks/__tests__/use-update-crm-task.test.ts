@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { crmTaskKeys } from "@/hooks/use-crm-tasks";
 import { useUpdateCrmTask } from "@/hooks/use-update-crm-task";
 
+const mockCaptureTimelineActivity = vi.fn();
 const mockFrom = vi.fn();
 const mockSelect = vi.fn();
 const mockSelectEq = vi.fn();
@@ -21,6 +22,10 @@ vi.mock("@/lib/supabase", () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
   },
+}));
+
+vi.mock("@/lib/crm/timeline-capture", () => ({
+  captureTimelineActivity: (...args: unknown[]) => mockCaptureTimelineActivity(...args),
 }));
 
 function createWrapper(queryClient: QueryClient) {
@@ -47,16 +52,46 @@ describe("useUpdateCrmTask", () => {
       },
     });
     const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
+    queryClient.setQueryData(crmTaskKeys.detail("task-1"), {
+      task_id: "task-1",
+      client_id: "client-1",
+      title: "Follow up",
+      status: "todo",
+      due_date: null,
+      description: null,
+      custom_fields: {},
+      contact_id: null,
+      deal_id: null,
+      contacts: null,
+      deals: null,
+    });
 
     const { result } = renderHook(() => useUpdateCrmTask("task-1"), {
       wrapper: createWrapper(queryClient),
     });
 
-    await result.current.mutateAsync({ status: "completed" });
+    await result.current.mutateAsync({ status: "done" });
 
     expect(mockFrom).toHaveBeenCalledWith("crm_tasks");
-    expect(mockUpdate).toHaveBeenCalledWith({ status: "completed" });
+    expect(mockUpdate).toHaveBeenCalledWith({ status: "done" });
     expect(mockEq).toHaveBeenCalledWith("task_id", "task-1");
+    expect(mockCaptureTimelineActivity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: expect.any(String),
+        recordType: "task",
+        recordId: "task-1",
+        action: "updated",
+        actorType: "user",
+        before: expect.objectContaining({
+          task_id: "task-1",
+          status: "todo",
+        }),
+        after: expect.objectContaining({
+          task_id: "task-1",
+          status: "done",
+        }),
+      }),
+    );
     expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: crmTaskKeys.all });
   });
 
@@ -69,6 +104,19 @@ describe("useUpdateCrmTask", () => {
         queries: { retry: false },
         mutations: { retry: false },
       },
+    });
+    queryClient.setQueryData(crmTaskKeys.detail("task-1"), {
+      task_id: "task-1",
+      client_id: "client-1",
+      title: "Follow up",
+      status: "todo",
+      due_date: null,
+      description: null,
+      custom_fields: {},
+      contact_id: null,
+      deal_id: null,
+      contacts: null,
+      deals: null,
     });
 
     const { result } = renderHook(() => useUpdateCrmTask("task-1"), {
@@ -93,6 +141,19 @@ describe("useUpdateCrmTask", () => {
         queries: { retry: false },
         mutations: { retry: false },
       },
+    });
+    queryClient.setQueryData(crmTaskKeys.detail("task-1"), {
+      task_id: "task-1",
+      client_id: "client-1",
+      title: "Follow up",
+      status: "todo",
+      due_date: null,
+      description: null,
+      custom_fields: { priority_note: "Call after 6pm", owner: "Seth" },
+      contact_id: null,
+      deal_id: null,
+      contacts: null,
+      deals: null,
     });
 
     const { result } = renderHook(() => useUpdateCrmTask("task-1"), {

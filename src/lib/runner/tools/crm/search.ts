@@ -12,7 +12,6 @@ import {
   buildIlikePattern,
   buildSearchExpression,
   DEFAULT_CRM_RESULT_LIMIT,
-  flexibleTimestampSchema,
   normalizeDateString,
   normalizeDateUpperBound,
 } from "./filter-utils";

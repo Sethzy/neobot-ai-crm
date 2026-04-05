@@ -75,6 +75,8 @@ interface CrmTasksTableProps {
 }
 
 export function CrmTasksTable({ tasks, onRowClick }: CrmTasksTableProps) {
+  "use no memo";
+
   const [sorting, setSorting] = useState<SortingState>([{ id: "due_date", desc: false }]);
 
   const columns = useMemo(
@@ -123,6 +125,9 @@ export function CrmTasksTable({ tasks, onRowClick }: CrmTasksTableProps) {
     [],
   );
 
+  // TanStack Table intentionally returns imperative helpers that the React
+  // Compiler cannot memoize safely. This table surface is expected to opt out.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: tasks,
     columns,

@@ -2,7 +2,7 @@
  * Tests for the unified link_records tool.
  * @module lib/runner/tools/crm/__tests__/link-records.test
  */
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createLinkRecordsTool } from "../link-records";
 import { createMockSupabase } from "./mock-supabase";
@@ -10,7 +10,16 @@ import { createMockSupabase } from "./mock-supabase";
 const CLIENT_ID = "660e8400-e29b-41d4-a716-446655440000";
 const EXEC_OPTIONS = { toolCallId: "tool-call", messages: [] } as never;
 
+const mockCaptureTimelineActivity = vi.fn();
+vi.mock("@/lib/crm/timeline-capture", () => ({
+  captureTimelineActivity: (...args: unknown[]) => mockCaptureTimelineActivity(...args),
+}));
+
 describe("link_records", () => {
+  beforeEach(() => {
+    mockCaptureTimelineActivity.mockReset();
+  });
+
   // ---------------------------------------------------------------------------
   // contact_deal (junction table)
   // ---------------------------------------------------------------------------
@@ -126,9 +135,13 @@ describe("link_records", () => {
   // ---------------------------------------------------------------------------
   describe("contact_company", () => {
     it("links a contact to a company via FK update", async () => {
-      const updated = { contact_id: "c1", company_id: "co1" };
+      const existing = { contact_id: "c1", client_id: CLIENT_ID, company_id: null };
+      const updated = { ...existing, company_id: "co1" };
       const { client, builders } = createMockSupabase({
-        contacts: { data: updated, error: null },
+        contacts: [
+          { data: existing, error: null },
+          { data: updated, error: null },
+        ],
       });
       const tools = createLinkRecordsTool(client, CLIENT_ID);
 
@@ -138,13 +151,29 @@ describe("link_records", () => {
       );
 
       expect(result).toEqual({ success: true, link: updated });
-      expect(builders.contacts.update).toHaveBeenCalledWith({ company_id: "co1" });
+      expect(builders.contacts).toBeDefined();
+      expect(client.from).toHaveBeenCalledWith("contacts");
+      expect(mockCaptureTimelineActivity).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clientId: CLIENT_ID,
+          recordType: "contact",
+          recordId: "c1",
+          action: "updated",
+          actorType: "agent",
+          before: existing,
+          after: updated,
+        }),
+      );
     });
 
     it("unlinks a contact from a company by setting FK to null", async () => {
-      const updated = { contact_id: "c1", company_id: null };
-      const { client, builders } = createMockSupabase({
-        contacts: { data: updated, error: null },
+      const existing = { contact_id: "c1", client_id: CLIENT_ID, company_id: "co1" };
+      const updated = { ...existing, company_id: null };
+      const { client } = createMockSupabase({
+        contacts: [
+          { data: existing, error: null },
+          { data: updated, error: null },
+        ],
       });
       const tools = createLinkRecordsTool(client, CLIENT_ID);
 
@@ -154,7 +183,17 @@ describe("link_records", () => {
       );
 
       expect(result).toEqual({ success: true, removed: updated });
-      expect(builders.contacts.update).toHaveBeenCalledWith({ company_id: null });
+      expect(mockCaptureTimelineActivity).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clientId: CLIENT_ID,
+          recordType: "contact",
+          recordId: "c1",
+          action: "updated",
+          actorType: "agent",
+          before: existing,
+          after: updated,
+        }),
+      );
     });
 
     it("requires target_id for link", async () => {
@@ -175,9 +214,13 @@ describe("link_records", () => {
   // ---------------------------------------------------------------------------
   describe("deal_company", () => {
     it("links a deal to a company via FK update", async () => {
-      const updated = { deal_id: "d1", company_id: "co1" };
-      const { client, builders } = createMockSupabase({
-        deals: { data: updated, error: null },
+      const existing = { deal_id: "d1", client_id: CLIENT_ID, company_id: null };
+      const updated = { ...existing, company_id: "co1" };
+      const { client } = createMockSupabase({
+        deals: [
+          { data: existing, error: null },
+          { data: updated, error: null },
+        ],
       });
       const tools = createLinkRecordsTool(client, CLIENT_ID);
 
@@ -187,13 +230,27 @@ describe("link_records", () => {
       );
 
       expect(result).toEqual({ success: true, link: updated });
-      expect(builders.deals.update).toHaveBeenCalledWith({ company_id: "co1" });
+      expect(mockCaptureTimelineActivity).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clientId: CLIENT_ID,
+          recordType: "deal",
+          recordId: "d1",
+          action: "updated",
+          actorType: "agent",
+          before: existing,
+          after: updated,
+        }),
+      );
     });
 
     it("unlinks a deal from a company by setting FK to null", async () => {
-      const updated = { deal_id: "d1", company_id: null };
-      const { client, builders } = createMockSupabase({
-        deals: { data: updated, error: null },
+      const existing = { deal_id: "d1", client_id: CLIENT_ID, company_id: "co1" };
+      const updated = { ...existing, company_id: null };
+      const { client } = createMockSupabase({
+        deals: [
+          { data: existing, error: null },
+          { data: updated, error: null },
+        ],
       });
       const tools = createLinkRecordsTool(client, CLIENT_ID);
 
@@ -203,7 +260,17 @@ describe("link_records", () => {
       );
 
       expect(result).toEqual({ success: true, removed: updated });
-      expect(builders.deals.update).toHaveBeenCalledWith({ company_id: null });
+      expect(mockCaptureTimelineActivity).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clientId: CLIENT_ID,
+          recordType: "deal",
+          recordId: "d1",
+          action: "updated",
+          actorType: "agent",
+          before: existing,
+          after: updated,
+        }),
+      );
     });
   });
 

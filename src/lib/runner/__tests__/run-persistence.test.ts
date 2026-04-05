@@ -5,7 +5,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PersistedPart } from "@/lib/runner/message-utils";
-import type { Json } from "@/types/database";
 
 // --- Mocks for downstream modules ---
 const mockCreateMessages = vi.fn().mockResolvedValue(undefined);

@@ -427,12 +427,14 @@ export async function POST(request: Request) {
     const filename = (fileEntry as File).name || "upload";
     const fileCategory = getFileCategory(filename);
     const storageKey = crypto.randomUUID();
-    const storagePath = `${clientId}/attachments/${validated.data.record_type}/${validated.data.record_id}/${storageKey}`;
+    // Store the client-relative path in the DB — the download route prepends clientId itself.
+    const relativePath = `attachments/${validated.data.record_type}/${validated.data.record_id}/${storageKey}`;
+    const absolutePath = `${clientId}/${relativePath}`;
 
     // Step 1: Upload binary to storage
     const { error: uploadError } = await supabase.storage
       .from(BUCKET_ID)
-      .upload(storagePath, await fileEntry.arrayBuffer(), {
+      .upload(absolutePath, await fileEntry.arrayBuffer(), {
         contentType: fileEntry.type,
         upsert: false,
       });
@@ -441,7 +443,7 @@ export async function POST(request: Request) {
       return jsonError("Upload failed", 500);
     }
 
-    // Step 2: Create attachment record
+    // Step 2: Create attachment record (storage_path is relative, without clientId)
     const { data: attachment, error: insertError } = await supabase
       .from("record_attachments")
       .insert({
@@ -449,7 +451,7 @@ export async function POST(request: Request) {
         record_type: validated.data.record_type,
         record_id: validated.data.record_id,
         filename,
-        storage_path: storagePath,
+        storage_path: relativePath,
         content_type: fileEntry.type,
         file_size: fileEntry.size,
         file_category: fileCategory,
@@ -459,14 +461,14 @@ export async function POST(request: Request) {
 
     if (insertError || !attachment) {
       // Clean up orphaned storage file
-      await supabase.storage.from(BUCKET_ID).remove([storagePath]);
+      await supabase.storage.from(BUCKET_ID).remove([absolutePath]);
       return jsonError("Failed to create attachment record", 500);
     }
 
     // Step 3: Generate signed URL
     const { data: signedUrlData } = await supabase.storage
       .from(BUCKET_ID)
-      .createSignedUrl(storagePath, SIGNED_URL_EXPIRY_SECONDS, {
+      .createSignedUrl(absolutePath, SIGNED_URL_EXPIRY_SECONDS, {
         download: filename,
       });
 
@@ -718,14 +720,8 @@ export function useDeleteAttachment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      attachmentId,
-      storagePath,
-    }: {
-      attachmentId: string;
-      storagePath: string;
-    }): Promise<RecordAttachment> => {
-      // Delete DB record first to get the full row back
+    mutationFn: async (attachmentId: string): Promise<RecordAttachment> => {
+      // Delete DB record first to get the full row back (includes client_id + storage_path)
       const { data, error } = await supabase
         .from("record_attachments")
         .delete()
@@ -735,19 +731,23 @@ export function useDeleteAttachment() {
 
       if (error) throw error;
 
-      // Delete storage file (best-effort — DB record already gone)
-      await supabase.storage.from("agent-files").remove([storagePath]);
+      const attachment = data as RecordAttachment;
+      // Reconstruct absolute storage path: "{client_id}/{relative_storage_path}"
+      const absolutePath = `${attachment.client_id}/${attachment.storage_path}`;
 
-      return data as RecordAttachment;
+      // Delete storage file (best-effort — DB record already gone)
+      await supabase.storage.from("agent-files").remove([absolutePath]);
+
+      return attachment;
     },
-    onSuccess: (attachment) => {
+    onSuccess: (deleted) => {
       queryClient.setQueryData<RecordAttachment[]>(
-        recordAttachmentKeys.list(attachment.record_type, attachment.record_id),
+        recordAttachmentKeys.list(deleted.record_type, deleted.record_id),
         (existing) =>
-          (existing ?? []).filter((a) => a.attachment_id !== attachment.attachment_id),
+          (existing ?? []).filter((a) => a.attachment_id !== deleted.attachment_id),
       );
       void queryClient.invalidateQueries({
-        queryKey: recordAttachmentKeys.list(attachment.record_type, attachment.record_id),
+        queryKey: recordAttachmentKeys.list(deleted.record_type, deleted.record_id),
       });
     },
   });
@@ -1215,14 +1215,14 @@ export function DrawerFilesTab({ recordType, recordId }: DrawerFilesTabProps) {
     }
   };
 
-  const handleDownload = async (attachment: RecordAttachment) => {
-    const response = await fetch(
-      `/api/files/download?path=attachments/${attachment.record_type}/${attachment.record_id}/${attachment.storage_path.split("/").pop()}`,
-    );
-    if (response.ok) {
-      const blob = await response.blob();
-      saveAs(blob, attachment.filename);
-    }
+  const handleDownload = (attachment: RecordAttachment) => {
+    // storage_path is client-relative (e.g. "attachments/contact/c-1/uuid").
+    // The download route prepends clientId and passes ?filename for Content-Disposition.
+    const params = new URLSearchParams({
+      path: attachment.storage_path,
+      filename: attachment.filename,
+    });
+    window.open(`/api/files/download?${params.toString()}`, "_blank");
   };
 
   const handleRename = (attachmentId: string, newFilename: string) => {
@@ -1230,10 +1230,7 @@ export function DrawerFilesTab({ recordType, recordId }: DrawerFilesTabProps) {
   };
 
   const handleDelete = (attachment: RecordAttachment) => {
-    void deleteAttachment.mutateAsync({
-      attachmentId: attachment.attachment_id,
-      storagePath: attachment.storage_path,
-    });
+    void deleteAttachment.mutateAsync(attachment.attachment_id);
   };
 
   const { getRootProps, getInputProps: getDropzoneInputProps } = useDropzone({
@@ -1539,6 +1536,62 @@ git commit -m "feat: complete Files tab for CRM record drawers"
 
 ---
 
+## Task 10: Clean up attachments on record deletion
+
+**Files:**
+- Modify: `src/lib/runner/tools/crm/delete-records.ts`
+
+The existing `delete-records.ts` already cleans up `record_notes` when a record is deleted (lines 100-109). We need to add the same cleanup for `record_attachments` — plus delete the storage files.
+
+**Step 1: Add record_attachments cleanup after the record_notes cleanup block**
+
+In `src/lib/runner/tools/crm/delete-records.ts`, after the `record_notes` cleanup block (line ~109), add:
+
+```typescript
+            // Clean up record_attachments and their storage files.
+            if (recordType) {
+              const { data: orphanedAttachments } = await supabase
+                .from("record_attachments")
+                .select("storage_path")
+                .eq("record_type", recordType)
+                .eq("record_id", id)
+                .eq("client_id", clientId);
+
+              if (orphanedAttachments && orphanedAttachments.length > 0) {
+                // Delete storage files (best-effort)
+                const storagePaths = orphanedAttachments.map(
+                  (a) => `${clientId}/${a.storage_path}`,
+                );
+                await supabase.storage.from("agent-files").remove(storagePaths);
+
+                // Delete DB rows
+                await supabase
+                  .from("record_attachments")
+                  .delete()
+                  .eq("record_type", recordType)
+                  .eq("record_id", id)
+                  .eq("client_id", clientId);
+              }
+            }
+```
+
+**Step 2: Run existing delete-records tests**
+
+```bash
+npx vitest run src/lib/runner/tools/crm/__tests__/delete-records.test.ts
+```
+
+Expected: PASS — existing tests unaffected (they don't mock record_attachments, so the new queries just return empty).
+
+**Step 3: Commit**
+
+```bash
+git add src/lib/runner/tools/crm/delete-records.ts
+git commit -m "feat: clean up record_attachments and storage files on record deletion"
+```
+
+---
+
 ## Relevant Files Summary
 
 | File | Action |
@@ -1564,6 +1617,7 @@ git commit -m "feat: complete Files tab for CRM record drawers"
 | `src/components/crm/record-drawer/__tests__/contact-drawer-content.test.tsx` | Modify |
 | `src/components/crm/record-drawer/__tests__/company-drawer-content.test.tsx` | Modify |
 | `src/components/crm/record-drawer/__tests__/deal-drawer-content.test.tsx` | Modify |
+| `src/lib/runner/tools/crm/delete-records.ts` | Modify — clean up attachments + storage on record delete |
 
 ## Reference Docs
 

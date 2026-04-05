@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { contactKeys } from "@/hooks/use-contacts";
 import { useUpdateContact } from "@/hooks/use-update-contact";
 
+const mockCaptureTimelineActivity = vi.fn();
 const mockFrom = vi.fn();
 const mockSelect = vi.fn();
 const mockSelectEq = vi.fn();
@@ -21,6 +22,10 @@ vi.mock("@/lib/supabase", () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
   },
+}));
+
+vi.mock("@/lib/crm/timeline-capture", () => ({
+  captureTimelineActivity: (...args: unknown[]) => mockCaptureTimelineActivity(...args),
 }));
 
 function createWrapper(queryClient: QueryClient) {
@@ -47,6 +52,17 @@ describe("useUpdateContact", () => {
       },
     });
     const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
+    queryClient.setQueryData(contactKeys.detail("contact-1"), {
+      contact_id: "contact-1",
+      client_id: "client-1",
+      first_name: "Sarah",
+      last_name: "Tan",
+      phone: null,
+      email: "sarah@example.com",
+      type: "seller",
+      company_id: null,
+      custom_fields: {},
+    });
 
     const { result } = renderHook(() => useUpdateContact("contact-1"), {
       wrapper: createWrapper(queryClient),
@@ -57,6 +73,23 @@ describe("useUpdateContact", () => {
     expect(mockFrom).toHaveBeenCalledWith("contacts");
     expect(mockUpdate).toHaveBeenCalledWith({ phone: "+6591112222" });
     expect(mockEq).toHaveBeenCalledWith("contact_id", "contact-1");
+    expect(mockCaptureTimelineActivity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: expect.any(String),
+        recordType: "contact",
+        recordId: "contact-1",
+        action: "updated",
+        actorType: "user",
+        before: expect.objectContaining({
+          contact_id: "contact-1",
+          phone: null,
+        }),
+        after: expect.objectContaining({
+          contact_id: "contact-1",
+          phone: "+6591112222",
+        }),
+      }),
+    );
     expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: contactKeys.all });
   });
 
@@ -66,6 +99,17 @@ describe("useUpdateContact", () => {
         queries: { retry: false },
         mutations: { retry: false },
       },
+    });
+    queryClient.setQueryData(contactKeys.detail("contact-1"), {
+      contact_id: "contact-1",
+      client_id: "client-1",
+      first_name: "Sarah",
+      last_name: "Tan",
+      phone: null,
+      email: "sarah@example.com",
+      type: "seller",
+      company_id: null,
+      custom_fields: {},
     });
 
     const { result } = renderHook(() => useUpdateContact("contact-1"), {
@@ -86,6 +130,17 @@ describe("useUpdateContact", () => {
         queries: { retry: false },
         mutations: { retry: false },
       },
+    });
+    queryClient.setQueryData(contactKeys.detail("contact-1"), {
+      contact_id: "contact-1",
+      client_id: "client-1",
+      first_name: "Sarah",
+      last_name: "Tan",
+      phone: null,
+      email: "sarah@example.com",
+      type: "seller",
+      company_id: null,
+      custom_fields: {},
     });
 
     const { result } = renderHook(() => useUpdateContact("contact-1"), {
@@ -110,6 +165,17 @@ describe("useUpdateContact", () => {
         queries: { retry: false },
         mutations: { retry: false },
       },
+    });
+    queryClient.setQueryData(contactKeys.detail("contact-1"), {
+      contact_id: "contact-1",
+      client_id: "client-1",
+      first_name: "Sarah",
+      last_name: "Tan",
+      phone: null,
+      email: "sarah@example.com",
+      type: "seller",
+      company_id: null,
+      custom_fields: { segment: "vip", preferred_channel: "whatsapp" },
     });
 
     const { result } = renderHook(() => useUpdateContact("contact-1"), {

@@ -8,11 +8,13 @@ import { signWebhookBody } from "@/lib/triggers/webhook-auth";
 
 const {
   mockAfter,
+  mockCheckRateLimit,
   mockCreateAdminClient,
   mockClaimWebhookTrigger,
   mockExecuteTrigger,
 } = vi.hoisted(() => ({
   mockAfter: vi.fn(),
+  mockCheckRateLimit: vi.fn(),
   mockCreateAdminClient: vi.fn(),
   mockClaimWebhookTrigger: vi.fn(),
   mockExecuteTrigger: vi.fn(),
@@ -29,6 +31,10 @@ vi.mock("next/server", async (importOriginal) => {
 
 vi.mock("@/lib/supabase/server", () => ({
   createAdminClient: mockCreateAdminClient,
+}));
+
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: (...args: unknown[]) => mockCheckRateLimit(...args),
 }));
 
 vi.mock("@/lib/triggers/webhook-claim", () => ({
@@ -76,6 +82,7 @@ describe("POST /api/trigger/webhook/[triggerId]", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCheckRateLimit.mockResolvedValue({ allowed: true, retryAfter: null });
     mockAfter.mockImplementation(async (callback: () => Promise<void> | void) => {
       await callback();
     });

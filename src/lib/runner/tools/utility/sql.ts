@@ -58,7 +58,8 @@ export function createSqlTools(
         .describe("Brief description of what this query answers. Logged for audit.")
         .optional(),
     }),
-    execute: async ({ query, purpose: _purpose }) => {
+    execute: async ({ query, purpose }) => {
+      void purpose;
       const { cleaned, error: validationError } = validateAndCleanSql(query);
 
       if (validationError) {

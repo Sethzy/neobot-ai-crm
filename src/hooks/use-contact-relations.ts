@@ -88,7 +88,7 @@ export function useContactInteractions(contactId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("interactions")
-        .select("*")
+        .select("*, contacts!interactions_contact_id_fkey(first_name, last_name)")
         .eq("contact_id", contactId)
         .order("occurred_at", { ascending: false });
 
@@ -96,7 +96,7 @@ export function useContactInteractions(contactId: string) {
         throw error;
       }
 
-      return (data ?? []) as Interaction[];
+      return (data ?? []) as InteractionWithContact[];
     },
     enabled: Boolean(contactId),
   });

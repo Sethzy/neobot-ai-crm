@@ -202,7 +202,6 @@ describe("executeTrigger", () => {
     });
 
     expect(supabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
-      p_next_fire_at: null,
       p_advance_next_fire_at: false,
       p_trigger_id: validPayload.triggerId,
       p_run_id: validPayload.currentRunId,
@@ -241,7 +240,6 @@ describe("executeTrigger", () => {
     });
 
     expect(supabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
-      p_next_fire_at: null,
       p_advance_next_fire_at: false,
       p_trigger_id: validPayload.triggerId,
       p_run_id: validPayload.currentRunId,
@@ -271,7 +269,6 @@ describe("executeTrigger", () => {
     });
 
     expect(supabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
-      p_next_fire_at: null,
       p_advance_next_fire_at: true,
       p_trigger_id: validPayload.triggerId,
       p_run_id: validPayload.currentRunId,

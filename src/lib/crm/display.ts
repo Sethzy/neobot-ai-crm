@@ -6,8 +6,7 @@ import type { VariantProps } from "class-variance-authority";
 
 import type { badgeVariants } from "@/components/ui/badge";
 import type { CustomFieldDefinition } from "@/lib/crm/config";
-import type { Contact, CrmTask, Deal } from "@/lib/crm/schemas";
-import { crmTaskStatusValues, dealStageValues } from "@/lib/crm/schemas";
+import type { Contact, Deal } from "@/lib/crm/schemas";
 import {
   AVATAR_COLORS,
   DEAL_STAGE_TONE_CLASSES,

@@ -239,6 +239,8 @@ describe("POST /api/connections/initiate", () => {
       display_name: null,
       account_identifier: null,
       status: "pending",
+      activated_tools: [],
+      tool_count: 0,
     });
   });
 

@@ -88,6 +88,7 @@
   --filetype-pdf:          var(--flexoki-re);
   --filetype-document:     var(--flexoki-blue);
   --filetype-presentation: var(--flexoki-orange);
+  --filetype-image:        var(--flexoki-cyan);
   --filetype-default:      var(--flexoki-tx-2);
 
   --shadow-2xs: 0px 1px 2px 0px hsl(225 27.7778% 14.1176% / 0.02);
@@ -238,6 +239,7 @@
   --color-filetype-pdf: var(--filetype-pdf);
   --color-filetype-document: var(--filetype-document);
   --color-filetype-presentation: var(--filetype-presentation);
+  --color-filetype-image: var(--filetype-image);
   --color-filetype-default: var(--filetype-default);
 
   /* Radius */

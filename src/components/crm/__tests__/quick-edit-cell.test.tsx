@@ -139,6 +139,6 @@ describe("QuickEditCell", () => {
     await user.keyboard("{Escape}");
 
     expect(onSave).not.toHaveBeenCalled();
-    expect(screen.getByText("Open")).toBeInTheDocument();
+    expect(screen.getByText("To do")).toBeInTheDocument();
   });
 });

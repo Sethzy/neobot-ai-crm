@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { CRM_DEFAULTS, matchVocabularyValue, type CrmVocabConfig } from "@/lib/crm/config";
+import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 import type { Database, JsonObject } from "@/types/database";
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 
@@ -150,6 +151,16 @@ async function updateOne(
     return { success: false, error: "No fields to update" };
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existingRecord, error: readError } = await (supabase as any)
+    .from(table)
+    .select("*")
+    .eq(pk, recordId)
+    .eq("client_id", clientId)
+    .maybeSingle();
+
+  const beforeSnapshot = readError ? null : (existingRecord as Record<string, unknown> | null);
+
   // Normalize configurable vocabulary values to match config keys
   if (entity === "deals" && typeof updates.stage === "string") {
     updates.stage = matchVocabularyValue(updates.stage, config.deal_stages);
@@ -162,24 +173,14 @@ async function updateOne(
   }
 
   // --- Deal stage analytics: read previous stage before update ---
-  let previousStage: string | null = null;
-  let previousAmount: number | null = null;
-
-  if (entity === "deals" && updates.stage) {
-    const { data: existingDeal, error: fetchError } = await supabase
-      .from("deals")
-      .select("stage, amount")
-      .eq("deal_id", recordId)
-      .eq("client_id", clientId)
-      .maybeSingle();
-
-    if (fetchError) {
-      return { success: false, error: fetchError.message };
-    }
-
-    previousStage = existingDeal?.stage ?? null;
-    previousAmount = existingDeal?.amount ?? null;
-  }
+  const previousStage =
+    entity === "deals" && typeof beforeSnapshot?.stage === "string"
+      ? beforeSnapshot.stage
+      : null;
+  const previousAmount =
+    entity === "deals" && typeof beforeSnapshot?.amount === "number"
+      ? beforeSnapshot.amount
+      : null;
 
   // --- Custom fields deep merge ---
   if ("custom_fields" in updates) {
@@ -232,6 +233,19 @@ async function updateOne(
         deal_value:
           typeof data.amount === "number" ? data.amount : previousAmount,
       },
+    });
+  }
+
+  if (beforeSnapshot) {
+    void captureTimelineActivity({
+      supabase,
+      clientId,
+      recordType: RECORD_TYPE_MAP[entity],
+      recordId,
+      action: "updated",
+      actorType: "agent",
+      before: beforeSnapshot,
+      after: data as Record<string, unknown>,
     });
   }
 

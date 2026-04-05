@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { dealKeys } from "@/hooks/use-deals";
 import { useUpdateDeal } from "@/hooks/use-update-deal";
 
+const mockCaptureTimelineActivity = vi.fn();
 const mockFrom = vi.fn();
 const mockSelect = vi.fn();
 const mockSelectEq = vi.fn();
@@ -22,6 +23,10 @@ vi.mock("@/lib/supabase", () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
   },
+}));
+
+vi.mock("@/lib/crm/timeline-capture", () => ({
+  captureTimelineActivity: (...args: unknown[]) => mockCaptureTimelineActivity(...args),
 }));
 
 function createWrapper(queryClient: QueryClient) {
@@ -49,6 +54,17 @@ describe("useUpdateDeal", () => {
       },
     });
     const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
+    queryClient.setQueryData(dealKeys.detail("deal-1"), {
+      deal_id: "deal-1",
+      client_id: "client-1",
+      address: "1 Market Street",
+      stage: "leads",
+      amount: 500000,
+      company_id: null,
+      custom_fields: {},
+      deal_contacts: [],
+      companies: null,
+    });
 
     const { result } = renderHook(() => useUpdateDeal("deal-1"), {
       wrapper: createWrapper(queryClient),
@@ -59,6 +75,23 @@ describe("useUpdateDeal", () => {
     expect(mockFrom).toHaveBeenCalledWith("deals");
     expect(mockUpdate).toHaveBeenCalledWith({ address: "22 River Valley Road" });
     expect(mockEq).toHaveBeenCalledWith("deal_id", "deal-1");
+    expect(mockCaptureTimelineActivity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: expect.any(String),
+        recordType: "deal",
+        recordId: "deal-1",
+        action: "updated",
+        actorType: "user",
+        before: expect.objectContaining({
+          deal_id: "deal-1",
+          address: "1 Market Street",
+        }),
+        after: expect.objectContaining({
+          deal_id: "deal-1",
+          address: "22 River Valley Road",
+        }),
+      }),
+    );
     expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: dealKeys.all });
   });
 
@@ -68,6 +101,17 @@ describe("useUpdateDeal", () => {
         queries: { retry: false },
         mutations: { retry: false },
       },
+    });
+    queryClient.setQueryData(dealKeys.detail("deal-1"), {
+      deal_id: "deal-1",
+      client_id: "client-1",
+      address: "1 Market Street",
+      stage: "leads",
+      amount: 500000,
+      company_id: null,
+      custom_fields: {},
+      deal_contacts: [],
+      companies: null,
     });
 
     const { result } = renderHook(() => useUpdateDeal("deal-1"), {
@@ -81,11 +125,6 @@ describe("useUpdateDeal", () => {
 
   it("throws when Supabase returns an update error", async () => {
     const error = { message: "update failed" };
-    mockFrom.mockReset();
-    mockSelectEq.mockReturnValue({ maybeSingle: mockMaybeSingle });
-    mockFrom
-      .mockImplementationOnce(() => ({ select: mockSelect }))
-      .mockImplementationOnce(() => ({ update: mockUpdate }));
     mockEq.mockResolvedValue({ error });
 
     const queryClient = new QueryClient({
@@ -93,6 +132,17 @@ describe("useUpdateDeal", () => {
         queries: { retry: false },
         mutations: { retry: false },
       },
+    });
+    queryClient.setQueryData(dealKeys.detail("deal-1"), {
+      deal_id: "deal-1",
+      client_id: "client-1",
+      address: "1 Market Street",
+      stage: "leads",
+      amount: 500000,
+      company_id: null,
+      custom_fields: {},
+      deal_contacts: [],
+      companies: null,
     });
 
     const { result } = renderHook(() => useUpdateDeal("deal-1"), {
@@ -117,6 +167,17 @@ describe("useUpdateDeal", () => {
         queries: { retry: false },
         mutations: { retry: false },
       },
+    });
+    queryClient.setQueryData(dealKeys.detail("deal-1"), {
+      deal_id: "deal-1",
+      client_id: "client-1",
+      address: "1 Market Street",
+      stage: "leads",
+      amount: 500000,
+      company_id: null,
+      custom_fields: { policy_number: "P-123", coverage_amount: 250000 },
+      deal_contacts: [],
+      companies: null,
     });
 
     const { result } = renderHook(() => useUpdateDeal("deal-1"), {

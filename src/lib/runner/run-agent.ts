@@ -120,7 +120,7 @@ export async function runAgent(
   const t0 = performance.now();
   const _t = process.env.NODE_ENV === "development"
     ? (label: string) => console.log(`[runner/timing] ${label}: ${(performance.now() - t0).toFixed(0)}ms`)
-    : (_label: string) => {};
+    : () => {};
 
   const { clientId, threadId, input } = payload;
   const modelId = resolveModelId(payload.selectedChatModel);

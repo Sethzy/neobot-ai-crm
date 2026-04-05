@@ -6,6 +6,7 @@ import { tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
+import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 import type { Database } from "@/types/database";
 
 /** Entity types supported by delete_records. */
@@ -26,6 +27,13 @@ const RECORD_TYPE_MAP: Partial<Record<DeleteEntity, "contact" | "company" | "dea
   contacts: "contact",
   companies: "company",
   deals: "deal",
+};
+
+const TIMELINE_RECORD_TYPE_MAP: Partial<Record<DeleteEntity, "contact" | "company" | "deal" | "task">> = {
+  contacts: "contact",
+  companies: "company",
+  deals: "deal",
+  tasks: "task",
 };
 
 /**
@@ -54,12 +62,30 @@ export function createDeleteRecordsTool(
           .min(1)
           .describe("Why these records are being deleted. Logged for audit."),
       }),
-      execute: async ({ entity, ids, reason: _reason }) => {
+      execute: async ({ entity, ids, reason }) => {
+        void reason;
         const { table, pk } = ENTITY_ROUTING[entity];
         const deletedIds: string[] = [];
         const failedIds: string[] = [];
 
         for (const id of ids) {
+          let existingRecord: Record<string, unknown> | null = null;
+          const timelineRecordType = TIMELINE_RECORD_TYPE_MAP[entity];
+
+          if (timelineRecordType) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data, error: readError } = await (supabase as any)
+              .from(table)
+              .select("*")
+              .eq(pk, id)
+              .eq("client_id", clientId)
+              .maybeSingle();
+
+            if (!readError) {
+              existingRecord = (data as Record<string, unknown> | null) ?? null;
+            }
+          }
+
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const { error } = await (supabase as any)
             .from(table)
@@ -80,6 +106,18 @@ export function createDeleteRecordsTool(
                 .eq("record_type", recordType)
                 .eq("record_id", id)
                 .eq("client_id", clientId);
+            }
+
+            if (timelineRecordType && existingRecord) {
+              void captureTimelineActivity({
+                supabase,
+                clientId,
+                recordType: timelineRecordType,
+                recordId: id,
+                action: "deleted",
+                actorType: "agent",
+                before: existingRecord,
+              });
             }
           }
         }

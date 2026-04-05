@@ -19,6 +19,8 @@ export type RealtimeTableName =
   | "interactions"
   | "crm_tasks"
   | "record_notes"
+  | "record_attachments"
+  | "timeline_activities"
   | "agent_triggers"
   | "crm_views";
 

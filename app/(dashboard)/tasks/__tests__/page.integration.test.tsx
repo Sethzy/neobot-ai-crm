@@ -75,6 +75,17 @@ vi.mock("@/hooks/use-client-id", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-crm-views", () => ({
+  useCrmViews: () => ({ data: [] }),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    replace: vi.fn(),
+  }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 describe("TasksPage integration", () => {
   beforeEach(() => {
     vi.clearAllMocks();

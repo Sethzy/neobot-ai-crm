@@ -122,7 +122,6 @@ async function main() {
   console.log(`\nEvaluating ${ids.length} trace(s)...\n`);
 
   let passed = 0;
-  let failed = 0;
   let errored = 0;
 
   for (const id of ids) {

@@ -96,14 +96,18 @@ export function useScrollReveal<T extends HTMLElement = HTMLDivElement>(
     // Scroll reveal classes only animate on mobile; skip observers elsewhere.
     const isMobileViewport = window.matchMedia('(max-width: 639px)').matches
     if (!isMobileViewport) {
-      setIsVisible(true)
-      return
+      const frameId = window.requestAnimationFrame(() => {
+        setIsVisible(true)
+      })
+      return () => window.cancelAnimationFrame(frameId)
     }
 
     // Skip animation if user prefers reduced motion.
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setIsVisible(true)
-      return
+      const frameId = window.requestAnimationFrame(() => {
+        setIsVisible(true)
+      })
+      return () => window.cancelAnimationFrame(frameId)
     }
 
     const unobserve = observe(

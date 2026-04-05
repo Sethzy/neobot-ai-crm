@@ -24,9 +24,9 @@ describe("ViewToggle", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: /table/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /board/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /calendar/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /table view/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /board view/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /calendar view/i })).toBeInTheDocument();
   });
 
   it("marks the active view", () => {
@@ -38,13 +38,13 @@ describe("ViewToggle", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: /board/i })).toHaveAttribute(
-      "data-active",
-      "true",
+    expect(screen.getByRole("radio", { name: /board view/i })).toHaveAttribute(
+      "data-state",
+      "on",
     );
-    expect(screen.getByRole("button", { name: /table/i })).toHaveAttribute(
-      "data-active",
-      "false",
+    expect(screen.getByRole("radio", { name: /table view/i })).toHaveAttribute(
+      "data-state",
+      "off",
     );
   });
 
@@ -59,7 +59,7 @@ describe("ViewToggle", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /calendar/i }));
+    await user.click(screen.getByRole("radio", { name: /calendar view/i }));
 
     expect(onChange).toHaveBeenCalledWith("calendar");
   });

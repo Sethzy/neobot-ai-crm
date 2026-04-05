@@ -11,6 +11,7 @@ import {
   CRM_DEFAULTS,
   type CrmVocabConfig,
 } from "@/lib/crm/config";
+import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 import { crmTaskStatusValues } from "@/lib/crm/schemas";
 import type { Database, JsonObject } from "@/types/database";
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
@@ -77,6 +78,16 @@ export function createTaskTools(
         },
       });
 
+      void captureTimelineActivity({
+        supabase,
+        clientId,
+        recordType: "task",
+        recordId: data.task_id,
+        action: "created",
+        actorType: "agent",
+        after: data as Record<string, unknown>,
+      });
+
       return {
         success: true as const,
         task: data,
@@ -115,6 +126,15 @@ export function createTaskTools(
         return { success: false as const, error: "No fields to update" };
       }
 
+      const { data: existingTask, error: readError } = await supabase
+        .from("crm_tasks")
+        .select("*")
+        .eq("task_id", task_id)
+        .eq("client_id", clientId)
+        .maybeSingle();
+
+      const beforeSnapshot = readError ? null : (existingTask as Record<string, unknown> | null);
+
       if ("custom_fields" in updates) {
         const result = await mergeCustomFields(
           supabase, "crm_tasks", "task_id", task_id, clientId,
@@ -134,6 +154,19 @@ export function createTaskTools(
 
       if (error) {
         return { success: false as const, error: error.message };
+      }
+
+      if (beforeSnapshot) {
+        void captureTimelineActivity({
+          supabase,
+          clientId,
+          recordType: "task",
+          recordId: task_id,
+          action: "updated",
+          actorType: "agent",
+          before: beforeSnapshot,
+          after: data as Record<string, unknown>,
+        });
       }
 
       return {

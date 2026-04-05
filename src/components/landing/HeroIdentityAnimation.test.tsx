@@ -97,11 +97,14 @@ describe("HeroIdentityAnimation", () => {
       );
 
       const expectedStates = [
-        { left: "empty", middle: "empty", right: "avatar" },
-        { left: "empty", middle: "ai-blue", right: "avatar" },
-        { left: "ai-green", middle: "ai-blue", right: "avatar" },
-        { left: "ai-green", middle: "E", right: "avatar" },
-        { left: "ai-green", middle: "E", right: "O" },
+        { left: "empty", middle: "empty", right: "contacts" },
+        { left: "empty", middle: "messaging", right: "contacts" },
+        { left: "tasks", middle: "messaging", right: "contacts" },
+        { left: "tasks", middle: "messaging", right: "contacts" },
+        { left: "N", middle: "messaging", right: "contacts" },
+        { left: "N", middle: "messaging", right: "contacts" },
+        { left: "N", middle: "E", right: "contacts" },
+        { left: "N", middle: "E", right: "contacts" },
         { left: "N", middle: "E", right: "O" },
       ] as const;
 

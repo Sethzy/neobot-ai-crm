@@ -15,7 +15,6 @@ const {
   mockSupabaseEq,
   mockSupabaseMaybeSingle,
   mockSupabaseSelect,
-  mockSupabaseChannel,
   mockSupabaseRemoveChannel,
 } = vi.hoisted(() => {
   const channel = {

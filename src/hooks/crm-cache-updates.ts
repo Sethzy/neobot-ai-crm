@@ -39,17 +39,17 @@ function mergeRecordUpdates<RecordType extends Record<string, unknown>>(
   const nextRecord = {
     ...record,
     ...updates,
-  };
+  } as RecordType & Record<string, unknown>;
 
   const nextCustomFields = updates["custom_fields"];
   if (nextCustomFields && typeof nextCustomFields === "object" && !Array.isArray(nextCustomFields)) {
-    nextRecord["custom_fields"] = {
+    (nextRecord as Record<string, unknown>)["custom_fields"] = {
       ...((record["custom_fields"] as Record<string, unknown> | null | undefined) ?? {}),
       ...nextCustomFields,
     };
   }
 
-  return nextRecord;
+  return nextRecord as RecordType;
 }
 
 function patchRecordInCollection<RecordType extends Record<string, unknown>>(

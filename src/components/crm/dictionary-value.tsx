@@ -279,7 +279,6 @@ export function DictionaryValue({
   className,
   iconWrapperClassName = defaultIconWrapperClassName,
   iconClassName = defaultIconClassName,
-  colorClassName = defaultColorClassName,
 }: DictionaryValueProps) {
   const normalizedValue = value?.trim();
 

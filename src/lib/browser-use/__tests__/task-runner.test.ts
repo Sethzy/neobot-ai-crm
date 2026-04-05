@@ -34,14 +34,11 @@ describe("runBrowserTask", () => {
 
   it("calls client.run with schema output and normalizes numeric cost fields", async () => {
     mockRun.mockResolvedValueOnce({
-      isTaskSuccessful: true,
+      isSuccess: true,
       output: {
         listings: [{ id: "pg-1", url: "https://www.propertyguru.com.sg/listing/pg-1" }],
       },
-      totalCostUsd: "0.03",
-      llmCostUsd: "0.02",
-      proxyCostUsd: "0.005",
-      browserCostUsd: "0.005",
+      cost: "0.03",
     });
 
     const result = await runBrowserTask("Extract listings from page", {
@@ -52,28 +49,23 @@ describe("runBrowserTask", () => {
 
     expect(mockRun).toHaveBeenCalledWith("Extract listings from page", {
       schema: ListingSchema,
-      model: "bu-mini",
-      maxCostUsd: 0.05,
+      llm: "browser-use-2.0",
       maxSteps: 20,
-      keepAlive: false,
     });
     expect(result).toEqual({
       success: true,
       output: {
         listings: [{ id: "pg-1", url: "https://www.propertyguru.com.sg/listing/pg-1" }],
       },
-      cost: { total: 0.03, llm: 0.02, proxy: 0.005, browser: 0.005 },
+      cost: { total: 0.03, llm: 0, proxy: 0, browser: 0 },
     });
   });
 
   it("returns a failure envelope when Browser-Use reports the task as unsuccessful", async () => {
     mockRun.mockResolvedValueOnce({
-      isTaskSuccessful: false,
+      isSuccess: false,
       output: "Cloudflare blocked navigation",
-      totalCostUsd: "0.01",
-      llmCostUsd: "0.008",
-      proxyCostUsd: "0.001",
-      browserCostUsd: "0.001",
+      cost: "0.01",
     });
 
     const result = await runBrowserTask("Navigate to blocked page", {

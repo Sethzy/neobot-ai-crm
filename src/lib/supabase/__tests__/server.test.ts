@@ -30,9 +30,11 @@ describe("createAdminClient", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
+    vi.resetModules();
     vi.clearAllMocks();
     process.env = {
       ...originalEnv,
+      AI_GATEWAY_API_KEY: "gateway-key",
       NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon-key",
       SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
@@ -69,6 +71,7 @@ describe("createAdminClient", () => {
   it("throws when the service-role key is missing", async () => {
     process.env = {
       ...originalEnv,
+      AI_GATEWAY_API_KEY: "gateway-key",
       NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon-key",
       SUPABASE_SERVICE_ROLE_KEY: "   ",
@@ -76,7 +79,7 @@ describe("createAdminClient", () => {
 
     const { createAdminClient } = await import("../server");
 
-    await expect(createAdminClient()).rejects.toThrow("Missing Supabase admin credentials");
+    await expect(createAdminClient()).rejects.toThrow(/SUPABASE_SERVICE_ROLE_KEY/);
     expect(mockCreateAdminSupabaseClient).not.toHaveBeenCalled();
   });
 });

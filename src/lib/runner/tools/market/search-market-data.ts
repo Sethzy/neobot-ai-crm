@@ -241,7 +241,7 @@ function applyFilters(queryBuilder: any, dataset: Dataset, params: MarketDataFil
 }
 
 /** Build a filtered query for the given dataset and selected columns. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function buildQuery(
   supabase: SupabaseClient,
   dataset: Dataset,
@@ -249,7 +249,7 @@ function buildQuery(
   filters: MarketDataFilters,
   selectOptions?: Record<string, unknown>,
 ) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   let queryBuilder =
     selectOptions === undefined
       ? // eslint-disable-next-line @typescript-eslint/no-explicit-any

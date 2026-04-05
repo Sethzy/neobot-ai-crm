@@ -18,15 +18,20 @@ vi.mock("@/lib/analytics/posthog-server", () => ({
   captureServerEvent: vi.fn(),
 }));
 
-vi.mock("@/lib/stripe/stripe", () => ({
-  getStripeClient: () => ({
-    webhooks: {
-      constructEvent: mockConstructEvent,
-    },
-  }),
-  syncBillingStateFromDeletedSubscription: mockSyncBillingStateFromDeletedSubscription,
-  syncBillingStateFromSubscriptionId: mockSyncBillingStateFromSubscriptionId,
-}));
+vi.mock("@/lib/stripe/stripe", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/stripe/stripe")>();
+
+  return {
+    ...actual,
+    getStripeClient: () => ({
+      webhooks: {
+        constructEvent: mockConstructEvent,
+      },
+    }),
+    syncBillingStateFromDeletedSubscription: mockSyncBillingStateFromDeletedSubscription,
+    syncBillingStateFromSubscriptionId: mockSyncBillingStateFromSubscriptionId,
+  };
+});
 
 describe("POST /api/stripe/webhook", () => {
   const originalEnv = process.env;

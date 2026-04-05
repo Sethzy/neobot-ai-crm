@@ -12,8 +12,8 @@ describe("chat thread loading shell", () => {
     const { container } = render(<Loading />);
 
     expect(screen.getByTestId("chat-thread-loading-shell")).toBeInTheDocument();
-    expect(screen.getByTestId("chat-thread-loading-message-skeletons")).toBeInTheDocument();
     expect(screen.getByTestId("chat-thread-loading-composer-skeleton")).toBeInTheDocument();
+    expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(1);
     expect(container.querySelector(".animate-spin")).not.toBeInTheDocument();
   });
 });

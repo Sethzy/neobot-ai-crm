@@ -2,7 +2,7 @@
  * Tests for the unified update_record tool.
  * @module lib/runner/tools/crm/__tests__/update-record.test
  */
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createUpdateRecordTool } from "../update-record";
 import { createMockSupabase } from "./mock-supabase";
@@ -11,14 +11,19 @@ const CLIENT_ID = "660e8400-e29b-41d4-a716-446655440000";
 const EXEC_OPTIONS = { toolCallId: "tool-call", messages: [] } as never;
 
 const mockCaptureServerEvent = vi.fn();
+const mockCaptureTimelineActivity = vi.fn();
 vi.mock("@/lib/analytics/posthog-server", () => ({
   captureServerEvent: (...args: unknown[]) => mockCaptureServerEvent(...args),
   captureServerEvents: vi.fn(),
+}));
+vi.mock("@/lib/crm/timeline-capture", () => ({
+  captureTimelineActivity: (...args: unknown[]) => mockCaptureTimelineActivity(...args),
 }));
 
 describe("update_record", () => {
   beforeEach(() => {
     mockCaptureServerEvent.mockReset();
+    mockCaptureTimelineActivity.mockReset();
   });
 
   // ---------------------------------------------------------------------------
@@ -26,9 +31,19 @@ describe("update_record", () => {
   // ---------------------------------------------------------------------------
   describe("contacts", () => {
     it("updates a single contact", async () => {
-      const updated = { contact_id: "c1", first_name: "John", last_name: "Tan", email: "john@test.com" };
+      const existing = {
+        contact_id: "c1",
+        client_id: CLIENT_ID,
+        first_name: "John",
+        last_name: "Tan",
+        email: null,
+      };
+      const updated = { ...existing, email: "john@test.com" };
       const { client } = createMockSupabase({
-        contacts: { data: updated, error: null },
+        contacts: [
+          { data: existing, error: null },
+          { data: updated, error: null },
+        ],
       });
       const tools = createUpdateRecordTool(client, CLIENT_ID);
 
@@ -41,6 +56,17 @@ describe("update_record", () => {
       );
 
       expect(result).toEqual({ success: true, record: updated });
+      expect(mockCaptureTimelineActivity).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clientId: CLIENT_ID,
+          recordType: "contact",
+          recordId: "c1",
+          action: "updated",
+          actorType: "agent",
+          before: existing,
+          after: updated,
+        }),
+      );
     });
 
     it("returns error when no fields provided", async () => {
@@ -180,7 +206,7 @@ describe("update_record", () => {
 
       expect(result).toEqual({ success: true, record: updated });
       // Notes should not be in the update payload
-      const updateBuilder = builderHistory.contacts[0];
+      const updateBuilder = builderHistory.contacts[1];
       expect(updateBuilder.update).toHaveBeenCalledWith(
         expect.not.objectContaining({ notes: expect.anything() }),
       );
@@ -250,9 +276,11 @@ describe("update_record", () => {
       const updatedRecord = { contact_id: "c1", custom_fields: { key_a: "new_a", key_b: "old_b" } };
       const { client, builderHistory } = createMockSupabase({
         contacts: [
-          // First from("contacts") → fetch existing custom_fields
+          // First from("contacts") → fetch existing full record
           { data: existingRecord, error: null },
-          // Second from("contacts") → update
+          // Second from("contacts") → fetch existing custom_fields
+          { data: existingRecord, error: null },
+          // Third from("contacts") → update
           { data: updatedRecord, error: null },
         ],
       });
@@ -268,7 +296,7 @@ describe("update_record", () => {
 
       expect(result).toEqual({ success: true, record: updatedRecord });
       // The update call should have the merged fields
-      const updateBuilder = builderHistory.contacts[1];
+      const updateBuilder = builderHistory.contacts[2];
       expect(updateBuilder.update).toHaveBeenCalledWith(
         expect.objectContaining({
           custom_fields: { key_a: "new_a", key_b: "old_b" },
@@ -282,11 +310,15 @@ describe("update_record", () => {
   // ---------------------------------------------------------------------------
   describe("batch", () => {
     it("updates multiple records and returns batch result", async () => {
+      const existing1 = { contact_id: "c1", first_name: "Old John" };
       const updated1 = { contact_id: "c1", first_name: "John" };
+      const existing2 = { contact_id: "c2", first_name: "Old Jane" };
       const updated2 = { contact_id: "c2", first_name: "Jane" };
       const { client } = createMockSupabase({
         contacts: [
+          { data: existing1, error: null },
           { data: updated1, error: null },
+          { data: existing2, error: null },
           { data: updated2, error: null },
         ],
       });
@@ -311,10 +343,13 @@ describe("update_record", () => {
     });
 
     it("returns partial failure when one update fails", async () => {
+      const existing1 = { contact_id: "c1", first_name: "Old John" };
       const updated1 = { contact_id: "c1", first_name: "John" };
       const { client } = createMockSupabase({
         contacts: [
+          { data: existing1, error: null },
           { data: updated1, error: null },
+          { data: { contact_id: "c2", first_name: "Old Jane" }, error: null },
           { data: null, error: { message: "not found" } },
         ],
       });

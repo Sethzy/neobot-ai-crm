@@ -80,7 +80,6 @@ async function main() {
   const decoder = new TextDecoder();
   let totalBytes = 0;
   let eventCount = 0;
-  let fullText = "";
 
   while (true) {
     const { done, value } = await reader.read();
@@ -88,7 +87,6 @@ async function main() {
 
     const chunk = decoder.decode(value, { stream: true });
     totalBytes += value.byteLength;
-    fullText += chunk;
 
     // Parse SSE events from chunk
     const lines = chunk.split("\n");

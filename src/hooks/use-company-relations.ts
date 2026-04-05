@@ -148,7 +148,7 @@ export function useCompanyDeals(companyId: string) {
         throw error;
       }
 
-      return (data ?? []) as DealWithContact[];
+      return (data ?? []) as unknown as DealWithContact[];
     },
     enabled: Boolean(companyId),
   });

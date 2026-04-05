@@ -6,18 +6,19 @@
 
 import { type ReactNode, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { Banknote, Building2, Clock3, House, Kanban, ListTodo, MapPin, StickyNote, Users } from "lucide-react";
+import { Banknote, Building2, Clock3, House, Kanban, ListTodo, MapPin, Paperclip, StickyNote, Users } from "lucide-react";
 
+import { DrawerFilesTab } from "./drawer-files-tab";
 import { DrawerNotesTab } from "./drawer-notes-tab";
 
 import { LinkedContactsSection } from "@/components/crm/detail/linked-contacts-section";
 import { LinkedTasksSection } from "@/components/crm/detail/linked-tasks-section";
-import { InteractionTimeline } from "@/components/crm/interaction-timeline";
 import { InlineEditField } from "@/components/crm/inline-edit-field";
 import { StageBadge } from "@/components/crm/stage-badge";
+import { UnifiedTimeline } from "@/components/crm/timeline/unified-timeline";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDealInteractions, useDealTasks } from "@/hooks/use-contact-relations";
+import { useDealTasks } from "@/hooks/use-contact-relations";
 import { useCompanies } from "@/hooks/use-companies";
 import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useDeal } from "@/hooks/use-deals";
@@ -44,14 +45,13 @@ interface DealDrawerContentProps {
   closeButton?: ReactNode;
 }
 
-type DealDrawerTab = "home" | "contacts" | "timeline" | "tasks" | "notes";
+type DealDrawerTab = "home" | "contacts" | "timeline" | "tasks" | "notes" | "files";
 
 /**
- * Renders deal details, linked contacts, and interaction timeline.
+ * Renders deal details, linked contacts, and the unified activity timeline.
  */
 export function DealDrawerContent({ dealId, closeButton }: DealDrawerContentProps) {
   const { data: deal, isLoading, isError } = useDeal(dealId);
-  const { data: interactions = [] } = useDealInteractions(dealId);
   const { data: linkedTasks = [] } = useDealTasks(dealId);
   const { data: companies = [] } = useCompanies({});
   const { data: crmConfigResult } = useCrmConfig();
@@ -89,6 +89,7 @@ export function DealDrawerContent({ dealId, closeButton }: DealDrawerContentProp
     { id: "timeline", label: "Timeline", icon: <Clock3 className="h-4 w-4" /> },
     { id: "tasks", label: "Tasks", icon: <ListTodo className="h-4 w-4" /> },
     { id: "notes", label: "Notes", icon: <StickyNote className="h-4 w-4" /> },
+    { id: "files", label: "Files", icon: <Paperclip className="h-4 w-4" /> },
   ];
 
   return (
@@ -107,6 +108,7 @@ export function DealDrawerContent({ dealId, closeButton }: DealDrawerContentProp
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
+      maxVisibleTabs={6}
       footer={<RecordDetailPanelFooter />}
     >
       {activeTab === "home" ? (
@@ -200,7 +202,10 @@ export function DealDrawerContent({ dealId, closeButton }: DealDrawerContentProp
 
       {activeTab === "timeline" ? (
         <DrawerSection title="Activity">
-          <InteractionTimeline interactions={interactions} />
+          <UnifiedTimeline
+            recordType="deal"
+            recordId={dealId}
+          />
         </DrawerSection>
       ) : null}
 
@@ -212,6 +217,13 @@ export function DealDrawerContent({ dealId, closeButton }: DealDrawerContentProp
 
       {activeTab === "notes" ? (
         <DrawerNotesTab
+          recordType="deal"
+          recordId={dealId}
+        />
+      ) : null}
+
+      {activeTab === "files" ? (
+        <DrawerFilesTab
           recordType="deal"
           recordId={dealId}
         />

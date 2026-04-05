@@ -61,7 +61,7 @@ describe.runIf(canRun)("Compaction State — Persistence", () => {
 
   it("persistThreadCompactionState writes and returns valid state", async () => {
     // Insert a message to use as compaction boundary
-    const messageIds = await seedMessages(supabase, thread.threadId, [
+    await seedMessages(supabase, thread.threadId, [
       { role: "user", content: "Hello" },
     ]);
 
@@ -91,7 +91,7 @@ describe.runIf(canRun)("Compaction State — Persistence", () => {
   });
 
   it("fetchThreadCompactionState reads back persisted state", async () => {
-    const messageIds = await seedMessages(supabase, thread.threadId, [
+    await seedMessages(supabase, thread.threadId, [
       { role: "user", content: "Hello" },
     ]);
 
@@ -119,7 +119,7 @@ describe.runIf(canRun)("Compaction State — Persistence", () => {
   });
 
   it("persistThreadCompactionState updates existing state (rolling forward)", async () => {
-    const messageIds = await seedMessages(supabase, thread.threadId, [
+    await seedMessages(supabase, thread.threadId, [
       { role: "user", content: "Message 1" },
       { role: "assistant", content: "Reply 1" },
       { role: "user", content: "Message 2" },
@@ -164,7 +164,7 @@ describe.runIf(canRun)("Compaction Boundary — Message Filtering", () => {
   it("isAfterThreadCompactionBoundary filters messages correctly", async () => {
     // Seed messages with explicit timestamps to control ordering
     const baseTime = new Date("2026-01-15T10:00:00Z");
-    const messageIds = await seedMessages(supabase, thread.threadId, [
+    await seedMessages(supabase, thread.threadId, [
       { role: "user", content: "Old message 1", created_at: new Date(baseTime.getTime()).toISOString() },
       { role: "assistant", content: "Old reply", created_at: new Date(baseTime.getTime() + 1000).toISOString() },
       { role: "user", content: "Boundary message", created_at: new Date(baseTime.getTime() + 2000).toISOString() },

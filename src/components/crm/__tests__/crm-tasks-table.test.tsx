@@ -71,8 +71,7 @@ describe("CrmTasksTable", () => {
     render(<CrmTasksTable tasks={tasks} onRowClick={onRowClick} />);
 
     await user.click(screen.getByRole("button", { name: /edit status/i }));
-    await user.click(screen.getByRole("combobox", { name: /status/i }));
-    await user.click(await screen.findByRole("option", { name: /done/i }));
+    await user.click(screen.getByRole("option", { name: /done/i }));
 
     await waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalledWith({ status: "done" });
@@ -87,9 +86,9 @@ describe("CrmTasksTable", () => {
 
     await user.click(screen.getByRole("button", { name: /edit due date/i }));
 
-    const dueDateInput = screen.getByLabelText(/due date/i);
+    const dueDateInput = screen.getByLabelText(/^due date$/i);
     fireEvent.change(dueDateInput, { target: { value: "2026-03-10" } });
-    fireEvent.keyDown(dueDateInput, { key: "Enter" });
+    await user.click(screen.getByRole("button", { name: /save due date/i }));
 
     await waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalledWith({

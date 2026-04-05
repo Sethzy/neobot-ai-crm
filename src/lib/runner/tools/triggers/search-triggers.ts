@@ -154,7 +154,11 @@ export function createSearchTriggersTool() {
     }),
     execute: async ({ keywords }) => {
       const triggers = TRIGGER_CATALOG.filter((entry) => matchesTrigger(entry, keywords)).map(
-        ({ keywords: _keywords, ...entry }) => entry,
+        (entry) => {
+          const { keywords: triggerKeywords, ...trigger } = entry;
+          void triggerKeywords;
+          return trigger;
+        },
       );
 
       return {

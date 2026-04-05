@@ -47,8 +47,8 @@ vi.mock("@/hooks/use-contact-relations", () => ({
   useDealTasks: () => ({ data: [], isLoading: false, isError: false }),
 }));
 
-vi.mock("@/components/crm/interaction-timeline", () => ({
-  InteractionTimeline: () => <div>Interaction Timeline</div>,
+vi.mock("@/components/crm/timeline/unified-timeline", () => ({
+  UnifiedTimeline: () => <div>Unified Timeline</div>,
 }));
 
 vi.mock("@/hooks/use-update-deal", () => ({
@@ -93,6 +93,10 @@ vi.mock("@/components/crm/inline-edit-field", () => ({
   InlineEditField: (props: { label: string; value: string | null; type?: string }) => inlineFieldSpy(props),
 }));
 
+vi.mock("../drawer-files-tab", () => ({
+  DrawerFilesTab: () => <div>Files Tab</div>,
+}));
+
 describe("DealDrawerContent", () => {
   beforeEach(() => {
     inlineFieldSpy.mockClear();
@@ -125,9 +129,17 @@ describe("DealDrawerContent", () => {
     expect(screen.getByText("Contacts")).toBeInTheDocument();
     expect(screen.getByText("Timeline")).toBeInTheDocument();
     expect(screen.getByText("Tasks")).toBeInTheDocument();
-    // "Notes" is in the "+1 More" overflow dropdown (5th tab, maxVisibleTabs=4)
-    expect(screen.getByText("+1 More")).toBeInTheDocument();
+    expect(screen.getByText("Notes")).toBeInTheDocument();
+    expect(screen.getByText("Files")).toBeInTheDocument();
     expect(screen.getByText("Fields")).toBeInTheDocument();
+  });
+
+  it("renders the unified timeline on the timeline tab", () => {
+    render(<DealDrawerContent dealId="d-1" />);
+
+    fireEvent.click(screen.getByRole("tab", { name: /timeline/i }));
+
+    expect(screen.getByText("Unified Timeline")).toBeInTheDocument();
   });
 
   it("uses config-driven stages and renders deal custom fields in the drawer", () => {

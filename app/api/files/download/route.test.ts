@@ -59,6 +59,19 @@ describe("GET /api/files/download", () => {
     expect(mockCreateSignedUrl).toHaveBeenCalledWith("client-1/uploads/report.csv", 3600);
   });
 
+  it("allows attachment downloads and forwards the display filename", async () => {
+    const response = await GET(
+      new Request("http://localhost/api/files/download?path=attachments/contact/c-1/uuid-1&filename=brief.pdf"),
+    );
+
+    expect(response.status).toBe(307);
+    expect(mockCreateSignedUrl).toHaveBeenCalledWith(
+      "client-1/attachments/contact/c-1/uuid-1",
+      3600,
+      { download: "brief.pdf" },
+    );
+  });
+
   it("returns 400 when path is missing", async () => {
     const response = await GET(
       new Request("http://localhost/api/files/download"),

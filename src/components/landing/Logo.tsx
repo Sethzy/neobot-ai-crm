@@ -7,11 +7,9 @@
 export function Logo({
   className,
   iconClassName,
-  invert = false,
   ...props
 }: React.ComponentPropsWithoutRef<'div'> & {
   iconClassName?: string
-  invert?: boolean
 }) {
   const containerFill = '#2B2B2B'
 

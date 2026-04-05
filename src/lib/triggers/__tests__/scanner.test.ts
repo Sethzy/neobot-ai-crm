@@ -198,13 +198,12 @@ describe("runScan", () => {
     });
 
     expect(mockSupabase.mockUpdate).not.toHaveBeenCalled();
-    expect(mockSupabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
-      p_next_fire_at: null,
+    expect(mockSupabase.rpc.mock.calls).toContainEqual(["release_trigger_claim", {
       p_advance_next_fire_at: false,
       p_trigger_id: trigger.id,
       p_run_id: trigger.current_run_id,
       p_status: "dispatch_failed",
-    });
+    }]);
     expect(result.dispatched).toBe(0);
     expect(result.errors).toEqual([
       `${trigger.id}: dispatch returned 500 (Execution failed: upstream crashed)`,
@@ -243,13 +242,12 @@ describe("runScan", () => {
       enabled: false,
       last_status: "invalid_cron",
     });
-    expect(mockSupabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
-      p_next_fire_at: null,
+    expect(mockSupabase.rpc.mock.calls).toContainEqual(["release_trigger_claim", {
       p_advance_next_fire_at: false,
       p_trigger_id: trigger.id,
       p_run_id: trigger.current_run_id,
       p_status: "invalid_cron",
-    });
+    }]);
     expect(mockDispatch).not.toHaveBeenCalled();
     expect(result.errors).toEqual([`${trigger.id}: invalid cron`]);
   });
@@ -570,13 +568,12 @@ describe("runScan", () => {
       dispatch: mockDispatch,
     });
 
-    expect(mockSupabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
-      p_next_fire_at: null,
+    expect(mockSupabase.rpc.mock.calls).toContainEqual(["release_trigger_claim", {
       p_advance_next_fire_at: false,
       p_trigger_id: trigger.id,
       p_run_id: trigger.current_run_id,
       p_status: "failed_permanent",
-    });
+    }]);
     expect(result.errors).toEqual([`${trigger.id}: dispatch returned 500 (Runner crashed)`]);
   });
 
@@ -612,13 +609,12 @@ describe("runScan", () => {
       enabled: false,
       last_status: "invalid_rss_config",
     });
-    expect(mockSupabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
-      p_next_fire_at: null,
+    expect(mockSupabase.rpc.mock.calls).toContainEqual(["release_trigger_claim", {
       p_advance_next_fire_at: false,
       p_trigger_id: trigger.id,
       p_run_id: trigger.current_run_id,
       p_status: "invalid_rss_config",
-    });
+    }]);
     expect(mockDispatch).not.toHaveBeenCalled();
     expect(result.errors).toEqual([`${trigger.id}: invalid rss config`]);
   });

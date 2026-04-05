@@ -6,14 +6,15 @@
 
 import { type ReactNode, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { Building2, Clock3, House, ListTodo, Mail, Phone, StickyNote, Tag } from "lucide-react";
+import { Building2, Clock3, House, ListTodo, Mail, Paperclip, Phone, StickyNote, Tag } from "lucide-react";
 
+import { DrawerFilesTab } from "./drawer-files-tab";
 import { DrawerNotesTab } from "./drawer-notes-tab";
 
-import { ContactTimeline } from "@/components/crm/contact-timeline";
 import { LinkedTasksSection } from "@/components/crm/detail/linked-tasks-section";
 import { InlineEditField } from "@/components/crm/inline-edit-field";
 import { StageBadge } from "@/components/crm/stage-badge";
+import { UnifiedTimeline } from "@/components/crm/timeline/unified-timeline";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -45,10 +46,10 @@ interface ContactDrawerContentProps {
   closeButton?: ReactNode;
 }
 
-type ContactDrawerTab = "home" | "timeline" | "tasks" | "notes";
+type ContactDrawerTab = "home" | "timeline" | "tasks" | "notes" | "files";
 
 /**
- * Renders contact details, linked deals, and activity timeline.
+ * Renders contact details, linked deals, and the unified activity timeline.
  */
 export function ContactDrawerContent({ contactId, closeButton }: ContactDrawerContentProps) {
   const { data: contact, isLoading, isError } = useContact(contactId);
@@ -91,6 +92,7 @@ export function ContactDrawerContent({ contactId, closeButton }: ContactDrawerCo
     { id: "timeline", label: "Timeline", icon: <Clock3 className="h-4 w-4" /> },
     { id: "tasks", label: "Tasks", icon: <ListTodo className="h-4 w-4" /> },
     { id: "notes", label: "Notes", icon: <StickyNote className="h-4 w-4" /> },
+    { id: "files", label: "Files", icon: <Paperclip className="h-4 w-4" /> },
   ];
 
   return (
@@ -113,6 +115,7 @@ export function ContactDrawerContent({ contactId, closeButton }: ContactDrawerCo
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
+      maxVisibleTabs={5}
       footer={<RecordDetailPanelFooter />}
     >
       {activeTab === "home" ? (
@@ -198,7 +201,10 @@ export function ContactDrawerContent({ contactId, closeButton }: ContactDrawerCo
 
       {activeTab === "timeline" ? (
         <DrawerSection title="Activity">
-          <ContactTimeline contactId={contactId} />
+          <UnifiedTimeline
+            recordType="contact"
+            recordId={contactId}
+          />
         </DrawerSection>
       ) : null}
 
@@ -210,6 +216,13 @@ export function ContactDrawerContent({ contactId, closeButton }: ContactDrawerCo
 
       {activeTab === "notes" ? (
         <DrawerNotesTab
+          recordType="contact"
+          recordId={contactId}
+        />
+      ) : null}
+
+      {activeTab === "files" ? (
+        <DrawerFilesTab
           recordType="contact"
           recordId={contactId}
         />

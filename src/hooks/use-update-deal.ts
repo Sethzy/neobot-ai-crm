@@ -10,12 +10,19 @@ import posthog from "posthog-js";
 import { applyCommittedRecordPatch } from "@/hooks/crm-cache-updates";
 import { mergeCustomFieldPatch } from "@/hooks/crm-custom-fields";
 import { dealKeys, type DealWithContact } from "@/hooks/use-deals";
+import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 import { type Deal } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
+import type { Database } from "@/types/database";
 
 type DealUpdate = Partial<
   Pick<Deal, "address" | "stage" | "amount" | "company_id" | "custom_fields">
 >;
+type DealRow = Database["public"]["Tables"]["deals"]["Row"];
+interface UpdateDealResult {
+  beforeSnapshot: DealRow;
+  savedUpdates: DealUpdate;
+}
 
 /**
  * Returns a mutation for updating one deal row.
@@ -23,28 +30,25 @@ type DealUpdate = Partial<
 export function useUpdateDeal(dealId: string) {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<UpdateDealResult, Error, DealUpdate>({
     mutationFn: async (updates: DealUpdate) => {
-      let previousStage: string | null = null;
-      let previousAmount: number | null = null;
+      const cachedSnapshot = queryClient.getQueryData(dealKeys.detail(dealId)) as DealRow | undefined;
+      const beforeSnapshot: DealRow = cachedSnapshot
+        ?? await supabase
+          .from("deals")
+          .select("*")
+          .eq("deal_id", dealId)
+          .single()
+          .then(({ data, error }) => {
+            if (error) {
+              throw error;
+            }
 
-      if (updates.stage) {
-        const cachedDeal = queryClient.getQueryData<DealWithContact>(dealKeys.detail(dealId));
+            return data;
+          });
 
-        if (cachedDeal) {
-          previousStage = cachedDeal.stage;
-          previousAmount = cachedDeal.amount;
-        } else {
-          const { data: currentDeal } = await supabase
-            .from("deals")
-            .select("stage, amount")
-            .eq("deal_id", dealId)
-            .maybeSingle();
-
-          previousStage = currentDeal?.stage ?? null;
-          previousAmount = currentDeal?.amount ?? null;
-        }
-      }
+      const previousStage = beforeSnapshot.stage ?? null;
+      const previousAmount = beforeSnapshot.amount ?? null;
 
       const mergedUpdates = await mergeCustomFieldPatch({
         table: "deals",
@@ -73,9 +77,12 @@ export function useUpdateDeal(dealId: string) {
         });
       }
 
-      return mergedUpdates;
+      return {
+        beforeSnapshot,
+        savedUpdates: mergedUpdates,
+      };
     },
-    onSuccess: (savedUpdates) => {
+    onSuccess: ({ beforeSnapshot, savedUpdates }) => {
       applyCommittedRecordPatch<DealWithContact>({
         queryClient,
         detailKey: dealKeys.detail(dealId),
@@ -84,6 +91,23 @@ export function useUpdateDeal(dealId: string) {
         recordId: dealId,
         updates: savedUpdates,
       });
+
+      const afterSnapshot = {
+        ...beforeSnapshot,
+        ...savedUpdates,
+      };
+
+      void captureTimelineActivity({
+        supabase,
+        clientId: beforeSnapshot.client_id,
+        recordType: "deal",
+        recordId: dealId,
+        action: "updated",
+        actorType: "user",
+        before: beforeSnapshot,
+        after: afterSnapshot,
+      });
+
       void queryClient.invalidateQueries({ queryKey: dealKeys.all });
     },
   });

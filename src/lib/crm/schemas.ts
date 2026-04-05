@@ -210,6 +210,51 @@ export type InteractionInsert = z.infer<typeof interactionInsertSchema>;
 /** Supported CRM record types that can own notes. */
 export const recordNoteTypeValues = ["contact", "company", "deal"] as const;
 
+/** Supported CRM record types that can emit timeline audit events. */
+export const timelineRecordTypeValues = ["contact", "company", "deal", "task"] as const;
+export type TimelineRecordType = (typeof timelineRecordTypeValues)[number];
+
+/** Valid actor types for timeline audit entries. */
+export const timelineActorTypeValues = ["user", "agent", "system"] as const;
+export type TimelineActorType = (typeof timelineActorTypeValues)[number];
+
+const timelineAuditDiffValueSchema = z.object({
+  before: jsonValueSchema.optional(),
+  after: jsonValueSchema.optional(),
+});
+
+/** JSON payload for timeline audit entries. */
+export const timelineActivityPropertiesSchema = z.object({
+  updatedFields: z.array(z.string()).optional(),
+  before: jsonObjectSchema.optional(),
+  after: jsonObjectSchema.optional(),
+  diff: z.record(z.string(), timelineAuditDiffValueSchema).optional(),
+});
+
+/** Full `timeline_activities` row validator. */
+export const timelineActivitySchema = z.object({
+  id: z.string().uuid(),
+  client_id: z.string().uuid(),
+  record_type: z.enum(timelineRecordTypeValues),
+  record_id: z.string().uuid(),
+  name: z.string().min(1),
+  properties: timelineActivityPropertiesSchema.nullable(),
+  actor_type: z.enum(timelineActorTypeValues),
+  actor_label: z.string().nullable(),
+  happened_at: isoDateTimeSchema,
+  created_at: isoDateTimeSchema,
+  updated_at: isoDateTimeSchema,
+});
+
+export type TimelineActivityProperties = z.infer<typeof timelineActivityPropertiesSchema>;
+export type TimelineActivity = z.infer<typeof timelineActivitySchema>;
+export type UnifiedTimelineInteraction = Interaction & {
+  contacts?: { first_name: string; last_name: string } | null;
+};
+export type UnifiedTimelineEntry =
+  | { kind: "audit"; timestamp: string; data: TimelineActivity }
+  | { kind: "interaction"; timestamp: string; data: UnifiedTimelineInteraction };
+
 /** Full `record_notes` row validator. */
 export const recordNoteSchema = z.object({
   note_id: z.string().uuid(),
@@ -222,6 +267,36 @@ export const recordNoteSchema = z.object({
 });
 
 export type RecordNote = z.infer<typeof recordNoteSchema>;
+
+/** Supported CRM record types that can own file attachments. */
+export const recordAttachmentTypeValues = ["contact", "company", "deal"] as const;
+
+/** File category values used by CRM record attachments. */
+export const fileCategoryValues = [
+  "pdf",
+  "document",
+  "spreadsheet",
+  "presentation",
+  "image",
+  "other",
+] as const;
+
+/** Full `record_attachments` row validator. */
+export const recordAttachmentSchema = z.object({
+  attachment_id: z.string().uuid(),
+  client_id: z.string().uuid(),
+  record_type: z.enum(recordAttachmentTypeValues),
+  record_id: z.string().uuid(),
+  filename: z.string().min(1),
+  storage_path: z.string().min(1),
+  content_type: z.string().min(1),
+  file_size: z.number().int().nonnegative(),
+  file_category: z.enum(fileCategoryValues),
+  created_at: isoDateTimeSchema,
+  updated_at: isoDateTimeSchema,
+});
+
+export type RecordAttachment = z.infer<typeof recordAttachmentSchema>;
 
 /** CRM task status values: to do → in progress → done. */
 export const crmTaskStatusValues = ["todo", "in_progress", "done"] as const;
