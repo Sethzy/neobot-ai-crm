@@ -22,10 +22,11 @@ import {
 
 interface TimelineAuditRowProps {
   activity: TimelineActivity;
+  isLast?: boolean;
 }
 
-export function TimelineAuditRow({ activity }: TimelineAuditRowProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export function TimelineAuditRow({ activity, isLast = false }: TimelineAuditRowProps) {
+  const [isExpanded, setIsExpanded] = useState(true);
   const action = getAuditAction(activity);
   const actorLabel = getTimelineActorLabel(activity.actor_type, activity.actor_label);
   const recordLabel = getRecordLabel(activity.record_type, getRecordSnapshot(activity));
@@ -41,8 +42,8 @@ export function TimelineAuditRow({ activity }: TimelineAuditRowProps) {
     const fieldDiff = fieldDiffs[0];
 
     content = fieldDiff ? (
-      <p className="flex flex-wrap items-center gap-1.5">
-        <span>{actorLabel} updated</span>
+      <p className="flex items-center gap-1.5 overflow-hidden">
+        <span className="shrink-0">{actorLabel} updated</span>
         <TimelineFieldDiff diff={fieldDiff} inline />
       </p>
     ) : (
@@ -53,20 +54,20 @@ export function TimelineAuditRow({ activity }: TimelineAuditRowProps) {
       <div className="space-y-2">
         <button
           type="button"
-          className="flex w-full items-center justify-between gap-3 text-left"
+          className="flex w-full items-center gap-2 text-left"
           onClick={() => setIsExpanded((current) => !current)}
         >
-          <span>
+          <span className="min-w-0 truncate">
             {actorLabel} updated {fieldDiffs.length} fields on {recordLabel}
           </span>
           {isExpanded ? (
-            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            <ChevronUp className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           ) : (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           )}
         </button>
         {isExpanded ? (
-          <div className="space-y-2 rounded-lg border border-border/60 bg-muted/30 p-3">
+          <div className="space-y-2.5 rounded-lg border border-border/40 bg-muted/20 px-3 py-2.5">
             {fieldDiffs.map((diff) => (
               <TimelineFieldDiff key={diff.fieldKey} diff={diff} />
             ))}
@@ -80,6 +81,7 @@ export function TimelineAuditRow({ activity }: TimelineAuditRowProps) {
     <TimelineEventRow
       icon={<TimelineEventIcon action={action} />}
       timestamp={activity.happened_at}
+      isLast={isLast}
     >
       {content}
     </TimelineEventRow>

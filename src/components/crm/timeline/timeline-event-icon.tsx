@@ -14,15 +14,15 @@ interface TimelineEventIconProps {
 
 export function TimelineEventIcon({ action, interactionType }: TimelineEventIconProps) {
   if (action === "created") {
-    return <CirclePlus className="h-4 w-4 text-muted-foreground" />;
+    return <CirclePlus className="h-3.5 w-3.5 text-muted-foreground" />;
   }
 
   if (action === "updated") {
-    return <PencilLine className="h-4 w-4 text-muted-foreground" />;
+    return <PencilLine className="h-3.5 w-3.5 text-muted-foreground" />;
   }
 
   if (action === "deleted") {
-    return <Trash2 className="h-4 w-4 text-muted-foreground" />;
+    return <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />;
   }
 
   const iconName = interactionType === "meeting"
@@ -37,5 +37,5 @@ export function TimelineEventIcon({ action, interactionType }: TimelineEventIcon
             ? "note"
             : "phone";
 
-  return <AppIcon name={iconName} className="h-4 w-4 text-muted-foreground" />;
+  return <AppIcon name={iconName} className="h-3.5 w-3.5 text-muted-foreground" />;
 }

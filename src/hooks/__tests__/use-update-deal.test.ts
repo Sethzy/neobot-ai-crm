@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { dealKeys } from "@/hooks/use-deals";
 import { useUpdateDeal } from "@/hooks/use-update-deal";
 
-const mockCaptureTimelineActivity = vi.fn();
+const mockCaptureTimelineActivity = vi.fn().mockResolvedValue(true);
 const mockFrom = vi.fn();
 const mockSelect = vi.fn();
 const mockSelectEq = vi.fn();

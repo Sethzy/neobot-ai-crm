@@ -10,13 +10,15 @@ import { getInteractionTitle } from "./utils";
 
 interface TimelineInteractionRowProps {
   interaction: UnifiedTimelineInteraction;
+  isLast?: boolean;
 }
 
-export function TimelineInteractionRow({ interaction }: TimelineInteractionRowProps) {
+export function TimelineInteractionRow({ interaction, isLast = false }: TimelineInteractionRowProps) {
   return (
     <TimelineEventRow
       icon={<TimelineEventIcon interactionType={interaction.type} />}
       timestamp={interaction.occurred_at}
+      isLast={isLast}
     >
       <div className="space-y-1">
         <p>{getInteractionTitle(interaction)}</p>

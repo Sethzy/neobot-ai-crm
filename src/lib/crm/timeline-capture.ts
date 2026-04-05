@@ -100,12 +100,12 @@ export async function captureTimelineActivity({
   happenedAt,
   before,
   after,
-}: CaptureTimelineActivityParams): Promise<void> {
+}: CaptureTimelineActivityParams): Promise<boolean> {
   let properties: Record<string, unknown> | null = null;
 
   if (action === "created") {
     if (!after) {
-      return;
+      return false;
     }
 
     properties = {
@@ -115,7 +115,7 @@ export async function captureTimelineActivity({
 
   if (action === "deleted") {
     if (!before) {
-      return;
+      return false;
     }
 
     properties = {
@@ -125,13 +125,13 @@ export async function captureTimelineActivity({
 
   if (action === "updated") {
     if (!before || !after) {
-      return;
+      return false;
     }
 
     const diff = calculateDiff(before, after);
 
     if (!diff) {
-      return;
+      return false;
     }
 
     properties = {
@@ -143,11 +143,11 @@ export async function captureTimelineActivity({
   }
 
   if (!properties) {
-    return;
+    return false;
   }
 
   try {
-    const rpcPromise = supabase.rpc("upsert_timeline_activity", {
+    const { error } = await supabase.rpc("upsert_timeline_activity", {
       p_client_id: clientId,
       p_record_type: recordType,
       p_record_id: recordId,
@@ -158,8 +158,14 @@ export async function captureTimelineActivity({
       p_happened_at: happenedAt,
     });
 
-    void Promise.resolve(rpcPromise).catch(() => undefined);
+    if (error) {
+      console.warn("[timeline-capture] RPC error:", error.message);
+      return false;
+    }
+
+    return true;
   } catch {
-    // Swallow synchronous and async capture failures.
+    // Swallow network errors — audit must never block or fail the mutation.
+    return false;
   }
 }

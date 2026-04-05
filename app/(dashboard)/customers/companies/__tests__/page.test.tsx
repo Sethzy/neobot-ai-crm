@@ -13,7 +13,7 @@ import CompaniesPage from "../page";
 const mockPush = vi.fn();
 const mockOpen = vi.fn();
 const mockMutateAsync = vi.fn();
-const mockCaptureTimelineActivity = vi.fn();
+const mockCaptureTimelineActivity = vi.fn().mockResolvedValue(true);
 const mockFrom = vi.fn();
 
 vi.mock("next/navigation", () => ({

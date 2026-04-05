@@ -10,7 +10,7 @@ import TasksPage from "../page";
 
 const mockInvalidateQueries = vi.fn();
 const mockOpen = vi.fn();
-const mockCaptureTimelineActivity = vi.fn();
+const mockCaptureTimelineActivity = vi.fn().mockResolvedValue(true);
 const mockFrom = vi.fn();
 const mockUseMutation = vi.fn();
 const mockPush = vi.fn();

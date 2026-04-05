@@ -191,6 +191,6 @@ describe("captureTimelineActivity", () => {
         actorType: "user",
         after: { first_name: "Sarah" },
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toBe(false);
   });
 });

@@ -157,13 +157,34 @@ export function getTimelineFieldDiffs(activity: TimelineActivity): TimelineField
   const properties = activity.properties as TimelineActivityProperties | null;
   const diff = properties?.diff ?? {};
 
-  return Object.entries(diff).map(([fieldKey, change]) => ({
-    fieldKey,
-    label: fieldLabelMap[fieldKey] ?? toTitleCase(fieldKey),
-    beforeValue: formatFieldDisplayValue(fieldKey, change?.before),
-    afterValue: formatFieldDisplayValue(fieldKey, change?.after),
-    Icon: fieldIconMap[fieldKey] ?? Text,
-  }));
+  return Object.entries(diff).map(([fieldKey, change]) => {
+    let beforeValue = formatFieldDisplayValue(fieldKey, change?.before);
+    let afterValue = formatFieldDisplayValue(fieldKey, change?.after);
+
+    if (FK_FIELDS.has(fieldKey)) {
+      const hadBefore = typeof change?.before === "string" && change.before.length === 36;
+      const hasAfter = typeof change?.after === "string" && change.after.length === 36;
+
+      if (!hadBefore && hasAfter) {
+        beforeValue = "—";
+        afterValue = "Linked";
+      } else if (hadBefore && !hasAfter) {
+        beforeValue = "—";
+        afterValue = "Removed";
+      } else if (hadBefore && hasAfter) {
+        beforeValue = "—";
+        afterValue = "Reassigned";
+      }
+    }
+
+    return {
+      fieldKey,
+      label: fieldLabelMap[fieldKey] ?? toTitleCase(fieldKey),
+      beforeValue,
+      afterValue,
+      Icon: fieldIconMap[fieldKey] ?? Text,
+    };
+  });
 }
 
 export function getInteractionTitle(interaction: UnifiedTimelineInteraction): string {
@@ -213,6 +234,13 @@ function formatRawValue(value: unknown): string {
 
   if (typeof value === "number" || typeof value === "boolean") {
     return String(value);
+  }
+
+  if (typeof value === "object" && !Array.isArray(value)) {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v != null && v !== "")
+      .map(([k, v]) => `${toTitleCase(k)}: ${String(v)}`);
+    return entries.length > 0 ? entries.join(", ") : "—";
   }
 
   return JSON.stringify(value);

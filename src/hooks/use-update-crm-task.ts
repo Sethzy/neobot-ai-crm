@@ -10,6 +10,7 @@ import { applyCommittedRecordPatch } from "@/hooks/crm-cache-updates";
 import { mergeCustomFieldPatch } from "@/hooks/crm-custom-fields";
 import { crmTaskKeys, type CrmTaskWithRelations } from "@/hooks/use-crm-tasks";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
+import { timelineActivityKeys } from "@/hooks/use-unified-timeline";
 import { type CrmTask } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
@@ -124,6 +125,12 @@ export function useUpdateCrmTaskMutation() {
         actorType: "user",
         before: beforeSnapshot,
         after: afterSnapshot,
+      }).then((ok) => {
+        if (ok) {
+          void queryClient.invalidateQueries({
+            queryKey: timelineActivityKeys.record("task", taskId),
+          });
+        }
       });
     },
   });
@@ -163,6 +170,12 @@ export function useUpdateCrmTask(taskId: string) {
         actorType: "user",
         before: beforeSnapshot,
         after: afterSnapshot,
+      }).then((ok) => {
+        if (ok) {
+          void queryClient.invalidateQueries({
+            queryKey: timelineActivityKeys.record("task", taskId),
+          });
+        }
       });
     },
   });

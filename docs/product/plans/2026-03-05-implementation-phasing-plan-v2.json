@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-04-05: Added out-of-plan PR 67 (CRM saved views — manage_views tool, pill tab picker, seeded defaults) to Phase 4, marked done.",
+    "updated": "2026-04-05: Added PR 46a (timeline audit log — field-level CRM audit trail + unified drawer timeline) to Phase 4, marked done.",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -10,7 +10,7 @@
     "estimatedPRs": 44,
     "keptPRs": 27,
     "cutPRs": 19,
-    "donePRs": 82,
+    "donePRs": 83,
     "hardeningPRs": 6,
     "statusOptions": [
       "pending",
@@ -2879,6 +2879,65 @@
             "User can use /tasks as table, board, or calendar and can change due date/status from the current surface",
             "Full detail pages remain available for larger edits; quick-edit failures are visible and do not silently swallow errors",
             "No saved views, report surfaces, or spreadsheet-style bulk editing are introduced"
+          ]
+        },
+        {
+          "pr": "46a",
+          "title": "Timeline audit log (field-level CRM audit trail + unified drawer timeline)",
+          "status": "done",
+          "simplified": false,
+          "decisions": [],
+          "note": "Out-of-plan addition. Adds timeline_activities table with upsert RPC (10-min dedup merge), fire-and-forget captureTimelineActivity() helper across all 13 CRM write paths (UI hooks + agent tools), unified useUnifiedTimeline() hook merging audit events with interactions, and new drawer timeline UI replacing legacy contact/deal timeline components. Contact, deal, company, and task drawers now share the unified Timeline tab.",
+          "tasklist": "docs/product/tasks/2026-04-05-timeline-audit-log-tasklist.md",
+          "tasks": [
+            {
+              "id": "PR46a-1",
+              "task": "Migration: timeline_activities table + RLS + upsert_timeline_activity RPC with 10-min dedup merge",
+              "done": true
+            },
+            {
+              "id": "PR46a-2",
+              "task": "Shared capture utility: captureTimelineActivity() + calculateDiff() with fire-and-forget semantics",
+              "done": true
+            },
+            {
+              "id": "PR46a-3",
+              "task": "Instrument 4 UI update hooks (contact, company, deal, task) with before-snapshot + audit capture",
+              "done": true
+            },
+            {
+              "id": "PR46a-4",
+              "task": "Instrument page-level create/delete mutations across people, companies, deals, tasks pages",
+              "done": true
+            },
+            {
+              "id": "PR46a-5",
+              "task": "Instrument 6 agent tool write paths (create-record, update-record, delete-records, link-records, tasks)",
+              "done": true
+            },
+            {
+              "id": "PR46a-6",
+              "task": "Unified timeline hook + component set: useUnifiedTimeline, month groups, audit rows with field diffs, interaction rows",
+              "done": true
+            },
+            {
+              "id": "PR46a-7",
+              "task": "Swap drawer timeline surfaces: contact, deal (replace legacy), company (add tab), task (add tab)",
+              "done": true
+            },
+            {
+              "id": "PR46a-8",
+              "task": "Review fixes: tenant isolation in RPC, before→after diff rendering, label resolution for vocab/FK fields, contact name join on interactions",
+              "done": true
+            }
+          ],
+          "testCriteria": [
+            "Every CRM create/update/delete (UI and agent) emits a timeline_activities row",
+            "Rapid repeat edits within 10 minutes merge into one timeline entry preserving the original before",
+            "Drawer Timeline tab shows chronological feed of audit events + interactions grouped by month",
+            "Updated fields show before→after transition with human-readable labels for stages, statuses, and types",
+            "Tenant isolation: upsert RPC rejects cross-tenant writes",
+            "Audit capture failures never block or fail the underlying CRM mutation"
           ]
         },
         {

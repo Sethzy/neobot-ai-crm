@@ -10,6 +10,7 @@ import { applyCommittedRecordPatch } from "@/hooks/crm-cache-updates";
 import { mergeCustomFieldPatch } from "@/hooks/crm-custom-fields";
 import { contactKeys, type ContactWithCompany } from "@/hooks/use-contacts";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
+import { timelineActivityKeys } from "@/hooks/use-unified-timeline";
 import { type Contact } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
@@ -94,6 +95,12 @@ export function useUpdateContact(contactId: string) {
         actorType: "user",
         before: beforeSnapshot,
         after: afterSnapshot,
+      }).then((ok) => {
+        if (ok) {
+          void queryClient.invalidateQueries({
+            queryKey: timelineActivityKeys.record("contact", contactId),
+          });
+        }
       });
 
       void queryClient.invalidateQueries({ queryKey: contactKeys.all });

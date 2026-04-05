@@ -1,8 +1,8 @@
 # QA Surface 16: CRM Working Surfaces
 
-> **PRs covered:** 46 (view switching, deals board, tasks calendar, quick edit), 67 (saved views — pill tabs, view filtering)
+> **PRs covered:** 46 (view switching, deals board, tasks calendar, quick edit), 46a (timeline audit log — drawer timeline), 67 (saved views — pill tabs, view filtering)
 > **Dogfoodable:** Yes
-> **Time estimate:** 40-50 min manual
+> **Time estimate:** 50-60 min manual
 
 > **Note:** Basic CRM page rendering is tested in [Surface 4: CRM Pages](04-crm-pages.md). This surface covers the enhanced working surfaces: view switching, board/calendar views, and inline quick editing.
 
@@ -270,6 +270,116 @@
 
 ---
 
+### PR 46a: Timeline Audit Log
+
+### 16.18 Contact drawer — Timeline tab (PR 46a)
+
+1. Navigate to `/customers/people`, click a contact to open the drawer
+2. Click the **Timeline** tab
+3. **Expected:** Timeline loads with month-grouped entries (e.g., "April 2026")
+4. **Expected:** Creation event visible at the bottom (e.g., "Sarah Tan was created by You")
+5. If interactions exist, **Expected:** Interaction rows show type + contact name (e.g., "Call with Sarah Tan")
+6. If interactions exist, **Expected:** Interaction summary text visible below the title
+
+**Notes / failures:**
+
+---
+
+### 16.19 Timeline — update audit with before→after diff (PR 46a)
+
+1. Open a contact drawer, note the current phone number
+2. Quick-edit the phone field to a new value, confirm
+3. Switch to the Timeline tab
+4. **Expected:** A new "You updated Phone" entry appears at the top
+5. **Expected:** Old value shown with strikethrough, arrow, then new value
+6. Quick-edit email and type on the same contact within ~1 minute
+7. Switch to Timeline tab
+8. **Expected:** Fields merged into one entry: "You updated 2 fields on {Name}"
+9. Click the expand chevron
+10. **Expected:** Both field diffs visible with before→after transitions
+
+**Notes / failures:**
+
+---
+
+### 16.20 Timeline — multi-field dedup merge (PR 46a)
+
+1. On `/customers/deals`, open a deal drawer
+2. Quick-edit the stage (e.g., Leads → Negotiation)
+3. Within 30 seconds, quick-edit the amount
+4. Switch to Timeline tab
+5. **Expected:** Both changes merged into a single timeline entry (not two separate rows)
+6. **Expected:** Entry shows "You updated 2 fields on {Deal}"
+7. Expand and verify: Stage shows "Leads → Negotiation", Amount shows old → new
+
+**Notes / failures:**
+
+---
+
+### 16.21 Timeline — vocab labels not raw values (PR 46a)
+
+1. Open a contact, quick-edit the type field (e.g., "buyer" → "seller")
+2. Switch to Timeline tab
+3. **Expected:** Diff shows "Buyer → Seller" (title-cased), NOT "buyer → seller"
+4. On a deal, change stage from "leads" to "offer"
+5. **Expected:** Diff shows "Leads → Offer", NOT raw enum values
+6. On a task, change status from "todo" to "in_progress"
+7. **Expected:** Diff shows "Todo → In Progress"
+
+**Notes / failures:**
+
+---
+
+### 16.22 Company drawer — Timeline tab added (PR 46a)
+
+1. Navigate to `/customers/companies`, open a company drawer
+2. **Expected:** Tab bar includes a "Timeline" tab (alongside Home, Notes, Files, etc.)
+3. Click Timeline
+4. **Expected:** Shows audit history for the company (creation event at minimum)
+5. Quick-edit the company phone, return to Timeline
+6. **Expected:** "You updated Phone" entry with before→after
+
+**Notes / failures:**
+
+---
+
+### 16.23 Task drawer — Timeline tab added (PR 46a)
+
+1. Navigate to `/tasks`, open a task drawer
+2. **Expected:** Tab bar includes "Timeline" tab
+3. Click Timeline
+4. **Expected:** Shows creation event and any status/due-date changes
+5. Change the task status via quick edit, return to Timeline
+6. **Expected:** "You updated Status" entry with before→after (e.g., "Todo → Done")
+
+**Notes / failures:**
+
+---
+
+### 16.24 Timeline — agent-authored audit entries (PR 46a)
+
+1. In chat, ask the agent: "Update Sarah Tan's phone to +6591234567"
+2. Open Sarah Tan's contact drawer → Timeline tab
+3. **Expected:** Entry shows "Sunder updated Phone" (not "You")
+4. **Expected:** Phone diff shows old value → +6591234567
+5. In chat, ask the agent: "Create a new company called TestCo"
+6. Open TestCo's company drawer → Timeline tab
+7. **Expected:** "TestCo was created by Sunder"
+
+**Notes / failures:**
+
+---
+
+### 16.25 Timeline — realtime updates (PR 46a)
+
+1. Open a contact drawer to the Timeline tab
+2. In a separate browser tab, quick-edit a field on the same contact
+3. **Expected:** Timeline updates in the first tab without manual refresh
+
+**Notes / failures:**
+
+---
+
 ## Edge Cases
 
 - [ ] Saved view with symbolic date ($today) — "Overdue" shows correct tasks relative to current date
@@ -283,10 +393,15 @@
 - [ ] Quick edit two fields rapidly on same row — no race condition
 - [ ] Row click on non-editable cell — navigates to detail page (not blocked by quick edit)
 - [ ] Deals board does NOT have drag-and-drop — uses explicit stage selector instead
+- [ ] Timeline empty state — new record with no edits shows only creation event
+- [ ] Timeline with company_id change — shows "Company Changed" not a raw UUID
+- [ ] Timeline audit capture failure doesn't block the CRM mutation (network error on RPC)
+- [ ] Timeline dedup window — edits 11+ minutes apart produce separate entries
+- [ ] Timeline on record with 50+ audit entries — loads without performance issues
 
 ---
 
 ## Pass / Fail Criteria
 
-- **Pass:** View toggles work and persist preference. Board shows deals by stage with working stage movement. Calendar shows tasks by date with day drill-down. Quick edit works for high-value fields on all entity pages. Filters carry across views. Detail pages preserved. Mobile uses dialog fallback. Saved view pill tabs appear with seeded defaults, filter server-side, persist via URL, reset pagination, update via realtime.
-- **Fail:** View switching crashes. Board stage movement doesn't persist. Calendar doesn't show tasks. Quick edit silently fails or corrupts data. Filters lost on view switch. Detail pages broken. Saved view pills missing, filtering broken, stale after agent creates view.
+- **Pass:** View toggles work and persist preference. Board shows deals by stage with working stage movement. Calendar shows tasks by date with day drill-down. Quick edit works for high-value fields on all entity pages. Filters carry across views. Detail pages preserved. Mobile uses dialog fallback. Saved view pill tabs appear with seeded defaults, filter server-side, persist via URL, reset pagination, update via realtime. Timeline tab visible on all four drawer types. Audit entries show before→after diffs with human-readable labels. Rapid edits merge within 10 minutes. Agent-authored changes attributed to "Sunder". Timeline updates in realtime.
+- **Fail:** View switching crashes. Board stage movement doesn't persist. Calendar doesn't show tasks. Quick edit silently fails or corrupts data. Filters lost on view switch. Detail pages broken. Saved view pills missing, filtering broken, stale after agent creates view. Timeline tab missing from any drawer. Raw UUIDs or enum values shown in diffs. Audit capture blocks or fails the CRM mutation. Dedup merge loses the original "before" snapshot.

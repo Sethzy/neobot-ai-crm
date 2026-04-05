@@ -11,6 +11,7 @@ import { applyCommittedRecordPatch } from "@/hooks/crm-cache-updates";
 import { mergeCustomFieldPatch } from "@/hooks/crm-custom-fields";
 import { dealKeys, type DealWithContact } from "@/hooks/use-deals";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
+import { timelineActivityKeys } from "@/hooks/use-unified-timeline";
 import { type Deal } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
@@ -106,6 +107,12 @@ export function useUpdateDeal(dealId: string) {
         actorType: "user",
         before: beforeSnapshot,
         after: afterSnapshot,
+      }).then((ok) => {
+        if (ok) {
+          void queryClient.invalidateQueries({
+            queryKey: timelineActivityKeys.record("deal", dealId),
+          });
+        }
       });
 
       void queryClient.invalidateQueries({ queryKey: dealKeys.all });

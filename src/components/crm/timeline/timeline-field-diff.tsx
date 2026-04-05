@@ -16,28 +16,28 @@ export function TimelineFieldDiff({ diff, inline = false }: TimelineFieldDiffPro
 
   const content = (
     <>
-      <diff.Icon className="h-4 w-4 text-muted-foreground" />
-      <span className="font-medium text-foreground">{diff.label}</span>
+      <diff.Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      <span className="shrink-0 font-medium text-foreground">{diff.label}</span>
       {showBefore ? (
         <>
-          <span className="text-muted-foreground line-through">{diff.beforeValue}</span>
-          <span className="text-muted-foreground">&rarr;</span>
+          <span className="min-w-0 truncate text-muted-foreground line-through">{diff.beforeValue}</span>
+          <span className="shrink-0 text-muted-foreground">&rarr;</span>
         </>
       ) : null}
-      <span className="text-foreground">{diff.afterValue}</span>
+      <span className="min-w-0 truncate text-foreground">{diff.afterValue}</span>
     </>
   );
 
   if (inline) {
     return (
-      <span className="inline-flex items-center gap-1.5">
+      <span className="inline-flex min-w-0 items-center gap-1.5">
         {content}
       </span>
     );
   }
 
   return (
-    <div className={cn("flex items-center gap-2")}>
+    <div className={cn("flex items-center gap-2 overflow-hidden")}>
       {content}
     </div>
   );
