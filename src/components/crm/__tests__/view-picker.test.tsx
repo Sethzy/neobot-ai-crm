@@ -1,20 +1,26 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ViewPicker } from "../view-picker";
 
+const mockUseCrmViews = vi.fn();
+
 vi.mock("@/hooks/use-crm-views", () => ({
-  useCrmViews: () => ({
-    data: [
-      { view_id: "v1", name: "Active pipeline", entity_type: "deals", is_seeded: true },
-      { view_id: "v2", name: "Closing this month", entity_type: "deals", is_seeded: false },
-    ],
-    isLoading: false,
-  }),
+  useCrmViews: (...args: unknown[]) => mockUseCrmViews(...args),
 }));
 
 describe("ViewPicker", () => {
+  beforeEach(() => {
+    mockUseCrmViews.mockReturnValue({
+      data: [
+        { view_id: "v1", name: "Active pipeline", entity_type: "deals", is_seeded: true },
+        { view_id: "v2", name: "Closing this month", entity_type: "deals", is_seeded: false },
+      ],
+      isLoading: false,
+    });
+  });
+
   it("renders All pill plus saved views", () => {
     render(
       <ViewPicker entityType="deals" activeViewId={null} onViewChange={vi.fn()} />,
@@ -48,5 +54,18 @@ describe("ViewPicker", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Active pipeline" }));
     expect(onViewChange).toHaveBeenCalledWith("v1");
+  });
+
+  it("renders the All pill when there are no saved views", () => {
+    mockUseCrmViews.mockReturnValue({
+      data: [],
+      isLoading: false,
+    });
+
+    render(
+      <ViewPicker entityType="companies" activeViewId={null} onViewChange={vi.fn()} />,
+    );
+
+    expect(screen.getByRole("button", { name: "All" })).toBeInTheDocument();
   });
 });

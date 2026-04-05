@@ -17,9 +17,11 @@ interface ViewPickerProps {
 export function ViewPicker({ entityType, activeViewId, onViewChange }: ViewPickerProps) {
   const { data: views, isLoading } = useCrmViews(entityType);
 
-  if (isLoading || !views?.length) {
+  if (isLoading) {
     return null;
   }
+
+  const savedViews = views ?? [];
 
   return (
     <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
@@ -28,7 +30,7 @@ export function ViewPicker({ entityType, activeViewId, onViewChange }: ViewPicke
         isActive={activeViewId === null}
         onClick={() => onViewChange(null)}
       />
-      {views.map((view) => (
+      {savedViews.map((view) => (
         <PillButton
           key={view.view_id}
           label={view.name}
