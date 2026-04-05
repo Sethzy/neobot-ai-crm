@@ -38,6 +38,7 @@ import { matchVocabularyValue } from "@/lib/crm/config";
 import { DEAL_DEFAULT_FIELDS } from "@/lib/crm/field-definitions";
 import { dealStageValues, type Deal } from "@/lib/crm/schemas";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
+import { timelineActivityKeys } from "@/hooks/use-unified-timeline";
 import {
   formatCompactCurrency,
   formatContactFullName,
@@ -289,6 +290,12 @@ export default function DealsPage() {
         action: "created",
         actorType: "user",
         after: createdDeal,
+      }).then((ok) => {
+        if (ok) {
+          void queryClient.invalidateQueries({
+            queryKey: timelineActivityKeys.record("deal", createdDeal.deal_id),
+          });
+        }
       });
 
       await queryClient.invalidateQueries({ queryKey: dealKeys.all });
@@ -328,6 +335,12 @@ export default function DealsPage() {
         action: "deleted",
         actorType: "user",
         before: deletedDeal,
+      }).then((ok) => {
+        if (ok) {
+          void queryClient.invalidateQueries({
+            queryKey: timelineActivityKeys.record("deal", deletedDeal.deal_id),
+          });
+        }
       });
 
       await queryClient.invalidateQueries({ queryKey: dealKeys.all });
@@ -530,6 +543,11 @@ export default function DealsPage() {
       bodyClassName="space-y-6"
       headerActions={
         <div className="flex flex-wrap items-center gap-2">
+          <ViewPicker
+            entityType="deals"
+            activeViewId={activeSavedView?.view_id ?? null}
+            onViewChange={handleSavedViewChange}
+          />
           {isBoardView && !activeSavedView ? (
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>Sort by</span>
@@ -561,17 +579,7 @@ export default function DealsPage() {
         <DealDrawerContent key={id} dealId={id} closeButton={closeButton} />
       )}
     >
-      <ViewPicker
-        entityType="deals"
-        activeViewId={activeSavedView?.view_id ?? null}
-        onViewChange={handleSavedViewChange}
-      />
-
-      {activeSavedView ? (
-        <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-          Saved view active: {activeSavedView.name}
-        </div>
-      ) : (
+      {!activeSavedView && (
         <FilterBar
           searchValue={search}
           onSearchChange={(value) => {

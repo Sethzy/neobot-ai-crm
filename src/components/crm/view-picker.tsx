@@ -1,9 +1,20 @@
 /**
- * Horizontal pill tab bar for switching between saved CRM views.
+ * Dropdown button for switching between saved CRM views.
+ * Renders nothing when there are no saved views for the entity type.
  * @module components/crm/view-picker
  */
 "use client";
 
+import { Check, ChevronDown } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useCrmViews } from "@/hooks/use-crm-views";
 import type { CrmViewEntityType } from "@/lib/crm/schemas";
 import { cn } from "@/lib/utils";
@@ -14,57 +25,64 @@ interface ViewPickerProps {
   onViewChange: (viewId: string | null) => void;
 }
 
+/** Default label shown when no saved view is active. */
+const allLabel: Record<CrmViewEntityType, string> = {
+  deals: "All Deals",
+  contacts: "All People",
+  companies: "All Companies",
+  tasks: "All Tasks",
+};
+
 export function ViewPicker({ entityType, activeViewId, onViewChange }: ViewPickerProps) {
   const { data: views, isLoading } = useCrmViews(entityType);
+  const savedViews = views ?? [];
 
-  if (isLoading) {
+  // Don't render the picker until we know views exist — avoids layout flash.
+  if (isLoading || savedViews.length === 0) {
     return null;
   }
 
-  const savedViews = views ?? [];
+  const activeView = savedViews.find((v) => v.view_id === activeViewId);
+  const triggerLabel = activeView ? activeView.name : allLabel[entityType];
 
   return (
-    <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-      <PillButton
-        label="All"
-        isActive={activeViewId === null}
-        onClick={() => onViewChange(null)}
-      />
-      {savedViews.map((view) => (
-        <PillButton
-          key={view.view_id}
-          label={view.name}
-          isActive={activeViewId === view.view_id}
-          onClick={() => onViewChange(view.view_id)}
-        />
-      ))}
-    </div>
-  );
-}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-1.5 font-medium">
+          {triggerLabel}
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+        </Button>
+      </DropdownMenuTrigger>
 
-function PillButton({
-  label,
-  isActive,
-  onClick,
-}: {
-  label: string;
-  isActive: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      data-active={isActive}
-      onClick={onClick}
-      className={cn(
-        "shrink-0 rounded-full px-3 py-1 text-sm font-medium transition-colors",
-        "border border-transparent",
-        isActive
-          ? "bg-tx-2/10 text-tx border-bd"
-          : "text-tx-2 hover:bg-ui-2 hover:text-tx",
-      )}
-    >
-      {label}
-    </button>
+      <DropdownMenuContent align="start" className="w-52">
+        {/* "All" option — clears active view */}
+        <DropdownMenuItem onClick={() => onViewChange(null)}>
+          <Check
+            className={cn(
+              "mr-2 h-4 w-4 shrink-0",
+              activeViewId === null ? "opacity-100" : "opacity-0",
+            )}
+          />
+          {allLabel[entityType]}
+        </DropdownMenuItem>
+
+        {savedViews.length > 0 && <DropdownMenuSeparator />}
+
+        {savedViews.map((view) => (
+          <DropdownMenuItem
+            key={view.view_id}
+            onClick={() => onViewChange(view.view_id)}
+          >
+            <Check
+              className={cn(
+                "mr-2 h-4 w-4 shrink-0",
+                activeViewId === view.view_id ? "opacity-100" : "opacity-0",
+              )}
+            />
+            {view.name}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

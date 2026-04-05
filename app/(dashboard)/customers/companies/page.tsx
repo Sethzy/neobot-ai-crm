@@ -32,6 +32,7 @@ import { CRM_DEFAULTS } from "@/lib/crm/config";
 import { COMPANY_DEFAULT_FIELDS } from "@/lib/crm/field-definitions";
 import { formatCrmDate, formatCrmEnumLabel, getCompanyIndustryBadgeVariant } from "@/lib/crm/display";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
+import { timelineActivityKeys } from "@/hooks/use-unified-timeline";
 import { type Company } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
@@ -307,6 +308,12 @@ export default function CompaniesPage() {
         action: "created",
         actorType: "user",
         after: createdCompany,
+      }).then((ok) => {
+        if (ok) {
+          void queryClient.invalidateQueries({
+            queryKey: timelineActivityKeys.record("company", createdCompany.company_id),
+          });
+        }
       });
 
       await queryClient.invalidateQueries({ queryKey: companyKeys.all });
@@ -346,6 +353,12 @@ export default function CompaniesPage() {
         action: "deleted",
         actorType: "user",
         before: deletedCompany,
+      }).then((ok) => {
+        if (ok) {
+          void queryClient.invalidateQueries({
+            queryKey: timelineActivityKeys.record("company", deletedCompany.company_id),
+          });
+        }
       });
 
       await queryClient.invalidateQueries({ queryKey: companyKeys.all });
@@ -475,26 +488,22 @@ export default function CompaniesPage() {
       icon={<Building2 className="h-4 w-4 text-muted-foreground" />}
       title="Companies"
       headerActions={
-        <Button size="sm" onClick={() => createCompany.mutate()} disabled={!clientId || createCompany.isPending}>
-          <Plus className="h-4 w-4" />
-          New
-        </Button>
+        <div className="flex items-center gap-2">
+          <ViewPicker
+            entityType="companies"
+            activeViewId={activeSavedView?.view_id ?? null}
+            onViewChange={handleSavedViewChange}
+          />
+          <Button size="sm" onClick={() => createCompany.mutate()} disabled={!clientId || createCompany.isPending}>
+            <Plus className="h-4 w-4" />
+            New
+          </Button>
+        </div>
       }
       renderPanelContent={(id, { closeButton }) => (
         <CompanyDrawerContent key={id} companyId={id} closeButton={closeButton} />
       )}
     >
-      <ViewPicker
-        entityType="companies"
-        activeViewId={activeSavedView?.view_id ?? null}
-        onViewChange={handleSavedViewChange}
-      />
-
-      {activeSavedView ? (
-        <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-          Saved view active: {activeSavedView.name}
-        </div>
-      ) : null}
 
         <DataTable
           columns={columns}

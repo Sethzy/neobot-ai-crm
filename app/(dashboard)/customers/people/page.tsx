@@ -33,6 +33,7 @@ import { buildColumnsFromConfig } from "@/lib/crm/build-columns";
 import { CONTACT_DEFAULT_FIELDS } from "@/lib/crm/field-definitions";
 import { buildCrmSelectOptions, formatContactFullName, formatCrmDate, formatCrmEnumLabel } from "@/lib/crm/display";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
+import { timelineActivityKeys } from "@/hooks/use-unified-timeline";
 import { contactTypeValues } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
@@ -332,6 +333,12 @@ export default function PeoplePage() {
         action: "created",
         actorType: "user",
         after: createdContact,
+      }).then((ok) => {
+        if (ok) {
+          void queryClient.invalidateQueries({
+            queryKey: timelineActivityKeys.record("contact", createdContact.contact_id),
+          });
+        }
       });
 
       await queryClient.invalidateQueries({ queryKey: contactKeys.all });
@@ -371,6 +378,12 @@ export default function PeoplePage() {
         action: "deleted",
         actorType: "user",
         before: deletedContact,
+      }).then((ok) => {
+        if (ok) {
+          void queryClient.invalidateQueries({
+            queryKey: timelineActivityKeys.record("contact", deletedContact.contact_id),
+          });
+        }
       });
 
       await queryClient.invalidateQueries({ queryKey: contactKeys.all });
@@ -492,27 +505,22 @@ export default function PeoplePage() {
       icon={<Users className="h-4 w-4 text-muted-foreground" />}
       title="People"
       headerActions={
-        <Button size="sm" onClick={() => createContact.mutate()} disabled={!clientId || createContact.isPending}>
-          <Plus className="h-4 w-4" />
-          New
-        </Button>
+        <div className="flex items-center gap-2">
+          <ViewPicker
+            entityType="contacts"
+            activeViewId={activeSavedView?.view_id ?? null}
+            onViewChange={handleSavedViewChange}
+          />
+          <Button size="sm" onClick={() => createContact.mutate()} disabled={!clientId || createContact.isPending}>
+            <Plus className="h-4 w-4" />
+            New
+          </Button>
+        </div>
       }
       renderPanelContent={(id, { closeButton }) => (
         <ContactDrawerContent key={id} contactId={id} closeButton={closeButton} />
       )}
     >
-      <ViewPicker
-        entityType="contacts"
-        activeViewId={activeSavedView?.view_id ?? null}
-        onViewChange={handleSavedViewChange}
-      />
-
-      {activeSavedView ? (
-        <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-          Saved view active: {activeSavedView.name}
-        </div>
-      ) : null}
-
         <DataTable
           columns={columns}
           data={rows}

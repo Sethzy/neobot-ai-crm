@@ -34,6 +34,7 @@ import {
 } from "@/lib/crm/display";
 import { crmTaskStatusValues } from "@/lib/crm/schemas";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
+import { timelineActivityKeys } from "@/hooks/use-unified-timeline";
 import { supabase } from "@/lib/supabase";
 
 /** Static kanban column definitions for task statuses (all inputs are module-level constants). */
@@ -77,6 +78,12 @@ export default function TasksPage() {
         action: "created",
         actorType: "user",
         after: createdTask,
+      }).then((ok) => {
+        if (ok) {
+          void queryClient.invalidateQueries({
+            queryKey: timelineActivityKeys.record("task", createdTask.task_id),
+          });
+        }
       });
 
       await queryClient.invalidateQueries({ queryKey: crmTaskKeys.all });
@@ -147,15 +154,15 @@ export default function TasksPage() {
         </p>
       </div>
 
-      <div className="mt-6 space-y-3">
-        <ViewPicker
-          entityType="tasks"
-          activeViewId={activeSavedView?.view_id ?? null}
-          onViewChange={handleViewChange}
-        />
-
+      <div className="mt-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          {!activeSavedView ? (
+          <ViewPicker
+            entityType="tasks"
+            activeViewId={activeSavedView?.view_id ?? null}
+            onViewChange={handleViewChange}
+          />
+
+          {!activeSavedView && (
             <div className="relative flex-1">
               <AppIcon
                 name="search"
@@ -167,10 +174,6 @@ export default function TasksPage() {
                 placeholder="Search tasks by title or description..."
                 className="h-12 w-full border-border/50 pl-11 shadow-sm focus-visible:ring-1"
               />
-            </div>
-          ) : (
-            <div className="flex-1 rounded-lg border border-border/60 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-              Saved view active: {activeSavedView.name}
             </div>
           )}
 
