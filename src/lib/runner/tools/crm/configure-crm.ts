@@ -245,6 +245,74 @@ function validateFieldChanges(
   return null;
 }
 
+/** Maps vocabulary config keys to the CRM entity type used in saved views. */
+const vocabToViewEntity: Partial<Record<VocabularyFieldName, { entityType: string; filterKey: string }>> = {
+  deal_stages: { entityType: "deals", filterKey: "stage" },
+  contact_types: { entityType: "contacts", filterKey: "type" },
+  company_industries: { entityType: "companies", filterKey: "industry" },
+};
+
+interface AffectedView {
+  name: string;
+  entity_type: string;
+  view_id: string;
+  affectedKeys: string[];
+}
+
+/**
+ * Checks if vocabulary changes would invalidate any saved view filters.
+ * Returns views whose filters reference values being removed.
+ */
+async function checkAffectedViews(
+  supabase: SupabaseClient<Database>,
+  clientId: string,
+  updates: Partial<z.infer<typeof inputSchema>>,
+  currentConfig: ReturnType<typeof resolveCrmConfig>,
+): Promise<AffectedView[]> {
+  const affected: AffectedView[] = [];
+
+  for (const [vocabKey, mapping] of Object.entries(vocabToViewEntity)) {
+    const nextValues = updates[vocabKey as VocabularyFieldName];
+    if (!nextValues) continue;
+
+    const currentValues = currentConfig[vocabKey as VocabularyFieldName] as string[];
+    const removedValues = currentValues.filter((v) => !nextValues.includes(v));
+    if (removedValues.length === 0) continue;
+
+    // Fetch saved views for this entity type
+    const { data: views } = await supabase
+      .from("crm_views")
+      .select("view_id, name, entity_type, filters")
+      .eq("client_id", clientId)
+      .eq("entity_type", mapping.entityType);
+
+    if (!views) continue;
+
+    for (const view of views) {
+      const filters = view.filters as Record<string, unknown> | null;
+      if (!filters) continue;
+
+      const filterValue = filters[mapping.filterKey];
+      if (filterValue === undefined) continue;
+
+      // Check if the filter references any removed values
+      const referencedValues = Array.isArray(filterValue) ? filterValue : [filterValue];
+      const broken = referencedValues.some((v) => removedValues.includes(String(v)));
+
+      if (broken) {
+        affected.push({
+          name: view.name,
+          entity_type: view.entity_type,
+          view_id: view.view_id,
+          affectedKeys: [mapping.filterKey],
+        });
+      }
+    }
+  }
+
+  return affected;
+}
+
 /**
  * Creates the configure_crm tool for explicit setup/reconfiguration flows.
  */
@@ -339,6 +407,20 @@ export function createConfigureCrmTool(
         }
       }
 
+      // Check if vocabulary changes would break any saved views
+      const affectedViews = await checkAffectedViews(
+        supabase, clientId, updates, currentConfig,
+      );
+      if (affectedViews.length > 0) {
+        const warnings = affectedViews.map(
+          (v) => `"${v.name}" (${v.entity_type}) filters on ${v.affectedKeys.join(", ")}`,
+        );
+
+        // Non-blocking: include warning in the response but don't prevent the update
+        // The agent should offer to update or delete the affected views after applying config
+        (updates as Record<string, unknown>).__viewWarnings = warnings;
+      }
+
       // Snapshot current config to history before writing (same pattern as PATCH route)
       if (currentConfig) {
         const { data: currentRow } = await supabase
@@ -385,10 +467,17 @@ export function createConfigureCrmTool(
         return { success: false as const, error: error?.message ?? "Failed to update CRM configuration." };
       }
 
+      const viewWarnings = (updates as Record<string, unknown>).__viewWarnings as string[] | undefined;
+      delete (updates as Record<string, unknown>).__viewWarnings;
+
       return {
         success: true as const,
         resolved_config: resolveCrmConfig(data as CrmConfigRow),
         message: "CRM configuration updated. Changes take effect on the next message.",
+        ...(viewWarnings && viewWarnings.length > 0 ? {
+          affected_saved_views: viewWarnings,
+          view_warning: `${viewWarnings.length} saved view(s) may now return incorrect results because they filter on values you just changed. Consider updating or deleting them with manage_views.`,
+        } : {}),
       };
     },
   });

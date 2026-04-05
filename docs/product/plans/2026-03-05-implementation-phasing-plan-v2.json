@@ -3556,7 +3556,8 @@
             "Clicking a saved view pill filters the table server-side without full page reload",
             "Active view is authoritative: local search/filter state cleared while view is selected",
             "URL param ?savedView=<id> persists active view across navigation",
-            "Seeded defaults appear on new accounts (Overdue, Due this week, Done, Active pipeline, Buyers, Sellers)",
+            "No seeded defaults — views are agent-created only (avoids breakage when CRM is reconfigured)",
+            "configure_crm warns about affected saved views when vocabulary changes would break existing view filters",
             "Agent can list, update, and delete saved views",
             "Invalid filter keys rejected by manage_views with clear error message",
             "Pagination resets to page 1 when switching views"
