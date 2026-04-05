@@ -95,6 +95,72 @@ export const viewFiltersSchema = z.record(
 export type ViewFilters = z.infer<typeof viewFiltersSchema>;
 
 /**
+ * Per-entity whitelist of allowed filter keys and sortable columns.
+ * Prevents hallucinated column names from being persisted and erroring at query time.
+ */
+export const ENTITY_ALLOWED_COLUMNS: Record<
+  string,
+  { filterKeys: Set<string>; sortColumns: Set<string> }
+> = {
+  contacts: {
+    filterKeys: new Set([
+      "type", "company_id",
+      "created_at_after", "created_at_before",
+    ]),
+    sortColumns: new Set(["first_name", "last_name", "type", "created_at"]),
+  },
+  companies: {
+    filterKeys: new Set([
+      "industry",
+      "created_at_after", "created_at_before",
+    ]),
+    sortColumns: new Set(["name", "industry", "created_at"]),
+  },
+  deals: {
+    filterKeys: new Set([
+      "stage", "company_id",
+      "close_date_after", "close_date_before",
+      "created_at_after", "created_at_before",
+    ]),
+    sortColumns: new Set(["address", "stage", "amount", "close_date", "created_at"]),
+  },
+  tasks: {
+    filterKeys: new Set([
+      "status", "contact_id", "deal_id",
+      "due_date_after", "due_date_before",
+      "created_at_after", "created_at_before",
+    ]),
+    sortColumns: new Set(["title", "status", "due_date", "created_at"]),
+  },
+};
+
+/**
+ * Validates that filter keys and sort column are allowed for the given entity type.
+ * Returns an error string if validation fails, or null if valid.
+ */
+export function validateViewFilters(
+  entityType: string,
+  filters: Record<string, unknown>,
+  sort?: { column: string; ascending: boolean } | null,
+): string | null {
+  const allowed = ENTITY_ALLOWED_COLUMNS[entityType];
+  if (!allowed) return `Unknown entity type: ${entityType}`;
+
+  const invalidKeys = Object.keys(filters).filter(
+    (key) => !allowed.filterKeys.has(key),
+  );
+  if (invalidKeys.length > 0) {
+    return `Invalid filter keys for ${entityType}: ${invalidKeys.join(", ")}. Allowed: ${[...allowed.filterKeys].join(", ")}`;
+  }
+
+  if (sort && !allowed.sortColumns.has(sort.column)) {
+    return `Invalid sort column for ${entityType}: ${sort.column}. Allowed: ${[...allowed.sortColumns].join(", ")}`;
+  }
+
+  return null;
+}
+
+/**
  * Applies resolved view filters to a Supabase query builder.
  *
  * Filter key conventions:
@@ -104,12 +170,17 @@ export type ViewFilters = z.infer<typeof viewFiltersSchema>;
  * - Scalar value → `.eq(column, value)`
  * - Null → skipped
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function applyViewFilters<Q extends Record<string, (...args: any[]) => Q>>(
+export function applyViewFilters<Q>(
   query: Q,
   filters: Record<string, unknown>,
 ): Q {
-  let q = query;
+  const queryBuilder = query as {
+    eq: (column: string, value: unknown) => unknown;
+    gte: (column: string, value: unknown) => unknown;
+    in: (column: string, values: unknown[]) => unknown;
+    lte: (column: string, value: unknown) => unknown;
+  };
+  let q: unknown = queryBuilder;
 
   for (const [key, value] of Object.entries(filters)) {
     if (value === null || value === undefined) {
@@ -118,16 +189,16 @@ export function applyViewFilters<Q extends Record<string, (...args: any[]) => Q>
 
     if (key.endsWith("_before")) {
       const column = key.slice(0, -"_before".length);
-      q = q.lte(column, value);
+      q = (q as typeof queryBuilder).lte(column, value);
     } else if (key.endsWith("_after")) {
       const column = key.slice(0, -"_after".length);
-      q = q.gte(column, value);
+      q = (q as typeof queryBuilder).gte(column, value);
     } else if (Array.isArray(value)) {
-      q = q.in(key, value);
+      q = (q as typeof queryBuilder).in(key, value);
     } else {
-      q = q.eq(key, value);
+      q = (q as typeof queryBuilder).eq(key, value);
     }
   }
 
-  return q;
+  return q as Q;
 }

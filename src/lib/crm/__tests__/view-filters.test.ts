@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { applyViewFilters, resolveSymbolicDates } from "../view-filters";
+import {
+  applyViewFilters,
+  resolveSymbolicDates,
+  validateViewFilters,
+} from "../view-filters";
 
 describe("resolveSymbolicDates", () => {
   it("resolves $today to current date", () => {
@@ -94,5 +98,47 @@ describe("applyViewFilters", () => {
     expect(calls).toEqual([
       { method: "eq", args: ["type", "buyer"] },
     ]);
+  });
+});
+
+describe("validateViewFilters", () => {
+  it("accepts valid task filters", () => {
+    const error = validateViewFilters("tasks", { status: "todo", due_date_before: "$today" });
+    expect(error).toBeNull();
+  });
+
+  it("accepts valid deal filters with sort", () => {
+    const error = validateViewFilters(
+      "deals",
+      { stage: ["leads", "offer"] },
+      { column: "amount", ascending: false },
+    );
+    expect(error).toBeNull();
+  });
+
+  it("rejects unknown filter keys", () => {
+    const error = validateViewFilters("tasks", { hasEmail: true });
+    expect(error).toContain("Invalid filter keys");
+    expect(error).toContain("hasEmail");
+  });
+
+  it("rejects unknown sort columns", () => {
+    const error = validateViewFilters(
+      "contacts",
+      { type: "buyer" },
+      { column: "nonexistent", ascending: true },
+    );
+    expect(error).toContain("Invalid sort column");
+    expect(error).toContain("nonexistent");
+  });
+
+  it("rejects unknown entity types", () => {
+    const error = validateViewFilters("widgets", {});
+    expect(error).toContain("Unknown entity type");
+  });
+
+  it("accepts null sort", () => {
+    const error = validateViewFilters("deals", { stage: "leads" }, null);
+    expect(error).toBeNull();
   });
 });

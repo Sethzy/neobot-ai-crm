@@ -37,6 +37,7 @@ import { buildColumnsFromConfig } from "@/lib/crm/build-columns";
 import { matchVocabularyValue } from "@/lib/crm/config";
 import { DEAL_DEFAULT_FIELDS } from "@/lib/crm/field-definitions";
 import { dealStageValues, type Deal } from "@/lib/crm/schemas";
+import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 import {
   formatCompactCurrency,
   formatContactFullName,
@@ -274,14 +275,24 @@ export default function DealsPage() {
       const { data, error } = await supabase
         .from("deals")
         .insert({ client_id: clientId, address: "Untitled Deal", stage: stages[0] })
-        .select("deal_id")
+        .select("*")
         .single();
       if (error) throw error;
-      return data.deal_id;
+      return data;
     },
-    onSuccess: async (dealId: string) => {
+    onSuccess: async (createdDeal) => {
+      void captureTimelineActivity({
+        supabase,
+        clientId: createdDeal.client_id,
+        recordType: "deal",
+        recordId: createdDeal.deal_id,
+        action: "created",
+        actorType: "user",
+        after: createdDeal,
+      });
+
       await queryClient.invalidateQueries({ queryKey: dealKeys.all });
-      open(dealId);
+      open(createdDeal.deal_id);
     },
     onError: () => {
       toast.error("Unable to create deal.");
@@ -290,13 +301,35 @@ export default function DealsPage() {
 
   const deleteDeal = useMutation({
     mutationFn: async ({ dealId }: { dealId: string }) => {
+      const { data: existingDeal, error: readError } = await supabase
+        .from("deals")
+        .select("*")
+        .eq("deal_id", dealId)
+        .single();
+
+      if (readError) {
+        throw readError;
+      }
+
       const { error } = await supabase.from("deals").delete().eq("deal_id", dealId);
 
       if (error) {
         throw error;
       }
+
+      return existingDeal;
     },
-    onSuccess: async () => {
+    onSuccess: async (deletedDeal) => {
+      void captureTimelineActivity({
+        supabase,
+        clientId: deletedDeal.client_id,
+        recordType: "deal",
+        recordId: deletedDeal.deal_id,
+        action: "deleted",
+        actorType: "user",
+        before: deletedDeal,
+      });
+
       await queryClient.invalidateQueries({ queryKey: dealKeys.all });
       toast.success("Deal deleted.");
     },
@@ -474,6 +507,7 @@ export default function DealsPage() {
   const isBoardView = activeLayout === "kanban";
 
   function handleSavedViewChange(viewId: string | null) {
+    setPage(1);
     const params = new URLSearchParams(searchParams?.toString() ?? "");
 
     if (viewId) {

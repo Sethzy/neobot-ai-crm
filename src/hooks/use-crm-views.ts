@@ -49,6 +49,5 @@ export function useCrmViews(entityType: CrmViewEntityType) {
       return data;
     },
     enabled: Boolean(clientId),
-    refetchInterval: 2000,
   });
 }

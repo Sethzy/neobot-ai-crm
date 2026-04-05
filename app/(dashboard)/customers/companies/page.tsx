@@ -31,6 +31,7 @@ import { buildColumnsFromConfig } from "@/lib/crm/build-columns";
 import { CRM_DEFAULTS } from "@/lib/crm/config";
 import { COMPANY_DEFAULT_FIELDS } from "@/lib/crm/field-definitions";
 import { formatCrmDate, formatCrmEnumLabel, getCompanyIndustryBadgeVariant } from "@/lib/crm/display";
+import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 import { type Company } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
@@ -292,14 +293,24 @@ export default function CompaniesPage() {
       const { data, error } = await supabase
         .from("companies")
         .insert({ client_id: clientId, name: "New Company" })
-        .select("company_id")
+        .select("*")
         .single();
       if (error) throw error;
-      return data.company_id;
+      return data;
     },
-    onSuccess: async (companyId: string) => {
+    onSuccess: async (createdCompany) => {
+      void captureTimelineActivity({
+        supabase,
+        clientId: createdCompany.client_id,
+        recordType: "company",
+        recordId: createdCompany.company_id,
+        action: "created",
+        actorType: "user",
+        after: createdCompany,
+      });
+
       await queryClient.invalidateQueries({ queryKey: companyKeys.all });
-      open(companyId);
+      open(createdCompany.company_id);
     },
     onError: () => {
       toast.error("Unable to create company.");
@@ -308,13 +319,35 @@ export default function CompaniesPage() {
 
   const deleteCompany = useMutation({
     mutationFn: async ({ companyId }: { companyId: string }) => {
+      const { data: existingCompany, error: readError } = await supabase
+        .from("companies")
+        .select("*")
+        .eq("company_id", companyId)
+        .single();
+
+      if (readError) {
+        throw readError;
+      }
+
       const { error } = await supabase.from("companies").delete().eq("company_id", companyId);
 
       if (error) {
         throw error;
       }
+
+      return existingCompany;
     },
-    onSuccess: async () => {
+    onSuccess: async (deletedCompany) => {
+      void captureTimelineActivity({
+        supabase,
+        clientId: deletedCompany.client_id,
+        recordType: "company",
+        recordId: deletedCompany.company_id,
+        action: "deleted",
+        actorType: "user",
+        before: deletedCompany,
+      });
+
       await queryClient.invalidateQueries({ queryKey: companyKeys.all });
       toast.success("Company deleted.");
     },
@@ -324,6 +357,7 @@ export default function CompaniesPage() {
   });
 
   function handleSavedViewChange(viewId: string | null) {
+    setPage(1);
     const params = new URLSearchParams(searchParams?.toString() ?? "");
 
     if (viewId) {

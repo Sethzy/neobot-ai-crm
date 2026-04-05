@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { crmViewEntityTypes } from "@/lib/crm/schemas";
-import { viewFiltersSchema } from "@/lib/crm/view-filters";
+import { validateViewFilters, viewFiltersSchema } from "@/lib/crm/view-filters";
 import type { Database } from "@/types/database";
 
 const sortSchema = z.object({
@@ -74,6 +74,15 @@ export function createViewTools(
     execute: async (input) => {
       switch (input.operation) {
         case "create": {
+          const validationError = validateViewFilters(
+            input.entity_type,
+            input.filters,
+            input.sort,
+          );
+          if (validationError) {
+            return { success: false as const, error: validationError };
+          }
+
           const { data, error } = await supabase
             .from("crm_views")
             .insert({
@@ -128,6 +137,29 @@ export function createViewTools(
 
           if (Object.keys(updates).length === 0) {
             return { success: false as const, error: "No fields to update." };
+          }
+
+          // Validate filters/sort against entity whitelist
+          if (input.filters || input.sort) {
+            const { data: existing } = await supabase
+              .from("crm_views")
+              .select("entity_type")
+              .eq("view_id", input.view_id)
+              .eq("client_id", clientId)
+              .single();
+
+            if (!existing) {
+              return { success: false as const, error: "View not found." };
+            }
+
+            const validationError = validateViewFilters(
+              existing.entity_type,
+              input.filters ?? {},
+              input.sort,
+            );
+            if (validationError) {
+              return { success: false as const, error: validationError };
+            }
           }
 
           const { data, error } = await supabase

@@ -32,6 +32,7 @@ import { useUpdateContact } from "@/hooks/use-update-contact";
 import { buildColumnsFromConfig } from "@/lib/crm/build-columns";
 import { CONTACT_DEFAULT_FIELDS } from "@/lib/crm/field-definitions";
 import { buildCrmSelectOptions, formatContactFullName, formatCrmDate, formatCrmEnumLabel } from "@/lib/crm/display";
+import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 import { contactTypeValues } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
 
@@ -307,7 +308,7 @@ export default function PeoplePage() {
   );
 
   const contactTypes = crmConfigResult?.config.contact_types ?? contactTypeValues;
-  const { data, isLoading, isError, refetch } = usePaginatedContacts(queryFilters);
+  const { data, isLoading, isError } = usePaginatedContacts(queryFilters);
   const hasLocalFilters = search.trim().length > 0 || Object.keys(filterValues).length > 0;
   const hasActiveFiltering = Boolean(activeSavedView) || hasLocalFilters;
 
@@ -317,14 +318,24 @@ export default function PeoplePage() {
       const { data, error } = await supabase
         .from("contacts")
         .insert({ client_id: clientId, first_name: "New", last_name: "Contact", type: contactTypes[0] })
-        .select("contact_id")
+        .select("*")
         .single();
       if (error) throw error;
-      return data.contact_id;
+      return data;
     },
-    onSuccess: async (contactId: string) => {
+    onSuccess: async (createdContact) => {
+      void captureTimelineActivity({
+        supabase,
+        clientId: createdContact.client_id,
+        recordType: "contact",
+        recordId: createdContact.contact_id,
+        action: "created",
+        actorType: "user",
+        after: createdContact,
+      });
+
       await queryClient.invalidateQueries({ queryKey: contactKeys.all });
-      open(contactId);
+      open(createdContact.contact_id);
     },
     onError: () => {
       toast.error("Unable to create contact.");
@@ -333,13 +344,35 @@ export default function PeoplePage() {
 
   const deletePerson = useMutation({
     mutationFn: async ({ contactId }: { contactId: string }) => {
+      const { data: existingContact, error: readError } = await supabase
+        .from("contacts")
+        .select("*")
+        .eq("contact_id", contactId)
+        .single();
+
+      if (readError) {
+        throw readError;
+      }
+
       const { error } = await supabase.from("contacts").delete().eq("contact_id", contactId);
 
       if (error) {
         throw error;
       }
+
+      return existingContact;
     },
-    onSuccess: async () => {
+    onSuccess: async (deletedContact) => {
+      void captureTimelineActivity({
+        supabase,
+        clientId: deletedContact.client_id,
+        recordType: "contact",
+        recordId: deletedContact.contact_id,
+        action: "deleted",
+        actorType: "user",
+        before: deletedContact,
+      });
+
       await queryClient.invalidateQueries({ queryKey: contactKeys.all });
       toast.success("Person deleted.");
     },
@@ -349,6 +382,7 @@ export default function PeoplePage() {
   });
 
   function handleSavedViewChange(viewId: string | null) {
+    setPage(1);
     const params = new URLSearchParams(searchParams?.toString() ?? "");
 
     if (viewId) {
@@ -450,7 +484,7 @@ export default function PeoplePage() {
           return col;
       }
     });
-  }, [crmConfig, companies, contactTypes]);
+  }, [crmConfig, companies, contactTypes, open]);
 
   return (
     <CrmListPanelLayout
