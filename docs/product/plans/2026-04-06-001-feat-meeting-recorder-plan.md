@@ -47,38 +47,52 @@ Mic-only recording via `getUserMedia` — matching Notion's browser behavior. Re
 │    → On stop: combine → upload via presigned  │
 │      URL directly to Supabase Storage         │
 │    → POST /api/meetings/ingest with metadata  │
-│      (storage path, duration, notes text)     │
+│      (storage path, duration, notes text,     │
+│       client-generated idempotency key)       │
 └──────────────────┬────────────────────────────┘
                    │
                    ▼
 ┌───────────────────────────────────────────────┐
 │  API: POST /api/meetings/ingest               │
+│  (Durable state machine — idempotent)         │
 │                                               │
 │  1. Validate request (auth, metadata schema)  │
-│  2. Call Groq Whisper API (batch)             │
-│     - Download audio from Supabase Storage    │
-│     - Send to Groq whisper-large-v3-turbo     │
+│  2. Upsert meeting_records row with status    │
+│     'uploaded' using idempotency_key          │
+│     (dedup: if already exists, return early)  │
+│  3. Update status → 'transcribing'           │
+│  4. Call Groq Whisper API (batch)             │
+│     - Pass Supabase Storage signed URL        │
+│       directly to Groq (no download/reupload) │
 │     - ~15 seconds for 60 min of audio         │
-│  3. Save transcript to Supabase Storage       │
+│     - export const maxDuration = 300          │
+│  5. Save transcript to Supabase Storage       │
 │     /{clientId}/meetings/{date}-{slug}.md     │
-│  4. Insert meeting_records row                │
-│  5. Create a user message in the thread with  │
-│     the transcript + notes as context         │
-│  6. Fire agent run (chat-type) on the thread  │
+│  6. Update status → 'transcribed'            │
+│  7. Create a compact thread event message:    │
+│     "[Meeting recorded: 45 min, 3 notes]"     │
+│     (NOT the full transcript — just a pointer │
+│      to meeting_record_id + transcript path)  │
+│  8. Fire background agent run via             │
+│     runMeetingFollowUp() — consumes stream    │
+│     to completion like run-autopilot.ts       │
 └──────────────────┬────────────────────────────┘
                    │
                    ▼
 ┌───────────────────────────────────────────────┐
-│  AGENT RUN (existing runner infrastructure)   │
+│  AGENT RUN (background-consumed)              │
 │                                               │
-│  System prompt includes meeting instructions: │
-│    - Read transcript + user notes             │
-│    - Search CRM for matching contacts         │
-│    - Ask user to confirm CRM link             │
-│    - Generate merged summary                  │
-│    - Suggest follow-up actions as checklist    │
+│  runMeetingFollowUp() — thin wrapper around   │
+│  runAgent() that consumes the stream to       │
+│  completion (same pattern as run-autopilot.ts │
+│  lines 51-78: consumeStream + onError)        │
+│                                               │
+│  Meeting-specific instructions injected via   │
+│  `instructions` param. Agent reads transcript │
+│  via read_file tool, NOT from thread history. │
 │                                               │
 │  Uses existing tools:                         │
+│    → read_file (load transcript from storage) │
 │    → crm_search, crm_update, crm_create      │
 │    → write_file (save summary to memory)      │
 │    → ask_user_question (confirm CRM link)     │
@@ -89,9 +103,11 @@ Mic-only recording via `getUserMedia` — matching Notion's browser behavior. Re
 ### Why This Architecture
 
 - **Presigned URL upload** — Vercel functions have a ~4.5MB body limit. Audio files are 10-40MB. Upload directly to Supabase Storage via presigned URL, then notify the API with just the metadata. This follows the pattern used by `app/api/crm/attachments/upload/route.ts`. (see origin for file size estimates: ~14MB/30min, ~29MB/60min)
-- **Groq in the API route** — Groq is so fast (228x realtime) that a 60-min file transcribes in ~15 seconds. This fits within Vercel's 300s timeout. No need for async/polling/webhooks.
-- **Agent run, not custom pipeline** — The post-meeting processing is just an agent run with meeting-specific instructions injected. Reuses existing runner, tools, approval gate, and chat UI. No new infrastructure.
-- **No new trigger type** — Instead of a custom `meeting_transcribed` trigger, we fire a regular chat-type agent run with the transcript + notes as the user message. The agent's instructions tell it what to do. Simpler than building a new trigger mechanism.
+- **Groq URL input, not download/reupload** — Pass Supabase Storage signed URL directly to Groq's speech-to-text API instead of downloading and re-uploading the audio through the Vercel function. Reduces memory pressure and latency. Set `export const maxDuration = 300` per [Vercel docs](https://vercel.com/docs/functions/configuring-functions/duration).
+- **Durable state machine** — meeting_records row created FIRST with `uploaded` status and an idempotency_key (client-generated UUID). Pipeline updates status through `transcribing` → `transcribed` → `linked` → `complete`. Retries are safe — same idempotency_key returns existing record. Prevents duplicate transcriptions, duplicate messages, and duplicate agent runs.
+- **Compact thread event, not raw transcript** — The full transcript is NOT stored as a chat message. Instead, a compact event message is created: `"[Meeting recorded: 45 min, 3 notes — meeting_record_id: {id}]"`. This avoids bloating thread history with long transcripts that would tax every future agent run on that thread. The agent reads the transcript via `read_file` tool when it needs it.
+- **Background-consumed agent run** — The post-meeting agent run uses a `runMeetingFollowUp()` helper that follows the exact pattern from `run-autopilot.ts:51-78`: call `runAgent()`, then `consumeStream({ onError })` to block until the full stream (including `onFinish` / `finalizeRun`) completes. This prevents the failure mode where the ingest route returns success but the agent run never finalizes.
+- **Agent reads transcript via tool, not thread history** — Meeting-specific instructions tell the agent to `read_file` the transcript path. This keeps the transcript out of the default conversation context and only loads it when the agent explicitly needs it.
 
 ### Implementation Phases
 
