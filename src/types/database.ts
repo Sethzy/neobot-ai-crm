@@ -1145,6 +1145,93 @@ export type Database = {
           },
         ]
       }
+      meeting_records: {
+        Row: {
+          audio_path: string
+          client_id: string
+          created_at: string
+          duration_seconds: number | null
+          idempotency_key: string
+          linked_company_id: string | null
+          linked_contact_id: string | null
+          linked_deal_id: string | null
+          meeting_record_id: string
+          notes: string | null
+          status: string
+          thread_id: string
+          transcript_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          audio_path: string
+          client_id: string
+          created_at?: string
+          duration_seconds?: number | null
+          idempotency_key: string
+          linked_company_id?: string | null
+          linked_contact_id?: string | null
+          linked_deal_id?: string | null
+          meeting_record_id?: string
+          notes?: string | null
+          status?: string
+          thread_id: string
+          transcript_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          audio_path?: string
+          client_id?: string
+          created_at?: string
+          duration_seconds?: number | null
+          idempotency_key?: string
+          linked_company_id?: string | null
+          linked_contact_id?: string | null
+          linked_deal_id?: string | null
+          meeting_record_id?: string
+          notes?: string | null
+          status?: string
+          thread_id?: string
+          transcript_path?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_records_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "meeting_records_linked_company_id_fkey"
+            columns: ["linked_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "meeting_records_linked_contact_id_fkey"
+            columns: ["linked_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "meeting_records_linked_deal_id_fkey"
+            columns: ["linked_deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "meeting_records_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
       record_attachments: {
         Row: {
           attachment_id: string

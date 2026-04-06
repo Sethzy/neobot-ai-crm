@@ -27,6 +27,9 @@ const { mockToastError } = vi.hoisted(() => ({
 const { mockUseMessageQuota } = vi.hoisted(() => ({
   mockUseMessageQuota: vi.fn(),
 }));
+const { mockUseAudioRecorder } = vi.hoisted(() => ({
+  mockUseAudioRecorder: vi.fn(),
+}));
 
 vi.mock("react-markdown", () => ({
   default: ({ children }: { children: string }) => <div>{children}</div>,
@@ -86,6 +89,14 @@ vi.mock("@/hooks/use-message-quota", () => ({
     current: ["message-quota", "current"],
   },
   useMessageQuota: (...args: unknown[]) => mockUseMessageQuota(...args),
+}));
+
+vi.mock("@/hooks/use-audio-recorder", () => ({
+  useAudioRecorder: (...args: unknown[]) => mockUseAudioRecorder(...args),
+}));
+
+vi.mock("@/hooks/use-mobile", () => ({
+  useIsMobile: () => false,
 }));
 
 vi.mock("./tool-call-inline", () => ({
@@ -165,6 +176,15 @@ describe("ChatPanel", () => {
     mockUseMessageQuota.mockReturnValue({
       data: null,
       isLoading: false,
+    });
+    mockUseAudioRecorder.mockReturnValue({
+      state: "idle",
+      elapsedSeconds: 0,
+      error: null,
+      start: vi.fn(),
+      pause: vi.fn(),
+      resume: vi.fn(),
+      stop: vi.fn(),
     });
   });
 

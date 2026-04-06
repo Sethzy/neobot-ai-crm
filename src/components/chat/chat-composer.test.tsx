@@ -38,6 +38,7 @@ describe("ChatComposer", () => {
     onValueChange: vi.fn(),
     onSubmit: vi.fn(),
     onStop: vi.fn(),
+    onStartRecording: vi.fn(),
     selectedChatModel: "google/gemini-3-flash",
     onSelectedChatModelChange: vi.fn(),
   };
@@ -53,11 +54,23 @@ describe("ChatComposer", () => {
     expect(screen.getByPlaceholderText(/send a message/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /gemini flash 3/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /attach files/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /record meeting/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /submit/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/upload attachments/i)).toHaveAttribute(
       "accept",
       CHAT_ATTACHMENT_ACCEPT,
     );
+  });
+
+  it("calls onStartRecording when the record button is clicked", async () => {
+    const onStartRecording = vi.fn();
+    const user = userEvent.setup();
+
+    render(<ChatComposer {...baseProps} onStartRecording={onStartRecording} />);
+
+    await user.click(screen.getByRole("button", { name: /record meeting/i }));
+
+    expect(onStartRecording).toHaveBeenCalledOnce();
   });
 
   it("lets the user switch the selected chat model", async () => {

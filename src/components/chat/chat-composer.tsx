@@ -4,6 +4,7 @@
  */
 "use client";
 
+import { MicIcon } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -41,6 +42,7 @@ interface ChatComposerProps {
   /** Called when the user picks a different model from the selector. */
   onSelectedChatModelChange: (modelId: string) => void;
   onSubmit: (message: ChatSubmitInput) => void;
+  onStartRecording?: () => void;
   onStop?: () => void;
   /** Optional CSS class for the outer wrapper div. */
   className?: string;
@@ -93,6 +95,7 @@ export function ChatComposer({
   onValueChange,
   onSelectedChatModelChange,
   onSubmit,
+  onStartRecording,
   onStop,
   className,
   innerClassName,
@@ -289,6 +292,15 @@ export function ChatComposer({
                 variant="ghost"
               >
                 <Paperclip className="size-4" />
+              </PromptInputButton>
+
+              <PromptInputButton
+                aria-label="Record meeting"
+                disabled={isGenerating || disabled}
+                onClick={onStartRecording}
+                variant="ghost"
+              >
+                <MicIcon className="size-4" />
               </PromptInputButton>
 
               <PromptInputSubmit
