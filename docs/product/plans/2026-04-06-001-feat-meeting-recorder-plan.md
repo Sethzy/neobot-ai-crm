@@ -124,63 +124,103 @@ New API route: `app/api/meetings/upload-url/route.ts`
 - Returns: `{ uploadUrl, storagePath }`
 - Pattern: follow `app/api/files/upload/route.ts` auth + validation pattern
 
-**1b. Ingest endpoint**
+**1b. Ingest endpoint (durable state machine)**
 
 New API route: `app/api/meetings/ingest/route.ts`
-- Accepts: `{ storagePath, durationSeconds, notes, threadId }`
-- Validates: auth, storagePath exists in storage
-- Downloads audio from Supabase Storage
-- Sends to Groq Whisper API (`whisper-large-v3-turbo`)
-- Saves transcript markdown to `{clientId}/meetings/{date}-{slug}.md`
-- Inserts `meeting_records` row
-- Creates a user message in the thread containing transcript + notes
-- Fires agent run on the thread via existing `runAgent()` (with meeting-specific instructions)
+- Accepts: `{ storagePath, durationSeconds, notes, threadId, idempotencyKey }`
+- `export const maxDuration = 300` (Vercel extended timeout)
+- Validates: auth, storagePath, idempotencyKey
+- Pipeline:
+  1. Upsert `meeting_records` row with `idempotency_key` and status `uploaded`. If row already exists with same key, return the existing record (dedup).
+  2. Update status → `transcribing`
+  3. Generate signed URL for the audio file in Supabase Storage
+  4. Pass signed URL to Groq Whisper API (`whisper-large-v3-turbo`) — Groq fetches the audio directly, no download through the function
+  5. Save transcript markdown to `{clientId}/meetings/{date}-{slug}.md`
+  6. Update status → `transcribed`, set `transcript_path`
+  7. Create compact thread event message: `"[Meeting recorded: {duration} min, {noteCount} notes]"` — NOT the full transcript
+  8. Call `runMeetingFollowUp()` (see 1e) to fire background agent run
+  9. Update status → `processing_complete`
 - Returns: `{ success, meetingRecordId, transcriptPath }`
+- On error at any step: status stays at last successful state, safe to retry
 
 **1c. Database: meeting_records table**
 
 ```sql
-create table meeting_records (
-  id uuid primary key default gen_random_uuid(),
-  client_id uuid not null references clients(id),
+create table public.meeting_records (
+  meeting_record_id uuid primary key default gen_random_uuid(),
+  client_id uuid not null,
   thread_id uuid not null,
+  idempotency_key text not null,
   audio_path text not null,
   transcript_path text,
   duration_seconds integer,
   notes text,
-  linked_person_id uuid references crm_people(id),
-  linked_company_id uuid references crm_companies(id),
-  linked_deal_id uuid references crm_deals(id),
-  status text not null default 'processing',
+  linked_contact_id uuid,
+  linked_company_id uuid,
+  linked_deal_id uuid,
+  status text not null default 'uploaded',
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+
+  constraint meeting_records_idempotency_key_client_id_unique
+    unique (idempotency_key, client_id)
 );
 
--- RLS: tenant isolation
-alter table meeting_records enable row level security;
-create policy "Users can manage own meeting records"
-  on meeting_records for all
-  using (client_id = (select active_client_id()));
+-- RLS: tenant isolation (matches repo convention — public.get_my_client_id())
+alter table public.meeting_records enable row level security;
+
+create policy "Users can read own meeting records"
+  on public.meeting_records for select
+  using (client_id = public.get_my_client_id());
+
+create policy "Users can insert own meeting records"
+  on public.meeting_records for insert
+  with check (client_id = public.get_my_client_id());
+
+create policy "Users can update own meeting records"
+  on public.meeting_records for update
+  using (client_id = public.get_my_client_id())
+  with check (client_id = public.get_my_client_id());
 ```
 
-Status enum: `processing` → `transcribed` → `linked` → `complete`
+Status lifecycle: `uploaded` → `transcribing` → `transcribed` → `linked` → `complete`
+
+Notes on schema:
+- Uses `meeting_record_id` (not `id`) per repo convention (`contact_id`, `company_id`, `deal_id`)
+- Uses `public.get_my_client_id()` for RLS per repo convention (not `active_client_id()`)
+- `linked_contact_id`, `linked_company_id`, `linked_deal_id` are nullable FKs (not references — soft links for v1, agent updates them after user confirms)
+- `idempotency_key` + `client_id` unique constraint prevents duplicate processing on retry
 
 **1d. Groq Whisper integration**
 
 New utility: `src/lib/transcription/groq-whisper.ts`
 - Wraps Groq's audio transcription API
-- Input: audio `Buffer` + content type
+- Input: signed URL to audio file (Groq fetches directly — no download through our function)
 - Output: `{ text: string, segments?: Array<{ start, end, text }> }`
+- Uses Groq's `url` input parameter per [Groq docs](https://console.groq.com/docs/speech-to-text)
 - Handles error cases: file too large, unsupported format, rate limit
 - Fallback: AssemblyAI batch API if Groq fails (noted in origin doc)
+
+**1e. Background agent runner for meetings**
+
+New utility: `src/lib/runner/run-meeting-followup.ts`
+- Thin wrapper around `runAgent()` following the exact pattern from `run-autopilot.ts:35-92`
+- Calls `runAgent()` with `triggerType: "pulse"`, `instructions: meetingInstructions`
+- Consumes the returned stream to completion via `consumeStream({ onError })` — blocks until `onFinish` / `finalizeRun` completes
+- This prevents the failure mode where the ingest route returns success but the agent run never persists its output
+- Returns: `{ status: "completed" } | { status: "failed", error: string }`
 
 **Acceptance criteria:**
 - [ ] Presigned URL endpoint generates valid upload URLs for audio MIME types
 - [ ] Audio file uploads to Supabase Storage via presigned URL
-- [ ] Ingest endpoint downloads audio, transcribes via Groq, saves transcript
-- [ ] meeting_records row created with correct status lifecycle
-- [ ] Agent run fires after transcription with transcript + notes in context
-- [ ] End-to-end: upload audio file → transcript appears in thread within 2 minutes
+- [ ] Ingest endpoint creates meeting_records row FIRST, then transcribes (idempotent on retry)
+- [ ] Groq receives signed URL directly (no download through Vercel function)
+- [ ] Transcript saved to Supabase Storage, NOT as chat message content
+- [ ] Compact thread event message created (not full transcript)
+- [ ] Agent run fires via runMeetingFollowUp() and stream is consumed to completion
+- [ ] Duplicate ingest calls with same idempotencyKey return existing record
+- [ ] meeting_records status lifecycle tracks correctly through all states
+- [ ] End-to-end: upload audio file → agent posts summary in thread within 2 minutes
 
 #### Phase 2: Recording UI (Client-Side)
 
@@ -294,9 +334,9 @@ Agent generates a structured response:
   - Draft follow-up email (if follow-up warranted)
   - Note personal details (rapport builders)
 
-The checklist could use the existing `ask_user_question` tool with `multi_select` type, or be rendered as a json-render spec with interactive checkboxes.
+**Decision for planning:** No new UI components or tools for action selection. The agent proposes follow-up actions as a numbered list in natural language, and the user responds conversationally ("do 1 and 3", "all of them", "skip the deal update"). The agent already has every tool it needs (`crm_create`, `crm_update`, `write_file`, approval gate for emails). Zero new code for this step.
 
-**Decision for planning:** Use `ask_user_question` with `multi_select` for v1. It's already built, renders checkboxes, and returns user selections. The agent then executes only the selected actions using existing CRM tools.
+Keep `ask_user_question` for the simple CRM-link confirm/change step where it works well. A structured checklist UI can be added later as polish if users want it.
 
 **3d. Follow-up email draft**
 
@@ -331,16 +371,19 @@ Agent drafts the email using transcript context + CRM data. Presents it inline i
 - **Mic permission denied** → show error in UI, don't start recording
 - **MediaRecorder not supported** → show "Recording not supported in this browser"
 - **Upload fails** → retry button in upload progress card (audio still in memory)
-- **Groq API fails** → fall back to AssemblyAI batch, or show error + retry
+- **Groq API fails** → fall back to AssemblyAI batch, or show error + retry. meeting_records stays at `transcribing` — safe to retry.
 - **Groq rate limit** → queue and retry with backoff, or fall back
-- **Agent run fails** → transcript is still saved; user can trigger reprocessing manually
+- **Agent run fails** → meeting_records stays at `transcribed`. Transcript is safe in storage. Agent can be re-triggered. `runMeetingFollowUp()` catches errors and returns `{ status: "failed" }` without throwing (same as `run-autopilot.ts:84-91`).
+- **Network retry during ingest** → idempotency_key prevents duplicate meeting_records rows, duplicate transcriptions, and duplicate agent runs. Same key = return existing record.
 
 ### State Lifecycle Risks
 
 - **Partial upload** → presigned URL expires (1 hour). If upload stalls, user retries.
 - **Tab closed during recording** → audio lost (no IndexedDB in v1). Acceptable for v1 — add crash recovery later.
-- **Transcription succeeds but agent run fails** → `meeting_records.status` stays at `transcribed`. Transcript is safe. Agent can be re-triggered.
-- **Agent links to wrong person** → user corrects via "Change" flow. meeting_records.linked_person_id updated.
+- **Transcription succeeds but agent run fails** → `meeting_records.status` stays at `transcribed`. Transcript is safe. User can trigger reprocessing manually.
+- **Agent links to wrong person** → user corrects via "Change" flow. meeting_records.linked_contact_id updated.
+- **Duplicate ingest calls** → idempotency_key + client_id unique constraint. Second call returns existing record without re-processing.
+- **Full transcript NOT in thread history** → stored as a storage artifact, loaded on-demand via `read_file`. No context-cost penalty on future thread runs.
 
 ### Integration Test Scenarios
 
