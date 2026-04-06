@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 — Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-04-06: Added PR 68 (Meeting recorder — browser-native mic recording + Groq Whisper transcription + agent post-processing) to Phase 4.",
+    "updated": "2026-04-06: Added PR 69 (refactor: Composio SDK upgrade + simplify connection tool loading) to Phase 4. Out-of-plan refactor of shipped connection code.",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md §17",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -81,7 +81,8 @@
       "2026-03-31: Marked PR 57b done. Replaced Apify-backed search_99co/search_propertyguru with Browser-Use tasks, gated listing tools on BROWSER_USE_API_KEY, updated QA Surface 28, and added automated scenarios for 99.co rent-path routing and PropertyGuru startUrl mode.",
       "2026-03-30: Marked PRs 63-65 done. Updated QA Surface 29 (Sandbox) for the unified agent filesystem, sandbox workspace preload, and Composio file bridge, and added automated QA scenarios covering uploads read-only protection, /agent/home preload across runs, and Google Drive file download/upload bridge flows.",
       "2026-04-03: Added PR 66 (Langfuse agent improvement loop) to Phase 4. Restores cut PR 40 (eval harness + observability) in practical Langfuse-native form. Three phases: (1) online LLM-as-judge evaluators + trace metadata enrichment, (2) golden dataset from QA traces + offline eval script, (3) annotation queues + trace-to-dataset promotion. Architecture adapted from LangChain 'Traces Start the Agent Improvement Loop' guide. Reference: roadmap docs/Sunder - Source of Truth/references/langchain-improvement-loop/01-traces-start-agent-improvement-loop.md.",
-      "2026-04-06: Added PR 68 (Meeting recorder) to Phase 4. Out-of-plan feature. Browser-native mic recording via getUserMedia, Groq Whisper Turbo batch transcription ($0.04/hr), agent suggests CRM link + summary + follow-up actions. No extension, no desktop app, no diarization in v1. Notepad during recording (Granola-style). Mobile = mic-only for in-person. Requirements: docs/product/ideations/2026-04-06-meeting-recorder-requirements.md. Plan: docs/product/plans/2026-04-06-001-feat-meeting-recorder-plan.md."
+      "2026-04-06: Added PR 68 (Meeting recorder) to Phase 4. Out-of-plan feature. Browser-native mic recording via getUserMedia, Groq Whisper Turbo batch transcription ($0.04/hr), agent suggests CRM link + summary + follow-up actions. No extension, no desktop app, no diarization in v1. Notepad during recording (Granola-style). Mobile = mic-only for in-person. Requirements: docs/product/ideations/2026-04-06-meeting-recorder-requirements.md. Plan: docs/product/plans/2026-04-06-001-feat-meeting-recorder-plan.md.",
+      "2026-04-06: Added PR 69 (refactor: Composio SDK upgrade + simplify connection tool loading) to Phase 4 as out-of-plan refactor. Bumps @composio/core + @composio/vercel 0.6.4→0.6.8. Replaces 170-line manual tool construction in activated-tools.ts with composio.tools.get(userId, { tools: slugs }) (~20 lines). Deletes tools.ts, file-bridge.ts, tool_schemas caching. Enforces one connected account per toolkit per user. Removes dead mcp/direct_api/computer_use variants from create_new_connections. Plan: docs/product/plans/2026-04-06-003-refactor-composio-session-api-plan.md. Tasklist: docs/product/tasks/2026-04-06-composio-sdk-simplification-tasklist.md."
     ]
   },
   "phases": [
@@ -3710,7 +3711,7 @@
         {
           "pr": 68,
           "title": "Meeting recorder — browser-native recording + Groq transcription + agent post-processing",
-          "status": "in_progress",
+          "status": "done",
           "simplified": false,
           "decisions": [],
           "scope": "out-of-plan",
@@ -3718,57 +3719,57 @@
             {
               "id": "PR68-1",
               "task": "Presigned upload endpoint for audio files",
-              "done": false
+              "done": true
             },
             {
               "id": "PR68-2",
               "task": "meeting_records table migration + RLS",
-              "done": false
+              "done": true
             },
             {
               "id": "PR68-3",
               "task": "Groq Whisper integration utility",
-              "done": false
+              "done": true
             },
             {
               "id": "PR68-4",
               "task": "Ingest endpoint (durable state machine)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR68-5",
               "task": "runMeetingFollowUp() background runner",
-              "done": false
+              "done": true
             },
             {
               "id": "PR68-6",
               "task": "useAudioRecorder hook",
-              "done": false
+              "done": true
             },
             {
               "id": "PR68-7",
               "task": "Recording bar + notepad components",
-              "done": false
+              "done": true
             },
             {
               "id": "PR68-8",
               "task": "Chat panel integration (record button, state switching)",
-              "done": false
+              "done": true
             },
             {
               "id": "PR68-9",
               "task": "Upload progress component",
-              "done": false
+              "done": true
             },
             {
               "id": "PR68-10",
               "task": "Meeting-specific agent prompt instructions",
-              "done": false
+              "done": true
             },
             {
               "id": "PR68-11",
               "task": "Mobile adaptations + in-person warning",
-              "done": false
+              "done": true
             }
           ],
           "testCriteria": [
@@ -3784,6 +3785,69 @@
           ],
           "origin": "docs/product/ideations/2026-04-06-meeting-recorder-requirements.md",
           "plan": "docs/product/plans/2026-04-06-001-feat-meeting-recorder-plan.md"
+        },
+        {
+          "pr": 69,
+          "title": "refactor: Composio SDK upgrade + simplify connection tool loading",
+          "status": "in_progress",
+          "simplified": false,
+          "decisions": [],
+          "scope": "out-of-plan",
+          "note": "Refactor of already-shipped connection code. Bumps @composio/core + @composio/vercel 0.6.4→0.6.8. Replaces manual tool construction with composio.tools.get(userId, { tools: slugs }). Deletes tools.ts, file-bridge.ts, tool_schemas caching. Enforces one-per-toolkit. Removes dead connection type variants.",
+          "tasks": [
+            {
+              "id": "PR69-1",
+              "task": "Bump @composio/core + @composio/vercel to ^0.6.8, verify existing tests pass",
+              "done": false
+            },
+            {
+              "id": "PR69-2",
+              "task": "Rewrite activated-tools.ts using composio.tools.get(userId, { tools: slugs })",
+              "done": false
+            },
+            {
+              "id": "PR69-3",
+              "task": "Delete tools.ts + file-bridge.ts, remove exports from index.ts",
+              "done": false
+            },
+            {
+              "id": "PR69-4",
+              "task": "Remove tool_schemas from schemas.ts, queries.ts, and manage-tools.ts",
+              "done": false
+            },
+            {
+              "id": "PR69-5",
+              "task": "Simplify create-connection.ts — remove dead variants, add one-per-toolkit preflight",
+              "done": false
+            },
+            {
+              "id": "PR69-6",
+              "task": "Update system prompt <using-connection-tools> for plain slug names",
+              "done": false
+            },
+            {
+              "id": "PR69-7",
+              "task": "DB migration: UNIQUE (client_id, toolkit_slug) + drop tool_schemas column",
+              "done": false
+            },
+            {
+              "id": "PR69-8",
+              "task": "Update run-agent.ts composio load block (remove file bridge options)",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "activated-tools.ts uses composio.tools.get() — no manual tool() construction",
+            "Tool names are plain slugs — no connection ID prefix",
+            "tools.ts and file-bridge.ts deleted, exports removed from index.ts",
+            "tool_schemas field removed from schemas, queries, and all call sites",
+            "create_new_connections has flat integrations-only schema, no mcp/direct_api/computer_use",
+            "Duplicate same-toolkit connection blocked before OAuth",
+            "System prompt references plain slug names, not connection ID prefixed names",
+            "All tests pass after SDK bump and rewrite"
+          ],
+          "plan": "docs/product/plans/2026-04-06-003-refactor-composio-session-api-plan.md",
+          "tasklist": "docs/product/tasks/2026-04-06-composio-sdk-simplification-tasklist.md"
         }
       ]
     },
