@@ -1,0 +1,87 @@
+{
+  "search_id": "search_190b7d2c7db04356ba8e1defbfdb59b9",
+  "status": "ok",
+  "results": [
+    {
+      "url": "https://www.notion.com/help/ai-meeting-notes",
+      "title": "AI Meeting Notes (beta) \u2013 Notion Help Center",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: AI Meeting Notes (beta) > Who can use AI Meeting Notes?\nContent:\nAI Meeting Notes is available on the Notion app and browser. The Notion app provides the best experience, especially for video calls, because it captures all sides of the conversation using your system audio and mic. The browser is best suited for in-person conversations since it can only pick up audio from your microphone.\nIf you're using this feature on your browser, a few things to note:\nOnly mic inputs will be transcribed. System audio won't be captured.\nAudio from conferencing tools (Google Meet, Zoom, Microsoft Teams, etc) will not be captured if you are using headphones. If you\u2019re not using headphones and your device\u2019s volume isn\u2019t too low, audio from conferencing tools may be captured."
+      ]
+    },
+    {
+      "url": "https://www.granola.ai/blog/ai-notetaker-implementation-guide-setup-adoption-change-management-cs-teams",
+      "title": "AI notetaker implementation guide: Setup, adoption & change management for CS teams | Granola",
+      "publish_date": "2026-03-27",
+      "excerpts": [
+        "Section Title: ... > Step 2: Tool selection\nContent:\n| Factor | Granola | Otter.ai | Fireflies.ai |\n| Capture method | Device audio, no visible participant | Bot joins meeting | Bot joins meeting |\n| Recording announcement | None | Reportedly \"Recording started\" | Bot joins as participant |\n| Setup time | Under 5 minutes | Under 10 minutes | Under 10 minutes |\n| HubSpot integration | Yes (Business plan) | Limited | Yes |\n| Slack integration | Yes (Business plan) | Reportedly yes | Reportedly yes |\n| Privacy architecture | Audio deleted after transcription | Audio stored | Audio stored |\n| SOC 2 Type 2 | Yes (July 2025) | Yes | Yes |\n| GDPR | Yes | Reportedly yes | Reportedly yes |\n| AI training opt-out | Yes, all plans (off by default on Enterprise) | Reportedly available | Reportedly available |\n| Business plan pricing | $14/user/month | $20/user/month | $19/user/month |\n| Audio playback | No | Yes | Yes |\n| Conversation analytics (talk ratios, sentiment) | No | Limited | Yes |\n ... \nSection Title: ... > How Granola helps CS teams capture client calls\nContent:\nCS teams report concerns about visible AI bots on client calls because recording announcements can shift conversation dynamics. Granola captures device audio directly, so there's [no visible participant](https://docs.granola.ai/help-center/consent-security-privacy/in-meeting-notice-google-meet) in the meeting list and no recording announcement. The meeting dynamic doesn't change.\nThat said, letting participants know notes are being taken remains good practice regardless of the tooling: a brief mention at the start of the call keeps the relationship transparent and the conversation on solid ground.\nGranola doesn't offer audio playback or conversation analytics like talk-time ratios and sentiment scoring. If your CS team needs call coaching workflows built around those features, a dedicated conversation intelligence tool is a better fit for that use case.\n ... \nSection Title: ... > Key terminology\nContent:\n**Bot-free capture:** Capturing meeting audio through device audio rather than a third-party participant that joins the video call. No participant list entry, no recording announcement, and no change to the meeting dynamic for other attendees.\n**AI-enhanced notes:** The workflow where a CSM jots rough notes during a meeting and AI additions appear distinctly from the CSM's own input, filling in context, quotes, and detail from the transcript. The CSM controls what stays and what gets removed.\n**Institutional memory:** The accumulated knowledge captured across all client conversations, preserved in searchable team folders that survive individual employee departures and can be queried for patterns across accounts.\n**Folder-level queries:** The ability to ask a question across all meetings in a shared folder simultaneously, returning source-linked citations from specific calls rather than a generic summary."
+      ]
+    },
+    {
+      "url": "https://attio.com/help/reference/productivity-collaborating/call-intelligence/enable-call-recording",
+      "title": "Enable call recording in Attio | Attio Help Center",
+      "publish_date": null,
+      "excerpts": [
+        "Help/\nReference/\nProductivity & collaborating/\nCall intelligence/\nEnable call recording in Attio\nSection Title: Enable call recording in Attio\nContent:\nSet up the Attio call recorder to record meetings for playback, transcripts, and insights.\nTable of Contents\nCompatible video conferencing platforms Languages supported for call transcription Manage auto-record settings Customize call recorder appearance FAQ\nAvailable on pro and enterprise plans.\nAvailable for **all** workspace members.\nAttio\u2019s call recorder seamlessly integrates with your video conferencing platform to capture meetings for easy sharing with your team. Learn how to enable call recording in Attio to utilize AI-generated insight summaries and transcripts and ensure key insights about your relationships are accessible and actionable.\nSection Title: Enable call recording in Attio > **Compatible video conferencing platforms** Copy link\nContent:\nThe Attio call recorder can be used with the following video conferencing platforms:\nZoom\nGoogle Meets\nMicrosoft Teams\nThe Attio call recorder works with these platforms out of the box, unless default settings have been changed on Zoom or Microsoft Teams. Learn how to troubleshoot Zoom settings and Micosoft Teams settings .\nEach member of your workspace can manage their auto-record settings and choose whether to admit or deny the Attio call recorder at the start of each meeting.\n**Note:** In order for the recorder to join a Zoom call and start recording, it needs to be granted access into the call by the meeting host or creator."
+      ]
+    },
+    {
+      "url": "https://attio.com/help/reference/productivity-collaborating/call-intelligence/recording-calls-with-attio",
+      "title": "Recording calls with Attio | Attio Help Center",
+      "publish_date": "2026-03-26",
+      "excerpts": [
+        "Help/\nReference/\nProductivity & collaborating/\nCall intelligence/\nRecording calls with Attio\nSection Title: Recording calls with Attio\nContent:\nLearn how to use call recording in Attio with AI-powered transcripts and insights.\nTable of Contents\nManually start a recording Override auto-record settings for a meeting Admit, deny, or stop recordings during meetings Related resources FAQ\nAvailable on pro and enterprise plans.\nAvailable for **all** workspace members.\nOnce you have enabled call recording with Attio , learn how to manually start and stop recordings, override auto-record settings for specific meetings, manage the recorder on calls, and manage video conferencing platform settings so you can start utilizing AI-generated insight summaries and transcripts from your meetings.\nFor a video walkthrough of Attio's call recording features, see **Call intelligence** in Attio Academy.\nWatch\n ... \nSection Title: Recording calls with Attio > Admit, deny, or stop recordings during meetings Copy link\nContent:\nFor example, any participant can send any of the following messages in the chat to remove Attio from the call and stop recording on Zoom, Google Meet, and Microsoft Teams:\n\"@Attio leave\"\n\"/bot leave\"\n\"Please leave the call Attio\"\n\"Remove the note taker\"\nYou can only ask Attio to leave after it has been admitted to the call.\n ... \nSection Title: Recording calls with Attio > Frequently asked questions > Can Attio record calls I join on mobile?\nContent:\nExpand all"
+      ]
+    },
+    {
+      "url": "https://attio.com/apps/zoom",
+      "title": "Zoom Integration | Attio",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: Zoom > How it works\nContent:\nConnect Attio with Zoom to update your CRM with data from your Zoom meetings."
+      ]
+    },
+    {
+      "url": "https://attio.com/help/academy/introduction/call-intelligence",
+      "title": "Call Intelligence | Attio Help Center",
+      "publish_date": null,
+      "excerpts": [
+        "* Platform\n    * Resources\n    * Customers\n    * Pricing\n\nSign in Start for free\nContents\n    * Help\n/\n    * Academy\n/\n    * Introductions\n\nCall Intelligence\nAutomatically record, transcribe, and store meetings in Attio, and leverage AI-powered insight templates to generate summaries, highlight key details, and streamline follow ups for seamless team collaboration. What you will learn\n    * Effortless call recording and storage\nLearn how Attio\u2019s call recorder automatically joins meetings in Zoom, Google Meet, and Microsoft Teams, transcribes conversations, and stores recordings directly in your CRM for seamless access. * AI powered insights and summaries\nDiscover how to create and apply custom AI insight templates that generate summaries, highlight key details, and provide actionable next steps tailored to different call types.\n* Managing and using call recordings\nExplore how to access, filter, and organize your call recordings within Attio, leverage live insights, and use playback modes like pinned mode and picture-in-picture for efficient review. Mark as watched Watched\nRelated articles\nRecording calls with Attio\nLearn how to use call recording in Attio with AI-powered transcripts and insights. Create insight templates for call recordings\nCustomize insight templates for AI-generated takeaways from your call recordings. View and manage call recordings\nWatch calls, understand AI-insights, and manage recordings."
+      ]
+    },
+    {
+      "url": "https://www.attio.community/c/general/how-do-you-use-call-recording",
+      "title": "How do you use call recording?",
+      "publish_date": null,
+      "excerpts": [
+        "1. Zoom and Zoom phone to record and transcribe calls , also using Zooms native AI summary. 2. Using Zoom for Discovery and Project kick-off calls."
+      ]
+    },
+    {
+      "url": "https://attio.com/help/reference/productivity-collaborating/call-intelligence/troubleshoot-call-recording-in-attio",
+      "title": "Troubleshooting call recording in Attio | Attio Help Center",
+      "publish_date": "2026-04-03",
+      "excerpts": [
+        "Section Title: Troubleshooting call recording in Attio\nContent:\nFind solutions for when calls aren't being recorded as expected.\nTable of Contents\nIdentify the issue Still need help?\nIf the Attio call recorder isn\u2019t working as expected, there are a few common issues you can check.\nThis article covers:\nWhy the recorder may not be joining calls\nWhy calls may not be recorded successfully\nHow to resolve common issues with Zoom, Microsoft Teams, and Google Meet\nWhy the recorder may be joining unexpectedly\n ... \nSection Title: Troubleshooting call recording in Attio > ... > Troubleshooting Zoom settings Copy link\nContent:\nZoom settings may need to be adjusted for Attio to successfully record calls and generate transcripts. In addition, the Zoom host must attend the meeting.\n**Configure caption settings**\nGo to [Zoom settings](https://zoom.us/profile/setting?tab=meeting) .\nTurn on **Automated captions** .\nIf transcripts are still not being generated:\nHover over **Show captions** and click the ^ icon.\nSelect **Host caption control settings** .\nEnable **Allow closed captioning for this meeting** .\nIf you don\u2019t see an option to enable meeting captions, it\u2019s likely the global **Automated captions** setting is turned off in your Zoom account settings.\n**Configure local recording settings**\nLocal recording must be enabled for Attio to record successfully.\n ... \nSection Title: Troubleshooting call recording in Attio > ... > Troubleshooting Microsoft Teams settings Copy link\nContent:\nMicrosoft Teams settings may need to be adjusted for Attio to successfully record calls and generate transcripts.\nEnsure [live captions](https://support.microsoft.com/en-us/office/use-live-captions-in-microsoft-teams-meetings-4be2d304-f675-4b57-8347-cbd000a21260) are enabled in your meeting:\nGo to **More actions** .\nSelect **Language and speech** .\nSelect **Show live captions** .\nCaptions may also be disabled by Microsoft admins. Admins can check [this setting](https://learn.microsoft.com/en-us/microsoftteams/meeting-transcription-captions) to confirm.\n ... \nSection Title: ... > The call is recorded, but transcripts aren't correct Copy link\nContent:\nIf the call is not in English, confirm that the call has ended. The transcript is generated in a single supported language after the call ends.\nYou can manually regenerate any call transcript within seven days of the call. Click the \u22ee icon in the top-right of a call page, then go to **Transcript** > **Regenerate** .\n ... \nSection Title: Troubleshooting call recording in Attio > Still need help? Copy link\nContent:\nIf you\u2019ve worked through the steps above and Attio still isn\u2019t recording calls as expected, contact support at support@attio.com .\nTo enable quicker troubleshooting, please include:\nThe meeting link\nThe time and date of the call\nThe conferencing platform used\nWhat you observed (recorder didn\u2019t join, joined but no recording, transcript issue, etc.)"
+      ]
+    },
+    {
+      "url": "https://www.relay.app/apps/attio/integrations/google-meet",
+      "title": "Connect Attio to Google Meet - Integrations",
+      "publish_date": null,
+      "excerpts": [
+        "Connect Attio to Google Meet in just a few clicks, for free, with Relay.app. Relay.app provides seamless integration between Attio, Google Meet,"
+      ]
+    },
+    {
+      "url": "https://klu.so/blog/attio-ai-meeting-assistant",
+      "title": "Attio AI Meeting Assistant: Syncing Meetings into Attio CRM - Klu",
+      "publish_date": "2025-10-03",
+      "excerpts": [
+        "Section Title: Attio AI Meeting Assistant: Syncing Meetings into Attio CRM\nContent:\n3 Oct 2025 \u2022 7 minute read\nSami AZ\n[Attio](https://klu.so/integrations/crm/attio) is positioning itself as a modern, flexible CRM with strong automation capabilities. In 2025, it offers *\u201cCall Intelligence\u201d* as a native feature: automatic recording, transcripts, summaries, and insights built directly into the CRM.\nYet there is still a gap: turning that meeting data into structured workflows, tasks, and CRM actions that scale across teams. That is what a full **Attio AI meeting assistant** should deliver, differentiating from just a record-and-transcribe layer.\nIn this article, we will:\nExplain how Attio\u2019s built-in Call Intelligence feature works\nSurvey third-party integrations that sync meetings into Attio CRM\nHighlight strengths and limitations of current options\nDefine what next-level integration should include\nShow where Klu\u2019s architecture can lead with automation, reliability, and workflow depth\nSection Title: ... > Attio\u2019s Native Call Intelligence: What It Offers\nContent:\nAttio\u2019s built-in Call Intelligence is already powerful. Here\u2019s what it supports:\nAutomatic recording of meetings across Zoom, Google Meet, and Microsoft Teams.\nReal-time transcription with speaker labels and timestamps.\nInsight templates and AI summaries generated for recorded calls.\nAbility to view recordings and transcripts in multiple places in Attio: the Calls tab, Activity tab on records, and a Calls page listing all recordings.\nLinking recorded calls automatically (or manually) to contact, company, or meeting records in Attio.\nThe ability to override auto-record behavior on specific meetings (e.g. force record on/off).\nAttio\u2019s built-in call intelligence turns meetings into searchable insights inside the CRM.\nWhile this native feature is strong, there remain practical limitations when scaling for teams that need automation beyond insight display.\nSection Title: ... > Attio\u2019s Native Call Intelligence: What It Offers\nContent:\nRead more about our article [Why Transcription Alone Is Dead in the Age of AI](https://klu.so/blog/why-transcription-alone-is-dead) ?\nSection Title: ... > Third-Party Meeting \u2192 Attio Integrations\nContent:\nSeveral integrations and apps already connect meeting tools to Attio CRM. Let\u2019s review who is doing what, and how deep."
+      ]
+    }
+  ],
+  "warnings": null
+}

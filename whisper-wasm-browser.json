@@ -1,0 +1,87 @@
+{
+  "search_id": "search_10b35c1e582b4335a43228fcc904d40f",
+  "status": "ok",
+  "results": [
+    {
+      "url": "https://www.reddit.com/r/LocalLLaMA/comments/1q8m9lq/building_a_whispercpp_transcription_app_focused/",
+      "title": "Building a Whisper.cpp transcription app focused on ...",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: Building a Whisper.cpp transcription app focused on accurate alignment \u2014 need thoughts\nContent:\nOne thing worth mentioning is that the Groq setup is *practically free* for normal users right now. Since it\u2019s user-owned usage with generous free limits, a regular person would struggle to hit those caps. That makes it attractive but only if accuracy holds up.\nRight now the app already supports:\nlocal whisper.cpp with CPU/GPU acceleration\nWAV2VEC2 forced alignment\nword-level timestamps\nSRT, VTT, JSON exports\nbasic subtitle cue control\ntesting on English, Hindi, Hinglish\n**Note:** This is an early prototype/testing UI. The current focus has been on transcription accuracy, forced alignment, and multilingual support. The final UI/UX will be significantly more polished and improved.\nWhat I\u2019m really trying to understand:"
+      ]
+    },
+    {
+      "url": "https://shaneduffy.io/blog/i-built-a-voice-assistant-that-runs-entirely-in-your-browser",
+      "title": "I Built a Voice Assistant That Runs Entirely in Your Browser",
+      "publish_date": null,
+      "excerpts": [
+        "Feb 15, 2026 \u2014 The first issue is that running Whisper eats up some serious computational resources, so it's not ideal to have it running constantly. In the Whisper WASM port,"
+      ]
+    },
+    {
+      "url": "https://github.com/ggml-org/whisper.cpp/pkgs/container/whisper.cpp",
+      "title": "Package whisper.cpp \u00b7 GitHub",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: whisper.cpp main-cuda-95ea8f9bfb03a15db08a8989966fd1ae3361e20d Public Latest > Footer\nContent:\nYou can\u2019t perform that action at this time."
+      ]
+    },
+    {
+      "url": "https://github.com/ggml-org/whisper.cpp/discussions/190",
+      "title": "Voice assistant example - the \"command\" tool \u00b7 ggml-org/whisper.cpp \u00b7 Discussion #190 \u00b7 GitHub",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: Voice assistant example - the \"command\" tool \\ > ... > ggerganov Nov 25, 2022\nContent:\n| Web version: [examples/command.wasm](https://github.com/ggerganov/whisper.cpp/tree/master/examples/command.wasm) |"
+      ]
+    },
+    {
+      "url": "https://openwhispr.com/blog/how-whisper-ai-works",
+      "title": "How Whisper AI Works: A Complete Guide | OpenWhispr",
+      "publish_date": "2026-02-17",
+      "excerpts": [
+        "Section Title: How Whisper AI Works: A Complete Guide > Fact-Check Snapshot (Dual Sources)\nContent:\n[large-v2 model card](https://huggingface.co/openai/whisper-large-v2) \u00b7 [benchmark details](https://github.com/openai/whisper/blob/main/model-card.md)\n**Recent model updates:** large-v3 reports lower errors than large-v2 on many languages, and turbo focuses on lower latency with smaller decoder compute. [large-v3 model card](https://huggingface.co/openai/whisper-large-v3) \u00b7 [turbo release discussion](https://github.com/openai/whisper/discussions/2363)\n**OpenWhispr relevance:** OpenWhispr uses Whisper via whisper.cpp for local, offline-first dictation across desktop platforms. [whisper.cpp](https://github.com/ggml-org/whisper.cpp) \u00b7 [OpenWhispr](https://openwhispr.com)\n ... \nSection Title: How Whisper AI Works: A Complete Guide > Fact-Check Snapshot (Dual Sources) > Model Sizes\nContent:\nSpeed is relative to the large model. VRAM requirements are for GPU inference using fp16 precision via the original Python implementation. [whisper.cpp](https://github.com/ggml-org/whisper.cpp) uses significantly less memory (e.g., the large model requires ~3.9 GB RAM instead of ~10 GB VRAM).\nThe **turbo** model (released October 2024) is a distilled version of large-v3 with a significantly smaller decoder. It retains most of large-v3's accuracy while running approximately 8x faster \u2014 making it a strong choice when speed matters. Note that turbo does not support the translation task.\n ... \nSection Title: How Whisper AI Works: A Complete Guide > ... > Memory Requirements (whisper.cpp)\nContent:\nwhisper.cpp runs on macOS (Intel and Apple Silicon), Linux, Windows, iOS, Android, FreeBSD, Raspberry Pi, and even in the browser via WebAssembly. It achieves faster-than-real-time transcription on modest consumer hardware \u2014 including devices as small as the Raspberry Pi 4 and iPhone 13.\nThis portability is what makes local, private speech recognition practical. Applications like [OpenWhispr](https://openwhispr.com) use whisper.cpp under the hood to provide real-time push-to-talk dictation that runs entirely on the user's device \u2014 no audio ever leaves the machine."
+      ]
+    },
+    {
+      "url": "https://codesandbox.io/p/github/DecryptionLabs/myshell_whisper_streaming",
+      "title": "Something went wrong",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: Something went wrong\nContent:\nThe content you're trying to access might not be visible because you're not signed in. You can sign in using the button below.\nAll Systems Operational\nWe didn't encounter any issues in our system, which indicates that the issue might be related to your account.\nIf the issue persists, please contact our support team at support@codesandbox.io for further assistance, making sure to copy the error details below, or check the [status page](https://codesandboxstatus.statuspage.io/) .\nProblem details and configurations\nClear cache and reload Show details"
+      ]
+    },
+    {
+      "url": "https://wiki.hiwepy.com/docs/llm/llm-1fn8f9u644n8s",
+      "title": "whisper.cpp - Powered by MinDoc - My - \u77e5\u8bc6\u5e93",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: whisper.cpp\nContent:\n[](https://github.com/ggerganov/whisper.cpp/actions)\n[](https://opensource.org/licenses/MIT)\n[](https://conan.io/center/whisper-cpp)\n[](https://www.npmjs.com/package/whisper.cpp/)\nStable: [v1.6.2](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.6.0) / [Roadmap | F.A.Q.](https://github.com/ggerganov/whisper.cpp/discussions/126)\nHigh-performance inference of [OpenAI\u2019s Whisper](https://github.com/openai/whisper) automatic speech recognition (ASR) model:\n ... \nSection Title: whisper.cpp > Quick start\nContent:\n(run  'ffplay samples/jfk.wav'  to listen)\n----------------------------------------------\n\nwhisper_init_from_file: loading model  from 'models/ggml-base.en.bin' \nwhisper_model_load: loading model\nwhisper_model_load: n_vocab       =  51864 \nwhisper_model_load: n_audio_ctx   =  1500 \nwhisper_model_load: n_audio_state =  512 \nwhisper_model_load: n_audio_head  =  8 \nwhisper_model_load: n_audio_layer =  6 \nwhisper_model_load: n_text_ctx    =  448 \nwhisper_model_load: n_text_state  =  512 \nwhisper_model_load: n_text_head   =  8 \nwhisper_model_load: n_text_layer  =  6 \nwhisper_model_load: n_mels        =  80 \nwhisper_model_load: f16           =  1 \nwhisper_model_load: type          =  2 \nwhisper_model_load: mem required  =   215.00  MB (+     6.00  MB per decoder)\nwhisper_model_load: kv self size  =     5.25  MB\nwhisper_model_load: kv cross size =    17.58  MB\nwhisper_model_load: adding  1607  extra tokens\nwhisper_model_load: model ctx     =   140.60\nSection Title: whisper.cpp > Quick start\nContent:\nMB\nwhisper_model_load: model size    =   140.54  MB\n\nsystem_info: n_threads =  4  /  10  | AVX =  0  | AVX2 =  0  | AVX512 =  0  | FMA =  0  | NEON =  1  | ARM_FMA =  1  | F16C =  0  | FP16_VA =  1  | WASM_SIMD =  0  | BLAS =  1  | SSE3 =  0  | VSX =  0  |\n\nmain: processing  'samples/jfk.wav'  ( 176000  samples,  11.0  sec),  4  threads,  1  processors, lang = en, task = transcribe, timestamps =  1  ... [ 00 : 00 : 00.000  -->  00 : 00 : 11.000 ]   And so my fellow Americans, ask  not  what your country can  do for  you, ask what you can  do for  your country.\nSection Title: whisper.cpp > Quick start\nContent:\nwhisper_print_timings:     fallbacks =    0  p /    0  h\nwhisper_print_timings:     load time =    113.81  ms\nwhisper_print_timings:      mel time =     15.40  ms\nwhisper_print_timings:   sample time =     11.58  ms /     27  runs (     0.43  ms per run)\nwhisper_print_timings:   encode time =    266.60  ms /      1  runs (   266.60  ms per run)\nwhisper_print_timings:   decode time =     66.11  ms /     27  runs (     2.45  ms per run)\nwhisper_print_timings:    total time =    476.31  ms\n```\n ... \nSection Title: whisper.cpp > Examples\nContent:\n| Example | Web | Description |\n| main | whisper.wasm | Tool for translating and transcribing audio using Whisper |\n| bench | bench.wasm | Benchmark the performance of Whisper on your machine |\n| stream | stream.wasm | Real-time transcription of raw microphone capture |\n| command | command.wasm | Basic voice assistant example for receiving voice commands from the mic |\n| wchess | wchess.wasm | Voice-controlled chess |\n| talk | talk.wasm | Talk with a GPT-2 bot |\n| talk-llama | Talk with a LLaMA bot |  |\n| whisper.objc | iOS mobile application using whisper.cpp |  |\n| whisper.swiftui | SwiftUI iOS / macOS application using whisper.cpp |  |\n| whisper.android | Android mobile application using whisper.cpp |  |\n| whisper.nvim | Speech-to-text plugin for Neovim |  |\n| generate-karaoke.sh | Helper script to easily [generate a karaoke video](https://youtu.be/uj7hVta4blM) of raw audio capture |  |\nSection Title: whisper.cpp > Examples\nContent:\n| Example | Web | Description |\n| main | whisper.wasm | Tool for translating and transcribing audio using Whisper |\n| bench | bench.wasm | Benchmark the performance of Whisper on your machine |\n| stream | stream.wasm | Real-time transcription of raw microphone capture |\n| command | command.wasm | Basic voice assistant example for receiving voice commands from the mic |\n| livestream.sh | [Livestream audio transcription](https://github.com/ggerganov/whisper.cpp/issues/185) |  |\n| yt-wsp.sh | Download + transcribe and/or translate any VOD [(original)](https://gist.github.com/DaniruKun/96f763ec1a037cc92fe1a059b643b818) |  |\n| server | HTTP transcription server with OAI-like API |  |"
+      ]
+    },
+    {
+      "url": "https://medium.com/@shouke.wei/what-and-why-you-might-install-whisper-cpp-7c333b2a3895",
+      "title": "What Is whisper.cpp and Why You Might Want to Install It | by Dr. Shouke Wei | Jun, 2025 | Medium",
+      "publish_date": "2025-06-29",
+      "excerpts": [
+        "Section Title: \ud83e\udde0 What Is `whisper.cpp` ?\nContent:\n`[whisper.cpp](https://github.com/ggerganov/whisper.cpp)` is a **C++ implementation** of OpenAI\u2019s [Whisper](https://openai.com/research/whisper) speech recognition model, optimized for **CPU inference** . It enables real-time or batch transcription **on-device** ."
+      ]
+    },
+    {
+      "url": "https://www.facebook.com/0xSojalSec/posts/fasterwhisperxxl-transcription-tool-transcribes-local-files-and-youtube-videos-i/1439537027700696/",
+      "title": "Faster\u2011Whisper\u2011XXL transcription tool: Transcribes local ...",
+      "publish_date": null,
+      "excerpts": [
+        "A staggering five-fold increase in performance , enabling users to transcribe audio with breathtaking speed and efficiency. But the marvels don't stop there."
+      ]
+    },
+    {
+      "url": "https://huggingface.co/spaces/natasa365/whisper.cpp/blob/9cbd99abeebbf364ab274e848f0ca9638ac4136d/README.md",
+      "title": "README.md \u00b7 natasa365/whisper.cpp at 9cbd99abeebbf364ab274e848f0ca9638ac4136d",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: whisper.cpp\nContent:\n[](https://user-images.githubusercontent.com/1991296/235238348-05d0f6a4-da44-4900-a1de-d0707e75b763.jpeg)\n[](https://github.com/ggerganov/whisper.cpp/actions) [](https://opensource.org/licenses/MIT) [](https://conan.io/center/whisper-cpp) [](https://www.npmjs.com/package/whisper.cpp/)\nStable: [v1.7.4](https://github.com/ggerganov/whisper.cpp/releases/tag/v1.7.4) / [Roadmap | F.A.Q.](https://github.com/ggerganov/whisper.cpp/discussions/126)\nHigh-performance inference of [OpenAI's Whisper](https://github.com/openai/whisper) automatic speech recognition (ASR) model:\n ... \nSection Title: whisper.cpp\nContent:\nMac OS (Intel and Arm)\niOS\nAndroid\nJava\nLinux / [FreeBSD](https://github.com/ggerganov/whisper.cpp/issues/56)\nWebAssembly\nWindows ( [MSVC](https://github.com/ggerganov/whisper.cpp/blob/master/.github/workflows/build.yml) and [MinGW](https://github.com/ggerganov/whisper.cpp/issues/168) ]\n[Raspberry Pi](https://github.com/ggerganov/whisper.cpp/discussions/166)\n[Docker](https://github.com/ggerganov/whisper.cpp/pkgs/container/whisper.cpp)\nThe entire high-level implementation of the model is contained in whisper.h and whisper.cpp .\nThe rest of the code is part of the [`ggml`](https://github.com/ggerganov/ggml) machine learning library.\nHaving such a lightweight implementation of the model allows to easily integrate it in different platforms and applications.\nAs an example, here is a video of running the model on an iPhone 13 device - fully offline, on-device: whisper.objc\nhttps://user-images.githubusercontent.com/1991296/197385372-962a6dea-bca1-4d50-bf96-1d8c27b98c81.mp4\n ... \nSection Title: whisper.cpp > Examples\nContent:\n| Example | Web | Description |\n| whisper-cli | whisper.wasm | Tool for translating and transcribing audio using Whisper |\n| whisper-bench | bench.wasm | Benchmark the performance of Whisper on your machine |\n| whisper-stream | stream.wasm | Real-time transcription of raw microphone capture |\n| whisper-command | command.wasm | Basic voice assistant example for receiving voice commands from the mic |\n| whisper-server |  | HTTP transcription server with OAI-like API |\n| whisper-talk-llama |  | Talk with a LLaMA bot |\n| whisper.objc |  | iOS mobile application using whisper.cpp |\n| whisper.swiftui |  | SwiftUI iOS / macOS application using whisper.cpp |\n| whisper.android |  | Android mobile application using whisper.cpp |\n| whisper.nvim |  | Speech-to-text plugin for Neovim |\n| generate-karaoke.sh |  | Helper script to easily [generate a karaoke video](https://youtu.be/uj7hVta4blM) of raw audio capture |\nSection Title: whisper.cpp > Examples\nContent:\n| Example | Web | Description |\n| whisper-cli | whisper.wasm | Tool for translating and transcribing audio using Whisper |\n| whisper-bench | bench.wasm | Benchmark the performance of Whisper on your machine |\n| whisper-stream | stream.wasm | Real-time transcription of raw microphone capture |\n| whisper-command | command.wasm | Basic voice assistant example for receiving voice commands from the mic |\n| livestream.sh |  | [Livestream audio transcription](https://github.com/ggerganov/whisper.cpp/issues/185) |\n| yt-wsp.sh |  | Download + transcribe and/or translate any VOD [(original)](https://gist.github.com/DaniruKun/96f763ec1a037cc92fe1a059b643b818) |\n| wchess | wchess.wasm | Voice-controlled chess |"
+      ]
+    }
+  ],
+  "warnings": null
+}

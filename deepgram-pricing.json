@@ -1,0 +1,71 @@
+{
+  "search_id": "search_6ded25610287470e9388c8ad0394f134",
+  "status": "ok",
+  "results": [
+    {
+      "url": "https://deepgram.com/pricing",
+      "title": "Deepgram Pricing | Scalable Speech-to-Text, Text-to-Speech & Voice Agent APIs",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: Deepgram Pricing\nContent:\n**Straightforward costs for projects at any scale.**\nFind the right plan with our clear, transparent, and flexible pricing. Whether you're just exploring or deploying at enterprise scale, our plans are built for innovation, not contract negotiation.\nPay As You Go\nNo minimums. No expiration. **No credit card required.**\nGrowth Save up to 20%\nWith pre-paid credits for the year. **Credits are redeemed against actual usage.**\nOverview\nPrice\n**Free $200 Credit**\nthen pay-as-you-go\n**$4K+**\n/ year\nBest for\nDevelopers & Startups\nGrowing Applications\nAccess\nAll endpoint in public models\nAll endpoints in public models\nUsage & Scale (Concurrency)\nSpeech-to-Text\nUp to 100 for the REST API\nUp to 100 for the REST API\nUp to 150 for the WSS API\nUp to 225 for the WSS API\nUp to 5 for Deepgram Whisper Cloud\nUp to 5 for Deepgram Whisper Cloud\nText-to-Speech\nUp to 45 for the REST API + WSS API\nUp to 60 for the REST API + WSS API\nVoice Agent API\nUp to 45 for the WSS API\n ... \nSection Title: Deepgram Pricing > Speech to Text\nContent:\ni\nConversational speech recognition for real-time voice agents with built-in turn detection, natural interruption handling, and ultra-low latency. |$0.0077/min |\n|Nova-3 (Monolingual)\ni\nOur highest performing model. Recommended for most use cases, especially audio with multiple languages, background noise, crosstalk and far field audio. |$0.0077/min |\n|Nova-3 (Multilingual)\ni\nOur highest performing model. Recommended for most use cases, especially audio with multiple languages, background noise, crosstalk and far field audio. |$0.0092/min |\n|Nova-1 & 2\ni\nOur highest performing model. Recommended for most use cases, especially audio with multiple languages, background noise, crosstalk and far field audio. |$0.0058/min |\n|Enhanced\ni\nRecommended for lower word error rates than Base, high accuracy timestamps, and use cases that require keyword boosting. |$0.0165/min |\n|Base\ni"
+      ]
+    },
+    {
+      "url": "https://www.gladia.io/blog/deepgram-pricing",
+      "title": "Gladia - Deepgram Pricing: Worth It or Consider Gladia? [January 2026]",
+      "publish_date": "2026-03-04",
+      "excerpts": [
+        "Section Title: Deepgram pricing: Worth it or consider Gladia? (January 2026) > Deepgram & Gladia pricing summary\nContent:\n|  | Deepgram | Gladia |\n| **Free Tier** | \u2022 $200 one-time credit |  |\n| \u2022 Access to all public models |  |  |\n| \u2022 Promotional credits expire after 1 year | \u2022 10 free hours per month |  |\n| \u2022 Ongoing monthly refresh |  |  |\n| \u2022 Full feature access |  |  |\n| **Entry Level** | Pay-As-You-Go: $0.0052/min pre-recorded, $0.0112/min streaming (incl. diarization) |  |\n| $200 one-time credit; Audio Intelligence billed separately per token | Pro: $0.61/hr async, $0.75/hr real-time |  |\n| Speaker diarization included; 30 concurrent requests |  |  |\n| **Mid-Tier** | Growth: $0.0043/min pre-recorded, $0.0095/min streaming |  |\n| $4,000+/year commitment; Audio Intelligence billed separately | Scaling: $0.50/hr async, $0.55/hr real-time |  |\n| Custom volume discounts; flexible concurrency |  |  |\n ... \nSection Title: ... > Deepgram pay-as-you-go: starting with $200 free credit\nContent:\n| Feature | Details |\n| Free Credit | $200 one-time (expires after 1 year) |\n| STT Streaming | $0.0092/min (Nova-3 Multilingual); Speaker Diarization add-on: +$0.0020/min |\n| STT Pre-Recorded | $0.0052/min (Nova-3 Multilingual); Speaker Diarization included |\n| Text-to-Speech | $0.0150/1k characters (Aura-1); Aura-2: $0.030/1k characters |\n| Voice Agent API | $0.0800/min |\n| Concurrency | 100 REST, 150 WSS |\n ... \nSection Title: ... > Deepgram growth: $4,000+/year commitment\nContent:\n| Feature | Details |\n| Minimum Commitment | $4,000/year |\n| STT Streaming | $0.0078/min (Nova-3 Multilingual); Speaker Diarization add-on: +$0.0017/min |\n| STT Pre-Recorded | $0.0043/min (Nova-3 Multilingual); Speaker Diarization included |\n| Text-to-Speech | $0.0135/1k characters (Aura-1) |\n| Voice Agent API | $0.0700/min |\n| Savings vs Pay-As-You-Go | Up to 20% |"
+      ]
+    },
+    {
+      "url": "https://deepgram.com/learn/speech-to-text-api-pricing-breakdown-2025",
+      "title": "Speech-to-Text API Pricing Breakdown: Which Tool is Most Cost-Effective? (2025 Edition)",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: ... > **What Are the List Prices for Major Speech-to-Text (STT) Vendors and Providers? (Snapshot ...\nContent:\n| **Vendor** | **Streaming list ($/min)** | **Batch list ($/min)** | **Minimum bill-able block** | **Free tier** | **Compliance uplift (PII/HIPAA)** | **SLA** **2** |\n| [**Deepgram**](https://deepgram.com/pricing) **(Nova-3 EN)** | **0.0077** (Nova-3 PAYG) | **0.0043** (Nova-3 prerec) | 1s | $200 credits | HIPAA: contact sales (BAA); PII + $0.0020/min | 99.9 % (enterprise) 3 |\n| [**Azure AI Speech**](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/speech-services) (US Central) | 0.0167 (Standard PAYG \u2248 $1/hr) | 0.003 (Standard PAYG \u2248 $0.18/hr) | 1s | 5 hr/mo (F0) | Private Link/VPC via sales; enhanced add-on features + $0.3/hr for streaming and free for batch | 99.9 % |\nSection Title: ... > **What Are the List Prices for Major Speech-to-Text (STT) Vendors and Providers? (Snapshot ...\nContent:\n| **Vendor** | **Streaming list ($/min)** | **Batch list ($/min)** | **Minimum bill-able block** | **Free tier** | **Compliance uplift (PII/HIPAA)** | **SLA** **2** |\n| [**Deepgram**](https://deepgram.com/pricing) **(Nova-3 EN)** | **0.0077** (Nova-3 PAYG) | **0.0043** (Nova-3 prerec) | 1s | $200 credits | HIPAA: contact sales (BAA); PII + $0.0020/min | 99.9 % (enterprise) 3 |\n| [**Google STT v2**](https://cloud.google.com/speech-to-text/pricing) | 0.016 (0\u2013500 K min tier) | 0.003 (dynamic batch) | 1s | 60 min/mo (for v1 only) | Data logging opt-in = 0.004 $/min/month/account *discount* | [99.9%](https://cloud.google.com/speech-to-text/sla) |\n| [**AssemblyAI**](https://www.assemblyai.com/pricing) | 0.0025 (Universal-Streaming $0.15/hr) | 0.0045 (Universal $0.27/hr) | 1s (per-second billing) | $50 credits (~185 hr) | HIPAA BAA (contact sales) | Custom/negotiable |"
+      ]
+    },
+    {
+      "url": "https://blog.dograh.com/deepgram-pricing-breakdown-and-how-open-source-saves-70/",
+      "title": "Deepgram Pricing Breakdown: And How Open Source Saves 70%",
+      "publish_date": "2026-01-03",
+      "excerpts": [
+        "Section Title: ... > How Deepgram Voice Agent API Pricing Works\nContent:\n**Standard :** For the Standard tier, pricing is $0.0800 per minute on Pay-as-you-Go and $0.0700 per minute on the Growth plan.\n**Standard - BYO TTS :** For the Standard - BYO TTS tier, pricing is $0.0600 per minute on Pay-as-you-Go and $0.0500 per minute on the Growth plan.\n**Custom - BYO LLM :** For the Custom - BYO LLM tier, pricing is $0.0700 per minute on Pay-as-you-Go and $0.0600 per minute on the Growth plan.\n**Custom - BYO LLM + TTS :** For the Custom - BYO LLM + TTS tier, pricing is $0.0500 per minute on Pay-as-you-Go and $0.0400 per minute on the Growth plan.\n**Advanced :** For the Advanced tier, pricing is $0.1600 per minute on Pay-as-you-Go and $0.1500 per minute on the Growth plan.\n**Advanced - BYO TTS :** The Advanced - BYO TTS plan charges $0.12/min for Pay-As-You-Go and $0.11/min for Growth, offering flexible, usage-based pricing.\n ... \nSection Title: Deepgram Pricing Breakdown: And How Open Source Saves 70% > **Real Cost Breakdown**\nContent:\nDeepgram Real Cost Breakdown\nDeepgram offers a pay-as-you-go pricing model billed per audio minute or hour, with automatic volume discounts and $200 in free starter credits. The Voice Agent API is approximately $4.50/hour (~$0.075/min), covering STT, LLM, and TTS.\nSuppose you run 1,000 minutes of real-time voice agent audio in a month on the Voice Agent API :\nVoice Agent API cost : 1,000 min \u00d7 $0.075 = $75\n**Total estimated monthly cost :** Around $75"
+      ]
+    },
+    {
+      "url": "https://www.linkedin.com/company/deepgram",
+      "title": "Deepgram | LinkedIn",
+      "publish_date": "2026-04-03",
+      "excerpts": [
+        "Section Title: Deepgram > About us\nContent:\nIndustry-leading models & platform:\n\ud83d\udc42 Nova-3 \u2014 the world\u2019s most accurate real-time speech-to-text model\n\ud83d\udd0a Aura-2 \u2014 professional, enterprise-grade text-to-speech\n\ud83d\udcac Flux \u2014 the first Conversational Speech Recognition model designed to handle interruptions\n\ud83d\ude80 Voice Agent API \u2014 enterprise-ready, real-time conversational AI\n\ud83e\udde0 Saga \u2014 the Voice OS\nBeyond core infrastructure, Deepgram is expanding the Voice AI ecosystem through:\n\ud83d\udcaa Powered by Deepgram, supporting voice products built by leading AI startups and enterprise organizations\n\ud83c\udf09 A new Voice AI Collaboration Hub in San Francisco for builders, partners, and the voice community\n\ud83c\udf54 The acquisition of OfOne, delivering real-time Voice AI for restaurants and drive-thru operations with 95%+ containment\n\ud83d\udcc3 A growing patent portfolio in Voice AI\nMuch like APIs powered the payments and cloud economies, Deepgram is building the foundation for a trillion-dollar B2B Voice AI economy\u2014centered on the most natural human interface: voice."
+      ]
+    },
+    {
+      "url": "https://tekpon.com/software/deepgram/reviews/",
+      "title": "Deepgram Reviews 2025: Pricing & Features - Tekpon 2026",
+      "publish_date": "2025-04-23",
+      "excerpts": [
+        "Section Title: Deepgram Reviews for 2026 > Deepgram Pricing\nContent:\nStarting From:\n$ 4000 /year\nPricing Model: Subscription\nDeepgram offers three pricing tiers: Pay As You Go with $200 in free credits and no minimums; the Growth plan starting at $4,000 per year with discounted rates; and the Enterprise plan beginning at $15,000 per year, featuring custom models, self-hosted deployment, and premium support. Speech-to-text rates vary by model, ranging from $0.0043 to $0.0145 per minute for pre-recorded audio, and text-to-speech costs start at $0.015 per 1,000 characters. Additional services like summarization and sentiment analysis are available at separate per-token rates.\nFree Trial\nFree Version"
+      ]
+    },
+    {
+      "url": "https://fish.audio/vs/pricing/deepgram/",
+      "title": "Deepgram Pricing Explained (2026)",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: Deepgram Pricing Explained (2026) > Deepgram Pricing Plans\nContent:\nAll plans are usage-based. Pay-As-You-Go starts with $200 free credit. Growth requires $4,000+ annual prepayment for ~20% discount. STT rates drop to ~$0.003/min at high volumes.\nSection Title: Deepgram Pricing Explained (2026) > Deepgram Pricing Plans > Pay-As-You-Go\nContent:\nUsage-based billing with free credit\n$0 /to start"
+      ]
+    },
+    {
+      "url": "https://brasstranscripts.com/blog/deepgram-pricing-per-minute-2025-real-time-vs-batch",
+      "title": "Deepgram Pricing 2026: Nova-3 at $0.46/hr Breakdown",
+      "publish_date": "2025-11-08",
+      "excerpts": [
+        "Section Title: Deepgram Pricing 2026: Nova-3 at $0.46/hr Breakdown > ... > Nova-3 Pricing (Current Model)\nContent:\n| Plan | Price Per Minute | Features |\n| **Pay-As-You-Go** | **$0.0077/min** | No commitment, pay per use |\n| **Growth Plan** | **$0.0065/min** | Annual commitment required |\n ... \nSection Title: Deepgram Pricing 2026: Nova-3 at $0.46/hr Breakdown > ... > Free Tier ($200 Credits)\nContent:\nDeepgram provides **$200 in free credits** for new accounts:\n**Pay-As-You-Go:** ~433 hours at $0.0077/min\n**Growth Plan:** ~513 hours at $0.0065/min\n**Best use:** Test accuracy on representative audio samples across batch and streaming modes before committing to paid usage."
+      ]
+    }
+  ],
+  "warnings": null
+}
