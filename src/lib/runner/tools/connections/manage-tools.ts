@@ -30,7 +30,7 @@ export function createManageToolsTool(
   return {
     manage_activated_tools_for_connections: tool({
       description:
-        "Activates or deactivates tools for connections. This is a DESTRUCTIVE action — use ask_user_question to confirm with the user before calling.\n\nReturns an array of objects for each connection:\n- connectionId: the connection ID\n- tools: { activated: string[], deactivated: string[] } - lists of tool names currently activated/deactivated for the connection\n- skills: (optional) instructions to read the skills file for this connection.\n\nActivated tools will then become available to use and will appear in your tool context with the tool name prefixed by the connection ID. For example, the search_for_info tool on connection Id conn_1234 will appear as conn_1234__search_for_info in your prompt. If you don't see the tool you need try activating it first.\nTo discover the full set of tools that are available for each connection before activating them call get_details_for_connections.\n\nIf your connection has an associated skills file you MUST read and follow the instructions in the skills file before using any tools from that connection.",
+        "Activates or deactivates tools for connections. This is a DESTRUCTIVE action — use ask_user_question to confirm with the user before calling.\n\nReturns an array of objects for each connection:\n- connectionId: the connection ID\n- tools: { activated: string[], deactivated: string[] } - lists of tool names currently activated/deactivated for the connection\n- skills: (optional) instructions to read the skills file for this connection.\n\nActivated tools then appear in your tool context by their plain slug, for example GMAIL_SEND_EMAIL. If you don't see the tool you need, try activating it first.\nTo discover the full set of tools that are available for each connection before activating them call get_details_for_connections.\n\nIf your connection has an associated skills file you MUST read and follow the instructions in the skills file before using any tools from that connection.",
       inputSchema: manageToolsInputSchema,
       execute: async ({ connections: connectionRequests }) => {
         const composio = getComposio();
@@ -89,19 +89,7 @@ export function createManageToolsTool(
           });
 
           const activatedTools = Array.from(nextActivatedTools);
-
-          // Cache tool schemas for activated tools so runtime loading avoids Composio API calls
-          const schemasToCache: Record<string, { description: string | null; inputParameters: unknown }> = {};
-          for (const rawTool of rawTools) {
-            if (nextActivatedTools.has(rawTool.slug)) {
-              schemasToCache[rawTool.slug] = {
-                description: rawTool.description ?? null,
-                inputParameters: rawTool.inputParameters ?? null,
-              };
-            }
-          }
-
-          await updateConnectionActivatedTools(supabase, clientId, connection.id, activatedTools, schemasToCache);
+          await updateConnectionActivatedTools(supabase, clientId, connection.id, activatedTools);
 
           const activatedToolSet = new Set(activatedTools);
           results.push({

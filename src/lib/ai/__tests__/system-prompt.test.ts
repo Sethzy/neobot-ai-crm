@@ -174,8 +174,9 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT).toContain("MUST read it");
   });
 
-  it("includes connection-ID-prefixed tool naming guidance", () => {
-    expect(SYSTEM_PROMPT).toContain("conn_1234__search_for_info");
+  it("includes plain-slug connection tool naming guidance", () => {
+    expect(SYSTEM_PROMPT).toContain("GMAIL_SEND_EMAIL");
+    expect(SYSTEM_PROMPT).not.toContain("conn_1234__search_for_info");
   });
 
   it("instructs the agent to read connection skill files before using tools", () => {

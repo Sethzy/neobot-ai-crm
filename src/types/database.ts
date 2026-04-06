@@ -417,7 +417,6 @@ export type Database = {
           id: string
           status: string
           tool_count: number
-          tool_schemas: Json
           toolkit_slug: string
           updated_at: string
         }
@@ -431,7 +430,6 @@ export type Database = {
           id?: string
           status?: string
           tool_count?: number
-          tool_schemas?: Json
           toolkit_slug: string
           updated_at?: string
         }
@@ -445,7 +443,6 @@ export type Database = {
           id?: string
           status?: string
           tool_count?: number
-          tool_schemas?: Json
           toolkit_slug?: string
           updated_at?: string
         }

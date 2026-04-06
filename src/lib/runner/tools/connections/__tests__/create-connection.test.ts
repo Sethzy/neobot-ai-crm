@@ -10,7 +10,7 @@ vi.mock("@/lib/composio/connection-flow", async (importOriginal) => ({
 }));
 
 vi.mock("@/lib/connections/queries", () => ({
-  getActiveConnectionsByToolkit: vi.fn(),
+  getConnectionByToolkit: vi.fn(),
   insertConnection: vi.fn(),
 }));
 
@@ -20,7 +20,7 @@ vi.mock("@/lib/composio/catalog", () => ({
 
 import { initiateOAuthFlow } from "@/lib/composio/connection-flow";
 import { getToolkitDisplayInfo } from "@/lib/composio/catalog";
-import { getActiveConnectionsByToolkit, insertConnection } from "@/lib/connections/queries";
+import { getConnectionByToolkit, insertConnection } from "@/lib/connections/queries";
 
 import { createCreateConnectionTool } from "../create-connection";
 
@@ -52,7 +52,7 @@ describe("createCreateConnectionTool", () => {
   });
 
   it("creates a pending integration connection and returns the redirect URL", async () => {
-    vi.mocked(getActiveConnectionsByToolkit).mockResolvedValue([]);
+    vi.mocked(getConnectionByToolkit).mockResolvedValue(null);
     vi.mocked(getToolkitDisplayInfo).mockResolvedValue({
       integrationId: "gmail",
       displayName: "Gmail",
@@ -67,15 +67,12 @@ describe("createCreateConnectionTool", () => {
     const { create_new_connections } = createCreateConnectionTool({} as never, CLIENT_ID);
     const result = await create_new_connections.execute(
       {
-        connection: {
-          type: "integrations",
-          integrations: [
-            {
-              integrationId: "gmail",
-              toolsToActivate: ["GMAIL_SEND_EMAIL"],
-            },
-          ],
-        },
+        integrations: [
+          {
+            integrationId: "gmail",
+            toolsToActivate: ["GMAIL_SEND_EMAIL"],
+          },
+        ],
       },
       EXECUTION_OPTIONS,
     );
@@ -112,7 +109,7 @@ describe("createCreateConnectionTool", () => {
   });
 
   it("falls back to the integration slug when display metadata lookup fails", async () => {
-    vi.mocked(getActiveConnectionsByToolkit).mockResolvedValue([]);
+    vi.mocked(getConnectionByToolkit).mockResolvedValue(null);
     vi.mocked(getToolkitDisplayInfo).mockRejectedValue(new Error("catalog unavailable"));
     vi.mocked(initiateOAuthFlow).mockResolvedValue({
       redirectUrl: "https://composio.dev/oauth/drive",
@@ -123,10 +120,7 @@ describe("createCreateConnectionTool", () => {
     const { create_new_connections } = createCreateConnectionTool({} as never, CLIENT_ID);
     const result = await create_new_connections.execute(
       {
-        connection: {
-          type: "integrations",
-          integrations: [{ integrationId: "googledrive" }],
-        },
+        integrations: [{ integrationId: "googledrive" }],
       },
       EXECUTION_OPTIONS,
     );
@@ -141,7 +135,7 @@ describe("createCreateConnectionTool", () => {
   });
 
   it("defaults toolsToActivate to an empty array", async () => {
-    vi.mocked(getActiveConnectionsByToolkit).mockResolvedValue([]);
+    vi.mocked(getConnectionByToolkit).mockResolvedValue(null);
     vi.mocked(getToolkitDisplayInfo).mockResolvedValue({
       integrationId: "slack",
       displayName: "Slack",
@@ -156,10 +150,7 @@ describe("createCreateConnectionTool", () => {
     const { create_new_connections } = createCreateConnectionTool({} as never, CLIENT_ID);
     await create_new_connections.execute(
       {
-        connection: {
-          type: "integrations",
-          integrations: [{ integrationId: "slack" }],
-        },
+        integrations: [{ integrationId: "slack" }],
       },
       EXECUTION_OPTIONS,
     );
@@ -170,15 +161,45 @@ describe("createCreateConnectionTool", () => {
     );
   });
 
-  it("supports multiple integrations in one call and includes existing connection summaries", async () => {
-    vi.mocked(getActiveConnectionsByToolkit)
-      .mockResolvedValueOnce([
+  it("blocks duplicate toolkit rows before starting OAuth, even when not active", async () => {
+    vi.mocked(getConnectionByToolkit).mockResolvedValueOnce({
+      id: "conn-existing",
+      account_identifier: "personal@gmail.com",
+      status: "pending",
+    } as never);
+    vi.mocked(getToolkitDisplayInfo)
+      .mockResolvedValueOnce({
+        integrationId: "gmail",
+        displayName: "Gmail",
+        description: "Send and read Gmail messages",
+      });
+
+    const { create_new_connections } = createCreateConnectionTool({} as never, CLIENT_ID);
+    const result = await create_new_connections.execute(
+      {
+        integrations: [{ integrationId: "gmail" }],
+      },
+      EXECUTION_OPTIONS,
+    );
+
+    expect(result).toEqual({
+      success: true,
+      message: expect.stringContaining("No new connection cards were created"),
+      results: [
         {
-          id: "conn-existing",
-          account_identifier: "personal@gmail.com",
-        } as never,
-      ])
-      .mockResolvedValueOnce([]);
+          integrationId: "gmail",
+          error: "Already connected. Delete the existing connection first.",
+        },
+      ],
+    });
+    expect(initiateOAuthFlow).not.toHaveBeenCalled();
+    expect(insertConnection).not.toHaveBeenCalled();
+  });
+
+  it("supports multiple integrations in one call", async () => {
+    vi.mocked(getConnectionByToolkit)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
     vi.mocked(getToolkitDisplayInfo)
       .mockResolvedValueOnce({
         integrationId: "gmail",
@@ -204,10 +225,7 @@ describe("createCreateConnectionTool", () => {
     const { create_new_connections } = createCreateConnectionTool({} as never, CLIENT_ID);
     const result = await create_new_connections.execute(
       {
-        connection: {
-          type: "integrations",
-          integrations: [{ integrationId: "gmail" }, { integrationId: "slack" }],
-        },
+        integrations: [{ integrationId: "gmail" }, { integrationId: "slack" }],
       },
       EXECUTION_OPTIONS,
     );
@@ -218,19 +236,12 @@ describe("createCreateConnectionTool", () => {
       displayName: "Gmail",
       description: "Send and read Gmail messages",
       composioConnectedAccountId: "composio-gmail",
-      existingConnections: [
-        {
-          connectionId: "conn-existing",
-          accountIdentifier: "personal@gmail.com",
-        },
-      ],
     });
     expect(result.results[1]).toMatchObject({
       integrationId: "slack",
       displayName: "Slack",
       description: "Send and receive Slack messages",
       composioConnectedAccountId: "composio-slack",
-      existingConnections: undefined,
     });
     expect(initiateOAuthFlow).toHaveBeenNthCalledWith(2, {
       composioUserId: CLIENT_ID,
@@ -240,45 +251,28 @@ describe("createCreateConnectionTool", () => {
     expect(insertConnection).toHaveBeenCalledTimes(2);
   });
 
-  it("returns explicit stub messages for non-integration connection types", async () => {
+  it("returns a non-card message when every requested integration is rejected", async () => {
+    vi.mocked(getConnectionByToolkit).mockResolvedValue({
+      id: "conn-existing",
+      account_identifier: null,
+      status: "inactive",
+    } as never);
+
     const { create_new_connections } = createCreateConnectionTool({} as never, CLIENT_ID);
+    const result = await create_new_connections.execute(
+      {
+        integrations: [{ integrationId: "gmail" }],
+      },
+      EXECUTION_OPTIONS,
+    );
 
-    await expect(
-      create_new_connections.execute({ connection: { type: "mcp" } }, EXECUTION_OPTIONS),
-    ).resolves.toEqual({
-      success: false,
-      error: expect.stringContaining("MCP"),
-    });
-
-    await expect(
-      create_new_connections.execute(
-        {
-          connection: {
-            type: "direct_api",
-            serviceName: "Custom API",
-            description: "Custom HTTP service",
-            connectionName: "custom-api",
-            baseUrl: "https://api.example.com",
-            methods: ["GET"],
-            authConfig: {},
-            notes: "",
-          },
-        },
-        EXECUTION_OPTIONS,
-      ),
-    ).resolves.toEqual({
-      success: false,
-      error: expect.stringContaining("Direct API"),
-    });
-
-    await expect(
-      create_new_connections.execute(
-        { connection: { type: "computer_use", displayName: "Chrome session" } },
-        EXECUTION_OPTIONS,
-      ),
-    ).resolves.toEqual({
-      success: false,
-      error: expect.stringContaining("Computer Use"),
-    });
+    expect(result.success).toBe(true);
+    expect(result.message).not.toContain("Connection cards are ready");
+    expect(result.results).toEqual([
+      {
+        integrationId: "gmail",
+        error: "Already connected. Delete the existing connection first.",
+      },
+    ]);
   });
 });

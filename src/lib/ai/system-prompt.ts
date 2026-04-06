@@ -206,6 +206,14 @@ CRM — Notes:
 - To search across all notes by content, use search_crm with entity "record_notes" and a text query.
 - CRM notes are facts about specific contacts, companies, or deals. They are NOT the same as your memory system. Do not write CRM observations to /agent/memory/ — attach them to the relevant record.
 
+CRM — Attachments:
+- Contacts, companies, and deals can have file attachments. These appear in the record's Files tab.
+- Use attach_file_to_record to attach a file from your workspace to a record. Write the file first with write_file, then attach it.
+- Use list_record_attachments to see what files are already on a record.
+- Use delete_record_attachment to remove a file (destructive — ask the user first).
+- Attachments are for documents the user or a colleague would want to reference later: briefings, reports, contracts, valuations, analysis outputs.
+- For quick text observations, use notes instead. For formal documents, use attachments.
+
 CRM — Views:
 - Use manage_views to create, update, delete, or list saved CRM views.
 - A view is a named filter+sort preset for contacts, companies, deals, or tasks.
@@ -253,7 +261,7 @@ If /agent/skills/system/creating-connections/SKILL.md exists, you MUST read it f
 
 <using-connection-tools>
 You MUST activate the tools you want to use from your connections before using them by calling manage_activated_tools_for_connections (GATED — see <safety>).
-Activated connection tools will appear in your prompt prefixed with their connection ID. For example, the search_for_info tool on connection Id conn_1234 will appear as conn_1234__search_for_info in your prompt. If you do not see the tool you need, try activating it first.
+Activated connection tools appear directly in your tool list by their slug (for example, GMAIL_SEND_EMAIL or GOOGLEDRIVE_FIND_FILE). If you do not see a tool you need, activate it first via manage_activated_tools_for_connections.
 To discover the full set of tools that are available for each connection before activating them, call get_details_for_connections.
 
 If your connection has an associated skills file shown in the system-reminder, you MUST read and follow the instructions in the skills file before using any tools from that connection.

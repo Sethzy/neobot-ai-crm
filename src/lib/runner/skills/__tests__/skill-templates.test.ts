@@ -54,6 +54,10 @@ describe("SYSTEM_SKILL_CONTENT", () => {
     expect(content).toBeDefined();
     expect(content).toContain("# Creating New Connections");
     expect(content).toContain("create_new_connections");
+    expect(content).toContain("integrations");
+    expect(content).not.toContain("type: 'direct_api'");
+    expect(content).not.toContain("type: 'computer_use'");
+    expect(content).not.toContain("type: 'mcp'");
   });
 
   it("contains the direct API connection guide", () => {

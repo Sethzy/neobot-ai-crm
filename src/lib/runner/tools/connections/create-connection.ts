@@ -8,41 +8,16 @@ import { z } from "zod";
 
 import { getToolkitDisplayInfo } from "@/lib/composio/catalog";
 import { getCallbackUrl, initiateOAuthFlow } from "@/lib/composio/connection-flow";
-import { getActiveConnectionsByToolkit, insertConnection } from "@/lib/connections/queries";
+import { getConnectionByToolkit, insertConnection } from "@/lib/connections/queries";
 import type { Database } from "@/types/database";
 
 const createConnectionInputSchema = z.object({
-  connection: z.discriminatedUnion("type", [
+  integrations: z.array(
     z.object({
-      type: z.literal("integrations"),
-      integrations: z.array(
-        z.object({
-          integrationId: z.string().trim().min(1),
-          toolsToActivate: z.array(z.string().trim().min(1)).optional(),
-        }),
-      ),
+      integrationId: z.string().trim().min(1),
+      toolsToActivate: z.array(z.string().trim().min(1)).optional(),
     }),
-    z.object({
-      type: z.literal("mcp"),
-      displayName: z.string().optional(),
-      serverUrl: z.string().optional(),
-    }),
-    z.object({
-      type: z.literal("direct_api"),
-      serviceName: z.string(),
-      description: z.string(),
-      connectionName: z.string(),
-      baseUrl: z.string(),
-      methods: z.array(z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"])),
-      authConfig: z.record(z.string(), z.unknown()),
-      notes: z.string(),
-      testCases: z.array(z.record(z.string(), z.unknown())).optional(),
-    }),
-    z.object({
-      type: z.literal("computer_use"),
-      displayName: z.string(),
-    }),
-  ]),
+  ),
 });
 
 /**
@@ -55,43 +30,25 @@ export function createCreateConnectionTool(
   return {
     create_new_connections: tool({
       description:
-        "Creates new connections to external services.\nDisplays a UI card where the user can choose to create each connection or skip it.\nCreating a connection will authenticate the user to the service and then save the connection to the user's account so they can use it in other agents in the future.\n\nIMPORTANT: You MUST read /agent/skills/system/creating-connections/SKILL.md for detailed setup instructions before using this tool.\n\nSupports the creation of 4 different types of connections: pre-built integrations, custom MCP, Direct API (HTTP) and Computer Use.\nFor pre-built integrations supports the creation of multiple connections at once. All others support only one connection creation at a time.\n\nFor each connection creation request returns:\n- userAction: 'created' if user authorized, 'skipped' if user declined.\n\nIf successfully created, also returns:\n- connectionId: the new connection ID. Don't mention the connectionId to the user.\n- tools: { activated: string[], deactivated: string[] } - list of all connection tool names by activation state\n- connection-specific details",
+        "Creates new Composio OAuth integrations.\nDisplays a UI card where the user can choose to create each connection or skip it.\nCreating a connection authenticates the user to the service and then saves the connection to the user's account so they can use it in other agents in the future.\n\nIMPORTANT: You MUST read /agent/skills/system/creating-connections/SKILL.md for detailed setup instructions before using this tool.\n\nYou can request multiple integrations at once.\n\nFor each connection creation request returns:\n- userAction: 'created' if user authorized, 'skipped' if user declined.\n\nIf successfully created, also returns:\n- connectionId: the new connection ID. Don't mention the connectionId to the user.\n- tools: { activated: string[], deactivated: string[] } - list of all connection tool names by activation state\n- connection-specific details",
       inputSchema: createConnectionInputSchema,
-      execute: async ({ connection }) => {
-        if (connection.type === "mcp") {
-          return {
-            success: false,
-            error: "MCP connections require manual setup. Contact the Sunder team.",
-          };
-        }
+      execute: async ({ integrations }) => {
+        const results: Array<
+          | {
+              integrationId: string;
+              displayName: string;
+              description: string;
+              connectionStatus: "pending_auth";
+              redirectUrl: string;
+              composioConnectedAccountId: string;
+            }
+          | {
+              integrationId: string;
+              error: string;
+            }
+        > = [];
 
-        if (connection.type === "direct_api") {
-          return {
-            success: false,
-            error: "Direct API connections require manual setup. Contact the Sunder team.",
-          };
-        }
-
-        if (connection.type === "computer_use") {
-          return {
-            success: false,
-            error: "Computer Use connections are not yet available.",
-          };
-        }
-
-        const results: Array<{
-          integrationId: string;
-          displayName: string;
-          description: string;
-          connectionStatus: "pending_auth";
-          redirectUrl: string;
-          composioConnectedAccountId: string;
-          existingConnections:
-            | Array<{ connectionId: string; accountIdentifier: string | null }>
-            | undefined;
-        }> = [];
-
-        for (const integration of connection.integrations) {
+        for (const integration of integrations) {
           const callbackUrl = getCallbackUrl(integration.integrationId);
           const toolkitDisplayInfo = await getToolkitDisplayInfo(integration.integrationId)
             .catch(() => ({
@@ -99,11 +56,20 @@ export function createCreateConnectionTool(
               displayName: integration.integrationId,
               description: "",
             }));
-          const existingConnections = await getActiveConnectionsByToolkit(
+          const existingConnection = await getConnectionByToolkit(
             supabase,
             clientId,
             integration.integrationId,
           );
+
+          if (existingConnection) {
+            results.push({
+              integrationId: integration.integrationId,
+              error: "Already connected. Delete the existing connection first.",
+            });
+            continue;
+          }
+
           const { redirectUrl, connectedAccountId } = await initiateOAuthFlow({
             composioUserId: clientId,
             toolkitSlug: integration.integrationId,
@@ -128,20 +94,16 @@ export function createCreateConnectionTool(
             connectionStatus: "pending_auth",
             redirectUrl,
             composioConnectedAccountId: connectedAccountId,
-            existingConnections:
-              existingConnections.length > 0
-                ? existingConnections.map((existingConnection) => ({
-                    connectionId: existingConnection.id,
-                    accountIdentifier: existingConnection.account_identifier,
-                  }))
-                : undefined,
           });
         }
 
+        const hasPendingAuthCard = results.some((result) => "connectionStatus" in result);
+
         return {
           success: true,
-          message:
-            "Connection cards are ready in chat for the user to complete authorization. After they finish, use list_users_connections to verify the connections were created.",
+          message: hasPendingAuthCard
+            ? "Connection cards are ready in chat for the user to complete authorization. After they finish, use list_users_connections to verify the connections were created."
+            : "No new connection cards were created. Review the per-integration errors and resolve those before retrying.",
           results,
         };
       },

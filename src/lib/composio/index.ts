@@ -18,4 +18,3 @@ export {
   type ToolkitDisplayInfo,
 } from "./catalog";
 export { loadActivatedConnectionTools } from "./activated-tools";
-export { loadComposioTools } from "./tools";

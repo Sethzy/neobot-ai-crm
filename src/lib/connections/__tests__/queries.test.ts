@@ -11,6 +11,7 @@ import {
   getActiveConnectionByToolkit,
   getActiveConnections,
   getActiveConnectionsByToolkit,
+  getConnectionByToolkit,
   getConnectionByConnectedAccountId,
   getActiveToolkitSlugs,
   getAllConnections,
@@ -34,7 +35,6 @@ const ACTIVE_CONNECTIONS = [
     status: "active",
     activated_tools: ["GMAIL_SEND_EMAIL"],
     tool_count: 45,
-    tool_schemas: {},
     created_at: "2026-03-07T00:00:00.000Z",
     updated_at: "2026-03-07T00:00:00.000Z",
   },
@@ -48,7 +48,6 @@ const ACTIVE_CONNECTIONS = [
     status: "active",
     activated_tools: [],
     tool_count: 20,
-    tool_schemas: {},
     created_at: "2026-03-07T00:00:00.000Z",
     updated_at: "2026-03-07T00:00:00.000Z",
   },
@@ -194,6 +193,46 @@ describe("getActiveConnectionByToolkit", () => {
         ACTIVE_CONNECTIONS[0].toolkit_slug,
       ),
     ).rejects.toThrow();
+  });
+});
+
+describe("getConnectionByToolkit", () => {
+  it("returns one parsed connection for a toolkit regardless of status", async () => {
+    const inactiveConnection = {
+      ...ACTIVE_CONNECTIONS[0],
+      status: "inactive" as const,
+    };
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [inactiveConnection], error: null },
+    });
+
+    const result = await getConnectionByToolkit(
+      supabase as never,
+      ACTIVE_CONNECTIONS[0].client_id,
+      ACTIVE_CONNECTIONS[0].toolkit_slug,
+    );
+
+    expect(result).toEqual(inactiveConnection);
+    const statusFilters = supabase.calls.methods.filter(
+      (call) => call.method === "eq" && call.args[0] === "status",
+    );
+    expect(statusFilters).toHaveLength(0);
+    expect(supabase.calls.methods).toContainEqual({ method: "limit", args: [1] });
+    expect(supabase.calls.methods).toContainEqual({ method: "maybeSingle", args: [] });
+  });
+
+  it("returns null when no connection exists for the toolkit", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: { data: [], error: null },
+    });
+
+    await expect(
+      getConnectionByToolkit(
+        supabase as never,
+        ACTIVE_CONNECTIONS[0].client_id,
+        ACTIVE_CONNECTIONS[0].toolkit_slug,
+      ),
+    ).resolves.toBeNull();
   });
 });
 

@@ -5,7 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import type { Database, Json } from "@/types/database";
+import type { Database } from "@/types/database";
 import {
   connectionInsertSchema,
   connectionRowSchema,
@@ -28,21 +28,13 @@ const toolkitSlugRowSchema = z.object({
 });
 
 function toConnectionInsertPayload(input: ConnectionInsert): ConnectionInsertRow {
-  const { tool_schemas, ...rest } = input;
-  return {
-    ...rest,
-    ...(tool_schemas !== undefined ? { tool_schemas: tool_schemas as Json } : {}),
-  };
+  return { ...input };
 }
 
 function toConnectionUpdatePayload(
   input: Omit<ConnectionUpdate, "id">,
 ): ConnectionUpdateRow {
-  const { tool_schemas, ...rest } = input;
-  return {
-    ...rest,
-    ...(tool_schemas !== undefined ? { tool_schemas: tool_schemas as Json } : {}),
-  };
+  return { ...input };
 }
 
 /** Loads all active connections for one client. */
@@ -100,6 +92,32 @@ export async function getActiveConnectionByToolkit(
 
   if (error) {
     throw new Error(`Failed to load active connection for ${toolkitSlug}: ${error.message}`);
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return connectionRowSchema.parse(data);
+}
+
+/** Loads one connection for a specific toolkit regardless of lifecycle status, if present. */
+export async function getConnectionByToolkit(
+  supabase: ConnectionSupabaseClient,
+  clientId: string,
+  toolkitSlug: string,
+): Promise<ConnectionRow | null> {
+  const { data, error } = await supabase
+    .from("connections")
+    .select("*")
+    .eq("client_id", clientId)
+    .eq("toolkit_slug", toolkitSlug)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to load connection for ${toolkitSlug}: ${error.message}`);
   }
 
   if (!data) {
@@ -311,13 +329,11 @@ export async function updateConnectionActivatedTools(
   clientId: string,
   connectionId: string,
   activatedTools: string[],
-  toolSchemas?: Record<string, { description: string | null; inputParameters: unknown }>,
 ): Promise<ConnectionRow> {
   try {
     return await updateConnection(supabase, clientId, {
       id: connectionId,
       activated_tools: activatedTools,
-      ...(toolSchemas != null ? { tool_schemas: toolSchemas } : {}),
     });
   } catch (error) {
     throw new Error(

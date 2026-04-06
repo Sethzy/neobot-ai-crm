@@ -1060,7 +1060,7 @@ describe("runAgent", () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
     mockGetActiveConnections.mockResolvedValue([{ id: "conn-1" }]);
     mockLoadActivatedConnectionTools.mockResolvedValue({
-      "conn-1__GMAIL_FETCH_EMAILS": { description: "composio-tool" },
+      GMAIL_FETCH_EMAILS: { description: "composio-tool" },
     });
 
     await runAgent(validPayload, "mock-supabase-client" as never);
@@ -1071,17 +1071,12 @@ describe("runAgent", () => {
     );
     expect(mockLoadActivatedConnectionTools).toHaveBeenCalledWith([
       { id: "conn-1" },
-    ], expect.objectContaining({
-      supabase: "mock-supabase-client",
-      clientId: validPayload.clientId,
-      fileClient: expect.objectContaining({ uploadArtifact: expect.any(Function) }),
-      getSandbox: expect.any(Function),
-    }));
+    ], validPayload.clientId);
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
         tools: expect.objectContaining({
           search_contacts: { description: "tool" },
-          "conn-1__GMAIL_FETCH_EMAILS": { description: "composio-tool" },
+          GMAIL_FETCH_EMAILS: { description: "composio-tool" },
         }),
       }),
     );
@@ -1104,12 +1099,7 @@ describe("runAgent", () => {
 
     expect(mockLoadActivatedConnectionTools).toHaveBeenCalledWith([
       { id: "conn-1" },
-    ], expect.objectContaining({
-      supabase: "mock-supabase-client",
-      clientId: validPayload.clientId,
-      fileClient: expect.objectContaining({ uploadArtifact: expect.any(Function) }),
-      getSandbox: expect.any(Function),
-    }));
+    ], validPayload.clientId);
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
         tools: expect.not.objectContaining({

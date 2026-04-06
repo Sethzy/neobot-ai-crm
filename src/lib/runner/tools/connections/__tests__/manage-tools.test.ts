@@ -95,10 +95,6 @@ describe("createManageToolsTool", () => {
       CLIENT_ID,
       "conn-1",
       ["GMAIL_READ_EMAIL", "GMAIL_DELETE_EMAIL"],
-      expect.objectContaining({
-        GMAIL_READ_EMAIL: { description: null, inputParameters: null },
-        GMAIL_DELETE_EMAIL: { description: null, inputParameters: null },
-      }),
     );
     expect(result).toEqual({
       success: true,
@@ -143,6 +139,16 @@ describe("createManageToolsTool", () => {
 
     expect(result.connections[0].skills).toContain("/agent/skills/connections/conn-1/SKILL.md");
     expect(result.connections[0].skills).toContain("not all connections have one");
+  });
+
+  it("describes activated tools as plain slugs in the tool description", () => {
+    const { manage_activated_tools_for_connections } = createManageToolsTool(
+      {} as never,
+      CLIENT_ID,
+    );
+
+    expect(manage_activated_tools_for_connections.description).toContain("GMAIL_SEND_EMAIL");
+    expect(manage_activated_tools_for_connections.description).not.toContain("conn_1234__");
   });
 
   it("returns a per-connection error when unknown tools are requested", async () => {

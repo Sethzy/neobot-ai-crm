@@ -35,7 +35,6 @@ const MOCK_GMAIL_CONNECTION = {
   status: "active" as const,
   activated_tools: ["GMAIL_SEND_EMAIL", "GMAIL_READ_EMAIL", "GMAIL_LIST_EMAILS"],
   tool_count: 45,
-  tool_schemas: {},
   created_at: "2026-03-05T00:00:00Z",
   updated_at: "2026-03-05T00:00:00Z",
 };
@@ -49,7 +48,6 @@ const MOCK_CALENDAR_CONNECTION = {
   status: "active" as const,
   activated_tools: ["GOOGLECALENDAR_LIST_EVENTS", "GOOGLECALENDAR_CREATE_EVENT"],
   tool_count: 20,
-  tool_schemas: {},
   created_at: "2026-03-05T00:00:00Z",
   updated_at: "2026-03-05T00:00:00Z",
 };

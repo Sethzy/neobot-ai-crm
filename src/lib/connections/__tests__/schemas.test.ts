@@ -96,6 +96,10 @@ describe("connectionRowSchema", () => {
       }).success,
     ).toBe(true);
   });
+
+  it("does not include tool_schemas in the schema shape", () => {
+    expect("tool_schemas" in connectionRowSchema.shape).toBe(false);
+  });
 });
 
 describe("connectionInsertSchema", () => {
@@ -151,6 +155,27 @@ describe("connectionInsertSchema", () => {
       expect(result.data.tool_count).toBe(0);
     }
   });
+
+  it("does not include tool_schemas in parsed data", () => {
+    const result = connectionInsertSchema.safeParse({
+      client_id: "660e8400-e29b-41d4-a716-446655440000",
+      composio_connected_account_id: "conn_123abc",
+      toolkit_slug: "gmail",
+      status: "active",
+      tool_schemas: {
+        GMAIL_SEND_EMAIL: {
+          description: "Send email",
+          inputParameters: {},
+        },
+      },
+    });
+
+    expect(result.success).toBe(true);
+
+    if (result.success) {
+      expect("tool_schemas" in result.data).toBe(false);
+    }
+  });
 });
 
 describe("connectionUpdateSchema", () => {
@@ -173,5 +198,9 @@ describe("connectionUpdateSchema", () => {
         status: "active",
       }).success,
     ).toBe(true);
+  });
+
+  it("does not include tool_schemas in the schema shape", () => {
+    expect("tool_schemas" in connectionUpdateSchema.shape).toBe(false);
   });
 });

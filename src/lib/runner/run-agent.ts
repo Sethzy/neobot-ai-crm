@@ -234,21 +234,10 @@ export async function runAgent(
       ...(input.length > 0 ? [{ type: "text" as const, text: input }] : []),
     ];
 
-    // File bridge: Composio tools need storage + sandbox access for file downloads/uploads.
-    // The sandbox may not exist yet (lazy boot), so we pass a getter that captures the
-    // reference once createLazyBashTool assigns it.
-    const composioFileClient = createAgentFileClient(supabase, clientId);
-    let sandboxGetter: (() => import("@vercel/sandbox").Sandbox | null) = () => null;
-
     const composioPromise = getActiveConnections(supabase, clientId)
       .then((connections) => {
         _t("get_connections");
-        return loadActivatedConnectionTools(connections, {
-          supabase,
-          clientId,
-          fileClient: composioFileClient,
-          getSandbox: () => sandboxGetter(),
-        });
+        return loadActivatedConnectionTools(connections, clientId);
       })
       .then((tools) => {
         _t("load_composio_tools");
@@ -331,7 +320,7 @@ export async function runAgent(
 
     if (snapshotId) {
       const fileClient = createAgentFileClient(supabase, clientId);
-      const { tool: bashTool, cleanup, getSandbox } = createLazyBashTool({
+      const { tool: bashTool, cleanup } = createLazyBashTool({
         snapshotId,
         getPreloadFiles: () =>
           buildPreloadFiles({
@@ -343,7 +332,6 @@ export async function runAgent(
         runId: `${threadId}-${runId}`,
       });
 
-      sandboxGetter = getSandbox;
       sandboxTools.bash = bashTool;
       sandboxCleanup = cleanup;
     }
