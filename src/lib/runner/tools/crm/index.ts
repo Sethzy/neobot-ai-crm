@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { CRM_DEFAULTS, type CrmVocabConfig } from "@/lib/crm/config";
 import type { Database } from "@/types/database";
 
+import { createAttachmentTools } from "./attachments";
 import { createConfigureCrmTool } from "./configure-crm";
 import { createCreateRecordTool } from "./create-record";
 import { createDeleteRecordsTool } from "./delete-records";
@@ -64,6 +65,7 @@ export function createCrmTools(
   const linkRecordTools = createLinkRecordsTool(supabase, clientId, config);
   const interactionTools = createInteractionTools(supabase, clientId, config);
   const taskTools = createTaskTools(supabase, clientId, config);
+  const attachmentTools = createAttachmentTools(supabase, clientId);
   const viewTools = createViewTools(supabase, clientId);
 
   return {
@@ -74,8 +76,11 @@ export function createCrmTools(
     create_interaction: interactionTools.create_interaction,
     create_task: taskTools.create_task,
     update_task: taskTools.update_task,
+    attach_file_to_record: attachmentTools.attach_file_to_record,
+    list_record_attachments: attachmentTools.list_record_attachments,
     manage_views: viewTools.manage_views,
     ...(allowDeleteTools ? {
+      delete_record_attachment: attachmentTools.delete_record_attachment,
       delete_records: createDeleteRecordsTool(supabase, clientId).delete_records,
       ...createConfigureCrmTool(supabase, clientId),
     } : {}),

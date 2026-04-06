@@ -25,18 +25,21 @@ describe("createCrmTools", () => {
     ]);
   });
 
-  it("returns all 10 expected CRM tools when writes are enabled", () => {
+  it("returns all 13 expected CRM tools when writes are enabled", () => {
     const { client } = createMockSupabase();
 
     const tools = createCrmTools(client, CLIENT_ID, { allowWriteTools: true });
 
     expect(Object.keys(tools).sort()).toEqual([
+      "attach_file_to_record",
       "configure_crm",
       "create_interaction",
       "create_record",
       "create_task",
+      "delete_record_attachment",
       "delete_records",
       "link_records",
+      "list_record_attachments",
       "manage_views",
       "search_crm",
       "update_record",
@@ -55,7 +58,10 @@ describe("createCrmTools", () => {
     const toolNames = Object.keys(tools).sort();
 
     expect(toolNames).not.toContain("delete_records");
+    expect(toolNames).not.toContain("delete_record_attachment");
     expect(toolNames).not.toContain("configure_crm");
+    expect(toolNames).toContain("attach_file_to_record");
+    expect(toolNames).toContain("list_record_attachments");
     expect(toolNames).toContain("create_record");
     expect(toolNames).toContain("update_record");
   });
