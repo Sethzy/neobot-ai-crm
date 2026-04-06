@@ -364,6 +364,10 @@ export function buildAssistantPartsFromSteps(
       parts.push({ type: "reasoning", text: step.reasoningText });
     }
 
+    // Process step.toolCalls, but skip entries already handled via step.content.
+    // In AI SDK's DefaultStepResult, toolCalls/toolResults are getters derived from
+    // content — reprocessing them overwrites tool-result states back to
+    // "input-available", causing MissingToolResultsError on the next turn.
     for (const rawToolCall of step.toolCalls ?? []) {
       if (typeof rawToolCall !== "object" || rawToolCall === null) {
         continue;
@@ -372,7 +376,8 @@ export function buildAssistantPartsFromSteps(
       const toolCall = rawToolCall as Record<string, unknown>;
       if (
         typeof toolCall.toolCallId === "string" &&
-        typeof toolCall.toolName === "string"
+        typeof toolCall.toolName === "string" &&
+        !toolPartIndexByCallId.has(toolCall.toolCallId)
       ) {
         upsertToolPart(parts, toolPartIndexByCallId, {
           toolCallId: toolCall.toolCallId,

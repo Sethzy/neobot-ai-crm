@@ -464,7 +464,7 @@ export async function assembleContext({
   const modelMessages = await convertToModelMessages([
     ...historyMessages,
     ...currentMessageTurn,
-  ]);
+  ], { ignoreIncompleteToolCalls: true });
 
   // Inject system reminder and memory as user messages after the cache boundary
   // (not in the system prompt) so the stable prefix remains cacheable.
