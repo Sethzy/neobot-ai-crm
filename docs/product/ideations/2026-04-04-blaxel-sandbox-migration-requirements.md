@@ -353,7 +353,53 @@ The ONLY change is how the sandbox accesses files: FUSE mount via S3 protocol in
 
 ---
 
-## 7. Dependencies
+## 7. Spike Results (Apr 5, 2026) — FUSE Gate Confirmed Open
+
+### Test: s3fs FUSE mount of Supabase Storage inside Blaxel sandbox
+
+**Script:** `scripts/spike/blaxel-fuse-test.ts`
+
+**Environment:** Blaxel sandbox `sunder-fuse-spike-2`, image `blaxel/base-image:latest`, region `us-was-1`, 2048MB memory.
+
+| Test | Result | Detail |
+|---|---|---|
+| `/dev/fuse` exists | **PASS** | `crw------- root root 10, 229` |
+| FUSE in kernel | **PASS** | `fuseblk`, `fuse`, `fusectl` all registered |
+| Install s3fs-fuse | **PASS** | `apk add s3fs-fuse` — v1.95, 5 packages |
+| Install rclone | **PASS** | `apk add rclone` — v1.72.1 |
+| s3fs mount Supabase | **PASS** | `s3fs on /mnt/supabase type fuse.s3fs (rw,nosuid,nodev,relatime,user_id=0,group_id=0,allow_other)` |
+| List files via FUSE | **PASS** | Sees actual client directories (UUID prefixes) from Supabase Storage |
+| Write through FUSE | **PASS** | `echo "hello from blaxel sandbox" > /mnt/supabase/fuse-test.txt` — persisted |
+| Read through FUSE | **PASS** | `cat /mnt/supabase/fuse-test.txt` — content matches |
+| rclone S3 list | **FAIL** | Config path issue (`/blaxel/.config/` vs `/root/.config/`) — trivially fixable, not a blocker |
+
+**Verdict: FEASIBLE. All critical tests pass.**
+
+Key observations:
+- Blaxel's Unikraft microVM exposes `/dev/fuse` natively — no `--privileged` or `CAP_SYS_ADMIN` needed
+- Blaxel already runs its own FUSE daemon (`ukp-fuse on /uk/libukp`) — FUSE is a first-class citizen
+- Supabase Storage S3 protocol is fully interoperable with s3fs
+- Project-level S3 keys work (used for spike). JWT session tokens to be tested in planning phase.
+- The rclone config path issue is because Blaxel uses `/blaxel/` as home, not `/root/`. Fix: set `--config /blaxel/.config/rclone/rclone.conf` or `RCLONE_CONFIG` env var.
+
+### External Research Findings (incorporated)
+
+An independent technical evaluation confirmed the architecture and added actionable detail:
+
+1. **rclone recommended over s3fs for production** — VFS cache (`--vfs-cache-mode writes`) solves the no-caching problem observed in Tasklet benchmarks (~220ms per read without cache). Cached repeat reads would be near-instant. s3fs has no equivalent.
+2. **`--s3-list-version 2` flag** — Forces ListObjectsV2 for rclone. Avoids pagination bugs with Supabase's S3 implementation. Must-have for production.
+3. **Non-atomic renames on S3** — `rename()` is emulated as COPY + DELETE. Not atomic. Agent scripts should use "write-to-temp-then-rename" pattern. Add to system prompt sandbox section.
+4. **`--dir-cache-time` tuning** — Controls freshness of directory listings. Lower values (e.g. `5s`) improve mid-session file visibility at the cost of more ListObjects calls.
+5. **Ghost folders** — Supabase-specific: high-concurrency deletes can leave empty "ghost" directories in the UI. Low priority but worth knowing.
+6. **No `CAP_SYS_ADMIN` needed** — Confirmed by spike. Blaxel's microVM architecture gives the sandbox its own kernel, so FUSE works without elevated privileges. This is unlike Docker containers where FUSE requires `--privileged` or `--cap-add SYS_ADMIN`.
+
+### Updated Recommendation
+
+**Use s3fs for initial implementation** (proven in spike, simpler config), **migrate to rclone for production** (caching, resilience, better diagnostics). Both are installable via `apk add` in the same Alpine image.
+
+---
+
+## 8. Dependencies
 
 1. Blaxel account + workspace (for sandbox compute)
 2. Custom Docker image with s3fs-fuse baked in
@@ -366,7 +412,8 @@ The ONLY change is how the sandbox accesses files: FUSE mount via S3 protocol in
 
 ## 8. Outstanding Questions (Deferred to Planning)
 
-- Q1. [Technical] Verify s3fs-fuse works with Supabase's S3 endpoint + JWT session tokens. 30-minute spike.
+- ~~Q1. [Technical] Verify s3fs-fuse works with Supabase's S3 endpoint.~~ **RESOLVED — spike confirmed s3fs mount works.** JWT session tokens still need testing (Q6).
+
 - Q2. [Technical] s3fs multiple mount points — verify 6 separate s3fs mounts (3 rw, 3 ro) work concurrently in one container.
 - Q3. [Technical] How to append toolCallId to tool results — AI SDK `onStepFinish` callback, or wrap each tool's execute function?
 - Q4. [Technical] Blaxel sandbox cold-start with custom Docker image. Benchmark.
