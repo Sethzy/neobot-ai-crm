@@ -106,17 +106,19 @@ Supabase Storage supports the **S3 protocol** natively — a first-class protoco
 
 **Endpoint:** `https://{project_ref}.storage.supabase.co/storage/v1/s3`
 
-**Auth — two methods available:**
+**Auth — project-level S3 keys (matching Tasklet's model):**
 
-1. **Global S3 access keys** — generated from project settings. Bypass RLS, full access to all buckets. Server-side only. **NOT suitable for sandbox injection.**
-2. **JWT session tokens** — authenticate with a user JWT. **RLS policies are respected.** All operations scoped to the authenticated user. Short-lived (1h expiry). This is what we use for the sandbox FUSE mount.
+Project-level S3 access keys generated from Supabase dashboard. Bypass RLS, full access to all buckets. Injected as env vars at sandbox creation. s3fs prefix scoping restricts the mount to one client's directory.
 
-Session token credentials for s3fs:
 ```
-access_key_id:     project_ref        (public)
-secret_access_key: anon_key           (public)
-session_token:     user JWT           (short-lived, RLS-scoped)
+access_key_id:     <generated from project settings>
+secret_access_key: <generated from project settings>
+s3fs prefix:       agent-files/{clientId}/
 ```
+
+This matches Tasklet's credential model: platform-minted credentials with broader access than the mount shows, scoped by filesystem prefix, in an ephemeral tenant-isolated VM. See `roadmap docs/.../sandboxes/tasklet-sandbox-auth-model-investigation.md` for full evidence.
+
+**Future hardening:** Supabase is developing prefix-scoped S3 keys. When available, upgrade to keys that can only access one client's bucket prefix at the API level.
 
 **Interoperability (from Supabase docs):**
 
@@ -167,11 +169,13 @@ The ONLY change is how the sandbox accesses files: FUSE mount via S3 protocol in
 - R13. Files added to Supabase Storage mid-session (e.g., Google Drive downloads) are visible inside the running sandbox without rebooting
 - R14. Files written inside the sandbox (via FUSE) are immediately readable by platform tools (read_file) via Supabase REST API
 
-### Security Model (three independent layers)
+### Security Model (two layers, matching Tasklet's production model)
 
-- R15. **Layer 1 — RLS-scoped JWT session token:** The FUSE mount authenticates to Supabase Storage using a short-lived JWT session token (not global S3 access keys). RLS policies are enforced server-side — the sandbox can only access the current client's files regardless of what path is requested. Token expires in ~1 hour.
-- R16. **Layer 2 — Hypervisor egress allowlist:** Blaxel's hypervisor-level network policy restricts the sandbox to outbound connections to Supabase Storage endpoint only. No other egress. Even with root access inside the VM, credentials cannot be exfiltrated to external servers. Unbypassable from inside the guest OS.
-- R17. **Layer 3 — Filesystem prefix scoping:** s3fs mounts only `agent-files/{clientId}/` as the root of `/agent/`. Belt-and-suspenders — even without RLS, the filesystem only shows one client's files.
+Investigation of Tasklet's actual auth model (see `roadmap docs/.../sandboxes/tasklet-sandbox-auth-model-investigation.md`) confirmed they use **platform-minted, agent-scoped credentials** — not user JWTs. Interactive and background runs get identical auth. This resolves the background-run credential gap (adversarial review finding #1).
+
+- R15. **Layer 1 — Filesystem prefix scoping:** s3fs mounts only `agent-files/{clientId}/` as the root of `/agent/`. The sandbox only sees one client's files. Project-level S3 keys are injected as env vars at sandbox creation. Same risk profile as Tasklet (credentials have broader access than the mount shows, but sandbox is ephemeral and tenant-isolated at VM level).
+- R16. **Layer 2 — Hypervisor egress allowlist (if available):** Blaxel's hypervisor-level network policy restricts outbound connections to Supabase Storage endpoint only. This layer is aspirational — Blaxel's egress API is unverified (Q5). If unavailable, Layer 1 is the sole enforcement mechanism, which matches Tasklet's shipped model.
+- R17. **Future hardening — RLS-scoped credentials:** When Supabase ships prefix-scoped S3 keys (in development), upgrade to credentials that can only access one client's files at the API level. Until then, prefix scoping + ephemeral sandbox isolation is acceptable.
 
 ### Path Permissions (read-only enforcement)
 
@@ -336,10 +340,12 @@ The ONLY change is how the sandbox accesses files: FUSE mount via S3 protocol in
       Why:     More structured memory system.
 
   D9. CREDENTIAL MODEL
-      Tasklet: Unknown
-      Sunder:  JWT session token (RLS-scoped) + hypervisor egress allowlist + prefix scoping
-      Why:     Three-layer security model. More secure than Vercel's networkPolicy
-               (which had no RLS scoping). Global S3 keys never enter the VM.
+      Tasklet: Platform-minted 128-byte bearer token, agent-scoped, injected as file
+      Sunder:  Project-level S3 keys, injected as env vars, s3fs prefix-scoped to clientId
+      Why:     Same pattern (platform injects scoped credential), different protocol.
+               Tasklet uses custom HTTP API + bearer token. We use S3 protocol + access keys.
+               Both have broader access than the mount shows; both rely on ephemeral VM isolation.
+               Evidence: roadmap docs/.../sandboxes/tasklet-sandbox-auth-model-investigation.md
 
   ALL OTHER PATTERNS: ZERO DRIFT
   - read_file/write_file on platform, not sandbox              ✅
@@ -418,7 +424,7 @@ An independent technical evaluation confirmed the architecture and added actiona
 - Q3. [Technical] How to append toolCallId to tool results — AI SDK `onStepFinish` callback, or wrap each tool's execute function?
 - Q4. [Technical] Blaxel sandbox cold-start with custom Docker image. Benchmark.
 - Q5. [Technical] Blaxel hypervisor egress allowlist — verify configuration API and confirm Supabase endpoint whitelisting works.
-- Q6. [Technical] Verify Supabase JWT session token works with s3fs `session_token` option (standard AWS STS session token flow).
+- ~~Q6. [Technical] Verify Supabase JWT session token works with s3fs.~~ **DROPPED — design now uses project-level S3 keys per Tasklet auth model investigation.**
 
 ---
 
