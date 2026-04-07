@@ -152,7 +152,7 @@ The ONLY change is how the sandbox accesses files: FUSE mount via S3 protocol in
 
 ### Block Storage (replaces context.json)
 
-- R5. Every main-agent tool call result is persisted to Supabase Storage at `{clientId}/toolcalls/{toolCallId}/result.json` (and optionally `args.json`)
+- R5. Every main-agent tool call result is persisted to Supabase Storage at `{clientId}/toolcalls/{runId}/{toolCallId}/result.json` (and optionally `args.json`)
 - R6. The toolCallId is appended to each tool result returned to the LLM, so the model can reference it
 - R7. System prompt includes a `<blocks>` section teaching the model to read tool results from `/agent/toolcalls/{id}/result` when writing sandbox scripts
 - R8. System prompt includes a `<processing-data>` section: "Never hard-code data from tool results. Instead read from the filesystem."
@@ -160,7 +160,7 @@ The ONLY change is how the sandbox accesses files: FUSE mount via S3 protocol in
 
 ### NOT in scope (explicit)
 
-- R10. No truncation of inline tool results. Full results continue to appear in LLM context as today.
+- R10. No truncation of inline tool results. Full results continue to appear in LLM context as today. **Acknowledged trade-off:** Tasklet dev confirmed (Apr 6) that without truncation, the model will use inline data ~30-50% of the time instead of reading from block files. The `<processing-data>` instruction helps but is not sufficient alone. Truncation is the real forcing function. We accept this — block storage is passive infrastructure for now (recovery, observability, sandbox access for large data). Truncation is a future project that will make blocks the primary data path.
 - R11. No `<context-removed>` tags, no context compaction, no message removal. Prompt cache behavior is untouched.
 - R12. No changes to how the system prompt is assembled (except adding `<blocks>` and `<processing-data>` sections)
 
@@ -173,22 +173,86 @@ The ONLY change is how the sandbox accesses files: FUSE mount via S3 protocol in
 
 Investigation of Tasklet's actual auth model (see `roadmap docs/.../sandboxes/tasklet-sandbox-auth-model-investigation.md`) confirmed they use **platform-minted, agent-scoped credentials** — not user JWTs. Interactive and background runs get identical auth. This resolves the background-run credential gap (adversarial review finding #1).
 
-- R15. **Layer 1 — Filesystem prefix scoping:** s3fs mounts only `agent-files/{clientId}/` as the root of `/agent/`. The sandbox only sees one client's files. Project-level S3 keys are injected as env vars at sandbox creation. Same risk profile as Tasklet (credentials have broader access than the mount shows, but sandbox is ephemeral and tenant-isolated at VM level).
-- R16. **Layer 2 — Hypervisor egress allowlist (if available):** Blaxel's hypervisor-level network policy restricts outbound connections to Supabase Storage endpoint only. This layer is aspirational — Blaxel's egress API is unverified (Q5). If unavailable, Layer 1 is the sole enforcement mechanism, which matches Tasklet's shipped model.
-- R17. **Future hardening — RLS-scoped credentials:** When Supabase ships prefix-scoped S3 keys (in development), upgrade to credentials that can only access one client's files at the API level. Until then, prefix scoping + ephemeral sandbox isolation is acceptable.
+- R15. **Layer 1 — RLS via JWT session token:** rclone uses a Supabase Auth session token in S3 SigV4 requests. Supabase enforces RLS at the S3 protocol layer — the sandbox can only see/write files belonging to the authenticated user's client. No project-level S3 keys needed. Credentials: `access_key_id = {project_ref}`, `secret_access_key = {anon_key}`, `session_token = {access_token from auth session}`. **Verified in Spike 2 (Apr 6) + adversarial review (Apr 6).**
+- R16. **Layer 2 — Network isolation (confirmed via Tasklet investigation):** Blaxel sandboxes run on /30 subnets — each sandbox can only see its gateway, not other sandboxes. No lateral movement. However, **outbound egress is unrestricted** — Tasklet's sandbox can reach arbitrary internet hosts on all ports and protocols. There is no egress firewall. Tasklet relies on prompt-level convention ("do not call external APIs") which is not a security control. If Blaxel offers egress allowlisting (Q5), we would be MORE secure than Tasklet. If not, we are at parity — the real boundary is the storage credential (Layer 1).
+- R17. **Credential minting — use `auth.admin.generateLink()`, NOT JWT secret signing.** The runner mints a session token via `supabase.auth.admin.generateLink({ type: "magiclink", email })` then verifies the OTP to obtain a real `access_token`. This token is a standard short-lived Supabase session (1 hour). The runner MUST NOT sign JWTs directly using the JWT secret — a leaked signing key would allow minting credentials for any user or minting `service_role` tokens that bypass RLS entirely. The blast radius of a leaked `access_token` is one client for one hour. The blast radius of a leaked JWT secret is all clients forever. **Adversarial review confirmed: forged `service_role` JWT listed all client prefixes and read victim files.**
+- R18. **Signed URLs must never appear in sandbox-readable paths.** Tool results persisted to `/toolcalls/.../result.json` MUST contain storage paths only (e.g., `/agent/home/results.csv`), never signed download URLs. Signed URLs bypass RLS — anyone with the URL can download the file without a JWT. Download URLs must be generated server-side at click time, not at tool-call time. **Adversarial review confirmed: signed URL for victim's file returned 200 anonymously.**
 
 ### Path Permissions (read-only enforcement)
 
-- R18. Read-write mounts: `/agent/home/`, `/agent/memory/`, `/agent/subagents/`
-- R19. Read-only mounts: `/agent/uploads/`, `/agent/toolcalls/`, `/agent/skills/` — enforced at OS level via s3fs `ro` mount option. Bash cannot write to these paths.
+- R19. Single rw FUSE mount at `/agent/`. No separate ro mounts needed.
+- R20. Read-only enforcement via application layer: `write_file` tool rejects writes to `/agent/uploads/`, `/agent/toolcalls/`, `/agent/skills/` (existing `assertWritable()` in `agent-files.ts`). System prompt tells agent these paths are read-only. Bash scripts *can* technically write to these paths via FUSE — accepted risk, same trade-off as Tasklet (where writes silently vanish at the backend but return exit 0 to the shell). See D10 in drift register.
 
-### Block Storage Ordering
+### File Download Links (replaces artifact sync — confirmed via Tasklet dev)
 
-- R20. Block files MUST be persisted to Supabase Storage synchronously BEFORE the tool result (with toolCallId) is returned to the LLM. The model must never see a toolCallId for a file that doesn't exist yet.
+Tasklet's pattern: no scanning, no diffing, no signed URL generation. The model outputs a link with a custom protocol (`avfs://`), and the frontend resolves it to an authenticated download. Confirmed by Tasklet dev with live sandbox testing (Apr 6).
+
+- R22. **Model-driven download links, not scan-based.** The agent outputs markdown links with a custom `agent://` protocol (e.g. `[report.pdf](agent:///home/report.pdf)`) when it creates files. The model knows what it created because it issued the commands. No filesystem scan needed. The custom protocol avoids false positives — `/agent/` paths appear naturally in code examples and explanations, but `agent://` only appears in intentional download links. (Tasklet uses `avfs://` for the same reason — confirmed by Tasklet dev, Apr 7.)
+- R23. **Frontend resolves `agent://` links to Supabase Storage downloads.** The chat message renderer matches `agent://` links in assistant messages and resolves them to authenticated Supabase Storage download calls using the user's session. Simple regex: `agent:\/\/\/(.*)`  → `supabase.storage.download('{clientId}/{path}')`. No signed URLs, no expiry management.
+- R24. **`syncOutputArtifacts()` is deleted entirely.** No post-command scan. No hash diffing. No signed URL generation. No `artifacts[]` in the bash tool response. FUSE write-through means files are already in Supabase Storage the moment they're written.
+- R25. **System prompt instructs the agent to output download links.** Add to `<sandbox>` section: "After creating files for the user, output markdown links with `agent://` protocol, e.g. `[report.pdf](agent:///home/report.pdf)`. Spaces in filenames must be URL-encoded as `%20`."
+- R26. **No auto-discovery of "forgotten" files.** If the model creates a file and doesn't link it, the user doesn't see it. This is a prompt quality issue, not a platform issue. Same trade-off Tasklet makes.
+- R38. **Telegram delivery: server-side rewriting of `agent://` links.** The Telegram bot delivery pipeline detects `agent://` URLs in assistant messages and either generates a signed HTTPS download link or attaches the file directly via Telegram bot API. Custom protocol links are dead outside the web client — confirmed by Tasklet dev (avfs:// links don't work in email or Telegram).
+- R39. **Path allowlist for `agent://` downloads.** The download endpoint only serves files from `/home/` and `/uploads/`. Requests for `/memory/`, `/skills/`, `/toolcalls/`, `/subagents/` are rejected. Prevents the model from accidentally linking to internal files. One prefix check in the resolver.
+- R40. **URL-encode path segments in `agent://` links.** System prompt instructs the model to encode spaces (`%20`), `#` (`%23`), `%` (`%25`), and parentheses (`%28`/`%29`). Frontend resolver uses `decodeURIComponent` per segment. Covers 99.9% of real filenames.
+
+**Tasklet's exact flow (verified):**
+
+```
+Agent writes file:
+  run_command("python generate_report.py")
+      │
+      └─ FUSE write() → cloud storage (file exists immediately)
+
+Agent outputs in chat:
+  "Here's your report: [report.pdf](avfs:///agent/home/report.pdf)"
+      │
+      └─ Frontend resolves avfs:// → authenticated download
+
+Sunder equivalent:
+  bash("python generate_report.py")
+      │
+      └─ FUSE write() → Supabase Storage (via S3 protocol)
+
+  Agent outputs in chat:
+  "Here's your report: [report.pdf](agent:///home/report.pdf)"
+      │
+      └─ Frontend matches agent:// → supabase.storage.download()
+```
+
+### Block Storage Ordering (confirmed via Tasklet dev, Apr 6)
+
+Tasklet persists block files **synchronously, block-on-confirm** — the platform writes to cloud storage and waits for the write to succeed before returning the blockId to the model. ~150ms per tool call, absorbed into existing tool call latency (2-5s total). No async coordination, no race conditions, trivially correct.
+
+The async alternative (fire-and-forget + wait-before-bash) was considered and rejected:
+- Adds complexity: what if the async write fails silently? What if bash races ahead of a slow upload?
+- Requires health checks, retries, and ordering guarantees
+- Saves ~150ms that nobody notices inside a 2-5s tool call cycle
+
+Tasklet's evidence: a block from a just-completed parallel tool call was immediately readable by the concurrent second tool call. The blockId is not surfaced to the model until the block is confirmed persisted.
+
+- R27. Block files are persisted **synchronously** via `saveToolcallBlock()` (already exists in `src/lib/storage/tool-blocks.ts`). The upload must complete before the tool result (with toolCallId appended) is returned to the LLM.
+- R28. If the block write fails, the tool call still returns its result to the LLM but WITHOUT a toolCallId. The model can still use the inline result; it just can't reference it from sandbox code. Fail-open, not fail-closed.
+- R29. No async write queue. No "wait for pending writes before bash." Synchronous is boring and correct.
+
+### Bash Execution Model (confirmed via Tasklet dev, Apr 7)
+
+Blaxel's sandbox-api supports SSE streaming + named processes. This solves the Vercel Function timeout problem — the Function is an observer, not a blocker.
+
+- R33. **Fire-and-recover pattern for bash execution.** Start process via `POST /process`, get back a processId immediately. Stream logs via SSE (`GET /process/{id}/logs/stream`). If Vercel Function dies, reconnect via `GET /process/{id}` on retry.
+- R34. **Name processes by toolCallId.** Prevents double execution if Vercel retries. If a process with that name already exists, check its status instead of re-executing.
+- R35. **Scale-to-zero is paused while processes run.** Blaxel's sandbox-api keeps the VM alive during execution (600s keepalive). A 300-second bash command doesn't risk the sandbox dying underneath it.
+
+### Subagent Sandbox Sharing (confirmed via Tasklet dev, Apr 7)
+
+- R36. **Subagents share the parent's sandbox.** Same VM, same `/tmp/`, same installed packages, same FUSE mount. No cold-start per subagent. Matches Tasklet's production behavior.
+- R37. **`/tmp/` state is shared between parent and subagent.** This is a feature — parent `pip install`s, subagent uses the package. System prompt does not need to address this (subagent instructions are self-contained).
 
 ### Block File Path Convention
 
-- R21. Standardize on `result.json` (with `.json` extension) everywhere — requirements, system prompt, code. Tasklet uses `result` (no extension). This is intentional drift (D5), documented in drift register.
+- R30. Block paths scoped to runId: `toolcalls/{runId}/{toolCallId}/result.json`. Keeps listing manageable per-run. No cleanup job. ~2MB/month per client is negligible.
+- R31. System prompt tells the agent to reference blocks by exact path, never `ls` the toolcalls directory.
+- R32. Standardize on `result.json` (with `.json` extension) everywhere — requirements, system prompt, code. Tasklet uses `result` (no extension). This is intentional drift (D5), documented in drift register.
 
 ---
 
@@ -205,7 +269,7 @@ Investigation of Tasklet's actual auth model (see `roadmap docs/.../sandboxes/ta
 | File | Lines | Replaced by |
 |---|---|---|
 | `build-preload-files.ts` | 197 | FUSE mount |
-| `sync-output-artifacts.ts` | 116 | FUSE write-through |
+| `sync-output-artifacts.ts` | 116 | FUSE write-through + model-driven links |
 | `build-context-json.ts` | 80 | Block storage |
 | `build-preload-files.test.ts` | 385 | — |
 | `sync-output-artifacts.test.ts` | 96 | — |
@@ -234,7 +298,7 @@ Investigation of Tasklet's actual auth model (see `roadmap docs/.../sandboxes/ta
   │  EVERY tool call result:
   │  → returned to LLM context (full, no truncation)
   │  → ALSO saved to Supabase Storage:
-  │    agent-files/{clientId}/toolcalls/{toolCallId}/result.json
+  │    agent-files/{clientId}/toolcalls/{runId}/{toolCallId}/result.json
   │
   │  SANDBOX TOOL — only bash boots a sandbox
   │  ──────────────────────────────────────────
@@ -251,9 +315,10 @@ Investigation of Tasklet's actual auth model (see `roadmap docs/.../sandboxes/ta
   │  │  ├── home/               # agent workspace              │
   │  │  ├── uploads/            # user uploads                 │
   │  │  ├── toolcalls/          # ← tool results live here     │
-  │  │  │   ├── {id1}/result.json                              │
-  │  │  │   ├── {id2}/result.json                              │
-  │  │  │   └── ...                                            │
+  │  │  │   └── {runId}/                                       │
+  │  │  │       ├── {id1}/result.json                          │
+  │  │  │       ├── {id2}/result.json                          │
+  │  │  │       └── ...                                        │
   │  │  ├── skills/             # skill files                  │
   │  │  ├── memory/             # SOUL.md, USER.md, MEMORY.md  │
   │  │  └── subagents/          # subagent instructions        │
@@ -269,6 +334,34 @@ Investigation of Tasklet's actual auth model (see `roadmap docs/.../sandboxes/ta
 
 
 ═══════════════════════════════════════════════════════════════════════
+  HOW USERS DOWNLOAD SANDBOX-GENERATED FILES (replaces artifact sync)
+═══════════════════════════════════════════════════════════════════════
+
+  bash("python generate_report.py")
+         │
+         ▼
+  Sandbox writes /agent/home/report.pdf
+         │
+         └──→ FUSE write-through → Supabase Storage (immediate)
+         │
+         ▼
+  Agent outputs in chat:
+    "Here's your report: [report.pdf](/agent/home/report.pdf)"
+         │
+         ▼
+  Frontend sees /agent/ link in markdown
+         │
+         └──→ supabase.storage.from('agent-files')
+              .download('{clientId}/home/report.pdf')
+         │
+         ▼
+  User clicks, gets the file.
+
+  No scanning. No hashing. No signed URLs. No expiry.
+  The model is the index — it knows what it created.
+
+
+═══════════════════════════════════════════════════════════════════════
   HOW TOOL DATA REACHES THE SANDBOX (replaces context.json)
 ═══════════════════════════════════════════════════════════════════════
 
@@ -280,14 +373,14 @@ Investigation of Tasklet's actual auth model (see `roadmap docs/.../sandboxes/ta
          ├──→ Returns full result to LLM context (no truncation)
          │
          └──→ Saves to Supabase Storage:
-              agent-files/{clientId}/toolcalls/{toolCallId}/result.json
+              agent-files/{clientId}/toolcalls/{runId}/{toolCallId}/result.json
          │
          ▼
   LLM sees toolCallId in the response
          │
          ▼
   LLM writes Python script:
-    with open('/agent/toolcalls/{toolCallId}/result.json') as f:
+    with open('/agent/toolcalls/{runId}/{toolCallId}/result.json') as f:
         deals = json.load(f)
          │
          ▼
@@ -316,7 +409,7 @@ Investigation of Tasklet's actual auth model (see `roadmap docs/.../sandboxes/ta
 
   D4. BLOCK PATH
       Tasklet: /agent/blocks/{blockId}/
-      Sunder:  /agent/toolcalls/{toolCallId}/
+      Sunder:  /agent/toolcalls/{runId}/{toolCallId}/
       Why:     Already using toolcalls/ convention. Same pattern.
 
   D5. BLOCK STRUCTURE
@@ -341,11 +434,39 @@ Investigation of Tasklet's actual auth model (see `roadmap docs/.../sandboxes/ta
 
   D9. CREDENTIAL MODEL
       Tasklet: Platform-minted 128-byte bearer token, agent-scoped, injected as file
-      Sunder:  Project-level S3 keys, injected as env vars, s3fs prefix-scoped to clientId
-      Why:     Same pattern (platform injects scoped credential), different protocol.
-               Tasklet uses custom HTTP API + bearer token. We use S3 protocol + access keys.
-               Both have broader access than the mount shows; both rely on ephemeral VM isolation.
-               Evidence: roadmap docs/.../sandboxes/tasklet-sandbox-auth-model-investigation.md
+      Fintool: AWS STS AssumeRole with ABAC session tags, prefix-scoped S3 credentials
+      Sunder:  Supabase session token via auth.admin.generateLink() → rclone S3 session_token.
+               RLS enforced at S3 layer per-request.
+      Why:     STRONGER than Tasklet (their credentials have broader access than the mount shows).
+               COMPARABLE to Fintool (both enforce at the storage layer, not just the mount).
+               Key constraint: MUST use auth.admin.generateLink() to mint tokens, NOT JWT secret signing.
+               Leaked access_token = one client, one hour. Leaked JWT secret = all clients, forever.
+               Verified: Spike 2 + adversarial review (Apr 6).
+               s3fs also works with session tokens (needs -o use_session_token -o sigv4 flags).
+               rclone recommended for production (VFS cache, simpler config).
+
+  D10. FILE DOWNLOAD PROTOCOL
+       Tasklet: avfs:// custom protocol. Frontend resolves to AVFS API download.
+       Sunder:  agent:// custom protocol. Frontend resolves to Supabase Storage download.
+       Why:     Same pattern, different scheme name. Custom protocol avoids false-positive
+               link detection (plain /agent/ paths appear in code examples and explanations).
+               Confirmed via Tasklet dev (Apr 7) — avfs:// was chosen specifically for
+               unambiguous link detection.
+
+  D11. READ-ONLY PATH ENFORCEMENT
+       Tasklet: Single rw FUSE mount. Server-side rejects writes to /uploads/, /skills/, /blocks/.
+                FUSE driver has write-back cache — create() and write() succeed locally (exit 0),
+                but flush() to backend is rejected. File silently vanishes. Cache entry invalidated.
+                No error propagated to calling process.
+       Sunder:  Supabase Storage RLS policies + application-level enforcement in write_file tool.
+                s3fs/rclone don't have Tasklet's write-back-then-reject pattern.
+                Two options: (a) multiple mounts with ro flag (heavy, 6 FUSE daemons),
+                (b) single rw mount + application-level enforcement (current approach, simpler).
+       Decision: Option (b) — single mount, application enforcement. Matches what we already do.
+                 write_file tool already rejects writes to protected paths (assertWritable() in agent-files.ts).
+                 Bash scripts CAN write to read-only paths via FUSE (no server rejection like Tasklet),
+                 but the system prompt tells the agent not to. Acceptable risk — same as Tasklet's
+                 approach where exit code 0 is returned even on rejected writes.
 
   ALL OTHER PATTERNS: ZERO DRIFT
   - read_file/write_file on platform, not sandbox              ✅
@@ -395,21 +516,82 @@ An independent technical evaluation confirmed the architecture and added actiona
 1. **rclone recommended over s3fs for production** — VFS cache (`--vfs-cache-mode writes`) solves the no-caching problem observed in Tasklet benchmarks (~220ms per read without cache). Cached repeat reads would be near-instant. s3fs has no equivalent.
 2. **`--s3-list-version 2` flag** — Forces ListObjectsV2 for rclone. Avoids pagination bugs with Supabase's S3 implementation. Must-have for production.
 3. **Non-atomic renames on S3** — `rename()` is emulated as COPY + DELETE. Not atomic. Agent scripts should use "write-to-temp-then-rename" pattern. Add to system prompt sandbox section.
-4. **`--dir-cache-time` tuning** — Controls freshness of directory listings. Lower values (e.g. `5s`) improve mid-session file visibility at the cost of more ListObjects calls.
+4. **`--dir-cache-time 0s`** — Tasklet dev confirmed their `readdir()` has zero caching (always hits backend). Set to `0s` to match. Cost is one extra ListObjects call per `ls`, acceptable given scripts rarely enumerate directories.
 5. **Ghost folders** — Supabase-specific: high-concurrency deletes can leave empty "ghost" directories in the UI. Low priority but worth knowing.
 6. **No `CAP_SYS_ADMIN` needed** — Confirmed by spike. Blaxel's microVM architecture gives the sandbox its own kernel, so FUSE works without elevated privileges. This is unlike Docker containers where FUSE requires `--privileged` or `--cap-add SYS_ADMIN`.
 
+### Spike 2: rclone with JWT Session Tokens (Apr 6, 2026)
+
+Detailed adversarial test log for the seeded Alice/Bob/Carol accounts:
+[`docs/product/reviews/2026-04-06-sandbox-tenant-isolation-review.md`](../reviews/2026-04-06-sandbox-tenant-isolation-review.md)
+
+**Script:** Manual CLI tests via `bl run sandbox sunder-rls-final-2`
+
+**Goal:** Determine if rclone handles Supabase S3 session tokens (project_ref as access_key, anon_key as secret, JWT as session_token) — s3fs failed with `InvalidAccessKeyId` using the same credential triple.
+
+**Credential model tested:**
+```
+access_key_id     = {project_ref}
+secret_access_key = {anon_key}
+session_token     = {user_jwt}  (authenticated via Supabase Auth password grant)
+endpoint          = https://{project_ref}.supabase.co/storage/v1/s3
+```
+
+| Test | Result | Detail |
+|---|---|---|
+| rclone lsd (list buckets) | **PASS** | No error, empty list (expected — Supabase S3 scopes to RLS-visible buckets) |
+| rclone lsd agent-files (list dirs) | **PASS** | Sees only `d66bc1b7-...` (the authenticated user's client). RLS enforced. |
+| rclone lsd client dir (list subdirs) | **PASS** | All 12 subdirectories visible (attachments, home, instructions, meetings, memory, skills, state, subagents, tmp, toolcalls, uploads, vault) |
+| rclone ls (list files) | **PASS** | Full file tree with sizes — SOUL.md (852B), MEMORY.md (138B), USER.md (253B), skills/, memory/, home/, etc. |
+| rclone copy (download file) | **PASS** | SOUL.md downloaded, content verified correct. 0.3s elapsed. |
+| rclone copy (upload file) | **PASS** | 47-byte file uploaded, verified via rclone ls and Supabase REST API |
+| rclone mount FUSE (read) | **PASS** | `ls /mnt/agent-rclone/` shows all files and dirs. `cat SOUL.md` returns correct content. `ls memory/` works. |
+| rclone mount FUSE (write) | **PASS** | `echo > /mnt/agent-rclone/home/file.txt` succeeds. With `--vfs-write-back 0s`, upload is immediate. Verified via Supabase REST API. |
+| Supabase REST read-back | **PASS** | All 3 test files written via rclone (direct + 2x FUSE) readable via Supabase REST API. Full interoperability confirmed. |
+
+**Key findings:**
+
+1. **rclone handles session tokens correctly; s3fs does not.** Same credential triple (project_ref / anon_key / JWT). rclone includes the session token in the SigV4 `X-Amz-Security-Token` header. s3fs constructs the signature differently and fails.
+
+2. **RLS is enforced via session token.** The authenticated JWT scopes visibility — only the user's own client directory appears. This means we can use JWT session tokens instead of project-level S3 keys, getting RLS enforcement at the S3 layer for free.
+
+3. **rclone mount requires `fuse3` package.** Default Alpine install has `fuse` (v2) but rclone needs `fusermount3`. Fix: `apk add fuse3`.
+
+4. **`--daemon` mode fails in Blaxel.** Blaxel's process model doesn't support daemonization. Fix: run `rclone mount` in foreground, backgrounded with `&`. Works perfectly.
+
+5. **VFS write-back timing matters.** Default `--vfs-write-back 5s` delays uploads. Set `--vfs-write-back 0s` for immediate persistence. Critical for tool result blocks that must be readable immediately.
+
+6. **rclone config requires `session_token` key.** The env var `AWS_SESSION_TOKEN` is NOT read by rclone's S3 backend. Must use config key `session_token` or env var `RCLONE_S3_SESSION_TOKEN`.
+
+**Production rclone mount command (verified):**
+```bash
+rclone mount supabase:agent-files/{clientId}/ /agent \
+  --s3-list-version 2 \
+  --vfs-cache-mode writes \
+  --vfs-write-back 0s \
+  --allow-other \
+  --no-modtime \
+  --dir-cache-time 0s
+```
+
+**Verdict: rclone with JWT session tokens is the production path.** It provides:
+- RLS enforcement at the S3 layer (no project-level keys needed)
+- VFS caching for read performance
+- Immediate write-through with `--vfs-write-back 0s`
+- Full FUSE mount with read/write/list confirmed
+- Full interoperability with Supabase REST API
+
 ### Updated Recommendation
 
-**Use s3fs for initial implementation** (proven in spike, simpler config), **migrate to rclone for production** (caching, resilience, better diagnostics). Both are installable via `apk add` in the same Alpine image.
+**Use rclone for production** — proven with JWT session tokens, VFS caching, and FUSE mount. s3fs is a fallback for project-level S3 keys only (it cannot handle session tokens). Both are installable via `apk add` in the same Alpine image.
 
 ---
 
 ## 8. Dependencies
 
 1. Blaxel account + workspace (for sandbox compute)
-2. Custom Docker image with s3fs-fuse baked in
-3. Supabase Storage S3 access keys (generate from project settings)
+2. Custom Docker image with rclone + fuse3 baked in (`apk add rclone fuse3`)
+3. Supabase Auth JWT (minted per-session via password grant or service role) — no project-level S3 keys needed
 4. `@blaxel/core` TypeScript SDK
 5. **NO Blaxel Drive needed**
 6. **NO Blaxel Agent Drive private preview needed**
@@ -420,11 +602,11 @@ An independent technical evaluation confirmed the architecture and added actiona
 
 - ~~Q1. [Technical] Verify s3fs-fuse works with Supabase's S3 endpoint.~~ **RESOLVED — spike confirmed s3fs mount works.** JWT session tokens still need testing (Q6).
 
-- Q2. [Technical] s3fs multiple mount points — verify 6 separate s3fs mounts (3 rw, 3 ro) work concurrently in one container.
-- Q3. [Technical] How to append toolCallId to tool results — AI SDK `onStepFinish` callback, or wrap each tool's execute function?
+- ~~Q2. [Technical] s3fs multiple mount points — verify 6 separate mounts work concurrently.~~ **RESOLVED — not needed.** Tasklet uses single rw mount + server-side write rejection. We'll use single rw mount + application-level enforcement (already implemented in `assertWritable()`). See D10 in drift register.
+- ~~Q3. [Technical] How to append toolCallId to tool results?~~ **RESOLVED — synchronous write inside tool execution boundary.** `saveToolcallBlock()` already exists in `tool-blocks.ts`. Call it at the end of each tool's `execute()`, before returning. Append toolCallId to the result object. If write fails, return result without toolCallId (fail-open).
 - Q4. [Technical] Blaxel sandbox cold-start with custom Docker image. Benchmark.
-- Q5. [Technical] Blaxel hypervisor egress allowlist — verify configuration API and confirm Supabase endpoint whitelisting works.
-- ~~Q6. [Technical] Verify Supabase JWT session token works with s3fs.~~ **DROPPED — design now uses project-level S3 keys per Tasklet auth model investigation.**
+- Q5. [Technical] Blaxel egress allowlist — check if available. Tasklet investigation confirmed their sandbox has NO egress restrictions (arbitrary outbound HTTP, raw TCP, POST all work). If Blaxel offers it, it's a security bonus over Tasklet. If not, we're at parity. Not blocking.
+- ~~Q6. [Technical] Verify Supabase JWT session token works with s3fs.~~ **RESOLVED (Apr 6) — s3fs fails with InvalidAccessKeyId. rclone works perfectly.** JWT session tokens with rclone provide RLS enforcement at the S3 layer. See Spike 2 results in Section 7.
 
 ---
 
