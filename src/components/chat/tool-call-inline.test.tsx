@@ -470,6 +470,30 @@ describe("connection cards", () => {
     expect(screen.getByText("Removing GOOGLEDRIVE_DOWNLOAD_FILE")).toBeInTheDocument();
   });
 
+  it("renders Denied badge when approval-responded approval was rejected", () => {
+    render(
+      <ToolCallInline
+        name="manage_activated_tools_for_connections"
+        state="approval-responded"
+        approval={{ id: "approval-123", approved: false }}
+        approvalId="approval-123"
+        input={{
+          connections: [
+            {
+              connectionId: "conn-123",
+              activate: ["GOOGLEDRIVE_FIND_FILE"],
+              deactivate: [],
+            },
+          ],
+        }}
+        output={null}
+      />,
+    );
+
+    expect(screen.getByText("Denied")).toBeInTheDocument();
+    expect(screen.queryByText("Granted")).not.toBeInTheDocument();
+  });
+
   it("preserves tool error rendering after a permission flow fails", async () => {
     const user = userEvent.setup();
 

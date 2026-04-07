@@ -38,6 +38,8 @@ interface ToolCallInlineProps {
   errorText?: string;
   /** The approval ID from `part.approval.id` when state is approval-requested. */
   approvalId?: string;
+  /** The approval payload persisted by the AI SDK for approval states. */
+  approval?: { id?: string; approved?: boolean };
   /** Callback for approve/deny actions. Receives (approvalId, approved). */
   onToolApproval?: (approvalId: string, approved: boolean) => void;
   /**
@@ -323,18 +325,22 @@ function ConnectionCard({ results }: { results: ConnectionResult[] }) {
 function PermissionCard({
   input,
   state,
+  approval,
   approvalId,
   onToolApproval,
 }: {
   input: PermissionRequestInput;
   state: ToolPartState;
+  approval?: { approved?: boolean };
   approvalId?: string;
   onToolApproval?: (approvalId: string, approved: boolean) => void;
 }) {
   const requestedToolChanges = getRequestedToolChanges(input);
   const isAwaitingApproval = state === "approval-requested";
-  const isGranted = state === "approval-responded" || state === "output-available";
-  const isDenied = state === "output-denied";
+  const isGranted = state === "output-available"
+    || (state === "approval-responded" && approval?.approved === true);
+  const isDenied = state === "output-denied"
+    || (state === "approval-responded" && approval?.approved === false);
 
   return (
     <div
@@ -389,6 +395,7 @@ export function ToolCallInline({
   output,
   errorText,
   approvalId,
+  approval,
   onToolApproval,
   keepSpinning = false,
 }: ToolCallInlineProps) {
@@ -418,6 +425,7 @@ export function ToolCallInline({
       <PermissionCard
         input={permissionRequest}
         state={state}
+        approval={approval}
         approvalId={approvalId}
         onToolApproval={onToolApproval}
       />

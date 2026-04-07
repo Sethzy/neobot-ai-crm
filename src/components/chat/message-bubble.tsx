@@ -236,7 +236,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
               input: unknown;
               output?: unknown;
               errorText?: string;
-              approval?: { id: string };
+              approval?: { id?: string; approved?: boolean };
             };
             return (
               <ToolCallInline
@@ -247,6 +247,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
                 output={toolPart.output}
                 errorText={toolPart.errorText}
                 approvalId={toolPart.approval?.id}
+                approval={toolPart.approval}
                 onToolApproval={onToolApproval}
                 keepSpinning={isStreaming && isLast && index === lastRenderableIndex}
               />
