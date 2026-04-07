@@ -2,7 +2,7 @@
  * Tests for the meeting follow-up background runner wrapper.
  * @module lib/runner/__tests__/run-meeting-followup
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockRunAgent, mockBuildMeetingInstructions } = vi.hoisted(() => ({
   mockRunAgent: vi.fn(),
@@ -110,22 +110,68 @@ describe("runMeetingFollowUp", () => {
     expect(updateCalls[1]).toMatchObject({ status: "failed" });
   });
 
-  it("resets the meeting back to transcribed when the thread is busy", async () => {
-    const { supabase, updateCalls } = createSupabaseMock();
-    mockRunAgent.mockResolvedValue({ status: "queued" });
-
-    const result = await runMeetingFollowUp({
-      clientId: "550e8400-e29b-41d4-a716-446655440000",
-      threadId: "660e8400-e29b-41d4-a716-446655440000",
-      meetingRecordId: "770e8400-e29b-41d4-a716-446655440000",
-      transcriptPath: "home/meetings/meeting.md",
-      notes: "",
-      durationMinutes: 30,
-      supabase,
+  describe("retry behavior when thread is busy", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
     });
 
-    expect(result).toEqual({ status: "skipped_busy" });
-    expect(updateCalls[0]).toMatchObject({ status: "processing" });
-    expect(updateCalls[1]).toMatchObject({ status: "transcribed" });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("retries when the thread is busy and succeeds on a later attempt", async () => {
+      const { supabase, updateCalls } = createSupabaseMock();
+      const consumeStream = vi.fn().mockResolvedValue(undefined);
+      mockRunAgent
+        .mockResolvedValueOnce({ status: "queued" })
+        .mockResolvedValueOnce({ status: "queued" })
+        .mockResolvedValueOnce({
+          status: "streaming",
+          streamResult: { consumeStream },
+        });
+
+      const promise = runMeetingFollowUp({
+        clientId: "550e8400-e29b-41d4-a716-446655440000",
+        threadId: "660e8400-e29b-41d4-a716-446655440000",
+        meetingRecordId: "770e8400-e29b-41d4-a716-446655440000",
+        transcriptPath: "home/meetings/meeting.md",
+        notes: "",
+        durationMinutes: 30,
+        supabase,
+      });
+
+      await vi.advanceTimersByTimeAsync(10_000);
+      await vi.advanceTimersByTimeAsync(20_000);
+
+      const result = await promise;
+      expect(result).toEqual({ status: "completed" });
+      expect(mockRunAgent).toHaveBeenCalledTimes(3);
+      expect(updateCalls[0]).toMatchObject({ status: "processing" });
+      expect(updateCalls[1]).toMatchObject({ status: "completed" });
+    });
+
+    it("gives up after all retry attempts and leaves meeting as transcribed", async () => {
+      const { supabase, updateCalls } = createSupabaseMock();
+      mockRunAgent.mockResolvedValue({ status: "queued" });
+
+      const promise = runMeetingFollowUp({
+        clientId: "550e8400-e29b-41d4-a716-446655440000",
+        threadId: "660e8400-e29b-41d4-a716-446655440000",
+        meetingRecordId: "770e8400-e29b-41d4-a716-446655440000",
+        transcriptPath: "home/meetings/meeting.md",
+        notes: "",
+        durationMinutes: 30,
+        supabase,
+      });
+
+      // Advance through all 4 retry delays: 10s + 20s + 30s + 40s
+      await vi.advanceTimersByTimeAsync(100_000);
+
+      const result = await promise;
+      expect(result).toEqual({ status: "skipped_busy" });
+      expect(mockRunAgent).toHaveBeenCalledTimes(5);
+      expect(updateCalls[0]).toMatchObject({ status: "processing" });
+      expect(updateCalls[1]).toMatchObject({ status: "transcribed" });
+    });
   });
 });

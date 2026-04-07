@@ -13,6 +13,7 @@ export interface TranscriptSegment {
   start: number;
   end: number;
   text: string;
+  speaker: string | null;
 }
 
 interface TranscriptSectionProps {
@@ -51,7 +52,12 @@ export function TranscriptSection({ transcriptText, segments }: TranscriptSectio
                 <span className="mt-0.5 shrink-0 font-mono text-xs text-muted-foreground">
                   {formatRecordingTime(segment.start)}
                 </span>
-                <span className="text-foreground">{cleanStopWords(segment.text)}</span>
+                <span className="text-foreground">
+                  {segment.speaker ? (
+                    <span className="font-medium text-muted-foreground">{segment.speaker}: </span>
+                  ) : null}
+                  {cleanStopWords(segment.text)}
+                </span>
               </div>
             ))
             : transcriptText

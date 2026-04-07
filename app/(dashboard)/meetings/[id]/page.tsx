@@ -14,6 +14,7 @@ import {
   type TranscriptSegment,
   TranscriptSection,
 } from "@/components/meetings/transcript-section";
+import { parseTranscriptLine } from "@/lib/meetings/format-helpers";
 import { Button } from "@/components/ui/button";
 import { useClientId } from "@/hooks/use-client-id";
 import { useMeeting } from "@/hooks/use-meetings";
@@ -89,18 +90,17 @@ export default function MeetingDetailPage() {
       const segmentLines = rawTranscript.length > 0 ? rawTranscript.split("\n") : [];
       const parsedSegments = segmentLines
         .map((line) => {
-          const match = line.match(/^\[(\d{2}):(\d{2})\]\s+(.*)$/);
+          const parsed = parseTranscriptLine(line);
 
-          if (!match) {
+          if (!parsed) {
             return null;
           }
 
-          const minutes = Number(match[1]);
-          const seconds = Number(match[2]);
           return {
-            start: (minutes * 60) + seconds,
-            end: (minutes * 60) + seconds,
-            text: match[3] ?? "",
+            start: parsed.start,
+            end: parsed.start,
+            text: parsed.text,
+            speaker: parsed.speaker,
           };
         })
         .filter((segment): segment is TranscriptSegment => segment !== null);

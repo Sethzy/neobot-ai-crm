@@ -48,7 +48,7 @@ vi.mock("@/lib/chat/client-id", () => ({
   resolveClientId: (...args: unknown[]) => mockResolveClientId(...args),
 }));
 
-vi.mock("@/lib/transcription/groq-whisper", () => ({
+vi.mock("@/lib/transcription/rev-ai", () => ({
   transcribeAudio: (...args: unknown[]) => mockTranscribeAudio(...args),
 }));
 
@@ -63,7 +63,7 @@ vi.mock("@/lib/meetings/summary-prompt", () => ({
 vi.mock("@/lib/ai/gateway", () => ({
   gateway: (...args: unknown[]) => mockGateway(...args),
   gatewayProviderOptions: {},
-  COMPACTION_MODEL: "google/gemini-2.5-flash-lite",
+  COMPACTION_MODEL: "google/gemini-2.5-flash-lite", // not used by ingest anymore
 }));
 
 import { POST } from "./route";
@@ -141,8 +141,8 @@ describe("POST /api/meetings/ingest", () => {
     mockTranscribeAudio.mockResolvedValue({
       text: "Met with Sarah about the Orchard deal.",
       segments: [
-        { start: 0, end: 2.5, text: "Met with Sarah" },
-        { start: 2.5, end: 6.1, text: "about the Orchard deal." },
+        { start: 0, end: 2.5, text: "Met with Sarah.", speaker: 1 },
+        { start: 2.5, end: 6.1, text: "About the Orchard deal.", speaker: 2 },
       ],
     });
     mockUpload.mockResolvedValue({ data: { path: "client-1/home/meetings/..." }, error: null });
@@ -150,7 +150,11 @@ describe("POST /api/meetings/ingest", () => {
     mockGenerateObject.mockResolvedValue({
       object: {
         title: "Portfolio Review with Sarah",
-        summary: "- Discussed the Orchard deal\n- Follow up Thursday",
+        key_discussion_points: ["Discussed the Orchard deal"],
+        action_items: ["Send pricing by Thursday"],
+        client_concerns: [],
+        personal_details: [],
+        next_steps: ["Follow up Thursday"],
       },
     });
   });
@@ -210,18 +214,20 @@ describe("POST /api/meetings/ingest", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      success: true,
-      meetingRecordId: "770e8400-e29b-41d4-a716-446655440000",
-      transcriptPath: "home/meetings/2026-04-06-meeting-770e8400.md",
-      title: "Portfolio Review with Sarah",
-      summary: "- Discussed the Orchard deal\n- Follow up Thursday",
-    });
+    const body = await response.json();
+    expect(body.success).toBe(true);
+    expect(body.meetingRecordId).toBe("770e8400-e29b-41d4-a716-446655440000");
+    expect(body.transcriptPath).toBe("home/meetings/2026-04-06-meeting-770e8400.md");
+    expect(body.title).toBe("Portfolio Review with Sarah");
+    const parsedSummary = JSON.parse(body.summary);
+    expect(parsedSummary.key_discussion_points).toEqual(["Discussed the Orchard deal"]);
+    expect(parsedSummary.action_items).toEqual(["Send pricing by Thursday"]);
+    expect(parsedSummary.next_steps).toEqual(["Follow up Thursday"]);
     expect(mockTranscribeAudio).toHaveBeenCalledWith({
       audioUrl: "https://storage.example.com/audio?token=signed",
     });
     expect(mockBuildSummaryPrompt).toHaveBeenCalledWith(
-      "Met with Sarah about the Orchard deal.",
+      "[00:00] Speaker 1: Met with Sarah.\n[00:02] Speaker 2: About the Orchard deal.",
       "Call back Thursday\nSend pricing",
     );
     expect(mockGateway).toHaveBeenCalledWith("google/gemini-2.5-flash-lite");
@@ -234,7 +240,7 @@ describe("POST /api/meetings/ingest", () => {
     );
     expect(mockUpload).toHaveBeenCalledWith(
       "client-1/home/meetings/2026-04-06-meeting-770e8400.md",
-      expect.stringContaining("## Transcript\n[00:00] Met with Sarah\n[00:02] about the Orchard deal."),
+      expect.stringContaining("## Transcript\n[00:00] Speaker 1: Met with Sarah.\n[00:02] Speaker 2: About the Orchard deal."),
       {
         contentType: "text/markdown",
         upsert: true,
@@ -287,6 +293,33 @@ describe("POST /api/meetings/ingest", () => {
     await expect(response.json()).resolves.toEqual({
       error: "Meeting ingest failed",
     });
+  });
+
+  it("skips summarization and returns default title when transcript is too short", async () => {
+    mockTranscribeAudio.mockResolvedValue({
+      text: "...",
+      segments: [
+        { start: 0, end: 1, text: "...", speaker: 1 },
+      ],
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/meetings/ingest", {
+        method: "POST",
+        body: JSON.stringify({
+          storagePath: "client-1/meetings/raw/uploaded.webm",
+          durationSeconds: 5,
+          notes: "",
+          idempotencyKey: "880e8400-e29b-41d4-a716-446655440000",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.title).toBe("Untitled Recording");
+    expect(body.summary).toBeNull();
+    expect(mockGenerateObject).not.toHaveBeenCalled();
   });
 
   it("still returns the structured error response when marking the meeting as failed also errors", async () => {

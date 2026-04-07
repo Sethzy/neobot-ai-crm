@@ -10,6 +10,13 @@ import type { Database } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
 
+const MAX_FOLLOW_UP_ATTEMPTS = 5;
+const RETRY_BASE_DELAY_MS = 10_000;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export interface RunMeetingFollowUpInput {
   clientId: string;
   threadId: string;
@@ -61,40 +68,49 @@ export async function runMeetingFollowUp({
       durationMinutes,
     });
 
-    const result = await runAgent(
-      {
-        clientId,
-        threadId,
-        input: "",
-        triggerType: "pulse",
-        channel: "web",
-        consumeMessageQuota: false,
-        instructions,
-      },
-      supabase,
-    );
-
-    if (result.status === "streaming") {
-      let streamError: unknown = null;
-
-      await result.streamResult.consumeStream({
-        onError: (error: unknown) => {
-          streamError = error;
+    for (let attempt = 1; attempt <= MAX_FOLLOW_UP_ATTEMPTS; attempt++) {
+      const result = await runAgent(
+        {
+          clientId,
+          threadId,
+          input: "",
+          triggerType: "pulse",
+          channel: "web",
+          consumeMessageQuota: false,
+          instructions,
         },
-      });
+        supabase,
+      );
 
-      if (streamError) {
-        const message = streamError instanceof Error
-          ? streamError.message
-          : "Stream consumption failed";
-        await updateMeetingStatus(supabase, meetingRecordId, "failed");
-        return { status: "failed", error: message };
+      if (result.status === "streaming") {
+        let streamError: unknown = null;
+
+        await result.streamResult.consumeStream({
+          onError: (error: unknown) => {
+            streamError = error;
+          },
+        });
+
+        if (streamError) {
+          const message = streamError instanceof Error
+            ? streamError.message
+            : "Stream consumption failed";
+          await updateMeetingStatus(supabase, meetingRecordId, "failed");
+          return { status: "failed", error: message };
+        }
+
+        await updateMeetingStatus(supabase, meetingRecordId, "completed");
+        return { status: "completed" };
       }
 
-      await updateMeetingStatus(supabase, meetingRecordId, "completed");
-      return { status: "completed" };
+      if (attempt < MAX_FOLLOW_UP_ATTEMPTS) {
+        await delay(RETRY_BASE_DELAY_MS * attempt);
+      }
     }
 
+    console.warn(
+      `[meeting-followup] Thread busy after ${MAX_FOLLOW_UP_ATTEMPTS} attempts, meeting ${meetingRecordId} left as transcribed`,
+    );
     await updateMeetingStatus(supabase, meetingRecordId, "transcribed");
     return { status: "skipped_busy" };
   } catch (error) {

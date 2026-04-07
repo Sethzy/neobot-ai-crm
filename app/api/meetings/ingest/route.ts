@@ -15,7 +15,7 @@ import {
 import { resolveClientId } from "@/lib/chat/client-id";
 import { formatRecordingTime } from "@/lib/meetings/format-helpers";
 import { buildSummaryPrompt } from "@/lib/meetings/summary-prompt";
-import { transcribeAudio } from "@/lib/transcription/groq-whisper";
+import { transcribeAudio } from "@/lib/transcription/rev-ai";
 import type { Database } from "@/types/database";
 
 export const maxDuration = 300;
@@ -30,7 +30,7 @@ function buildTranscriptBody(transcription: Awaited<ReturnType<typeof transcribe
   }
 
   return transcription.segments
-    .map((segment) => `${formatRecordingTime(segment.start)} ${segment.text}`)
+    .map((segment) => `${formatRecordingTime(segment.start)} Speaker ${segment.speaker}: ${segment.text}`)
     .join("\n");
 }
 
@@ -131,6 +131,9 @@ export async function POST(request: Request) {
       meetingRecordId = insertedRecord.meeting_record_id;
     }
 
+    const t0 = Date.now();
+    console.log(`[meeting-ingest] ▶ start | meeting=${meetingRecordId} duration=${durationSeconds}s`);
+
     await updateMeetingRecordStatus(supabase, meetingRecordId, {
       status: "transcribing",
     });
@@ -143,15 +146,19 @@ export async function POST(request: Request) {
       throw new Error("Failed to access audio file");
     }
 
+    console.log(`[meeting-ingest] ▶ rev-ai submit | ${Date.now() - t0}ms`);
     const transcription = await transcribeAudio({
       audioUrl: signedAudioUrl.signedUrl,
     });
+    console.log(`[meeting-ingest] ✓ rev-ai done | segments=${transcription.segments.length} textLen=${transcription.text.length} | ${Date.now() - t0}ms`);
 
     const dateString = new Date().toISOString().split("T")[0];
     const transcriptPath = `home/meetings/${dateString}-meeting-${meetingRecordId.slice(0, 8)}.md`;
     const transcriptStoragePath = `${clientId}/${transcriptPath}`;
     const durationMinutes = Math.max(1, Math.round(durationSeconds / 60));
     const transcriptBody = buildTranscriptBody(transcription);
+    console.log(`[meeting-ingest] transcript preview: ${transcriptBody.slice(0, 200)}`);
+
     const transcriptContent = [
       `# Meeting Recording - ${dateString}`,
       `**Duration:** ${durationMinutes} minutes`,
@@ -169,20 +176,48 @@ export async function POST(request: Request) {
     if (uploadError) {
       throw new Error("Failed to save transcript");
     }
+    console.log(`[meeting-ingest] ✓ transcript saved | ${Date.now() - t0}ms`);
 
     await updateMeetingRecordStatus(supabase, meetingRecordId, {
       status: "transcribed",
       transcript_path: transcriptPath,
     });
 
+    const MIN_TRANSCRIPT_LENGTH = 20;
+    const strippedText = transcriptBody.replace(/\[[\d:]+\]\s*Speaker\s*\d+:\s*/g, "").trim();
+    const isTranscriptTooShort = strippedText.length < MIN_TRANSCRIPT_LENGTH;
+    console.log(`[meeting-ingest] transcript stripped length=${strippedText.length} tooShort=${isTranscriptTooShort}`);
+
+    if (isTranscriptTooShort) {
+      console.log(`[meeting-ingest] ⏭ skipping summary (too short) | ${Date.now() - t0}ms`);
+      await updateMeetingRecordStatus(supabase, meetingRecordId, {
+        status: "completed",
+        title: "Untitled Recording",
+        summary: null,
+      });
+
+      return Response.json({
+        success: true,
+        meetingRecordId,
+        transcriptPath,
+        title: "Untitled Recording",
+        summary: null,
+      });
+    }
+
     await updateMeetingRecordStatus(supabase, meetingRecordId, {
       status: "summarizing",
     });
 
-    const summaryPrompt = buildSummaryPrompt(transcription.text, notes);
+    console.log(`[meeting-ingest] ▶ summary LLM (${COMPACTION_MODEL}) | ${Date.now() - t0}ms`);
+    const summaryPrompt = buildSummaryPrompt(transcriptBody, notes);
     const summarySchema = z.object({
       title: z.string().describe("Short meeting title, 3-8 words"),
-      summary: z.string().describe("Markdown bullet-point summary of the meeting"),
+      key_discussion_points: z.array(z.string()).describe("Main topics discussed"),
+      action_items: z.array(z.string()).describe("Tasks with owners and deadlines"),
+      client_concerns: z.array(z.string()).describe("Hesitations, objections, worries"),
+      personal_details: z.array(z.string()).describe("Non-business relationship details"),
+      next_steps: z.array(z.string()).describe("Follow-up meetings, calls, milestones"),
     });
     const { object: summaryResult } = await generateObject({
       model: gateway(COMPACTION_MODEL),
@@ -190,19 +225,25 @@ export async function POST(request: Request) {
       prompt: summaryPrompt,
       providerOptions: gatewayProviderOptions,
     });
+    console.log(`[meeting-ingest] ✓ summary done | title="${summaryResult.title}" | ${Date.now() - t0}ms`);
+
+    const { title, ...sections } = summaryResult;
+    const summaryJson = JSON.stringify(sections);
+    console.log(`[meeting-ingest] summary sections: points=${sections.key_discussion_points.length} actions=${sections.action_items.length} concerns=${sections.client_concerns.length} personal=${sections.personal_details.length} next=${sections.next_steps.length}`);
 
     await updateMeetingRecordStatus(supabase, meetingRecordId, {
       status: "completed",
-      title: summaryResult.title,
-      summary: summaryResult.summary,
+      title,
+      summary: summaryJson,
     });
 
+    console.log(`[meeting-ingest] ✓ complete | ${Date.now() - t0}ms total`);
     return Response.json({
       success: true,
       meetingRecordId,
       transcriptPath,
-      title: summaryResult.title,
-      summary: summaryResult.summary,
+      title,
+      summary: summaryJson,
     });
   } catch (error) {
     if (meetingRecordId) {

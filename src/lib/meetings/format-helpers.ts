@@ -25,6 +25,37 @@ export function formatRecordingTime(seconds: number | undefined): string {
   return `[${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}]`;
 }
 
+/** Parses a transcript line like `[00:12] Speaker 1: text` into structured data. */
+export function parseTranscriptLine(
+  line: string,
+): { start: number; text: string; speaker: string | null } | null {
+  const match = line.match(/^\[(\d{2}):(\d{2})\]\s+(.*)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const minutes = Number(match[1]);
+  const seconds = Number(match[2]);
+  const rest = match[3] ?? "";
+
+  const speakerMatch = rest.match(/^(Speaker \d+):\s+(.*)$/);
+
+  if (speakerMatch) {
+    return {
+      start: (minutes * 60) + seconds,
+      text: speakerMatch[2],
+      speaker: speakerMatch[1],
+    };
+  }
+
+  return {
+    start: (minutes * 60) + seconds,
+    text: rest,
+    speaker: null,
+  };
+}
+
 const STOP_WORDS = ["uh", "um", "er", "ah", "hmm", "hm", "eh", "oh"];
 
 /**

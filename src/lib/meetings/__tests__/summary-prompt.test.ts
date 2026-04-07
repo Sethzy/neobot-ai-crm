@@ -22,10 +22,25 @@ describe("buildSummaryPrompt", () => {
     expect(result).toContain("(No notes taken)");
   });
 
-  it("includes the system instruction header", () => {
+  it("includes the anti-hallucination instruction", () => {
     const result = buildSummaryPrompt("transcript", "notes");
 
-    expect(result).toContain("busy sales professional");
-    expect(result).toContain("bullet-point summary");
+    expect(result).toContain("Only extract information explicitly stated");
+  });
+
+  it("includes extraction instructions for structured sections", () => {
+    const result = buildSummaryPrompt("transcript", "notes");
+
+    expect(result).toContain("Key Discussion Points");
+    expect(result).toContain("Action Items");
+    expect(result).toContain("Client Concerns");
+    expect(result).toContain("Personal Details");
+    expect(result).toContain("Next Steps");
+  });
+
+  it("instructs to return empty arrays when sections have no content", () => {
+    const result = buildSummaryPrompt("transcript", "");
+
+    expect(result).toContain("empty array");
   });
 });

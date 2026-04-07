@@ -4,6 +4,7 @@ import {
   cleanStopWords,
   formatDuration,
   formatRecordingTime,
+  parseTranscriptLine,
 } from "../format-helpers";
 
 describe("formatDuration", () => {
@@ -49,5 +50,35 @@ describe("cleanStopWords", () => {
 
   it("removes multiple consecutive fillers", () => {
     expect(cleanStopWords("uh um er the meeting")).toBe("the meeting");
+  });
+});
+
+describe("parseTranscriptLine", () => {
+  it("parses a line with speaker label", () => {
+    expect(parseTranscriptLine("[00:12] Speaker 1: we need to close by Friday")).toEqual({
+      start: 12,
+      text: "we need to close by Friday",
+      speaker: "Speaker 1",
+    });
+  });
+
+  it("parses a line without speaker label (legacy format)", () => {
+    expect(parseTranscriptLine("[00:12] we need to close by Friday")).toEqual({
+      start: 12,
+      text: "we need to close by Friday",
+      speaker: null,
+    });
+  });
+
+  it("returns null for non-matching lines", () => {
+    expect(parseTranscriptLine("just some text")).toBeNull();
+  });
+
+  it("handles multi-digit minutes", () => {
+    expect(parseTranscriptLine("[12:05] Speaker 2: wrapping up")).toEqual({
+      start: 725,
+      text: "wrapping up",
+      speaker: "Speaker 2",
+    });
   });
 });
