@@ -31,6 +31,13 @@ interface ExpireApprovalEventInput {
   approvalId: string;
 }
 
+interface PatchApprovalPartStateInput {
+  clientId: string;
+  threadId: string;
+  approvalId: string;
+  approved: boolean;
+}
+
 function isDuplicateApprovalEventError(error: { message?: string; code?: string | null } | null) {
   if (!error) {
     return false;
@@ -163,5 +170,62 @@ export async function expireApprovalEvent(
     success: false as const,
     status: "missing" as const,
     error: "Approval event not found.",
+  };
+}
+
+/**
+ * Atomically resolves an approval event and patches the persisted tool-call
+ * part from `approval-requested` to `approval-responded`.
+ *
+ * This keeps `approval_events` and `conversation_messages.parts` in sync so
+ * the next runner invocation reloads the authoritative approval state instead
+ * of looping on stale `approval-requested` parts.
+ */
+export async function patchApprovalPartState(
+  supabase: ApprovalSupabaseClient,
+  input: PatchApprovalPartStateInput,
+) {
+  const { data, error } = await supabase.rpc("patch_approval_part_state", {
+    p_client_id: input.clientId,
+    p_thread_id: input.threadId,
+    p_approval_id: input.approvalId,
+    p_approved: input.approved,
+  });
+
+  if (error) {
+    return { success: false as const, status: "error" as const, error: error.message };
+  }
+
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return {
+      success: false as const,
+      status: "error" as const,
+      error: "Approval patch RPC returned an invalid payload.",
+    };
+  }
+
+  const status = data.status;
+  const event = data.event;
+
+  if (status === "updated" || status === "already_resolved") {
+    return {
+      success: true as const,
+      status,
+      event: event as Database["public"]["Tables"]["approval_events"]["Row"] | null,
+    };
+  }
+
+  if (status === "missing") {
+    return {
+      success: false as const,
+      status,
+      error: "Approval event or persisted approval request not found.",
+    };
+  }
+
+  return {
+    success: false as const,
+    status: "error" as const,
+    error: `Approval patch RPC returned unknown status: ${String(status)}`,
   };
 }

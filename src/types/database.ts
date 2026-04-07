@@ -1710,6 +1710,15 @@ export type Database = {
         Args: { p_stale_minutes?: number; p_thread_id?: string }
         Returns: number
       }
+      patch_approval_part_state: {
+        Args: {
+          p_approval_id: string
+          p_approved: boolean
+          p_client_id: string
+          p_thread_id: string
+        }
+        Returns: Json
+      }
       release_message_quota: {
         Args: { p_client_id: string; p_period_start: string }
         Returns: {

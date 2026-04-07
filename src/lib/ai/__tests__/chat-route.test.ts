@@ -23,7 +23,7 @@ const {
   mockClearActiveStreamId,
   mockCreateNewResumableStream,
   mockCreateResumableStreamContext,
-  mockResolveApprovalEvent,
+  mockPatchApprovalPartState,
   mockEnsureClientBootstrap,
 } = vi.hoisted(() => ({
   mockRunAgent: vi.fn(),
@@ -39,7 +39,7 @@ const {
   mockClearActiveStreamId: vi.fn(),
   mockCreateNewResumableStream: vi.fn(),
   mockCreateResumableStreamContext: vi.fn(),
-  mockResolveApprovalEvent: vi.fn(),
+  mockPatchApprovalPartState: vi.fn(),
   mockEnsureClientBootstrap: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -61,7 +61,7 @@ vi.mock("@/lib/analytics/posthog-server", () => ({
 }));
 
 vi.mock("@/lib/approvals/queries", () => ({
-  resolveApprovalEvent: mockResolveApprovalEvent,
+  patchApprovalPartState: mockPatchApprovalPartState,
 }));
 
 vi.mock("ai", () => ({
@@ -529,10 +529,21 @@ describe("POST /api/chat", () => {
     const wrappedStream = new ReadableStream();
     mockCreateUIMessageStream.mockReturnValue(wrappedStream);
     mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
-    mockResolveApprovalEvent.mockResolvedValue({
+    mockPatchApprovalPartState.mockResolvedValue({
       success: true,
       status: "updated",
-      event: { status: "approved", tool_name: "delete_contact" },
+      event: {
+        approval_id: "approval-1",
+        client_id: "client-456",
+        created_at: "2026-04-07T12:00:00Z",
+        id: "approval-row-1",
+        resolved_at: "2026-04-07T12:01:00Z",
+        run_id: "run-1",
+        status: "approved",
+        thread_id: threadId,
+        tool_input: {},
+        tool_name: "delete_contact",
+      },
     });
     mockRunAgent.mockResolvedValue({
       status: "streaming",
@@ -562,8 +573,9 @@ describe("POST /api/chat", () => {
       }),
     );
 
-    expect(mockResolveApprovalEvent).toHaveBeenCalledWith(mockSupabase, {
+    expect(mockPatchApprovalPartState).toHaveBeenCalledWith(mockSupabase, {
       clientId: "client-456",
+      threadId,
       approvalId: "approval-1",
       approved: true,
     });
@@ -581,14 +593,15 @@ describe("POST /api/chat", () => {
     expect(mockCaptureServerEvent).not.toHaveBeenCalledWith(
       expect.objectContaining({ event: "chat_message_sent" }),
     );
-    expect(mockResolveApprovalEvent.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(mockPatchApprovalPartState.mock.invocationCallOrder[0]).toBeLessThan(
       mockRunAgent.mock.invocationCallOrder[0],
     );
   });
 
   it("returns 500 without continuing the run when approval event resolution fails", async () => {
-    mockResolveApprovalEvent.mockResolvedValue({
+    mockPatchApprovalPartState.mockResolvedValue({
       success: false,
+      status: "error",
       error: "update failed",
     });
 
@@ -621,7 +634,7 @@ describe("POST /api/chat", () => {
   });
 
   it("returns 500 when approval resolution returns an unexpected success status", async () => {
-    mockResolveApprovalEvent.mockResolvedValue({
+    mockPatchApprovalPartState.mockResolvedValue({
       success: true,
       status: "unknown",
     });

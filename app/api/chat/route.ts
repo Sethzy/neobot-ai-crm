@@ -15,7 +15,7 @@ import {
   captureServerEvent,
   captureServerEvents,
 } from "@/lib/analytics/posthog-server";
-import { resolveApprovalEvent } from "@/lib/approvals/queries";
+import { patchApprovalPartState } from "@/lib/approvals/queries";
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { generateTitleFromUserMessage } from "@/lib/ai/title";
@@ -284,17 +284,18 @@ export async function POST(request: Request): Promise<Response> {
       : null;
 
     if (approvalResponses.length > 0) {
-      const resolutionResults = await Promise.all(
+      const patchResults = await Promise.all(
         approvalResponses.map((response) =>
-          resolveApprovalEvent(supabase, {
+          patchApprovalPartState(supabase, {
             clientId: resolvedClientId,
+            threadId,
             approvalId: response.approvalId,
             approved: response.approved,
           }),
         ),
       );
 
-      const failed = resolutionResults.find(
+      const failed = patchResults.find(
         (r) => !r.success || (r.status !== "updated" && r.status !== "already_resolved"),
       );
       if (failed) {
@@ -302,23 +303,25 @@ export async function POST(request: Request): Promise<Response> {
       }
 
       await captureServerEvents(
-        resolutionResults.flatMap((result, index) => {
+        patchResults.flatMap((result, index) => {
           if (!result.success || result.status !== "updated" || !("event" in result)) {
             return [];
           }
+
+          const outcome = result.event?.status === "approved" ? "approved" : "denied";
 
           return [{
             distinctId: resolvedClientId,
             event: "approval_resolved",
             properties: {
-              tool_name: result.event.tool_name,
+              tool_name: result.event?.tool_name,
               approval_id: approvalResponses[index]?.approvalId,
-              outcome: approvalResponses[index]?.approved ? "approved" : "denied",
+              outcome,
             },
           }];
         }),
       );
-      _t("approval_resolution");
+      _t("approval_resolution_and_patch");
     }
 
     await bootstrapPromise;
