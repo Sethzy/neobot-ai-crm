@@ -5,6 +5,9 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const { mockLastAssistantMessageIsCompleteWithApprovalResponses } = vi.hoisted(() => ({
+  mockLastAssistantMessageIsCompleteWithApprovalResponses: vi.fn(),
+}));
 const mockUseChat = vi.fn();
 const mockSetDataStream = vi.fn();
 const mockInvalidateQueries = vi.fn();
@@ -17,6 +20,8 @@ vi.mock("ai", () => ({
       Object.assign(this, options);
     }
   },
+  lastAssistantMessageIsCompleteWithApprovalResponses:
+    mockLastAssistantMessageIsCompleteWithApprovalResponses,
 }));
 
 vi.mock("@ai-sdk/react", () => ({
