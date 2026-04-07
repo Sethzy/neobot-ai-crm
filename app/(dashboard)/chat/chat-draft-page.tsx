@@ -29,6 +29,7 @@ export function ChatDraftPage({
     <div className="flex min-h-0 flex-1 flex-col">
       <ChatErrorBoundary>
         <ChatPanel
+          key={id}
           chatId={id}
           initialMessages={[]}
           initialQuota={initialQuota}

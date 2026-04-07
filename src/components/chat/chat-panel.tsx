@@ -156,9 +156,20 @@ export function ChatPanel({
 
   useEffect(() => {
     currentModelIdRef.current = selectedChatModel;
-    document.cookie =
-      `${CHAT_MODEL_COOKIE_NAME}=${selectedChatModel}; path=/; max-age=${CHAT_MODEL_COOKIE_MAX_AGE}`;
   }, [selectedChatModel]);
+
+  /**
+   * Synchronously writes the cookie and updates the ref before React re-renders.
+   * This mirrors the reference chatbot pattern: cookie is persisted in the selection
+   * handler itself, not deferred to a useEffect. This closes the race window where
+   * a navigation (e.g. clicking a sidebar thread) could fire before the effect and
+   * carry a stale cookie to the server-side page render.
+   */
+  const handleModelChange = useCallback((modelId: string) => {
+    currentModelIdRef.current = modelId;
+    setSelectedChatModel(modelId);
+    document.cookie = `${CHAT_MODEL_COOKIE_NAME}=${modelId}; path=/; max-age=${CHAT_MODEL_COOKIE_MAX_AGE}`;
+  }, []);
 
   const { messages, sendMessage, status, error, setMessages, addToolApprovalResponse } = useChat({
     id: chatId,
@@ -352,7 +363,7 @@ export function ChatPanel({
             selectedChatModel={selectedChatModel}
             value={composerValue}
             onValueChange={setComposerValue}
-            onSelectedChatModelChange={setSelectedChatModel}
+            onSelectedChatModelChange={handleModelChange}
             onSubmit={handleSubmit}
             disabled={(messageQuota?.messagesRemaining ?? 1) <= 0}
           />
@@ -364,7 +375,7 @@ export function ChatPanel({
             selectedChatModel={selectedChatModel}
             composerValue={composerValue}
             onComposerValueChange={setComposerValue}
-            onSelectedChatModelChange={setSelectedChatModel}
+            onSelectedChatModelChange={handleModelChange}
             onSubmit={handleSubmit}
             messageQuota={messageQuota}
           />
