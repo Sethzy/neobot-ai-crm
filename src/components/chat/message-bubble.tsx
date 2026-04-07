@@ -248,7 +248,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
                 errorText={toolPart.errorText}
                 approvalId={toolPart.approval?.id}
                 onToolApproval={onToolApproval}
-
+                keepSpinning={isStreaming && isLast && index === lastRenderableIndex}
               />
             );
           }

@@ -40,6 +40,12 @@ interface ToolCallInlineProps {
   approvalId?: string;
   /** Callback for approve/deny actions. Receives (approvalId, approved). */
   onToolApproval?: (approvalId: string, approved: boolean) => void;
+  /**
+   * When true, keeps the spinner visible even after the tool completes.
+   * Used for the last tool in a streaming response while the agent processes
+   * the result and decides what to do next.
+   */
+  keepSpinning?: boolean;
 }
 
 interface ConnectionResult {
@@ -306,8 +312,8 @@ function ConnectionCard({ results }: { results: ConnectionResult[] }) {
       </div>
 
       <div className="space-y-2">
-        {results.map((result) => (
-          <ConnectionRow key={result.composioConnectedAccountId} result={result} />
+        {results.map((result, i) => (
+          <ConnectionRow key={result.composioConnectedAccountId ?? i} result={result} />
         ))}
       </div>
     </div>
@@ -384,6 +390,7 @@ export function ToolCallInline({
   errorText,
   approvalId,
   onToolApproval,
+  keepSpinning = false,
 }: ToolCallInlineProps) {
   const [isOpen, setIsOpen] = useState(false);
   const connectionCreation = isConnectionCreation(name, output) ? output : null;
@@ -393,7 +400,10 @@ export function ToolCallInline({
     ? getBrowserPlatformConfig(authNeeded.platform)
     : null;
   const { state: browserAuthState, connect, verify, reset } = useBrowserAuth(authNeeded?.platform);
-  const isRunning = state === "input-available" || state === "input-streaming";
+  const isRunning =
+    state === "input-available" ||
+    state === "input-streaming" ||
+    (keepSpinning && state === "output-available");
   const isAwaitingApproval = state === "approval-requested";
   const isDenied = state === "output-denied";
   const hasError = state === "output-error";
@@ -423,7 +433,7 @@ export function ToolCallInline({
         onClick={() => setIsOpen(!isOpen)}
       >
         {isRunning ? (
-          <LoaderCircle data-testid="tool-dot" className="size-3 shrink-0 animate-spin text-muted-foreground" />
+          <LoaderCircle data-testid="tool-dot" className="size-3.5 shrink-0 animate-spin text-foreground/60" />
         ) : (
           <span
             data-testid="tool-dot"
