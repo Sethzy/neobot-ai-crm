@@ -13,11 +13,12 @@ import { createMockSupabaseClient } from "@/test/mocks/supabase";
 import { createConnectionTools } from "../index";
 
 const CLIENT_ID = "550e8400-e29b-41d4-a716-446655440000";
+const THREAD_ID = "thread-001";
 
 describe("createConnectionTools", () => {
   it("returns the four read-only tools when mutations are disabled", () => {
     const supabase = createMockSupabaseClient();
-    const tools = createConnectionTools(supabase as never, CLIENT_ID, {
+    const tools = createConnectionTools(supabase as never, CLIENT_ID, THREAD_ID, {
       allowMutations: false,
     });
 
@@ -31,7 +32,7 @@ describe("createConnectionTools", () => {
 
   it("returns all eight tools when mutations are enabled", () => {
     const supabase = createMockSupabaseClient();
-    const tools = createConnectionTools(supabase as never, CLIENT_ID, {
+    const tools = createConnectionTools(supabase as never, CLIENT_ID, THREAD_ID, {
       allowMutations: true,
     });
 

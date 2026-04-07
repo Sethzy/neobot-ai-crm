@@ -17,6 +17,7 @@ import type { Database } from "@/types/database";
 export function createReauthorizeConnectionTool(
   supabase: SupabaseClient<Database>,
   clientId: string,
+  threadId: string,
 ) {
   return {
     reauthorize_connection: tool({
@@ -67,7 +68,7 @@ export function createReauthorizeConnectionTool(
         const refreshResult = await composio.connectedAccounts.refresh(
           connection.composio_connected_account_id,
           {
-            redirectUrl: getCallbackUrl(connection.toolkit_slug, "reauth"),
+            redirectUrl: getCallbackUrl(connection.toolkit_slug, { reason: "reauth", threadId }),
           },
         );
 

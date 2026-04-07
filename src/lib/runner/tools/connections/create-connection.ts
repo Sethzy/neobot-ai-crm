@@ -26,6 +26,7 @@ const createConnectionInputSchema = z.object({
 export function createCreateConnectionTool(
   supabase: SupabaseClient<Database>,
   clientId: string,
+  threadId: string,
 ) {
   return {
     create_new_connections: tool({
@@ -49,7 +50,7 @@ export function createCreateConnectionTool(
         > = [];
 
         for (const integration of integrations) {
-          const callbackUrl = getCallbackUrl(integration.integrationId);
+          const callbackUrl = getCallbackUrl(integration.integrationId, { threadId });
           const toolkitDisplayInfo = await getToolkitDisplayInfo(integration.integrationId)
             .catch(() => ({
               integrationId: integration.integrationId,

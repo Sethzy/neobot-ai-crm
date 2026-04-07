@@ -16,11 +16,14 @@ import {
   updateConnection,
 } from "@/lib/connections/queries";
 
-function buildSettingsRedirect(
+function buildRedirect(
   request: Request,
   params: Record<string, string>,
 ): NextResponse {
-  const redirectUrl = new URL("/settings", request.url);
+  const requestUrl = new URL(request.url);
+  const threadId = requestUrl.searchParams.get("thread");
+  const basePath = threadId ? `/chat/${threadId}` : "/settings";
+  const redirectUrl = new URL(basePath, request.url);
 
   Object.entries(params).forEach(([key, value]) => {
     redirectUrl.searchParams.set(key, value);
@@ -74,7 +77,7 @@ export async function GET(request: Request): Promise<Response> {
   const authResult = await authenticateRequest();
 
   if (authResult.kind === "error") {
-    return buildSettingsRedirect(request, {
+    return buildRedirect(request, {
       connection: "error",
       reason: "unauthorized",
     });
@@ -132,7 +135,7 @@ export async function GET(request: Request): Promise<Response> {
       console.error("Failed to clear pending connection after invalid callback.", error);
     }
 
-    return buildSettingsRedirect(request, {
+    return buildRedirect(request, {
       connection: "error",
       reason: "invalid_callback",
     });
@@ -145,7 +148,7 @@ export async function GET(request: Request): Promise<Response> {
       console.error("Failed to clear pending connection after failed callback.", error);
     }
 
-    return buildSettingsRedirect(request, {
+    return buildRedirect(request, {
       connection: "error",
       reason: "failed",
     });
@@ -161,7 +164,7 @@ export async function GET(request: Request): Promise<Response> {
     if (connectedAccount.status !== "ACTIVE") {
       await handlePendingFailure(verifiedToolkitSlug);
 
-      return buildSettingsRedirect(request, {
+      return buildRedirect(request, {
         connection: "error",
         reason: "inactive",
       });
@@ -180,7 +183,7 @@ export async function GET(request: Request): Promise<Response> {
     if (!isOwnedByClient) {
       await handlePendingFailure(verifiedToolkitSlug);
 
-      return buildSettingsRedirect(request, {
+      return buildRedirect(request, {
         connection: "error",
         reason: "ownership",
       });
@@ -240,7 +243,7 @@ export async function GET(request: Request): Promise<Response> {
       },
     });
 
-    return buildSettingsRedirect(request, {
+    return buildRedirect(request, {
       connection: "success",
       toolkit: connectedAccount.toolkit.slug,
     });
@@ -252,7 +255,7 @@ export async function GET(request: Request): Promise<Response> {
     }
 
     console.error("Failed to finalize Composio connection callback.", error);
-    return buildSettingsRedirect(request, {
+    return buildRedirect(request, {
       connection: "error",
       reason: "callback_failed",
     });

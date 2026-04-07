@@ -7,7 +7,10 @@ import { getComposio } from "./client";
 /**
  * Builds the OAuth callback URL for a given toolkit, with an optional reason param.
  */
-export function getCallbackUrl(toolkitSlug: string, reason?: string): string {
+export function getCallbackUrl(
+  toolkitSlug: string,
+  options?: { reason?: string; threadId?: string },
+): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
 
   if (!appUrl) {
@@ -17,8 +20,12 @@ export function getCallbackUrl(toolkitSlug: string, reason?: string): string {
   const callbackUrl = new URL("/api/connections/callback", appUrl);
   callbackUrl.searchParams.set("toolkit", toolkitSlug);
 
-  if (reason) {
-    callbackUrl.searchParams.set("reason", reason);
+  if (options?.reason) {
+    callbackUrl.searchParams.set("reason", options.reason);
+  }
+
+  if (options?.threadId) {
+    callbackUrl.searchParams.set("thread", options.threadId);
   }
 
   return callbackUrl.toString();

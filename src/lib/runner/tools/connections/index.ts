@@ -25,6 +25,7 @@ export interface CreateConnectionToolsOptions {
 export function createConnectionTools(
   supabase: SupabaseClient<Database>,
   clientId: string,
+  threadId: string,
   options?: CreateConnectionToolsOptions,
 ) {
   const allowMutations = options?.allowMutations ?? true;
@@ -42,9 +43,9 @@ export function createConnectionTools(
 
   return {
     ...readTools,
-    ...createCreateConnectionTool(supabase, clientId),
+    ...createCreateConnectionTool(supabase, clientId, threadId),
     ...createManageToolsTool(supabase, clientId),
-    ...createReauthorizeConnectionTool(supabase, clientId),
+    ...createReauthorizeConnectionTool(supabase, clientId, threadId),
     ...createDeleteConnectionTool(supabase, clientId),
   };
 }
