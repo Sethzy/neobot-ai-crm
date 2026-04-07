@@ -32,10 +32,11 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT.toLowerCase()).toContain("locale");
   });
 
-  it("includes mechanical safety guidance for approval-gated tools", () => {
+  it("includes SDK-driven safety guidance for approval-required tools", () => {
     expect(SYSTEM_PROMPT).toContain("<safety>");
     expect(SYSTEM_PROMPT).toContain("delete_connection");
-    expect(SYSTEM_PROMPT).toContain("GATED");
+    expect(SYSTEM_PROMPT).toContain("approval card");
+    expect(SYSTEM_PROMPT).toContain("Do not use ask_user_question");
   });
 
   it("removes the old manual approval example block", () => {
@@ -165,8 +166,9 @@ describe("SYSTEM_PROMPT", () => {
   it("describes approval cards for connection activation and deletion", () => {
     expect(SYSTEM_PROMPT).toContain("manage_activated_tools_for_connections");
     expect(SYSTEM_PROMPT).toContain("delete_connection");
-    expect(SYSTEM_PROMPT).toContain("GATED");
-    expect(SYSTEM_PROMPT).toContain("ask_user_question");
+    expect(SYSTEM_PROMPT).toContain("require user approval");
+    expect(SYSTEM_PROMPT).toContain("approval card automatically");
+    expect(SYSTEM_PROMPT).not.toContain("Never call them without ask_user_question confirmation first");
   });
 
   it("instructs the agent to read the creating-connections skill if it exists", () => {
