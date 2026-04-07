@@ -104,6 +104,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createConnectionTools: mockCreateConnectionTools,
   createMarketTools: mockCreateMarketTools,
+  createMeetingTools: vi.fn().mockReturnValue({}),
   createBrowserTools: vi.fn().mockReturnValue({}),
   createListingTools: vi.fn().mockReturnValue({}),
   createStorageTools: mockCreateStorageTools,
@@ -122,6 +123,8 @@ vi.mock("@/lib/connections/queries", () => ({
 }));
 
 vi.mock("@/lib/composio", () => ({
+  loadAllConnectionTools: (...args: unknown[]) =>
+    mockLoadActivatedConnectionTools(...args),
   loadActivatedConnectionTools: (...args: unknown[]) =>
     mockLoadActivatedConnectionTools(...args),
 }));
@@ -172,7 +175,10 @@ describe("runAgent CRM configuration", () => {
     });
     mockCreateMessages.mockResolvedValue([]);
     mockGetActiveConnections.mockResolvedValue([]);
-    mockLoadActivatedConnectionTools.mockResolvedValue({});
+    mockLoadActivatedConnectionTools.mockResolvedValue({
+      tools: {},
+      activatedSlugs: new Set<string>(),
+    });
     mockIsPropertySupabaseConfigured.mockReturnValue(true);
     mockStreamText.mockReturnValue({ toUIMessageStream: vi.fn(() => new ReadableStream()) });
   });

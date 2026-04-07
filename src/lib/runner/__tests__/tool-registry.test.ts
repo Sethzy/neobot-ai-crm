@@ -11,6 +11,7 @@ const {
   mockCreateCrmTools,
   mockCreateListingTools,
   mockCreateMarketTools,
+  mockCreateMeetingTools,
   mockCreateStorageTools,
   mockCreateTriggerTools,
   mockCreateUtilityTools,
@@ -23,6 +24,7 @@ const {
   mockCreateCrmTools: vi.fn(),
   mockCreateListingTools: vi.fn(),
   mockCreateMarketTools: vi.fn(),
+  mockCreateMeetingTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
   mockCreateTriggerTools: vi.fn(),
   mockCreateUtilityTools: vi.fn(),
@@ -44,6 +46,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createListingTools: mockCreateListingTools,
   createMarketTools: mockCreateMarketTools,
+  createMeetingTools: mockCreateMeetingTools,
   createStorageTools: mockCreateStorageTools,
   createTriggerTools: mockCreateTriggerTools,
   createUtilityTools: mockCreateUtilityTools,
@@ -71,6 +74,9 @@ describe("createRunnerTools", () => {
     });
     mockCreateMarketTools.mockReturnValue({
       search_market_data: { description: "market-tool" },
+    });
+    mockCreateMeetingTools.mockReturnValue({
+      create_meeting: { description: "meeting-tool" },
     });
     mockCreateStorageTools.mockReturnValue({
       read_file: { description: "storage-tool" },

@@ -5,11 +5,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../client", () => ({
+  COMPOSIO_TOOL_FETCH_LIMIT: 200,
   getComposio: vi.fn(),
 }));
 
 import { getComposio } from "../client";
-import { loadActivatedConnectionTools } from "../activated-tools";
+import { loadActivatedConnectionTools, loadAllConnectionTools } from "../activated-tools";
 
 import type { ConnectionRow } from "@/lib/connections/schemas";
 
@@ -145,5 +146,110 @@ describe("loadActivatedConnectionTools", () => {
         "client-123",
       ),
     ).rejects.toThrow("boom");
+  });
+});
+
+describe("loadAllConnectionTools", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns empty tools and slugs when there are no active connections", async () => {
+    const result = await loadAllConnectionTools(
+      [
+        createMockConnection({
+          id: "550e8400-e29b-41d4-a716-446655440008",
+          toolkit_slug: "gmail",
+          status: "inactive",
+          activated_tools: ["GMAIL_SEND_EMAIL"],
+        }),
+      ],
+      "client-123",
+    );
+
+    expect(result).toEqual({
+      tools: {},
+      activatedSlugs: new Set<string>(),
+    });
+    expect(getComposio).not.toHaveBeenCalled();
+  });
+
+  it("loads all tool definitions for active connections including zero-activated toolkits", async () => {
+    const mockGetRawComposioTools = vi
+      .fn()
+      .mockResolvedValueOnce([{ slug: "GMAIL_FETCH_EMAILS" }, { slug: "GMAIL_SEND_EMAIL" }])
+      .mockResolvedValueOnce([{ slug: "GOOGLEDRIVE_FIND_FILE" }]);
+    const mockGetTools = vi.fn().mockResolvedValue({
+      GMAIL_FETCH_EMAILS: { description: "fetch" },
+      GMAIL_SEND_EMAIL: { description: "send" },
+      GOOGLEDRIVE_FIND_FILE: { description: "find" },
+    });
+    vi.mocked(getComposio).mockReturnValue({
+      tools: {
+        getRawComposioTools: mockGetRawComposioTools,
+        get: mockGetTools,
+      },
+    } as never);
+
+    const result = await loadAllConnectionTools(
+      [
+        createMockConnection({
+          id: "550e8400-e29b-41d4-a716-446655440009",
+          toolkit_slug: "gmail",
+          activated_tools: ["GMAIL_FETCH_EMAILS"],
+        }),
+        createMockConnection({
+          id: "550e8400-e29b-41d4-a716-446655440010",
+          toolkit_slug: "googledrive",
+          activated_tools: [],
+        }),
+      ],
+      "client-123",
+    );
+
+    expect(result.tools).toEqual({
+      GMAIL_FETCH_EMAILS: { description: "fetch" },
+      GMAIL_SEND_EMAIL: { description: "send" },
+      GOOGLEDRIVE_FIND_FILE: { description: "find" },
+    });
+    expect(result.activatedSlugs).toEqual(new Set(["GMAIL_FETCH_EMAILS"]));
+    expect(mockGetRawComposioTools).toHaveBeenCalledTimes(2);
+    expect(mockGetTools).toHaveBeenCalledWith("client-123", {
+      tools: ["GMAIL_FETCH_EMAILS", "GMAIL_SEND_EMAIL", "GOOGLEDRIVE_FIND_FILE"],
+    });
+  });
+
+  it("skips duplicate toolkit loads across multiple active connections", async () => {
+    const mockGetRawComposioTools = vi.fn().mockResolvedValue([{ slug: "GMAIL_FETCH_EMAILS" }]);
+    const mockGetTools = vi.fn().mockResolvedValue({
+      GMAIL_FETCH_EMAILS: { description: "fetch" },
+    });
+    vi.mocked(getComposio).mockReturnValue({
+      tools: {
+        getRawComposioTools: mockGetRawComposioTools,
+        get: mockGetTools,
+      },
+    } as never);
+
+    await loadAllConnectionTools(
+      [
+        createMockConnection({
+          id: "550e8400-e29b-41d4-a716-446655440011",
+          toolkit_slug: "gmail",
+          activated_tools: [],
+        }),
+        createMockConnection({
+          id: "550e8400-e29b-41d4-a716-446655440012",
+          toolkit_slug: "gmail",
+          activated_tools: ["GMAIL_FETCH_EMAILS"],
+        }),
+      ],
+      "client-123",
+    );
+
+    expect(mockGetRawComposioTools).toHaveBeenCalledTimes(1);
+    expect(mockGetTools).toHaveBeenCalledWith("client-123", {
+      tools: ["GMAIL_FETCH_EMAILS"],
+    });
   });
 });

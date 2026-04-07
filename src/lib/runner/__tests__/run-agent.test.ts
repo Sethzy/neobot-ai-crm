@@ -19,6 +19,7 @@ const {
   mockCreateCrmTools,
   mockCreateConnectionTools,
   mockCreateMarketTools,
+  mockCreateMeetingTools,
   mockCreateListingTools,
   mockCreateBrowserTools,
   mockCreateStorageTools,
@@ -32,7 +33,7 @@ const {
   mockHasExternalDeliverables,
   mockLoadCrmConfig,
   mockGetActiveConnections,
-  mockLoadActivatedConnectionTools,
+  mockLoadAllConnectionTools,
   mockConsumeMessageQuota,
   mockIsBrowserUseConfigured,
   mockIsPropertySupabaseConfigured,
@@ -57,6 +58,7 @@ const {
   mockCreateCrmTools: vi.fn(),
   mockCreateConnectionTools: vi.fn(),
   mockCreateMarketTools: vi.fn(),
+  mockCreateMeetingTools: vi.fn(),
   mockCreateListingTools: vi.fn(),
   mockCreateBrowserTools: vi.fn(),
   mockCreateStorageTools: vi.fn(),
@@ -70,7 +72,7 @@ const {
   mockHasExternalDeliverables: vi.fn(() => false),
   mockLoadCrmConfig: vi.fn(),
   mockGetActiveConnections: vi.fn(),
-  mockLoadActivatedConnectionTools: vi.fn(),
+  mockLoadAllConnectionTools: vi.fn(),
   mockConsumeMessageQuota: vi.fn(),
   mockIsBrowserUseConfigured: vi.fn(),
   mockIsPropertySupabaseConfigured: vi.fn(),
@@ -129,6 +131,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: mockCreateCrmTools,
   createConnectionTools: mockCreateConnectionTools,
   createMarketTools: mockCreateMarketTools,
+  createMeetingTools: mockCreateMeetingTools,
   createListingTools: mockCreateListingTools,
   createBrowserTools: mockCreateBrowserTools,
   createStorageTools: mockCreateStorageTools,
@@ -147,8 +150,8 @@ vi.mock("@/lib/connections/queries", () => ({
 }));
 
 vi.mock("@/lib/composio", () => ({
-  loadActivatedConnectionTools: (...args: unknown[]) =>
-    mockLoadActivatedConnectionTools(...args),
+  loadAllConnectionTools: (...args: unknown[]) =>
+    mockLoadAllConnectionTools(...args),
 }));
 
 vi.mock("@/lib/supabase/property-env", () => ({
@@ -257,6 +260,9 @@ describe("runAgent", () => {
     mockCreateMarketTools.mockReturnValue({
       search_market_data: { description: "market-tool" },
     });
+    mockCreateMeetingTools.mockReturnValue({
+      create_meeting: { description: "meeting-tool" },
+    });
     mockCreateListingTools.mockReturnValue({
       search_99co: { description: "listing-tool" },
       search_propertyguru: { description: "listing-tool" },
@@ -309,7 +315,10 @@ describe("runAgent", () => {
     });
     mockMaybeCompactThread.mockResolvedValue(false);
     mockGetActiveConnections.mockResolvedValue([]);
-    mockLoadActivatedConnectionTools.mockResolvedValue({});
+    mockLoadAllConnectionTools.mockResolvedValue({
+      tools: {},
+      activatedSlugs: new Set<string>(),
+    });
     mockIsBrowserUseConfigured.mockReturnValue(true);
     mockIsPropertySupabaseConfigured.mockReturnValue(true);
     mockConsumeMessageQuota.mockResolvedValue({
@@ -424,6 +433,7 @@ describe("runAgent", () => {
     expect(mockCreateConnectionTools).toHaveBeenCalledWith(
       "mock-supabase-client",
       validPayload.clientId,
+      validPayload.threadId,
       { allowMutations: true },
     );
 
@@ -525,6 +535,7 @@ describe("runAgent", () => {
     expect(mockCreateConnectionTools).toHaveBeenCalledWith(
       "mock-supabase-client",
       validPayload.clientId,
+      validPayload.threadId,
       { allowMutations: false },
     );
     expect(mockCreateCrmTools).toHaveBeenCalledWith(
@@ -643,17 +654,28 @@ describe("runAgent", () => {
     expect(streamCall.providerOptions).toBeDefined();
   });
 
-  it("buildPrepareStep no longer injects Anthropic-native compaction edits", () => {
+  it("buildPrepareStep no longer injects Anthropic-native compaction edits", async () => {
     const prepareStep = buildPrepareStep("anthropic/claude-sonnet-4-6", 12);
-    expect(prepareStep({ stepNumber: 0 } as never)).toBeUndefined();
-    expect(prepareStep({ stepNumber: 11 } as never)).toEqual({ activeTools: [] });
+    await expect(prepareStep({ stepNumber: 0 } as never)).resolves.toBeUndefined();
+    await expect(prepareStep({ stepNumber: 11 } as never)).resolves.toEqual({ activeTools: [] });
   });
 
-  it("buildPrepareStep keeps the Gemini path unchanged except for the final-step tool cutoff", () => {
+  it("buildPrepareStep keeps the Gemini path unchanged except for the final-step tool cutoff", async () => {
     const prepareStep = buildPrepareStep("google/gemini-3-flash", 12);
 
-    expect(prepareStep({ stepNumber: 0 } as never)).toBeUndefined();
-    expect(prepareStep({ stepNumber: 11 } as never)).toEqual({ activeTools: [] });
+    await expect(prepareStep({ stepNumber: 0 } as never)).resolves.toBeUndefined();
+    await expect(prepareStep({ stepNumber: 11 } as never)).resolves.toEqual({ activeTools: [] });
+  });
+
+  it("buildPrepareStep combines static tools with the currently activated connection slugs", async () => {
+    const prepareStep = buildPrepareStep("google/gemini-3-flash", 12, {
+      staticToolNames: ["search_contacts", "run_subagent"],
+      getActivatedConnectionSlugs: async () => new Set(["GMAIL_FETCH_EMAILS"]),
+    });
+
+    await expect(prepareStep({ stepNumber: 0 } as never)).resolves.toEqual({
+      activeTools: ["search_contacts", "run_subagent", "GMAIL_FETCH_EMAILS"],
+    });
   });
 
   it("enqueues and returns queued when thread is already running", async () => {
@@ -740,6 +762,7 @@ describe("runAgent", () => {
     expect(mockCreateConnectionTools).toHaveBeenCalledWith(
       "mock-supabase-client",
       validPayload.clientId,
+      validPayload.threadId,
       { allowMutations: false },
     );
   });
@@ -759,6 +782,7 @@ describe("runAgent", () => {
     expect(mockCreateConnectionTools).toHaveBeenCalledWith(
       "mock-supabase-client",
       validPayload.clientId,
+      validPayload.threadId,
       { allowMutations: true },
     );
   });
@@ -1059,8 +1083,11 @@ describe("runAgent", () => {
   it("loads activated Composio tools from active connections and merges them into the runner toolset", async () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
     mockGetActiveConnections.mockResolvedValue([{ id: "conn-1" }]);
-    mockLoadActivatedConnectionTools.mockResolvedValue({
-      GMAIL_FETCH_EMAILS: { description: "composio-tool" },
+    mockLoadAllConnectionTools.mockResolvedValue({
+      tools: {
+        GMAIL_FETCH_EMAILS: { description: "composio-tool" },
+      },
+      activatedSlugs: new Set(["GMAIL_FETCH_EMAILS"]),
     });
 
     await runAgent(validPayload, "mock-supabase-client" as never);
@@ -1069,7 +1096,7 @@ describe("runAgent", () => {
       "mock-supabase-client",
       validPayload.clientId,
     );
-    expect(mockLoadActivatedConnectionTools).toHaveBeenCalledWith([
+    expect(mockLoadAllConnectionTools).toHaveBeenCalledWith([
       { id: "conn-1" },
     ], validPayload.clientId);
     expect(mockStreamText).toHaveBeenCalledWith(
@@ -1090,14 +1117,17 @@ describe("runAgent", () => {
     expect(subagentOptions).not.toHaveProperty("composioTools");
   });
 
-  it("keeps the runner toolset unchanged when activated Composio tools resolve to an empty object", async () => {
+  it("keeps the runner toolset unchanged when active connection tools resolve to an empty object", async () => {
     mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
     mockGetActiveConnections.mockResolvedValue([{ id: "conn-1" }]);
-    mockLoadActivatedConnectionTools.mockResolvedValue({});
+    mockLoadAllConnectionTools.mockResolvedValue({
+      tools: {},
+      activatedSlugs: new Set<string>(),
+    });
 
     await runAgent(validPayload, "mock-supabase-client" as never);
 
-    expect(mockLoadActivatedConnectionTools).toHaveBeenCalledWith([
+    expect(mockLoadAllConnectionTools).toHaveBeenCalledWith([
       { id: "conn-1" },
     ], validPayload.clientId);
     expect(mockStreamText).toHaveBeenCalledWith(
@@ -1116,7 +1146,7 @@ describe("runAgent", () => {
 
     await runAgent(validPayload, "mock-supabase-client" as never);
 
-    expect(mockLoadActivatedConnectionTools).not.toHaveBeenCalled();
+    expect(mockLoadAllConnectionTools).not.toHaveBeenCalled();
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
         tools: expect.objectContaining({

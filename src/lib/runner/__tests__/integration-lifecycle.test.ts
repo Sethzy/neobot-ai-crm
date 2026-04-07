@@ -356,6 +356,7 @@ vi.mock("@/lib/runner/tools", () => ({
   createCrmTools: vi.fn(() => ({})),
   createConnectionTools: vi.fn(() => ({})),
   createMarketTools: vi.fn(() => ({})),
+  createMeetingTools: vi.fn(() => ({})),
   createListingTools: vi.fn(() => ({})),
   createBrowserTools: vi.fn(() => ({})),
   createStorageTools: vi.fn(() => ({})),
@@ -374,6 +375,7 @@ vi.mock("@/lib/connections/queries", () => ({
 }));
 
 vi.mock("@/lib/composio", () => ({
+  loadAllConnectionTools: vi.fn().mockResolvedValue({ tools: {}, activatedSlugs: new Set() }),
   loadActivatedConnectionTools: vi.fn().mockResolvedValue({}),
 }));
 

@@ -13,10 +13,10 @@ import { computeRunCost } from "@/lib/ai/cost";
 import { gatewayProviderOptions, getLanguageModel } from "@/lib/ai/gateway";
 import { getModelPricing, resolveModelId } from "@/lib/ai/models";
 import { isBrowserUseConfigured } from "@/lib/browser-use/client";
-import { getServerEnv } from "@/lib/env";
 import { createMessages } from "@/lib/chat/messages";
 import { isModelVisible } from "@/lib/chat/attachment-config";
-import { loadActivatedConnectionTools } from "@/lib/composio";
+import { loadAllConnectionTools } from "@/lib/composio";
+import { getServerEnv } from "@/lib/env";
 import { getActiveConnections } from "@/lib/connections/queries";
 import { loadCrmConfig } from "@/lib/crm/config";
 import { assembleContext, loadSystemPromptState } from "@/lib/runner/context";
@@ -63,12 +63,25 @@ export type RunAgentResult =
  * Builds per-step overrides for the active model.
  * The only current override is disabling tools on the final allowed step.
  */
-export function buildPrepareStep(_modelId: string, maxSteps: number) {
-  return ({ stepNumber }: { stepNumber: number }) => {
+export function buildPrepareStep(
+  _modelId: string,
+  maxSteps: number,
+  options?: {
+    getActivatedConnectionSlugs?: () => Promise<Set<string>>;
+    staticToolNames?: string[];
+  },
+) {
+  return async ({ stepNumber }: { stepNumber: number }) => {
     const result: Record<string, unknown> = {};
 
     if (stepNumber >= maxSteps - 1) {
       result.activeTools = [];
+    } else if (options?.getActivatedConnectionSlugs && options.staticToolNames) {
+      const activatedConnectionSlugs = await options.getActivatedConnectionSlugs();
+      result.activeTools = [
+        ...options.staticToolNames,
+        ...activatedConnectionSlugs,
+      ];
     }
 
     return Object.keys(result).length > 0 ? result : undefined;
@@ -237,21 +250,24 @@ export async function runAgent(
     const composioPromise = getActiveConnections(supabase, clientId)
       .then((connections) => {
         _t("get_connections");
-        return loadActivatedConnectionTools(connections, clientId);
+        return loadAllConnectionTools(connections, clientId);
       })
-      .then((tools) => {
+      .then((result) => {
         _t("load_composio_tools");
-        return tools;
+        return result;
       })
       .catch((error) => {
         _t("composio_failed");
-        console.error("[composio] Failed to load activated connection tools for runner.", error);
-        return {} as ToolSet;
+        console.error("[composio] Failed to load connection tools for runner.", error);
+        return {
+          tools: {} as ToolSet,
+          activatedSlugs: new Set<string>(),
+        };
       });
 
     // Start all IO in one parallel batch — CRM config, Composio tools, and
     // system prompt state (memory, skills, reminder, compaction) are independent.
-    const [{ config: crmConfig }, composioTools, preloadedState] = await Promise.all([
+    const [{ config: crmConfig }, composioResult, preloadedState] = await Promise.all([
       loadCrmConfig(supabase, clientId).then((result) => {
         _t("load_crm_config");
         return result;
@@ -266,6 +282,7 @@ export async function runAgent(
         return state;
       }),
     ]);
+    const composioTools = composioResult.tools;
 
     const snapshotId = getServerEnv().SANDBOX_GOLDEN_SNAPSHOT_ID ?? "";
 
@@ -343,6 +360,11 @@ export async function runAgent(
       ...composioTools,
       ...sandboxTools,
     };
+    const staticToolNames = [
+      ...Object.keys(runnerTools),
+      ...Object.keys(subagentTools),
+      ...Object.keys(sandboxTools),
+    ];
 
     const maxSteps = MAX_STEPS[runType];
     const postHogServer = getPostHogServer();
@@ -377,7 +399,17 @@ export async function runAgent(
           messages,
           stopWhen: [stepCountIs(maxSteps), hasToolCall("ask_user_question")],
           tools,
-          prepareStep: buildPrepareStep(modelId, maxSteps),
+          prepareStep: buildPrepareStep(modelId, maxSteps, {
+            getActivatedConnectionSlugs: async () => {
+              const activeConnections = await getActiveConnections(supabase, clientId);
+              return new Set(
+                activeConnections
+                  .filter((connection) => connection.status === "active")
+                  .flatMap((connection) => connection.activated_tools),
+              );
+            },
+            staticToolNames,
+          }),
           providerOptions: gatewayProviderOptions,
           // AI SDK default is 2 retries. We use 6 to match LangChain Deep Agents'
           // recommendation for production agents — covers transient network errors,

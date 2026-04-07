@@ -17,4 +17,4 @@ export {
   type ToolkitCapabilityTool,
   type ToolkitDisplayInfo,
 } from "./catalog";
-export { loadActivatedConnectionTools } from "./activated-tools";
+export { loadActivatedConnectionTools, loadAllConnectionTools } from "./activated-tools";
