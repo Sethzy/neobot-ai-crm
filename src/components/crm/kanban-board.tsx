@@ -286,7 +286,7 @@ function DroppableColumn({
       itemCount={itemCount}
       setNodeRef={setNodeRef}
       summary={summary}
-      className={isOver ? "ring-2 ring-primary/30" : ""}
+      className={isOver ? "bg-primary/5" : ""}
     >
       {children}
     </KanbanColumnSection>
