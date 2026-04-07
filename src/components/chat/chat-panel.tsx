@@ -4,7 +4,12 @@
  */
 "use client";
 
-import { DefaultChatTransport, type FileUIPart, type UIMessage } from "ai";
+import {
+  DefaultChatTransport,
+  lastAssistantMessageIsCompleteWithApprovalResponses,
+  type FileUIPart,
+  type UIMessage,
+} from "ai";
 import { useChat } from "@ai-sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle } from "@/components/icons/lucide-compat";
@@ -177,6 +182,7 @@ export function ChatPanel({
     generateId: () => crypto.randomUUID(),
     experimental_throttle: STREAM_UI_THROTTLE_MS,
     transport,
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
     onData: (dataPart) => {
       if (!shouldStoreDataPartForClient(dataPart)) {
         return;

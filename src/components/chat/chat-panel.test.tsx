@@ -14,6 +14,9 @@ import { ChatPanel } from "./chat-panel";
 const { mockTransportConstructor } = vi.hoisted(() => ({
   mockTransportConstructor: vi.fn(),
 }));
+const { mockLastAssistantMessageIsCompleteWithApprovalResponses } = vi.hoisted(() => ({
+  mockLastAssistantMessageIsCompleteWithApprovalResponses: vi.fn(),
+}));
 const { mockSetDataStream } = vi.hoisted(() => ({
   mockSetDataStream: vi.fn(),
 }));
@@ -68,6 +71,8 @@ vi.mock("ai", () => ({
       Object.assign(this, options);
     }
   },
+  lastAssistantMessageIsCompleteWithApprovalResponses:
+    mockLastAssistantMessageIsCompleteWithApprovalResponses,
 }));
 
 const mockUseChat = vi.fn();
@@ -736,14 +741,16 @@ describe("ChatPanel", () => {
     });
   });
 
-  it("does not set sendAutomaticallyWhen in useChat options", () => {
+  it("configures sendAutomaticallyWhen for approval continuations", () => {
     render(<ChatPanel chatId="thread-1" />);
 
     const options = mockUseChat.mock.calls[0][0] as {
       sendAutomaticallyWhen?: unknown;
     };
 
-    expect(options.sendAutomaticallyWhen).toBeUndefined();
+    expect(options.sendAutomaticallyWhen).toBe(
+      mockLastAssistantMessageIsCompleteWithApprovalResponses,
+    );
   });
 
   it("wires onQuestionSubmit to send user answer via sendMessage", async () => {
