@@ -17,8 +17,9 @@ import {
   captureServerEvents,
 } from "@/lib/analytics/posthog-server";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
+import { normalizePhone } from "@/lib/crm/normalize";
 
-import { buildIlikePattern } from "./filter-utils";
+import { buildIlikePattern, buildContainsIlikeLiteral } from "./filter-utils";
 
 /** Entity types supported by create_record. */
 const CREATE_ENTITIES = ["contacts", "companies", "deals"] as const;
@@ -29,7 +30,17 @@ type CreateEntity = (typeof CREATE_ENTITIES)[number];
 // ---------------------------------------------------------------------------
 
 /**
- * Searches for contacts matching first_name AND last_name (case-insensitive).
+ * Searches for contacts that likely match the given identity signals.
+ *
+ * Matches on any of:
+ *   - first_name AND last_name (case-insensitive contains)
+ *   - email (exact, case-insensitive)
+ *   - phone (exact E.164)
+ *
+ * Using OR across all signals means we catch the case where the agent
+ * supplies an email or phone that already belongs to an existing contact,
+ * even if the name differs slightly.
+ *
  * Returns matched rows or `null` on query error (best-effort — callers fall through).
  */
 async function findDuplicateContacts(
@@ -37,13 +48,22 @@ async function findDuplicateContacts(
   clientId: string,
   firstName: string,
   lastName: string,
+  email?: string | null,
+  phone?: string | null,
 ): Promise<unknown[] | null> {
+  // Build OR conditions. The name check is an AND-group nested inside the OR.
+  // PostgREST filter string format: "and(col.op.val,col.op.val),col.op.val"
+  const orParts: string[] = [
+    `and(first_name.ilike.${buildContainsIlikeLiteral(firstName)},last_name.ilike.${buildContainsIlikeLiteral(lastName)})`,
+  ];
+  if (email) orParts.push(`email.eq.${email.toLowerCase()}`);
+  if (phone) orParts.push(`phone.eq.${phone}`);
+
   const { data, error } = await supabase
     .from("contacts")
     .select("*")
     .eq("client_id", clientId)
-    .ilike("first_name", buildIlikePattern(firstName))
-    .ilike("last_name", buildIlikePattern(lastName))
+    .or(orParts.join(","))
     .limit(10);
 
   if (error) return null;
@@ -51,19 +71,27 @@ async function findDuplicateContacts(
 }
 
 /**
- * Searches for companies matching name (case-insensitive).
+ * Searches for companies that likely match the given identity signals.
+ *
+ * Matches on any of: name (contains), email (exact), phone (exact E.164).
  * Returns matched rows or `null` on query error (best-effort).
  */
 async function findDuplicateCompanies(
   supabase: SupabaseClient<Database>,
   clientId: string,
   name: string,
+  email?: string | null,
+  phone?: string | null,
 ): Promise<unknown[] | null> {
+  const orParts: string[] = [`name.ilike.${buildContainsIlikeLiteral(name)}`];
+  if (email) orParts.push(`email.eq.${email.toLowerCase()}`);
+  if (phone) orParts.push(`phone.eq.${phone}`);
+
   const { data, error } = await supabase
     .from("companies")
     .select("*")
     .eq("client_id", clientId)
-    .ilike("name", buildIlikePattern(name))
+    .or(orParts.join(","))
     .limit(10);
 
   if (error) return null;
@@ -120,9 +148,18 @@ async function findDuplicates(
         clientId,
         String(record.first_name ?? ""),
         String(record.last_name ?? ""),
+        record.email ? String(record.email) : null,
+        // Normalize before comparing so "+1-212-555-1234" matches "+12125551234" in the DB.
+        record.phone ? (normalizePhone(String(record.phone)) ?? String(record.phone)) : null,
       );
     case "companies":
-      return findDuplicateCompanies(supabase, clientId, String(record.name ?? ""));
+      return findDuplicateCompanies(
+        supabase,
+        clientId,
+        String(record.name ?? ""),
+        record.email ? String(record.email) : null,
+        record.phone ? (normalizePhone(String(record.phone)) ?? String(record.phone)) : null,
+      );
     case "deals":
       return findDuplicateDeals(supabase, clientId, String(record.address ?? ""));
   }
@@ -145,7 +182,8 @@ function buildContactRow(
     last_name: record.last_name as string,
     type: matchVocabularyValue(rawType, contactTypes),
     email: (record.email as string) ?? null,
-    phone: (record.phone as string) ?? null,
+    // Normalize to E.164; fall back to raw string if unparseable so data isn't silently dropped.
+    phone: normalizePhone(record.phone as string | null) ?? (record.phone as string | null) ?? null,
     custom_fields: (record.custom_fields as Record<string, unknown>) ?? {},
   };
 }
@@ -161,7 +199,7 @@ function buildCompanyRow(
     name: record.name as string,
     industry: rawIndustry ? matchVocabularyValue(rawIndustry, companyIndustries) : null,
     website: (record.website as string) ?? null,
-    phone: (record.phone as string) ?? null,
+    phone: normalizePhone(record.phone as string | null) ?? (record.phone as string | null) ?? null,
     email: (record.email as string) ?? null,
     address: (record.address as string) ?? null,
     custom_fields: (record.custom_fields as Record<string, unknown>) ?? {},

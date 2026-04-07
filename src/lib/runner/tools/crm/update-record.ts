@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import { CRM_DEFAULTS, matchVocabularyValue, type CrmVocabConfig } from "@/lib/crm/config";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
+import { normalizePhone } from "@/lib/crm/normalize";
 import type { Database, JsonObject } from "@/types/database";
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 
@@ -170,6 +171,15 @@ async function updateOne(
   }
   if (entity === "companies" && typeof updates.industry === "string") {
     updates.industry = matchVocabularyValue(updates.industry, config.company_industries);
+  }
+
+  // Normalize phone to E.164 on contacts and companies. Fall back to raw string so
+  // data is never silently dropped; the DB constraint will surface truly bad values.
+  if (
+    (entity === "contacts" || entity === "companies") &&
+    typeof updates.phone === "string"
+  ) {
+    updates.phone = normalizePhone(updates.phone) ?? updates.phone;
   }
 
   // --- Deal stage analytics: read previous stage before update ---
