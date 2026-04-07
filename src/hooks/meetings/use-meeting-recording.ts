@@ -62,6 +62,9 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
 
   const router = useRouter();
 
+  /** Guard against concurrent start() calls (React StrictMode double-invocation). */
+  const isStartingRef = useRef(false);
+
   const stopTimer = useCallback(() => {
     if (!timerRef.current) {
       return;
@@ -118,6 +121,9 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
   }, [cleanupStream, stopTimer]);
 
   const start = useCallback(async () => {
+    if (isStartingRef.current) return;
+    isStartingRef.current = true;
+
     try {
       setErrorMessage(null);
       setElapsedSeconds(0);
@@ -145,6 +151,7 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
       setStatus("recording");
       startTimer();
     } catch (error) {
+      isStartingRef.current = false;
       cleanupStream();
       stopTimer();
       setStatus("error");
@@ -194,6 +201,7 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
         chunksRef.current = [];
         pausedElapsedSecondsRef.current = 0;
         startTimeRef.current = null;
+        isStartingRef.current = false;
         cleanupStream();
         resolve(completedBlob);
       };

@@ -88,4 +88,17 @@ describe("useMeetingRecording", () => {
     expect(mockStopTrack).toHaveBeenCalledOnce();
     expect(mockPush).not.toHaveBeenCalled();
   });
+
+  it("prevents concurrent start calls (StrictMode double-invocation guard)", async () => {
+    const { result } = renderHook(() => useMeetingRecording());
+
+    // Simulate two concurrent start() calls — mirrors StrictMode double-mount
+    await act(async () => {
+      void result.current.start();
+      void result.current.start();
+    });
+
+    // getUserMedia should only have been called once
+    expect(mockGetUserMedia).toHaveBeenCalledOnce();
+  });
 });
