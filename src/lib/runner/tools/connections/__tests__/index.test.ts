@@ -47,4 +47,15 @@ describe("createConnectionTools", () => {
       "search_for_integrations",
     ]);
   });
+
+  it("marks manage_activated_tools_for_connections as approval-gated", () => {
+    const supabase = createMockSupabaseClient();
+    const tools = createConnectionTools(supabase as never, CLIENT_ID, THREAD_ID, {
+      allowMutations: true,
+    });
+
+    expect(
+      (tools.manage_activated_tools_for_connections as { needsApproval?: unknown }).needsApproval,
+    ).toBe(true);
+  });
 });

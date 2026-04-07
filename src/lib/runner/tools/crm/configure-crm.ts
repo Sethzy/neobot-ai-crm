@@ -326,8 +326,10 @@ export function createConfigureCrmTool(
       "Accepts partial updates and always returns the fully resolved resulting config. " +
       "If requested removals would affect existing records, it returns a warning instead. " +
       "Re-call with confirm_removals: true to proceed. " +
-      "Data Modification Warning: Only use this after the user has explicitly asked to configure or reconfigure CRM.",
+      "Data Modification Warning: Only use this after the user has explicitly asked to configure or reconfigure CRM. " +
+      "Requires user approval before execution.",
     inputSchema,
+    needsApproval: true,
     execute: async ({ confirm_removals, ...input }) => {
       const updates = Object.fromEntries(
         Object.entries(input).filter(([, value]) => value !== undefined),

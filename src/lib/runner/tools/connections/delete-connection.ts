@@ -20,10 +20,11 @@ export function createDeleteConnectionTool(
   return {
     delete_connection: tool({
       description:
-        "PERMANENTLY DELETES a connection from the user's account. This destroys the stored credentials and cannot be undone. Use ask_user_question to confirm with the user before calling.\n\nWARNING: This is a destructive action. Only use when the user explicitly wants to DELETE the connection itself (e.g., \"delete this connection\", \"remove from my account\").\nDO NOT use this tool if the user wants to remove or deactivate tools from a connection (e.g., \"remove {connection name}\") → use manage_activated_tools_for_connections instead",
+        "PERMANENTLY DELETES a connection from the user's account. This destroys the stored credentials and cannot be undone. Requires user approval before execution.\n\nWARNING: This is a destructive action. Only use when the user explicitly wants to DELETE the connection itself (e.g., \"delete this connection\", \"remove from my account\").\nDO NOT use this tool if the user wants to remove or deactivate tools from a connection (e.g., \"remove {connection name}\") → use manage_activated_tools_for_connections instead",
       inputSchema: z.object({
         connectionId: z.string().trim().min(1),
       }),
+      needsApproval: true,
       execute: async ({ connectionId }) => {
         const connection = await getConnectionById(supabase, clientId, connectionId);
 
