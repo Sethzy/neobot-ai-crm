@@ -15,6 +15,8 @@ interface RecordingBarProps {
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
+  controlsDisabled?: boolean;
+  statusLabel?: string;
 }
 
 function formatTime(seconds: number): string {
@@ -30,6 +32,8 @@ export function RecordingBar({
   onPause,
   onResume,
   onStop,
+  controlsDisabled = false,
+  statusLabel,
 }: RecordingBarProps) {
   const isPaused = state === "paused";
 
@@ -45,7 +49,7 @@ export function RecordingBar({
       </span>
 
       <span className="text-xs text-muted-foreground">
-        {isPaused ? "Paused" : "Recording"}
+        {statusLabel ?? (isPaused ? "Paused" : "Recording")}
       </span>
 
       <div className="flex-1" />
@@ -56,6 +60,7 @@ export function RecordingBar({
         size="icon"
         aria-label={isPaused ? "Resume recording" : "Pause recording"}
         onClick={isPaused ? onResume : onPause}
+        disabled={controlsDisabled}
       >
         {isPaused ? <PlayIcon className="h-4 w-4" /> : <PauseIcon className="h-4 w-4" />}
       </Button>
@@ -66,6 +71,7 @@ export function RecordingBar({
         size="sm"
         aria-label="Stop recording"
         onClick={onStop}
+        disabled={controlsDisabled}
       >
         <SquareIcon className="mr-1.5 h-3.5 w-3.5" />
         Stop

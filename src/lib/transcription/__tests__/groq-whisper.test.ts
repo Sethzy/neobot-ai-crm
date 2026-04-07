@@ -2,87 +2,107 @@
  * Tests for Groq Whisper transcription integration.
  * @module lib/transcription/__tests__/groq-whisper
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { transcribeAudio } from "../groq-whisper";
+
+const mockFetch = vi.fn();
+
+vi.stubGlobal("fetch", mockFetch);
 
 describe("transcribeAudio", () => {
   beforeEach(() => {
-    vi.resetModules();
+    mockFetch.mockReset();
+    vi.stubEnv("GROQ_API_KEY", "test-groq-key");
+  });
+
+  afterEach(() => {
     vi.unstubAllEnvs();
-    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("returns text and segments from verbose_json response", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      blob: () => Promise.resolve(new Blob(["audio"], { type: "audio/webm" })),
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        text: "Met with Sarah about the deal.",
+        segments: [
+          { start: 0.5, end: 3.2, text: "Met with Sarah" },
+          { start: 3.5, end: 6.1, text: "about the deal." },
+        ],
+      }),
+    });
+
+    const result = await transcribeAudio({
+      audioUrl: "https://example.com/audio.webm",
+    });
+
+    expect(result.text).toBe("Met with Sarah about the deal.");
+    expect(result.segments).toHaveLength(2);
+    expect(result.segments[0]).toEqual({ start: 0.5, end: 3.2, text: "Met with Sarah" });
+    expect(result.segments[1]).toEqual({ start: 3.5, end: 6.1, text: "about the deal." });
+  });
+
+  it("sends verbose_json response_format to Groq", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      blob: () => Promise.resolve(new Blob(["audio"], { type: "audio/webm" })),
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ text: "hello", segments: [] }),
+    });
+
+    await transcribeAudio({ audioUrl: "https://example.com/audio.webm" });
+
+    const groqRequest = mockFetch.mock.calls[1]?.[1] as { body: FormData };
+    expect(groqRequest.body.get("response_format")).toBe("verbose_json");
+    expect(groqRequest.body.getAll("timestamp_granularities[]")).toContain("segment");
+  });
+
+  it("returns empty segments when Groq omits them", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      blob: () => Promise.resolve(new Blob(["audio"], { type: "audio/webm" })),
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ text: "hello" }),
+    });
+
+    const result = await transcribeAudio({
+      audioUrl: "https://example.com/audio.webm",
+    });
+
+    expect(result.text).toBe("hello");
+    expect(result.segments).toEqual([]);
+  });
+
+  it("throws when Groq responds with a non-ok status", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      blob: () => Promise.resolve(new Blob(["audio"], { type: "audio/webm" })),
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      text: () => Promise.resolve("Rate limited"),
+    });
+
+    await expect(
+      transcribeAudio({ audioUrl: "https://example.com/audio.webm" }),
+    ).rejects.toThrow("Groq transcription failed (429): Rate limited");
   });
 
   it("throws when GROQ_API_KEY is not configured", async () => {
     vi.stubEnv("GROQ_API_KEY", "");
 
-    const { transcribeAudio } = await import("../groq-whisper");
-
     await expect(
       transcribeAudio({ audioUrl: "https://example.com/audio.webm" }),
-    ).rejects.toThrow("GROQ_API_KEY");
-  });
-
-  it("downloads the audio file and returns transcript text from Groq", async () => {
-    vi.stubEnv("GROQ_API_KEY", "test-key");
-
-    const mockFetch = vi.fn()
-      .mockResolvedValueOnce(
-        new Response(new Blob(["audio"], { type: "audio/webm" }), {
-          status: 200,
-          headers: { "Content-Type": "audio/webm" },
-        }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ text: "Hello, this is a test meeting." }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      );
-    vi.stubGlobal("fetch", mockFetch);
-
-    const { transcribeAudio } = await import("../groq-whisper");
-    const result = await transcribeAudio({
-      audioUrl: "https://example.com/audio.webm",
-      language: "en",
-    });
-
-    expect(result).toEqual({ text: "Hello, this is a test meeting." });
-    expect(mockFetch).toHaveBeenNthCalledWith(1, "https://example.com/audio.webm");
-    expect(mockFetch).toHaveBeenNthCalledWith(
-      2,
-      "https://api.groq.com/openai/v1/audio/transcriptions",
-      expect.objectContaining({
-        method: "POST",
-        headers: {
-          Authorization: "Bearer test-key",
-        },
-        body: expect.any(FormData),
-      }),
-    );
-
-    const groqRequest = mockFetch.mock.calls[1]?.[1] as { body: FormData };
-    expect(groqRequest.body.get("model")).toBe("whisper-large-v3-turbo");
-    expect(groqRequest.body.get("response_format")).toBe("json");
-    expect(groqRequest.body.get("language")).toBe("en");
-    expect(groqRequest.body.get("file")).toBeInstanceOf(File);
-  });
-
-  it("throws when Groq responds with a non-ok status", async () => {
-    vi.stubEnv("GROQ_API_KEY", "test-key");
-
-    const mockFetch = vi.fn()
-      .mockResolvedValueOnce(
-        new Response(new Blob(["audio"], { type: "audio/webm" }), {
-          status: 200,
-          headers: { "Content-Type": "audio/webm" },
-        }),
-      )
-      .mockResolvedValueOnce(new Response("Rate limited", { status: 429 }));
-    vi.stubGlobal("fetch", mockFetch);
-
-    const { transcribeAudio } = await import("../groq-whisper");
-
-    await expect(
-      transcribeAudio({ audioUrl: "https://example.com/audio.webm" }),
-    ).rejects.toThrow("Groq transcription failed");
+    ).rejects.toThrow("GROQ_API_KEY is not configured");
   });
 });

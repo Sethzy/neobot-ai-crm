@@ -55,6 +55,24 @@ describe("RecordingBar", () => {
 
     expect(onResume).toHaveBeenCalledOnce();
   });
+
+  it("disables controls when the recorder is processing", () => {
+    render(
+      <RecordingBar
+        state="recording"
+        elapsedSeconds={5}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onStop={vi.fn()}
+        controlsDisabled
+        statusLabel="Processing"
+      />,
+    );
+
+    expect(screen.getByText("Processing")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /pause recording/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /stop recording/i })).toBeDisabled();
+  });
 });
 
 describe("MeetingNotepad", () => {

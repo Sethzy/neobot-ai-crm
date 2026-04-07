@@ -18,11 +18,18 @@ const ALLOWED_AUDIO_TYPES = new Set([
   "audio/x-m4a",
 ]);
 
+/**
+ * Strips codec parameters from MIME types (e.g. "audio/webm;codecs=opus" → "audio/webm")
+ * before validating against the allowlist. Browsers commonly include codec suffixes
+ * that don't affect our storage or transcription pipeline.
+ */
 const requestSchema = z.object({
   filename: z.string().min(1),
-  contentType: z.string().refine((contentType) => ALLOWED_AUDIO_TYPES.has(contentType), {
-    message: "Unsupported audio format",
-  }),
+  contentType: z.string()
+    .transform((ct) => ct.split(";")[0].trim())
+    .refine((ct) => ALLOWED_AUDIO_TYPES.has(ct), {
+      message: "Unsupported audio format",
+    }),
   durationSeconds: z.number().int().positive().optional(),
 });
 

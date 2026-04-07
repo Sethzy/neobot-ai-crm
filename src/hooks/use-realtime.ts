@@ -22,7 +22,8 @@ export type RealtimeTableName =
   | "record_attachments"
   | "timeline_activities"
   | "agent_triggers"
-  | "crm_views";
+  | "crm_views"
+  | "meeting_records";
 
 export interface UseRealtimeTableOptions {
   /** Postgres table name to subscribe to. */

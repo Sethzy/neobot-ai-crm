@@ -9,11 +9,13 @@ const {
   mockJsonError,
   mockResolveClientId,
   mockTranscribeAudio,
-  mockRunMeetingFollowUp,
-  mockCreateMessage,
+  mockGenerateObject,
+  mockBuildSummaryPrompt,
+  mockGateway,
   mockStorageFrom,
   mockCreateSignedUrl,
   mockUpload,
+  mockMeetingRecordInsert,
   mockMeetingRecordMaybeSingle,
   mockMeetingRecordInsertSingle,
   mockMeetingRecordUpdateEq,
@@ -24,11 +26,13 @@ const {
     Response.json({ error: message }, { status })),
   mockResolveClientId: vi.fn(),
   mockTranscribeAudio: vi.fn(),
-  mockRunMeetingFollowUp: vi.fn(),
-  mockCreateMessage: vi.fn(),
+  mockGenerateObject: vi.fn(),
+  mockBuildSummaryPrompt: vi.fn(),
+  mockGateway: vi.fn().mockReturnValue("mock-model"),
   mockStorageFrom: vi.fn(),
   mockCreateSignedUrl: vi.fn(),
   mockUpload: vi.fn(),
+  mockMeetingRecordInsert: vi.fn(),
   mockMeetingRecordMaybeSingle: vi.fn(),
   mockMeetingRecordInsertSingle: vi.fn(),
   mockMeetingRecordUpdateEq: vi.fn(),
@@ -48,12 +52,18 @@ vi.mock("@/lib/transcription/groq-whisper", () => ({
   transcribeAudio: (...args: unknown[]) => mockTranscribeAudio(...args),
 }));
 
-vi.mock("@/lib/runner/run-meeting-followup", () => ({
-  runMeetingFollowUp: (...args: unknown[]) => mockRunMeetingFollowUp(...args),
+vi.mock("ai", () => ({
+  generateObject: (...args: unknown[]) => mockGenerateObject(...args),
 }));
 
-vi.mock("@/lib/chat/messages", () => ({
-  createMessage: (...args: unknown[]) => mockCreateMessage(...args),
+vi.mock("@/lib/meetings/summary-prompt", () => ({
+  buildSummaryPrompt: (...args: unknown[]) => mockBuildSummaryPrompt(...args),
+}));
+
+vi.mock("@/lib/ai/gateway", () => ({
+  gateway: (...args: unknown[]) => mockGateway(...args),
+  gatewayProviderOptions: {},
+  COMPACTION_MODEL: "google/gemini-2.5-flash-lite",
 }));
 
 import { POST } from "./route";
@@ -71,7 +81,7 @@ function createMeetingRecordQueryMock() {
   const insertSelect = vi.fn().mockReturnValue({
     single: mockMeetingRecordInsertSingle,
   });
-  const insert = vi.fn().mockReturnValue({
+  mockMeetingRecordInsert.mockReturnValue({
     select: insertSelect,
   });
   const update = vi.fn().mockReturnValue({
@@ -80,18 +90,9 @@ function createMeetingRecordQueryMock() {
 
   mockMeetingRecordsFrom.mockReturnValue({
     select,
-    insert,
+    insert: mockMeetingRecordInsert,
     update,
   });
-
-  return {
-    select,
-    insert,
-    insertSelect,
-    update,
-    maybeSingleEqIdempotency,
-    maybeSingleEqClient,
-  };
 }
 
 describe("POST /api/meetings/ingest", () => {
@@ -139,17 +140,19 @@ describe("POST /api/meetings/ingest", () => {
     });
     mockTranscribeAudio.mockResolvedValue({
       text: "Met with Sarah about the Orchard deal.",
+      segments: [
+        { start: 0, end: 2.5, text: "Met with Sarah" },
+        { start: 2.5, end: 6.1, text: "about the Orchard deal." },
+      ],
     });
     mockUpload.mockResolvedValue({ data: { path: "client-1/home/meetings/..." }, error: null });
-    mockCreateMessage.mockResolvedValue({
-      message_id: "message-1",
-      thread_id: "660e8400-e29b-41d4-a716-446655440000",
-      role: "user",
-      content: "[Meeting recorded: 3 min, 2 notes]",
-      parts: [],
-      created_at: new Date().toISOString(),
+    mockBuildSummaryPrompt.mockReturnValue("test prompt");
+    mockGenerateObject.mockResolvedValue({
+      object: {
+        title: "Portfolio Review with Sarah",
+        summary: "- Discussed the Orchard deal\n- Follow up Thursday",
+      },
     });
-    mockRunMeetingFollowUp.mockResolvedValue({ status: "completed" });
   });
 
   afterEach(() => {
@@ -162,6 +165,8 @@ describe("POST /api/meetings/ingest", () => {
         meeting_record_id: "existing-meeting-id",
         status: "completed",
         transcript_path: "home/meetings/existing.md",
+        title: null,
+        summary: null,
       },
       error: null,
     });
@@ -173,7 +178,6 @@ describe("POST /api/meetings/ingest", () => {
           storagePath: "client-1/meetings/raw/uploaded.webm",
           durationSeconds: 180,
           notes: "Line one\nLine two",
-          threadId: "660e8400-e29b-41d4-a716-446655440000",
           idempotencyKey: "880e8400-e29b-41d4-a716-446655440000",
         }),
       }),
@@ -184,13 +188,15 @@ describe("POST /api/meetings/ingest", () => {
       success: true,
       meetingRecordId: "existing-meeting-id",
       transcriptPath: "home/meetings/existing.md",
+      title: null,
+      summary: null,
       deduplicated: true,
     });
     expect(mockTranscribeAudio).not.toHaveBeenCalled();
-    expect(mockRunMeetingFollowUp).not.toHaveBeenCalled();
+    expect(mockGenerateObject).not.toHaveBeenCalled();
   });
 
-  it("creates the meeting record, saves the transcript, and triggers follow-up processing", async () => {
+  it("creates the meeting record, transcribes, auto-summarizes, and returns the result", async () => {
     const response = await POST(
       new Request("http://localhost/api/meetings/ingest", {
         method: "POST",
@@ -198,7 +204,6 @@ describe("POST /api/meetings/ingest", () => {
           storagePath: "client-1/meetings/raw/uploaded.webm",
           durationSeconds: 180,
           notes: "Call back Thursday\nSend pricing",
-          threadId: "660e8400-e29b-41d4-a716-446655440000",
           idempotencyKey: "880e8400-e29b-41d4-a716-446655440000",
         }),
       }),
@@ -209,35 +214,37 @@ describe("POST /api/meetings/ingest", () => {
       success: true,
       meetingRecordId: "770e8400-e29b-41d4-a716-446655440000",
       transcriptPath: "home/meetings/2026-04-06-meeting-770e8400.md",
+      title: "Portfolio Review with Sarah",
+      summary: "- Discussed the Orchard deal\n- Follow up Thursday",
     });
     expect(mockTranscribeAudio).toHaveBeenCalledWith({
       audioUrl: "https://storage.example.com/audio?token=signed",
     });
+    expect(mockBuildSummaryPrompt).toHaveBeenCalledWith(
+      "Met with Sarah about the Orchard deal.",
+      "Call back Thursday\nSend pricing",
+    );
+    expect(mockGateway).toHaveBeenCalledWith("google/gemini-2.5-flash-lite");
+    expect(mockGenerateObject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "mock-model",
+        prompt: "test prompt",
+        providerOptions: {},
+      }),
+    );
     expect(mockUpload).toHaveBeenCalledWith(
       "client-1/home/meetings/2026-04-06-meeting-770e8400.md",
-      expect.stringContaining("## Transcript\nMet with Sarah about the Orchard deal."),
+      expect.stringContaining("## Transcript\n[00:00] Met with Sarah\n[00:02] about the Orchard deal."),
       {
         contentType: "text/markdown",
         upsert: true,
       },
     );
-    expect(mockCreateMessage).toHaveBeenCalledWith(
-      expect.anything(),
+    expect(mockMeetingRecordInsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        thread_id: "660e8400-e29b-41d4-a716-446655440000",
-        role: "user",
-        content: "[Meeting recorded: 3 min, 2 notes]",
+        thread_id: null,
       }),
     );
-    expect(mockRunMeetingFollowUp).toHaveBeenCalledWith({
-      clientId: "client-1",
-      threadId: "660e8400-e29b-41d4-a716-446655440000",
-      meetingRecordId: "770e8400-e29b-41d4-a716-446655440000",
-      transcriptPath: "home/meetings/2026-04-06-meeting-770e8400.md",
-      notes: "Call back Thursday\nSend pricing",
-      durationMinutes: 3,
-      supabase: expect.anything(),
-    });
   });
 
   it("rejects storage paths outside the caller's tenant prefix", async () => {
@@ -248,7 +255,6 @@ describe("POST /api/meetings/ingest", () => {
           storagePath: "other-client/meetings/raw/uploaded.webm",
           durationSeconds: 180,
           notes: "",
-          threadId: "660e8400-e29b-41d4-a716-446655440000",
           idempotencyKey: "880e8400-e29b-41d4-a716-446655440000",
         }),
       }),
@@ -257,6 +263,50 @@ describe("POST /api/meetings/ingest", () => {
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toEqual({
       error: "Invalid meeting audio path",
+    });
+  });
+
+  it("fails when persisting a meeting status update fails", async () => {
+    mockMeetingRecordUpdateEq
+      .mockResolvedValueOnce({ error: null })
+      .mockResolvedValueOnce({ error: { message: "update failed" } });
+
+    const response = await POST(
+      new Request("http://localhost/api/meetings/ingest", {
+        method: "POST",
+        body: JSON.stringify({
+          storagePath: "client-1/meetings/raw/uploaded.webm",
+          durationSeconds: 180,
+          notes: "Call back Thursday\nSend pricing",
+          idempotencyKey: "880e8400-e29b-41d4-a716-446655440000",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: "Meeting ingest failed",
+    });
+  });
+
+  it("still returns the structured error response when marking the meeting as failed also errors", async () => {
+    mockMeetingRecordUpdateEq.mockResolvedValue({ error: { message: "write failed" } });
+
+    const response = await POST(
+      new Request("http://localhost/api/meetings/ingest", {
+        method: "POST",
+        body: JSON.stringify({
+          storagePath: "client-1/meetings/raw/uploaded.webm",
+          durationSeconds: 180,
+          notes: "Call back Thursday\nSend pricing",
+          idempotencyKey: "880e8400-e29b-41d4-a716-446655440000",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: "Meeting ingest failed",
     });
   });
 });

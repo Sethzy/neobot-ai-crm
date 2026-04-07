@@ -11,8 +11,6 @@ import { AlertCircle } from "@/components/icons/lucide-compat";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAutoResume } from "@/hooks/use-auto-resume";
-import { useAudioRecorder } from "@/hooks/use-audio-recorder";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { mapDbMessageToUiMessage } from "@/lib/chat/message-normalization";
 import { createClient } from "@/lib/supabase/client";
 import { messageQuotaKeys, useMessageQuota } from "@/hooks/use-message-quota";
@@ -34,8 +32,6 @@ import { ChatWelcome } from "./chat-welcome";
 import { MessageQuotaPill } from "./message-quota-pill";
 import { useDataStream } from "./data-stream-provider";
 import { MessageList } from "./message-list";
-import { RecordingBar } from "./recording-bar";
-import { UploadProgress, type UploadPhase } from "./upload-progress";
 
 /** Batches token updates to reduce render churn during fast streams. */
 const STREAM_UI_THROTTLE_MS = 50;
@@ -118,21 +114,12 @@ export function ChatPanel({
   initialChatModel = DEFAULT_CHAT_MODEL,
 }: ChatPanelProps) {
   const [composerValue, setComposerValue] = useState(initialPrompt ?? "");
-  const [meetingNotes, setMeetingNotes] = useState("");
   const [selectedChatModel, setSelectedChatModel] = useState(
     resolveModelId(initialChatModel),
   );
-  const [uploadPhase, setUploadPhase] = useState<UploadPhase | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [lastRecordingMeta, setLastRecordingMeta] = useState<{
-    durationMinutes: number;
-    noteCount: number;
-  } | null>(null);
   const currentModelIdRef = useRef(resolveModelId(initialChatModel));
   const { setDataStream } = useDataStream();
   const queryClient = useQueryClient();
-  const recorder = useAudioRecorder();
-  const isMobile = useIsMobile();
   const { data: messageQuota } = useMessageQuota(initialQuota);
   const refreshQuota = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: messageQuotaKeys.all });
@@ -272,99 +259,6 @@ export function ChatPanel({
   isLoadingRef.current = isLoading;
   const parsedError = useMemo(() => parseChatError(error), [error]);
   const errorMessage = parsedError?.message ?? null;
-  const isRecording = recorder.state === "recording" || recorder.state === "paused";
-
-  const handleStartRecording = useCallback(() => {
-    setUploadPhase(null);
-    setUploadError(null);
-    void recorder.start();
-  }, [recorder]);
-
-  const handleStopRecording = useCallback(async () => {
-    const capturedNotes = meetingNotes;
-    const capturedDurationSeconds = recorder.elapsedSeconds;
-    const capturedContentType = "audio/webm";
-    const capturedNoteCount = capturedNotes
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0).length;
-
-    const audioBlob = await recorder.stop();
-
-    if (!audioBlob) {
-      return;
-    }
-
-    setUploadError(null);
-    setUploadPhase("uploading");
-    setLastRecordingMeta({
-      durationMinutes: Math.max(1, Math.round(capturedDurationSeconds / 60)),
-      noteCount: capturedNoteCount,
-    });
-
-    try {
-      const uploadUrlResponse = await fetch("/api/meetings/upload-url", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          filename: "recording.webm",
-          contentType: audioBlob.type || capturedContentType,
-          durationSeconds: capturedDurationSeconds,
-        }),
-      });
-
-      if (!uploadUrlResponse.ok) {
-        throw new Error("Failed to prepare recording upload");
-      }
-
-      const uploadPayload = await uploadUrlResponse.json() as {
-        uploadUrl: string;
-        storagePath: string;
-      };
-
-      const directUploadResponse = await fetch(uploadPayload.uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": audioBlob.type || capturedContentType,
-        },
-        body: audioBlob,
-      });
-
-      if (!directUploadResponse.ok) {
-        throw new Error("Failed to upload recording");
-      }
-
-      setUploadPhase("transcribing");
-
-      const ingestResponse = await fetch("/api/meetings/ingest", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          storagePath: uploadPayload.storagePath,
-          durationSeconds: capturedDurationSeconds,
-          notes: capturedNotes,
-          threadId: chatId,
-          idempotencyKey: crypto.randomUUID(),
-        }),
-      });
-
-      if (!ingestResponse.ok) {
-        throw new Error("Failed to start meeting transcription");
-      }
-
-      setMeetingNotes("");
-      setUploadPhase("done");
-    } catch (recordingError) {
-      setUploadPhase("error");
-      setUploadError(
-        recordingError instanceof Error ? recordingError.message : "Failed to process recording",
-      );
-    }
-  }, [chatId, meetingNotes, recorder]);
 
   const handleSubmit = useCallback(
     async ({ text, files }: { text: string; files: FileUIPart[] }) => {
@@ -447,37 +341,8 @@ export function ChatPanel({
         </div>
       ) : null}
 
-      {recorder.error ? (
-        <div className="mx-4 mt-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {recorder.error}
-        </div>
-      ) : null}
-
-      {isRecording ? (
+      {hasMessages ? (
         <>
-          <RecordingBar
-            state={recorder.state}
-            elapsedSeconds={recorder.elapsedSeconds}
-            onPause={recorder.pause}
-            onResume={recorder.resume}
-            onStop={handleStopRecording}
-          />
-          <MeetingNotepad
-            value={meetingNotes}
-            onChange={setMeetingNotes}
-            isMobile={isMobile}
-          />
-        </>
-      ) : hasMessages ? (
-        <>
-          {uploadPhase ? (
-            <UploadProgress
-              phase={uploadPhase}
-              durationMinutes={lastRecordingMeta?.durationMinutes}
-              noteCount={lastRecordingMeta?.noteCount}
-              error={uploadError ?? undefined}
-            />
-          ) : null}
           <MessageList messages={messages} status={effectiveStatus} onToolApproval={handleToolApproval} onQuestionSubmit={handleQuestionSubmit} />
           {messageQuota ? (
             <MessageQuotaPill quota={messageQuota} className="pb-1 pt-2" />
@@ -489,20 +354,11 @@ export function ChatPanel({
             onValueChange={setComposerValue}
             onSelectedChatModelChange={setSelectedChatModel}
             onSubmit={handleSubmit}
-            onStartRecording={handleStartRecording}
             disabled={(messageQuota?.messagesRemaining ?? 1) <= 0}
           />
         </>
       ) : (
         <>
-          {uploadPhase ? (
-            <UploadProgress
-              phase={uploadPhase}
-              durationMinutes={lastRecordingMeta?.durationMinutes}
-              noteCount={lastRecordingMeta?.noteCount}
-              error={uploadError ?? undefined}
-            />
-          ) : null}
           <ChatWelcome
             status={effectiveStatus}
             selectedChatModel={selectedChatModel}
@@ -510,7 +366,6 @@ export function ChatPanel({
             onComposerValueChange={setComposerValue}
             onSelectedChatModelChange={setSelectedChatModel}
             onSubmit={handleSubmit}
-            onStartRecording={handleStartRecording}
             messageQuota={messageQuota}
           />
         </>

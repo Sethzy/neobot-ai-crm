@@ -64,6 +64,7 @@ const customersNavItems: NavigationItem[] = [
 /** DATABASE section — data-centric surfaces */
 const databaseNavItems: NavigationItem[] = [
   { label: "Channels", href: "/channels", icon: "channels" },
+  { label: "Meetings", href: "/meetings", icon: "meeting" },
 ];
 
 interface AppSidebarProps {

@@ -95,6 +95,26 @@ describe("POST /api/meetings/upload-url", () => {
     });
   });
 
+  it("normalizes codec-parameterized content types before validation", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/meetings/upload-url", {
+        method: "POST",
+        body: JSON.stringify({
+          filename: "meeting.webm",
+          contentType: "audio/webm;codecs=opus",
+          durationSeconds: 90,
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      uploadUrl: "https://storage.example.com/upload",
+      storagePath: "client-1/meetings/raw/12345678-1234-5678-9abc-123456789abc.webm",
+      token: "signed-upload-token",
+    });
+  });
+
   it("returns a signed upload payload for supported audio", async () => {
     const response = await POST(
       new Request("http://localhost/api/meetings/upload-url", {

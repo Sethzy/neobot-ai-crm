@@ -1,9 +1,8 @@
 /**
- * Tests for chat panel meeting recorder integration.
+ * Tests for chat panel cleanup after moving meeting recording to /meetings.
  * @module components/chat/chat-panel-recording.test
  */
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockUseChat = vi.fn();
@@ -11,20 +10,6 @@ const mockSetDataStream = vi.fn();
 const mockInvalidateQueries = vi.fn();
 const mockSetQueriesData = vi.fn();
 const mockUseMessageQuota = vi.fn();
-const mockStart = vi.fn();
-const mockPause = vi.fn();
-const mockResume = vi.fn();
-const mockStop = vi.fn();
-
-const recorderState = {
-  state: "idle" as "idle" | "recording" | "paused" | "uploading",
-  elapsedSeconds: 125,
-  error: null as string | null,
-  start: mockStart,
-  pause: mockPause,
-  resume: mockResume,
-  stop: mockStop,
-};
 
 vi.mock("ai", () => ({
   DefaultChatTransport: class {
@@ -70,14 +55,6 @@ vi.mock("@/lib/supabase/client", () => ({
   }),
 }));
 
-vi.mock("@/hooks/use-audio-recorder", () => ({
-  useAudioRecorder: () => recorderState,
-}));
-
-vi.mock("@/hooks/use-mobile", () => ({
-  useIsMobile: () => false,
-}));
-
 vi.mock("./data-stream-provider", () => ({
   useDataStream: () => ({
     dataStream: [],
@@ -91,16 +68,9 @@ vi.mock("./message-list", () => ({
 
 import { ChatPanel } from "./chat-panel";
 
-describe("ChatPanel meeting recording integration", () => {
-  const mockFetch = vi.fn();
-
+describe("ChatPanel meeting recording cleanup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    recorderState.state = "idle";
-    recorderState.elapsedSeconds = 125;
-    recorderState.error = null;
-
-    vi.stubGlobal("fetch", mockFetch);
 
     mockUseChat.mockReturnValue({
       id: "thread-1",
@@ -124,85 +94,23 @@ describe("ChatPanel meeting recording integration", () => {
     });
   });
 
-  it("starts recording when the composer mic button is clicked", async () => {
-    const user = userEvent.setup();
-
+  it("does not render a record meeting button in chat", () => {
     render(<ChatPanel chatId="thread-1" />);
 
-    await user.click(screen.getByRole("button", { name: /record meeting/i }));
-
-    expect(mockStart).toHaveBeenCalledOnce();
-  });
-
-  it("renders the recording UI when the recorder is active", () => {
-    recorderState.state = "recording";
-
-    render(<ChatPanel chatId="thread-1" />);
-
-    expect(screen.getByText("Recording")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/type notes during your meeting/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /record meeting/i })).not.toBeInTheDocument();
   });
 
-  it("uploads the recording and triggers ingest when recording stops", async () => {
-    recorderState.state = "recording";
-    mockStop.mockResolvedValue(new Blob(["audio"], { type: "audio/webm" }));
-    mockFetch
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({
-          uploadUrl: "https://storage.example.com/upload",
-          storagePath: "client-1/meetings/raw/recording.webm",
-          token: "signed-token",
-        }), { status: 200, headers: { "Content-Type": "application/json" } }),
-      )
-      .mockResolvedValueOnce(new Response(null, { status: 200 }))
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({
-          success: true,
-          meetingRecordId: "meeting-1",
-          transcriptPath: "home/meetings/2026-04-06-meeting-1.md",
-        }), { status: 200, headers: { "Content-Type": "application/json" } }),
-      );
-
-    const user = userEvent.setup();
+  it("does not render meeting notes UI in chat", () => {
     render(<ChatPanel chatId="thread-1" />);
 
-    await user.type(screen.getByPlaceholderText(/type notes during your meeting/i), "Call back Thursday");
-    await user.click(screen.getByRole("button", { name: /stop recording/i }));
+    expect(screen.queryByPlaceholderText(/type notes during your meeting/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Recording")).not.toBeInTheDocument();
+  });
 
-    await waitFor(() => {
-      expect(mockStop).toHaveBeenCalledOnce();
-      expect(mockFetch).toHaveBeenCalledTimes(3);
-    });
+  it("still renders the normal chat composer", () => {
+    render(<ChatPanel chatId="thread-1" />);
 
-    expect(mockFetch).toHaveBeenNthCalledWith(
-      1,
-      "/api/meetings/upload-url",
-      expect.objectContaining({ method: "POST" }),
-    );
-    expect(mockFetch).toHaveBeenNthCalledWith(
-      2,
-      "https://storage.example.com/upload",
-      expect.objectContaining({
-        method: "PUT",
-        body: expect.any(Blob),
-      }),
-    );
-    expect(mockFetch).toHaveBeenNthCalledWith(
-      3,
-      "/api/meetings/ingest",
-      expect.objectContaining({
-        method: "POST",
-      }),
-    );
-
-    const ingestRequest = mockFetch.mock.calls[2]?.[1] as { body: string };
-    expect(JSON.parse(ingestRequest.body)).toEqual({
-      storagePath: "client-1/meetings/raw/recording.webm",
-      durationSeconds: 125,
-      notes: "Call back Thursday",
-      threadId: "thread-1",
-      idempotencyKey: expect.any(String),
-    });
+    expect(screen.getByPlaceholderText(/describe a task or responsibility/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /attach files/i })).toBeInTheDocument();
   });
 });

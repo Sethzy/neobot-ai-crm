@@ -7,6 +7,7 @@ export { createConnectionTools } from "./connections";
 export { createCrmTools } from "./crm";
 export { createListingTools } from "./market";
 export { createMarketTools } from "./market";
+export { createMeetingTools } from "./meetings";
 export { createStorageTools } from "./storage";
 export { createSubagentTool } from "./subagents";
 export { createTriggerTools } from "./triggers";

@@ -1154,8 +1154,10 @@ export type Database = {
           linked_deal_id: string | null
           meeting_record_id: string
           notes: string | null
+          summary: string | null
           status: string
-          thread_id: string
+          thread_id: string | null
+          title: string | null
           transcript_path: string | null
           updated_at: string
         }
@@ -1170,8 +1172,10 @@ export type Database = {
           linked_deal_id?: string | null
           meeting_record_id?: string
           notes?: string | null
+          summary?: string | null
           status?: string
-          thread_id: string
+          thread_id?: string | null
+          title?: string | null
           transcript_path?: string | null
           updated_at?: string
         }
@@ -1186,8 +1190,10 @@ export type Database = {
           linked_deal_id?: string | null
           meeting_record_id?: string
           notes?: string | null
+          summary?: string | null
           status?: string
-          thread_id?: string
+          thread_id?: string | null
+          title?: string | null
           transcript_path?: string | null
           updated_at?: string
         }

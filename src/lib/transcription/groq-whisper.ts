@@ -16,6 +16,12 @@ export interface TranscribeAudioInput {
 export interface TranscribeAudioResult {
   /** Plain-text transcription returned by Groq Whisper. */
   text: string;
+  /** Segment-level timestamps returned by Groq's verbose JSON format. */
+  segments: Array<{
+    start: number;
+    end: number;
+    text: string;
+  }>;
 }
 
 /**
@@ -48,7 +54,8 @@ export async function transcribeAudio({
     }),
   );
   formData.append("model", GROQ_WHISPER_MODEL);
-  formData.append("response_format", "json");
+  formData.append("response_format", "verbose_json");
+  formData.append("timestamp_granularities[]", "segment");
 
   if (language) {
     formData.append("language", language);
@@ -67,9 +74,17 @@ export async function transcribeAudio({
     throw new Error(`Groq transcription failed (${groqResponse.status}): ${errorText}`);
   }
 
-  const payload = await groqResponse.json() as { text?: unknown };
+  const payload = await groqResponse.json() as {
+    text?: unknown;
+    segments?: Array<{
+      start: number;
+      end: number;
+      text: string;
+    }>;
+  };
 
   return {
     text: typeof payload.text === "string" ? payload.text : "",
+    segments: Array.isArray(payload.segments) ? payload.segments : [],
   };
 }

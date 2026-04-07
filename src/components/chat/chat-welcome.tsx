@@ -42,7 +42,6 @@ interface ChatWelcomeProps {
   onComposerValueChange: (value: string) => void;
   onSelectedChatModelChange: (modelId: string) => void;
   onSubmit: (message: { text: string; files: FileUIPart[] }) => void;
-  onStartRecording?: () => void;
   onStop?: () => void;
   messageQuota?: MessageQuotaStatus | null;
 }
@@ -54,7 +53,6 @@ export function ChatWelcome({
   onComposerValueChange,
   onSelectedChatModelChange,
   onSubmit,
-  onStartRecording,
   onStop,
   messageQuota,
 }: ChatWelcomeProps) {
@@ -99,7 +97,6 @@ export function ChatWelcome({
             onValueChange={onComposerValueChange}
             onSelectedChatModelChange={onSelectedChatModelChange}
             onSubmit={onSubmit}
-            onStartRecording={onStartRecording}
             onStop={onStop}
             disabled={(messageQuota?.messagesRemaining ?? 1) <= 0}
             className="px-0 pb-0"

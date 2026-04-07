@@ -12,6 +12,7 @@ import {
   createCrmTools,
   createListingTools,
   createMarketTools,
+  createMeetingTools,
   createStorageTools,
   createTriggerTools,
   createUtilityTools,
@@ -48,13 +49,14 @@ export function createRunnerTools(
     config: options?.crmConfig,
   });
   const storageTools = createStorageTools(supabase, clientId);
+  const meetingTools = createMeetingTools(supabase, clientId);
   const webTools = createWebTools();
   const utilityTools = createUtilityTools(supabase, clientId, threadId, {
     isSubagent,
     includeSendMessage: options?.includeSendMessage ?? !isSubagent,
     crmConfig: options?.crmConfig,
   });
-  const connectionTools = createConnectionTools(supabase, clientId, {
+  const connectionTools = createConnectionTools(supabase, clientId, threadId, {
     allowMutations: isSubagent ? false : (options?.allowConnectionMutations ?? true),
   });
   // Market tools eagerly create a Supabase client that throws without env vars.
@@ -66,6 +68,7 @@ export function createRunnerTools(
   if (isSubagent) {
     return {
       ...crmTools,
+      ...meetingTools,
       ...storageTools,
       ...webTools,
       ...marketTools,
@@ -81,6 +84,7 @@ export function createRunnerTools(
 
   return {
     ...crmTools,
+    ...meetingTools,
     ...storageTools,
     ...webTools,
     ...marketTools,

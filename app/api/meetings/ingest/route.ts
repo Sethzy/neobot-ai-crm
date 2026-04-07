@@ -2,13 +2,19 @@
  * Durable meeting ingest pipeline for recorded audio uploads.
  * @module app/api/meetings/ingest/route
  */
+import { generateObject } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
+import {
+  COMPACTION_MODEL,
+  gateway,
+  gatewayProviderOptions,
+} from "@/lib/ai/gateway";
 import { resolveClientId } from "@/lib/chat/client-id";
-import { createMessage } from "@/lib/chat/messages";
-import { runMeetingFollowUp } from "@/lib/runner/run-meeting-followup";
+import { formatRecordingTime } from "@/lib/meetings/format-helpers";
+import { buildSummaryPrompt } from "@/lib/meetings/summary-prompt";
 import { transcribeAudio } from "@/lib/transcription/groq-whisper";
 import type { Database } from "@/types/database";
 
@@ -18,11 +24,20 @@ const AGENT_FILES_BUCKET = "agent-files";
 const AUDIO_SIGNED_URL_EXPIRY_SECONDS = 60 * 60;
 type ChatSupabaseClient = SupabaseClient<Database>;
 
+function buildTranscriptBody(transcription: Awaited<ReturnType<typeof transcribeAudio>>) {
+  if (transcription.segments.length === 0) {
+    return transcription.text;
+  }
+
+  return transcription.segments
+    .map((segment) => `${formatRecordingTime(segment.start)} ${segment.text}`)
+    .join("\n");
+}
+
 const ingestSchema = z.object({
   storagePath: z.string().min(1),
   durationSeconds: z.number().int().positive(),
   notes: z.string().optional().default(""),
-  threadId: z.string().uuid(),
   idempotencyKey: z.string().uuid(),
 });
 
@@ -31,13 +46,17 @@ async function updateMeetingRecordStatus(
   meetingRecordId: string,
   patch: Record<string, unknown>,
 ) {
-  await supabase
+  const { error } = await supabase
     .from("meeting_records")
     .update({
       ...patch,
       updated_at: new Date().toISOString(),
     })
     .eq("meeting_record_id", meetingRecordId);
+
+  if (error) {
+    throw new Error(`Failed to update meeting record: ${error.message}`);
+  }
 }
 
 export async function POST(request: Request) {
@@ -61,7 +80,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { storagePath, durationSeconds, notes, threadId, idempotencyKey } = parsedBody.data;
+    const { storagePath, durationSeconds, notes, idempotencyKey } = parsedBody.data;
     const clientId = await resolveClientId(supabase, userId);
     const expectedPrefix = `${clientId}/meetings/raw/`;
 
@@ -71,7 +90,7 @@ export async function POST(request: Request) {
 
     const { data: existingRecord } = await supabase
       .from("meeting_records")
-      .select("meeting_record_id, status, transcript_path")
+      .select("meeting_record_id, status, transcript_path, title, summary")
       .eq("idempotency_key", idempotencyKey)
       .eq("client_id", clientId)
       .maybeSingle();
@@ -81,6 +100,8 @@ export async function POST(request: Request) {
         success: true,
         meetingRecordId: existingRecord.meeting_record_id,
         transcriptPath: existingRecord.transcript_path,
+        title: existingRecord.title ?? null,
+        summary: existingRecord.summary ?? null,
         deduplicated: true,
       });
     }
@@ -92,7 +113,7 @@ export async function POST(request: Request) {
         .from("meeting_records")
         .insert({
           client_id: clientId,
-          thread_id: threadId,
+          thread_id: null,
           idempotency_key: idempotencyKey,
           audio_path: storagePath,
           duration_seconds: durationSeconds,
@@ -103,6 +124,7 @@ export async function POST(request: Request) {
         .single();
 
       if (insertError || !insertedRecord) {
+        console.error("[meeting-ingest] Failed to insert meeting record:", insertError);
         return jsonError("Failed to create meeting record", 500);
       }
 
@@ -129,11 +151,12 @@ export async function POST(request: Request) {
     const transcriptPath = `home/meetings/${dateString}-meeting-${meetingRecordId.slice(0, 8)}.md`;
     const transcriptStoragePath = `${clientId}/${transcriptPath}`;
     const durationMinutes = Math.max(1, Math.round(durationSeconds / 60));
+    const transcriptBody = buildTranscriptBody(transcription);
     const transcriptContent = [
       `# Meeting Recording - ${dateString}`,
       `**Duration:** ${durationMinutes} minutes`,
       notes.trim().length > 0 ? `\n## User Notes\n${notes.trim()}` : "",
-      `\n## Transcript\n${transcription.text}`,
+      `\n## Transcript\n${transcriptBody}`,
     ].filter(Boolean).join("\n");
 
     const { error: uploadError } = await supabase.storage
@@ -152,44 +175,44 @@ export async function POST(request: Request) {
       transcript_path: transcriptPath,
     });
 
-    const noteCount = notes
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0).length;
-    const eventText = `[Meeting recorded: ${durationMinutes} min${noteCount > 0 ? `, ${noteCount} notes` : ""}]`;
-
-    await createMessage(supabase, {
-      thread_id: threadId,
-      role: "user",
-      content: eventText,
-      parts: [
-        { type: "text", text: eventText },
-        { type: "data", data: { source: "background-job", kind: "meeting-recorded" } },
-      ],
+    await updateMeetingRecordStatus(supabase, meetingRecordId, {
+      status: "summarizing",
     });
 
-    void runMeetingFollowUp({
-      clientId,
-      threadId,
-      meetingRecordId,
-      transcriptPath,
-      notes,
-      durationMinutes,
-      supabase,
-    }).catch((error) => {
-      console.error("[meeting-ingest] Follow-up run failed:", error);
+    const summaryPrompt = buildSummaryPrompt(transcription.text, notes);
+    const summarySchema = z.object({
+      title: z.string().describe("Short meeting title, 3-8 words"),
+      summary: z.string().describe("Markdown bullet-point summary of the meeting"),
+    });
+    const { object: summaryResult } = await generateObject({
+      model: gateway(COMPACTION_MODEL),
+      schema: summarySchema,
+      prompt: summaryPrompt,
+      providerOptions: gatewayProviderOptions,
+    });
+
+    await updateMeetingRecordStatus(supabase, meetingRecordId, {
+      status: "completed",
+      title: summaryResult.title,
+      summary: summaryResult.summary,
     });
 
     return Response.json({
       success: true,
       meetingRecordId,
       transcriptPath,
+      title: summaryResult.title,
+      summary: summaryResult.summary,
     });
   } catch (error) {
     if (meetingRecordId) {
-      await updateMeetingRecordStatus(supabase, meetingRecordId, {
-        status: "failed",
-      });
+      try {
+        await updateMeetingRecordStatus(supabase, meetingRecordId, {
+          status: "failed",
+        });
+      } catch (statusError) {
+        console.error("[meeting-ingest] Failed to mark meeting as failed:", statusError);
+      }
     }
 
     console.error("[meeting-ingest] Error:", error);
