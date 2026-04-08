@@ -7,6 +7,27 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
+/**
+ * Cycles through Flexoki semantic accent tokens, one per unique speaker.
+ * Keeps Speaker 1 as the "self" color (info/blue) and Speaker 2 as the
+ * client color (stage-leads/orange) — the most common two-person pattern.
+ */
+const SPEAKER_COLOR_CYCLE = [
+  "text-info",
+  "text-stage-leads",
+  "text-success",
+  "text-stage-offer",
+] as const;
+
+function getSpeakerColor(speaker: string): string {
+  const match = /(\d+)$/.exec(speaker);
+  if (!match) {
+    return "text-muted-foreground";
+  }
+  const index = (parseInt(match[1], 10) - 1) % SPEAKER_COLOR_CYCLE.length;
+  return SPEAKER_COLOR_CYCLE[index];
+}
+
 import { cleanStopWords, formatRecordingTime } from "@/lib/meetings/format-helpers";
 
 export interface TranscriptSegment {
@@ -54,7 +75,9 @@ export function TranscriptSection({ transcriptText, segments }: TranscriptSectio
                 </span>
                 <span className="text-foreground">
                   {segment.speaker ? (
-                    <span className="font-medium text-muted-foreground">{segment.speaker}: </span>
+                    <span className={`font-medium ${getSpeakerColor(segment.speaker)}`}>
+                      {segment.speaker}:{" "}
+                    </span>
                   ) : null}
                   {cleanStopWords(segment.text)}
                 </span>

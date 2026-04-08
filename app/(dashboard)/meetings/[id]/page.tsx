@@ -162,25 +162,27 @@ export default function MeetingDetailPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b px-4 py-3">
+      <div className="px-4 pt-3 pb-1">
         <Link
           href="/meetings"
-          className="mb-2 flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Meetings
         </Link>
-        <h1 className="text-lg font-semibold">{meeting.title || "Untitled meeting"}</h1>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {formatDetailDate(meeting.created_at)}
-          {meeting.duration_seconds ? ` · ${formatDetailDuration(meeting.duration_seconds)}` : ""}
-          {noteCount > 0 ? ` · ${noteCount} note${noteCount !== 1 ? "s" : ""}` : ""}
-        </p>
       </div>
 
-      <div className="flex-1 space-y-6 overflow-y-auto px-4 py-4">
+      <div className="flex-1 space-y-6 overflow-y-auto px-4 py-2">
+        <div className="border-b pb-4">
+          <h1 className="text-xl font-bold leading-snug">{meeting.title || "Untitled meeting"}</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            {formatDetailDate(meeting.created_at)}
+            {meeting.duration_seconds ? ` · ${formatDetailDuration(meeting.duration_seconds)}` : ""}
+            {noteCount > 0 ? ` · ${noteCount} note${noteCount !== 1 ? "s" : ""}` : ""}
+          </p>
+        </div>
+
         <section>
-          <h2 className="mb-2 text-sm font-semibold">Summary</h2>
           <SummaryView summary={meeting.summary} status={meeting.status} />
         </section>
 

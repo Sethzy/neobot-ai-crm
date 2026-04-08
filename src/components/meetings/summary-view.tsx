@@ -58,17 +58,17 @@ export function SummaryView({ summary, status }: SummaryViewProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {nonEmptySections.map((key) => (
         <div key={key}>
-          <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h3 className="mb-2 text-sm font-semibold text-foreground">
             {SECTION_LABELS[key]}
           </h3>
-          <ul className="space-y-1">
+          <ul className="space-y-1.5">
             {data[key].map((item, index) => (
               <li key={index} className="flex gap-2 text-sm text-foreground">
-                <span className="mt-1 shrink-0 text-muted-foreground">•</span>
-                <span>{item}</span>
+                <span className="mt-[0.3rem] shrink-0 text-muted-foreground/60">•</span>
+                <span className="leading-relaxed">{item}</span>
               </li>
             ))}
           </ul>
