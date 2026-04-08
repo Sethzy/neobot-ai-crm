@@ -61,26 +61,35 @@ export type RunAgentResult =
 
 /**
  * Builds per-step overrides for the active model.
- * The only current override is disabling tools on the final allowed step.
+ * Disables tools on the final step. When connection tool options are provided,
+ * re-queries activated slugs each step (to catch mid-run activations) with a
+ * fallback to the last known set on transient DB failures.
  */
 export function buildPrepareStep(
   _modelId: string,
   maxSteps: number,
   options?: {
     getActivatedConnectionSlugs?: () => Promise<Set<string>>;
+    initialActivatedSlugs?: Set<string>;
     staticToolNames?: string[];
   },
 ) {
+  let cachedSlugs = options?.initialActivatedSlugs ?? new Set<string>();
+
   return async ({ stepNumber }: { stepNumber: number }) => {
     const result: Record<string, unknown> = {};
 
     if (stepNumber >= maxSteps - 1) {
       result.activeTools = [];
     } else if (options?.getActivatedConnectionSlugs && options.staticToolNames) {
-      const activatedConnectionSlugs = await options.getActivatedConnectionSlugs();
+      try {
+        cachedSlugs = await options.getActivatedConnectionSlugs();
+      } catch (error) {
+        console.warn("[runner] prepareStep: connection refresh failed, using cached slugs", error);
+      }
       result.activeTools = [
         ...options.staticToolNames,
-        ...activatedConnectionSlugs,
+        ...cachedSlugs,
       ];
     }
 
@@ -408,6 +417,7 @@ export async function runAgent(
                   .flatMap((connection) => connection.activated_tools),
               );
             },
+            initialActivatedSlugs: composioResult.activatedSlugs,
             staticToolNames,
           }),
           providerOptions: gatewayProviderOptions,

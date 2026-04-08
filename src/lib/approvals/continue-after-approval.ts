@@ -4,7 +4,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { resolveApprovalEvent } from "@/lib/approvals/queries";
+import { patchApprovalPartState, resolveApprovalEvent } from "@/lib/approvals/queries";
 import { runAgent } from "@/lib/runner/run-agent";
 import type { Database } from "@/types/database";
 
@@ -43,22 +43,32 @@ export async function resolveAndContinueApproval(
     return { success: true, status: "already_resolved" };
   }
 
-  if (input.approved) {
-    const agentResult = await runAgent(
-      {
-        clientId: input.clientId,
-        threadId: input.threadId,
-        triggerType: "chat",
-        input: "",
-        channel: "telegram",
-        consumeMessageQuota: false,
-      },
-      supabase,
-    );
+  // Patch the tool call part state in conversation_messages so the runner
+  // sees approval-responded (not stale approval-requested) on reload.
+  // Uses the DB-authoritative outcome from resolveApprovalEvent.
+  const approvedFromDb = result.success && "event" in result && result.event?.status === "approved";
+  await patchApprovalPartState(supabase, {
+    threadId: input.threadId,
+    approvalId: input.approvalId,
+    approved: approvedFromDb,
+  });
 
-    if (agentResult.status === "streaming") {
-      await agentResult.streamResult.text;
-    }
+  // Continue the run for both approve and deny so the model sees the result
+  // and can respond naturally (acknowledge denial or use approved tools).
+  const agentResult = await runAgent(
+    {
+      clientId: input.clientId,
+      threadId: input.threadId,
+      triggerType: "chat",
+      input: "",
+      channel: "telegram",
+      consumeMessageQuota: false,
+    },
+    supabase,
+  );
+
+  if (agentResult.status === "streaming") {
+    await agentResult.streamResult.text;
   }
 
   return { success: true, status: "continued" };

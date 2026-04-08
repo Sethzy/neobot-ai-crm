@@ -8,6 +8,7 @@ import { resolveAndContinueApproval } from "./continue-after-approval";
 
 vi.mock("@/lib/approvals/queries", () => ({
   resolveApprovalEvent: vi.fn(),
+  patchApprovalPartState: vi.fn().mockResolvedValue({ success: true }),
 }));
 
 vi.mock("@/lib/runner/run-agent", () => ({
@@ -15,14 +16,14 @@ vi.mock("@/lib/runner/run-agent", () => ({
 }));
 
 describe("resolveAndContinueApproval", () => {
-  it("resolves approval and triggers a continuation run when approved", async () => {
-    const { resolveApprovalEvent } = await import("@/lib/approvals/queries");
+  it("resolves approval, patches message state, and triggers a continuation run when approved", async () => {
+    const { resolveApprovalEvent, patchApprovalPartState } = await import("@/lib/approvals/queries");
     const { runAgent } = await import("@/lib/runner/run-agent");
 
     vi.mocked(resolveApprovalEvent).mockResolvedValueOnce({
       success: true,
       status: "updated",
-      event: { approval_id: "a1", tool_name: "delete_contact" } as never,
+      event: { approval_id: "a1", tool_name: "delete_contact", status: "approved" } as never,
     });
 
     const result = await resolveAndContinueApproval({} as never, {
@@ -33,6 +34,11 @@ describe("resolveAndContinueApproval", () => {
     });
 
     expect(result).toEqual({ success: true, status: "continued" });
+    expect(patchApprovalPartState).toHaveBeenCalledWith(expect.anything(), {
+      threadId: "t1",
+      approvalId: "a1",
+      approved: true,
+    });
     expect(runAgent).toHaveBeenCalledWith(
       {
         clientId: "c1",
@@ -46,15 +52,16 @@ describe("resolveAndContinueApproval", () => {
     );
   });
 
-  it("does not trigger a continuation run when approval is denied", async () => {
-    const { resolveApprovalEvent } = await import("@/lib/approvals/queries");
+  it("patches message state and triggers a continuation run when denied", async () => {
+    const { resolveApprovalEvent, patchApprovalPartState } = await import("@/lib/approvals/queries");
     const { runAgent } = await import("@/lib/runner/run-agent");
 
     vi.mocked(resolveApprovalEvent).mockResolvedValueOnce({
       success: true,
       status: "updated",
-      event: { approval_id: "a1" } as never,
+      event: { approval_id: "a1", status: "denied" } as never,
     });
+    vi.mocked(patchApprovalPartState).mockClear();
     vi.mocked(runAgent).mockClear();
 
     const result = await resolveAndContinueApproval({} as never, {
@@ -65,7 +72,13 @@ describe("resolveAndContinueApproval", () => {
     });
 
     expect(result).toEqual({ success: true, status: "continued" });
-    expect(runAgent).not.toHaveBeenCalled();
+    expect(patchApprovalPartState).toHaveBeenCalledWith(expect.anything(), {
+      threadId: "t1",
+      approvalId: "a1",
+      approved: false,
+    });
+    // Denied approvals now also trigger a run so the model can acknowledge the denial
+    expect(runAgent).toHaveBeenCalled();
   });
 
   it("returns failure when the approval cannot be resolved", async () => {
