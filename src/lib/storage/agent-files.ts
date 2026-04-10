@@ -7,6 +7,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 /** Supabase Storage bucket for all client-scoped agent files. */
 export const AGENT_FILES_BUCKET = "agent-files";
 
+/** Plain-text content type used for markdown agent files. */
+export const AGENT_FILES_TEXT_CONTENT_TYPE = "text/plain; charset=utf-8";
+
 const REMOVED_DOCUMENTS_DIRECTORY = ["va", "ult"].join("");
 
 /** Error raised when callers try to use the removed document workspace. */
