@@ -19,8 +19,6 @@ import {
 } from "@/lib/ai/system-prompt";
 import type { CrmVocabConfig } from "@/lib/crm/config";
 import { escapeXml } from "@/lib/runner/system-reminder";
-import { loadMemoryContext } from "@/lib/memory/loader";
-import type { MemoryContext } from "@/lib/memory/loader";
 import {
   fetchThreadMetadata,
   isAfterThreadCompactionBoundary,
@@ -192,29 +190,6 @@ function resolvePromptOverrides(params: {
   };
 }
 
-/** Formats memory context + compaction summary into a single string for message injection. */
-function formatMemoryMessage(memory: MemoryContext, compactionSummary?: string): string | null {
-  const sections: string[] = [];
-
-  if (memory.soul.length > 0) {
-    sections.push(`<soul>\n${memory.soul}\n</soul>`);
-  }
-
-  if (memory.user.length > 0) {
-    sections.push(`<user-profile>\n${memory.user}\n</user-profile>`);
-  }
-
-  if (memory.memory.length > 0) {
-    sections.push(`<working-memory>\n${memory.memory}\n</working-memory>`);
-  }
-
-  if (compactionSummary && compactionSummary.trim().length > 0) {
-    sections.push(`<compaction-summary>\n${compactionSummary.trim()}\n</compaction-summary>`);
-  }
-
-  return sections.length > 0 ? sections.join("\n\n") : null;
-}
-
 function buildUiMessageParts(row: HistoryRow): UIMessage["parts"] | null {
   if (Array.isArray(row.parts) && row.parts.length > 0) {
     const filteredParts = (row.parts as UIMessage["parts"]).filter((part) => {
@@ -274,7 +249,6 @@ export async function loadSystemPromptState({
 }: Pick<AssembleContextParams, "supabase" | "threadId" | "clientId"> & {
   includeCompactionState?: boolean;
 }): Promise<{
-  memoryContext?: MemoryContext;
   userSkills: SkillMetadata[];
   systemReminder?: string;
   compactionState: ThreadCompactionState | null;
@@ -283,7 +257,6 @@ export async function loadSystemPromptState({
 }> {
   if (!clientId) {
     return {
-      memoryContext: undefined,
       userSkills: [],
       systemReminder: undefined,
       compactionState: null,
@@ -301,15 +274,13 @@ export async function loadSystemPromptState({
     ? fetchThreadMetadata(supabase, threadId)
     : Promise.resolve(null);
 
-  const [memoryContext, userSkills, systemReminder, threadMetadata] = await Promise.all([
-    loadMemoryContext(supabase, clientId),
+  const [userSkills, systemReminder, threadMetadata] = await Promise.all([
     discoverUserSkills(supabase, clientId),
     reminderPromise,
     threadMetadataPromise,
   ]);
 
   return {
-    memoryContext,
     userSkills,
     systemReminder,
     compactionState: threadMetadata?.compactionState ?? null,
@@ -333,7 +304,7 @@ export async function assembleSystemOnly({
   platformInstructions,
   systemPrompt,
 }: AssembleSystemOnlyParams): Promise<string> {
-  const { memoryContext, userSkills } = await loadSystemPromptState({
+  const { userSkills } = await loadSystemPromptState({
     supabase,
     threadId,
     clientId,
@@ -348,15 +319,6 @@ export async function assembleSystemOnly({
     includePropertyListings,
     includeSandbox,
   });
-
-  // For subagent system-only assembly, append memory directly to the system string
-  // (there's no messages array to inject into).
-  if (memoryContext) {
-    const memoryText = formatMemoryMessage(memoryContext);
-    if (memoryText) {
-      return `${system}\n\n${memoryText}`;
-    }
-  }
 
   return system;
 }
@@ -380,7 +342,7 @@ export async function assembleContext({
   systemPrompt,
   preloadedState,
 }: AssembleContextParams): Promise<AssembledContext> {
-  const { memoryContext, userSkills, systemReminder, compactionState, threadMetadata } = preloadedState
+  const { userSkills, systemReminder, compactionState, threadMetadata } = preloadedState
     ?? await loadSystemPromptState({ supabase, threadId, clientId });
 
   // Check for stale thread — skip old messages after 4h idle (Dorabot pattern).
@@ -465,17 +427,6 @@ export async function assembleContext({
   if (systemReminder) {
     injectedMessages.push({ role: "user" as const, content: [{ type: "text" as const, text: systemReminder }] });
   }
-
-  if (memoryContext) {
-    // When context has been reset (stale thread), skip the old compaction summary —
-    // it was built from messages the agent no longer sees.
-    const compactionSummary = contextResetAt ? undefined : compactionState?.compaction_summary;
-    const memoryText = formatMemoryMessage(memoryContext, compactionSummary);
-    if (memoryText) {
-      injectedMessages.push({ role: "user" as const, content: [{ type: "text" as const, text: memoryText }] });
-    }
-  }
-
 
   return {
     system: buildSystemPrompt({

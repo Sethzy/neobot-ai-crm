@@ -15,17 +15,11 @@ import { SUMMARY_PREFIX } from "../compaction";
 import { assembleContext, assembleSystemOnly } from "../context";
 
 const {
-  mockLoadMemoryContext,
   mockBuildSystemReminder,
   mockFetchThreadCompactionState,
   mockFetchThreadMetadata,
   mockDiscoverUserSkills,
 } = vi.hoisted(() => ({
-  mockLoadMemoryContext: vi.fn().mockResolvedValue({
-    soul: "soul-content",
-    user: "user-content",
-    memory: "memory-content",
-  }),
   mockBuildSystemReminder: vi.fn().mockResolvedValue(
     "<system-reminder>\nCurrent time: 2026-03-05 14:30:00 UTC\nOpen todos: 0\n</system-reminder>",
   ),
@@ -36,10 +30,6 @@ const {
     compactionState: null,
   }),
   mockDiscoverUserSkills: vi.fn().mockResolvedValue([]),
-}));
-
-vi.mock("@/lib/memory/loader", () => ({
-  loadMemoryContext: mockLoadMemoryContext,
 }));
 
 vi.mock("@/lib/runner/system-reminder", async () => {
@@ -114,16 +104,14 @@ describe("assembleContext", () => {
     expect(result.system).not.toContain("<working-memory>");
     expect(result.system).not.toContain("<system-reminder>");
 
-    // Memory should be injected as a message
     const memoryMessage = result.messages.find(
       (m) => Array.isArray(m.content)
         && m.content.some((c) => c.type === "text" && "text" in c && (c as { text: string }).text.includes("<soul>")),
     );
-    expect(memoryMessage).toBeDefined();
-    expect(memoryMessage?.role).toBe("user");
+    expect(memoryMessage).toBeUndefined();
   });
 
-  it("places available-skills in the system prompt (memory is in messages now)", async () => {
+  it("places available-skills in the system prompt", async () => {
     mockDiscoverUserSkills.mockResolvedValueOnce([
       {
         slug: "test-skill",
@@ -144,7 +132,6 @@ describe("assembleContext", () => {
     });
 
     expect(result.system).toContain("<available-skills>");
-    // Memory should NOT be in the system string
     expect(result.system).not.toContain("<soul>");
     expect(result.system).not.toContain("<working-memory>");
   });
@@ -192,7 +179,33 @@ describe("assembleContext", () => {
     expect(reminderMessage?.role).toBe("user");
   });
 
-  it("injects compaction summary as part of the memory message, not in system string", async () => {
+  it("does not inject any memory content into assembled messages", async () => {
+    const result = await assembleContext({
+      supabase: createMockSupabaseClient({
+        selectResult: { data: [], error: null },
+      }) as never,
+      threadId: "thread-1",
+      currentMessage: "hi",
+      clientId: "client-123",
+    });
+    const hasMemoryBlock = result.messages.some((m) => {
+      if (m.role !== "user") return false;
+      const content = Array.isArray(m.content) ? m.content : [];
+      return content.some(
+        (part) =>
+          typeof part === "object"
+          && part !== null
+          && "text" in part
+          && typeof part.text === "string"
+          && (part.text.includes("<soul>")
+            || part.text.includes("<user-profile>")
+            || part.text.includes("<working-memory>")),
+      );
+    });
+    expect(hasMemoryBlock).toBe(false);
+  });
+
+  it("does not inject compaction summary into the system or messages", async () => {
     const compactionState = {
       thread_id: "thread-1",
       client_id: "client-123",
@@ -218,16 +231,12 @@ describe("assembleContext", () => {
       clientId: "client-123",
     });
 
-    // Compaction summary should NOT be in the system string
     expect(result.system).not.toContain("<compaction-summary>");
-
-    // Should be in a memory message
-    const memoryMessage = result.messages.find(
+    const compactionMessage = result.messages.find(
       (m) => Array.isArray(m.content)
         && m.content.some((c) => c.type === "text" && "text" in c && (c as { text: string }).text.includes("<compaction-summary>")),
     );
-    expect(memoryMessage).toBeDefined();
-    expect(memoryMessage?.role).toBe("user");
+    expect(compactionMessage).toBeUndefined();
   });
 
   it("does not inject a compaction block anywhere when the thread has no summary", async () => {
@@ -248,35 +257,6 @@ describe("assembleContext", () => {
         && m.content.some((c) => c.type === "text" && "text" in c && (c as { text: string }).text.includes("<compaction-summary>")),
     );
     expect(compactionMessage).toBeUndefined();
-  });
-
-  it("loads memory context when clientId is provided (bootstrap happens at entrypoint)", async () => {
-    const supabase = createMockSupabaseClient({
-      selectResult: { data: [], error: null },
-    });
-
-    await assembleContext({
-      supabase: supabase as never,
-      threadId: "thread-1",
-      currentMessage: "Hello!",
-      clientId: "client-123",
-    });
-
-    expect(mockLoadMemoryContext).toHaveBeenCalledWith(expect.anything(), "client-123");
-  });
-
-  it("does not load memory when clientId is omitted", async () => {
-    const supabase = createMockSupabaseClient({
-      selectResult: { data: [], error: null },
-    });
-
-    await assembleContext({
-      supabase: supabase as never,
-      threadId: "thread-1",
-      currentMessage: "Hello!",
-    });
-
-    expect(mockLoadMemoryContext).not.toHaveBeenCalled();
   });
 
   it("passes clientId and threadId to buildSystemReminder", async () => {
@@ -335,7 +315,6 @@ describe("assembleContext", () => {
     const instructionsIndex = result.system.indexOf("Custom autopilot instructions");
 
     expect(instructionsIndex).toBeGreaterThan(systemPromptIndex);
-    // Memory is in messages, not in system string
     expect(result.system).not.toContain("<soul>");
   });
 
@@ -661,14 +640,12 @@ describe("assembleContext", () => {
       clientId: "client-123",
     });
 
-    // +2 for system-reminder + memory messages prepended
-    expect(result.messages).toHaveLength(242);
-    // First two messages are injected (system-reminder + memory)
+    // +1 for the prepended system-reminder message.
+    expect(result.messages).toHaveLength(241);
     expect(result.messages[0].role).toBe("user");
-    expect(result.messages[1].role).toBe("user");
-    // History messages start at index 2
-    expect(result.messages[2]).toEqual(textModelMessage("user", "Message 21"));
-    expect(result.messages[241]).toEqual(textModelMessage("assistant", "Message 260"));
+    // History messages start at index 1.
+    expect(result.messages[1]).toEqual(textModelMessage("user", "Message 21"));
+    expect(result.messages[240]).toEqual(textModelMessage("assistant", "Message 260"));
   });
 
   it("includes thread history before the current message", async () => {
@@ -746,12 +723,11 @@ describe("assembleContext", () => {
       clientId: "client-123",
     });
 
-    // System-reminder and memory messages are prepended, then the filtered history
+    // System-reminder messages are prepended, then the filtered history.
     const historyMessages = result.messages.filter(
       (m) => !Array.isArray(m.content) || !m.content.some((c) =>
         c.type === "text" && "text" in c && (
-          (c as { text: string }).text.includes("<system-reminder>") ||
-          (c as { text: string }).text.includes("<soul>")
+          (c as { text: string }).text.includes("<system-reminder>")
         ),
       ),
     );
@@ -940,7 +916,6 @@ describe("assembleSystemOnly", () => {
 
     expect(system).toContain("<platform-instructions>");
     expect(system).not.toContain("<system-reminder>");
-    expect(system).toContain("<soul>");
     expect(system).not.toContain("Do not include me");
     expect(system).not.toContain("<compaction-summary>");
     expect(supabase.calls.from).not.toContain("conversation_messages");

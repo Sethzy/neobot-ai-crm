@@ -160,7 +160,6 @@ describe("per-thread serialization", () => {
       messages: [{ role: "user", content: "test" }],
     });
     mockLoadSystemPromptState.mockResolvedValue({
-      memoryContext: undefined,
       userSkills: [],
       systemReminder: undefined,
       compactionState: null,

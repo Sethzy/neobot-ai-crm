@@ -291,7 +291,6 @@ describe("runAgent", () => {
       run_subagent: { description: "subagent-tool" },
     });
     mockLoadSystemPromptState.mockResolvedValue({
-      memoryContext: undefined,
       userSkills: [],
       systemReminder: undefined,
       compactionState: null,
@@ -448,13 +447,17 @@ describe("runAgent", () => {
     expect(mockAssembleContext).toHaveBeenCalledWith(
       expect.objectContaining({
         preloadedState: {
-          memoryContext: undefined,
           userSkills: [],
           systemReminder: undefined,
           compactionState: null,
         },
       }),
     );
+    const streamCall = mockStreamText.mock.calls[0]?.[0];
+    const serialized = JSON.stringify(streamCall);
+    expect(serialized).not.toContain("<soul>");
+    expect(serialized).not.toContain("<user-profile>");
+    expect(serialized).not.toContain("<working-memory>");
   });
 
   it("uses an allowed selected chat model for the stream call", async () => {
