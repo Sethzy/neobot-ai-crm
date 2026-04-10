@@ -19,8 +19,6 @@ import { createUpdateRecordTool } from "./update-record";
 import { createViewTools } from "./views";
 
 interface CreateCrmToolsOptions {
-  /** Explicit CRM tool mode for the current run. */
-  mode?: "normal" | "setup";
   /** Runtime CRM vocabulary/custom-field config for normal mode. */
   config?: CrmVocabConfig;
   /**
@@ -42,13 +40,8 @@ export function createCrmTools(
   const {
     allowWriteTools = true,
     allowDeleteTools = true,
-    mode = "normal",
     config = CRM_DEFAULTS,
   } = options ?? {};
-
-  if (mode === "setup") {
-    return createConfigureCrmTool(supabase, clientId);
-  }
 
   const searchTools = createSearchCrmTool(supabase, clientId);
 

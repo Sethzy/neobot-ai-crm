@@ -26,7 +26,6 @@ type ChatSupabaseClient = SupabaseClient<Database>;
 export interface CreateRunnerToolsOptions {
   allowTriggerMutations?: boolean;
   allowConnectionMutations?: boolean;
-  crmMode?: "normal" | "setup";
   crmConfig?: Awaited<ReturnType<typeof loadCrmConfig>>["config"];
   isSubagent?: boolean;
   includeSendMessage?: boolean;
@@ -45,7 +44,6 @@ export function createRunnerTools(
   const crmTools = createCrmTools(supabase, clientId, {
     allowWriteTools: true,
     allowDeleteTools: !isSubagent,
-    mode: options?.crmMode ?? "normal",
     config: options?.crmConfig,
   });
   const storageTools = createStorageTools(supabase, clientId);
