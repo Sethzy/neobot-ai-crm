@@ -148,4 +148,52 @@ describe("getServerEnv", () => {
       expect(env.SANDBOX_GOLDEN_SNAPSHOT_ID).toBe("snap_abc123");
     });
   });
+
+  describe("managed agents env vars", () => {
+    it("exposes optional ANTHROPIC_AGENT_ID", () => {
+      stubAllRequired();
+      vi.stubEnv("ANTHROPIC_AGENT_ID", "agent_abc123");
+      const env = getServerEnv();
+      expect(env.ANTHROPIC_AGENT_ID).toBe("agent_abc123");
+    });
+
+    it("ANTHROPIC_AGENT_ID defaults to undefined", () => {
+      stubAllRequired();
+      const env = getServerEnv();
+      expect(env.ANTHROPIC_AGENT_ID).toBeUndefined();
+    });
+
+    it("exposes optional ANTHROPIC_AGENT_VERSION", () => {
+      stubAllRequired();
+      vi.stubEnv("ANTHROPIC_AGENT_VERSION", "3");
+      const env = getServerEnv();
+      expect(env.ANTHROPIC_AGENT_VERSION).toBe("3");
+    });
+
+    it("ANTHROPIC_AGENT_VERSION defaults to undefined", () => {
+      stubAllRequired();
+      const env = getServerEnv();
+      expect(env.ANTHROPIC_AGENT_VERSION).toBeUndefined();
+    });
+
+    it("exposes optional ANTHROPIC_ENVIRONMENT_ID", () => {
+      stubAllRequired();
+      vi.stubEnv("ANTHROPIC_ENVIRONMENT_ID", "env_xyz");
+      const env = getServerEnv();
+      expect(env.ANTHROPIC_ENVIRONMENT_ID).toBe("env_xyz");
+    });
+
+    it("ANTHROPIC_ENVIRONMENT_ID defaults to undefined", () => {
+      stubAllRequired();
+      const env = getServerEnv();
+      expect(env.ANTHROPIC_ENVIRONMENT_ID).toBeUndefined();
+    });
+
+    it("trims whitespace from managed agents env vars", () => {
+      stubAllRequired();
+      vi.stubEnv("ANTHROPIC_AGENT_ID", "  agent_abc123  ");
+      const env = getServerEnv();
+      expect(env.ANTHROPIC_AGENT_ID).toBe("agent_abc123");
+    });
+  });
 });

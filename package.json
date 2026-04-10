@@ -21,6 +21,7 @@
   "dependencies": {
     "@ai-sdk/gateway": "^3.0.22",
     "@ai-sdk/react": "^3.0.41",
+    "@anthropic-ai/sdk": "^0.87.0",
     "@aws-sdk/client-s3": "^3.1024.0",
     "@base-ui/react": "^1.2.0",
     "@blaxel/core": "^0.2.78",

@@ -17,6 +17,9 @@ importers:
       '@ai-sdk/react':
         specifier: ^3.0.41
         version: 3.0.118(react@19.2.4)(zod@4.3.6)
+      '@anthropic-ai/sdk':
+        specifier: ^0.87.0
+        version: 0.87.0(zod@4.3.6)
       '@aws-sdk/client-s3':
         specifier: ^3.1024.0
         version: 3.1028.0
@@ -431,6 +434,15 @@ packages:
 
   '@anthropic-ai/sdk@0.78.0':
     resolution: {integrity: sha512-PzQhR715td/m1UaaN5hHXjYB8Gl2lF9UVhrrGrZeysiF6Rb74Wc9GCB8hzLdzmQtBd1qe89F9OptgB9Za1Ib5w==}
+    hasBin: true
+    peerDependencies:
+      zod: ^3.25.0 || ^4.0.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
+
+  '@anthropic-ai/sdk@0.87.0':
+    resolution: {integrity: sha512-ZvBWT5VkPTW6b8LIpugpuAkpcYPSLOXdWTcgQrpUqf4IeJ5ZrH5rT8sTsUDvxPCHAlRG3nF4VIWfjw6uLhJ18g==}
     hasBin: true
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
@@ -8770,6 +8782,12 @@ snapshots:
       tinyexec: 1.0.2
 
   '@anthropic-ai/sdk@0.78.0(zod@4.3.6)':
+    dependencies:
+      json-schema-to-ts: 3.1.1
+    optionalDependencies:
+      zod: 4.3.6
+
+  '@anthropic-ai/sdk@0.87.0(zod@4.3.6)':
     dependencies:
       json-schema-to-ts: 3.1.1
     optionalDependencies:

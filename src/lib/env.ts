@@ -31,6 +31,11 @@ const serverEnvSchema = z.object({
   VERCEL_TOKEN: z.string().trim().optional(),
   VERCEL_TEAM_ID: z.string().trim().optional(),
   VERCEL_PROJECT_ID: z.string().trim().optional(),
+
+  // Anthropic Managed Agents (H1 bootstrap — legacy runner does not read these)
+  ANTHROPIC_AGENT_ID: z.string().trim().optional(),
+  ANTHROPIC_AGENT_VERSION: z.string().trim().optional(),
+  ANTHROPIC_ENVIRONMENT_ID: z.string().trim().optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
@@ -82,6 +87,11 @@ export function getServerEnv(): ServerEnv {
     VERCEL_TOKEN: process.env.VERCEL_TOKEN?.trim() || undefined,
     VERCEL_TEAM_ID: process.env.VERCEL_TEAM_ID?.trim() || undefined,
     VERCEL_PROJECT_ID: process.env.VERCEL_PROJECT_ID?.trim() || undefined,
+    ANTHROPIC_AGENT_ID: process.env.ANTHROPIC_AGENT_ID?.trim() || undefined,
+    ANTHROPIC_AGENT_VERSION:
+      process.env.ANTHROPIC_AGENT_VERSION?.trim() || undefined,
+    ANTHROPIC_ENVIRONMENT_ID:
+      process.env.ANTHROPIC_ENVIRONMENT_ID?.trim() || undefined,
   };
 
   const result = serverEnvSchema.safeParse(raw);
