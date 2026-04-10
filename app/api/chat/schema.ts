@@ -34,7 +34,6 @@ export const postRequestBodySchema = z.object({
   message: userMessageSchema.optional(),
   messages: z.array(continuationMessageSchema).optional(),
   selectedChatModel: z.string().optional(),
-  crmMode: z.enum(["normal", "setup"]).optional(),
 });
 
 export type PostRequestBody = z.infer<typeof postRequestBodySchema>;

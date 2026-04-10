@@ -26,7 +26,6 @@ export const runnerPayloadSchema = z.object({
   selectedChatModel: z.string().optional(),
   channel: z.enum(runnerChannelValues).optional(),
   fileParts: z.array(runnerFilePartSchema).optional(),
-  crmMode: z.enum(["normal", "setup"]).optional(),
   instructions: z.string().optional(),
 });
 
