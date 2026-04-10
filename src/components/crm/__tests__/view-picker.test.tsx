@@ -25,38 +25,41 @@ describe("ViewPicker", () => {
     render(
       <ViewPicker entityType="deals" activeViewId={null} onViewChange={vi.fn()} />,
     );
-    expect(screen.getByRole("button", { name: "All" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Active pipeline" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Closing this month" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "All Deals" })).toBeInTheDocument();
   });
 
   it("highlights the active view", () => {
     render(
       <ViewPicker entityType="deals" activeViewId="v1" onViewChange={vi.fn()} />,
     );
-    const activeBtn = screen.getByRole("button", { name: "Active pipeline" });
-    expect(activeBtn).toHaveAttribute("data-active", "true");
+    expect(
+      screen.getByRole("button", { name: "Active pipeline" }),
+    ).toBeInTheDocument();
   });
 
   it("calls onViewChange with null when All is clicked", async () => {
+    const user = userEvent.setup();
     const onViewChange = vi.fn();
     render(
       <ViewPicker entityType="deals" activeViewId="v1" onViewChange={onViewChange} />,
     );
-    await userEvent.click(screen.getByRole("button", { name: "All" }));
+    await user.click(screen.getByRole("button", { name: "Active pipeline" }));
+    await user.click(screen.getByRole("menuitem", { name: "All Deals" }));
     expect(onViewChange).toHaveBeenCalledWith(null);
   });
 
   it("calls onViewChange with view_id when a view pill is clicked", async () => {
+    const user = userEvent.setup();
     const onViewChange = vi.fn();
     render(
       <ViewPicker entityType="deals" activeViewId={null} onViewChange={onViewChange} />,
     );
-    await userEvent.click(screen.getByRole("button", { name: "Active pipeline" }));
+    await user.click(screen.getByRole("button", { name: "All Deals" }));
+    await user.click(screen.getByRole("menuitem", { name: "Active pipeline" }));
     expect(onViewChange).toHaveBeenCalledWith("v1");
   });
 
-  it("renders the All pill when there are no saved views", () => {
+  it("renders nothing when there are no saved views", () => {
     mockUseCrmViews.mockReturnValue({
       data: [],
       isLoading: false,
@@ -66,6 +69,8 @@ describe("ViewPicker", () => {
       <ViewPicker entityType="companies" activeViewId={null} onViewChange={vi.fn()} />,
     );
 
-    expect(screen.getByRole("button", { name: "All" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "All Companies" }),
+    ).not.toBeInTheDocument();
   });
 });

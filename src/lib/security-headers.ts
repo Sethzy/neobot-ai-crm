@@ -32,7 +32,7 @@ export const securityHeaders: { key: string; value: string }[] = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(self), geolocation=()",
+    value: "camera=(), microphone=(), geolocation=()",
   },
   { key: "Content-Security-Policy-Report-Only", value: cspDirectives },
 ];

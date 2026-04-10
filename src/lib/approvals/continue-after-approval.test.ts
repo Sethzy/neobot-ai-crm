@@ -35,6 +35,7 @@ describe("resolveAndContinueApproval", () => {
 
     expect(result).toEqual({ success: true, status: "continued" });
     expect(patchApprovalPartState).toHaveBeenCalledWith(expect.anything(), {
+      clientId: "c1",
       threadId: "t1",
       approvalId: "a1",
       approved: true,
@@ -73,6 +74,7 @@ describe("resolveAndContinueApproval", () => {
 
     expect(result).toEqual({ success: true, status: "continued" });
     expect(patchApprovalPartState).toHaveBeenCalledWith(expect.anything(), {
+      clientId: "c1",
       threadId: "t1",
       approvalId: "a1",
       approved: false,

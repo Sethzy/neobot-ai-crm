@@ -2,6 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createMeetingTools } from "../index";
 
+interface MockSupabase {
+  from: ReturnType<typeof vi.fn>;
+  storage: {
+    from: ReturnType<typeof vi.fn>;
+  };
+}
+
 function createMockSupabase(
   data: unknown[] | null = [],
   error: { message: string } | null = null,
@@ -46,7 +53,7 @@ function createMockSupabase(
     storage: {
       from: vi.fn().mockReturnValue({ download }),
     },
-  } as any;
+  } as MockSupabase;
 }
 
 describe("search_meetings tool", () => {

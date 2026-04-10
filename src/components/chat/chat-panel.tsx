@@ -32,7 +32,6 @@ import {
 } from "@/lib/usage/message-quota";
 import type { Json } from "@/types/database";
 import { ChatComposer } from "./chat-composer";
-import { MeetingNotepad } from "./meeting-notepad";
 import { ChatWelcome } from "./chat-welcome";
 import { MessageQuotaPill } from "./message-quota-pill";
 import { useDataStream } from "./data-stream-provider";

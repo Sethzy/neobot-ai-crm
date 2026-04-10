@@ -8,9 +8,11 @@ export default defineConfig([
   globalIgnores([
     'dist',
     '.next/**',
+    '.trigger/**',
     '.claude/**',
     'demo-video/**',
     '.agents/skills/**',
+    'scripts/spike/**',
     'next-env.d.ts',
   ]),
   {

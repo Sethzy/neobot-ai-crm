@@ -57,8 +57,15 @@ async function transcriptContainsQuery(
 }
 
 function serializeMeetingResult(meeting: SearchMeetingRow) {
-  const { transcript_path: _transcriptPath, ...result } = meeting;
-  return result;
+  return {
+    meeting_record_id: meeting.meeting_record_id,
+    title: meeting.title,
+    summary: meeting.summary,
+    duration_seconds: meeting.duration_seconds,
+    notes: meeting.notes,
+    created_at: meeting.created_at,
+    status: meeting.status,
+  };
 }
 
 function buildMeetingsQuery(

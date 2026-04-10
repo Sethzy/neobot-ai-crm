@@ -26,7 +26,7 @@ interface TimelineAuditRowProps {
 }
 
 export function TimelineAuditRow({ activity, isLast = false }: TimelineAuditRowProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const action = getAuditAction(activity);
   const actorLabel = getTimelineActorLabel(activity.actor_type, activity.actor_label);
   const recordLabel = getRecordLabel(activity.record_type, getRecordSnapshot(activity));
@@ -55,6 +55,7 @@ export function TimelineAuditRow({ activity, isLast = false }: TimelineAuditRowP
         <button
           type="button"
           className="flex w-full items-center gap-2 text-left"
+          aria-expanded={isExpanded}
           onClick={() => setIsExpanded((current) => !current)}
         >
           <span className="min-w-0 truncate">

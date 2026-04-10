@@ -57,18 +57,27 @@ export default function MeetingDetailPage() {
   const router = useRouter();
   const { data: clientId } = useClientId();
   const { data: meeting, isLoading } = useMeeting(meetingId);
-  const [transcriptText, setTranscriptText] = useState<string>();
-  const [transcriptSegments, setTranscriptSegments] = useState<TranscriptSegment[]>();
+  const [transcriptData, setTranscriptData] = useState<{
+    key: string;
+    text?: string;
+    segments?: TranscriptSegment[];
+  }>();
   const [sendError, setSendError] = useState<string | null>(null);
   const transcriptPath = meeting?.transcript_path ?? null;
+  const transcriptKey = clientId && transcriptPath ? `${clientId}/${transcriptPath}` : null;
+  const transcriptText = transcriptData?.key === transcriptKey
+    ? transcriptData.text
+    : undefined;
+  const transcriptSegments = transcriptData?.key === transcriptKey
+    ? transcriptData.segments
+    : undefined;
 
   useEffect(() => {
-    if (!clientId || !transcriptPath) {
-      setTranscriptText(undefined);
-      setTranscriptSegments(undefined);
+    if (!transcriptKey || !clientId || !transcriptPath) {
       return;
     }
 
+    const currentTranscriptKey = transcriptKey;
     let isCancelled = false;
 
     async function loadTranscript() {
@@ -105,8 +114,11 @@ export default function MeetingDetailPage() {
         })
         .filter((segment): segment is TranscriptSegment => segment !== null);
 
-      setTranscriptSegments(parsedSegments.length > 0 ? parsedSegments : undefined);
-      setTranscriptText(parsedSegments.length > 0 ? undefined : rawTranscript);
+      setTranscriptData({
+        key: currentTranscriptKey,
+        segments: parsedSegments.length > 0 ? parsedSegments : undefined,
+        text: parsedSegments.length > 0 ? undefined : rawTranscript,
+      });
     }
 
     void loadTranscript();
@@ -114,7 +126,7 @@ export default function MeetingDetailPage() {
     return () => {
       isCancelled = true;
     };
-  }, [clientId, transcriptPath]);
+  }, [clientId, transcriptKey, transcriptPath]);
 
   if (isLoading) {
     return (
