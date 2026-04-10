@@ -10,7 +10,6 @@ import {
   MARKET_DATA_PROMPT,
   PROPERTY_LISTING_PROMPT,
   SANDBOX_PROMPT,
-  SETUP_SYSTEM_PROMPT,
   SYSTEM_PROMPT,
 } from "@/lib/ai/system-prompt";
 
@@ -333,27 +332,6 @@ describe("MARKET_DATA_PROMPT", () => {
   it("explains that sampled stats are recent-window aggregates, not full-dataset exact stats", () => {
     expect(MARKET_DATA_PROMPT).toContain("most recent 10,000 rows");
     expect(MARKET_DATA_PROMPT).toContain("recent-window estimates");
-  });
-});
-
-describe("SETUP_SYSTEM_PROMPT", () => {
-  it("exports a non-empty setup prompt", () => {
-    expect(typeof SETUP_SYSTEM_PROMPT).toBe("string");
-    expect(SETUP_SYSTEM_PROMPT.length).toBeGreaterThan(0);
-  });
-
-  it("focuses on CRM setup and reconfiguration", () => {
-    const lower = SETUP_SYSTEM_PROMPT.toLowerCase();
-
-    expect(lower).toContain("setup mode");
-    expect(lower).toContain("configure_crm");
-    expect(lower).toContain("business");
-    expect(lower).toContain("vocabulary");
-  });
-
-  it("does not tell the model to use unavailable normal-mode CRM tools", () => {
-    expect(SETUP_SYSTEM_PROMPT).not.toContain("search_crm");
-    expect(SETUP_SYSTEM_PROMPT).not.toContain("create_record");
   });
 });
 
