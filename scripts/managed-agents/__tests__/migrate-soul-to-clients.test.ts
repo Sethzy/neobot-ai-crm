@@ -49,14 +49,22 @@ function createMockSupabase(clients: ClientRow[], storage: StorageFixture) {
           resolve({ data: clients, error: null }),
       }),
       update: (patch: Partial<ClientRow>) => ({
-        eq: (_column: string, id: string) => {
-          updated.push({ client_id: id, patch });
-          const row = clients.find((client) => client.client_id === id);
-          if (row) {
-            Object.assign(row, patch);
-          }
-          return Promise.resolve({ error: null });
-        },
+        eq: (_column: string, id: string) => ({
+          // Mirrors the production call chain `.update(...).eq(...).is(...)`.
+          // The mock applies the `IS NULL` guard against the current row
+          // state so tests also exercise the race-safe short-circuit.
+          is: (guardColumn: string, guardValue: null) => {
+            const row = clients.find((client) => client.client_id === id);
+            if (
+              row &&
+              row[guardColumn as keyof ClientRow] === guardValue
+            ) {
+              updated.push({ client_id: id, patch });
+              Object.assign(row, patch);
+            }
+            return Promise.resolve({ error: null });
+          },
+        }),
       }),
     };
   });

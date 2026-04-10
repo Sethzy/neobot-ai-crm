@@ -109,4 +109,16 @@ describe("H1 managed agents foundation migration", () => {
       /USING\s*\(\s*EXISTS\s*\(\s*SELECT 1\s+FROM public\.runs\s+WHERE runs\.run_id\s*=\s*run_scores\.run_id\s+AND runs\.client_id\s*=\s*public\.get_my_client_id\(\)\s*\)\s*\)/i,
     );
   });
+
+  it("does not grant tenant INSERT/UPDATE/DELETE on run_scores in H1", () => {
+    // Evaluator writes happen under service_role (which bypasses RLS), so
+    // there is no legitimate reason for a tenant session to write to
+    // run_scores in H1. Any future policy addition should be a conscious
+    // decision in H2 with its own test update.
+    const sql = readMigrationSql();
+    expect(sql).not.toContain('CREATE POLICY "run_scores_insert"');
+    expect(sql).not.toMatch(/CREATE POLICY\s+"run_scores_update"/i);
+    expect(sql).not.toMatch(/CREATE POLICY\s+"run_scores_delete"/i);
+    expect(sql).not.toMatch(/run_scores\s+FOR\s+INSERT/i);
+  });
 });

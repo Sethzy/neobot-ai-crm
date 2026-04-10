@@ -5,9 +5,16 @@
  * `agent.id` and `agent.version` - operator stores them as
  * `ANTHROPIC_AGENT_ID` and `ANTHROPIC_AGENT_VERSION` environment variables.
  *
- * IMPORTANT (per managed-agents versioning guidance):
- * Store BOTH the id and the version. Sessions must pin to a specific
- * version via `{ type: "agent", id, version: Number(ANTHROPIC_AGENT_VERSION) }`.
+ * IMPORTANT: the v1 agent this script creates is a NON-FUNCTIONAL
+ * PLACEHOLDER. It has no Sunder custom tools and a placeholder system
+ * prompt. Do not route production traffic at it. H3 (Chat Adapter PR)
+ * will call `client.beta.agents.update()` to publish v2 with the real
+ * system prompt + custom tools; production sessions must pin to v2 or
+ * later.
+ *
+ * Per managed-agents versioning guidance: store BOTH the id and the
+ * version. Sessions pin via
+ * `{ type: "agent", id, version: Number(ANTHROPIC_AGENT_VERSION) }`.
  *
  * Usage:
  *   pnpm tsx scripts/managed-agents/create-agent.ts
@@ -16,30 +23,19 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 
-import {
-  BROWSER_AUTOMATION_PROMPT,
-  MARKET_DATA_PROMPT,
-  PROPERTY_LISTING_PROMPT,
-  SANDBOX_PROMPT,
-  SYSTEM_PROMPT,
-} from "../../src/lib/ai/system-prompt";
+// H1 placeholder prompt. Deliberately short and decoupled from the
+// legacy in-tree SYSTEM_PROMPT so this script never silently drifts
+// with future prompt edits. H3 replaces this via agents.update().
+const PLACEHOLDER_SYSTEM = `H1 bootstrap placeholder for the Sunder Managed Agent.
 
-// TODO(h3): rewrite <filesystem>, <sandbox>, <triggers>, <custom-skills>
-// and delete <memory-system> + <subagents> from SYSTEM_PROMPT, then bump
-// the agent version with client.beta.agents.update(). H1 ships with the
-// legacy prompt verbatim so the legacy runner keeps working.
-const MIGRATED_SYSTEM = [
-  SYSTEM_PROMPT,
-  BROWSER_AUTOMATION_PROMPT,
-  MARKET_DATA_PROMPT,
-  PROPERTY_LISTING_PROMPT,
-  SANDBOX_PROMPT,
-  `<trigger-mode-guidance>
-Do not use run_sql, get_agent_db_schema, ask_user_question, create_connection,
-or reauthorize_connection in trigger runs. They return errors in that context.
-Use search_crm for data lookups in trigger runs.
-</trigger-mode-guidance>`,
-].join("\n\n");
+This agent version exists only to exercise the managed-agents beta API
+and to produce an agent.id + agent.version the chat adapter can later
+bump. It has no Sunder custom tools and is not intended to handle real
+user traffic.
+
+H3 (Chat Adapter PR) will rewrite this system prompt, attach Sunder's
+custom tools via client.beta.agents.update(), and publish v2. All
+production sessions must pin to v2 or later.`;
 
 async function main() {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -64,7 +60,7 @@ async function main() {
   const agent = await agents.create({
     name: "sunder-chat-agent",
     model: "claude-sonnet-4-6",
-    system: MIGRATED_SYSTEM,
+    system: PLACEHOLDER_SYSTEM,
     tools: [
       {
         type: "agent_toolset_20260401",

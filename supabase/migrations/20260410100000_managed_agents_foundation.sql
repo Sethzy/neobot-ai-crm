@@ -104,30 +104,10 @@ BEGIN
 END
 $$;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename = 'run_scores'
-      AND policyname = 'run_scores_insert'
-  ) THEN
-    CREATE POLICY "run_scores_insert"
-      ON public.run_scores
-      FOR INSERT
-      WITH CHECK (
-        auth.role() = 'service_role'
-        OR EXISTS (
-          SELECT 1
-          FROM public.runs
-          WHERE runs.run_id = run_scores.run_id
-            AND runs.client_id = public.get_my_client_id()
-        )
-      );
-  END IF;
-END
-$$;
+-- No INSERT/UPDATE/DELETE policies in H1. Evaluator writes happen from
+-- the chat adapter / trigger polling cron under service_role, which
+-- bypasses RLS. H2 will revisit whether user-auth INSERTs are ever
+-- needed; until then, tenant sessions cannot forge evaluator rows.
 
 COMMENT ON TABLE public.run_scores IS
   'In-process evaluator output per run. Replaces Langfuse scores.';

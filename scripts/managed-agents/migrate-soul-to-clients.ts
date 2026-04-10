@@ -134,10 +134,17 @@ export async function migrateSoulToClients(
       );
 
       if (soul !== null) {
+        // Belt-and-suspenders: the `.is("client_profile", null)` clause
+        // lets Postgres itself short-circuit the UPDATE if anything else
+        // populated the column between our SELECT and this write. For a
+        // one-time manual script this is defensive - there are no known
+        // concurrent writers today - but it makes the script race-safe
+        // by construction for any future reruns.
         const { error: updateError } = await supabase
           .from("clients")
           .update({ client_profile: soul })
-          .eq("client_id", row.client_id);
+          .eq("client_id", row.client_id)
+          .is("client_profile", null);
 
         if (updateError) {
           throw new Error(
@@ -162,7 +169,8 @@ export async function migrateSoulToClients(
         const { error: updateError } = await supabase
           .from("clients")
           .update({ user_preferences: user })
-          .eq("client_id", row.client_id);
+          .eq("client_id", row.client_id)
+          .is("user_preferences", null);
 
         if (updateError) {
           throw new Error(
