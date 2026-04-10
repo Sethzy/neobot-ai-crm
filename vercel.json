@@ -2,11 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "outputDirectory": ".next",
-  "regions": ["sin1"],
-  "crons": [
-    {
-      "path": "/api/cron/scan",
-      "schedule": "* * * * *"
-    }
-  ]
+  "regions": ["sin1"]
 }

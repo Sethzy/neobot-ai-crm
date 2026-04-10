@@ -22,6 +22,7 @@ const serverEnvSchema = z.object({
   GOOGLE_MAPS_API_KEY: z.string().min(1).optional(),
   SENTRY_DSN: z.string().min(1).optional(),
   CRON_SECRET: z.string().min(1).optional(),
+  TRIGGER_SECRET_KEY: z.string().min(1).optional(),
   SUNDER_INTERNAL_SECRET: z.string().min(1).optional(),
 
   // Vercel Sandbox (bash tool)
@@ -72,6 +73,7 @@ export function getServerEnv(): ServerEnv {
     GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY?.trim() || undefined,
     SENTRY_DSN: process.env.SENTRY_DSN?.trim() || undefined,
     CRON_SECRET: process.env.CRON_SECRET?.trim() || undefined,
+    TRIGGER_SECRET_KEY: process.env.TRIGGER_SECRET_KEY?.trim() || undefined,
     SUNDER_INTERNAL_SECRET:
       process.env.SUNDER_INTERNAL_SECRET?.trim() || undefined,
     SANDBOX_GOLDEN_SNAPSHOT_ID:
