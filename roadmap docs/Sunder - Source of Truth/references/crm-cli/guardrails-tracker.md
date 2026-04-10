@@ -164,6 +164,56 @@
 
 ---
 
+#### P15. Soft delete / trash with restore `[twenty]`
+
+**Problem today:** Deleting a record is permanent. If the agent deletes the wrong person, or the user changes their mind, the record and all its history is gone.
+
+**What Twenty does:** All deletes set `deletedAt` (soft delete). Records sit in trash. A daily cron at 00:10 hard-deletes anything older than the retention window. Until then, records can be restored. `create-person.service.ts` even has a `restorePeople()` method — when auto-importing contacts from email, if a person was previously soft-deleted, they restore them instead of creating a duplicate.
+
+**What we should do:** Add `deleted_at` column to contacts, companies, deals. Soft-delete by default. Expose `restore_record` capability. Run a nightly cleanup that hard-deletes records older than 30 days. This also solves P3 (the "warn before deleting" proposal) — if deletion is reversible, warnings are less critical.
+
+---
+
+#### P16. Auto-suggest company from work email domain `[twenty]`
+
+**Problem today:** When the agent creates a contact with a corporate email, it doesn't know to also create or link a company. The practitioner often has to prompt it separately.
+
+**What Twenty does:** `create-company-and-contact.service.ts` — on every contact import, checks `isWorkEmail()` against a 4,000-domain blocklist of free/consumer providers (Gmail, Yahoo, Hotmail, etc.). If it's a work email, extracts the company domain using PSL (proper suffix parsing, so `jane@mail.acme.co.uk` → `acme.co.uk`), then creates or finds the company.
+
+**What we should do:** When the agent creates a contact with a work email, suggest or auto-link the company by domain. Include the free-provider check so `jane@gmail.com` doesn't create "Gmail Inc." as a company. Use PSL parsing for correct domain extraction.
+
+---
+
+#### P17. Multiple emails and phones per contact `[twenty]`
+
+**Problem today:** One phone, one email per contact. Real people have a mobile and office number, a work email and personal email.
+
+**What Twenty does:** `primaryEmail` + `additionalEmails` (JSON array). Same for phones: `primaryPhoneNumber` + `primaryPhoneCallingCode` + `primaryPhoneCountryCode` + `additionalPhones`. The structured phone type also validates that calling code and country code are consistent (e.g. `+1` and `SG` would be rejected as conflicting).
+
+**What we should do:** Schema change — not quick. Worth tracking as a future improvement, especially as practitioners need to reach clients on multiple channels. The structured phone composite (separate calling code, country code, national number) is the right model.
+
+---
+
+#### P18. Participant auto-matching `[twenty]`
+
+**Problem today:** When the agent logs an interaction (meeting, call), it explicitly picks the contact. If an email address appears in a transcript or calendar event, nothing automatically connects it to the right contact.
+
+**What Twenty does:** `match-participant.service.ts` — when a message or calendar event is imported, matches participant email addresses against all existing contacts (primary and additional emails). If matched, links the participant to the existing person record automatically. Queries by primary OR additional email.
+
+**What we should do:** When creating interactions from meetings or emails, search for contacts by participant email before creating the interaction. Auto-link if found. Already partially done for meetings — but not systematised as a general participant-matching layer.
+
+---
+
+#### P19. Blocklist of emails and domains `[twenty]`
+
+**When it becomes relevant:** The moment we connect Gmail or calendar, contacts will start auto-importing. Without a blocklist, competitors, personal contacts, and noise will flood the CRM.
+
+**What Twenty does:** `blocklist-validation.service.ts` — users block specific emails (`hr@competitor.com`) or entire domains (`@competitor.com`). Validated with Zod (must be valid email OR `@domain` format). Unique per user. Checked before any auto-import.
+
+**What we should do:** Add when we build email/calendar integration. Not relevant today.
+
+---
+
 ## What we're NOT doing (and why)
 
 | Idea | Source | Why skip |
@@ -175,3 +225,4 @@
 | **Hard-block on all duplicates** | cli | Soft-block with candidates is better for an agent. |
 | **Flexible entity resolution by any signal** | cli | Interesting pattern (`resolve.ts` — lookup by email, phone, social URL, digits, handle). Our agent uses UUIDs from search results. Not needed while the agent mediates all access. Worth revisiting if we expose CRM to external integrations. |
 | **Auto-create on link** | cli | `getOrCreateCompanyId` auto-creates companies when linked by name. Our agent should explicitly create, not implicitly. Implicit creation = surprise records in the CRM. |
+| **Phone as structured composite** | twenty | Storing calling code + country code + national number separately is the right model long-term. Deferred until we have multi-phone support (P17). |

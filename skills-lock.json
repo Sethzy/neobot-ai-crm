@@ -39,7 +39,7 @@
     "langfuse": {
       "source": "langfuse/skills",
       "sourceType": "github",
-      "computedHash": "e3737720672a54ed664e0c8a313ac98ced1b3f8a9a7a6ddd83dea55978e2b9ce"
+      "computedHash": "d2561d49820b0625ceff795a82d6d215e39099a639838e241d446b26cd21c5f6"
     },
     "nextjs-app-router-patterns": {
       "source": "wshobson/agents",
