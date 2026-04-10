@@ -3,241 +3,226 @@
 > Inspired by crm.cli's "enforces structure, then gets out of the way" philosophy.
 > Tracking what's done and what's proposed for Sunder's CRM data quality layer.
 >
-> Sources: **cli** = crm.cli source · **twenty** = Twenty CRM source · **ours** = identified from Sunder audit
-
----
+> Source column: **cli** = found in crm.cli source, **ours** = identified from Sunder audit
 
 ## Shipped
 
-| # | Guardrail | Date | Source |
-|---|-----------|------|--------|
-| 1 | Phone normalisation (E.164) | 2026-04-07 | cli |
-| 2 | Multi-signal duplicate detection (name OR email OR phone) | 2026-04-07 | cli |
+| # | Guardrail | Date | Source | Notes |
+|---|-----------|------|--------|-------|
+| 1 | **Phone normalisation (E.164)** | 2026-04-07 | cli | All phone numbers stored in canonical +XXXXXXXXXXX format. DB CHECK constraint as safety net. |
+| 2 | **Multi-signal duplicate detection** | 2026-04-07 | cli | create_record checks name OR email OR phone before creating contacts/companies. Blocks with candidates. |
 
 ---
 
-## Build list — ranked by value vs effort
+## Proposed
 
-| Rank | # | Guardrail | Source | Effort | Why this order |
-|------|---|-----------|--------|--------|----------------|
-| 1 | P1 | Email format validation | cli | XS | One Zod line. Prevents silently stored garbage. |
-| 2 | P14 | Deal value/probability bounds on update | cli gap | XS | One block in update_record. Both codebases have the bug. |
-| 3 | P20 | NaN/Infinity rejection on number fields | twenty | XS | Guard amount/probability against JS numeric edge cases. |
-| 4 | P2 | Email uniqueness across contacts | cli | S | Soft-block variant of existing dedup. High dedup coverage gain. |
-| 5 | P4 | Website URL normalisation | cli | S | normalize-url already installed. Wire into company row builder. |
-| 6 | P21 | Select option uniqueness on custom field config | twenty | S | Prevent duplicate options in crm_config select fields. |
-| 7 | P7 | Phone digit-based fallback matching in dedup | cli | S | Catches unparseable numbers in the dedup check. |
-| 8 | P5 | Shared email domain as dedup signal | cli | M | Catches "same company, similar name" pairs. Needs PSL parsing. |
-| 9 | P15 | Soft delete / trash with restore | twenty | L | Biggest UX win. Makes P3 mostly redundant. Schema change. |
-| 10 | P3 | Delete warns about linked records | ours | M | Pre-query count before delete. Partially superseded by P15. |
-| 11 | P9 | Required custom field enforcement on create | ours | M | Check required: true fields on create_record. |
-| 12 | P8 | Custom field value validation against definitions | ours | M | Validate select options, date format, numeric type on write. |
-| 13 | P10 | Stage transition auto-logging as interaction | cli | M | Auto-create interaction on deal stage change. Audit trail. |
-| 14 | P22 | Actor source on records (agent/manual/import) | twenty | M | Stamp how each record was created. Trust calibration. |
-| 15 | P16 | Auto-suggest company from work email domain | twenty | M | Parse domain from work email, suggest/link company. |
-| 16 | P6 | Social handle extraction from URLs | cli | M | LinkedIn URL → clean handle. Needs dedicated columns. |
-| 17 | P23 | Flexible date input (multiple formats) | twenty | S | Accept MM/dd/yyyy etc. via date-fns. Agent outputs vary. |
-| 18 | P18 | Participant auto-matching (email → contact) | twenty | L | Link meeting/email participants to CRM contacts automatically. |
-| 19 | P17 | Multiple phones and emails per contact | twenty | XL | Schema change. Right model. Not now. |
-| 20 | P12 | Entity merge | cli | L | Revisit when duplicates slip through. Not yet. |
-| 21 | P19 | Blocklist of emails/domains | twenty | M | Only relevant when we add email/calendar integration. |
-| 22 | P11 | Interaction immutability (policy) | cli | — | Already the case. Document, don't build. |
-| 23 | P13 | Pre-flight FK existence checks | ours | S | Low priority — DB already catches it. |
+### Tier 1 — High value, low effort, prevents real data rot
+
+#### P1. Email format validation `[cli]`
+
+**Problem today:** The agent can save `email: "not an email"` and Sunder stores it. No format check anywhere.
+
+**What crm.cli does:** `validateEmail()` in `helpers.ts:163` — checks string contains `@` and doesn't start/end with it. Emails are lowercased for all dedup comparisons.
+
+**What we should do:** Add `z.string().email()` to Zod schemas for contacts and companies. Lowercase before storage. DB CHECK as safety net.
+
+**User experience:** Agent tries to save bad email → gets a clear error instead of silently storing junk.
 
 ---
 
-## Proposals (full detail)
+#### P2. Email uniqueness across contacts `[cli]`
 
-### P1. Email format validation `[cli]`
+**Problem today:** Two contacts can have the same email. The multi-signal dedup (shipped) surfaces matches, but doesn't hard-block it — and doesn't check on updates.
 
-**Problem:** Agent can save `email: "not an email"`. No format check in tool, Zod schema, or DB.
+**What crm.cli does:** `checkDupeEmail()` in `helpers.ts:169` — scans all contacts, case-insensitive. Hard-blocks with "already belongs to {name} ({id})". Runs on both add and edit.
 
-**Fix:** Add `z.string().email()` to Zod schemas for contacts and companies. Lowercase before storage. DB CHECK constraint as safety net.
+**What we should do:** Soft-block: when creating or updating a contact with an email already belonging to another contact, return the existing record. Agent decides whether to update, merge, or force-create.
 
----
-
-### P2. Email uniqueness across contacts `[cli]`
-
-**Problem:** Two contacts can share the same email. The shipped dedup surfaces matches but doesn't block — and doesn't check on updates.
-
-**Fix:** On create and update, if email already belongs to another contact, soft-block: return existing record with "email already belongs to {name}". Agent decides whether to update or force.
+**User experience:** "Jane Smith, jane@acme.com" blocked if "Jane Doe, jane@acme.com" already exists. Agent is told who owns that email.
 
 ---
 
-### P3. Delete warns about linked records `[ours]`
+#### P3. Delete warns about linked records `[ours]`
 
-**Problem:** Deleting a contact silently cascade-deletes `deal_contacts`. Interactions orphaned. No warning.
+**Problem today:** Deleting a contact silently cascade-deletes `deal_contacts`. Interactions orphaned. No warning.
 
-**Partially superseded by P15** (soft delete makes this less critical). If P15 is built first, this becomes "show count in the trash confirmation" rather than a hard requirement.
+**What crm.cli does:** `confirmOrForce()` in `helpers.ts:58` — requires `--force` flag or interactive `[y/N]` confirmation. Non-interactive calls are rejected outright. On contact delete (`contact.ts:418-431`), all deals are scanned and the contact ID is removed from their arrays.
 
-**Fix (standalone):** Before deleting, count linked deals/interactions/tasks/notes and return the count. Agent surfaces it via `ask_user_question`.
+**What we should do:** Before deleting, count linked deals/interactions/tasks/notes. Return the count in the tool response. Agent surfaces it to user via `ask_user_question`.
 
----
-
-### P4. Website URL normalisation `[cli]`
-
-**Problem:** `https://www.acme.com/?utm=blah` and `acme.com` stored as different values. Dedup breaks.
-
-**Fix:** `normalize-url` on company `website` field in create and update row builders. Same pattern as phone normalisation. Strip protocol, www, query params, trailing slash. Preserve path.
+**User experience:** Agent told "this contact is linked to 3 deals and 12 interactions" before proceeding.
 
 ---
 
-### P5. Shared email domain as dedup signal `[cli]`
+#### P4. Website / URL normalisation `[cli]`
 
-**Problem:** Two contacts with similar names and matching corporate email domain (e.g. both `@acme.com`) aren't flagged as possible duplicates.
+**Problem today:** URLs stored verbatim. `https://www.acme.com/` and `acme.com` are different.
 
-**Fix:** In `findDuplicateContacts`, if incoming email domain matches an existing contact's email domain (excluding free providers — gmail, yahoo, hotmail, outlook), and name similarity > 0.3, surface as a dedup candidate. Use `psl` library for correct domain extraction (so `jane@mail.acme.co.uk` → `acme.co.uk`).
+**What crm.cli does:** `normalizeWebsite()` in `normalize.ts:92` uses `normalize-url` with: `stripProtocol`, `stripWWW`, `removeQueryParameters`, `stripHash`, `removeSingleSlash`. Preserves path (because `globex.com/research` ≠ `globex.com/consulting`). Company dedup (`checkDupeWebsite()` in `helpers.ts:211`) enforces uniqueness.
 
----
-
-### P6. Social handle extraction from URLs `[cli]`
-
-**Problem:** `linkedin: "https://linkedin.com/in/janedoe"` stored verbatim. Can't match against `janedoe`.
-
-**Fix:** Regex extraction for LinkedIn, X, Instagram on write. Strip `@`. Store canonical handle. Requires dedicated columns (not custom fields) to enforce uniqueness. Lower priority until social columns are added to the schema.
+**What we should do:** Same normalisation on company `website` field, create and update paths.
 
 ---
 
-### P7. Phone digit-based fallback in dedup `[cli]`
+#### P5. Shared email domain as dedup signal `[cli]`
 
-**Problem:** If `normalizePhone()` returns null (ambiguous number, no country code), the dedup phone check silently skips. A partial number like `555-1234` never matches.
+**Problem today:** Our dedup checks exact name match OR exact email OR exact phone. Two people at the same company with similar names aren't flagged.
 
-**Fix:** If normalisation fails, extract raw digits. Match against last 7+ digits of stored E.164 values. Catches partial numbers that can't be fully parsed.
+**What crm.cli does:** `contactDupeReasons()` in `dupes.ts:158-181` — if two contacts have similar names (score ≥ 0.3) AND share a corporate email domain (excluding gmail, yahoo, hotmail, outlook), it's flagged as a signal. Weighted at +0.15.
 
----
+**What we should do:** Add to our dedup logic: if the incoming email shares a domain with an existing contact (and that domain isn't a free provider), and name similarity is above threshold, flag it.
 
-### P8. Custom field value validation against definitions `[ours]`
-
-**Problem:** `crm_config` defines custom fields with types (`select`, `date`, `number`) and valid options. None enforced. Agent can set a select field to any string.
-
-**Fix:** On create/update, build a validator from the client's custom field definitions. Select fields must match configured options. Date fields must parse as dates. Number fields must be numeric. Reject with "valid options are: [...]".
+**User experience:** Agent adds "J. Smith, jsmith@acme.com" when "Jane Smith, jane@acme.com" already exists → flagged as possible duplicate (shared domain + similar name).
 
 ---
 
-### P9. Required custom field enforcement on create `[ours]`
+### Tier 2 — Medium value, medium effort
 
-**Problem:** Custom field definitions have `required: true`. Flag is ignored. Agent creates records with required fields missing.
+#### P6. Social handle extraction from URLs `[cli]`
 
-**Fix:** On `create_record`, check all custom fields marked `required: true` are present in input. Return validation error listing missing fields. Don't block updates (only creation).
+**Problem today:** Agent stores `linkedin: "https://linkedin.com/in/janedoe"` as-is. Can't match against `janedoe`.
 
----
+**What crm.cli does:** `normalizeSocialHandle()` in `normalize.ts:113` — 4 regex patterns for LinkedIn, X, Bluesky, Telegram. Extracts handle from URL, strips `@`. Uniqueness enforced via SQLite UNIQUE indexes per platform. `checkDupeSocial()` in `helpers.ts:230` prevents duplicate handles.
 
-### P10. Stage transition auto-logging `[cli]`
-
-**Problem:** When a deal moves stage, we fire a PostHog event. No CRM-visible history. Can't see when a deal moved or through which stages.
-
-**Fix:** In `update_record`, when a deal's stage changes, auto-create an interaction record: `type: "stage_change"`, `summary: "Stage changed from {old} to {new}"`. Timeline already captures this but not in interaction history.
+**What we should do:** Add normalisation for LinkedIn/X custom fields. Extract handle from URL, strip `@`, lowercase.
 
 ---
 
-### P11. Interaction immutability (policy) `[cli]`
+#### P7. Phone digit-based fallback matching `[cli]`
 
-**Already the case** — no `update_interaction` tool exists. Document this as a design decision. If corrections are needed, add a new interaction rather than editing the original.
+**Problem today:** Our dedup uses exact E.164 comparison. If the incoming number isn't parseable (no country code, unusual format), it misses the match entirely.
 
----
+**What crm.cli does:** `phoneMatchesByDigits()` in `normalize.ts:76` — if E.164 lookup fails, extracts raw digits and checks if last 7+ digits match. So `555-1234` finds `+12125551234`. Used in `resolveContact()` as a fallback after strict E.164 matching.
 
-### P12. Entity merge `[cli]`
-
-When duplicates slip through, merge two records: combine arrays, pick best values, relink all deals/interactions to the winner, delete the loser. Not building yet — dedup is now much stronger. Revisit if duplicates appear in practice.
+**What we should do:** Add digit-based fallback to our dedup phone comparison. If `normalizePhone()` returns null (unparseable), extract digits and try suffix matching against stored E.164 values.
 
 ---
 
-### P13. Pre-flight FK existence checks `[ours]`
+#### P8. Custom field validation against definitions `[ours]`
 
-Agent links contact to non-existent deal → raw Postgres FK error. Low priority — the DB catches it. Fix: verify both IDs exist before linking, return clear error.
+**Problem today:** CRM config defines fields with types (`text`, `select`, `date`, `number`) and valid options. None enforced. Agent can set `property_type: "mansion"` when options are `["hdb", "condo", "landed"]`.
 
----
+**What crm.cli does:** Doesn't enforce this either. Custom fields are untyped `json:` prefix only.
 
-### P14. Deal value/probability bounds on update `[cli gap]`
-
-**Problem:** `create_record` validates `amount >= 0` and `probability 0–100`. `update_record` doesn't. Agent can set `probability: 500` on update.
-
-**Fix:** Add same bounds checks in `update_record` for deal fields. One block, five minutes.
+**What we should do:** On create/update, validate custom field values against their type definitions and options. Reject with available options listed.
 
 ---
 
-### P15. Soft delete / trash with restore `[twenty]`
+#### P9. Required custom field enforcement `[ours]`
 
-**Problem:** Deleting a record is permanent. Wrong delete = lost history.
+**Problem today:** `required: true` flag in custom field definitions does nothing. Agent creates records with required fields missing.
 
-**Fix:** Add `deleted_at` to contacts, companies, deals. Soft-delete by default (set `deleted_at`, exclude from queries). Expose `restore_record` tool. Nightly cron hard-deletes records older than 30 days. Also handles P3 — if deletion is reversible, warnings matter less.
+**What crm.cli does:** Doesn't enforce this.
 
----
-
-### P16. Auto-suggest company from work email domain `[twenty]`
-
-**Problem:** Agent creates a contact with a work email, doesn't link a company. Practitioner has to prompt separately.
-
-**Fix:** On `create_record` for contacts, if email is a work email (not in free-provider list), extract company domain using PSL, search for existing company by domain, suggest linking or auto-create. Free-provider list excludes gmail, yahoo, hotmail, and ~4,000 others.
+**What we should do:** On creation, check required custom fields. Return validation error listing missing fields. Don't block updates.
 
 ---
 
-### P17. Multiple phones and emails per contact `[twenty]`
+#### P10. Stage transition auto-logging `[cli]`
 
-**Problem:** One phone, one email per contact. Practitioners have clients with mobile + office, work + personal.
+**Problem today:** Deal stage changes fire PostHog analytics. No CRM-visible history.
 
-**Fix:** Schema change — `primary_phone` + `additional_phones` (JSON array), same for email. Not now. Right model for when we get there.
+**What crm.cli does:** `deal move` in `deal.ts:389-406` — creates an activity with `type: 'stage-change'` and `body: "from {old} to {new}"`. `dealDetail()` in `helpers.ts:368-386` reconstructs full `stage_history` from these activity records. Reports (`computeVelocity`, `computeConversion`) query these activities for pipeline metrics.
 
----
-
-### P18. Participant auto-matching `[twenty]`
-
-**Problem:** When a meeting is processed, the agent picks contact_id explicitly. Email addresses in transcripts or calendar events don't automatically resolve to CRM contacts.
-
-**Fix:** A matching layer that, given an email address, searches contacts by primary email → returns the contact if found. Used by the meeting processing pipeline and future calendar integration. Already partly done for meetings but not generalised.
+**What we should do:** When `update_record` changes a deal's stage, auto-create an interaction: "Stage changed from {old} to {new}". Timeline captures this already, but it's not in the CRM interaction history.
 
 ---
 
-### P19. Blocklist of emails and domains `[twenty]`
+#### P11. Interaction immutability `[cli]`
 
-Not relevant until email/calendar integration. When built: users can block `@competitor.com` or specific addresses from auto-importing as contacts.
+**Problem today:** No update tool for interactions exists (correct), but there's no guard preventing one from being added.
 
----
+**What crm.cli does:** Activities have no `updated_at` column. No edit command. Design decision documented in `data-model.md:71-77` — prevents retroactive audit trail corruption.
 
-### P20. NaN / Infinity rejection on number fields `[twenty]`
-
-**Problem:** JavaScript allows `NaN` and `Infinity` as numbers. Our `amount` validates `>= 0` but not these edge cases. `NaN >= 0` is `false` so it's caught, but `Infinity >= 0` is `true` — `Infinity` would pass.
-
-**Fix:** Add `Number.isFinite()` check alongside the existing bounds check. One line.
+**What we should do:** Document as policy. Don't add an `update_interaction` tool.
 
 ---
 
-### P21. Select option uniqueness on custom field config `[twenty]`
+### Tier 3 — Revisit later
 
-**Problem:** When a client configures a custom select field, nothing prevents duplicate options: `["HDB", "HDB", "Condo"]`. Downstream validation against options would then be ambiguous.
+#### P12. Entity merge capability `[cli]`
 
-**Fix:** In `configure_crm` tool (or CRM config validation), check `new Set(options).size === options.length`. Reject duplicates with a clear message.
+**What crm.cli does:** `contact merge` in `contact.ts:435-526` — combines arrays (emails, phones, companies, tags) with Set dedup. Merges custom fields (winner overrides on conflict). Social handles: winner preferred. **Critical step:** clears loser's social handles to avoid UNIQUE constraint conflict (line 466-470). Relinks all deals and activities to winner. Deletes loser. Rebuilds search index.
 
----
-
-### P22. Actor source on records `[twenty]`
-
-**Problem:** We know who created a record (timeline captures agent vs user), but the record itself doesn't carry that information. Can't easily query "all contacts created by the agent vs manually by the user."
-
-**Fix:** Add a `created_by` field to contacts, companies, deals — values: `"agent"`, `"user"`, `"import"`. Populate in the tool layer. Enables future trust-calibration features ("the agent created this contact, treat it as unverified until the user confirms").
+**What we should do:** Not yet. Our dedup is now stronger. Revisit if duplicates slip through.
 
 ---
 
-### P23. Flexible date input `[twenty]`
+#### P13. Pre-flight FK existence checks `[ours]`
 
-**Problem:** Our `flexibleTimestampSchema` accepts ISO-8601 or YYYY-MM-DD. Agents sometimes output `"April 10, 2026"`, `"10/04/2026"`, `"2026.04.10"`. These fail silently or error.
+**Problem today:** Agent links contact to non-existent deal → raw Postgres FK violation error.
 
-**Fix:** Use `date-fns` `parse()` with multiple format patterns. Accept any unambiguous date string, normalise to ISO-8601 for storage.
+**What we should do:** Verify IDs exist before linking. Return clear error. Low priority.
+
+---
+
+#### P14. Deal value/probability bounds on update `[cli gap]`
+
+**Problem today (both codebases):** `deal add` validates value ≥ 0 and probability 0–100. `deal edit` doesn't. crm.cli has this same gap (`deal.ts:57-65` validates on add, lines 255-280 skip on edit).
+
+**What we should do:** Add bounds validation in `update_record` for deals. Small.
+
+---
+
+#### P15. Soft delete / trash with restore `[twenty]`
+
+**Problem today:** Deleting a record is permanent. If the agent deletes the wrong person, or the user changes their mind, the record and all its history is gone.
+
+**What Twenty does:** All deletes set `deletedAt` (soft delete). Records sit in trash. A daily cron at 00:10 hard-deletes anything older than the retention window. Until then, records can be restored. `create-person.service.ts` even has a `restorePeople()` method — when auto-importing contacts from email, if a person was previously soft-deleted, they restore them instead of creating a duplicate.
+
+**What we should do:** Add `deleted_at` column to contacts, companies, deals. Soft-delete by default. Expose `restore_record` capability. Run a nightly cleanup that hard-deletes records older than 30 days. This also solves P3 (the "warn before deleting" proposal) — if deletion is reversible, warnings are less critical.
+
+---
+
+#### P16. Auto-suggest company from work email domain `[twenty]`
+
+**Problem today:** When the agent creates a contact with a corporate email, it doesn't know to also create or link a company. The practitioner often has to prompt it separately.
+
+**What Twenty does:** `create-company-and-contact.service.ts` — on every contact import, checks `isWorkEmail()` against a 4,000-domain blocklist of free/consumer providers (Gmail, Yahoo, Hotmail, etc.). If it's a work email, extracts the company domain using PSL (proper suffix parsing, so `jane@mail.acme.co.uk` → `acme.co.uk`), then creates or finds the company.
+
+**What we should do:** When the agent creates a contact with a work email, suggest or auto-link the company by domain. Include the free-provider check so `jane@gmail.com` doesn't create "Gmail Inc." as a company. Use PSL parsing for correct domain extraction.
+
+---
+
+#### P17. Multiple emails and phones per contact `[twenty]`
+
+**Problem today:** One phone, one email per contact. Real people have a mobile and office number, a work email and personal email.
+
+**What Twenty does:** `primaryEmail` + `additionalEmails` (JSON array). Same for phones: `primaryPhoneNumber` + `primaryPhoneCallingCode` + `primaryPhoneCountryCode` + `additionalPhones`. The structured phone type also validates that calling code and country code are consistent (e.g. `+1` and `SG` would be rejected as conflicting).
+
+**What we should do:** Schema change — not quick. Worth tracking as a future improvement, especially as practitioners need to reach clients on multiple channels. The structured phone composite (separate calling code, country code, national number) is the right model.
+
+---
+
+#### P18. Participant auto-matching `[twenty]`
+
+**Problem today:** When the agent logs an interaction (meeting, call), it explicitly picks the contact. If an email address appears in a transcript or calendar event, nothing automatically connects it to the right contact.
+
+**What Twenty does:** `match-participant.service.ts` — when a message or calendar event is imported, matches participant email addresses against all existing contacts (primary and additional emails). If matched, links the participant to the existing person record automatically. Queries by primary OR additional email.
+
+**What we should do:** When creating interactions from meetings or emails, search for contacts by participant email before creating the interaction. Auto-link if found. Already partially done for meetings — but not systematised as a general participant-matching layer.
+
+---
+
+#### P19. Blocklist of emails and domains `[twenty]`
+
+**When it becomes relevant:** The moment we connect Gmail or calendar, contacts will start auto-importing. Without a blocklist, competitors, personal contacts, and noise will flood the CRM.
+
+**What Twenty does:** `blocklist-validation.service.ts` — users block specific emails (`hr@competitor.com`) or entire domains (`@competitor.com`). Validated with Zod (must be valid email OR `@domain` format). Unique per user. Checked before any auto-import.
+
+**What we should do:** Add when we build email/calendar integration. Not relevant today.
 
 ---
 
 ## What we're NOT doing (and why)
 
-| Idea | Source | Why |
-|------|--------|-----|
-| FUSE / filesystem mount | cli | Cloud-first. No local filesystem. |
-| Pre/post mutation hooks | cli | `agent_triggers` + approval gate covers this. |
-| SQLite / single-file DB | cli | Multi-tenant Supabase is correct at our scale. |
-| Valid stage transition graph | cli | Advisory sales has no rigid pipeline order. |
-| Hard-block on all duplicates | cli | Soft-block with candidates is better for an agent. |
-| Flexible entity resolution by any signal | cli | Our agent uses UUIDs from search results. Revisit if we expose CRM to external integrations. |
-| Auto-create on link | cli | Implicit creation = surprise records. Agent should create explicitly. |
-| Phone as structured composite | twenty | Right long-term model. Deferred until P17. |
-| Throttling / token bucket | twenty | Infrastructure concern, not CRM data quality. |
-| GraphQL depth limiting | twenty | Architecture concern, not applicable. |
-| ClickHouse audit streaming | twenty | We use Langfuse for observability. Not a gap. |
+| Idea | Source | Why skip |
+|------|--------|----------|
+| **FUSE / filesystem mount** | cli | Cloud-first (Supabase). No local filesystem. |
+| **Pre/post mutation hooks** | cli | Our `agent_triggers` + approval gate already covers this. |
+| **SQLite / single-file DB** | cli | Multi-tenant cloud with RLS at our scale. |
+| **Valid stage transition graph** | cli | Advisory sales doesn't have rigid pipelines. Any → any is correct. |
+| **Hard-block on all duplicates** | cli | Soft-block with candidates is better for an agent. |
+| **Flexible entity resolution by any signal** | cli | Interesting pattern (`resolve.ts` — lookup by email, phone, social URL, digits, handle). Our agent uses UUIDs from search results. Not needed while the agent mediates all access. Worth revisiting if we expose CRM to external integrations. |
+| **Auto-create on link** | cli | `getOrCreateCompanyId` auto-creates companies when linked by name. Our agent should explicitly create, not implicitly. Implicit creation = surprise records in the CRM. |
+| **Phone as structured composite** | twenty | Storing calling code + country code + national number separately is the right model long-term. Deferred until we have multi-phone support (P17). |
