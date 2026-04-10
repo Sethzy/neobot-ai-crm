@@ -48,6 +48,7 @@ export async function resolveAndContinueApproval(
   // Uses the DB-authoritative outcome from resolveApprovalEvent.
   const approvedFromDb = result.success && "event" in result && result.event?.status === "approved";
   await patchApprovalPartState(supabase, {
+    clientId: input.clientId,
     threadId: input.threadId,
     approvalId: input.approvalId,
     approved: approvedFromDb,
