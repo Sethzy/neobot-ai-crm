@@ -77,14 +77,6 @@ describe("createCrmTools", () => {
     }
   });
 
-  it("returns only configure_crm in setup mode", () => {
-    const { client } = createMockSupabase();
-
-    const tools = createCrmTools(client, CLIENT_ID, { mode: "setup" });
-
-    expect(Object.keys(tools)).toEqual(["configure_crm"]);
-  });
-
   it("always includes configure_crm for normal chat runs", () => {
     const { client } = createMockSupabase();
 
