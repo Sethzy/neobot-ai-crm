@@ -144,10 +144,12 @@ export type Database = {
           id: string
           resolved_at: string | null
           run_id: string | null
+          session_id: string | null
           status: string
           thread_id: string
           tool_input: Json
           tool_name: string
+          tool_use_id: string | null
         }
         Insert: {
           approval_id: string
@@ -156,10 +158,12 @@ export type Database = {
           id?: string
           resolved_at?: string | null
           run_id?: string | null
+          session_id?: string | null
           status?: string
           thread_id: string
           tool_input?: Json
           tool_name: string
+          tool_use_id?: string | null
         }
         Update: {
           approval_id?: string
@@ -168,10 +172,12 @@ export type Database = {
           id?: string
           resolved_at?: string | null
           run_id?: string | null
+          session_id?: string | null
           status?: string
           thread_id?: string
           tool_input?: Json
           tool_name?: string
+          tool_use_id?: string | null
         }
         Relationships: [
           {
@@ -279,6 +285,30 @@ export type Database = {
           },
         ]
       }
+      cases: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       client_message_usage_monthly: {
         Row: {
           client_id: string
@@ -314,6 +344,7 @@ export type Database = {
       clients: {
         Row: {
           client_id: string
+          client_profile: string | null
           created_at: string
           display_name: string | null
           is_bootstrapped: boolean
@@ -324,9 +355,11 @@ export type Database = {
           stripe_subscription_id: string | null
           subscription_status: string | null
           user_id: string
+          user_preferences: string | null
         }
         Insert: {
           client_id?: string
+          client_profile?: string | null
           created_at?: string
           display_name?: string | null
           is_bootstrapped?: boolean
@@ -337,9 +370,11 @@ export type Database = {
           stripe_subscription_id?: string | null
           subscription_status?: string | null
           user_id: string
+          user_preferences?: string | null
         }
         Update: {
           client_id?: string
+          client_profile?: string | null
           created_at?: string
           display_name?: string | null
           is_bootstrapped?: boolean
@@ -350,6 +385,7 @@ export type Database = {
           stripe_subscription_id?: string | null
           subscription_status?: string | null
           user_id?: string
+          user_preferences?: string | null
         }
         Relationships: []
       }
@@ -364,6 +400,7 @@ export type Database = {
           industry: string | null
           linkedin: string | null
           name: string
+          notes: string | null
           phone: string | null
           updated_at: string
           website: string | null
@@ -378,6 +415,7 @@ export type Database = {
           industry?: string | null
           linkedin?: string | null
           name: string
+          notes?: string | null
           phone?: string | null
           updated_at?: string
           website?: string | null
@@ -392,6 +430,7 @@ export type Database = {
           industry?: string | null
           linkedin?: string | null
           name?: string
+          notes?: string | null
           phone?: string | null
           updated_at?: string
           website?: string | null
@@ -470,6 +509,7 @@ export type Database = {
           job_title: string | null
           last_name: string
           linkedin: string | null
+          notes: string | null
           phone: string | null
           type: string
           updated_at: string
@@ -488,6 +528,7 @@ export type Database = {
           job_title?: string | null
           last_name: string
           linkedin?: string | null
+          notes?: string | null
           phone?: string | null
           type: string
           updated_at?: string
@@ -506,6 +547,7 @@ export type Database = {
           job_title?: string | null
           last_name?: string
           linkedin?: string | null
+          notes?: string | null
           phone?: string | null
           type?: string
           updated_at?: string
@@ -622,6 +664,7 @@ export type Database = {
           message_id: string
           parts: Json | null
           role: string
+          source_event_id: string | null
           thread_id: string
         }
         Insert: {
@@ -630,6 +673,7 @@ export type Database = {
           message_id?: string
           parts?: Json | null
           role: string
+          source_event_id?: string | null
           thread_id: string
         }
         Update: {
@@ -638,6 +682,7 @@ export type Database = {
           message_id?: string
           parts?: Json | null
           role?: string
+          source_event_id?: string | null
           thread_id?: string
         }
         Relationships: [
@@ -663,6 +708,7 @@ export type Database = {
           is_archived: boolean
           is_pinned: boolean
           is_primary: boolean
+          session_id: string | null
           thread_id: string
           title: string | null
           updated_at: string
@@ -679,6 +725,7 @@ export type Database = {
           is_archived?: boolean
           is_pinned?: boolean
           is_primary?: boolean
+          session_id?: string | null
           thread_id?: string
           title?: string | null
           updated_at?: string
@@ -695,6 +742,7 @@ export type Database = {
           is_archived?: boolean
           is_pinned?: boolean
           is_primary?: boolean
+          session_id?: string | null
           thread_id?: string
           title?: string | null
           updated_at?: string
@@ -1014,6 +1062,7 @@ export type Database = {
           custom_fields: Json
           deal_id: string
           name: string | null
+          notes: string | null
           point_of_contact_id: string | null
           stage: string
           updated_at: string
@@ -1028,6 +1077,7 @@ export type Database = {
           custom_fields?: Json
           deal_id?: string
           name?: string | null
+          notes?: string | null
           point_of_contact_id?: string | null
           stage?: string
           updated_at?: string
@@ -1042,6 +1092,7 @@ export type Database = {
           custom_fields?: Json
           deal_id?: string
           name?: string | null
+          notes?: string | null
           point_of_contact_id?: string | null
           stage?: string
           updated_at?: string
@@ -1067,6 +1118,44 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["contact_id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          case_id: string | null
+          created_at: string | null
+          filename: string | null
+          id: string
+          status: string | null
+          storage_path: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          case_id?: string | null
+          created_at?: string | null
+          filename?: string | null
+          id?: string
+          status?: string | null
+          storage_path?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          case_id?: string | null
+          created_at?: string | null
+          filename?: string | null
+          id?: string
+          status?: string | null
+          storage_path?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1154,8 +1243,8 @@ export type Database = {
           linked_deal_id: string | null
           meeting_record_id: string
           notes: string | null
-          summary: string | null
           status: string
+          summary: string | null
           thread_id: string | null
           title: string | null
           transcript_path: string | null
@@ -1172,8 +1261,8 @@ export type Database = {
           linked_deal_id?: string | null
           meeting_record_id?: string
           notes?: string | null
-          summary?: string | null
           status?: string
+          summary?: string | null
           thread_id?: string | null
           title?: string | null
           transcript_path?: string | null
@@ -1190,8 +1279,8 @@ export type Database = {
           linked_deal_id?: string | null
           meeting_record_id?: string
           notes?: string | null
-          summary?: string | null
           status?: string
+          summary?: string | null
           thread_id?: string | null
           title?: string | null
           transcript_path?: string | null
@@ -1323,53 +1412,41 @@ export type Database = {
           },
         ]
       }
-      timeline_activities: {
+      run_scores: {
         Row: {
-          actor_label: string | null
-          actor_type: string
-          client_id: string
+          comment: string | null
           created_at: string
-          happened_at: string
-          id: string
-          name: string
-          properties: Json | null
-          record_id: string
-          record_type: string
-          updated_at: string
+          evaluator_name: string
+          run_id: string
+          score_id: string
+          score_type: string
+          score_value: number | null
         }
         Insert: {
-          actor_label?: string | null
-          actor_type?: string
-          client_id: string
+          comment?: string | null
           created_at?: string
-          happened_at?: string
-          id?: string
-          name: string
-          properties?: Json | null
-          record_id: string
-          record_type: string
-          updated_at?: string
+          evaluator_name: string
+          run_id: string
+          score_id?: string
+          score_type: string
+          score_value?: number | null
         }
         Update: {
-          actor_label?: string | null
-          actor_type?: string
-          client_id?: string
+          comment?: string | null
           created_at?: string
-          happened_at?: string
-          id?: string
-          name?: string
-          properties?: Json | null
-          record_id?: string
-          record_type?: string
-          updated_at?: string
+          evaluator_name?: string
+          run_id?: string
+          score_id?: string
+          score_type?: string
+          score_value?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "timeline_activities_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "run_scores_run_id_fkey"
+            columns: ["run_id"]
             isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
+            referencedRelation: "runs"
+            referencedColumns: ["run_id"]
           },
         ]
       }
@@ -1380,11 +1457,13 @@ export type Database = {
           completed_at: string | null
           cost_usd: number | null
           created_at: string
+          events_cursor: string | null
           model: string | null
           parent_run_id: string | null
           prompt_tokens: number | null
           run_id: string
           run_type: string
+          session_id: string | null
           status: Database["public"]["Enums"]["run_status"]
           step_count: number | null
           thread_id: string
@@ -1397,11 +1476,13 @@ export type Database = {
           completed_at?: string | null
           cost_usd?: number | null
           created_at?: string
+          events_cursor?: string | null
           model?: string | null
           parent_run_id?: string | null
           prompt_tokens?: number | null
           run_id?: string
           run_type?: string
+          session_id?: string | null
           status?: Database["public"]["Enums"]["run_status"]
           step_count?: number | null
           thread_id: string
@@ -1414,11 +1495,13 @@ export type Database = {
           completed_at?: string | null
           cost_usd?: number | null
           created_at?: string
+          events_cursor?: string | null
           model?: string | null
           parent_run_id?: string | null
           prompt_tokens?: number | null
           run_id?: string
           run_type?: string
+          session_id?: string | null
           status?: Database["public"]["Enums"]["run_status"]
           step_count?: number | null
           thread_id?: string
@@ -1571,6 +1654,56 @@ export type Database = {
           },
         ]
       }
+      timeline_activities: {
+        Row: {
+          actor_label: string | null
+          actor_type: string
+          client_id: string
+          created_at: string
+          happened_at: string
+          id: string
+          name: string
+          properties: Json | null
+          record_id: string
+          record_type: string
+          updated_at: string
+        }
+        Insert: {
+          actor_label?: string | null
+          actor_type?: string
+          client_id: string
+          created_at?: string
+          happened_at?: string
+          id?: string
+          name: string
+          properties?: Json | null
+          record_id: string
+          record_type: string
+          updated_at?: string
+        }
+        Update: {
+          actor_label?: string | null
+          actor_type?: string
+          client_id?: string
+          created_at?: string
+          happened_at?: string
+          id?: string
+          name?: string
+          properties?: Json | null
+          record_id?: string
+          record_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timeline_activities_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
       user_instructions: {
         Row: {
           created_at: string
@@ -1675,6 +1808,7 @@ export type Database = {
         Args: { p_client_id: string; p_run_type?: string; p_thread_id: string }
         Returns: string
       }
+      crm_default_deal_stages: { Args: never; Returns: Json }
       drain_thread_queue: {
         Args: { p_client_id: string; p_thread_id: string }
         Returns: {
@@ -1684,6 +1818,10 @@ export type Database = {
         }[]
       }
       ensure_autopilot_for_client: {
+        Args: { p_client_id: string }
+        Returns: undefined
+      }
+      ensure_crm_views_for_client: {
         Args: { p_client_id: string }
         Returns: undefined
       }
