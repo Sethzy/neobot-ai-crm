@@ -5,13 +5,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
-  MEMORY_BUCKET_ID,
-  MEMORY_TEXT_CONTENT_TYPE,
-} from "@/lib/memory/constants";
-import {
-  getStorageErrorMessage,
-  isStorageConflictError,
-} from "@/lib/memory/storage";
+  AGENT_FILES_BUCKET,
+  AGENT_FILES_TEXT_CONTENT_TYPE,
+} from "@/lib/storage/agent-files";
+import { getStorageErrorMessage, isStorageConflictError } from "@/lib/storage/storage-errors";
 
 import {
   DEFAULT_SKILL_CONTENT,
@@ -44,10 +41,10 @@ async function uploadDefaultSkill(
   const content = DEFAULT_SKILL_CONTENT[slug];
   const storagePath = `${clientId}/${SKILLS_DIRECTORY}/${slug}/SKILL.md`;
   const { error } = await supabase.storage
-    .from(MEMORY_BUCKET_ID)
+    .from(AGENT_FILES_BUCKET)
     .upload(storagePath, content, {
       upsert: false,
-      contentType: MEMORY_TEXT_CONTENT_TYPE,
+      contentType: AGENT_FILES_TEXT_CONTENT_TYPE,
     });
 
   if (error && !isStorageConflictError(error)) {
@@ -72,10 +69,10 @@ async function backfillReferenceFiles(
     Object.entries(refs).map(async ([refPath, refContent]) => {
       const fullPath = `${clientId}/${SKILLS_DIRECTORY}/${slug}/${refPath}`;
       const { error } = await supabase.storage
-        .from(MEMORY_BUCKET_ID)
+        .from(AGENT_FILES_BUCKET)
         .upload(fullPath, refContent, {
           upsert: false,
-          contentType: MEMORY_TEXT_CONTENT_TYPE,
+          contentType: AGENT_FILES_TEXT_CONTENT_TYPE,
         });
 
       if (error && !isStorageConflictError(error)) {
@@ -98,7 +95,7 @@ export async function bootstrapSkills(
     return;
   }
 
-  const bucket = supabase.storage.from(MEMORY_BUCKET_ID);
+  const bucket = supabase.storage.from(AGENT_FILES_BUCKET);
   const { data: entries, error } = await bucket.list(`${clientId}/${SKILLS_DIRECTORY}`);
 
   if (error) {

@@ -8,7 +8,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { MEMORY_BUCKET_ID } from "@/lib/memory/constants";
+import { AGENT_FILES_BUCKET } from "@/lib/storage/agent-files";
 
 import type { SandboxPreloadFile } from "./types";
 
@@ -100,7 +100,7 @@ export async function buildPreloadFiles(
   options: BuildPreloadFilesOptions,
 ): Promise<SandboxPreloadFile[]> {
   const { supabase, clientId } = options;
-  const bucket = supabase.storage.from(MEMORY_BUCKET_ID);
+  const bucket = supabase.storage.from(AGENT_FILES_BUCKET);
   const files: SandboxPreloadFile[] = [];
 
   // 1. Download all user skill directories (paginated)

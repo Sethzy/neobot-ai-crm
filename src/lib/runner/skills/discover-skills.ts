@@ -5,7 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parse as parseYaml } from "yaml";
 
-import { MEMORY_BUCKET_ID } from "@/lib/memory/constants";
+import { AGENT_FILES_BUCKET } from "@/lib/storage/agent-files";
 import { toModelPath } from "@/lib/storage/agent-paths";
 
 const SKILLS_DIRECTORY = "skills";
@@ -64,7 +64,7 @@ export async function discoverUserSkills(
   supabase: SupabaseClient,
   clientId: string,
 ): Promise<SkillMetadata[]> {
-  const bucket = supabase.storage.from(MEMORY_BUCKET_ID);
+  const bucket = supabase.storage.from(AGENT_FILES_BUCKET);
   const { data: entries, error } = await bucket.list(`${clientId}/${SKILLS_DIRECTORY}`);
 
   if (error || !entries) {
@@ -152,7 +152,7 @@ export async function getSkillContent(
   clientId: string,
   slug: string,
 ): Promise<SkillDetail | null> {
-  const bucket = supabase.storage.from(MEMORY_BUCKET_ID);
+  const bucket = supabase.storage.from(AGENT_FILES_BUCKET);
   const filePath = `${clientId}/${SKILLS_DIRECTORY}/${slug}/SKILL.md`;
 
   const { data, error } = await bucket.download(filePath);

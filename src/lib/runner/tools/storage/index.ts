@@ -9,10 +9,6 @@ import { z } from "zod";
 
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { getFileExtension } from "@/lib/file-utils";
-import {
-  MEMORY_TOPIC_PREFIX,
-  ROOT_MEMORY_FILE_SET,
-} from "@/lib/memory/constants";
 import { createAgentFileClient, normalizeWorkspacePath } from "@/lib/storage/agent-files";
 import { toModelPath, toStoragePath } from "@/lib/storage/agent-paths";
 import { getSystemSkillContent, isSystemSkillPath } from "@/lib/runner/skills/system-skills";
@@ -25,6 +21,9 @@ const PDF_MAX_SIZE_BYTES = 10 * 1024 * 1024;
 const REMOVED_DOCUMENTS_DIRECTORY = ["va", "ult"].join("");
 const REMOVED_DOCUMENTS_ERROR =
   `The "${REMOVED_DOCUMENTS_DIRECTORY}" directory has been removed. Use Google Drive for document storage instead.`;
+const ROOT_MEMORY_FILE_PATHS = ["SOUL.md", "USER.md", "MEMORY.md"] as const;
+const ROOT_MEMORY_FILE_SET = new Set<string>(ROOT_MEMORY_FILE_PATHS);
+const MEMORY_TOPIC_PREFIX = "memory/";
 
 const readFileInputSchema = z.object({
   path: z.string().describe(
