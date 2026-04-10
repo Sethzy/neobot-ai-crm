@@ -20,7 +20,7 @@ import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { generateTitleFromUserMessage } from "@/lib/ai/title";
 import { allowedModelIds } from "@/lib/ai/models";
-import { ensureClientBootstrap } from "@/lib/memory/bootstrap";
+import { ensureClientBootstrap } from "@/lib/runner/skills/ensure-client-bootstrap";
 import { clearActiveStreamId, setActiveStreamId } from "@/lib/redis";
 import { runAgent } from "@/lib/runner/run-agent";
 import type { RunnerFilePart } from "@/lib/runner/schemas";

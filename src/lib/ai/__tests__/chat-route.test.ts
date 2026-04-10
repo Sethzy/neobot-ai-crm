@@ -84,7 +84,7 @@ vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 29 }),
 }));
 
-vi.mock("@/lib/memory/bootstrap", () => ({
+vi.mock("@/lib/runner/skills/ensure-client-bootstrap", () => ({
   ensureClientBootstrap: mockEnsureClientBootstrap,
 }));
 
