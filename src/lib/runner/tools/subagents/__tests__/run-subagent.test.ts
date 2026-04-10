@@ -143,7 +143,6 @@ describe("createSubagentTool", () => {
       clientId: CLIENT_ID,
       threadId: THREAD_ID,
       crmConfig: undefined,
-      crmMode: "normal",
       includeMarketData: true,
       includePropertyListings: false,
     });
@@ -157,7 +156,6 @@ describe("createSubagentTool", () => {
         isSubagent: true,
         includeSendMessage: false,
         crmConfig: undefined,
-        crmMode: "normal",
       },
     );
     expect(mockGenerateText).toHaveBeenCalledWith(

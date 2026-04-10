@@ -32,7 +32,6 @@ const runSubagentInputSchema = z.object({
 interface CreateSubagentToolOptions {
   parentRunId: string;
   crmConfig?: CrmVocabConfig;
-  crmMode?: "normal" | "setup";
 }
 
 /**
@@ -69,7 +68,6 @@ export function createSubagentTool(
               clientId,
               threadId,
               crmConfig: options.crmConfig,
-              crmMode: options.crmMode ?? "normal",
               includeMarketData: isPropertySupabaseConfigured(),
               includePropertyListings: false,
             }),
@@ -84,7 +82,6 @@ export function createSubagentTool(
             isSubagent: true,
             includeSendMessage: false,
             crmConfig: options.crmConfig,
-            crmMode: options.crmMode ?? "normal",
           });
           const userMessage = payload
             ? `${instructionMarkdown}\n\n${payload}`

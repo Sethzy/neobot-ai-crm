@@ -192,7 +192,6 @@ describe("runAgent CRM configuration", () => {
     );
     expect(mockAssembleContext).toHaveBeenCalledWith(
       expect.objectContaining({
-        crmMode: "normal",
         crmConfig: expect.objectContaining({
           deal_label: "Policy",
           deal_stages: ["lead", "quoted", "bound"],
@@ -204,7 +203,6 @@ describe("runAgent CRM configuration", () => {
       validPayload.clientId,
       expect.objectContaining({
         allowWriteTools: true,
-        mode: "normal",
         config: expect.objectContaining({
           deal_label: "Policy",
           deal_stages: ["lead", "quoted", "bound"],
@@ -220,27 +218,8 @@ describe("runAgent CRM configuration", () => {
       "mock-supabase-client",
       validPayload.clientId,
       expect.not.objectContaining({
-        includeConfigTool: expect.anything(),
+        mode: expect.anything(),
       }),
-    );
-  });
-
-  it("uses explicit setup mode instead of heuristics", async () => {
-    await runAgent(
-      {
-        ...validPayload,
-        crmMode: "setup",
-      } as RunnerPayload,
-      "mock-supabase-client" as never,
-    );
-
-    expect(mockAssembleContext).toHaveBeenCalledWith(
-      expect.objectContaining({ crmMode: "setup" }),
-    );
-    expect(mockCreateCrmTools).toHaveBeenCalledWith(
-      "mock-supabase-client",
-      validPayload.clientId,
-      expect.objectContaining({ mode: "setup" }),
     );
   });
 });

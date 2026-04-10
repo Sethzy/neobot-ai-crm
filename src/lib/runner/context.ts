@@ -12,7 +12,6 @@ import {
 import { isModelVisible } from "@/lib/chat/attachment-config";
 import {
   BROWSER_AUTOMATION_PROMPT,
-  CRM_SETUP_SYSTEM_PROMPT,
   MARKET_DATA_PROMPT,
   PROPERTY_LISTING_PROMPT,
   SANDBOX_PROMPT,
@@ -50,7 +49,6 @@ interface AssembleContextParams {
   clientId?: string;
   instructions?: string;
   crmConfig?: CrmVocabConfig;
-  crmMode?: "normal" | "setup";
   includeBrowserAutomation?: boolean;
   includeMarketData?: boolean;
   includePropertyListings?: boolean;
@@ -71,7 +69,6 @@ interface AssembleSystemOnlyParams {
   threadId: string;
   clientId?: string;
   crmConfig?: CrmVocabConfig;
-  crmMode?: "normal" | "setup";
   includeBrowserAutomation?: boolean;
   includeMarketData?: boolean;
   includePropertyListings?: boolean;
@@ -181,10 +178,9 @@ function buildSystemPrompt({
   return sections.join("\n\n");
 }
 
-/** Resolves platform instructions and system prompt based on CRM config/mode overrides. */
+/** Resolves platform instructions and system prompt based on CRM config overrides. */
 function resolvePromptOverrides(params: {
   crmConfig?: CrmVocabConfig;
-  crmMode?: "normal" | "setup";
   platformInstructions?: string;
   systemPrompt?: string;
 }): Pick<BuildSystemPromptOptions, "platformInstructions" | "systemPrompt"> {
@@ -192,9 +188,7 @@ function resolvePromptOverrides(params: {
     platformInstructions: params.platformInstructions ?? (params.crmConfig
       ? buildPlatformInstructions(params.crmConfig)
       : PLATFORM_INSTRUCTIONS),
-    systemPrompt: params.systemPrompt ?? (params.crmMode === "setup"
-      ? CRM_SETUP_SYSTEM_PROMPT
-      : SYSTEM_PROMPT),
+    systemPrompt: params.systemPrompt ?? SYSTEM_PROMPT,
   };
 }
 
@@ -332,7 +326,6 @@ export async function assembleSystemOnly({
   threadId,
   clientId,
   crmConfig,
-  crmMode = "normal",
   includeBrowserAutomation,
   includeMarketData,
   includePropertyListings,
@@ -349,7 +342,7 @@ export async function assembleSystemOnly({
 
   const system = buildSystemPrompt({
     userSkills,
-    ...resolvePromptOverrides({ crmConfig, crmMode, platformInstructions, systemPrompt }),
+    ...resolvePromptOverrides({ crmConfig, platformInstructions, systemPrompt }),
     includeBrowserAutomation,
     includeMarketData,
     includePropertyListings,
@@ -379,7 +372,6 @@ export async function assembleContext({
   clientId,
   instructions,
   crmConfig,
-  crmMode = "normal",
   includeBrowserAutomation,
   includeMarketData,
   includePropertyListings,
@@ -489,7 +481,7 @@ export async function assembleContext({
     system: buildSystemPrompt({
       userSkills,
       instructions,
-      ...resolvePromptOverrides({ crmConfig, crmMode, platformInstructions, systemPrompt }),
+      ...resolvePromptOverrides({ crmConfig, platformInstructions, systemPrompt }),
       includeBrowserAutomation,
       includeMarketData,
       includePropertyListings,

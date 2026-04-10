@@ -405,7 +405,6 @@ describe("runAgent", () => {
       {
         allowDeleteTools: true,
         allowWriteTools: true,
-        mode: "normal",
         config: expect.objectContaining({ deal_label: "Policy" }),
       },
     );
@@ -544,7 +543,6 @@ describe("runAgent", () => {
       expect.objectContaining({
         allowWriteTools: true,
         allowDeleteTools: false,
-        mode: "normal",
       }),
     );
   });
@@ -561,7 +559,6 @@ describe("runAgent", () => {
       expect.objectContaining({
         allowWriteTools: true,
         allowDeleteTools: true,
-        mode: "normal",
       }),
     );
   });
@@ -577,36 +574,6 @@ describe("runAgent", () => {
     );
     expect(mockAssembleContext).toHaveBeenCalledWith(
       expect.objectContaining({
-        crmMode: "normal",
-        crmConfig: expect.objectContaining({
-          deal_label: "Policy",
-          deal_stages: ["lead", "quoted", "bound"],
-        }),
-        includeMarketData: true,
-        includePropertyListings: true,
-      }),
-    );
-  });
-
-  it("switches to explicit setup mode without auto-detecting from missing config", async () => {
-    mockCreateRun.mockResolvedValue({ created: true, runId: "run-1" });
-
-    await runAgent(
-      { ...validPayload, crmMode: "setup" },
-      "mock-supabase-client" as never,
-    );
-
-    expect(mockCreateCrmTools).toHaveBeenCalledWith(
-      "mock-supabase-client",
-      validPayload.clientId,
-      expect.objectContaining({
-        mode: "setup",
-        config: expect.objectContaining({ deal_label: "Policy" }),
-      }),
-    );
-    expect(mockAssembleContext).toHaveBeenCalledWith(
-      expect.objectContaining({
-        crmMode: "setup",
         crmConfig: expect.objectContaining({
           deal_label: "Policy",
           deal_stages: ["lead", "quoted", "bound"],
@@ -1063,7 +1030,6 @@ describe("runAgent", () => {
         currentMessage: validPayload.input,
         currentMessageParts: [{ type: "text", text: validPayload.input }],
         clientId: validPayload.clientId,
-        crmMode: "normal",
         crmConfig: expect.objectContaining({ deal_label: "Policy" }),
         includeMarketData: true,
       }),
@@ -1178,7 +1144,6 @@ describe("runAgent", () => {
         currentMessage: validPayload.input,
         currentMessageParts: [{ type: "text", text: validPayload.input }],
         clientId: validPayload.clientId,
-        crmMode: "normal",
         crmConfig: expect.objectContaining({ deal_label: "Policy" }),
         includeMarketData: true,
       }),

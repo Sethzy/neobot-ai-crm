@@ -146,7 +146,6 @@ export async function runAgent(
 
   const { clientId, threadId, input } = payload;
   const modelId = resolveModelId(payload.selectedChatModel);
-  const crmMode = payload.crmMode ?? "normal";
 
   const runType: RunType = payload.triggerType === "pulse"
     ? "autopilot"
@@ -303,7 +302,6 @@ export async function runAgent(
       clientId,
       instructions: payload.instructions,
       crmConfig,
-      crmMode,
       includeBrowserAutomation:
         payload.triggerType === "chat" && isBrowserUseConfigured(),
       includeMarketData: isPropertySupabaseConfigured(),
@@ -330,13 +328,11 @@ export async function runAgent(
     const runnerTools = createRunnerTools(supabase, clientId, threadId, {
       allowTriggerMutations: payload.triggerType === "chat",
       allowConnectionMutations: payload.triggerType !== "pulse",
-      crmMode,
       crmConfig,
     });
     const subagentTools = createSubagentTool(supabase, clientId, threadId, {
       parentRunId: lockResult.runId,
       crmConfig,
-      crmMode,
     });
 
     // ── Sandbox bash tool (lazy) ──

@@ -337,7 +337,6 @@ export async function POST(request: Request): Promise<Response> {
         input,
         selectedChatModel: body.selectedChatModel,
         ...(fileParts.length > 0 ? { fileParts } : {}),
-        crmMode: body.crmMode,
       },
       supabase,
     );

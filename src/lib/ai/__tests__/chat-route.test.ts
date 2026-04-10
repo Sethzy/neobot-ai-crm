@@ -228,7 +228,6 @@ describe("POST /api/chat", () => {
         triggerType: "chat",
         consumeMessageQuota: true,
         input: "Hello, Sunder!",
-        crmMode: undefined,
       },
       mockSupabase,
     );
@@ -299,7 +298,6 @@ describe("POST /api/chat", () => {
         triggerType: "chat",
         consumeMessageQuota: true,
         input: "Hello from message payload",
-        crmMode: undefined,
       },
       mockSupabase,
     );
@@ -319,76 +317,6 @@ describe("POST /api/chat", () => {
       },
     });
     expect(response).toBe(streamResponse);
-  });
-
-  it("passes the explicit crmMode flag through to runAgent", async () => {
-    const streamResponse = new Response("streamed", {
-      headers: { "Content-Type": "text/event-stream" },
-    });
-    const wrappedStream = new ReadableStream();
-    const mockStreamResult = {
-      toUIMessageStream: vi.fn(() => new ReadableStream()),
-    };
-    mockCreateUIMessageStream.mockReturnValue(wrappedStream);
-    mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
-    mockRunAgent.mockResolvedValue({
-      status: "streaming",
-      streamResult: mockStreamResult,
-    });
-
-    await POST(
-      createJsonRequest({
-        id: threadId,
-        crmMode: "setup",
-        message: {
-          id: "11111111-1111-4111-8111-111111111111",
-          role: "user",
-          parts: [{ type: "text", text: "Reconfigure my CRM" }],
-        },
-      }),
-    );
-
-    expect(mockRunAgent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        crmMode: "setup",
-      }),
-      mockSupabase,
-    );
-  });
-
-  it("passes crmMode through to runAgent when explicitly requested", async () => {
-    const streamResponse = new Response("streamed", {
-      headers: { "Content-Type": "text/event-stream" },
-    });
-    const wrappedStream = new ReadableStream();
-    const mockStreamResult = {
-      toUIMessageStream: vi.fn(() => new ReadableStream()),
-    };
-    mockCreateUIMessageStream.mockReturnValue(wrappedStream);
-    mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
-    mockRunAgent.mockResolvedValue({
-      status: "streaming",
-      streamResult: mockStreamResult,
-    });
-
-    await POST(
-      createJsonRequest({
-        id: threadId,
-        crmMode: "setup",
-        message: {
-          id: "11111111-1111-4111-8111-111111111111",
-          role: "user",
-          parts: [{ type: "text", text: "Configure my CRM" }],
-        },
-      }),
-    );
-
-    expect(mockRunAgent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        crmMode: "setup",
-      }),
-      mockSupabase,
-    );
   });
 
   it("passes selectedChatModel through to runAgent when the model is allowed", async () => {
@@ -515,7 +443,6 @@ describe("POST /api/chat", () => {
             storagePath: "uploads/screenshot.png",
           },
         ],
-        crmMode: undefined,
       }),
       mockSupabase,
     );
@@ -729,7 +656,6 @@ describe("POST /api/chat", () => {
         triggerType: "chat",
         consumeMessageQuota: true,
         input: "Create lazily",
-        crmMode: undefined,
       },
       mockSupabase,
     );

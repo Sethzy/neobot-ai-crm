@@ -8,7 +8,6 @@ import { buildPlatformInstructions } from "@/lib/ai/platform-instructions";
 import {
   MARKET_DATA_PROMPT,
   PROPERTY_LISTING_PROMPT,
-  SETUP_SYSTEM_PROMPT,
 } from "@/lib/ai/system-prompt";
 import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
@@ -371,7 +370,7 @@ describe("assembleContext", () => {
     expect(result.system).toContain("Coverage &quot;Amount&quot;");
   });
 
-  it("replaces the normal prompt with the setup prompt in crm setup mode", async () => {
+  it("uses an explicit runtime system prompt override when provided", async () => {
     const supabase = createMockSupabaseClient({
       selectResult: { data: [], error: null },
     });
@@ -391,13 +390,12 @@ describe("assembleContext", () => {
         contact_custom_fields: [],
         task_custom_fields: [],
       }),
-      systemPrompt: SETUP_SYSTEM_PROMPT,
+      systemPrompt: "Runtime system override",
     });
 
-    expect(result.system).toContain("setup mode");
-    expect(result.system).toContain("configure_crm");
+    expect(result.system).toContain("Runtime system override");
     expect(result.system).toContain("<crm-vocabulary>");
-    expect(result.system).not.toContain("search before creating");
+    expect(result.system).not.toContain("You are Sunder");
   });
 
   it("injects run-specific instructions when memory is not loaded", async () => {
