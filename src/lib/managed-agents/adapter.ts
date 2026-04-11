@@ -90,6 +90,7 @@ export async function runManagedAgent(
 
   const rawStream = createUIMessageStream({
     execute: async ({ writer }) => {
+      try {
       const result = await consumeAnthropicSession({
         anthropic: input.anthropic,
         sessionId: session.id,
@@ -218,6 +219,28 @@ export async function runManagedAgent(
           tokensIn: result.cost.inputTokens,
           tokensOut: result.cost.outputTokens,
         });
+      }
+      } catch (error) {
+        // Anything thrown after createRun() but before the run is
+        // marked complete leaves the row stuck in `running` until
+        // markStaleRunsFailed sweeps it. Mark failed eagerly so the
+        // thread isn't locked, then re-throw so the UIMessageStream
+        // surfaces the error to the consumer.
+        try {
+          await completeRun(input.supabase, {
+            runId,
+            status: "failed",
+            model: "claude-sonnet-4-6",
+            tokensIn: 0,
+            tokensOut: 0,
+          });
+        } catch (cleanupError) {
+          console.error(
+            "[runManagedAgent] failed to mark run as failed during cleanup",
+            cleanupError,
+          );
+        }
+        throw error;
       }
     },
   });

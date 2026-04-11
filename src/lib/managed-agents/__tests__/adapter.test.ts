@@ -173,6 +173,38 @@ describe("runManagedAgent — terminal variants", () => {
   });
 });
 
+describe("runManagedAgent — failure cleanup", () => {
+  it("marks the run failed when consumeAnthropicSession throws mid-stream", async () => {
+    (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("upstream EPIPE"),
+    );
+
+    const { runManagedAgent } = await import("../adapter");
+    const stream = await runManagedAgent({
+      anthropic: {} as never,
+      supabase: {} as never,
+      clientId: "c1",
+      threadId: "t1",
+      input: "hi",
+      clientProfile: null,
+      userPreferences: null,
+      threadTitle: null,
+    });
+    // Drain the stream — the error happens inside execute and the
+    // UIMessageStream surfaces it via the consumer; we just need the
+    // adapter to have run its cleanup.
+    try {
+      await collectStream(stream);
+    } catch {
+      // expected
+    }
+    expect(completeRun).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ status: "failed", runId: "run_1" }),
+    );
+  });
+});
+
 describe("runManagedAgent — pipeJsonRender spec fences", () => {
   it("emits data-spec parts when agent.message contains a spec fence", async () => {
     (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockImplementation(
