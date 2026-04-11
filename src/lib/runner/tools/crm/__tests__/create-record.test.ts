@@ -321,6 +321,23 @@ describe("create_record", () => {
       expect(result.success).toBe(false);
       expect((result as { reason: string }).reason).toBe("possible_duplicates");
     });
+
+    it("rejects deal amount of Infinity on create", async () => {
+      const { client } = createMockSupabase({
+        deals: [
+          { data: [], error: null },
+          { data: { deal_id: "d1", address: "123 Finite St", amount: Infinity }, error: null },
+        ],
+      });
+      const tools = createCreateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.create_record.execute(
+        { entity: "deals", records: [{ address: "123 Finite St", amount: Infinity }] },
+        EXEC_OPTIONS,
+      );
+
+      expect(result.success).toBe(false);
+    });
   });
 
   // ---------------------------------------------------------------------------

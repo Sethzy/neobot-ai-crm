@@ -238,6 +238,31 @@ describe("update_record", () => {
         expect(result.error).toMatch(/probability.*0.*100/i);
       }
     });
+
+    it("rejects deal amount of NaN on update", async () => {
+      const existingDeal = { deal_id: "d1", client_id: CLIENT_ID, stage: "leads", amount: 500000 };
+      const updatedDeal = { ...existingDeal, amount: Number.NaN };
+      const { client } = createMockSupabase({
+        deals: [
+          { data: existingDeal, error: null },
+          { data: updatedDeal, error: null },
+        ],
+      });
+      const tools = createUpdateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.update_record.execute(
+        {
+          entity: "deals",
+          updates: [{ id: "d1", fields: { amount: Number.NaN } }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toMatch(/amount.*finite/i);
+      }
+    });
   });
 
   // ---------------------------------------------------------------------------

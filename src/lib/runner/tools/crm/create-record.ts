@@ -213,11 +213,17 @@ function buildDealRow(
   dealStages: readonly string[],
 ) {
   const rawStage = (record.stage as string) ?? defaultDealStage;
+  const amount = record.amount as number | undefined;
+
+  if (typeof amount === "number" && (!Number.isFinite(amount) || amount < 0)) {
+    throw new Error("amount must be a finite non-negative number");
+  }
+
   return {
     client_id: clientId,
     address: record.address as string,
     stage: matchVocabularyValue(rawStage, dealStages),
-    amount: record.amount as number | undefined,
+    amount,
     custom_fields: (record.custom_fields as Record<string, unknown>) ?? {},
   };
 }
@@ -377,16 +383,24 @@ export function createCreateRecordTool(
         }
 
         // --- Build insert rows ---
-        const rows = records.map((record) => {
-          switch (entity) {
-            case "contacts":
-              return buildContactRow(clientId, record, defaultContactType, config.contact_types);
-            case "companies":
-              return buildCompanyRow(clientId, record, config.company_industries);
-            case "deals":
-              return buildDealRow(clientId, record, defaultDealStage, config.deal_stages);
-          }
-        });
+        let rows: Array<Record<string, unknown>>;
+        try {
+          rows = records.map((record) => {
+            switch (entity) {
+              case "contacts":
+                return buildContactRow(clientId, record, defaultContactType, config.contact_types);
+              case "companies":
+                return buildCompanyRow(clientId, record, config.company_industries);
+              case "deals":
+                return buildDealRow(clientId, record, defaultDealStage, config.deal_stages);
+            }
+          });
+        } catch (error) {
+          return {
+            success: false as const,
+            error: error instanceof Error ? error.message : "Validation failed",
+          };
+        }
 
         const table = TABLE_MAP[entity];
 

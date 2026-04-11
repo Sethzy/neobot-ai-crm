@@ -174,15 +174,20 @@ async function updateOne(
   }
 
   if (entity === "deals") {
-    if (typeof updates.amount === "number" && updates.amount < 0) {
-      return { success: false, error: "amount must be non-negative" };
+    if (
+      typeof updates.amount === "number" &&
+      (!Number.isFinite(updates.amount) || updates.amount < 0)
+    ) {
+      return { success: false, error: "amount must be a finite non-negative number" };
     }
 
     if (
       typeof updates.probability === "number" &&
-      (updates.probability < 0 || updates.probability > 100)
+      (!Number.isFinite(updates.probability) ||
+        updates.probability < 0 ||
+        updates.probability > 100)
     ) {
-      return { success: false, error: "probability must be between 0 and 100" };
+      return { success: false, error: "probability must be a finite number between 0 and 100" };
     }
   }
 
