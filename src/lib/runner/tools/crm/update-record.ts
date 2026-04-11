@@ -173,6 +173,19 @@ async function updateOne(
     updates.industry = matchVocabularyValue(updates.industry, config.company_industries);
   }
 
+  if (entity === "deals") {
+    if (typeof updates.amount === "number" && updates.amount < 0) {
+      return { success: false, error: "amount must be non-negative" };
+    }
+
+    if (
+      typeof updates.probability === "number" &&
+      (updates.probability < 0 || updates.probability > 100)
+    ) {
+      return { success: false, error: "probability must be between 0 and 100" };
+    }
+  }
+
   // Normalize phone to E.164 on contacts and companies. Fall back to raw string so
   // data is never silently dropped; the DB constraint will surface truly bad values.
   if (

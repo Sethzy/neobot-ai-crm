@@ -182,6 +182,62 @@ describe("update_record", () => {
 
       expect(mockCaptureServerEvent).not.toHaveBeenCalled();
     });
+
+    it("rejects deal updates with negative amount", async () => {
+      const existingDeal = { deal_id: "d1", client_id: CLIENT_ID, stage: "leads", amount: 500000 };
+      const updatedDeal = { ...existingDeal, amount: -100 };
+      const { client } = createMockSupabase({
+        deals: [
+          { data: existingDeal, error: null },
+          { data: updatedDeal, error: null },
+        ],
+      });
+      const tools = createUpdateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.update_record.execute(
+        {
+          entity: "deals",
+          updates: [{ id: "d1", fields: { amount: -100 } }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toMatch(/amount.*non-negative/i);
+      }
+    });
+
+    it("rejects deal updates with probability above 100", async () => {
+      const existingDeal = {
+        deal_id: "d1",
+        client_id: CLIENT_ID,
+        stage: "leads",
+        amount: 500000,
+        probability: 25,
+      };
+      const updatedDeal = { ...existingDeal, probability: 150 };
+      const { client } = createMockSupabase({
+        deals: [
+          { data: existingDeal, error: null },
+          { data: updatedDeal, error: null },
+        ],
+      });
+      const tools = createUpdateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.update_record.execute(
+        {
+          entity: "deals",
+          updates: [{ id: "d1", fields: { probability: 150 } }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toMatch(/probability.*0.*100/i);
+      }
+    });
   });
 
   // ---------------------------------------------------------------------------
