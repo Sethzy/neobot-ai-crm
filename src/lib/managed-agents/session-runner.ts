@@ -62,6 +62,31 @@ export async function consumeAnthropicSession(
     } as never);
   }
 
+  // Resume-after-approval kickoff. Used when re-entering an existing session
+  // that paused on `requires_action`. The user's approve/deny decision is
+  // delivered as a `user.tool_confirmation` so the agent can continue from
+  // the exact tool-use id it was waiting on.
+  if (options.kickoffApproval) {
+    await anthropic.beta.sessions.events.send(options.sessionId, {
+      events: [
+        options.kickoffApproval.result === "allow"
+          ? {
+              type: "user.tool_confirmation",
+              tool_use_id: options.kickoffApproval.toolUseId,
+              result: "allow",
+            }
+          : {
+              type: "user.tool_confirmation",
+              tool_use_id: options.kickoffApproval.toolUseId,
+              result: "deny",
+              deny_message:
+                options.kickoffApproval.denyMessage ??
+                "User denied this action.",
+            },
+      ],
+    } as never);
+  }
+
   const iterator = iterateSessionEvents(
     anthropic,
     options.sessionId,

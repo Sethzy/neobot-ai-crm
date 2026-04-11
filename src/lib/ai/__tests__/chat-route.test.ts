@@ -11,6 +11,7 @@ import {
 
 const {
   mockRunManagedAgent,
+  mockResumeManagedAgentFromApproval,
   mockCreateClient,
   mockResolveClientId,
   mockCaptureServerEvent,
@@ -18,13 +19,13 @@ const {
   mockCreateUIMessageStream,
   mockCreateUIMessageStreamResponse,
   mockGenerateTitleFromUserMessage,
-  mockPatchApprovalPartState,
   mockEnsureClientBootstrap,
   mockGetAnthropicClient,
   mockGetOrCreateSession,
   mockAttachFileToSession,
 } = vi.hoisted(() => ({
   mockRunManagedAgent: vi.fn(),
+  mockResumeManagedAgentFromApproval: vi.fn(),
   mockCreateClient: vi.fn(),
   mockResolveClientId: vi.fn(),
   mockCaptureServerEvent: vi.fn(),
@@ -32,7 +33,6 @@ const {
   mockCreateUIMessageStream: vi.fn(),
   mockCreateUIMessageStreamResponse: vi.fn(),
   mockGenerateTitleFromUserMessage: vi.fn(),
-  mockPatchApprovalPartState: vi.fn(),
   mockEnsureClientBootstrap: vi.fn().mockResolvedValue(undefined),
   mockGetAnthropicClient: vi.fn(),
   mockGetOrCreateSession: vi.fn(),
@@ -41,6 +41,7 @@ const {
 
 vi.mock("@/lib/managed-agents/adapter", () => ({
   runManagedAgent: mockRunManagedAgent,
+  resumeManagedAgentFromApproval: mockResumeManagedAgentFromApproval,
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -56,9 +57,6 @@ vi.mock("@/lib/analytics/posthog-server", () => ({
   captureServerEvents: (...args: unknown[]) => mockCaptureServerEvents(...args),
 }));
 
-vi.mock("@/lib/approvals/queries", () => ({
-  patchApprovalPartState: mockPatchApprovalPartState,
-}));
 
 vi.mock("ai", () => ({
   createUIMessageStream: mockCreateUIMessageStream,
@@ -476,37 +474,20 @@ describe("POST /api/chat", () => {
     expect(response).toBe(streamResponse);
   });
 
-  it("resolves approval events from approval-responded message parts before continuing the run", async () => {
+  it("routes approval-responded parts through resumeManagedAgentFromApproval", async () => {
     const streamResponse = new Response("streamed", {
       headers: { "Content-Type": "text/event-stream" },
     });
     const wrappedStream = new ReadableStream();
     mockCreateUIMessageStream.mockReturnValue(wrappedStream);
     mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
-    mockPatchApprovalPartState.mockResolvedValue({
-      success: true,
-      status: "updated",
-      event: {
-        approval_id: "approval-1",
-        client_id: "client-456",
-        created_at: "2026-04-07T12:00:00Z",
-        id: "approval-row-1",
-        resolved_at: "2026-04-07T12:01:00Z",
-        run_id: "run-1",
-        status: "approved",
-        thread_id: threadId,
-        tool_input: {},
-        tool_name: "delete_contact",
-      },
-    });
-    mockRunManagedAgent.mockResolvedValue({
+    mockResumeManagedAgentFromApproval.mockResolvedValue({
       status: "streaming",
-      streamResult: {
-        toUIMessageStream: vi.fn(() => new ReadableStream()),
-      },
+      stream: new ReadableStream(),
+      threadId,
     });
 
-    await POST(
+    const response = await POST(
       createJsonRequest({
         id: threadId,
         messages: [
@@ -527,36 +508,34 @@ describe("POST /api/chat", () => {
       }),
     );
 
-    expect(mockPatchApprovalPartState).toHaveBeenCalledWith(mockSupabase, {
-      clientId: "client-456",
-      threadId,
-      approvalId: "approval-1",
-      approved: true,
-    });
-    expect(mockCaptureServerEvents).toHaveBeenCalledWith([
-      {
-        distinctId: "client-456",
+    expect(response).toBe(streamResponse);
+    expect(mockResumeManagedAgentFromApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
+        supabase: mockSupabase,
+        clientId: "client-456",
+        approvalId: "approval-1",
+        approved: true,
+      }),
+    );
+    expect(mockRunManagedAgent).not.toHaveBeenCalled();
+    expect(mockCaptureServerEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
         event: "approval_resolved",
-        properties: {
-          tool_name: "delete_contact",
+        properties: expect.objectContaining({
           approval_id: "approval-1",
           outcome: "approved",
-        },
-      },
-    ]);
+          source: "web",
+        }),
+      }),
+    );
     expect(mockCaptureServerEvent).not.toHaveBeenCalledWith(
       expect.objectContaining({ event: "chat_message_sent" }),
     );
-    expect(mockPatchApprovalPartState.mock.invocationCallOrder[0]).toBeLessThan(
-      mockRunManagedAgent.mock.invocationCallOrder[0],
-    );
   });
 
-  it("returns 500 without continuing the run when approval event resolution fails", async () => {
-    mockPatchApprovalPartState.mockResolvedValue({
-      success: false,
-      status: "error",
-      error: "update failed",
+  it("returns 404 when the approval event is missing", async () => {
+    mockResumeManagedAgentFromApproval.mockResolvedValue({
+      status: "missing",
     });
 
     const response = await POST(
@@ -580,17 +559,46 @@ describe("POST /api/chat", () => {
       }),
     );
 
-    expect(response.status).toBe(500);
-    expect(await response.json()).toEqual({
-      error: "Failed to process chat request.",
-    });
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "Approval not found." });
     expect(mockRunManagedAgent).not.toHaveBeenCalled();
   });
 
-  it("returns 500 when approval resolution returns an unexpected success status", async () => {
-    mockPatchApprovalPartState.mockResolvedValue({
-      success: true,
-      status: "unknown",
+  it("returns 409 when the approval was already resolved", async () => {
+    mockResumeManagedAgentFromApproval.mockResolvedValue({
+      status: "already_resolved",
+      threadId,
+    });
+
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-delete_contact",
+                toolCallId: "tool-call-1",
+                state: "approval-responded",
+                approval: { id: "approval-1", approved: true },
+              },
+            ],
+          },
+          { id: "u1", role: "user", parts: [{ type: "text", text: "Proceed." }] },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(409);
+    expect(mockRunManagedAgent).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 when the resume adapter reports an internal error", async () => {
+    mockResumeManagedAgentFromApproval.mockResolvedValue({
+      status: "error",
+      error: "approval event missing session_id",
     });
 
     const response = await POST(
@@ -615,9 +623,6 @@ describe("POST /api/chat", () => {
     );
 
     expect(response.status).toBe(500);
-    expect(await response.json()).toEqual({
-      error: "Failed to process chat request.",
-    });
     expect(mockRunManagedAgent).not.toHaveBeenCalled();
   });
 

@@ -1,22 +1,21 @@
 /**
- * Chat API endpoint backed by the runner engine.
+ * Chat API endpoint backed by the Managed Agents runner.
  * @module app/api/chat/route
  */
 import type { UIMessage } from "ai";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 
-import {
-  captureServerEvent,
-  captureServerEvents,
-} from "@/lib/analytics/posthog-server";
-import { patchApprovalPartState } from "@/lib/approvals/queries";
+import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { generateTitleFromUserMessage } from "@/lib/ai/title";
 import { allowedModelIds } from "@/lib/ai/models";
 import { attachFileToSession } from "@/lib/managed-agents/attach-session-file";
 import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
-import { runManagedAgent } from "@/lib/managed-agents/adapter";
+import {
+  resumeManagedAgentFromApproval,
+  runManagedAgent,
+} from "@/lib/managed-agents/adapter";
 import { getOrCreateSession } from "@/lib/managed-agents/session-kickoff";
 import type { ManagedFilePart } from "@/lib/managed-agents/types";
 import { ensureClientBootstrap } from "@/lib/runner/skills/ensure-client-bootstrap";
@@ -96,6 +95,14 @@ interface ApprovalResponse {
   approved: boolean;
 }
 
+/**
+ * Scans the trailing messages for an AI SDK approval-responded part
+ * (`state: "approval-responded"` with an `approval: { id, approved }`
+ * body). The AI SDK's `addToolApprovalResponse()` helper attaches these
+ * to the last assistant message before re-submitting, so we look at the
+ * last two slots to cover both "assistant is last" (pending continuation)
+ * and "user is last" (continuation already flushed into history).
+ */
 function getApprovalResponses(
   messages: PostRequestBody["messages"],
 ): ApprovalResponse[] {
@@ -103,9 +110,6 @@ function getApprovalResponses(
     return [];
   }
 
-  // Approval continuation is only valid when the trailing interaction contains
-  // the approval response, not when an older approval exists somewhere earlier
-  // in the thread history.
   const trailingMessages = messages.slice(-2);
   const approvalsById = new Map<string, boolean>();
 
@@ -164,8 +168,6 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const threadId = body.id;
-  // TODO(h5): delete getApprovalResponses once the frontend switches to
-  // POST /api/tool-confirm instead of re-posting through /api/chat.
   const approvalResponses = getApprovalResponses(body.messages);
   const isApprovalContinuation = !body.message && approvalResponses.length > 0;
 
@@ -279,47 +281,6 @@ export async function POST(request: Request): Promise<Response> {
       ? generateTitleFromUserMessage(input).catch(() => "")
       : null;
 
-    if (approvalResponses.length > 0) {
-      const patchResults = await Promise.all(
-        approvalResponses.map((response) =>
-          patchApprovalPartState(supabase, {
-            clientId: resolvedClientId,
-            threadId,
-            approvalId: response.approvalId,
-            approved: response.approved,
-          }),
-        ),
-      );
-
-      const failed = patchResults.find(
-        (r) => !r.success || (r.status !== "updated" && r.status !== "already_resolved"),
-      );
-      if (failed) {
-        return jsonError("Failed to process chat request.", 500);
-      }
-
-      await captureServerEvents(
-        patchResults.flatMap((result, index) => {
-          if (!result.success || result.status !== "updated" || !("event" in result)) {
-            return [];
-          }
-
-          const outcome = result.event?.status === "approved" ? "approved" : "denied";
-
-          return [{
-            distinctId: resolvedClientId,
-            event: "approval_resolved",
-            properties: {
-              tool_name: result.event?.tool_name,
-              approval_id: approvalResponses[index]?.approvalId,
-              outcome,
-            },
-          }];
-        }),
-      );
-      _t("approval_resolution_and_patch");
-    }
-
     await bootstrapPromise;
     _t("ensure_bootstrap");
 
@@ -333,6 +294,66 @@ export async function POST(request: Request): Promise<Response> {
 
     const anthropic = getAnthropicClient();
 
+    // ── Approval continuation branch ────────────────────────────────────────
+    // The AI SDK `useChat` transport re-POSTs to /api/chat with an
+    // `approval-responded` part embedded in the assistant message. We route
+    // this through `resumeManagedAgentFromApproval`, which resolves the
+    // stored approval event, kicks the paused Anthropic session with a
+    // `user.tool_confirmation`, consumes the post-approval events, and
+    // finalizes the run identically to a fresh turn.
+    if (isApprovalContinuation) {
+      const firstApproval = approvalResponses[0];
+      if (!firstApproval) {
+        return jsonError("No approval response found.", 400);
+      }
+
+      const resumeResult = await resumeManagedAgentFromApproval({
+        anthropic,
+        supabase,
+        clientId: resolvedClientId,
+        approvalId: firstApproval.approvalId,
+        approved: firstApproval.approved,
+      });
+      _t("resume_from_approval_returned");
+
+      if (resumeResult.status === "missing") {
+        return jsonError("Approval not found.", 404);
+      }
+
+      if (resumeResult.status === "already_resolved") {
+        return jsonError("Approval already resolved.", 409);
+      }
+
+      if (resumeResult.status === "error") {
+        console.error(
+          "[chat/route] resumeManagedAgentFromApproval error:",
+          resumeResult.error,
+        );
+        return jsonError("Failed to process approval.", 500);
+      }
+
+      await captureServerEvent({
+        distinctId: resolvedClientId,
+        event: "approval_resolved",
+        properties: {
+          approval_id: firstApproval.approvalId,
+          outcome: firstApproval.approved ? "approved" : "denied",
+          source: "web",
+        },
+      });
+
+      const approvalStream = createUIMessageStream({
+        originalMessages: body.messages as UIMessage[] | undefined,
+        execute: async ({ writer }) => {
+          writer.merge(resumeResult.stream as never);
+        },
+      });
+
+      _t("approval_response_returned");
+      return createUIMessageStreamResponse({ stream: approvalStream });
+    }
+
+    // ── Fresh turn branch ───────────────────────────────────────────────────
     if (fileParts.length > 0) {
       const session = await getOrCreateSession({
         anthropic,
@@ -377,6 +398,7 @@ export async function POST(request: Request): Promise<Response> {
     if (
       typeof managedResult === "object" &&
       managedResult !== null &&
+      !(managedResult instanceof ReadableStream) &&
       "status" in managedResult &&
       managedResult.status === "queued"
     ) {
@@ -386,14 +408,7 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    const uiStream =
-      typeof managedResult === "object" &&
-      managedResult !== null &&
-      "status" in managedResult &&
-      managedResult.status === "streaming" &&
-      "uiStream" in managedResult
-        ? managedResult.uiStream
-        : managedResult;
+    const uiStream = managedResult as ReadableStream;
 
     if (body.message?.role === "user") {
       await captureServerEvent({

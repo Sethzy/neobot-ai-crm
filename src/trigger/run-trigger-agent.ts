@@ -49,7 +49,13 @@ export const runTriggerAgent = task({
       autoDenyApprovals: true,
       persistIncrementally: true,
       onTerminal: async (events, cost) => {
-        await finalizeTriggerRun(supabase, payload.runId, events, cost);
+        await finalizeTriggerRun(supabase, {
+          runId: payload.runId,
+          threadId: payload.threadId,
+          clientId: payload.clientId,
+          events,
+          cost,
+        });
       },
     });
 

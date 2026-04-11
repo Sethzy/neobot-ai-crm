@@ -132,6 +132,18 @@ export interface SessionRunnerOptions {
   /** If provided, send as user.message AFTER opening the stream (fresh sessions). */
   kickoffMessage?: string;
   /**
+   * If provided, send a `user.tool_confirmation` AFTER opening the stream
+   * instead of (or in addition to) a `user.message`. Used by the
+   * resume-after-approval path to re-enter an existing session that paused
+   * on `requires_action`. Mutually exclusive with `kickoffMessage` in
+   * practice, but the runner will send both if both are set.
+   */
+  kickoffApproval?: {
+    toolUseId: string;
+    result: "allow" | "deny";
+    denyMessage?: string;
+  };
+  /**
    * Trigger-mode: auto-deny bash approvals via user.tool_confirmation.
    * Defaults to false (chat-mode behaviour).
    */

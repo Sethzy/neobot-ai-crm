@@ -1,17 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  mockResolveApprovalById,
+  mockResumeManagedAgentFromApproval,
   mockAuthenticateRequest,
   mockResolveClientId,
+  mockGetAnthropicClient,
+  mockAfter,
 } = vi.hoisted(() => ({
-  mockResolveApprovalById: vi.fn(),
+  mockResumeManagedAgentFromApproval: vi.fn(),
   mockAuthenticateRequest: vi.fn(),
   mockResolveClientId: vi.fn(),
+  mockGetAnthropicClient: vi.fn(),
+  mockAfter: vi.fn(),
 }));
 
-vi.mock("@/lib/managed-agents/resolve-approval", () => ({
-  resolveApprovalById: mockResolveApprovalById,
+vi.mock("@/lib/managed-agents/adapter", () => ({
+  resumeManagedAgentFromApproval: mockResumeManagedAgentFromApproval,
+}));
+
+vi.mock("@/lib/managed-agents/anthropic-client", () => ({
+  getAnthropicClient: mockGetAnthropicClient,
 }));
 
 vi.mock("@/lib/api/route-helpers", () => ({
@@ -28,6 +36,10 @@ vi.mock("@/lib/analytics/posthog-server", () => ({
   captureServerEvent: vi.fn(),
 }));
 
+vi.mock("next/server", () => ({
+  after: (fn: () => unknown) => mockAfter(fn),
+}));
+
 import { POST } from "../route";
 
 function jsonRequest(body: unknown): Request {
@@ -38,64 +50,109 @@ function jsonRequest(body: unknown): Request {
   });
 }
 
+function createClosedStream(): ReadableStream<unknown> {
+  return new ReadableStream({
+    start(controller) {
+      controller.close();
+    },
+  });
+}
+
 describe("POST /api/tool-confirm", () => {
   beforeEach(() => {
-    mockResolveApprovalById.mockReset();
+    mockResumeManagedAgentFromApproval.mockReset();
+    mockAfter.mockReset();
+    mockAfter.mockImplementation((fn: () => unknown) => {
+      // Drain inline so assertions can observe terminal state.
+      void fn();
+    });
     mockAuthenticateRequest.mockResolvedValue({
       kind: "ok",
       supabase: {},
       userId: "user-1",
     });
     mockResolveClientId.mockResolvedValue("client-1");
+    mockGetAnthropicClient.mockReturnValue({ beta: {} });
   });
 
-  it("returns 200 when Anthropic accepts the tool confirmation", async () => {
-    mockResolveApprovalById.mockResolvedValue({
-      success: true,
-      status: "updated",
+  it("returns 200 and drains the resume stream on a successful confirmation", async () => {
+    mockResumeManagedAgentFromApproval.mockResolvedValue({
+      status: "streaming",
+      stream: createClosedStream(),
       threadId: "thread-1",
     });
 
     const response = await POST(
       jsonRequest({
-        approvalId: "770e8400-e29b-41d4-a716-446655440000",
+        approvalId: "toolu_abc123",
         approved: true,
       }),
     );
 
     expect(response.status).toBe(200);
-    expect(mockResolveApprovalById).toHaveBeenCalledWith(
-      {},
-      {
+    expect(await response.json()).toEqual({
+      success: true,
+      status: "updated",
+    });
+    expect(mockResumeManagedAgentFromApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
         clientId: "client-1",
-        approvalId: "770e8400-e29b-41d4-a716-446655440000",
+        approvalId: "toolu_abc123",
         approved: true,
         denyMessage: undefined,
-      },
+      }),
     );
+    // The route registered an `after()` drain for the resume stream.
+    expect(mockAfter).toHaveBeenCalledTimes(1);
   });
 
   it("returns 404 for an unknown approvalId", async () => {
-    mockResolveApprovalById.mockResolvedValue({
-      success: false,
+    mockResumeManagedAgentFromApproval.mockResolvedValue({
       status: "missing",
     });
 
     const response = await POST(
       jsonRequest({
-        approvalId: "770e8400-e29b-41d4-a716-446655440000",
+        approvalId: "toolu_abc123",
         approved: true,
       }),
     );
 
     expect(response.status).toBe(404);
+    expect(mockAfter).not.toHaveBeenCalled();
   });
 
   it("returns 400 when the body fails schema validation", async () => {
     const response = await POST(jsonRequest({ approvalId: 42 }));
 
     expect(response.status).toBe(400);
-    expect(mockResolveApprovalById).not.toHaveBeenCalled();
+    expect(mockResumeManagedAgentFromApproval).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when the approvalId is an empty string", async () => {
+    const response = await POST(
+      jsonRequest({ approvalId: "", approved: true }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(mockResumeManagedAgentFromApproval).not.toHaveBeenCalled();
+  });
+
+  it("accepts non-UUID tool_use ids (Anthropic `tu_*` / `toolu_*` shape)", async () => {
+    mockResumeManagedAgentFromApproval.mockResolvedValue({
+      status: "streaming",
+      stream: createClosedStream(),
+      threadId: "thread-1",
+    });
+
+    const response = await POST(
+      jsonRequest({ approvalId: "tu_01abc_XYZ", approved: true }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockResumeManagedAgentFromApproval).toHaveBeenCalledWith(
+      expect.objectContaining({ approvalId: "tu_01abc_XYZ" }),
+    );
   });
 
   it("returns 401 when authenticateRequest fails", async () => {
@@ -106,7 +163,7 @@ describe("POST /api/tool-confirm", () => {
 
     const response = await POST(
       jsonRequest({
-        approvalId: "770e8400-e29b-41d4-a716-446655440000",
+        approvalId: "toolu_abc123",
         approved: true,
       }),
     );
@@ -115,15 +172,14 @@ describe("POST /api/tool-confirm", () => {
   });
 
   it("returns already_resolved for duplicate confirmations", async () => {
-    mockResolveApprovalById.mockResolvedValue({
-      success: true,
+    mockResumeManagedAgentFromApproval.mockResolvedValue({
       status: "already_resolved",
       threadId: "thread-1",
     });
 
     const response = await POST(
       jsonRequest({
-        approvalId: "770e8400-e29b-41d4-a716-446655440000",
+        approvalId: "toolu_abc123",
         approved: true,
       }),
     );
@@ -133,5 +189,23 @@ describe("POST /api/tool-confirm", () => {
       success: true,
       status: "already_resolved",
     });
+    expect(mockAfter).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 when the resume fails with an internal error", async () => {
+    mockResumeManagedAgentFromApproval.mockResolvedValue({
+      status: "error",
+      error: "Approval event missing session_id",
+    });
+
+    const response = await POST(
+      jsonRequest({
+        approvalId: "toolu_abc123",
+        approved: true,
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    expect(mockAfter).not.toHaveBeenCalled();
   });
 });

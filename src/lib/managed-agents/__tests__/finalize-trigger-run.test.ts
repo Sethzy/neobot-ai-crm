@@ -4,9 +4,16 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { completeRun, runEvaluatorsForEvents } = vi.hoisted(() => ({
+const {
+  completeRun,
+  runEvaluatorsForEvents,
+  upsertMessage,
+  deliverToExternalChannels,
+} = vi.hoisted(() => ({
   completeRun: vi.fn().mockResolvedValue(undefined),
   runEvaluatorsForEvents: vi.fn().mockResolvedValue(undefined),
+  upsertMessage: vi.fn().mockResolvedValue(undefined),
+  deliverToExternalChannels: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/runner/run-lifecycle", () => ({
@@ -14,6 +21,12 @@ vi.mock("@/lib/runner/run-lifecycle", () => ({
 }));
 vi.mock("@/lib/eval/run-evaluators", () => ({
   runEvaluatorsForEvents,
+}));
+vi.mock("@/lib/chat/messages", () => ({
+  upsertMessage,
+}));
+vi.mock("@/lib/channels/deliver", () => ({
+  deliverToExternalChannels,
 }));
 
 import { computeTurnCost } from "../adapter-cost";
@@ -23,9 +36,11 @@ describe("finalizeTriggerRun", () => {
   beforeEach(() => {
     completeRun.mockClear();
     runEvaluatorsForEvents.mockClear();
+    upsertMessage.mockClear();
+    deliverToExternalChannels.mockClear();
   });
 
-  it("marks end_turn runs completed and runs evaluators", async () => {
+  it("persists assistant output, delivers externally, and marks end_turn runs completed", async () => {
     const supabase = { __role: "service" } as never;
     const events = [
       {
@@ -34,19 +49,52 @@ describe("finalizeTriggerRun", () => {
         content: [{ type: "text" as const, text: "Review the inbound lead." }],
       },
       {
+        id: "evt_msg",
+        type: "agent.message" as const,
+        content: [{ type: "text" as const, text: "Lead reviewed." }],
+      },
+      {
         id: "evt_terminal",
         type: "session.status_idle" as const,
         stop_reason: { type: "end_turn" as const },
       },
     ];
 
-    await finalizeTriggerRun(supabase, "run_1", events, {
-      inputTokens: 100_000,
-      outputTokens: 10_000,
-      cacheReadInputTokens: 5_000,
-      cacheCreationInputTokens: 2_000,
-      runtimeSeconds: 60,
+    await finalizeTriggerRun(supabase, {
+      runId: "run_1",
+      threadId: "thread_1",
+      clientId: "client_1",
+      events,
+      cost: {
+        inputTokens: 100_000,
+        outputTokens: 10_000,
+        cacheReadInputTokens: 5_000,
+        cacheCreationInputTokens: 2_000,
+        runtimeSeconds: 60,
+      },
     });
+
+    // Assistant message persisted with the terminal event id as the
+    // idempotency key.
+    expect(upsertMessage).toHaveBeenCalledTimes(1);
+    expect(upsertMessage).toHaveBeenCalledWith(
+      supabase,
+      expect.objectContaining({
+        thread_id: "thread_1",
+        role: "assistant",
+        source_event_id: "evt_terminal",
+      }),
+    );
+
+    // External channel delivery runs after persistence (same args as chat adapter).
+    expect(deliverToExternalChannels).toHaveBeenCalledTimes(1);
+    expect(deliverToExternalChannels).toHaveBeenCalledWith(
+      supabase,
+      "thread_1",
+      "client_1",
+      expect.any(String),
+      expect.any(Array),
+    );
 
     expect(completeRun).toHaveBeenCalledTimes(1);
     const completion = completeRun.mock.calls[0][1];
@@ -86,10 +134,16 @@ describe("finalizeTriggerRun", () => {
       },
     ];
 
-    await finalizeTriggerRun(supabase, "run_1", events, {
-      inputTokens: 50,
-      outputTokens: 5,
-      runtimeSeconds: 3,
+    await finalizeTriggerRun(supabase, {
+      runId: "run_1",
+      threadId: "thread_1",
+      clientId: "client_1",
+      events,
+      cost: {
+        inputTokens: 50,
+        outputTokens: 5,
+        runtimeSeconds: 3,
+      },
     });
 
     expect(completeRun).toHaveBeenCalledWith(
@@ -102,5 +156,34 @@ describe("finalizeTriggerRun", () => {
       }),
     );
     expect(runEvaluatorsForEvents).not.toHaveBeenCalled();
+  });
+
+  it("does not persist or deliver when the session produced no assistant content", async () => {
+    const supabase = { __role: "service" } as never;
+    const events = [
+      {
+        id: "evt_terminal",
+        type: "session.status_terminated" as const,
+      },
+    ];
+
+    await finalizeTriggerRun(supabase, {
+      runId: "run_1",
+      threadId: "thread_1",
+      clientId: "client_1",
+      events,
+      cost: {
+        inputTokens: 10,
+        outputTokens: 0,
+        runtimeSeconds: 1,
+      },
+    });
+
+    expect(upsertMessage).not.toHaveBeenCalled();
+    expect(deliverToExternalChannels).not.toHaveBeenCalled();
+    expect(completeRun).toHaveBeenCalledWith(
+      supabase,
+      expect.objectContaining({ status: "failed" }),
+    );
   });
 });

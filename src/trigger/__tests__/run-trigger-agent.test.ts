@@ -133,14 +133,24 @@ describe("runTriggerAgent", () => {
 
     expect(finalizeTriggerRun).toHaveBeenCalledWith(
       { __role: "service" },
-      "run_1",
-      [{ id: "evt_1", type: "session.status_idle", stop_reason: { type: "end_turn" } }],
       {
-        inputTokens: 100,
-        outputTokens: 50,
-        cacheReadInputTokens: 0,
-        cacheCreationInputTokens: 0,
-        runtimeSeconds: 12,
+        runId: "run_1",
+        threadId: "thread_1",
+        clientId: "client_1",
+        events: [
+          {
+            id: "evt_1",
+            type: "session.status_idle",
+            stop_reason: { type: "end_turn" },
+          },
+        ],
+        cost: {
+          inputTokens: 100,
+          outputTokens: 50,
+          cacheReadInputTokens: 0,
+          cacheCreationInputTokens: 0,
+          runtimeSeconds: 12,
+        },
       },
     );
   });

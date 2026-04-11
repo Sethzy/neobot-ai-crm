@@ -36,10 +36,12 @@ import {
   TELEGRAM_CHANNEL,
   type TelegramWebhookContext,
 } from "@/lib/channels/telegram/webhook";
-import { runManagedAgent } from "@/lib/managed-agents/adapter";
+import {
+  resumeManagedAgentFromApproval,
+  runManagedAgent,
+} from "@/lib/managed-agents/adapter";
 import { attachFileToSession } from "@/lib/managed-agents/attach-session-file";
 import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
-import { resolveApprovalById } from "@/lib/managed-agents/resolve-approval";
 import { getOrCreateSession } from "@/lib/managed-agents/session-kickoff";
 import type { ManagedFilePart } from "@/lib/managed-agents/types";
 import { createAdminClient } from "@/lib/supabase/server";
@@ -311,6 +313,17 @@ async function runTelegramAgent(
     threadTitle: null,
   });
 
+  // runManagedAgent can return `{ status: "queued" }` when the thread is
+  // already running another turn. Telegram inbound messages can't wait, so
+  // log + drop; the next message will either fit the window or retry.
+  if (!(stream instanceof ReadableStream)) {
+    console.warn(
+      "[telegram/webhook] runManagedAgent returned queued — dropping inbound message",
+      { threadId: input.threadId, chatId: input.chatId },
+    );
+    return;
+  }
+
   const reader = stream.getReader();
   while (true) {
     const { done } = await reader.read();
@@ -414,44 +427,62 @@ async function handleApprovalCallback(
   }
 
   const approved = input.action === "approve";
+  const anthropic = getAnthropicClient();
 
-  const result = await resolveApprovalById(ctx.supabase, {
+  const result = await resumeManagedAgentFromApproval({
+    anthropic,
+    supabase: ctx.supabase,
     clientId: mapping.client_id,
     approvalId: input.approvalId,
     approved,
   });
 
-  if (!result.success && result.status === "missing") {
+  if (result.status === "missing") {
     await ctx.bot.api.answerCallbackQuery(callbackId, { text: "Approval not found." });
     return;
   }
 
-  const isStaleThread =
-    result.success &&
-    result.threadId !== mapping.thread_id;
-
-  if (result.success) {
-    const statusLabel = result.status === "already_resolved"
-      ? "Already resolved"
-      : approved
-        ? "✅ Approved"
-        : "❌ Denied";
-    await editTelegramCallbackMessage(ctx.bot, callbackQuery, statusLabel);
+  if (result.status === "error") {
+    console.error("[telegram/webhook] approval resume error:", result.error);
+    await ctx.bot.api.answerCallbackQuery(callbackId, { text: "Failed to process." });
+    return;
   }
 
+  if (result.status === "already_resolved") {
+    await editTelegramCallbackMessage(ctx.bot, callbackQuery, "Already resolved");
+    await ctx.bot.api.answerCallbackQuery(callbackId, { text: "Already resolved." });
+    return;
+  }
+
+  // status === "streaming" — the post-approval turn is running. Drain the
+  // stream so the run finalizes (assistant parts persisted, completeRun,
+  // evaluators, external channel delivery). Telegram render happens via
+  // `deliverToExternalChannels` inside `finalizeRun`.
+  const isStaleThread = result.threadId !== mapping.thread_id;
+  await editTelegramCallbackMessage(
+    ctx.bot,
+    callbackQuery,
+    approved ? "✅ Approved" : "❌ Denied",
+  );
   await ctx.bot.api.answerCallbackQuery(callbackId, {
-    text: result.success
-      ? (
-        result.status === "already_resolved"
-          ? "Already resolved."
-          : approved
-            ? isStaleThread
-              ? "Approved — response in web app (session changed)"
-              : "Approved — agent continuing"
-            : "Denied"
-      )
-      : "Failed to process",
+    text: approved
+      ? isStaleThread
+        ? "Approved — response in web app (session changed)"
+        : "Approved — agent continuing"
+      : "Denied",
   });
+
+  const reader = result.stream.getReader();
+  try {
+    while (true) {
+      const { done } = await reader.read();
+      if (done) break;
+    }
+  } catch (drainError) {
+    console.error("[telegram/webhook] approval stream drain failed:", drainError);
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 // ---------------------------------------------------------------------------

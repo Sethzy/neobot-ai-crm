@@ -10,7 +10,7 @@ const {
   mockCreateTelegramBot,
   mockGetTelegramBotToken,
   mockRunManagedAgent,
-  mockResolveApprovalById,
+  mockResumeManagedAgentFromApproval,
   mockAdvancePendingQuestionBatchByCallback,
   mockAdvancePendingQuestionBatchByTextReply,
   mockClearPendingQuestionsForChat,
@@ -25,7 +25,7 @@ const {
   mockCreateTelegramBot: vi.fn(),
   mockGetTelegramBotToken: vi.fn(),
   mockRunManagedAgent: vi.fn(),
-  mockResolveApprovalById: vi.fn(),
+  mockResumeManagedAgentFromApproval: vi.fn(),
   mockAdvancePendingQuestionBatchByCallback: vi.fn(),
   mockAdvancePendingQuestionBatchByTextReply: vi.fn(),
   mockClearPendingQuestionsForChat: vi.fn(),
@@ -62,10 +62,8 @@ vi.mock("@/lib/channels/telegram", async (importOriginal) => {
 
 vi.mock("@/lib/managed-agents/adapter", () => ({
   runManagedAgent: (...args: unknown[]) => mockRunManagedAgent(...args),
-}));
-
-vi.mock("@/lib/managed-agents/resolve-approval", () => ({
-  resolveApprovalById: (...args: unknown[]) => mockResolveApprovalById(...args),
+  resumeManagedAgentFromApproval: (...args: unknown[]) =>
+    mockResumeManagedAgentFromApproval(...args),
 }));
 
 vi.mock("@/lib/managed-agents/attach-session-file", () => ({
@@ -276,9 +274,13 @@ describe("POST /api/webhook/telegram", () => {
         },
       }),
     );
-    mockResolveApprovalById.mockResolvedValue({
-      success: true,
-      status: "updated",
+    mockResumeManagedAgentFromApproval.mockResolvedValue({
+      status: "streaming",
+      stream: new ReadableStream({
+        start(controller) {
+          controller.close();
+        },
+      }),
       threadId: "thread-1",
     });
     mockAdvancePendingQuestionBatchByCallback.mockResolvedValue({ status: "expired" });
@@ -439,7 +441,7 @@ describe("POST /api/webhook/telegram", () => {
     await flushBackgroundWork();
 
     expect(response.status).toBe(200);
-    expect(mockResolveApprovalById).not.toHaveBeenCalled();
+    expect(mockResumeManagedAgentFromApproval).not.toHaveBeenCalled();
     expect(api.answerCallbackQuery).toHaveBeenCalledWith("callback-1", {
       text: "Not connected.",
     });
@@ -528,8 +530,7 @@ describe("POST /api/webhook/telegram", () => {
     const api = createTelegramBotApi();
     mockCreateAdminClient.mockResolvedValue(supabase);
     mockCreateTelegramBot.mockReturnValue({ api });
-    mockResolveApprovalById.mockResolvedValueOnce({
-      success: true,
+    mockResumeManagedAgentFromApproval.mockResolvedValueOnce({
       status: "already_resolved",
       threadId: "thread-2",
     });
@@ -987,9 +988,11 @@ describe("POST /api/webhook/telegram", () => {
     );
     await flushBackgroundWork();
 
+    // Default mock returns a streaming result for thread-1 while the mapping
+    // is new-thread-after-switch, so isStaleThread=true and the operator
+    // toast should note the session changed.
     expect(response.status).toBe(200);
-    expect(mockResolveApprovalById).toHaveBeenCalledWith(
-      supabase,
+    expect(mockResumeManagedAgentFromApproval).toHaveBeenCalledWith(
       expect.objectContaining({
         clientId: "client-1",
         approvalId: "approval-stale",
