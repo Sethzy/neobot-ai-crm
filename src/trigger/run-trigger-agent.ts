@@ -11,7 +11,10 @@
 import { logger, task } from "@trigger.dev/sdk/v3";
 
 import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
-import { finalizeTriggerRun } from "@/lib/managed-agents/finalize-trigger-run";
+import {
+  finalizeTriggerRun,
+  persistTriggerRunSnapshot,
+} from "@/lib/managed-agents/finalize-trigger-run";
 import { consumeAnthropicSession } from "@/lib/managed-agents/session-runner";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -48,6 +51,23 @@ export const runTriggerAgent = task({
       },
       autoDenyApprovals: true,
       persistIncrementally: true,
+      callbacks: {
+        onAccumulatedEventsUpdated: async (events) => {
+          try {
+            await persistTriggerRunSnapshot(supabase, {
+              runId: payload.runId,
+              threadId: payload.threadId,
+              events,
+            });
+          } catch (error) {
+            logger.error("Trigger snapshot persistence failed", {
+              runId: payload.runId,
+              threadId: payload.threadId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        },
+      },
       onTerminal: async (events, cost) => {
         await finalizeTriggerRun(supabase, {
           runId: payload.runId,

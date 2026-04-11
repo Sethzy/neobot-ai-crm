@@ -30,7 +30,10 @@ vi.mock("@/lib/channels/deliver", () => ({
 }));
 
 import { computeTurnCost } from "../adapter-cost";
-import { finalizeTriggerRun } from "../finalize-trigger-run";
+import {
+  finalizeTriggerRun,
+  persistTriggerRunSnapshot,
+} from "../finalize-trigger-run";
 
 describe("finalizeTriggerRun", () => {
   beforeEach(() => {
@@ -74,15 +77,15 @@ describe("finalizeTriggerRun", () => {
       },
     });
 
-    // Assistant message persisted with the terminal event id as the
-    // idempotency key.
+    // Assistant message persisted with the stable run id so incremental
+    // updates keep rewriting the same row.
     expect(upsertMessage).toHaveBeenCalledTimes(1);
     expect(upsertMessage).toHaveBeenCalledWith(
       supabase,
       expect.objectContaining({
         thread_id: "thread_1",
         role: "assistant",
-        source_event_id: "evt_terminal",
+        source_event_id: "run:run_1",
       }),
     );
 
@@ -94,6 +97,7 @@ describe("finalizeTriggerRun", () => {
       "client_1",
       expect.any(String),
       expect.any(Array),
+      "run:run_1",
     );
 
     expect(completeRun).toHaveBeenCalledTimes(1);
@@ -124,7 +128,7 @@ describe("finalizeTriggerRun", () => {
     );
   });
 
-  it("marks retries_exhausted runs failed and skips evaluators", async () => {
+  it("marks retries_exhausted runs failed and still scores the terminal event stream", async () => {
     const supabase = { __role: "service" } as never;
     const events = [
       {
@@ -155,7 +159,12 @@ describe("finalizeTriggerRun", () => {
         tokensOut: 5,
       }),
     );
-    expect(runEvaluatorsForEvents).not.toHaveBeenCalled();
+    expect(runEvaluatorsForEvents).toHaveBeenCalledWith(
+      events,
+      "run_1",
+      supabase,
+      { conversationInput: "" },
+    );
   });
 
   it("does not persist or deliver when the session produced no assistant content", async () => {
@@ -184,6 +193,31 @@ describe("finalizeTriggerRun", () => {
     expect(completeRun).toHaveBeenCalledWith(
       supabase,
       expect.objectContaining({ status: "failed" }),
+    );
+  });
+
+  it("upserts the in-flight assistant snapshot using the stable run key", async () => {
+    const supabase = { __role: "service" } as never;
+
+    await persistTriggerRunSnapshot(supabase, {
+      runId: "run_9",
+      threadId: "thread_9",
+      events: [
+        {
+          id: "evt_msg",
+          type: "agent.message" as const,
+          content: [{ type: "text" as const, text: "Halfway there." }],
+        },
+      ],
+    });
+
+    expect(upsertMessage).toHaveBeenCalledWith(
+      supabase,
+      expect.objectContaining({
+        thread_id: "thread_9",
+        role: "assistant",
+        source_event_id: "run:run_9",
+      }),
     );
   });
 });

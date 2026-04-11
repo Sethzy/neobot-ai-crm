@@ -73,28 +73,50 @@ function getTerminalRunStatus(
 }
 
 /**
- * Same per-turn idempotency logic as `adapter.ts`. Prefers the last
- * terminal event id, then the last event id of any kind, then a synthetic
- * `run:<runId>` fallback so the persist write always has a key.
+ * Trigger runs persist to a single assistant row keyed by the run id so
+ * in-flight snapshots and terminal finalization keep rewriting the same
+ * message instead of appending duplicates.
  */
-function pickSourceEventId(
-  events: ReadonlyArray<AnthropicEvent>,
-  runId: string,
-): string {
-  for (let i = events.length - 1; i >= 0; i -= 1) {
-    const e = events[i] as { id?: string; type?: string };
-    if (
-      e.type === "session.status_idle" ||
-      e.type === "session.status_terminated"
-    ) {
-      if (typeof e.id === "string" && e.id.length > 0) return e.id;
-    }
-  }
-  for (let i = events.length - 1; i >= 0; i -= 1) {
-    const e = events[i] as { id?: string };
-    if (typeof e.id === "string" && e.id.length > 0) return e.id;
-  }
+function pickSourceEventId(runId: string): string {
   return `run:${runId}`;
+}
+
+function buildAssistantSnapshot(
+  events: ReadonlyArray<AnthropicEvent>,
+): { contentText: string; parts: ReturnType<typeof buildAssistantPartsFromEvents> } | null {
+  const parts = buildAssistantPartsFromEvents(events);
+  const hasContent = parts.some((part) => part.type !== "step-start");
+  if (!hasContent) {
+    return null;
+  }
+
+  return {
+    contentText: getAssistantTextFromParts(parts),
+    parts,
+  };
+}
+
+export async function persistTriggerRunSnapshot(
+  supabase: SupabaseClient<Database>,
+  input: {
+    runId: string;
+    threadId: string;
+    events: ReadonlyArray<unknown>;
+  },
+): Promise<void> {
+  const typedEvents = input.events as AnthropicEvent[];
+  const snapshot = buildAssistantSnapshot(typedEvents);
+  if (!snapshot) {
+    return;
+  }
+
+  await upsertMessage(supabase, {
+    thread_id: input.threadId,
+    role: "assistant",
+    content: snapshot.contentText.length > 0 ? snapshot.contentText : null,
+    parts: snapshot.parts as unknown as Json,
+    source_event_id: pickSourceEventId(input.runId),
+  });
 }
 
 export async function finalizeTriggerRun(
@@ -107,20 +129,13 @@ export async function finalizeTriggerRun(
   // Persist the assistant message first so the user can see the output on
   // both the happy path (end_turn) and the failure path (retries_exhausted
   // with partial content is still useful). `upsertMessage` is keyed by
-  // `source_event_id`, so reruns / retries dedupe on the terminal event id.
-  const parts = buildAssistantPartsFromEvents(typedEvents);
-  const hasContent = parts.some((p) => p.type !== "step-start");
-  if (hasContent) {
-    const contentText = getAssistantTextFromParts(parts);
-    const sourceEventId = pickSourceEventId(typedEvents, input.runId);
+  // `source_event_id`, so reruns / retries dedupe on the stable run id while
+  // incremental snapshots keep updating the same row.
+  const snapshot = buildAssistantSnapshot(typedEvents);
+  if (snapshot) {
+    const sourceEventId = pickSourceEventId(input.runId);
     try {
-      await upsertMessage(supabase, {
-        thread_id: input.threadId,
-        role: "assistant",
-        content: contentText.length > 0 ? contentText : null,
-        parts: parts as unknown as Json,
-        source_event_id: sourceEventId,
-      });
+      await persistTriggerRunSnapshot(supabase, input);
     } catch (persistError) {
       console.error(
         "[finalizeTriggerRun] assistant message persistence failed:",
@@ -136,8 +151,9 @@ export async function finalizeTriggerRun(
         supabase,
         input.threadId,
         input.clientId,
-        contentText,
-        parts,
+        snapshot.contentText,
+        snapshot.parts,
+        sourceEventId,
       );
     } catch (deliveryError) {
       console.error(
@@ -162,10 +178,6 @@ export async function finalizeTriggerRun(
       activeSeconds: input.cost.runtimeSeconds,
     }),
   });
-
-  if (status !== "completed") {
-    return;
-  }
 
   await runEvaluatorsForEvents(typedEvents, input.runId, supabase, {
     conversationInput: getConversationInput(typedEvents),
