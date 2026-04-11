@@ -42,6 +42,7 @@ describe("update_record", () => {
       const { client } = createMockSupabase({
         contacts: [
           { data: existing, error: null },
+          { data: null, error: null },
           { data: updated, error: null },
         ],
       });
@@ -93,6 +94,7 @@ describe("update_record", () => {
       const { client, builderHistory } = createMockSupabase({
         contacts: [
           { data: existing, error: null },
+          { data: null, error: null },
           { data: updated, error: null },
         ],
       });
@@ -107,9 +109,46 @@ describe("update_record", () => {
       );
 
       expect(result).toEqual({ success: true, record: updated });
-      expect(builderHistory.contacts[1]?.update).toHaveBeenCalledWith(
+      expect(builderHistory.contacts[2]?.update).toHaveBeenCalledWith(
         expect.objectContaining({ email: "bob@acme.com" }),
       );
+    });
+
+    it("blocks update when email already belongs to another contact", async () => {
+      const existingBob = {
+        contact_id: "c2",
+        client_id: CLIENT_ID,
+        first_name: "Bob",
+        last_name: "B",
+        email: "bob@acme.com",
+      };
+      const existingAlice = {
+        contact_id: "c1",
+        client_id: CLIENT_ID,
+        first_name: "Alice",
+        last_name: "A",
+        email: "alice@acme.com",
+      };
+      const { client } = createMockSupabase({
+        contacts: [
+          { data: existingBob, error: null },
+          { data: existingAlice, error: null },
+        ],
+      });
+      const tools = createUpdateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.update_record.execute(
+        {
+          entity: "contacts",
+          updates: [{ id: "c2", fields: { email: "alice@acme.com" } }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toMatch(/email.*already/i);
+      }
     });
   });
 
@@ -331,9 +370,19 @@ describe("update_record", () => {
   // ---------------------------------------------------------------------------
   describe("notes redirect", () => {
     it("creates a record_note when notes field is provided alongside other fields", async () => {
+      const existing = {
+        contact_id: "c1",
+        client_id: CLIENT_ID,
+        first_name: "John",
+        email: "old@test.com",
+      };
       const updated = { contact_id: "c1", first_name: "John", email: "john@test.com" };
       const { client, builderHistory } = createMockSupabase({
-        contacts: { data: updated, error: null },
+        contacts: [
+          { data: existing, error: null },
+          { data: null, error: null },
+          { data: updated, error: null },
+        ],
         record_notes: { data: null, error: null },
       });
       const tools = createUpdateRecordTool(client, CLIENT_ID);
@@ -348,7 +397,7 @@ describe("update_record", () => {
 
       expect(result).toEqual({ success: true, record: updated });
       // Notes should not be in the update payload
-      const updateBuilder = builderHistory.contacts[1];
+      const updateBuilder = builderHistory.contacts[2];
       expect(updateBuilder.update).toHaveBeenCalledWith(
         expect.not.objectContaining({ notes: expect.anything() }),
       );

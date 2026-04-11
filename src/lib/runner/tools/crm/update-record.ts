@@ -211,6 +211,31 @@ async function updateOne(
     }
   }
 
+  if (entity === "contacts" && typeof updates.email === "string" && updates.email.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: conflict, error: conflictError } = await (supabase as any)
+      .from("contacts")
+      .select("contact_id, first_name, last_name")
+      .eq("client_id", clientId)
+      .eq("email", updates.email)
+      .neq("contact_id", recordId)
+      .maybeSingle();
+
+    if (conflictError) {
+      return { success: false, error: conflictError.message };
+    }
+
+    if (conflict) {
+      return {
+        success: false,
+        error:
+          `Email "${updates.email}" already belongs to ` +
+          `${String(conflict.first_name ?? "").trim()} ${String(conflict.last_name ?? "").trim()}`.trim() +
+          ` (${conflict.contact_id}).`,
+      };
+    }
+  }
+
   if (entity === "companies" && typeof updates.website === "string") {
     updates.website = normalizeWebsite(updates.website) ?? updates.website;
   }
