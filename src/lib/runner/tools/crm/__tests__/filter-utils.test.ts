@@ -4,7 +4,12 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { buildContainsIlikeLiteral, buildIlikePattern } from "../filter-utils";
+import {
+  buildContainsIlikeLiteral,
+  buildIlikePattern,
+  flexibleTimestampSchema,
+  normalizeDateString,
+} from "../filter-utils";
 
 describe("buildContainsIlikeLiteral", () => {
   it("normalizes whitespace and wraps value in a quoted contains literal", () => {
@@ -43,5 +48,22 @@ describe("buildIlikePattern", () => {
     const result = buildIlikePattern("test");
 
     expect(result).not.toContain('"');
+  });
+});
+
+describe("normalizeDateString", () => {
+  it("parses common date formats", () => {
+    expect(normalizeDateString("2026-04-10")).toBe("2026-04-10T00:00:00Z");
+    expect(normalizeDateString("04/10/2026")).toBe("2026-04-10T00:00:00Z");
+    expect(normalizeDateString("April 10, 2026")).toBe("2026-04-10T00:00:00Z");
+    expect(normalizeDateString("10 Apr 2026")).toBe("2026-04-10T00:00:00Z");
+  });
+});
+
+describe("flexibleTimestampSchema", () => {
+  it("accepts common date formats", () => {
+    expect(flexibleTimestampSchema.safeParse("04/10/2026").success).toBe(true);
+    expect(flexibleTimestampSchema.safeParse("April 10, 2026").success).toBe(true);
+    expect(flexibleTimestampSchema.safeParse("10 Apr 2026").success).toBe(true);
   });
 });

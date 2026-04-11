@@ -71,6 +71,8 @@ export interface CrmVocabConfig {
   deal_fields: FieldDefinition[];
 }
 
+export type CrmConfigurableEntity = "contacts" | "companies" | "deals" | "crm_tasks";
+
 /** Loose DB row shape for crm_config before runtime normalization. */
 export interface CrmConfigRow {
   deal_label: string | null;
@@ -95,7 +97,7 @@ export const CRM_DEFAULTS: CrmVocabConfig = {
   company_label: "Company",
   deal_stages: ["leads", "negotiation", "offer", "closing", "lost"],
   contact_types: ["buyer", "seller", "landlord", "tenant", "agent", "other"],
-  interaction_types: ["call", "meeting", "email", "message", "viewing", "note"],
+  interaction_types: ["call", "meeting", "email", "message", "viewing", "note", "stage_change"],
   deal_contact_roles: ["buyer", "seller", "agent", "other"],
   company_industries: [
     "property_agency",
@@ -264,6 +266,23 @@ export function buildCustomFieldsSchema(
   );
 
   return z.strictObject(shape);
+}
+
+/** Returns the configured custom field definitions for a given CRM entity. */
+export function getCustomFieldDefinitions(
+  config: CrmVocabConfig,
+  entity: CrmConfigurableEntity,
+): CustomFieldDefinition[] {
+  switch (entity) {
+    case "contacts":
+      return config.contact_custom_fields;
+    case "companies":
+      return config.company_custom_fields;
+    case "deals":
+      return config.deal_custom_fields;
+    case "crm_tasks":
+      return config.task_custom_fields;
+  }
 }
 
 /**

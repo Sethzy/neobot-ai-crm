@@ -8,9 +8,14 @@ import { z } from "zod";
 
 import {
   CRM_DEFAULTS,
+  getCustomFieldDefinitions,
   matchVocabularyValue,
   type CrmVocabConfig,
 } from "@/lib/crm/config";
+import {
+  checkRequiredCustomFields,
+  validateCustomFields,
+} from "@/lib/crm/custom-field-validation";
 import { isFreeEmailDomain } from "@/lib/crm/free-email-providers";
 import type { Database } from "@/types/database";
 import {
@@ -486,6 +491,20 @@ export function createCreateRecordTool(
           }
         }
 
+        const customFieldDefinitions = getCustomFieldDefinitions(config, entity);
+        for (const record of records) {
+          const customFields = (record.custom_fields as Record<string, unknown>) ?? {};
+          const requiredCheck = checkRequiredCustomFields(customFields, customFieldDefinitions);
+          if (!requiredCheck.ok) {
+            return { success: false as const, error: requiredCheck.error };
+          }
+
+          const validation = validateCustomFields(customFields, customFieldDefinitions);
+          if (!validation.ok) {
+            return { success: false as const, error: validation.error };
+          }
+        }
+
         // --- Build insert rows ---
         let rows: Array<Record<string, unknown>>;
         try {
@@ -522,6 +541,32 @@ export function createCreateRecordTool(
           }
 
           await insertRecordNotes(supabase, clientId, entity, records, [data]);
+
+          if (
+            entity === "contacts" &&
+            !data.company_id &&
+            typeof data.email === "string"
+          ) {
+            const domain = extractEmailDomain(data.email);
+            if (domain && !isFreeEmailDomain(domain)) {
+              const { data: companies } = await supabase
+                .from("companies")
+                .select("company_id, website")
+                .eq("client_id", clientId)
+                .in("website", [domain, `www.${domain}`])
+                .limit(1);
+
+              const company = Array.isArray(companies) ? companies[0] : null;
+              if (company?.company_id) {
+                await supabase
+                  .from("contacts")
+                  .update({ company_id: company.company_id })
+                  .eq("contact_id", data.contact_id)
+                  .eq("client_id", clientId);
+                data.company_id = company.company_id;
+              }
+            }
+          }
 
           await captureServerEvent({
             distinctId: clientId,

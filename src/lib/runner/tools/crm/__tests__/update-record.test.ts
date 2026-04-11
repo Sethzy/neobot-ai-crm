@@ -4,6 +4,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CRM_DEFAULTS } from "@/lib/crm/config";
 import { createUpdateRecordTool } from "../update-record";
 import { createMockSupabase } from "./mock-supabase";
 
@@ -231,13 +232,14 @@ describe("update_record", () => {
     it("fires deal_stage_changed event when stage changes", async () => {
       const existingDeal = { stage: "leads", amount: 500000 };
       const updatedDeal = { deal_id: "d1", stage: "offer", amount: 500000 };
-      const { client } = createMockSupabase({
+      const { client, builderHistory } = createMockSupabase({
         deals: [
           // First from("deals") → fetch previous stage
           { data: existingDeal, error: null },
           // Second from("deals") → update
           { data: updatedDeal, error: null },
         ],
+        interactions: { data: null, error: null },
       });
       const tools = createUpdateRecordTool(client, CLIENT_ID);
 
@@ -259,6 +261,13 @@ describe("update_record", () => {
           deal_value: 500000,
         },
       });
+      expect(builderHistory.interactions?.[0]?.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          client_id: CLIENT_ID,
+          deal_id: "d1",
+          type: "stage_change",
+        }),
+      );
     });
 
     it("does not fire analytics when stage is same", async () => {
@@ -493,6 +502,39 @@ describe("update_record", () => {
           custom_fields: { key_a: "new_a", key_b: "old_b" },
         }),
       );
+    });
+
+    it("rejects invalid custom field values on update", async () => {
+      const existingRecord = {
+        contact_id: "c1",
+        client_id: CLIENT_ID,
+        custom_fields: { score: 2 },
+      };
+      const { client } = createMockSupabase({
+        contacts: [
+          { data: existingRecord, error: null },
+          { data: existingRecord, error: null },
+        ],
+      });
+      const tools = createUpdateRecordTool(client, CLIENT_ID, {
+        ...CRM_DEFAULTS,
+        contact_custom_fields: [
+          { key: "score", label: "Score", type: "number" },
+        ],
+      });
+
+      const result = await tools.update_record.execute(
+        {
+          entity: "contacts",
+          updates: [{ id: "c1", fields: { custom_fields: { score: "bad" } } }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toMatch(/score/i);
+      }
     });
   });
 

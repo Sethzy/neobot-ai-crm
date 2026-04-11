@@ -4,6 +4,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CRM_DEFAULTS } from "@/lib/crm/config";
 import { createCreateRecordTool } from "../create-record";
 import { createMockSupabase } from "./mock-supabase";
 
@@ -331,6 +332,102 @@ describe("create_record", () => {
 
       expect(result).toEqual({ success: true, record: inserted });
     });
+
+    it("links an existing company when contact is created with work email", async () => {
+      const inserted = {
+        contact_id: "c1",
+        first_name: "Jane",
+        last_name: "Doe",
+        email: "jane@acme.com",
+        company_id: null,
+      };
+      const { client } = createMockSupabase({
+        contacts: [
+          { data: [], error: null },
+          { data: [], error: null },
+          { data: inserted, error: null },
+        ],
+        companies: {
+          data: [{ company_id: "co1", website: "acme.com" }],
+          error: null,
+        },
+      });
+      const tools = createCreateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.create_record.execute(
+        {
+          entity: "contacts",
+          records: [{ first_name: "Jane", last_name: "Doe", email: "jane@acme.com" }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result.success).toBe(true);
+      if (result.success && "record" in result) {
+        expect((result.record as { company_id?: string | null }).company_id).toBe("co1");
+      }
+    });
+
+    it("does not link company for free email providers", async () => {
+      const inserted = {
+        contact_id: "c1",
+        first_name: "Jane",
+        last_name: "Doe",
+        email: "jane@gmail.com",
+        company_id: null,
+      };
+      const { client } = createMockSupabase({
+        contacts: [
+          { data: [], error: null },
+          { data: inserted, error: null },
+        ],
+      });
+      const tools = createCreateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.create_record.execute(
+        {
+          entity: "contacts",
+          records: [{ first_name: "Jane", last_name: "Doe", email: "jane@gmail.com" }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result.success).toBe(true);
+      if (result.success && "record" in result) {
+        expect((result.record as { company_id?: string | null }).company_id).toBeFalsy();
+      }
+    });
+
+    it("rejects create when required custom field is missing", async () => {
+      const { client } = createMockSupabase({
+        deals: { data: [], error: null },
+      });
+      const tools = createCreateRecordTool(client, CLIENT_ID, {
+        ...CRM_DEFAULTS,
+        deal_custom_fields: [
+          {
+            key: "commission_rate",
+            label: "Commission Rate",
+            type: "number",
+            required: true,
+          },
+        ],
+      });
+
+      const result = await tools.create_record.execute(
+        {
+          entity: "deals",
+          records: [{ address: "123 Main St" }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toMatch(/commission_rate/i);
+        expect(result.error).toMatch(/required/i);
+      }
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -487,6 +584,36 @@ describe("create_record", () => {
       );
 
       expect(result.success).toBe(false);
+    });
+
+    it("rejects invalid custom field values on create", async () => {
+      const { client } = createMockSupabase({
+        deals: { data: [], error: null },
+      });
+      const tools = createCreateRecordTool(client, CLIENT_ID, {
+        ...CRM_DEFAULTS,
+        deal_custom_fields: [
+          {
+            key: "priority",
+            label: "Priority",
+            type: "select",
+            options: ["low", "high"],
+          },
+        ],
+      });
+
+      const result = await tools.create_record.execute(
+        {
+          entity: "deals",
+          records: [{ address: "123 Bishan", custom_fields: { priority: "medium" } }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toMatch(/priority/i);
+      }
     });
   });
 

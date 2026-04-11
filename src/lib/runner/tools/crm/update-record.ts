@@ -6,7 +6,13 @@ import { tool } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import { CRM_DEFAULTS, matchVocabularyValue, type CrmVocabConfig } from "@/lib/crm/config";
+import {
+  CRM_DEFAULTS,
+  getCustomFieldDefinitions,
+  matchVocabularyValue,
+  type CrmVocabConfig,
+} from "@/lib/crm/config";
+import { validateCustomFields } from "@/lib/crm/custom-field-validation";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 import { normalizeEmail, normalizePhone, normalizeWebsite } from "@/lib/crm/normalize";
 import type { Database, JsonObject } from "@/types/database";
@@ -263,6 +269,15 @@ async function updateOne(
     if (result.error) {
       return { success: false, error: result.error };
     }
+
+    const validation = validateCustomFields(
+      result.merged as Record<string, unknown>,
+      getCustomFieldDefinitions(config, entity),
+    );
+    if (!validation.ok) {
+      return { success: false, error: validation.error };
+    }
+
     updates.custom_fields = result.merged;
   }
 
@@ -301,6 +316,14 @@ async function updateOne(
         deal_value:
           typeof data.amount === "number" ? data.amount : previousAmount,
       },
+    });
+
+    await supabase.from("interactions").insert({
+      client_id: clientId,
+      deal_id: recordId,
+      type: "stage_change",
+      summary: `Stage changed from ${previousStage} to ${data.stage}`,
+      occurred_at: new Date().toISOString(),
     });
   }
 
