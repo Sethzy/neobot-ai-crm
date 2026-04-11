@@ -19,6 +19,64 @@ type AskUserQuestionOutput = {
   }>;
 };
 
+interface DeliveryReceiptInput {
+  clientId: string;
+  threadId: string;
+  channel: string;
+  deliveryId: string;
+}
+
+function buildOutboundDeliveryId(
+  idempotencyKey: string,
+  externalConversationId: string,
+): string {
+  return `managed-agent:${idempotencyKey}:${externalConversationId}`;
+}
+
+function isDuplicateReceiptError(error: { message?: string; code?: string } | null): boolean {
+  return error?.code === "23505" || /duplicate key/i.test(error?.message ?? "");
+}
+
+async function claimDeliveryReceipt(
+  supabase: SupabaseClient<Database>,
+  input: DeliveryReceiptInput,
+): Promise<boolean> {
+  const { error } = await supabase.from("conversation_channel_delivery_receipts").insert({
+    client_id: input.clientId,
+    thread_id: input.threadId,
+    channel: input.channel,
+    delivery_id: input.deliveryId,
+  });
+
+  if (!error) {
+    return true;
+  }
+
+  if (isDuplicateReceiptError(error)) {
+    return false;
+  }
+
+  throw new Error(
+    `Failed to claim delivery receipt ${input.deliveryId}: ${error.message}`,
+  );
+}
+
+async function releaseDeliveryReceipt(
+  supabase: SupabaseClient<Database>,
+  input: DeliveryReceiptInput,
+): Promise<void> {
+  const { error } = await supabase
+    .from("conversation_channel_delivery_receipts")
+    .delete()
+    .eq("client_id", input.clientId)
+    .eq("channel", input.channel)
+    .eq("delivery_id", input.deliveryId);
+
+  if (error) {
+    console.error("[channel-delivery] Failed to release outbound delivery receipt:", error);
+  }
+}
+
 /**
  * Returns true if a completed run produced content that external channels should receive.
  */
@@ -112,6 +170,7 @@ export async function deliverToExternalChannels(
   clientId: string,
   text: string,
   parts?: ReadonlyArray<PersistedPart>,
+  idempotencyKey?: string,
 ): Promise<void> {
   if (!hasExternalDeliverables(text, parts)) {
     return;
@@ -132,7 +191,23 @@ export async function deliverToExternalChannels(
       continue;
     }
 
+    const deliveryId = idempotencyKey
+      ? buildOutboundDeliveryId(idempotencyKey, mapping.external_conversation_id)
+      : null;
+
     try {
+      if (
+        deliveryId &&
+        !(await claimDeliveryReceipt(supabase, {
+          clientId,
+          threadId,
+          channel: mapping.channel,
+          deliveryId,
+        }))
+      ) {
+        continue;
+      }
+
       await deliverToTelegram({
         supabase,
         threadId,
@@ -143,6 +218,15 @@ export async function deliverToExternalChannels(
       });
     } catch (error) {
       console.error("[channel-delivery] Telegram delivery failed:", error);
+
+      if (deliveryId) {
+        await releaseDeliveryReceipt(supabase, {
+          clientId,
+          threadId,
+          channel: mapping.channel,
+          deliveryId,
+        });
+      }
     }
   }
 }

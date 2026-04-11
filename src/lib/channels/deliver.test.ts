@@ -65,6 +65,10 @@ describe("deliverToExternalChannels", () => {
         data: [{ channel: "telegram", external_conversation_id: "12345" }],
         error: null,
       },
+      insertResult: {
+        data: [],
+        error: null,
+      },
     });
     const { sendTelegramMessage } = await import("@/lib/channels/telegram");
 
@@ -73,6 +77,8 @@ describe("deliverToExternalChannels", () => {
       "thread-1",
       "client-1",
       "Hello from agent",
+      undefined,
+      "evt-terminal",
     );
 
     expect(sendTelegramMessage).toHaveBeenCalledWith(
@@ -82,10 +88,39 @@ describe("deliverToExternalChannels", () => {
     );
   });
 
+  it("skips duplicate outbound deliveries for the same terminal event", async () => {
+    const supabase = createMockSupabaseClient({
+      selectResult: {
+        data: [{ channel: "telegram", external_conversation_id: "12345" }],
+        error: null,
+      },
+      insertResult: {
+        data: null,
+        error: { message: "duplicate key value violates unique constraint", code: "23505" },
+      },
+    });
+    const { sendTelegramMessage } = await import("@/lib/channels/telegram");
+
+    await deliverToExternalChannels(
+      supabase as never,
+      "thread-1",
+      "client-1",
+      "Hello from agent",
+      undefined,
+      "evt-terminal",
+    );
+
+    expect(sendTelegramMessage).not.toHaveBeenCalled();
+  });
+
   it("sends approval requests through the shared telegram delivery path", async () => {
     const supabase = createMockSupabaseClient({
       selectResult: {
         data: [{ channel: "telegram", external_conversation_id: "12345" }],
+        error: null,
+      },
+      insertResult: {
+        data: [],
         error: null,
       },
     });
@@ -102,6 +137,7 @@ describe("deliverToExternalChannels", () => {
         input: { contactId: "123" },
         approval: { id: "approval-1" },
       } as never],
+      "evt-terminal",
     );
 
     expect(sendTelegramApprovalRequest).toHaveBeenCalledWith(
@@ -117,6 +153,10 @@ describe("deliverToExternalChannels", () => {
     const supabase = createMockSupabaseClient({
       selectResult: {
         data: [{ channel: "telegram", external_conversation_id: "12345" }],
+        error: null,
+      },
+      insertResult: {
+        data: [],
         error: null,
       },
     });
@@ -149,6 +189,7 @@ describe("deliverToExternalChannels", () => {
           ],
         },
       } as never],
+      "evt-terminal",
     );
 
     expect(persistPendingQuestionBatch).toHaveBeenCalledWith(
@@ -175,6 +216,10 @@ describe("deliverToExternalChannels", () => {
         data: [{ channel: "telegram", external_conversation_id: "12345" }],
         error: null,
       },
+      insertResult: {
+        data: [],
+        error: null,
+      },
     });
     const { sendTelegramMessage } = await import("@/lib/channels/telegram");
 
@@ -197,6 +242,7 @@ describe("deliverToExternalChannels", () => {
           ],
         },
       } as never],
+      "evt-terminal",
     );
 
     expect(sendTelegramMessage).toHaveBeenCalledWith(
@@ -210,6 +256,10 @@ describe("deliverToExternalChannels", () => {
     const supabase = createMockSupabaseClient({
       selectResult: {
         data: [{ channel: "telegram", external_conversation_id: "12345" }],
+        error: null,
+      },
+      insertResult: {
+        data: [],
         error: null,
       },
     });
@@ -238,8 +288,16 @@ describe("deliverToExternalChannels", () => {
           ],
         },
       } as never],
+      "evt-terminal",
     );
 
     expect(deletePendingQuestionBatch).toHaveBeenCalledWith(supabase, "batch-1");
+    expect(supabase.calls.from).toContain("conversation_channel_delivery_receipts");
+    expect(supabase.calls.methods).toEqual(
+      expect.arrayContaining([
+        { method: "delete", args: [] },
+        { method: "eq", args: ["delivery_id", "managed-agent:evt-terminal:12345"] },
+      ]),
+    );
   });
 });
