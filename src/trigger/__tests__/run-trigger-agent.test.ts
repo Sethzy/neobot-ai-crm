@@ -155,6 +155,104 @@ describe("runTriggerAgent", () => {
     );
   });
 
+  it("is safe to re-run for Trigger.dev retries", async () => {
+    consumeAnthropicSession.mockResolvedValue({
+      status: "complete",
+      reason: "end_turn",
+      accumulatedEvents: [],
+      cost: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 0,
+        runtimeSeconds: 0,
+      },
+      approvalEventIds: [],
+    });
+
+    const payload = {
+      runId: "run_1",
+      sessionId: "session_1",
+      clientId: "client_1",
+      threadId: "thread_1",
+    };
+
+    await runTriggerAgent.run(payload, { ctx: {} as never });
+    await runTriggerAgent.run(payload, { ctx: {} as never });
+
+    expect(consumeAnthropicSession).toHaveBeenCalledTimes(2);
+  });
+
+  it("passes retries_exhausted terminal events through to finalizeTriggerRun", async () => {
+    consumeAnthropicSession.mockImplementation(
+      async (options: {
+        onTerminal?: (events: unknown[], cost: unknown) => Promise<void>;
+      }) => {
+        await options.onTerminal?.(
+          [
+            {
+              id: "evt_retry",
+              type: "session.status_idle",
+              stop_reason: { type: "retries_exhausted" },
+            },
+          ],
+          {
+            inputTokens: 50,
+            outputTokens: 5,
+            cacheReadInputTokens: 0,
+            cacheCreationInputTokens: 0,
+            runtimeSeconds: 3,
+          },
+        );
+
+        return {
+          status: "failed",
+          reason: "retries_exhausted",
+          accumulatedEvents: [],
+          cost: {
+            inputTokens: 50,
+            outputTokens: 5,
+            cacheReadInputTokens: 0,
+            cacheCreationInputTokens: 0,
+            runtimeSeconds: 3,
+          },
+          approvalEventIds: [],
+        };
+      },
+    );
+
+    await runTriggerAgent.run(
+      {
+        runId: "run_1",
+        sessionId: "session_1",
+        clientId: "client_1",
+        threadId: "thread_1",
+      },
+      { ctx: {} as never },
+    );
+
+    expect(finalizeTriggerRun).toHaveBeenCalledWith(
+      { __role: "service" },
+      expect.objectContaining({
+        runId: "run_1",
+        threadId: "thread_1",
+        clientId: "client_1",
+        events: [
+          expect.objectContaining({
+            id: "evt_retry",
+            type: "session.status_idle",
+            stop_reason: { type: "retries_exhausted" },
+          }),
+        ],
+        cost: expect.objectContaining({
+          inputTokens: 50,
+          outputTokens: 5,
+          runtimeSeconds: 3,
+        }),
+      }),
+    );
+  });
+
   it("re-throws so Trigger.dev retries when the core errors", async () => {
     consumeAnthropicSession.mockRejectedValue(new Error("stream failed"));
 
