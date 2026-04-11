@@ -4,22 +4,16 @@
  */
 import Link from "next/link";
 
-import { AlertCircle, CheckCircle, ExternalLink } from "@/components/icons/lucide-compat";
+import { AlertCircle, CheckCircle } from "@/components/icons/lucide-compat";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { resolveClientId } from "@/lib/chat/client-id";
-import { customerPortalAction } from "@/lib/stripe/actions";
-import { getBillingPlanMessageLimit } from "@/lib/stripe/plans";
-import { loadCurrentBillingState } from "@/lib/stripe/stripe";
 import { createClient } from "@/lib/supabase/server";
-import { formatMessageQuotaResetDate } from "@/lib/usage/message-quota";
-import { loadCurrentMessageQuota } from "@/lib/usage/message-quota-server";
 
 import { AutopilotCard, type AutopilotConfigData } from "./autopilot-card";
 import { TelegramConnectCard } from "./telegram-connect-card";
-import { SubmitButton } from "../pricing/submit-button";
 
 interface SettingsPageProps {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -63,55 +57,6 @@ function renderConnectionAlert(
   return null;
 }
 
-function renderBillingAlert(billingParam: string | string[] | undefined) {
-  if (billingParam === "success") {
-    return (
-      <Alert>
-        <CheckCircle className="h-4 w-4" />
-        <AlertTitle>Billing updated.</AlertTitle>
-        <AlertDescription>
-          Stripe confirmed the checkout and Sunder synced the latest subscription state.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
-  if (billingParam === "portal-error") {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Billing portal unavailable.</AlertTitle>
-        <AlertDescription>
-          Sunder could not open the Stripe Customer Portal right now. Try again in a moment.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
-  if (typeof billingParam !== "string") {
-    return null;
-  }
-
-  return null;
-}
-
-function getStatusVariant(status: string | null) {
-  switch (status) {
-    case "active":
-      return "success" as const;
-    case "trialing":
-      return "info" as const;
-    case "past_due":
-      return "warning" as const;
-    case "canceled":
-    case "unpaid":
-    case "incomplete_expired":
-      return "destructive" as const;
-    default:
-      return "outline" as const;
-  }
-}
-
 /** Loads the connected Telegram chat id for the current client, or null when disconnected. */
 async function loadTelegramChatId(): Promise<string | null> {
   try {
@@ -149,9 +94,7 @@ async function loadAutopilotConfig(): Promise<AutopilotConfigData | null> {
 
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
-  const [client, messageQuota, telegramChatId, autopilotConfig] = await Promise.all([
-    loadCurrentBillingState(),
-    loadCurrentMessageQuota(),
+  const [telegramChatId, autopilotConfig] = await Promise.all([
     loadTelegramChatId(),
     loadAutopilotConfig(),
   ]);
@@ -159,12 +102,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     resolvedSearchParams.connection,
     resolvedSearchParams.reason,
   );
-  const billingAlert = renderBillingAlert(resolvedSearchParams.billing);
-  const currentPlanName = client.plan_name ?? "Free";
-  const statusLabel = client.subscription_status?.replace(/_/g, " ") ?? "free";
-  const hasPortal = Boolean(client.stripe_customer_id);
-  const monthlyMessageLimit = messageQuota?.monthlyMessageLimit ??
-    getBillingPlanMessageLimit(currentPlanName);
 
   return (
     <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
@@ -184,108 +121,22 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         </div>
 
         {connectionAlert}
-        {billingAlert}
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-          <Card className="border-success/15 bg-linear-to-br from-success/6 via-card to-card shadow-sm">
+          <Card className="border-border/70 bg-card shadow-sm">
             <CardHeader className="gap-2">
-              <CardDescription>Billing</CardDescription>
-              <CardTitle className="flex flex-wrap items-center gap-3 text-2xl">
-                {currentPlanName}
-                <Badge variant={getStatusVariant(client.subscription_status)}>{statusLabel}</Badge>
-              </CardTitle>
+              <CardDescription>Account</CardDescription>
+              <CardTitle className="text-2xl">Billing</CardTitle>
             </CardHeader>
 
-            <CardContent className="space-y-4 text-sm text-muted-foreground">
-              <p>
-                {currentPlanName === "Free"
-                  ? "Free is the default starting state. There is no Stripe subscription until you upgrade."
-                  : "This workspace is attached to a Stripe customer and can be managed in the hosted portal."}
-              </p>
-
-              <div className="grid gap-3 rounded-xl border border-border/60 bg-background/80 p-4 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">
-                    Plan
-                  </p>
-                  <p className="font-medium text-foreground">{currentPlanName}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">
-                    Subscription status
-                  </p>
-                  <p className="font-medium text-foreground">{statusLabel}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">
-                    Stripe customer
-                  </p>
-                  <p className="truncate font-medium text-foreground">
-                    {client.stripe_customer_id ?? "Not created yet"}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">
-                    Subscription id
-                  </p>
-                  <p className="truncate font-medium text-foreground">
-                    {client.stripe_subscription_id ?? "No active paid subscription"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-3 rounded-xl border border-border/60 bg-background/80 p-4 sm:grid-cols-3">
-                <div className="space-y-1">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">
-                    Monthly cap
-                  </p>
-                  <p className="font-medium text-foreground">{monthlyMessageLimit}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">
-                    Used this month
-                  </p>
-                  <p className="font-medium text-foreground">
-                    {messageQuota?.messagesUsed ?? 0}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">
-                    Remaining
-                  </p>
-                  <p className="font-medium text-foreground">
-                    {messageQuota?.messagesRemaining ?? monthlyMessageLimit}
-                  </p>
-                </div>
-              </div>
-
-              {messageQuota ? (
-                <p className="text-sm">
-                  Resets {formatMessageQuotaResetDate(messageQuota.nextResetDate)} (Asia/Singapore).
-                </p>
-              ) : null}
+            <CardContent className="text-sm text-muted-foreground">
+              <p>Manage your plan, payment, and invoices in Stripe.</p>
             </CardContent>
 
-            <CardFooter className="flex flex-col items-stretch gap-3 border-t sm:flex-row sm:items-center sm:justify-between">
+            <CardFooter className="border-t pt-4">
               <Button asChild variant="outline">
-                <Link href="/pricing">
-                  View plans
-                  <ExternalLink className="ml-2 h-4 w-4" />
-                </Link>
+                <Link href="/settings/billing">Open billing</Link>
               </Button>
-
-              {hasPortal ? (
-                <form action={customerPortalAction}>
-                  <SubmitButton
-                    idleLabel="Manage billing in Stripe"
-                    pendingLabel="Opening portal..."
-                  />
-                </form>
-              ) : (
-                <span className="text-sm text-muted-foreground">
-                  Upgrade from the pricing page to create a Stripe billing profile.
-                </span>
-              )}
             </CardFooter>
           </Card>
 

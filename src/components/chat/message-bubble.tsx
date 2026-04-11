@@ -30,7 +30,6 @@ import {
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning";
 import { CopyIcon } from "lucide-react";
-import { Shimmer } from "@/components/ai-elements/shimmer";
 import { ViewRenderer } from "@/lib/views/renderer";
 import { AskUserQuestionInline, type AskUserQuestion } from "./ask-user-question-inline";
 import { ImageLightbox } from "./image-lightbox";
@@ -157,12 +156,6 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
             {skillSlug}
           </Badge>
         ) : null}
-
-        {isStreaming && !hasRenderableParts && !hasSpec && (
-          <Shimmer as="span" className="text-xs" duration={2}>
-            Thinking...
-          </Shimmer>
-        )}
 
         {message.parts.map((part, index) => {
           const key = `${message.id}-part-${index}`;
