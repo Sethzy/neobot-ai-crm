@@ -2,7 +2,7 @@
  * @module lib/eval/__tests__/extract-tool-sequence-events.test
  *
  * Tests for the event-derived tool sequence extractor — the H3 replacement
- * for the Langfuse-observation-derived path. Pairs `agent.custom_tool_use`
+ * for the old observation-derived path. Pairs `agent.custom_tool_use`
  * with the matching `user.custom_tool_result` and ignores everything else.
  */
 import { describe, it, expect } from "vitest";

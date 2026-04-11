@@ -59,21 +59,12 @@ importers:
       '@json-render/shadcn':
         specifier: ^0.13.0
         version: 0.13.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(tailwindcss@4.2.1)(zod@4.3.6)
-      '@langfuse/otel':
-        specifier: ^5.0.0
-        version: 5.0.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.6.0(@opentelemetry/api@1.9.0))(@opentelemetry/exporter-trace-otlp-http@0.214.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.6.0(@opentelemetry/api@1.9.0))
-      '@langfuse/tracing':
-        specifier: ^5.0.0
-        version: 5.0.0(@opentelemetry/api@1.9.0)
       '@modelcontextprotocol/sdk':
         specifier: ^1.26.0
         version: 1.27.1(@cfworker/json-schema@4.1.1)(zod@4.3.6)
       '@opentelemetry/exporter-trace-otlp-http':
         specifier: ^0.214.0
         version: 0.214.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-node':
-        specifier: ^2.6.0
-        version: 2.6.0(@opentelemetry/api@1.9.0)
       '@paper-design/shaders-react':
         specifier: ^0.0.68
         version: 0.0.68(@types/react@19.2.14)(react@19.2.4)
@@ -266,9 +257,6 @@ importers:
       remotion:
         specifier: ^4.0.409
         version: 4.0.434(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      resumable-stream:
-        specifier: ^2.2.10
-        version: 2.2.10
       shadcn:
         specifier: ^4.0.7
         version: 4.0.7(@cfworker/json-schema@4.1.1)(@types/node@24.12.0)(typescript@5.9.3)
@@ -1671,26 +1659,6 @@ packages:
       zod-to-json-schema:
         optional: true
 
-  '@langfuse/core@5.0.0':
-    resolution: {integrity: sha512-5Agpey/MJC6bm9qGd6sSlvxjGFhIDPzGyPu5BQ5iqSYwYEUXzSDGrLpmn9eXofs/c05F5IhbO8MaSfjm3JCQtg==}
-    peerDependencies:
-      '@opentelemetry/api': ^1.9.0
-
-  '@langfuse/otel@5.0.0':
-    resolution: {integrity: sha512-JJ4hwox1o5Vuz506J8IaWjt9k6lzJVdjhS01Yv3oJU2saaI+54iufVwf7Am91ZANUuyDMWcNotCdkuFeDaXlKA==}
-    engines: {node: '>=20'}
-    peerDependencies:
-      '@opentelemetry/api': ^1.9.0
-      '@opentelemetry/core': ^2.0.1
-      '@opentelemetry/exporter-trace-otlp-http': '>=0.202.0 <1.0.0'
-      '@opentelemetry/sdk-trace-base': ^2.0.1
-
-  '@langfuse/tracing@5.0.0':
-    resolution: {integrity: sha512-4TJTfK3HQC2kTPKRpZfoIVo5ZK3taK3QXePNRH47hyhbpBVlYzhb35H28Uzeyal72ABhf151MDQS7VylQ+c4/w==}
-    engines: {node: '>=20'}
-    peerDependencies:
-      '@opentelemetry/api': ^1.9.0
-
   '@mapbox/node-pre-gyp@2.0.3':
     resolution: {integrity: sha512-uwPAhccfFJlsfCxMYTwOdVfOz3xqyj8xYL3zJj8f0pb30tLohnnFPhLuqp4/qoEz8sNxe4SESZedcBojRefIzg==}
     engines: {node: '>=18'}
@@ -2188,12 +2156,6 @@ packages:
 
   '@opentelemetry/sdk-trace-node@2.0.1':
     resolution: {integrity: sha512-UhdbPF19pMpBtCWYP5lHbTogLWx9N0EBxtdagvkn5YtsAnCBZzL7SjktG+ZmupRgifsHMjwUaCCaVmqGfSADmA==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': '>=1.0.0 <1.10.0'
-
-  '@opentelemetry/sdk-trace-node@2.6.0':
-    resolution: {integrity: sha512-YhswtasmsbIGEFvLGvR9p/y3PVRTfFf+mgY8van4Ygpnv4sA3vooAjvh+qAn9PNWxs4/IwGGqiQS0PPsaRJ0vQ==}
     engines: {node: ^18.19.0 || >=20.6.0}
     peerDependencies:
       '@opentelemetry/api': '>=1.0.0 <1.10.0'
@@ -7658,9 +7620,6 @@ packages:
   restructure@3.0.2:
     resolution: {integrity: sha512-gSfoiOEA0VPE6Tukkrr7I0RBdE0s7H1eFCDBk05l1KIQT1UIKNc5JZy6jdyW6eYH3aR3g5b3PuL77rq0hvwtAw==}
 
-  resumable-stream@2.2.10:
-    resolution: {integrity: sha512-pSJtiDVkPgirq4x+e+gu67IEkUVYGu1cPgW5AnTHCfYGRfIUjS3d4pj7VGveXmYWb9hy6yIMFTM4YzK7rqj14A==}
-
   retry@0.13.1:
     resolution: {integrity: sha512-XQBQ3I8W1Cge0Seh+6gjj03LbmRFWuoszgK9ooCpwYIrhhoO80pfq4cUkU5DkknwfOfFteRwlZ56PYOGYyFWdg==}
     engines: {node: '>= 4'}
@@ -10248,23 +10207,6 @@ snapshots:
       - svelte
       - vue
 
-  '@langfuse/core@5.0.0(@opentelemetry/api@1.9.0)':
-    dependencies:
-      '@opentelemetry/api': 1.9.0
-
-  '@langfuse/otel@5.0.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.6.0(@opentelemetry/api@1.9.0))(@opentelemetry/exporter-trace-otlp-http@0.214.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.6.0(@opentelemetry/api@1.9.0))':
-    dependencies:
-      '@langfuse/core': 5.0.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/core': 2.6.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/exporter-trace-otlp-http': 0.214.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-base': 2.6.0(@opentelemetry/api@1.9.0)
-
-  '@langfuse/tracing@5.0.0(@opentelemetry/api@1.9.0)':
-    dependencies:
-      '@langfuse/core': 5.0.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/api': 1.9.0
-
   '@mapbox/node-pre-gyp@2.0.3':
     dependencies:
       consola: 3.4.2
@@ -10889,13 +10831,6 @@ snapshots:
       '@opentelemetry/context-async-hooks': 2.0.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/core': 2.0.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/sdk-trace-base': 2.0.1(@opentelemetry/api@1.9.0)
-
-  '@opentelemetry/sdk-trace-node@2.6.0(@opentelemetry/api@1.9.0)':
-    dependencies:
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/context-async-hooks': 2.6.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/core': 2.6.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-base': 2.6.0(@opentelemetry/api@1.9.0)
 
   '@opentelemetry/semantic-conventions@1.36.0': {}
 
@@ -17287,8 +17222,6 @@ snapshots:
       signal-exit: 4.1.0
 
   restructure@3.0.2: {}
-
-  resumable-stream@2.2.10: {}
 
   retry@0.13.1: {}
 

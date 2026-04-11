@@ -516,7 +516,7 @@ export interface ExtractedApprovalPart {
 
 /**
  * Extracts approval-gated tool requests from normalized assistant parts.
- * Shared by run-persistence (DB events) and channel delivery (Telegram forwarding).
+ * Shared by DB persistence and channel delivery (Telegram forwarding).
  */
 export function extractApprovalPartsFromPersisted(
   parts?: ReadonlyArray<PersistedPart>,

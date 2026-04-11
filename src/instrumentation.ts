@@ -1,30 +1,9 @@
 /**
  * Next.js instrumentation file — auto-loaded on app startup.
- * Initializes OpenTelemetry with Langfuse for LLM call tracing.
- * @see https://langfuse.com/integrations/frameworks/vercel-ai-sdk
+ * Initializes Sentry once per runtime and exports the request error hook.
  */
 import * as Sentry from "@sentry/nextjs";
-import { LangfuseSpanProcessor } from "@langfuse/otel";
-import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
-
-export const langfuseSpanProcessor = new LangfuseSpanProcessor();
-
-let hasRegisteredLangfuseTracing = false;
 let hasInitializedSentry = false;
-
-export function registerLangfuseTracing() {
-  if (hasRegisteredLangfuseTracing) {
-    return;
-  }
-
-  hasRegisteredLangfuseTracing = true;
-
-  const tracerProvider = new NodeTracerProvider({
-    spanProcessors: [langfuseSpanProcessor],
-  });
-
-  tracerProvider.register();
-}
 
 function initSentryForRuntime() {
   if (hasInitializedSentry || !process.env.SENTRY_DSN) {
@@ -58,10 +37,6 @@ function initSentryForRuntime() {
 }
 
 export async function register() {
-  if (process.env.NEXT_RUNTIME === "nodejs") {
-    registerLangfuseTracing();
-  }
-
   initSentryForRuntime();
 }
 

@@ -5,8 +5,7 @@
  * @module lib/eval/crm-hallucination-eval
  */
 import { generateText } from "ai";
-import type { LangfuseObservation } from "./langfuse-api";
-import { extractToolSequence, type ToolCallRecord } from "./extract-tool-sequence";
+import type { ToolCallRecord } from "./extract-tool-sequence";
 import { COMPACTION_MODEL, gateway } from "@/lib/ai/gateway";
 
 /** Tool names that perform CRM writes. */
@@ -24,15 +23,6 @@ export interface FlaggedField {
 export interface CrmHallucinationResult {
   pass: boolean;
   flaggedCalls: FlaggedField[];
-}
-
-/** Extract CRM write tool calls from a Langfuse observation array. */
-function extractCrmWrites(
-  observations: LangfuseObservation[],
-): ToolCallRecord[] {
-  return extractToolSequence(observations).filter((r) =>
-    CRM_WRITE_TOOLS.has(r.toolName),
-  );
 }
 
 /** Extract CRM write tool calls from a pre-extracted tool sequence. */
@@ -119,18 +109,6 @@ export async function evaluateCrmHallucinationOnSequence(
   sequence: ToolCallRecord[],
 ): Promise<CrmHallucinationResult> {
   const writes = extractCrmWritesFromSequence(sequence);
-  return evaluateCrmHallucinationOnWrites(traceInput, writes);
-}
-
-/**
- * Legacy Langfuse-driven entry point. H4 deletes this when the runner is
- * fully cut over.
- */
-export async function evaluateCrmHallucination(
-  traceInput: unknown,
-  observations: LangfuseObservation[],
-): Promise<CrmHallucinationResult> {
-  const writes = extractCrmWrites(observations);
   return evaluateCrmHallucinationOnWrites(traceInput, writes);
 }
 

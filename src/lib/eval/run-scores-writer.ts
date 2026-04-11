@@ -1,9 +1,9 @@
 /**
  * Writes evaluator scores to Supabase `run_scores`.
  *
- * Replaces the legacy Langfuse `createScore` path for the in-process
- * evaluators (`runEvaluatorsForEvents`). The schema mirrors the original
- * Langfuse score shape: evaluator name + numeric score + optional comment.
+ * Replaces the legacy external score-write path for the in-process
+ * evaluators (`runEvaluatorsForEvents`). The schema stores the same
+ * evaluator name + numeric score + optional comment shape.
  *
  * @module lib/eval/run-scores-writer
  */

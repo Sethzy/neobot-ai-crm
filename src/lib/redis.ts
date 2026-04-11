@@ -6,9 +6,6 @@ import { createClient } from "redis";
 
 import { getServerEnv } from "@/lib/env";
 
-const ACTIVE_STREAM_KEY_PREFIX = "chat:active-stream:";
-const ACTIVE_STREAM_TTL_SECONDS = 120;
-
 type RedisClient = ReturnType<typeof createClient>;
 
 let redisClient: RedisClient | null = null;
@@ -43,33 +40,4 @@ export async function getRedisClient(): Promise<RedisClient | null> {
   }
 
   return redisClient;
-}
-
-export async function setActiveStreamId(threadId: string, streamId: string): Promise<void> {
-  const client = await getRedisClient();
-  if (!client) {
-    return;
-  }
-
-  await client.set(`${ACTIVE_STREAM_KEY_PREFIX}${threadId}`, streamId, {
-    EX: ACTIVE_STREAM_TTL_SECONDS,
-  });
-}
-
-export async function getActiveStreamId(threadId: string): Promise<string | null> {
-  const client = await getRedisClient();
-  if (!client) {
-    return null;
-  }
-
-  return client.get(`${ACTIVE_STREAM_KEY_PREFIX}${threadId}`);
-}
-
-export async function clearActiveStreamId(threadId: string): Promise<void> {
-  const client = await getRedisClient();
-  if (!client) {
-    return;
-  }
-
-  await client.del(`${ACTIVE_STREAM_KEY_PREFIX}${threadId}`);
 }

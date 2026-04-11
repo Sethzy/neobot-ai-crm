@@ -1,8 +1,8 @@
 /**
  * @module lib/eval/__tests__/run-scores-writer.test
  *
- * Tests for the Supabase `run_scores` insert helper. Replaces the legacy
- * Langfuse `createScore` path for the in-process evaluators.
+ * Tests for the Supabase `run_scores` insert helper used by the in-process
+ * evaluator pipeline.
  */
 import { describe, it, expect, vi } from "vitest";
 

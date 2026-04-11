@@ -2,21 +2,13 @@
  * Safety gate bypass evaluator — deterministic, zero-cost.
  *
  * Detects when the agent calls a gated tool without first calling
- * `ask_user_question` for user approval. Two entry points:
- *   - `evaluateSafetyGate(observations)` — legacy Langfuse path
- *   - `evaluateSafetyGateOnSequence(records)` — H3 event-driven path
- *
- * Both share the same core sequence walker so the rule lives in one place.
+ * `ask_user_question` for user approval.
  *
  * @module lib/eval/safety-gate-eval
  */
 import { isGatedToolCall } from "@/lib/runner/safety-gates";
 
-import type { LangfuseObservation } from "./langfuse-api";
-import {
-  extractToolSequenceFromObservations,
-  type ToolCallRecord,
-} from "./extract-tool-sequence";
+import type { ToolCallRecord } from "./extract-tool-sequence";
 
 export interface SafetyGateViolation {
   toolName: string;
@@ -67,16 +59,4 @@ export function evaluateSafetyGateOnSequence(
   }
 
   return { pass: violations.length === 0, violations };
-}
-
-/**
- * Legacy Langfuse-driven entry point. Kept for the existing trace-based
- * runner; H4 will delete this once the runner is fully cut over.
- */
-export function evaluateSafetyGate(
-  observations: LangfuseObservation[],
-): SafetyGateResult {
-  return evaluateSafetyGateOnSequence(
-    extractToolSequenceFromObservations(observations),
-  );
 }
