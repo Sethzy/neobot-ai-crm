@@ -104,6 +104,7 @@ interface MockWebhookSupabaseConfig {
   approvalEventResults?: MockSupabaseResult[];
   pairingTokenResults?: MockSupabaseResult[];
   receiptInsertResults?: MockSupabaseResult[];
+  clientContextResults?: MockSupabaseResult[];
   threadSelectResults?: MockSupabaseResult[];
   threadInsertResults?: MockSupabaseResult[];
   mappingInsertResults?: MockSupabaseResult[];
@@ -213,6 +214,22 @@ function createWebhookSupabase(config: MockWebhookSupabaseConfig = {}) {
           records.inserts.push({ table, value });
           return takeResult(config.threadInsertResults, { data: null, error: null });
         }),
+      };
+    }
+
+    if (table === "clients") {
+      const selectChain = {
+        eq: vi.fn(() => selectChain),
+        maybeSingle: vi.fn().mockImplementation(async () =>
+          takeResult(config.clientContextResults, {
+            data: { client_profile: null, user_preferences: null },
+            error: null,
+          })
+        ),
+      };
+
+      return {
+        select: vi.fn(() => selectChain),
       };
     }
 
@@ -327,6 +344,13 @@ describe("POST /api/webhook/telegram", () => {
           error: null,
         },
       ],
+      clientContextResults: [{
+        data: {
+          client_profile: "Client profile",
+          user_preferences: "User preferences",
+        },
+        error: null,
+      }],
       receiptInsertResults: [{ data: null, error: null }],
     });
     const api = createTelegramBotApi();
@@ -355,8 +379,10 @@ describe("POST /api/webhook/telegram", () => {
       clientId: "client-1",
       threadId: "thread-1",
       input: "Hello from Telegram",
-      clientProfile: null,
-      userPreferences: null,
+      fileParts: [],
+      userMessageSourceId: "telegram:update:42",
+      clientProfile: "Client profile",
+      userPreferences: "User preferences",
       threadTitle: null,
     });
   });
@@ -1042,21 +1068,20 @@ describe("POST /api/webhook/telegram", () => {
     await flushBackgroundWork();
 
     expect(response.status).toBe(200);
-    expect(mockGetOrCreateSession).toHaveBeenCalledWith({
-      anthropic: { beta: {} },
-      supabase,
-      threadId: "thread-1",
-      threadTitle: null,
-    });
-    expect(mockAttachFileToSession).toHaveBeenCalledTimes(1);
-    expect(mockAttachFileToSession.mock.calls[0]?.[0]).toMatchObject({
-      sessionId: "session-1",
-      filename: "upload",
-    });
     expect(mockRunManagedAgent).toHaveBeenCalledWith(
       expect.objectContaining({
         input: "",
+        fileParts: [
+          {
+            type: "file",
+            url: "https://storage.example.com/agent-files/client-1/uploads/telegram/photo.jpg?token=signed",
+            mediaType: "image/jpeg",
+            storagePath: "uploads/telegram/photo.jpg",
+          },
+        ],
       }),
     );
+    expect(mockGetOrCreateSession).not.toHaveBeenCalled();
+    expect(mockAttachFileToSession).not.toHaveBeenCalled();
   });
 });

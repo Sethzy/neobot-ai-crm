@@ -10,13 +10,11 @@ import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { generateTitleFromUserMessage } from "@/lib/ai/title";
 import { allowedModelIds } from "@/lib/ai/models";
-import { attachFileToSession } from "@/lib/managed-agents/attach-session-file";
 import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
 import {
   resumeManagedAgentFromApproval,
   runManagedAgent,
 } from "@/lib/managed-agents/adapter";
-import { getOrCreateSession } from "@/lib/managed-agents/session-kickoff";
 import type { ManagedFilePart } from "@/lib/managed-agents/types";
 import { ensureClientBootstrap } from "@/lib/runner/skills/ensure-client-bootstrap";
 import {
@@ -93,6 +91,34 @@ function getLatestUserMessage(
 interface ApprovalResponse {
   approvalId: string;
   approved: boolean;
+}
+
+async function deleteThreadIfEmpty(
+  supabase: { from: (table: string) => any },
+  threadId: string,
+  clientId: string,
+): Promise<void> {
+  const { data: firstMessage, error: messageLookupError } = await supabase
+    .from("conversation_messages")
+    .select("message_id")
+    .eq("thread_id", threadId)
+    .limit(1)
+    .maybeSingle();
+
+  if (messageLookupError) {
+    console.error("[chat/route] Failed to check thread message state before cleanup:", messageLookupError);
+    return;
+  }
+
+  if (firstMessage) {
+    return;
+  }
+
+  await supabase
+    .from("conversation_threads")
+    .delete()
+    .eq("thread_id", threadId)
+    .eq("client_id", clientId);
 }
 
 /**
@@ -179,6 +205,7 @@ export async function POST(request: Request): Promise<Response> {
   // model context doesn't duplicate the last user turn from history.
   let input: string;
   let fileParts: ManagedFilePart[] = [];
+  let userMessageSourceId: string | undefined;
 
   if (isApprovalContinuation) {
     input = "";
@@ -192,6 +219,10 @@ export async function POST(request: Request): Promise<Response> {
     fileParts = latestUserMessage
       ? getFilePartsFromUnknownParts(latestUserMessage.parts)
       : [];
+    userMessageSourceId =
+      latestUserMessage && typeof latestUserMessage.id === "string"
+        ? latestUserMessage.id
+        : undefined;
 
     if (input.length === 0 && fileParts.length === 0) {
       return jsonError("Invalid request body: could not resolve latest user message text.", 400);
@@ -354,34 +385,6 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     // ── Fresh turn branch ───────────────────────────────────────────────────
-    if (fileParts.length > 0) {
-      const session = await getOrCreateSession({
-        anthropic,
-        supabase,
-        threadId,
-        threadTitle: thread?.title ?? null,
-      });
-
-      await Promise.all(
-        fileParts.map(async (filePart) => {
-          try {
-            const response = await fetch(filePart.url);
-            if (!response.ok) {
-              throw new Error(`Failed to fetch attachment (${response.status})`);
-            }
-
-            await attachFileToSession({
-              sessionId: session.id,
-              file: await response.blob(),
-              filename: filePart.filename ?? "upload",
-            });
-          } catch (error) {
-            console.error("[chat/route] Failed to attach file to session:", error);
-          }
-        }),
-      );
-    }
-
     _t("pre_run_managed_agent");
     const managedResult = await runManagedAgent({
       anthropic,
@@ -389,6 +392,8 @@ export async function POST(request: Request): Promise<Response> {
       clientId: resolvedClientId,
       threadId,
       input,
+      fileParts,
+      userMessageSourceId,
       clientProfile: clientContext?.client_profile ?? null,
       userPreferences: clientContext?.user_preferences ?? null,
       threadTitle: thread?.title ?? null,
@@ -403,7 +408,7 @@ export async function POST(request: Request): Promise<Response> {
       managedResult.status === "queued"
     ) {
       return Response.json(
-        { error: "Another response is still in progress. Your message has been queued." },
+        { error: "Another response is still in progress for this thread. Please wait and try again." },
         { status: 409 },
       );
     }
@@ -448,11 +453,7 @@ export async function POST(request: Request): Promise<Response> {
     return createUIMessageStreamResponse({ stream });
   } catch (error) {
     if (didCreateThread && clientId) {
-      await supabase
-        .from("conversation_threads")
-        .delete()
-        .eq("thread_id", threadId)
-        .eq("client_id", clientId);
+      await deleteThreadIfEmpty(supabase, threadId, clientId);
     }
 
     if (

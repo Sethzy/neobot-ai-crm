@@ -34,14 +34,58 @@ vi.mock("@/lib/runner/run-lifecycle", () => ({
 vi.mock("@/lib/chat/messages", () => ({
   upsertMessage: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock("@/lib/channels/deliver", () => ({
+  deliverToExternalChannels: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("@/lib/eval/run-evaluators", () => ({
   runEvaluatorsForEvents: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock("@/lib/usage/message-quota", () => ({
+  consumeMessageQuota: vi.fn().mockResolvedValue({
+    allowed: true,
+    clientId: "c1",
+    planName: "Free",
+    monthlyMessageLimit: 100,
+    messagesUsed: 1,
+    messagesRemaining: 99,
+    periodStart: "2026-04-01",
+    nextResetDate: "2026-05-01",
+  }),
+  releaseMessageQuota: vi.fn().mockResolvedValue(true),
+  MessageQuotaError: class MessageQuotaError extends Error {
+    code: string;
+    quota: unknown;
+
+    constructor(code: string, message: string, options?: { quota?: unknown }) {
+      super(message);
+      this.name = "MessageQuotaError";
+      this.code = code;
+      this.quota = options?.quota ?? null;
+    }
+  },
+  messageQuotaErrorCodes: {
+    limitReached: "message-quota-exceeded",
+    loadFailed: "message-quota-load-failed",
+  },
+}));
+vi.mock("../attach-session-file", () => ({
+  attachFileToSession: vi.fn().mockResolvedValue({
+    attached: true,
+    anthropicFileId: "file_1",
+  }),
+}));
 
 const { consumeAnthropicSession } = await import("../session-runner");
+const { getOrCreateSession } = await import("../session-kickoff");
 const { completeRun } = await import("@/lib/runner/run-lifecycle");
 const { upsertMessage } = await import("@/lib/chat/messages");
+const { deliverToExternalChannels } = await import("@/lib/channels/deliver");
 const { runEvaluatorsForEvents } = await import("@/lib/eval/run-evaluators");
+const {
+  consumeMessageQuota,
+  releaseMessageQuota,
+} = await import("@/lib/usage/message-quota");
+const { attachFileToSession } = await import("../attach-session-file");
 
 async function collectStream<T>(stream: ReadableStream<T>): Promise<T[]> {
   const reader = stream.getReader();
@@ -56,6 +100,25 @@ async function collectStream<T>(stream: ReadableStream<T>): Promise<T[]> {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  (getOrCreateSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+    id: "sess_1",
+    created: true,
+  });
+  (attachFileToSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+    attached: true,
+    anthropicFileId: "file_1",
+  });
+  (consumeMessageQuota as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+    allowed: true,
+    clientId: "c1",
+    planName: "Free",
+    monthlyMessageLimit: 100,
+    messagesUsed: 1,
+    messagesRemaining: 99,
+    periodStart: "2026-04-01",
+    nextResetDate: "2026-05-01",
+  });
+  (releaseMessageQuota as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 });
 
 describe("runManagedAgent — happy path", () => {
@@ -117,13 +180,11 @@ describe("runManagedAgent — happy path", () => {
     expect(upsertMessage).toHaveBeenCalled();
     expect(runEvaluatorsForEvents).toHaveBeenCalled();
   });
-});
 
-describe("runManagedAgent — terminal variants", () => {
-  it("marks run failed on retries_exhausted", async () => {
+  it("consumes quota and persists the fresh user turn before starting the managed session", async () => {
     (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      status: "failed",
-      reason: "retries_exhausted",
+      status: "complete",
+      reason: "end_turn",
       accumulatedEvents: [],
       cost: {
         inputTokens: 0,
@@ -131,6 +192,61 @@ describe("runManagedAgent — terminal variants", () => {
         cacheReadInputTokens: 0,
         cacheCreationInputTokens: 0,
         runtimeSeconds: 0,
+      },
+      approvalEventIds: [],
+    });
+
+    const { runManagedAgent } = await import("../adapter");
+    const stream = await runManagedAgent({
+      anthropic: {} as never,
+      supabase: {} as never,
+      clientId: "c1",
+      threadId: "t1",
+      input: "hi",
+      userMessageSourceId: "user-msg-1",
+      clientProfile: null,
+      userPreferences: null,
+      threadTitle: null,
+    });
+
+    await collectStream(stream);
+
+    expect(consumeMessageQuota).toHaveBeenCalledWith(expect.anything(), "c1");
+    expect(upsertMessage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        thread_id: "t1",
+        role: "user",
+        content: "hi",
+        source_event_id: "user-msg-1",
+      }),
+    );
+  });
+});
+
+describe("runManagedAgent — terminal variants", () => {
+  it("persists partial output and scores retries_exhausted terminal failures", async () => {
+    (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: "failed",
+      reason: "retries_exhausted",
+      accumulatedEvents: [
+        {
+          id: "evt_1",
+          type: "agent.message",
+          content: [{ type: "text", text: "I got partway through this." }],
+        },
+        {
+          id: "evt_terminal",
+          type: "session.status_idle",
+          stop_reason: { type: "retries_exhausted" },
+        },
+      ],
+      cost: {
+        inputTokens: 10,
+        outputTokens: 5,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 0,
+        runtimeSeconds: 1,
       },
       approvalEventIds: [],
     });
@@ -151,6 +267,9 @@ describe("runManagedAgent — terminal variants", () => {
       expect.anything(),
       expect.objectContaining({ status: "failed" }),
     );
+    expect(upsertMessage).toHaveBeenCalled();
+    expect(deliverToExternalChannels).toHaveBeenCalled();
+    expect(runEvaluatorsForEvents).toHaveBeenCalled();
   });
 
   it("does not mark run complete when reason is requires_action", async () => {
@@ -239,10 +358,71 @@ describe("runManagedAgent — source_event_id idempotency", () => {
         source_event_id: "evt_terminal",
       }),
     );
+    expect(deliverToExternalChannels).toHaveBeenCalledWith(
+      expect.anything(),
+      "t1",
+      "c1",
+      expect.any(String),
+      expect.any(Array),
+      "evt_terminal",
+    );
   });
 });
 
 describe("runManagedAgent — failure cleanup", () => {
+  it("marks the run failed when setup throws after the lock is acquired", async () => {
+    (getOrCreateSession as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error("missing managed agent env"),
+    );
+
+    const { runManagedAgent } = await import("../adapter");
+
+    await expect(
+      runManagedAgent({
+        anthropic: {} as never,
+        supabase: {} as never,
+        clientId: "c1",
+        threadId: "t1",
+        input: "hi",
+        clientProfile: null,
+        userPreferences: null,
+        threadTitle: null,
+      }),
+    ).rejects.toThrow("missing managed agent env");
+
+    expect(completeRun).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ status: "failed", runId: "run_1" }),
+    );
+  });
+
+  it("releases the consumed quota if user-turn persistence fails before the run starts", async () => {
+    (upsertMessage as unknown as ReturnType<typeof vi.fn>)
+      .mockRejectedValueOnce(new Error("insert failed"));
+
+    const { runManagedAgent } = await import("../adapter");
+
+    await expect(
+      runManagedAgent({
+        anthropic: {} as never,
+        supabase: {} as never,
+        clientId: "c1",
+        threadId: "t1",
+        input: "hi",
+        userMessageSourceId: "user-msg-1",
+        clientProfile: null,
+        userPreferences: null,
+        threadTitle: null,
+      }),
+    ).rejects.toThrow("insert failed");
+
+    expect(releaseMessageQuota).toHaveBeenCalledWith(
+      expect.anything(),
+      "c1",
+      "2026-04-01",
+    );
+  });
+
   it("marks the run failed when consumeAnthropicSession throws mid-stream", async () => {
     (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error("upstream EPIPE"),
@@ -271,6 +451,52 @@ describe("runManagedAgent — failure cleanup", () => {
       expect.anything(),
       expect.objectContaining({ status: "failed", runId: "run_1" }),
     );
+  });
+
+  it("attaches file parts only after the managed session exists", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(new Blob(["brief"], { type: "application/pdf" }), { status: 200 }),
+    );
+    (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: "complete",
+      reason: "end_turn",
+      accumulatedEvents: [],
+      cost: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 0,
+        runtimeSeconds: 0,
+      },
+      approvalEventIds: [],
+    });
+
+    const { runManagedAgent } = await import("../adapter");
+    const stream = await runManagedAgent({
+      anthropic: {} as never,
+      supabase: {} as never,
+      clientId: "c1",
+      threadId: "t1",
+      input: "see attached",
+      fileParts: [{
+        type: "file",
+        url: "https://storage.example.com/brief.pdf",
+        mediaType: "application/pdf",
+        filename: "brief.pdf",
+      }],
+      clientProfile: null,
+      userPreferences: null,
+      threadTitle: null,
+    });
+
+    await collectStream(stream);
+
+    expect(globalThis.fetch).toHaveBeenCalledWith("https://storage.example.com/brief.pdf");
+    expect(attachFileToSession).toHaveBeenCalledWith({
+      sessionId: "sess_1",
+      file: expect.anything(),
+      filename: "brief.pdf",
+    });
   });
 });
 

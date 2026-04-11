@@ -140,6 +140,18 @@ describe("POST /api/chat", () => {
         };
       }
 
+      if (table === "conversation_messages") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              limit: vi.fn(() => ({
+                maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+              })),
+            })),
+          })),
+        };
+      }
+
       throw new Error(`Unexpected table: ${table}`);
     });
 
@@ -166,6 +178,18 @@ describe("POST /api/chat", () => {
                 data: { client_profile: null, user_preferences: null },
                 error: null,
               }),
+            })),
+          })),
+        };
+      }
+
+      if (table === "conversation_messages") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              limit: vi.fn(() => ({
+                maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+              })),
             })),
           })),
         };
@@ -202,6 +226,18 @@ describe("POST /api/chat", () => {
                 data: { client_profile: null, user_preferences: null },
                 error: null,
               }),
+            })),
+          })),
+        };
+      }
+
+      if (table === "conversation_messages") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              limit: vi.fn(() => ({
+                maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+              })),
             })),
           })),
         };
@@ -273,6 +309,7 @@ describe("POST /api/chat", () => {
         clientId: "client-456",
         threadId,
         input: "Hello, Sunder!",
+        userMessageSourceId: "11111111-1111-4111-8111-111111111111",
         clientProfile: null,
         userPreferences: null,
         threadTitle: "Existing thread",
@@ -333,6 +370,7 @@ describe("POST /api/chat", () => {
         clientId: "client-456",
         threadId,
         input: "Hello from message payload",
+        userMessageSourceId: "11111111-1111-4111-8111-111111111111",
         clientProfile: null,
         userPreferences: null,
         threadTitle: "Existing thread",
@@ -368,18 +406,18 @@ describe("POST /api/chat", () => {
     await POST(
       createJsonRequest({
         id: threadId,
-        selectedChatModel: "minimax/minimax-m2.7",
+        selectedChatModel: "anthropic/claude-sonnet-4-6",
         message: {
           id: "11111111-1111-4111-8111-111111111111",
           role: "user",
-          parts: [{ type: "text", text: "Use MiniMax for this." }],
+          parts: [{ type: "text", text: "Use Sonnet for this." }],
         },
       }),
     );
 
     expect(mockRunManagedAgent).toHaveBeenCalledWith(
       expect.objectContaining({
-        input: "Use MiniMax for this.",
+        input: "Use Sonnet for this.",
       }),
     );
   });
@@ -457,20 +495,21 @@ describe("POST /api/chat", () => {
         clientId: "client-456",
         threadId,
         input: "",
+        userMessageSourceId: "11111111-1111-4111-8111-111111111111",
+        fileParts: [
+          {
+            type: "file",
+            filename: "screenshot.png",
+            mediaType: "image/png",
+            url: "https://storage.example.com/agent-files/client-1/uploads/screenshot.png?token=signed",
+            storagePath: "uploads/screenshot.png",
+          },
+        ],
         anthropic: { apiKey: "test" },
       }),
     );
-    expect(mockGetOrCreateSession).toHaveBeenCalledWith({
-      anthropic: { apiKey: "test" },
-      supabase: mockSupabase,
-      threadId,
-      threadTitle: "Existing thread",
-    });
-    expect(mockAttachFileToSession).toHaveBeenCalledWith({
-      sessionId: "session-1",
-      file: expect.anything(),
-      filename: "screenshot.png",
-    });
+    expect(mockGetOrCreateSession).not.toHaveBeenCalled();
+    expect(mockAttachFileToSession).not.toHaveBeenCalled();
     expect(response).toBe(streamResponse);
   });
 
@@ -626,7 +665,7 @@ describe("POST /api/chat", () => {
     expect(mockRunManagedAgent).not.toHaveBeenCalled();
   });
 
-  it("returns 409 when runner cannot acquire thread lock (message queued)", async () => {
+  it("returns 409 when runner cannot acquire thread lock", async () => {
     mockRunManagedAgent.mockResolvedValue({ status: "queued" });
 
     const response = await POST(
@@ -642,7 +681,7 @@ describe("POST /api/chat", () => {
 
     expect(response.status).toBe(409);
     expect(await response.json()).toEqual({
-      error: "Another response is still in progress. Your message has been queued.",
+      error: "Another response is still in progress for this thread. Please wait and try again.",
     });
   });
 
@@ -683,6 +722,7 @@ describe("POST /api/chat", () => {
         clientId: "client-456",
         threadId,
         input: "Create lazily",
+        userMessageSourceId: "11111111-1111-4111-8111-111111111111",
         clientProfile: null,
         userPreferences: null,
         threadTitle: null,

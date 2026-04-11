@@ -12,7 +12,8 @@
  *      and approval requests in real time.
  *   5. On terminal:
  *        - end_turn → persist assistant message + completeRun + evaluators
- *        - retries_exhausted / terminated → completeRun(failed)
+ *        - retries_exhausted / terminated → persist any partial assistant
+ *          output + completeRun(failed) + evaluators
  *        - requires_action → persist partial assistant message and exit;
  *          the approval-resume path below owns the eventual completion.
  *   6. Wrap the outer stream in `pipeJsonRender` so spec fences inside
@@ -30,9 +31,20 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { createUIMessageStream, type UIMessageStreamWriter } from "ai";
 import { pipeJsonRender } from "@json-render/core";
 
+import {
+  claimApprovalResolution,
+  patchApprovalPartState,
+  releaseApprovalResolutionClaim,
+} from "@/lib/approvals/queries";
 import { upsertMessage } from "@/lib/chat/messages";
 import { deliverToExternalChannels } from "@/lib/channels/deliver";
 import { runEvaluatorsForEvents } from "@/lib/eval/run-evaluators";
+import {
+  consumeMessageQuota,
+  MessageQuotaError,
+  messageQuotaErrorCodes,
+  releaseMessageQuota,
+} from "@/lib/usage/message-quota";
 import {
   completeRun,
   createRun,
@@ -42,10 +54,12 @@ import { buildSystemReminder } from "@/lib/runner/system-reminder";
 import type { Json } from "@/types/database";
 
 import { computeTurnCost } from "./adapter-cost";
+import { attachFileToSession } from "./attach-session-file";
 import { buildAssistantPartsFromEvents } from "./events-to-assistant-parts";
 import { buildKickoffText, getOrCreateSession } from "./session-kickoff";
 import { consumeAnthropicSession } from "./session-runner";
 import type {
+  ManagedFilePart,
   ManagedSupabaseClient,
   SessionRunnerCallbacks,
   SessionRunnerResult,
@@ -136,10 +150,23 @@ function buildUiStreamCallbacks(
     },
     onApprovalRequired: (event, approvalId) => {
       const e = event as { id: string; name: string; input: unknown };
+      // Two chunks: first create the tool part via `tool-input-available`,
+      // then transition it into `approval-requested` via the flat
+      // `tool-approval-request` chunk. AI SDK v6's client requires a
+      // pre-existing tool part keyed by toolCallId before it will apply an
+      // approval-request chunk (see `updateToolPart` + `getToolInvocation`
+      // in ai/dist/index.mjs). Built-in tools like `bash` never go through
+      // `onAgentToolUse`, so the part must be bootstrapped here.
+      writer.write({
+        type: "tool-input-available",
+        toolCallId: e.id,
+        toolName: e.name,
+        input: e.input,
+      } as never);
       writer.write({
         type: "tool-approval-request",
         approvalId,
-        toolCall: { toolCallId: e.id, toolName: e.name, input: e.input },
+        toolCallId: e.id,
       } as never);
     },
     onSessionError: (event) => {
@@ -164,99 +191,167 @@ interface FinalizeRunOptions {
   logLabel: string;
 }
 
+function buildUserMessageParts(input: {
+  userMessage: string;
+  fileParts: readonly ManagedFilePart[];
+}): Json {
+  return [
+    ...input.fileParts.map((filePart) => ({
+      type: "file" as const,
+      url: filePart.url,
+      mediaType: filePart.mediaType,
+      ...(filePart.filename ? { filename: filePart.filename } : {}),
+      ...(filePart.storagePath ? { storagePath: filePart.storagePath } : {}),
+    })),
+    ...(input.userMessage.length > 0
+      ? [{ type: "text" as const, text: input.userMessage }]
+      : []),
+  ] as unknown as Json;
+}
+
+async function persistUserInput(options: {
+  supabase: ManagedSupabaseClient;
+  threadId: string;
+  runId: string;
+  userMessage: string;
+  fileParts: readonly ManagedFilePart[];
+  sourceEventId?: string;
+}): Promise<void> {
+  await upsertMessage(options.supabase, {
+    thread_id: options.threadId,
+    role: "user",
+    content: options.userMessage.length > 0 ? options.userMessage : null,
+    parts: buildUserMessageParts({
+      userMessage: options.userMessage,
+      fileParts: options.fileParts,
+    }),
+    source_event_id: options.sourceEventId ?? `user:${options.runId}`,
+  });
+}
+
+async function persistAssistantOutput(options: {
+  supabase: ManagedSupabaseClient;
+  clientId: string;
+  threadId: string;
+  runId: string;
+  accumulatedEvents: ReadonlyArray<AnthropicEvent>;
+  logLabel: string;
+}): Promise<void> {
+  const { supabase, clientId, threadId, runId, accumulatedEvents, logLabel } = options;
+  const parts = buildAssistantPartsFromEvents(accumulatedEvents);
+  if (!parts.some((part) => part.type !== "step-start")) {
+    return;
+  }
+
+  const contentText = getAssistantTextFromParts(parts);
+  const sourceEventId = pickSourceEventId(accumulatedEvents, runId);
+
+  await upsertMessage(supabase, {
+    thread_id: threadId,
+    role: "assistant",
+    content: contentText.length > 0 ? contentText : null,
+    parts: parts as unknown as Json,
+    source_event_id: sourceEventId,
+  });
+
+  await deliverToExternalChannels(
+    supabase,
+    threadId,
+    clientId,
+    contentText,
+    parts,
+    sourceEventId,
+  ).catch((deliveryError) => {
+    console.error(
+      `[${logLabel}] external channel delivery failed:`,
+      deliveryError,
+    );
+  });
+}
+
+async function attachFilesToManagedSession(options: {
+  sessionId: string;
+  fileParts: readonly ManagedFilePart[];
+  logLabel: string;
+}): Promise<void> {
+  if (options.fileParts.length === 0) {
+    return;
+  }
+
+  await Promise.all(
+    options.fileParts.map(async (filePart) => {
+      try {
+        const response = await fetch(filePart.url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch attachment (${response.status})`);
+        }
+
+        await attachFileToSession({
+          sessionId: options.sessionId,
+          file: await response.blob(),
+          filename: filePart.filename ?? "upload",
+        });
+      } catch (error) {
+        console.error(`[${options.logLabel}] Failed to attach file to session:`, error);
+      }
+    }),
+  );
+}
+
 /**
- * Persists the assistant message (end_turn / requires_action), completes
- * the run, and runs evaluators. Shared by the run + resume paths so both
- * terminal shapes behave identically.
+ * Persists assistant output for every terminal state, completes successful
+ * and failed turns, and runs evaluators for every terminal state except
+ * `requires_action`. Shared by the run + resume paths so both entry points
+ * behave identically.
  */
 async function finalizeRun(options: FinalizeRunOptions): Promise<void> {
   const { supabase, clientId, threadId, runId, result, conversationInput, logLabel } = options;
   const accumulatedEvents = result.accumulatedEvents as ReadonlyArray<AnthropicEvent>;
-  const sourceEventId = pickSourceEventId(accumulatedEvents, runId);
-
-  if (result.status === "complete" && result.reason === "end_turn") {
-    const parts = buildAssistantPartsFromEvents(accumulatedEvents);
-    const contentText = getAssistantTextFromParts(parts);
-    if (parts.some((p) => p.type !== "step-start")) {
-      await upsertMessage(supabase, {
-        thread_id: threadId,
-        role: "assistant",
-        content: contentText.length > 0 ? contentText : null,
-        parts: parts as unknown as Json,
-        source_event_id: sourceEventId,
-      });
-      await deliverToExternalChannels(
-        supabase,
-        threadId,
-        clientId,
-        contentText,
-        parts,
-      ).catch((deliveryError) => {
-        console.error(
-          `[${logLabel}] external channel delivery failed:`,
-          deliveryError,
-        );
-      });
-    }
-    const costUsd = computeTurnCost({
-      inputTokens: result.cost.inputTokens,
-      outputTokens: result.cost.outputTokens,
-      cacheReadInputTokens: result.cost.cacheReadInputTokens,
-      cacheCreationInputTokens: result.cost.cacheCreationInputTokens,
-      activeSeconds: result.cost.runtimeSeconds,
-    });
-    await completeRun(supabase, {
-      runId,
-      status: "completed",
-      model: MANAGED_AGENT_MODEL,
-      tokensIn: result.cost.inputTokens,
-      tokensOut: result.cost.outputTokens,
-      costUsd,
-    });
-    await runEvaluatorsForEvents(accumulatedEvents, runId, supabase, {
-      conversationInput,
-    });
-    return;
-  }
-
   if (result.reason === "requires_action") {
     // Paused on approval — persist whatever we streamed (including
     // the approval-requested part so reload renders the prompt) but
     // do NOT mark the run complete. The approval-resume path owns the
     // eventual completion.
-    const parts = buildAssistantPartsFromEvents(accumulatedEvents);
-    const contentText = getAssistantTextFromParts(parts);
-    if (parts.some((p) => p.type !== "step-start")) {
-      await upsertMessage(supabase, {
-        thread_id: threadId,
-        role: "assistant",
-        content: contentText.length > 0 ? contentText : null,
-        parts: parts as unknown as Json,
-        source_event_id: sourceEventId,
-      });
-      await deliverToExternalChannels(
-        supabase,
-        threadId,
-        clientId,
-        contentText,
-        parts,
-      ).catch((deliveryError) => {
-        console.error(
-          `[${logLabel}] external channel delivery failed:`,
-          deliveryError,
-        );
-      });
-    }
+    await persistAssistantOutput({
+      supabase,
+      clientId,
+      threadId,
+      runId,
+      accumulatedEvents,
+      logLabel,
+    });
     return;
   }
 
-  // retries_exhausted / terminated / session_error → mark run failed.
+  await persistAssistantOutput({
+    supabase,
+    clientId,
+    threadId,
+    runId,
+    accumulatedEvents,
+    logLabel,
+  });
+
+  const costUsd = computeTurnCost({
+    inputTokens: result.cost.inputTokens,
+    outputTokens: result.cost.outputTokens,
+    cacheReadInputTokens: result.cost.cacheReadInputTokens,
+    cacheCreationInputTokens: result.cost.cacheCreationInputTokens,
+    activeSeconds: result.cost.runtimeSeconds,
+  });
+
   await completeRun(supabase, {
     runId,
-    status: "failed",
+    status: result.status === "complete" ? "completed" : "failed",
     model: MANAGED_AGENT_MODEL,
     tokensIn: result.cost.inputTokens,
     tokensOut: result.cost.outputTokens,
+    cacheReadTokens: result.cost.cacheReadInputTokens,
+    costUsd,
+  });
+
+  await runEvaluatorsForEvents(accumulatedEvents, runId, supabase, {
+    conversationInput,
   });
 }
 
@@ -268,6 +363,8 @@ export interface RunManagedAgentInput {
   clientId: string;
   threadId: string;
   input: string;
+  fileParts?: ManagedFilePart[];
+  userMessageSourceId?: string;
   clientProfile: string | null;
   userPreferences: string | null;
   threadTitle: string | null;
@@ -294,32 +391,96 @@ export async function runManagedAgent(
     return { status: "queued" };
   }
   const runId = lock.runId;
+  let shouldReleaseConsumedQuota = false;
+  let consumedQuota: Awaited<ReturnType<typeof consumeMessageQuota>> | null = null;
+  let sessionId: string;
+  let kickoff: string;
 
-  const session = await getOrCreateSession({
-    anthropic: input.anthropic,
-    supabase: input.supabase,
-    threadId: input.threadId,
-    threadTitle: input.threadTitle,
-  });
+  try {
+    const quota = await consumeMessageQuota(input.supabase, input.clientId);
+    if (!quota.allowed) {
+      throw new MessageQuotaError(
+        messageQuotaErrorCodes.limitReached,
+        "Monthly message limit reached.",
+        { quota },
+      );
+    }
+    consumedQuota = quota;
+    shouldReleaseConsumedQuota = true;
 
-  const reminder = await buildSystemReminder(
-    input.supabase,
-    input.clientId,
-    input.threadId,
-  );
-  const kickoff = buildKickoffText({
-    clientProfile: input.clientProfile,
-    userPreferences: input.userPreferences,
-    systemReminder: reminder,
-    userMessage: input.input,
-  });
+    await persistUserInput({
+      supabase: input.supabase,
+      threadId: input.threadId,
+      runId,
+      userMessage: input.input,
+      fileParts: input.fileParts ?? [],
+      sourceEventId: input.userMessageSourceId,
+    });
+    shouldReleaseConsumedQuota = false;
+
+    const session = await getOrCreateSession({
+      anthropic: input.anthropic,
+      supabase: input.supabase,
+      threadId: input.threadId,
+      threadTitle: input.threadTitle,
+    });
+    sessionId = session.id;
+
+    await attachFilesToManagedSession({
+      sessionId,
+      fileParts: input.fileParts ?? [],
+      logLabel: "runManagedAgent",
+    });
+
+    const reminder = await buildSystemReminder(
+      input.supabase,
+      input.clientId,
+      input.threadId,
+    );
+    kickoff = buildKickoffText({
+      clientProfile: input.clientProfile,
+      userPreferences: input.userPreferences,
+      systemReminder: reminder,
+      userMessage: input.input,
+    });
+  } catch (error) {
+    if (shouldReleaseConsumedQuota && consumedQuota) {
+      try {
+        await releaseMessageQuota(
+          input.supabase,
+          consumedQuota.clientId,
+          consumedQuota.periodStart,
+        );
+      } catch (releaseError) {
+        console.error(
+          "[runManagedAgent] failed to release consumed message quota",
+          releaseError,
+        );
+      }
+    }
+    try {
+      await completeRun(input.supabase, {
+        runId,
+        status: "failed",
+        model: MANAGED_AGENT_MODEL,
+        tokensIn: 0,
+        tokensOut: 0,
+      });
+    } catch (cleanupError) {
+      console.error(
+        "[runManagedAgent] failed to mark run as failed during setup cleanup",
+        cleanupError,
+      );
+    }
+    throw error;
+  }
 
   const rawStream = createUIMessageStream({
     execute: async ({ writer }) => {
       try {
         const result = await consumeAnthropicSession({
           anthropic: input.anthropic,
-          sessionId: session.id,
+          sessionId,
           runId,
           context: {
             supabase: input.supabase,
@@ -398,39 +559,75 @@ export type ResumeManagedAgentResult =
  * run identically to `runManagedAgent` so the resumed turn is persisted,
  * delivered externally, and evaluated.
  *
- * The approval_events row is marked resolved *inside* the UIMessageStream
- * execute block so the update happens after a successful kickoff. A
- * second concurrent call will short-circuit on `status !== "pending"`.
+ * The approval row is claimed before streaming so only one resolver can send
+ * `user.tool_confirmation`. If the kickoff never reaches Anthropic, the claim
+ * is released back to `pending` for retry.
  */
 export async function resumeManagedAgentFromApproval(
   input: ResumeManagedAgentFromApprovalInput,
 ): Promise<ResumeManagedAgentResult> {
-  const { data: event, error } = await input.supabase
-    .from("approval_events")
-    .select("session_id, tool_use_id, thread_id, client_id, run_id, status")
-    .eq("approval_id", input.approvalId)
-    .eq("client_id", input.clientId)
-    .single();
+  const claimResult = await claimApprovalResolution(input.supabase, {
+    clientId: input.clientId,
+    approvalId: input.approvalId,
+    approved: input.approved,
+  });
 
-  if (error || !event) {
+  if (!claimResult.success && claimResult.status === "missing") {
     return { status: "missing" };
   }
 
-  if (event.status !== "pending") {
-    return { status: "already_resolved", threadId: event.thread_id };
+  if (claimResult.success && claimResult.status === "already_resolved") {
+    const approvalDecision = claimResult.event.status === "approved";
+    await patchApprovalPartState(input.supabase, {
+      clientId: input.clientId,
+      threadId: claimResult.event.thread_id,
+      approvalId: input.approvalId,
+      approved: approvalDecision,
+    }).catch((patchError) => {
+      console.error(
+        "[resumeManagedAgentFromApproval] failed to patch already-resolved approval state",
+        patchError,
+      );
+    });
+    return { status: "already_resolved", threadId: claimResult.event.thread_id };
   }
 
-  if (!event.session_id || !event.tool_use_id || !event.run_id) {
+  if (!claimResult.success || claimResult.status !== "claimed") {
+    return {
+      status: "error",
+      error: claimResult.error,
+    };
+  }
+
+  const claimedStatus = claimResult.claimedStatus as "approved" | "denied";
+  const claimedResolvedAt = claimResult.claimedResolvedAt;
+
+  if (
+    !claimResult.event.session_id ||
+    !claimResult.event.tool_use_id ||
+    !claimResult.event.run_id
+  ) {
+    await releaseApprovalResolutionClaim(input.supabase, {
+      clientId: input.clientId,
+      approvalId: input.approvalId,
+      claimedStatus,
+      claimedResolvedAt,
+    }).catch((releaseError) => {
+      console.error(
+        "[resumeManagedAgentFromApproval] failed to release invalid approval claim",
+        releaseError,
+      );
+    });
     return {
       status: "error",
       error: "Approval event is missing session_id, tool_use_id, or run_id.",
     };
   }
 
-  const sessionId = event.session_id;
-  const toolUseId = event.tool_use_id;
-  const runId = event.run_id;
-  const threadId = event.thread_id;
+  const sessionId = claimResult.event.session_id;
+  const toolUseId = claimResult.event.tool_use_id;
+  const runId = claimResult.event.run_id;
+  const threadId = claimResult.event.thread_id;
   const approvalId = input.approvalId;
   const clientId = input.clientId;
   const approved = input.approved;
@@ -438,6 +635,7 @@ export async function resumeManagedAgentFromApproval(
 
   const rawStream = createUIMessageStream({
     execute: async ({ writer }) => {
+      let didSendKickoffApproval = false;
       try {
         const result = await consumeAnthropicSession({
           anthropic: input.anthropic,
@@ -454,30 +652,23 @@ export async function resumeManagedAgentFromApproval(
             result: approved ? "allow" : "deny",
             denyMessage,
           },
+          onKickoffApprovalSent: async () => {
+            didSendKickoffApproval = true;
+            await patchApprovalPartState(input.supabase, {
+              clientId,
+              threadId,
+              approvalId,
+              approved,
+            }).catch((patchError) => {
+              console.error(
+                "[resumeManagedAgentFromApproval] failed to patch approval state",
+                patchError,
+              );
+            });
+          },
           autoDenyApprovals: false,
           callbacks: buildUiStreamCallbacks(writer),
         });
-
-        // Mark the approval event resolved. Conditional on status='pending'
-        // so a concurrent resolver loses the race cleanly instead of
-        // double-updating. We do this after the kickoff send so a failed
-        // send leaves the row pending for retry.
-        const { error: updateError } = await input.supabase
-          .from("approval_events")
-          .update({
-            status: approved ? "approved" : "denied",
-            resolved_at: new Date().toISOString(),
-          })
-          .eq("approval_id", approvalId)
-          .eq("client_id", clientId)
-          .eq("status", "pending");
-
-        if (updateError) {
-          console.error(
-            "[resumeManagedAgentFromApproval] failed to mark approval resolved",
-            updateError,
-          );
-        }
 
         await finalizeRun({
           supabase: input.supabase,
@@ -489,6 +680,19 @@ export async function resumeManagedAgentFromApproval(
           logLabel: "resumeManagedAgentFromApproval",
         });
       } catch (resumeError) {
+        if (!didSendKickoffApproval) {
+          await releaseApprovalResolutionClaim(input.supabase, {
+            clientId,
+            approvalId,
+            claimedStatus,
+            claimedResolvedAt,
+          }).catch((releaseError) => {
+            console.error(
+              "[resumeManagedAgentFromApproval] failed to release approval claim",
+              releaseError,
+            );
+          });
+        }
         try {
           await completeRun(input.supabase, {
             runId,

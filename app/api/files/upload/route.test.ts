@@ -361,12 +361,7 @@ describe("POST /api/files/upload", () => {
     });
   });
 
-  it("attaches the uploaded file to an active session when threadId is provided", async () => {
-    mockThreadMaybeSingle.mockResolvedValue({
-      data: { session_id: "session_abc" },
-      error: null,
-    });
-
+  it("ignores threadId during upload; session attachment now happens after run acceptance", async () => {
     const response = await POST(
       createFileRequestWithThread(
         new File(["image-data"], "screenshot.png", { type: "image/png" }),
@@ -375,10 +370,7 @@ describe("POST /api/files/upload", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(mockAttachFileToSession).toHaveBeenCalledWith({
-      sessionId: "session_abc",
-      file: expect.anything(),
-      filename: "screenshot.png",
-    });
+    expect(mockThreadMaybeSingle).not.toHaveBeenCalled();
+    expect(mockAttachFileToSession).not.toHaveBeenCalled();
   });
 });

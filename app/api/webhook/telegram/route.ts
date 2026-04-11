@@ -40,9 +40,7 @@ import {
   resumeManagedAgentFromApproval,
   runManagedAgent,
 } from "@/lib/managed-agents/adapter";
-import { attachFileToSession } from "@/lib/managed-agents/attach-session-file";
 import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
-import { getOrCreateSession } from "@/lib/managed-agents/session-kickoff";
 import type { ManagedFilePart } from "@/lib/managed-agents/types";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -270,35 +268,19 @@ async function runTelegramAgent(
     text: string;
     fileParts?: ManagedFilePart[];
     chatId: number;
+    userMessageSourceId: string;
   },
 ) {
   const anthropic = getAnthropicClient();
+  const { data: clientContext, error: clientContextError } = await ctx.supabase
+    .from("clients")
+    .select("client_profile, user_preferences")
+    .eq("client_id", input.clientId)
+    .maybeSingle();
 
-  if (input.fileParts && input.fileParts.length > 0) {
-    const session = await getOrCreateSession({
-      anthropic,
-      supabase: ctx.supabase,
-      threadId: input.threadId,
-      threadTitle: null,
-    });
-
-    await Promise.all(
-      input.fileParts.map(async (filePart) => {
-        try {
-          const response = await fetch(filePart.url);
-          if (!response.ok) {
-            throw new Error(`Failed to fetch attachment (${response.status})`);
-          }
-
-          await attachFileToSession({
-            sessionId: session.id,
-            file: await response.blob(),
-            filename: filePart.filename ?? "upload",
-          });
-        } catch (error) {
-          console.error("[telegram/webhook] Failed to attach file to session:", error);
-        }
-      }),
+  if (clientContextError) {
+    throw new Error(
+      `Failed to load Telegram client context for ${input.clientId}: ${clientContextError.message}`,
     );
   }
 
@@ -308,8 +290,10 @@ async function runTelegramAgent(
     clientId: input.clientId,
     threadId: input.threadId,
     input: input.text,
-    clientProfile: null,
-    userPreferences: null,
+    fileParts: input.fileParts,
+    userMessageSourceId: input.userMessageSourceId,
+    clientProfile: clientContext?.client_profile ?? null,
+    userPreferences: clientContext?.user_preferences ?? null,
     threadTitle: null,
   });
 
@@ -377,6 +361,7 @@ async function handleRegularMessage(
         threadId: pendingTextReply.threadId,
         text: pendingTextReply.responseText,
         chatId: numericChatId,
+        userMessageSourceId: `telegram:update:${updateId}`,
       });
       return;
     }
@@ -394,6 +379,7 @@ async function handleRegularMessage(
     text: messageText,
     fileParts,
     chatId: numericChatId,
+    userMessageSourceId: `telegram:update:${updateId}`,
   });
 }
 
@@ -525,6 +511,7 @@ async function handleQuestionCallback(
     threadId: result.threadId,
     text: result.responseText,
     chatId,
+    userMessageSourceId: `telegram:callback:${input.requestId}:${input.questionIndex}:${input.optionIndex}`,
   });
 }
 
