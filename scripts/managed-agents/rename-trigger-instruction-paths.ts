@@ -1,14 +1,16 @@
 /**
  * One-off data migration for trigger instruction files.
  *
- * Copies each trigger instruction markdown file from the legacy
- * `agent/subagents/` storage prefix into `agent/triggers/`, then rewrites the
- * corresponding `agent_triggers.instruction_path` rows to the new
- * `/agent/triggers/` convention.
+ * Migrates only the instruction files that are currently referenced by
+ * `agent_triggers.instruction_path`. Legacy trigger paths are copied into the
+ * canonical `triggers/` storage prefix, the corresponding rows are rewritten to
+ * the canonical relative `triggers/...` path, and the old source files are
+ * removed after the DB rewrite succeeds.
  *
- * Safe to re-run. If a destination file already exists, the script treats the
- * copy as already completed and proceeds with the database rewrite + source
- * cleanup.
+ * The script refuses ambiguous destination collisions. If two different legacy
+ * files would collapse onto the same `triggers/...` destination, or if the
+ * destination already exists and copy returns `409`, it aborts without
+ * rewriting rows or deleting sources.
  *
  * Usage:
  *   pnpm tsx scripts/managed-agents/rename-trigger-instruction-paths.ts
@@ -17,19 +19,32 @@
  * @module scripts/managed-agents/rename-trigger-instruction-paths
  */
 const AGENT_FILES_BUCKET = "agent-files";
-const OLD_STORAGE_PREFIX = "agent/subagents";
-const NEW_STORAGE_PREFIX = "agent/triggers";
-const NEW_MODEL_PREFIX = "/agent/triggers";
+const CANONICAL_TRIGGER_PREFIX = "triggers/";
 
-interface StorageListFile {
-  name: string;
-}
+const LEGACY_PATH_VARIANTS = [
+  {
+    instructionPrefix: "/agent/subagents/",
+    storagePrefix: "agent/subagents/",
+  },
+  {
+    instructionPrefix: "agent/subagents/",
+    storagePrefix: "agent/subagents/",
+  },
+  {
+    instructionPrefix: "subagents/triggers/",
+    storagePrefix: "subagents/triggers/",
+  },
+  {
+    instructionPrefix: "/agent/triggers/",
+    storagePrefix: "agent/triggers/",
+  },
+  {
+    instructionPrefix: "agent/triggers/",
+    storagePrefix: "agent/triggers/",
+  },
+] as const;
 
 interface ScriptStorageBucket {
-  list: (path: string) => Promise<{
-    data: StorageListFile[] | null;
-    error: { message: string; status?: number; statusCode?: string } | null;
-  }>;
   copy: (fromPath: string, toPath: string) => Promise<{
     error: { message: string; status?: number; statusCode?: string } | null;
   }>;
@@ -38,44 +53,128 @@ interface ScriptStorageBucket {
   }>;
 }
 
+interface TriggerInstructionRow {
+  id: string;
+  instruction_path: string;
+}
+
+interface AgentTriggersTable {
+  select: (columns: string) => {
+    eq: (
+      column: string,
+      value: string,
+    ) => Promise<{
+      data: TriggerInstructionRow[] | null;
+      error: { message: string } | null;
+    }>;
+  };
+  update: (values: { instruction_path: string }) => {
+    eq: (column: string, value: string) => {
+      eq: (
+        nestedColumn: string,
+        nestedValue: string,
+      ) => Promise<{ error: { message: string } | null }>;
+    };
+  };
+}
+
+interface ClientsTable {
+  select: (columns: string) => Promise<{
+    data: Array<{ client_id: string }> | null;
+    error: { message: string } | null;
+  }>;
+}
+
 interface ScriptSupabaseClient {
   storage: {
     from: (bucket: string) => ScriptStorageBucket;
   };
-  from: (table: "agent_triggers" | "clients") => {
-    update: (values: { instruction_path: string }) => {
-      eq: (column: string, value: string) => {
-        eq: (
-          nestedColumn: string,
-          nestedValue: string,
-        ) => Promise<{ error: { message: string } | null }>;
-      };
-    };
-    select: (columns: string) => Promise<{
-      data: Array<{ client_id: string }> | null;
-      error: { message: string } | null;
-    }>;
+  from: {
+    (table: "agent_triggers"): AgentTriggersTable;
+    (table: "clients"): ClientsTable;
   };
 }
 
-function buildLegacyInstructionPathCandidates(fileName: string): string[] {
-  return [
-    `/agent/subagents/${fileName}`,
-    "agent/subagents/" + fileName,
-    `subagents/triggers/${fileName}`,
-  ];
+interface PlannedTriggerMigration {
+  triggerId: string;
+  currentInstructionPath: string;
+  nextInstructionPath: string;
+  sourceStoragePath: string;
+  destinationStoragePath: string;
 }
 
-function isAlreadyCopiedError(error: {
-  message: string;
-  status?: number;
-  statusCode?: string;
-}): boolean {
-  return (
-    error.status === 409 ||
-    error.statusCode === "409" ||
-    /already exists/i.test(error.message)
-  );
+interface CopyPlan {
+  sourceStoragePath: string;
+  destinationStoragePath: string;
+}
+
+function isAlreadyCanonicalInstructionPath(instructionPath: string): boolean {
+  return instructionPath.startsWith(CANONICAL_TRIGGER_PREFIX);
+}
+
+function planTriggerMigration(
+  row: TriggerInstructionRow,
+): PlannedTriggerMigration | null {
+  if (isAlreadyCanonicalInstructionPath(row.instruction_path)) {
+    return null;
+  }
+
+  for (const variant of LEGACY_PATH_VARIANTS) {
+    if (!row.instruction_path.startsWith(variant.instructionPrefix)) {
+      continue;
+    }
+
+    const suffix = row.instruction_path.slice(variant.instructionPrefix.length);
+    if (suffix.length === 0) {
+      throw new Error(
+        `Trigger ${row.id} has an invalid instruction_path: ${row.instruction_path}`,
+      );
+    }
+
+    return {
+      triggerId: row.id,
+      currentInstructionPath: row.instruction_path,
+      nextInstructionPath: `${CANONICAL_TRIGGER_PREFIX}${suffix}`,
+      sourceStoragePath: `${variant.storagePrefix}${suffix}`,
+      destinationStoragePath: `${CANONICAL_TRIGGER_PREFIX}${suffix}`,
+    };
+  }
+
+  return null;
+}
+
+function buildCopyPlans(
+  clientId: string,
+  migrations: PlannedTriggerMigration[],
+): CopyPlan[] {
+  const copyPlansBySource = new Map<string, CopyPlan>();
+  const destinationsToSources = new Map<string, string>();
+
+  for (const migration of migrations) {
+    const source = migration.sourceStoragePath;
+    const destination = migration.destinationStoragePath;
+    const existingSource = destinationsToSources.get(destination);
+
+    if (existingSource && existingSource !== source) {
+      throw new Error(
+        `Refusing to collapse ${existingSource} and ${source} onto ${clientId}/${destination}`,
+      );
+    }
+
+    destinationsToSources.set(destination, source);
+
+    const existingPlan = copyPlansBySource.get(source);
+    if (existingPlan) {
+      continue;
+    }
+
+    copyPlansBySource.set(source, {
+      sourceStoragePath: source,
+      destinationStoragePath: destination,
+    });
+  }
+
+  return [...copyPlansBySource.values()];
 }
 
 async function createScriptAdminClient(): Promise<ScriptSupabaseClient> {
@@ -83,25 +182,39 @@ async function createScriptAdminClient(): Promise<ScriptSupabaseClient> {
   return createAdminClient() as Promise<ScriptSupabaseClient>;
 }
 
-async function rewriteInstructionPathReferences(
+async function listClientTriggerRows(
   supabase: ScriptSupabaseClient,
   clientId: string,
-  fileName: string,
+): Promise<TriggerInstructionRow[]> {
+  const { data, error } = await supabase
+    .from("agent_triggers")
+    .select("id, instruction_path")
+    .eq("client_id", clientId);
+
+  if (error) {
+    throw new Error(
+      `Failed to list trigger instructions for ${clientId}: ${error.message}`,
+    );
+  }
+
+  return (data as TriggerInstructionRow[] | null) ?? [];
+}
+
+async function rewriteTriggerInstructionPath(
+  supabase: ScriptSupabaseClient,
+  clientId: string,
+  migration: PlannedTriggerMigration,
 ): Promise<void> {
-  const nextPath = `${NEW_MODEL_PREFIX}/${fileName}`;
+  const { error } = await supabase
+    .from("agent_triggers")
+    .update({ instruction_path: migration.nextInstructionPath })
+    .eq("client_id", clientId)
+    .eq("id", migration.triggerId);
 
-  for (const previousPath of buildLegacyInstructionPathCandidates(fileName)) {
-    const { error } = await supabase
-      .from("agent_triggers")
-      .update({ instruction_path: nextPath })
-      .eq("client_id", clientId)
-      .eq("instruction_path", previousPath);
-
-    if (error) {
-      throw new Error(
-        `Failed to rewrite instruction_path ${previousPath} for ${clientId}: ${error.message}`,
-      );
-    }
+  if (error) {
+    throw new Error(
+      `Failed to rewrite trigger ${migration.triggerId} from ${migration.currentInstructionPath} to ${migration.nextInstructionPath}: ${error.message}`,
+    );
   }
 }
 
@@ -111,37 +224,39 @@ export async function renameTriggerInstructionPaths(
 ): Promise<void> {
   const supabase = supabaseArg ?? await createScriptAdminClient();
   const storage = supabase.storage.from(AGENT_FILES_BUCKET);
-  const { data: files, error } = await storage.list(
-    `${options.clientId}/${OLD_STORAGE_PREFIX}`,
-  );
+  const triggerRows = await listClientTriggerRows(supabase, options.clientId);
+  const migrations = triggerRows.flatMap((row) => {
+    const migration = planTriggerMigration(row);
+    return migration ? [migration] : [];
+  });
 
-  if (error) {
-    throw new Error(
-      `Failed to list trigger instruction files for ${options.clientId}: ${error.message}`,
-    );
-  }
-
-  const markdownFiles = (files ?? []).filter((file) => file.name.endsWith(".md"));
-  if (markdownFiles.length === 0) {
+  if (migrations.length === 0) {
     return;
   }
 
-  const sourcePaths: string[] = [];
+  const copyPlans = buildCopyPlans(options.clientId, migrations);
 
-  for (const file of markdownFiles) {
-    const oldPath = `${options.clientId}/${OLD_STORAGE_PREFIX}/${file.name}`;
-    const newPath = `${options.clientId}/${NEW_STORAGE_PREFIX}/${file.name}`;
+  for (const plan of copyPlans) {
+    const oldPath = `${options.clientId}/${plan.sourceStoragePath}`;
+    const newPath = `${options.clientId}/${plan.destinationStoragePath}`;
     const { error: copyError } = await storage.copy(oldPath, newPath);
 
-    if (copyError && !isAlreadyCopiedError(copyError)) {
-      throw new Error(`Failed to copy ${oldPath} to ${newPath}: ${copyError.message}`);
+    if (copyError) {
+      throw new Error(
+        `Failed to copy ${oldPath} to ${newPath}: ${copyError.message}`,
+      );
     }
-
-    await rewriteInstructionPathReferences(supabase, options.clientId, file.name);
-    sourcePaths.push(oldPath);
   }
 
+  for (const migration of migrations) {
+    await rewriteTriggerInstructionPath(supabase, options.clientId, migration);
+  }
+
+  const sourcePaths = copyPlans.map(
+    (plan) => `${options.clientId}/${plan.sourceStoragePath}`,
+  );
   const { error: removeError } = await storage.remove(sourcePaths);
+
   if (removeError) {
     throw new Error(`Failed to remove old trigger instruction files: ${removeError.message}`);
   }

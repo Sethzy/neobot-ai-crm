@@ -7,19 +7,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renameTriggerInstructionPaths } from "../rename-trigger-instruction-paths";
 
 function createMockSupabase() {
-  const listFiles = vi.fn();
   const copyFile = vi.fn();
   const removeFiles = vi.fn();
-  const instructionPathEq = vi.fn();
-  const clientIdEq = vi.fn(() => ({
-    eq: instructionPathEq,
+  const instructionIdEq = vi.fn();
+  const clientIdEqForUpdate = vi.fn(() => ({
+    eq: instructionIdEq,
   }));
   const updateTriggerRows = vi.fn(() => ({
-    eq: clientIdEq,
+    eq: clientIdEqForUpdate,
+  }));
+  const clientIdEqForSelect = vi.fn();
+  const selectTriggerRows = vi.fn(() => ({
+    eq: clientIdEqForSelect,
   }));
 
   const storageBucket = {
-    list: listFiles,
     copy: copyFile,
     remove: removeFiles,
   };
@@ -35,6 +37,7 @@ function createMockSupabase() {
       from: vi.fn((table: string) => {
         if (table === "agent_triggers") {
           return {
+            select: selectTriggerRows,
             update: updateTriggerRows,
           };
         }
@@ -42,12 +45,13 @@ function createMockSupabase() {
         throw new Error(`Unexpected table: ${table}`);
       }),
     },
-    listFiles,
     copyFile,
     removeFiles,
+    selectTriggerRows,
+    clientIdEqForSelect,
     updateTriggerRows,
-    clientIdEq,
-    instructionPathEq,
+    clientIdEqForUpdate,
+    instructionIdEq,
   };
 }
 
@@ -56,27 +60,37 @@ describe("renameTriggerInstructionPaths", () => {
     vi.clearAllMocks();
   });
 
-  it("copies markdown files into agent/triggers and deletes the old files", async () => {
+  it("migrates only referenced legacy files into the canonical triggers/ prefix", async () => {
     const {
       supabase,
-      listFiles,
       copyFile,
       removeFiles,
+      clientIdEqForSelect,
       updateTriggerRows,
-      clientIdEq,
-      instructionPathEq,
+      clientIdEqForUpdate,
+      instructionIdEq,
     } = createMockSupabase();
 
-    listFiles.mockResolvedValue({
+    clientIdEqForSelect.mockResolvedValue({
       data: [
-        { name: "morning-briefing.md" },
-        { name: "lead-digest.md" },
+        {
+          id: "trigger_1",
+          instruction_path: "/agent/subagents/morning-briefing.md",
+        },
+        {
+          id: "trigger_2",
+          instruction_path: "subagents/triggers/lead-digest.md",
+        },
+        {
+          id: "trigger_3",
+          instruction_path: "memory/briefing.md",
+        },
       ],
       error: null,
     });
     copyFile.mockResolvedValue({ error: null });
+    instructionIdEq.mockResolvedValue({ error: null });
     removeFiles.mockResolvedValue({ error: null });
-    instructionPathEq.mockResolvedValue({ error: null });
 
     await renameTriggerInstructionPaths(
       { clientId: "client_1" },
@@ -85,37 +99,47 @@ describe("renameTriggerInstructionPaths", () => {
 
     expect(copyFile).toHaveBeenCalledWith(
       "client_1/agent/subagents/morning-briefing.md",
-      "client_1/agent/triggers/morning-briefing.md",
+      "client_1/triggers/morning-briefing.md",
     );
     expect(copyFile).toHaveBeenCalledWith(
-      "client_1/agent/subagents/lead-digest.md",
-      "client_1/agent/triggers/lead-digest.md",
+      "client_1/subagents/triggers/lead-digest.md",
+      "client_1/triggers/lead-digest.md",
     );
     expect(updateTriggerRows).toHaveBeenCalledWith({
-      instruction_path: "/agent/triggers/morning-briefing.md",
+      instruction_path: "triggers/morning-briefing.md",
     });
-    expect(clientIdEq).toHaveBeenCalledWith("client_id", "client_1");
-    expect(instructionPathEq).toHaveBeenCalledWith(
-      "instruction_path",
-      "/agent/subagents/morning-briefing.md",
-    );
+    expect(updateTriggerRows).toHaveBeenCalledWith({
+      instruction_path: "triggers/lead-digest.md",
+    });
+    expect(clientIdEqForUpdate).toHaveBeenCalledWith("client_id", "client_1");
+    expect(instructionIdEq).toHaveBeenCalledWith("id", "trigger_1");
+    expect(instructionIdEq).toHaveBeenCalledWith("id", "trigger_2");
     expect(removeFiles).toHaveBeenCalledWith([
       "client_1/agent/subagents/morning-briefing.md",
-      "client_1/agent/subagents/lead-digest.md",
+      "client_1/subagents/triggers/lead-digest.md",
     ]);
   });
 
-  it("is idempotent when the legacy directory is already empty", async () => {
+  it("is a no-op when no trigger rows need migration", async () => {
     const {
       supabase,
-      listFiles,
       copyFile,
       removeFiles,
       updateTriggerRows,
+      clientIdEqForSelect,
     } = createMockSupabase();
 
-    listFiles.mockResolvedValue({
-      data: [],
+    clientIdEqForSelect.mockResolvedValue({
+      data: [
+        {
+          id: "trigger_1",
+          instruction_path: "triggers/morning-briefing.md",
+        },
+        {
+          id: "trigger_2",
+          instruction_path: "memory/briefing.md",
+        },
+      ],
       error: null,
     });
 
@@ -129,34 +153,73 @@ describe("renameTriggerInstructionPaths", () => {
     expect(removeFiles).not.toHaveBeenCalled();
   });
 
-  it("tolerates a pre-existing destination file and continues the rewrite", async () => {
+  it("refuses to collapse two different legacy sources onto the same destination", async () => {
     const {
       supabase,
-      listFiles,
       copyFile,
       removeFiles,
-      instructionPathEq,
+      updateTriggerRows,
+      clientIdEqForSelect,
     } = createMockSupabase();
 
-    listFiles.mockResolvedValue({
-      data: [{ name: "morning-briefing.md" }],
+    clientIdEqForSelect.mockResolvedValue({
+      data: [
+        {
+          id: "trigger_1",
+          instruction_path: "agent/subagents/daily.md",
+        },
+        {
+          id: "trigger_2",
+          instruction_path: "subagents/triggers/daily.md",
+        },
+      ],
       error: null,
     });
-    copyFile.mockResolvedValue({
-      error: { message: "The resource already exists", status: 409 },
-    });
-    instructionPathEq.mockResolvedValue({ error: null });
-    removeFiles.mockResolvedValue({ error: null });
 
     await expect(
       renameTriggerInstructionPaths(
         { clientId: "client_1" },
         supabase as never,
       ),
-    ).resolves.toBeUndefined();
+    ).rejects.toThrow(/Refusing to collapse/);
 
-    expect(removeFiles).toHaveBeenCalledWith([
-      "client_1/agent/subagents/morning-briefing.md",
-    ]);
+    expect(copyFile).not.toHaveBeenCalled();
+    expect(updateTriggerRows).not.toHaveBeenCalled();
+    expect(removeFiles).not.toHaveBeenCalled();
+  });
+
+  it("fails closed on destination collisions instead of deleting the source", async () => {
+    const {
+      supabase,
+      copyFile,
+      removeFiles,
+      updateTriggerRows,
+      clientIdEqForSelect,
+    } = createMockSupabase();
+
+    clientIdEqForSelect.mockResolvedValue({
+      data: [
+        {
+          id: "trigger_1",
+          instruction_path: "agent/subagents/morning-briefing.md",
+        },
+      ],
+      error: null,
+    });
+    copyFile.mockResolvedValue({
+      error: { message: "The resource already exists", status: 409 },
+    });
+
+    await expect(
+      renameTriggerInstructionPaths(
+        { clientId: "client_1" },
+        supabase as never,
+      ),
+    ).rejects.toThrow(
+      "Failed to copy client_1/agent/subagents/morning-briefing.md to client_1/triggers/morning-briefing.md: The resource already exists",
+    );
+
+    expect(updateTriggerRows).not.toHaveBeenCalled();
+    expect(removeFiles).not.toHaveBeenCalled();
   });
 });
