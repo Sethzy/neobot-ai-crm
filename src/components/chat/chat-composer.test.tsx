@@ -38,7 +38,7 @@ describe("ChatComposer", () => {
     onValueChange: vi.fn(),
     onSubmit: vi.fn(),
     onStop: vi.fn(),
-    selectedChatModel: "google/gemini-3-flash",
+    selectedChatModel: "anthropic/claude-sonnet-4-6",
     onSelectedChatModelChange: vi.fn(),
   };
 
@@ -51,30 +51,14 @@ describe("ChatComposer", () => {
     render(<ChatComposer {...baseProps} />);
 
     expect(screen.getByPlaceholderText(/send a message/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /gemini flash 3/i })).toBeInTheDocument();
+    // Single-model catalog: the selector renders as a static label, not a button.
+    expect(screen.getByText("Claude Sonnet 4.6")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /attach files/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /submit/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/upload attachments/i)).toHaveAttribute(
       "accept",
       CHAT_ATTACHMENT_ACCEPT,
     );
-  });
-
-  it("lets the user switch the selected chat model", async () => {
-    const onSelectedChatModelChange = vi.fn();
-    const user = userEvent.setup();
-
-    render(
-      <ChatComposer
-        {...baseProps}
-        onSelectedChatModelChange={onSelectedChatModelChange}
-      />,
-    );
-
-    await user.click(screen.getByRole("button", { name: /gemini flash 3/i }));
-    await user.click(screen.getByRole("button", { name: /minimax m2\.7/i }));
-
-    expect(onSelectedChatModelChange).toHaveBeenCalledWith("minimax/minimax-m2.7");
   });
 
   it("does not render quota UI inside the composer", () => {

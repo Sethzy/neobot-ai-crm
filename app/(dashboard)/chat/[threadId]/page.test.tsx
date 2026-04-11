@@ -92,7 +92,7 @@ describe("/chat/[threadId] page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCookies.mockResolvedValue({
-      get: vi.fn(() => ({ value: "minimax/minimax-m2.7" })),
+      get: vi.fn(() => ({ value: "anthropic/claude-sonnet-4-6" })),
     });
     mockLoadCurrentMessageQuota.mockResolvedValue({
       clientId: "client-123",
@@ -127,7 +127,7 @@ describe("/chat/[threadId] page", () => {
     expect(screen.getByTestId("initial-message-count")).toHaveTextContent("1");
     expect(screen.getByTestId("first-message-text")).toHaveTextContent("Loaded from server");
     expect(screen.getByTestId("quota-remaining")).toHaveTextContent("80");
-    expect(screen.getByTestId("initial-chat-model")).toHaveTextContent("minimax/minimax-m2.7");
+    expect(screen.getByTestId("initial-chat-model")).toHaveTextContent("anthropic/claude-sonnet-4-6");
     expect(screen.getByTestId("data-stream-handler")).toBeInTheDocument();
     expect(mockListMessages).toHaveBeenCalledWith(supabase, VALID_THREAD_ID);
   });

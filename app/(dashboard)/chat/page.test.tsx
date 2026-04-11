@@ -39,7 +39,7 @@ vi.mock("@/lib/usage/message-quota-server", () => ({
 describe("/chat page", () => {
   it("renders draft page with a generated UUID id", async () => {
     mockCookies.mockResolvedValue({
-      get: vi.fn(() => ({ value: "minimax/minimax-m2.7" })),
+      get: vi.fn(() => ({ value: "anthropic/claude-sonnet-4-6" })),
     });
 
     render(await ChatPage());
@@ -48,7 +48,7 @@ describe("/chat page", () => {
     expect(id).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
-    expect(screen.getByTestId("initial-chat-model")).toHaveTextContent("minimax/minimax-m2.7");
+    expect(screen.getByTestId("initial-chat-model")).toHaveTextContent("anthropic/claude-sonnet-4-6");
     expect(screen.getByTestId("data-stream-handler")).toBeInTheDocument();
   });
 });

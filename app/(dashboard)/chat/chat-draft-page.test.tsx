@@ -37,13 +37,13 @@ describe("ChatDraftPage", () => {
           periodStart: "2026-03-01",
           nextResetDate: "2026-04-01",
         }}
-        initialChatModel="minimax/minimax-m2.7"
+        initialChatModel="anthropic/claude-sonnet-4-6"
       />,
     );
 
     expect(screen.getByTestId("chat-id")).toHaveTextContent("thread-draft");
     expect(screen.getByTestId("auto-resume")).toHaveTextContent("false");
     expect(screen.getByTestId("quota-remaining")).toHaveTextContent("80");
-    expect(screen.getByTestId("initial-chat-model")).toHaveTextContent("minimax/minimax-m2.7");
+    expect(screen.getByTestId("initial-chat-model")).toHaveTextContent("anthropic/claude-sonnet-4-6");
   });
 });

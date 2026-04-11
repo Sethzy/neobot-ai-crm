@@ -4,13 +4,21 @@
 
 import { createGateway } from "@ai-sdk/gateway";
 import type { JSONValue } from "ai";
-import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 
 /**
- * Tier-1 model used for interactive chat and tool-calling runs.
- * This follows the approved LLM-05 decision.
+ * Tier-1 model for AI-SDK helper calls that still go through the Vercel
+ * Gateway — today that's `generateTitleFromUserMessage` and a couple of
+ * dev/eval scripts. This is deliberately NOT the main chat model:
+ *
+ * - Main chat runs on Anthropic Managed Agents (Sonnet 4.6), pinned by
+ *   `ANTHROPIC_AGENT_VERSION`. See `src/lib/managed-agents/adapter.ts`.
+ * - Title generation doesn't need Sonnet quality, so keeping it on a
+ *   cheap Gemini model avoids wasted spend on every new thread.
+ *
+ * If you want to change what runs in the chat surface, update
+ * `scripts/managed-agents/create-agent.ts` and re-run it, not this file.
  */
-export const TIER_1_MODEL = DEFAULT_CHAT_MODEL;
+export const TIER_1_MODEL = "google/gemini-3-flash";
 
 /**
  * Cheap, fast model used for background summarization tasks (thread compaction).

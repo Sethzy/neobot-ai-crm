@@ -17,17 +17,15 @@ vi.mock("@/components/ui/popover", () => ({
 import { ModelSelector } from "./model-selector";
 
 describe("ModelSelector", () => {
-  it("renders all models with cost indicators", () => {
+  it("renders the single catalog model as a static label with its cost tier", () => {
     render(
       <ModelSelector
         onValueChange={vi.fn()}
-        value="google/gemini-3-flash"
+        value="anthropic/claude-sonnet-4-6"
       />,
     );
 
-    expect(screen.getAllByText("Gemini Flash 3").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("$").length).toBeGreaterThan(0);
-    expect(screen.getByText("MiniMax M2.7")).toBeDefined();
+    expect(screen.getByText("Claude Sonnet 4.6")).toBeDefined();
     expect(screen.getByText("$$")).toBeDefined();
   });
 });

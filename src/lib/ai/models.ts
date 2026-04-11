@@ -29,9 +29,17 @@ export interface ChatModel {
 
 /**
  * Default user-facing chat model for Sunder's main chat surface.
- * Matches the existing Tier 1 runtime default.
+ *
+ * Post-Managed-Agents-migration note: this ID is only used for the UI
+ * picker catalog, the `chat-model` cookie, and the `selectedChatModel`
+ * validation gate in `/api/chat`. The actual runtime model is pinned
+ * server-side by the `ANTHROPIC_AGENT_VERSION` (currently Sonnet 4.6,
+ * see `scripts/managed-agents/create-agent.ts`). The picker is a label
+ * today; it becomes a real switch only once Haiku is added via a second
+ * managed-agent version + `selectedChatModel` plumbing through
+ * `session-kickoff.ts` and `adapter.ts`.
  */
-export const DEFAULT_CHAT_MODEL = "google/gemini-3-flash";
+export const DEFAULT_CHAT_MODEL = "anthropic/claude-sonnet-4-6";
 
 /** Cookie name used to persist the user's last selected chat model across /chat loads. */
 export const CHAT_MODEL_COOKIE_NAME = "chat-model";
@@ -39,23 +47,20 @@ export const CHAT_MODEL_COOKIE_NAME = "chat-model";
 /** One-year cookie lifetime for the persisted chat-model preference. */
 export const CHAT_MODEL_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
-/** Initial user-selectable chat models for the v1 selector. */
+/**
+ * User-selectable chat models. Single entry today — Haiku is planned as a
+ * second entry once the Managed Agents plumbing supports per-session
+ * model selection. Pricing mirrors the constants in
+ * `src/lib/managed-agents/adapter-cost.ts`.
+ */
 export const chatModels: ChatModel[] = [
   {
-    id: "google/gemini-3-flash",
-    name: "Gemini Flash 3",
-    provider: "google",
-    description: "Fast and cost-effective for everyday work",
-    cost: 1,
-    pricing: { inputPerM: 0.50, outputPerM: 3.00, cacheReadPerM: 0.125 },
-  },
-  {
-    id: "minimax/minimax-m2.7",
-    name: "MiniMax M2.7",
-    provider: "minimax",
-    description: "Better suited for deep analysis and code-heavy tasks",
+    id: "anthropic/claude-sonnet-4-6",
+    name: "Claude Sonnet 4.6",
+    provider: "anthropic",
+    description: "Balanced model for everyday work and complex tasks",
     cost: 2,
-    pricing: { inputPerM: 0.30, outputPerM: 1.20, cacheReadPerM: 0.06 },
+    pricing: { inputPerM: 3, outputPerM: 15, cacheReadPerM: 0.3 },
   },
 ];
 

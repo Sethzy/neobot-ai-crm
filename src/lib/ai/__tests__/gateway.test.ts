@@ -29,7 +29,7 @@ describe("AI Gateway module", () => {
     expect(TIER_1_MODEL.length).toBeGreaterThan(0);
   });
 
-  it("uses the approved gemini-3-flash tier-1 model id", async () => {
+  it("pins TIER_1_MODEL to google/gemini-3-flash for AI-SDK helper calls (title gen)", async () => {
     process.env.AI_GATEWAY_API_KEY = "test-key";
     const { TIER_1_MODEL } = await import("@/lib/ai/gateway");
     expect(TIER_1_MODEL).toBe("google/gemini-3-flash");
@@ -74,9 +74,9 @@ describe("AI Gateway module", () => {
     process.env.AI_GATEWAY_API_KEY = "test-key";
 
     const { getLanguageModel } = await import("@/lib/ai/gateway");
-    const model = getLanguageModel("minimax/minimax-m2.7");
+    const model = getLanguageModel("anthropic/claude-sonnet-4-6");
 
     expect(model).toBeDefined();
-    expect(model.modelId).toBe("minimax/minimax-m2.7");
+    expect(model.modelId).toBe("anthropic/claude-sonnet-4-6");
   });
 });

@@ -34,6 +34,22 @@ export function ModelSelector({
     [value],
   );
 
+  // When the catalog only contains one model there's nothing to pick —
+  // render a plain non-interactive label so we don't ship a dropdown
+  // with a single entry. The popover branch below is restored
+  // automatically the moment a second model is added to `chatModels`.
+  if (chatModels.length <= 1) {
+    return (
+      <span
+        aria-label={selectedModel.name}
+        className="inline-flex items-center gap-1.5 px-2 text-sm text-muted-foreground"
+      >
+        <span className="truncate text-foreground">{selectedModel.name}</span>
+        <span className="text-xs">{"$".repeat(selectedModel.cost)}</span>
+      </span>
+    );
+  }
+
   return (
     <Popover onOpenChange={setOpen} open={open}>
       <PopoverTrigger asChild>

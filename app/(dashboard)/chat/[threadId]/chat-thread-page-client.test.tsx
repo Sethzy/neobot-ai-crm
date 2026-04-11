@@ -51,7 +51,7 @@ describe("ChatThreadPageClient", () => {
           periodStart: "2026-03-01",
           nextResetDate: "2026-04-01",
         }}
-        initialChatModel="minimax/minimax-m2.7"
+        initialChatModel="anthropic/claude-sonnet-4-6"
       />,
     );
 
@@ -59,6 +59,6 @@ describe("ChatThreadPageClient", () => {
     expect(screen.getByTestId("initial-message-count")).toHaveTextContent("1");
     expect(screen.getByTestId("auto-resume")).toHaveTextContent("true");
     expect(screen.getByTestId("quota-remaining")).toHaveTextContent("80");
-    expect(screen.getByTestId("initial-chat-model")).toHaveTextContent("minimax/minimax-m2.7");
+    expect(screen.getByTestId("initial-chat-model")).toHaveTextContent("anthropic/claude-sonnet-4-6");
   });
 });
