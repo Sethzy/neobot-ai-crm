@@ -255,7 +255,6 @@ async function updateOne(
     entity === "deals" && typeof beforeSnapshot?.amount === "number"
       ? beforeSnapshot.amount
       : null;
-
   // --- Custom fields deep merge ---
   if ("custom_fields" in updates) {
     const result = await mergeCustomFields(
@@ -307,6 +306,11 @@ async function updateOne(
 
   // --- Deal stage changed analytics ---
   if (entity === "deals" && updates.stage && previousStage && previousStage !== data.stage) {
+    const pointOfContactId =
+      typeof (beforeSnapshot?.point_of_contact_id ?? data.point_of_contact_id) === "string"
+        ? String(beforeSnapshot?.point_of_contact_id ?? data.point_of_contact_id)
+        : null;
+
     await captureServerEvent({
       distinctId: clientId,
       event: "deal_stage_changed",
@@ -318,13 +322,16 @@ async function updateOne(
       },
     });
 
-    await supabase.from("interactions").insert({
-      client_id: clientId,
-      deal_id: recordId,
-      type: "stage_change",
-      summary: `Stage changed from ${previousStage} to ${data.stage}`,
-      occurred_at: new Date().toISOString(),
-    });
+    if (pointOfContactId) {
+      await supabase.from("interactions").insert({
+        client_id: clientId,
+        contact_id: pointOfContactId,
+        deal_id: recordId,
+        type: "stage_change",
+        summary: `Stage changed from ${previousStage} to ${data.stage}`,
+        occurred_at: new Date().toISOString(),
+      });
+    }
   }
 
   if (beforeSnapshot) {

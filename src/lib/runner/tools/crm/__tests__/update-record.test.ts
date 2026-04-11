@@ -230,8 +230,8 @@ describe("update_record", () => {
     });
 
     it("fires deal_stage_changed event when stage changes", async () => {
-      const existingDeal = { stage: "leads", amount: 500000 };
-      const updatedDeal = { deal_id: "d1", stage: "offer", amount: 500000 };
+      const existingDeal = { stage: "leads", amount: 500000, point_of_contact_id: "c1" };
+      const updatedDeal = { deal_id: "d1", stage: "offer", amount: 500000, point_of_contact_id: "c1" };
       const { client, builderHistory } = createMockSupabase({
         deals: [
           // First from("deals") → fetch previous stage
@@ -264,6 +264,7 @@ describe("update_record", () => {
       expect(builderHistory.interactions?.[0]?.insert).toHaveBeenCalledWith(
         expect.objectContaining({
           client_id: CLIENT_ID,
+          contact_id: "c1",
           deal_id: "d1",
           type: "stage_change",
         }),
