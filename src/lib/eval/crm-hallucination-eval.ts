@@ -26,13 +26,20 @@ export interface CrmHallucinationResult {
   flaggedCalls: FlaggedField[];
 }
 
-/** Extract CRM write tool calls from the full tool sequence. */
+/** Extract CRM write tool calls from a Langfuse observation array. */
 function extractCrmWrites(
   observations: LangfuseObservation[],
 ): ToolCallRecord[] {
   return extractToolSequence(observations).filter((r) =>
     CRM_WRITE_TOOLS.has(r.toolName),
   );
+}
+
+/** Extract CRM write tool calls from a pre-extracted tool sequence. */
+function extractCrmWritesFromSequence(
+  sequence: ToolCallRecord[],
+): ToolCallRecord[] {
+  return sequence.filter((r) => CRM_WRITE_TOOLS.has(r.toolName));
 }
 
 /** Build a human-readable summary of what data is being written. */
@@ -102,15 +109,35 @@ interface JudgeResponse {
 }
 
 /**
- * Evaluate whether CRM write operations contain hallucinated data.
+ * Evaluate whether CRM write operations contain hallucinated data, given
+ * a pre-extracted tool call sequence (the H3 entry point).
+ *
  * Returns immediately (no LLM call) if no CRM writes are present.
+ */
+export async function evaluateCrmHallucinationOnSequence(
+  traceInput: unknown,
+  sequence: ToolCallRecord[],
+): Promise<CrmHallucinationResult> {
+  const writes = extractCrmWritesFromSequence(sequence);
+  return evaluateCrmHallucinationOnWrites(traceInput, writes);
+}
+
+/**
+ * Legacy Langfuse-driven entry point. H4 deletes this when the runner is
+ * fully cut over.
  */
 export async function evaluateCrmHallucination(
   traceInput: unknown,
   observations: LangfuseObservation[],
 ): Promise<CrmHallucinationResult> {
   const writes = extractCrmWrites(observations);
+  return evaluateCrmHallucinationOnWrites(traceInput, writes);
+}
 
+async function evaluateCrmHallucinationOnWrites(
+  traceInput: unknown,
+  writes: ToolCallRecord[],
+): Promise<CrmHallucinationResult> {
   if (writes.length === 0) {
     return { pass: true, flaggedCalls: [] };
   }
