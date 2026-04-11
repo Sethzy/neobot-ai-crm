@@ -28,7 +28,9 @@ import {
 
 type ClientBillingRow = Pick<
   Database["public"]["Tables"]["clients"]["Row"],
+  | "cancel_at_period_end"
   | "client_id"
+  | "current_period_end"
   | "display_name"
   | "plan_name"
   | "stripe_customer_id"
@@ -76,7 +78,7 @@ export interface SyncedBillingState {
 }
 
 const clientBillingSelect =
-  "client_id, display_name, plan_name, stripe_customer_id, stripe_product_id, stripe_subscription_id, subscription_status";
+  "client_id, display_name, plan_name, stripe_customer_id, stripe_product_id, stripe_subscription_id, subscription_status, current_period_end, cancel_at_period_end";
 
 const cacheKey = ["stripe-pricing-plans-v2"];
 const supportedCurrency = "sgd";
@@ -466,29 +468,41 @@ export async function createCustomerPortalSession(): Promise<string> {
 }
 
 function buildBillingUpdateFromSubscription(args: {
+  cancelAtPeriodEnd: boolean;
+  currentPeriodEnd: string | null;
   customerId: string;
   planName: PaidBillingPlanName | null;
   productId: string | null;
   status: Stripe.Subscription.Status;
 }): Pick<
   Database["public"]["Tables"]["clients"]["Update"],
-  "plan_name" | "stripe_customer_id" | "stripe_product_id" | "stripe_subscription_id" | "subscription_status"
+  | "cancel_at_period_end"
+  | "current_period_end"
+  | "plan_name"
+  | "stripe_customer_id"
+  | "stripe_product_id"
+  | "stripe_subscription_id"
+  | "subscription_status"
 > {
   if (terminalStatuses.has(args.status)) {
     return {
-      stripe_customer_id: args.customerId,
-      stripe_subscription_id: null,
-      stripe_product_id: null,
+      cancel_at_period_end: false,
+      current_period_end: null,
       plan_name: null,
+      stripe_customer_id: args.customerId,
+      stripe_product_id: null,
+      stripe_subscription_id: null,
       subscription_status: args.status,
     };
   }
 
   return {
-    stripe_customer_id: args.customerId,
-    stripe_subscription_id: null,
-    stripe_product_id: args.productId,
+    cancel_at_period_end: args.cancelAtPeriodEnd,
+    current_period_end: args.currentPeriodEnd,
     plan_name: args.planName,
+    stripe_customer_id: args.customerId,
+    stripe_product_id: args.productId,
+    stripe_subscription_id: null,
     subscription_status: args.status,
   };
 }
@@ -571,7 +585,18 @@ export async function syncBillingStateFromSubscriptionId(
     );
   }
 
+  const periodEndSeconds =
+    (subscription as { current_period_end?: number }).current_period_end ??
+    subscription.items.data[0]?.current_period_end ??
+    null;
+  const currentPeriodEnd = periodEndSeconds
+    ? new Date(periodEndSeconds * 1000).toISOString()
+    : null;
+  const cancelAtPeriodEnd = Boolean(subscription.cancel_at_period_end);
+
   const update = buildBillingUpdateFromSubscription({
+    cancelAtPeriodEnd,
+    currentPeriodEnd,
     customerId,
     planName,
     productId: primaryProduct?.id ?? null,
@@ -610,10 +635,12 @@ export async function syncBillingStateFromDeletedSubscription(
   }
 
   await persistBillingUpdate(client.client_id, {
-    stripe_customer_id: customerId,
-    stripe_subscription_id: null,
-    stripe_product_id: null,
+    cancel_at_period_end: false,
+    current_period_end: null,
     plan_name: null,
+    stripe_customer_id: customerId,
+    stripe_product_id: null,
+    stripe_subscription_id: null,
     subscription_status: subscription.status,
   });
   const previousPlanName = client.plan_name;

@@ -84,7 +84,9 @@ vi.mock("stripe", () => {
 });
 
 interface MockClientRow {
+  cancel_at_period_end?: boolean;
   client_id: string;
+  current_period_end?: string | null;
   display_name: string;
   plan_name: string | null;
   stripe_customer_id: string | null;
@@ -215,11 +217,14 @@ describe("lib/stripe/stripe", () => {
       }),
     );
     mockSubscriptionsRetrieve.mockResolvedValue({
+      cancel_at_period_end: false,
+      current_period_end: 1776643200,
       customer: "cus_123",
       id: "sub_123",
       items: {
         data: [
           {
+            current_period_end: 1776643200,
             price: {
               id: "price_pro",
               product: {
@@ -248,11 +253,73 @@ describe("lib/stripe/stripe", () => {
       {
         clientId: "client-1",
         update: {
+          cancel_at_period_end: false,
+          current_period_end: "2026-04-20T00:00:00.000Z",
           plan_name: "Pro",
           stripe_customer_id: "cus_123",
           stripe_product_id: "prod_pro",
           stripe_subscription_id: "sub_123",
           subscription_status: "active",
+        },
+      },
+    ]);
+  });
+
+  it("propagates current_period_end and cancel_at_period_end from a trialing subscription", async () => {
+    const updates: Array<{ clientId: string; update: Record<string, unknown> }> = [];
+    const client = {
+      client_id: "client-1",
+      display_name: "Seth",
+      plan_name: null,
+      stripe_customer_id: null,
+      stripe_product_id: null,
+      stripe_subscription_id: null,
+      subscription_status: null,
+    } satisfies MockClientRow;
+
+    mockCreateAdminClient.mockResolvedValue(
+      createMockAdminClient({
+        customerLookup: null,
+        metadataLookup: client,
+        updates,
+      }),
+    );
+    // 2026-04-18T00:00:00Z = 1776643200
+    mockSubscriptionsRetrieve.mockResolvedValue({
+      cancel_at_period_end: true,
+      current_period_end: 1776643200,
+      customer: "cus_123",
+      id: "sub_trialing",
+      items: {
+        data: [
+          {
+            current_period_end: 1776643200,
+            price: {
+              id: "price_pro",
+              product: { active: true, id: "prod_pro", name: "Pro" },
+            },
+          },
+        ],
+      },
+      metadata: { clientId: "client-1" },
+      status: "trialing",
+    });
+
+    const { syncBillingStateFromSubscriptionId } = await import("./stripe");
+
+    await syncBillingStateFromSubscriptionId("sub_trialing");
+
+    expect(updates).toEqual([
+      {
+        clientId: "client-1",
+        update: {
+          cancel_at_period_end: true,
+          current_period_end: "2026-04-20T00:00:00.000Z",
+          plan_name: "Pro",
+          stripe_customer_id: "cus_123",
+          stripe_product_id: "prod_pro",
+          stripe_subscription_id: "sub_trialing",
+          subscription_status: "trialing",
         },
       },
     ]);
@@ -292,6 +359,8 @@ describe("lib/stripe/stripe", () => {
       {
         clientId: "client-1",
         update: {
+          cancel_at_period_end: false,
+          current_period_end: null,
           plan_name: null,
           stripe_customer_id: "cus_123",
           stripe_product_id: null,
@@ -325,11 +394,14 @@ describe("lib/stripe/stripe", () => {
       subscription: "sub_checkout",
     });
     mockSubscriptionsRetrieve.mockResolvedValue({
+      cancel_at_period_end: false,
+      current_period_end: 1776643200,
       customer: "cus_123",
       id: "sub_checkout",
       items: {
         data: [
           {
+            current_period_end: 1776643200,
             price: {
               id: "price_max",
               product: {
@@ -358,6 +430,8 @@ describe("lib/stripe/stripe", () => {
       {
         clientId: "client-1",
         update: {
+          cancel_at_period_end: false,
+          current_period_end: "2026-04-20T00:00:00.000Z",
           plan_name: "Max",
           stripe_customer_id: "cus_123",
           stripe_product_id: "prod_max",
@@ -400,11 +474,14 @@ describe("lib/stripe/stripe", () => {
       data: [{ id: "sub_live", status: "active" }],
     });
     mockSubscriptionsRetrieve.mockResolvedValue({
+      cancel_at_period_end: false,
+      current_period_end: 1776643200,
       customer: "cus_123",
       id: "sub_live",
       items: {
         data: [
           {
+            current_period_end: 1776643200,
             price: {
               id: "price_pro",
               product: {
@@ -437,6 +514,8 @@ describe("lib/stripe/stripe", () => {
       {
         clientId: "client-1",
         update: {
+          cancel_at_period_end: false,
+          current_period_end: "2026-04-20T00:00:00.000Z",
           plan_name: "Pro",
           stripe_customer_id: "cus_123",
           stripe_product_id: "prod_pro",
