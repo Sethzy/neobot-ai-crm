@@ -179,6 +179,24 @@ describe("createConfigureCrmTool", () => {
     expect(result.success).toBe(false);
   });
 
+  it("rejects duplicate options in select custom fields at the schema boundary", () => {
+    const { client } = createMockSupabase();
+    const tools = createConfigureCrmTool(client, CLIENT_ID);
+
+    const result = tools.configure_crm.inputSchema.safeParse({
+      deal_custom_fields: [
+        {
+          key: "property_type",
+          label: "Property Type",
+          type: "select",
+          options: ["HDB", "HDB", "Condo"],
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("warns before removing vocabulary values that are still in use", async () => {
     const { client } = createMockSupabase({
       crm_config: {

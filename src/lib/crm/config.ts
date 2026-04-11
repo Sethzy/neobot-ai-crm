@@ -38,6 +38,17 @@ export const customFieldDefinitionSchema = z.object({
       path: ["options"],
     });
   }
+
+  if (value.type === "select" && value.options) {
+    const uniqueOptions = new Set(value.options);
+    if (uniqueOptions.size !== value.options.length) {
+      context.addIssue({
+        code: "custom",
+        message: `Duplicate options in select field "${value.key}". Each option must be unique.`,
+        path: ["options"],
+      });
+    }
+  }
 });
 
 export type CustomFieldDefinition = z.infer<typeof customFieldDefinitionSchema>;
