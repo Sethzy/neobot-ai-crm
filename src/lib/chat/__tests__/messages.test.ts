@@ -142,7 +142,7 @@ describe("createMessages", () => {
 });
 
 describe("upsertMessage", () => {
-  test("upserts a message keyed by source_event_id", async () => {
+  test("upserts a message keyed by thread_id + source_event_id", async () => {
     const row = {
       message_id: "msg-1",
       thread_id: "thread-1",
@@ -168,15 +168,15 @@ describe("upsertMessage", () => {
     const upsertCall = findMethodCall(client, "upsert");
     expect(upsertCall).toBeDefined();
     // Verify the payload includes the source_event_id and that the
-    // upsert call uses onConflict: "source_event_id" so reruns of the
-    // same terminal event become a no-op rather than a duplicate row.
+    // upsert call uses the composite thread/event conflict target so
+    // reruns of the same terminal event become a no-op within one thread.
     expect(upsertCall?.args[0]).toMatchObject({
       thread_id: "thread-1",
       role: "assistant",
       source_event_id: "evt_terminal",
     });
     expect(upsertCall?.args[1]).toMatchObject({
-      onConflict: "source_event_id",
+      onConflict: "thread_id,source_event_id",
       ignoreDuplicates: false,
     });
   });

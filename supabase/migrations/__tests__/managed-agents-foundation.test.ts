@@ -62,6 +62,19 @@ describe("H1 managed agents foundation migration", () => {
   });
 
   it("adds source_event_id + partial unique index to conversation_messages", () => {
+    // NOTE: This H1 migration creates the index as a PARTIAL unique index
+    // with `WHERE source_event_id IS NOT NULL`. That predicate turned out
+    // to be incompatible with supabase-js's `.upsert({ onConflict: ... })`
+    // because PostgREST cannot pass a WHERE predicate for arbiter
+    // inference, so every upsertMessage() call failed with
+    //   "there is no unique or exclusion constraint matching the ON
+    //    CONFLICT specification"
+    // at runtime. The fix lives in a separate follow-up migration
+    // (`20260412000000_fix_conversation_messages_source_event_index.sql`),
+    // which drops this partial index and recreates it without the WHERE
+    // clause. This assertion still matches the literal H1 SQL because we
+    // never edit an already-applied migration — we add corrective ones.
+    // See `conversation-messages-source-event-index-fix.test.ts`.
     const sql = readMigrationSql();
     expect(sql).toMatch(
       /ALTER TABLE public\.conversation_messages\s+ADD COLUMN IF NOT EXISTS source_event_id text/i,
