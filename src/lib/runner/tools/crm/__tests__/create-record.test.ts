@@ -189,6 +189,7 @@ describe("create_record", () => {
       const { client, builderHistory } = createMockSupabase({
         contacts: [
           { data: [], error: null },
+          { data: [], error: null },
           { data: inserted, error: null },
         ],
       });
@@ -248,7 +249,7 @@ describe("create_record", () => {
       );
 
       expect(result).toEqual({ success: true, record: inserted });
-      expect(builderHistory.contacts[1]?.insert).toHaveBeenCalledWith(
+      expect(builderHistory.contacts[2]?.insert).toHaveBeenCalledWith(
         expect.objectContaining({ email: "jane@acme.com" }),
       );
     });
@@ -277,6 +278,58 @@ describe("create_record", () => {
       if (!result.success && "possible_duplicates" in result) {
         expect(result.possible_duplicates.length).toBeGreaterThan(0);
       }
+    });
+
+    it("flags similar-name contact with same corporate email domain as possible duplicate", async () => {
+      const existing = [{ contact_id: "c1", first_name: "Jane", last_name: "Smith", email: "jane@acme.com" }];
+      const inserted = { contact_id: "c2", first_name: "J", last_name: "Smith", email: "jsmith@acme.com" };
+      const { client } = createMockSupabase({
+        contacts: [
+          { data: [], error: null },
+          { data: existing, error: null },
+          { data: inserted, error: null },
+        ],
+      });
+      const tools = createCreateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.create_record.execute(
+        {
+          entity: "contacts",
+          records: [{ first_name: "J", last_name: "Smith", email: "jsmith@acme.com" }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result.success).toBe(false);
+      if (!result.success && "possible_duplicates" in result) {
+        expect(result.possible_duplicates.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("does not flag shared gmail.com as duplicate signal", async () => {
+      const inserted = {
+        contact_id: "c2",
+        first_name: "Different",
+        last_name: "Person",
+        email: "other@gmail.com",
+      };
+      const { client } = createMockSupabase({
+        contacts: [
+          { data: [], error: null },
+          { data: inserted, error: null },
+        ],
+      });
+      const tools = createCreateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.create_record.execute(
+        {
+          entity: "contacts",
+          records: [{ first_name: "Different", last_name: "Person", email: "other@gmail.com" }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result).toEqual({ success: true, record: inserted });
     });
   });
 

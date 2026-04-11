@@ -11,6 +11,7 @@ import {
   matchVocabularyValue,
   type CrmVocabConfig,
 } from "@/lib/crm/config";
+import { isFreeEmailDomain } from "@/lib/crm/free-email-providers";
 import type { Database } from "@/types/database";
 import {
   captureServerEvent,
@@ -18,6 +19,7 @@ import {
 } from "@/lib/analytics/posthog-server";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 import {
+  extractEmailDomain,
   extractPhoneDigits,
   normalizeEmail,
   normalizePhone,
@@ -189,6 +191,42 @@ async function findDuplicates(
             );
             return dedupeRecordsById([...(primaryMatches ?? []), ...digitMatches], "contact_id");
           }
+        }
+      }
+
+      const email = record.email ? String(record.email).toLowerCase() : null;
+      const domain = email ? extractEmailDomain(email) : null;
+      if (domain && !isFreeEmailDomain(domain)) {
+        const firstName = String(record.first_name ?? "").toLowerCase();
+        const lastName = String(record.last_name ?? "").toLowerCase();
+        const { data, error } = await supabase
+          .from("contacts")
+          .select("*")
+          .eq("client_id", clientId)
+          .ilike("email", `%@${domain}`)
+          .limit(20);
+
+        if (!error && Array.isArray(data)) {
+          const similar = data.filter((contact) => {
+            const contactFirstName = String(contact.first_name ?? "").toLowerCase();
+            const contactLastName = String(contact.last_name ?? "").toLowerCase();
+
+            if (lastName.length > 0 && contactLastName === lastName) {
+              return true;
+            }
+
+            if (!firstName || !contactFirstName) {
+              return false;
+            }
+
+            return (
+              contactFirstName[0] === firstName[0] ||
+              contactFirstName.includes(firstName) ||
+              firstName.includes(contactFirstName)
+            );
+          });
+
+          return dedupeRecordsById([...(primaryMatches ?? []), ...similar], "contact_id");
         }
       }
 
