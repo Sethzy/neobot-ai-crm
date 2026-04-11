@@ -27,6 +27,7 @@ Critical patterns to follow live in Anthropic's own `shared/managed-agents-clien
 
 ## Files to read first (in order)
 
+0. **Spike script (read AND run this first):** `scripts/spike/managed-agents-custom-tool-spike.ts` — working end-to-end custom tool round-trip against the real Anthropic API. Read it, then run it (`pnpm tsx scripts/spike/managed-agents-custom-tool-spike.ts`), then read the "Spike findings" section below. Understanding the exact event sequence the spike observed will save you hours of guessing at event shapes. The spike is ~350 LOC, fully typed against the installed SDK, and cleans up after itself.
 1. **Plan doc:** `docs/product/plans/2026-04-09-001-feat-managed-agents-migration-plan.md` — focus on:
    - Phase 2 "Chat adapter" section (your primary reference)
    - Decision Log D3, D4, D6
@@ -50,6 +51,108 @@ Critical patterns to follow live in Anthropic's own `shared/managed-agents-clien
    - `src/lib/eval/crm-hallucination-eval.ts`
    - `src/lib/eval/langfuse-api.ts` — don't delete this, H4 does
 6. **Tool factories from H2:** `src/lib/managed-agents/tools/*` — the dispatcher will import these
+
+## Spike findings (2026-04-10) — refinements to the plan below
+
+**Before H3 scope: a real end-to-end spike was run against the Anthropic Managed Agents beta API.** Script at `scripts/spike/managed-agents-custom-tool-spike.ts`. It creates an ephemeral environment + agent + session, opens the SSE stream, sends a kickoff message that forces a custom tool call, dispatches the tool, sends back `user.custom_tool_result`, and verifies the agent reaches `session.status_idle` with `end_turn`. **All 5 assertions passed on first try. Total run time 15.6s.**
+
+Read these findings before implementing — they are concrete facts from a working run, not guesses.
+
+### ✅ What the spike validated (no H3 guessing needed)
+
+- **Stream-first-then-send works.** `client.beta.sessions.events.stream(sessionId)` is called, then `events.send({events: [{type: "user.message", ...}]})` — no race, first event arrived ~670ms after send.
+- **SDK auto-adds the beta header.** `managed-agents-2026-04-01` is sent automatically by every `client.beta.agents.*` and `client.beta.sessions.*` call. You do NOT need to pass `betas: [...]` manually.
+- **Custom tool dispatch loop works exactly as designed.** `agent.custom_tool_use` carries `{id, name, input, processed_at}`. You send `user.custom_tool_result` with `custom_tool_use_id: event.id` and a `content` array of text blocks. The session resumes immediately.
+- **Terminal gate differentiation works.** First `session.status_idle` had `stop_reason: { type: "requires_action", event_ids: [sevt_...] }` — NOT terminal, loop continued. Second `session.status_idle` had `stop_reason: { type: "end_turn" }` — terminal, loop broke. The skill §5 warning is real and the handover's terminal gate logic is correct.
+- **Token usage is per-request, not cumulative.** Each `span.model_request_end.model_usage` gives `{input_tokens, output_tokens, cache_read_input_tokens, cache_creation_input_tokens}` for THAT single LLM call. Session-runner must accumulate them across events, not just read the last one.
+- **Initial session status is `idle`, not `running`.** When you create a session with `client.beta.sessions.create()`, `session.status === "idle"`. It transitions to `running` AFTER you send the first user message. The session-runner should not assume a fresh session is already running.
+- **Cleanup contracts work.** `sessions.delete()` → `agents.archive()` → `environments.delete()` in a finally block succeeded cleanly. The skill §6 post-idle delete race did NOT fire — possibly because we waited for `end_turn` before cleanup, which is the right posture.
+- **Model string `claude-sonnet-4-6` is valid** for Managed Agents.
+
+### 🔥 The exact event sequence H3 must translate (reference)
+
+Observed end-to-end for "How many contacts do I have named Sarah?" with one custom tool:
+
+```
+session.status_running        (after first events.send)
+user.message                  (ECHO of what we sent — DO NOT re-persist, already in DB)
+span.model_request_start
+agent.thinking                (progress signal, no content — see note)
+agent.message                 (preamble: "Let me look that up for you right away!")
+agent.custom_tool_use         (name=lookup_contacts, input={query:"Sarah"}, id=sevt_...)
+span.model_request_end        (in=1175, out=87)
+session.status_idle           (stop_reason: requires_action, event_ids=[sevt_...])
+                              (⚠️ NOT terminal — loop continues)
+[client sends user.custom_tool_result]
+user.custom_tool_result       (ECHO — DO NOT re-emit as tool-result UI part, already emitted)
+session.status_running
+span.model_request_start
+agent.message                 (final: "You have 2 contacts named Sarah — Sarah Lim (buyer) and Sarah Tan (seller).")
+span.model_request_end        (in=1328, out=31)
+session.status_idle           (stop_reason: end_turn)  ← TERMINAL, break
+```
+
+### ⚠️ Findings that UPDATE the plan below
+
+1. **`agent.message` arrives as WHOLE TEXT, not as streaming deltas.** Each event carries `content: Array<{type: "text", text: "complete string"}>` — the text is fully formed by the time the event arrives. Anthropic Managed Agents does NOT stream tokens incrementally the way `streamText()` does today. Implications:
+   - The adapter's `onAgentMessage` callback will emit ONE `text-delta` with the complete chunk, not many small deltas.
+   - The UX will be "text chunks pop in" rather than "characters stream." For a turn with a preamble + tool call + final response, the user sees text appear in two bursts (preamble, then final answer), not a smooth character-by-character crawl.
+   - `pipeJsonRender` is designed for incremental deltas — it still works with whole-text emits, but the spec-fence splitter will see the entire fence in one write rather than splitting it across deltas. **This is actually SAFER for pipeJsonRender, not riskier** (no partial-fence states to reason about). The D3/R42 concern about "burst-sized deltas breaking pipeJsonRender" is empirically moot from this spike — but the Phase 2 smoke test is still worth running with a real spec-fence prompt to be sure.
+   - **Product call required:** do you want to synthesize finer-grained streaming by word-splitting, or accept coarse chunks as the trade-off for Managed Agents adoption? Document the decision; default is "accept coarse chunks, revisit if user-visible regression."
+
+2. **Multiple `agent.message` events per turn are normal.** The spike saw 2 agent.message events in one turn — a preamble before the tool call and a final answer after. The session-runner's `onAgentMessage` callback must handle being called multiple times per turn, and the DB persistence must accumulate them into a single assistant turn (not two separate rows).
+
+3. **`agent.thinking` exists and the handover doesn't mention it.** Add it to the event translation list:
+   - `agent.thinking` → progress signal, no content. Options: (a) ignore, (b) emit a `step-start` UI part, (c) log only. **Recommendation: ignore for chat** (no UI benefit over the text-delta itself); **log in debug-trace** for observability.
+
+4. **`user.message` and `user.custom_tool_result` are ECHOED back in the stream.** Events you send via `events.send()` reappear in the SSE stream as-is. The session-runner must filter these out — they are not new state, they are confirmations of what you already sent. Do not emit UIMessageStream parts for echoed user events. Do not re-persist them to the DB. The echoed events DO have fresh event IDs, which matters for reconnect dedup.
+
+5. **Cost formula needs cache fields.** `model_usage` exposes `cache_read_input_tokens` and `cache_creation_input_tokens`. Anthropic's prompt caching pricing for Sonnet 4.6 is different from raw input:
+   - Uncached input: $3/M
+   - Cache write (5-minute TTL): ~$3.75/M
+   - Cache read: ~$0.30/M
+   - Output: $15/M
+   - Session runtime: $0.08/h
+   
+   Revised formula (replaces the one in Gotchas further below):
+   ```
+   uncached_input = input_tokens - cache_read_input_tokens - cache_creation_input_tokens
+   total_cost = (
+     uncached_input × $3 +
+     cache_creation_input_tokens × $3.75 +
+     cache_read_input_tokens × $0.30 +
+     output_tokens × $15
+   ) / 1_000_000 +
+     active_seconds / 3600 × $0.08
+   ```
+   
+   Put the constants in `src/lib/managed-agents/pricing.ts` — do not scatter magic numbers across the adapter and evaluators. Verify current Sonnet 4.6 prices against the Anthropic pricing page before committing.
+
+6. **Latency budget is higher than the plan assumed.** The spike's single-tool turn took ~14 seconds end-to-end (after session creation). Breakdown:
+   - First LLM inference: ~3.0s (model_request_start → agent.custom_tool_use)
+   - Tool dispatch round-trip: ~2.5s (agent.custom_tool_use → user.custom_tool_result echo in stream — most of this is Anthropic processing the sent event, not our dispatch)
+   - Second LLM inference: ~3.1s (second model_request_start → final agent.message)
+   - Ambient overhead: ~5s (session creation + stream open + kickoff round-trip)
+   
+   This is significantly slower than today's Gemini Flash 3 baseline (~3-5s per typical turn). **A 10-tool turn would take ~30-40s** on Sonnet 4.6 via Managed Agents. This is within the plan's "2× chat latency NFR" budget but may be a noticeable regression for users. **Action:** add latency measurement to Phase 2 acceptance criteria (p50/p95 per turn), decide during cutover whether to route simple turns to Haiku 4.5 as a fast path.
+
+7. **The reconnect + dedup loop was NOT tested by the spike.** It is still the single highest-risk piece of H3. See "Additional spike recommendation" below.
+
+### 🧪 Additional spike recommendation (before or during H3)
+
+**Spike 2: reconnect with dedup + terminal gate.** 10-minute task. Fork `scripts/spike/managed-agents-custom-tool-spike.ts`, add:
+
+1. After the first `session.status_idle` with `requires_action`, close the stream (don't send the tool result yet).
+2. Send the tool result via a fresh `events.send()` call (outside the stream).
+3. Open a fresh stream via `events.stream(sessionId)`.
+4. Backfill via `client.beta.sessions.events.list(sessionId)`, seed `seenEventIds`.
+5. Iterate the new stream with dedup.
+6. Assert: no duplicate UI parts emitted, terminal `end_turn` fires correctly, final answer is present.
+7. Variant: put the `session.status_idle` with `end_turn` in the history backfill (not the live stream) and verify the terminal gate still breaks the loop.
+
+Run this **before** implementing `consumeAnthropicSession` in Part B. 10 minutes of spike saves 2+ days of debugging a deadlock in production.
+
+---
 
 ## Your scope
 
@@ -156,11 +259,16 @@ export async function consumeAnthropicSession(
 2. **Reconnect with dedup** (skill §1). Fetch history via `events.list(sessionId)` after opening the stream, seed `seenEventIds` set, tail live stream with dedup. **Terminal gate checks run even for already-seen events** — critical for correctness.
 
 3. **Event translation loop:**
-   - `agent.message` → invoke `callbacks.onAgentMessage(event)` + accumulate text for final persistence
+   - `agent.message` → invoke `callbacks.onAgentMessage(event)` + accumulate text for final persistence. **Per spike finding #1, each event carries COMPLETE text (not a delta). Multiple agent.message events per turn are normal — see spike finding #2.** Callbacks may fire more than once.
+   - `agent.thinking` → progress signal, no content. **Spike finding #3:** ignore for chat by default (no UI benefit), log for observability.
    - `agent.custom_tool_use` → invoke `callbacks.onAgentToolUse(event)` → call `dispatchCustomTool(event, context)` → send `user.custom_tool_result` via `client.beta.sessions.events.send()` → invoke `callbacks.onAgentToolResult(...)` with the synthesized result event
    - `agent.tool_use` with `evaluated_permission === "ask"` → create `approval_events` row with `session_id` + `tool_use_id = event.id`, save to result's `approvalEventIds`, invoke `callbacks.onApprovalRequired(event, approvalId)`. **If `options.autoDenyApprovals === true`**: immediately send `user.tool_confirmation` with `{result: "deny", deny_message: options.autoDenyMessage ?? "Approval not available in this context."}` and continue consuming events (no UI wait).
+   - `user.message` → **ECHO of something we sent. Per spike finding #4, filter these out entirely.** Do not emit UIMessageStream parts, do not re-persist (the user message was already written to `conversation_messages` before the kickoff). Still track the event ID for reconnect dedup.
+   - `user.custom_tool_result` → **ECHO of something we sent.** Same treatment: do not re-emit as `tool-result` UI part (already emitted by `onAgentToolResult` when we synthesized it above), do not re-persist. Track event ID for dedup only.
+   - `user.tool_confirmation` → ECHO, same treatment.
+   - `session.status_running` → invoke `callbacks.onSessionStatusRunning?.(event)` if defined; otherwise ignore. Useful for UI "agent is working" indicators.
    - `span.model_request_start` → invoke `callbacks.onSpanModelRequestStart(event)`
-   - `span.model_request_end` → accumulate `model_usage.input_tokens` + `output_tokens` into cost totals, invoke `callbacks.onSpanModelRequestEnd(event)`
+   - `span.model_request_end` → accumulate `model_usage.input_tokens` + `output_tokens` + `cache_read_input_tokens` + `cache_creation_input_tokens` into cost totals (per spike finding #5), invoke `callbacks.onSpanModelRequestEnd(event)`
    - `session.error` → invoke `callbacks.onSessionError(event)`, log, continue (not auto-terminal per skill guidance)
    - Other event types → ignore or log
 
@@ -175,14 +283,17 @@ export async function consumeAnthropicSession(
 6. **Cost tracking:** Fetch `session.stats.active_seconds` via `client.beta.sessions.retrieve(sessionId)` just before returning terminal result. Include in `cost.runtimeSeconds`. Note: per skill §6 post-idle status-write race, there may be a brief moment where session stats aren't updated — you can poll briefly (1s max) or accept a near-final value.
 
 **Unit tests for session-runner:**
-- Fixture event sequences → expected callback invocations in correct order
+- Fixture event sequences → expected callback invocations in correct order. **Use the spike-observed sequence (see Spike findings above) as at least one golden fixture.**
 - Terminal gate: `end_turn`, `retries_exhausted`, `terminated` all return correctly typed results
+- Terminal gate differentiation: `session.status_idle` with `requires_action` → NOT terminal, loop continues; `session.status_idle` with `end_turn` → terminal, loop breaks. Spike confirmed both behaviors — make them non-negotiable test cases.
 - Reconnect: history contains a terminal event → loop breaks even though event was deduped (test explicitly, this is a silent deadlock trap)
+- **Echo filter (per spike finding #4):** fixture sequence includes `user.message` and `user.custom_tool_result` echoes → `onAgentMessage` / `onAgentToolResult` callbacks are NOT called for those echoes, `onPersistMessage` is NOT called for them, but the event IDs ARE added to `seenEventIds` for dedup.
+- **Multi-message turn (per spike finding #2):** fixture sequence has two `agent.message` events in one turn (preamble + final answer) → `onAgentMessage` fires twice, persistence accumulates both into a single assistant turn (same `run_id`), not two turns.
 - `autoDenyApprovals: true` + `agent.tool_use` with ask policy → `user.tool_confirmation` with deny sent, loop continues
 - `autoDenyApprovals: false` (default, chat) + same event → returns with reason `requires_action`, no auto-deny sent
 - Custom tool dispatch: `agent.custom_tool_use` → dispatcher called with correct context → result sent via `events.send`
 - Incremental persistence: `persistIncrementally: true` → `onPersistMessage` fires for each agent message with correct `source_event_id`
-- Cost accumulation: multiple `span.model_request_end` events → totals correct
+- **Cost accumulation (per spike finding #5):** multiple `span.model_request_end` events with mixed cache fields → totals correct for `uncached_input`, `cache_read`, `cache_creation`, `output` separately. Fixture: event 1 has 1000 input / 0 cache, event 2 has 1500 input / 800 cache_read → accumulator reports `{uncachedInput: 1700, cacheRead: 800, cacheCreation: 0, output: ...}`.
 
 ### Part C — Chat Adapter (thin wrapper over session-runner)
 
@@ -382,7 +493,20 @@ Unit tests:
 - **Handle `retries_exhausted` as a distinct terminal state** (skill §5). Don't just treat `session.status_idle` as end. `stop_reason.type` matters.
 - **`pipeJsonRender` smoke test early.** Per D3, the adapter's spec-fence rendering via `pipeJsonRender` is unverified for burst-sized `agent.message` deltas. Include a manual smoke test task in your tasklist: run a prompt that emits a spec fence, verify the browser renders it. If janky, fall back to pre-splitter via `splitTextAndSpecParts` from `src/lib/runner/message-utils.ts`. Last resort: cut JIT UI.
 - **Don't send `user.tool_confirmation` from the adapter.** The adapter creates the `approval_events` row and emits UI parts. External resolution (Telegram callback or `/api/tool-confirm`) is H4's responsibility.
-- **Cost formula:** `total_cost = (input_tokens × $3 + output_tokens × $15) / 1_000_000 + session.stats.active_seconds / 3600 × $0.08`. Pull prices from a constant, don't hardcode across the codebase.
+- **Cost formula (updated per spike finding #5):** Do NOT use a naive `input × $3 + output × $15` formula — it ignores prompt caching which Managed Agents uses automatically. The correct formula is:
+
+  ```
+  uncached_input = input_tokens - cache_read_input_tokens - cache_creation_input_tokens
+  total_cost = (
+    uncached_input × $3 +
+    cache_creation_input_tokens × $3.75 +
+    cache_read_input_tokens × $0.30 +
+    output_tokens × $15
+  ) / 1_000_000 +
+    active_seconds / 3600 × $0.08
+  ```
+
+  Put the constants in `src/lib/managed-agents/pricing.ts`. Verify current Sonnet 4.6 prices against the Anthropic pricing page before committing. Pull prices from the module, do not hardcode across the codebase.
 - **Agent version pinning is REQUIRED**, not optional. Use `{type: "agent", id, version}` form, not string shorthand. Per skill `shared/managed-agents-core.md` §Versioning.
 - **`source_event_id` on persisted messages.** The unique index prevents duplicates on polling cron reprocess. Use the Anthropic event ID (e.g., `sevt_...`) as the source_event_id.
 - **Keep the old Langfuse evaluator path intact.** H4 deletes it. If you delete it now, H4 will break.
@@ -437,3 +561,14 @@ When you've generated the tasklist, end your response with:
 > "Tasklist complete and saved to `docs/product/tasks/2026-04-10-managed-agents-h3-adapter-dispatcher-tasklist.md`. Ask user to open a new session to do batch execution with checkpoint."
 
 Then stop. Do not start implementing.
+
+---
+
+## Smoke test results (2026-04-11)
+
+- ⏸️ **Deferred — requires live Anthropic Managed Agents credentials.** The H3 surface is unit-tested end-to-end (160/160 passing in `src/lib/managed-agents` + `src/lib/eval`, full repo: 2643/2643 passing). The pipeJsonRender wrap is exercised in `adapter.test.ts` (`emits data-spec parts when agent.message contains a spec fence`), but a real Anthropic SSE round-trip with a model that emits a spec fence has not yet been run from this branch.
+- **Action for H4 / human verifier:** before merging the chat-route cutover, run the spike with `ANTHROPIC_SMOKE_TEST=1` against a session pinned to the env-var agent version with a prompt like _"Show me a donut chart of my open deals by stage"_ and confirm:
+  1. Stream yields `text-delta` parts until the spec fence opens.
+  2. Between fence open/close, yields `data-spec` parts (one per JSONL line).
+  3. Trailing prose comes back as `text-delta`.
+- If janky on burst deltas → swap the adapter's `onAgentMessage` text-delta write for `splitTextAndSpecParts` and drop the `pipeJsonRender` wrap. Last resort per D3: cut JIT UI.
