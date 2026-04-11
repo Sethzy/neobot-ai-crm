@@ -77,6 +77,11 @@ describe("/settings page", () => {
     expect(screen.getByRole("button", { name: /Generate pairing link/i })).toBeInTheDocument();
     expect(screen.getByText("Skills")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Open skills/i })).toHaveAttribute("href", "/skills");
+    expect(screen.getByText("Context")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open agent context/i })).toHaveAttribute(
+      "href",
+      "/settings/agent-context",
+    );
   });
 
   it("shows a destructive connection alert when the callback returns an error", async () => {

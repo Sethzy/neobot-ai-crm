@@ -166,6 +166,26 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             </Button>
           </CardFooter>
         </Card>
+
+        <Card className="border-border/70 bg-card shadow-sm">
+          <CardHeader className="gap-2">
+            <CardDescription>Agent</CardDescription>
+            <CardTitle className="text-2xl">Context</CardTitle>
+          </CardHeader>
+
+          <CardContent className="space-y-4 text-sm text-muted-foreground">
+            <p className="max-w-2xl">
+              Edit the durable workspace profile and user-preference text injected into every
+              managed-agent kickoff.
+            </p>
+          </CardContent>
+
+          <CardFooter className="border-t">
+            <Button asChild variant="outline">
+              <Link href="/settings/agent-context">Open agent context</Link>
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
     </div>
   );
