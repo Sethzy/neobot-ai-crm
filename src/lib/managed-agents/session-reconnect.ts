@@ -1,13 +1,21 @@
 /**
- * Stream + events.list reconnect helper per Anthropic skill §1.
+ * Stream + events.list reconnect helper per Anthropic skill §1 + §7.
  *
- * Yields events in order, deduped by id, but ALWAYS breaks on terminal
- * events (end_turn / retries_exhausted / status_terminated) — even if the
- * terminal event was already-seen in the history response.
+ * The hard requirement: the live SSE stream must be opened BEFORE any
+ * `user.message` is sent, otherwise we can miss the earliest events
+ * (skill §7, "subscribe before you send"). The previous implementation
+ * was an `async function*` generator — calling it only constructed the
+ * generator object, deferring the real `events.stream(...)` call until
+ * the first `for await` step, which happens AFTER the kickoff send.
  *
- * The live SSE stream is opened FIRST (skill §7), so the server starts
- * buffering events for us before we drain history. After history finishes
- * (or short-circuits on a terminal event), we resume from the live cursor.
+ * Fix: split the helper into
+ *   1. `openSessionStream(client, sessionId)` — synchronous, eagerly
+ *      invokes `events.stream(sessionId)` and returns a `LiveStreamHandle`.
+ *      The runner calls this BEFORE `events.send`.
+ *   2. `iterateSessionEvents(client, sessionId, handle)` — async iterator
+ *      that drains history first, then resumes from the live handle,
+ *      deduping by event id and breaking on terminal events even when
+ *      the terminal event is already-seen in history.
  *
  * @module lib/managed-agents/session-reconnect
  */
@@ -19,6 +27,15 @@ interface AnyEvent {
   stop_reason?: { type: string };
 }
 
+/**
+ * Opaque handle returned by `openSessionStream`. Currently just wraps the
+ * raw live iterable, but kept as a struct so we can attach an `unsubscribe`
+ * function or a buffered-events queue later without changing call sites.
+ */
+export interface LiveStreamHandle {
+  live: AsyncIterable<unknown>;
+}
+
 function isTerminal(event: AnyEvent): boolean {
   if (event.type === "session.status_terminated") return true;
   if (event.type === "session.status_idle") {
@@ -28,21 +45,33 @@ function isTerminal(event: AnyEvent): boolean {
   return false;
 }
 
+/**
+ * Eagerly open the live SSE stream for a session. Must be called BEFORE
+ * the runner posts its kickoff `user.message` (skill §7).
+ */
+export function openSessionStream(
+  anthropic: Anthropic,
+  sessionId: string,
+): LiveStreamHandle {
+  const live = (
+    anthropic.beta.sessions.events as unknown as {
+      stream: (id: string) => AsyncIterable<unknown>;
+    }
+  ).stream(sessionId);
+  return { live };
+}
+
+/**
+ * Drain the session history first, then resume from the pre-opened live
+ * stream. Yields events in arrival order, deduped by id, and breaks on
+ * terminal events even if the terminal was already-seen in history
+ * (skill §1).
+ */
 export async function* iterateSessionEvents(
   anthropic: Anthropic,
   sessionId: string,
+  handle: LiveStreamHandle,
 ): AsyncGenerator<AnyEvent> {
-  // Stream-first, then history (skill §1 + §7). The live stream buffers
-  // server-side while we drain history.
-  // The stream() return is an APIPromise<Stream<...>> in the SDK; awaited,
-  // it iterates events. We treat both list() and stream() as untyped async
-  // iterables here because the runner only needs the structural id/type
-  // shape — fully typing the per-event union duplicates the SDK's work.
-  const liveStream = (await (
-    anthropic.beta.sessions.events as unknown as {
-      stream: (id: string) => Promise<AsyncIterable<unknown>>;
-    }
-  ).stream(sessionId)) as AsyncIterable<unknown>;
   const seen = new Set<string>();
   let terminal = false;
 
@@ -61,7 +90,7 @@ export async function* iterateSessionEvents(
   }
   if (terminal) return;
 
-  for await (const event of liveStream) {
+  for await (const event of handle.live) {
     const typed = event as AnyEvent;
     if (!seen.has(typed.id)) {
       seen.add(typed.id);

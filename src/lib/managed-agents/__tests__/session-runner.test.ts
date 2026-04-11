@@ -9,6 +9,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("../session-reconnect", () => ({
+  openSessionStream: vi.fn(() => ({ live: { [Symbol.asyncIterator]: async function* () {} } })),
   iterateSessionEvents: vi.fn(),
 }));
 
@@ -25,7 +26,7 @@ vi.mock("@/lib/approvals/queries", () => ({
     .mockResolvedValue({ success: true, status: "created" }),
 }));
 
-const { iterateSessionEvents } = await import("../session-reconnect");
+const { iterateSessionEvents, openSessionStream } = await import("../session-reconnect");
 const { dispatchCustomTool } = await import("../dispatcher");
 const { createApprovalEvent } = await import("@/lib/approvals/queries");
 const { consumeAnthropicSession } = await import("../session-runner");
@@ -82,12 +83,16 @@ beforeEach(() => {
   retrieveSession.mockClear();
   retrieveSession.mockResolvedValue({ stats: { active_seconds: 0 } });
   (iterateSessionEvents as unknown as ReturnType<typeof vi.fn>).mockReset();
+  (openSessionStream as unknown as ReturnType<typeof vi.fn>).mockClear();
+  (openSessionStream as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    live: { [Symbol.asyncIterator]: async function* () {} },
+  });
   (dispatchCustomTool as unknown as ReturnType<typeof vi.fn>).mockClear();
   (createApprovalEvent as unknown as ReturnType<typeof vi.fn>).mockClear();
 });
 
 describe("consumeAnthropicSession — happy path", () => {
-  it("sends kickoff via events.send AFTER stream subscription", async () => {
+  it("opens the live stream via openSessionStream BEFORE sending the kickoff", async () => {
     stubIteration([
       modelRequestStartEvent("span_1"),
       agentMessageTextEvent("evt_1", "hello"),
@@ -104,12 +109,19 @@ describe("consumeAnthropicSession — happy path", () => {
       persistIncrementally: false,
     });
 
-    // iterateSessionEvents is called BEFORE events.send
-    const sendOrder = sendEvent.mock.invocationCallOrder[0];
-    const iterOrder = (
-      iterateSessionEvents as unknown as ReturnType<typeof vi.fn>
+    // openSessionStream is the eager helper that synchronously calls
+    // events.stream(); skill §7 requires it to fire BEFORE events.send.
+    const openOrder = (
+      openSessionStream as unknown as ReturnType<typeof vi.fn>
     ).mock.invocationCallOrder[0];
-    expect(iterOrder).toBeLessThan(sendOrder);
+    const sendOrder = sendEvent.mock.invocationCallOrder[0];
+    expect(openOrder).toBeDefined();
+    expect(sendOrder).toBeDefined();
+    expect(openOrder).toBeLessThan(sendOrder);
+    expect(openSessionStream).toHaveBeenCalledWith(
+      expect.anything(),
+      "sess_1",
+    );
 
     expect(sendEvent).toHaveBeenCalledWith(
       "sess_1",

@@ -25,7 +25,10 @@ import { createApprovalEvent } from "@/lib/approvals/queries";
 import { dispatchCustomTool } from "./dispatcher";
 import { createTranslatorState, translateEvent } from "./event-translator";
 import { buildAssistantPartsFromEvents } from "./events-to-assistant-parts";
-import { iterateSessionEvents } from "./session-reconnect";
+import {
+  iterateSessionEvents,
+  openSessionStream,
+} from "./session-reconnect";
 import type {
   SessionRunnerOptions,
   SessionRunnerResult,
@@ -41,11 +44,14 @@ export async function consumeAnthropicSession(
   const collectedEvents: unknown[] = [];
   const approvalEventIds: string[] = [];
 
-  // Stream-first iterator (opens SSE stream inside the generator).
-  // Must be created BEFORE we send the kickoff to satisfy skill §7.
-  const iterator = iterateSessionEvents(anthropic, options.sessionId);
+  // Stream-first: eagerly open the live SSE stream BEFORE sending the
+  // kickoff (skill §7 — "subscribe before you send"). The async-generator
+  // approach we used originally deferred the real `events.stream()` call
+  // until first iteration, which happened AFTER the kickoff and lost the
+  // earliest events on cold sessions.
+  const liveHandle = openSessionStream(anthropic, options.sessionId);
 
-  // Kickoff AFTER the iterator is created.
+  // Kickoff AFTER the live stream is open.
   if (options.kickoffMessage) {
     await anthropic.beta.sessions.events.send(options.sessionId, {
       events: [
@@ -56,6 +62,12 @@ export async function consumeAnthropicSession(
       ],
     } as never);
   }
+
+  const iterator = iterateSessionEvents(
+    anthropic,
+    options.sessionId,
+    liveHandle,
+  );
 
   let terminalReason: SessionRunnerResult["reason"] | null = null;
 
