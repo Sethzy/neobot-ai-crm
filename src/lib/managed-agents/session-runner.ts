@@ -218,6 +218,8 @@ export async function consumeAnthropicSession(
   const cost = {
     inputTokens: translatorState.usage.inputTokens,
     outputTokens: translatorState.usage.outputTokens,
+    cacheReadInputTokens: translatorState.usage.cacheReadInputTokens,
+    cacheCreationInputTokens: translatorState.usage.cacheCreationInputTokens,
     runtimeSeconds: activeSeconds,
   };
 

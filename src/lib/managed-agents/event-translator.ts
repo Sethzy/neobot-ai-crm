@@ -8,7 +8,11 @@
  *
  * @module lib/managed-agents/event-translator
  */
-import { accumulateModelUsage, type AccumulatedUsage } from "./adapter-cost";
+import {
+  accumulateModelUsage,
+  emptyUsage,
+  type AccumulatedUsage,
+} from "./adapter-cost";
 
 import type { AnthropicEvent } from "./__tests__/fixtures/events";
 
@@ -36,7 +40,7 @@ export interface TranslateResult {
 
 export function createTranslatorState(): TranslatorState {
   return {
-    usage: { inputTokens: 0, outputTokens: 0 },
+    usage: emptyUsage(),
     seenEventIds: new Set(),
     approvalToolUseIds: new Set(),
   };

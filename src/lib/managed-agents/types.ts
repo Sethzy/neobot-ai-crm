@@ -54,8 +54,13 @@ export interface CustomToolResultContent {
 
 /** Per-run cost totals accumulated inside the session runner. */
 export interface RunCostTotals {
+  /** Total input tokens — includes both cached and uncached portions. */
   inputTokens: number;
   outputTokens: number;
+  /** Cache-read input tokens (subset of inputTokens). */
+  cacheReadInputTokens: number;
+  /** Cache-creation input tokens (subset of inputTokens). */
+  cacheCreationInputTokens: number;
   runtimeSeconds: number;
 }
 

@@ -82,7 +82,13 @@ describe("runManagedAgent — happy path", () => {
               content: [{ type: "text", text: "Hello" }],
             },
           ],
-          cost: { inputTokens: 50, outputTokens: 20, runtimeSeconds: 5 },
+          cost: {
+            inputTokens: 50,
+            outputTokens: 20,
+            cacheReadInputTokens: 0,
+            cacheCreationInputTokens: 0,
+            runtimeSeconds: 5,
+          },
           approvalEventIds: [],
         };
       },
@@ -119,7 +125,13 @@ describe("runManagedAgent — terminal variants", () => {
       status: "failed",
       reason: "retries_exhausted",
       accumulatedEvents: [],
-      cost: { inputTokens: 0, outputTokens: 0, runtimeSeconds: 0 },
+      cost: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 0,
+        runtimeSeconds: 0,
+      },
       approvalEventIds: [],
     });
 
@@ -152,7 +164,13 @@ describe("runManagedAgent — terminal variants", () => {
           content: [{ type: "text", text: "pending approval" }],
         },
       ],
-      cost: { inputTokens: 10, outputTokens: 5, runtimeSeconds: 1 },
+      cost: {
+        inputTokens: 10,
+        outputTokens: 5,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 0,
+        runtimeSeconds: 1,
+      },
       approvalEventIds: ["tu_1"],
     });
 
@@ -226,7 +244,13 @@ describe("runManagedAgent — pipeJsonRender spec fences", () => {
               content: [{ type: "text", text: specText }],
             },
           ],
-          cost: { inputTokens: 10, outputTokens: 5, runtimeSeconds: 1 },
+          cost: {
+        inputTokens: 10,
+        outputTokens: 5,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 0,
+        runtimeSeconds: 1,
+      },
           approvalEventIds: [],
         };
       },

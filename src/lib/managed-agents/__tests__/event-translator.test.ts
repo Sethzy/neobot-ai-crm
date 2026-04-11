@@ -38,7 +38,12 @@ describe("translateEvent — text + step events", () => {
     const state = createTranslatorState();
     translateEvent(state, modelRequestEndEvent("span_1", 120, 40));
     translateEvent(state, modelRequestEndEvent("span_2", 80, 25));
-    expect(state.usage).toEqual({ inputTokens: 200, outputTokens: 65 });
+    expect(state.usage).toEqual({
+      inputTokens: 200,
+      outputTokens: 65,
+      cacheReadInputTokens: 0,
+      cacheCreationInputTokens: 0,
+    });
   });
 });
 

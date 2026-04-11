@@ -362,6 +362,32 @@ describe("consumeAnthropicSession — terminal variants + cost", () => {
     expect(result.cost.inputTokens).toBe(200);
     expect(result.cost.outputTokens).toBe(100);
   });
+
+  it("returns cache_read and cache_creation tokens in cost", async () => {
+    stubIteration([
+      {
+        id: "span_1_end",
+        type: "span.model_request_end",
+        model_usage: {
+          input_tokens: 1500,
+          output_tokens: 100,
+          cache_read_input_tokens: 800,
+          cache_creation_input_tokens: 200,
+        },
+      },
+      statusIdleEvent("evt_idle", "end_turn"),
+    ]);
+    const result = await consumeAnthropicSession({
+      anthropic: fakeAnthropic(),
+      sessionId: "sess_1",
+      runId: "run_1",
+      context: baseContext(),
+      persistIncrementally: false,
+    });
+    expect(result.cost.inputTokens).toBe(1500);
+    expect(result.cost.cacheReadInputTokens).toBe(800);
+    expect(result.cost.cacheCreationInputTokens).toBe(200);
+  });
 });
 
 describe("consumeAnthropicSession — incremental persistence", () => {

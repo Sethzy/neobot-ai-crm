@@ -178,6 +178,8 @@ export async function runManagedAgent(
         const costUsd = computeTurnCost({
           inputTokens: result.cost.inputTokens,
           outputTokens: result.cost.outputTokens,
+          cacheReadInputTokens: result.cost.cacheReadInputTokens,
+          cacheCreationInputTokens: result.cost.cacheCreationInputTokens,
           activeSeconds: result.cost.runtimeSeconds,
         });
         await completeRun(input.supabase, {
