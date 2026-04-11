@@ -1,0 +1,60 @@
+import { describe, expect, it } from "vitest";
+
+import { createMockSupabase } from "@/lib/runner/tools/crm/__tests__/mock-supabase";
+import type { ToolContext } from "@/lib/managed-agents/tools/types";
+
+import { listConnectionsTool } from "../list-connections";
+
+const CLIENT_ID = "550e8400-e29b-41d4-a716-446655440000";
+
+function makeContext(client: ReturnType<typeof createMockSupabase>["client"]): ToolContext {
+  return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase: client as any,
+    clientId: CLIENT_ID,
+    threadId: "thread-1",
+    isChatContext: true,
+  };
+}
+
+describe("listConnectionsTool", () => {
+  it("lists all connections with an explicit client_id filter", async () => {
+    const { client, builders } = createMockSupabase({
+      connections: {
+        data: [
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            client_id: CLIENT_ID,
+            composio_connected_account_id: "composio-1",
+            toolkit_slug: "gmail",
+            display_name: "Gmail",
+            account_identifier: "user@gmail.com",
+            status: "active",
+            activated_tools: ["GMAIL_SEND_EMAIL"],
+            tool_count: 45,
+          },
+        ],
+        error: null,
+      },
+    });
+
+    const result = await listConnectionsTool.execute({}, makeContext(client));
+
+    expect(result).toEqual({
+      success: true,
+      connections: [
+        {
+          connectionId: "11111111-1111-4111-8111-111111111111",
+          serviceName: "gmail",
+          description: "Gmail",
+          accountName: "user@gmail.com",
+          connectionType: "integrations",
+          status: "active",
+          activatedToolCount: 1,
+          totalToolCount: 45,
+        },
+      ],
+    });
+    expect(builders.connections.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
+  });
+});

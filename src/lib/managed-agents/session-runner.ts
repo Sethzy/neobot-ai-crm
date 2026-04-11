@@ -208,6 +208,8 @@ export async function consumeAnthropicSession(
     runtimeSeconds: activeSeconds,
   };
 
+  await options.onTerminal?.(collectedEvents, cost);
+
   return {
     status,
     reason: terminalReason ?? "terminated",

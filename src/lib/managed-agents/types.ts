@@ -114,6 +114,21 @@ export interface SessionRunnerOptions {
   runId: string;
   context: DispatchContext;
   callbacks?: SessionRunnerCallbacks;
+  /**
+   * Trigger-listener hint from H5. The current H3 core does not project
+   * incremental persistence itself, but the option is part of the shared
+   * contract so the listener can opt into that behavior as the persistence
+   * callbacks land.
+   */
+  persistIncrementally?: boolean;
+  /**
+   * Terminal hook used by the Trigger.dev listener to persist final run
+   * status and evaluator scores once the session stops.
+   */
+  onTerminal?: (
+    events: unknown[],
+    cost: RunCostTotals,
+  ) => void | Promise<void>;
   /** If provided, send as user.message AFTER opening the stream (fresh sessions). */
   kickoffMessage?: string;
   /**
