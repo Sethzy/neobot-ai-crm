@@ -572,3 +572,25 @@ Then stop. Do not start implementing.
   2. Between fence open/close, yields `data-spec` parts (one per JSONL line).
   3. Trailing prose comes back as `text-delta`.
 - If janky on burst deltas → swap the adapter's `onAgentMessage` text-delta write for `splitTextAndSpecParts` and drop the `pipeJsonRender` wrap. Last resort per D3: cut JIT UI.
+
+---
+
+## Code-review fix pass (2026-04-11)
+
+The first H3 review surfaced 8 findings (1 critical, 6 important, 1 minor).
+All addressed in commits prefixed `fix(h3):` (F1–F8). Final state:
+**196/196 tests passing in `src/lib/managed-agents` + `src/lib/eval` +
+`src/lib/chat` + `src/lib/approvals`. tsc clean. lint clean on the H3 surface.**
+
+| # | Finding | Fix |
+|---|---|---|
+| F1 | Stream-first ordering bug — `iterateSessionEvents` was an async generator, so the real `events.stream()` call was deferred until the first iteration, AFTER the kickoff send. | Split into eager `openSessionStream()` + dedup-iterator `iterateSessionEvents(client, sessionId, handle)`. Runner opens the live stream first, sends kickoff, then iterates. New unit test pins `events.stream` invocation order before `events.send`. |
+| F2 | Adapter could leave the run row stuck in `running` if anything threw between `createRun()` and `completeRun()`. | Wrap the execute body in try/catch; on error call `completeRun(failed)` then re-throw so the UIMessageStream surfaces the error to the consumer. |
+| F3 | `getOrCreateSession` silently destructured `data` and ignored Supabase errors on both the session_id select and the cache update — orphan-session leak risk. | Throw on either error path with the underlying message. |
+| F4 | D6 not implemented: `createApprovalEvent` never populated `session_id` / `tool_use_id`, so H4's `/api/tool-confirm` and Telegram callback can't route the resolution back to Anthropic. | Add optional `sessionId` + `toolUseId` to `CreateApprovalEventInput`, plumb through the runner approval branch, new test asserting the columns are persisted. |
+| F5 | Cost math used the v1 formula and ignored `cache_read_input_tokens` / `cache_creation_input_tokens`. Cached turns were charged at the uncached rate. | Updated `accumulateModelUsage` + `computeTurnCost` to use the handover's revised formula: uncached × $3 + cache_creation × $3.75 + cache_read × $0.30 + output × $15. New constants `CACHE_READ_PER_M` + `CACHE_CREATION_PER_M`. Threaded cache fields through `AccumulatedUsage` → `TranslatorState` → `SessionRunnerResult.cost`. |
+| F6 | Production code imported `AnthropicEvent` from `__tests__/fixtures/events`, pointing six production files at a test path. | New `src/lib/managed-agents/event-types.ts` with explicit interface definitions. Fixtures file re-exports `AnthropicEvent` so existing tests keep working. Six production import sites updated. |
+| F7 | `extractToolSequenceFromEvents` only paired `agent.custom_tool_use` with `user.custom_tool_result` — built-in tools (notably bash) were invisible to the safety-gate evaluator. | Added the `agent.tool_use` → `agent.tool_result` pairing branch keyed by `tool_use_id`, captures `{text, isError}` on the result. New `builtInToolResultEvent` fixture + four tests. |
+| F8 | Three persistence gaps: (a) approval requests never persisted as `approval-requested` parts, (b) `user.custom_tool_result` couldn't resolve `tool-call`/`tool-result` pairs in the per-event projector, (c) no `source_event_id`-based upsert for run-restart idempotency. | (a) `buildAssistantPartsFromEvents` now emits `approval-requested` parts for `agent.tool_use` with `evaluated_permission='ask'`, and full output-available/output-error parts for built-in tool results. (b) Dropped the half-built incremental persistence path entirely (`persistIncrementally` + `onPersistMessage` removed) — the chat UI streams via the AI SDK transport, not DB polling, and H5's run-detail page can read the terminal row. (c) New `upsertMessage(supabase, {...source_event_id})` helper in `chat/messages.ts` keyed by `source_event_id` with `onConflict: source_event_id`. Adapter picks the terminal `session.status_idle` event id as the per-turn idempotency key. |
+
+Pre-existing failures unrelated to H3 (`src/components/chat/spinner/use-animation-frame.ts` IntersectionObserver, `app/(dashboard)/settings/page.test.tsx`) are from another branch and untouched by this work.

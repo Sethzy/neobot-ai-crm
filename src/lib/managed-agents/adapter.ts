@@ -133,7 +133,6 @@ export async function runManagedAgent(
           isChatContext: true,
         },
         kickoffMessage: kickoff,
-        persistIncrementally: true,
         autoDenyApprovals: false,
         callbacks: {
           onSpanModelRequestStart: () => {
