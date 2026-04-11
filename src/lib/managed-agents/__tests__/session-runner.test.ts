@@ -60,7 +60,6 @@ function fakeAnthropic() {
 function stubIteration(events: unknown[]) {
   (iterateSessionEvents as unknown as ReturnType<typeof vi.fn>).mockImplementation(
     function () {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const gen = (async function* () {
         for (const e of events) yield e;
       })();

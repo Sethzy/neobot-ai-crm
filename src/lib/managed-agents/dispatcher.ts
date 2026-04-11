@@ -28,11 +28,27 @@ function asContent(
   };
 }
 
+/**
+ * The registry is typed with a discriminated key→value map for each
+ * concrete tool. The dispatcher operates dynamically by tool name, so
+ * we narrow to a permissive `RegistryEntry` shape that matches every
+ * value in the map but lets us call `execute(input, context)` without
+ * having to enumerate every variant.
+ */
+type RegistryEntry = {
+  name: string;
+  inputSchema: { safeParse(input: unknown): { success: true; data: unknown } | { success: false; error: { message: string } } };
+  chatOnly?: boolean;
+  execute: (input: unknown, context: DispatchContext) => Promise<unknown>;
+};
+
 export async function dispatchCustomTool(
   event: CustomToolUseEvent,
   context: DispatchContext,
 ): Promise<CustomToolResultContent> {
-  const tool = (MANAGED_AGENT_TOOLS as Record<string, (typeof MANAGED_AGENT_TOOLS)[keyof typeof MANAGED_AGENT_TOOLS]>)[event.name];
+  const tool = (MANAGED_AGENT_TOOLS as unknown as Record<string, RegistryEntry>)[
+    event.name
+  ];
 
   if (!tool) {
     return asContent(

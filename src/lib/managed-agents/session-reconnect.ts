@@ -34,11 +34,21 @@ export async function* iterateSessionEvents(
 ): AsyncGenerator<AnyEvent> {
   // Stream-first, then history (skill §1 + §7). The live stream buffers
   // server-side while we drain history.
-  const liveStream = anthropic.beta.sessions.events.stream(sessionId);
+  // The stream() return is an APIPromise<Stream<...>> in the SDK; awaited,
+  // it iterates events. We treat both list() and stream() as untyped async
+  // iterables here because the runner only needs the structural id/type
+  // shape — fully typing the per-event union duplicates the SDK's work.
+  const liveStream = (await (
+    anthropic.beta.sessions.events as unknown as {
+      stream: (id: string) => Promise<AsyncIterable<unknown>>;
+    }
+  ).stream(sessionId)) as AsyncIterable<unknown>;
   const seen = new Set<string>();
   let terminal = false;
 
-  for await (const event of anthropic.beta.sessions.events.list(sessionId)) {
+  for await (const event of anthropic.beta.sessions.events.list(
+    sessionId,
+  ) as unknown as AsyncIterable<unknown>) {
     const typed = event as AnyEvent;
     if (!seen.has(typed.id)) {
       seen.add(typed.id);
@@ -51,11 +61,12 @@ export async function* iterateSessionEvents(
   }
   if (terminal) return;
 
-  for await (const event of liveStream as AsyncIterable<AnyEvent>) {
-    if (!seen.has(event.id)) {
-      seen.add(event.id);
-      yield event;
+  for await (const event of liveStream) {
+    const typed = event as AnyEvent;
+    if (!seen.has(typed.id)) {
+      seen.add(typed.id);
+      yield typed;
     }
-    if (isTerminal(event)) return;
+    if (isTerminal(typed)) return;
   }
 }
