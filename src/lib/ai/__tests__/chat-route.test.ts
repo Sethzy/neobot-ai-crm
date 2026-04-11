@@ -10,41 +10,37 @@ import {
 } from "@/lib/usage/message-quota";
 
 const {
-  mockRunAgent,
+  mockRunManagedAgent,
   mockCreateClient,
   mockResolveClientId,
   mockCaptureServerEvent,
   mockCaptureServerEvents,
   mockCreateUIMessageStream,
   mockCreateUIMessageStreamResponse,
-  mockGenerateId,
   mockGenerateTitleFromUserMessage,
-  mockSetActiveStreamId,
-  mockClearActiveStreamId,
-  mockCreateNewResumableStream,
-  mockCreateResumableStreamContext,
   mockPatchApprovalPartState,
   mockEnsureClientBootstrap,
+  mockGetAnthropicClient,
+  mockGetOrCreateSession,
+  mockAttachFileToSession,
 } = vi.hoisted(() => ({
-  mockRunAgent: vi.fn(),
+  mockRunManagedAgent: vi.fn(),
   mockCreateClient: vi.fn(),
   mockResolveClientId: vi.fn(),
   mockCaptureServerEvent: vi.fn(),
   mockCaptureServerEvents: vi.fn(),
   mockCreateUIMessageStream: vi.fn(),
   mockCreateUIMessageStreamResponse: vi.fn(),
-  mockGenerateId: vi.fn(),
   mockGenerateTitleFromUserMessage: vi.fn(),
-  mockSetActiveStreamId: vi.fn(),
-  mockClearActiveStreamId: vi.fn(),
-  mockCreateNewResumableStream: vi.fn(),
-  mockCreateResumableStreamContext: vi.fn(),
   mockPatchApprovalPartState: vi.fn(),
   mockEnsureClientBootstrap: vi.fn().mockResolvedValue(undefined),
+  mockGetAnthropicClient: vi.fn(),
+  mockGetOrCreateSession: vi.fn(),
+  mockAttachFileToSession: vi.fn(),
 }));
 
-vi.mock("@/lib/runner/run-agent", () => ({
-  runAgent: mockRunAgent,
+vi.mock("@/lib/managed-agents/adapter", () => ({
+  runManagedAgent: mockRunManagedAgent,
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -67,17 +63,10 @@ vi.mock("@/lib/approvals/queries", () => ({
 vi.mock("ai", () => ({
   createUIMessageStream: mockCreateUIMessageStream,
   createUIMessageStreamResponse: mockCreateUIMessageStreamResponse,
-  generateId: mockGenerateId,
 }));
 
 vi.mock("@/lib/ai/title", () => ({
   generateTitleFromUserMessage: mockGenerateTitleFromUserMessage,
-}));
-
-vi.mock("@/lib/redis", () => ({
-  getRedisClient: vi.fn().mockResolvedValue(null),
-  setActiveStreamId: mockSetActiveStreamId,
-  clearActiveStreamId: mockClearActiveStreamId,
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -88,20 +77,24 @@ vi.mock("@/lib/runner/skills/ensure-client-bootstrap", () => ({
   ensureClientBootstrap: mockEnsureClientBootstrap,
 }));
 
+vi.mock("@/lib/managed-agents/anthropic-client", () => ({
+  getAnthropicClient: mockGetAnthropicClient,
+}));
+
+vi.mock("@/lib/managed-agents/session-kickoff", () => ({
+  getOrCreateSession: mockGetOrCreateSession,
+}));
+
+vi.mock("@/lib/managed-agents/attach-session-file", () => ({
+  attachFileToSession: mockAttachFileToSession,
+}));
+
 vi.mock("next/server", () => ({
   after: vi.fn(),
 }));
 
-vi.mock("@/instrumentation", () => ({
-  langfuseSpanProcessor: { forceFlush: vi.fn().mockResolvedValue(undefined) },
-}));
-
 vi.mock("@json-render/core", () => ({
   pipeJsonRender: vi.fn((stream: unknown) => stream),
-}));
-
-vi.mock("resumable-stream", () => ({
-  createResumableStreamContext: mockCreateResumableStreamContext,
 }));
 
 import { POST, maxDuration } from "../../../../app/api/chat/route";
@@ -123,47 +116,101 @@ describe("POST /api/chat", () => {
 
   function createThreadLookup(options: { threadExists: boolean; error?: { message: string } | null }) {
     const { threadExists, error = null } = options;
-    const maybeSingle = vi.fn().mockResolvedValue(
+    const threadMaybeSingle = vi.fn().mockResolvedValue(
       threadExists
-        ? { data: { thread_id: threadId }, error }
+        ? { data: { thread_id: threadId, title: "Existing thread" }, error }
         : { data: null, error },
     );
-    const thirdEq = vi.fn(() => ({ maybeSingle }));
-    const secondEq = vi.fn(() => ({ eq: thirdEq }));
-    const firstEq = vi.fn(() => ({ eq: secondEq }));
-    const select = vi.fn(() => ({ eq: firstEq }));
-    const from = vi.fn(() => ({ select }));
+    const clientSingle = vi.fn().mockResolvedValue({
+      data: { client_profile: null, user_preferences: null },
+      error: null,
+    });
+    const from = vi.fn((table: string) => {
+      if (table === "conversation_threads") {
+        const thirdEq = vi.fn(() => ({ maybeSingle: threadMaybeSingle }));
+        const secondEq = vi.fn(() => ({ eq: thirdEq }));
+        const firstEq = vi.fn(() => ({ eq: secondEq }));
+        const select = vi.fn(() => ({ eq: firstEq }));
+        return { select };
+      }
+
+      if (table === "clients") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({ single: clientSingle })),
+          })),
+        };
+      }
+
+      throw new Error(`Unexpected table: ${table}`);
+    });
 
     return { from };
   }
 
   function createMissingThreadWithInsert() {
-    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
-    const thirdEq = vi.fn(() => ({ maybeSingle }));
-    const secondEq = vi.fn(() => ({ eq: thirdEq }));
-    const firstEq = vi.fn(() => ({ eq: secondEq }));
-    const select = vi.fn(() => ({ eq: firstEq }));
     const insert = vi.fn().mockResolvedValue({ error: null });
-    const from = vi.fn(() => ({ select, insert }));
+    const from = vi.fn((table: string) => {
+      if (table === "conversation_threads") {
+        const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+        const thirdEq = vi.fn(() => ({ maybeSingle }));
+        const secondEq = vi.fn(() => ({ eq: thirdEq }));
+        const firstEq = vi.fn(() => ({ eq: secondEq }));
+        const select = vi.fn(() => ({ eq: firstEq }));
+        return { select, insert };
+      }
+
+      if (table === "clients") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { client_profile: null, user_preferences: null },
+                error: null,
+              }),
+            })),
+          })),
+        };
+      }
+
+      throw new Error(`Unexpected table: ${table}`);
+    });
 
     return { from, insert };
   }
 
   function createMissingThreadWithInsertAndUpdate() {
-    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
-    const thirdEq = vi.fn(() => ({ maybeSingle }));
-    const secondEq = vi.fn(() => ({ eq: thirdEq }));
-    const firstEq = vi.fn(() => ({ eq: secondEq }));
-    const select = vi.fn(() => ({ eq: firstEq }));
-
     const insert = vi.fn().mockResolvedValue({ error: null });
     const updateEq = vi.fn().mockResolvedValue({ error: null });
     const update = vi.fn(() => ({ eq: updateEq }));
     const deleteClientEq = vi.fn().mockResolvedValue({ error: null });
     const deleteThreadEq = vi.fn(() => ({ eq: deleteClientEq }));
     const deleteRow = vi.fn(() => ({ eq: deleteThreadEq }));
+    const from = vi.fn((table: string) => {
+      if (table === "conversation_threads") {
+        const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+        const thirdEq = vi.fn(() => ({ maybeSingle }));
+        const secondEq = vi.fn(() => ({ eq: thirdEq }));
+        const firstEq = vi.fn(() => ({ eq: secondEq }));
+        const select = vi.fn(() => ({ eq: firstEq }));
+        return { select, insert, update, delete: deleteRow };
+      }
 
-    const from = vi.fn(() => ({ select, insert, update, delete: deleteRow }));
+      if (table === "clients") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { client_profile: null, user_preferences: null },
+                error: null,
+              }),
+            })),
+          })),
+        };
+      }
+
+      throw new Error(`Unexpected table: ${table}`);
+    });
     return { from, insert, update, updateEq, deleteRow, deleteThreadEq, deleteClientEq };
   }
 
@@ -177,7 +224,6 @@ describe("POST /api/chat", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.AI_GATEWAY_API_KEY = "test-key";
-    process.env.REDIS_URL = "redis://localhost:6379";
 
     mockCreateClient.mockResolvedValue(mockSupabase);
     mockSupabase.auth.getUser.mockResolvedValue({
@@ -186,28 +232,29 @@ describe("POST /api/chat", () => {
     });
     mockSupabase.from = createThreadLookup({ threadExists: true }).from;
     mockResolveClientId.mockResolvedValue("client-456");
-    mockGenerateId.mockReturnValue("stream-123");
-    mockCreateResumableStreamContext.mockReturnValue({
-      createNewResumableStream: mockCreateNewResumableStream,
+    mockGetAnthropicClient.mockReturnValue({ apiKey: "test" });
+    mockGetOrCreateSession.mockResolvedValue({ id: "session-1", created: false });
+    mockAttachFileToSession.mockResolvedValue({
+      attached: true,
+      anthropicFileId: "file-1",
     });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(new Blob(["image-data"], { type: "image/png" })),
+      ),
+    );
   });
 
-  it("calls runAgent with AI SDK transport payload and returns stream response", async () => {
+  it("calls runManagedAgent with AI SDK transport payload and returns stream response", async () => {
     const streamResponse = new Response("streamed", {
       headers: { "Content-Type": "text/event-stream" },
     });
     const uiStream = new ReadableStream();
     const wrappedStream = new ReadableStream();
-    const mockStreamResult = {
-      toUIMessageStream: vi.fn(() => uiStream),
-    };
     mockCreateUIMessageStream.mockReturnValue(wrappedStream);
     mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
-
-    mockRunAgent.mockResolvedValue({
-      status: "streaming",
-      streamResult: mockStreamResult,
-    });
+    mockRunManagedAgent.mockResolvedValue(uiStream);
 
     const response = await POST(
       createJsonRequest({
@@ -221,15 +268,17 @@ describe("POST /api/chat", () => {
     );
 
     expect(mockResolveClientId).toHaveBeenCalledWith(mockSupabase, "user-123");
-    expect(mockRunAgent).toHaveBeenCalledWith(
-      {
+    expect(mockRunManagedAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        anthropic: { apiKey: "test" },
+        supabase: mockSupabase,
         clientId: "client-456",
         threadId,
-        triggerType: "chat",
-        consumeMessageQuota: true,
         input: "Hello, Sunder!",
-      },
-      mockSupabase,
+        clientProfile: null,
+        userPreferences: null,
+        threadTitle: "Existing thread",
+      }),
     );
     expect(mockCreateUIMessageStream).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -243,24 +292,12 @@ describe("POST /api/chat", () => {
     const merge = vi.fn();
     await execute({ writer: { merge } });
 
-    const onFinish = mockCreateUIMessageStream.mock.calls[0][0].onFinish as () => Promise<void>;
-    await onFinish();
-
-    expect(mockStreamResult.toUIMessageStream).toHaveBeenCalledTimes(1);
     expect(merge).toHaveBeenCalledWith(uiStream);
-    expect(mockClearActiveStreamId).toHaveBeenCalledWith(threadId);
 
     const responseOptions = mockCreateUIMessageStreamResponse.mock.calls[0][0] as {
       stream: ReadableStream;
-      consumeSseStream: (args: { stream: ReadableStream }) => Promise<void>;
     };
     expect(responseOptions.stream).toBe(wrappedStream);
-    expect(typeof responseOptions.consumeSseStream).toBe("function");
-
-    await responseOptions.consumeSseStream({ stream: uiStream });
-
-    expect(mockSetActiveStreamId).toHaveBeenCalledWith(threadId, "stream-123");
-    expect(mockCreateNewResumableStream).toHaveBeenCalledWith("stream-123", expect.any(Function));
 
     expect(response).toBe(streamResponse);
   });
@@ -275,7 +312,7 @@ describe("POST /api/chat", () => {
     };
     mockCreateUIMessageStream.mockReturnValue(wrappedStream);
     mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
-    mockRunAgent.mockResolvedValue({
+    mockRunManagedAgent.mockResolvedValue({
       status: "streaming",
       streamResult: mockStreamResult,
     });
@@ -291,15 +328,17 @@ describe("POST /api/chat", () => {
       }),
     );
 
-    expect(mockRunAgent).toHaveBeenCalledWith(
-      {
+    expect(mockRunManagedAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        anthropic: { apiKey: "test" },
+        supabase: mockSupabase,
         clientId: "client-456",
         threadId,
-        triggerType: "chat",
-        consumeMessageQuota: true,
         input: "Hello from message payload",
-      },
-      mockSupabase,
+        clientProfile: null,
+        userPreferences: null,
+        threadTitle: "Existing thread",
+      }),
     );
     expect(mockCreateUIMessageStream).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -319,20 +358,14 @@ describe("POST /api/chat", () => {
     expect(response).toBe(streamResponse);
   });
 
-  it("passes selectedChatModel through to runAgent when the model is allowed", async () => {
+  it("accepts selectedChatModel when the model is allowed but ignores it downstream", async () => {
     const streamResponse = new Response("streamed", {
       headers: { "Content-Type": "text/event-stream" },
     });
     const wrappedStream = new ReadableStream();
-    const mockStreamResult = {
-      toUIMessageStream: vi.fn(() => new ReadableStream()),
-    };
     mockCreateUIMessageStream.mockReturnValue(wrappedStream);
     mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
-    mockRunAgent.mockResolvedValue({
-      status: "streaming",
-      streamResult: mockStreamResult,
-    });
+    mockRunManagedAgent.mockResolvedValue(new ReadableStream());
 
     await POST(
       createJsonRequest({
@@ -346,11 +379,10 @@ describe("POST /api/chat", () => {
       }),
     );
 
-    expect(mockRunAgent).toHaveBeenCalledWith(
+    expect(mockRunManagedAgent).toHaveBeenCalledWith(
       expect.objectContaining({
-        selectedChatModel: "minimax/minimax-m2.7",
+        input: "Use MiniMax for this.",
       }),
-      mockSupabase,
     );
   });
 
@@ -371,7 +403,7 @@ describe("POST /api/chat", () => {
     expect(await response.json()).toEqual({
       error: "Invalid selected chat model.",
     });
-    expect(mockRunAgent).not.toHaveBeenCalled();
+    expect(mockRunManagedAgent).not.toHaveBeenCalled();
   });
 
   it("returns 400 when selectedChatModel is an empty string", async () => {
@@ -391,7 +423,7 @@ describe("POST /api/chat", () => {
     expect(await response.json()).toEqual({
       error: "Invalid selected chat model.",
     });
-    expect(mockRunAgent).not.toHaveBeenCalled();
+    expect(mockRunManagedAgent).not.toHaveBeenCalled();
   });
 
   it("accepts image-only user messages and forwards file parts to the runner", async () => {
@@ -401,12 +433,7 @@ describe("POST /api/chat", () => {
     const wrappedStream = new ReadableStream();
     mockCreateUIMessageStream.mockReturnValue(wrappedStream);
     mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
-    mockRunAgent.mockResolvedValue({
-      status: "streaming",
-      streamResult: {
-        toUIMessageStream: vi.fn(() => new ReadableStream()),
-      },
-    });
+    mockRunManagedAgent.mockResolvedValue(new ReadableStream());
 
     const response = await POST(
       createJsonRequest({
@@ -427,25 +454,25 @@ describe("POST /api/chat", () => {
       }),
     );
 
-    expect(mockRunAgent).toHaveBeenCalledWith(
+    expect(mockRunManagedAgent).toHaveBeenCalledWith(
       expect.objectContaining({
         clientId: "client-456",
         threadId,
-        triggerType: "chat",
-        consumeMessageQuota: true,
         input: "",
-        fileParts: [
-          {
-            type: "file",
-            filename: "screenshot.png",
-            mediaType: "image/png",
-            url: "https://storage.example.com/agent-files/client-1/uploads/screenshot.png?token=signed",
-            storagePath: "uploads/screenshot.png",
-          },
-        ],
+        anthropic: { apiKey: "test" },
       }),
-      mockSupabase,
     );
+    expect(mockGetOrCreateSession).toHaveBeenCalledWith({
+      anthropic: { apiKey: "test" },
+      supabase: mockSupabase,
+      threadId,
+      threadTitle: "Existing thread",
+    });
+    expect(mockAttachFileToSession).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      file: expect.anything(),
+      filename: "screenshot.png",
+    });
     expect(response).toBe(streamResponse);
   });
 
@@ -472,7 +499,7 @@ describe("POST /api/chat", () => {
         tool_name: "delete_contact",
       },
     });
-    mockRunAgent.mockResolvedValue({
+    mockRunManagedAgent.mockResolvedValue({
       status: "streaming",
       streamResult: {
         toUIMessageStream: vi.fn(() => new ReadableStream()),
@@ -521,7 +548,7 @@ describe("POST /api/chat", () => {
       expect.objectContaining({ event: "chat_message_sent" }),
     );
     expect(mockPatchApprovalPartState.mock.invocationCallOrder[0]).toBeLessThan(
-      mockRunAgent.mock.invocationCallOrder[0],
+      mockRunManagedAgent.mock.invocationCallOrder[0],
     );
   });
 
@@ -557,7 +584,7 @@ describe("POST /api/chat", () => {
     expect(await response.json()).toEqual({
       error: "Failed to process chat request.",
     });
-    expect(mockRunAgent).not.toHaveBeenCalled();
+    expect(mockRunManagedAgent).not.toHaveBeenCalled();
   });
 
   it("returns 500 when approval resolution returns an unexpected success status", async () => {
@@ -591,11 +618,11 @@ describe("POST /api/chat", () => {
     expect(await response.json()).toEqual({
       error: "Failed to process chat request.",
     });
-    expect(mockRunAgent).not.toHaveBeenCalled();
+    expect(mockRunManagedAgent).not.toHaveBeenCalled();
   });
 
   it("returns 409 when runner cannot acquire thread lock (message queued)", async () => {
-    mockRunAgent.mockResolvedValue({ status: "queued" });
+    mockRunManagedAgent.mockResolvedValue({ status: "queued" });
 
     const response = await POST(
       createJsonRequest({
@@ -626,12 +653,7 @@ describe("POST /api/chat", () => {
     const wrappedStream = new ReadableStream();
     mockCreateUIMessageStream.mockReturnValue(wrappedStream);
     mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
-    mockRunAgent.mockResolvedValue({
-      status: "streaming",
-      streamResult: {
-        toUIMessageStream: vi.fn(() => uiStream),
-      },
-    });
+    mockRunManagedAgent.mockResolvedValue(uiStream);
 
     const response = await POST(
       createJsonRequest({
@@ -649,15 +671,17 @@ describe("POST /api/chat", () => {
       client_id: "client-456",
       title: null,
     });
-    expect(mockRunAgent).toHaveBeenCalledWith(
-      {
+    expect(mockRunManagedAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        anthropic: { apiKey: "test" },
+        supabase: mockSupabase,
         clientId: "client-456",
         threadId,
-        triggerType: "chat",
-        consumeMessageQuota: true,
         input: "Create lazily",
-      },
-      mockSupabase,
+        clientProfile: null,
+        userPreferences: null,
+        threadTitle: null,
+      }),
     );
     const execute = mockCreateUIMessageStream.mock.calls[0][0].execute as (args: {
       writer: { merge: (stream: ReadableStream) => void; write: (part: unknown) => void };
@@ -687,7 +711,7 @@ describe("POST /api/chat", () => {
     const wrappedStream = new ReadableStream();
     mockCreateUIMessageStream.mockReturnValue(wrappedStream);
     mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
-    mockRunAgent.mockResolvedValue({
+    mockRunManagedAgent.mockResolvedValue({
       status: "streaming",
       streamResult: {
         toUIMessageStream: vi.fn(() => uiStream),
@@ -735,7 +759,7 @@ describe("POST /api/chat", () => {
     expect(await response.json()).toEqual({
       error: "Invalid request body.",
     });
-    expect(mockRunAgent).not.toHaveBeenCalled();
+    expect(mockRunManagedAgent).not.toHaveBeenCalled();
   });
 
   it("returns 400 when only legacy threadId is sent", async () => {
@@ -751,7 +775,7 @@ describe("POST /api/chat", () => {
     );
 
     expect(response.status).toBe(400);
-    expect(mockRunAgent).not.toHaveBeenCalled();
+    expect(mockRunManagedAgent).not.toHaveBeenCalled();
   });
 
   it("returns 400 when user input text cannot be resolved", async () => {
@@ -766,7 +790,7 @@ describe("POST /api/chat", () => {
     expect(await response.json()).toEqual({
       error: "Invalid request body: normal user turns must use `message`.",
     });
-    expect(mockRunAgent).not.toHaveBeenCalled();
+    expect(mockRunManagedAgent).not.toHaveBeenCalled();
   });
 
   it("returns 400 when a full messages payload only contains historical approval responses", async () => {
@@ -797,7 +821,7 @@ describe("POST /api/chat", () => {
     expect(await response.json()).toEqual({
       error: "Invalid request body: normal user turns must use `message`.",
     });
-    expect(mockRunAgent).not.toHaveBeenCalled();
+    expect(mockRunManagedAgent).not.toHaveBeenCalled();
   });
 
   it("returns 401 when request is unauthenticated", async () => {
@@ -847,7 +871,7 @@ describe("POST /api/chat", () => {
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "Thread not found." });
-    expect(mockRunAgent).not.toHaveBeenCalled();
+    expect(mockRunManagedAgent).not.toHaveBeenCalled();
   });
 
   it("returns 500 when thread lookup fails", async () => {
@@ -869,7 +893,7 @@ describe("POST /api/chat", () => {
 
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({ error: "Failed to process chat request." });
-    expect(mockRunAgent).not.toHaveBeenCalled();
+    expect(mockRunManagedAgent).not.toHaveBeenCalled();
   });
 
   it("returns 400 for invalid JSON payload", async () => {
@@ -893,7 +917,7 @@ describe("POST /api/chat", () => {
     });
     mockCreateUIMessageStream.mockReturnValue(new ReadableStream());
     mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
-    mockRunAgent.mockResolvedValue({
+    mockRunManagedAgent.mockResolvedValue({
       status: "streaming",
       streamResult: { toUIMessageStream: vi.fn(() => new ReadableStream()) },
     });
@@ -929,11 +953,11 @@ describe("POST /api/chat", () => {
     expect(await response.json()).toEqual({
       error: "Invalid request body.",
     });
-    expect(mockRunAgent).not.toHaveBeenCalled();
+    expect(mockRunManagedAgent).not.toHaveBeenCalled();
   });
 
   it("returns 500 with a stable payload when runner throws", async () => {
-    mockRunAgent.mockRejectedValue(new Error("database unavailable"));
+    mockRunManagedAgent.mockRejectedValue(new Error("database unavailable"));
 
     const response = await POST(
       createJsonRequest({
@@ -951,7 +975,7 @@ describe("POST /api/chat", () => {
   });
 
   it("returns 402 with structured quota payload when the monthly message cap is reached", async () => {
-    mockRunAgent.mockRejectedValue(
+    mockRunManagedAgent.mockRejectedValue(
       new MessageQuotaError(
         messageQuotaErrorCodes.limitReached,
         "Monthly message limit reached.",
@@ -1002,7 +1026,7 @@ describe("POST /api/chat", () => {
     const { from, insert, deleteRow, deleteThreadEq, deleteClientEq } =
       createMissingThreadWithInsertAndUpdate();
     mockSupabase.from = from;
-    mockRunAgent.mockRejectedValue(
+    mockRunManagedAgent.mockRejectedValue(
       new MessageQuotaError(
         messageQuotaErrorCodes.limitReached,
         "Monthly message limit reached.",
@@ -1043,7 +1067,7 @@ describe("POST /api/chat", () => {
     expect(deleteClientEq).toHaveBeenCalledWith("client_id", "client-456");
   });
 
-  it("returns 500 without calling runAgent when ensureClientBootstrap fails", async () => {
+  it("returns 500 without calling runManagedAgent when ensureClientBootstrap fails", async () => {
     mockEnsureClientBootstrap.mockRejectedValueOnce(new Error("storage down"));
 
     const response = await POST(
@@ -1059,16 +1083,16 @@ describe("POST /api/chat", () => {
 
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({ error: "Failed to process chat request." });
-    expect(mockRunAgent).not.toHaveBeenCalled();
+    expect(mockRunManagedAgent).not.toHaveBeenCalled();
   });
 
-  it("awaits ensureClientBootstrap before calling runAgent", async () => {
+  it("awaits ensureClientBootstrap before calling runManagedAgent", async () => {
     const streamResponse = new Response("streamed", {
       headers: { "Content-Type": "text/event-stream" },
     });
     mockCreateUIMessageStream.mockReturnValue(new ReadableStream());
     mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
-    mockRunAgent.mockResolvedValue({
+    mockRunManagedAgent.mockResolvedValue({
       status: "streaming",
       streamResult: { toUIMessageStream: vi.fn(() => new ReadableStream()) },
     });
@@ -1086,7 +1110,7 @@ describe("POST /api/chat", () => {
 
     expect(mockEnsureClientBootstrap).toHaveBeenCalledWith(mockSupabase, "client-456");
     expect(mockEnsureClientBootstrap.mock.invocationCallOrder[0]).toBeLessThan(
-      mockRunAgent.mock.invocationCallOrder[0],
+      mockRunManagedAgent.mock.invocationCallOrder[0],
     );
   });
 });

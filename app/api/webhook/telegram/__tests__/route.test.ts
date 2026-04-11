@@ -9,25 +9,31 @@ const {
   mockCreateAdminClient,
   mockCreateTelegramBot,
   mockGetTelegramBotToken,
-  mockRunAgent,
+  mockRunManagedAgent,
   mockResolveApprovalById,
   mockAdvancePendingQuestionBatchByCallback,
   mockAdvancePendingQuestionBatchByTextReply,
   mockClearPendingQuestionsForChat,
   mockDownloadAndStoreTelegramFile,
   mockRestorePendingQuestionBatch,
+  mockAttachFileToSession,
+  mockGetAnthropicClient,
+  mockGetOrCreateSession,
 } = vi.hoisted(() => ({
   mockAfter: vi.fn(),
   mockCreateAdminClient: vi.fn(),
   mockCreateTelegramBot: vi.fn(),
   mockGetTelegramBotToken: vi.fn(),
-  mockRunAgent: vi.fn(),
+  mockRunManagedAgent: vi.fn(),
   mockResolveApprovalById: vi.fn(),
   mockAdvancePendingQuestionBatchByCallback: vi.fn(),
   mockAdvancePendingQuestionBatchByTextReply: vi.fn(),
   mockClearPendingQuestionsForChat: vi.fn(),
   mockDownloadAndStoreTelegramFile: vi.fn(),
   mockRestorePendingQuestionBatch: vi.fn(),
+  mockAttachFileToSession: vi.fn(),
+  mockGetAnthropicClient: vi.fn(),
+  mockGetOrCreateSession: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
@@ -54,12 +60,24 @@ vi.mock("@/lib/channels/telegram", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/runner/run-agent", () => ({
-  runAgent: (...args: unknown[]) => mockRunAgent(...args),
+vi.mock("@/lib/managed-agents/adapter", () => ({
+  runManagedAgent: (...args: unknown[]) => mockRunManagedAgent(...args),
 }));
 
 vi.mock("@/lib/managed-agents/resolve-approval", () => ({
   resolveApprovalById: (...args: unknown[]) => mockResolveApprovalById(...args),
+}));
+
+vi.mock("@/lib/managed-agents/attach-session-file", () => ({
+  attachFileToSession: (...args: unknown[]) => mockAttachFileToSession(...args),
+}));
+
+vi.mock("@/lib/managed-agents/anthropic-client", () => ({
+  getAnthropicClient: (...args: unknown[]) => mockGetAnthropicClient(...args),
+}));
+
+vi.mock("@/lib/managed-agents/session-kickoff", () => ({
+  getOrCreateSession: (...args: unknown[]) => mockGetOrCreateSession(...args),
 }));
 
 vi.mock("@/lib/channels/telegram/pending-questions", async (importOriginal) => {
@@ -251,10 +269,13 @@ describe("POST /api/webhook/telegram", () => {
       await callback();
     });
     mockGetTelegramBotToken.mockReturnValue("123:ABC");
-    mockRunAgent.mockResolvedValue({
-      status: "streaming",
-      streamResult: { text: Promise.resolve("done") },
-    });
+    mockRunManagedAgent.mockResolvedValue(
+      new ReadableStream({
+        start(controller) {
+          controller.close();
+        },
+      }),
+    );
     mockResolveApprovalById.mockResolvedValue({
       success: true,
       status: "updated",
@@ -265,6 +286,15 @@ describe("POST /api/webhook/telegram", () => {
     mockClearPendingQuestionsForChat.mockResolvedValue(undefined);
     mockDownloadAndStoreTelegramFile.mockResolvedValue(null);
     mockRestorePendingQuestionBatch.mockResolvedValue(undefined);
+    mockAttachFileToSession.mockResolvedValue({
+      attached: true,
+      anthropicFileId: "file-1",
+    });
+    mockGetAnthropicClient.mockReturnValue({ beta: {} });
+    mockGetOrCreateSession.mockResolvedValue({ id: "session-1" });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(new Blob(["hello"], { type: "image/jpeg" }), { status: 200 }),
+    );
   });
 
   afterEach(() => {
@@ -317,17 +347,16 @@ describe("POST /api/webhook/telegram", () => {
     expect(response.status).toBe(200);
     expect(mockAfter).toHaveBeenCalledTimes(1);
     expect(api.sendChatAction).toHaveBeenCalledWith(12345, "typing");
-    expect(mockRunAgent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        clientId: "client-1",
-        threadId: "thread-1",
-        triggerType: "chat",
-        input: "Hello from Telegram",
-        channel: "telegram",
-        consumeMessageQuota: true,
-      }),
+    expect(mockRunManagedAgent).toHaveBeenCalledWith({
+      anthropic: { beta: {} },
       supabase,
-    );
+      clientId: "client-1",
+      threadId: "thread-1",
+      input: "Hello from Telegram",
+      clientProfile: null,
+      userPreferences: null,
+      threadTitle: null,
+    });
   });
 
   it("pairs a chat from /start <token> by mapping to the primary thread", async () => {
@@ -766,11 +795,10 @@ describe("POST /api/webhook/telegram", () => {
     await flushBackgroundWork();
 
     expect(response.status).toBe(200);
-    expect(mockRunAgent).toHaveBeenCalledWith(
+    expect(mockRunManagedAgent).toHaveBeenCalledWith(
       expect.objectContaining({
         input: "Q: Which contact?\nA: John",
       }),
-      supabase,
     );
   });
 
@@ -839,9 +867,8 @@ describe("POST /api/webhook/telegram", () => {
       restoreAwaitingTextReply: true,
       answers: ["John and Mary"],
     });
-    expect(mockRunAgent).not.toHaveBeenCalledWith(
+    expect(mockRunManagedAgent).not.toHaveBeenCalledWith(
       expect.objectContaining({ input: "John and Mary" }),
-      supabase,
     );
   });
 
@@ -1012,17 +1039,21 @@ describe("POST /api/webhook/telegram", () => {
     await flushBackgroundWork();
 
     expect(response.status).toBe(200);
-    expect(mockRunAgent).toHaveBeenCalledWith(
+    expect(mockGetOrCreateSession).toHaveBeenCalledWith({
+      anthropic: { beta: {} },
+      supabase,
+      threadId: "thread-1",
+      threadTitle: null,
+    });
+    expect(mockAttachFileToSession).toHaveBeenCalledTimes(1);
+    expect(mockAttachFileToSession.mock.calls[0]?.[0]).toMatchObject({
+      sessionId: "session-1",
+      filename: "upload",
+    });
+    expect(mockRunManagedAgent).toHaveBeenCalledWith(
       expect.objectContaining({
         input: "",
-        fileParts: [{
-          type: "file",
-          url: "https://storage.example.com/agent-files/client-1/uploads/telegram/photo.jpg?token=signed",
-          mediaType: "image/jpeg",
-          storagePath: "uploads/telegram/photo.jpg",
-        }],
       }),
-      supabase,
     );
   });
 });

@@ -3,9 +3,7 @@
  * @module app/api/chat/route
  */
 import type { UIMessage } from "ai";
-import { createUIMessageStream, createUIMessageStreamResponse, generateId } from "ai";
-import { after } from "next/server";
-import { createResumableStreamContext } from "resumable-stream";
+import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 
 import {
   captureServerEvent,
@@ -22,7 +20,6 @@ import { runManagedAgent } from "@/lib/managed-agents/adapter";
 import { getOrCreateSession } from "@/lib/managed-agents/session-kickoff";
 import type { ManagedFilePart } from "@/lib/managed-agents/types";
 import { ensureClientBootstrap } from "@/lib/runner/skills/ensure-client-bootstrap";
-import { clearActiveStreamId, setActiveStreamId } from "@/lib/redis";
 import {
   isMessageQuotaError,
   messageQuotaErrorCodes,
@@ -32,14 +29,6 @@ import { type PostRequestBody, postRequestBodySchema } from "./schema";
 
 /** Pro-plan ceiling (300s). Most runs finish in <30s; this just prevents early kills on complex subagent work. */
 export const maxDuration = 300;
-
-function getStreamContext() {
-  try {
-    return createResumableStreamContext({ waitUntil: after });
-  } catch {
-    return null;
-  }
-}
 
 function getTextFromUnknownParts(parts: unknown[]): string | null {
   const text = parts
@@ -373,7 +362,7 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     _t("pre_run_managed_agent");
-    const uiStream = await runManagedAgent({
+    const managedResult = await runManagedAgent({
       anthropic,
       supabase,
       clientId: resolvedClientId,
@@ -384,6 +373,27 @@ export async function POST(request: Request): Promise<Response> {
       threadTitle: thread?.title ?? null,
     });
     _t("run_managed_agent_returned");
+
+    if (
+      typeof managedResult === "object" &&
+      managedResult !== null &&
+      "status" in managedResult &&
+      managedResult.status === "queued"
+    ) {
+      return Response.json(
+        { error: "Another response is still in progress. Your message has been queued." },
+        { status: 409 },
+      );
+    }
+
+    const uiStream =
+      typeof managedResult === "object" &&
+      managedResult !== null &&
+      "status" in managedResult &&
+      managedResult.status === "streaming" &&
+      "uiStream" in managedResult
+        ? managedResult.uiStream
+        : managedResult;
 
     if (body.message?.role === "user") {
       await captureServerEvent({
@@ -417,41 +427,10 @@ export async function POST(request: Request): Promise<Response> {
           }
         }
       },
-      onFinish: async () => {
-        if (!process.env.REDIS_URL) {
-          return;
-        }
-
-        try {
-          await clearActiveStreamId(threadId);
-        } catch {
-          // Ignore Redis cleanup failures to avoid breaking completed responses.
-        }
-      },
     });
 
     _t("response_returned");
-    return createUIMessageStreamResponse({
-      stream,
-      async consumeSseStream({ stream: sseStream }) {
-        if (!process.env.REDIS_URL) {
-          return;
-        }
-
-        try {
-          const streamContext = getStreamContext();
-          if (!streamContext) {
-            return;
-          }
-
-          const streamId = generateId();
-          await setActiveStreamId(threadId, streamId);
-          await streamContext.createNewResumableStream(streamId, () => sseStream);
-        } catch {
-          clearActiveStreamId(threadId).catch(() => {});
-        }
-      },
-    });
+    return createUIMessageStreamResponse({ stream });
   } catch (error) {
     if (didCreateThread && clientId) {
       await supabase

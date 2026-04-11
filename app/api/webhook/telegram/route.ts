@@ -36,8 +36,12 @@ import {
   TELEGRAM_CHANNEL,
   type TelegramWebhookContext,
 } from "@/lib/channels/telegram/webhook";
+import { runManagedAgent } from "@/lib/managed-agents/adapter";
+import { attachFileToSession } from "@/lib/managed-agents/attach-session-file";
+import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
 import { resolveApprovalById } from "@/lib/managed-agents/resolve-approval";
-import { runAgent } from "@/lib/runner/run-agent";
+import { getOrCreateSession } from "@/lib/managed-agents/session-kickoff";
+import type { ManagedFilePart } from "@/lib/managed-agents/types";
 import { createAdminClient } from "@/lib/supabase/server";
 
 const telegramUpdateSchema = z.object({
@@ -262,25 +266,55 @@ async function runTelegramAgent(
     clientId: string;
     threadId: string;
     text: string;
-    fileParts?: Array<{ type: "file"; url: string; mediaType: string; filename?: string }>;
+    fileParts?: ManagedFilePart[];
     chatId: number;
   },
 ) {
-  const result = await runAgent(
-    {
-      clientId: input.clientId,
-      threadId: input.threadId,
-      triggerType: "chat",
-      input: input.text,
-      channel: TELEGRAM_CHANNEL,
-      consumeMessageQuota: true,
-      ...(input.fileParts && input.fileParts.length > 0 ? { fileParts: input.fileParts } : {}),
-    },
-    ctx.supabase,
-  );
+  const anthropic = getAnthropicClient();
 
-  if (result.status === "streaming") {
-    await result.streamResult.text;
+  if (input.fileParts && input.fileParts.length > 0) {
+    const session = await getOrCreateSession({
+      anthropic,
+      supabase: ctx.supabase,
+      threadId: input.threadId,
+      threadTitle: null,
+    });
+
+    await Promise.all(
+      input.fileParts.map(async (filePart) => {
+        try {
+          const response = await fetch(filePart.url);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch attachment (${response.status})`);
+          }
+
+          await attachFileToSession({
+            sessionId: session.id,
+            file: await response.blob(),
+            filename: filePart.filename ?? "upload",
+          });
+        } catch (error) {
+          console.error("[telegram/webhook] Failed to attach file to session:", error);
+        }
+      }),
+    );
+  }
+
+  const stream = await runManagedAgent({
+    anthropic,
+    supabase: ctx.supabase,
+    clientId: input.clientId,
+    threadId: input.threadId,
+    input: input.text,
+    clientProfile: null,
+    userPreferences: null,
+    threadTitle: null,
+  });
+
+  const reader = stream.getReader();
+  while (true) {
+    const { done } = await reader.read();
+    if (done) break;
   }
 }
 

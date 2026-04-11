@@ -25,6 +25,7 @@ import { createUIMessageStream } from "ai";
 import { pipeJsonRender } from "@json-render/core";
 
 import { upsertMessage } from "@/lib/chat/messages";
+import { deliverToExternalChannels } from "@/lib/channels/deliver";
 import { runEvaluatorsForEvents } from "@/lib/eval/run-evaluators";
 import {
   completeRun,
@@ -41,6 +42,7 @@ import { consumeAnthropicSession } from "./session-runner";
 import type { ManagedSupabaseClient } from "./types";
 
 import type { AnthropicEvent } from "./event-types";
+import { getAssistantTextFromParts } from "@/lib/runner/message-utils";
 
 /**
  * Pick a stable per-turn idempotency key from the accumulated events.
@@ -196,13 +198,23 @@ export async function runManagedAgent(
 
       if (result.status === "complete" && result.reason === "end_turn") {
         const parts = buildAssistantPartsFromEvents(accumulatedEvents);
+        const contentText = getAssistantTextFromParts(parts);
         if (parts.some((p) => p.type !== "step-start")) {
           await upsertMessage(input.supabase, {
             thread_id: input.threadId,
             role: "assistant",
-            content: null,
+            content: contentText.length > 0 ? contentText : null,
             parts: parts as unknown as Json,
             source_event_id: sourceEventId,
+          });
+          await deliverToExternalChannels(
+            input.supabase,
+            input.threadId,
+            input.clientId,
+            contentText,
+            parts,
+          ).catch((deliveryError) => {
+            console.error("[runManagedAgent] external channel delivery failed:", deliveryError);
           });
         }
         const costUsd = computeTurnCost({
@@ -229,13 +241,23 @@ export async function runManagedAgent(
         // do NOT mark the run complete. The chat UI / Telegram callback
         // will resolve the approval and re-enter the session in H4.
         const parts = buildAssistantPartsFromEvents(accumulatedEvents);
+        const contentText = getAssistantTextFromParts(parts);
         if (parts.some((p) => p.type !== "step-start")) {
           await upsertMessage(input.supabase, {
             thread_id: input.threadId,
             role: "assistant",
-            content: null,
+            content: contentText.length > 0 ? contentText : null,
             parts: parts as unknown as Json,
             source_event_id: sourceEventId,
+          });
+          await deliverToExternalChannels(
+            input.supabase,
+            input.threadId,
+            input.clientId,
+            contentText,
+            parts,
+          ).catch((deliveryError) => {
+            console.error("[runManagedAgent] external channel delivery failed:", deliveryError);
           });
         }
       } else {
