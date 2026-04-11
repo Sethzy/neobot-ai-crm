@@ -9,7 +9,7 @@ const {
   mockAuthenticateRequest,
   mockJsonError,
   mockResolveClientId,
-  mockRunAgent,
+  mockSpawnTriggerRun,
   mockCreateMessage,
   mockMeetingSingle,
   mockConversationMessagesLimit,
@@ -22,7 +22,7 @@ const {
   mockJsonError: vi.fn((message: string, status: number) =>
     Response.json({ error: message }, { status })),
   mockResolveClientId: vi.fn(),
-  mockRunAgent: vi.fn(),
+  mockSpawnTriggerRun: vi.fn(),
   mockCreateMessage: vi.fn(),
   mockMeetingSingle: vi.fn(),
   mockConversationMessagesLimit: vi.fn(),
@@ -49,8 +49,8 @@ vi.mock("@/lib/chat/client-id", () => ({
   resolveClientId: (...args: unknown[]) => mockResolveClientId(...args),
 }));
 
-vi.mock("@/lib/runner/run-agent", () => ({
-  runAgent: (...args: unknown[]) => mockRunAgent(...args),
+vi.mock("@/lib/managed-agents/spawn-trigger-run", () => ({
+  spawnTriggerRun: (...args: unknown[]) => mockSpawnTriggerRun(...args),
 }));
 
 vi.mock("@/lib/chat/messages", () => ({
@@ -132,9 +132,10 @@ describe("POST /api/meetings/[id]/send-to-agent", () => {
     mockThreadDeleteEq.mockResolvedValue({ error: null });
     mockMeetingUpdateEq.mockResolvedValue({ error: null });
     mockCreateMessage.mockResolvedValue({ message_id: "msg-1" });
-    mockRunAgent.mockResolvedValue({
-      status: "streaming",
-      streamResult: { text: Promise.resolve("ok") },
+    mockSpawnTriggerRun.mockResolvedValue({
+      runId: "run-1",
+      sessionId: "session-1",
+      taskHandle: { id: "task-1" },
     });
   });
 
@@ -158,7 +159,13 @@ describe("POST /api/meetings/[id]/send-to-agent", () => {
     );
     expect(mockCreateMessage).toHaveBeenCalled();
     expect(mockAfter).toHaveBeenCalledTimes(1);
-    expect(mockRunAgent).toHaveBeenCalled();
+    expect(mockSpawnTriggerRun).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        clientId: "client-1",
+        triggerType: "webhook",
+      }),
+    );
   });
 
   it("repairs a partially created handoff when the thread exists without messages", async () => {
@@ -193,7 +200,7 @@ describe("POST /api/meetings/[id]/send-to-agent", () => {
       threadId: "thread-1",
     });
     expect(mockCreateMessage).toHaveBeenCalledOnce();
-    expect(mockRunAgent).toHaveBeenCalledOnce();
+    expect(mockSpawnTriggerRun).toHaveBeenCalledOnce();
   });
 
   it("rolls back the thread link when handoff message creation fails", async () => {
@@ -215,6 +222,6 @@ describe("POST /api/meetings/[id]/send-to-agent", () => {
       "thread_id",
       expect.anything(),
     );
-    expect(mockRunAgent).not.toHaveBeenCalled();
+    expect(mockSpawnTriggerRun).not.toHaveBeenCalled();
   });
 });

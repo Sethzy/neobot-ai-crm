@@ -8,7 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { createMessage } from "@/lib/chat/messages";
-import { runAgent } from "@/lib/runner/run-agent";
+import { spawnTriggerRun } from "@/lib/managed-agents/spawn-trigger-run";
 import type { Database } from "@/types/database";
 
 type MeetingRecord = Database["public"]["Tables"]["meeting_records"]["Row"];
@@ -59,27 +59,19 @@ ${meeting.notes?.trim() || "(No notes taken)"}`;
 async function queueAgentRun(
   clientId: string,
   threadId: string,
+  invocationMessage: string,
   supabase: RouteSupabaseClient,
 ) {
   after(async () => {
     try {
-      const result = await runAgent(
-        {
-          clientId,
-          threadId,
-          input: "",
-          triggerType: "chat",
-          channel: "web",
-          consumeMessageQuota: false,
-        },
-        supabase,
-      );
-
-      if (result.status === "streaming") {
-        await result.streamResult.text;
-      }
+      await spawnTriggerRun(supabase, {
+        clientId,
+        threadId,
+        triggerType: "webhook",
+        invocationMessage,
+      });
     } catch (error) {
-      console.error("[send-to-agent] Agent run failed:", error);
+      console.error("[send-to-agent] fire path failed:", error);
     }
   });
 }
@@ -87,13 +79,8 @@ async function queueAgentRun(
 async function createHandoffMessage(
   supabase: RouteSupabaseClient,
   threadId: string,
-  meeting: Pick<
-    MeetingRecord,
-    "summary" | "notes" | "duration_seconds" | "transcript_path" | "created_at"
-  >,
+  handoffContent: string,
 ) {
-  const handoffContent = buildHandoffMessage(meeting);
-
   await createMessage(supabase, {
     thread_id: threadId,
     role: "user",
@@ -140,8 +127,9 @@ export async function POST(
       }
 
       if ((existingMessages?.length ?? 0) === 0) {
-        await createHandoffMessage(supabase, meeting.thread_id, meeting);
-        await queueAgentRun(clientId, meeting.thread_id, supabase);
+        const handoffContent = buildHandoffMessage(meeting);
+        await createHandoffMessage(supabase, meeting.thread_id, handoffContent);
+        await queueAgentRun(clientId, meeting.thread_id, handoffContent, supabase);
       }
 
       return Response.json({ success: true, threadId: meeting.thread_id });
@@ -173,7 +161,9 @@ export async function POST(
     }
 
     try {
-      await createHandoffMessage(supabase, threadId, meeting);
+      const handoffContent = buildHandoffMessage(meeting);
+      await createHandoffMessage(supabase, threadId, handoffContent);
+      await queueAgentRun(clientId, threadId, handoffContent, supabase);
     } catch (error) {
       try {
         await supabase
@@ -193,8 +183,6 @@ export async function POST(
 
       throw error;
     }
-
-    await queueAgentRun(clientId, threadId, supabase);
 
     return Response.json({ success: true, threadId });
   } catch (error) {

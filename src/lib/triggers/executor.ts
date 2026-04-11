@@ -3,9 +3,9 @@
  * @module lib/triggers/executor
  */
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
+import { AUTOPILOT_INSTRUCTION_PROMPT } from "@/lib/autopilot/constants";
 import { createMessage } from "@/lib/chat/messages";
-import { runAgent } from "@/lib/runner/run-agent";
-import { runAutopilot } from "@/lib/runner/run-autopilot";
+import { spawnTriggerRun } from "@/lib/managed-agents/spawn-trigger-run";
 import { createAgentFileClient } from "@/lib/storage/agent-files";
 import { toModelPath } from "@/lib/storage/agent-paths";
 
@@ -20,7 +20,6 @@ export interface ExecuteTriggerInput {
 
 export interface ExecuteTriggerResult {
   status: "completed" | "failed" | "claim_mismatch" | "queued" | "skipped_busy";
-  traceId?: string;
 }
 
 function toAnalyticsTriggerType(
@@ -136,21 +135,14 @@ export async function executeTrigger({
 
   if (payload.triggerType === "pulse") {
     try {
-      const runResult = await runAutopilot({
+      await spawnTriggerRun(supabase, {
+        runId: payload.currentRunId,
         clientId: payload.clientId,
         threadId: payload.threadId,
-        supabase,
+        triggerType: "autopilot",
+        invocationMessage: AUTOPILOT_INSTRUCTION_PROMPT,
       });
-
-      if (runResult.status === "skipped_busy") {
-        return finish("skipped_thread_busy", { advanceNextFireAt: true });
-      }
-
-      if (runResult.status === "failed") {
-        return finish("failed", { advanceNextFireAt: true });
-      }
-
-      return finish("completed", { advanceNextFireAt: true });
+      return finish("queued", { advanceNextFireAt: true });
     } catch (error) {
       console.error("[executor] pulse trigger failed:", error);
       return finish("failed", { advanceNextFireAt: true });
@@ -208,24 +200,15 @@ export async function executeTrigger({
   });
 
   try {
-    const runResult = await runAgent(
-      {
-        clientId: payload.clientId,
-        threadId: payload.threadId,
-        triggerType: "cron",
-        input: CRON_RUN_NUDGE,
-      },
-      supabase,
-    );
+    await spawnTriggerRun(supabase, {
+      runId: payload.currentRunId,
+      clientId: payload.clientId,
+      threadId: payload.threadId,
+      triggerType: payload.triggerType === "webhook" ? "webhook" : "cron",
+      invocationMessage: `${triggerEventMessage}\n\n${CRON_RUN_NUDGE}`,
+    });
 
-    const traceId = runResult.status === "streaming" ? runResult.traceId : undefined;
-
-    if (runResult.status === "queued") {
-      return finish("queued", { advanceNextFireAt: true });
-    }
-
-    const finishResult = await finish("completed", { advanceNextFireAt: true });
-    return { ...finishResult, traceId };
+    return finish("queued", { advanceNextFireAt: true });
   } catch (error) {
     console.error("[executor] schedule trigger failed:", error);
     return finish(

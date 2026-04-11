@@ -7,27 +7,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TriggerDispatchPayload } from "../schemas";
 
 const {
-  mockRunAgent,
-  mockRunAutopilot,
+  mockSpawnTriggerRun,
   mockCreateMessage,
   mockCollectNewRssItems,
   mockCreateAgentFileClient,
   mockCaptureServerEvent,
 } = vi.hoisted(() => ({
-  mockRunAgent: vi.fn(),
-  mockRunAutopilot: vi.fn(),
+  mockSpawnTriggerRun: vi.fn(),
   mockCreateMessage: vi.fn(),
   mockCollectNewRssItems: vi.fn(),
   mockCreateAgentFileClient: vi.fn(),
   mockCaptureServerEvent: vi.fn(),
 }));
 
-vi.mock("@/lib/runner/run-agent", () => ({
-  runAgent: mockRunAgent,
-}));
-
-vi.mock("@/lib/runner/run-autopilot", () => ({
-  runAutopilot: mockRunAutopilot,
+vi.mock("@/lib/managed-agents/spawn-trigger-run", () => ({
+  spawnTriggerRun: mockSpawnTriggerRun,
 }));
 
 vi.mock("@/lib/chat/messages", () => ({
@@ -84,8 +78,11 @@ const validPayload: TriggerDispatchPayload = {
 describe("executeTrigger", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRunAgent.mockResolvedValue({ status: "streaming" });
-    mockRunAutopilot.mockResolvedValue({ status: "completed" });
+    mockSpawnTriggerRun.mockResolvedValue({
+      runId: validPayload.currentRunId,
+      sessionId: "session_1",
+      taskHandle: { id: "task_1" },
+    });
     mockCreateMessage.mockResolvedValue({ message_id: "msg-001" });
     mockCreateAgentFileClient.mockReturnValue({ kind: "file-client" });
   });
@@ -112,10 +109,10 @@ describe("executeTrigger", () => {
 
     expect(result).toEqual({ status: "claim_mismatch" });
     expect(mockCreateMessage).not.toHaveBeenCalled();
-    expect(mockRunAgent).not.toHaveBeenCalled();
+    expect(mockSpawnTriggerRun).not.toHaveBeenCalled();
   });
 
-  it("persists a trigger-event system message and executes the runner", async () => {
+  it("persists a trigger-event system message and spawns the managed run", async () => {
     const supabase = createMockSupabase();
     supabase.selectChain.single.mockResolvedValue({
       data: {
@@ -153,20 +150,25 @@ describe("executeTrigger", () => {
     expect(persistedMessage.content).toContain("&lt;briefing&gt;");
     expect(persistedMessage.content).toContain("&amp;");
 
-    expect(mockRunAgent).toHaveBeenCalledWith(
+    expect(mockSpawnTriggerRun).toHaveBeenCalledWith(
+      supabase,
       expect.objectContaining({
+        runId: validPayload.currentRunId,
         clientId: validPayload.clientId,
         threadId: validPayload.threadId,
         triggerType: "cron",
       }),
-      supabase,
+    );
+    expect(mockSpawnTriggerRun.mock.calls[0]?.[1]?.invocationMessage).toContain("<trigger-event>");
+    expect(mockSpawnTriggerRun.mock.calls[0]?.[1]?.invocationMessage).toContain(
+      "Process the most recent trigger event for this thread.",
     );
     expect(supabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
       p_next_fire_at: "2026-03-07T09:00:00.000Z",
       p_advance_next_fire_at: true,
       p_trigger_id: validPayload.triggerId,
       p_run_id: validPayload.currentRunId,
-      p_status: "completed",
+      p_status: "queued",
     });
     expect(mockCaptureServerEvent).toHaveBeenCalledWith({
       distinctId: validPayload.clientId,
@@ -175,15 +177,15 @@ describe("executeTrigger", () => {
         trigger_id: validPayload.triggerId,
         thread_id: validPayload.threadId,
         trigger_type: "cron",
-        result_status: "completed",
-        success: true,
+        result_status: "queued",
+        success: false,
         duration_ms: expect.any(Number),
       },
     });
-    expect(result).toEqual({ status: "completed" });
+    expect(result).toEqual({ status: "queued" });
   });
 
-  it("releases the claim as failed when the runner throws", async () => {
+  it("releases the claim as failed when trigger spawning throws", async () => {
     const supabase = createMockSupabase();
     supabase.selectChain.single.mockResolvedValue({
       data: {
@@ -194,7 +196,7 @@ describe("executeTrigger", () => {
       error: null,
     });
     supabase.rpc.mockResolvedValue({ data: true, error: null });
-    mockRunAgent.mockRejectedValueOnce(new Error("LLM timeout"));
+    mockSpawnTriggerRun.mockRejectedValueOnce(new Error("queue failed"));
 
     const result = await executeTrigger({
       supabase: supabase as never,
@@ -232,7 +234,7 @@ describe("executeTrigger", () => {
       error: null,
     });
     supabase.rpc.mockResolvedValue({ data: true, error: null });
-    mockRunAgent.mockRejectedValueOnce(new Error("LLM timeout"));
+    mockSpawnTriggerRun.mockRejectedValueOnce(new Error("queue failed"));
 
     const result = await executeTrigger({
       supabase: supabase as never,
@@ -272,12 +274,12 @@ describe("executeTrigger", () => {
       p_advance_next_fire_at: true,
       p_trigger_id: validPayload.triggerId,
       p_run_id: validPayload.currentRunId,
-      p_status: "completed",
+      p_status: "queued",
     });
-    expect(result).toEqual({ status: "completed" });
+    expect(result).toEqual({ status: "queued" });
   });
 
-  it("routes pulse triggers to runAutopilot without persisting a trigger-event system message", async () => {
+  it("queues pulse triggers through the managed trigger listener without persisting a trigger-event system message", async () => {
     const supabase = createMockSupabase();
     supabase.selectChain.single.mockResolvedValue({
       data: {
@@ -300,20 +302,24 @@ describe("executeTrigger", () => {
     });
 
     expect(mockCreateMessage).not.toHaveBeenCalled();
-    expect(mockRunAgent).not.toHaveBeenCalled();
-    expect(mockRunAutopilot).toHaveBeenCalledWith({
-      clientId: validPayload.clientId,
-      threadId: validPayload.threadId,
-      supabase: supabase as never,
-    });
+    expect(mockSpawnTriggerRun).toHaveBeenCalledWith(
+      supabase,
+      expect.objectContaining({
+        runId: validPayload.currentRunId,
+        clientId: validPayload.clientId,
+        threadId: validPayload.threadId,
+        triggerType: "autopilot",
+        invocationMessage: expect.stringContaining("You are running an autonomous pulse"),
+      }),
+    );
     expect(supabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
       p_next_fire_at: "2026-03-07T09:00:00.000Z",
       p_advance_next_fire_at: true,
       p_trigger_id: validPayload.triggerId,
       p_run_id: validPayload.currentRunId,
-      p_status: "completed",
+      p_status: "queued",
     });
-    expect(result).toEqual({ status: "completed" });
+    expect(result).toEqual({ status: "queued" });
   });
 
   it("completes rss triggers without invoking the runner when no new items are found", async () => {
@@ -353,7 +359,7 @@ describe("executeTrigger", () => {
 
     expect(mockCollectNewRssItems).toHaveBeenCalled();
     expect(mockCreateMessage).not.toHaveBeenCalled();
-    expect(mockRunAgent).not.toHaveBeenCalled();
+    expect(mockSpawnTriggerRun).not.toHaveBeenCalled();
     expect(supabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
       p_next_fire_at: "2026-03-07T09:00:00.000Z",
       p_advance_next_fire_at: true,
@@ -364,7 +370,7 @@ describe("executeTrigger", () => {
     expect(result).toEqual({ status: "completed" });
   });
 
-  it("creates a trigger-event and runs the agent when rss polling finds new items", async () => {
+  it("creates a trigger-event and spawns the managed run when rss polling finds new items", async () => {
     const supabase = createMockSupabase();
     supabase.selectChain.single.mockResolvedValue({
       data: {
@@ -410,16 +416,16 @@ describe("executeTrigger", () => {
     const persistedMessage = mockCreateMessage.mock.calls[0]?.[1];
     expect(persistedMessage.content).toContain("listing-2");
     expect(persistedMessage.content).toContain("new_item_count");
-    expect(mockRunAgent).toHaveBeenCalledWith(
+    expect(mockSpawnTriggerRun).toHaveBeenCalledWith(
+      supabase,
       expect.objectContaining({
         triggerType: "cron",
       }),
-      supabase,
     );
-    expect(result).toEqual({ status: "completed" });
+    expect(result).toEqual({ status: "queued" });
   });
 
-  it("marks pulse triggers as skipped_busy when the autopilot thread lock is already held", async () => {
+  it("marks pulse triggers as failed when listener queueing throws", async () => {
     const supabase = createMockSupabase();
     supabase.selectChain.single.mockResolvedValue({
       data: {
@@ -430,52 +436,7 @@ describe("executeTrigger", () => {
       error: null,
     });
     supabase.rpc.mockResolvedValue({ data: true, error: null });
-    mockRunAutopilot.mockResolvedValueOnce({ status: "skipped_busy" });
-
-    const result = await executeTrigger({
-      supabase: supabase as never,
-      payload: {
-        ...validPayload,
-        triggerType: "pulse",
-        triggerName: "Autopilot Pulse",
-        instructionPath: "autopilot/pulse",
-        nextFireAt: "2026-03-06T12:00:00.000Z",
-      },
-    });
-
-    expect(supabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
-      p_next_fire_at: "2026-03-06T12:00:00.000Z",
-      p_advance_next_fire_at: true,
-      p_trigger_id: validPayload.triggerId,
-      p_run_id: validPayload.currentRunId,
-      p_status: "skipped_thread_busy",
-    });
-    expect(mockCaptureServerEvent).toHaveBeenCalledWith({
-      distinctId: validPayload.clientId,
-      event: "trigger_executed",
-      properties: expect.objectContaining({
-        trigger_id: validPayload.triggerId,
-        thread_id: validPayload.threadId,
-        trigger_type: "pulse",
-        result_status: "skipped_busy",
-        success: false,
-      }),
-    });
-    expect(result).toEqual({ status: "skipped_busy" });
-  });
-
-  it("does not retry pulse failures and advances to the next slot", async () => {
-    const supabase = createMockSupabase();
-    supabase.selectChain.single.mockResolvedValue({
-      data: {
-        id: validPayload.triggerId,
-        current_run_id: validPayload.currentRunId,
-        retry_count: 0,
-      },
-      error: null,
-    });
-    supabase.rpc.mockResolvedValue({ data: true, error: null });
-    mockRunAutopilot.mockResolvedValueOnce({ status: "failed" });
+    mockSpawnTriggerRun.mockRejectedValueOnce(new Error("pulse queue failed"));
 
     const result = await executeTrigger({
       supabase: supabase as never,
@@ -495,6 +456,49 @@ describe("executeTrigger", () => {
       p_run_id: validPayload.currentRunId,
       p_status: "failed",
     });
+    expect(mockCaptureServerEvent).toHaveBeenCalledWith({
+      distinctId: validPayload.clientId,
+      event: "trigger_executed",
+      properties: expect.objectContaining({
+        trigger_id: validPayload.triggerId,
+        thread_id: validPayload.threadId,
+        trigger_type: "pulse",
+        result_status: "failed",
+        success: false,
+      }),
+    });
     expect(result).toEqual({ status: "failed" });
+  });
+
+  it("queues pulse triggers and advances to the next slot on success", async () => {
+    const supabase = createMockSupabase();
+    supabase.selectChain.single.mockResolvedValue({
+      data: {
+        id: validPayload.triggerId,
+        current_run_id: validPayload.currentRunId,
+        retry_count: 0,
+      },
+      error: null,
+    });
+    supabase.rpc.mockResolvedValue({ data: true, error: null });
+    const result = await executeTrigger({
+      supabase: supabase as never,
+      payload: {
+        ...validPayload,
+        triggerType: "pulse",
+        triggerName: "Autopilot Pulse",
+        instructionPath: "autopilot/pulse",
+        nextFireAt: "2026-03-06T12:00:00.000Z",
+      },
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
+      p_next_fire_at: "2026-03-06T12:00:00.000Z",
+      p_advance_next_fire_at: true,
+      p_trigger_id: validPayload.triggerId,
+      p_run_id: validPayload.currentRunId,
+      p_status: "queued",
+    });
+    expect(result).toEqual({ status: "queued" });
   });
 });
