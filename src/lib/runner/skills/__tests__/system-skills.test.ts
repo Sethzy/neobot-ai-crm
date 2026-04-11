@@ -38,7 +38,7 @@ describe("getSystemSkillContent", () => {
 
     expect(content).not.toBeNull();
     expect(content).toContain("# Creating New Connections");
-    expect(content).toContain("create_new_connections");
+    expect(content).toContain("create_connection");
   });
 
   it("returns content for the direct API connection guide", async () => {

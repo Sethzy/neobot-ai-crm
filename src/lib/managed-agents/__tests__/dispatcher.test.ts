@@ -126,7 +126,7 @@ describe("dispatchCustomTool", () => {
     expect(result.is_error).toBe(true);
     expect(JSON.parse(result.content[0].text)).toEqual({
       success: false,
-      error: "Tool not available in trigger runs.",
+      error: "Tool not available in trigger runs. Use search_crm instead.",
     });
   });
 

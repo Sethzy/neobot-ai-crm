@@ -5,7 +5,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LoaderCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -108,7 +107,7 @@ function isConnectionCreation(
   output: unknown,
 ): output is { success: true; results: ConnectionResult[] } {
   return (
-    toolName === "create_connection"
+    (toolName === "create_connection" || toolName === "create_new_connections")
     && output !== null
     && typeof output === "object"
     && (output as Record<string, unknown>).success === true
@@ -441,7 +440,7 @@ export function ToolCallInline({
         onClick={() => setIsOpen(!isOpen)}
       >
         {isRunning ? (
-          <LoaderCircle data-testid="tool-dot" className="size-3.5 shrink-0 animate-spin text-foreground/60" />
+          <span data-testid="tool-dot" className="shrink-0 animate-spin text-foreground/60 text-[13px] leading-none">✻</span>
         ) : (
           <span
             data-testid="tool-dot"

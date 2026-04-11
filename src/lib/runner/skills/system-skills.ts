@@ -1,7 +1,7 @@
 /**
  * Resolves bundled system skill content from inlined string constants.
  *
- * System skills are served as a read_file fallback when the agent requests
+ * System skills are served as a storage_read fallback when the agent requests
  * `/agent/skills/system/*`. Content is inlined in skill-templates.ts
  * (same pattern as memory/templates.ts) so it works in Next.js bundles.
  *

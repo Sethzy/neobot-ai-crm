@@ -53,7 +53,7 @@ describe("SYSTEM_SKILL_CONTENT", () => {
     const content = SYSTEM_SKILL_CONTENT["creating-connections/SKILL.md"];
     expect(content).toBeDefined();
     expect(content).toContain("# Creating New Connections");
-    expect(content).toContain("create_new_connections");
+    expect(content).toContain("create_connection");
     expect(content).toContain("integrations");
     expect(content).not.toContain("type: 'direct_api'");
     expect(content).not.toContain("type: 'computer_use'");

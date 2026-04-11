@@ -59,8 +59,11 @@ export async function dispatchCustomTool(
   }
 
   if (tool.chatOnly && !context.isChatContext) {
+    const triggerError = event.name === "run_sql" || event.name === "get_agent_db_schema"
+      ? "Tool not available in trigger runs. Use search_crm instead."
+      : "Tool not available in trigger runs.";
     return asContent(
-      { success: false, error: "Tool not available in trigger runs." },
+      { success: false, error: triggerError },
       event.id,
       true,
     );

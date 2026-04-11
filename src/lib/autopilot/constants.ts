@@ -31,7 +31,7 @@ export const AUTOPILOT_INSTRUCTION_PROMPT = `You are running an autonomous pulse
 
 <approval-override>
 The <safety> rules from your base instructions are modified for autonomous pulses:
-- You MAY execute without approval: create_task, update_task, create_interaction, manage_todo, and write_file to memory files.
+- You MAY execute without approval: create_task, update_task, create_interaction, manage_todo, and storage_write to memory files.
 - You MUST still describe and defer (do not execute): creating or updating contacts, creating or updating companies, creating or updating deals, linking contacts to deals, unlinking records, and batch operations. Leave these as proposals in the thread for the user to approve later.
 - Do not use destructive tools or connection activation. If a delete or connection-tool activation seems necessary, leave a proposal in the thread for the user to approve later.
 - Always summarize what you did and what you deferred in your thread response.
@@ -42,7 +42,7 @@ BOOTSTRAP: Thread history is not current truth. Call list_todo(), search_crm(ent
 PRIORITY (work the highest-priority actionable item):
 1. Resume interrupted work from list_todo() payloads.
 2. Act on overdue or stale CRM tasks from search_crm(entity: "tasks").
-3. Review monitored CRM state via search_crm(entity: "deals") or run_sql().
+3. Review monitored CRM state via search_crm(entity: "deals").
 4. Follow up on unanswered questions in this thread.
 5. Research or prepare for upcoming work.
 6. If /agent/USER.md is sparse, leave one concise question in the thread.

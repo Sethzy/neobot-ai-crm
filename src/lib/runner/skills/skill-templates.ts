@@ -48,8 +48,8 @@ You're setting up for a new user (or re-personalizing for an existing one). The 
 Read the existing files first:
 
 \`\`\`
-read_file("/agent/USER.md")
-read_file("/agent/SOUL.md")
+storage_read({ path: "/agent/USER.md" })
+storage_read({ path: "/agent/SOUL.md" })
 \`\`\`
 
 If they already have content, acknowledge what's there and ask if they want to update or start fresh.
@@ -163,7 +163,7 @@ After both files are written, give a brief summary:
 - Never write more than 20 lines in SOUL.md. Brevity is the soul of soul.
 - If user says "skip" or "just use defaults", write sensible defaults and move on
 - If files already exist and have real content, default to updating not overwriting
-- Use write_file for new files, edit_file for updates
+- Use storage_write with op: "write" for new files, and op: "edit" for updates
 `,
 
   "call-prep": `---
@@ -825,7 +825,7 @@ Input patterns:
 \`\`\`
 1. search_crm for contact + relationship history
 2. Web search for person + relevant context
-3. read_file for user's voice/style preferences (SOUL.md)
+3. storage_read for user's voice/style preferences (SOUL.md)
 \`\`\`
 
 **Must find before drafting:**
@@ -1821,7 +1821,7 @@ When you run this skill, I'll ask for what I need:
 > I'll ask: "Any specific area, segment, or topic? Or a general market scan?"
 
 **If recurring:**
-> Save the briefing with \`write_file\` and set up a trigger for weekly/monthly updates.
+> Save the briefing with \`storage_write\` and set up a trigger for weekly/monthly updates.
 
 ---
 
@@ -1990,7 +1990,7 @@ Market intel gets stale. Recommended refresh:
 1. **Be specific** — "market briefing on District 15 condos" gets better results than "market update"
 2. **Set up a recurring trigger** — Weekly market scans keep you ahead of clients
 3. **Name the signal** — "What does the new ABSD change mean for my clients?" focuses the briefing
-4. **Save and share** — Use \`write_file\` to save briefings you want to reference later
+4. **Save and share** — Use \`storage_write\` to save briefings you want to reference later
 
 ---
 
@@ -2041,7 +2041,7 @@ This gives the model comparison points for sensitivity analysis.
 ### Step 3: Read user context
 
 \`\`\`
-read_file("/agent/SOUL.md")
+storage_read({ path: "/agent/SOUL.md" })
 \`\`\`
 
 Note the user's market focus, client context, and any relevant preferences.
@@ -2089,7 +2089,7 @@ Collect: address, price, beds, sqft, tenure, floor, any listing notes.
 ### Step 2: Get the agent's info
 
 \`\`\`
-read_file("/agent/SOUL.md")
+storage_read({ path: "/agent/SOUL.md" })
 \`\`\`
 
 You need the agent's name, phone, email, and agency for the contact card.
@@ -2189,7 +2189,7 @@ Check if the user has any active deals in the area — makes the report more rel
 ### Step 4: Read user context
 
 \`\`\`
-read_file("/agent/SOUL.md")
+storage_read({ path: "/agent/SOUL.md" })
 \`\`\`
 
 Note the user's market specialization and client focus.
@@ -2322,7 +2322,7 @@ Edit anytime by telling me your updated brand or design preferences.
 };
 
 // ---------------------------------------------------------------------------
-// System skills (bundled in code, served via read_file fallback)
+// System skills (bundled in code, served via storage_read fallback)
 // ---------------------------------------------------------------------------
 
 export const SYSTEM_SKILL_CONTENT: Record<string, string> = {
@@ -2330,7 +2330,7 @@ export const SYSTEM_SKILL_CONTENT: Record<string, string> = {
 
 You can create new connections to connect to new services. Creating a connection will save it to the user's account so they can use it in other agents in the future.
 
-Use the \`create_new_connections\` tool to create connections. The tool accepts an \`integrations\` array only.
+Use the \`create_connection\` tool to create connections. The tool accepts an \`integrations\` array only.
 
 ## Supported Connection Type
 
@@ -2365,7 +2365,7 @@ If the user asks what integrations, apps, or services you can connect to, do not
 
 - Verify an integration has the capabilities needed to complete the task before creating a connection
 - Prefer existing connections over creating new ones
-- Explain that custom MCP, direct API, and computer-use connections are not available through \`create_new_connections\` in v1`,
+- Explain that custom MCP, direct API, and computer-use connections are not available through \`create_connection\` in v1`,
 
   "creating-connections/create-direct-api-connection.md": `# Creating Direct API Connections
 
