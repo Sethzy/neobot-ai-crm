@@ -108,7 +108,7 @@ function isConnectionCreation(
   output: unknown,
 ): output is { success: true; results: ConnectionResult[] } {
   return (
-    toolName === "create_new_connections"
+    toolName === "create_connection"
     && output !== null
     && typeof output === "object"
     && (output as Record<string, unknown>).success === true

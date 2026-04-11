@@ -348,7 +348,7 @@ describe("connection cards", () => {
 
     render(
       <ToolCallInline
-        name="create_new_connections"
+        name="create_connection"
         state="output-available"
         input={{
           connection: {
@@ -387,10 +387,10 @@ describe("connection cards", () => {
     );
   });
 
-  it("renders ConnectionCard for create_new_connections output", () => {
+  it("renders ConnectionCard for create_connection output", () => {
     render(
       <ToolCallInline
-        name="create_new_connections"
+        name="create_connection"
         state="output-available"
         input={{
           connection: {
