@@ -6,7 +6,12 @@ import { describe, expect, test } from "vitest";
 
 import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
-import { createMessage, createMessages, listMessages } from "../messages";
+import {
+  createMessage,
+  createMessages,
+  listMessages,
+  upsertMessage,
+} from "../messages";
 
 function findMethodCall(
   client: ReturnType<typeof createMockSupabaseClient>,
@@ -133,5 +138,61 @@ describe("createMessages", () => {
       expect.objectContaining(payload[0]),
       expect.objectContaining(payload[1]),
     ]]);
+  });
+});
+
+describe("upsertMessage", () => {
+  test("upserts a message keyed by source_event_id", async () => {
+    const row = {
+      message_id: "msg-1",
+      thread_id: "thread-1",
+      role: "assistant",
+      content: null,
+      parts: [{ type: "text", text: "Hello" }],
+      source_event_id: "evt_terminal",
+      created_at: "2026-04-11T00:00:00Z",
+    };
+    const client = createMockSupabaseClient({
+      insertResult: { data: row, error: null },
+    });
+
+    const result = await upsertMessage(client as never, {
+      thread_id: "thread-1",
+      role: "assistant",
+      content: null,
+      parts: [{ type: "text", text: "Hello" }],
+      source_event_id: "evt_terminal",
+    });
+
+    expect(result).toEqual(row);
+    const upsertCall = findMethodCall(client, "upsert");
+    expect(upsertCall).toBeDefined();
+    // Verify the payload includes the source_event_id and that the
+    // upsert call uses onConflict: "source_event_id" so reruns of the
+    // same terminal event become a no-op rather than a duplicate row.
+    expect(upsertCall?.args[0]).toMatchObject({
+      thread_id: "thread-1",
+      role: "assistant",
+      source_event_id: "evt_terminal",
+    });
+    expect(upsertCall?.args[1]).toMatchObject({
+      onConflict: "source_event_id",
+      ignoreDuplicates: false,
+    });
+  });
+
+  test("throws on database error", async () => {
+    const client = createMockSupabaseClient({
+      insertResult: { data: null, error: { message: "RLS denied" } },
+    });
+    await expect(
+      upsertMessage(client as never, {
+        thread_id: "thread-1",
+        role: "assistant",
+        content: null,
+        parts: [],
+        source_event_id: "evt_1",
+      }),
+    ).rejects.toThrow(/RLS denied/);
   });
 });

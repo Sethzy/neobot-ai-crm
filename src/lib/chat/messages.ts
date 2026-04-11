@@ -17,6 +17,15 @@ export interface CreateMessageInput {
   parts?: Json;
 }
 
+export interface UpsertMessageInput extends CreateMessageInput {
+  /**
+   * Stable per-event identifier used as the conflict target. Required —
+   * the whole point of upsertMessage is run-restart idempotency keyed
+   * by the originating event id.
+   */
+  source_event_id: string;
+}
+
 /**
  * Lists messages for a thread ordered chronologically.
  */
@@ -100,4 +109,40 @@ export async function createMessages(
   }
 
   return data ?? [];
+}
+
+/**
+ * Upserts one assistant (or user) message keyed by `source_event_id`.
+ *
+ * The Managed Agents adapter calls this with the *terminal* event id of
+ * a turn (typically the `session.status_idle` event id) so that if the
+ * runner is re-entered for the same turn — Trigger.dev retry, serverless
+ * cold start, network blip — the upsert deduplicates instead of writing
+ * a second row. The unique index on `conversation_messages.source_event_id`
+ * is the contract enforcing this.
+ */
+export async function upsertMessage(
+  supabase: ChatSupabaseClient,
+  message: UpsertMessageInput,
+): Promise<MessageRow> {
+  const { data, error } = await supabase
+    .from("conversation_messages")
+    .upsert(
+      {
+        thread_id: message.thread_id,
+        role: message.role,
+        content: message.content ?? null,
+        parts: message.parts ?? null,
+        source_event_id: message.source_event_id,
+      },
+      { onConflict: "source_event_id", ignoreDuplicates: false },
+    )
+    .select("*")
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message ?? "Failed to upsert message");
+  }
+
+  return data;
 }

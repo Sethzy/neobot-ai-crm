@@ -106,7 +106,6 @@ describe("consumeAnthropicSession — happy path", () => {
       runId: "run_1",
       context: baseContext(),
       kickoffMessage: "hi there",
-      persistIncrementally: false,
     });
 
     // openSessionStream is the eager helper that synchronously calls
@@ -147,7 +146,6 @@ describe("consumeAnthropicSession — happy path", () => {
       sessionId: "sess_1",
       runId: "run_1",
       context: baseContext(),
-      persistIncrementally: false,
     });
 
     expect(result.status).toBe("complete");
@@ -177,7 +175,6 @@ describe("consumeAnthropicSession — happy path", () => {
       runId: "run_1",
       context: baseContext(),
       callbacks: { onAgentMessage, onSpanModelRequestStart },
-      persistIncrementally: false,
     });
 
     expect(order).toEqual(["start", "msg"]);
@@ -199,7 +196,6 @@ describe("consumeAnthropicSession — custom tool dispatch", () => {
       runId: "run_1",
       context: baseContext(),
       callbacks: { onAgentToolUse, onAgentToolResult },
-      persistIncrementally: false,
     });
 
     expect(dispatchCustomTool).toHaveBeenCalledWith(
@@ -238,7 +234,6 @@ describe("consumeAnthropicSession — approvals", () => {
       context: baseContext(),
       autoDenyApprovals: false,
       callbacks: { onApprovalRequired },
-      persistIncrementally: false,
     });
 
     expect(createApprovalEvent).toHaveBeenCalledWith(
@@ -282,7 +277,6 @@ describe("consumeAnthropicSession — approvals", () => {
       context: { ...baseContext(), isChatContext: false },
       autoDenyApprovals: true,
       autoDenyMessage: "Approval-gated tools are not available in trigger runs.",
-      persistIncrementally: false,
     });
 
     expect(result.status).toBe("complete");
@@ -306,7 +300,6 @@ describe("consumeAnthropicSession — terminal variants + cost", () => {
       sessionId: "sess_1",
       runId: "run_1",
       context: baseContext(),
-      persistIncrementally: false,
     });
     expect(result.status).toBe("failed");
     expect(result.reason).toBe("retries_exhausted");
@@ -319,7 +312,6 @@ describe("consumeAnthropicSession — terminal variants + cost", () => {
       sessionId: "sess_1",
       runId: "run_1",
       context: baseContext(),
-      persistIncrementally: false,
     });
     expect(result.status).toBe("failed");
     expect(result.reason).toBe("terminated");
@@ -338,7 +330,6 @@ describe("consumeAnthropicSession — terminal variants + cost", () => {
       runId: "run_1",
       context: baseContext(),
       callbacks: { onSessionError },
-      persistIncrementally: false,
     });
     expect(onSessionError).toHaveBeenCalled();
     expect(result.status).toBe("complete");
@@ -356,7 +347,6 @@ describe("consumeAnthropicSession — terminal variants + cost", () => {
       sessionId: "sess_1",
       runId: "run_1",
       context: baseContext(),
-      persistIncrementally: false,
     });
     expect(result.cost.runtimeSeconds).toBe(120);
     expect(result.cost.inputTokens).toBe(200);
@@ -382,7 +372,6 @@ describe("consumeAnthropicSession — terminal variants + cost", () => {
       sessionId: "sess_1",
       runId: "run_1",
       context: baseContext(),
-      persistIncrementally: false,
     });
     expect(result.cost.inputTokens).toBe(1500);
     expect(result.cost.cacheReadInputTokens).toBe(800);
@@ -390,45 +379,7 @@ describe("consumeAnthropicSession — terminal variants + cost", () => {
   });
 });
 
-describe("consumeAnthropicSession — incremental persistence", () => {
-  it("fires onPersistMessage for each agent.message with source_event_id", async () => {
-    stubIteration([
-      modelRequestStartEvent("span_1"),
-      agentMessageTextEvent("evt_1", "Hello"),
-      agentMessageTextEvent("evt_2", " world"),
-      statusIdleEvent("evt_idle", "end_turn"),
-    ]);
-    const onPersistMessage = vi.fn();
-
-    await consumeAnthropicSession({
-      anthropic: fakeAnthropic(),
-      sessionId: "sess_1",
-      runId: "run_1",
-      context: baseContext(),
-      callbacks: { onPersistMessage },
-      persistIncrementally: true,
-    });
-
-    const calls = onPersistMessage.mock.calls;
-    const sourceEventIds = calls.map(([, sourceEventId]) => sourceEventId);
-    expect(sourceEventIds).toContain("evt_1");
-    expect(sourceEventIds).toContain("evt_2");
-  });
-
-  it("does not fire onPersistMessage when persistIncrementally is false", async () => {
-    stubIteration([
-      agentMessageTextEvent("evt_1", "hello"),
-      statusIdleEvent("evt_idle", "end_turn"),
-    ]);
-    const onPersistMessage = vi.fn();
-    await consumeAnthropicSession({
-      anthropic: fakeAnthropic(),
-      sessionId: "sess_1",
-      runId: "run_1",
-      context: baseContext(),
-      callbacks: { onPersistMessage },
-      persistIncrementally: false,
-    });
-    expect(onPersistMessage).not.toHaveBeenCalled();
-  });
-});
+// Incremental persistence was removed in F8: the runner no longer
+// fires onPersistMessage. The chat adapter persists the full assistant
+// message via upsertMessage at terminal time, keyed by the terminal
+// event id for run-restart idempotency.

@@ -32,7 +32,7 @@ vi.mock("@/lib/runner/run-lifecycle", () => ({
   markStaleRunsFailed: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/lib/chat/messages", () => ({
-  createMessages: vi.fn().mockResolvedValue(undefined),
+  upsertMessage: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/lib/eval/run-evaluators", () => ({
   runEvaluatorsForEvents: vi.fn().mockResolvedValue(undefined),
@@ -40,7 +40,7 @@ vi.mock("@/lib/eval/run-evaluators", () => ({
 
 const { consumeAnthropicSession } = await import("../session-runner");
 const { completeRun } = await import("@/lib/runner/run-lifecycle");
-const { createMessages } = await import("@/lib/chat/messages");
+const { upsertMessage } = await import("@/lib/chat/messages");
 const { runEvaluatorsForEvents } = await import("@/lib/eval/run-evaluators");
 
 async function collectStream<T>(stream: ReadableStream<T>): Promise<T[]> {
@@ -114,7 +114,7 @@ describe("runManagedAgent — happy path", () => {
       expect.anything(),
       expect.objectContaining({ status: "completed", runId: "run_1" }),
     );
-    expect(createMessages).toHaveBeenCalled();
+    expect(upsertMessage).toHaveBeenCalled();
     expect(runEvaluatorsForEvents).toHaveBeenCalled();
   });
 });
@@ -187,7 +187,58 @@ describe("runManagedAgent — terminal variants", () => {
     });
     await collectStream(stream);
     expect(completeRun).not.toHaveBeenCalled();
-    expect(createMessages).toHaveBeenCalled();
+    expect(upsertMessage).toHaveBeenCalled();
+  });
+});
+
+describe("runManagedAgent — source_event_id idempotency", () => {
+  it("upserts the assistant message keyed by the terminal event id", async () => {
+    (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: "complete",
+      reason: "end_turn",
+      accumulatedEvents: [
+        { id: "span_1", type: "span.model_request_start" },
+        {
+          id: "evt_1",
+          type: "agent.message",
+          content: [{ type: "text", text: "Hello" }],
+        },
+        {
+          id: "evt_terminal",
+          type: "session.status_idle",
+          stop_reason: { type: "end_turn" },
+        },
+      ],
+      cost: {
+        inputTokens: 10,
+        outputTokens: 5,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 0,
+        runtimeSeconds: 1,
+      },
+      approvalEventIds: [],
+    });
+
+    const { runManagedAgent } = await import("../adapter");
+    const stream = await runManagedAgent({
+      anthropic: {} as never,
+      supabase: {} as never,
+      clientId: "c1",
+      threadId: "t1",
+      input: "hi",
+      clientProfile: null,
+      userPreferences: null,
+      threadTitle: null,
+    });
+    await collectStream(stream);
+    expect(upsertMessage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        thread_id: "t1",
+        role: "assistant",
+        source_event_id: "evt_terminal",
+      }),
+    );
   });
 });
 

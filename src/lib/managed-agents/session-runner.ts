@@ -24,7 +24,6 @@ import { createApprovalEvent } from "@/lib/approvals/queries";
 
 import { dispatchCustomTool } from "./dispatcher";
 import { createTranslatorState, translateEvent } from "./event-translator";
-import { buildAssistantPartsFromEvents } from "./events-to-assistant-parts";
 import {
   iterateSessionEvents,
   openSessionStream,
@@ -154,20 +153,6 @@ export async function consumeAnthropicSession(
         });
         approvalEventIds.push(approvalId);
         await options.callbacks?.onApprovalRequired?.(event, approvalId);
-      }
-    }
-
-    // Incremental persistence — fires onPersistMessage with PersistedParts
-    // built from this single event. Idempotency relies on source_event_id
-    // (the Anthropic event id) which downstream persistence treats as a
-    // unique upsert key.
-    if (options.persistIncrementally !== false) {
-      const newParts = buildAssistantPartsFromEvents([
-        event as AnthropicEvent,
-      ]);
-      const sourceEventId = (event as { id: string }).id;
-      for (const part of newParts) {
-        await options.callbacks?.onPersistMessage?.(part, sourceEventId);
       }
     }
 

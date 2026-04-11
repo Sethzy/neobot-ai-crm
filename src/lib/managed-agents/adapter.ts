@@ -24,7 +24,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { createUIMessageStream } from "ai";
 import { pipeJsonRender } from "@json-render/core";
 
-import { createMessages } from "@/lib/chat/messages";
+import { upsertMessage } from "@/lib/chat/messages";
 import { runEvaluatorsForEvents } from "@/lib/eval/run-evaluators";
 import {
   completeRun,
@@ -41,6 +41,37 @@ import { consumeAnthropicSession } from "./session-runner";
 import type { ManagedSupabaseClient } from "./types";
 
 import type { AnthropicEvent } from "./event-types";
+
+/**
+ * Pick a stable per-turn idempotency key from the accumulated events.
+ *
+ * Prefers the last terminal event (session.status_idle / status_terminated)
+ * because that uniquely identifies the end of the turn — re-runs of the
+ * same session will see the same terminal id and the upsertMessage call
+ * becomes a no-op. Falls back to the last event id of any kind, then to
+ * a synthetic `run:<runId>` key, so the adapter never writes a row
+ * without a source_event_id (the unique index on conversation_messages
+ * is NOT NULL on this column for managed-agents writes by convention).
+ */
+function pickSourceEventId(
+  events: ReadonlyArray<AnthropicEvent>,
+  runId: string,
+): string {
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const e = events[i] as { id?: string; type?: string };
+    if (
+      e.type === "session.status_idle" ||
+      e.type === "session.status_terminated"
+    ) {
+      if (typeof e.id === "string" && e.id.length > 0) return e.id;
+    }
+  }
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const e = events[i] as { id?: string };
+    if (typeof e.id === "string" && e.id.length > 0) return e.id;
+  }
+  return `run:${runId}`;
+}
 
 export interface RunManagedAgentInput {
   anthropic: Anthropic;
@@ -161,19 +192,19 @@ export async function runManagedAgent(
       });
 
       // ── Finalization ────────────────────────────────────────────────
+      const accumulatedEvents = result.accumulatedEvents as ReadonlyArray<AnthropicEvent>;
+      const sourceEventId = pickSourceEventId(accumulatedEvents, runId);
+
       if (result.status === "complete" && result.reason === "end_turn") {
-        const parts = buildAssistantPartsFromEvents(
-          result.accumulatedEvents as ReadonlyArray<AnthropicEvent>,
-        );
+        const parts = buildAssistantPartsFromEvents(accumulatedEvents);
         if (parts.some((p) => p.type !== "step-start")) {
-          await createMessages(input.supabase, [
-            {
-              thread_id: input.threadId,
-              role: "assistant",
-              content: null,
-              parts: parts as unknown as Json,
-            },
-          ]);
+          await upsertMessage(input.supabase, {
+            thread_id: input.threadId,
+            role: "assistant",
+            content: null,
+            parts: parts as unknown as Json,
+            source_event_id: sourceEventId,
+          });
         }
         const costUsd = computeTurnCost({
           inputTokens: result.cost.inputTokens,
@@ -190,28 +221,23 @@ export async function runManagedAgent(
           tokensOut: result.cost.outputTokens,
           costUsd,
         });
-        await runEvaluatorsForEvents(
-          result.accumulatedEvents as ReadonlyArray<AnthropicEvent>,
-          runId,
-          input.supabase,
-          { conversationInput: input.input },
-        );
+        await runEvaluatorsForEvents(accumulatedEvents, runId, input.supabase, {
+          conversationInput: input.input,
+        });
       } else if (result.reason === "requires_action") {
-        // Paused on approval — persist whatever we streamed but do NOT
-        // mark the run complete. The chat UI / Telegram callback will
-        // resolve the approval and re-enter the session in H4.
-        const parts = buildAssistantPartsFromEvents(
-          result.accumulatedEvents as ReadonlyArray<AnthropicEvent>,
-        );
+        // Paused on approval — persist whatever we streamed (including
+        // the approval-requested part so reload renders the prompt) but
+        // do NOT mark the run complete. The chat UI / Telegram callback
+        // will resolve the approval and re-enter the session in H4.
+        const parts = buildAssistantPartsFromEvents(accumulatedEvents);
         if (parts.some((p) => p.type !== "step-start")) {
-          await createMessages(input.supabase, [
-            {
-              thread_id: input.threadId,
-              role: "assistant",
-              content: null,
-              parts: parts as unknown as Json,
-            },
-          ]);
+          await upsertMessage(input.supabase, {
+            thread_id: input.threadId,
+            role: "assistant",
+            content: null,
+            parts: parts as unknown as Json,
+            source_event_id: sourceEventId,
+          });
         }
       } else {
         await completeRun(input.supabase, {

@@ -10,6 +10,8 @@ import { buildAssistantPartsFromEvents } from "../events-to-assistant-parts";
 
 import {
   agentMessageTextEvent,
+  bashToolUseEvent,
+  builtInToolResultEvent,
   customToolResultEvent,
   customToolUseEvent,
   modelRequestStartEvent,
@@ -45,6 +47,60 @@ describe("buildAssistantPartsFromEvents", () => {
       state: "output-available",
       input: { entity: "contacts" },
       output: { success: true, records: [{ id: "c1" }] },
+    });
+  });
+
+  it("emits an approval-requested tool part for bash with evaluated_permission='ask'", () => {
+    const parts = buildAssistantPartsFromEvents([
+      modelRequestStartEvent("span_1"),
+      bashToolUseEvent("tu_1", "rm -rf /tmp", "ask"),
+      statusIdleEvent("evt_idle", "requires_action"),
+    ]);
+    const approvalPart = parts.find(
+      (p) => typeof p.type === "string" && p.type.startsWith("tool-bash"),
+    );
+    expect(approvalPart).toMatchObject({
+      type: "tool-bash",
+      toolCallId: "tu_1",
+      state: "approval-requested",
+      input: { command: "rm -rf /tmp" },
+      approval: { id: "tu_1" },
+    });
+  });
+
+  it("does NOT emit approval-requested parts for bash with evaluated_permission='allow'", () => {
+    const parts = buildAssistantPartsFromEvents([
+      modelRequestStartEvent("span_1"),
+      bashToolUseEvent("tu_1", "ls", "allow"),
+      builtInToolResultEvent("tr_1", "tu_1", "file_a"),
+      statusIdleEvent("evt_idle", "end_turn"),
+    ]);
+    const bashPart = parts.find(
+      (p) => typeof p.type === "string" && p.type.startsWith("tool-bash"),
+    );
+    expect(bashPart).toMatchObject({
+      type: "tool-bash",
+      toolCallId: "tu_1",
+      state: "output-available",
+      input: { command: "ls" },
+      output: { text: "file_a", isError: false },
+    });
+    expect(bashPart?.approval).toBeUndefined();
+  });
+
+  it("captures is_error on built-in tool failures", () => {
+    const parts = buildAssistantPartsFromEvents([
+      modelRequestStartEvent("span_1"),
+      bashToolUseEvent("tu_1", "false", "allow"),
+      builtInToolResultEvent("tr_1", "tu_1", "exit 1", { isError: true }),
+      statusIdleEvent("evt_idle", "end_turn"),
+    ]);
+    const bashPart = parts.find(
+      (p) => typeof p.type === "string" && p.type.startsWith("tool-bash"),
+    );
+    expect(bashPart).toMatchObject({
+      state: "output-error",
+      output: { text: "exit 1", isError: true },
     });
   });
 

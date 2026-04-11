@@ -1,10 +1,20 @@
 /**
  * Translates an Anthropic Managed Agents event array into AI SDK
- * `PersistedPart[]`. Used by the session runner for both incremental
- * (`onPersistMessage`) and terminal (`createMessages`) assistant persistence.
+ * `PersistedPart[]`. Used by the chat adapter for the terminal
+ * `upsertMessage` write — the persisted parts power chat reload + the
+ * H5 trigger run-detail page.
+ *
+ * Handles:
+ *   - `span.model_request_start` → `step-start`
+ *   - `agent.message` text blocks → text parts (with spec-fence splitting)
+ *   - `agent.custom_tool_use` + `user.custom_tool_result` → `tool-<name>`
+ *     part with state cycling input-available → output-available
+ *   - `agent.tool_use` + `agent.tool_result` (built-in tools, e.g. bash)
+ *     → `tool-<name>` part with the same state cycle, plus
+ *     `state: "approval-requested"` when `evaluated_permission === "ask"`
  *
  * The function is intentionally pure: no SDK or DB imports, no event-id
- * dedup. The session runner is responsible for not feeding duplicates here.
+ * dedup. The caller is responsible for not feeding duplicates.
  *
  * @module lib/managed-agents/events-to-assistant-parts
  */
@@ -18,6 +28,12 @@ export function buildAssistantPartsFromEvents(
 ): PersistedPart[] {
   const parts: PersistedPart[] = [];
   let openedStep = false;
+
+  function findToolPartByCallId(toolCallId: string): PersistedPart | undefined {
+    return parts.find(
+      (p) => typeof p.toolCallId === "string" && p.toolCallId === toolCallId,
+    );
+  }
 
   for (const event of events) {
     if (event.type === "span.model_request_start") {
@@ -50,11 +66,7 @@ export function buildAssistantPartsFromEvents(
     }
 
     if (event.type === "user.custom_tool_result") {
-      const existing = parts.find(
-        (p) =>
-          typeof p.toolCallId === "string" &&
-          p.toolCallId === event.custom_tool_use_id,
-      );
+      const existing = findToolPartByCallId(event.custom_tool_use_id);
       if (existing) {
         const rawText = event.content[0]?.text ?? "{}";
         let parsed: unknown;
@@ -65,6 +77,34 @@ export function buildAssistantPartsFromEvents(
         }
         existing.state = "output-available";
         existing.output = parsed;
+      }
+      continue;
+    }
+
+    if (event.type === "agent.tool_use") {
+      // Built-in tool (bash, etc.). Two persistence paths:
+      //   - evaluated_permission === "ask" → emit an approval-requested
+      //     part so a user reload during the pause shows the prompt.
+      //   - "allow" → emit an input-available part that the matching
+      //     agent.tool_result will later upgrade to output-available.
+      const isApproval = event.evaluated_permission === "ask";
+      parts.push({
+        type: `tool-${event.name}`,
+        toolCallId: event.id,
+        state: isApproval ? "approval-requested" : "input-available",
+        input: event.input,
+        ...(isApproval ? { approval: { id: event.id } } : {}),
+      });
+      continue;
+    }
+
+    if (event.type === "agent.tool_result") {
+      const existing = findToolPartByCallId(event.tool_use_id);
+      if (existing) {
+        const text = event.content?.[0]?.text ?? "";
+        const isError = event.is_error ?? false;
+        existing.state = isError ? "output-error" : "output-available";
+        existing.output = { text, isError };
       }
       continue;
     }

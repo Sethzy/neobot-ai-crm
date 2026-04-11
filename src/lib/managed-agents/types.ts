@@ -10,7 +10,6 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { PersistedPart } from "@/lib/runner/message-utils";
 import type { Database } from "@/types/database";
 
 // ── Re-exports from the canonical tool contracts ────────────────────────────
@@ -82,7 +81,8 @@ export interface SessionRunnerResult {
 /**
  * Callbacks that let callers observe / project events without touching the
  * runner internals. The chat adapter wires them into a UIMessageStream
- * writer; the trigger task wires them into persistence-only sinks.
+ * writer; H5's trigger task wires them into a no-op (terminal-only
+ * persistence happens in the adapter, not the runner).
  */
 export interface SessionRunnerCallbacks {
   onAgentMessage?: (event: unknown) => void | Promise<void>;
@@ -95,10 +95,6 @@ export interface SessionRunnerCallbacks {
   onSpanModelRequestStart?: (event: unknown) => void | Promise<void>;
   onSpanModelRequestEnd?: (event: unknown) => void | Promise<void>;
   onSessionError?: (event: unknown) => void | Promise<void>;
-  onPersistMessage?: (
-    part: PersistedPart,
-    sourceEventId: string,
-  ) => void | Promise<void>;
 }
 
 /** Options passed to `consumeAnthropicSession`. */
@@ -117,9 +113,4 @@ export interface SessionRunnerOptions {
    */
   autoDenyApprovals?: boolean;
   autoDenyMessage?: string;
-  /**
-   * Stream PersistedParts via onPersistMessage as events arrive.
-   * Defaults to true.
-   */
-  persistIncrementally?: boolean;
 }
