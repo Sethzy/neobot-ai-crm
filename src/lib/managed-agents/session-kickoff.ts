@@ -49,11 +49,17 @@ export interface ManagedSession {
 export async function getOrCreateSession(
   input: GetOrCreateSessionInput,
 ): Promise<ManagedSession> {
-  const { data: row } = await input.supabase
+  const { data: row, error: selectError } = await input.supabase
     .from("conversation_threads")
     .select("session_id")
     .eq("thread_id", input.threadId)
     .maybeSingle();
+
+  if (selectError) {
+    throw new Error(
+      `Failed to read conversation_threads.session_id for thread_id=${input.threadId}: ${selectError.message}`,
+    );
+  }
 
   if (row?.session_id) {
     return { id: row.session_id, created: false };
@@ -74,10 +80,20 @@ export async function getOrCreateSession(
     title: input.threadTitle ?? undefined,
   } as never);
 
-  await input.supabase
+  const { error: updateError } = await input.supabase
     .from("conversation_threads")
     .update({ session_id: session.id })
     .eq("thread_id", input.threadId);
+
+  if (updateError) {
+    // The Anthropic session was created but we couldn't cache its id.
+    // The thread will keep creating new sessions on every turn — fail
+    // loud so this is fixed at the source rather than silently leaking
+    // sessions.
+    throw new Error(
+      `Failed to cache session_id=${session.id} on conversation_threads thread_id=${input.threadId}: ${updateError.message}`,
+    );
+  }
 
   return { id: session.id, created: true };
 }

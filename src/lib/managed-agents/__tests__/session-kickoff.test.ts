@@ -98,4 +98,54 @@ describe("getOrCreateSession", () => {
     expect(session.created).toBe(false);
     expect(createSession).not.toHaveBeenCalled();
   });
+
+  it("throws when the session_id select query returns an error", async () => {
+    const supabase = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: null,
+              error: { message: "RLS denied" },
+            }),
+          }),
+        }),
+      }),
+    } as never;
+    await expect(
+      getOrCreateSession({
+        anthropic: stubAnthropic(),
+        supabase,
+        threadId: "thread-1",
+        threadTitle: null,
+      }),
+    ).rejects.toThrow(/RLS denied/);
+  });
+
+  it("throws when the session_id update returns an error", async () => {
+    createSession.mockResolvedValue({ id: "sess_1" });
+    const supabase = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: { session_id: null },
+              error: null,
+            }),
+          }),
+        }),
+        update: () => ({
+          eq: async () => ({ data: null, error: { message: "constraint violated" } }),
+        }),
+      }),
+    } as never;
+    await expect(
+      getOrCreateSession({
+        anthropic: stubAnthropic(),
+        supabase,
+        threadId: "thread-1",
+        threadTitle: null,
+      }),
+    ).rejects.toThrow(/constraint violated/);
+  });
 });
