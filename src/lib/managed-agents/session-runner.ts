@@ -34,7 +34,7 @@ import type {
   SessionRunnerResult,
 } from "./types";
 
-import type { AnthropicEvent } from "./__tests__/fixtures/events";
+import type { AnthropicEvent } from "./event-types";
 
 export async function consumeAnthropicSession(
   options: SessionRunnerOptions,

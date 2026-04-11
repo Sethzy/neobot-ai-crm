@@ -15,7 +15,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { AnthropicEvent } from "@/lib/managed-agents/__tests__/fixtures/events";
+import type { AnthropicEvent } from "@/lib/managed-agents/event-types";
 import type { Database } from "@/types/database";
 
 import { evaluateCrmHallucination, evaluateCrmHallucinationOnSequence } from "./crm-hallucination-eval";

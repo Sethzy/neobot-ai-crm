@@ -11,7 +11,7 @@
 import type { PersistedPart } from "@/lib/runner/message-utils";
 import { splitTextAndSpecParts } from "@/lib/runner/message-utils";
 
-import type { AnthropicEvent } from "./__tests__/fixtures/events";
+import type { AnthropicEvent } from "./event-types";
 
 export function buildAssistantPartsFromEvents(
   events: ReadonlyArray<AnthropicEvent>,

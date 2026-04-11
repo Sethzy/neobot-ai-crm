@@ -40,7 +40,7 @@ import { buildKickoffText, getOrCreateSession } from "./session-kickoff";
 import { consumeAnthropicSession } from "./session-runner";
 import type { ManagedSupabaseClient } from "./types";
 
-import type { AnthropicEvent } from "./__tests__/fixtures/events";
+import type { AnthropicEvent } from "./event-types";
 
 export interface RunManagedAgentInput {
   anthropic: Anthropic;

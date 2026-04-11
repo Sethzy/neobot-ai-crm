@@ -7,8 +7,9 @@
  *
  * @module lib/eval/extract-tool-sequence
  */
+import type { AnthropicEvent } from "@/lib/managed-agents/event-types";
+
 import type { LangfuseObservation } from "./langfuse-api";
-import type { AnthropicEvent } from "@/lib/managed-agents/__tests__/fixtures/events";
 
 export interface ToolCallRecord {
   toolName: string;

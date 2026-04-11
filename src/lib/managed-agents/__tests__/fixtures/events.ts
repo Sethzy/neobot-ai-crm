@@ -1,14 +1,11 @@
 /**
- * Shared Anthropic Managed Agents event fixtures for runner + evaluator tests.
- * Shapes mirror claude-api `shared/managed-agents-events.md`.
- *
- * NOTE: This file lives under `__tests__/` because it is test scaffolding,
- * but it is also imported as a TYPE source by production code (translator,
- * evaluator overload). Keep the structural shapes in lockstep with the real
- * Anthropic SSE event payloads.
+ * Test-only event constructors for the H3 unit tests. The structural
+ * types live in `src/lib/managed-agents/event-types.ts` so production
+ * code never imports from `__tests__/`.
  *
  * @module lib/managed-agents/__tests__/fixtures/events
  */
+export type { AnthropicEvent } from "@/lib/managed-agents/event-types";
 
 export function userMessageEvent(id: string, text: string) {
   return {
@@ -101,15 +98,3 @@ export function sessionErrorEvent(id: string, message: string) {
   } as const;
 }
 
-/** Minimal structural union consumed by the translator / runner / evaluators. */
-export type AnthropicEvent =
-  | ReturnType<typeof userMessageEvent>
-  | ReturnType<typeof agentMessageTextEvent>
-  | ReturnType<typeof customToolUseEvent>
-  | ReturnType<typeof customToolResultEvent>
-  | ReturnType<typeof bashToolUseEvent>
-  | ReturnType<typeof modelRequestStartEvent>
-  | ReturnType<typeof modelRequestEndEvent>
-  | ReturnType<typeof statusIdleEvent>
-  | ReturnType<typeof statusTerminatedEvent>
-  | ReturnType<typeof sessionErrorEvent>;

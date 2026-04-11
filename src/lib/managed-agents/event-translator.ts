@@ -14,7 +14,7 @@ import {
   type AccumulatedUsage,
 } from "./adapter-cost";
 
-import type { AnthropicEvent } from "./__tests__/fixtures/events";
+import type { AnthropicEvent } from "./event-types";
 
 export type UiStreamPart = Record<string, unknown>;
 
