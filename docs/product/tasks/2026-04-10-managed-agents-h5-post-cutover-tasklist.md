@@ -1,5 +1,132 @@
 # Managed Agents Migration — H5 Post-Cutover (TDD Tasklist)
 
+> ## Status update 2026-04-11 — READ BEFORE EXECUTING
+>
+> **This tasklist was written assuming H5 starts from H4's exit state and builds the trigger listener from scratch. That is no longer true.** Tasks 1–8 already shipped as part of H4 + a follow-up fix commit today. Before you execute anything, read this section end-to-end so you don't rebuild what already exists.
+>
+> ### Current validation state (commit `4b1f3c5e` on `main`)
+>
+> ```
+> pnpm exec tsc --noEmit  →  exit 0
+> pnpm test               →  2426 passed / 38 skipped / 378 test files
+> pnpm lint               →  exit 0
+> ```
+>
+> `main` is 136 commits ahead of `origin/main` (unpushed) as of this writing. Do not rebase or force-push.
+>
+> Commit stack (most recent first):
+>
+> ```
+> 4b1f3c5e fix(h4): wire approval resume + trigger persistence + 409 contract
+> a9783c89 chore(h4): fix residual test failures after cutover
+> 66feb3ad chore(h4): delete legacy runner, Langfuse, and stream infra
+> 1959ddbe refactor(h4): trigger fire path spawns Trigger.dev listener
+> 76142338 feat(h4): wire managed agents into chat and telegram
+> c85acbea feat(h4): add managed-agent cutover support primitives
+> ```
+>
+> The `fix(h4)` commit at the top is what closes the code review findings on H4. It is the reason `finalizeTriggerRun` actually persists output now (see the "What's already done" block below).
+>
+> Uncommitted work in the tree that is **NOT yours** and should be left alone:
+> - `src/components/chat/tool-call-inline.tsx` (pre-existing local edit — note that Task 22 touches this same file, coordinate with the owner before you commit a rewrite on top)
+> - `docs/product/tasks/2026-04-10-crm-guardrails-phase-1-tasklist.md`
+> - `docs/tasks/2026-04-11-billing-page-tasklist.md`
+> - `scripts/spike/managed-agents-custom-tool-spike.ts`
+>
+> ### What's already done (skip these tasks)
+>
+> | Tasklist tasks | What shipped | Where |
+> |---|---|---|
+> | **Tasks 1–3** — Per-trigger listener `runTriggerAgent` | `src/trigger/run-trigger-agent.ts` live, tests at `src/trigger/__tests__/run-trigger-agent.test.ts` pass. Uses `task()` (not `schedules.task()`), wraps `consumeAnthropicSession` with `isChatContext: false`, `autoDenyApprovals: true`, `persistIncrementally: true`. | Commit `76142338` / `1959ddbe` |
+> | **Tasks 4–5** — `finalizeTriggerRun` helper | `src/lib/managed-agents/finalize-trigger-run.ts` live. **Its signature changed today** from `(supabase, runId, events, cost)` → `(supabase, { runId, threadId, clientId, events, cost })`. It now does the full persistence sequence: `buildAssistantPartsFromEvents` → `upsertMessage` (keyed on terminal event id) → `deliverToExternalChannels` → `completeRun` → `runEvaluatorsForEvents`. Tests at `src/lib/managed-agents/__tests__/finalize-trigger-run.test.ts` pass. | Commit `4b1f3c5e` (today's fix) |
+> | **Tasks 6–8** — Trigger fire path wiring | `src/lib/triggers/executor.ts` calls `spawnTriggerRun` (from `src/lib/managed-agents/spawn-trigger-run.ts`) which creates the Anthropic session, inserts the `runs` row, sends kickoff, and spawns `runTriggerAgent.trigger(...)`. `app/api/meetings/[id]/send-to-agent/route.ts` uses the same spawn path. Fire path is NOT stubbed — it works end-to-end. | Commit `1959ddbe` / `76142338` |
+>
+> **Related H4 review findings closed in commit `4b1f3c5e` that you should understand before touching adjacent code:**
+> 1. `/api/tool-confirm` no longer requires UUID-shaped `approvalId` — accepts Anthropic `tu_*` / `toolu_*` ids directly.
+> 2. Approval resume now runs through `resumeManagedAgentFromApproval` in `src/lib/managed-agents/adapter.ts`. It looks up `approval_events`, reuses the existing `run_id`, sends `user.tool_confirmation` via a new `kickoffApproval` option on `consumeAnthropicSession`, consumes the post-approval events, persists + delivers + completes the run. Shared with `runManagedAgent` via an internal `finalizeRun()` helper so the two paths can't drift.
+> 3. Browser approval continuation (`/api/chat` with `approval-responded` parts), Telegram approval callbacks, and direct `/api/tool-confirm` callers all route through `resumeManagedAgentFromApproval`. The dead `patchApprovalPartState` wiring and the `resolve-approval` module were deleted.
+> 4. `runManagedAgent` returns `{ status: "queued" }` on lock contention instead of throwing. `/api/chat` surfaces this as 409; the Telegram webhook drops the inbound message and logs a warning.
+> 5. `finalizeTriggerRun` persistence — see above. This was the gap that would have made Task 9's integration tests fail even though the listener was wired.
+>
+> **Known "Important but not Critical" items from the review that are NOT fixed yet** (file separately if they bite you):
+> - `resumeManagedAgentFromApproval` is not fully idempotent under concurrent resolves. The DB `UPDATE` is conditional on `status='pending'`, but two concurrent calls can both pass the initial lookup and both send `user.tool_confirmation` before either update lands. The Anthropic side's behavior on duplicate confirmation is unspecified — file a follow-up if you observe any anomaly in live use.
+> - `spawnTriggerRun` inserts the `runs` row before the Trigger.dev task is enqueued. If the enqueue fails after insert, the row is stranded in `running` until `markStaleRunsFailed` sweeps it (15 min). Low-risk; recoverable.
+> - Handover doc (`docs/product/plans/2026-04-10-managed-agents-h4-cutover-handover.md:23`) still says "rollback = git revert". That claim is now wrong because H4 shipped a destructive `20260410120000_drop_thread_queue_records.sql` migration. Revert would require re-applying the drop in reverse. Doc fix only.
+>
+> ### What's actually outstanding (execute these)
+>
+> Everything in the "Not done" column below is independent of everything else — nothing in this list blocks anything else in this list. **Ship each one as its own PR.** Do NOT bundle them into a single H5 megaPR. See the "Recommended PR decomposition" section below for the order I'd ship in.
+>
+> | Tasklist tasks | Status | Notes |
+> |---|---|---|
+> | **Task 9** — Listener integration test (idempotency, `retries_exhausted`, trigger `run_sql` auto-deny) | **Not done** | Listener code is live, but the integration test in this task is not. `finalizeTriggerRun` now persists output, so tests that assert "message row exists" will actually pass. |
+> | **Tasks 10–11** — `scripts/managed-agents/rename-trigger-instruction-paths.ts` | **Not done** | Script doesn't exist. Code ships; operator runs it separately against prod. |
+> | **Tasks 12–14** — `/debug-trace` skill port to `events.list()` | **Not done** — **currently broken** | `.claude/skills/debug-trace/SKILL.md` still invokes `npx langfuse-cli`. H4 ripped Langfuse out of the repo, so the skill silently no-ops or errors. **Highest priority** — fixing this unblocks any future debug session. |
+> | **Tasks 15–18** — Settings UI for `client_profile` / `user_preferences` | **Not done** | Neither `app/(dashboard)/settings/agent-context/page.tsx` nor `app/api/settings/agent-context/route.ts` exists. Follow the existing settings-page pattern at `app/(dashboard)/settings/billing/page.tsx` and `app/(dashboard)/settings/page.tsx`. Plumbing is already wired: `app/api/chat/route.ts:242` pulls `client_profile` + `user_preferences` from the `clients` table and passes them into `runManagedAgent` as `clientProfile` / `userPreferences`. So your Settings UI just needs to read and write those two columns — no downstream changes required. |
+> | **Tasks 19–20** — Admin scores dashboard | **Not done** | `app/(dashboard)/admin/scores/page.tsx` doesn't exist. The `app/(dashboard)/admin/` directory doesn't exist at all — you are creating the admin route group. `run_scores` table already has rows flowing in: evaluators run via `runEvaluatorsForEvents` (called by both `runManagedAgent` and `finalizeTriggerRun`) and write via `writeRunScore` at `src/lib/eval/run-scores-writer.ts`. Schema: `run_id`, `evaluator_name`, `score_type`, `score_value`, `comment`, `created_at`. |
+> | **Task 21** — Custom Skills API migration | **SKIP unless you see clients with `/agent/skills/*/SKILL.md` files in Supabase Storage.** YAGNI otherwise. | — |
+> | **Task 22** — Connection tool naming alignment | **Smaller than the tasklist says.** Only two concrete edits. | The managed-agents tools are **already named correctly**: `src/lib/managed-agents/tools/connections/list-connections.ts:11` and `src/lib/managed-agents/tools/browser-side/create-connection.ts:25`. The stale names live in exactly two places: (1) `src/lib/ai/system-prompt.ts` (a legacy file that is only imported by its own test file — nothing at runtime uses it; safe to delete the whole file + its test), and (2) `src/components/chat/tool-call-inline.tsx:110` (UI rendering map — one-line rename from `create_new_connections` to `create_connection`). **NO agent version bump is needed.** The runtime "system prompt" is assembled in `src/lib/managed-agents/session-kickoff.ts::buildKickoffText` and `src/lib/runner/system-reminder.ts`, neither of which contains the stale names. The Anthropic agent's own system prompt is a placeholder from `scripts/managed-agents/create-agent.ts` and does not need to change. The tasklist text at Task 22 that says "bump `ANTHROPIC_AGENT_VERSION`" is obsolete — ignore it. **Caveat:** `src/components/chat/tool-call-inline.tsx` has an uncommitted edit in the working tree — check with whoever owns that before committing your rename on top. |
+> | **Task 23** — Integration Scenario 12 manual verification | **Not done; operator task.** Needs a running dev env, a temporarily-inserted `agent_triggers` row, and live trigger fire. Gate this on the Task 9 integration tests passing first — those should catch the logic errors without needing a live session. | — |
+> | **Task 24** — Final typecheck/lint/test | **Not done; runs at the end of whichever PR ships.** Not a single-PR thing. | — |
+>
+> ### Recommended PR decomposition (one PR per row)
+>
+> | # | Scope | Why ship in this order |
+> |---|---|---|
+> | **1** | `/debug-trace` skill port — Tasks 12, 13, 14 | Unblocks future debug sessions. The current skill is broken. Small (~200 LOC script + SKILL.md rewrite + tests). No operational coordination needed. |
+> | **2** | Connection tool naming alignment — Task 22 | Mechanical. Deletes the stale `src/lib/ai/system-prompt.ts` + test, fixes one line in `tool-call-inline.tsx`. ~20 LOC. Coordinate with the owner of the uncommitted `tool-call-inline.tsx` edit first. |
+> | **3** | Settings UI for `client_profile` / `user_preferences` — Tasks 15, 16, 17, 18 | Self-contained. API route + page + tests. Plumbing already wired through the chat route — this is a pure CRUD surface over two DB columns. ~300 LOC. |
+> | **4** | Admin scores dashboard — Tasks 19, 20 | Self-contained. Creates new admin route group, query helper, page. ~300 LOC. Read-only; no schema changes. |
+> | **5** | Listener integration test + rename script — Tasks 9, 10, 11 | Test-heavy. Integration test uses mocked `consumeAnthropicSession` per Task 9's structure. Rename script is small. |
+> | **6** | Scenario 12 verification + final checks — Tasks 23, 24 | Manual operator gate + repo hygiene. Not a code PR — it's a verification + sign-off pass. Do this AFTER PR 5 merges so the integration test has already exercised the auto-deny path in isolation. |
+>
+> Each PR is independent. You can ship them in any order if priorities change, but the order above minimizes risk (broken tool first, mechanical cleanup next, then larger feature work, then tests, then manual verification).
+>
+> ### Key codebase surfaces the dev should know about
+>
+> - **`src/lib/managed-agents/adapter.ts`** — `runManagedAgent` (fresh turn) and `resumeManagedAgentFromApproval` (post-approval re-entry). Shared `finalizeRun()` helper is private to this file. Do not duplicate this helper elsewhere; if you need to finalize from a new entry point, import `consumeAnthropicSession` and call into the adapter.
+> - **`src/lib/managed-agents/session-runner.ts`** — `consumeAnthropicSession()`. Accepts `kickoffMessage` (fresh turn), `kickoffApproval` (approval resume, added by commit `4b1f3c5e`), `autoDenyApprovals` (trigger mode), `persistIncrementally` (no-op today — the persistence callbacks aren't wired yet; documented as a future hook in `types.ts`). Do not add custom retry logic — let Trigger.dev + the reconnect pattern handle it.
+> - **`src/lib/managed-agents/finalize-trigger-run.ts`** — trigger-run terminal finalization. Takes `{ runId, threadId, clientId, events, cost }` (note: this signature changed today — older references to the `(supabase, runId, events, cost)` shape are stale).
+> - **`src/trigger/run-trigger-agent.ts`** — Trigger.dev task. Uses `createAdminClient()` for service-role Supabase.
+> - **`src/lib/triggers/executor.ts`** — trigger fire path dispatcher. Returns `ExecuteTriggerResult.status: "completed" | "failed" | "claim_mismatch" | "queued" | "skipped_busy"`.
+> - **`src/lib/managed-agents/spawn-trigger-run.ts`** — creates the Anthropic session, inserts the `runs` row, sends kickoff, enqueues `runTriggerAgent.trigger(...)`. This is where the "Important" stranded-row failure mode lives if the enqueue fails.
+> - **`src/lib/eval/run-scores-writer.ts`** — `writeRunScore(supabase, runId, { evaluator_name, score_type, score_value, comment? })`. Powers the scores dashboard.
+> - **`src/lib/eval/run-evaluators.ts`** — `runEvaluatorsForEvents(events, runId, supabase, { conversationInput })`. Called from both `runManagedAgent`'s `finalizeRun` and `finalizeTriggerRun`.
+> - **`src/lib/chat/messages.ts::upsertMessage`** — keyed on `source_event_id`. Idempotency safety net for retries.
+> - **`src/lib/channels/deliver.ts::deliverToExternalChannels`** — pushes finalized assistant parts to Telegram (and eventually WhatsApp). Called from `finalizeRun` + `finalizeTriggerRun`. Failure is logged but non-fatal.
+> - **`app/api/chat/route.ts`** — approval continuation branch at around L270 routes through `resumeManagedAgentFromApproval`. Fresh turn branch at around L320 handles the `{ status: "queued" }` return shape. Do not re-introduce `patchApprovalPartState`.
+> - **`app/api/tool-confirm/route.ts`** — direct API entry point for approvals. Drains the resume stream in `next/server` `after()` so direct API callers still get the run finalized. `approvalId` is any non-empty string, not a UUID.
+> - **`app/api/webhook/telegram/route.ts`** — Telegram callback approval flow calls `resumeManagedAgentFromApproval` inline and drains the stream. Inline drain (not `after()`) is intentional so external-channel delivery happens before the webhook responds.
+>
+> ### Gotchas the dev must understand
+>
+> 1. **The `selectedChatModel` request body field is a relic.** `app/api/chat/route.ts` still accepts and validates it against `allowedModelIds`, but the model is now pinned by `ANTHROPIC_AGENT_VERSION`. Do not remove the field in this PR set — it's a documented follow-up cleanup, out of scope for H5.
+> 2. **`src/lib/ai/system-prompt.ts` is stale** — the live "system prompt" is assembled at runtime by `session-kickoff.ts::buildKickoffText` (profile + preferences + system reminder + user message), and the Anthropic agent has a placeholder system prompt from H1. Deleting `system-prompt.ts` is part of Task 22, not scope creep.
+> 3. **Trigger runs now persist via `deliverToExternalChannels`**, which means Telegram will receive the final assistant message of an autopilot run the same way chat does. If you're manually testing and see duplicate Telegram messages, that is why.
+> 4. **`source_event_id`-keyed upserts are the ONLY idempotency mechanism on `conversation_messages`.** Do not add a second one. Do not remove the unique index.
+> 5. **Service-role Supabase in the trigger listener means tools MUST include an explicit `.eq("client_id", clientId)` filter** — the H2 CI lint at `scripts/lint-tool-tenant-filter.ts` enforces this. If you add a new tool that touches a CRM table without that filter, CI will fail.
+> 6. **The managed-agents tool registry in `src/lib/managed-agents/tools/index.ts` is the source of truth for tool names.** If you see a stale tool name anywhere (docs, tests, UI rendering), cross-check against `src/lib/managed-agents/tools/*` before assuming it's wrong — the registry is authoritative.
+> 7. **Trigger instruction paths** — current code reads from Supabase Storage at a path derived from `agent_triggers.instruction_path`. The rename script in Tasks 10–11 is a one-off data migration; it does NOT require any code changes to support the new prefix because `instruction_path` is stored verbatim per-row. The script updates the column value as part of its work.
+> 8. **Do NOT delete idle Anthropic sessions after a run.** They are free per pricing. Every H5 task tempts you to add a cleanup cron — don't. Documented follow-up.
+> 9. **Settings UI input length cap is 100k chars per field**, not per request. The cap exists because the profile/preferences text is embedded in every kickoff message to the agent.
+> 10. **Scores dashboard is internal-only.** Gate with a quick check against the user's email or a hard-coded admin allowlist — don't over-engineer an RBAC system. Admin gating abstraction is a documented follow-up.
+>
+> ### What "done" looks like per PR
+>
+> Every PR in the decomposition above must:
+>
+> - Add/update Vitest tests for the code it touches.
+> - Pass `pnpm exec tsc --noEmit`, `pnpm test`, `pnpm lint` cleanly.
+> - Use the commit prefixes `feat(h5):` / `refactor(h5):` / `chore(h5):` / `test(h5):` as the tasklist specifies.
+> - NOT touch `src/lib/managed-agents/adapter.ts` unless you're fixing a bug you observed there. The adapter just landed a major refactor in `4b1f3c5e`; leave it alone.
+> - NOT reintroduce Langfuse references. The search string `langfuse` should return zero hits in `src/` after your PR merges (already the case as of `66feb3ad`).
+>
+> ---
+>
+> **Everything below this line is the original H5 tasklist as written on 2026-04-10. Read it for the TDD task structure on the remaining items, but use the status table above as the authoritative "is this done" signal.**
+>
+> ---
+
 **Handover:** (H5 handover prompt, 2026-04-10)
 **Plan:** `docs/product/plans/2026-04-09-001-feat-managed-agents-migration-plan.md`
 **Decisions in scope:** D4 (Langfuse replaced by `events.list()` + `run_scores`), D6 (approvals background — auto-deny in trigger context), D9 (all tools custom, shared dispatcher chat + trigger)
