@@ -54,6 +54,52 @@ describe("createApprovalEvent", () => {
     });
   });
 
+  it("persists session_id and tool_use_id when provided (D6 routing payload)", async () => {
+    const row = {
+      id: "aaaaaaaa-0000-0000-0000-000000000002",
+      client_id: "550e8400-e29b-41d4-a716-446655440000",
+      thread_id: "660e8400-e29b-41d4-a716-446655440000",
+      run_id: "770e8400-e29b-41d4-a716-446655440000",
+      tool_name: "bash",
+      tool_input: { command: "ls" },
+      status: "pending",
+      approval_id: "tu_1",
+      session_id: "sess_1",
+      tool_use_id: "tu_1",
+      resolved_at: null,
+      created_at: "2026-04-11T00:00:00Z",
+    };
+    const supabase = createMockSupabaseClient({
+      insertResult: { data: row, error: null },
+    });
+
+    const result = await createApprovalEvent(supabase as never, {
+      clientId: row.client_id,
+      threadId: row.thread_id,
+      runId: row.run_id,
+      toolName: row.tool_name,
+      toolInput: row.tool_input,
+      approvalId: row.approval_id,
+      sessionId: "sess_1",
+      toolUseId: "tu_1",
+    });
+
+    expect(result.success).toBe(true);
+    expect(supabase.calls.methods).toContainEqual({
+      method: "insert",
+      args: [{
+        client_id: row.client_id,
+        thread_id: row.thread_id,
+        run_id: row.run_id,
+        tool_name: row.tool_name,
+        tool_input: row.tool_input,
+        approval_id: row.approval_id,
+        session_id: "sess_1",
+        tool_use_id: "tu_1",
+      }],
+    });
+  });
+
   it("treats duplicate inserts as an idempotent no-op", async () => {
     const supabase = createMockSupabaseClient({
       insertResult: { data: null, error: { message: "duplicate key" } },

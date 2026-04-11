@@ -249,6 +249,8 @@ describe("consumeAnthropicSession — approvals", () => {
         runId: "run_1",
         toolName: "bash",
         approvalId: "tu_1",
+        sessionId: "sess_1",
+        toolUseId: "tu_1",
       }),
     );
     expect(onApprovalRequired).toHaveBeenCalled();

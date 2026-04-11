@@ -18,6 +18,20 @@ interface CreateApprovalEventInput {
   toolName: string;
   toolInput: Record<string, unknown>;
   approvalId: string;
+  /**
+   * Anthropic Managed Agents session id (D6). Required by H4's
+   * `/api/tool-confirm` route + Telegram callback handler so they can
+   * resolve the approval back to the originating session.
+   */
+  sessionId?: string;
+  /**
+   * Anthropic `tool_use_id` for the gated tool call (D6). Stored
+   * separately from `approval_id` so the resolver can post a
+   * `user.tool_confirmation` back to Anthropic by exact tool_use_id.
+   * In the H3 chat path these are the same value, but the Telegram
+   * indirection path may diverge in the future.
+   */
+  toolUseId?: string;
 }
 
 interface ResolveApprovalEventInput {
@@ -66,6 +80,8 @@ export async function createApprovalEvent(
       tool_name: input.toolName,
       tool_input: input.toolInput as Json,
       approval_id: input.approvalId,
+      ...(input.sessionId !== undefined ? { session_id: input.sessionId } : {}),
+      ...(input.toolUseId !== undefined ? { tool_use_id: input.toolUseId } : {}),
     })
     .select()
     .single();

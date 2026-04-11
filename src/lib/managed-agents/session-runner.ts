@@ -138,6 +138,10 @@ export async function consumeAnthropicSession(
         } as never);
       } else {
         const approvalId = result.approvalRequest.toolUseId;
+        // D6: persist session_id + tool_use_id so H4's
+        // /api/tool-confirm route + Telegram callback handler can post
+        // user.tool_confirmation back to the originating Anthropic
+        // session by exact tool_use_id.
         await createApprovalEvent(options.context.supabase, {
           clientId: options.context.clientId,
           threadId: options.context.threadId ?? "",
@@ -145,6 +149,8 @@ export async function consumeAnthropicSession(
           toolName: result.approvalRequest.toolName,
           toolInput: result.approvalRequest.input as Record<string, unknown>,
           approvalId,
+          sessionId: options.sessionId,
+          toolUseId: result.approvalRequest.toolUseId,
         });
         approvalEventIds.push(approvalId);
         await options.callbacks?.onApprovalRequired?.(event, approvalId);
