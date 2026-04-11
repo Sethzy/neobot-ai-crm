@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { CRM_DEFAULTS, matchVocabularyValue, type CrmVocabConfig } from "@/lib/crm/config";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
-import { normalizePhone, normalizeWebsite } from "@/lib/crm/normalize";
+import { normalizeEmail, normalizePhone, normalizeWebsite } from "@/lib/crm/normalize";
 import type { Database, JsonObject } from "@/types/database";
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 
@@ -198,6 +198,17 @@ async function updateOne(
     typeof updates.phone === "string"
   ) {
     updates.phone = normalizePhone(updates.phone) ?? updates.phone;
+  }
+
+  if ((entity === "contacts" || entity === "companies") && typeof updates.email === "string") {
+    try {
+      updates.email = normalizeEmail(updates.email) ?? updates.email;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Invalid email",
+      };
+    }
   }
 
   if (entity === "companies" && typeof updates.website === "string") {

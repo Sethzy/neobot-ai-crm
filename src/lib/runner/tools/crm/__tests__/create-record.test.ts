@@ -205,6 +205,53 @@ describe("create_record", () => {
         expect.objectContaining({ type: "other" }),
       );
     });
+
+    it("rejects invalid email format on contact create", async () => {
+      const { client } = createMockSupabase();
+      const tools = createCreateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.create_record.execute(
+        {
+          entity: "contacts",
+          records: [{ first_name: "Jane", last_name: "Doe", email: "not-an-email" }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toMatch(/invalid email/i);
+      }
+    });
+
+    it("lowercases email on contact create", async () => {
+      const inserted = {
+        contact_id: "c1",
+        first_name: "Jane",
+        last_name: "Doe",
+        email: "jane@acme.com",
+      };
+      const { client, builderHistory } = createMockSupabase({
+        contacts: [
+          { data: [], error: null },
+          { data: inserted, error: null },
+        ],
+      });
+      const tools = createCreateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.create_record.execute(
+        {
+          entity: "contacts",
+          records: [{ first_name: "Jane", last_name: "Doe", email: "Jane@Acme.COM" }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result).toEqual({ success: true, record: inserted });
+      expect(builderHistory.contacts[1]?.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ email: "jane@acme.com" }),
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------

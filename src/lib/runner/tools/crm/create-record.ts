@@ -17,7 +17,7 @@ import {
   captureServerEvents,
 } from "@/lib/analytics/posthog-server";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
-import { normalizePhone, normalizeWebsite } from "@/lib/crm/normalize";
+import { normalizeEmail, normalizePhone, normalizeWebsite } from "@/lib/crm/normalize";
 
 import { buildIlikePattern, buildContainsIlikeLiteral } from "./filter-utils";
 
@@ -181,7 +181,7 @@ function buildContactRow(
     first_name: record.first_name as string,
     last_name: record.last_name as string,
     type: matchVocabularyValue(rawType, contactTypes),
-    email: (record.email as string) ?? null,
+    email: normalizeEmail(record.email),
     // Normalize to E.164; fall back to raw string if unparseable so data isn't silently dropped.
     phone: normalizePhone(record.phone as string | null) ?? (record.phone as string | null) ?? null,
     custom_fields: (record.custom_fields as Record<string, unknown>) ?? {},
@@ -200,7 +200,7 @@ function buildCompanyRow(
     industry: rawIndustry ? matchVocabularyValue(rawIndustry, companyIndustries) : null,
     website: normalizeWebsite(record.website as string | null) ?? (record.website as string | null) ?? null,
     phone: normalizePhone(record.phone as string | null) ?? (record.phone as string | null) ?? null,
-    email: (record.email as string) ?? null,
+    email: normalizeEmail(record.email),
     address: (record.address as string) ?? null,
     custom_fields: (record.custom_fields as Record<string, unknown>) ?? {},
   };

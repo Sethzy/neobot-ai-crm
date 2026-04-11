@@ -9,6 +9,7 @@
  */
 import { parsePhoneNumber, type CountryCode } from "libphonenumber-js";
 import normalizeUrl from "normalize-url";
+import { z } from "zod";
 
 const NORMALIZE_URL_OPTIONS = {
   stripProtocol: true,
@@ -17,6 +18,7 @@ const NORMALIZE_URL_OPTIONS = {
   stripWWW: true,
   removeSingleSlash: true,
 } as const;
+const emailSchema = z.string().email();
 
 /**
  * Attempts to normalise a phone string to E.164 format (e.g. `+12125551234`).
@@ -71,4 +73,36 @@ export function normalizeWebsite(input: string | null | undefined): string | nul
   } catch {
     return null;
   }
+}
+
+/**
+ * Validates and lowercases an email string for canonical storage.
+ *
+ * Returns `null` for nullish or blank input and throws for non-empty invalid input.
+ */
+export function normalizeEmail(
+  input: unknown,
+  fieldLabel = "email",
+): string | null {
+  if (input === null || input === undefined) {
+    return null;
+  }
+
+  if (typeof input !== "string") {
+    return null;
+  }
+
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const lowered = trimmed.toLowerCase();
+  const parsed = emailSchema.safeParse(lowered);
+
+  if (!parsed.success) {
+    throw new Error(`Invalid ${fieldLabel} format: "${input}"`);
+  }
+
+  return lowered;
 }

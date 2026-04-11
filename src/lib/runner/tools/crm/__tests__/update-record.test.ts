@@ -80,6 +80,37 @@ describe("update_record", () => {
 
       expect(result).toEqual({ success: false, error: "No fields to update" });
     });
+
+    it("lowercases email on update", async () => {
+      const existing = {
+        contact_id: "c1",
+        client_id: CLIENT_ID,
+        first_name: "Bob",
+        last_name: "Tan",
+        email: "bob@old.com",
+      };
+      const updated = { ...existing, email: "bob@acme.com" };
+      const { client, builderHistory } = createMockSupabase({
+        contacts: [
+          { data: existing, error: null },
+          { data: updated, error: null },
+        ],
+      });
+      const tools = createUpdateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.update_record.execute(
+        {
+          entity: "contacts",
+          updates: [{ id: "c1", fields: { email: "BOB@ACME.COM" } }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result).toEqual({ success: true, record: updated });
+      expect(builderHistory.contacts[1]?.update).toHaveBeenCalledWith(
+        expect.objectContaining({ email: "bob@acme.com" }),
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------
