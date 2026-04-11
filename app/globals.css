@@ -90,9 +90,6 @@
   --filetype-presentation: var(--flexoki-orange);
   --filetype-image:        var(--flexoki-cyan);
   --filetype-default:      var(--flexoki-tx-2);
-  /* Spinner/AI tokens — matches CC's 'claude' and 'claudeShimmer' theme keys */
-  --color-claude:         var(--flexoki-orange);
-  --color-claude-shimmer: #f0a68a;
 
   --shadow-2xs: 0px 1px 2px 0px hsl(225 27.7778% 14.1176% / 0.02);
   --shadow-xs: 0px 1px 2px 0px hsl(225 27.7778% 14.1176% / 0.02);
@@ -244,9 +241,6 @@
   --color-filetype-presentation: var(--filetype-presentation);
   --color-filetype-image: var(--filetype-image);
   --color-filetype-default: var(--filetype-default);
-  /* Spinner AI tokens — used by SpinnerGlyph/GlimmerMessage for the verb text color */
-  --color-claude: var(--color-claude);
-  --color-claude-shimmer: var(--color-claude-shimmer);
 
   /* Radius */
   --radius-sm: calc(var(--radius) - 4px);

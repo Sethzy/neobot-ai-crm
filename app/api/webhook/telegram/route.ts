@@ -8,7 +8,6 @@ import { randomUUID } from "node:crypto";
 import { after } from "next/server";
 import { z } from "zod";
 
-import { resolveAndContinueApproval } from "@/lib/approvals/continue-after-approval";
 import {
   buildUnsupportedQuestionFallback,
   createTelegramBot,
@@ -37,6 +36,7 @@ import {
   TELEGRAM_CHANNEL,
   type TelegramWebhookContext,
 } from "@/lib/channels/telegram/webhook";
+import { resolveApprovalById } from "@/lib/managed-agents/resolve-approval";
 import { runAgent } from "@/lib/runner/run-agent";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -379,32 +379,22 @@ async function handleApprovalCallback(
     return;
   }
 
-  const { data: approvalEvent } = await ctx.supabase
-    .from("approval_events")
-    .select("thread_id")
-    .eq("approval_id", input.approvalId)
-    .eq("client_id", mapping.client_id)
-    .single();
+  const approved = input.action === "approve";
 
-  if (!approvalEvent) {
+  const result = await resolveApprovalById(ctx.supabase, {
+    clientId: mapping.client_id,
+    approvalId: input.approvalId,
+    approved,
+  });
+
+  if (!result.success && result.status === "missing") {
     await ctx.bot.api.answerCallbackQuery(callbackId, { text: "Approval not found." });
     return;
   }
 
-  const approved = input.action === "approve";
-
-  // BUG FIX: Detect stale approvals from a previous session. After /new or /main,
-  // the mapping points to a different thread than the approval. The agent will run
-  // on the old thread, but delivery targets the current mapping — so the follow-up
-  // would silently vanish. Warn the user so they know where to look.
-  const isStaleThread = approvalEvent.thread_id !== mapping.thread_id;
-
-  const result = await resolveAndContinueApproval(ctx.supabase, {
-    clientId: mapping.client_id,
-    threadId: approvalEvent.thread_id,
-    approvalId: input.approvalId,
-    approved,
-  });
+  const isStaleThread =
+    result.success &&
+    result.threadId !== mapping.thread_id;
 
   if (result.success) {
     const statusLabel = result.status === "already_resolved"

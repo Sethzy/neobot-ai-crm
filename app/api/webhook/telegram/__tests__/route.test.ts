@@ -10,7 +10,7 @@ const {
   mockCreateTelegramBot,
   mockGetTelegramBotToken,
   mockRunAgent,
-  mockResolveAndContinueApproval,
+  mockResolveApprovalById,
   mockAdvancePendingQuestionBatchByCallback,
   mockAdvancePendingQuestionBatchByTextReply,
   mockClearPendingQuestionsForChat,
@@ -22,7 +22,7 @@ const {
   mockCreateTelegramBot: vi.fn(),
   mockGetTelegramBotToken: vi.fn(),
   mockRunAgent: vi.fn(),
-  mockResolveAndContinueApproval: vi.fn(),
+  mockResolveApprovalById: vi.fn(),
   mockAdvancePendingQuestionBatchByCallback: vi.fn(),
   mockAdvancePendingQuestionBatchByTextReply: vi.fn(),
   mockClearPendingQuestionsForChat: vi.fn(),
@@ -58,8 +58,8 @@ vi.mock("@/lib/runner/run-agent", () => ({
   runAgent: (...args: unknown[]) => mockRunAgent(...args),
 }));
 
-vi.mock("@/lib/approvals/continue-after-approval", () => ({
-  resolveAndContinueApproval: (...args: unknown[]) => mockResolveAndContinueApproval(...args),
+vi.mock("@/lib/managed-agents/resolve-approval", () => ({
+  resolveApprovalById: (...args: unknown[]) => mockResolveApprovalById(...args),
 }));
 
 vi.mock("@/lib/channels/telegram/pending-questions", async (importOriginal) => {
@@ -255,7 +255,11 @@ describe("POST /api/webhook/telegram", () => {
       status: "streaming",
       streamResult: { text: Promise.resolve("done") },
     });
-    mockResolveAndContinueApproval.mockResolvedValue({ success: true, status: "continued" });
+    mockResolveApprovalById.mockResolvedValue({
+      success: true,
+      status: "updated",
+      threadId: "thread-1",
+    });
     mockAdvancePendingQuestionBatchByCallback.mockResolvedValue({ status: "expired" });
     mockAdvancePendingQuestionBatchByTextReply.mockResolvedValue({ status: "expired" });
     mockClearPendingQuestionsForChat.mockResolvedValue(undefined);
@@ -406,7 +410,7 @@ describe("POST /api/webhook/telegram", () => {
     await flushBackgroundWork();
 
     expect(response.status).toBe(200);
-    expect(mockResolveAndContinueApproval).not.toHaveBeenCalled();
+    expect(mockResolveApprovalById).not.toHaveBeenCalled();
     expect(api.answerCallbackQuery).toHaveBeenCalledWith("callback-1", {
       text: "Not connected.",
     });
@@ -451,10 +455,6 @@ describe("POST /api/webhook/telegram", () => {
         },
         error: null,
       }],
-      approvalEventResults: [{
-        data: { thread_id: "thread-2" },
-        error: null,
-      }],
     });
     const api = createTelegramBotApi();
     mockCreateAdminClient.mockResolvedValue(supabase);
@@ -495,17 +495,14 @@ describe("POST /api/webhook/telegram", () => {
         },
         error: null,
       }],
-      approvalEventResults: [{
-        data: { thread_id: "thread-2" },
-        error: null,
-      }],
     });
     const api = createTelegramBotApi();
     mockCreateAdminClient.mockResolvedValue(supabase);
     mockCreateTelegramBot.mockReturnValue({ api });
-    mockResolveAndContinueApproval.mockResolvedValueOnce({
+    mockResolveApprovalById.mockResolvedValueOnce({
       success: true,
       status: "already_resolved",
+      threadId: "thread-2",
     });
 
     const response = await POST(
@@ -942,10 +939,6 @@ describe("POST /api/webhook/telegram", () => {
         },
         error: null,
       }],
-      approvalEventResults: [{
-        data: { thread_id: "old-thread-before-switch" },
-        error: null,
-      }],
     });
     const api = createTelegramBotApi();
     mockCreateAdminClient.mockResolvedValue(supabase);
@@ -968,10 +961,12 @@ describe("POST /api/webhook/telegram", () => {
     await flushBackgroundWork();
 
     expect(response.status).toBe(200);
-    expect(mockResolveAndContinueApproval).toHaveBeenCalledWith(
+    expect(mockResolveApprovalById).toHaveBeenCalledWith(
       supabase,
       expect.objectContaining({
-        threadId: "old-thread-before-switch",
+        clientId: "client-1",
+        approvalId: "approval-stale",
+        approved: true,
       }),
     );
     expect(api.answerCallbackQuery).toHaveBeenCalledWith("callback-stale", {

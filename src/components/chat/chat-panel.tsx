@@ -31,13 +31,11 @@ import {
   messageQuotaErrorCodes,
 } from "@/lib/usage/message-quota";
 import type { Json } from "@/types/database";
-import { deriveSpinnerMode } from "@/lib/chat/derive-spinner-mode";
 import { ChatComposer } from "./chat-composer";
 import { ChatWelcome } from "./chat-welcome";
 import { MessageQuotaPill } from "./message-quota-pill";
 import { useDataStream } from "./data-stream-provider";
 import { MessageList } from "./message-list";
-import type { ChatUIMessage } from "./message-content";
 
 /** Batches token updates to reduce render churn during fast streams. */
 const STREAM_UI_THROTTLE_MS = 50;
@@ -276,50 +274,6 @@ export function ChatPanel({
   const isLoadingRef = useRef(false);
   isLoadingRef.current = isLoading;
   const parsedError = useMemo(() => parseChatError(error), [error]);
-
-  // === Spinner timing refs — reset on each new turn, passed to SpinnerWithVerb ===
-  const loadingStartTimeRef = useRef(Date.now());
-  const totalPausedMsRef = useRef(0);
-  const pauseStartTimeRef = useRef<number | null>(null);
-  const responseLengthRef = useRef(0);
-
-  // Reset timing refs when a new turn starts
-  useEffect(() => {
-    if (effectiveStatus === "submitted") {
-      loadingStartTimeRef.current = Date.now();
-      totalPausedMsRef.current = 0;
-      pauseStartTimeRef.current = null;
-      responseLengthRef.current = 0;
-    }
-  }, [effectiveStatus]);
-
-  // Update response length as text streams in
-  useEffect(() => {
-    const lastMsg = messages.at(-1) as ChatUIMessage | undefined;
-    if (lastMsg?.role !== "assistant") return;
-    const totalLength = lastMsg.parts.reduce((sum, p) => {
-      if (p.type === "text") return sum + ((p as { text: string }).text?.length ?? 0);
-      if (p.type === "reasoning") return sum + ((p as { text: string }).text?.length ?? 0);
-      return sum;
-    }, 0);
-    responseLengthRef.current = totalLength;
-  }, [messages]);
-
-  // Derive the fine-grained spinner mode from messages state
-  const spinnerMode = useMemo(
-    () => deriveSpinnerMode(effectiveStatus, messages as ChatUIMessage[]),
-    [effectiveStatus, messages],
-  );
-
-  // Check if any tool is actively executing (suppresses stall detection)
-  const hasActiveTools = useMemo(() => {
-    const lastMsg = messages.at(-1) as ChatUIMessage | undefined;
-    if (!lastMsg || lastMsg.role !== "assistant") return false;
-    return lastMsg.parts.some((p) => {
-      const state = (p as { state?: string }).state;
-      return state === "input-streaming" || state === "input-available";
-    });
-  }, [messages]);
   const errorMessage = parsedError?.message ?? null;
 
   const handleSubmit = useCallback(
@@ -405,18 +359,7 @@ export function ChatPanel({
 
       {hasMessages ? (
         <>
-          <MessageList
-            messages={messages}
-            status={effectiveStatus}
-            spinnerMode={spinnerMode}
-            hasActiveTools={hasActiveTools}
-            responseLengthRef={responseLengthRef}
-            loadingStartTimeRef={loadingStartTimeRef}
-            totalPausedMsRef={totalPausedMsRef}
-            pauseStartTimeRef={pauseStartTimeRef}
-            onToolApproval={handleToolApproval}
-            onQuestionSubmit={handleQuestionSubmit}
-          />
+          <MessageList messages={messages} status={effectiveStatus} onToolApproval={handleToolApproval} onQuestionSubmit={handleQuestionSubmit} />
           {messageQuota ? (
             <MessageQuotaPill quota={messageQuota} className="pb-1 pt-2" />
           ) : null}

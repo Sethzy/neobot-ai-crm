@@ -32,6 +32,15 @@ export type DispatchContext = _ToolContext;
 
 export type ManagedSupabaseClient = SupabaseClient<Database>;
 
+/** Chat/file attachment metadata passed into Managed Agents entry points. */
+export interface ManagedFilePart {
+  type: "file";
+  url: string;
+  mediaType: string;
+  filename?: string;
+  storagePath?: string;
+}
+
 // ── Custom tool envelope shapes ─────────────────────────────────────────────
 
 /** Normalized custom tool call event from Anthropic. */

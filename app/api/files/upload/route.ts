@@ -12,6 +12,7 @@ import {
   ALLOWED_UPLOAD_TYPES,
   MAX_UPLOAD_SIZE_BYTES,
 } from "@/lib/chat/attachment-config";
+import { attachFileToSession } from "@/lib/managed-agents/attach-session-file";
 
 const BUCKET_ID = "agent-files";
 const UPLOAD_URL_EXPIRY_SECONDS = 60 * 60;
@@ -93,6 +94,28 @@ export async function POST(request: Request) {
 
     if (signedUrlResponse.error || !signedUrlResponse.data?.signedUrl) {
       return jsonError("Upload failed", 500);
+    }
+
+    const threadIdField = formData.get("threadId");
+    if (typeof threadIdField === "string" && threadIdField.trim().length > 0) {
+      const { data: thread } = await supabase
+        .from("conversation_threads")
+        .select("session_id")
+        .eq("thread_id", threadIdField)
+        .eq("client_id", clientId)
+        .maybeSingle();
+
+      if (thread?.session_id) {
+        try {
+          await attachFileToSession({
+            sessionId: thread.session_id,
+            file: fileEntry,
+            filename,
+          });
+        } catch (error) {
+          console.error("[files/upload] Failed to attach file to Anthropic session:", error);
+        }
+      }
     }
 
     await captureServerEvent({

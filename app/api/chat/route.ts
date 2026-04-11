@@ -7,10 +7,6 @@ import { createUIMessageStream, createUIMessageStreamResponse, generateId } from
 import { after } from "next/server";
 import { createResumableStreamContext } from "resumable-stream";
 
-import { pipeJsonRender } from "@json-render/core";
-
-import { langfuseSpanProcessor } from "@/instrumentation";
-import { runEvaluatorsForTrace } from "@/lib/eval/run-evaluators";
 import {
   captureServerEvent,
   captureServerEvents,
@@ -20,10 +16,13 @@ import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { generateTitleFromUserMessage } from "@/lib/ai/title";
 import { allowedModelIds } from "@/lib/ai/models";
+import { attachFileToSession } from "@/lib/managed-agents/attach-session-file";
+import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
+import { runManagedAgent } from "@/lib/managed-agents/adapter";
+import { getOrCreateSession } from "@/lib/managed-agents/session-kickoff";
+import type { ManagedFilePart } from "@/lib/managed-agents/types";
 import { ensureClientBootstrap } from "@/lib/runner/skills/ensure-client-bootstrap";
 import { clearActiveStreamId, setActiveStreamId } from "@/lib/redis";
-import { runAgent } from "@/lib/runner/run-agent";
-import type { RunnerFilePart } from "@/lib/runner/schemas";
 import {
   isMessageQuotaError,
   messageQuotaErrorCodes,
@@ -58,7 +57,7 @@ function getTextFromUnknownParts(parts: unknown[]): string | null {
   return text.length > 0 ? text : null;
 }
 
-function getFilePartsFromUnknownParts(parts: unknown[]): RunnerFilePart[] {
+function getFilePartsFromUnknownParts(parts: unknown[]): ManagedFilePart[] {
   return parts
     .filter((part): part is {
       type: string;
@@ -69,7 +68,7 @@ function getFilePartsFromUnknownParts(parts: unknown[]): RunnerFilePart[] {
     } =>
       typeof part === "object" && part !== null && "type" in part
     )
-    .filter((part): part is RunnerFilePart =>
+    .filter((part): part is ManagedFilePart =>
       part.type === "file" &&
       typeof part.url === "string" &&
       typeof part.mediaType === "string" &&
@@ -170,11 +169,14 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError("Invalid request body.", 400);
   }
 
+  // TODO(h5-cleanup): drop selectedChatModel from the schema; model is pinned by ANTHROPIC_AGENT_VERSION.
   if (body.selectedChatModel !== undefined && !allowedModelIds.has(body.selectedChatModel)) {
     return jsonError("Invalid selected chat model.", 400);
   }
 
   const threadId = body.id;
+  // TODO(h5): delete getApprovalResponses once the frontend switches to
+  // POST /api/tool-confirm instead of re-posting through /api/chat.
   const approvalResponses = getApprovalResponses(body.messages);
   const isApprovalContinuation = !body.message && approvalResponses.length > 0;
 
@@ -185,7 +187,7 @@ export async function POST(request: Request): Promise<Response> {
   // Approval continuations carry no new user message — use empty input so the
   // model context doesn't duplicate the last user turn from history.
   let input: string;
-  let fileParts: RunnerFilePart[] = [];
+  let fileParts: ManagedFilePart[] = [];
 
   if (isApprovalContinuation) {
     input = "";
@@ -244,10 +246,15 @@ export async function POST(request: Request): Promise<Response> {
     // Fire bootstrap early — overlaps with thread lookup.
     // No-op SELECT on already-bootstrapped clients (99%+ of requests).
     const bootstrapPromise = ensureClientBootstrap(supabase, resolvedClientId);
+    const clientContextPromise = supabase
+      .from("clients")
+      .select("client_profile, user_preferences")
+      .eq("client_id", resolvedClientId)
+      .single();
 
     const { data: thread, error: threadLookupError } = await supabase
       .from("conversation_threads")
-      .select("thread_id")
+      .select("thread_id, title")
       .eq("thread_id", threadId)
       .eq("client_id", resolvedClientId)
       .eq("is_archived", false)
@@ -277,7 +284,7 @@ export async function POST(request: Request): Promise<Response> {
       _t("thread_insert");
     }
 
-    // Start title generation early so it runs in parallel with runAgent() setup.
+    // Start title generation early so it runs in parallel with managed-agent setup.
     // .catch ensures a flaky title model never jeopardizes chat delivery.
     const titlePromise = isNewThread && input.length > 0
       ? generateTitleFromUserMessage(input).catch(() => "")
@@ -327,31 +334,56 @@ export async function POST(request: Request): Promise<Response> {
     await bootstrapPromise;
     _t("ensure_bootstrap");
 
-    _t("pre_run_agent");
-    const result = await runAgent(
-      {
-        clientId: resolvedClientId,
-        threadId,
-        triggerType: "chat",
-        consumeMessageQuota: body.message?.role === "user",
-        input,
-        selectedChatModel: body.selectedChatModel,
-        ...(fileParts.length > 0 ? { fileParts } : {}),
-      },
-      supabase,
-    );
-    _t("run_agent_returned");
+    const [{ data: clientContext, error: clientContextError }] = await Promise.all([
+      clientContextPromise,
+    ]);
 
-    if (result.status === "queued") {
-      // 409 Conflict — AI SDK's HttpChatTransport treats 2xx as a stream and
-      // tries to parse the body as SSE. A 202 JSON body causes a client-side
-      // crash ("Cannot read properties of undefined (reading 'state')").
-      // 409 triggers the SDK's error path so the client catch block handles it.
-      return Response.json(
-        { error: "Another response is still in progress. Your message has been queued." },
-        { status: 409 },
+    if (clientContextError) {
+      return jsonError("Failed to process chat request.", 500);
+    }
+
+    const anthropic = getAnthropicClient();
+
+    if (fileParts.length > 0) {
+      const session = await getOrCreateSession({
+        anthropic,
+        supabase,
+        threadId,
+        threadTitle: thread?.title ?? null,
+      });
+
+      await Promise.all(
+        fileParts.map(async (filePart) => {
+          try {
+            const response = await fetch(filePart.url);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch attachment (${response.status})`);
+            }
+
+            await attachFileToSession({
+              sessionId: session.id,
+              file: await response.blob(),
+              filename: filePart.filename ?? "upload",
+            });
+          } catch (error) {
+            console.error("[chat/route] Failed to attach file to session:", error);
+          }
+        }),
       );
     }
+
+    _t("pre_run_managed_agent");
+    const uiStream = await runManagedAgent({
+      anthropic,
+      supabase,
+      clientId: resolvedClientId,
+      threadId,
+      input,
+      clientProfile: clientContext?.client_profile ?? null,
+      userPreferences: clientContext?.user_preferences ?? null,
+      threadTitle: thread?.title ?? null,
+    });
+    _t("run_managed_agent_returned");
 
     if (body.message?.role === "user") {
       await captureServerEvent({
@@ -370,7 +402,7 @@ export async function POST(request: Request): Promise<Response> {
       originalMessages: body.messages as UIMessage[] | undefined,
       execute: async ({ writer }) => {
         _t("stream_execute_start");
-        writer.merge(pipeJsonRender(result.streamResult.toUIMessageStream()));
+        writer.merge(uiStream as never);
 
         if (titlePromise) {
           const title = await titlePromise;
@@ -396,13 +428,6 @@ export async function POST(request: Request): Promise<Response> {
           // Ignore Redis cleanup failures to avoid breaking completed responses.
         }
       },
-    });
-
-    after(async () => {
-      await langfuseSpanProcessor.forceFlush();
-      if (result.traceId) {
-        await runEvaluatorsForTrace(result.traceId);
-      }
     });
 
     _t("response_returned");

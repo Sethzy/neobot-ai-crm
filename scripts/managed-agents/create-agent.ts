@@ -23,6 +23,8 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 
+import { MANAGED_AGENT_TOOL_NAMES } from "@/lib/managed-agents/tools";
+
 // H1 placeholder prompt. Deliberately short and decoupled from the
 // legacy in-tree SYSTEM_PROMPT so this script never silently drifts
 // with future prompt edits. H3 replaces this via agents.update().
@@ -87,10 +89,14 @@ async function main() {
   console.log("=".repeat(60));
   console.log(`ANTHROPIC_AGENT_ID=${agent.id}`);
   console.log(`ANTHROPIC_AGENT_VERSION=${agent.version}`);
+  console.log(`DECLARED_CUSTOM_TOOL_COUNT=${MANAGED_AGENT_TOOL_NAMES.length}`);
   console.log("");
   console.log("Add BOTH to .env.local (and Vercel project env for staging/prod).");
   console.log(
     "Sessions must pin to this exact version - do not use 'latest' shorthand in production.",
+  );
+  console.log(
+    "Managed-agent custom tool declarations are sourced from src/lib/managed-agents/tools/declarations.ts for the later H3/H4 agent update step.",
   );
 }
 

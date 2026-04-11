@@ -10,17 +10,36 @@ const {
   mockFrom,
   mockUpload,
   mockCreateSignedUrl,
+  mockThreadMaybeSingle,
+  mockAttachFileToSession,
 } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockResolveClientId: vi.fn(),
   mockFrom: vi.fn(),
   mockUpload: vi.fn(),
   mockCreateSignedUrl: vi.fn(),
+  mockThreadMaybeSingle: vi.fn(),
+  mockAttachFileToSession: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn().mockResolvedValue({
     auth: { getUser: mockGetUser },
+    from: vi.fn((table: string) => {
+      if (table !== "conversation_threads") {
+        throw new Error(`Unexpected table: ${table}`);
+      }
+
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: mockThreadMaybeSingle,
+            }),
+          }),
+        }),
+      };
+    }),
     storage: {
       from: mockFrom.mockImplementation(() => ({
         upload: mockUpload,
@@ -32,6 +51,10 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/lib/chat/client-id", () => ({
   resolveClientId: (...args: unknown[]) => mockResolveClientId(...args),
+}));
+
+vi.mock("@/lib/managed-agents/attach-session-file", () => ({
+  attachFileToSession: (...args: unknown[]) => mockAttachFileToSession(...args),
 }));
 
 import { POST } from "./route";
@@ -47,6 +70,18 @@ function createFileRequest(file: File) {
   });
 }
 
+function createFileRequestWithThread(file: File, threadId: string) {
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+  formData.append("filename", file.name);
+  formData.append("threadId", threadId);
+
+  return new Request("http://localhost/api/files/upload", {
+    method: "POST",
+    body: formData,
+  });
+}
+
 describe("POST /api/files/upload", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -55,6 +90,11 @@ describe("POST /api/files/upload", () => {
 
     mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
     mockResolveClientId.mockResolvedValue("client-1");
+    mockThreadMaybeSingle.mockResolvedValue({ data: null, error: null });
+    mockAttachFileToSession.mockResolvedValue({
+      attached: true,
+      anthropicFileId: "file_123",
+    });
     mockUpload.mockResolvedValue({
       data: { path: "client-1/uploads/1700000000000-deadbeef-screenshot.png" },
       error: null,
@@ -318,6 +358,27 @@ describe("POST /api/files/upload", () => {
       storagePath: "uploads/1700000000000-deadbeef-deals_report.csv",
       pathname: "deals report.csv",
       contentType: "text/csv",
+    });
+  });
+
+  it("attaches the uploaded file to an active session when threadId is provided", async () => {
+    mockThreadMaybeSingle.mockResolvedValue({
+      data: { session_id: "session_abc" },
+      error: null,
+    });
+
+    const response = await POST(
+      createFileRequestWithThread(
+        new File(["image-data"], "screenshot.png", { type: "image/png" }),
+        "thread-1",
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockAttachFileToSession).toHaveBeenCalledWith({
+      sessionId: "session_abc",
+      file: expect.anything(),
+      filename: "screenshot.png",
     });
   });
 });
