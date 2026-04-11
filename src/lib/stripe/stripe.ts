@@ -461,7 +461,7 @@ export async function createCustomerPortalSession(): Promise<string> {
 
   const session = await getStripeClient().billingPortal.sessions.create({
     customer: client.stripe_customer_id,
-    return_url: `${resolveAppBaseUrl()}/settings`,
+    return_url: `${resolveAppBaseUrl()}/settings/billing`,
   });
 
   return session.url;

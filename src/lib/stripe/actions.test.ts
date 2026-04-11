@@ -92,7 +92,7 @@ describe("lib/stripe/actions", () => {
 
     await customerPortalAction();
 
-    expect(mockRedirect).toHaveBeenCalledWith("/settings?billing=portal-error");
+    expect(mockRedirect).toHaveBeenCalledWith("/settings/billing?billing=portal-error");
   });
 
   it("rethrows Next redirect errors from the portal helper", async () => {

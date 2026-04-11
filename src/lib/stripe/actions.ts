@@ -59,6 +59,6 @@ export async function customerPortalAction(): Promise<void> {
       throw error;
     }
 
-    redirect(`/settings?billing=${billingErrorCodes.portalError}`);
+    redirect(`/settings/billing?billing=${billingErrorCodes.portalError}`);
   }
 }
