@@ -261,6 +261,30 @@ describe("create_record", () => {
       expect(result.success).toBe(false);
       expect((result as { reason: string }).reason).toBe("possible_duplicates");
     });
+
+    it("normalizes company website on create", async () => {
+      const inserted = { company_id: "co1", name: "Acme", website: "acme.com" };
+      const { client, builderHistory } = createMockSupabase({
+        companies: [
+          { data: [], error: null },
+          { data: inserted, error: null },
+        ],
+      });
+      const tools = createCreateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.create_record.execute(
+        {
+          entity: "companies",
+          records: [{ name: "Acme", website: "https://www.acme.com/?utm=test" }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result).toEqual({ success: true, record: inserted });
+      expect(builderHistory.companies[1]?.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ website: "acme.com" }),
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------

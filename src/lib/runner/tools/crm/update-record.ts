@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { CRM_DEFAULTS, matchVocabularyValue, type CrmVocabConfig } from "@/lib/crm/config";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
-import { normalizePhone } from "@/lib/crm/normalize";
+import { normalizePhone, normalizeWebsite } from "@/lib/crm/normalize";
 import type { Database, JsonObject } from "@/types/database";
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 
@@ -198,6 +198,10 @@ async function updateOne(
     typeof updates.phone === "string"
   ) {
     updates.phone = normalizePhone(updates.phone) ?? updates.phone;
+  }
+
+  if (entity === "companies" && typeof updates.website === "string") {
+    updates.website = normalizeWebsite(updates.website) ?? updates.website;
   }
 
   // --- Deal stage analytics: read previous stage before update ---

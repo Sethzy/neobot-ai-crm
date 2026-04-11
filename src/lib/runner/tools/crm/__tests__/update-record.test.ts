@@ -103,6 +103,36 @@ describe("update_record", () => {
 
       expect(result).toEqual({ success: true, record: updated });
     });
+
+    it("normalizes company website on update", async () => {
+      const existing = {
+        company_id: "co1",
+        client_id: CLIENT_ID,
+        name: "Acme",
+        website: "http://old.example",
+      };
+      const updated = { ...existing, website: "acme.com" };
+      const { client, builderHistory } = createMockSupabase({
+        companies: [
+          { data: existing, error: null },
+          { data: updated, error: null },
+        ],
+      });
+      const tools = createUpdateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.update_record.execute(
+        {
+          entity: "companies",
+          updates: [{ id: "co1", fields: { website: "https://www.acme.com/?utm=test" } }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result).toEqual({ success: true, record: updated });
+      expect(builderHistory.companies[1]?.update).toHaveBeenCalledWith(
+        expect.objectContaining({ website: "acme.com" }),
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------

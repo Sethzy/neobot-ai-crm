@@ -17,7 +17,7 @@ import {
   captureServerEvents,
 } from "@/lib/analytics/posthog-server";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
-import { normalizePhone } from "@/lib/crm/normalize";
+import { normalizePhone, normalizeWebsite } from "@/lib/crm/normalize";
 
 import { buildIlikePattern, buildContainsIlikeLiteral } from "./filter-utils";
 
@@ -198,7 +198,7 @@ function buildCompanyRow(
     client_id: clientId,
     name: record.name as string,
     industry: rawIndustry ? matchVocabularyValue(rawIndustry, companyIndustries) : null,
-    website: (record.website as string) ?? null,
+    website: normalizeWebsite(record.website as string | null) ?? (record.website as string | null) ?? null,
     phone: normalizePhone(record.phone as string | null) ?? (record.phone as string | null) ?? null,
     email: (record.email as string) ?? null,
     address: (record.address as string) ?? null,

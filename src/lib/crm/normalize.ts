@@ -8,6 +8,15 @@
  * @module lib/crm/normalize
  */
 import { parsePhoneNumber, type CountryCode } from "libphonenumber-js";
+import normalizeUrl from "normalize-url";
+
+const NORMALIZE_URL_OPTIONS = {
+  stripProtocol: true,
+  stripHash: true,
+  removeQueryParameters: true,
+  stripWWW: true,
+  removeSingleSlash: true,
+} as const;
 
 /**
  * Attempts to normalise a phone string to E.164 format (e.g. `+12125551234`).
@@ -33,6 +42,32 @@ export function normalizePhone(
   try {
     const parsed = parsePhoneNumber(input, defaultCountry);
     return parsed.isValid() ? parsed.format("E.164") : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Normalizes a website URL into a canonical storage form for deduplication.
+ *
+ * Examples:
+ *   - `https://www.acme.com/?utm=x` -> `acme.com`
+ *   - `http://acme.com/Products` -> `acme.com/Products`
+ *
+ * Returns `null` when the input cannot be parsed as a URL.
+ */
+export function normalizeWebsite(input: string | null | undefined): string | null {
+  if (!input) {
+    return null;
+  }
+
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    return normalizeUrl(trimmed, NORMALIZE_URL_OPTIONS);
   } catch {
     return null;
   }
