@@ -7,8 +7,10 @@ import { describe, expect, it } from "vitest";
 import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
 import {
+  claimApprovalResolution,
   createApprovalEvent,
   expireApprovalEvent,
+  releaseApprovalResolutionClaim,
   resolveApprovalEvent,
 } from "../queries";
 
@@ -284,6 +286,96 @@ describe("expireApprovalEvent", () => {
       success: false,
       status: "missing",
       error: "Approval event not found.",
+    });
+  });
+});
+
+describe("claimApprovalResolution", () => {
+  it("atomically claims a pending approval by writing the final decision first", async () => {
+    const row = {
+      approval_id: "approval-1",
+      client_id: "550e8400-e29b-41d4-a716-446655440000",
+      thread_id: "660e8400-e29b-41d4-a716-446655440000",
+      run_id: "770e8400-e29b-41d4-a716-446655440000",
+      session_id: "sess_1",
+      tool_use_id: "tu_1",
+      status: "approved",
+      resolved_at: "2026-04-11T01:00:00Z",
+    };
+    const supabase = createMockSupabaseClient({
+      updateResult: { data: row, error: null },
+    });
+
+    const result = await claimApprovalResolution(supabase as never, {
+      clientId: row.client_id,
+      approvalId: row.approval_id,
+      approved: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result).toMatchObject({
+      status: "claimed",
+      event: row,
+      claimedStatus: "approved",
+    });
+    expect(supabase.calls.methods).toContainEqual({
+      method: "update",
+      args: [expect.objectContaining({ status: "approved" })],
+    });
+    expect(supabase.calls.methods).toContainEqual({
+      method: "eq",
+      args: ["status", "pending"],
+    });
+  });
+
+  it("returns already_resolved when another caller already claimed the approval", async () => {
+    const supabase = createMockSupabaseClient({
+      updateResult: { data: null, error: null },
+      selectResult: {
+        data: { thread_id: "thread-1", status: "approved" },
+        error: null,
+      },
+    });
+
+    const result = await claimApprovalResolution(supabase as never, {
+      clientId: "550e8400-e29b-41d4-a716-446655440000",
+      approvalId: "approval-1",
+      approved: true,
+    });
+
+    expect(result).toEqual({
+      success: true,
+      status: "already_resolved",
+      event: { thread_id: "thread-1", status: "approved" },
+    });
+  });
+});
+
+describe("releaseApprovalResolutionClaim", () => {
+  it("releases a claimed approval back to pending when kickoff was never sent", async () => {
+    const supabase = createMockSupabaseClient({
+      updateResult: { data: { approval_id: "approval-1" }, error: null },
+    });
+
+    const result = await releaseApprovalResolutionClaim(supabase as never, {
+      clientId: "550e8400-e29b-41d4-a716-446655440000",
+      approvalId: "approval-1",
+      claimedStatus: "approved",
+      claimedResolvedAt: "2026-04-11T01:00:00Z",
+    });
+
+    expect(result).toEqual({ success: true, status: "released" });
+    expect(supabase.calls.methods).toContainEqual({
+      method: "update",
+      args: [expect.objectContaining({ status: "pending", resolved_at: null })],
+    });
+    expect(supabase.calls.methods).toContainEqual({
+      method: "eq",
+      args: ["status", "approved"],
+    });
+    expect(supabase.calls.methods).toContainEqual({
+      method: "eq",
+      args: ["resolved_at", "2026-04-11T01:00:00Z"],
     });
   });
 });

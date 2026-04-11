@@ -52,6 +52,19 @@ interface PatchApprovalPartStateInput {
   approved: boolean;
 }
 
+interface ClaimApprovalResolutionInput {
+  clientId: string;
+  approvalId: string;
+  approved: boolean;
+}
+
+interface ReleaseApprovalResolutionClaimInput {
+  clientId: string;
+  approvalId: string;
+  claimedStatus: Extract<ApprovalEventStatus, "approved" | "denied">;
+  claimedResolvedAt: string;
+}
+
 function isDuplicateApprovalEventError(error: { message?: string; code?: string | null } | null) {
   if (!error) {
     return false;
@@ -151,6 +164,112 @@ export async function resolveApprovalEvent(
     success: false as const,
     status: "missing" as const,
     error: "Approval event not found.",
+  };
+}
+
+/**
+ * Atomically claims a pending approval for one resolver by writing the final
+ * decision before the Anthropic resume call is sent.
+ */
+export async function claimApprovalResolution(
+  supabase: ApprovalSupabaseClient,
+  input: ClaimApprovalResolutionInput,
+) {
+  const claimedStatus = (input.approved ? "approved" : "denied") satisfies Extract<
+    ApprovalEventStatus,
+    "approved" | "denied"
+  >;
+  const claimedResolvedAt = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("approval_events")
+    .update({
+      status: claimedStatus,
+      resolved_at: claimedResolvedAt,
+    })
+    .eq("client_id", input.clientId)
+    .eq("approval_id", input.approvalId)
+    .eq("status", "pending")
+    .select("approval_id, client_id, thread_id, run_id, session_id, tool_use_id, status, resolved_at")
+    .maybeSingle();
+
+  if (error) {
+    return { success: false as const, status: "error" as const, error: error.message };
+  }
+
+  if (data) {
+    return {
+      success: true as const,
+      status: "claimed" as const,
+      event: data,
+      claimedStatus,
+      claimedResolvedAt,
+    };
+  }
+
+  const { data: existingEvent, error: existingEventError } = await supabase
+    .from("approval_events")
+    .select("thread_id, status")
+    .eq("client_id", input.clientId)
+    .eq("approval_id", input.approvalId)
+    .maybeSingle();
+
+  if (existingEventError) {
+    return {
+      success: false as const,
+      status: "error" as const,
+      error: existingEventError.message,
+    };
+  }
+
+  if (existingEvent && existingEvent.status !== "pending") {
+    return {
+      success: true as const,
+      status: "already_resolved" as const,
+      event: existingEvent,
+    };
+  }
+
+  return {
+    success: false as const,
+    status: "missing" as const,
+    error: "Approval event not found.",
+  };
+}
+
+/**
+ * Releases a previously-claimed approval back to `pending` when the resume
+ * confirmation never reached Anthropic.
+ */
+export async function releaseApprovalResolutionClaim(
+  supabase: ApprovalSupabaseClient,
+  input: ReleaseApprovalResolutionClaimInput,
+) {
+  const { data, error } = await supabase
+    .from("approval_events")
+    .update({
+      status: "pending" satisfies ApprovalEventStatus,
+      resolved_at: null,
+    })
+    .eq("client_id", input.clientId)
+    .eq("approval_id", input.approvalId)
+    .eq("status", input.claimedStatus)
+    .eq("resolved_at", input.claimedResolvedAt)
+    .select("approval_id")
+    .maybeSingle();
+
+  if (error) {
+    return { success: false as const, status: "error" as const, error: error.message };
+  }
+
+  if (data) {
+    return { success: true as const, status: "released" as const };
+  }
+
+  return {
+    success: false as const,
+    status: "not_claimed" as const,
+    error: "Approval claim was not active.",
   };
 }
 
