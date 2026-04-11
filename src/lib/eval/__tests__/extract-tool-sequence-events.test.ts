@@ -11,6 +11,8 @@ import { extractToolSequenceFromEvents } from "../extract-tool-sequence";
 
 import {
   agentMessageTextEvent,
+  bashToolUseEvent,
+  builtInToolResultEvent,
   customToolResultEvent,
   customToolUseEvent,
 } from "@/lib/managed-agents/__tests__/fixtures/events";
@@ -50,5 +52,41 @@ describe("extractToolSequenceFromEvents", () => {
     ]);
     expect(seq).toHaveLength(1);
     expect(seq[0].toolName).toBe("search_crm");
+  });
+
+  it("pairs built-in agent.tool_use with agent.tool_result (e.g. bash)", () => {
+    const seq = extractToolSequenceFromEvents([
+      bashToolUseEvent("tu_1", "ls /tmp", "allow"),
+      builtInToolResultEvent("tr_1", "tu_1", "file_a\nfile_b\n"),
+    ]);
+    expect(seq).toHaveLength(1);
+    expect(seq[0].toolName).toBe("bash");
+    expect(seq[0].input).toEqual({ command: "ls /tmp" });
+    expect(seq[0].output).toEqual({ text: "file_a\nfile_b\n", isError: false });
+  });
+
+  it("interleaves built-in and custom tool calls in event order", () => {
+    const seq = extractToolSequenceFromEvents([
+      customToolUseEvent("ctu_1", "search_crm", {}),
+      customToolResultEvent("ctr_1", "ctu_1", { success: true }),
+      bashToolUseEvent("tu_1", "ls", "allow"),
+      builtInToolResultEvent("tr_1", "tu_1", "ok"),
+      customToolUseEvent("ctu_2", "create_record", {}),
+      customToolResultEvent("ctr_2", "ctu_2", { success: true }),
+    ]);
+    expect(seq.map((r) => r.toolName)).toEqual([
+      "search_crm",
+      "bash",
+      "create_record",
+    ]);
+  });
+
+  it("captures is_error on built-in tool failures", () => {
+    const seq = extractToolSequenceFromEvents([
+      bashToolUseEvent("tu_1", "false", "allow"),
+      builtInToolResultEvent("tr_1", "tu_1", "exit 1", { isError: true }),
+    ]);
+    expect(seq).toHaveLength(1);
+    expect(seq[0].output).toEqual({ text: "exit 1", isError: true });
   });
 });

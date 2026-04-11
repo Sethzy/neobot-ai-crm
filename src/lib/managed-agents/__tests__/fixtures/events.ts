@@ -59,6 +59,25 @@ export function bashToolUseEvent(
   } as const;
 }
 
+/**
+ * Built-in tool result event (e.g. bash output). Pairs with
+ * `bashToolUseEvent` via `tool_use_id`.
+ */
+export function builtInToolResultEvent(
+  id: string,
+  toolUseId: string,
+  text: string,
+  options: { isError?: boolean } = {},
+) {
+  return {
+    id,
+    type: "agent.tool_result",
+    tool_use_id: toolUseId,
+    content: [{ type: "text", text }],
+    ...(options.isError ? { is_error: true } : {}),
+  } as const;
+}
+
 export function modelRequestStartEvent(id: string) {
   return { id, type: "span.model_request_start" } as const;
 }
