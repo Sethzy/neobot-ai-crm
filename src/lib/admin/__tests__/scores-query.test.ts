@@ -42,24 +42,28 @@ describe("fetchRecentScores", () => {
     scoresQueryMocks.gte.mockResolvedValueOnce({
       data: [
         {
+          run_id: "run-1",
           evaluator_name: "safety-gate",
           score_type: "boolean",
           score_value: 1,
           created_at: "2026-04-09T10:00:00Z",
         },
         {
+          run_id: "run-2",
           evaluator_name: "safety-gate",
           score_type: "boolean",
           score_value: 0,
           created_at: "2026-04-09T11:00:00Z",
         },
         {
+          run_id: "run-3",
           evaluator_name: "crm-hallucination",
           score_type: "boolean",
           score_value: 1,
           created_at: "2026-04-09T12:00:00Z",
         },
         {
+          run_id: "run-4",
           evaluator_name: "crm-hallucination",
           score_type: "scalar",
           score_value: 0.4,
@@ -73,7 +77,7 @@ describe("fetchRecentScores", () => {
 
     expect(scoresQueryMocks.from).toHaveBeenCalledWith("run_scores");
     expect(scoresQueryMocks.select).toHaveBeenCalledWith(
-      "evaluator_name, score_type, score_value, created_at",
+      "run_id, evaluator_name, score_type, score_value, created_at",
     );
     expect(scoresQueryMocks.gte).toHaveBeenCalledWith(
       "created_at",
@@ -108,6 +112,7 @@ describe("fetchRecentScores", () => {
     scoresQueryMocks.gte.mockResolvedValueOnce({
       data: [
         {
+          run_id: "run-1",
           evaluator_name: "safety-gate",
           score_type: "boolean",
           score_value: null,
@@ -118,5 +123,44 @@ describe("fetchRecentScores", () => {
     });
 
     await expect(fetchRecentScores({ days: 30 })).resolves.toEqual([]);
+  });
+
+  it("deduplicates duplicate evaluator rows for the same run", async () => {
+    scoresQueryMocks.gte.mockResolvedValueOnce({
+      data: [
+        {
+          run_id: "run-1",
+          evaluator_name: "safety-gate",
+          score_type: "boolean",
+          score_value: 1,
+          created_at: "2026-04-09T10:00:00Z",
+        },
+        {
+          run_id: "run-1",
+          evaluator_name: "safety-gate",
+          score_type: "boolean",
+          score_value: 1,
+          created_at: "2026-04-09T10:00:05Z",
+        },
+        {
+          run_id: "run-2",
+          evaluator_name: "safety-gate",
+          score_type: "boolean",
+          score_value: 0,
+          created_at: "2026-04-09T11:00:00Z",
+        },
+      ],
+      error: null,
+    });
+
+    await expect(fetchRecentScores({ days: 30 })).resolves.toEqual([
+      {
+        day: "2026-04-09",
+        evaluator_name: "safety-gate",
+        score_type: "boolean",
+        avg_score: 0.5,
+        run_count: 2,
+      },
+    ]);
   });
 });

@@ -23,14 +23,20 @@ export async function writeRunScore(
   runId: string,
   score: RunScorePayload,
 ): Promise<void> {
-  const { error } = await supabase.from("run_scores").insert({
-    run_id: runId,
-    evaluator_name: score.evaluator_name,
-    score_type: score.score_type,
-    score_value: score.score_value,
-    ...(score.comment !== undefined ? { comment: score.comment } : {}),
-  });
+  const { error } = await supabase.from("run_scores").upsert(
+    {
+      run_id: runId,
+      evaluator_name: score.evaluator_name,
+      score_type: score.score_type,
+      score_value: score.score_value,
+      ...(score.comment !== undefined ? { comment: score.comment } : {}),
+    },
+    {
+      onConflict: "run_id,evaluator_name,score_type",
+      ignoreDuplicates: false,
+    },
+  );
   if (error) {
-    throw new Error(`run_scores insert failed: ${error.message}`);
+    throw new Error(`run_scores upsert failed: ${error.message}`);
   }
 }

@@ -8,32 +8,38 @@ import { describe, it, expect, vi } from "vitest";
 
 import { writeRunScore } from "../run-scores-writer";
 
-function stubSupabase(insertSpy: ReturnType<typeof vi.fn>) {
-  return { from: vi.fn(() => ({ insert: insertSpy })) } as never;
+function stubSupabase(upsertSpy: ReturnType<typeof vi.fn>) {
+  return { from: vi.fn(() => ({ upsert: upsertSpy })) } as never;
 }
 
 describe("writeRunScore", () => {
-  it("inserts a row into run_scores", async () => {
-    const insert = vi.fn().mockResolvedValue({ error: null });
-    await writeRunScore(stubSupabase(insert), "run_1", {
+  it("upserts a row into run_scores on the run/evaluator/type key", async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    await writeRunScore(stubSupabase(upsert), "run_1", {
       evaluator_name: "safety-gate",
       score_type: "boolean",
       score_value: 1,
       comment: "ok",
     });
-    expect(insert).toHaveBeenCalledWith({
-      run_id: "run_1",
-      evaluator_name: "safety-gate",
-      score_type: "boolean",
-      score_value: 1,
-      comment: "ok",
-    });
+    expect(upsert).toHaveBeenCalledWith(
+      {
+        run_id: "run_1",
+        evaluator_name: "safety-gate",
+        score_type: "boolean",
+        score_value: 1,
+        comment: "ok",
+      },
+      {
+        onConflict: "run_id,evaluator_name,score_type",
+        ignoreDuplicates: false,
+      },
+    );
   });
 
   it("throws on DB error", async () => {
-    const insert = vi.fn().mockResolvedValue({ error: { message: "RLS denied" } });
+    const upsert = vi.fn().mockResolvedValue({ error: { message: "RLS denied" } });
     await expect(
-      writeRunScore(stubSupabase(insert), "run_1", {
+      writeRunScore(stubSupabase(upsert), "run_1", {
         evaluator_name: "safety-gate",
         score_type: "boolean",
         score_value: 0,

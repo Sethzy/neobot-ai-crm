@@ -30,6 +30,13 @@ interface ScoreBucket {
   count: number;
 }
 
+interface UniqueRunScore {
+  day: string;
+  evaluator_name: string;
+  score_type: string;
+  score_value: number;
+}
+
 export async function fetchRecentScores(
   options: FetchRecentScoresOptions,
 ): Promise<ScoreDashboardRow[]> {
@@ -38,7 +45,7 @@ export async function fetchRecentScores(
 
   const { data, error } = await supabase
     .from("run_scores")
-    .select("evaluator_name, score_type, score_value, created_at")
+    .select("run_id, evaluator_name, score_type, score_value, created_at")
     .gte("created_at", since);
 
   if (error) {
@@ -49,7 +56,7 @@ export async function fetchRecentScores(
     return [];
   }
 
-  const buckets = new Map<string, ScoreBucket>();
+  const uniqueRunScores = new Map<string, UniqueRunScore>();
 
   for (const row of data) {
     if (typeof row.score_value !== "number") {
@@ -57,9 +64,22 @@ export async function fetchRecentScores(
     }
 
     const day = row.created_at.slice(0, 10);
-    const key = `${day}__${row.evaluator_name}__${row.score_type}`;
-    const bucket = buckets.get(key) ?? {
+    const key = `${day}__${row.run_id}__${row.evaluator_name}__${row.score_type}`;
+
+    uniqueRunScores.set(key, {
       day,
+      evaluator_name: row.evaluator_name,
+      score_type: row.score_type,
+      score_value: row.score_value,
+    });
+  }
+
+  const buckets = new Map<string, ScoreBucket>();
+
+  for (const row of uniqueRunScores.values()) {
+    const key = `${row.day}__${row.evaluator_name}__${row.score_type}`;
+    const bucket = buckets.get(key) ?? {
+      day: row.day,
       evaluator_name: row.evaluator_name,
       score_type: row.score_type,
       sum: 0,
