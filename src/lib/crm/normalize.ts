@@ -49,6 +49,23 @@ export function normalizePhone(
   }
 }
 
+/** Strips all non-digit characters from a phone-like string. */
+export function extractPhoneDigits(input: string): string {
+  return input.replace(/[^\d]/g, "");
+}
+
+/**
+ * Matches a stored E.164 phone number against a raw digit string using suffix matching.
+ */
+export function phoneMatchesByDigits(e164: string, digits: string): boolean {
+  const storedDigits = extractPhoneDigits(e164);
+  if (!storedDigits || !digits) {
+    return false;
+  }
+
+  return storedDigits.endsWith(digits) || digits.endsWith(storedDigits);
+}
+
 /**
  * Normalizes a website URL into a canonical storage form for deduplication.
  *

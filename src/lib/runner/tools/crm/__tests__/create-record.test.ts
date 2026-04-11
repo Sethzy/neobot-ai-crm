@@ -252,6 +252,32 @@ describe("create_record", () => {
         expect.objectContaining({ email: "jane@acme.com" }),
       );
     });
+
+    it("catches duplicate contact by phone digit fallback when input lacks country code", async () => {
+      const existing = [{ contact_id: "c1", first_name: "Jane", last_name: "Doe", phone: "+12125551234" }];
+      const inserted = { contact_id: "c2", first_name: "Jane", last_name: "Smith", phone: "555-1234" };
+      const { client } = createMockSupabase({
+        contacts: [
+          { data: [], error: null },
+          { data: existing, error: null },
+          { data: inserted, error: null },
+        ],
+      });
+      const tools = createCreateRecordTool(client, CLIENT_ID);
+
+      const result = await tools.create_record.execute(
+        {
+          entity: "contacts",
+          records: [{ first_name: "Jane", last_name: "Smith", phone: "555-1234" }],
+        },
+        EXEC_OPTIONS,
+      );
+
+      expect(result.success).toBe(false);
+      if (!result.success && "possible_duplicates" in result) {
+        expect(result.possible_duplicates.length).toBeGreaterThan(0);
+      }
+    });
   });
 
   // ---------------------------------------------------------------------------

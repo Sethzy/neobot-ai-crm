@@ -17,7 +17,13 @@ import {
   captureServerEvents,
 } from "@/lib/analytics/posthog-server";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
-import { normalizeEmail, normalizePhone, normalizeWebsite } from "@/lib/crm/normalize";
+import {
+  extractPhoneDigits,
+  normalizeEmail,
+  normalizePhone,
+  normalizeWebsite,
+  phoneMatchesByDigits,
+} from "@/lib/crm/normalize";
 
 import { buildIlikePattern, buildContainsIlikeLiteral } from "./filter-utils";
 
@@ -134,6 +140,19 @@ function dedupKey(entity: CreateEntity, record: Record<string, unknown>): string
   }
 }
 
+function dedupeRecordsById(records: unknown[], idKey: string): unknown[] {
+  const unique = new Map<unknown, unknown>();
+
+  for (const record of records) {
+    const id = typeof record === "object" && record !== null
+      ? (record as Record<string, unknown>)[idKey]
+      : undefined;
+    unique.set(id ?? JSON.stringify(record), record);
+  }
+
+  return Array.from(unique.values());
+}
+
 /** Runs entity-specific DB duplicate detection for a single record. */
 async function findDuplicates(
   supabase: SupabaseClient<Database>,
@@ -142,24 +161,71 @@ async function findDuplicates(
   record: Record<string, unknown>,
 ): Promise<unknown[] | null> {
   switch (entity) {
-    case "contacts":
-      return findDuplicateContacts(
+    case "contacts": {
+      const rawPhone = record.phone ? String(record.phone) : null;
+      const normalizedPhone = rawPhone ? normalizePhone(rawPhone) : null;
+      const primaryMatches = await findDuplicateContacts(
         supabase,
         clientId,
         String(record.first_name ?? ""),
         String(record.last_name ?? ""),
         record.email ? String(record.email) : null,
-        // Normalize before comparing so "+1-212-555-1234" matches "+12125551234" in the DB.
-        record.phone ? (normalizePhone(String(record.phone)) ?? String(record.phone)) : null,
+        normalizedPhone ?? rawPhone,
       );
-    case "companies":
-      return findDuplicateCompanies(
+
+      if (!normalizedPhone && rawPhone) {
+        const digits = extractPhoneDigits(rawPhone);
+        if (digits.length >= 7) {
+          const { data, error } = await supabase
+            .from("contacts")
+            .select("*")
+            .eq("client_id", clientId);
+
+          if (!error && Array.isArray(data)) {
+            const digitMatches = data.filter((contact) =>
+              typeof contact.phone === "string"
+                ? phoneMatchesByDigits(contact.phone, digits)
+                : false,
+            );
+            return dedupeRecordsById([...(primaryMatches ?? []), ...digitMatches], "contact_id");
+          }
+        }
+      }
+
+      return primaryMatches;
+    }
+    case "companies": {
+      const rawPhone = record.phone ? String(record.phone) : null;
+      const normalizedPhone = rawPhone ? normalizePhone(rawPhone) : null;
+      const primaryMatches = await findDuplicateCompanies(
         supabase,
         clientId,
         String(record.name ?? ""),
         record.email ? String(record.email) : null,
-        record.phone ? (normalizePhone(String(record.phone)) ?? String(record.phone)) : null,
+        normalizedPhone ?? rawPhone,
       );
+
+      if (!normalizedPhone && rawPhone) {
+        const digits = extractPhoneDigits(rawPhone);
+        if (digits.length >= 7) {
+          const { data, error } = await supabase
+            .from("companies")
+            .select("*")
+            .eq("client_id", clientId);
+
+          if (!error && Array.isArray(data)) {
+            const digitMatches = data.filter((company) =>
+              typeof company.phone === "string"
+                ? phoneMatchesByDigits(company.phone, digits)
+                : false,
+            );
+            return dedupeRecordsById([...(primaryMatches ?? []), ...digitMatches], "company_id");
+          }
+        }
+      }
+
+      return primaryMatches;
+    }
     case "deals":
       return findDuplicateDeals(supabase, clientId, String(record.address ?? ""));
   }

@@ -4,7 +4,11 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { normalizeWebsite } from "../normalize";
+import {
+  extractPhoneDigits,
+  normalizeWebsite,
+  phoneMatchesByDigits,
+} from "../normalize";
 
 describe("normalizeWebsite", () => {
   it("strips protocol and www", () => {
@@ -30,5 +34,25 @@ describe("normalizeWebsite", () => {
   it("returns null on null or empty input", () => {
     expect(normalizeWebsite(null)).toBe(null);
     expect(normalizeWebsite("")).toBe(null);
+  });
+});
+
+describe("extractPhoneDigits", () => {
+  it("strips non-digits", () => {
+    expect(extractPhoneDigits("(212) 555-1234")).toBe("2125551234");
+  });
+});
+
+describe("phoneMatchesByDigits", () => {
+  it("matches suffix against E.164", () => {
+    expect(phoneMatchesByDigits("+12125551234", "5551234")).toBe(true);
+  });
+
+  it("matches full E.164 digits", () => {
+    expect(phoneMatchesByDigits("+12125551234", "2125551234")).toBe(true);
+  });
+
+  it("does not match unrelated digits", () => {
+    expect(phoneMatchesByDigits("+12125551234", "9998888")).toBe(false);
   });
 });
