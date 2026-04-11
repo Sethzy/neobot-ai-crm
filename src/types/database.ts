@@ -343,9 +343,11 @@ export type Database = {
       }
       clients: {
         Row: {
+          cancel_at_period_end: boolean
           client_id: string
           client_profile: string | null
           created_at: string
+          current_period_end: string | null
           display_name: string | null
           is_bootstrapped: boolean
           plan_name: string | null
@@ -358,9 +360,11 @@ export type Database = {
           user_preferences: string | null
         }
         Insert: {
+          cancel_at_period_end?: boolean
           client_id?: string
           client_profile?: string | null
           created_at?: string
+          current_period_end?: string | null
           display_name?: string | null
           is_bootstrapped?: boolean
           plan_name?: string | null
@@ -373,9 +377,11 @@ export type Database = {
           user_preferences?: string | null
         }
         Update: {
+          cancel_at_period_end?: boolean
           client_id?: string
           client_profile?: string | null
           created_at?: string
+          current_period_end?: string | null
           display_name?: string | null
           is_bootstrapped?: boolean
           plan_name?: string | null
