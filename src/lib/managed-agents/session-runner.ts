@@ -35,6 +35,18 @@ import type {
 
 import type { AnthropicEvent } from "./event-types";
 
+function shouldEmitIncrementalSnapshot(eventType: AnthropicEvent["type"]): boolean {
+  return (
+    eventType === "span.model_request_start" ||
+    eventType === "agent.message" ||
+    eventType === "agent.custom_tool_use" ||
+    eventType === "user.custom_tool_result" ||
+    eventType === "agent.tool_use" ||
+    eventType === "agent.tool_result" ||
+    eventType === "session.error"
+  );
+}
+
 export async function consumeAnthropicSession(
   options: SessionRunnerOptions,
 ): Promise<SessionRunnerResult> {
@@ -43,12 +55,13 @@ export async function consumeAnthropicSession(
   const collectedEvents: unknown[] = [];
   const approvalEventIds: string[] = [];
 
-  // Stream-first: eagerly open the live SSE stream BEFORE sending the
-  // kickoff (skill §7 — "subscribe before you send"). The async-generator
-  // approach we used originally deferred the real `events.stream()` call
-  // until first iteration, which happened AFTER the kickoff and lost the
-  // earliest events on cold sessions.
-  const liveHandle = openSessionStream(anthropic, options.sessionId);
+  // Stream-first: open and establish the live SSE stream BEFORE sending
+  // the kickoff (skill §7 — "subscribe before you send"). Awaiting
+  // `openSessionStream` waits for the SSE response headers so the stream
+  // is genuinely live before we post the user message. `events.stream()`
+  // returns an `APIPromise<Stream<...>>` in the SDK — see the long note
+  // in `session-reconnect.ts` for why this await is load-bearing.
+  const liveHandle = await openSessionStream(anthropic, options.sessionId);
 
   // Kickoff AFTER the live stream is open.
   if (options.kickoffMessage) {
@@ -82,9 +95,10 @@ export async function consumeAnthropicSession(
               deny_message:
                 options.kickoffApproval.denyMessage ??
                 "User denied this action.",
-            },
+        },
       ],
     } as never);
+    await options.onKickoffApprovalSent?.();
   }
 
   const iterator = iterateSessionEvents(
@@ -101,7 +115,7 @@ export async function consumeAnthropicSession(
 
     // Raw-event callbacks for projection / UI streaming. Fire BEFORE we act
     // on the translator output so callers see the event in arrival order.
-    const eventType = (event as { type: string }).type;
+    const eventType = (event as { type: AnthropicEvent["type"] }).type;
     if (eventType === "span.model_request_start") {
       await options.callbacks?.onSpanModelRequestStart?.(event);
     } else if (eventType === "span.model_request_end") {
@@ -166,7 +180,7 @@ export async function consumeAnthropicSession(
         // /api/tool-confirm route + Telegram callback handler can post
         // user.tool_confirmation back to the originating Anthropic
         // session by exact tool_use_id.
-        await createApprovalEvent(options.context.supabase, {
+        const persistedApproval = await createApprovalEvent(options.context.supabase, {
           clientId: options.context.clientId,
           threadId: options.context.threadId ?? "",
           runId: options.runId,
@@ -176,8 +190,29 @@ export async function consumeAnthropicSession(
           sessionId: options.sessionId,
           toolUseId: result.approvalRequest.toolUseId,
         });
+        if (!persistedApproval.success) {
+          throw new Error(
+            `Failed to persist approval event ${approvalId}: ${persistedApproval.error}`,
+          );
+        }
         approvalEventIds.push(approvalId);
         await options.callbacks?.onApprovalRequired?.(event, approvalId);
+      }
+    }
+
+    if (
+      options.persistIncrementally &&
+      shouldEmitIncrementalSnapshot(eventType)
+    ) {
+      try {
+        await options.callbacks?.onAccumulatedEventsUpdated?.([
+          ...collectedEvents,
+        ]);
+      } catch (error) {
+        console.error(
+          "[session-runner] incremental snapshot callback failed:",
+          error,
+        );
       }
     }
 

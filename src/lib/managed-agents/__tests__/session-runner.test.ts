@@ -9,7 +9,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("../session-reconnect", () => ({
-  openSessionStream: vi.fn(() => ({ live: { [Symbol.asyncIterator]: async function* () {} } })),
+  // Matches the real `openSessionStream` signature — it returns a Promise
+  // that the session runner awaits before sending the kickoff. Returning
+  // a sync handle here would let the "handle.live is not async iterable"
+  // regression slip through unit tests again. `preKickoffEventIds` is
+  // part of the handle contract (see session-reconnect.ts) and must be
+  // present so the session runner's iteration path doesn't TypeError.
+  openSessionStream: vi.fn(() =>
+    Promise.resolve({
+      live: { [Symbol.asyncIterator]: async function* () {} },
+      preKickoffEventIds: new Set<string>(),
+    }),
+  ),
   iterateSessionEvents: vi.fn(),
 }));
 
@@ -84,8 +95,9 @@ beforeEach(() => {
   retrieveSession.mockResolvedValue({ stats: { active_seconds: 0 } });
   (iterateSessionEvents as unknown as ReturnType<typeof vi.fn>).mockReset();
   (openSessionStream as unknown as ReturnType<typeof vi.fn>).mockClear();
-  (openSessionStream as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+  (openSessionStream as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
     live: { [Symbol.asyncIterator]: async function* () {} },
+    preKickoffEventIds: new Set<string>(),
   });
   (dispatchCustomTool as unknown as ReturnType<typeof vi.fn>).mockClear();
   (createApprovalEvent as unknown as ReturnType<typeof vi.fn>).mockClear();
@@ -178,6 +190,37 @@ describe("consumeAnthropicSession — happy path", () => {
     });
 
     expect(order).toEqual(["start", "msg"]);
+  });
+
+  it("emits incremental snapshots when persistIncrementally is enabled", async () => {
+    stubIteration([
+      modelRequestStartEvent("span_1"),
+      agentMessageTextEvent("evt_1", "hello"),
+      statusIdleEvent("evt_idle", "end_turn"),
+    ]);
+    const onAccumulatedEventsUpdated = vi.fn();
+
+    await consumeAnthropicSession({
+      anthropic: fakeAnthropic(),
+      sessionId: "sess_1",
+      runId: "run_1",
+      context: baseContext(),
+      persistIncrementally: true,
+      callbacks: { onAccumulatedEventsUpdated },
+    });
+
+    expect(onAccumulatedEventsUpdated).toHaveBeenCalledTimes(2);
+    expect(onAccumulatedEventsUpdated).toHaveBeenNthCalledWith(
+      1,
+      [expect.objectContaining({ type: "span.model_request_start" })],
+    );
+    expect(onAccumulatedEventsUpdated).toHaveBeenNthCalledWith(
+      2,
+      [
+        expect.objectContaining({ type: "span.model_request_start" }),
+        expect.objectContaining({ type: "agent.message" }),
+      ],
+    );
   });
 });
 
@@ -289,6 +332,59 @@ describe("consumeAnthropicSession — approvals", () => {
     );
     expect(denyCall).toBeDefined();
     expect(createApprovalEvent).not.toHaveBeenCalled();
+  });
+
+  it("throws when approval persistence fails", async () => {
+    (createApprovalEvent as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      success: false,
+      status: "error",
+      error: "write failed",
+    });
+    stubIteration([
+      bashToolUseEvent("tu_1", "rm -rf /tmp", "ask"),
+      statusIdleEvent("evt_idle", "requires_action"),
+    ]);
+
+    await expect(
+      consumeAnthropicSession({
+        anthropic: fakeAnthropic(),
+        sessionId: "sess_1",
+        runId: "run_1",
+        context: baseContext(),
+        autoDenyApprovals: false,
+      }),
+    ).rejects.toThrow("Failed to persist approval event tu_1: write failed");
+  });
+
+  it("fires onKickoffApprovalSent after sending user.tool_confirmation", async () => {
+    stubIteration([statusIdleEvent("evt_idle", "end_turn")]);
+    const onKickoffApprovalSent = vi.fn();
+
+    await consumeAnthropicSession({
+      anthropic: fakeAnthropic(),
+      sessionId: "sess_1",
+      runId: "run_1",
+      context: baseContext(),
+      kickoffApproval: {
+        toolUseId: "tu_1",
+        result: "allow",
+      },
+      onKickoffApprovalSent,
+    });
+
+    expect(onKickoffApprovalSent).toHaveBeenCalledTimes(1);
+    expect(sendEvent).toHaveBeenCalledWith(
+      "sess_1",
+      expect.objectContaining({
+        events: [
+          {
+            type: "user.tool_confirmation",
+            tool_use_id: "tu_1",
+            result: "allow",
+          },
+        ],
+      }),
+    );
   });
 });
 

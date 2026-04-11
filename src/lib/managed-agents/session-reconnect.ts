@@ -1,21 +1,41 @@
 /**
  * Stream + events.list reconnect helper per Anthropic skill §1 + §7.
  *
- * The hard requirement: the live SSE stream must be opened BEFORE any
+ * The hard requirement: the live SSE stream must be subscribed BEFORE any
  * `user.message` is sent, otherwise we can miss the earliest events
- * (skill §7, "subscribe before you send"). The previous implementation
- * was an `async function*` generator — calling it only constructed the
- * generator object, deferring the real `events.stream(...)` call until
- * the first `for await` step, which happens AFTER the kickoff send.
+ * (skill §7, "subscribe before you send"). Two sharp edges to avoid:
  *
- * Fix: split the helper into
- *   1. `openSessionStream(client, sessionId)` — synchronous, eagerly
- *      invokes `events.stream(sessionId)` and returns a `LiveStreamHandle`.
- *      The runner calls this BEFORE `events.send`.
+ *   1. An `async function*` generator defers its body until the first
+ *      `for await` step, so wrapping `events.stream(...)` in one means
+ *      the real call fires AFTER the kickoff send — lost earliest events.
+ *   2. `anthropic.beta.sessions.events.stream(sessionId)` does NOT return
+ *      the iterable directly. It returns `APIPromise<Stream<...>>` — a
+ *      Promise that resolves to the async-iterable stream once the SSE
+ *      response headers have been received. You cannot `for await (x of
+ *      promise)` — `for await` does not await its right-hand side, so it
+ *      throws "X is not async iterable" synchronously.
+ *
+ * Third sharp edge (reused sessions): `conversation_threads.session_id`
+ * is cached across turns, so on turn 2 of the same thread `events.list`
+ * returns every event from prior turns, including prior `status_idle`
+ * terminals. A naive "drain history, short-circuit on terminal" iterator
+ * replays turn 1's events for turn 2 and collides on the same
+ * `source_event_id` when persisting — which manifests as a duplicated
+ * assistant reply plus an RLS UPDATE-denial on `conversation_messages`.
+ *
+ * So the helper is split into:
+ *   1. `openSessionStream(client, sessionId)` — async. In parallel it
+ *      (a) opens the live SSE stream via `events.stream()` and (b)
+ *      snapshots every event id currently in `events.list()`. Both fire
+ *      BEFORE the runner sends the kickoff. Awaiting the returned
+ *      Promise gives a stronger subscribe-before-send guarantee than
+ *      just firing the request: headers are received, the stream is
+ *      live, and we have a precise "what was pre-kickoff" snapshot.
  *   2. `iterateSessionEvents(client, sessionId, handle)` — async iterator
- *      that drains history first, then resumes from the live handle,
- *      deduping by event id and breaking on terminal events even when
- *      the terminal event is already-seen in history.
+ *      that drains history first (skipping anything in the pre-kickoff
+ *      snapshot so prior turns can't replay), then resumes from the live
+ *      handle, deduping by event id and breaking on terminal events that
+ *      belong to the current turn.
  *
  * @module lib/managed-agents/session-reconnect
  */
@@ -28,12 +48,20 @@ interface AnyEvent {
 }
 
 /**
- * Opaque handle returned by `openSessionStream`. Currently just wraps the
- * raw live iterable, but kept as a struct so we can attach an `unsubscribe`
- * function or a buffered-events queue later without changing call sites.
+ * Opaque handle returned by `openSessionStream`. Wraps the resolved live
+ * iterable plus the set of event ids that already existed in the session
+ * before the kickoff fired — the iterator uses that set to skip prior
+ * turns on reused sessions.
  */
 export interface LiveStreamHandle {
   live: AsyncIterable<unknown>;
+  /**
+   * Every event id present in `events.list(sessionId)` at the instant
+   * `openSessionStream` was invoked. Empty for a brand-new session.
+   * Populated on turn N>=2 of a reused chat thread, where it contains
+   * every event from every prior turn.
+   */
+  preKickoffEventIds: ReadonlySet<string>;
 }
 
 function isTerminal(event: AnyEvent): boolean {
@@ -46,43 +74,79 @@ function isTerminal(event: AnyEvent): boolean {
 }
 
 /**
- * Eagerly open the live SSE stream for a session. Must be called BEFORE
- * the runner posts its kickoff `user.message` (skill §7).
+ * Open the live SSE stream for a session AND snapshot the pre-kickoff
+ * event ids. Must be awaited BEFORE the runner posts its kickoff
+ * `user.message` (skill §7, "subscribe before you send"). The Anthropic
+ * SDK's `events.stream()` returns `APIPromise<Stream<...>>`, so we must
+ * `await` it to get the iterable — a raw, unawaited call returns a
+ * Promise that cannot be used with `for await...of`.
+ *
+ * Both the stream open and the history snapshot fire in parallel. They
+ * must both complete before the caller sends the kickoff so the snapshot
+ * is a true "before this turn" baseline.
  */
-export function openSessionStream(
+export async function openSessionStream(
   anthropic: Anthropic,
   sessionId: string,
-): LiveStreamHandle {
-  const live = (
-    anthropic.beta.sessions.events as unknown as {
-      stream: (id: string) => AsyncIterable<unknown>;
+): Promise<LiveStreamHandle> {
+  // Called synchronously in the async function body — both underlying
+  // fetches are in-flight the moment we enter this function, matching
+  // the spike pattern at
+  // `scripts/spike/managed-agents-custom-tool-spike.ts`.
+  const livePromise = anthropic.beta.sessions.events.stream(sessionId);
+  const snapshotPromise = (async () => {
+    const ids = new Set<string>();
+    for await (const event of anthropic.beta.sessions.events.list(
+      sessionId,
+    ) as unknown as AsyncIterable<unknown>) {
+      const id = (event as { id?: unknown }).id;
+      if (typeof id === "string" && id.length > 0) {
+        ids.add(id);
+      }
     }
-  ).stream(sessionId);
-  return { live };
+    return ids;
+  })();
+
+  const [live, preKickoffEventIds] = await Promise.all([
+    livePromise,
+    snapshotPromise,
+  ]);
+
+  return {
+    live: live as unknown as AsyncIterable<unknown>,
+    preKickoffEventIds,
+  };
 }
 
 /**
  * Drain the session history first, then resume from the pre-opened live
- * stream. Yields events in arrival order, deduped by id, and breaks on
- * terminal events even if the terminal was already-seen in history
- * (skill §1).
+ * stream. Yields events in arrival order, deduped by id, skips every
+ * pre-kickoff event (so turn N>=2 does not replay prior-turn events), and
+ * breaks on terminal events that belong to the current turn (skill §1).
  */
 export async function* iterateSessionEvents(
   anthropic: Anthropic,
   sessionId: string,
   handle: LiveStreamHandle,
 ): AsyncGenerator<AnyEvent> {
-  const seen = new Set<string>();
+  // Pre-seed `seen` with every event id that existed before we sent the
+  // kickoff. Those are prior-turn events on a reused session and must
+  // never reach the consumer — yielding them would misattribute old
+  // text to the new turn, and terminal-short-circuiting on them would
+  // cause the iterator to stop before processing the current turn at
+  // all. The current implementation of the loop skips events whose id
+  // is already in `seen` entirely (no yield, no terminal check), which
+  // is exactly what we want here.
+  const seen = new Set<string>(handle.preKickoffEventIds);
   let terminal = false;
 
   for await (const event of anthropic.beta.sessions.events.list(
     sessionId,
   ) as unknown as AsyncIterable<unknown>) {
     const typed = event as AnyEvent;
-    if (!seen.has(typed.id)) {
-      seen.add(typed.id);
-      yield typed;
-    }
+    if (seen.has(typed.id)) continue;
+    seen.add(typed.id);
+    yield typed;
     if (isTerminal(typed)) {
       terminal = true;
       break;
@@ -92,10 +156,9 @@ export async function* iterateSessionEvents(
 
   for await (const event of handle.live) {
     const typed = event as AnyEvent;
-    if (!seen.has(typed.id)) {
-      seen.add(typed.id);
-      yield typed;
-    }
+    if (seen.has(typed.id)) continue;
+    seen.add(typed.id);
+    yield typed;
     if (isTerminal(typed)) return;
   }
 }

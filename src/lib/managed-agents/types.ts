@@ -104,6 +104,14 @@ export interface SessionRunnerCallbacks {
   onSpanModelRequestStart?: (event: unknown) => void | Promise<void>;
   onSpanModelRequestEnd?: (event: unknown) => void | Promise<void>;
   onSessionError?: (event: unknown) => void | Promise<void>;
+  /**
+   * Fires after assistant-visible events are incorporated into the
+   * accumulated event buffer. Trigger runs use this to upsert the current
+   * assistant snapshot while the session is still in flight.
+   */
+  onAccumulatedEventsUpdated?: (
+    events: ReadonlyArray<unknown>,
+  ) => void | Promise<void>;
 }
 
 /** Options passed to `consumeAnthropicSession`. */
@@ -115,10 +123,9 @@ export interface SessionRunnerOptions {
   context: DispatchContext;
   callbacks?: SessionRunnerCallbacks;
   /**
-   * Trigger-listener hint from H5. The current H3 core does not project
-   * incremental persistence itself, but the option is part of the shared
-   * contract so the listener can opt into that behavior as the persistence
-   * callbacks land.
+   * When true, the runner invokes `callbacks.onAccumulatedEventsUpdated`
+   * after assistant-visible events so callers can persist in-flight
+   * snapshots (used by trigger listeners).
    */
   persistIncrementally?: boolean;
   /**
@@ -143,6 +150,13 @@ export interface SessionRunnerOptions {
     result: "allow" | "deny";
     denyMessage?: string;
   };
+  /**
+   * Fires after a resume-path `user.tool_confirmation` event is accepted by
+   * Anthropic. The approval adapter uses this to tell "confirmation never
+   * sent, safe to release the DB claim" from "confirmation sent, do not
+   * auto-retry".
+   */
+  onKickoffApprovalSent?: () => void | Promise<void>;
   /**
    * Trigger-mode: auto-deny bash approvals via user.tool_confirmation.
    * Defaults to false (chat-mode behaviour).
