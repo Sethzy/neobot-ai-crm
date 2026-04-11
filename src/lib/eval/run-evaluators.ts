@@ -1,20 +1,32 @@
 /**
- * Evaluator orchestrator — runs all evaluators for a given Langfuse trace
- * and writes scores back. Used by both the online (after() callback) and
- * offline (CLI script) paths.
+ * Evaluator orchestrator — runs all evaluators for an agent run and writes
+ * scores back. Two entry points:
  *
- * This function is fire-and-forget safe: it never throws. Evaluator failures
- * are logged but do not affect the user.
+ * - `runEvaluatorsForTrace(traceId)` — legacy Langfuse path. Used by the
+ *   trace-driven runner during the H3 → H4 transition.
+ * - `runEvaluatorsForEvents(events, runId, supabase, ctx)` — H3 path.
+ *   Used by the Managed Agents adapter; reads the in-memory event array
+ *   and writes scores into Supabase `run_scores`.
+ *
+ * Both functions are fire-and-forget safe: they catch their own errors so
+ * a broken evaluator never blocks a successful run from completing.
+ *
  * @module lib/eval/run-evaluators
  */
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import type { AnthropicEvent } from "@/lib/managed-agents/__tests__/fixtures/events";
+import type { Database } from "@/types/database";
+
+import { evaluateCrmHallucination, evaluateCrmHallucinationOnSequence } from "./crm-hallucination-eval";
+import { extractToolSequence, extractToolSequenceFromEvents } from "./extract-tool-sequence";
 import {
-  getTraceById,
-  getObservationsForTrace,
   createScore,
+  getObservationsForTrace,
+  getTraceById,
 } from "./langfuse-api";
-import { evaluateSafetyGate } from "./safety-gate-eval";
-import { evaluateCrmHallucination } from "./crm-hallucination-eval";
-import { extractToolSequence } from "./extract-tool-sequence";
+import { writeRunScore } from "./run-scores-writer";
+import { evaluateSafetyGate, evaluateSafetyGateOnSequence } from "./safety-gate-eval";
 
 /** CRM write tool names that trigger the hallucination evaluator. */
 const CRM_WRITE_TOOLS = new Set(["create_record", "update_record"]);
@@ -107,5 +119,70 @@ export async function runEvaluatorsForTrace(traceId: string): Promise<void> {
   } catch (error) {
     // Evaluator infrastructure failure — log and move on
     console.error(`[eval] Evaluator pipeline failed for trace=${traceId}:`, error);
+  }
+}
+
+export interface RunEvaluatorsForEventsContext {
+  /** The user's input as it was passed to the model. Used by the
+   *  hallucination evaluator's grounding check. */
+  conversationInput: unknown;
+}
+
+/**
+ * H3 entry point — runs evaluators directly on an in-memory Anthropic
+ * Managed Agents event array (no Langfuse round-trip) and writes scores
+ * into Supabase `run_scores`. Fire-and-forget safe: never throws.
+ */
+export async function runEvaluatorsForEvents(
+  events: ReadonlyArray<AnthropicEvent>,
+  runId: string,
+  supabase: SupabaseClient<Database>,
+  context: RunEvaluatorsForEventsContext,
+): Promise<void> {
+  try {
+    const sequence = extractToolSequenceFromEvents(events);
+
+    // ── Safety gate evaluator (always, deterministic, free) ───────────
+    const safety = evaluateSafetyGateOnSequence(sequence);
+    await writeRunScore(supabase, runId, {
+      evaluator_name: "safety-gate-bypass",
+      score_type: "boolean",
+      score_value: safety.pass ? 1 : 0,
+      comment: safety.pass
+        ? "All gated tools had prior ask_user_question"
+        : `Violations: ${safety.violations.map((v) => `${v.toolName}: ${v.reason}`).join("; ")}`,
+    });
+
+    if (!safety.pass) {
+      console.error(`[eval] SAFETY GATE BYPASS detected on run=${runId}`, {
+        violations: safety.violations,
+      });
+    }
+
+    // ── CRM hallucination evaluator (only if CRM writes present) ─────
+    const hasCrmWrites = sequence.some((r) => CRM_WRITE_TOOLS.has(r.toolName));
+    if (hasCrmWrites) {
+      const hallucination = await evaluateCrmHallucinationOnSequence(
+        context.conversationInput,
+        sequence,
+      );
+
+      await writeRunScore(supabase, runId, {
+        evaluator_name: "crm-data-grounded",
+        score_type: "boolean",
+        score_value: hallucination.pass ? 1 : 0,
+        comment: hallucination.pass
+          ? "All CRM writes grounded in conversation context"
+          : `Flagged: ${hallucination.flaggedCalls.map((f) => `${f.field}="${f.value}": ${f.reason}`).join("; ")}`,
+      });
+
+      if (!hallucination.pass) {
+        console.error(`[eval] CRM DATA HALLUCINATION detected on run=${runId}`, {
+          flaggedCalls: hallucination.flaggedCalls,
+        });
+      }
+    }
+  } catch (error) {
+    console.error(`[eval] runEvaluatorsForEvents failed for run=${runId}:`, error);
   }
 }
