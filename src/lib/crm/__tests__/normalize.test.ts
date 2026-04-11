@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  extractEmailDomain,
   extractPhoneDigits,
   normalizeWebsite,
   phoneMatchesByDigits,
@@ -54,5 +55,29 @@ describe("phoneMatchesByDigits", () => {
 
   it("does not match unrelated digits", () => {
     expect(phoneMatchesByDigits("+12125551234", "9998888")).toBe(false);
+  });
+});
+
+describe("extractEmailDomain", () => {
+  it("returns registrable domain for simple email", () => {
+    expect(extractEmailDomain("jane@acme.com")).toBe("acme.com");
+  });
+
+  it("handles subdomains", () => {
+    expect(extractEmailDomain("jane@mail.acme.com")).toBe("acme.com");
+  });
+
+  it("handles country-code TLDs", () => {
+    expect(extractEmailDomain("jane@mail.acme.co.uk")).toBe("acme.co.uk");
+  });
+
+  it("lowercases the domain", () => {
+    expect(extractEmailDomain("jane@ACME.COM")).toBe("acme.com");
+  });
+
+  it("returns null for invalid input", () => {
+    expect(extractEmailDomain("not-an-email")).toBe(null);
+    expect(extractEmailDomain("")).toBe(null);
+    expect(extractEmailDomain(null)).toBe(null);
   });
 });

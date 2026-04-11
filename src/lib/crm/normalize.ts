@@ -9,6 +9,7 @@
  */
 import { parsePhoneNumber, type CountryCode } from "libphonenumber-js";
 import normalizeUrl from "normalize-url";
+import psl from "psl";
 import { z } from "zod";
 
 const NORMALIZE_URL_OPTIONS = {
@@ -122,4 +123,30 @@ export function normalizeEmail(
   }
 
   return lowered;
+}
+
+/**
+ * Extracts the registrable domain from an email address using the Public Suffix List.
+ */
+export function extractEmailDomain(input: string | null | undefined): string | null {
+  if (!input || typeof input !== "string") {
+    return null;
+  }
+
+  const atIndex = input.indexOf("@");
+  if (atIndex < 1 || atIndex === input.length - 1) {
+    return null;
+  }
+
+  const rawDomain = input.slice(atIndex + 1).toLowerCase().trim();
+  if (!rawDomain) {
+    return null;
+  }
+
+  try {
+    const parsed = psl.parse(rawDomain);
+    return parsed.domain ?? null;
+  } catch {
+    return null;
+  }
 }
