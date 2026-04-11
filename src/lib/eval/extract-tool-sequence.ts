@@ -1,9 +1,14 @@
 /**
- * Extracts an ordered sequence of tool call records from Langfuse observations.
- * Used by evaluators to inspect the agent's tool call timeline.
+ * Extracts an ordered sequence of tool call records from either Langfuse
+ * observations (legacy path) or Anthropic Managed Agents events (H3 path).
+ *
+ * Both paths emit the same `ToolCallRecord[]` shape so the safety-gate and
+ * CRM-hallucination evaluators can be reused unchanged.
+ *
  * @module lib/eval/extract-tool-sequence
  */
 import type { LangfuseObservation } from "./langfuse-api";
+import type { AnthropicEvent } from "@/lib/managed-agents/__tests__/fixtures/events";
 
 export interface ToolCallRecord {
   toolName: string;
@@ -59,4 +64,50 @@ export function extractToolSequence(
       };
     })
     .filter((r): r is ToolCallRecord => r !== null);
+}
+
+/**
+ * Back-compat alias — preserved so the existing Langfuse-driven evaluator
+ * runner can keep using the original name during the H3 → H4 transition.
+ */
+export const extractToolSequenceFromObservations = extractToolSequence;
+
+/**
+ * Extract a time-ordered tool call sequence from Anthropic Managed Agents
+ * events. Pairs each `agent.custom_tool_use` with its matching
+ * `user.custom_tool_result` by `custom_tool_use_id`. Order is preserved by
+ * insertion (Anthropic emits events in chronological order).
+ */
+export function extractToolSequenceFromEvents(
+  events: ReadonlyArray<AnthropicEvent>,
+): ToolCallRecord[] {
+  const indexById = new Map<string, number>();
+  const records: ToolCallRecord[] = [];
+
+  for (const event of events) {
+    if (event.type === "agent.custom_tool_use") {
+      indexById.set(event.id, records.length);
+      records.push({
+        toolName: event.name,
+        input: event.input,
+        output: undefined,
+        startTime: "",
+        observationId: event.id,
+      });
+      continue;
+    }
+    if (event.type === "user.custom_tool_result") {
+      const idx = indexById.get(event.custom_tool_use_id);
+      if (idx == null) continue;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(event.content[0]?.text ?? "null");
+      } catch {
+        parsed = event.content[0]?.text;
+      }
+      records[idx] = { ...records[idx], output: parsed };
+    }
+  }
+
+  return records;
 }
