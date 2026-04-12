@@ -1,8 +1,8 @@
 /**
  * Parses text and file parts from an AI SDK message's `parts` array.
  *
- * Extracted from `app/api/chat/route.ts` so both the legacy monolithic
- * route and the new `POST /api/chat/send` endpoint share one parser.
+ * Used by `POST /api/chat/send` to extract user input from the message
+ * payload before forwarding to the Anthropic session.
  *
  * @module lib/chat/extract-user-input
  */

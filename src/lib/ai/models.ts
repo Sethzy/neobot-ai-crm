@@ -31,8 +31,7 @@ export interface ChatModel {
  * Default user-facing chat model for Sunder's main chat surface.
  *
  * Post-Managed-Agents-migration note: this ID is only used for the UI
- * picker catalog, the `chat-model` cookie, and the `selectedChatModel`
- * validation gate in `/api/chat`. The actual runtime model is pinned
+ * picker catalog and the `chat-model` cookie. The actual runtime model is pinned
  * server-side by the `ANTHROPIC_AGENT_VERSION` (currently Sonnet 4.6,
  * see `scripts/managed-agents/create-agent.ts`). The picker is a label
  * today; it becomes a real switch only once Haiku is added via a second
