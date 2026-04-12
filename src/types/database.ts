@@ -715,6 +715,9 @@ export type Database = {
           is_pinned: boolean
           is_primary: boolean
           session_id: string | null
+          source_run_id: string | null
+          source_trigger_id: string | null
+          source_type: string
           thread_id: string
           title: string | null
           updated_at: string
@@ -732,6 +735,9 @@ export type Database = {
           is_pinned?: boolean
           is_primary?: boolean
           session_id?: string | null
+          source_run_id?: string | null
+          source_trigger_id?: string | null
+          source_type?: string
           thread_id?: string
           title?: string | null
           updated_at?: string
@@ -749,6 +755,9 @@ export type Database = {
           is_pinned?: boolean
           is_primary?: boolean
           session_id?: string | null
+          source_run_id?: string | null
+          source_trigger_id?: string | null
+          source_type?: string
           thread_id?: string
           title?: string | null
           updated_at?: string
@@ -760,6 +769,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "conversation_threads_source_trigger_id_fkey"
+            columns: ["source_trigger_id"]
+            isOneToOne: false
+            referencedRelation: "agent_triggers"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1465,8 +1481,10 @@ export type Database = {
           created_at: string
           events_cursor: string | null
           model: string | null
+          parent_run_id: string | null
           prompt_tokens: number | null
           run_id: string
+          run_thread_id: string | null
           run_type: string
           session_id: string | null
           status: Database["public"]["Enums"]["run_status"]
@@ -1474,6 +1492,7 @@ export type Database = {
           thread_id: string
           tokens_in: number | null
           tokens_out: number | null
+          trigger_id: string | null
         }
         Insert: {
           cache_read_tokens?: number | null
@@ -1483,8 +1502,10 @@ export type Database = {
           created_at?: string
           events_cursor?: string | null
           model?: string | null
+          parent_run_id?: string | null
           prompt_tokens?: number | null
           run_id?: string
+          run_thread_id?: string | null
           run_type?: string
           session_id?: string | null
           status?: Database["public"]["Enums"]["run_status"]
@@ -1492,6 +1513,7 @@ export type Database = {
           thread_id: string
           tokens_in?: number | null
           tokens_out?: number | null
+          trigger_id?: string | null
         }
         Update: {
           cache_read_tokens?: number | null
@@ -1501,8 +1523,10 @@ export type Database = {
           created_at?: string
           events_cursor?: string | null
           model?: string | null
+          parent_run_id?: string | null
           prompt_tokens?: number | null
           run_id?: string
+          run_thread_id?: string | null
           run_type?: string
           session_id?: string | null
           status?: Database["public"]["Enums"]["run_status"]
@@ -1510,6 +1534,7 @@ export type Database = {
           thread_id?: string
           tokens_in?: number | null
           tokens_out?: number | null
+          trigger_id?: string | null
         }
         Relationships: [
           {
@@ -1520,11 +1545,32 @@ export type Database = {
             referencedColumns: ["client_id"]
           },
           {
+            foreignKeyName: "runs_parent_run_id_fkey"
+            columns: ["parent_run_id"]
+            isOneToOne: false
+            referencedRelation: "runs"
+            referencedColumns: ["run_id"]
+          },
+          {
+            foreignKeyName: "runs_run_thread_id_fkey"
+            columns: ["run_thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+          {
             foreignKeyName: "runs_thread_id_fkey"
             columns: ["thread_id"]
             isOneToOne: false
             referencedRelation: "conversation_threads"
             referencedColumns: ["thread_id"]
+          },
+          {
+            foreignKeyName: "runs_trigger_id_fkey"
+            columns: ["trigger_id"]
+            isOneToOne: false
+            referencedRelation: "agent_triggers"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1840,15 +1886,6 @@ export type Database = {
         Args: { p_stale_minutes?: number; p_thread_id?: string }
         Returns: number
       }
-      patch_approval_part_state: {
-        Args: {
-          p_approval_id: string
-          p_approved: boolean
-          p_client_id: string
-          p_thread_id: string
-        }
-        Returns: Json
-      }
       release_message_quota: {
         Args: { p_client_id: string; p_period_start: string }
         Returns: {
@@ -1879,6 +1916,7 @@ export type Database = {
           type: string
         }[]
       }
+      sweep_stale_runs: { Args: never; Returns: undefined }
       upsert_timeline_activity: {
         Args: {
           p_actor_label: string
@@ -2039,3 +2077,4 @@ export const Constants = {
     },
   },
 } as const
+

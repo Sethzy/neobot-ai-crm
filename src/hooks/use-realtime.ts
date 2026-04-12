@@ -22,6 +22,7 @@ export type RealtimeTableName =
   | "record_attachments"
   | "timeline_activities"
   | "agent_triggers"
+  | "runs"
   | "crm_views"
   | "meeting_records";
 

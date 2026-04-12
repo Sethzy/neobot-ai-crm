@@ -8,7 +8,7 @@ import Link from "next/link";
 
 import { AppIcon } from "@/components/icons/app-icons";
 import { Plus } from "@/components/icons/lucide-compat";
-import { AutomationsTable } from "@/components/automations/automations-table";
+import { AutomationsList } from "@/components/automations/automations-list";
 import { Button } from "@/components/ui/button";
 import { useSetTriggerEnabled, useTriggers } from "@/hooks/use-triggers";
 
@@ -62,7 +62,7 @@ export default function AutomationsPage() {
             <p className="mt-6 text-muted-foreground">No automations yet</p>
           </div>
         ) : (
-          <AutomationsTable
+          <AutomationsList
             triggers={triggers}
             pendingTriggerId={pendingTriggerId}
             onToggleEnabled={(triggerId, enabled) => {

@@ -69,6 +69,8 @@ async function queueAgentRun(
         threadId,
         triggerType: "webhook",
         invocationMessage,
+        triggerId: crypto.randomUUID(),
+        triggerName: "Meeting Handoff",
       });
     } catch (error) {
       console.error("[send-to-agent] fire path failed:", error);

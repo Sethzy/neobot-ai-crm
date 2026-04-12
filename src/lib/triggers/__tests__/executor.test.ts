@@ -112,7 +112,7 @@ describe("executeTrigger", () => {
     expect(mockSpawnTriggerRun).not.toHaveBeenCalled();
   });
 
-  it("persists a trigger-event system message and spawns the managed run", async () => {
+  it("spawns the managed run with trigger metadata (no origin-thread system message)", async () => {
     const supabase = createMockSupabase();
     supabase.selectChain.single.mockResolvedValue({
       data: {
@@ -129,26 +129,8 @@ describe("executeTrigger", () => {
       payload: validPayload,
     });
 
-    expect(mockCreateMessage).toHaveBeenCalledWith(
-      supabase,
-      expect.objectContaining({
-        thread_id: validPayload.threadId,
-        role: "system",
-        content: expect.stringContaining("<trigger-event>"),
-      }),
-    );
-
-    const persistedMessage = mockCreateMessage.mock.calls[0]?.[1];
-    expect(persistedMessage.content).toContain("trigger_instance_id");
-    expect(persistedMessage.content).toContain("trigger_type: schedule");
-    expect(persistedMessage.content).toContain(
-      "instruction_path: /agent/state/triggers/daily-briefing.md",
-    );
-    expect(persistedMessage.content).toContain(
-      "invocation_message: Run the daily briefing",
-    );
-    expect(persistedMessage.content).toContain("&lt;briefing&gt;");
-    expect(persistedMessage.content).toContain("&amp;");
+    // No system message persisted to the origin thread anymore
+    expect(mockCreateMessage).not.toHaveBeenCalled();
 
     expect(mockSpawnTriggerRun).toHaveBeenCalledWith(
       supabase,
@@ -157,6 +139,8 @@ describe("executeTrigger", () => {
         clientId: validPayload.clientId,
         threadId: validPayload.threadId,
         triggerType: "cron",
+        triggerId: validPayload.triggerId,
+        triggerName: validPayload.triggerName,
       }),
     );
     expect(mockSpawnTriggerRun.mock.calls[0]?.[1]?.invocationMessage).toContain("<trigger-event>");
@@ -413,15 +397,18 @@ describe("executeTrigger", () => {
       },
     });
 
-    const persistedMessage = mockCreateMessage.mock.calls[0]?.[1];
-    expect(persistedMessage.content).toContain("listing-2");
-    expect(persistedMessage.content).toContain("new_item_count");
+    // No system message persisted to the origin thread anymore
+    expect(mockCreateMessage).not.toHaveBeenCalled();
     expect(mockSpawnTriggerRun).toHaveBeenCalledWith(
       supabase,
       expect.objectContaining({
         triggerType: "cron",
+        triggerId: validPayload.triggerId,
+        triggerName: "PropertyGuru monitor",
       }),
     );
+    // The invocation message should contain RSS item data
+    expect(mockSpawnTriggerRun.mock.calls[0]?.[1]?.invocationMessage).toContain("listing-2");
     expect(result).toEqual({ status: "queued" });
   });
 

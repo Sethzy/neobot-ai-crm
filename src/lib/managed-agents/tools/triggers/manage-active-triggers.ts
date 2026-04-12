@@ -301,6 +301,8 @@ export const manageActiveTriggersTool: ManagedAgentTool<ManageActiveTriggersInpu
             threadId: trigger.thread_id,
             triggerType: "cron",
             invocationMessage: `${invocationMessage}\n\n${CRON_RUN_NUDGE}`,
+            triggerId: trigger.id,
+            triggerName: trigger.name,
           },
         );
 

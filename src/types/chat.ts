@@ -11,6 +11,7 @@ export interface Thread {
   isPinned: boolean;
   isPrimary: boolean;
   createdAt: Date;
+  sourceType: string;
 }
 
 /** AI SDK chat status values. */

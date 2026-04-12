@@ -4,7 +4,6 @@
  */
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { AUTOPILOT_INSTRUCTION_PROMPT } from "@/lib/autopilot/constants";
-import { createMessage } from "@/lib/chat/messages";
 import { spawnTriggerRun } from "@/lib/managed-agents/spawn-trigger-run";
 import { createAgentFileClient } from "@/lib/storage/agent-files";
 import { toModelPath } from "@/lib/storage/agent-paths";
@@ -141,6 +140,8 @@ export async function executeTrigger({
         threadId: payload.threadId,
         triggerType: "autopilot",
         invocationMessage: AUTOPILOT_INSTRUCTION_PROMPT,
+        triggerId: payload.triggerId,
+        triggerName: payload.triggerName,
       });
       return finish("queued", { advanceNextFireAt: true });
     } catch (error) {
@@ -193,12 +194,6 @@ export async function executeTrigger({
     invocationMessage: payload.invocationMessage,
   });
 
-  await createMessage(supabase, {
-    thread_id: payload.threadId,
-    role: "system",
-    content: triggerEventMessage,
-  });
-
   try {
     await spawnTriggerRun(supabase, {
       runId: payload.currentRunId,
@@ -206,6 +201,8 @@ export async function executeTrigger({
       threadId: payload.threadId,
       triggerType: payload.triggerType === "webhook" ? "webhook" : "cron",
       invocationMessage: `${triggerEventMessage}\n\n${CRON_RUN_NUDGE}`,
+      triggerId: payload.triggerId,
+      triggerName: payload.triggerName,
     });
 
     return finish("queued", { advanceNextFireAt: true });

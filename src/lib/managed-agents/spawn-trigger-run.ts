@@ -8,9 +8,12 @@
  * @module lib/managed-agents/spawn-trigger-run
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { format } from "date-fns";
 
+import { createThread } from "@/lib/chat/threads";
 import { getServerEnv } from "@/lib/env";
 import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
+import { resolveAgentRef } from "@/lib/managed-agents/agent-config";
 import { runTriggerAgent } from "@/trigger/run-trigger-agent";
 import type { Database } from "@/types/database";
 
@@ -22,6 +25,10 @@ export interface SpawnTriggerRunInput {
   threadId: string;
   triggerType: "cron" | "webhook" | "autopilot";
   invocationMessage: string;
+  /** ID of the parent automation (agent_triggers row). */
+  triggerId: string;
+  /** Human-readable automation name for thread title generation. */
+  triggerName: string;
 }
 
 export interface SpawnTriggerRunResult {
@@ -37,23 +44,39 @@ export async function spawnTriggerRun(
   const env = getServerEnv();
   const anthropic = getAnthropicClient();
 
-  if (
-    !env.ANTHROPIC_AGENT_ID ||
-    !env.ANTHROPIC_AGENT_VERSION ||
-    !env.ANTHROPIC_ENVIRONMENT_ID
-  ) {
+  // Trigger runs default to Sonnet. Per-trigger model selection is future work.
+  const ref = resolveAgentRef("anthropic/claude-sonnet-4-6");
+
+  if (!env.ANTHROPIC_ENVIRONMENT_ID) {
     throw new Error(
-      "Managed agents env vars missing: ANTHROPIC_AGENT_ID / ANTHROPIC_AGENT_VERSION / ANTHROPIC_ENVIRONMENT_ID",
+      "Managed agents env var missing: ANTHROPIC_ENVIRONMENT_ID",
     );
   }
 
   const runId = input.runId ?? crypto.randomUUID();
 
+  // Create a dedicated thread for this run
+  const runThreadTitle = `${input.triggerName} — ${format(new Date(), "MMM d, h:mm a")}`;
+  const runThread = await createThread(supabase, input.clientId, runThreadTitle);
+
+  const { error: sourceError } = await supabase
+    .from("conversation_threads")
+    .update({
+      source_type: "automation_run",
+      source_trigger_id: input.triggerId,
+      source_run_id: runId,
+    })
+    .eq("thread_id", runThread.thread_id);
+
+  if (sourceError) {
+    console.error("[spawnTriggerRun] Failed to set thread source columns:", sourceError.message);
+  }
+
   const session = await anthropic.beta.sessions.create({
     agent: {
       type: "agent",
-      id: env.ANTHROPIC_AGENT_ID,
-      version: Number(env.ANTHROPIC_AGENT_VERSION),
+      id: ref.agentId,
+      version: ref.agentVersion,
     },
     environment_id: env.ANTHROPIC_ENVIRONMENT_ID,
   } as never);
@@ -63,10 +86,12 @@ export async function spawnTriggerRun(
     .insert({
       run_id: runId,
       client_id: input.clientId,
-      thread_id: input.threadId,
+      thread_id: runThread.thread_id,
       run_type: input.triggerType,
       status: "running",
       session_id: session.id,
+      trigger_id: input.triggerId,
+      run_thread_id: runThread.thread_id,
     })
     .select("run_id, session_id")
     .single();
@@ -88,7 +113,7 @@ export async function spawnTriggerRun(
     runId,
     sessionId: session.id,
     clientId: input.clientId,
-    threadId: input.threadId,
+    threadId: runThread.thread_id,
   });
 
   return {

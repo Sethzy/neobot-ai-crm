@@ -24,6 +24,7 @@ export type AutomationTrigger = Pick<
   | "last_fired_at"
   | "last_status"
   | "invocation_message"
+  | "instruction_path"
 >;
 
 export const TRIGGER_LIST_SELECT = [
@@ -38,6 +39,7 @@ export const TRIGGER_LIST_SELECT = [
   "last_fired_at",
   "last_status",
   "invocation_message",
+  "instruction_path",
 ].join(", ");
 
 export const triggerKeys = {
@@ -77,6 +79,65 @@ export function useTriggers() {
   return useQuery({
     queryKey: triggerKeys.list(),
     queryFn: fetchTriggers,
+  });
+}
+
+/**
+ * Fetches a single trigger by ID with realtime subscription.
+ */
+export function useTrigger(triggerId: string) {
+  const { data: clientId } = useClientId();
+
+  useRealtimeTable({
+    table: "agent_triggers",
+    filter: `id=eq.${triggerId}`,
+    queryKeys: [triggerKeys.all],
+    enabled: Boolean(clientId),
+  });
+
+  return useQuery({
+    queryKey: [...triggerKeys.all, "detail", triggerId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("agent_triggers")
+        .select("*")
+        .eq("id", triggerId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: Boolean(clientId),
+  });
+}
+
+/**
+ * Mutation for updating an automation's schedule configuration.
+ */
+export function useUpdateTriggerSchedule() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      triggerId: string;
+      cronExpression: string;
+      payload: Record<string, unknown>;
+      nextFireAt: string;
+    }) => {
+      const { error } = await supabase
+        .from("agent_triggers")
+        .update({
+          cron_expression: input.cronExpression,
+          payload: input.payload as Database["public"]["Tables"]["agent_triggers"]["Update"]["payload"],
+          next_fire_at: input.nextFireAt,
+          retry_count: 0,
+        })
+        .eq("id", input.triggerId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: triggerKeys.all });
+    },
   });
 }
 

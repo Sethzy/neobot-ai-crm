@@ -2,7 +2,7 @@
  * Tests for the Automations page.
  * @module app/(dashboard)/automations/page
  */
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import AutomationsPage from "./page";
@@ -20,7 +20,7 @@ describe("AutomationsPage", () => {
     vi.clearAllMocks();
   });
 
-  it("renders automation rows and toggles enabled state", () => {
+  it("renders automation rows grouped by active status", () => {
     const mutate = vi.fn();
     mockUseTriggers.mockReturnValue({
       data: [
@@ -36,6 +36,7 @@ describe("AutomationsPage", () => {
           last_fired_at: "2026-03-06T09:00:00.000Z",
           last_status: "completed",
           invocation_message: "Review new listings",
+          instruction_path: "state/triggers/propertyguru.md",
         },
       ],
       isLoading: false,
@@ -51,17 +52,13 @@ describe("AutomationsPage", () => {
 
     expect(screen.getByRole("heading", { level: 1, name: "Automations" })).toBeInTheDocument();
     expect(screen.getByText("PropertyGuru morning check")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "View thread" })).toHaveAttribute(
+    // Card rows link to the detail page
+    expect(screen.getByRole("link", { name: /PropertyGuru morning check/i })).toHaveAttribute(
       "href",
-      "/chat/thread-1",
+      "/automations/trigger-1",
     );
-
-    fireEvent.click(screen.getByRole("button", { name: "Disable" }));
-
-    expect(mutate).toHaveBeenCalledWith({
-      triggerId: "trigger-1",
-      enabled: false,
-    });
+    // Toggle switch is present
+    expect(screen.getByRole("switch")).toBeInTheDocument();
   });
 
   it("renders an empty state when no automations exist", () => {

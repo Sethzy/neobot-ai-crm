@@ -133,6 +133,7 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
         isPinned: thread.is_pinned,
         isPrimary: thread.is_primary,
         createdAt: new Date(thread.created_at),
+        sourceType: thread.source_type,
       })),
     [threadRows],
   );

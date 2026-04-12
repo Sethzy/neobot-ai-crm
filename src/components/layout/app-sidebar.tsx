@@ -209,6 +209,9 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                     href={`/chat/${thread.id}`}
                     onClick={() => closeMobileSidebar()}
                   >
+                    {thread.sourceType === "automation_run" ? (
+                      <AppIcon name="automations" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    ) : null}
                     <span className="truncate text-sm">{thread.title}</span>
                   </Link>
                 </SidebarMenuButton>
