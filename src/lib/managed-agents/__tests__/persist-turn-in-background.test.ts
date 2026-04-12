@@ -8,32 +8,29 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const {
-  openSessionStream,
-  iterateSessionEvents,
+  iterateSessionEventsAfter,
   buildAssistantPartsFromEvents,
   getAssistantTextFromParts,
   upsertMessage,
   deliverToExternalChannels,
-  createRun,
+  createRunRecord,
   completeRun,
   runEvaluatorsForEvents,
   computeTurnCost,
 } = vi.hoisted(() => ({
-  openSessionStream: vi.fn(),
-  iterateSessionEvents: vi.fn(),
+  iterateSessionEventsAfter: vi.fn(),
   buildAssistantPartsFromEvents: vi.fn(),
   getAssistantTextFromParts: vi.fn(),
   upsertMessage: vi.fn(),
   deliverToExternalChannels: vi.fn(),
-  createRun: vi.fn(),
+  createRunRecord: vi.fn(),
   completeRun: vi.fn(),
   runEvaluatorsForEvents: vi.fn(),
   computeTurnCost: vi.fn(),
 }));
 
 vi.mock("@/lib/managed-agents/session-reconnect", () => ({
-  openSessionStream,
-  iterateSessionEvents,
+  iterateSessionEventsAfter,
 }));
 vi.mock("@/lib/managed-agents/events-to-assistant-parts", () => ({
   buildAssistantPartsFromEvents,
@@ -43,7 +40,7 @@ vi.mock("@/lib/runner/message-utils", () => ({
 }));
 vi.mock("@/lib/chat/messages", () => ({ upsertMessage }));
 vi.mock("@/lib/channels/deliver", () => ({ deliverToExternalChannels }));
-vi.mock("@/lib/runner/run-lifecycle", () => ({ createRun, completeRun }));
+vi.mock("@/lib/runner/run-lifecycle", () => ({ createRunRecord, completeRun }));
 vi.mock("@/lib/eval/run-evaluators", () => ({ runEvaluatorsForEvents }));
 vi.mock("@/lib/managed-agents/adapter-cost", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/managed-agents/adapter-cost")>();
@@ -68,7 +65,7 @@ function makeFakeSupabase() {
 describe("persistTurnInBackground", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    createRun.mockResolvedValue({ created: true, runId: "run_1" });
+    createRunRecord.mockResolvedValue("run_1");
     completeRun.mockResolvedValue(undefined);
     upsertMessage.mockResolvedValue(undefined);
     deliverToExternalChannels.mockResolvedValue(undefined);
@@ -87,11 +84,7 @@ describe("persistTurnInBackground", () => {
       statusIdleEvent("evt_idle", "end_turn"),
     ];
 
-    openSessionStream.mockResolvedValue({
-      live: { [Symbol.asyncIterator]: async function* () {} },
-      preKickoffEventIds: new Set(),
-    });
-    iterateSessionEvents.mockImplementation(async function* () {
+    iterateSessionEventsAfter.mockImplementation(async function* () {
       for (const e of events) yield e;
     });
 
@@ -102,13 +95,21 @@ describe("persistTurnInBackground", () => {
       threadId: "t1",
       sessionId: "sess_1",
       conversationInput: "hi",
+      tailHandle: {
+        live: { [Symbol.asyncIterator]: async function* () {} },
+        afterId: "evt_before_send",
+      },
     });
 
     await promise;
 
-    expect(createRun).toHaveBeenCalledWith(
+    expect(createRunRecord).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ threadId: "t1", clientId: "c1" }),
+      expect.objectContaining({
+        threadId: "t1",
+        clientId: "c1",
+        sessionId: "sess_1",
+      }),
     );
     expect(upsertMessage).toHaveBeenCalledWith(
       expect.anything(),
@@ -125,11 +126,7 @@ describe("persistTurnInBackground", () => {
   });
 
   it("marks run failed when event iteration throws", async () => {
-    openSessionStream.mockResolvedValue({
-      live: { [Symbol.asyncIterator]: async function* () {} },
-      preKickoffEventIds: new Set(),
-    });
-    iterateSessionEvents.mockImplementation(async function* () {
+    iterateSessionEventsAfter.mockImplementation(async function* () {
       throw new Error("stream exploded");
     });
 
@@ -140,6 +137,10 @@ describe("persistTurnInBackground", () => {
       threadId: "t1",
       sessionId: "sess_1",
       conversationInput: "hi",
+      tailHandle: {
+        live: { [Symbol.asyncIterator]: async function* () {} },
+        afterId: "evt_before_send",
+      },
     });
 
     await promise;
@@ -155,11 +156,7 @@ describe("persistTurnInBackground", () => {
       { type: "step-start" },
     ]);
 
-    openSessionStream.mockResolvedValue({
-      live: { [Symbol.asyncIterator]: async function* () {} },
-      preKickoffEventIds: new Set(),
-    });
-    iterateSessionEvents.mockImplementation(async function* () {
+    iterateSessionEventsAfter.mockImplementation(async function* () {
       yield statusIdleEvent("evt_idle", "end_turn");
     });
 
@@ -170,6 +167,10 @@ describe("persistTurnInBackground", () => {
       threadId: "t1",
       sessionId: "sess_1",
       conversationInput: "hi",
+      tailHandle: {
+        live: { [Symbol.asyncIterator]: async function* () {} },
+        afterId: "evt_before_send",
+      },
     });
 
     // upsertMessage should NOT have been called for assistant output
@@ -178,6 +179,32 @@ describe("persistTurnInBackground", () => {
     expect(completeRun).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ status: "completed" }),
+    );
+  });
+
+  it("cancels the older worker when a later user.message supersedes the turn", async () => {
+    iterateSessionEventsAfter.mockImplementation(async function* () {
+      yield { id: "evt_user_1", type: "user.message", content: [] };
+      yield { id: "evt_user_2", type: "user.message", content: [] };
+    });
+
+    await persistTurnInBackground({
+      anthropic: {} as never,
+      supabase: makeFakeSupabase(),
+      clientId: "c1",
+      threadId: "t1",
+      sessionId: "sess_1",
+      conversationInput: "hi",
+      tailHandle: {
+        live: { [Symbol.asyncIterator]: async function* () {} },
+        afterId: "evt_before_send",
+      },
+    });
+
+    expect(upsertMessage).not.toHaveBeenCalled();
+    expect(completeRun).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ runId: "run_1", status: "cancelled" }),
     );
   });
 });

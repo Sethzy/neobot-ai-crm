@@ -20,6 +20,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type {
   AgentCreateParams,
   BetaManagedAgentsAgent,
+  BetaManagedAgentsAgentToolset20260401Params,
   BetaManagedAgentsCustomToolInputSchema,
   BetaManagedAgentsCustomToolParams,
   BetaManagedAgentsSkillParams,
@@ -128,6 +129,24 @@ function sanitizeJsonSchema(value: unknown): unknown {
   );
 }
 
+/**
+ * Built-in Anthropic toolset. Skills require the `read` tool to be enabled
+ * and not `always_deny` so they can fetch SKILL.md files. All other built-in
+ * tools are left disabled — Sunder routes file/web/shell work through its
+ * own custom tools (sunder_web_search, storage_read, sandbox_bash, etc.).
+ */
+const BUILT_IN_TOOLSET: BetaManagedAgentsAgentToolset20260401Params = {
+  type: "agent_toolset_20260401",
+  default_config: { enabled: false },
+  configs: [
+    {
+      name: "read",
+      enabled: true,
+      permission_policy: { type: "always_allow" },
+    },
+  ],
+};
+
 function buildAgentPayload(): AgentCreateParams {
   const customTools = MANAGED_AGENT_TOOL_DECLARATIONS.map(toCustomToolParams);
 
@@ -136,7 +155,7 @@ function buildAgentPayload(): AgentCreateParams {
     description: MANAGED_AGENT_DESCRIPTION,
     model: MANAGED_AGENT_MODEL,
     system: MANAGED_AGENT_SYSTEM,
-    tools: customTools,
+    tools: [BUILT_IN_TOOLSET, ...customTools],
     skills: MANAGED_AGENT_SKILLS,
   };
 }

@@ -127,4 +127,83 @@ describe("iterateSessionEventsForever", () => {
     expect(stream).toHaveBeenCalledTimes(2);
     expect(seen).toEqual(["evt_idle_1", "evt_2", "evt_idle_2"]);
   });
+
+  it("replays missed history after a reconnect gap before resuming live events", async () => {
+    let streamCallCount = 0;
+    let listCallCount = 0;
+
+    const stream = vi.fn(() => {
+      streamCallCount += 1;
+
+      if (streamCallCount === 1) {
+        return Promise.resolve({
+          [Symbol.asyncIterator]: async function* () {
+            yield agentMessageTextEvent("evt_1", "hello");
+            yield statusIdleEvent("evt_idle_1", "end_turn");
+          },
+        });
+      }
+
+      return Promise.resolve({
+        [Symbol.asyncIterator]: async function* () {
+          yield agentMessageTextEvent("evt_3", "live");
+          yield statusIdleEvent("evt_idle_2", "end_turn");
+        },
+      });
+    });
+
+    const list = vi.fn(() => {
+      listCallCount += 1;
+
+      // Cycle 1 history drain — afterId is null so cursorReached is
+      // true immediately. Empty history for the first turn.
+      if (listCallCount === 1) {
+        return {
+          [Symbol.asyncIterator]: async function* () {
+            // no-op
+          },
+        };
+      }
+
+      // Cycle 2 history drain after reconnect. afterId is "evt_idle_1"
+      // (last event from cycle 1). `evt_2` landed while the client was
+      // disconnected, so it only exists in history.
+      return {
+        [Symbol.asyncIterator]: async function* () {
+          yield agentMessageTextEvent("evt_1", "hello");
+          yield statusIdleEvent("evt_idle_1", "end_turn");
+          yield agentMessageTextEvent("evt_2", "gap");
+          yield agentMessageTextEvent("evt_3", "live");
+          yield statusIdleEvent("evt_idle_2", "end_turn");
+        },
+      };
+    });
+
+    const client = {
+      beta: { sessions: { events: { stream, list } } },
+    } as never;
+
+    const ac = new AbortController();
+    const seen: string[] = [];
+
+    for await (const event of iterateSessionEventsForever(
+      client,
+      "sess_1",
+      ac.signal,
+    )) {
+      seen.push((event as { id: string }).id);
+      if ((event as { id: string }).id === "evt_idle_2") {
+        ac.abort();
+      }
+    }
+
+    expect(seen).toEqual([
+      "evt_1",
+      "evt_idle_1",
+      "evt_2",
+      "evt_3",
+      "evt_idle_2",
+    ]);
+    expect(stream).toHaveBeenCalledTimes(2);
+  });
 });

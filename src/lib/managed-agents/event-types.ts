@@ -58,6 +58,11 @@ export interface BuiltInToolResultEvent {
   readonly is_error?: boolean;
 }
 
+export interface AgentThreadContextCompactedEvent {
+  readonly id: string;
+  readonly type: "agent.thread_context_compacted";
+}
+
 export interface ModelRequestStartEvent {
   readonly id: string;
   readonly type: "span.model_request_start";
@@ -87,6 +92,11 @@ export interface StatusTerminatedEvent {
   readonly type: "session.status_terminated";
 }
 
+export interface StatusRescheduledEvent {
+  readonly id: string;
+  readonly type: "session.status_rescheduled";
+}
+
 export interface SessionErrorEvent {
   readonly id: string;
   readonly type: "session.error";
@@ -101,8 +111,10 @@ export type AnthropicEvent =
   | CustomToolResultRawEvent
   | BashToolUseEvent
   | BuiltInToolResultEvent
+  | AgentThreadContextCompactedEvent
   | ModelRequestStartEvent
   | ModelRequestEndEvent
   | StatusIdleEvent
+  | StatusRescheduledEvent
   | StatusTerminatedEvent
   | SessionErrorEvent;

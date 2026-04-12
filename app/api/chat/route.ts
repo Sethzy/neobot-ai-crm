@@ -9,6 +9,7 @@ import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
+import { extractUserInput } from "@/lib/chat/extract-user-input";
 import { generateTitleFromUserMessage } from "@/lib/ai/title";
 import { allowedModelIds } from "@/lib/ai/models";
 import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
@@ -43,49 +44,6 @@ function createChatStreamResponse(stream: ReadableStream): Response {
     stream,
     headers: streamResponseHeaders,
   });
-}
-
-function getTextFromUnknownParts(parts: unknown[]): string | null {
-  const text = parts
-    .filter((part): part is { type: string; text?: unknown } =>
-      typeof part === "object" && part !== null && "type" in part
-    )
-    .filter((part): part is { type: "text"; text: string } =>
-      part.type === "text" && typeof part.text === "string"
-    )
-    .map((part) => part.text.trim())
-    .filter((part) => part.length > 0)
-    .join("\n")
-    .trim();
-
-  return text.length > 0 ? text : null;
-}
-
-function getFilePartsFromUnknownParts(parts: unknown[]): ManagedFilePart[] {
-  return parts
-    .filter((part): part is {
-      type: string;
-      url?: unknown;
-      filename?: unknown;
-      mediaType?: unknown;
-      storagePath?: unknown;
-    } =>
-      typeof part === "object" && part !== null && "type" in part
-    )
-    .filter((part): part is ManagedFilePart =>
-      part.type === "file" &&
-      typeof part.url === "string" &&
-      typeof part.mediaType === "string" &&
-      (part.filename === undefined || typeof part.filename === "string") &&
-      (part.storagePath === undefined || typeof part.storagePath === "string"),
-    )
-    .map((part) => ({
-      type: "file",
-      url: part.url,
-      mediaType: part.mediaType,
-      ...(part.filename ? { filename: part.filename } : {}),
-      ...(part.storagePath ? { storagePath: part.storagePath } : {}),
-    }));
 }
 
 function getLatestUserMessage(
@@ -231,12 +189,11 @@ export async function POST(request: Request): Promise<Response> {
     const latestUserMessage = body.message?.role === "user"
       ? body.message
       : getLatestUserMessage(body.messages);
-    input = latestUserMessage
-      ? getTextFromUnknownParts(latestUserMessage.parts) ?? ""
-      : "";
-    fileParts = latestUserMessage
-      ? getFilePartsFromUnknownParts(latestUserMessage.parts)
-      : [];
+    const extractedUserInput = latestUserMessage
+      ? extractUserInput(latestUserMessage)
+      : null;
+    input = extractedUserInput?.text ?? "";
+    fileParts = extractedUserInput?.fileParts ?? [];
     userMessageSourceId =
       latestUserMessage && typeof latestUserMessage.id === "string"
         ? latestUserMessage.id

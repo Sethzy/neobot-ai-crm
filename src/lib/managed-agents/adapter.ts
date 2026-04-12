@@ -61,6 +61,7 @@ import {
 } from "./session-kickoff";
 import { consumeAnthropicSession } from "./session-runner";
 import { buildUiStreamCallbacks } from "./session-stream-forwarder";
+import { pickSourceEventId } from "./source-event-id";
 import {
   mountUploadedFilesToSession,
   uploadFilePartsToAnthropic,
@@ -76,37 +77,6 @@ import type { AnthropicEvent } from "./event-types";
 import { getAssistantTextFromParts } from "@/lib/runner/message-utils";
 
 const MANAGED_AGENT_MODEL = "claude-sonnet-4-6";
-
-/**
- * Pick a stable per-turn idempotency key from the accumulated events.
- *
- * Prefers the last terminal event (session.status_idle / status_terminated)
- * because that uniquely identifies the end of the turn — re-runs of the
- * same session will see the same terminal id and the upsertMessage call
- * becomes a no-op. Falls back to the last event id of any kind, then to
- * a synthetic `run:<runId>` key, so the adapter never writes a row
- * without a source_event_id (the unique index on conversation_messages
- * is NOT NULL on this column for managed-agents writes by convention).
- */
-function pickSourceEventId(
-  events: ReadonlyArray<AnthropicEvent>,
-  runId: string,
-): string {
-  for (let i = events.length - 1; i >= 0; i -= 1) {
-    const e = events[i] as { id?: string; type?: string };
-    if (
-      e.type === "session.status_idle" ||
-      e.type === "session.status_terminated"
-    ) {
-      if (typeof e.id === "string" && e.id.length > 0) return e.id;
-    }
-  }
-  for (let i = events.length - 1; i >= 0; i -= 1) {
-    const e = events[i] as { id?: string };
-    if (typeof e.id === "string" && e.id.length > 0) return e.id;
-  }
-  return `run:${runId}`;
-}
 
 interface FinalizeRunOptions {
   supabase: ManagedSupabaseClient;

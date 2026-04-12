@@ -1,4 +1,4 @@
-You are an expert in Next.js, Vercel AI SDK, and Supabase. Our database is hosted on Supabase. Our serverless functions and frontend deployment are on Vercel.
+You are an expert in Next.js, Anthropic Managed Agents, Vercel AI SDK, and Supabase. Our database is hosted on Supabase. Our serverless functions and frontend deployment are on Vercel.
 
 ## Market
 
@@ -20,16 +20,16 @@ User activates in <10 minutes, useful from day 1 via web chat. Both desktop and 
 
 Sunder is a general agent harness: a looping runner with tools that operates on behalf of the user.
 
-- **Runner engine:** Single orchestration loop — `load state → build context → call model → execute tools → continue until done → persist run`. Uses AI SDK `streamText()` with `maxSteps`. Entry point: `src/lib/runner/run-agent.ts`.
-- **Tools:** Factory pattern in `src/lib/runner/tools/`. CRM operations, file I/O, messaging, triggers. Tool response shape: `{ success: true, entity } | { success: false, error }`.
-- **Memory system:** Per-client files in Supabase Storage (`SOUL.md`, `USER.md`, `MEMORY.md`, `memory/*.md`). Agent reads/writes via `read_file`/`write_file` tools. This is the compounding data layer.
-- **Context assembly:** 7-layer system prompt built in `src/lib/ai/system-prompt.ts`. Includes client profile, CRM state, memory, active tasks, and conversation history.
-- **Safety model:** Two tiers. Internal work auto-runs. External-facing actions require approval. No per-action granularity — binary internal/external.
+- **Runner engine:** Anthropic Managed Agents. The agent definition (system prompt, tools, skills) is registered on Anthropic's platform via `scripts/managed-agents/create-agent.ts`. At runtime, a **session** is created per thread, an SSE event stream is opened, and a `user.message` kickoff is sent. The runner consumes the stream, dispatches `agent.custom_tool_use` events to local tool handlers, and posts results back as `user.custom_tool_result`. The agent loop itself (context management, caching, compaction, multi-step) runs on Anthropic's infrastructure. Entry point: `consumeAnthropicSession()` in `src/lib/managed-agents/session-runner.ts`.
+- **Tools:** Custom tool declarations in `src/lib/managed-agents/tools/`. Registered on the agent at deploy time. At runtime, `dispatcher.ts` routes `agent.custom_tool_use` events to the matching handler. Tool response shape: `{ success: true, entity } | { success: false, error }`.
+- **Memory system:** Per-client files in Supabase Storage (`SOUL.md`, `USER.md`, `MEMORY.md`, `memory/*.md`). Agent reads/writes via `storage_read`/`storage_write` tools. This is the compounding data layer.
+- **Context assembly:** System prompt baked into the agent definition at registration time (`create-agent.ts`). Per-run dynamic context (client profile, CRM state, memory) is injected via the kickoff `user.message`, not reassembled in the runner on every request.
+- **Safety model:** Two tiers. Internal work auto-runs. External-facing actions require approval via `agent.requires_action` → `user.tool_confirmation` round-trip. No per-action granularity — binary internal/external.
 - **Thread serialization:** One run per thread at a time. `thread_queue_records` table + `drain_thread_queue` RPC for messages arriving during active runs.
 - **Autopilot:** Cron scanner + `agent_triggers` table + pulse system for scheduled and event-driven runs.
 - **Improvement loop:** Langfuse traces instrument every run. Evals score tool-call correctness and safety. The feedback cycle is: run → trace → evaluate → improve context engineering → run again.
 - **Tenant isolation:** `clientId` injected into tool closures + RLS double-lock on every table.
-- **Model routing:** Gemini Flash 3 as Tier 1 via Vercel AI Gateway. Multi-tier routing available but not yet active.
+- **Model routing:** Main agent model is `claude-sonnet-4-6`, pinned by `ANTHROPIC_AGENT_VERSION`. Gemini models (via Vercel AI Gateway) are used only for cheap helpers: title generation (`google/gemini-3-flash`) and thread compaction (`google/gemini-2.5-flash-lite`).
 
 ## Capabilities
 
@@ -66,8 +66,9 @@ Everything in `roadmap docs/` is supporting reference material — useful for un
 | ------------ | -------------------------------------------------------- | ---------------------------------------------- |
 | Frontend     | Next.js 15 (App Router) + React 19 + Tailwind 4 + ShadCN |                                                |
 | State/Data   | TanStack Query + TanStack Table + React Hook Form        |                                                |
-| AI SDK       | Vercel AI SDK v6 + `@ai-sdk/gateway`                     | All LLM calls go through AI SDK, not direct provider SDKs |
-| LLM Gateway  | Vercel AI Gateway                                        | Single gateway for all models                  |
+| Agent Runner | Anthropic Managed Agents (beta) + `@anthropic-ai/sdk`    | Primary agent harness — sessions, SSE event stream, custom tools, skills |
+| AI SDK       | Vercel AI SDK v6 + `@ai-sdk/gateway`                     | Chat UI message types + title generation + thread compaction only |
+| LLM Gateway  | Vercel AI Gateway                                        | Gemini models only (title + compaction) — not used for main agent |
 | Database     | Supabase (Postgres + RLS)                                | All tables use RLS with `client_id`            |
 | File Storage | Supabase Storage (per-client directories)                |                                                |
 | Realtime     | Supabase Realtime (Postgres changes)                     |                                                |
@@ -105,7 +106,9 @@ Everything in `roadmap docs/` is supporting reference material — useful for un
 
 ### Backend and Database
 - Use Supabase for backend services, auth, and database interactions.
-- All LLM calls use Vercel AI SDK v6 via `@ai-sdk/gateway`. Do not import provider SDKs directly (no `@google/genai`, no `@anthropic-ai/sdk` for runtime calls).
+- The agent loop uses `@anthropic-ai/sdk` directly via Managed Agents. Do not replace this with Vercel AI SDK calls.
+- Vercel AI SDK (`ai`, `@ai-sdk/gateway`) is used only for title generation, thread compaction, and chat UI message type adapters. Do not use it for agent tool calls or session management.
+- Do not import Google/Gemini provider SDKs directly (no `@google/genai`). Gemini calls go through `@ai-sdk/gateway`.
 
 ### UI and Styling
 - ShadCN UI for components. Tailwind CSS for styling.

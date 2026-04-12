@@ -9,6 +9,7 @@ import { createMockSupabaseClient } from "@/test/mocks/supabase";
 import {
   completeRun,
   createRun,
+  createRunRecord,
   markStaleRunsFailed,
 } from "../run-lifecycle";
 
@@ -194,6 +195,54 @@ describe("completeRun", () => {
     ).rejects.toThrow("Failed to complete run: not found");
   });
 
+});
+
+describe("createRunRecord", () => {
+  it("inserts a running run row without the idle-lock rpc", async () => {
+    const client = createMockSupabaseClient({
+      insertResult: {
+        data: [{ run_id: "run-2" }],
+        error: null,
+      },
+    });
+
+    await expect(
+      createRunRecord(client as never, {
+        threadId: "thread-1",
+        clientId: "client-1",
+        runType: "chat",
+        sessionId: "sess_1",
+      }),
+    ).resolves.toBe("run-2");
+
+    const insertCall = client.calls.methods.find((call) => call.method === "insert");
+    expect(insertCall?.args[0]).toEqual(
+      expect.objectContaining({
+        client_id: "client-1",
+        thread_id: "thread-1",
+        run_type: "chat",
+        status: "running",
+        session_id: "sess_1",
+      }),
+    );
+  });
+
+  it("throws when the insert fails", async () => {
+    const client = createMockSupabaseClient({
+      insertResult: {
+        data: null,
+        error: { message: "insert failed" },
+      },
+    });
+
+    await expect(
+      createRunRecord(client as never, {
+        threadId: "thread-1",
+        clientId: "client-1",
+        runType: "chat",
+      }),
+    ).rejects.toThrow("insert failed");
+  });
 });
 
 describe("markStaleRunsFailed", () => {

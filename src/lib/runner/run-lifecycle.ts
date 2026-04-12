@@ -16,6 +16,11 @@ export interface CreateRunInput {
   runType: RunType;
 }
 
+export interface CreateRunRecordInput extends CreateRunInput {
+  runId?: string;
+  sessionId?: string | null;
+}
+
 export type CreateRunResult = { created: true; runId: string } | { created: false };
 
 export interface CompleteRunInput {
@@ -61,6 +66,38 @@ export async function createRun(
   }
 
   return { created: true, runId: String(data) };
+}
+
+/**
+ * Inserts a running observability row without the idle-lock RPC.
+ *
+ * This is used by the send+stream split where multiple user messages can
+ * legitimately be in flight on one thread at the same time.
+ */
+export async function createRunRecord(
+  supabase: ChatSupabaseClient,
+  input: CreateRunRecordInput,
+): Promise<string> {
+  const payload: RunInsert = {
+    ...(input.runId ? { run_id: input.runId } : {}),
+    client_id: input.clientId,
+    thread_id: input.threadId,
+    run_type: input.runType,
+    status: "running",
+    ...(input.sessionId !== undefined ? { session_id: input.sessionId } : {}),
+  };
+
+  const { data, error } = await supabase
+    .from("runs")
+    .insert(payload)
+    .select("run_id")
+    .single();
+
+  if (error || !data?.run_id) {
+    throw new Error(error?.message ?? "Failed to create run record");
+  }
+
+  return data.run_id;
 }
 
 /**

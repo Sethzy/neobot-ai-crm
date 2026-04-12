@@ -155,6 +155,14 @@ export function translateEvent(
         terminal: null,
       };
 
+    case "agent.thread_context_compacted":
+      console.log("[session] context compacted — session history was summarized to fit context window");
+      return { parts: [], terminal: null };
+
+    case "session.status_rescheduled":
+      console.log("[session] rescheduled — transient error, retrying automatically");
+      return { parts: [], terminal: null };
+
     default:
       return { parts: [], terminal: null };
   }

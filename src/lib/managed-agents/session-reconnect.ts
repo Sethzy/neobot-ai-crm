@@ -64,6 +64,19 @@ export interface LiveStreamHandle {
   preKickoffEventIds: ReadonlySet<string>;
 }
 
+/**
+ * Opaque handle for "tail from cursor" consumption.
+ *
+ * `afterId` is the most recent event id that existed when the tail was
+ * opened. Consumers drain `events.list()` first, skipping every event up
+ * to and including that cursor id, then resume from the already-open
+ * live handle.
+ */
+export interface SessionTailHandle {
+  live: AsyncIterable<unknown>;
+  afterId: string | null;
+}
+
 function isTerminal(event: AnyEvent): boolean {
   if (event.type === "session.status_terminated") return true;
   if (event.type === "session.status_idle") {
@@ -71,6 +84,45 @@ function isTerminal(event: AnyEvent): boolean {
     return reason === "end_turn" || reason === "retries_exhausted";
   }
   return false;
+}
+
+function buildRequestOptions(
+  signal?: AbortSignal,
+): { signal: AbortSignal } | undefined {
+  return signal ? { signal } : undefined;
+}
+
+async function getLatestSessionEventId(
+  anthropic: Anthropic,
+  sessionId: string,
+  signal?: AbortSignal,
+): Promise<string | null> {
+  const page = await anthropic.beta.sessions.events.list(
+    sessionId,
+    { order: "desc", limit: 1 },
+    buildRequestOptions(signal),
+  );
+
+  if (
+    typeof page === "object" &&
+    page !== null &&
+    "data" in page &&
+    Array.isArray((page as { data?: unknown }).data)
+  ) {
+    const latest = (page as { data: Array<{ id?: unknown }> }).data[0];
+    return typeof latest?.id === "string" && latest.id.length > 0
+      ? latest.id
+      : null;
+  }
+
+  for await (const event of page as AsyncIterable<unknown>) {
+    const latest = event as { id?: unknown };
+    return typeof latest.id === "string" && latest.id.length > 0
+      ? latest.id
+      : null;
+  }
+
+  return null;
 }
 
 /**
@@ -115,6 +167,43 @@ export async function openSessionStream(
   return {
     live: live as unknown as AsyncIterable<unknown>,
     preKickoffEventIds,
+  };
+}
+
+/**
+ * Open a live SSE stream and capture the current latest event id as a
+ * cursor. Unlike `openSessionStream`, this helper is safe to use AFTER a
+ * send has already happened because callers provide an `afterId` cursor
+ * boundary instead of relying on a "pre-kickoff snapshot".
+ *
+ * When `afterId` is omitted, the helper queries the current latest event
+ * id in parallel with opening the live stream. Consumers then drain
+ * history and skip through that cursor, which tails from "now" without
+ * replaying older history.
+ */
+export async function openSessionTail(
+  anthropic: Anthropic,
+  sessionId: string,
+  options: {
+    afterId?: string | null;
+    signal?: AbortSignal;
+  } = {},
+): Promise<SessionTailHandle> {
+  const livePromise = anthropic.beta.sessions.events.stream(
+    sessionId,
+    undefined,
+    buildRequestOptions(options.signal),
+  );
+  const afterIdPromise =
+    options.afterId === undefined
+      ? getLatestSessionEventId(anthropic, sessionId, options.signal)
+      : Promise.resolve(options.afterId);
+
+  const [live, afterId] = await Promise.all([livePromise, afterIdPromise]);
+
+  return {
+    live: live as unknown as AsyncIterable<unknown>,
+    afterId,
   };
 }
 
@@ -164,6 +253,66 @@ export async function* iterateSessionEvents(
 }
 
 /**
+ * Drain events after a known cursor, then continue from an already-open
+ * live stream.
+ *
+ * This is the correct iterator when the caller opens the subscription
+ * before a boundary event (for example, before `user.message` send) and
+ * wants to consume everything after that boundary without replaying
+ * older history.
+ */
+export async function* iterateSessionEventsAfter(
+  anthropic: Anthropic,
+  sessionId: string,
+  handle: SessionTailHandle,
+  options: {
+    signal?: AbortSignal;
+    stopOnTerminal?: boolean;
+  } = {},
+): AsyncGenerator<AnyEvent> {
+  const seen = new Set<string>();
+  const stopOnTerminal = options.stopOnTerminal ?? true;
+  let cursorReached = handle.afterId === null;
+
+  for await (const event of anthropic.beta.sessions.events.list(
+    sessionId,
+    undefined,
+    buildRequestOptions(options.signal),
+  ) as unknown as AsyncIterable<unknown>) {
+    if (options.signal?.aborted) return;
+
+    const typed = event as AnyEvent;
+    if (!cursorReached) {
+      if (typed.id === handle.afterId) {
+        cursorReached = true;
+      }
+      continue;
+    }
+
+    if (seen.has(typed.id)) continue;
+
+    seen.add(typed.id);
+    yield typed;
+
+    if (options.signal?.aborted) return;
+    if (stopOnTerminal && isTerminal(typed)) return;
+  }
+
+  for await (const event of handle.live) {
+    if (options.signal?.aborted) return;
+
+    const typed = event as AnyEvent;
+    if (seen.has(typed.id)) continue;
+
+    seen.add(typed.id);
+    yield typed;
+
+    if (options.signal?.aborted) return;
+    if (stopOnTerminal && isTerminal(typed)) return;
+  }
+}
+
+/**
  * Like `iterateSessionEvents` but doesn't exit on terminal states — keeps
  * reopening the SSE subscription until the abort signal fires. Used by the
  * thread-level stream endpoint where "terminal" only means "the current
@@ -176,18 +325,33 @@ export async function* iterateSessionEventsForever(
   anthropic: Anthropic,
   sessionId: string,
   signal: AbortSignal,
+  options: { afterId?: string | null } = {},
 ): AsyncGenerator<AnyEvent> {
-  while (!signal.aborted) {
-    const live = await anthropic.beta.sessions.events.stream(
-      sessionId,
-    ) as unknown as AsyncIterable<unknown>;
+  // When the caller supplies an afterId, tail from that cursor. When
+  // absent (undefined), the first iteration passes null → drain ALL
+  // history from the session start. This ensures a fresh SSE
+  // connection (or reconnect) replays everything the client hasn't
+  // seen yet, with the client dedup set filtering duplicates.
+  let lastSeenEventId: string | null | undefined =
+    options.afterId !== undefined ? options.afterId : null;
 
-    for await (const event of live) {
-      const typed = event as AnyEvent;
-      yield typed;
-      if (signal.aborted) return;
+  while (!signal.aborted) {
+    const handle = await openSessionTail(anthropic, sessionId, {
+      afterId: lastSeenEventId,
+      signal,
+    });
+
+    for await (const event of iterateSessionEventsAfter(
+      anthropic,
+      sessionId,
+      handle,
+      {
+        signal,
+        stopOnTerminal: false,
+      },
+    )) {
+      lastSeenEventId = event.id;
+      yield event;
     }
-    // Inner iterator ended (terminal event or stream closed) — loop to
-    // re-subscribe for the next turn.
   }
 }
