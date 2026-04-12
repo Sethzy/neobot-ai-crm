@@ -27,7 +27,7 @@
  * @module lib/managed-agents/adapter
  */
 import type Anthropic from "@anthropic-ai/sdk";
-import { createUIMessageStream, type UIMessageStreamWriter } from "ai";
+import { createUIMessageStream } from "ai";
 import { pipeJsonRender } from "@json-render/core";
 
 import {
@@ -57,13 +57,12 @@ import { attachFileToSession } from "./attach-session-file";
 import { buildAssistantPartsFromEvents } from "./events-to-assistant-parts";
 import { buildKickoffContent, getOrCreateSession } from "./session-kickoff";
 import { consumeAnthropicSession } from "./session-runner";
-import { toInternalManagedAgentToolName } from "./tool-name-aliases";
+import { buildUiStreamCallbacks } from "./session-stream-forwarder";
 import { uploadFilePartsToAnthropic } from "./upload-files-for-session";
 import type {
   ManagedFilePart,
   ManagedSupabaseClient,
   SessionRunnerOptions,
-  SessionRunnerCallbacks,
   SessionRunnerResult,
 } from "./types";
 
@@ -101,116 +100,6 @@ function pickSourceEventId(
     if (typeof e.id === "string" && e.id.length > 0) return e.id;
   }
   return `run:${runId}`;
-}
-
-/**
- * Builds the `SessionRunnerCallbacks` that project raw Anthropic events
- * into UIMessageStream writes. Shared by the run + resume paths so browser
- * rendering stays identical whether we're on a fresh turn or a post-approval
- * continuation.
- */
-function buildUiStreamCallbacks(
-  writer: UIMessageStreamWriter,
-): SessionRunnerCallbacks {
-  return {
-    onSpanModelRequestStart: () => {
-      writer.write({ type: "start-step" } as never);
-    },
-    onAgentMessage: (event) => {
-      // AI SDK v6 UIMessageChunk schema requires text deltas to be
-      // bracketed by `text-start` / `text-end` sharing the same `id`.
-      // The v6 client rejects a bare `text-delta` with:
-      //   "Received text-delta for missing text part with ID ..."
-      // We use the managed-agents event id as the chunk id so every text
-      // block from this `agent.message` is grouped into a single UI part.
-      const e = event as {
-        id: string;
-        content: Array<{ type: string; text?: string }>;
-      };
-      let textStarted = false;
-      for (const block of e.content) {
-        if (
-          block.type === "text" &&
-          typeof block.text === "string" &&
-          block.text.length > 0
-        ) {
-          if (!textStarted) {
-            writer.write({ type: "text-start", id: e.id } as never);
-            textStarted = true;
-          }
-          writer.write({
-            type: "text-delta",
-            id: e.id,
-            delta: block.text,
-          } as never);
-        }
-      }
-      if (textStarted) {
-        writer.write({ type: "text-end", id: e.id } as never);
-      }
-    },
-    onAgentToolUse: (event) => {
-      // AI SDK v6 tool-call chunks use `tool-input-available` (not the
-      // legacy v4 `tool-call`). The chunk bootstraps a tool part on the
-      // client keyed by `toolCallId`; the matching tool-result below
-      // upgrades it to output-available.
-      const e = event as { id: string; name: string; input: unknown };
-      writer.write({
-        type: "tool-input-available",
-        toolCallId: e.id,
-        toolName: toInternalManagedAgentToolName(e.name),
-        input: e.input,
-      } as never);
-    },
-    onAgentToolResult: (event) => {
-      // AI SDK v6 tool-result chunks use `tool-output-available` with an
-      // `output` field (v4 used `tool-result` + `result`).
-      const e = event as {
-        custom_tool_use_id: string;
-        content: Array<{ text: string }>;
-      };
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(e.content[0]?.text ?? "null");
-      } catch {
-        parsed = e.content[0]?.text ?? null;
-      }
-      writer.write({
-        type: "tool-output-available",
-        toolCallId: e.custom_tool_use_id,
-        output: parsed,
-      } as never);
-    },
-    onApprovalRequired: (event, approvalId) => {
-      const e = event as { id: string; name: string; input: unknown };
-      // Two chunks: first create the tool part via `tool-input-available`,
-      // then transition it into `approval-requested` via the flat
-      // `tool-approval-request` chunk. AI SDK v6's client requires a
-      // pre-existing tool part keyed by toolCallId before it will apply an
-      // approval-request chunk (see `updateToolPart` + `getToolInvocation`
-      // in ai/dist/index.mjs). Built-in tools like `bash` never go through
-      // `onAgentToolUse`, so the part must be bootstrapped here.
-      writer.write({
-        type: "tool-input-available",
-        toolCallId: e.id,
-        toolName: e.name,
-        input: e.input,
-      } as never);
-      writer.write({
-        type: "tool-approval-request",
-        approvalId,
-        toolCallId: e.id,
-      } as never);
-    },
-    onSessionError: (event) => {
-      // AI SDK v6 `error` chunks use `errorText` (v4 used `message`).
-      const e = event as { error?: { message?: string } };
-      writer.write({
-        type: "error",
-        errorText: e.error?.message ?? "Session error",
-      } as never);
-    },
-  };
 }
 
 interface FinalizeRunOptions {
