@@ -346,6 +346,14 @@ export function ChatPanel({
     [handleSubmit, isLoading],
   );
 
+  const handleStop = useCallback(async () => {
+    await fetch("/api/chat/interrupt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ threadId: chatId }),
+    });
+  }, [chatId]);
+
   const hasMessages = messages.length > 0;
 
   return (
@@ -370,6 +378,7 @@ export function ChatPanel({
             onValueChange={setComposerValue}
             onSelectedChatModelChange={handleModelChange}
             onSubmit={handleSubmit}
+            onStop={handleStop}
             disabled={(messageQuota?.messagesRemaining ?? 1) <= 0}
           />
         </>

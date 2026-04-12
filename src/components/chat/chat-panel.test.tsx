@@ -467,7 +467,8 @@ describe("ChatPanel", () => {
     ])).toEqual([{ thread_id: "thread-2", title: "Existing" }]);
   });
 
-  it("disables the composer while streaming (stop removed for resume compatibility)", () => {
+  it("keeps the composer disabled while streaming and wires the stop button to /api/chat/interrupt", async () => {
+    const user = userEvent.setup();
     mockUseChat.mockReturnValue({
       id: "thread-1",
       messages: [
@@ -489,6 +490,13 @@ describe("ChatPanel", () => {
     render(<ChatPanel chatId="thread-1" />);
 
     expect(screen.getByPlaceholderText(/send a message/i)).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: /stop/i }));
+
+    expect(mockFetch).toHaveBeenCalledWith("/api/chat/interrupt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ threadId: "thread-1" }),
+    });
   });
 
   it("renders API errors", () => {
