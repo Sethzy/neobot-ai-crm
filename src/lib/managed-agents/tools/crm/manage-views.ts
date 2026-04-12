@@ -16,41 +16,23 @@ const sortSchema = z.object({
   ascending: z.boolean(),
 });
 
-const createInput = z.object({
-  operation: z.literal("create"),
-  name: z.string().min(1).describe("Display name for the view."),
-  entity_type: z.enum(crmViewEntityTypes).describe("CRM entity this view filters (contacts, companies, deals, tasks)."),
-  filters: viewFiltersSchema.describe(
-    "Filter object - keys are column names or column_after/column_before for date ranges. " +
-      "Values: strings, numbers, booleans, string arrays (for IN filters), or symbolic tokens ($today, $week_start, $week_end, $month_start, $month_end).",
+const inputSchema = z.object({
+  operation: z.enum(["create", "list", "update", "delete"]).describe(
+    "Which saved-view operation to perform.",
   ),
-  sort: sortSchema.optional().describe("Optional sort column and direction."),
+  name: z.string().min(1).optional().describe("Display name for create or update."),
+  entity_type: z
+    .enum(crmViewEntityTypes)
+    .optional()
+    .describe("CRM entity this view filters (contacts, companies, deals, tasks)."),
+  filters: viewFiltersSchema
+    .optional()
+    .describe(
+      "Filter object for create or update. Keys are column names or column_after/column_before for date ranges. Values can be strings, numbers, booleans, string arrays, or symbolic date tokens.",
+    ),
+  sort: sortSchema.nullable().optional().describe("Optional sort config for create or update."),
+  view_id: z.string().uuid().optional().describe("UUID of the view to update or delete."),
 });
-
-const listInput = z.object({
-  operation: z.literal("list"),
-  entity_type: z.enum(crmViewEntityTypes).optional().describe("Filter list by entity type. Omit to list all views."),
-});
-
-const updateInput = z.object({
-  operation: z.literal("update"),
-  view_id: z.string().uuid().describe("UUID of the view to update."),
-  name: z.string().min(1).optional().describe("Updated display name."),
-  filters: viewFiltersSchema.optional().describe("Updated filters (replaces existing)."),
-  sort: sortSchema.nullable().optional().describe("Updated sort or null to clear."),
-});
-
-const deleteInput = z.object({
-  operation: z.literal("delete"),
-  view_id: z.string().uuid().describe("UUID of the view to delete."),
-});
-
-const inputSchema = z.discriminatedUnion("operation", [
-  createInput,
-  listInput,
-  updateInput,
-  deleteInput,
-]);
 
 type ManageViewsInput = z.infer<typeof inputSchema>;
 
@@ -67,6 +49,13 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
   execute: async (input, context) => {
     switch (input.operation) {
       case "create": {
+        if (!input.name || !input.entity_type || !input.filters) {
+          return {
+            success: false as const,
+            error: "create requires name, entity_type, and filters.",
+          };
+        }
+
         const validationError = validateViewFilters(
           input.entity_type,
           input.filters,
@@ -123,6 +112,10 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
       }
 
       case "update": {
+        if (!input.view_id) {
+          return { success: false as const, error: "update requires view_id." };
+        }
+
         const updates: Record<string, unknown> = {};
         if (input.name !== undefined) {
           updates.name = input.name;
@@ -176,6 +169,10 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
       }
 
       case "delete": {
+        if (!input.view_id) {
+          return { success: false as const, error: "delete requires view_id." };
+        }
+
         const { error } = await context.supabase
           .from("crm_views")
           .delete()
