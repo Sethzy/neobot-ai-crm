@@ -22,6 +22,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 
 import { createApprovalEvent } from "@/lib/approvals/queries";
 
+import { dispatchEventToCallbacks } from "./dispatch-event-to-callbacks";
 import { dispatchCustomTool } from "./dispatcher";
 import { createTranslatorState, translateEvent } from "./event-translator";
 import {
@@ -116,16 +117,8 @@ export async function consumeAnthropicSession(
     // Raw-event callbacks for projection / UI streaming. Fire BEFORE we act
     // on the translator output so callers see the event in arrival order.
     const eventType = (event as { type: AnthropicEvent["type"] }).type;
-    if (eventType === "span.model_request_start") {
-      await options.callbacks?.onSpanModelRequestStart?.(event);
-    } else if (eventType === "span.model_request_end") {
-      await options.callbacks?.onSpanModelRequestEnd?.(event);
-    } else if (eventType === "agent.message") {
-      await options.callbacks?.onAgentMessage?.(event);
-    } else if (eventType === "session.error") {
-      await options.callbacks?.onSessionError?.(event);
-    } else if (eventType === "agent.custom_tool_use") {
-      await options.callbacks?.onAgentToolUse?.(event);
+    if (options.callbacks) {
+      await dispatchEventToCallbacks(event, options.callbacks);
     }
 
     // Custom tool dispatch — runs synchronously so the result is available

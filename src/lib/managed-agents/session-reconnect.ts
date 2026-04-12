@@ -162,3 +162,32 @@ export async function* iterateSessionEvents(
     if (isTerminal(typed)) return;
   }
 }
+
+/**
+ * Like `iterateSessionEvents` but doesn't exit on terminal states — keeps
+ * reopening the SSE subscription until the abort signal fires. Used by the
+ * thread-level stream endpoint where "terminal" only means "the current
+ * turn is done, wait for the next one".
+ *
+ * Simpler than the one-turn helper: no history drain, no pre-kickoff
+ * snapshot. Just open the live SSE stream, yield events, loop on terminal.
+ */
+export async function* iterateSessionEventsForever(
+  anthropic: Anthropic,
+  sessionId: string,
+  signal: AbortSignal,
+): AsyncGenerator<AnyEvent> {
+  while (!signal.aborted) {
+    const live = await anthropic.beta.sessions.events.stream(
+      sessionId,
+    ) as unknown as AsyncIterable<unknown>;
+
+    for await (const event of live) {
+      const typed = event as AnyEvent;
+      yield typed;
+      if (signal.aborted) return;
+    }
+    // Inner iterator ended (terminal event or stream closed) — loop to
+    // re-subscribe for the next turn.
+  }
+}
