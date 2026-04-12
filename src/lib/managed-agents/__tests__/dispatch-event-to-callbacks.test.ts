@@ -11,6 +11,9 @@ import type { SessionRunnerCallbacks } from "../types";
 
 import {
   agentMessageTextEvent,
+  bashToolUseEvent,
+  builtInToolResultEvent,
+  customToolResultEvent,
   customToolUseEvent,
   modelRequestStartEvent,
   modelRequestEndEvent,
@@ -22,6 +25,8 @@ function makeCallbacks(): Required<
     SessionRunnerCallbacks,
     | "onAgentMessage"
     | "onAgentToolUse"
+    | "onAgentToolResult"
+    | "onApprovalRequired"
     | "onSpanModelRequestStart"
     | "onSpanModelRequestEnd"
     | "onSessionError"
@@ -30,6 +35,8 @@ function makeCallbacks(): Required<
   return {
     onAgentMessage: vi.fn(),
     onAgentToolUse: vi.fn(),
+    onAgentToolResult: vi.fn(),
+    onApprovalRequired: vi.fn(),
     onSpanModelRequestStart: vi.fn(),
     onSpanModelRequestEnd: vi.fn(),
     onSessionError: vi.fn(),
@@ -72,6 +79,44 @@ describe("dispatchEventToCallbacks", () => {
     const event = sessionErrorEvent("evt_5", "something broke");
     await dispatchEventToCallbacks(event, cbs);
     expect(cbs.onSessionError).toHaveBeenCalledWith(event);
+  });
+
+  it("routes agent.tool_use (ask) to onApprovalRequired with event.id as approvalId", async () => {
+    const cbs = makeCallbacks();
+    const event = bashToolUseEvent("evt_7", "rm -rf /", "ask");
+    await dispatchEventToCallbacks(event, cbs);
+    expect(cbs.onApprovalRequired).toHaveBeenCalledWith(event, "evt_7");
+    expect(cbs.onAgentToolUse).not.toHaveBeenCalled();
+  });
+
+  it("does not route agent.tool_use (allow) to any approval callback", async () => {
+    const cbs = makeCallbacks();
+    const event = bashToolUseEvent("evt_8", "ls", "allow");
+    await dispatchEventToCallbacks(event, cbs);
+    expect(cbs.onApprovalRequired).not.toHaveBeenCalled();
+    expect(cbs.onAgentToolUse).not.toHaveBeenCalled();
+  });
+
+  it("routes user.custom_tool_result to onAgentToolResult", async () => {
+    const cbs = makeCallbacks();
+    const event = customToolResultEvent("evt_9", "evt_2", { result: "ok" });
+    await dispatchEventToCallbacks(event, cbs);
+    expect(cbs.onAgentToolResult).toHaveBeenCalledWith(event);
+    expect(cbs.onAgentMessage).not.toHaveBeenCalled();
+  });
+
+  it("routes agent.mcp_tool_use (ask) to onApprovalRequired", async () => {
+    const cbs = makeCallbacks();
+    const event = { id: "evt_10", type: "agent.mcp_tool_use", name: "slack_send", input: {}, evaluated_permission: "ask" };
+    await dispatchEventToCallbacks(event, cbs);
+    expect(cbs.onApprovalRequired).toHaveBeenCalledWith(event, "evt_10");
+  });
+
+  it("routes agent.tool_result to onAgentToolResult", async () => {
+    const cbs = makeCallbacks();
+    const event = builtInToolResultEvent("evt_11", "evt_7", "output text");
+    await dispatchEventToCallbacks(event, cbs);
+    expect(cbs.onAgentToolResult).toHaveBeenCalledWith(event);
   });
 
   it("does not throw when callbacks are undefined", async () => {

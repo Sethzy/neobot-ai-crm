@@ -25,6 +25,7 @@ import {
   buildKickoffContent,
   getOrCreateSession,
 } from "@/lib/managed-agents/session-kickoff";
+import { openSessionTail } from "@/lib/managed-agents/session-reconnect";
 import { persistTurnInBackground } from "@/lib/managed-agents/persist-turn-in-background";
 import { uploadFilePartsToAnthropic } from "@/lib/managed-agents/upload-files-for-session";
 import { buildSystemReminder } from "@/lib/runner/system-reminder";
@@ -34,7 +35,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const bodySchema = z.object({
+const messageBodySchema = z.object({
   threadId: z.string().min(1),
   message: z.object({
     id: z.string().optional(),
@@ -42,6 +43,17 @@ const bodySchema = z.object({
     parts: z.array(z.unknown()),
   }),
 });
+
+const approvalBodySchema = z.object({
+  threadId: z.string().min(1),
+  approval: z.object({
+    toolUseId: z.string().min(1),
+    result: z.enum(["allow", "deny"]),
+    denyMessage: z.string().optional(),
+  }),
+});
+
+const bodySchema = z.union([messageBodySchema, approvalBodySchema]);
 
 export async function POST(request: Request): Promise<Response> {
   let body: z.infer<typeof bodySchema>;
@@ -78,6 +90,12 @@ export async function POST(request: Request): Promise<Response> {
 
   const clientId = await resolveClientId(supabase, userId);
 
+  // ── Approval path: send user.tool_confirmation to the session ─────
+  if ("approval" in body) {
+    return handleApproval(body, supabase, clientId);
+  }
+
+  // ── Message path (existing) ───────────────────────────────────────
   // Extract text + file parts from the message.
   const { text, fileParts } = extractUserInput(body.message);
 
@@ -169,6 +187,12 @@ export async function POST(request: Request): Promise<Response> {
     customizedSkillSlugs: customizedSlugs,
   });
 
+  // Open the persistence tail BEFORE sending the user message. The
+  // resulting worker drains from the pre-send cursor after the response
+  // is sent, which preserves the "subscribe before you send" guarantee
+  // without making the read path own persistence.
+  const tailHandle = await openSessionTail(anthropic, session.id);
+
   await anthropic.beta.sessions.events.send(session.id, {
     events: [{ type: "user.message", content: kickoff }],
   } as never);
@@ -184,6 +208,67 @@ export async function POST(request: Request): Promise<Response> {
       threadId: body.threadId,
       sessionId: session.id,
       conversationInput: text ?? "",
+      tailHandle,
+    }),
+  );
+
+  return Response.json({ ok: true });
+}
+
+// ── Approval handler ──────────────────────────────────────────────────
+
+async function handleApproval(
+  body: z.infer<typeof approvalBodySchema>,
+  supabase: Parameters<typeof persistTurnInBackground>[0]["supabase"],
+  clientId: string,
+): Promise<Response> {
+  const { data: thread } = await supabase
+    .from("conversation_threads")
+    .select("session_id")
+    .eq("thread_id", body.threadId)
+    .eq("client_id", clientId)
+    .eq("is_archived", false)
+    .maybeSingle();
+
+  if (!thread?.session_id) {
+    return jsonError("Thread has no active session.", 404);
+  }
+
+  const sessionId = thread.session_id;
+  const anthropic = getAnthropicClient();
+
+  // Subscribe before send — open the persistence tail before posting
+  // the confirmation so the background worker catches all post-approval
+  // events. The original turn's worker stopped at requires_action.
+  const tailHandle = await openSessionTail(anthropic, sessionId);
+
+  await anthropic.beta.sessions.events.send(sessionId, {
+    events: [
+      body.approval.result === "allow"
+        ? {
+            type: "user.tool_confirmation",
+            tool_use_id: body.approval.toolUseId,
+            result: "allow" as const,
+          }
+        : {
+            type: "user.tool_confirmation",
+            tool_use_id: body.approval.toolUseId,
+            result: "deny" as const,
+            deny_message:
+              body.approval.denyMessage ?? "User denied this action.",
+          },
+    ],
+  } as never);
+
+  after(() =>
+    persistTurnInBackground({
+      anthropic,
+      supabase,
+      clientId,
+      threadId: body.threadId,
+      sessionId,
+      conversationInput: `[approval: ${body.approval.result}]`,
+      tailHandle,
     }),
   );
 

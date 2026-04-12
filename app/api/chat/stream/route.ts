@@ -21,6 +21,7 @@ import { dispatchEventToCallbacks } from "@/lib/managed-agents/dispatch-event-to
 import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
 import { buildUiStreamCallbacks } from "@/lib/managed-agents/session-stream-forwarder";
 import { iterateSessionEventsForever } from "@/lib/managed-agents/session-reconnect";
+import type { AnthropicEvent } from "@/lib/managed-agents/event-types";
 
 export const runtime = "nodejs";
 /** Keep the SSE connection alive for up to 5 minutes. */
@@ -30,6 +31,11 @@ export async function GET(request: Request): Promise<Response> {
   const { searchParams } = new URL(request.url);
   const threadId = searchParams.get("threadId");
   if (!threadId) return jsonError("Missing threadId", 400);
+
+  // Optional cursor from the client's last-seen source event id. When
+  // present, the stream tails from that point (reconnect). When absent,
+  // drains all history from the session start (first connection).
+  const afterId = searchParams.get("afterId"); // string | null
 
   const auth = await authenticateRequest();
   if (auth.kind === "error") return auth.response;
@@ -54,8 +60,40 @@ export async function GET(request: Request): Promise<Response> {
         anthropic,
         sessionId,
         request.signal,
+        { afterId },
       )) {
+        const typed = event as AnthropicEvent;
+
+        // Emit a source-event-id marker so the client transport can dedup
+        // events on SSE reconnect. Every Anthropic event has a unique id;
+        // the client tracks which ids it has already processed.
+        if (typed.id) {
+          writer.write({
+            type: "data-source-event-id",
+            data: { id: typed.id },
+          } as never);
+        }
+
         await dispatchEventToCallbacks(event, callbacks);
+
+        // Emit a finish chunk when the agent turn completes so the client
+        // transport can close its per-turn ReadableStream (which makes
+        // useChat set status → ready). The SSE connection stays open —
+        // only the logical turn ends.
+        if (typed.type === "session.status_idle") {
+          const reason = typed.stop_reason.type;
+          if (reason === "end_turn" || reason === "retries_exhausted" || reason === "requires_action") {
+            writer.write({
+              type: "finish",
+              finishReason:
+                reason === "end_turn"
+                  ? "stop"
+                  : reason === "requires_action"
+                    ? "tool-calls"
+                    : "error",
+            } as never);
+          }
+        }
       }
     },
   });

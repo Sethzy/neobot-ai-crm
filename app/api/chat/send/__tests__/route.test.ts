@@ -12,6 +12,7 @@ const {
   upsertMessage,
   getOrCreateSession,
   buildKickoffContent,
+  openSessionTail,
   uploadFilePartsToAnthropic,
   buildSystemReminder,
   listCustomizedSkillSlugs,
@@ -25,6 +26,7 @@ const {
   upsertMessage: vi.fn(),
   getOrCreateSession: vi.fn(),
   buildKickoffContent: vi.fn(),
+  openSessionTail: vi.fn(),
   uploadFilePartsToAnthropic: vi.fn(),
   buildSystemReminder: vi.fn(),
   listCustomizedSkillSlugs: vi.fn(),
@@ -51,6 +53,9 @@ vi.mock("@/lib/chat/messages", () => ({ upsertMessage }));
 vi.mock("@/lib/managed-agents/session-kickoff", () => ({
   getOrCreateSession,
   buildKickoffContent,
+}));
+vi.mock("@/lib/managed-agents/session-reconnect", () => ({
+  openSessionTail,
 }));
 vi.mock("@/lib/managed-agents/upload-files-for-session", () => ({
   uploadFilePartsToAnthropic,
@@ -109,6 +114,10 @@ describe("POST /api/chat/send", () => {
     upsertMessage.mockResolvedValue(undefined);
     getOrCreateSession.mockResolvedValue({ id: "sess_1", created: false });
     buildKickoffContent.mockReturnValue([{ type: "text", text: "hello" }]);
+    openSessionTail.mockResolvedValue({
+      live: { [Symbol.asyncIterator]: async function* () {} },
+      afterId: "evt_before_send",
+    });
     uploadFilePartsToAnthropic.mockResolvedValue([]);
     buildSystemReminder.mockResolvedValue("reminder");
     listCustomizedSkillSlugs.mockResolvedValue([]);
@@ -193,6 +202,10 @@ describe("POST /api/chat/send", () => {
     expect(sendFn).toHaveBeenCalledWith("sess_1", {
       events: [{ type: "user.message", content: expect.any(Array) }],
     });
+    expect(openSessionTail).toHaveBeenCalledWith(expect.anything(), "sess_1");
+    expect(openSessionTail.mock.invocationCallOrder[0]).toBeLessThan(
+      sendFn.mock.invocationCallOrder[0],
+    );
 
     // Background persistence kicked off via after()
     expect(afterFn).toHaveBeenCalled();
@@ -201,6 +214,7 @@ describe("POST /api/chat/send", () => {
         sessionId: "sess_1",
         threadId: "t1",
         clientId: "c1",
+        tailHandle: expect.objectContaining({ afterId: "evt_before_send" }),
       }),
     );
   });
@@ -238,5 +252,95 @@ describe("POST /api/chat/send", () => {
       }),
     );
     expect(res.status).toBe(429);
+  });
+
+  // ── Approval path ─────────────────────────────────────────────────
+
+  it("sends user.tool_confirmation (allow) to session on approval", async () => {
+    // Thread has a session
+    maybeSingle.mockResolvedValue({
+      data: { thread_id: "t1", title: "Test", session_id: "sess_1" },
+      error: null,
+    });
+
+    const res = await POST(
+      new Request("http://localhost/api/chat/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          threadId: "t1",
+          approval: { toolUseId: "evt_42", result: "allow" },
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(sendFn).toHaveBeenCalledWith("sess_1", {
+      events: [
+        {
+          type: "user.tool_confirmation",
+          tool_use_id: "evt_42",
+          result: "allow",
+        },
+      ],
+    });
+    expect(afterFn).toHaveBeenCalled();
+    expect(persistTurnInBackground).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: "sess_1", threadId: "t1" }),
+    );
+  });
+
+  it("sends user.tool_confirmation (deny) with message on approval", async () => {
+    maybeSingle.mockResolvedValue({
+      data: { thread_id: "t1", title: "Test", session_id: "sess_1" },
+      error: null,
+    });
+
+    const res = await POST(
+      new Request("http://localhost/api/chat/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          threadId: "t1",
+          approval: {
+            toolUseId: "evt_42",
+            result: "deny",
+            denyMessage: "Too dangerous",
+          },
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(sendFn).toHaveBeenCalledWith("sess_1", {
+      events: [
+        {
+          type: "user.tool_confirmation",
+          tool_use_id: "evt_42",
+          result: "deny",
+          deny_message: "Too dangerous",
+        },
+      ],
+    });
+  });
+
+  it("returns 404 when thread has no session (approval path)", async () => {
+    maybeSingle.mockResolvedValue({
+      data: { thread_id: "t1", title: "Test", session_id: null },
+      error: null,
+    });
+
+    const res = await POST(
+      new Request("http://localhost/api/chat/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          threadId: "t1",
+          approval: { toolUseId: "evt_42", result: "allow" },
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(404);
   });
 });

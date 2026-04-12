@@ -30,5 +30,16 @@ export async function dispatchEventToCallbacks(
     await callbacks.onSessionError?.(event);
   } else if (eventType === "agent.custom_tool_use") {
     await callbacks.onAgentToolUse?.(event);
+  } else if (eventType === "agent.tool_use" || eventType === "agent.mcp_tool_use") {
+    // Built-in or MCP tool with permission_policy "ask" → approval required.
+    // The Anthropic event id is the tool_use_id for user.tool_confirmation.
+    const typed = event as { id: string; evaluated_permission?: string };
+    if (typed.evaluated_permission === "ask") {
+      await callbacks.onApprovalRequired?.(event, typed.id);
+    }
+  } else if (eventType === "user.custom_tool_result" || eventType === "agent.tool_result") {
+    // Custom tool results and built-in tool results both stream through
+    // as tool-output-available chunks.
+    await callbacks.onAgentToolResult?.(event);
   }
 }

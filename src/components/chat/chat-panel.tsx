@@ -17,10 +17,12 @@ import { AlertCircle } from "@/components/icons/lucide-compat";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAutoResume } from "@/hooks/use-auto-resume";
+import { resolveChatTransportMode } from "@/lib/chat/session-transport-flag";
 import { mapDbMessageToUiMessage } from "@/lib/chat/message-normalization";
 import { createClient } from "@/lib/supabase/client";
 import { messageQuotaKeys, useMessageQuota } from "@/hooks/use-message-quota";
 import { threadKeys } from "@/hooks/use-threads";
+import { SessionChatTransport } from "./session-chat-transport";
 import {
   CHAT_MODEL_COOKIE_MAX_AGE,
   CHAT_MODEL_COOKIE_NAME,
@@ -129,35 +131,46 @@ export function ChatPanel({
   const refreshQuota = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: messageQuotaKeys.all });
   }, [queryClient]);
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport({
-        api: "/api/chat",
-        prepareSendMessagesRequest({ id, messages }) {
-          const lastMessage = messages.at(-1);
-          const previousMessage = messages.at(-2);
-          const isToolApprovalContinuation =
-            lastMessage?.role !== "user" ||
-            hasApprovalContinuationState(lastMessage) ||
-            hasApprovalContinuationState(previousMessage);
+  const transport = useMemo(() => {
+    if (resolveChatTransportMode() === "session") {
+      return new SessionChatTransport(chatId);
+    }
+    return new DefaultChatTransport({
+      api: "/api/chat",
+      prepareSendMessagesRequest({ id, messages }) {
+        const lastMessage = messages.at(-1);
+        const previousMessage = messages.at(-2);
+        const isToolApprovalContinuation =
+          lastMessage?.role !== "user" ||
+          hasApprovalContinuationState(lastMessage) ||
+          hasApprovalContinuationState(previousMessage);
 
-          return {
-            body: isToolApprovalContinuation
-              ? {
-                  id,
-                  messages,
-                  selectedChatModel: currentModelIdRef.current,
-                }
-              : {
-                  id,
-                  message: lastMessage,
-                  selectedChatModel: currentModelIdRef.current,
-                },
-          };
-        },
-      }),
-    [],
-  );
+        return {
+          body: isToolApprovalContinuation
+            ? {
+                id,
+                messages,
+                selectedChatModel: currentModelIdRef.current,
+              }
+            : {
+                id,
+                message: lastMessage,
+                selectedChatModel: currentModelIdRef.current,
+              },
+        };
+      },
+    });
+  }, [chatId]);
+
+  // Tear down the session transport's persistent SSE when the thread
+  // changes or the component unmounts.
+  useEffect(() => {
+    return () => {
+      if (transport instanceof SessionChatTransport) {
+        transport.destroy();
+      }
+    };
+  }, [transport]);
 
   useEffect(() => {
     currentModelIdRef.current = selectedChatModel;

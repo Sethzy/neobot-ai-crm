@@ -174,19 +174,26 @@ describe("GET /api/chat/stream", () => {
 
     // Execute the captured stream callback to verify wiring
     if (capturedExecute) {
-      const fakeWriter = {};
+      const fakeWriter = { write: vi.fn() };
       await capturedExecute({ writer: fakeWriter });
 
       expect(iterateSessionEventsForever).toHaveBeenCalledWith(
         {}, // anthropic client
         "sess_xyz",
         expect.any(AbortSignal),
+        { afterId: null }, // no client cursor on first connection
       );
       expect(buildUiStreamCallbacks).toHaveBeenCalledWith(fakeWriter);
       expect(dispatchEventToCallbacks).toHaveBeenCalledWith(
         events[0],
         mockCallbacks,
       );
+
+      // Verify the route emits a data-source-event-id marker per event
+      expect(fakeWriter.write).toHaveBeenCalledWith({
+        type: "data-source-event-id",
+        data: { id: "evt_1" },
+      });
     }
   });
 });
