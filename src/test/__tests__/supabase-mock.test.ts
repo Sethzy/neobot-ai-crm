@@ -59,21 +59,21 @@ describe("createMockSupabaseClient", () => {
   test("supports configured rpc results", async () => {
     const client = createMockSupabaseClient({
       rpcResults: {
-        create_run_if_idle: { data: "run-1", error: null },
+        mark_stale_runs_failed: { data: 2, error: null },
       },
     });
 
-    const result = await client.rpc("create_run_if_idle", {
+    const result = await client.rpc("mark_stale_runs_failed", {
       p_thread_id: "thread-1",
-      p_client_id: "client-1",
+      p_stale_minutes: 15,
     });
 
-    expect(result.data).toBe("run-1");
+    expect(result.data).toBe(2);
     expect(result.error).toBeNull();
     expect(client.calls.rpc).toEqual([
       {
-        fn: "create_run_if_idle",
-        args: { p_thread_id: "thread-1", p_client_id: "client-1" },
+        fn: "mark_stale_runs_failed",
+        args: { p_thread_id: "thread-1", p_stale_minutes: 15 },
       },
     ]);
   });

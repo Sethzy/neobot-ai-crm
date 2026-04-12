@@ -8,83 +8,9 @@ import { createMockSupabaseClient } from "@/test/mocks/supabase";
 
 import {
   completeRun,
-  createRun,
   createRunRecord,
   markStaleRunsFailed,
 } from "../run-lifecycle";
-
-describe("createRun", () => {
-  it("returns created run id when lock can be claimed", async () => {
-    const client = createMockSupabaseClient({
-      rpcResults: {
-        create_run_if_idle: { data: "run-1", error: null },
-      },
-    });
-
-    await expect(
-      createRun(client as never, {
-        threadId: "thread-1",
-        clientId: "client-1",
-        runType: "chat",
-      }),
-    ).resolves.toEqual({ created: true, runId: "run-1" });
-  });
-
-  it("returns created false when thread is already running", async () => {
-    const client = createMockSupabaseClient({
-      rpcResults: {
-        create_run_if_idle: { data: null, error: null },
-      },
-    });
-
-    await expect(
-      createRun(client as never, {
-        threadId: "thread-1",
-        clientId: "client-1",
-        runType: "cron",
-      }),
-    ).resolves.toEqual({ created: false });
-  });
-
-  it("throws on create_run_if_idle rpc failure", async () => {
-    const client = createMockSupabaseClient({
-      rpcResults: {
-        create_run_if_idle: { data: null, error: { message: "rpc failed" } },
-      },
-    });
-
-    await expect(
-      createRun(client as never, {
-        threadId: "thread-1",
-        clientId: "client-1",
-        runType: "webhook",
-      }),
-    ).rejects.toThrow("Failed to create run: rpc failed");
-  });
-
-  it("passes the run type to create_run_if_idle", async () => {
-    const client = createMockSupabaseClient({
-      rpcResults: {
-        create_run_if_idle: { data: "run-1", error: null },
-      },
-    });
-
-    await createRun(client as never, {
-      threadId: "thread-1",
-      clientId: "client-1",
-      runType: "autopilot",
-    });
-
-    expect(client.calls.rpc).toContainEqual({
-      fn: "create_run_if_idle",
-      args: {
-        p_thread_id: "thread-1",
-        p_client_id: "client-1",
-        p_run_type: "autopilot",
-      },
-    });
-  });
-});
 
 describe("completeRun", () => {
   it("updates run status, usage, completed timestamp, and step count when provided", async () => {

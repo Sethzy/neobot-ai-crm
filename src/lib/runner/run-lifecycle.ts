@@ -21,8 +21,6 @@ export interface CreateRunRecordInput extends CreateRunInput {
   sessionId?: string | null;
 }
 
-export type CreateRunResult = { created: true; runId: string } | { created: false };
-
 export interface CompleteRunInput {
   runId: string;
   status: "completed" | "partial" | "failed" | "cancelled";
@@ -42,30 +40,6 @@ export interface CompleteRunInput {
 export interface MarkStaleRunsInput {
   threadId: string;
   staleMinutes?: number;
-}
-
-/**
- * Attempts to atomically create a running row for a thread.
- */
-export async function createRun(
-  supabase: ChatSupabaseClient,
-  { threadId, clientId, runType }: CreateRunInput,
-): Promise<CreateRunResult> {
-  const { data, error } = await supabase.rpc("create_run_if_idle", {
-    p_thread_id: threadId,
-    p_client_id: clientId,
-    p_run_type: runType,
-  });
-
-  if (error) {
-    throw new Error(`Failed to create run: ${error.message}`);
-  }
-
-  if (!data) {
-    return { created: false };
-  }
-
-  return { created: true, runId: String(data) };
 }
 
 /**

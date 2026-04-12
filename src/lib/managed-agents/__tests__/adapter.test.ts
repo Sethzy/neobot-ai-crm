@@ -29,7 +29,7 @@ vi.mock("@/lib/runner/skills/list-customized-skill-slugs", () => ({
   listCustomizedSkillSlugs: vi.fn().mockResolvedValue([]),
 }));
 vi.mock("@/lib/runner/run-lifecycle", () => ({
-  createRun: vi.fn().mockResolvedValue({ created: true, runId: "run_1" }),
+  createRunRecord: vi.fn().mockResolvedValue("run_1"),
   completeRun: vi.fn().mockResolvedValue(undefined),
   markStaleRunsFailed: vi.fn().mockResolvedValue(undefined),
 }));

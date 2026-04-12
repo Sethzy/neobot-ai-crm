@@ -15,13 +15,18 @@ const mockSetQueriesData = vi.fn();
 const mockUseMessageQuota = vi.fn();
 
 vi.mock("ai", () => ({
-  DefaultChatTransport: class {
-    constructor(options: Record<string, unknown>) {
-      Object.assign(this, options);
-    }
-  },
   lastAssistantMessageIsCompleteWithApprovalResponses:
     mockLastAssistantMessageIsCompleteWithApprovalResponses,
+}));
+
+vi.mock("./session-chat-transport", () => ({
+  SessionChatTransport: class {
+    chatId: string;
+    constructor(chatId: string) {
+      this.chatId = chatId;
+    }
+    destroy() {}
+  },
 }));
 
 vi.mock("@ai-sdk/react", () => ({

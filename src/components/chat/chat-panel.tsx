@@ -5,7 +5,6 @@
 "use client";
 
 import {
-  DefaultChatTransport,
   lastAssistantMessageIsCompleteWithApprovalResponses,
   type FileUIPart,
   type UIMessage,
@@ -17,7 +16,6 @@ import { AlertCircle } from "@/components/icons/lucide-compat";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAutoResume } from "@/hooks/use-auto-resume";
-import { resolveChatTransportMode } from "@/lib/chat/session-transport-flag";
 import { mapDbMessageToUiMessage } from "@/lib/chat/message-normalization";
 import { createClient } from "@/lib/supabase/client";
 import { messageQuotaKeys, useMessageQuota } from "@/hooks/use-message-quota";
@@ -94,13 +92,6 @@ function parseChatError(error: Error | undefined): ParsedChatError | null {
   };
 }
 
-function hasApprovalContinuationState(message: UIMessage | undefined): boolean {
-  return message?.parts?.some((part) => {
-    const state = "state" in part ? part.state : undefined;
-    return state === "approval-responded" || state === "output-denied";
-  }) ?? false;
-}
-
 function removeOptimisticDraftThread(
   oldThreads: Array<Record<string, unknown>> | undefined,
   chatId: string,
@@ -124,43 +115,16 @@ export function ChatPanel({
   const [selectedChatModel, setSelectedChatModel] = useState(
     resolveModelId(initialChatModel),
   );
-  const currentModelIdRef = useRef(resolveModelId(initialChatModel));
   const { setDataStream } = useDataStream();
   const queryClient = useQueryClient();
   const { data: messageQuota } = useMessageQuota(initialQuota);
   const refreshQuota = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: messageQuotaKeys.all });
   }, [queryClient]);
-  const transport = useMemo(() => {
-    if (resolveChatTransportMode() === "session") {
-      return new SessionChatTransport(chatId);
-    }
-    return new DefaultChatTransport({
-      api: "/api/chat",
-      prepareSendMessagesRequest({ id, messages }) {
-        const lastMessage = messages.at(-1);
-        const previousMessage = messages.at(-2);
-        const isToolApprovalContinuation =
-          lastMessage?.role !== "user" ||
-          hasApprovalContinuationState(lastMessage) ||
-          hasApprovalContinuationState(previousMessage);
-
-        return {
-          body: isToolApprovalContinuation
-            ? {
-                id,
-                messages,
-                selectedChatModel: currentModelIdRef.current,
-              }
-            : {
-                id,
-                message: lastMessage,
-                selectedChatModel: currentModelIdRef.current,
-              },
-        };
-      },
-    });
-  }, [chatId]);
+  const transport = useMemo(
+    () => new SessionChatTransport(chatId),
+    [chatId],
+  );
 
   // Tear down the session transport's persistent SSE when the thread
   // changes or the component unmounts.
@@ -172,10 +136,6 @@ export function ChatPanel({
     };
   }, [transport]);
 
-  useEffect(() => {
-    currentModelIdRef.current = selectedChatModel;
-  }, [selectedChatModel]);
-
   /**
    * Synchronously writes the cookie and updates the ref before React re-renders.
    * This mirrors the reference chatbot pattern: cookie is persisted in the selection
@@ -184,7 +144,6 @@ export function ChatPanel({
    * carry a stale cookie to the server-side page render.
    */
   const handleModelChange = useCallback((modelId: string) => {
-    currentModelIdRef.current = modelId;
     setSelectedChatModel(modelId);
     document.cookie = `${CHAT_MODEL_COOKIE_NAME}=${modelId}; path=/; max-age=${CHAT_MODEL_COOKIE_MAX_AGE}`;
   }, []);

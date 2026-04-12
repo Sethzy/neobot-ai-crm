@@ -1800,10 +1800,6 @@ export type Database = {
           plan_name: string
         }[]
       }
-      create_run_if_idle: {
-        Args: { p_client_id: string; p_run_type?: string; p_thread_id: string }
-        Returns: string
-      }
       crm_default_deal_stages: { Args: never; Returns: Json }
       drain_thread_queue: {
         Args: { p_client_id: string; p_thread_id: string }

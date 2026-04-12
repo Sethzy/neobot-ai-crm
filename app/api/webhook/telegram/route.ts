@@ -297,17 +297,6 @@ async function runTelegramAgent(
     threadTitle: null,
   });
 
-  // runManagedAgent can return `{ status: "queued" }` when the thread is
-  // already running another turn. Telegram inbound messages can't wait, so
-  // log + drop; the next message will either fit the window or retry.
-  if (!(stream instanceof ReadableStream)) {
-    console.warn(
-      "[telegram/webhook] runManagedAgent returned queued — dropping inbound message",
-      { threadId: input.threadId, chatId: input.chatId },
-    );
-    return;
-  }
-
   const reader = stream.getReader();
   while (true) {
     const { done } = await reader.read();

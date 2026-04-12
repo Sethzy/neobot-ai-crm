@@ -2,7 +2,7 @@
  * Chat adapter — thin wrapper over `consumeAnthropicSession`.
  *
  * Responsibilities (everything else lives in the session runner):
- *   1. Acquire the per-thread run lock via `createRun`.
+ *   1. Create an observability run record via `createRunRecord`.
  *   2. Create or reuse the Anthropic session for the thread.
  *   3. Build the kickoff text from profile + preferences + system reminder
  *      + the user's input.
@@ -19,10 +19,10 @@
  *      streamed text become first-class data-spec parts (D3).
  *
  * Also exports `resumeManagedAgentFromApproval` — the post-approval
- * re-entry point used by `/api/chat`, `/api/tool-confirm`, and the
- * Telegram callback handler. It mirrors `runManagedAgent`'s finalization
- * shape but sends a `user.tool_confirmation` as its kickoff and reuses
- * the run_id recorded on the approval event instead of creating a new run.
+ * re-entry point used by `/api/tool-confirm` and the Telegram callback
+ * handler. It mirrors `runManagedAgent`'s finalization shape but sends a
+ * `user.tool_confirmation` as its kickoff and reuses the run_id recorded
+ * on the approval event instead of creating a new run.
  *
  * @module lib/managed-agents/adapter
  */
@@ -46,7 +46,7 @@ import {
 } from "@/lib/usage/message-quota";
 import {
   completeRun,
-  createRun,
+  createRunRecord,
 } from "@/lib/runner/run-lifecycle";
 import { listCustomizedSkillSlugs } from "@/lib/runner/skills/list-customized-skill-slugs";
 import { buildSystemReminder } from "@/lib/runner/system-reminder";
@@ -263,26 +263,14 @@ export interface RunManagedAgentInput {
   threadTitle: string | null;
 }
 
-export type RunManagedAgentResult =
-  | ReadableStream<unknown>
-  | { status: "queued" };
-
 export async function runManagedAgent(
   input: RunManagedAgentInput,
-): Promise<RunManagedAgentResult> {
-  const lock = await createRun(input.supabase, {
+): Promise<ReadableStream<unknown>> {
+  const runId = await createRunRecord(input.supabase, {
     threadId: input.threadId,
     clientId: input.clientId,
     runType: "chat",
   });
-  if (!lock.created) {
-    // Thread is already running a turn. Signal the queued state to the
-    // caller so `/api/chat` can surface a 409; do not throw — throwing
-    // trips the `try { ... } catch { return 500 }` error path and swallows
-    // the 409 contract.
-    return { status: "queued" };
-  }
-  const runId = lock.runId;
   let shouldReleaseConsumedQuota = false;
   let consumedQuota: Awaited<ReturnType<typeof consumeMessageQuota>> | null = null;
   let sessionId: string;
@@ -423,7 +411,7 @@ export async function runManagedAgent(
           logLabel: "runManagedAgent",
         });
       } catch (error) {
-        // Anything thrown after createRun() but before the run is
+        // Anything thrown after createRunRecord() but before the run is
         // marked complete leaves the row stuck in `running` until the
         // pg_cron `sweep_stale_runs` job picks it up. Mark failed
         // eagerly so the thread isn't locked, then re-throw so the

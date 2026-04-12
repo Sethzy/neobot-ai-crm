@@ -11,9 +11,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { threadKeys } from "@/hooks/use-threads";
 import { ChatPanel } from "./chat-panel";
 
-const { mockTransportConstructor } = vi.hoisted(() => ({
-  mockTransportConstructor: vi.fn(),
-}));
 const { mockLastAssistantMessageIsCompleteWithApprovalResponses } = vi.hoisted(() => ({
   mockLastAssistantMessageIsCompleteWithApprovalResponses: vi.fn(),
 }));
@@ -62,17 +59,18 @@ vi.mock("@/hooks/use-scroll-to-bottom", () => ({
 }));
 
 vi.mock("ai", () => ({
-  DefaultChatTransport: class {
-    api: string | undefined;
-
-    constructor(options: { api?: string; prepareSendMessagesRequest?: unknown }) {
-      mockTransportConstructor(options);
-      this.api = options.api;
-      Object.assign(this, options);
-    }
-  },
   lastAssistantMessageIsCompleteWithApprovalResponses:
     mockLastAssistantMessageIsCompleteWithApprovalResponses,
+}));
+
+vi.mock("./session-chat-transport", () => ({
+  SessionChatTransport: class {
+    chatId: string;
+    constructor(chatId: string) {
+      this.chatId = chatId;
+    }
+    destroy() {}
+  },
 }));
 
 const mockUseChat = vi.fn();
@@ -208,114 +206,12 @@ describe("ChatPanel", () => {
     };
     expect(options.id).toBe("thread-1");
     expect(options.messages).toEqual(initialMessages);
-    expect(options.transport).toEqual(expect.objectContaining({ api: "/api/chat" }));
+    expect(options.transport).toEqual(expect.objectContaining({ chatId: "thread-1" }));
     expect(typeof options.generateId).toBe("function");
     expect(options.experimental_throttle).toBe(50);
     expect(options.generateId?.()).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
-  });
-
-  it("configures transport with prepareSendMessagesRequest", () => {
-    render(<ChatPanel chatId="thread-1" />);
-
-    const options = mockTransportConstructor.mock.calls[0][0] as {
-      api: string;
-      prepareSendMessagesRequest?: unknown;
-    };
-    expect(options.api).toBe("/api/chat");
-    expect(typeof options.prepareSendMessagesRequest).toBe("function");
-  });
-
-  it("prepareSendMessagesRequest sends only last user message for normal sends", () => {
-    render(<ChatPanel chatId="thread-1" />);
-
-    const options = mockTransportConstructor.mock.calls[0][0] as {
-      prepareSendMessagesRequest: (payload: { id: string; messages: UIMessage[] }) => {
-        body: Record<string, unknown>;
-      };
-    };
-
-    const result = options.prepareSendMessagesRequest({
-      id: "thread-1",
-      messages: [
-        { id: "u1", role: "user", parts: [{ type: "text", text: "Hello" }] } as UIMessage,
-      ],
-    });
-
-    expect(result.body.id).toBe("thread-1");
-    expect(result.body.message).toEqual({
-      id: "u1",
-      role: "user",
-      parts: [{ type: "text", text: "Hello" }],
-    });
-    expect(result.body.selectedChatModel).toBe("anthropic/claude-sonnet-4-6");
-    expect(result.body.messages).toBeUndefined();
-  });
-
-  it("prepareSendMessagesRequest sends full messages for approval continuation", () => {
-    render(<ChatPanel chatId="thread-1" />);
-
-    const options = mockTransportConstructor.mock.calls[0][0] as {
-      prepareSendMessagesRequest: (payload: { id: string; messages: UIMessage[] }) => {
-        body: Record<string, unknown>;
-      };
-    };
-
-    const continuationMessages = [
-      {
-        id: "a1",
-        role: "assistant",
-        parts: [{ type: "tool-call", toolCallId: "t1", toolName: "write_file", args: {} }],
-      },
-      {
-        id: "u1",
-        role: "user",
-        parts: [{ type: "text", text: "Approve it" }, { type: "tool-write_file", state: "approval-responded" }],
-      },
-    ] as UIMessage[];
-
-    const result = options.prepareSendMessagesRequest({
-      id: "thread-1",
-      messages: continuationMessages,
-    });
-
-    expect(result.body.id).toBe("thread-1");
-    expect(result.body.messages).toEqual(continuationMessages);
-    expect(result.body.selectedChatModel).toBe("anthropic/claude-sonnet-4-6");
-    expect(result.body.message).toBeUndefined();
-  });
-
-  it("prepareSendMessagesRequest does not treat historical approvals as a continuation", () => {
-    render(<ChatPanel chatId="thread-1" />);
-
-    const options = mockTransportConstructor.mock.calls[0][0] as {
-      prepareSendMessagesRequest: (payload: { id: string; messages: UIMessage[] }) => {
-        body: Record<string, unknown>;
-      };
-    };
-
-    const result = options.prepareSendMessagesRequest({
-      id: "thread-1",
-      messages: [
-        {
-          id: "a1",
-          role: "assistant",
-          parts: [{ type: "tool-write_file", state: "approval-responded", approval: { approved: true } }],
-        } as UIMessage,
-        { id: "u1", role: "user", parts: [{ type: "text", text: "Approved earlier" }] } as UIMessage,
-        { id: "a2", role: "assistant", parts: [{ type: "text", text: "Done." }] } as UIMessage,
-        { id: "u2", role: "user", parts: [{ type: "text", text: "New request" }] } as UIMessage,
-      ],
-    });
-
-    expect(result.body.id).toBe("thread-1");
-    expect(result.body.message).toEqual({
-      id: "u2",
-      role: "user",
-      parts: [{ type: "text", text: "New request" }],
-    });
-    expect(result.body.messages).toBeUndefined();
   });
 
   it("appends incoming stream data parts to data stream context", () => {
