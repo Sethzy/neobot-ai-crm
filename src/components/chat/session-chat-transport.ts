@@ -3,13 +3,14 @@
  * `/api/chat/stream` instead of the default one-request/one-stream
  * `POST /api/chat`.
  *
- * Opens the thread-level SSE stream lazily on the first `sendMessages`
- * call, then keeps it open for the lifetime of the transport instance
- * (typically the lifetime of the visible thread). Each `sendMessages`
- * call creates a fresh per-turn `ReadableStream<UIMessageChunk>` that
- * the `useChat` hook consumes; the stream closes when the server emits
- * a `finish` chunk (signalling end-of-turn), which makes `useChat` set
- * `status → ready`.
+ * Opens the thread-level SSE stream eagerly, then closes it when the
+ * server emits a `finish` chunk (end-of-turn). On the next
+ * `sendMessages` call the SSE is lazily reopened — no Vercel function
+ * stays alive between turns or during approval waits. Each
+ * `sendMessages` call creates a fresh per-turn
+ * `ReadableStream<UIMessageChunk>` that the `useChat` hook consumes;
+ * the stream closes when the server emits a `finish` chunk (signalling
+ * end-of-turn), which makes `useChat` set `status → ready`.
  *
  * Two client-side patterns from the Vercel managed-agents starter:
  *
@@ -96,6 +97,18 @@ function extractApprovalFromMessages(
 export class SessionChatTransport implements ChatTransport<UIMessage> {
   private readonly threadId: string;
 
+  /**
+   * The currently-selected model from the chat picker.
+   * Initialized at construction time from the cookie-restored model so the
+   * first send carries the right agent. Updated via `setSelectedChatModel()`
+   * whenever the user changes the picker.
+   */
+  private _selectedChatModel: string | undefined;
+
+  setSelectedChatModel(modelId: string): void {
+    this._selectedChatModel = modelId;
+  }
+
   // ── Persistent SSE state ─────────────────────────────────────────────
   private sseAbort: AbortController | null = null;
   private sseConnected = false;
@@ -111,6 +124,8 @@ export class SessionChatTransport implements ChatTransport<UIMessage> {
   // ── Per-turn stream ──────────────────────────────────────────────────
   private currentController: ReadableStreamDefaultController<UIMessageChunk> | null =
     null;
+  /** True after a `finish` chunk is received — suppresses auto-reconnect. */
+  private turnComplete = false;
 
   // ── Dedup ────────────────────────────────────────────────────────────
   /**
@@ -130,8 +145,9 @@ export class SessionChatTransport implements ChatTransport<UIMessage> {
   /** When true, chunks are dropped until the next unseen source-event-id. */
   private skipMode = false;
 
-  constructor(threadId: string) {
+  constructor(threadId: string, initialModel?: string) {
     this.threadId = threadId;
+    this._selectedChatModel = initialModel;
     // Open the SSE eagerly so the connection is live when the user sends
     // their first message. On fresh threads (no session yet) the GET
     // returns 404 — the reconnect loop retries after 1s, by which time
@@ -144,8 +160,10 @@ export class SessionChatTransport implements ChatTransport<UIMessage> {
   async sendMessages(
     options: SendMessagesOptions,
   ): Promise<ReadableStream<UIMessageChunk>> {
-    // Re-open if the SSE was torn down (e.g. after destroy + re-use).
+    // Re-open if the SSE was torn down (destroy + re-use, or clean turn
+    // end where we deliberately didn't reconnect).
     if (!this.sseConnected && this.alive) {
+      this.turnComplete = false;
       this.openStream();
     }
 
@@ -185,6 +203,9 @@ export class SessionChatTransport implements ChatTransport<UIMessage> {
           : {
               threadId: this.threadId,
               message: options.messages[options.messages.length - 1],
+              ...(this._selectedChatModel
+                ? { selectedChatModel: this._selectedChatModel }
+                : {}),
             },
       ),
       signal: options.abortSignal,
@@ -287,8 +308,10 @@ export class SessionChatTransport implements ChatTransport<UIMessage> {
 
     this.sseConnected = false;
 
-    // Reconnect unless the transport was intentionally destroyed.
-    if (this.alive && !signal.aborted) {
+    // Reconnect on dirty close (network error, Vercel restart). Skip
+    // reconnect after a clean turn end — sendMessages() will reopen
+    // the SSE lazily when the user sends the next message.
+    if (this.alive && !signal.aborted && !this.turnComplete) {
       this.scheduleReconnect();
     }
   }
@@ -341,6 +364,20 @@ export class SessionChatTransport implements ChatTransport<UIMessage> {
     // Drop replayed chunks while in skip mode.
     if (this.skipMode) return;
 
+    // ── Track turn completion for reconnect suppression ──────────────
+    // Must run before the currentController guard — the SSE may deliver
+    // a finish event with no active turn stream (e.g. reconnect to idle
+    // session), and we still need to suppress auto-reconnect.
+    const isFinish = (chunk as { type: string }).type === "finish";
+    if (isFinish) {
+      if (this.pendingSourceEventId) {
+        this.seenSourceEventIds.add(this.pendingSourceEventId);
+        this._lastFinalizedId = this.pendingSourceEventId;
+        this.pendingSourceEventId = null;
+      }
+      this.turnComplete = true;
+    }
+
     // ── Enqueue into the per-turn stream ────────────────────────────
     if (!this.currentController) return;
 
@@ -352,13 +389,7 @@ export class SessionChatTransport implements ChatTransport<UIMessage> {
     }
 
     // ── Close the per-turn stream on finish ─────────────────────────
-    if ((chunk as { type: string }).type === "finish") {
-      // Finalize the pending source event id — the turn is complete.
-      if (this.pendingSourceEventId) {
-        this.seenSourceEventIds.add(this.pendingSourceEventId);
-        this._lastFinalizedId = this.pendingSourceEventId;
-        this.pendingSourceEventId = null;
-      }
+    if (isFinish) {
       this.closeTurnStream();
     }
   }

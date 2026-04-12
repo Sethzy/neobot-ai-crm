@@ -27,10 +27,11 @@ import { iterateSessionEventsAfter } from "./session-reconnect";
 import { pickSourceEventId } from "./source-event-id";
 import type { ManagedSupabaseClient } from "./types";
 
+import { resolveAgentRef } from "./agent-config";
 import type { AnthropicEvent } from "./event-types";
 import type { SessionTailHandle } from "./session-reconnect";
 
-const MANAGED_AGENT_MODEL = "claude-sonnet-4-6";
+const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6";
 
 export interface PersistTurnInput {
   anthropic: Anthropic;
@@ -40,6 +41,9 @@ export interface PersistTurnInput {
   sessionId: string;
   conversationInput: string;
   tailHandle: SessionTailHandle;
+  /** User-facing model ID (e.g. `"anthropic/claude-sonnet-4-6"`). Used for
+   *  cost tracking and run labelling. Falls back to Sonnet when omitted. */
+  selectedChatModel?: string;
 }
 
 /**
@@ -53,6 +57,9 @@ export async function persistTurnInBackground(
   input: PersistTurnInput,
 ): Promise<void> {
   let runId: string | null = null;
+  const anthropicModelId = input.selectedChatModel
+    ? resolveAgentRef(input.selectedChatModel).anthropicModelId
+    : DEFAULT_ANTHROPIC_MODEL;
 
   try {
     runId = await createRunRecord(input.supabase, {
@@ -60,6 +67,7 @@ export async function persistTurnInBackground(
       clientId: input.clientId,
       runType: "chat",
       sessionId: input.sessionId,
+      model: anthropicModelId,
     });
 
     const events: unknown[] = [];
@@ -84,7 +92,7 @@ export async function persistTurnInBackground(
           await completeRun(input.supabase, {
             runId,
             status: "cancelled",
-            model: MANAGED_AGENT_MODEL,
+            model: anthropicModelId,
             tokensIn: usage.inputTokens,
             tokensOut: usage.outputTokens,
             cacheReadTokens: usage.cacheReadInputTokens,
@@ -139,12 +147,13 @@ export async function persistTurnInBackground(
       cacheReadInputTokens: usage.cacheReadInputTokens,
       cacheCreationInputTokens: usage.cacheCreationInputTokens,
       activeSeconds: 0, // We don't block on session.retrieve in background.
+      anthropicModelId,
     });
 
     await completeRun(input.supabase, {
       runId,
       status: "completed",
-      model: MANAGED_AGENT_MODEL,
+      model: anthropicModelId,
       tokensIn: usage.inputTokens,
       tokensOut: usage.outputTokens,
       cacheReadTokens: usage.cacheReadInputTokens,
@@ -164,7 +173,7 @@ export async function persistTurnInBackground(
       await completeRun(input.supabase, {
         runId,
         status: "failed",
-        model: MANAGED_AGENT_MODEL,
+        model: anthropicModelId,
         tokensIn: 0,
         tokensOut: 0,
       }).catch(() => {});

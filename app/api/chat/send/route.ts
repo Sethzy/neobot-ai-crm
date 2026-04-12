@@ -17,6 +17,7 @@ import { after } from "next/server";
 import { z } from "zod";
 
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
+import { allowedModelIds } from "@/lib/ai/models";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { extractUserInput } from "@/lib/chat/extract-user-input";
 import { upsertMessage } from "@/lib/chat/messages";
@@ -33,7 +34,8 @@ import { listCustomizedSkillSlugs } from "@/lib/runner/skills/list-customized-sk
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+/** Match the stream endpoint's budget so after() persistence survives long agent turns. */
+export const maxDuration = 300;
 
 const messageBodySchema = z.object({
   threadId: z.string().min(1),
@@ -42,6 +44,8 @@ const messageBodySchema = z.object({
     role: z.literal("user"),
     parts: z.array(z.unknown()),
   }),
+  /** User-selected model. Determines which Anthropic agent is used for new sessions. */
+  selectedChatModel: z.string().optional(),
 });
 
 const approvalBodySchema = z.object({
@@ -95,7 +99,15 @@ export async function POST(request: Request): Promise<Response> {
     return handleApproval(body, supabase, clientId);
   }
 
-  // ── Message path (existing) ───────────────────────────────────────
+  // ── Message path ──────────────────────────────────────────────────
+  // Validate the selected model when provided.
+  if (
+    body.selectedChatModel !== undefined &&
+    !allowedModelIds.has(body.selectedChatModel)
+  ) {
+    return jsonError("Invalid selected chat model.", 400);
+  }
+
   // Extract text + file parts from the message.
   const { text, fileParts } = extractUserInput(body.message);
 
@@ -171,6 +183,7 @@ export async function POST(request: Request): Promise<Response> {
     supabase,
     threadId: body.threadId,
     threadTitle,
+    selectedChatModel: body.selectedChatModel,
     initialResources: uploads.map((f) => ({
       type: "file" as const,
       file_id: f.fileId,
@@ -209,6 +222,7 @@ export async function POST(request: Request): Promise<Response> {
       sessionId: session.id,
       conversationInput: text ?? "",
       tailHandle,
+      selectedChatModel: body.selectedChatModel,
     }),
   );
 

@@ -1,11 +1,11 @@
 /**
  * GET /api/chat/stream?threadId=<uuid>
  *
- * Long-lived SSE endpoint that tails the Anthropic Managed Agents session
+ * Per-turn SSE endpoint that tails the Anthropic Managed Agents session
  * cached on a conversation thread and forwards AI SDK UI chunks to the
- * browser. Open once when the thread becomes visible; close when the user
- * navigates away or the tab closes. Independent of any `send` POST — the
- * session keeps running whether or not a subscriber is attached.
+ * browser. Closes after each turn (session.status_idle) so no Vercel
+ * function stays alive between turns or during approval waits. The
+ * browser's SessionChatTransport reopens the SSE lazily on the next send.
  *
  * **Read-only.** This endpoint does not persist messages, dispatch tools,
  * or create runs. Persistence belongs to the write path (`POST
@@ -92,6 +92,7 @@ export async function GET(request: Request): Promise<Response> {
                     ? "tool-calls"
                     : "error",
             } as never);
+            return; // Turn complete — close the stream, let the function die.
           }
         }
       }

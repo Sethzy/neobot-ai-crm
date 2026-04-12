@@ -152,6 +152,105 @@ describe("GET /api/chat/stream", () => {
     expect(res.headers.get("Content-Type")).toBe("text/event-stream");
   });
 
+  it("closes the stream after emitting finish on end_turn", async () => {
+    maybeSingle.mockResolvedValue({
+      data: { session_id: "sess_idle" },
+      error: null,
+    });
+
+    const events = [
+      { id: "evt_1", type: "agent.message", content: [{ type: "text", text: "hi" }] },
+      { id: "evt_2", type: "session.status_idle", stop_reason: { type: "end_turn" } },
+      { id: "evt_3", type: "agent.message", content: [{ type: "text", text: "never reached" }] },
+    ];
+    iterateSessionEventsForever.mockImplementation(async function* () {
+      for (const e of events) yield e;
+    });
+    buildUiStreamCallbacks.mockReturnValue({});
+
+    const res = await GET(
+      new Request("http://localhost/api/chat/stream?threadId=t1"),
+    );
+    expect(res.status).toBe(200);
+
+    if (capturedExecute) {
+      const fakeWriter = { write: vi.fn() };
+      await capturedExecute({ writer: fakeWriter });
+
+      // Should have emitted finish chunk
+      expect(fakeWriter.write).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "finish", finishReason: "stop" }),
+      );
+
+      // Should have dispatched evt_1 (message) and evt_2 (idle), but NOT evt_3
+      expect(dispatchEventToCallbacks).toHaveBeenCalledTimes(2);
+    }
+  });
+
+  it("closes the stream after emitting finish on requires_action", async () => {
+    maybeSingle.mockResolvedValue({
+      data: { session_id: "sess_approval" },
+      error: null,
+    });
+
+    const events = [
+      { id: "evt_1", type: "session.status_idle", stop_reason: { type: "requires_action" } },
+      { id: "evt_2", type: "agent.message", content: [{ type: "text", text: "never reached" }] },
+    ];
+    iterateSessionEventsForever.mockImplementation(async function* () {
+      for (const e of events) yield e;
+    });
+    buildUiStreamCallbacks.mockReturnValue({});
+
+    const res = await GET(
+      new Request("http://localhost/api/chat/stream?threadId=t1"),
+    );
+    expect(res.status).toBe(200);
+
+    if (capturedExecute) {
+      const fakeWriter = { write: vi.fn() };
+      await capturedExecute({ writer: fakeWriter });
+
+      expect(fakeWriter.write).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "finish", finishReason: "tool-calls" }),
+      );
+      // Only the idle event itself was dispatched; evt_2 was not reached
+      expect(dispatchEventToCallbacks).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("closes the stream after emitting finish on retries_exhausted", async () => {
+    maybeSingle.mockResolvedValue({
+      data: { session_id: "sess_retry" },
+      error: null,
+    });
+
+    const events = [
+      { id: "evt_1", type: "session.status_idle", stop_reason: { type: "retries_exhausted" } },
+      { id: "evt_2", type: "agent.message", content: [{ type: "text", text: "never reached" }] },
+    ];
+    iterateSessionEventsForever.mockImplementation(async function* () {
+      for (const e of events) yield e;
+    });
+    buildUiStreamCallbacks.mockReturnValue({});
+
+    const res = await GET(
+      new Request("http://localhost/api/chat/stream?threadId=t1"),
+    );
+    expect(res.status).toBe(200);
+
+    if (capturedExecute) {
+      const fakeWriter = { write: vi.fn() };
+      await capturedExecute({ writer: fakeWriter });
+
+      expect(fakeWriter.write).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "finish", finishReason: "error" }),
+      );
+      // Only the idle event itself was dispatched; evt_2 was not reached
+      expect(dispatchEventToCallbacks).toHaveBeenCalledTimes(1);
+    }
+  });
+
   it("wires iterateSessionEventsForever with the correct session id and abort signal", async () => {
     maybeSingle.mockResolvedValue({
       data: { session_id: "sess_xyz" },
