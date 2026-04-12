@@ -14,6 +14,13 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+vi.mock("../agent-config", () => ({
+  resolveAgentRef: vi.fn(() => ({
+    agentId: "agent_test",
+    agentVersion: 1,
+    anthropicModelId: "claude-sonnet-4-6",
+  })),
+}));
 vi.mock("../session-runner", () => ({
   consumeAnthropicSession: vi.fn(),
 }));
@@ -35,6 +42,11 @@ vi.mock("@/lib/runner/run-lifecycle", () => ({
 }));
 vi.mock("@/lib/chat/messages", () => ({
   upsertMessage: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/approvals/queries", () => ({
+  claimApprovalResolution: vi.fn(),
+  patchApprovalPartState: vi.fn().mockResolvedValue(undefined),
+  releaseApprovalResolutionClaim: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/lib/channels/deliver", () => ({
   deliverToExternalChannels: vi.fn().mockResolvedValue(undefined),
@@ -84,6 +96,11 @@ const {
 const { buildSystemReminder } = await import("@/lib/runner/system-reminder");
 const { completeRun, markStaleRunsFailed } = await import("@/lib/runner/run-lifecycle");
 const { upsertMessage } = await import("@/lib/chat/messages");
+const {
+  claimApprovalResolution,
+  patchApprovalPartState,
+  releaseApprovalResolutionClaim,
+} = await import("@/lib/approvals/queries");
 const { deliverToExternalChannels } = await import("@/lib/channels/deliver");
 const { runEvaluatorsForEvents } = await import("@/lib/eval/run-evaluators");
 const {
@@ -112,6 +129,20 @@ beforeEach(() => {
   (createSessionForThread as unknown as ReturnType<typeof vi.fn>).mockResolvedValue("sess_1");
   (uploadFilePartsToAnthropic as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   (mountUploadedFilesToSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+  (claimApprovalResolution as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+    success: true,
+    status: "claimed",
+    event: {
+      thread_id: "thread_1",
+      session_id: "sess_1",
+      tool_use_id: "toolu_123",
+      run_id: "run_1",
+    },
+    claimedStatus: "approved",
+    claimedResolvedAt: "2026-04-12T00:00:00.000Z",
+  });
+  (patchApprovalPartState as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+  (releaseApprovalResolutionClaim as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
   (consumeMessageQuota as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
     allowed: true,
     clientId: "c1",
@@ -472,7 +503,7 @@ describe("runManagedAgent — happy path", () => {
           {
             type: "file",
             file_id: "file_123",
-            mount_path: "/mnt/session/uploads/file_123",
+            mount_path: "/workspace/brief.pdf",
           },
         ],
       }),
@@ -595,6 +626,113 @@ describe("runManagedAgent — terminal variants", () => {
     await collectStream(stream);
     expect(completeRun).not.toHaveBeenCalled();
     expect(upsertMessage).toHaveBeenCalled();
+  });
+});
+
+describe("resumeManagedAgentFromApproval", () => {
+  it("returns a stream from resumeManagedAgentFromApproval without completing the run early", async () => {
+    const supabase = {
+      from: (table: string) => {
+        if (table === "runs") {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { model: "claude-sonnet-4-6" },
+                }),
+              }),
+            }),
+          };
+        }
+
+        return {};
+      },
+    } as never;
+
+    (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      async (options) => {
+        await options.onKickoffApprovalSent?.();
+        await options.callbacks?.onAgentMessage?.({
+          id: "evt_approval_1",
+          type: "agent.message",
+          content: [{ type: "text", text: "Approved. Continuing." }],
+        });
+
+        return {
+          status: "complete",
+          reason: "end_turn",
+          accumulatedEvents: [
+            {
+              id: "evt_approval_1",
+              type: "agent.message",
+              content: [{ type: "text", text: "Approved. Continuing." }],
+            },
+          ],
+          cost: {
+            inputTokens: 0,
+            outputTokens: 0,
+            cacheReadInputTokens: 0,
+            cacheCreationInputTokens: 0,
+            runtimeSeconds: 0,
+          },
+          approvalEventIds: [],
+        };
+      },
+    );
+
+    const { resumeManagedAgentFromApproval } = await import("../adapter");
+    const result = await resumeManagedAgentFromApproval({
+      anthropic: {} as never,
+      supabase,
+      clientId: "c1",
+      approvalId: "toolu_123",
+      approved: true,
+    });
+
+    expect(result.status).toBe("streaming");
+    if (result.status !== "streaming") {
+      throw new Error("Expected a streaming result.");
+    }
+
+    expect(completeRun).not.toHaveBeenCalled();
+
+    await collectStream(result.stream);
+
+    expect(claimApprovalResolution).toHaveBeenCalledWith(
+      supabase,
+      expect.objectContaining({
+        clientId: "c1",
+        approvalId: "toolu_123",
+        approved: true,
+      }),
+    );
+    expect(consumeAnthropicSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "sess_1",
+        runId: "run_1",
+        kickoffApproval: {
+          toolUseId: "toolu_123",
+          result: "allow",
+          denyMessage: undefined,
+        },
+      }),
+    );
+    expect(patchApprovalPartState).toHaveBeenCalledWith(
+      supabase,
+      expect.objectContaining({
+        clientId: "c1",
+        threadId: "thread_1",
+        approvalId: "toolu_123",
+        approved: true,
+      }),
+    );
+    expect(completeRun).toHaveBeenCalledWith(
+      supabase,
+      expect.objectContaining({
+        runId: "run_1",
+        status: "completed",
+      }),
+    );
   });
 });
 

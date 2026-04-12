@@ -1,8 +1,8 @@
 /**
  * Parses text and file parts from an AI SDK message's `parts` array.
  *
- * Used by `POST /api/chat/send` to extract user input from the message
- * payload before forwarding to the Anthropic session.
+ * Used by the browser chat route to extract user input from the latest
+ * AI SDK message payload before forwarding it to the Anthropic session.
  *
  * @module lib/chat/extract-user-input
  */

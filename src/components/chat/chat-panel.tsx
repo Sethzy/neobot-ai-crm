@@ -20,7 +20,6 @@ import { mapDbMessageToUiMessage } from "@/lib/chat/message-normalization";
 import { createClient } from "@/lib/supabase/client";
 import { messageQuotaKeys, useMessageQuota } from "@/hooks/use-message-quota";
 import { threadKeys } from "@/hooks/use-threads";
-import { SessionChatTransport } from "./session-chat-transport";
 import {
   CHAT_MODEL_COOKIE_MAX_AGE,
   CHAT_MODEL_COOKIE_NAME,
@@ -121,27 +120,11 @@ export function ChatPanel({
   const refreshQuota = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: messageQuotaKeys.all });
   }, [queryClient]);
-  const transport = useMemo(
-    () => new SessionChatTransport(chatId),
-    [chatId],
-  );
-
-  // Tear down the session transport's persistent SSE when the thread
-  // changes or the component unmounts.
-  useEffect(() => {
-    return () => {
-      if (transport instanceof SessionChatTransport) {
-        transport.destroy();
-      }
-    };
-  }, [transport]);
 
   /**
-   * Synchronously writes the cookie and updates the ref before React re-renders.
-   * This mirrors the reference chatbot pattern: cookie is persisted in the selection
-   * handler itself, not deferred to a useEffect. This closes the race window where
-   * a navigation (e.g. clicking a sidebar thread) could fire before the effect and
-   * carry a stale cookie to the server-side page render.
+   * Synchronously writes the cookie before React re-renders. This closes the
+   * race window where a navigation (e.g. clicking a sidebar thread) could fire
+   * before an effect and carry a stale cookie to the server-side page render.
    */
   const handleModelChange = useCallback((modelId: string) => {
     setSelectedChatModel(modelId);
@@ -153,7 +136,6 @@ export function ChatPanel({
     messages: initialMessages,
     generateId: () => crypto.randomUUID(),
     experimental_throttle: STREAM_UI_THROTTLE_MS,
-    transport,
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
     onData: (dataPart) => {
       if (!shouldStoreDataPartForClient(dataPart)) {
@@ -285,9 +267,12 @@ export function ChatPanel({
 
       try {
         if (files.length > 0) {
-          await sendMessage(text.length > 0 ? { text, files } : { files });
+          await sendMessage(
+            text.length > 0 ? { text, files } : { files },
+            { body: { selectedChatModel } },
+          );
         } else {
-          await sendMessage({ text });
+          await sendMessage({ text }, { body: { selectedChatModel } });
         }
       } catch (submitError) {
         const parsedSubmitError = submitError instanceof Error
@@ -361,6 +346,7 @@ export function ChatPanel({
             onSubmit={handleSubmit}
             onStop={effectiveStatus === "streaming" ? handleStop : undefined}
             disabled={(messageQuota?.messagesRemaining ?? 1) <= 0}
+            hideModelSelector
           />
         </>
       ) : (

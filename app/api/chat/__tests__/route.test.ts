@@ -1,0 +1,254 @@
+/**
+ * Tests for the unified browser chat route.
+ * @module app/api/chat/__tests__/route.test
+ */
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const {
+  authenticateRequest,
+  resolveClientId,
+  checkRateLimit,
+  runManagedAgent,
+  resumeManagedAgentFromApproval,
+  getAnthropicClient,
+} = vi.hoisted(() => ({
+  authenticateRequest: vi.fn(),
+  resolveClientId: vi.fn(),
+  checkRateLimit: vi.fn(),
+  runManagedAgent: vi.fn(),
+  resumeManagedAgentFromApproval: vi.fn(),
+  getAnthropicClient: vi.fn(),
+}));
+
+const maybeSingle = vi.fn();
+const single = vi.fn();
+const insertFn = vi.fn();
+
+vi.mock("@/lib/api/route-helpers", () => ({
+  authenticateRequest,
+  jsonError: (message: string, status: number) =>
+    new Response(JSON.stringify({ error: message }), { status }),
+}));
+vi.mock("@/lib/chat/client-id", () => ({ resolveClientId }));
+vi.mock("@/lib/rate-limit", () => ({ checkRateLimit }));
+vi.mock("@/lib/managed-agents/adapter", () => ({
+  runManagedAgent,
+  resumeManagedAgentFromApproval,
+}));
+vi.mock("@/lib/managed-agents/anthropic-client", () => ({ getAnthropicClient }));
+
+import { POST } from "../route";
+
+describe("POST /api/chat", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authenticateRequest.mockResolvedValue({
+      kind: "ok",
+      userId: "u1",
+      supabase: {
+        from: (table: string) => {
+          if (table === "conversation_threads") {
+            return {
+              select: () => ({
+                eq: () => ({
+                  eq: () => ({
+                    eq: () => ({
+                      maybeSingle,
+                    }),
+                    maybeSingle,
+                  }),
+                }),
+              }),
+              insert: insertFn,
+            };
+          }
+
+          if (table === "clients") {
+            return {
+              select: () => ({
+                eq: () => ({
+                  single,
+                }),
+              }),
+            };
+          }
+
+          return {};
+        },
+      },
+    });
+    maybeSingle.mockResolvedValue({
+      data: { thread_id: "t1", title: "Thread 1" },
+      error: null,
+    });
+    single.mockResolvedValue({
+      data: { client_profile: "profile", user_preferences: "prefs" },
+      error: null,
+    });
+    insertFn.mockReturnValue({ error: null });
+    resolveClientId.mockResolvedValue("c1");
+    checkRateLimit.mockResolvedValue({ allowed: true });
+    getAnthropicClient.mockReturnValue({});
+    runManagedAgent.mockResolvedValue(new ReadableStream());
+    resumeManagedAgentFromApproval.mockResolvedValue({
+      status: "streaming",
+      stream: new ReadableStream(),
+      threadId: "t1",
+    });
+  });
+
+  it("delegates a normal user message to runManagedAgent", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: "t1",
+          messages: [
+            {
+              id: "m1",
+              role: "user",
+              parts: [{ type: "text", text: "hello" }],
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(runManagedAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: "c1",
+        threadId: "t1",
+        input: "hello",
+      }),
+    );
+    expect(response.status).toBe(200);
+  });
+
+  it("returns 400 for invalid body", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Invalid request body.",
+    });
+  });
+
+  it("returns 400 for invalid selected chat model", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: "t1",
+          messages: [
+            {
+              id: "m1",
+              role: "user",
+              parts: [{ type: "text", text: "hello" }],
+            },
+          ],
+          selectedChatModel: "not-a-real-model",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Invalid selected chat model.",
+    });
+  });
+
+  it("returns 400 when the last message has no text or files", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: "t1",
+          messages: [
+            {
+              id: "m1",
+              role: "user",
+              parts: [],
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Message must contain text or files.",
+    });
+  });
+
+  it("loads thread and client context before calling runManagedAgent", async () => {
+    await POST(
+      new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: "t1",
+          messages: [
+            {
+              id: "m1",
+              role: "user",
+              parts: [{ type: "text", text: "hello" }],
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(runManagedAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadTitle: "Thread 1",
+        clientProfile: "profile",
+        userPreferences: "prefs",
+      }),
+    );
+  });
+
+  it("routes approval responses to resumeManagedAgentFromApproval", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: "t1",
+          messages: [
+            {
+              id: "assistant-1",
+              role: "assistant",
+              parts: [
+                {
+                  type: "tool-invocation",
+                  toolCallId: "toolu_123",
+                  toolName: "browser",
+                  state: "approval-responded",
+                  approval: { approved: true },
+                },
+              ],
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(resumeManagedAgentFromApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
+        approvalId: "toolu_123",
+        approved: true,
+      }),
+    );
+    expect(runManagedAgent).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+  });
+});

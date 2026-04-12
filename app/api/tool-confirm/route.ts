@@ -2,12 +2,13 @@
  * Browser approval endpoint for Managed Agents tool confirmations.
  *
  * This route exists as a direct API surface for approval resolution. The
- * primary chat UI resolves approvals through `POST /api/chat/send` with
- * an `approval` payload (AI SDK `addToolApprovalResponse` → session
- * transport), which sends `user.tool_confirmation` to the session. This endpoint is for
- * callers that just want to post the decision and let the run finalize
- * in the background — after returning 200 we drain the session via
- * `next/server` `after()` so the run state lands in the database.
+ * primary chat UI resolves approvals through the unified `POST /api/chat`
+ * route, which detects approval continuation messages and sends
+ * `user.tool_confirmation` via `resumeManagedAgentFromApproval()`. This
+ * endpoint is for callers that just want to post the decision and let
+ * the run finalize in the background. After returning 200 we drain the
+ * stream via `next/server` `after()` so the run state lands in the
+ * database.
  *
  * @module app/api/tool-confirm/route
  */

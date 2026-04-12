@@ -9,6 +9,7 @@ import type { ImgHTMLAttributes } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { threadKeys } from "@/hooks/use-threads";
+import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 import { ChatPanel } from "./chat-panel";
 
 const { mockLastAssistantMessageIsCompleteWithApprovalResponses } = vi.hoisted(() => ({
@@ -61,16 +62,6 @@ vi.mock("@/hooks/use-scroll-to-bottom", () => ({
 vi.mock("ai", () => ({
   lastAssistantMessageIsCompleteWithApprovalResponses:
     mockLastAssistantMessageIsCompleteWithApprovalResponses,
-}));
-
-vi.mock("./session-chat-transport", () => ({
-  SessionChatTransport: class {
-    chatId: string;
-    constructor(chatId: string) {
-      this.chatId = chatId;
-    }
-    destroy() {}
-  },
 }));
 
 const mockUseChat = vi.fn();
@@ -191,7 +182,7 @@ describe("ChatPanel", () => {
     });
   });
 
-  it("configures useChat with explicit transport and server-loaded initialMessages", () => {
+  it("uses the default useChat request path with server-loaded initialMessages", () => {
     const initialMessages = [
       { id: "m1", role: "assistant", parts: [{ type: "text", text: "Loaded from server" }] },
     ] as UIMessage[];
@@ -200,13 +191,13 @@ describe("ChatPanel", () => {
     const options = mockUseChat.mock.calls[0][0] as {
       id: string;
       messages: UIMessage[];
-      transport: { api?: string };
+      transport?: unknown;
       generateId?: () => string;
       experimental_throttle?: number;
     };
     expect(options.id).toBe("thread-1");
     expect(options.messages).toEqual(initialMessages);
-    expect(options.transport).toEqual(expect.objectContaining({ chatId: "thread-1" }));
+    expect(options.transport).toBeUndefined();
     expect(typeof options.generateId).toBe("function");
     expect(options.experimental_throttle).toBe(50);
     expect(options.generateId?.()).toMatch(
@@ -296,7 +287,10 @@ describe("ChatPanel", () => {
     await user.click(screen.getByRole("button", { name: /submit/i }));
 
     await waitFor(() => {
-      expect(sendMessage).toHaveBeenCalledWith({ text: "Hello there" });
+      expect(sendMessage).toHaveBeenCalledWith(
+        { text: "Hello there" },
+        { body: { selectedChatModel: DEFAULT_CHAT_MODEL } },
+      );
     });
 
     expect(screen.getByPlaceholderText(/send a message/i)).toHaveValue("");
@@ -348,7 +342,10 @@ describe("ChatPanel", () => {
     await user.click(screen.getByRole("button", { name: /submit/i }));
 
     await waitFor(() => {
-      expect(sendMessage).toHaveBeenCalledWith({ text: "Need help" });
+      expect(sendMessage).toHaveBeenCalledWith(
+        { text: "Need help" },
+        { body: { selectedChatModel: DEFAULT_CHAT_MODEL } },
+      );
     });
 
     expect(window.location.pathname).toBe("/chat");
@@ -563,7 +560,10 @@ describe("ChatPanel", () => {
 
     await waitFor(() => {
       expect(pushStateSpy).toHaveBeenCalledWith({}, "", "/chat/thread-1");
-      expect(sendMessage).toHaveBeenCalledWith({ text: "Hello from draft" });
+      expect(sendMessage).toHaveBeenCalledWith(
+        { text: "Hello from draft" },
+        { body: { selectedChatModel: DEFAULT_CHAT_MODEL } },
+      );
     });
 
     pushStateSpy.mockRestore();
@@ -667,16 +667,19 @@ describe("ChatPanel", () => {
     await user.click(screen.getByRole("button", { name: /submit/i }));
 
     await waitFor(() => {
-      expect(sendMessage).toHaveBeenCalledWith({
-        files: [
-          {
-            type: "file",
-            url: "https://storage.example.com/chat-attachments/client-1/photo.png",
-            filename: "photo.png",
-            mediaType: "image/png",
-          },
-        ],
-      });
+      expect(sendMessage).toHaveBeenCalledWith(
+        {
+          files: [
+            {
+              type: "file",
+              url: "https://storage.example.com/chat-attachments/client-1/photo.png",
+              filename: "photo.png",
+              mediaType: "image/png",
+            },
+          ],
+        },
+        { body: { selectedChatModel: DEFAULT_CHAT_MODEL } },
+      );
     });
   });
 
@@ -732,7 +735,10 @@ describe("ChatPanel", () => {
     await user.click(screen.getByTestId("ask-user-question-inline"));
 
     await waitFor(() => {
-      expect(sendMessage).toHaveBeenCalledWith({ text: "Option A" });
+      expect(sendMessage).toHaveBeenCalledWith(
+        { text: "Option A" },
+        { body: { selectedChatModel: DEFAULT_CHAT_MODEL } },
+      );
     });
   });
 
