@@ -58,6 +58,7 @@ import { buildAssistantPartsFromEvents } from "./events-to-assistant-parts";
 import { buildKickoffContent, getOrCreateSession } from "./session-kickoff";
 import { consumeAnthropicSession } from "./session-runner";
 import { toInternalManagedAgentToolName } from "./tool-name-aliases";
+import { uploadFilePartsToAnthropic } from "./upload-files-for-session";
 import type {
   ManagedFilePart,
   ManagedSupabaseClient,
@@ -438,7 +439,12 @@ export async function runManagedAgent(
     consumedQuota = quota;
     shouldReleaseConsumedQuota = true;
 
-    const [, session, reminder] = await Promise.all([
+    const uploadsPromise =
+      (input.fileParts ?? []).length > 0
+        ? uploadFilePartsToAnthropic(input.anthropic, input.fileParts ?? [])
+        : Promise.resolve([] as Array<{ fileId: string; filename: string }>);
+
+    const [, uploadedFiles, reminder] = await Promise.all([
       persistUserInput({
         supabase: input.supabase,
         threadId: input.threadId,
@@ -447,23 +453,32 @@ export async function runManagedAgent(
         fileParts: input.fileParts ?? [],
         sourceEventId: input.userMessageSourceId,
       }),
-      getOrCreateSession({
-        anthropic: input.anthropic,
-        supabase: input.supabase,
-        threadId: input.threadId,
-        threadTitle: input.threadTitle,
-      }),
+      uploadsPromise,
       buildSystemReminder(input.supabase, input.clientId),
     ]);
     shouldReleaseConsumedQuota = false;
 
+    const session = await getOrCreateSession({
+      anthropic: input.anthropic,
+      supabase: input.supabase,
+      threadId: input.threadId,
+      threadTitle: input.threadTitle,
+      initialResources: uploadedFiles.map((uploadedFile) => ({
+        type: "file",
+        file_id: uploadedFile.fileId,
+        mount_path: `/mnt/session/uploads/${uploadedFile.fileId}`,
+      })),
+    });
+
     sessionId = session.id;
 
-    await attachFilesToManagedSession({
-      sessionId,
-      fileParts: input.fileParts ?? [],
-      logLabel: "runManagedAgent",
-    });
+    if (!session.created) {
+      await attachFilesToManagedSession({
+        sessionId,
+        fileParts: input.fileParts ?? [],
+        logLabel: "runManagedAgent",
+      });
+    }
 
     const customizedSkillSlugs = await listCustomizedSkillSlugs(
       input.supabase,

@@ -56,6 +56,11 @@ export interface GetOrCreateSessionInput {
   supabase: ManagedSupabaseClient;
   threadId: string;
   threadTitle: string | null;
+  initialResources?: Array<{
+    type: "file";
+    file_id: string;
+    mount_path: string;
+  }>;
 }
 
 export interface ManagedSession {
@@ -95,6 +100,9 @@ export async function getOrCreateSession(
     agent: { type: "agent", id: agentId, version: agentVersion },
     environment_id: environmentId,
     title: input.threadTitle ?? undefined,
+    ...(input.initialResources && input.initialResources.length > 0
+      ? { resources: input.initialResources }
+      : {}),
   } as never);
 
   const { error: updateError } = await input.supabase

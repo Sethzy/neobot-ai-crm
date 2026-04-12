@@ -109,6 +109,35 @@ describe("getOrCreateSession", () => {
     );
   });
 
+  it("passes resources through to sessions.create on first turn", async () => {
+    createSession.mockResolvedValue({ id: "sess_new" });
+
+    await getOrCreateSession({
+      anthropic: stubAnthropic(),
+      supabase: stubSupabase(),
+      threadId: "thread_1",
+      threadTitle: null,
+      initialResources: [
+        {
+          type: "file",
+          file_id: "file_123",
+          mount_path: "/mnt/session/uploads/file_123",
+        },
+      ],
+    });
+
+    expect(createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resources: [
+          expect.objectContaining({
+            type: "file",
+            file_id: "file_123",
+          }),
+        ],
+      }),
+    );
+  });
+
   it("reuses an existing session_id from conversation_threads", async () => {
     const session = await getOrCreateSession({
       anthropic: stubAnthropic(),
