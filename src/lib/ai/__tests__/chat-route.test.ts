@@ -597,7 +597,11 @@ describe("POST /api/chat", () => {
     expect(mockRunManagedAgent).not.toHaveBeenCalled();
   });
 
-  it("returns 409 when the approval was already resolved", async () => {
+  it("returns 200 with an empty stream when every approval in the payload was already resolved", async () => {
+    // The AI SDK client re-POSTs the entire message history on every
+    // continuation, so an "already resolved" outcome just means the user
+    // replayed a stale click from a prior request — route should settle
+    // quietly instead of surfacing a 409.
     mockResumeManagedAgentFromApproval.mockResolvedValue({
       status: "already_resolved",
       threadId,
@@ -624,8 +628,68 @@ describe("POST /api/chat", () => {
       }),
     );
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(200);
     expect(mockRunManagedAgent).not.toHaveBeenCalled();
+  });
+
+  it("walks from newest to oldest approval and skips already-resolved entries", async () => {
+    // Simulates the real bug: client sends both `approval-1` (resolved in a
+    // prior continuation) and `approval-2` (just clicked). Route must skip
+    // the stale one and resume on the fresh one.
+    const resumeStream = new ReadableStream({
+      start(controller) {
+        controller.enqueue({
+          type: "text-delta",
+          id: "txt_2",
+          delta: "done",
+        });
+        controller.close();
+      },
+    });
+
+    // The route walks from newest → oldest and breaks on the first
+    // non-already_resolved response, so only one call will be made.
+    // Using `mockResolvedValueOnce` here would leak unconsumed queued
+    // implementations into the next test — use `mockResolvedValue` instead.
+    mockResumeManagedAgentFromApproval.mockResolvedValue({
+      status: "streaming",
+      stream: resumeStream,
+      threadId,
+    });
+
+    const response = await POST(
+      createJsonRequest({
+        id: threadId,
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-delete_contact",
+                toolCallId: "tool-call-1",
+                state: "approval-responded",
+                approval: { id: "approval-1", approved: true },
+              },
+              {
+                type: "tool-delete_contact",
+                toolCallId: "tool-call-2",
+                state: "approval-responded",
+                approval: { id: "approval-2", approved: true },
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    // Newest first → approval-2 is attempted before approval-1.
+    expect(mockResumeManagedAgentFromApproval).toHaveBeenCalledTimes(1);
+    expect(mockResumeManagedAgentFromApproval).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ approvalId: "approval-2" }),
+    );
   });
 
   it("returns 500 when the resume adapter reports an internal error", async () => {

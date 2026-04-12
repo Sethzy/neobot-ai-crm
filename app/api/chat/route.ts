@@ -326,26 +326,63 @@ export async function POST(request: Request): Promise<Response> {
     // `user.tool_confirmation`, consumes the post-approval events, and
     // finalizes the run identically to a fresh turn.
     if (isApprovalContinuation) {
-      const firstApproval = approvalResponses[0];
-      if (!firstApproval) {
+      // The AI SDK client re-POSTs the entire message history on every
+      // continuation, so `approvalResponses` accumulates every approval the
+      // user has ever resolved in this thread — not just the one they just
+      // clicked. Walk the list from newest → oldest and resume on the first
+      // one that still has a claimable (pending) approval row. Already-
+      // resolved entries from prior continuations are skipped silently.
+      //
+      // Managed Agents can legitimately have multiple pending approvals in
+      // one turn (`requires_action.event_ids[]` is plural), but the current
+      // Sunder flow always pauses on one at a time and the client auto-sends
+      // after each click, so "resume the newest unresolved" is the correct
+      // single-step behavior — each click produces its own POST.
+      if (approvalResponses.length === 0) {
         return jsonError("No approval response found.", 400);
       }
 
-      const resumeResult = await resumeManagedAgentFromApproval({
-        anthropic,
-        supabase,
-        clientId: resolvedClientId,
-        approvalId: firstApproval.approvalId,
-        approved: firstApproval.approved,
-      });
+      let resumeResult:
+        | Awaited<ReturnType<typeof resumeManagedAgentFromApproval>>
+        | null = null;
+      let resolvedApproval: ApprovalResponse | null = null;
+      let sawAlreadyResolved = false;
+
+      for (let i = approvalResponses.length - 1; i >= 0; i -= 1) {
+        const candidate = approvalResponses[i]!;
+        const attempt = await resumeManagedAgentFromApproval({
+          anthropic,
+          supabase,
+          clientId: resolvedClientId,
+          approvalId: candidate.approvalId,
+          approved: candidate.approved,
+        });
+        if (attempt.status === "already_resolved") {
+          sawAlreadyResolved = true;
+          continue;
+        }
+        resumeResult = attempt;
+        resolvedApproval = candidate;
+        break;
+      }
       _t("resume_from_approval_returned");
 
-      if (resumeResult.status === "missing") {
+      if (!resumeResult || !resolvedApproval) {
+        // Every approval in the request was already resolved in a prior
+        // continuation — safe no-op. Return 200 with an empty stream so the
+        // client's useChat state settles without surfacing a spurious error.
+        if (sawAlreadyResolved) {
+          const emptyStream = createUIMessageStream({
+            originalMessages: body.messages as UIMessage[] | undefined,
+            execute: async () => {},
+          });
+          return createUIMessageStreamResponse({ stream: emptyStream });
+        }
         return jsonError("Approval not found.", 404);
       }
 
-      if (resumeResult.status === "already_resolved") {
-        return jsonError("Approval already resolved.", 409);
+      if (resumeResult.status === "missing") {
+        return jsonError("Approval not found.", 404);
       }
 
       if (resumeResult.status === "error") {
@@ -360,8 +397,8 @@ export async function POST(request: Request): Promise<Response> {
         distinctId: resolvedClientId,
         event: "approval_resolved",
         properties: {
-          approval_id: firstApproval.approvalId,
-          outcome: firstApproval.approved ? "approved" : "denied",
+          approval_id: resolvedApproval.approvalId,
+          outcome: resolvedApproval.approved ? "approved" : "denied",
           source: "web",
         },
       });
