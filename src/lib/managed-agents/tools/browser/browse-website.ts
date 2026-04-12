@@ -32,7 +32,6 @@ const inputSchema = z.object({
     .string()
     .trim()
     .min(1)
-    .transform((value) => value.toLowerCase())
     .optional()
     .describe(
       "Optional platform slug for login-gated browsing, for example propnex, propertyguru, ura, hdb, or srx.",
@@ -60,6 +59,7 @@ export const browseWebsiteTool: ManagedAgentTool<BrowseWebsiteInput, BrowseWebsi
     "Browse public websites to search, filter, click, fill forms, and extract data. Provide a specific goal that states the site, actions, filters, fields to extract, and the desired output format.",
   inputSchema,
   execute: async ({ goal, startUrl, outputDescription, allowedDomains, platform }, context) => {
+    const normalizedPlatform = platform?.toLowerCase();
     let client;
 
     try {
@@ -75,15 +75,19 @@ export const browseWebsiteTool: ManagedAgentTool<BrowseWebsiteInput, BrowseWebsi
     }
 
     let profileId: string | undefined;
-    if (platform) {
-      const profile = await getProfileForPlatform(context.supabase, context.clientId, platform);
+    if (normalizedPlatform) {
+      const profile = await getProfileForPlatform(
+        context.supabase,
+        context.clientId,
+        normalizedPlatform,
+      );
 
       if (!profile) {
         return {
           success: false as const,
-          error: `No saved login for ${platform}. Ask the user to connect it first.`,
+          error: `No saved login for ${normalizedPlatform}. Ask the user to connect it first.`,
           needsAuth: true as const,
-          platform,
+          platform: normalizedPlatform,
         };
       }
 
