@@ -59,6 +59,21 @@ describe("buildKickoffContent", () => {
       }),
     );
   });
+
+  it("keeps the raw user message as the final block when scaffolding is present", () => {
+    const content = buildKickoffContent({
+      clientProfile: "profile",
+      userPreferences: "preferences",
+      systemReminder: "reminder",
+      userMessage: "  call Kate today  ",
+      customizedSkillSlugs: ["pdf"],
+    });
+
+    expect(content.at(-1)).toEqual({
+      type: "text",
+      text: "  call Kate today  ",
+    });
+  });
 });
 
 const createSession = vi.fn();

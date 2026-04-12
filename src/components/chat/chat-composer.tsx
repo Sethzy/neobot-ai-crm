@@ -103,10 +103,12 @@ export function ChatComposer({
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const isGenerating = status === "submitted" || status === "streaming";
+  const isStreaming = status === "streaming";
+  const isGenerating = status === "submitted" || isStreaming;
   const hasContent = value.trim().length > 0 || attachments.length > 0;
   const isSubmitDisabled =
     uploadQueue.length > 0 ||
+    status === "submitted" ||
     (!isGenerating && !hasContent) ||
     (!isGenerating && disabled);
 

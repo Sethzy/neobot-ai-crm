@@ -1,37 +1,34 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { attachFileToSession } = vi.hoisted(() => ({
-  attachFileToSession: vi.fn().mockResolvedValue({
-    attached: true,
-    anthropicFileId: "file_1",
-  }),
+const { mountUploadedFilesToSession, uploadFilePartsToAnthropic } = vi.hoisted(() => ({
+  uploadFilePartsToAnthropic: vi.fn(),
+  mountUploadedFilesToSession: vi.fn(),
 }));
 
-vi.mock("../attach-session-file", () => ({
-  attachFileToSession,
+vi.mock("../upload-files-for-session", () => ({
+  uploadFilePartsToAnthropic,
+  mountUploadedFilesToSession,
 }));
 
 import { attachFilesToManagedSession } from "../adapter";
 
 describe("attachFilesToManagedSession", () => {
-  const originalFetch = globalThis.fetch;
-
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
+    uploadFilePartsToAnthropic.mockResolvedValue([
+      { fileId: "file_123", filename: "y.pdf" },
+    ]);
+    mountUploadedFilesToSession.mockResolvedValue(undefined);
   });
 
   it("throws when any attachment fetch fails", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-    }) as never;
+    uploadFilePartsToAnthropic.mockRejectedValueOnce(
+      new Error("Failed to fetch attachment y.pdf (500)"),
+    );
 
     await expect(
       attachFilesToManagedSession({
+        anthropic: {} as never,
         sessionId: "sess_x",
         fileParts: [
           {
@@ -45,6 +42,26 @@ describe("attachFilesToManagedSession", () => {
       }),
     ).rejects.toThrow(/Failed to fetch attachment/);
 
-    expect(attachFileToSession).not.toHaveBeenCalled();
+    expect(mountUploadedFilesToSession).not.toHaveBeenCalled();
+  });
+
+  it("throws when mounting uploaded files fails", async () => {
+    mountUploadedFilesToSession.mockRejectedValueOnce(new Error("mount failed"));
+
+    await expect(
+      attachFilesToManagedSession({
+        anthropic: {} as never,
+        sessionId: "sess_x",
+        fileParts: [
+          {
+            type: "file",
+            url: "https://x/y.pdf",
+            mediaType: "application/pdf",
+            filename: "y.pdf",
+          },
+        ],
+        logLabel: "test",
+      }),
+    ).rejects.toThrow("mount failed");
   });
 });

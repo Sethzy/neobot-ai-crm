@@ -11,10 +11,15 @@ import type Anthropic from "@anthropic-ai/sdk";
 
 import type { ManagedFilePart } from "./types";
 
+export interface UploadedAnthropicFile {
+  fileId: string;
+  filename: string;
+}
+
 export async function uploadFilePartsToAnthropic(
   anthropic: Anthropic,
   fileParts: readonly ManagedFilePart[],
-): Promise<Array<{ fileId: string; filename: string }>> {
+): Promise<UploadedAnthropicFile[]> {
   return Promise.all(
     fileParts.map(async (part) => {
       const response = await fetch(part.url);
@@ -34,4 +39,47 @@ export async function uploadFilePartsToAnthropic(
       return { fileId: uploaded.id, filename: part.filename ?? "upload" };
     }),
   );
+}
+
+export async function mountUploadedFilesToSession(options: {
+  anthropic: Anthropic;
+  sessionId: string;
+  uploadedFiles: readonly UploadedAnthropicFile[];
+  logLabel: string;
+}): Promise<void> {
+  const mountedResourceIds: string[] = [];
+
+  try {
+    for (const uploadedFile of options.uploadedFiles) {
+      const mountedResource = await options.anthropic.beta.sessions.resources.add(
+        options.sessionId,
+        {
+          type: "file",
+          file_id: uploadedFile.fileId,
+        } as never,
+      );
+
+      mountedResourceIds.push(mountedResource.id);
+    }
+  } catch (error) {
+    for (let index = mountedResourceIds.length - 1; index >= 0; index -= 1) {
+      const resourceId = mountedResourceIds[index];
+      if (!resourceId) {
+        continue;
+      }
+
+      try {
+        await options.anthropic.beta.sessions.resources.delete(resourceId, {
+          session_id: options.sessionId,
+        } as never);
+      } catch (cleanupError) {
+        console.error(
+          `[${options.logLabel}] failed to roll back mounted session resource ${resourceId}:`,
+          cleanupError,
+        );
+      }
+    }
+
+    throw error;
+  }
 }

@@ -53,12 +53,18 @@ import { buildSystemReminder } from "@/lib/runner/system-reminder";
 import type { Json } from "@/types/database";
 
 import { computeTurnCost } from "./adapter-cost";
-import { attachFileToSession } from "./attach-session-file";
 import { buildAssistantPartsFromEvents } from "./events-to-assistant-parts";
-import { buildKickoffContent, getOrCreateSession } from "./session-kickoff";
+import {
+  buildKickoffContent,
+  createSessionForThread,
+  getExistingSessionId,
+} from "./session-kickoff";
 import { consumeAnthropicSession } from "./session-runner";
 import { buildUiStreamCallbacks } from "./session-stream-forwarder";
-import { uploadFilePartsToAnthropic } from "./upload-files-for-session";
+import {
+  mountUploadedFilesToSession,
+  uploadFilePartsToAnthropic,
+} from "./upload-files-for-session";
 import type {
   ManagedFilePart,
   ManagedSupabaseClient,
@@ -193,6 +199,7 @@ async function persistAssistantOutput(options: {
 }
 
 export async function attachFilesToManagedSession(options: {
+  anthropic: Anthropic;
   sessionId: string;
   fileParts: readonly ManagedFilePart[];
   logLabel: string;
@@ -201,22 +208,17 @@ export async function attachFilesToManagedSession(options: {
     return;
   }
 
-  await Promise.all(
-    options.fileParts.map(async (filePart) => {
-      const response = await fetch(filePart.url);
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fetch attachment ${filePart.filename ?? "(unnamed)"} (${response.status})`,
-        );
-      }
-
-      await attachFileToSession({
-        sessionId: options.sessionId,
-        file: await response.blob(),
-        filename: filePart.filename ?? "upload",
-      });
-    }),
+  const uploadedFiles = await uploadFilePartsToAnthropic(
+    options.anthropic,
+    options.fileParts,
   );
+
+  await mountUploadedFilesToSession({
+    anthropic: options.anthropic,
+    sessionId: options.sessionId,
+    uploadedFiles,
+    logLabel: options.logLabel,
+  });
 }
 
 /**
@@ -328,12 +330,7 @@ export async function runManagedAgent(
     consumedQuota = quota;
     shouldReleaseConsumedQuota = true;
 
-    const uploadsPromise =
-      (input.fileParts ?? []).length > 0
-        ? uploadFilePartsToAnthropic(input.anthropic, input.fileParts ?? [])
-        : Promise.resolve([] as Array<{ fileId: string; filename: string }>);
-
-    const [, uploadedFiles, reminder] = await Promise.all([
+    const [, existingSessionId, reminder] = await Promise.all([
       persistUserInput({
         supabase: input.supabase,
         threadId: input.threadId,
@@ -342,27 +339,42 @@ export async function runManagedAgent(
         fileParts: input.fileParts ?? [],
         sourceEventId: input.userMessageSourceId,
       }),
-      uploadsPromise,
+      getExistingSessionId({
+        supabase: input.supabase,
+        threadId: input.threadId,
+      }),
       buildSystemReminder(input.supabase, input.clientId),
     ]);
-    shouldReleaseConsumedQuota = false;
 
-    const session = await getOrCreateSession({
-      anthropic: input.anthropic,
-      supabase: input.supabase,
-      threadId: input.threadId,
-      threadTitle: input.threadTitle,
-      initialResources: uploadedFiles.map((uploadedFile) => ({
-        type: "file",
-        file_id: uploadedFile.fileId,
-        mount_path: `/mnt/session/uploads/${uploadedFile.fileId}`,
-      })),
-    });
+    const session = existingSessionId
+      ? { id: existingSessionId, created: false as const }
+      : {
+          id: await createSessionForThread({
+            anthropic: input.anthropic,
+            supabase: input.supabase,
+            threadId: input.threadId,
+            threadTitle: input.threadTitle,
+            initialResources: (
+              (input.fileParts ?? []).length > 0
+                ? await uploadFilePartsToAnthropic(
+                    input.anthropic,
+                    input.fileParts ?? [],
+                  )
+                : []
+            ).map((uploadedFile) => ({
+              type: "file" as const,
+              file_id: uploadedFile.fileId,
+              mount_path: `/mnt/session/uploads/${uploadedFile.fileId}`,
+            })),
+          }),
+          created: true as const,
+        };
 
     sessionId = session.id;
 
     if (!session.created) {
       await attachFilesToManagedSession({
+        anthropic: input.anthropic,
         sessionId,
         fileParts: input.fileParts ?? [],
         logLabel: "runManagedAgent",
@@ -380,6 +392,7 @@ export async function runManagedAgent(
       userMessage: input.input,
       customizedSkillSlugs,
     });
+    shouldReleaseConsumedQuota = false;
   } catch (error) {
     if (shouldReleaseConsumedQuota && consumedQuota) {
       try {

@@ -19,9 +19,8 @@ vi.mock("../session-runner", () => ({
 }));
 vi.mock("../session-kickoff", () => ({
   buildKickoffContent: vi.fn(() => [{ type: "text", text: "kickoff" }]),
-  getOrCreateSession: vi
-    .fn()
-    .mockResolvedValue({ id: "sess_1", created: true }),
+  getExistingSessionId: vi.fn().mockResolvedValue(null),
+  createSessionForThread: vi.fn().mockResolvedValue("sess_1"),
 }));
 vi.mock("@/lib/runner/system-reminder", () => ({
   buildSystemReminder: vi.fn().mockResolvedValue("<reminder>ok</reminder>"),
@@ -71,18 +70,17 @@ vi.mock("@/lib/usage/message-quota", () => ({
     loadFailed: "message-quota-load-failed",
   },
 }));
-vi.mock("../attach-session-file", () => ({
-  attachFileToSession: vi.fn().mockResolvedValue({
-    attached: true,
-    anthropicFileId: "file_1",
-  }),
-}));
 vi.mock("../upload-files-for-session", () => ({
   uploadFilePartsToAnthropic: vi.fn().mockResolvedValue([]),
+  mountUploadedFilesToSession: vi.fn().mockResolvedValue(undefined),
 }));
 
 const { consumeAnthropicSession } = await import("../session-runner");
-const { buildKickoffContent, getOrCreateSession } = await import("../session-kickoff");
+const {
+  buildKickoffContent,
+  createSessionForThread,
+  getExistingSessionId,
+} = await import("../session-kickoff");
 const { buildSystemReminder } = await import("@/lib/runner/system-reminder");
 const { completeRun, markStaleRunsFailed } = await import("@/lib/runner/run-lifecycle");
 const { upsertMessage } = await import("@/lib/chat/messages");
@@ -92,8 +90,10 @@ const {
   consumeMessageQuota,
   releaseMessageQuota,
 } = await import("@/lib/usage/message-quota");
-const { attachFileToSession } = await import("../attach-session-file");
-const { uploadFilePartsToAnthropic } = await import("../upload-files-for-session");
+const {
+  mountUploadedFilesToSession,
+  uploadFilePartsToAnthropic,
+} = await import("../upload-files-for-session");
 
 async function collectStream<T>(stream: ReadableStream<T>): Promise<T[]> {
   const reader = stream.getReader();
@@ -108,15 +108,10 @@ async function collectStream<T>(stream: ReadableStream<T>): Promise<T[]> {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  (getOrCreateSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-    id: "sess_1",
-    created: true,
-  });
-  (attachFileToSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-    attached: true,
-    anthropicFileId: "file_1",
-  });
+  (getExistingSessionId as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+  (createSessionForThread as unknown as ReturnType<typeof vi.fn>).mockResolvedValue("sess_1");
   (uploadFilePartsToAnthropic as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+  (mountUploadedFilesToSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
   (consumeMessageQuota as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
     allowed: true,
     clientId: "c1",
@@ -232,7 +227,7 @@ describe("runManagedAgent — happy path", () => {
     );
   });
 
-  it("runs persistUserInput, uploadFilePartsToAnthropic, and buildSystemReminder in parallel before creating the session", async () => {
+  it("runs persistUserInput, getExistingSessionId, and buildSystemReminder in parallel before uploading and creating a new session", async () => {
     const events: string[] = [];
 
     (consumeMessageQuota as unknown as ReturnType<typeof vi.fn>).mockImplementation(
@@ -259,12 +254,12 @@ describe("runManagedAgent — happy path", () => {
         events.push("persist_end");
       },
     );
-    (uploadFilePartsToAnthropic as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+    (getExistingSessionId as unknown as ReturnType<typeof vi.fn>).mockImplementation(
       async () => {
-        events.push("upload_start");
+        events.push("lookup_start");
         await new Promise((resolve) => setTimeout(resolve, 5));
-        events.push("upload_end");
-        return [];
+        events.push("lookup_end");
+        return null;
       },
     );
     (buildSystemReminder as unknown as ReturnType<typeof vi.fn>).mockImplementation(
@@ -275,12 +270,20 @@ describe("runManagedAgent — happy path", () => {
         return "<system-reminder>Current time: X</system-reminder>";
       },
     );
-    (getOrCreateSession as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+    (uploadFilePartsToAnthropic as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      async () => {
+        events.push("upload_start");
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        events.push("upload_end");
+        return [];
+      },
+    );
+    (createSessionForThread as unknown as ReturnType<typeof vi.fn>).mockImplementation(
       async () => {
         events.push("session_start");
         await new Promise((resolve) => setTimeout(resolve, 5));
         events.push("session_end");
-        return { id: "sess_1", created: true };
+        return "sess_1";
       },
     );
     (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -319,35 +322,36 @@ describe("runManagedAgent — happy path", () => {
 
     const quotaEnd = events.indexOf("quota_end");
     const persistStart = events.indexOf("persist_start");
-    const uploadStart = events.indexOf("upload_start");
+    const lookupStart = events.indexOf("lookup_start");
     const reminderStart = events.indexOf("reminder_start");
 
     expect(quotaEnd).toBeLessThan(persistStart);
-    expect(quotaEnd).toBeLessThan(uploadStart);
+    expect(quotaEnd).toBeLessThan(lookupStart);
     expect(quotaEnd).toBeLessThan(reminderStart);
 
     const persistEnd = events.indexOf("persist_end");
+    const lookupEnd = events.indexOf("lookup_end");
+    const uploadStart = events.indexOf("upload_start");
     const uploadEnd = events.indexOf("upload_end");
     const reminderEnd = events.indexOf("reminder_end");
-    const lastStart = Math.max(persistStart, uploadStart, reminderStart);
-    const firstEnd = Math.min(persistEnd, uploadEnd, reminderEnd);
+    const lastStart = Math.max(persistStart, lookupStart, reminderStart);
+    const firstEnd = Math.min(persistEnd, lookupEnd, reminderEnd);
 
     expect(lastStart).toBeLessThan(firstEnd);
 
     const sessionStart = events.indexOf("session_start");
     const sessionEnd = events.indexOf("session_end");
 
-    expect(sessionStart).toBeGreaterThan(persistEnd);
+    expect(uploadStart).toBeGreaterThan(lookupEnd);
+    expect(uploadStart).toBeGreaterThan(persistEnd);
+    expect(uploadStart).toBeGreaterThan(reminderEnd);
     expect(sessionStart).toBeGreaterThan(uploadEnd);
-    expect(sessionStart).toBeGreaterThan(reminderEnd);
     expect(sessionEnd).toBeGreaterThan(sessionStart);
   });
 
   it("seeds client profile and user preferences into the kickoff on the first turn of a new session", async () => {
-    (getOrCreateSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: "sess_new",
-      created: true,
-    });
+    (getExistingSessionId as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    (createSessionForThread as unknown as ReturnType<typeof vi.fn>).mockResolvedValue("sess_new");
     (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       status: "complete",
       reason: "end_turn",
@@ -386,10 +390,7 @@ describe("runManagedAgent — happy path", () => {
   });
 
   it("omits client profile and user preferences from the kickoff on subsequent turns of an existing session", async () => {
-    (getOrCreateSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: "sess_existing",
-      created: false,
-    });
+    (getExistingSessionId as unknown as ReturnType<typeof vi.fn>).mockResolvedValue("sess_existing");
     (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       status: "complete",
       reason: "end_turn",
@@ -465,7 +466,7 @@ describe("runManagedAgent — happy path", () => {
 
     await collectStream(stream);
 
-    expect(getOrCreateSession).toHaveBeenCalledWith(
+    expect(createSessionForThread).toHaveBeenCalledWith(
       expect.objectContaining({
         initialResources: [
           {
@@ -658,7 +659,7 @@ describe("runManagedAgent — source_event_id idempotency", () => {
 
 describe("runManagedAgent — failure cleanup", () => {
   it("marks the run failed when setup throws after the lock is acquired", async () => {
-    (getOrCreateSession as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+    (createSessionForThread as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       new Error("missing managed agent env"),
     );
 
@@ -772,11 +773,9 @@ describe("runManagedAgent — failure cleanup", () => {
     );
   });
 
-  it("skips post-create attachment when the session is newly created", async () => {
-    (getOrCreateSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: "sess_1",
-      created: true,
-    });
+  it("skips reused-session attachment when a new session is created", async () => {
+    (getExistingSessionId as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    (createSessionForThread as unknown as ReturnType<typeof vi.fn>).mockResolvedValue("sess_1");
     (uploadFilePartsToAnthropic as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([
       { fileId: "file_123", filename: "brief.pdf" },
     ]);
@@ -814,17 +813,14 @@ describe("runManagedAgent — failure cleanup", () => {
 
     await collectStream(stream);
 
-    expect(attachFileToSession).not.toHaveBeenCalled();
+    expect(mountUploadedFilesToSession).not.toHaveBeenCalled();
   });
 
   it("attaches file parts after the managed session exists on reused sessions", async () => {
-    (getOrCreateSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      id: "sess_1",
-      created: false,
-    });
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-      new Response(new Blob(["brief"], { type: "application/pdf" }), { status: 200 }),
-    );
+    (getExistingSessionId as unknown as ReturnType<typeof vi.fn>).mockResolvedValue("sess_1");
+    (uploadFilePartsToAnthropic as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { fileId: "file_123", filename: "brief.pdf" },
+    ]);
     (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       status: "complete",
       reason: "end_turn",
@@ -859,11 +855,23 @@ describe("runManagedAgent — failure cleanup", () => {
 
     await collectStream(stream);
 
-    expect(globalThis.fetch).toHaveBeenCalledWith("https://storage.example.com/brief.pdf");
-    expect(attachFileToSession).toHaveBeenCalledWith({
+    expect(createSessionForThread).not.toHaveBeenCalled();
+    expect(uploadFilePartsToAnthropic).toHaveBeenCalledWith(
+      expect.anything(),
+      [
+        {
+          type: "file",
+          url: "https://storage.example.com/brief.pdf",
+          mediaType: "application/pdf",
+          filename: "brief.pdf",
+        },
+      ],
+    );
+    expect(mountUploadedFilesToSession).toHaveBeenCalledWith({
+      anthropic: expect.anything(),
       sessionId: "sess_1",
-      file: expect.anything(),
-      filename: "brief.pdf",
+      uploadedFiles: [{ fileId: "file_123", filename: "brief.pdf" }],
+      logLabel: "runManagedAgent",
     });
   });
 });

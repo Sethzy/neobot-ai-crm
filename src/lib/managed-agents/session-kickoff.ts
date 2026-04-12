@@ -12,7 +12,7 @@
  */
 import type Anthropic from "@anthropic-ai/sdk";
 
-import type { ManagedSupabaseClient } from "./types";
+import type { KickoffTextBlock, ManagedSupabaseClient } from "./types";
 
 export interface KickoffInput {
   clientProfile: string | null;
@@ -20,11 +20,6 @@ export interface KickoffInput {
   systemReminder: string;
   userMessage: string;
   customizedSkillSlugs: string[];
-}
-
-export interface KickoffTextBlock {
-  type: "text";
-  text: string;
 }
 
 export function buildKickoffContent(input: KickoffInput): KickoffTextBlock[] {
@@ -68,9 +63,10 @@ export interface ManagedSession {
   created: boolean;
 }
 
-export async function getOrCreateSession(
-  input: GetOrCreateSessionInput,
-): Promise<ManagedSession> {
+export async function getExistingSessionId(input: {
+  supabase: ManagedSupabaseClient;
+  threadId: string;
+}): Promise<string | null> {
   const { data: row, error: selectError } = await input.supabase
     .from("conversation_threads")
     .select("session_id")
@@ -83,10 +79,12 @@ export async function getOrCreateSession(
     );
   }
 
-  if (row?.session_id) {
-    return { id: row.session_id, created: false };
-  }
+  return row?.session_id ?? null;
+}
 
+export async function createSessionForThread(
+  input: GetOrCreateSessionInput,
+): Promise<string> {
   const agentId = process.env.ANTHROPIC_AGENT_ID;
   const agentVersion = Number(process.env.ANTHROPIC_AGENT_VERSION);
   const environmentId = process.env.ANTHROPIC_ENVIRONMENT_ID;
@@ -120,5 +118,22 @@ export async function getOrCreateSession(
     );
   }
 
-  return { id: session.id, created: true };
+  return session.id;
+}
+
+export async function getOrCreateSession(
+  input: GetOrCreateSessionInput,
+): Promise<ManagedSession> {
+  const existingSessionId = await getExistingSessionId({
+    supabase: input.supabase,
+    threadId: input.threadId,
+  });
+
+  if (existingSessionId) {
+    return { id: existingSessionId, created: false };
+  }
+
+  const sessionId = await createSessionForThread(input);
+
+  return { id: sessionId, created: true };
 }

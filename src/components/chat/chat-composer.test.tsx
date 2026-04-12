@@ -265,6 +265,17 @@ describe("ChatComposer", () => {
     expect(onStop).toHaveBeenCalledTimes(1);
   });
 
+  it("does not expose stop while submitted", () => {
+    const onStop = vi.fn();
+
+    render(<ChatComposer {...baseProps} status="submitted" onStop={onStop} value="Hello" />);
+
+    expect(screen.getByPlaceholderText(/send a message/i)).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /stop/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /submit/i })).toBeDisabled();
+    expect(onStop).not.toHaveBeenCalled();
+  });
+
   it("locks the composer and attachment control when disabled", () => {
     render(
       <ChatComposer

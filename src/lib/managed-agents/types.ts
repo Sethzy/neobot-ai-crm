@@ -11,7 +11,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database";
-import type { KickoffTextBlock } from "./session-kickoff";
 
 // ── Re-exports from the canonical tool contracts ────────────────────────────
 export type {
@@ -40,6 +39,11 @@ export interface ManagedFilePart {
   mediaType: string;
   filename?: string;
   storagePath?: string;
+}
+
+export interface KickoffTextBlock {
+  type: "text";
+  text: string;
 }
 
 // ── Custom tool envelope shapes ─────────────────────────────────────────────

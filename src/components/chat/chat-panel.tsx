@@ -12,6 +12,7 @@ import {
 } from "ai";
 import { useChat } from "@ai-sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { AlertCircle } from "@/components/icons/lucide-compat";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -347,11 +348,19 @@ export function ChatPanel({
   );
 
   const handleStop = useCallback(async () => {
-    await fetch("/api/chat/interrupt", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ threadId: chatId }),
-    });
+    try {
+      const response = await fetch("/api/chat/interrupt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ threadId: chatId }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Interrupt request failed with status ${response.status}`);
+      }
+    } catch {
+      toast.error("Failed to stop the current run.");
+    }
   }, [chatId]);
 
   const hasMessages = messages.length > 0;
@@ -378,7 +387,7 @@ export function ChatPanel({
             onValueChange={setComposerValue}
             onSelectedChatModelChange={handleModelChange}
             onSubmit={handleSubmit}
-            onStop={handleStop}
+            onStop={effectiveStatus === "streaming" ? handleStop : undefined}
             disabled={(messageQuota?.messagesRemaining ?? 1) <= 0}
           />
         </>

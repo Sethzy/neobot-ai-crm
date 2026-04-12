@@ -499,6 +499,67 @@ describe("ChatPanel", () => {
     });
   });
 
+  it("does not expose the stop button while the request is only submitted", () => {
+    mockUseChat.mockReturnValue({
+      id: "thread-1",
+      messages: [
+        { id: "u1", role: "user", parts: [{ type: "text", text: "Hi" }] },
+      ],
+      status: "submitted",
+      error: undefined,
+      sendMessage,
+      setMessages,
+      regenerate: vi.fn(),
+      clearError: vi.fn(),
+      stop: vi.fn(),
+      resumeStream: vi.fn(),
+      addToolResult: vi.fn(),
+      addToolOutput: vi.fn(),
+      addToolApprovalResponse: vi.fn(),
+    });
+
+    render(<ChatPanel chatId="thread-1" />);
+
+    expect(screen.getByPlaceholderText(/send a message/i)).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /stop/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /submit/i })).toBeDisabled();
+  });
+
+  it("shows a toast when interrupting the stream fails", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: "no active run" }), {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    mockUseChat.mockReturnValue({
+      id: "thread-1",
+      messages: [
+        { id: "u1", role: "user", parts: [{ type: "text", text: "Hi" }] },
+      ],
+      status: "streaming",
+      error: undefined,
+      sendMessage,
+      setMessages,
+      regenerate: vi.fn(),
+      clearError: vi.fn(),
+      stop: vi.fn(),
+      resumeStream: vi.fn(),
+      addToolResult: vi.fn(),
+      addToolOutput: vi.fn(),
+      addToolApprovalResponse: vi.fn(),
+    });
+
+    render(<ChatPanel chatId="thread-1" />);
+
+    await user.click(screen.getByRole("button", { name: /stop/i }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("Failed to stop the current run.");
+    });
+  });
+
   it("renders API errors", () => {
     mockUseChat.mockReturnValue({
       id: "thread-1",

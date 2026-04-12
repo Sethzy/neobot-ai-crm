@@ -1225,6 +1225,7 @@ export const PromptInputSubmit = ({
   ...props
 }: PromptInputSubmitProps) => {
   const isGenerating = status === "submitted" || status === "streaming";
+  const isStoppable = status === "streaming" && typeof onStop === "function";
 
   let Icon = <CornerDownLeftIcon className="size-4" />;
 
@@ -1238,23 +1239,23 @@ export const PromptInputSubmit = ({
 
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
-      if (isGenerating && onStop) {
+      if (isStoppable && onStop) {
         e.preventDefault();
         onStop();
         return;
       }
       onClick?.(e);
     },
-    [isGenerating, onStop, onClick]
+    [isStoppable, onStop, onClick]
   );
 
   return (
     <InputGroupButton
-      aria-label={isGenerating ? "Stop" : "Submit"}
+      aria-label={isStoppable ? "Stop" : "Submit"}
       className={cn(className)}
       onClick={handleClick}
       size={size}
-      type={isGenerating && onStop ? "button" : "submit"}
+      type={isStoppable ? "button" : "submit"}
       variant={variant}
       {...props}
     >
