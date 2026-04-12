@@ -104,6 +104,26 @@ describe("buildAssistantPartsFromEvents", () => {
     });
   });
 
+  it("normalizes Anthropic aliased tool names in persisted tool parts", () => {
+    const parts = buildAssistantPartsFromEvents([
+      modelRequestStartEvent("span_1"),
+      customToolUseEvent("ctu_2", "sunder_web_search", { query: "sg condos" }),
+      customToolResultEvent("ctr_2", "ctu_2", {
+        success: true,
+        results: [{ url: "https://example.com" }],
+      }),
+      statusIdleEvent("evt_end", "end_turn"),
+    ]);
+
+    const toolPart = parts.find((p) => p.type === "tool-web_search");
+    expect(toolPart).toMatchObject({
+      toolCallId: "ctu_2",
+      state: "output-available",
+      input: { query: "sg condos" },
+      output: { success: true, results: [{ url: "https://example.com" }] },
+    });
+  });
+
   it("splits ```spec fences inside agent.message text into data-spec parts", () => {
     const text =
       'Here is the data:\n```spec\n{"op":"replace","path":"/metric","value":42}\n```\nDone.';

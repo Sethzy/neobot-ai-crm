@@ -151,4 +151,34 @@ describe("dispatchCustomTool", () => {
     expect(execute).toHaveBeenCalled();
     expect(result.is_error).toBeUndefined();
   });
+
+  it("dispatches Anthropic aliased tool names to the internal registry entry", async () => {
+    const execute = vi.fn().mockResolvedValue({ success: true, results: [] });
+    (MANAGED_AGENT_TOOLS as Record<string, ManagedAgentTool>)["web_search"] = {
+      name: "web_search",
+      description: "search the web",
+      inputSchema: z.object({ query: z.string() }),
+      execute,
+    } as ManagedAgentTool;
+
+    const result = await dispatchCustomTool(
+      {
+        type: "agent.custom_tool_use",
+        id: "ctu_6",
+        name: "sunder_web_search",
+        input: { query: "singapore condo launches" },
+      },
+      stubContext(),
+    );
+
+    expect(execute).toHaveBeenCalledWith(
+      { query: "singapore condo launches" },
+      expect.objectContaining({ clientId: "client-1" }),
+    );
+    expect(result.is_error).toBeUndefined();
+    expect(JSON.parse(result.content[0].text)).toEqual({
+      success: true,
+      results: [],
+    });
+  });
 });

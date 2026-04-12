@@ -1,0 +1,57 @@
+{
+  "call-prep": {
+    "skillId": "skill_01NU52vDMmzHV4WQWR7zM3W1",
+    "displayTitle": "sunder-skill:call-prep",
+    "latestVersion": "1775953750642927"
+  },
+  "call-summary": {
+    "skillId": "skill_01RbkLHeBeDd4cbimBTwYgEL",
+    "displayTitle": "sunder-skill:call-summary",
+    "latestVersion": "1775953754097332"
+  },
+  "daily-briefing": {
+    "skillId": "skill_01CRP2YmzMnfhyYRubvXrvUh",
+    "displayTitle": "sunder-skill:daily-briefing",
+    "latestVersion": "1775953757612329"
+  },
+  "deal-comparison": {
+    "skillId": "skill_01FNNKp7A2afJbenWjxY1Ww2",
+    "displayTitle": "sunder-skill:deal-comparison",
+    "latestVersion": "1775953761145918"
+  },
+  "draft-outreach": {
+    "skillId": "skill_01TnTqMavtdFPhvcxrDvLfqo",
+    "displayTitle": "sunder-skill:draft-outreach",
+    "latestVersion": "1775953765838167"
+  },
+  "market-briefing": {
+    "skillId": "skill_015w7mNmqUY5jgSsmsPBEXBp",
+    "displayTitle": "sunder-skill:market-briefing",
+    "latestVersion": "1775953769412678"
+  },
+  "market-report": {
+    "skillId": "skill_01524Sq7uS4r6NpfYq6eYgNG",
+    "displayTitle": "sunder-skill:market-report",
+    "latestVersion": "1775953773103297"
+  },
+  "onboarding": {
+    "skillId": "skill_01LGP9rdyao3GBCXJXUyDuau",
+    "displayTitle": "sunder-skill:onboarding",
+    "latestVersion": "1775953776777340"
+  },
+  "opportunity-analysis": {
+    "skillId": "skill_01ARoH1aXzfmjVHcFeQMVCNB",
+    "displayTitle": "sunder-skill:opportunity-analysis",
+    "latestVersion": "1775953780356655"
+  },
+  "pipeline-review": {
+    "skillId": "skill_01CJYjBXpAqAYKWmL2gXWznR",
+    "displayTitle": "sunder-skill:pipeline-review",
+    "latestVersion": "1775953783845465"
+  },
+  "property-showcase": {
+    "skillId": "skill_01LeFtmoHjYwvRe9QPnjvawv",
+    "displayTitle": "sunder-skill:property-showcase",
+    "latestVersion": "1775953787342793"
+  }
+}

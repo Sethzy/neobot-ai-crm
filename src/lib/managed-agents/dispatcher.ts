@@ -8,6 +8,7 @@
  * @module lib/managed-agents/dispatcher
  */
 import { MANAGED_AGENT_TOOLS } from "@/lib/managed-agents/tools";
+import { toInternalManagedAgentToolName } from "@/lib/managed-agents/tool-name-aliases";
 
 import type {
   CustomToolResultContent,
@@ -46,8 +47,9 @@ export async function dispatchCustomTool(
   event: CustomToolUseEvent,
   context: DispatchContext,
 ): Promise<CustomToolResultContent> {
+  const internalToolName = toInternalManagedAgentToolName(event.name);
   const tool = (MANAGED_AGENT_TOOLS as unknown as Record<string, RegistryEntry>)[
-    event.name
+    internalToolName
   ];
 
   if (!tool) {
@@ -74,7 +76,7 @@ export async function dispatchCustomTool(
     return asContent(
       {
         success: false,
-        error: `Invalid input for ${event.name}: ${parsed.error.message}`,
+        error: `Invalid input for ${internalToolName}: ${parsed.error.message}`,
       },
       event.id,
       true,

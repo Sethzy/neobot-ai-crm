@@ -9,9 +9,9 @@ import { z } from "zod";
 
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { getFileExtension } from "@/lib/file-utils";
+import { getSystemSkillContent, isSystemSkillPath } from "@/lib/runner/system-skills";
 import { createAgentFileClient, normalizeWorkspacePath } from "@/lib/storage/agent-files";
 import { toModelPath, toStoragePath } from "@/lib/storage/agent-paths";
-import { getSystemSkillContent, isSystemSkillPath } from "@/lib/runner/skills/system-skills";
 import type { Database } from "@/types/database";
 
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp"]);

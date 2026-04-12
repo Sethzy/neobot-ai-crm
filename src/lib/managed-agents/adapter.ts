@@ -50,6 +50,7 @@ import {
   createRun,
   markStaleRunsFailed,
 } from "@/lib/runner/run-lifecycle";
+import { listCustomizedSkillSlugs } from "@/lib/runner/skills/list-customized-skill-slugs";
 import { buildSystemReminder } from "@/lib/runner/system-reminder";
 import type { Json } from "@/types/database";
 
@@ -58,6 +59,7 @@ import { attachFileToSession } from "./attach-session-file";
 import { buildAssistantPartsFromEvents } from "./events-to-assistant-parts";
 import { buildKickoffText, getOrCreateSession } from "./session-kickoff";
 import { consumeAnthropicSession } from "./session-runner";
+import { toInternalManagedAgentToolName } from "./tool-name-aliases";
 import type {
   ManagedFilePart,
   ManagedSupabaseClient,
@@ -115,23 +117,54 @@ function buildUiStreamCallbacks(
       writer.write({ type: "start-step" } as never);
     },
     onAgentMessage: (event) => {
-      const e = event as { content: Array<{ type: string; text?: string }> };
+      // AI SDK v6 UIMessageChunk schema requires text deltas to be
+      // bracketed by `text-start` / `text-end` sharing the same `id`.
+      // The v6 client rejects a bare `text-delta` with:
+      //   "Received text-delta for missing text part with ID ..."
+      // We use the managed-agents event id as the chunk id so every text
+      // block from this `agent.message` is grouped into a single UI part.
+      const e = event as {
+        id: string;
+        content: Array<{ type: string; text?: string }>;
+      };
+      let textStarted = false;
       for (const block of e.content) {
-        if (block.type === "text" && typeof block.text === "string") {
-          writer.write({ type: "text-delta", delta: block.text } as never);
+        if (
+          block.type === "text" &&
+          typeof block.text === "string" &&
+          block.text.length > 0
+        ) {
+          if (!textStarted) {
+            writer.write({ type: "text-start", id: e.id } as never);
+            textStarted = true;
+          }
+          writer.write({
+            type: "text-delta",
+            id: e.id,
+            delta: block.text,
+          } as never);
         }
+      }
+      if (textStarted) {
+        writer.write({ type: "text-end", id: e.id } as never);
       }
     },
     onAgentToolUse: (event) => {
+      // AI SDK v6 tool-call chunks use `tool-input-available` (not the
+      // legacy v4 `tool-call`). The chunk bootstraps a tool part on the
+      // client keyed by `toolCallId`; the matching tool-result below
+      // upgrades it to output-available.
       const e = event as { id: string; name: string; input: unknown };
       writer.write({
-        type: "tool-call",
+        type: "tool-input-available",
         toolCallId: e.id,
-        toolName: e.name,
+        toolName: toInternalManagedAgentToolName(e.name),
         input: e.input,
       } as never);
     },
     onAgentToolResult: (event) => {
+      // AI SDK v6 tool-result chunks use `tool-output-available` with an
+      // `output` field (v4 used `tool-result` + `result`).
       const e = event as {
         custom_tool_use_id: string;
         content: Array<{ text: string }>;
@@ -143,9 +176,9 @@ function buildUiStreamCallbacks(
         parsed = e.content[0]?.text ?? null;
       }
       writer.write({
-        type: "tool-result",
+        type: "tool-output-available",
         toolCallId: e.custom_tool_use_id,
-        result: parsed,
+        output: parsed,
       } as never);
     },
     onApprovalRequired: (event, approvalId) => {
@@ -170,10 +203,11 @@ function buildUiStreamCallbacks(
       } as never);
     },
     onSessionError: (event) => {
+      // AI SDK v6 `error` chunks use `errorText` (v4 used `message`).
       const e = event as { error?: { message?: string } };
       writer.write({
         type: "error",
-        message: e.error?.message ?? "Session error",
+        errorText: e.error?.message ?? "Session error",
       } as never);
     },
   };
@@ -408,22 +442,25 @@ export async function runManagedAgent(
     consumedQuota = quota;
     shouldReleaseConsumedQuota = true;
 
-    await persistUserInput({
-      supabase: input.supabase,
-      threadId: input.threadId,
-      runId,
-      userMessage: input.input,
-      fileParts: input.fileParts ?? [],
-      sourceEventId: input.userMessageSourceId,
-    });
+    const [, session, reminder] = await Promise.all([
+      persistUserInput({
+        supabase: input.supabase,
+        threadId: input.threadId,
+        runId,
+        userMessage: input.input,
+        fileParts: input.fileParts ?? [],
+        sourceEventId: input.userMessageSourceId,
+      }),
+      getOrCreateSession({
+        anthropic: input.anthropic,
+        supabase: input.supabase,
+        threadId: input.threadId,
+        threadTitle: input.threadTitle,
+      }),
+      buildSystemReminder(input.supabase, input.clientId),
+    ]);
     shouldReleaseConsumedQuota = false;
 
-    const session = await getOrCreateSession({
-      anthropic: input.anthropic,
-      supabase: input.supabase,
-      threadId: input.threadId,
-      threadTitle: input.threadTitle,
-    });
     sessionId = session.id;
 
     await attachFilesToManagedSession({
@@ -432,16 +469,16 @@ export async function runManagedAgent(
       logLabel: "runManagedAgent",
     });
 
-    const reminder = await buildSystemReminder(
+    const customizedSkillSlugs = await listCustomizedSkillSlugs(
       input.supabase,
       input.clientId,
-      input.threadId,
     );
     kickoff = buildKickoffText({
-      clientProfile: input.clientProfile,
-      userPreferences: input.userPreferences,
+      clientProfile: session.created ? input.clientProfile : null,
+      userPreferences: session.created ? input.userPreferences : null,
       systemReminder: reminder,
       userMessage: input.input,
+      customizedSkillSlugs,
     });
   } catch (error) {
     if (shouldReleaseConsumedQuota && consumedQuota) {

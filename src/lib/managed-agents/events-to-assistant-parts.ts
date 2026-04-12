@@ -22,6 +22,7 @@ import type { PersistedPart } from "@/lib/runner/message-utils";
 import { splitTextAndSpecParts } from "@/lib/runner/message-utils";
 
 import type { AnthropicEvent } from "./event-types";
+import { toInternalManagedAgentToolName } from "./tool-name-aliases";
 
 export function buildAssistantPartsFromEvents(
   events: ReadonlyArray<AnthropicEvent>,
@@ -56,8 +57,9 @@ export function buildAssistantPartsFromEvents(
     }
 
     if (event.type === "agent.custom_tool_use") {
+      const internalToolName = toInternalManagedAgentToolName(event.name);
       parts.push({
-        type: `tool-${event.name}`,
+        type: `tool-${internalToolName}`,
         toolCallId: event.id,
         state: "input-available",
         input: event.input,

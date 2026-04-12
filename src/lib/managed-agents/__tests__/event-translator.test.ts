@@ -86,6 +86,28 @@ describe("translateEvent — custom tool calls", () => {
       }),
     );
   });
+
+  it("normalizes Anthropic aliased tool names in tool-call parts", () => {
+    const state = createTranslatorState();
+    const out = translateEvent(
+      state,
+      customToolUseEvent("ctu_2", "sunder_web_search", { query: "sg condos" }),
+    );
+
+    expect(out.parts).toContainEqual(
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "ctu_2",
+        toolName: "web_search",
+        input: { query: "sg condos" },
+      }),
+    );
+    expect(out.customToolCall).toEqual({
+      id: "ctu_2",
+      name: "web_search",
+      input: { query: "sg condos" },
+    });
+  });
 });
 
 describe("translateEvent — bash approval", () => {

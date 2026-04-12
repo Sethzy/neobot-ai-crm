@@ -14,11 +14,12 @@
  *
  * @module scripts/managed-agents/create-agent
  */
+import path from "node:path";
+
 import Anthropic from "@anthropic-ai/sdk";
 import type {
   AgentCreateParams,
   BetaManagedAgentsAgent,
-  BetaManagedAgentsAgentToolset20260401Params,
   BetaManagedAgentsCustomToolInputSchema,
   BetaManagedAgentsCustomToolParams,
   BetaManagedAgentsSkillParams,
@@ -29,30 +30,26 @@ import {
   MANAGED_AGENT_TOOL_DECLARATIONS,
   MANAGED_AGENT_TOOL_NAMES,
 } from "@/lib/managed-agents/tools";
+import { toPublishedManagedAgentToolName } from "@/lib/managed-agents/tool-name-aliases";
+
+import { loadManagedAgentSkills } from "./load-managed-agent-skills";
 
 const MANAGED_AGENT_NAME = "sunder-chat-agent";
 const MANAGED_AGENT_DESCRIPTION =
   "Sunder autopilot for advisory-sales practitioners. Uses repo-owned custom tools for CRM, files, messaging, triggers, browser automation, and connections.";
 const MANAGED_AGENT_MODEL = "claude-sonnet-4-6";
 
-const BUILT_IN_TOOLSET: BetaManagedAgentsAgentToolset20260401Params = {
-  type: "agent_toolset_20260401",
-  default_config: {
-    permission_policy: { type: "always_allow" },
-  },
-  configs: [
-    { name: "bash", permission_policy: { type: "always_ask" } },
-    { name: "web_fetch", enabled: false },
-    { name: "web_search", enabled: false },
-  ],
-};
-
-const MANAGED_AGENT_SKILLS: BetaManagedAgentsSkillParams[] = [
-  { type: "anthropic", skill_id: "xlsx" },
-  { type: "anthropic", skill_id: "docx" },
-  { type: "anthropic", skill_id: "pptx" },
-  { type: "anthropic", skill_id: "pdf" },
-];
+const SKILL_REGISTRY_PATH = path.join(
+  process.cwd(),
+  "scripts",
+  "managed-agents",
+  "skill-registry.json",
+);
+const MANAGED_AGENT_SKILLS: BetaManagedAgentsSkillParams[] =
+  loadManagedAgentSkills(SKILL_REGISTRY_PATH);
+const PUBLISHED_MANAGED_AGENT_TOOL_NAMES = MANAGED_AGENT_TOOL_NAMES.map(
+  toPublishedManagedAgentToolName,
+);
 
 const MANAGED_AGENT_SYSTEM = [
   "You are Sunder, an autopilot for solo practitioners in advisory sales.",
@@ -62,28 +59,73 @@ const MANAGED_AGENT_SYSTEM = [
   "Use `search_crm` before mutating records when the target is ambiguous. Avoid duplicate writes and keep CRM state tidy.",
   "Use `/agent/*` files as durable operating context. Read before writing when freshness matters, and write only the minimal durable update that improves future runs.",
   "In trigger runs, do not use `run_sql`, `get_agent_db_schema`, `ask_user_question`, `create_connection`, or `reauthorize_connection`. Use `search_crm` for data lookups in triggers.",
-  "The built-in `web_fetch` and `web_search` tools are disabled on purpose. Use Sunder's `web_search`, `web_scrape`, and browser tools instead.",
+  "Use Sunder's `sunder_web_search`, `web_scrape`, and browser tools for web tasks; do not rely on Anthropic built-in web tools.",
   "Keep user-facing responses concise, factual, and operationally useful.",
-  `Available Sunder custom tools: ${MANAGED_AGENT_TOOL_NAMES.join(", ")}.`,
+  `Available Sunder custom tools: ${PUBLISHED_MANAGED_AGENT_TOOL_NAMES.join(", ")}.`,
 ].join("\n\n");
+
+const ANTHROPIC_ALLOWED_SCHEMA_KEYS = new Set([
+  "type",
+  "properties",
+  "required",
+  "description",
+  "items",
+  "enum",
+  "anyOf",
+  "oneOf",
+  "allOf",
+  "format",
+  "pattern",
+  "minLength",
+  "maxLength",
+  "minimum",
+  "maximum",
+  "exclusiveMinimum",
+  "exclusiveMaximum",
+  "minItems",
+  "maxItems",
+  "minProperties",
+  "maxProperties",
+  "multipleOf",
+  "const",
+  "nullable",
+]);
 
 function toCustomToolParams(
   declaration: (typeof MANAGED_AGENT_TOOL_DECLARATIONS)[number],
 ): BetaManagedAgentsCustomToolParams {
-  const jsonSchema = z.toJSONSchema(declaration.inputSchema, { reused: "ref" });
+  const jsonSchema = sanitizeJsonSchema(
+    z.toJSONSchema(declaration.inputSchema, { reused: "inline" }),
+  );
 
-  if (jsonSchema.type !== "object") {
+  if (typeof jsonSchema !== "object" || jsonSchema === null || Array.isArray(jsonSchema)) {
     throw new Error(
-      `Tool "${declaration.name}" must use an object Zod schema, got ${String(jsonSchema.type)}.`,
+      `Tool "${declaration.name}" must serialize to a JSON Schema object.`,
     );
   }
 
   return {
     type: "custom",
-    name: declaration.name,
+    name: toPublishedManagedAgentToolName(declaration.name),
     description: declaration.description,
     input_schema: jsonSchema as BetaManagedAgentsCustomToolInputSchema,
   };
+}
+
+function sanitizeJsonSchema(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sanitizeJsonSchema);
+  }
+
+  if (typeof value !== "object" || value === null) {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => ANTHROPIC_ALLOWED_SCHEMA_KEYS.has(key))
+      .map(([key, nestedValue]) => [key, sanitizeJsonSchema(nestedValue)]),
+  );
 }
 
 function buildAgentPayload(): AgentCreateParams {
@@ -94,7 +136,7 @@ function buildAgentPayload(): AgentCreateParams {
     description: MANAGED_AGENT_DESCRIPTION,
     model: MANAGED_AGENT_MODEL,
     system: MANAGED_AGENT_SYSTEM,
-    tools: [BUILT_IN_TOOLSET, ...customTools],
+    tools: customTools,
     skills: MANAGED_AGENT_SKILLS,
   };
 }

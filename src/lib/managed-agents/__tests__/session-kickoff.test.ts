@@ -17,6 +17,7 @@ describe("buildKickoffText", () => {
       userPreferences: "## Preferences\nConcise",
       systemReminder: "<reminder>Open todos: 3</reminder>",
       userMessage: "Draft follow-up to Kate",
+      customizedSkillSlugs: [],
     });
     const profileIdx = text.indexOf("## Client Profile");
     const prefIdx = text.indexOf("## Preferences");
@@ -33,9 +34,23 @@ describe("buildKickoffText", () => {
       userPreferences: null,
       systemReminder: "<reminder>first turn</reminder>",
       userMessage: "hi",
+      customizedSkillSlugs: [],
     });
     expect(text).not.toContain("## Client Profile");
     expect(text.trim().startsWith("<reminder>")).toBe(true);
+  });
+
+  it("appends an override note when the user has customized skills", () => {
+    const text = buildKickoffText({
+      clientProfile: null,
+      userPreferences: null,
+      systemReminder: "<reminder>first turn</reminder>",
+      userMessage: "hi",
+      customizedSkillSlugs: ["call-prep", "pipeline-review"],
+    });
+
+    expect(text).toMatch(/customized these skills: call-prep, pipeline-review/i);
+    expect(text).toMatch(/storage_read\('\/agent\/skills\/<slug>\/SKILL\.md'\)/);
   });
 });
 

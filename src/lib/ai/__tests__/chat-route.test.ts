@@ -19,7 +19,6 @@ const {
   mockCreateUIMessageStream,
   mockCreateUIMessageStreamResponse,
   mockGenerateTitleFromUserMessage,
-  mockEnsureClientBootstrap,
   mockGetAnthropicClient,
   mockGetOrCreateSession,
   mockAttachFileToSession,
@@ -33,7 +32,6 @@ const {
   mockCreateUIMessageStream: vi.fn(),
   mockCreateUIMessageStreamResponse: vi.fn(),
   mockGenerateTitleFromUserMessage: vi.fn(),
-  mockEnsureClientBootstrap: vi.fn().mockResolvedValue(undefined),
   mockGetAnthropicClient: vi.fn(),
   mockGetOrCreateSession: vi.fn(),
   mockAttachFileToSession: vi.fn(),
@@ -69,10 +67,6 @@ vi.mock("@/lib/ai/title", () => ({
 
 vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 29 }),
-}));
-
-vi.mock("@/lib/runner/skills/ensure-client-bootstrap", () => ({
-  ensureClientBootstrap: mockEnsureClientBootstrap,
 }));
 
 vi.mock("@/lib/managed-agents/anthropic-client", () => ({
@@ -1112,50 +1106,10 @@ describe("POST /api/chat", () => {
     expect(deleteClientEq).toHaveBeenCalledWith("client_id", "client-456");
   });
 
-  it("returns 500 without calling runManagedAgent when ensureClientBootstrap fails", async () => {
-    mockEnsureClientBootstrap.mockRejectedValueOnce(new Error("storage down"));
+  it("chat route does not import ensureClientBootstrap", async () => {
+    const fs = await import("node:fs");
+    const source = fs.readFileSync("app/api/chat/route.ts", "utf8");
 
-    const response = await POST(
-      createJsonRequest({
-        id: threadId,
-        message: {
-          id: "11111111-1111-4111-8111-111111111111",
-          role: "user",
-          parts: [{ type: "text", text: "Hello" }],
-        },
-      }),
-    );
-
-    expect(response.status).toBe(500);
-    expect(await response.json()).toEqual({ error: "Failed to process chat request." });
-    expect(mockRunManagedAgent).not.toHaveBeenCalled();
-  });
-
-  it("awaits ensureClientBootstrap before calling runManagedAgent", async () => {
-    const streamResponse = new Response("streamed", {
-      headers: { "Content-Type": "text/event-stream" },
-    });
-    mockCreateUIMessageStream.mockReturnValue(new ReadableStream());
-    mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
-    mockRunManagedAgent.mockResolvedValue({
-      status: "streaming",
-      streamResult: { toUIMessageStream: vi.fn(() => new ReadableStream()) },
-    });
-
-    await POST(
-      createJsonRequest({
-        id: threadId,
-        message: {
-          id: "11111111-1111-4111-8111-111111111111",
-          role: "user",
-          parts: [{ type: "text", text: "Hello" }],
-        },
-      }),
-    );
-
-    expect(mockEnsureClientBootstrap).toHaveBeenCalledWith(mockSupabase, "client-456");
-    expect(mockEnsureClientBootstrap.mock.invocationCallOrder[0]).toBeLessThan(
-      mockRunManagedAgent.mock.invocationCallOrder[0],
-    );
+    expect(source).not.toMatch(/ensureClientBootstrap/);
   });
 });

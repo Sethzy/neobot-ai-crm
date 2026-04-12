@@ -18,13 +18,16 @@ vi.mock("../session-runner", () => ({
   consumeAnthropicSession: vi.fn(),
 }));
 vi.mock("../session-kickoff", () => ({
-  buildKickoffText: () => "kickoff",
+  buildKickoffText: vi.fn(() => "kickoff"),
   getOrCreateSession: vi
     .fn()
     .mockResolvedValue({ id: "sess_1", created: true }),
 }));
 vi.mock("@/lib/runner/system-reminder", () => ({
   buildSystemReminder: vi.fn().mockResolvedValue("<reminder>ok</reminder>"),
+}));
+vi.mock("@/lib/runner/skills/list-customized-skill-slugs", () => ({
+  listCustomizedSkillSlugs: vi.fn().mockResolvedValue([]),
 }));
 vi.mock("@/lib/runner/run-lifecycle", () => ({
   createRun: vi.fn().mockResolvedValue({ created: true, runId: "run_1" }),
@@ -76,7 +79,8 @@ vi.mock("../attach-session-file", () => ({
 }));
 
 const { consumeAnthropicSession } = await import("../session-runner");
-const { getOrCreateSession } = await import("../session-kickoff");
+const { buildKickoffText, getOrCreateSession } = await import("../session-kickoff");
+const { buildSystemReminder } = await import("@/lib/runner/system-reminder");
 const { completeRun } = await import("@/lib/runner/run-lifecycle");
 const { upsertMessage } = await import("@/lib/chat/messages");
 const { deliverToExternalChannels } = await import("@/lib/channels/deliver");
@@ -219,6 +223,179 @@ describe("runManagedAgent — happy path", () => {
         role: "user",
         content: "hi",
         source_event_id: "user-msg-1",
+      }),
+    );
+  });
+
+  it("runs persistUserInput, getOrCreateSession, and buildSystemReminder in parallel after quota consumption", async () => {
+    const events: string[] = [];
+
+    (consumeMessageQuota as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      async () => {
+        events.push("quota_start");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        events.push("quota_end");
+        return {
+          allowed: true,
+          clientId: "c1",
+          planName: "Free",
+          monthlyMessageLimit: 100,
+          messagesUsed: 1,
+          messagesRemaining: 99,
+          periodStart: "2026-04-01",
+          nextResetDate: "2026-05-01",
+        };
+      },
+    );
+    (upsertMessage as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      async () => {
+        events.push("persist_start");
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        events.push("persist_end");
+      },
+    );
+    (getOrCreateSession as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      async () => {
+        events.push("session_start");
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        events.push("session_end");
+        return { id: "sess_1", created: false };
+      },
+    );
+    (buildSystemReminder as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      async () => {
+        events.push("reminder_start");
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        events.push("reminder_end");
+        return "<system-reminder>Current time: X</system-reminder>";
+      },
+    );
+    (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: "complete",
+      reason: "end_turn",
+      accumulatedEvents: [],
+      cost: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 0,
+        runtimeSeconds: 0,
+      },
+      approvalEventIds: [],
+    });
+
+    const { runManagedAgent } = await import("../adapter");
+    const stream = await runManagedAgent({
+      anthropic: {} as never,
+      supabase: {} as never,
+      clientId: "c1",
+      threadId: "t1",
+      input: "hi",
+      clientProfile: null,
+      userPreferences: null,
+      threadTitle: null,
+    });
+
+    await collectStream(stream);
+
+    const quotaEnd = events.indexOf("quota_end");
+    const persistStart = events.indexOf("persist_start");
+    const sessionStart = events.indexOf("session_start");
+    const reminderStart = events.indexOf("reminder_start");
+
+    expect(quotaEnd).toBeLessThan(persistStart);
+    expect(quotaEnd).toBeLessThan(sessionStart);
+    expect(quotaEnd).toBeLessThan(reminderStart);
+
+    const persistEnd = events.indexOf("persist_end");
+    const sessionEnd = events.indexOf("session_end");
+    const reminderEnd = events.indexOf("reminder_end");
+    const lastStart = Math.max(persistStart, sessionStart, reminderStart);
+    const firstEnd = Math.min(persistEnd, sessionEnd, reminderEnd);
+
+    expect(lastStart).toBeLessThan(firstEnd);
+  });
+
+  it("seeds client profile and user preferences into the kickoff on the first turn of a new session", async () => {
+    (getOrCreateSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "sess_new",
+      created: true,
+    });
+    (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: "complete",
+      reason: "end_turn",
+      accumulatedEvents: [],
+      cost: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 0,
+        runtimeSeconds: 0,
+      },
+      approvalEventIds: [],
+    });
+
+    const { runManagedAgent } = await import("../adapter");
+    const stream = await runManagedAgent({
+      anthropic: {} as never,
+      supabase: {} as never,
+      clientId: "client_1",
+      threadId: "thread_1",
+      input: "Draft a follow-up to Kate",
+      clientProfile: "## Client Profile\nJane — broker in SG",
+      userPreferences: "## Preferences\nConcise. No fluff.",
+      threadTitle: null,
+    });
+
+    await collectStream(stream);
+
+    expect(buildKickoffText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientProfile: "## Client Profile\nJane — broker in SG",
+        userPreferences: "## Preferences\nConcise. No fluff.",
+        userMessage: "Draft a follow-up to Kate",
+      }),
+    );
+  });
+
+  it("omits client profile and user preferences from the kickoff on subsequent turns of an existing session", async () => {
+    (getOrCreateSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "sess_existing",
+      created: false,
+    });
+    (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: "complete",
+      reason: "end_turn",
+      accumulatedEvents: [],
+      cost: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 0,
+        runtimeSeconds: 0,
+      },
+      approvalEventIds: [],
+    });
+
+    const { runManagedAgent } = await import("../adapter");
+    const stream = await runManagedAgent({
+      anthropic: {} as never,
+      supabase: {} as never,
+      clientId: "client_1",
+      threadId: "thread_1",
+      input: "Follow-up question",
+      clientProfile: "## Client Profile\nJane — broker in SG",
+      userPreferences: "## Preferences\nConcise. No fluff.",
+      threadTitle: null,
+    });
+
+    await collectStream(stream);
+
+    expect(buildKickoffText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientProfile: null,
+        userPreferences: null,
+        userMessage: "Follow-up question",
       }),
     );
   });

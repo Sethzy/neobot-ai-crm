@@ -83,9 +83,7 @@ function assertWritable(inputPath: string): void {
   }
 
   if (
-    normalizedPath === "skills/system"
-    || normalizedPath.startsWith("skills/system/")
-    || normalizedPath === "skills/connections"
+    normalizedPath === "skills/connections"
     || normalizedPath.startsWith("skills/connections/")
     || segments.length < 3
   ) {

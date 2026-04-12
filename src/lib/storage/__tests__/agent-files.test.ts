@@ -361,15 +361,15 @@ describe("createAgentFileClient", () => {
     );
   });
 
-  it("blocks writes to protected system and connection skill paths", async () => {
+  it("blocks writes to protected connection skill paths but allows skills/system", async () => {
+    supabase.mockUpload.mockResolvedValue({ data: { path: "ok" }, error: null });
     const client = createAgentFileClient(supabase.client, CLIENT_ID);
 
     await expect(
       client.uploadFile("skills/connections/conn-1/SKILL.md", "overwrite"),
     ).rejects.toThrow("read-only");
-    await expect(
-      client.uploadFile("skills/system/creating-connections/SKILL.md", "overwrite"),
-    ).rejects.toThrow("read-only");
+
+    await client.uploadFile("skills/system/creating-connections/SKILL.md", "overwrite");
   });
 
   it("blocks malformed writes at the skills root", async () => {

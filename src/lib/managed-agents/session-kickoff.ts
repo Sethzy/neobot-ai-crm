@@ -19,6 +19,7 @@ export interface KickoffInput {
   userPreferences: string | null;
   systemReminder: string;
   userMessage: string;
+  customizedSkillSlugs: string[];
 }
 
 export function buildKickoffText(input: KickoffInput): string {
@@ -30,6 +31,11 @@ export function buildKickoffText(input: KickoffInput): string {
     sections.push(input.userPreferences.trim());
   }
   sections.push(input.systemReminder.trim());
+  if (input.customizedSkillSlugs.length > 0) {
+    sections.push(
+      `The user has customized these skills: ${input.customizedSkillSlugs.join(", ")}. When you are about to run one of these, first call storage_read('/agent/skills/<slug>/SKILL.md') and use that content as your workflow instead of the predefined one.`,
+    );
+  }
   sections.push(input.userMessage);
   return sections.join("\n\n");
 }

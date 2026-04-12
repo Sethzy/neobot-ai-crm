@@ -1,6 +1,6 @@
 /**
- * Client component for editing a skill's SKILL.md content.
- * Validates frontmatter on save. Reset updates local state explicitly.
+ * Client component for viewing or editing a playbook.
+ *
  * @module app/(dashboard)/skills/[slug]/skill-editor-form
  */
 "use client";
@@ -11,16 +11,24 @@ import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { resetSkillToDefault, saveSkillContent } from "@/lib/runner/skills/skill-actions";
+import { saveSkillContent } from "@/lib/runner/skills/skill-actions";
+
+import { duplicateSkillAction, resetSkillAction } from "../actions";
 
 interface Props {
   slug: string;
   initialContent: string;
-  canReset: boolean;
+  predefinedContent: string;
+  isCustomized: boolean;
 }
 
-export function SkillEditorForm({ slug, initialContent, canReset }: Props) {
-  const [content, setContent] = useState(initialContent);
+export function SkillEditorForm({
+  slug,
+  initialContent,
+  predefinedContent,
+  isCustomized,
+}: Props) {
+  const [content, setContent] = useState(initialContent || predefinedContent);
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
   const router = useRouter();
@@ -41,13 +49,32 @@ export function SkillEditorForm({ slug, initialContent, canReset }: Props) {
   function handleReset() {
     startTransition(async () => {
       setMessage(null);
-      const result = await resetSkillToDefault(slug);
-      if (result.success && result.content) {
-        setContent(result.content);
-        setMessage({ text: "Reset to default.", isError: false });
+      try {
+        await resetSkillAction(slug);
+        setContent(predefinedContent);
+        setMessage({ text: "Reset to predefined.", isError: false });
         router.refresh();
-      } else {
-        setMessage({ text: result.error ?? "Failed to reset.", isError: true });
+      } catch (error) {
+        setMessage({
+          text: error instanceof Error ? error.message : "Failed to reset.",
+          isError: true,
+        });
+      }
+    });
+  }
+
+  function handleDuplicate() {
+    startTransition(async () => {
+      setMessage(null);
+      try {
+        await duplicateSkillAction(slug);
+        setMessage({ text: "Duplicated. You can edit it now.", isError: false });
+        router.refresh();
+      } catch (error) {
+        setMessage({
+          text: error instanceof Error ? error.message : "Failed to duplicate.",
+          isError: true,
+        });
       }
     });
   }
@@ -65,19 +92,25 @@ export function SkillEditorForm({ slug, initialContent, canReset }: Props) {
           </Link>
         </div>
         <div className="flex gap-2">
-          {canReset && (
+          {isCustomized ? (
             <Button
               variant="outline"
               size="sm"
               onClick={handleReset}
               disabled={isPending}
             >
-              Reset to default
+              Reset
+            </Button>
+          ) : null}
+          {isCustomized ? (
+            <Button size="sm" onClick={handleSave} disabled={isPending}>
+              {isPending ? "Saving..." : "Save"}
+            </Button>
+          ) : (
+            <Button size="sm" onClick={handleDuplicate} disabled={isPending}>
+              {isPending ? "Duplicating..." : "Duplicate to edit"}
             </Button>
           )}
-          <Button size="sm" onClick={handleSave} disabled={isPending}>
-            {isPending ? "Saving..." : "Save"}
-          </Button>
         </div>
       </div>
 
@@ -88,7 +121,7 @@ export function SkillEditorForm({ slug, initialContent, canReset }: Props) {
           setMessage(null);
         }}
         className="font-mono text-sm min-h-[500px]"
-        disabled={isPending}
+        disabled={isPending || !isCustomized}
       />
 
       {message && (

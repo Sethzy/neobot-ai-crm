@@ -13,6 +13,7 @@ import {
   emptyUsage,
   type AccumulatedUsage,
 } from "./adapter-cost";
+import { toInternalManagedAgentToolName } from "./tool-name-aliases";
 
 import type { AnthropicEvent } from "./event-types";
 
@@ -68,19 +69,25 @@ export function translateEvent(
       return { parts, terminal: null };
     }
 
-    case "agent.custom_tool_use":
+    case "agent.custom_tool_use": {
+      const internalToolName = toInternalManagedAgentToolName(event.name);
       return {
         parts: [
           {
             type: "tool-call",
             toolCallId: event.id,
-            toolName: event.name,
+            toolName: internalToolName,
             input: event.input,
           },
         ],
         terminal: null,
-        customToolCall: { id: event.id, name: event.name, input: event.input },
+        customToolCall: {
+          id: event.id,
+          name: internalToolName,
+          input: event.input,
+        },
       };
+    }
 
     case "user.custom_tool_result": {
       let payload: unknown;

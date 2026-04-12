@@ -9,7 +9,6 @@ import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { getFileExtension } from "@/lib/file-utils";
 import { createAgentFileClient, normalizeWorkspacePath } from "@/lib/storage/agent-files";
 import { toModelPath, toStoragePath } from "@/lib/storage/agent-paths";
-import { getSystemSkillContent, isSystemSkillPath } from "@/lib/runner/skills/system-skills";
 
 import type { ToolContext } from "../types";
 
@@ -254,23 +253,6 @@ export function resolveStorageWritePath(path: string) {
     normalizedPath,
     modelPath: toModelPath(normalizedPath),
     pathKind: classifyStoragePath(normalizedPath),
-  };
-}
-
-export async function loadBundledSystemSkillIfAvailable(path: string, modelPath: string) {
-  if (!isSystemSkillPath(path)) {
-    return null;
-  }
-
-  const bundledContent = await getSystemSkillContent(path);
-  if (bundledContent === null) {
-    return null;
-  }
-
-  return {
-    success: true as const,
-    path: modelPath,
-    content: bundledContent,
   };
 }
 

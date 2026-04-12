@@ -16,7 +16,6 @@ import {
   runManagedAgent,
 } from "@/lib/managed-agents/adapter";
 import type { ManagedFilePart } from "@/lib/managed-agents/types";
-import { ensureClientBootstrap } from "@/lib/runner/skills/ensure-client-bootstrap";
 import {
   isMessageQuotaError,
   messageQuotaErrorCodes,
@@ -265,9 +264,6 @@ export async function POST(request: Request): Promise<Response> {
     clientId = resolvedClientId;
     _t("resolve_client_id");
 
-    // Fire bootstrap early — overlaps with thread lookup.
-    // No-op SELECT on already-bootstrapped clients (99%+ of requests).
-    const bootstrapPromise = ensureClientBootstrap(supabase, resolvedClientId);
     const clientContextPromise = supabase
       .from("clients")
       .select("client_profile, user_preferences")
@@ -311,9 +307,6 @@ export async function POST(request: Request): Promise<Response> {
     const titlePromise = isNewThread && input.length > 0
       ? generateTitleFromUserMessage(input).catch(() => "")
       : null;
-
-    await bootstrapPromise;
-    _t("ensure_bootstrap");
 
     const [{ data: clientContext, error: clientContextError }] = await Promise.all([
       clientContextPromise,

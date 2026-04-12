@@ -12,7 +12,6 @@ import {
   getStorageFileClient,
   isImageReadResult,
   isPdfReadResult,
-  loadBundledSystemSkillIfAvailable,
   parseStoredImageArtifact,
   PDF_MAX_SIZE_BYTES,
   resolveStorageReadPath,
@@ -97,11 +96,6 @@ export const storageReadTool: ManagedAgentTool<StorageReadInput> = {
         content: applyLineRange(rawContent, start_line, end_line),
       };
     } catch (fileError) {
-      const bundledSkill = await loadBundledSystemSkillIfAvailable(internalPath, modelPath);
-      if (bundledSkill) {
-        return bundledSkill;
-      }
-
       if (!shouldFallbackToDirectory(fileError)) {
         throw fileError;
       }
