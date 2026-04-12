@@ -64,12 +64,12 @@ export async function consumeAnthropicSession(
   const liveHandle = await openSessionStream(anthropic, options.sessionId);
 
   // Kickoff AFTER the live stream is open.
-  if (options.kickoffMessage) {
+  if (options.kickoffContent) {
     await anthropic.beta.sessions.events.send(options.sessionId, {
       events: [
         {
           type: "user.message",
-          content: [{ type: "text", text: options.kickoffMessage }],
+          content: options.kickoffContent,
         },
       ],
     } as never);

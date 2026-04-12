@@ -1,9 +1,9 @@
 /**
  * Session kickoff helpers for the Managed Agents chat adapter.
  *
- * - `buildKickoffText` is a pure concatenation of profile/preferences/
- *   reminder/user-message into the single text body the runner sends as
- *   `user.message` to seed the session.
+ * - `buildKickoffContent` emits the profile/preferences/reminder/user
+ *   input as distinct `user.message.content` text blocks so downstream
+ *   consumers can distinguish scaffolding from the user's own words.
  * - `getOrCreateSession` either reuses the cached `session_id` from
  *   `conversation_threads` or creates a new Anthropic session pinned to
  *   the `ANTHROPIC_AGENT_VERSION` env var, then caches its id back.
@@ -22,22 +22,33 @@ export interface KickoffInput {
   customizedSkillSlugs: string[];
 }
 
-export function buildKickoffText(input: KickoffInput): string {
-  const sections: string[] = [];
+export interface KickoffTextBlock {
+  type: "text";
+  text: string;
+}
+
+export function buildKickoffContent(input: KickoffInput): KickoffTextBlock[] {
+  const blocks: KickoffTextBlock[] = [];
+
   if (input.clientProfile?.trim().length) {
-    sections.push(input.clientProfile.trim());
+    blocks.push({ type: "text", text: input.clientProfile.trim() });
   }
   if (input.userPreferences?.trim().length) {
-    sections.push(input.userPreferences.trim());
+    blocks.push({ type: "text", text: input.userPreferences.trim() });
   }
-  sections.push(input.systemReminder.trim());
+  if (input.systemReminder.trim().length) {
+    blocks.push({ type: "text", text: input.systemReminder.trim() });
+  }
   if (input.customizedSkillSlugs.length > 0) {
-    sections.push(
-      `The user has customized these skills: ${input.customizedSkillSlugs.join(", ")}. When you are about to run one of these, first call storage_read('/agent/skills/<slug>/SKILL.md') and use that content as your workflow instead of the predefined one.`,
-    );
+    blocks.push({
+      type: "text",
+      text: `The user has customized these skills: ${input.customizedSkillSlugs.join(", ")}. When you are about to run one of these, first call storage_read('/agent/skills/<slug>/SKILL.md') and use that content as your workflow instead of the predefined one.`,
+    });
   }
-  sections.push(input.userMessage);
-  return sections.join("\n\n");
+
+  blocks.push({ type: "text", text: input.userMessage });
+
+  return blocks;
 }
 
 export interface GetOrCreateSessionInput {

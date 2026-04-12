@@ -18,7 +18,7 @@ vi.mock("../session-runner", () => ({
   consumeAnthropicSession: vi.fn(),
 }));
 vi.mock("../session-kickoff", () => ({
-  buildKickoffText: vi.fn(() => "kickoff"),
+  buildKickoffContent: vi.fn(() => [{ type: "text", text: "kickoff" }]),
   getOrCreateSession: vi
     .fn()
     .mockResolvedValue({ id: "sess_1", created: true }),
@@ -79,7 +79,7 @@ vi.mock("../attach-session-file", () => ({
 }));
 
 const { consumeAnthropicSession } = await import("../session-runner");
-const { buildKickoffText, getOrCreateSession } = await import("../session-kickoff");
+const { buildKickoffContent, getOrCreateSession } = await import("../session-kickoff");
 const { buildSystemReminder } = await import("@/lib/runner/system-reminder");
 const { completeRun, markStaleRunsFailed } = await import("@/lib/runner/run-lifecycle");
 const { upsertMessage } = await import("@/lib/chat/messages");
@@ -349,7 +349,7 @@ describe("runManagedAgent — happy path", () => {
 
     await collectStream(stream);
 
-    expect(buildKickoffText).toHaveBeenCalledWith(
+    expect(buildKickoffContent).toHaveBeenCalledWith(
       expect.objectContaining({
         clientProfile: "## Client Profile\nJane — broker in SG",
         userPreferences: "## Preferences\nConcise. No fluff.",
@@ -391,7 +391,7 @@ describe("runManagedAgent — happy path", () => {
 
     await collectStream(stream);
 
-    expect(buildKickoffText).toHaveBeenCalledWith(
+    expect(buildKickoffContent).toHaveBeenCalledWith(
       expect.objectContaining({
         clientProfile: null,
         userPreferences: null,

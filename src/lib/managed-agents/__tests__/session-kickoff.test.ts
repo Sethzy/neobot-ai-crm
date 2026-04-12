@@ -1,56 +1,63 @@
 /**
  * @module lib/managed-agents/__tests__/session-kickoff.test
  *
- * Tests for `buildKickoffText` and `getOrCreateSession`. We stub the
+ * Tests for `buildKickoffContent` and `getOrCreateSession`. We stub the
  * Anthropic + Supabase clients with the minimal shape the helpers consume
  * so we can assert ordering, agent version pinning, and reuse semantics
  * without standing up a real backend.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import { buildKickoffText, getOrCreateSession } from "../session-kickoff";
+import { buildKickoffContent, getOrCreateSession } from "../session-kickoff";
 
-describe("buildKickoffText", () => {
-  it("concatenates profile + preferences + reminder + user message in order", () => {
-    const text = buildKickoffText({
-      clientProfile: "## Client Profile\nJane — broker",
-      userPreferences: "## Preferences\nConcise",
-      systemReminder: "<reminder>Open todos: 3</reminder>",
-      userMessage: "Draft follow-up to Kate",
+describe("buildKickoffContent", () => {
+  it("emits separate text blocks for scaffolding and user message", () => {
+    const content = buildKickoffContent({
+      clientProfile: "profile-text",
+      userPreferences: "prefs-text",
+      systemReminder: "reminder-text",
+      userMessage: "hello",
       customizedSkillSlugs: [],
     });
-    const profileIdx = text.indexOf("## Client Profile");
-    const prefIdx = text.indexOf("## Preferences");
-    const reminderIdx = text.indexOf("<reminder>");
-    const msgIdx = text.indexOf("Draft follow-up");
-    expect(profileIdx).toBeLessThan(prefIdx);
-    expect(prefIdx).toBeLessThan(reminderIdx);
-    expect(reminderIdx).toBeLessThan(msgIdx);
+
+    expect(content).toEqual([
+      { type: "text", text: "profile-text" },
+      { type: "text", text: "prefs-text" },
+      { type: "text", text: "reminder-text" },
+      { type: "text", text: "hello" },
+    ]);
   });
 
   it("omits empty sections cleanly", () => {
-    const text = buildKickoffText({
+    const content = buildKickoffContent({
       clientProfile: null,
       userPreferences: null,
-      systemReminder: "<reminder>first turn</reminder>",
+      systemReminder: "reminder",
       userMessage: "hi",
       customizedSkillSlugs: [],
     });
-    expect(text).not.toContain("## Client Profile");
-    expect(text.trim().startsWith("<reminder>")).toBe(true);
+
+    expect(content).toEqual([
+      { type: "text", text: "reminder" },
+      { type: "text", text: "hi" },
+    ]);
   });
 
   it("appends an override note when the user has customized skills", () => {
-    const text = buildKickoffText({
+    const content = buildKickoffContent({
       clientProfile: null,
       userPreferences: null,
-      systemReminder: "<reminder>first turn</reminder>",
-      userMessage: "hi",
-      customizedSkillSlugs: ["call-prep", "pipeline-review"],
+      systemReminder: "r",
+      userMessage: "m",
+      customizedSkillSlugs: ["pdf", "qa"],
     });
 
-    expect(text).toMatch(/customized these skills: call-prep, pipeline-review/i);
-    expect(text).toMatch(/storage_read\('\/agent\/skills\/<slug>\/SKILL\.md'\)/);
+    expect(content).toContainEqual(
+      expect.objectContaining({
+        type: "text",
+        text: expect.stringContaining("customized these skills: pdf, qa"),
+      }),
+    );
   });
 });
 

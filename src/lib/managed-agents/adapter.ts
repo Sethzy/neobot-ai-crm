@@ -55,12 +55,13 @@ import type { Json } from "@/types/database";
 import { computeTurnCost } from "./adapter-cost";
 import { attachFileToSession } from "./attach-session-file";
 import { buildAssistantPartsFromEvents } from "./events-to-assistant-parts";
-import { buildKickoffText, getOrCreateSession } from "./session-kickoff";
+import { buildKickoffContent, getOrCreateSession } from "./session-kickoff";
 import { consumeAnthropicSession } from "./session-runner";
 import { toInternalManagedAgentToolName } from "./tool-name-aliases";
 import type {
   ManagedFilePart,
   ManagedSupabaseClient,
+  SessionRunnerOptions,
   SessionRunnerCallbacks,
   SessionRunnerResult,
 } from "./types";
@@ -423,7 +424,7 @@ export async function runManagedAgent(
   let shouldReleaseConsumedQuota = false;
   let consumedQuota: Awaited<ReturnType<typeof consumeMessageQuota>> | null = null;
   let sessionId: string;
-  let kickoff: string;
+  let kickoffContent: NonNullable<SessionRunnerOptions["kickoffContent"]>;
 
   try {
     const quota = await consumeMessageQuota(input.supabase, input.clientId);
@@ -468,7 +469,7 @@ export async function runManagedAgent(
       input.supabase,
       input.clientId,
     );
-    kickoff = buildKickoffText({
+    kickoffContent = buildKickoffContent({
       clientProfile: session.created ? input.clientProfile : null,
       userPreferences: session.created ? input.userPreferences : null,
       systemReminder: reminder,
@@ -520,7 +521,7 @@ export async function runManagedAgent(
             threadId: input.threadId,
             isChatContext: true,
           },
-          kickoffMessage: kickoff,
+          kickoffContent,
           autoDenyApprovals: false,
           callbacks: buildUiStreamCallbacks(writer),
         });

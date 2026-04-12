@@ -117,7 +117,7 @@ describe("consumeAnthropicSession — happy path", () => {
       sessionId: "sess_1",
       runId: "run_1",
       context: baseContext(),
-      kickoffMessage: "hi there",
+      kickoffContent: [{ type: "text", text: "hi there" }],
     });
 
     // openSessionStream is the eager helper that synchronously calls
