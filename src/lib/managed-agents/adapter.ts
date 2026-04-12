@@ -2,8 +2,7 @@
  * Chat adapter — thin wrapper over `consumeAnthropicSession`.
  *
  * Responsibilities (everything else lives in the session runner):
- *   1. Acquire the per-thread run lock via `createRun` (after sweeping
- *      stale rows with `markStaleRunsFailed`).
+ *   1. Acquire the per-thread run lock via `createRun`.
  *   2. Create or reuse the Anthropic session for the thread.
  *   3. Build the kickoff text from profile + preferences + system reminder
  *      + the user's input.
@@ -48,7 +47,6 @@ import {
 import {
   completeRun,
   createRun,
-  markStaleRunsFailed,
 } from "@/lib/runner/run-lifecycle";
 import { listCustomizedSkillSlugs } from "@/lib/runner/skills/list-customized-skill-slugs";
 import { buildSystemReminder } from "@/lib/runner/system-reminder";
@@ -411,7 +409,6 @@ export type RunManagedAgentResult =
 export async function runManagedAgent(
   input: RunManagedAgentInput,
 ): Promise<RunManagedAgentResult> {
-  await markStaleRunsFailed(input.supabase, { threadId: input.threadId });
   const lock = await createRun(input.supabase, {
     threadId: input.threadId,
     clientId: input.clientId,
@@ -541,10 +538,10 @@ export async function runManagedAgent(
         });
       } catch (error) {
         // Anything thrown after createRun() but before the run is
-        // marked complete leaves the row stuck in `running` until
-        // markStaleRunsFailed sweeps it. Mark failed eagerly so the
-        // thread isn't locked, then re-throw so the UIMessageStream
-        // surfaces the error to the consumer.
+        // marked complete leaves the row stuck in `running` until the
+        // pg_cron `sweep_stale_runs` job picks it up. Mark failed
+        // eagerly so the thread isn't locked, then re-throw so the
+        // UIMessageStream surfaces the error to the consumer.
         try {
           await completeRun(input.supabase, {
             runId,

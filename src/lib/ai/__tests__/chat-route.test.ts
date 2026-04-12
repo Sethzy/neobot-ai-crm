@@ -89,7 +89,11 @@ vi.mock("@json-render/core", () => ({
   pipeJsonRender: vi.fn((stream: unknown) => stream),
 }));
 
-import { POST, maxDuration } from "../../../../app/api/chat/route";
+import {
+  POST,
+  maxDuration,
+  runtime,
+} from "../../../../app/api/chat/route";
 
 function createJsonRequest(body: unknown): Request {
   return new Request("http://localhost/api/chat", {
@@ -104,6 +108,10 @@ describe("POST /api/chat", () => {
 
   it("exports a 300 second maxDuration (Pro-plan ceiling) for chat runs", () => {
     expect(maxDuration).toBe(300);
+  });
+
+  it("pins the chat route to the nodejs runtime for stable SSE streaming", () => {
+    expect(runtime).toBe("nodejs");
   });
 
   function createThreadLookup(options: { threadExists: boolean; error?: { message: string } | null }) {
@@ -325,8 +333,15 @@ describe("POST /api/chat", () => {
 
     const responseOptions = mockCreateUIMessageStreamResponse.mock.calls[0][0] as {
       stream: ReadableStream;
+      headers?: Record<string, string>;
     };
     expect(responseOptions.stream).toBe(wrappedStream);
+    expect(responseOptions.headers).toEqual(
+      expect.objectContaining({
+        "Cache-Control": "no-cache, no-transform",
+        "X-Accel-Buffering": "no",
+      }),
+    );
 
     expect(response).toBe(streamResponse);
   });
@@ -602,6 +617,10 @@ describe("POST /api/chat", () => {
     // continuation, so an "already resolved" outcome just means the user
     // replayed a stale click from a prior request — route should settle
     // quietly instead of surfacing a 409.
+    const streamResponse = new Response("streamed", {
+      headers: { "Content-Type": "text/event-stream" },
+    });
+    mockCreateUIMessageStreamResponse.mockReturnValue(streamResponse);
     mockResumeManagedAgentFromApproval.mockResolvedValue({
       status: "already_resolved",
       threadId,
@@ -630,6 +649,14 @@ describe("POST /api/chat", () => {
 
     expect(response.status).toBe(200);
     expect(mockRunManagedAgent).not.toHaveBeenCalled();
+    expect(mockCreateUIMessageStreamResponse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "Cache-Control": "no-cache, no-transform",
+          "X-Accel-Buffering": "no",
+        }),
+      }),
+    );
   });
 
   it("walks from newest to oldest approval and skips already-resolved entries", async () => {

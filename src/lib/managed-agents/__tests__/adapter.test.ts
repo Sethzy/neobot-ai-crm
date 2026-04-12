@@ -81,7 +81,7 @@ vi.mock("../attach-session-file", () => ({
 const { consumeAnthropicSession } = await import("../session-runner");
 const { buildKickoffText, getOrCreateSession } = await import("../session-kickoff");
 const { buildSystemReminder } = await import("@/lib/runner/system-reminder");
-const { completeRun } = await import("@/lib/runner/run-lifecycle");
+const { completeRun, markStaleRunsFailed } = await import("@/lib/runner/run-lifecycle");
 const { upsertMessage } = await import("@/lib/chat/messages");
 const { deliverToExternalChannels } = await import("@/lib/channels/deliver");
 const { runEvaluatorsForEvents } = await import("@/lib/eval/run-evaluators");
@@ -398,6 +398,38 @@ describe("runManagedAgent — happy path", () => {
         userMessage: "Follow-up question",
       }),
     );
+  });
+
+  it("does not sweep stale runs on the hot path", async () => {
+    (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: "complete",
+      reason: "end_turn",
+      accumulatedEvents: [],
+      cost: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 0,
+        runtimeSeconds: 0,
+      },
+      approvalEventIds: [],
+    });
+
+    const { runManagedAgent } = await import("../adapter");
+    const stream = await runManagedAgent({
+      anthropic: {} as never,
+      supabase: {} as never,
+      clientId: "c1",
+      threadId: "t1",
+      input: "hi",
+      clientProfile: null,
+      userPreferences: null,
+      threadTitle: null,
+    });
+
+    await collectStream(stream);
+
+    expect(markStaleRunsFailed).not.toHaveBeenCalled();
   });
 });
 
