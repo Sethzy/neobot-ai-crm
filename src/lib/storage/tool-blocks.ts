@@ -19,7 +19,7 @@ export function serializeToolOutput(output: unknown): string | null {
 
 /**
  * Stores both the tool call arguments and result to the tenant workspace.
- * Called for observability and subagent block persistence.
+ * Called for observability and run block persistence.
  */
 export async function saveToolcallBlock(
   supabase: ChatSupabaseClient,

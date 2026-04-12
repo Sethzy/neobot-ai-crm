@@ -3,6 +3,7 @@
  * @module app/api/chat/route
  */
 import type { UIMessage } from "ai";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
@@ -20,11 +21,29 @@ import {
   isMessageQuotaError,
   messageQuotaErrorCodes,
 } from "@/lib/usage/message-quota";
+import type { Database } from "@/types/database";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { type PostRequestBody, postRequestBodySchema } from "./schema";
 
-/** Pro-plan ceiling (300s). Most runs finish in <30s; this just prevents early kills on complex subagent work. */
+/**
+ * Next.js defaults route handlers to Node.js, but pinning it here makes the
+ * streaming contract explicit for the chat hot path.
+ */
+export const runtime = "nodejs";
+/** Pro-plan ceiling (300s). Most runs finish in <30s; this just prevents early kills on complex long-running work. */
 export const maxDuration = 300;
+
+const streamResponseHeaders = {
+  "Cache-Control": "no-cache, no-transform",
+  "X-Accel-Buffering": "no",
+} satisfies Record<string, string>;
+
+function createChatStreamResponse(stream: ReadableStream): Response {
+  return createUIMessageStreamResponse({
+    stream,
+    headers: streamResponseHeaders,
+  });
+}
 
 function getTextFromUnknownParts(parts: unknown[]): string | null {
   const text = parts
@@ -93,7 +112,7 @@ interface ApprovalResponse {
 }
 
 async function deleteThreadIfEmpty(
-  supabase: { from: (table: string) => any },
+  supabase: Pick<SupabaseClient<Database>, "from">,
   threadId: string,
   clientId: string,
 ): Promise<void> {
@@ -376,7 +395,7 @@ export async function POST(request: Request): Promise<Response> {
             originalMessages: body.messages as UIMessage[] | undefined,
             execute: async () => {},
           });
-          return createUIMessageStreamResponse({ stream: emptyStream });
+          return createChatStreamResponse(emptyStream);
         }
         return jsonError("Approval not found.", 404);
       }
@@ -411,7 +430,7 @@ export async function POST(request: Request): Promise<Response> {
       });
 
       _t("approval_response_returned");
-      return createUIMessageStreamResponse({ stream: approvalStream });
+      return createChatStreamResponse(approvalStream);
     }
 
     // ── Fresh turn branch ───────────────────────────────────────────────────
@@ -480,7 +499,7 @@ export async function POST(request: Request): Promise<Response> {
     });
 
     _t("response_returned");
-    return createUIMessageStreamResponse({ stream });
+    return createChatStreamResponse(stream);
   } catch (error) {
     if (didCreateThread && clientId) {
       await deleteThreadIfEmpty(supabase, threadId, clientId);

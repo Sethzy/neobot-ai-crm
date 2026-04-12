@@ -25,7 +25,7 @@ interface CreateCrmToolsOptions {
    * Enables mutating CRM tools for the active run.
    */
   allowWriteTools?: boolean;
-  /** Excludes destructive + schema-modifying CRM tools (delete_records, configure_crm) from subagent registries. */
+  /** Excludes destructive + schema-modifying CRM tools (delete_records, configure_crm). */
   allowDeleteTools?: boolean;
 }
 

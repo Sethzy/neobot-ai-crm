@@ -3,13 +3,12 @@
  * @module lib/runner/run-types
  */
 
-/** Canonical persisted run-type values across chat, triggers, and subagents. */
+/** Canonical persisted run-type values across chat and triggers. */
 export const runTypeValues = [
   "chat",
   "webhook",
   "cron",
   "autopilot",
-  "subagent",
 ] as const;
 
 /** String literal union for persisted run-type values. */

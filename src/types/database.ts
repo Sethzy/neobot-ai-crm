@@ -1465,7 +1465,6 @@ export type Database = {
           created_at: string
           events_cursor: string | null
           model: string | null
-          parent_run_id: string | null
           prompt_tokens: number | null
           run_id: string
           run_type: string
@@ -1484,7 +1483,6 @@ export type Database = {
           created_at?: string
           events_cursor?: string | null
           model?: string | null
-          parent_run_id?: string | null
           prompt_tokens?: number | null
           run_id?: string
           run_type?: string
@@ -1503,7 +1501,6 @@ export type Database = {
           created_at?: string
           events_cursor?: string | null
           model?: string | null
-          parent_run_id?: string | null
           prompt_tokens?: number | null
           run_id?: string
           run_type?: string
@@ -1521,13 +1518,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "clients"
             referencedColumns: ["client_id"]
-          },
-          {
-            foreignKeyName: "runs_parent_run_id_fkey"
-            columns: ["parent_run_id"]
-            isOneToOne: false
-            referencedRelation: "runs"
-            referencedColumns: ["run_id"]
           },
           {
             foreignKeyName: "runs_thread_id_fkey"

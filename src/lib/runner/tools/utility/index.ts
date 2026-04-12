@@ -14,8 +14,6 @@ import { createSqlTools } from "./sql";
 import { createTodoTools } from "./todo";
 
 export interface CreateUtilityToolsOptions {
-  /** Removes user-facing tools that a subagent cannot safely use. */
-  isSubagent?: boolean;
   /** Allows explicit control over whether outbound messaging is included. */
   includeSendMessage?: boolean;
   /** Resolved CRM config for the active run, if already loaded upstream. */
@@ -31,14 +29,13 @@ export function createUtilityTools(
   threadId: string,
   options?: CreateUtilityToolsOptions,
 ) {
-  const isSubagent = options?.isSubagent ?? false;
-  const includeSendMessage = options?.includeSendMessage ?? !isSubagent;
+  const includeSendMessage = options?.includeSendMessage ?? true;
 
   return {
-    ...(!isSubagent ? createTodoTools(supabase, clientId, threadId) : {}),
+    ...createTodoTools(supabase, clientId, threadId),
     ...createSqlTools(supabase, options?.crmConfig),
-    ...(!isSubagent ? createAskUserQuestionTool() : {}),
-    ...(!isSubagent ? createRenameChatTool(supabase, clientId, threadId) : {}),
+    ...createAskUserQuestionTool(),
+    ...createRenameChatTool(supabase, clientId, threadId),
     ...(includeSendMessage ? createSendMessageTool() : {}),
   };
 }

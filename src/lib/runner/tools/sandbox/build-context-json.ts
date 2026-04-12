@@ -12,7 +12,6 @@ const EXCLUDED_TOOLS = new Set([
   "send_message",
   "reply_message",
   "add_contact_method",
-  "run_subagent",
   "setup_trigger",
   "manage_active_triggers",
   "create_new_connections",
