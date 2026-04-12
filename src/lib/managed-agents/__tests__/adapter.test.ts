@@ -662,6 +662,38 @@ describe("runManagedAgent — failure cleanup", () => {
     );
   });
 
+  it("marks the run failed when attachment fetch fails during setup", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(null, { status: 500 }),
+    );
+
+    const { runManagedAgent } = await import("../adapter");
+
+    await expect(
+      runManagedAgent({
+        anthropic: {} as never,
+        supabase: {} as never,
+        clientId: "c1",
+        threadId: "t1",
+        input: "see attached",
+        fileParts: [{
+          type: "file",
+          url: "https://storage.example.com/bad.pdf",
+          mediaType: "application/pdf",
+          filename: "bad.pdf",
+        }],
+        clientProfile: null,
+        userPreferences: null,
+        threadTitle: null,
+      }),
+    ).rejects.toThrow("Failed to fetch attachment bad.pdf (500)");
+
+    expect(completeRun).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ status: "failed", runId: "run_1" }),
+    );
+  });
+
   it("attaches file parts only after the managed session exists", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(new Blob(["brief"], { type: "application/pdf" }), { status: 200 }),

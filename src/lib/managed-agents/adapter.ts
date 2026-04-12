@@ -301,7 +301,7 @@ async function persistAssistantOutput(options: {
   });
 }
 
-async function attachFilesToManagedSession(options: {
+export async function attachFilesToManagedSession(options: {
   sessionId: string;
   fileParts: readonly ManagedFilePart[];
   logLabel: string;
@@ -312,20 +312,18 @@ async function attachFilesToManagedSession(options: {
 
   await Promise.all(
     options.fileParts.map(async (filePart) => {
-      try {
-        const response = await fetch(filePart.url);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch attachment (${response.status})`);
-        }
-
-        await attachFileToSession({
-          sessionId: options.sessionId,
-          file: await response.blob(),
-          filename: filePart.filename ?? "upload",
-        });
-      } catch (error) {
-        console.error(`[${options.logLabel}] Failed to attach file to session:`, error);
+      const response = await fetch(filePart.url);
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch attachment ${filePart.filename ?? "(unnamed)"} (${response.status})`,
+        );
       }
+
+      await attachFileToSession({
+        sessionId: options.sessionId,
+        file: await response.blob(),
+        filename: filePart.filename ?? "upload",
+      });
     }),
   );
 }
