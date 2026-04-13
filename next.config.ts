@@ -113,7 +113,7 @@ const nextConfig: NextConfig = {
     };
     return config;
   },
-  serverExternalPackages: ["bash-tool", "just-bash"],
+  serverExternalPackages: ["bash-tool", "just-bash", "web-streams-polyfill"],
 };
 
 export default withSentryConfig(withBundleAnalyzer(nextConfig), {

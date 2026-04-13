@@ -1,117 +1,79 @@
 ---
 name: debug-trace
-description: Debug a Sunder agent bug by pulling the Anthropic managed-agent session history for a thread visible in a screenshot. Paste a screenshot of the bug + describe what's wrong, and this skill resolves the session, prints the event timeline, shows tool calls/errors, and helps troubleshoot.
+description: Trace a Sunder managed-agent session. Paste a chat URL, thread ID, or session ID and get the full Anthropic event timeline with tool calls, errors, and cost.
 user_invocable: true
 ---
 
 # Debug Trace
 
-You are debugging a bug the user encountered while testing Sunder in dev. The user will paste a screenshot of the chat UI and describe the problem. Your job is to pull the managed-agent session history, show what happened, and troubleshoot together.
+Trace a managed-agent session end-to-end using the Anthropic Sessions Events API. The user pastes a URL, thread ID, or session ID and you pull the timeline, diagnose what went wrong, and point to the source code.
 
-## Step 1: Extract the thread ID
+## Step 1: Extract the ID
 
-Look at the screenshot URL bar. The thread ID is the UUID in `localhost:3001/chat/<threadId>`.
+The user's input can be any of:
+- A chat URL: `localhost:3005/chat/<threadId>` — extract the UUID
+- A bare thread UUID: `7245f7eb-bfbd-4119-a667-e47b0eb9ccd5`
+- A session ID: `sesn_011CZzBWbTvXtSr1SXMEZg2D`
 
-If the screenshot already shows a `sesn_*` id somewhere, you can use that directly instead.
+## Step 2: Pull the trace
 
-## Step 2: Pull the managed-agent session timeline
-
-The helper script accepts a thread id, session id, or full chat URL. It resolves `conversation_threads.session_id` via Supabase when needed, then fetches:
-
-- `client.beta.sessions.retrieve(sessionId)`
-- `client.beta.sessions.events.list(sessionId)`
-
-Run:
+Run `pnpm trace` which calls `scripts/debug-trace/fetch-events.ts`. It resolves thread → session via Supabase, then fetches the full event history from the Anthropic Sessions Events API.
 
 ```bash
-source .env.local && pnpm tsx scripts/debug-trace/fetch-events.ts "<THREAD_ID_OR_SESSION_ID_OR_CHAT_URL>"
+pnpm trace "<ID>" 2>/dev/null
 ```
 
-The output is the raw trace timeline. Show that first before you analyze it.
+Present the output verbatim — the user wants to see the raw timeline first.
 
-## Step 3: Read the timeline
+## Step 3: Flag problems
 
-The report is organized into:
+Scan the timeline for:
 
-1. Session summary
-2. Timeline
-3. Final agent message
+| Signal | What it means |
+|--------|--------------|
+| `-> pending` on a CUSTOM TOOL | Tool call was never answered — session is deadlocked |
+| `stop_reason=requires_action` | Session waiting for a tool result or approval that never came |
+| `stop_reason=retries_exhausted` | Anthropic gave up after repeated failures |
+| `error=true` on any tool | Tool handler returned an error — check the result text |
+| `SESSION ERROR` | Anthropic-side error — check the message |
+| `SESSION TERMINATED` | Session died — check preceding events for cause |
+| Very high token counts on a MODEL REQUEST | Possible context blowup or missing cache |
+| `CONTEXT COMPACTED` | Session hit context limits — check if important context was lost |
 
-Focus on these event pairs and signals:
+## Step 4: Trace to source code
 
-- `user.message` / `agent.message`
-- `agent.custom_tool_use` / `user.custom_tool_result`
-- `agent.tool_use` / `agent.tool_result`
-- `agent.mcp_tool_use` / `agent.mcp_tool_result`
-- `span.model_request_start` / `span.model_request_end`
-- `user.tool_confirmation`
-- `session.error`
-- `session.status_idle` and `session.status_terminated`
-
-What to extract from the report:
-
-1. Step sequence: what happened, in order
-2. Tool calls: tool name, summarized input, summarized result, and any `error=true`
-3. Errors: session errors, denied approvals, tool failures, `retries_exhausted`, terminated sessions
-4. Token/runtime cost: use the report’s cost summary as the baseline
-5. Final agent message: compare this to what the user saw in the UI
-
-## Step 4: Analyze against the user's bug report
-
-Compare what the session history shows vs what the user described:
-
-- Data issue: did tools return the right records?
-- Rendering issue: did the backend produce the right assistant parts but the UI render them incorrectly?
-- Tool selection issue: did the agent choose the wrong tool or skip a necessary one?
-- Approval issue: did a `tool_use` stall, get denied, or resume incorrectly?
-- Context issue: was the wrong profile/preferences/context sent at kickoff?
-- Error propagation issue: did a tool or session error happen but the UI surface the wrong thing?
-
-## Step 5: Trace to source code
-
-Once you identify the bug category, inspect the current post-cutover files:
+Once you identify the bug category, check the relevant source:
 
 | Bug type | Files to check |
 |----------|---------------|
-| Kickoff / context assembly | `src/lib/managed-agents/session-kickoff.ts`, `src/lib/runner/system-reminder.ts` |
-| Session loop / event handling | `src/lib/managed-agents/session-runner.ts`, `src/lib/managed-agents/session-reconnect.ts`, `src/lib/managed-agents/event-translator.ts` |
-| Chat entrypoint / approval continuation | `app/api/chat/route.ts`, `src/lib/managed-agents/adapter.ts`, `app/api/tool-confirm/route.ts`, `app/api/webhook/telegram/route.ts` |
-| Tool logic | `src/lib/managed-agents/tools/` |
-| Assistant-part persistence / delivery | `src/lib/managed-agents/events-to-assistant-parts.ts`, `src/lib/chat/messages.ts`, `src/lib/channels/deliver.ts` |
-| Frontend rendering | `src/components/chat/` |
-| Trigger-only bug | `src/lib/triggers/executor.ts`, `src/lib/managed-agents/spawn-trigger-run.ts`, `src/trigger/run-trigger-agent.ts`, `src/lib/managed-agents/finalize-trigger-run.ts` |
+| Custom tool logic | `src/lib/managed-agents/tools/` — find the specific tool handler |
+| Tool dispatch / routing | `src/lib/managed-agents/dispatcher.ts` |
+| Session runner loop | `src/lib/managed-agents/session-runner.ts` |
+| Stream forwarding to UI | `src/lib/managed-agents/session-stream-forwarder.ts` |
+| Chat adapter / POST handler | `src/lib/managed-agents/adapter.ts`, `app/api/chat/route.ts` |
+| Event translation | `src/lib/managed-agents/event-translator.ts` |
+| Frontend rendering | `src/components/chat/` — message-list, message-bubble, data-stream |
+| Auto-resume / thread switch | `src/hooks/use-auto-resume.ts`, `app/(dashboard)/chat/[threadId]/` |
+| Approval flow | `src/lib/approvals/`, session-runner.ts approval handling |
+| System prompt / agent config | `scripts/managed-agents/create-agent.ts` |
+| CRM tools | `src/lib/crm/` |
+| File / storage tools | `src/lib/managed-agents/tools/storage/` |
 
-Do not point at deleted Langfuse or legacy-runner files. They are gone.
+## Step 5: Propose fix
 
-## Step 6: Propose fix
-
-Present your findings in this order:
-
-1. What happened
-2. Root cause
-3. Proposed fix
+Present:
+1. **What happened** — 1-2 sentences from the trace
+2. **Root cause** — which file/function, what went wrong
+3. **Proposed fix** — specific code change
 
 Ask the user if they want you to implement the fix.
 
-## Browser Testing / Reproduction
+## Ad-hoc recovery
 
-When you need to reproduce a bug or test a fix in the browser, use Playwright MCP. Do not use Vercel Agent Browser for localhost.
+If the session is stuck (`requires_action` with a pending custom tool), you can unstick it:
 
-Log in with the test account:
-
-- Email: `limzheyi1996@gmail.com`
-- Password: `123456`
-
-Useful sequence:
-
-1. Navigate to `http://localhost:3001`
-2. Fill the login form
-3. Use `browser_snapshot` to inspect DOM state
-4. Use `browser_take_screenshot` to capture the visual result
-
-## Notes
-
-- Always show the raw timeline first before you analyze it.
-- If the timeline looks correct but the UI looks wrong, focus on `src/components/chat/` and the persisted assistant parts.
-- If a thread has no `session_id`, the bug may have happened before managed-agent kickoff. Check the browser console or server logs next.
-- The helper script uses Anthropic + Supabase directly. It does not depend on Langfuse.
+```bash
+ant beta:sessions:events send \
+  --session-id <SESSION_ID> \
+  --event '{type: user.custom_tool_result, custom_tool_use_id: <TOOL_USE_EVENT_ID>, content: [{type: text, text: "{\"success\":false,\"error\":\"Session recovered after client disconnect\"}"}], is_error: true}'
+```

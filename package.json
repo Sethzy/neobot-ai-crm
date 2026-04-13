@@ -17,7 +17,8 @@
     "test:run": "vitest run",
     "mcp": "tsx mcp-server.ts",
     "map:generate": "tsx scripts/generate-sg-map.ts",
-    "cache-metrics": "node --env-file=.env.local scripts/cache-metrics.mjs"
+    "cache-metrics": "node --env-file=.env.local scripts/cache-metrics.mjs",
+    "trace": "tsx scripts/debug-trace/fetch-events.ts"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^3.0.22",

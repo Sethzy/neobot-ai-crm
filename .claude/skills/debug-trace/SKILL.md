@@ -1,112 +1,79 @@
 ---
 name: debug-trace
-description: Debug a Sunder agent bug by pulling the Langfuse trace for a thread visible in a screenshot. Paste a screenshot of the bug + describe what's wrong, and this skill pulls the full trace, shows tool calls/errors, and helps troubleshoot.
+description: Trace a Sunder managed-agent session. Paste a chat URL, thread ID, or session ID and get the full Anthropic event timeline with tool calls, errors, and cost.
 user_invocable: true
 ---
 
 # Debug Trace
 
-You are debugging a bug the user encountered while testing Sunder in dev. The user will paste a screenshot of the chat UI and describe the problem. Your job is to pull the Langfuse trace, show what happened, and troubleshoot together.
+Trace a managed-agent session end-to-end using the Anthropic Sessions Events API. The user pastes a URL, thread ID, or session ID and you pull the timeline, diagnose what went wrong, and point to the source code.
 
-## Step 1: Extract the thread ID
+## Step 1: Extract the ID
 
-Look at the screenshot URL bar. The thread ID is the UUID in `localhost:3001/chat/<threadId>`.
+The user's input can be any of:
+- A chat URL: `localhost:3005/chat/<threadId>` — extract the UUID
+- A bare thread UUID: `7245f7eb-bfbd-4119-a667-e47b0eb9ccd5`
+- A session ID: `sesn_011CZzBWbTvXtSr1SXMEZg2D`
 
-## Step 2: Pull the Langfuse trace
+## Step 2: Pull the trace
 
-The test account is always the same:
-- **Email:** `limzheyi1996@gmail.com`
-- **Password:** `123456`
-- **Client ID (userId in Langfuse):** `d66bc1b7-d6b0-4651-96b2-f8ee25f3708a`
-- **Credentials:** loaded from `.env.local` via `--env .env.local`
-
-Run this to get traces for that thread:
+Run `pnpm trace` which calls `scripts/debug-trace/fetch-events.ts`. It resolves thread → session via Supabase, then fetches the full event history from the Anthropic Sessions Events API.
 
 ```bash
-source .env.local && npx langfuse-cli --env .env.local api traces list \
-  --session-id "<THREAD_ID>" \
-  --order-by "timestamp.desc" \
-  --limit 5 \
-  --json 2>/dev/null
+pnpm trace "<ID>" 2>/dev/null
 ```
 
-From the results, identify the **latest `sunder-chat` trace** (ignore traces with very low token counts — those are title-generation calls from `generateText`).
+Present the output verbatim — the user wants to see the raw timeline first.
 
-## Step 3: Get observations for the trace
+## Step 3: Flag problems
 
-```bash
-source .env.local && npx langfuse-cli --env .env.local api observations list \
-  --trace-id "<TRACE_ID>" \
-  --limit 100 \
-  --json 2>/dev/null
-```
+Scan the timeline for:
 
-Parse the observations and present a clear timeline:
+| Signal | What it means |
+|--------|--------------|
+| `-> pending` on a CUSTOM TOOL | Tool call was never answered — session is deadlocked |
+| `stop_reason=requires_action` | Session waiting for a tool result or approval that never came |
+| `stop_reason=retries_exhausted` | Anthropic gave up after repeated failures |
+| `error=true` on any tool | Tool handler returned an error — check the result text |
+| `SESSION ERROR` | Anthropic-side error — check the message |
+| `SESSION TERMINATED` | Session died — check preceding events for cause |
+| Very high token counts on a MODEL REQUEST | Possible context blowup or missing cache |
+| `CONTEXT COMPACTED` | Session hit context limits — check if important context was lost |
 
-1. **Step sequence:** Show the GENERATION → TOOL → GENERATION flow in order
-2. **Tool calls:** For each tool call, show:
-   - Tool name
-   - Input arguments (summarized if large)
-   - Output (summarized — look for `success: false` or error fields)
-   - Duration
-3. **Errors:** Flag any observations where:
-   - `level === "ERROR"`
-   - `statusMessage` is non-null
-   - Tool output contains `{ success: false, error: "..." }`
-4. **Token usage:** Show prompt/completion/total tokens per GENERATION step
-5. **Model output:** Show the final assistant message content from the last GENERATION
+## Step 4: Trace to source code
 
-## Step 4: Analyze against the user's bug report
-
-Compare what the trace shows vs what the user described as the bug:
-
-- **Data issue:** Did tools return correct data? Check if `search_crm`, `run_sql`, or `calculate` returned expected results.
-- **Rendering issue:** Did the model produce valid markdown/mermaid? Is the frontend rendering it correctly?
-- **Tool selection:** Did the model call the right tools? Did it skip a tool it should have used?
-- **Hallucination:** Did the model make up data not present in tool results?
-- **Context issue:** Was the system prompt missing something? Was the context too large/truncated?
-- **Error propagation:** Did a tool error get swallowed silently?
-
-## Step 5: Trace to source code
-
-Once you identify the bug category, look at the relevant source:
+Once you identify the bug category, check the relevant source:
 
 | Bug type | Files to check |
 |----------|---------------|
-| Tool logic | `src/lib/runner/tools/` — find the specific tool factory |
-| System prompt | `src/lib/ai/system-prompt.ts` |
-| Chat route / streaming | `app/api/chat/route.ts` |
-| Runner orchestration | `src/lib/runner/run-agent.ts` |
-| Frontend rendering | `src/components/chat/` — message rendering, markdown, mermaid |
-| View/surface rendering | `src/lib/views/` and `src/components/views/` |
-| CRM data | `src/lib/crm/` — schemas, queries |
+| Custom tool logic | `src/lib/managed-agents/tools/` — find the specific tool handler |
+| Tool dispatch / routing | `src/lib/managed-agents/dispatcher.ts` |
+| Session runner loop | `src/lib/managed-agents/session-runner.ts` |
+| Stream forwarding to UI | `src/lib/managed-agents/session-stream-forwarder.ts` |
+| Chat adapter / POST handler | `src/lib/managed-agents/adapter.ts`, `app/api/chat/route.ts` |
+| Event translation | `src/lib/managed-agents/event-translator.ts` |
+| Frontend rendering | `src/components/chat/` — message-list, message-bubble, data-stream |
+| Auto-resume / thread switch | `src/hooks/use-auto-resume.ts`, `app/(dashboard)/chat/[threadId]/` |
+| Approval flow | `src/lib/approvals/`, session-runner.ts approval handling |
+| System prompt / agent config | `scripts/managed-agents/create-agent.ts` |
+| CRM tools | `src/lib/crm/` |
+| File / storage tools | `src/lib/managed-agents/tools/storage/` |
 
-## Step 6: Propose fix
+## Step 5: Propose fix
 
-Present your findings:
-1. **What happened** (1-2 sentences from the trace)
-2. **Root cause** (which file/function, what went wrong)
-3. **Proposed fix** (specific code change)
+Present:
+1. **What happened** — 1-2 sentences from the trace
+2. **Root cause** — which file/function, what went wrong
+3. **Proposed fix** — specific code change
 
 Ask the user if they want you to implement the fix.
 
-## Browser Testing / Reproduction
+## Ad-hoc recovery
 
-When you need to reproduce a bug or test a fix in the browser, use **Playwright MCP** (not Vercel Agent Browser — that's a remote service and can't reach localhost).
+If the session is stuck (`requires_action` with a pending custom tool), you can unstick it:
 
-Log in with the test account:
-- **Email:** `limzheyi1996@gmail.com`
-- **Password:** `123456`
-
-Useful sequence:
-1. `mcp__playwright__browser_navigate` → `http://localhost:3001`
-2. Fill login form with test credentials
-3. `mcp__playwright__browser_snapshot` to inspect DOM state
-4. `mcp__playwright__browser_take_screenshot` to capture visual state
-
-## Notes
-
-- Always show the raw trace timeline first before analyzing — the user wants to see what happened.
-- If the trace shows no errors but the output looks wrong, focus on the model's final generation and what data it had available.
-- If you can't find the trace (e.g., the message failed before hitting the runner), check the browser console or Next.js server logs instead.
-- The `--env .env.local` flag loads LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY automatically.
+```bash
+ant beta:sessions:events send \
+  --session-id <SESSION_ID> \
+  --event '{type: user.custom_tool_result, custom_tool_use_id: <TOOL_USE_EVENT_ID>, content: [{type: text, text: "{\"success\":false,\"error\":\"Session recovered after client disconnect\"}"}], is_error: true}'
+```
