@@ -9,6 +9,7 @@ const CLIENT_ID = "660e8400-e29b-41d4-a716-446655440000";
 
 function makeContext(
   client: ReturnType<typeof createMockSupabase>["client"],
+  overrides: Partial<ToolContext> = {},
 ): ToolContext {
   return {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -16,6 +17,7 @@ function makeContext(
     clientId: CLIENT_ID,
     threadId: "thread-1",
     isChatContext: true,
+    ...overrides,
   };
 }
 
@@ -34,6 +36,47 @@ describe("createInteractionTool", () => {
     expect(result).toEqual({ success: true, interaction });
     expect(builders.interactions.insert).toHaveBeenCalledWith(
       expect.objectContaining({ client_id: CLIENT_ID, contact_id: "c1", type: "call" }),
+    );
+  });
+
+  it("accepts configured interaction vocabulary instead of only the baked defaults", async () => {
+    const interaction = { interaction_id: "i1", contact_id: "c1", type: "stage_change" };
+    const { client, builders } = createMockSupabase({
+      interactions: { data: interaction, error: null },
+    });
+
+    const schemaCheck = createInteractionTool.inputSchema.safeParse({
+      contact_id: "550e8400-e29b-41d4-a716-446655440001",
+      type: "stage change",
+    });
+
+    expect(schemaCheck.success).toBe(true);
+
+    const result = await createInteractionTool.execute(
+      { contact_id: "c1", type: "stage change" },
+      makeContext(client, {
+        crmConfig: {
+          deal_label: "Deal",
+          company_label: "Company",
+          deal_stages: ["leads"],
+          contact_types: ["buyer", "other"],
+          interaction_types: ["call", "stage_change"],
+          deal_contact_roles: ["buyer"],
+          company_industries: ["other"],
+          deal_custom_fields: [],
+          contact_custom_fields: [],
+          company_custom_fields: [],
+          task_custom_fields: [],
+          contact_fields: [],
+          company_fields: [],
+          deal_fields: [],
+        },
+      }),
+    );
+
+    expect(result).toEqual({ success: true, interaction });
+    expect(builders.interactions.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "stage_change" }),
     );
   });
 });

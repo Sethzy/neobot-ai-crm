@@ -1,67 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { ToolContext } from "@/lib/managed-agents/tools/types";
+import { createMockSupabase } from "@/lib/crm/__tests__/mock-supabase";
 
 import { manageViewsTool } from "../manage-views";
-
-function createMockSupabase(overrides: Record<string, unknown> = {}) {
-  const defaultResult = { data: null, error: null };
-
-  return {
-    from: vi.fn().mockReturnValue({
-      insert: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue(
-            overrides.insertResult ?? {
-              data: {
-                view_id: "view-1",
-                client_id: "client-1",
-                name: "Active pipeline",
-                entity_type: "deals",
-                filters: { stage: ["leads", "offer"] },
-                sort: null,
-                is_default: false,
-                is_seeded: false,
-                created_at: "2026-04-05T00:00:00Z",
-                updated_at: "2026-04-05T00:00:00Z",
-              },
-              error: null,
-            },
-          ),
-        }),
-      }),
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            order: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue(overrides.selectResult ?? { data: [], error: null }),
-            }),
-          }),
-        }),
-      }),
-      update: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockReturnValue({
-              single: vi.fn().mockResolvedValue(overrides.updateResult ?? defaultResult),
-            }),
-          }),
-        }),
-      }),
-      delete: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue(overrides.deleteResult ?? defaultResult),
-        }),
-      }),
-    }),
-  };
-}
 
 vi.mock("@/lib/analytics/posthog-server", () => ({
   captureServerEvent: vi.fn(),
 }));
 
-function makeContext(supabase: ReturnType<typeof createMockSupabase>): ToolContext {
+function makeContext(supabase: ReturnType<typeof createMockSupabase>["client"]): ToolContext {
   return {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     supabase: supabase as any,
@@ -73,7 +21,23 @@ function makeContext(supabase: ReturnType<typeof createMockSupabase>): ToolConte
 
 describe("manageViewsTool", () => {
   it("creates a view and returns it", async () => {
-    const supabase = createMockSupabase();
+    const { client } = createMockSupabase({
+      crm_views: {
+        data: {
+          view_id: "view-1",
+          client_id: "client-1",
+          name: "Active pipeline",
+          entity_type: "deals",
+          filters: { stage: ["leads", "offer"] },
+          sort: null,
+          is_default: false,
+          is_seeded: false,
+          created_at: "2026-04-05T00:00:00Z",
+          updated_at: "2026-04-05T00:00:00Z",
+        },
+        error: null,
+      },
+    });
     const result = await manageViewsTool.execute(
       {
         operation: "create",
@@ -81,9 +45,28 @@ describe("manageViewsTool", () => {
         entity_type: "deals",
         filters: { stage: ["leads", "offer"] },
       },
-      makeContext(supabase),
+      makeContext(client),
     );
 
     expect(result.success).toBe(true);
+  });
+
+  it("returns not found when deleting a missing or cross-tenant view", async () => {
+    const { client } = createMockSupabase({
+      crm_views: { data: null, error: null },
+    });
+
+    const result = await manageViewsTool.execute(
+      {
+        operation: "delete",
+        view_id: "550e8400-e29b-41d4-a716-446655440001",
+      },
+      makeContext(client),
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "View not found.",
+    });
   });
 });

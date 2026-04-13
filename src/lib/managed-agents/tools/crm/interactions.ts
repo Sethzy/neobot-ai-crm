@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 
-import { CRM_DEFAULTS } from "@/lib/crm/config";
+import { CRM_DEFAULTS, matchVocabularyValue } from "@/lib/crm/config";
 import {
   flexibleTimestampSchema,
   normalizeDateString,
@@ -17,8 +17,8 @@ const inputSchema = (interactionTypes: readonly string[]) =>
   z.object({
     contact_id: z.string().uuid().describe("UUID of the contact. Use search_crm to find this."),
     deal_id: z.string().uuid().optional().describe("UUID of the deal. Use search_crm to find this."),
-    type: z.enum(interactionTypes as [string, ...string[]]).describe(
-      `Interaction type (${interactionTypes.join(", ")}).`,
+    type: z.string().trim().min(1).describe(
+      `Interaction type (${interactionTypes.join(", ")} or configured CRM values).`,
     ),
     summary: z.string().optional().describe("Interaction summary."),
     occurred_at: flexibleTimestampSchema
@@ -41,6 +41,16 @@ export const createInteractionTool: ManagedAgentTool<CreateInteractionInput> = {
     "Data Modification Warning: Only record interactions when the user has explicitly asked to do so.",
   inputSchema: inputSchema(CRM_DEFAULTS.interaction_types),
   execute: async ({ contact_id, deal_id, type, summary, occurred_at }, context) => {
+    const interactionTypes = context.crmConfig?.interaction_types ?? CRM_DEFAULTS.interaction_types;
+    const resolvedType = matchVocabularyValue(type, interactionTypes);
+
+    if (!interactionTypes.includes(resolvedType)) {
+      return {
+        success: false as const,
+        error: `Invalid interaction type "${type}". Valid values: ${interactionTypes.join(", ")}`,
+      };
+    }
+
     const normalizedOccurredAt = normalizeDateString(occurred_at);
 
     const { data, error } = await context.supabase
@@ -49,7 +59,7 @@ export const createInteractionTool: ManagedAgentTool<CreateInteractionInput> = {
         client_id: context.clientId,
         contact_id,
         deal_id,
-        type,
+        type: resolvedType,
         summary: summary ?? null,
         occurred_at: normalizedOccurredAt ?? new Date().toISOString(),
       })

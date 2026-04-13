@@ -173,14 +173,20 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
           return { success: false as const, error: "delete requires view_id." };
         }
 
-        const { error } = await context.supabase
+        const { data: deletedView, error } = await context.supabase
           .from("crm_views")
           .delete()
           .eq("view_id", input.view_id)
-          .eq("client_id", context.clientId);
+          .eq("client_id", context.clientId)
+          .select("view_id")
+          .maybeSingle();
 
         if (error) {
           return { success: false as const, error: error.message };
+        }
+
+        if (!deletedView) {
+          return { success: false as const, error: "View not found." };
         }
 
         await captureServerEvent({
