@@ -12,17 +12,19 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { mapDbMessageToUiMessage } from "@/lib/chat/message-normalization";
 import { createClient } from "@/lib/supabase/client";
 
-/** Poll every 2 seconds for up to 120 seconds. */
+/** Poll every 2 seconds for up to 30 minutes (covers webhook recovery). */
 const POLL_INTERVAL_MS = 2_000;
-const MAX_POLL_DURATION_MS = 120_000;
+const MAX_POLL_DURATION_MS = 30 * 60 * 1_000;
 
 interface UseAutoResumeParams {
   autoResume: boolean;
+  /** Trigger recovery polling when the SSE stream errors mid-turn. */
+  streamErrorRecovery?: boolean;
   chatId: string;
   initialMessages: UIMessage[];
   setMessages: UseChatHelpers<UIMessage>["setMessages"];
@@ -35,66 +37,79 @@ interface UseAutoResumeResult {
 
 export function useAutoResume({
   autoResume,
+  streamErrorRecovery = false,
   chatId,
   initialMessages,
   setMessages,
 }: UseAutoResumeParams): UseAutoResumeResult {
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
 
+  // Shared polling logic — used by both page-load resume and stream-error recovery.
+  const startPolling = useCallback(
+    (signal: { cancelled: boolean }) => {
+      const supabase = createClient();
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const startedAt = Date.now();
+
+      const poll = async () => {
+        if (signal.cancelled) return;
+
+        const { data } = await supabase
+          .from("conversation_messages")
+          .select("message_id, role, content, parts")
+          .eq("thread_id", chatId)
+          .order("created_at", { ascending: true });
+
+        if (signal.cancelled || !data) return;
+
+        const lastRow = data.at(-1);
+        if (lastRow && lastRow.role === "assistant") {
+          const uiMessages = data.map(mapDbMessageToUiMessage);
+          setMessages(uiMessages);
+          setIsWaitingForResponse(false);
+          return;
+        }
+
+        if (Date.now() - startedAt < MAX_POLL_DURATION_MS) {
+          timer = setTimeout(poll, POLL_INTERVAL_MS);
+        } else {
+          setIsWaitingForResponse(false);
+        }
+      };
+
+      poll();
+
+      return () => {
+        signal.cancelled = true;
+        if (timer) clearTimeout(timer);
+      };
+    },
+    [chatId, setMessages],
+  );
+
+  // Trigger 1: Page load — last persisted message is from the user.
   useEffect(() => {
     if (!autoResume) return;
 
     const mostRecentMessage = initialMessages.at(-1);
     if (mostRecentMessage?.role !== "user") return;
 
-    // The last persisted message is from the user, which means the assistant
-    // response hasn't been written to DB yet (the stream is likely still
-    // active on the server). Poll until the assistant message appears.
     setIsWaitingForResponse(true);
-
-    const supabase = createClient();
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const startedAt = Date.now();
-
-    const poll = async () => {
-      if (cancelled) return;
-
-      const { data } = await supabase
-        .from("conversation_messages")
-        .select("message_id, role, content, parts")
-        .eq("thread_id", chatId)
-        .order("created_at", { ascending: true });
-
-      if (cancelled || !data) return;
-
-      const lastRow = data.at(-1);
-      if (lastRow && lastRow.role === "assistant") {
-        // Assistant message found — update the UI in one shot, no streaming.
-        const uiMessages = data.map(mapDbMessageToUiMessage);
-        setMessages(uiMessages);
-        setIsWaitingForResponse(false);
-        return;
-      }
-
-      // Still waiting — schedule next poll if within time budget.
-      if (Date.now() - startedAt < MAX_POLL_DURATION_MS) {
-        timer = setTimeout(poll, POLL_INTERVAL_MS);
-      } else {
-        setIsWaitingForResponse(false);
-      }
-    };
-
-    // Kick off the first poll immediately.
-    poll();
-
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-    };
-    // Re-run when the thread changes (chatId) or on first mount (autoResume).
+    const signal = { cancelled: false };
+    const cleanup = startPolling(signal);
+    return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoResume, chatId]);
+
+  // Trigger 2: SSE stream error mid-turn — webhook will persist the message.
+  useEffect(() => {
+    if (!streamErrorRecovery) return;
+
+    setIsWaitingForResponse(true);
+    const signal = { cancelled: false };
+    const cleanup = startPolling(signal);
+    return cleanup;
+  }, [streamErrorRecovery, startPolling]);
 
   return { isWaitingForResponse };
 }

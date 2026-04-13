@@ -12,7 +12,7 @@ import {
 import { useChat } from "@ai-sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertCircle } from "@/components/icons/lucide-compat";
+import { AlertCircle, Loader2 } from "@/components/icons/lucide-compat";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAutoResume } from "@/hooks/use-auto-resume";
@@ -131,6 +131,11 @@ export function ChatPanel({
     document.cookie = `${CHAT_MODEL_COOKIE_NAME}=${modelId}; path=/; max-age=${CHAT_MODEL_COOKIE_MAX_AGE}`;
   }, []);
 
+  // Track whether we were actively streaming so we can distinguish a
+  // mid-stream break (Vercel timeout) from a pre-flight error (bad request).
+  const wasStreamingRef = useRef(false);
+  const [streamErrorRecovery, setStreamErrorRecovery] = useState(false);
+
   const { messages, sendMessage, status, error, setMessages, addToolApprovalResponse } = useChat({
     id: chatId,
     messages: initialMessages,
@@ -150,15 +155,35 @@ export function ChatPanel({
     },
     onError: () => {
       refreshQuota();
+      // If the stream broke mid-turn, enter recovery mode — the webhook
+      // safety net will persist the message once Anthropic's session settles.
+      if (wasStreamingRef.current) {
+        setStreamErrorRecovery(true);
+        wasStreamingRef.current = false;
+      }
     },
   });
 
+  // Track streaming state for the error handler above.
+  useEffect(() => {
+    if (status === "streaming") wasStreamingRef.current = true;
+    if (status === "ready") wasStreamingRef.current = false;
+  }, [status]);
+
   const { isWaitingForResponse } = useAutoResume({
     autoResume,
+    streamErrorRecovery,
     chatId,
     initialMessages,
     setMessages,
   });
+
+  // Clear recovery state when auto-resume finds the message.
+  useEffect(() => {
+    if (streamErrorRecovery && !isWaitingForResponse) {
+      setStreamErrorRecovery(false);
+    }
+  }, [streamErrorRecovery, isWaitingForResponse]);
 
   // Subscribe to background message delivery via Supabase Realtime.
   // When a background job completes, the server inserts a conversation_messages
@@ -328,7 +353,12 @@ export function ChatPanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-card">
-      {error ? (
+      {streamErrorRecovery ? (
+        <div className="mx-auto mt-3 flex w-full max-w-2xl items-center gap-2 rounded-md border border-muted px-3 py-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <p>Claude is still working on this — results will appear shortly</p>
+        </div>
+      ) : error ? (
         <div className="mx-auto mt-3 flex w-full max-w-2xl items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           <AlertCircle className="h-4 w-4" />
           <p>{errorMessage}</p>
