@@ -72,6 +72,21 @@ describe("GET /api/files/download", () => {
     );
   });
 
+  it("allows mirrored session artifact downloads and forwards filename", async () => {
+    const response = await GET(
+      new Request(
+        "http://localhost/api/files/download?path=sessions/session_123/saaa_sorted.csv&filename=saaa_sorted.csv",
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(mockCreateSignedUrl).toHaveBeenCalledWith(
+      "client-1/sessions/session_123/saaa_sorted.csv",
+      3600,
+      { download: "saaa_sorted.csv" },
+    );
+  });
+
   it("returns 400 when path is missing", async () => {
     const response = await GET(
       new Request("http://localhost/api/files/download"),

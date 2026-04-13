@@ -35,8 +35,13 @@ export async function GET(request: Request): Promise<Response> {
 
   // Only allow downloads from user-facing directories
   const firstSegment = normalizedPath.split("/")[0];
-  if (firstSegment !== "uploads" && firstSegment !== "home" && firstSegment !== "attachments") {
-    return jsonError("Downloads are restricted to uploads/, home/, and attachments/.", 403);
+  if (
+    firstSegment !== "uploads"
+    && firstSegment !== "home"
+    && firstSegment !== "attachments"
+    && firstSegment !== "sessions"
+  ) {
+    return jsonError("Downloads are restricted to uploads/, home/, attachments/, and sessions/.", 403);
   }
 
   const clientId = await resolveClientId(supabase, userId);

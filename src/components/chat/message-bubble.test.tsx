@@ -183,7 +183,7 @@ describe("MessageBubble — user messages", () => {
 
     expect(screen.getByTestId("preview-attachment")).toHaveAttribute(
       "href",
-      "/api/files/download?path=uploads%2Freport.pdf",
+      "/api/files/download?path=uploads%2Freport.pdf&filename=report.pdf",
     );
   });
 });
@@ -441,7 +441,30 @@ describe("MessageBubble — assistant messages", () => {
 
     expect(screen.getByTestId("preview-attachment")).toHaveAttribute(
       "href",
-      "/api/files/download?path=home%2Foutput.csv",
+      "/api/files/download?path=home%2Foutput.csv&filename=output.csv",
+    );
+  });
+
+  it("includes filename when resolving assistant session file parts", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "assistant-session-file",
+          role: "assistant",
+          parts: [{
+            type: "file",
+            filename: "saaa_sorted.csv",
+            mediaType: "text/csv",
+            url: "https://expired.example.com/saaa_sorted.csv",
+            storagePath: "sessions/session_123/saaa_sorted.csv",
+          }],
+        } as ChatUIMessage}
+      />,
+    );
+
+    expect(screen.getByTestId("preview-attachment")).toHaveAttribute(
+      "href",
+      "/api/files/download?path=sessions%2Fsession_123%2Fsaaa_sorted.csv&filename=saaa_sorted.csv",
     );
   });
 

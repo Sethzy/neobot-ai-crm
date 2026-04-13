@@ -5,9 +5,10 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { UIMessage } from "ai";
-import type { ImgHTMLAttributes } from "react";
+import type { ImgHTMLAttributes, ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { threadKeys } from "@/hooks/use-threads";
 import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 import { ChatPanel } from "./chat-panel";
@@ -42,6 +43,12 @@ vi.mock("next/image", () => ({
     void unoptimized;
     return <img {...imgProps} alt={imgProps.alt ?? ""} />;
   },
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+  }),
 }));
 
 vi.mock("sonner", () => ({
@@ -125,11 +132,18 @@ const mockSubscribe = vi.fn().mockReturnValue({ unsubscribe: vi.fn() });
 const mockOn = vi.fn().mockReturnValue({ subscribe: mockSubscribe });
 const mockChannel = vi.fn().mockReturnValue({ on: mockOn });
 const mockRemoveChannel = vi.fn();
+const mockUploadToSignedUrl = vi.fn();
+const mockStorageFrom = vi.fn().mockReturnValue({
+  uploadToSignedUrl: mockUploadToSignedUrl,
+});
 
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
     channel: mockChannel,
     removeChannel: mockRemoveChannel,
+    storage: {
+      from: mockStorageFrom,
+    },
   }),
 }));
 
@@ -141,6 +155,10 @@ vi.mock("@/lib/chat/message-normalization", () => ({
   })),
 }));
 
+function renderPanel(ui: ReactElement) {
+  return render(<TooltipProvider>{ui}</TooltipProvider>);
+}
+
 describe("ChatPanel", () => {
   const mockFetch = vi.fn();
   const sendMessage = vi.fn(async () => {});
@@ -151,6 +169,10 @@ describe("ChatPanel", () => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", mockFetch);
     document.cookie = "chat-model=; path=/; max-age=0";
+    mockUploadToSignedUrl.mockResolvedValue({
+      data: { path: "uploads/photo.png" },
+      error: null,
+    });
 
     mockUseChat.mockReturnValue({
       id: "thread-1",
@@ -186,7 +208,7 @@ describe("ChatPanel", () => {
     const initialMessages = [
       { id: "m1", role: "assistant", parts: [{ type: "text", text: "Loaded from server" }] },
     ] as UIMessage[];
-    render(<ChatPanel chatId="thread-1" initialMessages={initialMessages} />);
+    renderPanel(<ChatPanel chatId="thread-1" initialMessages={initialMessages} />);
 
     const options = mockUseChat.mock.calls[0][0] as {
       id: string;
@@ -206,7 +228,7 @@ describe("ChatPanel", () => {
   });
 
   it("appends incoming stream data parts to data stream context", () => {
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     const options = mockUseChat.mock.calls[0][0] as {
       onData?: (data: unknown) => void;
@@ -221,7 +243,7 @@ describe("ChatPanel", () => {
   });
 
   it("invalidates thread queries when a stream finishes", async () => {
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     const options = mockUseChat.mock.calls[0][0] as {
       onFinish?: () => void;
@@ -234,7 +256,7 @@ describe("ChatPanel", () => {
   });
 
   it("invalidates quota queries when the chat request errors", () => {
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     const options = mockUseChat.mock.calls[0][0] as {
       onError?: (error: Error) => void;
@@ -246,7 +268,7 @@ describe("ChatPanel", () => {
   });
 
   it("ignores unrelated stream data parts to avoid extra client re-renders", () => {
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     const options = mockUseChat.mock.calls[0][0] as {
       onData?: (data: unknown) => void;
@@ -281,7 +303,7 @@ describe("ChatPanel", () => {
       addToolApprovalResponse: vi.fn(),
     });
 
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     await user.type(screen.getByPlaceholderText(/send a message/i), "  Hello there  ");
     await user.click(screen.getByRole("button", { name: /submit/i }));
@@ -318,7 +340,7 @@ describe("ChatPanel", () => {
       addToolApprovalResponse: vi.fn(),
     });
 
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     expect(screen.getByText("Monthly message limit reached.")).toBeInTheDocument();
     expect(screen.queryByText(/"message-quota-exceeded"/i)).not.toBeInTheDocument();
@@ -336,7 +358,7 @@ describe("ChatPanel", () => {
     );
     window.history.replaceState({}, "", "/chat");
 
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     await user.type(screen.getByPlaceholderText(/describe a task/i), "Need help");
     await user.click(screen.getByRole("button", { name: /submit/i }));
@@ -380,7 +402,7 @@ describe("ChatPanel", () => {
       addToolApprovalResponse: vi.fn(),
     });
 
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     expect(screen.getByPlaceholderText(/send a message/i)).toBeDisabled();
     await user.click(screen.getByRole("button", { name: /stop/i }));
@@ -411,7 +433,7 @@ describe("ChatPanel", () => {
       addToolApprovalResponse: vi.fn(),
     });
 
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     expect(screen.getByPlaceholderText(/send a message/i)).toBeDisabled();
     expect(screen.queryByRole("button", { name: /stop/i })).not.toBeInTheDocument();
@@ -444,7 +466,7 @@ describe("ChatPanel", () => {
       addToolApprovalResponse: vi.fn(),
     });
 
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     await user.click(screen.getByRole("button", { name: /stop/i }));
 
@@ -470,14 +492,14 @@ describe("ChatPanel", () => {
       addToolApprovalResponse: vi.fn(),
     });
 
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     expect(screen.getByText(/gateway timeout/i)).toBeInTheDocument();
   });
 
   it("pre-fills composer when a template card is clicked instead of sending", async () => {
     const user = userEvent.setup();
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     expect(screen.getByText(/what can i do for you/i)).toBeInTheDocument();
     expect(screen.getByText("Morning CRM briefing")).toBeInTheDocument();
@@ -509,7 +531,7 @@ describe("ChatPanel", () => {
       addToolApprovalResponse: vi.fn(),
     });
 
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     expect(screen.queryByText(/what can i do for you/i)).not.toBeInTheDocument();
   });
@@ -541,7 +563,7 @@ describe("ChatPanel", () => {
       addToolApprovalResponse: mockAddToolApproval,
     });
 
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     // ToolCallInline should have data-has-approval="true" because
     // ChatPanel wires addToolApprovalResponse → MessageList → MessageBubble → ToolCallInline
@@ -553,7 +575,7 @@ describe("ChatPanel", () => {
     const pushStateSpy = vi.spyOn(window.history, "pushState");
     window.history.replaceState({}, "", "/chat");
 
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     await user.type(screen.getByPlaceholderText(/describe a task/i), "Hello from draft");
     await user.click(screen.getByRole("button", { name: /submit/i }));
@@ -573,7 +595,7 @@ describe("ChatPanel", () => {
     const user = userEvent.setup();
     window.history.replaceState({}, "", "/chat");
 
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     await user.type(screen.getByPlaceholderText(/describe a task/i), "Hello");
     await user.click(screen.getByRole("button", { name: /submit/i }));
@@ -617,7 +639,7 @@ describe("ChatPanel", () => {
       addToolApprovalResponse: vi.fn(),
     });
 
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     await user.type(screen.getByPlaceholderText(/send a message/i), "Follow up");
     await user.click(screen.getByRole("button", { name: /submit/i }));
@@ -630,7 +652,7 @@ describe("ChatPanel", () => {
   });
 
   it("passes initialPrompt through to ChatComposer as initialValue", () => {
-    render(<ChatPanel chatId="thread-1" initialPrompt="Set up a daily briefing" />);
+    renderPanel(<ChatPanel chatId="thread-1" initialPrompt="Set up a daily briefing" />);
 
     expect(screen.getByPlaceholderText(/describe a task/i)).toHaveValue(
       "Set up a daily briefing",
@@ -639,10 +661,25 @@ describe("ChatPanel", () => {
 
   it("sends file-only messages via the AI SDK files shortcut", async () => {
     const user = userEvent.setup();
-    mockFetch.mockResolvedValue(
+    mockFetch
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            path: "client-1/uploads/photo.png",
+            token: "upload-token",
+            storagePath: "uploads/photo.png",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
       new Response(
         JSON.stringify({
-          url: "https://storage.example.com/chat-attachments/client-1/photo.png",
+          url: "https://storage.example.com/agent-files/client-1/uploads/photo.png",
+          storagePath: "uploads/photo.png",
           pathname: "photo.png",
           contentType: "image/png",
         }),
@@ -651,9 +688,9 @@ describe("ChatPanel", () => {
           headers: { "Content-Type": "application/json" },
         },
       ),
-    );
+      );
 
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     await user.upload(
       screen.getByLabelText(/upload attachments/i),
@@ -661,7 +698,19 @@ describe("ChatPanel", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("photo.png")).toBeInTheDocument();
+      expect(mockUploadToSignedUrl).toHaveBeenCalledWith(
+        "client-1/uploads/photo.png",
+        "upload-token",
+        expect.any(File),
+        {
+          cacheControl: "3600",
+          upsert: false,
+        },
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /submit/i })).toBeEnabled();
     });
 
     await user.click(screen.getByRole("button", { name: /submit/i }));
@@ -672,9 +721,10 @@ describe("ChatPanel", () => {
           files: [
             {
               type: "file",
-              url: "https://storage.example.com/chat-attachments/client-1/photo.png",
+              url: "https://storage.example.com/agent-files/client-1/uploads/photo.png",
               filename: "photo.png",
               mediaType: "image/png",
+              storagePath: "uploads/photo.png",
             },
           ],
         },
@@ -684,7 +734,7 @@ describe("ChatPanel", () => {
   });
 
   it("configures sendAutomaticallyWhen for approval continuations", () => {
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     const options = mockUseChat.mock.calls[0][0] as {
       sendAutomaticallyWhen?: unknown;
@@ -729,7 +779,7 @@ describe("ChatPanel", () => {
       addToolApprovalResponse: vi.fn(),
     });
 
-    render(<ChatPanel chatId="thread-1" />);
+    renderPanel(<ChatPanel chatId="thread-1" />);
 
     // The mock AskUserQuestionInline calls onSubmit("Option A") on click
     await user.click(screen.getByTestId("ask-user-question-inline"));
@@ -744,7 +794,7 @@ describe("ChatPanel", () => {
 
   describe("background job delivery via Realtime", () => {
     it("subscribes to conversation_messages on mount with chatId", () => {
-      render(<ChatPanel chatId="thread-abc" />);
+      renderPanel(<ChatPanel chatId="thread-abc" />);
 
       expect(mockChannel).toHaveBeenCalledWith("bg-jobs-thread-abc");
       expect(mockOn).toHaveBeenCalledWith(
@@ -760,7 +810,7 @@ describe("ChatPanel", () => {
     });
 
     it("unsubscribes on unmount", () => {
-      const { unmount } = render(<ChatPanel chatId="thread-abc" />);
+      const { unmount } = renderPanel(<ChatPanel chatId="thread-abc" />);
       unmount();
       expect(mockRemoveChannel).toHaveBeenCalled();
     });

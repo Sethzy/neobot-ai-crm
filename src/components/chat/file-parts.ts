@@ -12,10 +12,19 @@ export type ChatFilePart = FileUIPart & {
 
 export type ChatMessagePart = Exclude<BaseMessagePart, { type: "file" }> | ChatFilePart;
 
-export function resolveFilePartUrl(part: { url: string; storagePath?: string }): string {
+export function resolveFilePartUrl(part: {
+  url: string;
+  filename?: string;
+  storagePath?: string;
+}): string {
   if (!part.storagePath) {
     return part.url;
   }
 
-  return `/api/files/download?path=${encodeURIComponent(part.storagePath)}`;
+  const searchParams = new URLSearchParams({ path: part.storagePath });
+  if (part.filename) {
+    searchParams.set("filename", part.filename);
+  }
+
+  return `/api/files/download?${searchParams.toString()}`;
 }
