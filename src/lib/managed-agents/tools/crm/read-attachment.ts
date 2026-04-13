@@ -1,10 +1,10 @@
 /**
  * CRM attachment content reader for managed agents.
  *
- * Looks up the attachment row, downloads the file from Supabase Storage,
- * copies it into the agent workspace at `/agent/downloads/{filename}`,
- * and returns the workspace path. For text-based files the content is
- * also returned inline so the agent can use it without a second tool call.
+ * Looks up the attachment row, returns the canonical durable storage path plus
+ * its derived `/agent/...` path, and includes a browser download URL that
+ * reuses the app's signed-download route. For text-based files the content is
+ * returned inline so the agent can use it without a second tool call.
  *
  * @module lib/managed-agents/tools/crm/read-attachment
  */
