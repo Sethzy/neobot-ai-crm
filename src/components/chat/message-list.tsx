@@ -5,7 +5,8 @@
  */
 "use client";
 
-import { memo, useMemo } from "react";
+import { forwardRef, memo, useImperativeHandle, useMemo } from "react";
+import { useStickToBottomContext } from "use-stick-to-bottom";
 
 import {
   Conversation,
@@ -24,6 +25,10 @@ const thinkingPlaceholder: ChatUIMessage = {
   parts: [],
 };
 
+export interface MessageListHandle {
+  scrollToBottom: () => void;
+}
+
 interface MessageListProps {
   messages: ChatUIMessage[];
   status: ChatStatus;
@@ -33,7 +38,14 @@ interface MessageListProps {
   onQuestionSubmit?: (text: string) => void;
 }
 
-export const MessageList = memo(function MessageList({ messages, status, onToolApproval, onQuestionSubmit }: MessageListProps) {
+/** Inner component that has access to the StickToBottom context. */
+const MessageListScroller = forwardRef<MessageListHandle>(function MessageListScroller(_props, ref) {
+  const { scrollToBottom } = useStickToBottomContext();
+  useImperativeHandle(ref, () => ({ scrollToBottom }), [scrollToBottom]);
+  return null;
+});
+
+export const MessageList = memo(forwardRef<MessageListHandle, MessageListProps>(function MessageList({ messages, status, onToolApproval, onQuestionSubmit }, ref) {
   const isStreaming = status === "streaming";
 
   // Deduplicate by message ID — keep last occurrence so streaming updates win over stale copies.
@@ -46,6 +58,7 @@ export const MessageList = memo(function MessageList({ messages, status, onToolA
 
   return (
     <Conversation className="relative flex-1 min-h-0">
+      <MessageListScroller ref={ref} />
       <ConversationContent className="mx-auto max-w-[44rem] gap-0 px-4 py-6">
         {uniqueMessages.map((message, index) => {
           const isLastMessage = index === uniqueMessages.length - 1;
@@ -79,4 +92,4 @@ export const MessageList = memo(function MessageList({ messages, status, onToolA
       <ConversationScrollButton />
     </Conversation>
   );
-});
+}));

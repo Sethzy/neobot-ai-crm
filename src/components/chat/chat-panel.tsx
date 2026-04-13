@@ -35,7 +35,7 @@ import { ChatComposer } from "./chat-composer";
 import { ChatWelcome } from "./chat-welcome";
 import { MessageQuotaPill } from "./message-quota-pill";
 import { useDataStream } from "./data-stream-provider";
-import { MessageList } from "./message-list";
+import { MessageList, type MessageListHandle } from "./message-list";
 
 /** Batches token updates to reduce render churn during fast streams. */
 const STREAM_UI_THROTTLE_MS = 50;
@@ -228,11 +228,15 @@ export function ChatPanel({
   // avoiding a race between useAutoResume's polling and a user send.
   const isLoadingRef = useRef(false);
   isLoadingRef.current = isLoading;
+  const messageListRef = useRef<MessageListHandle>(null);
   const parsedError = useMemo(() => parseChatError(error), [error]);
   const errorMessage = parsedError?.message ?? null;
 
   const handleSubmit = useCallback(
     async ({ text, files }: { text: string; files: FileUIPart[] }) => {
+      // Re-engage auto-scroll so the user sees the streamed response
+      messageListRef.current?.scrollToBottom();
+
       if ((text.length === 0 && files.length === 0) || isLoadingRef.current) {
         return;
       }
@@ -333,7 +337,7 @@ export function ChatPanel({
 
       {hasMessages ? (
         <>
-          <MessageList messages={messages} status={effectiveStatus} onToolApproval={handleToolApproval} onQuestionSubmit={handleQuestionSubmit} />
+          <MessageList ref={messageListRef} messages={messages} status={effectiveStatus} onToolApproval={handleToolApproval} onQuestionSubmit={handleQuestionSubmit} />
           {messageQuota ? (
             <MessageQuotaPill quota={messageQuota} className="pb-1 pt-2" />
           ) : null}

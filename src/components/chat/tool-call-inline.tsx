@@ -4,12 +4,12 @@
  */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useStickToBottomContext } from "use-stick-to-bottom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
-  CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
@@ -405,6 +405,22 @@ export function ToolCallInline({
   keepSpinning = false,
 }: ToolCallInlineProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { scrollRef } = useStickToBottomContext();
+
+  /**
+   * Nudge scroll up by 71px before expanding so use-stick-to-bottom's
+   * isNearBottom (70px threshold) becomes false during the ResizeObserver
+   * callback, skipping auto-scroll. The nudge is small enough to be
+   * unnoticeable. On close, no action needed — user scrolling back to
+   * bottom naturally re-engages auto-scroll for future messages.
+   */
+  const handleOpenChange = useCallback((open: boolean) => {
+    if (open && scrollRef.current) {
+      scrollRef.current.scrollTop = Math.max(0, scrollRef.current.scrollTop - 71);
+    }
+    setIsOpen(open);
+  }, [scrollRef]);
+
   const connectionCreation = isConnectionCreation(name, output) ? output : null;
   const permissionRequest = isToolPermissionRequest(name, input) ? input : null;
   const authNeeded = isBrowserNeedsAuth(name, output) ? output : null;
@@ -451,21 +467,20 @@ export function ToolCallInline({
   return (
     <Collapsible
       open={isOpen}
-      onOpenChange={setIsOpen}
+      onOpenChange={handleOpenChange}
       data-testid="tool-call-inline"
       className={cn(
-        "max-w-sm",
         isDenied && "opacity-60",
       )}
     >
       <CollapsibleTrigger
         data-testid="tool-expand-trigger"
-        className="group/trigger inline-flex items-center gap-1.5 py-0.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        className="group/trigger inline-flex items-center gap-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
       >
         <StatusIcon
           data-testid="tool-dot"
           className={cn(
-            "size-4 shrink-0",
+            "size-3.5 shrink-0",
             isRunning && "animate-spin",
             isDenied && "text-muted-foreground",
             isAwaitingApproval && "text-warning",
@@ -490,7 +505,7 @@ export function ToolCallInline({
         <ChevronDownIcon
           data-testid="tool-chevron"
           className={cn(
-            "size-4 shrink-0 transition-transform duration-200",
+            "size-3.5 shrink-0 transition-transform duration-200",
             isOpen ? "rotate-0" : "-rotate-90",
           )}
         />
@@ -611,38 +626,40 @@ export function ToolCallInline({
         </div>
       ) : null}
 
-      <CollapsibleContent className="overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-        <div data-testid="tool-details" className="ml-2 mt-1.5 flex flex-col gap-2 border-l-2 border-muted-foreground/15 pl-3">
-          <div>
-            <p className="mb-0.5 text-xs font-medium text-muted-foreground/70">Arguments</p>
+      {isOpen ? (
+        <div data-testid="tool-details" className="relative z-10 mt-1.5 flex max-h-[600px] w-[750px] flex-col rounded-lg border bg-background shadow-lg text-sm">
+          {/* Arguments — capped height, scrollable */}
+          <div className="shrink-0 border-b px-4 py-3">
+            <p className="mb-1 text-xs font-semibold text-muted-foreground">Arguments</p>
             <div
               data-testid="tool-arguments"
-              className="overflow-x-auto rounded bg-muted/30 px-2 py-1.5"
+              className="max-h-32 overflow-auto rounded bg-muted/30 px-3 py-2 text-xs"
             >
               <JsonView data={input} />
             </div>
           </div>
 
+          {/* Result / Error — fills remaining space, scrollable */}
           {hasError && errorText ? (
-            <div>
-              <p className="mb-0.5 text-xs font-medium text-destructive/70">Error</p>
-              <pre className="overflow-x-auto rounded bg-destructive/5 px-2 py-1.5 text-xs text-destructive">
+            <div className="flex min-h-0 flex-1 flex-col px-4 py-3">
+              <p className="mb-1 text-xs font-semibold text-destructive/70">Error</p>
+              <pre className="flex-1 overflow-auto rounded bg-destructive/5 px-3 py-2 text-xs text-destructive">
                 {errorText}
               </pre>
             </div>
           ) : !isDenied && output !== undefined ? (
-            <div>
-              <p className="mb-0.5 text-xs font-medium text-muted-foreground/70">Result</p>
+            <div className="flex min-h-0 flex-1 flex-col px-4 py-3">
+              <p className="mb-1 text-xs font-semibold text-muted-foreground">Result</p>
               <div
                 data-testid="tool-result"
-                className="overflow-x-auto rounded bg-muted/30 px-2 py-1.5"
+                className="flex-1 overflow-auto rounded bg-muted/30 px-3 py-2 text-xs"
               >
                 <JsonView data={output} />
               </div>
             </div>
           ) : null}
         </div>
-      </CollapsibleContent>
+      ) : null}
     </Collapsible>
   );
 }
