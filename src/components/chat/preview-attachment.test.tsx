@@ -5,7 +5,13 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { TooltipProvider } from "@/components/ui/tooltip";
+
 import { PreviewAttachment } from "./preview-attachment";
+
+function renderWithProviders(ui: React.ReactElement) {
+  return render(<TooltipProvider>{ui}</TooltipProvider>);
+}
 
 describe("PreviewAttachment", () => {
   const imageAttachment = {
@@ -15,7 +21,7 @@ describe("PreviewAttachment", () => {
   };
 
   it("renders an image thumbnail for image attachments", () => {
-    render(<PreviewAttachment attachment={imageAttachment} />);
+    renderWithProviders(<PreviewAttachment attachment={imageAttachment} />);
 
     const image = screen.getByRole("img");
     expect(image).toHaveAttribute("src", "https://storage.example.com/photo.jpg");
@@ -27,12 +33,12 @@ describe("PreviewAttachment", () => {
   });
 
   it("renders the attachment filename label", () => {
-    render(<PreviewAttachment attachment={imageAttachment} />);
+    renderWithProviders(<PreviewAttachment attachment={imageAttachment} />);
     expect(screen.getByText("photo.jpg")).toBeInTheDocument();
   });
 
   it("shows the uploading overlay when isUploading is true", () => {
-    render(
+    renderWithProviders(
       <PreviewAttachment
         attachment={{ filename: "uploading.jpg", url: "", contentType: "" }}
         isUploading
@@ -44,19 +50,19 @@ describe("PreviewAttachment", () => {
 
   it("calls onRemove when the remove button is clicked", () => {
     const onRemove = vi.fn();
-    render(<PreviewAttachment attachment={imageAttachment} onRemove={onRemove} />);
+    renderWithProviders(<PreviewAttachment attachment={imageAttachment} onRemove={onRemove} />);
 
     fireEvent.click(screen.getByRole("button", { name: /remove photo.jpg/i }));
     expect(onRemove).toHaveBeenCalledOnce();
   });
 
   it("does not render a remove button when onRemove is omitted", () => {
-    render(<PreviewAttachment attachment={imageAttachment} />);
+    renderWithProviders(<PreviewAttachment attachment={imageAttachment} />);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("renders a file fallback for non-image attachments", () => {
-    render(
+    renderWithProviders(
       <PreviewAttachment
         attachment={{
           filename: "brief.pdf",
@@ -76,7 +82,7 @@ describe("PreviewAttachment", () => {
   });
 
   it("does not render a link while an attachment is uploading", () => {
-    render(
+    renderWithProviders(
       <PreviewAttachment
         attachment={{ filename: "uploading.jpg", url: "https://storage.example.com/uploading.jpg", contentType: "image/jpeg" }}
         isUploading
@@ -87,7 +93,7 @@ describe("PreviewAttachment", () => {
   });
 
   it("renders a Word label for DOCX attachments", () => {
-    render(
+    renderWithProviders(
       <PreviewAttachment
         attachment={{
           filename: "proposal.docx",
@@ -101,7 +107,7 @@ describe("PreviewAttachment", () => {
   });
 
   it("renders a Slides label for PPTX attachments", () => {
-    render(
+    renderWithProviders(
       <PreviewAttachment
         attachment={{
           filename: "listing-deck.pptx",
@@ -115,7 +121,7 @@ describe("PreviewAttachment", () => {
   });
 
   it("renders a Text label for plain-text attachments", () => {
-    render(
+    renderWithProviders(
       <PreviewAttachment
         attachment={{
           filename: "notes.txt",
@@ -130,7 +136,7 @@ describe("PreviewAttachment", () => {
 
   it("renders a zoom-in button instead of a link when onImageClick is provided for images", () => {
     const onImageClick = vi.fn();
-    render(
+    renderWithProviders(
       <PreviewAttachment attachment={imageAttachment} onImageClick={onImageClick} />,
     );
 
@@ -144,7 +150,7 @@ describe("PreviewAttachment", () => {
 
   it("still renders a link for non-image attachments even when onImageClick is provided", () => {
     const onImageClick = vi.fn();
-    render(
+    renderWithProviders(
       <PreviewAttachment
         attachment={{
           filename: "brief.pdf",

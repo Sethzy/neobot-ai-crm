@@ -47,18 +47,34 @@ describe("ChatComposer", () => {
     vi.stubGlobal("fetch", mockFetch);
   });
 
-  it("renders textarea, attachment control, and submit button", () => {
+  it("renders textarea, model selector, attachment control, and submit button", () => {
     render(<ChatComposer {...baseProps} />);
 
     expect(screen.getByPlaceholderText(/send a message/i)).toBeInTheDocument();
-    // Single-model catalog: the selector renders as a static label, not a button.
-    expect(screen.getByText("Claude Sonnet 4.6")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /claude sonnet 4\.6/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /attach files/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /submit/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/upload attachments/i)).toHaveAttribute(
       "accept",
       CHAT_ATTACHMENT_ACCEPT,
     );
+  });
+
+  it("lets the user switch the selected chat model", async () => {
+    const onSelectedChatModelChange = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <ChatComposer
+        {...baseProps}
+        onSelectedChatModelChange={onSelectedChatModelChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /claude sonnet 4\.6/i }));
+    await user.click(screen.getByRole("button", { name: /claude haiku 4\.5/i }));
+
+    expect(onSelectedChatModelChange).toHaveBeenCalledWith("anthropic/claude-haiku-4-5");
   });
 
   it("does not render quota UI inside the composer", () => {

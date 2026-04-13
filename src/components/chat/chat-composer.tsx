@@ -5,6 +5,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import {
@@ -50,6 +51,9 @@ interface ChatComposerProps {
   placeholder?: string;
   /** When true, disables the composer (e.g. quota exhausted). */
   disabled?: boolean;
+  /** When true, disables the model selector (session pinned — switching not possible).
+   *  The selector remains visible to preserve layout. */
+  hideModelSelector?: boolean;
 }
 
 const PASTEABLE_FILE_TYPES = new Set([
@@ -98,9 +102,12 @@ export function ChatComposer({
   innerClassName,
   placeholder,
   disabled = false,
+  hideModelSelector = false,
 }: ChatComposerProps) {
+  const router = useRouter();
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const isStreaming = status === "streaming";
@@ -198,6 +205,28 @@ export function ChatComposer({
     void uploadFiles(imageFiles);
   }, [uploadFiles]);
 
+  const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    if (event.dataTransfer.types.includes("Files")) {
+      event.preventDefault();
+      setIsDragOver(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragOver(false);
+    const files = Array.from(event.dataTransfer.files);
+    if (files.length > 0) {
+      void uploadFiles(files);
+    }
+  }, [uploadFiles]);
+
   const handleSubmit = useCallback((message: PromptInputMessage) => {
     if (isGenerating || uploadQueue.length > 0 || disabled) {
       return;
@@ -225,36 +254,17 @@ export function ChatComposer({
   ]);
 
   return (
-    <div className={cn("px-4 pb-4", className)}>
-      <div className={cn("mx-auto max-w-2xl space-y-2", innerClassName)}>
-        {(attachments.length > 0 || uploadQueue.length > 0) ? (
-          <div className="flex flex-wrap gap-2" data-testid="composer-attachments">
-            {attachments.map((attachment) => (
-              <PreviewAttachment
-                attachment={attachment}
-                key={attachment.url}
-                onRemove={() => {
-                  setAttachments((currentAttachments) =>
-                    currentAttachments.filter(({ url }) => url !== attachment.url),
-                  );
-                }}
-              />
-            ))}
-
-            {uploadQueue.map((filename, index) => (
-              <PreviewAttachment
-                attachment={{
-                  filename,
-                  url: "",
-                  contentType: "",
-                }}
-                isUploading
-                key={`${filename}-${index}`}
-              />
-            ))}
-          </div>
-        ) : null}
-
+    <div
+      className={cn("px-4 pb-4", className)}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      <div className={cn(
+        "mx-auto max-w-2xl rounded-xl transition-colors",
+        isDragOver && "ring-2 ring-primary/40 ring-offset-2",
+        innerClassName,
+      )}>
         <input
           accept={CHAT_ATTACHMENT_ACCEPT}
           aria-label="Upload attachments"
@@ -266,6 +276,34 @@ export function ChatComposer({
         />
 
         <PromptInput onSubmit={handleSubmit}>
+          {(attachments.length > 0 || uploadQueue.length > 0) && (
+            <div className="flex w-full flex-wrap gap-2 p-2" data-testid="composer-attachments">
+              {attachments.map((attachment) => (
+                <PreviewAttachment
+                  attachment={attachment}
+                  key={attachment.url}
+                  onRemove={() => {
+                    setAttachments((currentAttachments) =>
+                      currentAttachments.filter(({ url }) => url !== attachment.url),
+                    );
+                  }}
+                />
+              ))}
+
+              {uploadQueue.map((filename, index) => (
+                <PreviewAttachment
+                  attachment={{
+                    filename,
+                    url: "",
+                    contentType: "",
+                  }}
+                  isUploading
+                  key={`${filename}-${index}`}
+                />
+              ))}
+            </div>
+          )}
+
           <PromptInputTextarea
             placeholder={placeholder ?? "Send a message..."}
             value={value}
@@ -278,7 +316,15 @@ export function ChatComposer({
             <PromptInputTools className="text-foreground">
               <ModelSelector
                 disabled={isGenerating || disabled}
-                onValueChange={onSelectedChatModelChange}
+                onValueChange={(modelId) => {
+                  if (hideModelSelector) {
+                    toast("Start a new chat to switch models.", {
+                      action: { label: "New Chat", onClick: () => router.push("/chat") },
+                    });
+                    return;
+                  }
+                  onSelectedChatModelChange(modelId);
+                }}
                 value={selectedChatModel}
               />
             </PromptInputTools>

@@ -3,8 +3,12 @@
  * @module components/chat/preview-attachment
  */
 import { X } from "@/components/icons/lucide-compat";
-import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export interface Attachment {
   filename: string;
@@ -69,6 +73,7 @@ export function PreviewAttachment({
   onImageClick,
 }: PreviewAttachmentProps) {
   const { filename, url, contentType } = attachment;
+
   const previewContent = contentType.startsWith("image/") ? (
     <img
       alt={filename || "An image attachment"}
@@ -82,66 +87,81 @@ export function PreviewAttachment({
       {getFileTypeLabel(contentType)}
     </div>
   );
+
   const filenameLabel = (
     <div className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/80 to-transparent px-1 py-0.5 text-[10px] text-white">
       {filename}
     </div>
   );
 
-  return (
-    <div
-      className="group relative size-16 overflow-hidden rounded-lg border bg-muted"
-      data-testid="input-attachment-preview"
-    >
-      {!isUploading && url ? (
-        contentType.startsWith("image/") && onImageClick ? (
-          <button
-            type="button"
-            aria-label={filename}
-            className="block size-full cursor-zoom-in"
-            onClick={() => onImageClick(url)}
-          >
-            {previewContent}
-            {filenameLabel}
-          </button>
-        ) : (
-          <a
-            aria-label={filename}
-            className="block size-full"
-            href={url}
-          >
-            {previewContent}
-            {filenameLabel}
-          </a>
-        )
-      ) : (
-        <div className="size-full">
-          {previewContent}
-          {filenameLabel}
-        </div>
-      )}
-
-      {isUploading ? (
-        <div
-          className="absolute inset-0 flex items-center justify-center bg-black/50"
-          data-testid="input-attachment-loader"
-        >
-          <Spinner className="size-4 text-white" />
-        </div>
-      ) : null}
-
-      {onRemove ? (
-        <Button
-          aria-label={`Remove ${filename}`}
-          className="absolute right-0.5 top-0.5 z-10 size-4 rounded-full p-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
-          onClick={onRemove}
-          size="sm"
-          type="button"
-          variant="destructive"
-        >
-          <X className="size-2" />
-        </Button>
-      ) : null}
+  const tileBody = !isUploading && url ? (
+    contentType.startsWith("image/") && onImageClick ? (
+      <button
+        type="button"
+        aria-label={filename}
+        className="block size-full cursor-zoom-in"
+        onClick={() => onImageClick(url)}
+      >
+        {previewContent}
+        {filenameLabel}
+      </button>
+    ) : (
+      <a
+        aria-label={filename}
+        className="block size-full"
+        href={url}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        {previewContent}
+        {filenameLabel}
+      </a>
+    )
+  ) : (
+    <div className="size-full">
+      {previewContent}
+      {filenameLabel}
     </div>
+  );
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        {/* Outer div is the positioning context + hover group for the X button */}
+        <div className="group relative" data-testid="input-attachment-preview">
+          {/* Tile: dims subtly on hover via transition-opacity */}
+          <div className="size-16 overflow-hidden rounded-lg border bg-muted transition-opacity hover:opacity-75">
+            {tileBody}
+
+            {isUploading ? (
+              <div
+                className="absolute inset-0 flex items-center justify-center bg-black/50"
+                data-testid="input-attachment-loader"
+              >
+                <Spinner className="size-4 text-white" />
+              </div>
+            ) : null}
+          </div>
+
+          {/*
+           * X button: hidden by default, revealed on group hover.
+           * White circle with black icon; icon turns destructive red on button hover.
+           */}
+          {onRemove ? (
+            <button
+              aria-label={`Remove ${filename}`}
+              className="absolute right-1.5 top-1.5 z-10 flex size-3.5 items-center justify-center rounded-full bg-white opacity-0 shadow-sm transition-opacity group-hover:opacity-100 [&_svg]:text-black hover:[&_svg]:text-destructive"
+              onClick={onRemove}
+              type="button"
+            >
+              <X className="size-3" />
+            </button>
+          ) : null}
+        </div>
+      </TooltipTrigger>
+      {filename ? (
+        <TooltipContent side="top">{filename}</TooltipContent>
+      ) : null}
+    </Tooltip>
   );
 }
