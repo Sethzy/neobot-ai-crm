@@ -1,6 +1,7 @@
 /**
  * @fileoverview Chat model catalog and helper utilities for user-selected chat models.
  */
+import { getModelTokenPricing } from "@/lib/managed-agents/adapter-cost";
 
 /** Per-token pricing in USD per 1 million tokens. */
 export interface ModelPricing {
@@ -17,6 +18,10 @@ export interface ChatModel {
   id: string;
   /** Human-readable label shown in the picker. */
   name: string;
+  /** User-friendly tier label (e.g. "Basic", "Advanced", "Expert"). */
+  tier: string;
+  /** Short model name for the badge (e.g. "Haiku 4.5"). */
+  shortName: string;
   /** Provider slug used for provider logos. */
   provider: string;
   /** Short helper copy shown in the selector list. */
@@ -27,17 +32,7 @@ export interface ChatModel {
   pricing: ModelPricing;
 }
 
-/**
- * Default user-facing chat model for Sunder's main chat surface.
- *
- * Post-Managed-Agents-migration note: this ID is only used for the UI
- * picker catalog and the `chat-model` cookie. The actual runtime model is pinned
- * server-side by the `ANTHROPIC_AGENT_VERSION` (currently Sonnet 4.6,
- * see `scripts/managed-agents/create-agent.ts`). The picker is a label
- * today; it becomes a real switch only once Haiku is added via a second
- * managed-agent version + `selectedChatModel` plumbing through
- * `session-kickoff.ts` and `adapter.ts`.
- */
+/** Default user-facing chat model for Sunder's main chat surface. */
 export const DEFAULT_CHAT_MODEL = "anthropic/claude-sonnet-4-6";
 
 /** Cookie name used to persist the user's last selected chat model across /chat loads. */
@@ -46,20 +41,46 @@ export const CHAT_MODEL_COOKIE_NAME = "chat-model";
 /** One-year cookie lifetime for the persisted chat-model preference. */
 export const CHAT_MODEL_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
+/** Strips `cacheCreationPerM` (internal cost bucket) from the full pricing for UI display. */
+function uiPricing(anthropicModelId: string): ModelPricing {
+  const { inputPerM, outputPerM, cacheReadPerM } = getModelTokenPricing(anthropicModelId);
+  return { inputPerM, outputPerM, cacheReadPerM };
+}
+
 /**
- * User-selectable chat models. Single entry today — Haiku is planned as a
- * second entry once the Managed Agents plumbing supports per-session
- * model selection. Pricing mirrors the constants in
- * `src/lib/managed-agents/adapter-cost.ts`.
+ * User-selectable chat models. Each entry maps to a separate Anthropic
+ * Managed Agent (same tools, same system prompt, different `model` field).
  */
 export const chatModels: ChatModel[] = [
   {
+    id: "anthropic/claude-haiku-4-5",
+    name: "Claude Haiku 4.5",
+    tier: "Basic",
+    shortName: "Haiku 4.5",
+    provider: "anthropic",
+    description: "Fast and cost-effective for frequent tasks",
+    cost: 1,
+    pricing: uiPricing("claude-haiku-4-5"),
+  },
+  {
     id: "anthropic/claude-sonnet-4-6",
     name: "Claude Sonnet 4.6",
+    tier: "Advanced",
+    shortName: "Sonnet 4.6",
     provider: "anthropic",
-    description: "Balanced model for everyday work and complex tasks",
+    description: "Balanced thinking for most tasks",
     cost: 2,
-    pricing: { inputPerM: 3, outputPerM: 15, cacheReadPerM: 0.3 },
+    pricing: uiPricing("claude-sonnet-4-6"),
+  },
+  {
+    id: "anthropic/claude-opus-4-6",
+    name: "Claude Opus 4.6",
+    tier: "Expert",
+    shortName: "Opus 4.6",
+    provider: "anthropic",
+    description: "Smartest model for complex tasks",
+    cost: 3,
+    pricing: uiPricing("claude-opus-4-6"),
   },
 ];
 

@@ -16,18 +16,29 @@ describe("chat model catalog", () => {
     expect(DEFAULT_CHAT_MODEL).toBe("anthropic/claude-sonnet-4-6");
   });
 
-  it("exposes Claude Sonnet 4.6 as the single user-selectable model", () => {
-    expect(chatModels).toEqual([
-      expect.objectContaining({
-        id: "anthropic/claude-sonnet-4-6",
-        name: "Claude Sonnet 4.6",
-        provider: "anthropic",
-      }),
-    ]);
+  it("includes Haiku, Sonnet, and Opus model options", () => {
+    expect(chatModels).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "anthropic/claude-haiku-4-5",
+          provider: "anthropic",
+        }),
+        expect.objectContaining({
+          id: "anthropic/claude-sonnet-4-6",
+          provider: "anthropic",
+        }),
+        expect.objectContaining({
+          id: "anthropic/claude-opus-4-6",
+          provider: "anthropic",
+        }),
+      ]),
+    );
   });
 
   it("exposes the allowed model ids set", () => {
+    expect(allowedModelIds.has("anthropic/claude-haiku-4-5")).toBe(true);
     expect(allowedModelIds.has("anthropic/claude-sonnet-4-6")).toBe(true);
+    expect(allowedModelIds.has("anthropic/claude-opus-4-6")).toBe(true);
     expect(allowedModelIds.has("not-a-real-model")).toBe(false);
   });
 });

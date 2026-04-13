@@ -31,7 +31,7 @@ export function loadManagedAgentSkills(registryPath: string): BetaManagedAgentsS
   const customSkills: BetaManagedAgentsSkillParams[] = Object.values(registry).map((entry) => ({
     type: "custom",
     skill_id: entry.skillId,
-    version: "latest",
+    version: entry.latestVersion,
   }));
 
   const combinedSkills = [...BUILTIN_SKILLS, ...customSkills];

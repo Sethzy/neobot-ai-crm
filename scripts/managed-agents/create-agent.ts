@@ -5,12 +5,14 @@
  * set, the script retrieves the latest version and publishes an update using
  * the canonical tool declarations from `src/lib/managed-agents/tools`.
  *
- * Run once per environment (dev / staging / prod), then store BOTH
- * `ANTHROPIC_AGENT_ID` and `ANTHROPIC_AGENT_VERSION` in environment
- * variables. Sessions pin to the exact version.
+ * Run once per model per environment (dev / staging / prod), then store
+ * the agent ID and version in the corresponding environment variables.
+ * Sessions pin to the exact version.
  *
  * Usage:
- *   pnpm tsx scripts/managed-agents/create-agent.ts
+ *   pnpm tsx scripts/managed-agents/create-agent.ts                       # default: claude-sonnet-4-6
+ *   pnpm tsx scripts/managed-agents/create-agent.ts --model claude-haiku-4-5
+ *   pnpm tsx scripts/managed-agents/create-agent.ts --model claude-opus-4-6
  *
  * @module scripts/managed-agents/create-agent
  */
@@ -35,10 +37,43 @@ import { toPublishedManagedAgentToolName } from "@/lib/managed-agents/tool-name-
 
 import { loadManagedAgentSkills } from "./load-managed-agent-skills";
 
-const MANAGED_AGENT_NAME = "sunder-chat-agent";
+const ALLOWED_MODELS = ["claude-sonnet-4-6", "claude-haiku-4-5", "claude-opus-4-6"] as const;
+type AllowedModel = (typeof ALLOWED_MODELS)[number];
+
+/** Maps Anthropic model ID → env-var suffix for the agent ID/version pair. */
+const MODEL_ENV_SUFFIX: Record<AllowedModel, string> = {
+  "claude-sonnet-4-6": "SONNET",
+  "claude-haiku-4-5": "HAIKU",
+  "claude-opus-4-6": "OPUS",
+};
+
+/** Maps Anthropic model ID → human-readable short name for the agent name. */
+const MODEL_SHORT_NAME: Record<AllowedModel, string> = {
+  "claude-sonnet-4-6": "sonnet",
+  "claude-haiku-4-5": "haiku",
+  "claude-opus-4-6": "opus",
+};
+
+function parseModelArg(): AllowedModel {
+  const idx = process.argv.indexOf("--model");
+  if (idx === -1 || !process.argv[idx + 1]) {
+    return "claude-sonnet-4-6";
+  }
+  const raw = process.argv[idx + 1];
+  if (!ALLOWED_MODELS.includes(raw as AllowedModel)) {
+    throw new Error(
+      `Invalid --model "${raw}". Allowed: ${ALLOWED_MODELS.join(", ")}`,
+    );
+  }
+  return raw as AllowedModel;
+}
+
+const SELECTED_MODEL = parseModelArg();
+
+const MANAGED_AGENT_NAME = `sunder-chat-agent-${MODEL_SHORT_NAME[SELECTED_MODEL]}`;
 const MANAGED_AGENT_DESCRIPTION =
   "Sunder autopilot for advisory-sales practitioners. Uses repo-owned custom tools for CRM, files, messaging, triggers, browser automation, and connections.";
-const MANAGED_AGENT_MODEL = "claude-sonnet-4-6";
+const MANAGED_AGENT_MODEL = SELECTED_MODEL;
 
 const SKILL_REGISTRY_PATH = path.join(
   process.cwd(),
@@ -52,18 +87,51 @@ const PUBLISHED_MANAGED_AGENT_TOOL_NAMES = MANAGED_AGENT_TOOL_NAMES.map(
   toPublishedManagedAgentToolName,
 );
 
-const MANAGED_AGENT_SYSTEM = [
-  "You are Sunder, an autopilot for solo practitioners in advisory sales.",
-  "Your job is to do the work: update the CRM, handle follow-up, prepare briefings, manage files, send messages, and keep the user's operating context current.",
-  "Prefer concrete tool use over describing what could be done. Use the Sunder custom tools for CRM, storage, connections, triggers, browser work, meetings, market data, and messaging.",
-  "Internal work can run automatically. External-facing actions may require approval. When approval is required, explain the action briefly and wait.",
-  "Use `search_crm` before mutating records when the target is ambiguous. Avoid duplicate writes and keep CRM state tidy.",
-  "Use `/agent/*` files as durable operating context. Read before writing when freshness matters, and write only the minimal durable update that improves future runs.",
-  "In trigger runs, do not use `run_sql`, `get_agent_db_schema`, `ask_user_question`, `create_connection`, or `reauthorize_connection`. Use `search_crm` for data lookups in triggers.",
-  "Use Sunder's `sunder_web_search`, `web_scrape`, and browser tools for web tasks; do not rely on Anthropic built-in web tools.",
-  "Keep user-facing responses concise, factual, and operationally useful.",
-  `Available Sunder custom tools: ${PUBLISHED_MANAGED_AGENT_TOOL_NAMES.join(", ")}.`,
-].join("\n\n");
+const MANAGED_AGENT_SYSTEM = `\
+You are Sunder, an autopilot for solo practitioners in advisory sales.
+
+## Role
+
+Your job is to do the work: update the CRM, handle follow-up, prepare briefings, manage files, send messages, and keep the user's operating context current. Prefer concrete tool use over describing what could be done.
+
+## Tools
+
+You have two sets of tools available:
+
+- **Sunder custom tools** — CRM, storage, connections, triggers, browser work, meetings, market data, and messaging. Use these for all domain-specific operations.
+- **Built-in tools** — bash, read, write, edit, glob, grep, web_fetch, web_search. Use these for general file operations, code execution, and web lookups.
+
+For web search and scraping, prefer Sunder's \`sunder_web_search\` and \`web_scrape\` tools for structured results. Use built-in \`web_search\` and \`web_fetch\` as fallbacks or for quick lookups.
+
+Available Sunder custom tools: ${PUBLISHED_MANAGED_AGENT_TOOL_NAMES.join(", ")}.
+
+## Filesystem
+
+You operate across two filesystems with different lifetimes:
+
+- **Session filesystem** (\`/mnt/session/uploads/*\`, \`/mnt/session/outputs/*\`): Ephemeral — tied to this session. Use built-in tools (read, write, edit, bash, glob, grep) to work with these paths. This is your scratchpad for analysis, transformation, and artifact generation.
+- **Durable workspace** (\`/agent/*\`): Persistent across sessions. Use \`storage_read\` and \`storage_write\` for these paths. This is where saved files, memory, and operating context live.
+
+Rules:
+- Use built-in tools on \`/mnt/session/*\` paths. Do not call \`storage_read\` or \`storage_write\` on session paths.
+- Use \`storage_read\`/\`storage_write\` on \`/agent/*\` paths. Do not use built-in tools on \`/agent/*\` paths.
+- Session outputs are not saved by default. If the user wants to keep a generated file, read it with built-in \`read\` or \`bash\`, then write it to \`/agent/home/*\` with \`storage_write\`.
+- Attach only durable files (\`/agent/*\`) to CRM records. If a session output needs to be attached, persist it first.
+
+## Execution
+
+- Use \`search_crm\` before mutating records when the target is ambiguous. Avoid duplicate writes and keep CRM state tidy.
+- Read \`/agent/*\` files before writing when freshness matters, and write only the minimal durable update that improves future runs.
+- Internal work can run automatically. External-facing actions may require approval. When approval is required, explain the action briefly and wait.
+
+## Trigger runs
+
+In trigger runs (automated/scheduled executions), do not use \`run_sql\`, \`get_agent_db_schema\`, \`ask_user_question\`, \`create_connection\`, or \`reauthorize_connection\`. Use \`search_crm\` for data lookups in triggers.
+
+## Style
+
+Keep user-facing responses concise, factual, and operationally useful.
+`;
 
 const ANTHROPIC_ALLOWED_SCHEMA_KEYS = new Set([
   "type",
@@ -130,21 +198,18 @@ function sanitizeJsonSchema(value: unknown): unknown {
 }
 
 /**
- * Built-in Anthropic toolset. Skills require the `read` tool to be enabled
- * and not `always_deny` so they can fetch SKILL.md files. All other built-in
- * tools are left disabled — Sunder routes file/web/shell work through its
- * own custom tools (sunder_web_search, storage_read, sandbox_bash, etc.).
+ * Built-in Anthropic toolset — all tools enabled, all `always_allow`.
+ *
+ * Enables bash, read, write, edit, glob, grep, web_fetch, web_search.
+ * Skills require `read` to fetch SKILL.md files.
  */
 const BUILT_IN_TOOLSET: BetaManagedAgentsAgentToolset20260401Params = {
   type: "agent_toolset_20260401",
-  default_config: { enabled: false },
-  configs: [
-    {
-      name: "read",
-      enabled: true,
-      permission_policy: { type: "always_allow" },
-    },
-  ],
+  default_config: {
+    enabled: true,
+    permission_policy: { type: "always_allow" },
+  },
+  configs: [],
 };
 
 function buildAgentPayload(): AgentCreateParams {
@@ -164,7 +229,14 @@ async function createOrUpdateAgent(
   client: Anthropic,
 ): Promise<{ mode: "created" | "updated"; agent: BetaManagedAgentsAgent }> {
   const payload = buildAgentPayload();
-  const existingAgentId = process.env.ANTHROPIC_AGENT_ID?.trim();
+  const suffix = MODEL_ENV_SUFFIX[SELECTED_MODEL];
+
+  // Check model-specific env var first, fall back to legacy ANTHROPIC_AGENT_ID for Sonnet.
+  const existingAgentId =
+    process.env[`ANTHROPIC_AGENT_ID_${suffix}`]?.trim() ||
+    (SELECTED_MODEL === "claude-sonnet-4-6"
+      ? process.env.ANTHROPIC_AGENT_ID?.trim()
+      : undefined);
 
   if (!existingAgentId) {
     const agent = await client.beta.agents.create(payload);
@@ -197,11 +269,12 @@ async function main() {
   const client = new Anthropic({ apiKey });
   const result = await createOrUpdateAgent(client);
 
+  const suffix = MODEL_ENV_SUFFIX[SELECTED_MODEL];
   console.log("=".repeat(60));
-  console.log(`Sunder Managed Agent ${result.mode}.`);
+  console.log(`Sunder Managed Agent (${SELECTED_MODEL}) ${result.mode}.`);
   console.log("=".repeat(60));
-  console.log(`ANTHROPIC_AGENT_ID=${result.agent.id}`);
-  console.log(`ANTHROPIC_AGENT_VERSION=${result.agent.version}`);
+  console.log(`ANTHROPIC_AGENT_ID_${suffix}=${result.agent.id}`);
+  console.log(`ANTHROPIC_AGENT_VERSION_${suffix}=${result.agent.version}`);
   console.log(`CUSTOM_TOOL_COUNT=${MANAGED_AGENT_TOOL_DECLARATIONS.length}`);
   console.log(`CUSTOM_TOOL_NAMES=${MANAGED_AGENT_TOOL_NAMES.join(",")}`);
   console.log("");

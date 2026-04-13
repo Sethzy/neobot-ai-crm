@@ -32,10 +32,18 @@ const serverEnvSchema = z.object({
   VERCEL_TEAM_ID: z.string().trim().optional(),
   VERCEL_PROJECT_ID: z.string().trim().optional(),
 
-  // Anthropic Managed Agents (H1 bootstrap — legacy runner does not read these)
+  // Anthropic Managed Agents — one agent per model, shared environment.
+  // Sonnet uses the legacy ANTHROPIC_AGENT_ID / _VERSION as fallback
+  // when the _SONNET-suffixed vars are absent.
   ANTHROPIC_AGENT_ID: z.string().trim().optional(),
   ANTHROPIC_AGENT_VERSION: z.string().trim().optional(),
   ANTHROPIC_ENVIRONMENT_ID: z.string().trim().optional(),
+  ANTHROPIC_AGENT_ID_SONNET: z.string().trim().optional(),
+  ANTHROPIC_AGENT_VERSION_SONNET: z.string().trim().optional(),
+  ANTHROPIC_AGENT_ID_HAIKU: z.string().trim().optional(),
+  ANTHROPIC_AGENT_VERSION_HAIKU: z.string().trim().optional(),
+  ANTHROPIC_AGENT_ID_OPUS: z.string().trim().optional(),
+  ANTHROPIC_AGENT_VERSION_OPUS: z.string().trim().optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
@@ -92,6 +100,18 @@ export function getServerEnv(): ServerEnv {
       process.env.ANTHROPIC_AGENT_VERSION?.trim() || undefined,
     ANTHROPIC_ENVIRONMENT_ID:
       process.env.ANTHROPIC_ENVIRONMENT_ID?.trim() || undefined,
+    ANTHROPIC_AGENT_ID_SONNET:
+      process.env.ANTHROPIC_AGENT_ID_SONNET?.trim() || undefined,
+    ANTHROPIC_AGENT_VERSION_SONNET:
+      process.env.ANTHROPIC_AGENT_VERSION_SONNET?.trim() || undefined,
+    ANTHROPIC_AGENT_ID_HAIKU:
+      process.env.ANTHROPIC_AGENT_ID_HAIKU?.trim() || undefined,
+    ANTHROPIC_AGENT_VERSION_HAIKU:
+      process.env.ANTHROPIC_AGENT_VERSION_HAIKU?.trim() || undefined,
+    ANTHROPIC_AGENT_ID_OPUS:
+      process.env.ANTHROPIC_AGENT_ID_OPUS?.trim() || undefined,
+    ANTHROPIC_AGENT_VERSION_OPUS:
+      process.env.ANTHROPIC_AGENT_VERSION_OPUS?.trim() || undefined,
   };
 
   const result = serverEnvSchema.safeParse(raw);

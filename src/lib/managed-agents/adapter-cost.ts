@@ -5,12 +5,13 @@
  * import the same constants so per-turn cost stays consistent across the
  * two entry points.
  *
- * Pricing (Sonnet 4.6, verify against Anthropic pricing page on changes):
- *   - Uncached input: $3 / M
- *   - Cache write (5-minute TTL): $3.75 / M
- *   - Cache read: $0.30 / M
- *   - Output: $15 / M
- *   - Session runtime: $0.08 / hour
+ * Per-model pricing (verify against Anthropic pricing page on changes):
+ *
+ * | Model       | Input $/M | Cache-write $/M | Cache-read $/M | Output $/M |
+ * |-------------|-----------|-----------------|----------------|------------|
+ * | Sonnet 4.6  |      3.00 |            3.75 |           0.30 |      15.00 |
+ * | Haiku 4.5   |      1.00 |            1.25 |           0.10 |       5.00 |
+ * | Opus 4.6    |      5.00 |            6.25 |           0.50 |      25.00 |
  *
  * Cache accounting note: Anthropic exposes `input_tokens` as the *total*
  * input on a request. `cache_read_input_tokens` and
@@ -20,14 +21,48 @@
  * @module lib/managed-agents/adapter-cost
  */
 
-/** USD per million uncached input tokens. */
-export const SONNET_INPUT_PER_M = 3;
-/** USD per million output tokens. */
-export const SONNET_OUTPUT_PER_M = 15;
-/** USD per million cache-read input tokens (~10% of uncached). */
-export const CACHE_READ_PER_M = 0.3;
-/** USD per million cache-creation input tokens (~125% of uncached). */
-export const CACHE_CREATION_PER_M = 3.75;
+/** Per-model pricing in USD per million tokens. */
+export interface ModelTokenPricing {
+  inputPerM: number;
+  outputPerM: number;
+  cacheReadPerM: number;
+  cacheCreationPerM: number;
+}
+
+const SONNET_PRICING: ModelTokenPricing = {
+  inputPerM: 3,
+  outputPerM: 15,
+  cacheReadPerM: 0.3,
+  cacheCreationPerM: 3.75,
+};
+
+const HAIKU_PRICING: ModelTokenPricing = {
+  inputPerM: 1,
+  outputPerM: 5,
+  cacheReadPerM: 0.1,
+  cacheCreationPerM: 1.25,
+};
+
+const OPUS_PRICING: ModelTokenPricing = {
+  inputPerM: 5,
+  outputPerM: 25,
+  cacheReadPerM: 0.5,
+  cacheCreationPerM: 6.25,
+};
+
+const PRICING_BY_MODEL: Record<string, ModelTokenPricing> = {
+  "claude-sonnet-4-6": SONNET_PRICING,
+  "claude-haiku-4-5": HAIKU_PRICING,
+  "claude-opus-4-6": OPUS_PRICING,
+};
+
+/** Resolve pricing for a model. Falls back to Sonnet if unknown. */
+export function getModelTokenPricing(
+  anthropicModelId: string,
+): ModelTokenPricing {
+  return PRICING_BY_MODEL[anthropicModelId] ?? SONNET_PRICING;
+}
+
 /** Anthropic Managed Agents session-runtime billing in USD per active hour. */
 export const SESSION_RUNTIME_PER_HOUR = 0.08;
 
@@ -44,6 +79,8 @@ export interface TurnCostInput {
   cacheReadInputTokens: number;
   cacheCreationInputTokens: number;
   activeSeconds: number;
+  /** Anthropic model ID for pricing lookup. Defaults to Sonnet. */
+  anthropicModelId?: string;
 }
 
 /** Initial usage shape — exported so callers don't have to remember the four fields. */
@@ -82,18 +119,21 @@ export function accumulateModelUsage(
 /**
  * Computes a per-turn dollar cost from accumulated tokens and elapsed
  * session-runtime seconds. Splits input into uncached / cache-read /
- * cache-creation buckets per Anthropic's pricing model.
+ * cache-creation buckets per Anthropic's pricing model. When
+ * `anthropicModelId` is provided, uses that model's pricing; otherwise
+ * falls back to Sonnet.
  */
 export function computeTurnCost(input: TurnCostInput): number {
+  const pricing = getModelTokenPricing(input.anthropicModelId ?? "claude-sonnet-4-6");
   const uncachedInput = Math.max(
     0,
     input.inputTokens - input.cacheReadInputTokens - input.cacheCreationInputTokens,
   );
   const tokenCost =
-    (uncachedInput * SONNET_INPUT_PER_M +
-      input.cacheReadInputTokens * CACHE_READ_PER_M +
-      input.cacheCreationInputTokens * CACHE_CREATION_PER_M +
-      input.outputTokens * SONNET_OUTPUT_PER_M) /
+    (uncachedInput * pricing.inputPerM +
+      input.cacheReadInputTokens * pricing.cacheReadPerM +
+      input.cacheCreationInputTokens * pricing.cacheCreationPerM +
+      input.outputTokens * pricing.outputPerM) /
     1_000_000;
   const runtimeCost = (input.activeSeconds / 3600) * SESSION_RUNTIME_PER_HOUR;
   return tokenCost + runtimeCost;

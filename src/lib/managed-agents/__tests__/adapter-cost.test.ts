@@ -9,11 +9,8 @@ import { describe, it, expect } from "vitest";
 import {
   accumulateModelUsage,
   computeTurnCost,
-  CACHE_CREATION_PER_M,
-  CACHE_READ_PER_M,
+  getModelTokenPricing,
   SESSION_RUNTIME_PER_HOUR,
-  SONNET_INPUT_PER_M,
-  SONNET_OUTPUT_PER_M,
 } from "../adapter-cost";
 
 describe("accumulateModelUsage", () => {
@@ -132,11 +129,10 @@ describe("computeTurnCost", () => {
     ).toBe(0);
   });
 
-  it("exposes pricing constants", () => {
-    expect(SONNET_INPUT_PER_M).toBe(3);
-    expect(SONNET_OUTPUT_PER_M).toBe(15);
-    expect(CACHE_READ_PER_M).toBe(0.3);
-    expect(CACHE_CREATION_PER_M).toBe(3.75);
+  it("returns correct pricing for each model", () => {
+    expect(getModelTokenPricing("claude-sonnet-4-6")).toMatchObject({ inputPerM: 3, outputPerM: 15, cacheReadPerM: 0.3, cacheCreationPerM: 3.75 });
+    expect(getModelTokenPricing("claude-haiku-4-5")).toMatchObject({ inputPerM: 1, outputPerM: 5, cacheReadPerM: 0.1, cacheCreationPerM: 1.25 });
+    expect(getModelTokenPricing("claude-opus-4-6")).toMatchObject({ inputPerM: 5, outputPerM: 25, cacheReadPerM: 0.5, cacheCreationPerM: 6.25 });
     expect(SESSION_RUNTIME_PER_HOUR).toBe(0.08);
   });
 });
