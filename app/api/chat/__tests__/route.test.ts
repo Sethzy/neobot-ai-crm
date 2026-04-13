@@ -8,6 +8,7 @@ const {
   authenticateRequest,
   resolveClientId,
   checkRateLimit,
+  generateTitleFromUserMessage,
   runManagedAgent,
   resumeManagedAgentFromApproval,
   getAnthropicClient,
@@ -15,6 +16,7 @@ const {
   authenticateRequest: vi.fn(),
   resolveClientId: vi.fn(),
   checkRateLimit: vi.fn(),
+  generateTitleFromUserMessage: vi.fn(),
   runManagedAgent: vi.fn(),
   resumeManagedAgentFromApproval: vi.fn(),
   getAnthropicClient: vi.fn(),
@@ -29,6 +31,7 @@ vi.mock("@/lib/api/route-helpers", () => ({
   jsonError: (message: string, status: number) =>
     new Response(JSON.stringify({ error: message }), { status }),
 }));
+vi.mock("@/lib/ai/title", () => ({ generateTitleFromUserMessage }));
 vi.mock("@/lib/chat/client-id", () => ({ resolveClientId }));
 vi.mock("@/lib/rate-limit", () => ({ checkRateLimit }));
 vi.mock("@/lib/managed-agents/adapter", () => ({
@@ -88,6 +91,7 @@ describe("POST /api/chat", () => {
     insertFn.mockReturnValue({ error: null });
     resolveClientId.mockResolvedValue("c1");
     checkRateLimit.mockResolvedValue({ allowed: true });
+    generateTitleFromUserMessage.mockResolvedValue("Generated title");
     getAnthropicClient.mockReturnValue({});
     runManagedAgent.mockResolvedValue(new ReadableStream());
     resumeManagedAgentFromApproval.mockResolvedValue({
@@ -216,6 +220,84 @@ describe("POST /api/chat", () => {
     );
   });
 
+  it("starts title generation for a brand-new thread and seeds the placeholder title", async () => {
+    const titlePromise = Promise.resolve("Fresh title");
+    generateTitleFromUserMessage.mockReturnValueOnce(titlePromise);
+    maybeSingle.mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+
+    await POST(
+      new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: "new-thread",
+          messages: [
+            {
+              id: "m1",
+              role: "user",
+              parts: [{ type: "text", text: "plan my week" }],
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(insertFn).toHaveBeenCalledWith({
+      thread_id: "new-thread",
+      client_id: "c1",
+      title: "New Chat",
+    });
+    expect(generateTitleFromUserMessage).toHaveBeenCalledWith("plan my week");
+    expect(runManagedAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadTitle: "New Chat",
+        generatedTitlePromise: titlePromise,
+      }),
+    );
+  });
+
+  it("skips title generation for brand-new file-only threads", async () => {
+    maybeSingle.mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+
+    await POST(
+      new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: "new-thread",
+          messages: [
+            {
+              id: "m1",
+              role: "user",
+              parts: [
+                {
+                  type: "file",
+                  url: "https://example.com/test.csv",
+                  mediaType: "text/csv",
+                  filename: "test.csv",
+                },
+              ],
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(generateTitleFromUserMessage).not.toHaveBeenCalled();
+    expect(runManagedAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadTitle: "New Chat",
+        generatedTitlePromise: null,
+      }),
+    );
+  });
+
   it("routes approval responses to resumeManagedAgentFromApproval", async () => {
     const response = await POST(
       new Request("http://localhost/api/chat", {
@@ -245,6 +327,41 @@ describe("POST /api/chat", () => {
     expect(resumeManagedAgentFromApproval).toHaveBeenCalledWith(
       expect.objectContaining({
         approvalId: "toolu_123",
+        approved: true,
+      }),
+    );
+    expect(runManagedAgent).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+  });
+
+  it("routes v6 typed tool approval (tool-<name>) to resumeManagedAgentFromApproval", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: "t1",
+          messages: [
+            {
+              id: "assistant-1",
+              role: "assistant",
+              parts: [
+                {
+                  type: "tool-bash",
+                  toolCallId: "BV7LR5qz",
+                  state: "approval-responded",
+                  approval: { id: "BV7LR5qz", approved: true },
+                },
+              ],
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(resumeManagedAgentFromApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
+        approvalId: "BV7LR5qz",
         approved: true,
       }),
     );

@@ -54,13 +54,13 @@ describe("listCustomizedSkillSlugs", () => {
     expect(result).toEqual([]);
   });
 
-  it("ignores slugs that only have a _fork.json but no SKILL.md", async () => {
+  it("includes slugs that have a directory even without SKILL.md (directory existence is the signal)", async () => {
     const supabase = {
       storage: makeStorageMock(["client-1/skills/orphan/_fork.json"]),
     } as never;
 
     const result = await listCustomizedSkillSlugs(supabase, "client-1");
 
-    expect(result).toEqual([]);
+    expect(result).toEqual(["orphan"]);
   });
 });

@@ -26,8 +26,6 @@ const SKILL_REGISTRY_PATH = path.join(
   "skill-registry.json",
 );
 
-export { validateSkillContent } from "./discover-skills";
-
 /** Saves a user's customized `SKILL.md` content after validating frontmatter. */
 export async function saveSkillContent(
   slug: string,

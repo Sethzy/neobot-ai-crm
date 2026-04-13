@@ -21,21 +21,12 @@ export async function listCustomizedSkillSlugs(
     return [];
   }
 
-  const candidateSlugs = entries
+  // Directories (id === null) under skills/ that aren't reserved exist only
+  // because the client duplicated a predefined skill. No need to download
+  // each SKILL.md to verify — the directory's existence IS the signal.
+  return entries
     .filter((entry) => entry.id === null)
     .map((entry) => entry.name)
     .filter((slug) => !RESERVED_SKILL_DIRECTORIES.has(slug))
     .sort((left, right) => left.localeCompare(right));
-
-  const customizedSlugs: string[] = [];
-
-  for (const slug of candidateSlugs) {
-    const { data } = await bucket.download(`${clientId}/skills/${slug}/SKILL.md`);
-
-    if (data) {
-      customizedSlugs.push(slug);
-    }
-  }
-
-  return customizedSlugs;
 }
