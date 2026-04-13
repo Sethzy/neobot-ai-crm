@@ -130,6 +130,46 @@ describe("searchCrmTool — include parameter", () => {
     expect(deal._notes).toHaveLength(1);
   });
 
+  it("fetches deal with included attachments and exposes canonical file paths", async () => {
+    const { client, builderHistory } = createMockSupabase({
+      deals: { data: [{ deal_id: "d1", address: "8 Nassim Hill" }], error: null },
+      record_attachments: {
+        data: [{
+          attachment_id: "a1",
+          record_id: "d1",
+          filename: "report.csv",
+          file_category: "spreadsheet",
+          file_size: 2048,
+          content_type: "text/csv",
+          storage_path: "attachments/deal/d1/report.csv",
+          created_at: "2026-04-05T00:00:00Z",
+        }],
+        error: null,
+      },
+    });
+
+    const result = await searchCrmTool.execute(
+      { entity: "deals", filters: { deal_id: "d1" }, include: ["attachments"] },
+      makeContext(client),
+    );
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const deal = result.records[0] as Record<string, unknown>;
+    expect(deal._attachments).toEqual([
+      expect.objectContaining({
+        attachment_id: "a1",
+        record_id: "d1",
+        storage_path: "attachments/deal/d1/report.csv",
+        agent_path: "/agent/attachments/deal/d1/report.csv",
+      }),
+    ]);
+
+    expect(builderHistory.record_attachments?.[0]?.select).toHaveBeenCalledWith(
+      "attachment_id, record_id, filename, file_category, file_size, content_type, storage_path, created_at",
+    );
+  });
+
   it("fetches contact with included deals via deal_contacts junction", async () => {
     const { client } = createMockSupabase({
       contacts: { data: [{ contact_id: "c1", first_name: "David", last_name: "Lee" }], error: null },

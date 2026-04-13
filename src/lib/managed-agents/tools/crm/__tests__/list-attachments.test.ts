@@ -29,6 +29,7 @@ describe("listRecordAttachmentsTool", () => {
         file_category: "pdf",
         file_size: 2048,
         content_type: "application/pdf",
+        storage_path: `attachments/contact/${CONTACT_ID}/report.pdf`,
         created_at: "2026-04-05T00:00:00Z",
       },
     ];
@@ -41,7 +42,49 @@ describe("listRecordAttachmentsTool", () => {
       makeContext(client),
     );
 
-    expect(result).toEqual({ success: true, attachments, count: 1 });
+    expect(result).toEqual({
+      success: true,
+      attachments: [
+        {
+          ...attachments[0],
+          agent_path: `/agent/attachments/contact/${CONTACT_ID}/report.pdf`,
+        },
+      ],
+      count: 1,
+    });
     expect(builders.record_attachments.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
+  });
+
+  it("returns agent_path: null when storage_path is missing", async () => {
+    const attachments = [
+      {
+        attachment_id: "a1",
+        filename: "legacy.csv",
+        file_category: "spreadsheet",
+        file_size: 2048,
+        content_type: "text/csv",
+        storage_path: null,
+        created_at: "2026-04-05T00:00:00Z",
+      },
+    ];
+    const { client } = createMockSupabase({
+      record_attachments: { data: attachments, error: null },
+    });
+
+    const result = await listRecordAttachmentsTool.execute(
+      { record_type: "contact", record_id: CONTACT_ID },
+      makeContext(client),
+    );
+
+    expect(result).toEqual({
+      success: true,
+      attachments: [
+        {
+          ...attachments[0],
+          agent_path: null,
+        },
+      ],
+      count: 1,
+    });
   });
 });

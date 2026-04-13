@@ -17,6 +17,7 @@ import {
   normalizeDateString,
   normalizeDateUpperBound,
 } from "@/lib/crm/filter-utils";
+import { toModelPath } from "@/lib/storage/agent-paths";
 
 import type { ManagedAgentTool, ToolContext } from "../types";
 
@@ -36,7 +37,7 @@ type SearchEntity = (typeof SEARCH_ENTITIES)[number];
 // Include configuration
 // ---------------------------------------------------------------------------
 
-const INCLUDABLE_ENTITIES = ["contacts", "deals", "interactions", "notes", "tasks"] as const;
+const INCLUDABLE_ENTITIES = ["contacts", "deals", "interactions", "notes", "tasks", "attachments"] as const;
 type IncludableEntity = (typeof INCLUDABLE_ENTITIES)[number];
 
 interface IncludeSpec {
@@ -113,6 +114,14 @@ const INCLUDE_MAP: Partial<Record<SearchEntity, Partial<Record<IncludableEntity,
       defaultLimit: 10,
       orderBy: { column: "due_date", ascending: true },
     },
+    attachments: {
+      table: "record_attachments",
+      joinColumn: "record_id",
+      parentKey: "deal_id",
+      select: "attachment_id, record_id, filename, file_category, file_size, content_type, storage_path, created_at",
+      defaultLimit: 10,
+      orderBy: { column: "created_at", ascending: false },
+    },
   },
   contacts: {
     deals: {
@@ -149,6 +158,14 @@ const INCLUDE_MAP: Partial<Record<SearchEntity, Partial<Record<IncludableEntity,
       defaultLimit: 10,
       orderBy: { column: "due_date", ascending: true },
     },
+    attachments: {
+      table: "record_attachments",
+      joinColumn: "record_id",
+      parentKey: "contact_id",
+      select: "attachment_id, record_id, filename, file_category, file_size, content_type, storage_path, created_at",
+      defaultLimit: 10,
+      orderBy: { column: "created_at", ascending: false },
+    },
   },
   companies: {
     contacts: {
@@ -164,6 +181,22 @@ const INCLUDE_MAP: Partial<Record<SearchEntity, Partial<Record<IncludableEntity,
       parentKey: "company_id",
       select: "deal_id, address, stage, amount",
       defaultLimit: 10,
+    },
+    notes: {
+      table: "record_notes",
+      joinColumn: "record_id",
+      parentKey: "company_id",
+      select: "id, body, created_at",
+      defaultLimit: 5,
+      orderBy: { column: "created_at", ascending: false },
+    },
+    attachments: {
+      table: "record_attachments",
+      joinColumn: "record_id",
+      parentKey: "company_id",
+      select: "attachment_id, record_id, filename, file_category, file_size, content_type, storage_path, created_at",
+      defaultLimit: 10,
+      orderBy: { column: "created_at", ascending: false },
     },
   },
 };
@@ -238,11 +271,11 @@ const inputSchema = z.object({
     .array(z.enum(INCLUDABLE_ENTITIES))
     .optional()
     .describe(
-      "Related entities to fetch alongside primary results, nested under _contacts, _deals, _interactions, _notes, _tasks. " +
+      "Related entities to fetch alongside primary results, nested under _contacts, _deals, _interactions, _notes, _tasks, _attachments. " +
         "Avoids multiple sequential calls. " +
-        "Valid includes — deals: [contacts, interactions, notes, tasks]. " +
-        "contacts: [deals, interactions, notes, tasks]. " +
-        "companies: [contacts, deals]. " +
+        "Valid includes — deals: [contacts, interactions, notes, tasks, attachments]. " +
+        "contacts: [deals, interactions, notes, tasks, attachments]. " +
+        "companies: [contacts, deals, notes, attachments]. " +
         "Other entities do not support include.",
     ),
   limit: z
@@ -308,6 +341,15 @@ async function searchDealContacts(
 // Batch-fetch included entities
 // ---------------------------------------------------------------------------
 
+function normalizeAttachmentInclude(row: Record<string, unknown>): Record<string, unknown> {
+  const storagePath = typeof row.storage_path === "string" ? row.storage_path : null;
+
+  return {
+    ...row,
+    agent_path: storagePath ? toModelPath(storagePath) : null,
+  };
+}
+
 /**
  * Fetches related entities for an array of primary records and attaches them
  * under underscore-prefixed keys (e.g. `_contacts`, `_interactions`).
@@ -342,14 +384,14 @@ async function fetchIncludes(
 
     if (uniqueIds.length === 0) return { includeName, grouped: new Map<string, unknown[]>() };
 
-    // For record_notes, we also need to filter by record_type
-    const isNotes = includeName === "notes";
-    const noteRecordType =
-      isNotes && entity === "deals"
-        ? "deal"
-        : isNotes && entity === "contacts"
-          ? "contact"
-          : null;
+    // record_notes and record_attachments use a polymorphic record_type column
+    const needsRecordType = includeName === "notes" || includeName === "attachments";
+    const ENTITY_TO_RECORD_TYPE: Partial<Record<SearchEntity, string>> = {
+      deals: "deal",
+      contacts: "contact",
+      companies: "company",
+    };
+    const recordTypeFilter = needsRecordType ? ENTITY_TO_RECORD_TYPE[entity] ?? null : null;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let qb = (context.supabase as any)
@@ -358,8 +400,8 @@ async function fetchIncludes(
       .eq("client_id", context.clientId)
       .in(spec.joinColumn, uniqueIds);
 
-    if (noteRecordType) {
-      qb = qb.eq("record_type", noteRecordType);
+    if (recordTypeFilter) {
+      qb = qb.eq("record_type", recordTypeFilter);
     }
 
     if (spec.orderBy) {
@@ -381,7 +423,7 @@ async function fetchIncludes(
       if (!grouped.has(key)) grouped.set(key, []);
       const bucket = grouped.get(key)!;
       if (bucket.length < spec.defaultLimit) {
-        bucket.push(row);
+        bucket.push(includeName === "attachments" ? normalizeAttachmentInclude(row) : row);
       }
     }
 
@@ -409,7 +451,7 @@ export const searchCrmTool: ManagedAgentTool<SearchInput> = {
     "Default tool for reading CRM data. Search any entity (contacts, companies, deals, interactions, tasks, deal_contacts, record_notes) " +
     "with free-text query and key-value filters. Returns matching records sorted by relevance. " +
     "Use `include` to fetch related entities in one call instead of multiple sequential calls. " +
-    "Valid includes — deals: [contacts, interactions, notes, tasks]; contacts: [deals, interactions, notes, tasks]; companies: [contacts, deals]. " +
+    "Valid includes — deals: [contacts, interactions, notes, tasks, attachments]; contacts: [deals, interactions, notes, tasks, attachments]; companies: [contacts, deals, notes, attachments]. " +
     "Example: search_crm({ entity: 'deals', filters: { deal_id: '...' }, include: ['contacts', 'interactions', 'notes'] }). " +
     "For relationships without include: use entity 'deal_contacts' with a deal_id or contact_id filter. " +
     "For notes: use entity 'record_notes' with record_type and record_id filters. " +
