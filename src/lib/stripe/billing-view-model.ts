@@ -53,6 +53,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-SG", {
   day: "numeric",
   month: "long",
   year: "numeric",
+  timeZone: "Asia/Singapore",
 });
 
 function formatPeriodEnd(iso: string | null): string {

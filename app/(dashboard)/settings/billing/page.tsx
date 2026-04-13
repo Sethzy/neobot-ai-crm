@@ -7,6 +7,8 @@
  */
 import Link from "next/link";
 
+import { AlertCircle, CheckCircle } from "@/components/icons/lucide-compat";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,7 +47,46 @@ const ctaLabel: Record<BillingPrimaryAction, string> = {
   update_payment: "Update payment",
 };
 
-export default async function BillingPage() {
+interface BillingPageProps {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}
+
+function renderBillingAlert(billingParam: string | string[] | undefined) {
+  if (typeof billingParam !== "string") {
+    return null;
+  }
+
+  if (billingParam === "success") {
+    return (
+      <Alert>
+        <CheckCircle className="h-4 w-4" />
+        <AlertTitle>Plan activated.</AlertTitle>
+        <AlertDescription>
+          Your subscription is now active. It may take a moment for the page to reflect the
+          latest plan.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (billingParam === "portal-error") {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Billing portal unavailable.</AlertTitle>
+        <AlertDescription>
+          Could not open the Stripe Customer Portal. Please try again or contact support.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  return null;
+}
+
+export default async function BillingPage({ searchParams }: BillingPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const billingAlert = renderBillingAlert(resolvedSearchParams.billing);
   const client = await loadCurrentBillingState();
   const view = buildBillingViewModel(client);
   const badge = stateBadge[view.state];
@@ -59,6 +100,8 @@ export default async function BillingPage() {
             Manage your plan, payment, and invoices in Stripe.
           </p>
         </div>
+
+        {billingAlert}
 
         <Card className="border-border/70 bg-card shadow-sm">
           <CardHeader className="gap-2">
