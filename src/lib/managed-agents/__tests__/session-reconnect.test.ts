@@ -27,6 +27,8 @@ import { describe, it, expect, vi } from "vitest";
 
 import {
   iterateSessionEvents,
+  iterateSessionEventsAfter,
+  openSessionTail,
   openSessionStream,
 } from "../session-reconnect";
 
@@ -127,6 +129,34 @@ describe("openSessionStream", () => {
   });
 });
 
+describe("openSessionTail", () => {
+  it("captures only the latest pre-kickoff event id", async () => {
+    const stream = vi.fn(() =>
+      Promise.resolve({
+        [Symbol.asyncIterator]: async function* () {},
+      }),
+    );
+    const list = vi.fn(() =>
+      Promise.resolve({
+        data: [{ id: "evt_latest" }],
+      }),
+    );
+
+    const client = {
+      beta: { sessions: { events: { stream, list } } },
+    } as never;
+
+    const handle = await openSessionTail(client, "sess_reused");
+
+    expect(list).toHaveBeenCalledWith(
+      "sess_reused",
+      { order: "desc", limit: 1 },
+      undefined,
+    );
+    expect(handle.afterId).toBe("evt_latest");
+  });
+});
+
 describe("iterateSessionEvents", () => {
   it("yields every new event once across history and live", async () => {
     // Fresh session: no pre-kickoff history. History call inside the
@@ -204,5 +234,46 @@ describe("iterateSessionEvents", () => {
       seen.push((e as { id: string }).id);
     }
     expect(seen).toEqual(["evt_idle"]);
+  });
+});
+
+describe("iterateSessionEventsAfter", () => {
+  it("skips events up to and including the cursor, yields the rest", async () => {
+    const list = vi.fn(() => ({
+      [Symbol.asyncIterator]: async function* () {
+        // The cursor event and everything before it should be skipped
+        yield agentMessageTextEvent("evt_1", "hello");
+        yield agentMessageTextEvent("evt_2", "world");
+        yield statusIdleEvent("evt_idle", "end_turn");
+      },
+    }));
+
+    const client = {
+      beta: { sessions: { events: { list } } },
+    } as never;
+
+    const handle = {
+      live: {
+        [Symbol.asyncIterator]: async function* () {},
+      },
+      afterId: "evt_1",
+    };
+
+    const seen: string[] = [];
+    for await (const event of iterateSessionEventsAfter(
+      client,
+      "sess_reused",
+      handle,
+    )) {
+      seen.push((event as { id: string }).id);
+    }
+
+    // after_id is no longer sent to the API — client-side skip instead
+    expect(list).toHaveBeenCalledWith(
+      "sess_reused",
+      undefined,
+      undefined,
+    );
+    expect(seen).toEqual(["evt_2", "evt_idle"]);
   });
 });

@@ -26,9 +26,8 @@ import { dispatchEventToCallbacks } from "./dispatch-event-to-callbacks";
 import { dispatchCustomTool } from "./dispatcher";
 import { createTranslatorState, translateEvent } from "./event-translator";
 import {
-  iterateSessionEvents,
   iterateSessionEventsAfter,
-  openSessionStream,
+  openSessionTail,
 } from "./session-reconnect";
 import type {
   SessionRunnerOptions,
@@ -74,9 +73,10 @@ export async function consumeAnthropicSession(
   const approvalEventIds: string[] = [];
 
   // Two modes:
-  //   Mode A (default): Open the live SSE stream FIRST, then send the
-  //     kickoff. Used by adapter.ts and trigger runs where the runner
-  //     owns the full lifecycle.
+  //   Mode A (default): Open the live SSE stream FIRST and capture the
+  //     latest pre-kickoff event cursor, then send the kickoff. Used by
+  //     adapter.ts and trigger runs where the runner owns the full
+  //     lifecycle.
   //   Mode B (tailHandle): The kickoff was already sent by the caller
   //     before handing control to the runner. The runner accepts a
   //     pre-opened SessionTailHandle and skips stream opening +
@@ -119,12 +119,13 @@ export async function consumeAnthropicSession(
       options.tailHandle,
     );
   } else {
-    console.log(`${logPrefix} Mode A (stream-first)`);
-    // Mode A: stream-first — open SSE, send kickoff, iterate.
-    // Awaiting `openSessionStream` waits for the SSE response headers so
-    // the stream is genuinely live before we post the user message.
+    console.log(`${logPrefix} Mode A (stream-first tail)`);
+    // Mode A: open the SSE stream and capture the latest pre-kickoff
+    // cursor, then send kickoff, then list only events after that
+    // cursor. This keeps the subscribe-before-send guarantee while
+    // avoiding full session-history snapshots on every turn.
     const tSseOpen = performance.now();
-    const liveHandle = await openSessionStream(anthropic, options.sessionId);
+    const liveHandle = await openSessionTail(anthropic, options.sessionId);
     const tSseReady = performance.now();
     console.log(`${logPrefix} SSE stream opened in ${Math.round(tSseReady - tSseOpen)}ms`);
 
@@ -162,7 +163,7 @@ export async function consumeAnthropicSession(
       await options.onKickoffApprovalSent?.();
     }
 
-    iterator = iterateSessionEvents(
+    iterator = iterateSessionEventsAfter(
       anthropic,
       options.sessionId,
       liveHandle,

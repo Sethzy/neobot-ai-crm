@@ -9,19 +9,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("../session-reconnect", () => ({
-  // Matches the real `openSessionStream` signature — it returns a Promise
+  // Matches the real `openSessionTail` signature — it returns a Promise
   // that the session runner awaits before sending the kickoff. Returning
   // a sync handle here would let the "handle.live is not async iterable"
-  // regression slip through unit tests again. `preKickoffEventIds` is
-  // part of the handle contract (see session-reconnect.ts) and must be
-  // present so the session runner's iteration path doesn't TypeError.
-  openSessionStream: vi.fn(() =>
+  // regression slip through unit tests again.
+  openSessionTail: vi.fn(() =>
     Promise.resolve({
       live: { [Symbol.asyncIterator]: async function* () {} },
-      preKickoffEventIds: new Set<string>(),
+      afterId: null,
     }),
   ),
-  iterateSessionEvents: vi.fn(),
+  iterateSessionEventsAfter: vi.fn(),
 }));
 
 vi.mock("../dispatcher", () => ({
@@ -37,7 +35,7 @@ vi.mock("@/lib/approvals/queries", () => ({
     .mockResolvedValue({ success: true, status: "created" }),
 }));
 
-const { iterateSessionEvents, openSessionStream } = await import("../session-reconnect");
+const { iterateSessionEventsAfter, openSessionTail } = await import("../session-reconnect");
 const { dispatchCustomTool } = await import("../dispatcher");
 const { createApprovalEvent } = await import("@/lib/approvals/queries");
 const { consumeAnthropicSession } = await import("../session-runner");
@@ -70,7 +68,7 @@ function fakeAnthropic() {
 }
 
 function stubIteration(events: unknown[]) {
-  (iterateSessionEvents as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+  (iterateSessionEventsAfter as unknown as ReturnType<typeof vi.fn>).mockImplementation(
     function () {
       const gen = (async function* () {
         for (const e of events) yield e;
@@ -93,18 +91,18 @@ beforeEach(() => {
   sendEvent.mockClear();
   retrieveSession.mockClear();
   retrieveSession.mockResolvedValue({ stats: { active_seconds: 0 } });
-  (iterateSessionEvents as unknown as ReturnType<typeof vi.fn>).mockReset();
-  (openSessionStream as unknown as ReturnType<typeof vi.fn>).mockClear();
-  (openSessionStream as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+  (iterateSessionEventsAfter as unknown as ReturnType<typeof vi.fn>).mockReset();
+  (openSessionTail as unknown as ReturnType<typeof vi.fn>).mockClear();
+  (openSessionTail as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
     live: { [Symbol.asyncIterator]: async function* () {} },
-    preKickoffEventIds: new Set<string>(),
+    afterId: null,
   });
   (dispatchCustomTool as unknown as ReturnType<typeof vi.fn>).mockClear();
   (createApprovalEvent as unknown as ReturnType<typeof vi.fn>).mockClear();
 });
 
 describe("consumeAnthropicSession — happy path", () => {
-  it("opens the live stream via openSessionStream BEFORE sending the kickoff", async () => {
+  it("opens the live stream via openSessionTail BEFORE sending the kickoff", async () => {
     stubIteration([
       modelRequestStartEvent("span_1"),
       agentMessageTextEvent("evt_1", "hello"),
@@ -120,16 +118,16 @@ describe("consumeAnthropicSession — happy path", () => {
       kickoffContent: [{ type: "text", text: "hi there" }],
     });
 
-    // openSessionStream is the eager helper that synchronously calls
+    // openSessionTail is the eager helper that synchronously calls
     // events.stream(); skill §7 requires it to fire BEFORE events.send.
     const openOrder = (
-      openSessionStream as unknown as ReturnType<typeof vi.fn>
+      openSessionTail as unknown as ReturnType<typeof vi.fn>
     ).mock.invocationCallOrder[0];
     const sendOrder = sendEvent.mock.invocationCallOrder[0];
     expect(openOrder).toBeDefined();
     expect(sendOrder).toBeDefined();
     expect(openOrder).toBeLessThan(sendOrder);
-    expect(openSessionStream).toHaveBeenCalledWith(
+    expect(openSessionTail).toHaveBeenCalledWith(
       expect.anything(),
       "sess_1",
     );

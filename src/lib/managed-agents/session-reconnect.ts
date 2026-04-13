@@ -202,6 +202,8 @@ export async function openSessionTail(
     signal?: AbortSignal;
   } = {},
 ): Promise<SessionTailHandle> {
+  const tStart = performance.now();
+  const logPrefix = `[session-reconnect:${sessionId.slice(-8)}]`;
   const livePromise = anthropic.beta.sessions.events.stream(
     sessionId,
     undefined,
@@ -209,10 +211,25 @@ export async function openSessionTail(
   );
   const afterIdPromise =
     options.afterId === undefined
-      ? getLatestSessionEventId(anthropic, sessionId, options.signal)
+      ? (async () => {
+          const tLookupStart = performance.now();
+          const afterId = await getLatestSessionEventId(
+            anthropic,
+            sessionId,
+            options.signal,
+          );
+          console.log(
+            `${logPrefix} latest event lookup: ${Math.round(performance.now() - tLookupStart)}ms afterId=${afterId ?? "null"}`,
+          );
+          return afterId;
+        })()
       : Promise.resolve(options.afterId);
 
   const [live, afterId] = await Promise.all([livePromise, afterIdPromise]);
+
+  console.log(
+    `${logPrefix} openSessionTail total: ${Math.round(performance.now() - tStart)}ms afterId=${afterId ?? "null"}`,
+  );
 
   return {
     live: live as unknown as AsyncIterable<unknown>,
@@ -300,7 +317,10 @@ export async function* iterateSessionEventsAfter(
 ): AsyncGenerator<AnyEvent> {
   const seen = new Set<string>();
   const stopOnTerminal = options.stopOnTerminal ?? true;
-  let cursorReached = handle.afterId === null;
+  // The Anthropic events.list API no longer accepts `after_id`. Valid
+  // parameters are `limit`, `order`, `page`. We list all events and
+  // skip client-side until we've passed the cursor.
+  let pastCursor = handle.afterId === null;
 
   for await (const event of anthropic.beta.sessions.events.list(
     sessionId,
@@ -310,9 +330,10 @@ export async function* iterateSessionEventsAfter(
     if (options.signal?.aborted) return;
 
     const typed = event as AnyEvent;
-    if (!cursorReached) {
+
+    if (!pastCursor) {
       if (typed.id === handle.afterId) {
-        cursorReached = true;
+        pastCursor = true;
       }
       continue;
     }
