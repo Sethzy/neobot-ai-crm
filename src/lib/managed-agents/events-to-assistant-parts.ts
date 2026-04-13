@@ -12,6 +12,8 @@
  *   - `agent.tool_use` + `agent.tool_result` (built-in tools, e.g. bash)
  *     → `tool-<name>` part with the same state cycle, plus
  *     `state: "approval-requested"` when `evaluated_permission === "ask"`
+ *   - `agent.mcp_tool_use` + `agent.mcp_tool_result` (MCP tools)
+ *     → same pattern as built-in tools
  *
  * The function is intentionally pure: no SDK or DB imports, no event-id
  * dedup. The caller is responsible for not feeding duplicates.
@@ -83,12 +85,12 @@ export function buildAssistantPartsFromEvents(
       continue;
     }
 
-    if (event.type === "agent.tool_use") {
-      // Built-in tool (bash, etc.). Two persistence paths:
+    if (event.type === "agent.tool_use" || event.type === "agent.mcp_tool_use") {
+      // Built-in or MCP tool. Two persistence paths:
       //   - evaluated_permission === "ask" → emit an approval-requested
       //     part so a user reload during the pause shows the prompt.
       //   - "allow" → emit an input-available part that the matching
-      //     agent.tool_result will later upgrade to output-available.
+      //     tool_result will later upgrade to output-available.
       const isApproval = event.evaluated_permission === "ask";
       parts.push({
         type: `tool-${event.name}`,
@@ -100,7 +102,7 @@ export function buildAssistantPartsFromEvents(
       continue;
     }
 
-    if (event.type === "agent.tool_result") {
+    if (event.type === "agent.tool_result" || event.type === "agent.mcp_tool_result") {
       const existing = findToolPartByCallId(event.tool_use_id);
       if (existing) {
         const text = event.content?.[0]?.text ?? "";

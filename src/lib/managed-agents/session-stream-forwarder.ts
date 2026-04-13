@@ -49,6 +49,11 @@ export function buildUiStreamCallbacks(
     },
     onAgentToolUse: (event) => {
       const typedEvent = event as { id: string; name: string; input: unknown };
+      console.info("[session-stream-forwarder] writing tool-input-available", {
+        sourceEventType: (event as { type?: string }).type ?? "unknown",
+        toolCallId: typedEvent.id,
+        toolName: typedEvent.name,
+      });
       writer.write({
         type: "tool-input-available",
         toolCallId: typedEvent.id,
@@ -58,18 +63,51 @@ export function buildUiStreamCallbacks(
     },
     onAgentToolResult: (event) => {
       const typedEvent = event as {
-        custom_tool_use_id: string;
-        content: Array<{ text: string }>;
+        type?: string;
+        custom_tool_use_id?: string;
+        tool_use_id?: string;
+        is_error?: boolean;
+        content?: Array<{ text?: string }>;
       };
+      const toolCallId = typedEvent.custom_tool_use_id ?? typedEvent.tool_use_id;
+
+      if (typeof toolCallId !== "string" || toolCallId.length === 0) {
+        console.warn("[session-stream-forwarder] dropping tool result with no tool id", {
+          sourceEventType: typedEvent.type ?? "unknown",
+        });
+        return;
+      }
+
       let parsed: unknown;
       try {
-        parsed = JSON.parse(typedEvent.content[0]?.text ?? "null");
+        parsed = JSON.parse(typedEvent.content?.[0]?.text ?? "null");
       } catch {
-        parsed = typedEvent.content[0]?.text ?? null;
+        parsed = typedEvent.content?.[0]?.text ?? null;
       }
+
+      if (typedEvent.is_error === true) {
+        console.info("[session-stream-forwarder] writing tool-output-error", {
+          sourceEventType: typedEvent.type ?? "unknown",
+          toolCallId,
+        });
+        writer.write({
+          type: "tool-output-error",
+          toolCallId,
+          errorText:
+            typeof parsed === "string"
+              ? parsed
+              : JSON.stringify(parsed),
+        } as never);
+        return;
+      }
+
+      console.info("[session-stream-forwarder] writing tool-output-available", {
+        sourceEventType: typedEvent.type ?? "unknown",
+        toolCallId,
+      });
       writer.write({
         type: "tool-output-available",
-        toolCallId: typedEvent.custom_tool_use_id,
+        toolCallId,
         output: parsed,
       } as never);
     },

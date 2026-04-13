@@ -30,6 +30,8 @@ export interface TranslatorState {
   usage: AccumulatedUsage;
   seenEventIds: Set<string>;
   approvalToolUseIds: Set<string>;
+  /** Session ID for debug links on terminal events. */
+  sessionId?: string;
 }
 
 export interface TranslateResult {
@@ -108,7 +110,8 @@ export function translateEvent(
       };
     }
 
-    case "agent.tool_use": {
+    case "agent.tool_use":
+    case "agent.mcp_tool_use": {
       if (event.evaluated_permission !== "ask") {
         return { parts: [], terminal: null };
       }
@@ -144,8 +147,20 @@ export function translateEvent(
       return { parts: [], terminal: null };
     }
 
-    case "session.status_terminated":
-      return { parts: [], terminal: "terminated" };
+    case "session.status_terminated": {
+      const debugUrl = state.sessionId
+        ? ` Debug: https://platform.claude.com/sessions/${state.sessionId}`
+        : "";
+      return {
+        parts: [
+          {
+            type: "error",
+            message: `Session terminated unexpectedly.${debugUrl}`,
+          },
+        ],
+        terminal: "terminated",
+      };
+    }
 
     case "session.error":
       return {
@@ -157,7 +172,15 @@ export function translateEvent(
 
     case "agent.thread_context_compacted":
       console.log("[session] context compacted — session history was summarized to fit context window");
-      return { parts: [], terminal: null };
+      return {
+        parts: [
+          {
+            type: "context-compacted",
+            message: "Conversation history was summarized to fit the context window. Earlier details may be less precise.",
+          },
+        ],
+        terminal: null,
+      };
 
     case "session.status_rescheduled":
       console.log("[session] rescheduled — transient error, retrying automatically");

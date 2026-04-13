@@ -81,6 +81,13 @@ function isTerminal(event: AnyEvent): boolean {
   if (event.type === "session.status_terminated") return true;
   if (event.type === "session.status_idle") {
     const reason = event.stop_reason?.type;
+    // NOTE: requires_action is intentionally NOT terminal here. The session
+    // goes idle with requires_action when waiting for a custom tool result
+    // or tool confirmation. The runner handles these mid-loop — it dispatches
+    // the tool and sends the result back, then the session resumes. If the
+    // iterator stopped here, the runner would exit before the session finishes.
+    // The runner's translator-level terminal check handles the case where
+    // requires_action should actually end the loop (e.g. approval pauses).
     return reason === "end_turn" || reason === "retries_exhausted";
   }
   return false;

@@ -58,6 +58,22 @@ export interface BuiltInToolResultEvent {
   readonly is_error?: boolean;
 }
 
+export interface McpToolUseEvent {
+  readonly id: string;
+  readonly type: "agent.mcp_tool_use";
+  readonly name: string;
+  readonly input: unknown;
+  readonly evaluated_permission: "allow" | "ask" | "deny";
+}
+
+export interface McpToolResultEvent {
+  readonly id: string;
+  readonly type: "agent.mcp_tool_result";
+  readonly tool_use_id: string;
+  readonly content?: ReadonlyArray<{ type: "text"; text: string }>;
+  readonly is_error?: boolean;
+}
+
 export interface AgentThreadContextCompactedEvent {
   readonly id: string;
   readonly type: "agent.thread_context_compacted";
@@ -111,6 +127,8 @@ export type AnthropicEvent =
   | CustomToolResultRawEvent
   | BashToolUseEvent
   | BuiltInToolResultEvent
+  | McpToolUseEvent
+  | McpToolResultEvent
   | AgentThreadContextCompactedEvent
   | ModelRequestStartEvent
   | ModelRequestEndEvent

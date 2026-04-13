@@ -475,6 +475,73 @@ describe("consumeAnthropicSession — terminal variants + cost", () => {
   });
 });
 
+describe("consumeAnthropicSession — callback failure resilience (client disconnect)", () => {
+  it("completes custom tool dispatch even when callbacks throw (simulating dead stream)", async () => {
+    stubIteration([
+      customToolUseEvent("ctu_1", "storage_write", { op: "write", path: "/agent/out.csv" }),
+      statusIdleEvent("evt_idle", "end_turn"),
+    ]);
+
+    const throwingCallback = vi.fn(() => {
+      throw new Error("WritableStream closed — client navigated away");
+    });
+
+    const result = await consumeAnthropicSession({
+      anthropic: fakeAnthropic(),
+      sessionId: "sess_1",
+      runId: "run_1",
+      context: baseContext(),
+      callbacks: {
+        onAgentToolUse: throwingCallback,
+        onAgentToolResult: throwingCallback,
+      },
+    });
+
+    // Tool dispatch must still complete despite callback failures.
+    expect(dispatchCustomTool).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "ctu_1", name: "storage_write" }),
+      expect.anything(),
+    );
+
+    // Tool result must still be sent back to Anthropic.
+    const sendCall = sendEvent.mock.calls.find(([, body]) =>
+      (body as { events: Array<{ type: string }> }).events.some(
+        (e) => e.type === "user.custom_tool_result",
+      ),
+    );
+    expect(sendCall).toBeDefined();
+
+    // Runner must return normally so the adapter can call finalizeRun.
+    expect(result.status).toBe("complete");
+    expect(result.reason).toBe("end_turn");
+  });
+
+  it("completes approval persistence even when onApprovalRequired callback throws", async () => {
+    stubIteration([
+      bashToolUseEvent("tu_1", "rm -rf /tmp", "ask"),
+      statusIdleEvent("evt_idle", "requires_action"),
+    ]);
+
+    const result = await consumeAnthropicSession({
+      anthropic: fakeAnthropic(),
+      sessionId: "sess_1",
+      runId: "run_1",
+      context: baseContext(),
+      autoDenyApprovals: false,
+      callbacks: {
+        onApprovalRequired: vi.fn(() => {
+          throw new Error("WritableStream closed");
+        }),
+      },
+    });
+
+    // Approval event must still be persisted to DB.
+    expect(createApprovalEvent).toHaveBeenCalled();
+    expect(result.reason).toBe("requires_action");
+    expect(result.approvalEventIds).toEqual(["tu_1"]);
+  });
+});
+
 // Incremental persistence was removed in F8: the runner no longer
 // fires onPersistMessage. The chat adapter persists the full assistant
 // message via upsertMessage at terminal time, keyed by the terminal

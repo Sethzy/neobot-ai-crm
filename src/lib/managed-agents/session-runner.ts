@@ -27,6 +27,7 @@ import { dispatchCustomTool } from "./dispatcher";
 import { createTranslatorState, translateEvent } from "./event-translator";
 import {
   iterateSessionEvents,
+  iterateSessionEventsAfter,
   openSessionStream,
 } from "./session-reconnect";
 import type {
@@ -35,6 +36,21 @@ import type {
 } from "./types";
 
 import type { AnthropicEvent } from "./event-types";
+
+function serializeForLog(value: unknown): string {
+  try {
+    const serialized = JSON.stringify(value);
+    if (!serialized) {
+      return "null";
+    }
+
+    return serialized.length > 600
+      ? `${serialized.slice(0, 597)}...`
+      : serialized;
+  } catch {
+    return "[unserializable]";
+  }
+}
 
 function shouldEmitIncrementalSnapshot(eventType: AnthropicEvent["type"]): boolean {
   return (
@@ -53,103 +69,222 @@ export async function consumeAnthropicSession(
 ): Promise<SessionRunnerResult> {
   const anthropic = options.anthropic as Anthropic;
   const translatorState = createTranslatorState();
+  translatorState.sessionId = options.sessionId;
   const collectedEvents: unknown[] = [];
   const approvalEventIds: string[] = [];
 
-  // Stream-first: open and establish the live SSE stream BEFORE sending
-  // the kickoff (skill §7 — "subscribe before you send"). Awaiting
-  // `openSessionStream` waits for the SSE response headers so the stream
-  // is genuinely live before we post the user message. `events.stream()`
-  // returns an `APIPromise<Stream<...>>` in the SDK — see the long note
-  // in `session-reconnect.ts` for why this await is load-bearing.
-  const liveHandle = await openSessionStream(anthropic, options.sessionId);
+  // Two modes:
+  //   Mode A (default): Open the live SSE stream FIRST, then send the
+  //     kickoff. Used by adapter.ts and trigger runs where the runner
+  //     owns the full lifecycle.
+  //   Mode B (tailHandle): The kickoff was already sent by the caller
+  //     before handing control to the runner. The runner accepts a
+  //     pre-opened SessionTailHandle and skips stream opening +
+  //     kickoff sending.
 
-  // Kickoff AFTER the live stream is open.
-  if (options.kickoffContent) {
-    await anthropic.beta.sessions.events.send(options.sessionId, {
-      events: [
-        {
-          type: "user.message",
-          content: options.kickoffContent,
-        },
-      ],
-    } as never);
-  }
+  let iterator: AsyncGenerator<{ id: string; type: string; stop_reason?: { type: string } }>;
 
-  // Resume-after-approval kickoff. Used when re-entering an existing session
-  // that paused on `requires_action`. The user's approve/deny decision is
-  // delivered as a `user.tool_confirmation` so the agent can continue from
-  // the exact tool-use id it was waiting on.
-  if (options.kickoffApproval) {
-    await anthropic.beta.sessions.events.send(options.sessionId, {
-      events: [
-        options.kickoffApproval.result === "allow"
-          ? {
-              type: "user.tool_confirmation",
-              tool_use_id: options.kickoffApproval.toolUseId,
-              result: "allow",
-            }
-          : {
-              type: "user.tool_confirmation",
-              tool_use_id: options.kickoffApproval.toolUseId,
-              result: "deny",
-              deny_message:
-                options.kickoffApproval.denyMessage ??
-                "User denied this action.",
-        },
-      ],
-    } as never);
-    await options.onKickoffApprovalSent?.();
-  }
+  const logPrefix = `[session-runner:${options.sessionId.slice(-8)}]`;
+  const tRunnerStart = performance.now();
 
-  const iterator = iterateSessionEvents(
-    anthropic,
-    options.sessionId,
-    liveHandle,
-  );
-
-  let terminalReason: SessionRunnerResult["reason"] | null = null;
-
-  for await (const event of iterator) {
-    collectedEvents.push(event);
-    const result = translateEvent(translatorState, event as AnthropicEvent);
-
-    // Raw-event callbacks for projection / UI streaming. Fire BEFORE we act
-    // on the translator output so callers see the event in arrival order.
-    const eventType = (event as { type: AnthropicEvent["type"] }).type;
-    if (options.callbacks) {
-      await dispatchEventToCallbacks(event, options.callbacks);
-    }
-
-    // Custom tool dispatch — runs synchronously so the result is available
-    // for the next agent step.
-    if (result.customToolCall) {
-      const dispatchResult = await dispatchCustomTool(
-        {
-          type: "agent.custom_tool_use",
-          id: result.customToolCall.id,
-          name: result.customToolCall.name,
-          input: result.customToolCall.input,
-        },
-        options.context,
-      );
+  if (options.tailHandle) {
+    console.log(`${logPrefix} Mode B (tailHandle) — afterId=${options.tailHandle.afterId}`);
+    // Mode B: tail-handle mode — kickoff already sent, just consume.
+    // Send kickoff approval if provided (approval resume via send route).
+    if (options.kickoffApproval) {
       await anthropic.beta.sessions.events.send(options.sessionId, {
         events: [
-          {
-            type: "user.custom_tool_result",
-            custom_tool_use_id: dispatchResult.custom_tool_use_id,
-            content: dispatchResult.content,
-            ...(dispatchResult.is_error ? { is_error: true } : {}),
+          options.kickoffApproval.result === "allow"
+            ? {
+                type: "user.tool_confirmation",
+                tool_use_id: options.kickoffApproval.toolUseId,
+                result: "allow",
+              }
+            : {
+                type: "user.tool_confirmation",
+                tool_use_id: options.kickoffApproval.toolUseId,
+                result: "deny",
+                deny_message:
+                  options.kickoffApproval.denyMessage ??
+                  "User denied this action.",
           },
         ],
       } as never);
-      // Synthesize a minimal tool-result event for the callback so chat
-      // adapters can write a tool-result UI part.
-      await options.callbacks?.onAgentToolResult?.({
-        type: "user.custom_tool_result",
-        custom_tool_use_id: dispatchResult.custom_tool_use_id,
-        content: dispatchResult.content,
-      });
+      await options.onKickoffApprovalSent?.();
+    }
+
+    iterator = iterateSessionEventsAfter(
+      anthropic,
+      options.sessionId,
+      options.tailHandle,
+    );
+  } else {
+    console.log(`${logPrefix} Mode A (stream-first)`);
+    // Mode A: stream-first — open SSE, send kickoff, iterate.
+    // Awaiting `openSessionStream` waits for the SSE response headers so
+    // the stream is genuinely live before we post the user message.
+    const tSseOpen = performance.now();
+    const liveHandle = await openSessionStream(anthropic, options.sessionId);
+    const tSseReady = performance.now();
+    console.log(`${logPrefix} SSE stream opened in ${Math.round(tSseReady - tSseOpen)}ms`);
+
+    if (options.kickoffContent) {
+      await anthropic.beta.sessions.events.send(options.sessionId, {
+        events: [
+          {
+            type: "user.message",
+            content: options.kickoffContent,
+          },
+        ],
+      } as never);
+      console.log(`${logPrefix} kickoff sent in ${Math.round(performance.now() - tSseReady)}ms`);
+    }
+
+    if (options.kickoffApproval) {
+      await anthropic.beta.sessions.events.send(options.sessionId, {
+        events: [
+          options.kickoffApproval.result === "allow"
+            ? {
+                type: "user.tool_confirmation",
+                tool_use_id: options.kickoffApproval.toolUseId,
+                result: "allow",
+              }
+            : {
+                type: "user.tool_confirmation",
+                tool_use_id: options.kickoffApproval.toolUseId,
+                result: "deny",
+                deny_message:
+                  options.kickoffApproval.denyMessage ??
+                  "User denied this action.",
+            },
+        ],
+      } as never);
+      await options.onKickoffApprovalSent?.();
+    }
+
+    iterator = iterateSessionEvents(
+      anthropic,
+      options.sessionId,
+      liveHandle,
+    );
+  }
+
+  let terminalReason: SessionRunnerResult["reason"] | null = null;
+  /** Custom tool use IDs that have been dispatched and responded to. Used to
+   *  distinguish stale `requires_action` (custom tool already handled) from
+   *  genuine approval pauses (built-in tool with `always_ask` permission). */
+  const dispatchedCustomToolIds = new Set<string>();
+  let tFirstEvent: number | null = null;
+  let tLastEvent = performance.now();
+
+  for await (const event of iterator) {
+    const tEventReceived = performance.now();
+    if (!tFirstEvent) {
+      tFirstEvent = tEventReceived;
+      console.log(`${logPrefix} time-to-first-event: ${Math.round(tFirstEvent - tRunnerStart)}ms`);
+    }
+    collectedEvents.push(event);
+    const result = translateEvent(translatorState, event as AnthropicEvent);
+
+    const eventType = (event as { type: AnthropicEvent["type"] }).type;
+    const inputSuffix =
+      eventType === "agent.custom_tool_use"
+        ? ` input=${serializeForLog((event as { input?: unknown }).input)}`
+        : eventType === "agent.tool_use" || eventType === "agent.mcp_tool_use"
+          ? ` input=${serializeForLog((event as { input?: unknown }).input)}`
+          : "";
+    const toolResultSuffix =
+      eventType === "user.custom_tool_result"
+        ? ` custom_tool_use_id=${(event as { custom_tool_use_id?: string }).custom_tool_use_id ?? "missing"}`
+        : eventType === "agent.tool_result" || eventType === "agent.mcp_tool_result"
+          ? ` tool_use_id=${(event as { tool_use_id?: string }).tool_use_id ?? "missing"} is_error=${(event as { is_error?: boolean }).is_error ?? false}`
+          : "";
+    console.log(`${logPrefix} event: ${eventType} id=${(event as { id: string }).id.slice(-8)}${result.terminal ? ` terminal=${result.terminal}` : ""}${result.customToolCall ? ` tool=${result.customToolCall.name}` : ""}${result.approvalRequest ? ` approval=${result.approvalRequest.toolName}` : ""}${inputSuffix}${toolResultSuffix}`);
+
+    // Raw-event callbacks for projection / UI streaming. Fire BEFORE we act
+    // on the translator output so callers see the event in arrival order.
+    // Wrapped in try-catch so a dead UI stream (client navigated away) does
+    // not kill the session runner — tool dispatch and finalization must
+    // continue regardless of whether the browser is still listening.
+    if (options.callbacks) {
+      try {
+        await dispatchEventToCallbacks(event, options.callbacks);
+      } catch (callbackError) {
+        console.warn(`${logPrefix} callback failed (client likely disconnected), continuing session`, callbackError);
+      }
+    }
+
+    // Custom tool dispatch — runs synchronously so the result is available
+    // for the next agent step. Wrapped in try-catch so a tool crash or
+    // network failure posts an error result back to Anthropic instead of
+    // silently deadlocking the session in requires_action.
+    if (result.customToolCall) {
+      try {
+        const tToolStart = performance.now();
+        const dispatchResult = await dispatchCustomTool(
+          {
+            type: "agent.custom_tool_use",
+            id: result.customToolCall.id,
+            name: result.customToolCall.name,
+            input: result.customToolCall.input,
+          },
+          options.context,
+        );
+        const tToolDispatched = performance.now();
+        await anthropic.beta.sessions.events.send(options.sessionId, {
+          events: [
+            {
+              type: "user.custom_tool_result",
+              custom_tool_use_id: dispatchResult.custom_tool_use_id,
+              content: dispatchResult.content,
+              ...(dispatchResult.is_error ? { is_error: true } : {}),
+            },
+          ],
+        } as never);
+        const tToolSent = performance.now();
+        dispatchedCustomToolIds.add(result.customToolCall.id);
+        console.log(`${logPrefix} dispatched custom tool ${result.customToolCall.name} (${result.customToolCall.id.slice(-8)}) is_error=${dispatchResult.is_error ?? false} exec=${Math.round(tToolDispatched - tToolStart)}ms send=${Math.round(tToolSent - tToolDispatched)}ms`);
+        // Synthesize a minimal tool-result event for the callback so chat
+        // adapters can write a tool-result UI part. Non-fatal — same rationale
+        // as the pre-dispatch callback above.
+        try {
+          await options.callbacks?.onAgentToolResult?.({
+            type: "user.custom_tool_result",
+            custom_tool_use_id: dispatchResult.custom_tool_use_id,
+            content: dispatchResult.content,
+          });
+        } catch (callbackError) {
+          console.warn(`${logPrefix} post-dispatch callback failed, continuing`, callbackError);
+        }
+      } catch (toolError) {
+        console.error(`${logPrefix} tool dispatch failed for ${result.customToolCall.name} (${result.customToolCall.id.slice(-8)}):`, toolError);
+        // Post an error result to Anthropic so the session stays alive.
+        try {
+          await anthropic.beta.sessions.events.send(options.sessionId, {
+            events: [
+              {
+                type: "user.custom_tool_result",
+                custom_tool_use_id: result.customToolCall.id,
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify({
+                      success: false,
+                      error: toolError instanceof Error ? toolError.message : "Tool execution failed",
+                    }),
+                  },
+                ],
+                is_error: true,
+              },
+            ],
+          } as never);
+          dispatchedCustomToolIds.add(result.customToolCall.id);
+        } catch (sendError) {
+          // Double failure — can't recover. Let the session runner crash.
+          console.error(`${logPrefix} failed to post error result for ${result.customToolCall.name}, session will deadlock:`, sendError);
+          throw sendError;
+        }
+      }
     }
 
     // Approval handling — chat mode persists; trigger mode auto-denies.
@@ -189,7 +324,11 @@ export async function consumeAnthropicSession(
           );
         }
         approvalEventIds.push(approvalId);
-        await options.callbacks?.onApprovalRequired?.(event, approvalId);
+        try {
+          await options.callbacks?.onApprovalRequired?.(event, approvalId);
+        } catch (callbackError) {
+          console.warn(`${logPrefix} approval callback failed, continuing`, callbackError);
+        }
       }
     }
 
@@ -228,22 +367,29 @@ export async function consumeAnthropicSession(
         // agent resumes and emits end_turn / retries_exhausted / terminated.
         continue;
       }
+
+      // Check if this requires_action is stale — i.e. all referenced
+      // event_ids are custom tool calls that were already dispatched and
+      // responded to above. If so, the session is already resuming and
+      // we should keep consuming events instead of breaking.
+      const idleEvent = event as { stop_reason?: { event_ids?: string[] } };
+      const pendingIds = idleEvent.stop_reason?.event_ids ?? [];
+      const allHandled = pendingIds.length > 0 &&
+        pendingIds.every((id) => dispatchedCustomToolIds.has(id));
+      console.log(`${logPrefix} requires_action: pendingIds=[${pendingIds.map(id => id.slice(-8)).join(",")}] dispatched=[${[...dispatchedCustomToolIds].map(id => id.slice(-8)).join(",")}] allHandled=${allHandled}`);
+      if (allHandled) {
+        console.log(`${logPrefix} stale requires_action — custom tools already dispatched, continuing`);
+        continue;
+      }
+
+      console.log(`${logPrefix} genuine requires_action — breaking for approval`);
       terminalReason = "requires_action";
       break;
     }
   }
 
-  // Session runtime cost — skill §6 post-idle status-write race: accept a
-  // near-final value rather than blocking on the final flush.
-  let activeSeconds = 0;
-  try {
-    const snapshot = await anthropic.beta.sessions.retrieve(options.sessionId);
-    activeSeconds =
-      (snapshot as { stats?: { active_seconds?: number } }).stats
-        ?.active_seconds ?? 0;
-  } catch (error) {
-    console.warn("[session-runner] session.retrieve failed for cost", error);
-  }
+  const tLoopEnd = performance.now();
+  console.log(`${logPrefix} loop exited — terminalReason=${terminalReason} events=${collectedEvents.length} dispatchedTools=${dispatchedCustomToolIds.size} loopTime=${Math.round(tLoopEnd - tRunnerStart)}ms`);
 
   // `requires_action` is paused-but-healthy: the run is awaiting UI input.
   // We treat it as `complete` so the chat adapter knows to persist the
@@ -253,13 +399,32 @@ export async function consumeAnthropicSession(
       ? "complete"
       : "failed";
 
+  // Session runtime cost — fetch active_seconds without blocking the
+  // response. The onTerminal callback and cost object use 0 as a fallback;
+  // the retrieve runs concurrently with finalization downstream.
   const cost = {
     inputTokens: translatorState.usage.inputTokens,
     outputTokens: translatorState.usage.outputTokens,
     cacheReadInputTokens: translatorState.usage.cacheReadInputTokens,
     cacheCreationInputTokens: translatorState.usage.cacheCreationInputTokens,
-    runtimeSeconds: activeSeconds,
+    runtimeSeconds: 0,
   };
+
+  // Fire-and-forget: populate runtimeSeconds asynchronously so it's
+  // available by the time finalizeRun reads cost, but don't block the
+  // stream close on the ~500ms retrieve round-trip.
+  const retrievePromise = (async () => {
+    try {
+      const tRetrieveStart = performance.now();
+      const snapshot = await anthropic.beta.sessions.retrieve(options.sessionId);
+      cost.runtimeSeconds =
+        (snapshot as { stats?: { active_seconds?: number } }).stats
+          ?.active_seconds ?? 0;
+      console.log(`${logPrefix} session.retrieve for cost: ${Math.round(performance.now() - tRetrieveStart)}ms`);
+    } catch (error) {
+      console.warn("[session-runner] session.retrieve failed for cost", error);
+    }
+  })();
 
   await options.onTerminal?.(collectedEvents, cost);
 
@@ -269,5 +434,6 @@ export async function consumeAnthropicSession(
     accumulatedEvents: collectedEvents,
     cost,
     approvalEventIds,
+    costRetrievePromise: retrievePromise,
   };
 }

@@ -70,6 +70,54 @@ describe("buildUiStreamCallbacks", () => {
     ]);
   });
 
+  it("emits tool-output-available for built-in agent.tool_result using tool_use_id", async () => {
+    const { writes, writer } = mockWriter();
+    const callbacks = buildUiStreamCallbacks(writer);
+
+    await callbacks.onAgentToolResult?.({
+      tool_use_id: "tool_2",
+      content: [{ text: "file contents" }],
+    } as never);
+
+    expect(writes).toEqual([
+      {
+        type: "tool-output-available",
+        toolCallId: "tool_2",
+        output: "file contents",
+      },
+    ]);
+  });
+
+  it("emits tool-output-error for built-in tool errors", async () => {
+    const { writes, writer } = mockWriter();
+    const callbacks = buildUiStreamCallbacks(writer);
+
+    await callbacks.onAgentToolResult?.({
+      tool_use_id: "tool_3",
+      is_error: true,
+      content: [{ text: "permission denied" }],
+    } as never);
+
+    expect(writes).toEqual([
+      {
+        type: "tool-output-error",
+        toolCallId: "tool_3",
+        errorText: "permission denied",
+      },
+    ]);
+  });
+
+  it("drops malformed tool result events that have no tool id", async () => {
+    const { writes, writer } = mockWriter();
+    const callbacks = buildUiStreamCallbacks(writer);
+
+    await callbacks.onAgentToolResult?.({
+      content: [{ text: "orphaned result" }],
+    } as never);
+
+    expect(writes).toEqual([]);
+  });
+
   it("emits tool-input-available and tool-approval-request for approvals", async () => {
     const { writes, writer } = mockWriter();
     const callbacks = buildUiStreamCallbacks(writer);

@@ -11,6 +11,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database";
+import type { SessionTailHandle } from "./session-reconnect";
 
 // ── Re-exports from the canonical tool contracts ────────────────────────────
 export type {
@@ -90,6 +91,10 @@ export interface SessionRunnerResult {
   cost: RunCostTotals;
   /** approval_events.approval_id values inserted during the run. */
   approvalEventIds: string[];
+  /** Resolves when `cost.runtimeSeconds` has been populated by a background
+   *  `sessions.retrieve()` call. Await before reading `cost.runtimeSeconds`
+   *  if an accurate value is needed. */
+  costRetrievePromise: Promise<void>;
 }
 
 /**
@@ -168,4 +173,12 @@ export interface SessionRunnerOptions {
    */
   autoDenyApprovals?: boolean;
   autoDenyMessage?: string;
+  /**
+   * Pre-opened tail handle for "kickoff already sent" mode. When provided,
+   * the runner skips `openSessionStream()` and uses
+   * `iterateSessionEventsAfter()` instead. This supports callers that
+   * send the kickoff `user.message` before handing control to the shared
+   * runner.
+   */
+  tailHandle?: SessionTailHandle;
 }
