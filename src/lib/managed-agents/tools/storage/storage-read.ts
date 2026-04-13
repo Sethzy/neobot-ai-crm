@@ -52,15 +52,36 @@ export const storageReadTool: ManagedAgentTool<StorageReadInput> = {
     const fileClient = getStorageFileClient(context);
     const { internalPath, modelPath, fileType } = resolveStorageReadPath(path);
 
+    console.info("[storage_read] resolved path", {
+      clientId: context.clientId,
+      requestedPath: path,
+      internalPath,
+      modelPath,
+      fileType,
+      startLine: start_line ?? null,
+      endLine: end_line ?? null,
+    });
+
     if (fileType === "directory") {
       const directoryPath = internalPath.replace(/\/+$/, "");
       const content = await fileClient.listDirectory(directoryPath);
+      console.info("[storage_read] directory read succeeded", {
+        clientId: context.clientId,
+        requestedPath: path,
+        internalPath: directoryPath,
+      });
       return { success: true as const, path: modelPath, content };
     }
 
     if (fileType === "image") {
       const { buffer } = await fileClient.downloadBinary(internalPath);
       const image = await resizeForModel(buffer);
+      console.info("[storage_read] image read succeeded", {
+        clientId: context.clientId,
+        requestedPath: path,
+        internalPath,
+        sizeBytes: buffer.byteLength,
+      });
       return { success: true as const, path: modelPath, type: "image" as const, ...image };
     }
 
@@ -74,6 +95,12 @@ export const storageReadTool: ManagedAgentTool<StorageReadInput> = {
       }
 
       const data = Buffer.from(buffer).toString("base64");
+      console.info("[storage_read] pdf read succeeded", {
+        clientId: context.clientId,
+        requestedPath: path,
+        internalPath,
+        sizeBytes: buffer.byteLength,
+      });
       return {
         success: true as const,
         path: modelPath,
@@ -96,12 +123,24 @@ export const storageReadTool: ManagedAgentTool<StorageReadInput> = {
         content: applyLineRange(rawContent, start_line, end_line),
       };
     } catch (fileError) {
+      console.warn("[storage_read] primary read failed", {
+        clientId: context.clientId,
+        requestedPath: path,
+        internalPath,
+        fileType,
+        error: fileError instanceof Error ? fileError.message : String(fileError),
+      });
       if (!shouldFallbackToDirectory(fileError)) {
         throw fileError;
       }
 
       try {
         const content = await fileClient.listDirectory(internalPath);
+        console.info("[storage_read] fallback directory read succeeded", {
+          clientId: context.clientId,
+          requestedPath: path,
+          internalPath,
+        });
         return { success: true as const, path: modelPath, content };
       } catch {
         throw fileError;

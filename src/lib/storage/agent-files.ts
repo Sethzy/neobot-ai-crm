@@ -107,9 +107,24 @@ export function createAgentFileClient(supabase: SupabaseClient, clientId: string
     const normalizedPath = normalizeWorkspacePath(path, false);
     assertRemovedDocumentsPathIsAvailable(normalizedPath);
     const storagePath = resolveStoragePath(clientId, normalizedPath);
+
+    console.info("[agent-files] downloadObject", {
+      clientId,
+      path,
+      normalizedPath,
+      storagePath,
+    });
+
     const { data, error } = await supabase.storage.from(AGENT_FILES_BUCKET).download(storagePath);
 
     if (error || !data) {
+      console.warn("[agent-files] downloadObject failed", {
+        clientId,
+        path,
+        normalizedPath,
+        storagePath,
+        error: error?.message ?? "unknown error",
+      });
       throw new Error(`Failed to read file "${path}": ${error?.message ?? "unknown error"}`);
     }
 

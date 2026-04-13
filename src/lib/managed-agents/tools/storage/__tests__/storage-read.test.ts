@@ -120,4 +120,10 @@ describe("storageReadTool", () => {
       storageReadTool.execute({ path: "/agent/MEMORY.md", start_line: 0 }, makeContext()),
     ).rejects.toThrow("start_line cannot be 0");
   });
+
+  it("rejects non-/agent absolute paths with a clear error", async () => {
+    await expect(
+      storageReadTool.execute({ path: "/mnt/session/uploads/data.csv" }, makeContext()),
+    ).rejects.toThrow("storage_read only supports durable files under /agent/");
+  });
 });

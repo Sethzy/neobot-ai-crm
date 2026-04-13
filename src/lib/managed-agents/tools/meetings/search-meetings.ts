@@ -115,9 +115,9 @@ const inputSchema = z.object({
 type SearchMeetingsInput = z.infer<typeof inputSchema>;
 
 export const searchMeetingsTool: ManagedAgentTool<SearchMeetingsInput> = {
-  name: "search_meetings",
+  name: "search_meeting_recordings",
   description:
-    "Search past meeting recordings by keyword, date range, or linked CRM record. Returns title, summary, duration, and creation date.",
+    "Search past meeting recordings and their transcripts by keyword, date range, or linked CRM record. Returns title, summary, duration, and creation date. This searches recorded meetings, not calendar events.",
   inputSchema,
   execute: async ({ query, dateFrom, dateTo, linkedContactId, linkedDealId, limit }, context) => {
     const normalizedQuery = query ? normalizeSearchValue(query) : "";

@@ -8,7 +8,7 @@ import sharp from "sharp";
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { getFileExtension } from "@/lib/file-utils";
 import { createAgentFileClient, normalizeWorkspacePath } from "@/lib/storage/agent-files";
-import { toModelPath, toStoragePath } from "@/lib/storage/agent-paths";
+import { AGENT_ROOT, toModelPath, toStoragePath } from "@/lib/storage/agent-paths";
 
 import type { ToolContext } from "../types";
 
@@ -234,6 +234,12 @@ export async function captureMemoryWriteEvent(params: {
 }
 
 export function resolveStorageReadPath(path: string) {
+  if (path.startsWith("/") && !path.startsWith(AGENT_ROOT)) {
+    throw new Error(
+      "storage_read only supports durable files under /agent/. For session-mounted files like /mnt/session/... or /workspace/..., use the built-in read/bash tools instead.",
+    );
+  }
+
   const internalPath = toStoragePath(path);
   assertRemovedDocumentsPathIsAvailable(normalizeWorkspacePath(internalPath, true));
 
@@ -245,6 +251,12 @@ export function resolveStorageReadPath(path: string) {
 }
 
 export function resolveStorageWritePath(path: string) {
+  if (path.startsWith("/") && !path.startsWith(AGENT_ROOT)) {
+    throw new Error(
+      "storage_write only supports durable files under /agent/. For session-mounted files like /mnt/session/... or /workspace/..., use the built-in write/edit/bash tools instead.",
+    );
+  }
+
   const internalPath = toStoragePath(path);
   const normalizedPath = normalizeWorkspacePath(internalPath, false);
   assertRemovedDocumentsPathIsAvailable(normalizedPath);
