@@ -7,12 +7,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   sessionsCreate,
+  sessionsArchive,
   eventsSend,
   runTriggerAgentTrigger,
   getServerEnv,
   createThread,
 } = vi.hoisted(() => ({
   sessionsCreate: vi.fn(),
+  sessionsArchive: vi.fn(),
   eventsSend: vi.fn(),
   runTriggerAgentTrigger: vi.fn(),
   getServerEnv: vi.fn(),
@@ -24,6 +26,7 @@ vi.mock("@/lib/managed-agents/anthropic-client", () => ({
     beta: {
       sessions: {
         create: sessionsCreate,
+        archive: sessionsArchive,
         events: { send: eventsSend },
       },
     },
@@ -54,6 +57,8 @@ const RUN_THREAD_ID = "run-thread-1";
 function mockSupabase() {
   const updateEq = vi.fn().mockResolvedValue({ error: null });
   const updateFn = vi.fn().mockReturnValue({ eq: updateEq });
+  const deleteEq = vi.fn().mockResolvedValue({ error: null });
+  const deleteFn = vi.fn().mockReturnValue({ eq: deleteEq });
   const insertChain = {
     select: vi.fn().mockReturnValue({
       single: vi.fn().mockResolvedValue({
@@ -67,12 +72,19 @@ function mockSupabase() {
   return {
     from: vi.fn().mockImplementation((table: string) => {
       if (table === "conversation_threads") {
-        return { update: updateFn };
+        return { update: updateFn, delete: deleteFn };
       }
-      return { insert: insertFn };
+
+      if (table === "runs") {
+        return { insert: insertFn, delete: deleteFn };
+      }
+
+      throw new Error(`Unexpected table access: ${table}`);
     }),
     _update: updateFn,
     _updateEq: updateEq,
+    _delete: deleteFn,
+    _deleteEq: deleteEq,
     _insert: insertFn,
   } as never;
 }
@@ -90,6 +102,7 @@ const BASE_INPUT = {
 describe("spawnTriggerRun", () => {
   beforeEach(() => {
     sessionsCreate.mockReset().mockResolvedValue({ id: "session_abc" });
+    sessionsArchive.mockReset().mockResolvedValue(undefined);
     eventsSend.mockReset().mockResolvedValue(undefined);
     runTriggerAgentTrigger.mockReset().mockResolvedValue({ id: "trigger_handle_1" });
     getServerEnv.mockReturnValue({
@@ -163,6 +176,8 @@ describe("spawnTriggerRun", () => {
   });
 
   it("throws if the runs insert fails", async () => {
+    const deleteEq = vi.fn().mockResolvedValue({ error: null });
+    const deleteFn = vi.fn().mockReturnValue({ eq: deleteEq });
     const insertChain = {
       select: vi.fn().mockReturnValue({
         single: vi.fn().mockResolvedValue({
@@ -175,14 +190,53 @@ describe("spawnTriggerRun", () => {
     const brokenSupabase = {
       from: vi.fn().mockImplementation((table: string) => {
         if (table === "conversation_threads") {
-          return { update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }) };
+          return {
+            update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
+            delete: deleteFn,
+          };
         }
-        return { insert: vi.fn().mockReturnValue(insertChain) };
+
+        if (table === "runs") {
+          return { insert: vi.fn().mockReturnValue(insertChain), delete: deleteFn };
+        }
+
+        throw new Error(`Unexpected table access: ${table}`);
       }),
     } as never;
 
     await expect(
       spawnTriggerRun(brokenSupabase, BASE_INPUT),
     ).rejects.toThrow(/insert failed/);
+
+    expect(sessionsArchive).toHaveBeenCalledWith("session_abc");
+    expect(deleteFn).toHaveBeenCalled();
+  });
+
+  it("archives the session and deletes partial DB artifacts when kickoff send fails", async () => {
+    const sb = mockSupabase();
+    eventsSend.mockRejectedValueOnce(new Error("kickoff failed"));
+
+    await expect(
+      spawnTriggerRun(sb, BASE_INPUT),
+    ).rejects.toThrow(/kickoff failed/);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const deleteFn = (sb as any)._delete;
+    expect(sessionsArchive).toHaveBeenCalledWith("session_abc");
+    expect(deleteFn).toHaveBeenCalled();
+  });
+
+  it("archives the session and deletes partial DB artifacts when listener trigger creation fails", async () => {
+    const sb = mockSupabase();
+    runTriggerAgentTrigger.mockRejectedValueOnce(new Error("listener queue failed"));
+
+    await expect(
+      spawnTriggerRun(sb, BASE_INPUT),
+    ).rejects.toThrow(/listener queue failed/);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const deleteFn = (sb as any)._delete;
+    expect(sessionsArchive).toHaveBeenCalledWith("session_abc");
+    expect(deleteFn).toHaveBeenCalled();
   });
 });

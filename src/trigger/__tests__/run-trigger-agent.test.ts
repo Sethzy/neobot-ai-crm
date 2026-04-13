@@ -202,6 +202,7 @@ describe("runTriggerAgent", () => {
         runId: "run_1",
         threadId: "thread_1",
         clientId: "client_1",
+        sessionId: "session_1",
         events: [
           {
             id: "evt_1",
@@ -216,6 +217,7 @@ describe("runTriggerAgent", () => {
           cacheCreationInputTokens: 0,
           runtimeSeconds: 12,
         },
+        anthropic: { __anthropic: true },
       },
     );
   });

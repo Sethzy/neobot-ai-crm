@@ -37,7 +37,7 @@ export const triggerRowSchema = z.object({
   updated_at: z.string().datetime({ offset: true }),
 });
 
-/** Payload sent from the scanner to `/api/trigger/run`. */
+/** Payload sent from the scan-triggers task to the internal trigger executor. */
 export const triggerDispatchPayloadSchema = z.object({
   triggerId: z.string().uuid(),
   clientId: z.string().uuid(),

@@ -1,52 +1,78 @@
 /**
- * Trigger.dev schedule that replaces the Vercel Cron ticker for scanning due
- * agent triggers.
+ * Trigger.dev scheduled task that scans and executes due agent triggers.
+ *
+ * Calls `runScan()` directly and executes claimed triggers in-process. This
+ * keeps the scheduling path inside one worker and avoids a second self-HTTP
+ * boundary for internal automation dispatch.
+ *
  * @module src/trigger/scan-triggers
  */
 import { logger, schedules } from "@trigger.dev/sdk/v3";
 
+import { createAdminClient } from "@/lib/supabase/server";
+import { executeTrigger } from "@/lib/triggers/executor";
+import { runScan } from "@/lib/triggers/scanner";
+import type { TriggerDispatchPayload } from "@/lib/triggers/schemas";
+
 /**
- * Scanner tick that calls the existing cron route over HTTPS every minute.
- *
- * The scanner logic intentionally stays inside the Next.js route so this
- * migration remains a reversible ticker swap rather than an architectural
- * refactor.
+ * Executes one claimed trigger and maps the result into the scanner's dispatch
+ * contract. Only claim mismatches are treated as dispatch failures because
+ * all other statuses already released their claim inside `executeTrigger()`.
+ */
+async function executeClaimedTrigger(
+  supabase: Awaited<ReturnType<typeof createAdminClient>>,
+  payload: TriggerDispatchPayload,
+): Promise<{
+  ok: boolean;
+  status: number;
+  error?: string;
+}> {
+  try {
+    const result = await executeTrigger({
+      supabase,
+      payload,
+    });
+
+    if (result.status === "claim_mismatch") {
+      return {
+        ok: false,
+        status: 409,
+        error: "Trigger claim no longer valid",
+      };
+    }
+
+    return { ok: true, status: 200 };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown execution error";
+    return {
+      ok: false,
+      status: 500,
+      error: `Execution failed: ${message}`,
+    };
+  }
+}
+
+/**
+ * Scans for due triggers every minute and executes them.
  */
 export const scanTriggers = schedules.task({
   id: "scan-triggers",
   cron: "* * * * *",
   maxDuration: 60,
   run: async () => {
-    const directBaseUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-    const vercelUrl = process.env.VERCEL_URL?.trim();
-    const baseUrl = directBaseUrl || (vercelUrl ? `https://${vercelUrl}` : null);
-
-    if (!baseUrl) {
-      throw new Error("NEXT_PUBLIC_APP_URL or VERCEL_URL must be set");
-    }
-
-    if (!process.env.CRON_SECRET) {
-      throw new Error("CRON_SECRET must be set");
-    }
-
-    const response = await fetch(`${baseUrl}/api/cron/scan`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${process.env.CRON_SECRET}`,
-      },
+    const supabase = await createAdminClient();
+    const result = await runScan({
+      supabase,
+      dispatch: (payload) => executeClaimedTrigger(supabase, payload),
     });
 
-    const body = (await response.json()) as unknown;
+    logger.info("Scanner tick complete", {
+      claimed: result.claimed,
+      dispatched: result.dispatched,
+      staleReleased: result.staleReleased,
+      errors: result.errors,
+    });
 
-    if (!response.ok) {
-      logger.error("Scanner call failed", {
-        status: response.status,
-        body,
-      });
-      throw new Error(`scan failed: ${response.status}`);
-    }
-
-    logger.info("Scanner tick ok", { body });
-    return body;
+    return result;
   },
 });
