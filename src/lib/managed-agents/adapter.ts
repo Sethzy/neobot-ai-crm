@@ -483,6 +483,14 @@ export async function runManagedAgent(
         };
 
     sessionId = session.id;
+
+    // Backfill session_id on the run record so the webhook safety net can
+    // look up orphaned runs by Anthropic session_id.
+    await input.supabase
+      .from("runs")
+      .update({ session_id: sessionId })
+      .eq("run_id", runId);
+
     const tSessionReady = performance.now();
 
     console.info("[runManagedAgent] session ready", {

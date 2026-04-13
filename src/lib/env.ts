@@ -37,6 +37,9 @@ const serverEnvSchema = z.object({
   ANTHROPIC_AGENT_VERSION_HAIKU: z.string().trim().optional(),
   ANTHROPIC_AGENT_ID_OPUS: z.string().trim().optional(),
   ANTHROPIC_AGENT_VERSION_OPUS: z.string().trim().optional(),
+
+  // Webhook safety net for recovering orphaned runs
+  ANTHROPIC_WEBHOOK_SECRET: z.string().min(1).optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
