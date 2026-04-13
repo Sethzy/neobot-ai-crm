@@ -16,6 +16,8 @@ const inputSchema = z.object({
 
 type RunSqlInput = z.infer<typeof inputSchema>;
 
+const MAX_RETURNED_ROWS = 200;
+
 export const runSqlTool: ManagedAgentTool<RunSqlInput> = {
   name: "run_sql",
   description:
@@ -39,6 +41,16 @@ export const runSqlTool: ManagedAgentTool<RunSqlInput> = {
     }
 
     const rows = (data ?? []) as Record<string, unknown>[];
+    if (rows.length > MAX_RETURNED_ROWS) {
+      return {
+        success: true as const,
+        rows: rows.slice(0, MAX_RETURNED_ROWS),
+        row_count: MAX_RETURNED_ROWS,
+        truncated: true as const,
+        truncated_from: rows.length,
+      };
+    }
+
     return { success: true as const, rows, row_count: rows.length };
   },
 };

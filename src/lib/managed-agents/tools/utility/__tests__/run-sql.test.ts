@@ -32,4 +32,24 @@ describe("runSqlTool", () => {
       { fn: "run_readonly_sql", args: { query_text: "select 1" } },
     ]);
   });
+
+  it("caps large SQL result sets before returning them to the model", async () => {
+    const rows = Array.from({ length: 250 }, (_, index) => ({ id: index + 1 }));
+    const client = createMockSupabaseClient({
+      rpcResults: { run_readonly_sql: { data: rows, error: null } },
+    });
+
+    const result = await runSqlTool.execute(
+      { query: "select * from contacts" },
+      makeContext(client),
+    );
+
+    expect(result).toEqual({
+      success: true,
+      rows: rows.slice(0, 200),
+      row_count: 200,
+      truncated: true,
+      truncated_from: 250,
+    });
+  });
 });
