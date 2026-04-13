@@ -34,6 +34,14 @@ function isBlobLike(value: unknown): value is Blob {
   );
 }
 
+function getUrlPath(value: string): string {
+  try {
+    return new URL(value).pathname;
+  } catch {
+    return value;
+  }
+}
+
 const fileSchema = z.object({
   file: z
     .custom<Blob>(isBlobLike, { message: "Invalid input" })
@@ -76,6 +84,15 @@ export async function POST(request: Request) {
     const relativeStoragePath = `uploads/${storageFilename}`;
     const storagePath = `${clientId}/${relativeStoragePath}`;
 
+    console.info("[api/files/upload] storing chat upload", {
+      clientId,
+      filename,
+      sanitizedFilename,
+      contentType: fileEntry.type,
+      sizeBytes: fileEntry.size,
+      storagePath: relativeStoragePath,
+    });
+
     const { error: uploadError } = await supabase.storage
       .from(BUCKET_ID)
       .upload(storagePath, await fileEntry.arrayBuffer(), {
@@ -94,6 +111,15 @@ export async function POST(request: Request) {
     if (signedUrlResponse.error || !signedUrlResponse.data?.signedUrl) {
       return jsonError("Upload failed", 500);
     }
+
+    console.info("[api/files/upload] stored chat upload", {
+      clientId,
+      filename,
+      contentType: fileEntry.type,
+      sizeBytes: fileEntry.size,
+      storagePath: relativeStoragePath,
+      signedUrlPath: getUrlPath(signedUrlResponse.data.signedUrl),
+    });
 
     await captureServerEvent({
       distinctId: clientId,

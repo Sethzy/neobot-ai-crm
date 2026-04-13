@@ -85,6 +85,16 @@ export async function POST(request: Request): Promise<Response> {
       `attachments/${validatedUpload.data.record_type}/${validatedUpload.data.record_id}/${crypto.randomUUID()}`;
     const agentFileClient = createAgentFileClient(supabase, clientId);
 
+    console.info("[crm/attachments/upload] storing attachment", {
+      clientId,
+      filename,
+      recordType: validatedUpload.data.record_type,
+      recordId: validatedUpload.data.record_id,
+      contentType: fileEntry.type,
+      sizeBytes: fileEntry.size,
+      storagePath: relativeStoragePath,
+    });
+
     const uploadResult = await agentFileClient.uploadArtifact({
       path: relativeStoragePath,
       content: await fileEntry.arrayBuffer(),
@@ -112,6 +122,15 @@ export async function POST(request: Request): Promise<Response> {
       await supabase.storage.from(AGENT_FILES_BUCKET).remove([uploadResult.storagePath]);
       return jsonError("Failed to create attachment record", 500);
     }
+
+    console.info("[crm/attachments/upload] stored attachment", {
+      clientId,
+      attachmentId: attachment.attachment_id,
+      filename,
+      recordType: validatedUpload.data.record_type,
+      recordId: validatedUpload.data.record_id,
+      storagePath: relativeStoragePath,
+    });
 
     return Response.json({
       attachment,
