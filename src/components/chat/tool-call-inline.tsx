@@ -454,13 +454,13 @@ export function ToolCallInline({
       onOpenChange={setIsOpen}
       data-testid="tool-call-inline"
       className={cn(
-        "w-full rounded-lg border py-3",
-        isDenied && "border-muted-foreground/30 bg-muted/30",
+        "max-w-sm",
+        isDenied && "opacity-60",
       )}
     >
       <CollapsibleTrigger
         data-testid="tool-expand-trigger"
-        className="group/trigger flex w-full items-center gap-2 px-4 text-sm transition-colors"
+        className="group/trigger inline-flex items-center gap-1.5 py-0.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <StatusIcon
           data-testid="tool-dot"
@@ -473,8 +473,8 @@ export function ToolCallInline({
         />
         <span
           className={cn(
-            "relative inline-block grow text-left leading-none",
-            isDenied && "text-muted-foreground line-through",
+            "relative inline-block text-left leading-none",
+            isDenied && "line-through",
           )}
         >
           <span>{statusLabel}: <b>{name}</b></span>
@@ -497,7 +497,7 @@ export function ToolCallInline({
       </CollapsibleTrigger>
 
       {isAwaitingApproval && onToolApproval && approvalId ? (
-        <div data-testid="tool-approval-actions" className="mt-2 flex items-center gap-2 px-4">
+        <div data-testid="tool-approval-actions" className="ml-2 mt-1.5 flex items-center gap-2 border-l-2 border-approval/30 pl-3">
           <button
             type="button"
             className="rounded-md border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-medium text-success hover:bg-success/20"
@@ -524,7 +524,7 @@ export function ToolCallInline({
           download={pdfResult.filename ?? "document.pdf"}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20 mx-4"
+          className="mt-1.5 ml-2 inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
         >
           <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -536,7 +536,7 @@ export function ToolCallInline({
       {authNeeded ? (
         <div
           data-testid="browser-auth-card"
-          className="mx-4 mt-2 space-y-2 rounded-md border border-warning/20 bg-warning/5 p-3"
+          className="ml-2 mt-1.5 space-y-2 rounded-md border border-warning/20 bg-warning/5 p-3"
         >
           <p className="text-xs text-foreground">
             Access to <span className="font-medium">{authPlatformConfig?.label ?? authNeeded.platform}</span> requires login.
@@ -612,7 +612,7 @@ export function ToolCallInline({
       ) : null}
 
       <CollapsibleContent className="overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-        <div data-testid="tool-details" className="mt-3 flex flex-col gap-2 border-t px-4 pt-2">
+        <div data-testid="tool-details" className="ml-2 mt-1.5 flex flex-col gap-2 border-l-2 border-muted-foreground/15 pl-3">
           <div>
             <p className="mb-0.5 text-xs font-medium text-muted-foreground/70">Arguments</p>
             <div
