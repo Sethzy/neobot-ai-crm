@@ -82,10 +82,14 @@ vi.mock("@/lib/usage/message-quota", () => ({
     loadFailed: "message-quota-load-failed",
   },
 }));
-vi.mock("../upload-files-for-session", () => ({
-  uploadFilePartsToAnthropic: vi.fn().mockResolvedValue([]),
-  mountUploadedFilesToSession: vi.fn().mockResolvedValue(undefined),
-}));
+vi.mock("../upload-files-for-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../upload-files-for-session")>();
+  return {
+    ...actual,
+    uploadFilePartsToAnthropic: vi.fn().mockResolvedValue([]),
+    mountUploadedFilesToSession: vi.fn().mockResolvedValue(undefined),
+  };
+});
 
 const { consumeAnthropicSession } = await import("../session-runner");
 const {
@@ -108,6 +112,7 @@ const {
   releaseMessageQuota,
 } = await import("@/lib/usage/message-quota");
 const {
+  buildSessionAttachmentMounts,
   mountUploadedFilesToSession,
   uploadFilePartsToAnthropic,
 } = await import("../upload-files-for-session");
@@ -127,6 +132,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   (getExistingSessionId as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(null);
   (createSessionForThread as unknown as ReturnType<typeof vi.fn>).mockResolvedValue("sess_1");
+  (buildSessionAttachmentMounts as unknown as ReturnType<typeof vi.fn> | undefined)?.mockClear?.();
   (uploadFilePartsToAnthropic as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   (mountUploadedFilesToSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
   (claimApprovalResolution as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -188,6 +194,7 @@ describe("runManagedAgent — happy path", () => {
             runtimeSeconds: 5,
           },
           approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
         };
       },
     );
@@ -229,6 +236,7 @@ describe("runManagedAgent — happy path", () => {
         runtimeSeconds: 0,
       },
       approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
     });
 
     const { runManagedAgent } = await import("../adapter");
@@ -329,6 +337,7 @@ describe("runManagedAgent — happy path", () => {
         runtimeSeconds: 0,
       },
       approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
     });
 
     const { runManagedAgent } = await import("../adapter");
@@ -395,6 +404,7 @@ describe("runManagedAgent — happy path", () => {
         runtimeSeconds: 0,
       },
       approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
     });
 
     const { runManagedAgent } = await import("../adapter");
@@ -416,6 +426,7 @@ describe("runManagedAgent — happy path", () => {
         clientProfile: "## Client Profile\nJane — broker in SG",
         userPreferences: "## Preferences\nConcise. No fluff.",
         userMessage: "Draft a follow-up to Kate",
+        attachmentHints: [],
       }),
     );
   });
@@ -434,6 +445,7 @@ describe("runManagedAgent — happy path", () => {
         runtimeSeconds: 0,
       },
       approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
     });
 
     const { runManagedAgent } = await import("../adapter");
@@ -455,6 +467,7 @@ describe("runManagedAgent — happy path", () => {
         clientProfile: null,
         userPreferences: null,
         userMessage: "Follow-up question",
+        attachmentHints: [],
       }),
     );
   });
@@ -475,6 +488,7 @@ describe("runManagedAgent — happy path", () => {
         runtimeSeconds: 0,
       },
       approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
     });
 
     const { runManagedAgent } = await import("../adapter");
@@ -503,8 +517,18 @@ describe("runManagedAgent — happy path", () => {
           {
             type: "file",
             file_id: "file_123",
-            mount_path: "/workspace/brief.pdf",
+            mount_path: "/mnt/session/uploads/brief.pdf",
           },
+        ],
+      }),
+    );
+    expect(buildKickoffContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attachmentHints: [
+          expect.objectContaining({
+            filename: "brief.pdf",
+            mountPath: "/mnt/session/uploads/brief.pdf",
+          }),
         ],
       }),
     );
@@ -523,6 +547,7 @@ describe("runManagedAgent — happy path", () => {
         runtimeSeconds: 0,
       },
       approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
     });
 
     const { runManagedAgent } = await import("../adapter");
@@ -540,6 +565,160 @@ describe("runManagedAgent — happy path", () => {
     await collectStream(stream);
 
     expect(markStaleRunsFailed).not.toHaveBeenCalled();
+  });
+
+  it("persists and streams a generated title before the managed-agent turn finishes when the title is ready early", async () => {
+    const events: string[] = [];
+    let releaseConsume: (() => void) | null = null;
+    const consumeGate = new Promise<void>((resolve) => {
+      releaseConsume = resolve;
+    });
+    const updateEqClientId = vi.fn().mockResolvedValue({ error: null });
+    const updateEqThreadId = vi.fn(() => ({
+      eq: updateEqClientId,
+    }));
+    const updateThread = vi.fn(() => ({
+      eq: updateEqThreadId,
+    }));
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "conversation_threads") {
+          return {
+            update: updateThread,
+          };
+        }
+
+        return {};
+      }),
+    } as never;
+
+    (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      async (options) => {
+        events.push("consume-start");
+        await consumeGate;
+        await options.callbacks?.onAgentMessage?.({
+          id: "evt_1",
+          type: "agent.message",
+          content: [{ type: "text", text: "Hello" }],
+        });
+        events.push("consume-end");
+
+        return {
+          status: "complete",
+          reason: "end_turn",
+          accumulatedEvents: [
+            {
+              id: "evt_1",
+              type: "agent.message",
+              content: [{ type: "text", text: "Hello" }],
+            },
+          ],
+          cost: {
+            inputTokens: 10,
+            outputTokens: 5,
+            cacheReadInputTokens: 0,
+            cacheCreationInputTokens: 0,
+            runtimeSeconds: 1,
+          },
+          approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
+        };
+      },
+    );
+    updateEqClientId.mockImplementation(async () => {
+      events.push("title-persist");
+      return { error: null };
+    });
+
+    const { runManagedAgent } = await import("../adapter");
+    const stream = await runManagedAgent({
+      anthropic: {} as never,
+      supabase,
+      clientId: "c1",
+      threadId: "t1",
+      input: "hi",
+      clientProfile: null,
+      userPreferences: null,
+      threadTitle: "New Chat",
+      generatedTitlePromise: Promise.resolve("Weekly Planning"),
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(events).toEqual(["consume-start", "title-persist"]);
+
+    releaseConsume?.();
+    const parts = await collectStream(stream);
+    const titleIndex = parts.findIndex(
+      (part) => (part as { type?: string }).type === "data-chat-title",
+    );
+    const textIndex = parts.findIndex((part) => {
+      const type = (part as { type?: string }).type;
+      return type === "text-delta" || type === "text";
+    });
+
+    expect(parts).toContainEqual(
+      expect.objectContaining({
+        type: "data-chat-title",
+        data: "Weekly Planning",
+      }),
+    );
+    expect(titleIndex).toBeGreaterThanOrEqual(0);
+    expect(textIndex).toBeGreaterThan(titleIndex);
+    expect(updateThread).toHaveBeenCalledWith({ title: "Weekly Planning" });
+    expect(updateEqThreadId).toHaveBeenCalledWith("thread_id", "t1");
+    expect(updateEqClientId).toHaveBeenCalledWith("client_id", "c1");
+    expect(completeRun).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ status: "completed", runId: "run_1" }),
+    );
+  });
+
+  it("swallows title generation failures so the chat stream still completes", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: "complete",
+      reason: "end_turn",
+      accumulatedEvents: [],
+      cost: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 0,
+        runtimeSeconds: 0,
+      },
+      approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
+    });
+
+    const { runManagedAgent } = await import("../adapter");
+    const generatedTitlePromise = Promise.reject(new Error("title model failed"));
+    void generatedTitlePromise.catch(() => undefined);
+    const stream = await runManagedAgent({
+      anthropic: {} as never,
+      supabase: {} as never,
+      clientId: "c1",
+      threadId: "t1",
+      input: "hi",
+      clientProfile: null,
+      userPreferences: null,
+      threadTitle: "New Chat",
+      generatedTitlePromise,
+    });
+
+    const parts = await collectStream(stream);
+
+    expect(parts.some((part) => (part as { type?: string }).type === "data-chat-title")).toBe(false);
+    expect(completeRun).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ status: "completed", runId: "run_1" }),
+    );
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "[runManagedAgent] failed to generate or persist thread title",
+      expect.any(Error),
+    );
+    consoleErrorSpy.mockRestore();
   });
 });
 
@@ -568,6 +747,7 @@ describe("runManagedAgent — terminal variants", () => {
         runtimeSeconds: 1,
       },
       approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
     });
 
     const { runManagedAgent } = await import("../adapter");
@@ -676,6 +856,7 @@ describe("resumeManagedAgentFromApproval", () => {
             runtimeSeconds: 0,
           },
           approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
         };
       },
     );
@@ -762,6 +943,7 @@ describe("runManagedAgent — source_event_id idempotency", () => {
         runtimeSeconds: 1,
       },
       approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
     });
 
     const { runManagedAgent } = await import("../adapter");
@@ -929,6 +1111,7 @@ describe("runManagedAgent — failure cleanup", () => {
         runtimeSeconds: 0,
       },
       approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
     });
 
     const { runManagedAgent } = await import("../adapter");
@@ -971,6 +1154,7 @@ describe("runManagedAgent — failure cleanup", () => {
         runtimeSeconds: 0,
       },
       approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
     });
 
     const { runManagedAgent } = await import("../adapter");
@@ -1009,6 +1193,7 @@ describe("runManagedAgent — failure cleanup", () => {
       anthropic: expect.anything(),
       sessionId: "sess_1",
       uploadedFiles: [{ fileId: "file_123", filename: "brief.pdf" }],
+      mountPaths: ["/mnt/session/uploads/brief.pdf"],
       logLabel: "runManagedAgent",
     });
   });
@@ -1043,6 +1228,7 @@ describe("runManagedAgent — pipeJsonRender spec fences", () => {
         runtimeSeconds: 1,
       },
           approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
         };
       },
     );

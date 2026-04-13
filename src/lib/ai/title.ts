@@ -4,7 +4,7 @@
  */
 import { generateText } from "ai";
 
-import { gateway, gatewayProviderOptions, TIER_1_MODEL } from "@/lib/ai/gateway";
+import { COMPACTION_MODEL, gateway, gatewayProviderOptions } from "@/lib/ai/gateway";
 
 const TITLE_PROMPT =
   "Generate a short chat title (2-5 words) for a conversation starting with the user message below. Output ONLY the title text, no punctuation, no quotes, no formatting.";
@@ -14,7 +14,7 @@ const TITLE_PROMPT =
  */
 export async function generateTitleFromUserMessage(userMessage: string): Promise<string> {
   const { text } = await generateText({
-    model: gateway(TIER_1_MODEL),
+    model: gateway(COMPACTION_MODEL),
     system: TITLE_PROMPT,
     prompt: userMessage,
     providerOptions: gatewayProviderOptions,

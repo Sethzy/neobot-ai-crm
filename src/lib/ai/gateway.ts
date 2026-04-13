@@ -7,13 +7,13 @@ import type { JSONValue } from "ai";
 
 /**
  * Tier-1 model for AI-SDK helper calls that still go through the Vercel
- * Gateway — today that's `generateTitleFromUserMessage` and a couple of
- * dev/eval scripts. This is deliberately NOT the main chat model:
+ * Gateway — today that's a small set of AI-SDK helper calls and eval scripts.
+ * This is deliberately NOT the main chat model:
  *
  * - Main chat runs on Anthropic Managed Agents (Sonnet 4.6), pinned by
  *   `ANTHROPIC_AGENT_VERSION`. See `src/lib/managed-agents/adapter.ts`.
- * - Title generation doesn't need Sonnet quality, so keeping it on a
- *   cheap Gemini model avoids wasted spend on every new thread.
+ * - Helper calls that do not need Sonnet quality should stay on cheap
+ *   Gemini models to avoid wasted spend.
  *
  * If you want to change what runs in the chat surface, update
  * `scripts/managed-agents/create-agent.ts` and re-run it, not this file.

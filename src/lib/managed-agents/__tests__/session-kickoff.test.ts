@@ -18,6 +18,7 @@ describe("buildKickoffContent", () => {
       systemReminder: "reminder-text",
       userMessage: "hello",
       customizedSkillSlugs: [],
+      attachmentHints: [],
     });
 
     expect(content).toEqual([
@@ -35,6 +36,7 @@ describe("buildKickoffContent", () => {
       systemReminder: "reminder",
       userMessage: "hi",
       customizedSkillSlugs: [],
+      attachmentHints: [],
     });
 
     expect(content).toEqual([
@@ -50,6 +52,7 @@ describe("buildKickoffContent", () => {
       systemReminder: "r",
       userMessage: "m",
       customizedSkillSlugs: ["pdf", "qa"],
+      attachmentHints: [],
     });
 
     expect(content).toContainEqual(
@@ -67,6 +70,7 @@ describe("buildKickoffContent", () => {
       systemReminder: "reminder",
       userMessage: "  call Kate today  ",
       customizedSkillSlugs: ["pdf"],
+      attachmentHints: [],
     });
 
     expect(content.at(-1)).toEqual({
@@ -74,13 +78,43 @@ describe("buildKickoffContent", () => {
       text: "  call Kate today  ",
     });
   });
+
+  it("includes explicit attachment guidance before the user message", () => {
+    const content = buildKickoffContent({
+      clientProfile: null,
+      userPreferences: null,
+      systemReminder: "reminder",
+      userMessage: "analyze the file",
+      customizedSkillSlugs: [],
+      attachmentHints: [{
+        filename: "saaa.csv",
+        mountPath: "/mnt/session/uploads/saaa.csv",
+        storagePath: "uploads/123-saaa.csv",
+        mediaType: "text/csv",
+      }],
+    });
+
+    expect(content).toContainEqual({
+      type: "text",
+      text: expect.stringContaining("/mnt/session/uploads/saaa.csv"),
+    });
+    expect(content).toContainEqual({
+      type: "text",
+      text: expect.stringContaining("Do not call storage_read on /mnt/session/... or /workspace/... paths."),
+    });
+    expect(content.at(-1)).toEqual({
+      type: "text",
+      text: "analyze the file",
+    });
+  });
 });
 
 const createSession = vi.fn();
+const retrieveSession = vi.fn();
 
 function stubAnthropic() {
   return {
-    beta: { sessions: { create: createSession } },
+    beta: { sessions: { create: createSession, retrieve: retrieveSession } },
   } as never;
 }
 
@@ -100,6 +134,7 @@ function stubSupabase(
 describe("getOrCreateSession", () => {
   beforeEach(() => {
     createSession.mockReset();
+    retrieveSession.mockReset().mockResolvedValue({ status: "idle" });
     process.env.ANTHROPIC_AGENT_ID = "agent_123";
     process.env.ANTHROPIC_AGENT_VERSION = "7";
     process.env.ANTHROPIC_ENVIRONMENT_ID = "env_abc";
@@ -136,7 +171,7 @@ describe("getOrCreateSession", () => {
         {
           type: "file",
           file_id: "file_123",
-          mount_path: "/mnt/session/uploads/file_123",
+          mount_path: "/mnt/session/uploads/brief.pdf",
         },
       ],
     });
@@ -163,6 +198,38 @@ describe("getOrCreateSession", () => {
     expect(session.id).toBe("sess_existing");
     expect(session.created).toBe(false);
     expect(createSession).not.toHaveBeenCalled();
+  });
+
+  it("creates a fresh session when the cached session is terminated", async () => {
+    retrieveSession.mockResolvedValue({ status: "terminated" });
+    createSession.mockResolvedValue({ id: "sess_fresh" });
+
+    const session = await getOrCreateSession({
+      anthropic: stubAnthropic(),
+      supabase: stubSupabase({ session_id: "sess_dead" }),
+      threadId: "thread-1",
+      threadTitle: null,
+    });
+
+    expect(session.id).toBe("sess_fresh");
+    expect(session.created).toBe(true);
+    expect(retrieveSession).toHaveBeenCalledWith("sess_dead");
+    expect(createSession).toHaveBeenCalled();
+  });
+
+  it("creates a fresh session when retrieve throws (404/network error)", async () => {
+    retrieveSession.mockRejectedValue(new Error("not found"));
+    createSession.mockResolvedValue({ id: "sess_recovered" });
+
+    const session = await getOrCreateSession({
+      anthropic: stubAnthropic(),
+      supabase: stubSupabase({ session_id: "sess_gone" }),
+      threadId: "thread-1",
+      threadTitle: null,
+    });
+
+    expect(session.id).toBe("sess_recovered");
+    expect(session.created).toBe(true);
   });
 
   it("throws when the session_id select query returns an error", async () => {

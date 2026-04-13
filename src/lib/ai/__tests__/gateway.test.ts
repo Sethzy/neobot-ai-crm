@@ -29,10 +29,16 @@ describe("AI Gateway module", () => {
     expect(TIER_1_MODEL.length).toBeGreaterThan(0);
   });
 
-  it("pins TIER_1_MODEL to google/gemini-3-flash for AI-SDK helper calls (title gen)", async () => {
+  it("pins TIER_1_MODEL to google/gemini-3-flash for higher-quality helper calls", async () => {
     process.env.AI_GATEWAY_API_KEY = "test-key";
     const { TIER_1_MODEL } = await import("@/lib/ai/gateway");
     expect(TIER_1_MODEL).toBe("google/gemini-3-flash");
+  });
+
+  it("pins COMPACTION_MODEL to google/gemini-2.5-flash-lite for cheap helper calls", async () => {
+    process.env.AI_GATEWAY_API_KEY = "test-key";
+    const { COMPACTION_MODEL } = await import("@/lib/ai/gateway");
+    expect(COMPACTION_MODEL).toBe("google/gemini-2.5-flash-lite");
   });
 
   it("returns a model object when called with a provider/model id", async () => {

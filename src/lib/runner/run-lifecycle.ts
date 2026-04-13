@@ -19,6 +19,9 @@ export interface CreateRunInput {
 export interface CreateRunRecordInput extends CreateRunInput {
   runId?: string;
   sessionId?: string | null;
+  /** Anthropic model ID — set at creation so the approval-resume path can
+   *  read it back without guessing which model the session was started with. */
+  model?: string;
 }
 
 export interface CompleteRunInput {
@@ -59,6 +62,7 @@ export async function createRunRecord(
     run_type: input.runType,
     status: "running",
     ...(input.sessionId !== undefined ? { session_id: input.sessionId } : {}),
+    ...(input.model ? { model: input.model } : {}),
   };
 
   const { data, error } = await supabase

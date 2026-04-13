@@ -63,6 +63,7 @@ import { consumeAnthropicSession } from "./session-runner";
 import { buildUiStreamCallbacks } from "./session-stream-forwarder";
 import { pickSourceEventId } from "./source-event-id";
 import {
+  buildSessionAttachmentMounts,
   mountUploadedFilesToSession,
   uploadFilePartsToAnthropic,
 } from "./upload-files-for-session";
@@ -76,9 +77,10 @@ import type {
 import type { AnthropicEvent } from "./event-types";
 import { getAssistantTextFromParts } from "@/lib/runner/message-utils";
 
-const MANAGED_AGENT_MODEL = "claude-sonnet-4-6";
+import { resolveAgentRef } from "./agent-config";
+import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 
-interface FinalizeRunOptions {
+export interface FinalizeRunOptions {
   supabase: ManagedSupabaseClient;
   clientId: string;
   threadId: string;
@@ -88,6 +90,25 @@ interface FinalizeRunOptions {
   conversationInput: string;
   /** Context label for log lines — "runManagedAgent" | "resumeManagedAgent". */
   logLabel: string;
+  /** Anthropic model ID for telemetry (e.g. `"claude-sonnet-4-6"`). */
+  anthropicModelId: string;
+}
+
+function getUrlPath(value: string): string {
+  try {
+    return new URL(value).pathname;
+  } catch {
+    return value;
+  }
+}
+
+function summarizeManagedFileParts(fileParts: readonly ManagedFilePart[]) {
+  return fileParts.map((filePart) => ({
+    filename: filePart.filename ?? null,
+    mediaType: filePart.mediaType,
+    storagePath: filePart.storagePath ?? null,
+    urlPath: getUrlPath(filePart.url),
+  }));
 }
 
 function buildUserMessageParts(input: {
@@ -126,6 +147,23 @@ async function persistUserInput(options: {
     }),
     source_event_id: options.sourceEventId ?? `user:${options.runId}`,
   });
+}
+
+async function persistGeneratedThreadTitle(options: {
+  supabase: ManagedSupabaseClient;
+  clientId: string;
+  threadId: string;
+  title: string;
+}): Promise<void> {
+  const { error } = await options.supabase
+    .from("conversation_threads")
+    .update({ title: options.title })
+    .eq("thread_id", options.threadId)
+    .eq("client_id", options.clientId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 async function persistAssistantOutput(options: {
@@ -178,6 +216,12 @@ export async function attachFilesToManagedSession(options: {
     return;
   }
 
+  console.info("[runManagedAgent] attaching files to existing session", {
+    sessionId: options.sessionId,
+    fileParts: summarizeManagedFileParts(options.fileParts),
+  });
+
+  const attachmentMounts = buildSessionAttachmentMounts(options.fileParts);
   const uploadedFiles = await uploadFilePartsToAnthropic(
     options.anthropic,
     options.fileParts,
@@ -187,6 +231,7 @@ export async function attachFilesToManagedSession(options: {
     anthropic: options.anthropic,
     sessionId: options.sessionId,
     uploadedFiles,
+    mountPaths: attachmentMounts.map((attachmentMount) => attachmentMount.mountPath),
     logLabel: options.logLabel,
   });
 }
@@ -197,8 +242,8 @@ export async function attachFilesToManagedSession(options: {
  * `requires_action`. Shared by the run + resume paths so both entry points
  * behave identically.
  */
-async function finalizeRun(options: FinalizeRunOptions): Promise<void> {
-  const { supabase, clientId, threadId, runId, result, conversationInput, logLabel } = options;
+export async function finalizeRun(options: FinalizeRunOptions): Promise<void> {
+  const { supabase, clientId, threadId, runId, result, conversationInput, logLabel, anthropicModelId } = options;
   const accumulatedEvents = result.accumulatedEvents as ReadonlyArray<AnthropicEvent>;
   if (result.reason === "requires_action") {
     // Paused on approval — persist whatever we streamed (including
@@ -216,36 +261,41 @@ async function finalizeRun(options: FinalizeRunOptions): Promise<void> {
     return;
   }
 
-  await persistAssistantOutput({
-    supabase,
-    clientId,
-    threadId,
-    runId,
-    accumulatedEvents,
-    logLabel,
-  });
-
-  const costUsd = computeTurnCost({
-    inputTokens: result.cost.inputTokens,
-    outputTokens: result.cost.outputTokens,
-    cacheReadInputTokens: result.cost.cacheReadInputTokens,
-    cacheCreationInputTokens: result.cost.cacheCreationInputTokens,
-    activeSeconds: result.cost.runtimeSeconds,
-  });
-
-  await completeRun(supabase, {
-    runId,
-    status: result.status === "complete" ? "completed" : "failed",
-    model: MANAGED_AGENT_MODEL,
-    tokensIn: result.cost.inputTokens,
-    tokensOut: result.cost.outputTokens,
-    cacheReadTokens: result.cost.cacheReadInputTokens,
-    costUsd,
-  });
-
-  await runEvaluatorsForEvents(accumulatedEvents, runId, supabase, {
-    conversationInput,
-  });
+  // Persist message (+ external delivery), run evaluators, and settle
+  // the cost retrieve in parallel. completeRun depends on cost, so it
+  // chains off the retrieve inside the Promise.all.
+  await Promise.all([
+    persistAssistantOutput({
+      supabase,
+      clientId,
+      threadId,
+      runId,
+      accumulatedEvents,
+      logLabel,
+    }),
+    result.costRetrievePromise.then(() => {
+      const costUsd = computeTurnCost({
+        inputTokens: result.cost.inputTokens,
+        outputTokens: result.cost.outputTokens,
+        cacheReadInputTokens: result.cost.cacheReadInputTokens,
+        cacheCreationInputTokens: result.cost.cacheCreationInputTokens,
+        activeSeconds: result.cost.runtimeSeconds,
+        anthropicModelId: anthropicModelId,
+      });
+      return completeRun(supabase, {
+        runId,
+        status: result.status === "complete" ? "completed" : "failed",
+        model: anthropicModelId,
+        tokensIn: result.cost.inputTokens,
+        tokensOut: result.cost.outputTokens,
+        cacheReadTokens: result.cost.cacheReadInputTokens,
+        costUsd,
+      });
+    }),
+    runEvaluatorsForEvents(accumulatedEvents, runId, supabase, {
+      conversationInput,
+    }),
+  ]);
 }
 
 // ── runManagedAgent (fresh turn) ────────────────────────────────────────────
@@ -261,23 +311,38 @@ export interface RunManagedAgentInput {
   clientProfile: string | null;
   userPreferences: string | null;
   threadTitle: string | null;
+  generatedTitlePromise?: Promise<string> | null;
+  /** User-selected model ID from the chat picker. Determines which
+   *  Anthropic agent is used for new sessions. Falls back to
+   *  `DEFAULT_CHAT_MODEL` when absent. */
+  selectedChatModel?: string;
 }
 
 export async function runManagedAgent(
   input: RunManagedAgentInput,
 ): Promise<ReadableStream<unknown>> {
-  const runId = await createRunRecord(input.supabase, {
-    threadId: input.threadId,
-    clientId: input.clientId,
-    runType: "chat",
-  });
+  const tAdapterStart = performance.now();
+  const effectiveModelId = input.selectedChatModel ?? DEFAULT_CHAT_MODEL;
+  const agentRef = resolveAgentRef(effectiveModelId);
+
   let shouldReleaseConsumedQuota = false;
   let consumedQuota: Awaited<ReturnType<typeof consumeMessageQuota>> | null = null;
   let sessionId: string;
   let kickoffContent: NonNullable<SessionRunnerOptions["kickoffContent"]>;
 
+  // Run record creation + quota check in parallel — neither depends on the other.
+  const [runId, quota] = await Promise.all([
+    createRunRecord(input.supabase, {
+      threadId: input.threadId,
+      clientId: input.clientId,
+      runType: "chat",
+      model: agentRef.anthropicModelId,
+    }),
+    consumeMessageQuota(input.supabase, input.clientId),
+  ]);
+  const tRunRecordAndQuota = performance.now();
+
   try {
-    const quota = await consumeMessageQuota(input.supabase, input.clientId);
     if (!quota.allowed) {
       throw new MessageQuotaError(
         messageQuotaErrorCodes.limitReached,
@@ -288,13 +353,23 @@ export async function runManagedAgent(
     consumedQuota = quota;
     shouldReleaseConsumedQuota = true;
 
-    const [, existingSessionId, reminder] = await Promise.all([
+    const managedFileParts = input.fileParts ?? [];
+    const attachmentMounts = buildSessionAttachmentMounts(managedFileParts);
+
+    if (managedFileParts.length > 0) {
+      console.info("[runManagedAgent] received file parts", {
+        threadId: input.threadId,
+        fileParts: summarizeManagedFileParts(managedFileParts),
+      });
+    }
+
+    const [, existingSessionId, reminder, customizedSkillSlugs] = await Promise.all([
       persistUserInput({
         supabase: input.supabase,
         threadId: input.threadId,
         runId,
         userMessage: input.input,
-        fileParts: input.fileParts ?? [],
+        fileParts: managedFileParts,
         sourceEventId: input.userMessageSourceId,
       }),
       getExistingSessionId({
@@ -302,7 +377,42 @@ export async function runManagedAgent(
         threadId: input.threadId,
       }),
       buildSystemReminder(input.supabase, input.clientId),
+      listCustomizedSkillSlugs(input.supabase, input.clientId),
     ]);
+    const tParallelSetup = performance.now();
+
+    console.info("[runManagedAgent] session lookup", {
+      threadId: input.threadId,
+      existingSessionId,
+      filePartCount: managedFileParts.length,
+    });
+
+    let initialResources:
+      | Array<{ type: "file"; file_id: string; mount_path: string }>
+      | undefined;
+
+    if (!existingSessionId && managedFileParts.length > 0) {
+      const uploadedFiles = await uploadFilePartsToAnthropic(
+        input.anthropic,
+        managedFileParts,
+      );
+      initialResources = uploadedFiles.map((uploadedFile, index) => ({
+        type: "file" as const,
+        file_id: uploadedFile.fileId,
+        mount_path:
+          attachmentMounts[index]?.mountPath
+          ?? `/mnt/session/uploads/${uploadedFile.filename}`,
+      }));
+
+      console.info("[runManagedAgent] prepared initial Anthropic resources", {
+        threadId: input.threadId,
+        resources: initialResources.map((resource) => ({
+          anthropicFileId: resource.file_id,
+          mountPath: resource.mount_path,
+        })),
+      });
+    }
+    const tFileUpload = performance.now();
 
     const session = existingSessionId
       ? { id: existingSessionId, created: false as const }
@@ -312,44 +422,52 @@ export async function runManagedAgent(
             supabase: input.supabase,
             threadId: input.threadId,
             threadTitle: input.threadTitle,
-            initialResources: (
-              (input.fileParts ?? []).length > 0
-                ? await uploadFilePartsToAnthropic(
-                    input.anthropic,
-                    input.fileParts ?? [],
-                  )
-                : []
-            ).map((uploadedFile) => ({
-              type: "file" as const,
-              file_id: uploadedFile.fileId,
-              mount_path: `/mnt/session/uploads/${uploadedFile.fileId}`,
-            })),
+            selectedChatModel: effectiveModelId,
+            initialResources,
           }),
           created: true as const,
         };
 
     sessionId = session.id;
+    const tSessionReady = performance.now();
+
+    console.info("[runManagedAgent] session ready", {
+      threadId: input.threadId,
+      sessionId,
+      created: session.created,
+      filePartCount: managedFileParts.length,
+    });
 
     if (!session.created) {
       await attachFilesToManagedSession({
         anthropic: input.anthropic,
         sessionId,
-        fileParts: input.fileParts ?? [],
+        fileParts: managedFileParts,
         logLabel: "runManagedAgent",
       });
     }
+    const tAttachFiles = performance.now();
 
-    const customizedSkillSlugs = await listCustomizedSkillSlugs(
-      input.supabase,
-      input.clientId,
-    );
     kickoffContent = buildKickoffContent({
       clientProfile: session.created ? input.clientProfile : null,
       userPreferences: session.created ? input.userPreferences : null,
       systemReminder: reminder,
       userMessage: input.input,
       customizedSkillSlugs,
+      attachmentHints: attachmentMounts,
     });
+    const tKickoffBuild = performance.now();
+
+    console.info("[runManagedAgent] adapter setup timing (ms)", {
+      runRecordAndQuota: Math.round(tRunRecordAndQuota - tAdapterStart),
+      parallelSetup: Math.round(tParallelSetup - tRunRecordAndQuota),
+      fileUpload: Math.round(tFileUpload - tParallelSetup),
+      sessionCreate: Math.round(tSessionReady - tFileUpload),
+      attachFiles: Math.round(tAttachFiles - tSessionReady),
+      kickoffBuild: Math.round(tKickoffBuild - tAttachFiles),
+      total: Math.round(tKickoffBuild - tAdapterStart),
+    });
+
     shouldReleaseConsumedQuota = false;
   } catch (error) {
     if (shouldReleaseConsumedQuota && consumedQuota) {
@@ -370,7 +488,7 @@ export async function runManagedAgent(
       await completeRun(input.supabase, {
         runId,
         status: "failed",
-        model: MANAGED_AGENT_MODEL,
+        model: agentRef.anthropicModelId,
         tokensIn: 0,
         tokensOut: 0,
       });
@@ -385,7 +503,36 @@ export async function runManagedAgent(
 
   const rawStream = createUIMessageStream({
     execute: async ({ writer }) => {
+      const generatedTitleTask = input.generatedTitlePromise
+        ? (async () => {
+            try {
+              const generatedTitle = (await input.generatedTitlePromise).trim();
+
+              if (generatedTitle.length === 0) {
+                return;
+              }
+
+              await persistGeneratedThreadTitle({
+                supabase: input.supabase,
+                clientId: input.clientId,
+                threadId: input.threadId,
+                title: generatedTitle,
+              });
+              writer.write({
+                type: "data-chat-title",
+                data: generatedTitle,
+              } as never);
+            } catch (titleError) {
+              console.error(
+                "[runManagedAgent] failed to generate or persist thread title",
+                titleError,
+              );
+            }
+          })()
+        : null;
+
       try {
+        const tConsumeStart = performance.now();
         const result = await consumeAnthropicSession({
           anthropic: input.anthropic,
           sessionId,
@@ -400,7 +547,9 @@ export async function runManagedAgent(
           autoDenyApprovals: false,
           callbacks: buildUiStreamCallbacks(writer),
         });
+        const tConsumeEnd = performance.now();
 
+        const tFinalizeStart = performance.now();
         await finalizeRun({
           supabase: input.supabase,
           clientId: input.clientId,
@@ -409,6 +558,18 @@ export async function runManagedAgent(
           result,
           conversationInput: input.input,
           logLabel: "runManagedAgent",
+          anthropicModelId: agentRef.anthropicModelId,
+        });
+        const tFinalizeEnd = performance.now();
+
+        if (generatedTitleTask) {
+          await generatedTitleTask;
+        }
+
+        console.info("[runManagedAgent] stream phase timing (ms)", {
+          consume: Math.round(tConsumeEnd - tConsumeStart),
+          finalize: Math.round(tFinalizeEnd - tFinalizeStart),
+          total: Math.round(tFinalizeEnd - tConsumeStart),
         });
       } catch (error) {
         // Anything thrown after createRunRecord() but before the run is
@@ -420,7 +581,7 @@ export async function runManagedAgent(
           await completeRun(input.supabase, {
             runId,
             status: "failed",
-            model: MANAGED_AGENT_MODEL,
+            model: agentRef.anthropicModelId,
             tokensIn: 0,
             tokensOut: 0,
           });
@@ -541,6 +702,15 @@ export async function resumeManagedAgentFromApproval(
   const approved = input.approved;
   const denyMessage = input.denyMessage;
 
+  // Read the model from the run record (set at creation by runManagedAgent).
+  // Falls back to Sonnet for runs created before this field was populated.
+  const { data: runRow } = await input.supabase
+    .from("runs")
+    .select("model")
+    .eq("run_id", runId)
+    .maybeSingle();
+  const resumeModelId = runRow?.model ?? "claude-sonnet-4-6";
+
   const rawStream = createUIMessageStream({
     execute: async ({ writer }) => {
       let didSendKickoffApproval = false;
@@ -586,6 +756,7 @@ export async function resumeManagedAgentFromApproval(
           result,
           conversationInput: `[approval-resume ${approvalId}: ${approved ? "allow" : "deny"}]`,
           logLabel: "resumeManagedAgentFromApproval",
+          anthropicModelId: resumeModelId,
         });
       } catch (resumeError) {
         if (!didSendKickoffApproval) {
@@ -605,7 +776,7 @@ export async function resumeManagedAgentFromApproval(
           await completeRun(input.supabase, {
             runId,
             status: "failed",
-            model: MANAGED_AGENT_MODEL,
+            model: resumeModelId,
             tokensIn: 0,
             tokensOut: 0,
           });
