@@ -31,6 +31,7 @@ import {
   messageQuotaErrorCodes,
 } from "@/lib/usage/message-quota";
 import type { Json } from "@/types/database";
+import { AskUserQuestionOverlay, type AskUserQuestion } from "./ask-user-question-overlay";
 import { ChatComposer } from "./chat-composer";
 import { ChatWelcome } from "./chat-welcome";
 import { MessageQuotaPill } from "./message-quota-pill";
@@ -351,6 +352,21 @@ export function ChatPanel({
 
   const hasMessages = messages.length > 0;
 
+  /** Detect a pending ask_user_question from the last assistant message. */
+  const pendingQuestions = useMemo<AskUserQuestion[] | null>(() => {
+    if (effectiveStatus === "streaming") return null;
+    const lastMsg = messages.at(-1);
+    if (!lastMsg || lastMsg.role !== "assistant") return null;
+
+    for (const part of (lastMsg as { parts?: unknown[] }).parts ?? []) {
+      const p = part as { type?: string; state?: string; output?: { questions?: AskUserQuestion[] } };
+      if (p.type === "tool-ask_user_question" && p.state === "output-available") {
+        return p.output?.questions ?? null;
+      }
+    }
+    return null;
+  }, [messages, effectiveStatus]);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-card">
       {streamErrorRecovery ? (
@@ -367,7 +383,13 @@ export function ChatPanel({
 
       {hasMessages ? (
         <>
-          <MessageList ref={messageListRef} messages={messages} status={effectiveStatus} onToolApproval={handleToolApproval} onQuestionSubmit={handleQuestionSubmit} />
+          <MessageList ref={messageListRef} messages={messages} status={effectiveStatus} onToolApproval={handleToolApproval} />
+          {pendingQuestions && (
+            <AskUserQuestionOverlay
+              questions={pendingQuestions}
+              onSubmit={handleQuestionSubmit}
+            />
+          )}
           {messageQuota ? (
             <MessageQuotaPill quota={messageQuota} className="pb-1 pt-2" />
           ) : null}
@@ -379,7 +401,7 @@ export function ChatPanel({
             onSelectedChatModelChange={handleModelChange}
             onSubmit={handleSubmit}
             onStop={effectiveStatus === "streaming" ? handleStop : undefined}
-            disabled={(messageQuota?.messagesRemaining ?? 1) <= 0}
+            disabled={!!pendingQuestions || (messageQuota?.messagesRemaining ?? 1) <= 0}
             hideModelSelector
           />
         </>

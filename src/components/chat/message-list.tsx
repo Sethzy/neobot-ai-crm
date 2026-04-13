@@ -34,8 +34,6 @@ interface MessageListProps {
   status: ChatStatus;
   /** Callback for tool approval actions. */
   onToolApproval?: (approvalId: string, approved: boolean) => void;
-  /** Called when user selects an option from an ask_user_question tool call. Only wired to the last assistant message. */
-  onQuestionSubmit?: (text: string) => void;
 }
 
 /** Inner component that has access to the StickToBottom context. */
@@ -45,7 +43,7 @@ const MessageListScroller = forwardRef<MessageListHandle>(function MessageListSc
   return null;
 });
 
-export const MessageList = memo(forwardRef<MessageListHandle, MessageListProps>(function MessageList({ messages, status, onToolApproval, onQuestionSubmit }, ref) {
+export const MessageList = memo(forwardRef<MessageListHandle, MessageListProps>(function MessageList({ messages, status, onToolApproval }, ref) {
   const isStreaming = status === "streaming";
 
   // Deduplicate by message ID — keep last occurrence so streaming updates win over stale copies.
@@ -71,7 +69,6 @@ export const MessageList = memo(forwardRef<MessageListHandle, MessageListProps>(
               isStreaming={isStreaming && isLastAssistantMessage}
               isLast={isLastMessage}
               onToolApproval={onToolApproval}
-              onQuestionSubmit={isLastAssistantMessage ? onQuestionSubmit : undefined}
             />
           );
         })}

@@ -33,7 +33,6 @@ import { CheckIcon, CopyIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { ViewRenderer } from "@/lib/views/renderer";
-import { AskUserQuestionInline, type AskUserQuestion } from "./ask-user-question-inline";
 import { ImageLightbox } from "./image-lightbox";
 import { resolveFilePartUrl, type ChatFilePart } from "./file-parts";
 import { getMessageText, type ChatUIMessage } from "./message-content";
@@ -47,8 +46,6 @@ interface MessageBubbleProps {
   isLast?: boolean;
   /** Callback for tool approval actions. */
   onToolApproval?: (approvalId: string, approved: boolean) => void;
-  /** Callback when user selects an option from an ask_user_question tool call. */
-  onQuestionSubmit?: (text: string) => void;
 }
 
 function filePartToAttachment(part: ChatFilePart): Attachment {
@@ -97,7 +94,7 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-export const MessageBubble = memo(function MessageBubble({ message, isStreaming = false, isLast = false, onToolApproval, onQuestionSubmit }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({ message, isStreaming = false, isLast = false, onToolApproval }: MessageBubbleProps) {
   const isUserMessage = message.role === "user";
   const { spec, hasSpec } = useJsonRenderMessage(message.parts);
   const skillSlug = useMemo(() => extractSkillSlug(message.parts), [message.parts]);
@@ -229,23 +226,6 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
                 key={key}
                 spec={spec}
                 loading={isLoadingSpec}
-              />
-            );
-          }
-
-          if (
-            part.type === "tool-ask_user_question"
-            && (part as { state?: string }).state === "output-available"
-            && !isStreaming
-          ) {
-            const output = (part as { output?: { questions?: AskUserQuestion[] } }).output;
-            if (!output?.questions) return null;
-            return (
-              <AskUserQuestionInline
-                key={key}
-                questions={output.questions}
-                onSubmit={onQuestionSubmit ?? (() => {})}
-                disabled={!onQuestionSubmit}
               />
             );
           }

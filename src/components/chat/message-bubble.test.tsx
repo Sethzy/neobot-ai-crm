@@ -88,21 +88,6 @@ vi.mock("@/lib/views/renderer", () => ({
   ),
 }));
 
-vi.mock("./ask-user-question-inline", () => ({
-  AskUserQuestionInline: ({ questions, onSubmit, disabled }: {
-    questions: Array<{ question: string }>;
-    onSubmit: (text: string) => void;
-    disabled?: boolean;
-  }) => (
-    <div
-      data-testid="ask-user-question-inline"
-      data-question-count={questions.length}
-      data-disabled={!!disabled}
-      onClick={() => onSubmit("Option A")}
-    />
-  ),
-}));
-
 /* ------------------------------------------------------------------ */
 /*  User messages                                                      */
 /* ------------------------------------------------------------------ */
@@ -488,107 +473,6 @@ describe("MessageBubble — assistant messages", () => {
       "href",
       "https://legacy.example.com/legacy.pdf",
     );
-  });
-});
-
-/* ------------------------------------------------------------------ */
-/*  ask_user_question rendering                                        */
-/* ------------------------------------------------------------------ */
-
-describe("MessageBubble — ask_user_question", () => {
-  const askQuestionMessage = {
-    id: "ask-1",
-    role: "assistant" as const,
-    parts: [
-      {
-        type: "tool-ask_user_question" as const,
-        toolCallId: "tc-ask-1",
-        state: "output-available" as const,
-        input: { questions: [{ question: "Which format?", options: ["Markdown", "PDF"], type: "single_select" }] },
-        output: { questions: [{ question: "Which format?", options: ["Markdown", "PDF"], type: "single_select" }], status: "awaiting_response" },
-      },
-      { type: "text", text: "Which format would you prefer?" },
-    ],
-  };
-
-  it("renders AskUserQuestionInline for ask_user_question tool parts", () => {
-    render(
-      <MessageBubble
-        message={askQuestionMessage}
-        onQuestionSubmit={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByTestId("ask-user-question-inline")).toBeInTheDocument();
-    expect(screen.getByTestId("ask-user-question-inline")).toHaveAttribute("data-question-count", "1");
-  });
-
-  it("renders ask_user_question inline alongside reasoning", () => {
-    render(
-      <MessageBubble
-        message={{
-          id: "ask-2",
-          role: "assistant",
-          parts: [
-            { type: "reasoning", text: "Let me think..." },
-            {
-              type: "tool-ask_user_question" as const,
-              toolCallId: "tc-ask-2",
-              state: "output-available" as const,
-              input: { questions: [{ question: "Pick one", options: ["A"], type: "single_select" }] },
-              output: { questions: [{ question: "Pick one", options: ["A"], type: "single_select" }], status: "awaiting_response" },
-            },
-            { type: "text", text: "Here are your options:" },
-          ],
-        }}
-        onQuestionSubmit={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByTestId("reasoning-block")).toBeInTheDocument();
-    expect(screen.getByTestId("ask-user-question-inline")).toBeInTheDocument();
-  });
-
-  it("renders ask_user_question as disabled when onQuestionSubmit is not provided", () => {
-    render(
-      <MessageBubble message={askQuestionMessage} />,
-    );
-
-    expect(screen.getByTestId("ask-user-question-inline")).toHaveAttribute("data-disabled", "true");
-  });
-
-  it("renders ask_user_question as interactive when onQuestionSubmit is provided", () => {
-    render(
-      <MessageBubble
-        message={askQuestionMessage}
-        onQuestionSubmit={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByTestId("ask-user-question-inline")).toHaveAttribute("data-disabled", "false");
-  });
-
-  it("does not render AskUserQuestionInline when tool state is not output-available", () => {
-    render(
-      <MessageBubble
-        message={{
-          id: "ask-3",
-          role: "assistant",
-          parts: [
-            {
-              type: "tool-ask_user_question" as const,
-              toolCallId: "tc-ask-3",
-              state: "partial-call" as const,
-              input: {},
-            },
-            { type: "text", text: "Loading..." },
-          ],
-        }}
-        onQuestionSubmit={vi.fn()}
-      />,
-    );
-
-    expect(screen.queryByTestId("ask-user-question-inline")).not.toBeInTheDocument();
   });
 });
 
