@@ -8,38 +8,10 @@ import type { Database } from "@/types/database";
 
 type ChatSupabaseClient = SupabaseClient<Database>;
 
-/**
- * Resolves an authenticated user to client_id.
- * Attempts RPC first and falls back to a clients-table lookup.
- *
- * @param supabase - Supabase client scoped to the current auth context.
- * @param userIdOverride - Optional auth user id to skip an extra auth lookup in caller flows.
- */
-export async function resolveClientId(
+async function loadClientIdByUserId(
   supabase: ChatSupabaseClient,
-  userIdOverride?: string,
+  userId: string,
 ): Promise<string> {
-  const { data: rpcClientId, error: rpcError } = await supabase.rpc("get_my_client_id");
-
-  if (!rpcError && rpcClientId) {
-    return String(rpcClientId);
-  }
-
-  let userId = userIdOverride ?? null;
-
-  if (!userId) {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      throw new Error("Could not resolve client_id: user not authenticated");
-    }
-
-    userId = user.id;
-  }
-
   const { data: clientRow, error: clientError } = await supabase
     .from("clients")
     .select("client_id")
@@ -51,4 +23,40 @@ export async function resolveClientId(
   }
 
   return clientRow.client_id;
+}
+
+/**
+ * Resolves an authenticated user to client_id.
+ * Attempts RPC first and falls back to a clients-table lookup.
+ *
+ * @param supabase - Supabase client scoped to the current auth context.
+ * @param userIdOverride - Optional auth user id to skip an extra auth lookup in caller flows.
+ */
+export async function resolveClientId(
+  supabase: ChatSupabaseClient,
+  userIdOverride?: string,
+): Promise<string> {
+  // Server-side callers often already paid the auth lookup and have the
+  // user id in hand. Skip the RPC in that case to avoid an extra round-trip
+  // on latency-sensitive request paths like chat send.
+  if (userIdOverride) {
+    return loadClientIdByUserId(supabase, userIdOverride);
+  }
+
+  const { data: rpcClientId, error: rpcError } = await supabase.rpc("get_my_client_id");
+
+  if (!rpcError && rpcClientId) {
+    return String(rpcClientId);
+  }
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("Could not resolve client_id: user not authenticated");
+  }
+
+  return loadClientIdByUserId(supabase, user.id);
 }
