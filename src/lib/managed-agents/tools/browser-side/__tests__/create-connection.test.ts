@@ -11,7 +11,7 @@ vi.mock("@/lib/composio/catalog", () => ({
 
 import { initiateOAuthFlow } from "@/lib/composio/connection-flow";
 import { getToolkitDisplayInfo } from "@/lib/composio/catalog";
-import { createMockSupabase } from "@/lib/runner/tools/crm/__tests__/mock-supabase";
+import { createMockSupabase } from "@/lib/crm/__tests__/mock-supabase";
 import type { ToolContext } from "@/lib/managed-agents/tools/types";
 
 import { createConnectionTool } from "../create-connection";

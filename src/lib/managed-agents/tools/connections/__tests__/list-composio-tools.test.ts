@@ -16,7 +16,7 @@ vi.mock("@/lib/composio/client", () => ({
   COMPOSIO_TOOL_FETCH_LIMIT: 200,
 }));
 
-import { createMockSupabase } from "@/lib/runner/tools/crm/__tests__/mock-supabase";
+import { createMockSupabase } from "@/lib/crm/__tests__/mock-supabase";
 import type { ToolContext } from "@/lib/managed-agents/tools/types";
 
 import { listComposioToolsTool } from "../list-composio-tools";

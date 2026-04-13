@@ -1,6 +1,6 @@
 /**
  * Tests for PostgREST filter utility helpers.
- * @module lib/runner/tools/crm/__tests__/filter-utils.test
+ * @module lib/crm/__tests__/filter-utils.test
  */
 import { describe, expect, it } from "vitest";
 
@@ -58,6 +58,21 @@ describe("normalizeDateString", () => {
     expect(normalizeDateString("April 10, 2026")).toBe("2026-04-10T00:00:00Z");
     expect(normalizeDateString("10 Apr 2026")).toBe("2026-04-10T00:00:00Z");
   });
+
+  it("returns null for unparseable input", () => {
+    expect(normalizeDateString("banana")).toBeNull();
+    expect(normalizeDateString("not a date")).toBeNull();
+    expect(normalizeDateString("bogus-date")).toBeNull();
+  });
+
+  it("passes through null and undefined unchanged", () => {
+    expect(normalizeDateString(null)).toBeNull();
+    expect(normalizeDateString(undefined)).toBeUndefined();
+  });
+
+  it("passes through full ISO timestamps unchanged", () => {
+    expect(normalizeDateString("2026-04-10T14:30:00Z")).toBe("2026-04-10T14:30:00Z");
+  });
 });
 
 describe("flexibleTimestampSchema", () => {
@@ -65,5 +80,15 @@ describe("flexibleTimestampSchema", () => {
     expect(flexibleTimestampSchema.safeParse("04/10/2026").success).toBe(true);
     expect(flexibleTimestampSchema.safeParse("April 10, 2026").success).toBe(true);
     expect(flexibleTimestampSchema.safeParse("10 Apr 2026").success).toBe(true);
+  });
+
+  it("rejects unparseable date strings", () => {
+    expect(flexibleTimestampSchema.safeParse("banana").success).toBe(false);
+    expect(flexibleTimestampSchema.safeParse("not a date").success).toBe(false);
+  });
+
+  it("rejects empty and whitespace-only strings", () => {
+    expect(flexibleTimestampSchema.safeParse("").success).toBe(false);
+    expect(flexibleTimestampSchema.safeParse("   ").success).toBe(false);
   });
 });

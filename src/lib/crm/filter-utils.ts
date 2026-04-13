@@ -1,6 +1,6 @@
 /**
  * Shared utilities for CRM tool filter expressions and input normalization.
- * @module lib/runner/tools/crm/filter-utils
+ * @module lib/crm/filter-utils
  */
 import { isValid, parse } from "date-fns";
 import { z } from "zod";
@@ -14,7 +14,13 @@ export const DEFAULT_CRM_RESULT_LIMIT = 20;
 export const dateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 /** Zod schema accepting either an ISO-8601 datetime or a YYYY-MM-DD date. */
-export const flexibleTimestampSchema = z.string().trim().min(1);
+export const flexibleTimestampSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .refine((val) => normalizeDateString(val) !== null, {
+    message: "Unrecognised date format",
+  });
 
 const DATE_FORMATS = [
   "yyyy-MM-dd",
@@ -65,7 +71,7 @@ export function normalizeDateString(value: string | null | undefined): string | 
     return direct.toISOString().replace(".000", "");
   }
 
-  return value;
+  return null;
 }
 
 /**

@@ -12,7 +12,7 @@ import {
   DEFAULT_CRM_RESULT_LIMIT,
   normalizeDateString,
   normalizeDateUpperBound,
-} from "@/lib/runner/tools/crm/filter-utils";
+} from "@/lib/crm/filter-utils";
 
 import type { ManagedAgentTool, ToolContext } from "../types";
 
@@ -124,7 +124,7 @@ async function searchDealContacts(
   if (dealId) {
     const { data, error } = await context.supabase
       .from("deal_contacts")
-      .select("*, contacts(first_name, last_name, email, phone)")
+      .select("*, contacts!deal_contacts_contact_id_fkey(first_name, last_name, email, phone)")
       .eq("client_id", context.clientId)
       .eq("deal_id", String(dealId))
       .limit(maxResults);
@@ -139,7 +139,7 @@ async function searchDealContacts(
 
   const { data, error } = await context.supabase
     .from("deal_contacts")
-    .select("*, deals(deal_id, address, stage, amount)")
+    .select("*, deals!deal_contacts_deal_id_fkey(deal_id, address, stage, amount)")
     .eq("client_id", context.clientId)
     .eq("contact_id", String(contactId))
     .order("is_primary", { ascending: false })

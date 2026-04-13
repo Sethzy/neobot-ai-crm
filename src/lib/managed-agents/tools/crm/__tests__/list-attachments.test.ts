@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ToolContext } from "@/lib/managed-agents/tools/types";
-import { createMockSupabase } from "@/lib/runner/tools/crm/__tests__/mock-supabase";
+import { createMockSupabase } from "@/lib/crm/__tests__/mock-supabase";
 
 import { listRecordAttachmentsTool } from "../list-attachments";
 

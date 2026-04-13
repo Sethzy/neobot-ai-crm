@@ -11,8 +11,8 @@ import { crmTaskStatusValues } from "@/lib/crm/schemas";
 import type { JsonObject } from "@/types/database";
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 
-import { mergeCustomFields } from "@/lib/runner/tools/crm/custom-fields";
-import { flexibleTimestampSchema, normalizeDateString } from "@/lib/runner/tools/crm/filter-utils";
+import { mergeCustomFields } from "@/lib/crm/custom-fields";
+import { flexibleTimestampSchema, normalizeDateString } from "@/lib/crm/filter-utils";
 
 import type { ManagedAgentTool } from "../types";
 

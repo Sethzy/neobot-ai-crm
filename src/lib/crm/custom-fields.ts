@@ -1,7 +1,7 @@
 /**
  * Shared helper for merging custom_fields on CRM entity updates.
  * Fetches the existing JSONB value then shallow-merges incoming keys on top.
- * @module lib/runner/tools/crm/custom-fields
+ * @module lib/crm/custom-fields
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 

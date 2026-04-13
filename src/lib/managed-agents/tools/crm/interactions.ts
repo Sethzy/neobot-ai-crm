@@ -9,7 +9,7 @@ import { CRM_DEFAULTS } from "@/lib/crm/config";
 import {
   flexibleTimestampSchema,
   normalizeDateString,
-} from "@/lib/runner/tools/crm/filter-utils";
+} from "@/lib/crm/filter-utils";
 
 import type { ManagedAgentTool } from "../types";
 

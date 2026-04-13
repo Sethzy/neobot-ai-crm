@@ -6,7 +6,7 @@ vi.mock("@/lib/composio/client", () => ({
 }));
 
 import { getComposio } from "@/lib/composio/client";
-import { createMockSupabase } from "@/lib/runner/tools/crm/__tests__/mock-supabase";
+import { createMockSupabase } from "@/lib/crm/__tests__/mock-supabase";
 import type { ToolContext } from "@/lib/managed-agents/tools/types";
 
 import { getConnectionDetailsTool } from "../get-connection-details";

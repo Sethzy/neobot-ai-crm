@@ -1,6 +1,6 @@
 /**
  * Test helper for mocking Supabase PostgREST query builder chains.
- * @module lib/runner/tools/crm/__tests__/mock-supabase
+ * @module lib/crm/__tests__/mock-supabase
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { vi } from "vitest";

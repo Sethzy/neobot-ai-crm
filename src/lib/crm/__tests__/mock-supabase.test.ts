@@ -1,6 +1,6 @@
 /**
  * Tests for Supabase CRM tool mock helper.
- * @module lib/runner/tools/crm/__tests__/mock-supabase.test
+ * @module lib/crm/__tests__/mock-supabase.test
  */
 import { describe, expect, it } from "vitest";
 

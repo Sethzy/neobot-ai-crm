@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createMockSupabase } from "@/lib/runner/tools/crm/__tests__/mock-supabase";
+import { createMockSupabase } from "@/lib/crm/__tests__/mock-supabase";
 
 const { mockCreatePropertyPublicServerClient } = vi.hoisted(() => ({
   mockCreatePropertyPublicServerClient: vi.fn(),
