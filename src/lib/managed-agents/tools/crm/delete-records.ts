@@ -57,6 +57,7 @@ export const deleteRecordsTool: ManagedAgentTool<DeleteRecordsInput> = {
     const { table, pk } = ENTITY_ROUTING[entity];
     const deletedIds: string[] = [];
     const failedIds: string[] = [];
+    const failures: Array<{ id: string; error: string }> = [];
 
     for (const id of ids) {
       let existingRecord: Record<string, unknown> | null = null;
@@ -77,14 +78,26 @@ export const deleteRecordsTool: ManagedAgentTool<DeleteRecordsInput> = {
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (context.supabase as any)
+      const { data: deletedRow, error: deleteReadError } = await (context.supabase as any)
         .from(table)
         .delete()
         .eq(pk, id)
-        .eq("client_id", context.clientId);
+        .eq("client_id", context.clientId)
+        .select(pk)
+        .maybeSingle();
 
-      if (error) {
+      if (deleteReadError) {
         failedIds.push(id);
+        failures.push({
+          id,
+          error: deleteReadError.message,
+        });
+        continue;
+      }
+
+      if (!deletedRow) {
+        failedIds.push(id);
+        failures.push({ id, error: "Record not found." });
         continue;
       }
 
@@ -118,6 +131,7 @@ export const deleteRecordsTool: ManagedAgentTool<DeleteRecordsInput> = {
         error: `Failed to delete ${failedIds.length} record(s)`,
         deleted_count: deletedIds.length,
         failed_ids: failedIds,
+        failures,
       };
     }
 

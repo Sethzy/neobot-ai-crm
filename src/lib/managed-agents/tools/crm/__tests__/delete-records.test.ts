@@ -39,7 +39,7 @@ describe("deleteRecordsTool", () => {
     const { client, builderHistory } = createMockSupabase({
       contacts: [
         { data: existingContact, error: null },
-        { data: null, error: null },
+        { data: existingContact, error: null },
       ],
       record_notes: { data: null, error: null },
     });
@@ -53,5 +53,27 @@ describe("deleteRecordsTool", () => {
     expect(builderHistory.contacts[0]?.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
     expect(builderHistory.contacts[1]?.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
     expect(builderHistory.record_notes[0]?.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
+  });
+
+  it("does not claim success when the tenant cannot delete the requested record", async () => {
+    const { client } = createMockSupabase({
+      contacts: [
+        { data: null, error: null },
+        { data: null, error: null },
+      ],
+    });
+
+    const result = await deleteRecordsTool.execute(
+      { entity: "contacts", ids: ["c1"], reason: "User requested removal" },
+      makeContext(client),
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Failed to delete 1 record(s)",
+      deleted_count: 0,
+      failed_ids: ["c1"],
+      failures: [{ id: "c1", error: "Record not found." }],
+    });
   });
 });

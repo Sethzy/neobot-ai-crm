@@ -51,4 +51,36 @@ describe("deleteRecordAttachmentTool", () => {
     expect(result).toEqual({ success: true, deleted_id: ATTACHMENT_ID });
     expect(builders.record_attachments.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
   });
+
+  it("surfaces storage deletion failures instead of claiming success", async () => {
+    const deleted = {
+      attachment_id: ATTACHMENT_ID,
+      client_id: CLIENT_ID,
+      record_type: "contact",
+      record_id: CONTACT_ID,
+      storage_path: `attachments/contact/${CONTACT_ID}/uuid-1`,
+    };
+    const remove = vi.fn().mockResolvedValue({ error: { message: "storage boom" } });
+    const { client } = createMockSupabase({
+      record_attachments: { data: deleted, error: null },
+    });
+
+    client.storage = {
+      from: vi.fn().mockReturnValue({
+        download: vi.fn(),
+        upload: vi.fn(),
+        remove,
+      }),
+    } as never;
+
+    const result = await deleteRecordAttachmentTool.execute(
+      { attachment_id: ATTACHMENT_ID },
+      makeContext(client),
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Failed to delete stored attachment file: storage boom",
+    });
+  });
 });

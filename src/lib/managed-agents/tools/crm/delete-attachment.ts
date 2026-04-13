@@ -35,9 +35,16 @@ export const deleteRecordAttachmentTool: ManagedAgentTool<DeleteAttachmentInput>
       return { success: false as const, error: error.message };
     }
 
-    await context.supabase.storage
+    const { error: storageError } = await context.supabase.storage
       .from(AGENT_FILES_BUCKET)
       .remove([`${context.clientId}/${data.storage_path}`]);
+
+    if (storageError) {
+      return {
+        success: false as const,
+        error: `Failed to delete stored attachment file: ${storageError.message}`,
+      };
+    }
 
     return {
       success: true as const,
