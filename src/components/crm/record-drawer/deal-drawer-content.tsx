@@ -60,9 +60,39 @@ export function DealDrawerContent({ dealId, closeButton }: DealDrawerContentProp
 
   if (isLoading) {
     return (
-      <div className="space-y-4 p-6">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-4 w-32" />
+      <div className="flex h-full min-h-0 min-w-0 flex-col">
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="space-y-4 p-5">
+            <header className="space-y-2">
+              <div className="flex items-center gap-2.5">
+                {closeButton ? <div className="shrink-0">{closeButton}</div> : null}
+                <Skeleton className="size-7 shrink-0 rounded-full" />
+                <Skeleton className="h-4 w-36" />
+                <Skeleton className="ml-auto h-3 w-24 shrink-0" />
+              </div>
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </header>
+            <div className="-mx-5 border-b border-border/60 px-5">
+              <div className="flex items-center gap-5">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex h-10 items-center">
+                    <Skeleton className="h-3 w-12" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-px pt-1">
+              <Skeleton className="mb-4 h-3 w-10" />
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 py-2">
+                  <Skeleton className="size-4 shrink-0" />
+                  <Skeleton className="h-3 w-16 shrink-0" />
+                  <Skeleton className="h-3 max-w-[160px] flex-1" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
