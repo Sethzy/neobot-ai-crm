@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Implementation Phasing Plan v2 \u2014 Scope Cut",
     "created": "2026-03-05",
-    "updated": "2026-04-06: Added PR 69 (refactor: Composio SDK upgrade + simplify connection tool loading) to Phase 4. Out-of-plan refactor of shipped connection code.",
+    "updated": "2026-04-13: Added PR 70 (feat(tools): Orthogonal API marketplace + tool credit metering) to Phase 4. Credit overlay + research API access via Orthogonal.",
     "previousPlan": "docs/product/plans/2026-03-01-implementation-phasing-plan.json",
     "source": "roadmap docs/Sunder - Source of Truth/product-dev/01-App Spec.md \u00a717",
     "architectureDecisions": "roadmap docs/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json",
@@ -82,7 +82,8 @@
       "2026-03-30: Marked PRs 63-65 done. Updated QA Surface 29 (Sandbox) for the unified agent filesystem, sandbox workspace preload, and Composio file bridge, and added automated QA scenarios covering uploads read-only protection, /agent/home preload across runs, and Google Drive file download/upload bridge flows.",
       "2026-04-03: Added PR 66 (Langfuse agent improvement loop) to Phase 4. Restores cut PR 40 (eval harness + observability) in practical Langfuse-native form. Three phases: (1) online LLM-as-judge evaluators + trace metadata enrichment, (2) golden dataset from QA traces + offline eval script, (3) annotation queues + trace-to-dataset promotion. Architecture adapted from LangChain 'Traces Start the Agent Improvement Loop' guide. Reference: roadmap docs/Sunder - Source of Truth/references/langchain-improvement-loop/01-traces-start-agent-improvement-loop.md.",
       "2026-04-06: Added PR 68 (Meeting recorder) to Phase 4. Out-of-plan feature. Browser-native mic recording via getUserMedia, Groq Whisper Turbo batch transcription ($0.04/hr), agent suggests CRM link + summary + follow-up actions. No extension, no desktop app, no diarization in v1. Notepad during recording (Granola-style). Mobile = mic-only for in-person. Requirements: docs/product/ideations/2026-04-06-meeting-recorder-requirements.md. Plan: docs/product/plans/2026-04-06-001-feat-meeting-recorder-plan.md.",
-      "2026-04-06: Added PR 69 (refactor: Composio SDK upgrade + simplify connection tool loading) to Phase 4 as out-of-plan refactor. Bumps @composio/core + @composio/vercel 0.6.4\u21920.6.8. Replaces 170-line manual tool construction in activated-tools.ts with composio.tools.get(userId, { tools: slugs }) (~20 lines). Deletes tools.ts, file-bridge.ts, tool_schemas caching. Enforces one connected account per toolkit per user. Removes dead mcp/direct_api/computer_use variants from create_new_connections. Plan: docs/product/plans/2026-04-06-003-refactor-composio-session-api-plan.md. Tasklist: docs/product/tasks/2026-04-06-composio-sdk-simplification-tasklist.md."
+      "2026-04-06: Added PR 69 (refactor: Composio SDK upgrade + simplify connection tool loading) to Phase 4 as out-of-plan refactor. Bumps @composio/core + @composio/vercel 0.6.4\u21920.6.8. Replaces 170-line manual tool construction in activated-tools.ts with composio.tools.get(userId, { tools: slugs }) (~20 lines). Deletes tools.ts, file-bridge.ts, tool_schemas caching. Enforces one connected account per toolkit per user. Removes dead mcp/direct_api/computer_use variants from create_new_connections. Plan: docs/product/plans/2026-04-06-003-refactor-composio-session-api-plan.md. Tasklist: docs/product/tasks/2026-04-06-composio-sdk-simplification-tasklist.md.",
+      "2026-04-13: Added PR 70 (feat(tools): Orthogonal API marketplace + tool credit metering) to Phase 4. Credit overlay on top of subscription: 1 credit = $0.01, platform holds Orthogonal API key, users buy credit packs. Two new custom agent tools: discover_research_api (semantic search over 27+ data providers, free) and call_research_api (execute via Orthogonal managed key, variable credit cost). Gives agent access to Reddit, LinkedIn, TikTok, Apollo.io enrichment without per-client API key setup. Credit ledger: tool_credit_transactions table. Top-up via Stripe credit packs (extends PR 38b). Credits UI in /settings/billing. Inspired by Gooseworks billing model. Design doc: docs/product/designs/2026-04-13-orthogonal-credit-metering-design.md."
     ]
   },
   "phases": [
@@ -3931,6 +3932,61 @@
           ],
           "plan": "docs/product/plans/2026-04-06-003-refactor-composio-session-api-plan.md",
           "tasklist": "docs/product/tasks/2026-04-06-composio-sdk-simplification-tasklist.md"
+        },
+        {
+          "pr": 70,
+          "title": "feat(tools): Orthogonal API marketplace + tool credit metering",
+          "status": "pending",
+          "simplified": false,
+          "scope": "out-of-plan",
+          "decisions": [],
+          "note": "Adds credit-based metering for third-party research APIs, accessed through Orthogonal (YC-backed API marketplace). Pattern: Sunder holds one Orthogonal API key, platform charges users credits ($0.01/credit) per tool invocation. Two new custom agent tools: discover_research_api (semantic search over 27+ API providers, free) and call_research_api (execute via Orthogonal managed key, variable cost). Credit ledger: tool_credit_transactions table (client_id, amount, tool_name, session_id). Top-up via Stripe credit packs (extends PR 38b). Credits UI in /settings/billing. Inspired by Gooseworks credit model. Design doc: docs/product/designs/2026-04-13-orthogonal-credit-metering-design.md.",
+          "tasks": [
+            {
+              "id": "PR70-1",
+              "task": "DB migration: create tool_credit_transactions table (client_id, amount, tool_name, session_id, note, created_at) with index on (client_id, created_at desc)",
+              "done": false
+            },
+            {
+              "id": "PR70-2",
+              "task": "Add getToolCreditBalance() and deductToolCredits() helpers in src/lib/tool-credits.ts",
+              "done": false
+            },
+            {
+              "id": "PR70-3",
+              "task": "Add discover_research_api + call_research_api custom tool declarations to agent definition (create-agent.ts or equivalent)",
+              "done": false
+            },
+            {
+              "id": "PR70-4",
+              "task": "Implement handleOrthogonalSearch() and handleOrthogonalRun() in src/lib/managed-agents/tools/orthogonal.ts with CREDIT_COSTS map and credit check/deduction",
+              "done": false
+            },
+            {
+              "id": "PR70-5",
+              "task": "Wire handlers into session runner dispatcher (clientId already in closure)",
+              "done": false
+            },
+            {
+              "id": "PR70-6",
+              "task": "Add Stripe credit pack Checkout flow (3 packs: 500/$5, 2500/$20, 10000/$75) + webhook handler to insert positive tool_credit_transactions on payment",
+              "done": false
+            },
+            {
+              "id": "PR70-7",
+              "task": "Credits UI in /settings/billing: live balance, top-up button, usage history table (last 50 transactions)",
+              "done": false
+            }
+          ],
+          "testCriteria": [
+            "discover_research_api returns API catalog results, costs 0 credits",
+            "call_research_api deducts correct credits per CREDIT_COSTS map",
+            "Insufficient credits returns error surfaced to agent (not exception)",
+            "Stripe credit pack checkout creates positive transaction on webhook",
+            "Balance correctly reflects sum of all transactions",
+            "/settings/billing shows live balance and usage history"
+          ],
+          "design": "docs/product/designs/2026-04-13-orthogonal-credit-metering-design.md"
         }
       ]
     },
