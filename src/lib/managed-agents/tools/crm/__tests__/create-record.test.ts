@@ -212,4 +212,48 @@ describe("createRecordTool", () => {
     expect(result.success).toBe(false);
     expect(result).toMatchObject({ reason: "possible_duplicates" });
   });
+
+  it("rejects intra-batch duplicates that only differ by surrounding whitespace", async () => {
+    const { client } = createMockSupabase({
+      contacts: { data: [], error: null },
+    });
+
+    const result = await createRecordTool.execute(
+      {
+        entity: "contacts",
+        records: [
+          { first_name: "John", last_name: "Tan" },
+          { first_name: " John ", last_name: "Tan " },
+        ],
+      },
+      makeContext(client),
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      reason: "possible_duplicates",
+    });
+  });
+
+  it("rejects intra-batch contact duplicates that share the same email", async () => {
+    const { client } = createMockSupabase({
+      contacts: { data: [], error: null },
+    });
+
+    const result = await createRecordTool.execute(
+      {
+        entity: "contacts",
+        records: [
+          { first_name: "John", last_name: "Tan", email: "shared@example.com" },
+          { first_name: "Jane", last_name: "Lim", email: "SHARED@example.com " },
+        ],
+      },
+      makeContext(client),
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      reason: "possible_duplicates",
+    });
+  });
 });

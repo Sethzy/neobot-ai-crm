@@ -22,6 +22,42 @@ import type { ManagedAgentTool, ToolContext } from "../types";
 const CREATE_ENTITIES = ["contacts", "companies", "deals"] as const;
 type CreateEntity = (typeof CREATE_ENTITIES)[number];
 
+function normalizeIdentityText(value: unknown): string {
+  return String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function normalizeComparableText(value: unknown): string {
+  return normalizeIdentityText(value).toLowerCase();
+}
+
+function normalizeDuplicateEmail(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  return trimmed.toLowerCase();
+}
+
+function normalizeDuplicatePhone(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  return normalizePhone(trimmed) ?? trimmed;
+}
+
 async function findDuplicateContacts(
   context: ToolContext,
   firstName: string,
@@ -104,11 +140,34 @@ async function findDuplicateDeals(
 function dedupKey(entity: CreateEntity, record: Record<string, unknown>): string {
   switch (entity) {
     case "contacts":
-      return `${String(record.first_name ?? "").toLowerCase()}|${String(record.last_name ?? "").toLowerCase()}`;
+      return `${normalizeComparableText(record.first_name)}|${normalizeComparableText(record.last_name)}`;
     case "companies":
-      return String(record.name ?? "").toLowerCase();
+      return normalizeComparableText(record.name);
     case "deals":
-      return String(record.address ?? "").toLowerCase();
+      return normalizeComparableText(record.address);
+  }
+}
+
+function duplicateSignatures(entity: CreateEntity, record: Record<string, unknown>): string[] {
+  switch (entity) {
+    case "contacts": {
+      const signatures = [`name:${dedupKey(entity, record)}`];
+      const email = normalizeDuplicateEmail(record.email);
+      const phone = normalizeDuplicatePhone(record.phone);
+      if (email) signatures.push(`email:${email}`);
+      if (phone) signatures.push(`phone:${phone}`);
+      return signatures;
+    }
+    case "companies": {
+      const signatures = [`name:${dedupKey(entity, record)}`];
+      const email = normalizeDuplicateEmail(record.email);
+      const phone = normalizeDuplicatePhone(record.phone);
+      if (email) signatures.push(`email:${email}`);
+      if (phone) signatures.push(`phone:${phone}`);
+      return signatures;
+    }
+    case "deals":
+      return [`address:${dedupKey(entity, record)}`];
   }
 }
 
@@ -121,20 +180,20 @@ async function findDuplicates(
     case "contacts":
       return findDuplicateContacts(
         context,
-        String(record.first_name ?? ""),
-        String(record.last_name ?? ""),
+        normalizeIdentityText(record.first_name),
+        normalizeIdentityText(record.last_name),
         record.email ? String(record.email) : null,
         record.phone ? (normalizePhone(String(record.phone)) ?? String(record.phone)) : null,
       );
     case "companies":
       return findDuplicateCompanies(
         context,
-        String(record.name ?? ""),
+        normalizeIdentityText(record.name),
         record.email ? String(record.email) : null,
         record.phone ? (normalizePhone(String(record.phone)) ?? String(record.phone)) : null,
       );
     case "deals":
-      return findDuplicateDeals(context, String(record.address ?? ""));
+      return findDuplicateDeals(context, normalizeIdentityText(record.address));
   }
 }
 
@@ -148,8 +207,8 @@ function buildContactRow(
 
   return {
     client_id: clientId,
-    first_name: record.first_name as string,
-    last_name: record.last_name as string,
+    first_name: normalizeIdentityText(record.first_name),
+    last_name: normalizeIdentityText(record.last_name),
     type: matchVocabularyValue(rawType, contactTypes),
     email: normalizeEmail(record.email),
     phone: normalizePhone(record.phone as string | null) ?? (record.phone as string | null) ?? null,
@@ -166,7 +225,7 @@ function buildCompanyRow(
 
   return {
     client_id: clientId,
-    name: record.name as string,
+    name: normalizeIdentityText(record.name),
     industry: rawIndustry ? matchVocabularyValue(rawIndustry, companyIndustries) : null,
     website: normalizeWebsite(record.website as string | null) ?? (record.website as string | null) ?? null,
     phone: normalizePhone(record.phone as string | null) ?? (record.phone as string | null) ?? null,
@@ -192,7 +251,7 @@ function buildDealRow(
 
   return {
     client_id: clientId,
-    address: record.address as string,
+    address: normalizeIdentityText(record.address),
     stage: matchVocabularyValue(rawStage, dealStages),
     amount: record.amount as number | undefined,
     custom_fields: (record.custom_fields as Record<string, unknown>) ?? {},
@@ -317,20 +376,23 @@ export const createRecordTool: ManagedAgentTool<CreateRecordInput, CreateRecordR
     };
 
     if (!force_create) {
-      const keys = records.map((record) => dedupKey(entity, record));
       const seen = new Set<string>();
       const intraDupes: string[] = [];
 
-      for (const key of keys) {
-        if (seen.has(key)) {
-          intraDupes.push(key);
+      for (const record of records) {
+        for (const signature of duplicateSignatures(entity, record)) {
+          if (seen.has(signature)) {
+            intraDupes.push(signature);
+          }
+          seen.add(signature);
         }
-        seen.add(key);
       }
 
       if (intraDupes.length > 0) {
         const dupeNames = [...new Set(intraDupes)].map((key) =>
-          key.includes("|") ? key.replace("|", " ") : key,
+          key
+            .replace(/^(name|email|phone|address):/, "")
+            .replace("|", " "),
         );
 
         return {
