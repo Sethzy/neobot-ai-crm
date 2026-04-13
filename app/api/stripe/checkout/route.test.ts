@@ -27,7 +27,7 @@ describe("GET /api/stripe/checkout", () => {
     expect(response.headers.get("location")).toBe("http://localhost/pricing");
   });
 
-  it("redirects to settings after a successful sync", async () => {
+  it("redirects to /settings/billing after a successful sync", async () => {
     const { GET } = await import("./route");
 
     const response = await GET(
@@ -35,7 +35,7 @@ describe("GET /api/stripe/checkout", () => {
     );
 
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("http://localhost/settings?billing=success");
+    expect(response.headers.get("location")).toBe("http://localhost/settings/billing?billing=success");
     expect(mockSyncBillingStateFromCheckoutSession).toHaveBeenCalledWith("cs_test_123");
   });
 
