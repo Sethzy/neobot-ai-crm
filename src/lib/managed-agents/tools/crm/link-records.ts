@@ -9,6 +9,7 @@ import { CRM_DEFAULTS } from "@/lib/crm/config";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 
 import type { ManagedAgentTool, ToolContext } from "../types";
+import { findOwnedRecord } from "./record-ownership";
 
 const RELATIONSHIPS = ["contact_deal", "contact_company", "deal_company"] as const;
 
@@ -24,6 +25,27 @@ async function linkContactDeal(
       success: false as const,
       error: "target_id (deal_id) is required to link a contact to a deal.",
     };
+  }
+
+  const [sourceRecord, targetRecord] = await Promise.all([
+    findOwnedRecord(context, "contacts", contactId, "contact_id"),
+    findOwnedRecord(context, "deals", dealId, "deal_id"),
+  ]);
+
+  if (sourceRecord.error) {
+    return { success: false as const, error: sourceRecord.error };
+  }
+
+  if (targetRecord.error) {
+    return { success: false as const, error: targetRecord.error };
+  }
+
+  if (!sourceRecord.data) {
+    return { success: false as const, error: "Source record not found." };
+  }
+
+  if (!targetRecord.data) {
+    return { success: false as const, error: "Target record not found." };
   }
 
   const { data, error } = await context.supabase
@@ -90,6 +112,27 @@ async function linkFk(
       success: false as const,
       error: `target_id (${fkColumn.replace("_id", "")}_id) is required to link.`,
     };
+  }
+
+  const [sourceRecord, targetRecord] = await Promise.all([
+    findOwnedRecord(context, table, sourceId, pk),
+    findOwnedRecord(context, fkColumn === "company_id" ? "companies" : "deals", targetId, fkColumn),
+  ]);
+
+  if (sourceRecord.error) {
+    return { success: false as const, error: sourceRecord.error };
+  }
+
+  if (targetRecord.error) {
+    return { success: false as const, error: targetRecord.error };
+  }
+
+  if (!sourceRecord.data) {
+    return { success: false as const, error: "Source record not found." };
+  }
+
+  if (!targetRecord.data) {
+    return { success: false as const, error: "Target record not found." };
   }
 
   const { data: existingRecord, error: readError } = await context.supabase

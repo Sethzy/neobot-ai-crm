@@ -188,4 +188,23 @@ describe("updateRecordTool", () => {
 
     expect(result).toEqual({ success: false, error: "No fields to update" });
   });
+
+  it("rejects note-only updates when the record is not owned by this tenant", async () => {
+    const { client } = createMockSupabase({
+      contacts: { data: null, error: null },
+    });
+
+    const result = await updateRecordTool.execute(
+      {
+        entity: "contacts",
+        updates: [{ id: "c1", fields: { notes: "hello" } }],
+      },
+      makeContext(client),
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Record not found.",
+    });
+  });
 });

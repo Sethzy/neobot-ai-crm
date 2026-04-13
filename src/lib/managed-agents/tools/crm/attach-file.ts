@@ -9,8 +9,15 @@ import { getFileCategory } from "@/lib/crm/file-categories";
 import { AGENT_FILES_BUCKET, normalizeWorkspacePath } from "@/lib/storage/agent-files";
 
 import type { ManagedAgentTool } from "../types";
+import { findOwnedRecord } from "./record-ownership";
 
 const recordTypeSchema = z.enum(["contact", "company", "deal"]);
+
+const RECORD_TABLE_MAP = {
+  contact: "contacts",
+  company: "companies",
+  deal: "deals",
+} as const;
 
 function resolveAttachmentSourcePath(sourcePath: string): string {
   const workspacePath = sourcePath.replace(/^\/agent\/?/, "");
@@ -57,6 +64,26 @@ export const attachFileToRecordTool: ManagedAgentTool<AttachFileInput> = {
 
     const sourceStoragePath = `${context.clientId}/${workspacePath}`;
     const displayFilename = filename ?? workspacePath.split("/").pop() ?? "file";
+    const ownershipCheck = await findOwnedRecord(
+      context,
+      RECORD_TABLE_MAP[record_type],
+      record_id,
+      "client_id",
+    );
+
+    if (ownershipCheck.error) {
+      return {
+        success: false as const,
+        error: ownershipCheck.error,
+      };
+    }
+
+    if (!ownershipCheck.data) {
+      return {
+        success: false as const,
+        error: "Target record not found.",
+      };
+    }
 
     console.info("[attach_file_to_record] reading source file", {
       clientId: context.clientId,

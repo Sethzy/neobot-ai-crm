@@ -14,6 +14,7 @@ import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { mergeCustomFields } from "@/lib/crm/custom-fields";
 
 import type { ManagedAgentTool, ToolContext } from "../types";
+import { findOwnedRecord } from "./record-ownership";
 
 const UPDATE_ENTITIES = ["contacts", "companies", "deals"] as const;
 type UpdateEntity = (typeof UPDATE_ENTITIES)[number];
@@ -68,12 +69,26 @@ async function updateOne(
   delete updates.notes;
 
   if (Object.keys(updates).length === 0 && noteBody) {
-    await context.supabase.from("record_notes").insert({
+    const ownedRecord = await findOwnedRecord(context, table, recordId, pk);
+    if (ownedRecord.error) {
+      return { success: false, error: ownedRecord.error };
+    }
+
+    if (!ownedRecord.data) {
+      return { success: false, error: "Record not found." };
+    }
+
+    const { error: noteError } = await context.supabase.from("record_notes").insert({
       client_id: context.clientId,
       record_type: RECORD_TYPE_MAP[entity],
       record_id: recordId,
       body: noteBody,
     });
+
+    if (noteError) {
+      return { success: false, error: noteError.message };
+    }
+
     return { success: true, record: { [pk]: recordId, note_added: true } };
   }
 

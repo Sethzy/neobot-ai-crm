@@ -76,6 +76,7 @@ describe("attachFileToRecordTool", () => {
     const remove = vi.fn().mockResolvedValue({ error: null });
 
     const { client, builders } = createMockSupabase({
+      contacts: { data: { contact_id: CONTACT_ID, client_id: CLIENT_ID }, error: null },
       record_attachments: { data: created, error: null },
     });
 
@@ -101,5 +102,35 @@ describe("attachFileToRecordTool", () => {
         record_id: CONTACT_ID,
       }),
     );
+  });
+
+  it("rejects attachments for records the tenant does not own", async () => {
+    const download = vi.fn();
+    const upload = vi.fn();
+    const remove = vi.fn();
+
+    const { client } = createMockSupabase({
+      contacts: { data: null, error: null },
+    });
+
+    client.storage = {
+      from: vi.fn().mockReturnValue({ download, upload, remove }),
+    } as never;
+
+    const result = await attachFileToRecordTool.execute(
+      {
+        source_path: "/agent/home/report.pdf",
+        record_type: "contact",
+        record_id: CONTACT_ID,
+      },
+      makeContext(client),
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Target record not found.",
+    });
+    expect(download).not.toHaveBeenCalled();
+    expect(upload).not.toHaveBeenCalled();
   });
 });

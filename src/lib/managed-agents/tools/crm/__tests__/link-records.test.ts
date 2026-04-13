@@ -70,4 +70,26 @@ describe("linkRecordsTool", () => {
     expect(builderHistory.contacts[0]?.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
     expect(builderHistory.contacts[1]?.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
   });
+
+  it("refuses to link a contact to a deal the tenant does not own", async () => {
+    const { client } = createMockSupabase({
+      contacts: { data: { contact_id: "c1", client_id: CLIENT_ID }, error: null },
+      deals: { data: null, error: null },
+    });
+
+    const result = await linkRecordsTool.execute(
+      {
+        action: "link",
+        relationship: "contact_deal",
+        source_id: "c1",
+        target_id: "d1",
+      },
+      makeContext(client),
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Target record not found.",
+    });
+  });
 });
