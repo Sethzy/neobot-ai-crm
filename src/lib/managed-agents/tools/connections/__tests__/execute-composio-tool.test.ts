@@ -2,14 +2,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   executeMock,
+  toolkitsGetMock,
 } = vi.hoisted(() => ({
   executeMock: vi.fn(),
+  toolkitsGetMock: vi.fn(),
 }));
 
 vi.mock("@/lib/composio/client", () => ({
   getComposio: vi.fn(() => ({
     tools: {
       execute: executeMock,
+    },
+    toolkits: {
+      get: toolkitsGetMock,
     },
     connectedAccounts: {},
   })),
@@ -18,7 +23,7 @@ vi.mock("@/lib/composio/client", () => ({
 import { createMockSupabase } from "@/lib/crm/__tests__/mock-supabase";
 import type { ToolContext } from "@/lib/managed-agents/tools/types";
 
-import { executeComposioToolTool } from "../execute-composio-tool";
+import { executeComposioToolTool, _resetToolkitVersionCache } from "../execute-composio-tool";
 
 function makeContext(client: ReturnType<typeof createMockSupabase>["client"]): ToolContext {
   return {
@@ -33,9 +38,13 @@ function makeContext(client: ReturnType<typeof createMockSupabase>["client"]): T
 describe("executeComposioToolTool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    _resetToolkitVersionCache();
   });
 
-  it("executes a composio action for an active connection", async () => {
+  it("executes a composio action for an active connection with resolved version", async () => {
+    toolkitsGetMock.mockResolvedValueOnce({
+      meta: { availableVersions: ["13042026_00", "01042026_00"] },
+    });
     executeMock.mockResolvedValueOnce({
       ok: true,
       payload: { userId: "client-1", arguments: { to: "user@example.com" } },
@@ -58,9 +67,11 @@ describe("executeComposioToolTool", () => {
     );
 
     expect(builders.connections.eq).toHaveBeenCalledWith("client_id", "client-1");
+    expect(toolkitsGetMock).toHaveBeenCalledWith("gmail");
     expect(executeMock).toHaveBeenCalledWith("GMAIL_SEND_EMAIL", {
       userId: "client-1",
       arguments: { to: "user@example.com" },
+      version: "13042026_00",
     });
     expect(result).toEqual({
       success: true,
@@ -98,6 +109,9 @@ describe("executeComposioToolTool", () => {
   });
 
   it("propagates Composio execution errors", async () => {
+    toolkitsGetMock.mockResolvedValueOnce({
+      meta: { availableVersions: ["13042026_00"] },
+    });
     executeMock.mockRejectedValueOnce(new Error("execution failed"));
 
     const { client } = createMockSupabase({
@@ -119,6 +133,34 @@ describe("executeComposioToolTool", () => {
     expect(result).toEqual({
       success: false,
       error: "execution failed",
+    });
+  });
+
+  it("returns error when toolkit has no available versions", async () => {
+    toolkitsGetMock.mockResolvedValueOnce({
+      meta: { availableVersions: [] },
+    });
+
+    const { client } = createMockSupabase({
+      connections: {
+        data: [{ id: "conn-1", toolkit_slug: "gmail", status: "active" }],
+        error: null,
+      },
+    });
+
+    const result = await executeComposioToolTool.execute(
+      {
+        app: "gmail",
+        action: "GMAIL_SEND_EMAIL",
+        input: { to: "user@example.com" },
+      },
+      makeContext(client),
+    );
+
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      success: false,
+      error: 'No available versions found for toolkit "gmail".',
     });
   });
 });
