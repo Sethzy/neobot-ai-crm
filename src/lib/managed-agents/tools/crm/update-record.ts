@@ -7,11 +7,11 @@ import { z } from "zod";
 
 import { CRM_DEFAULTS, matchVocabularyValue, type CrmVocabConfig } from "@/lib/crm/config";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
-import { normalizePhone } from "@/lib/crm/normalize";
+import { normalizeEmail, normalizePhone, normalizeWebsite } from "@/lib/crm/normalize";
 import type { JsonObject } from "@/types/database";
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 
-import { mergeCustomFields } from "@/lib/runner/tools/crm/custom-fields";
+import { mergeCustomFields } from "@/lib/crm/custom-fields";
 
 import type { ManagedAgentTool, ToolContext } from "../types";
 
@@ -103,6 +103,24 @@ async function updateOne(
 
   if ((entity === "contacts" || entity === "companies") && typeof updates.phone === "string") {
     updates.phone = normalizePhone(updates.phone) ?? updates.phone;
+  }
+
+  if (entity === "deals" && typeof updates.amount === "number") {
+    if (!Number.isFinite(updates.amount) || updates.amount < 0) {
+      return { success: false, error: "amount must be a finite non-negative number" };
+    }
+  }
+
+  if ((entity === "contacts" || entity === "companies") && typeof updates.email === "string") {
+    try {
+      updates.email = normalizeEmail(updates.email) ?? updates.email;
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : "Invalid email" };
+    }
+  }
+
+  if (entity === "companies" && typeof updates.website === "string") {
+    updates.website = normalizeWebsite(updates.website) ?? updates.website;
   }
 
   const previousStage =

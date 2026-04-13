@@ -13,9 +13,9 @@ import {
 } from "@/lib/crm/config";
 import { captureServerEvent, captureServerEvents } from "@/lib/analytics/posthog-server";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
-import { normalizePhone } from "@/lib/crm/normalize";
+import { normalizeEmail, normalizePhone, normalizeWebsite } from "@/lib/crm/normalize";
 
-import { buildContainsIlikeLiteral, buildIlikePattern } from "@/lib/runner/tools/crm/filter-utils";
+import { buildContainsIlikeLiteral, buildIlikePattern } from "@/lib/crm/filter-utils";
 
 import type { ManagedAgentTool, ToolContext } from "../types";
 
@@ -151,7 +151,7 @@ function buildContactRow(
     first_name: record.first_name as string,
     last_name: record.last_name as string,
     type: matchVocabularyValue(rawType, contactTypes),
-    email: (record.email as string) ?? null,
+    email: normalizeEmail(record.email),
     phone: normalizePhone(record.phone as string | null) ?? (record.phone as string | null) ?? null,
     custom_fields: (record.custom_fields as Record<string, unknown>) ?? {},
   };
@@ -168,9 +168,9 @@ function buildCompanyRow(
     client_id: clientId,
     name: record.name as string,
     industry: rawIndustry ? matchVocabularyValue(rawIndustry, companyIndustries) : null,
-    website: (record.website as string) ?? null,
+    website: normalizeWebsite(record.website as string | null) ?? (record.website as string | null) ?? null,
     phone: normalizePhone(record.phone as string | null) ?? (record.phone as string | null) ?? null,
-    email: (record.email as string) ?? null,
+    email: normalizeEmail(record.email),
     address: (record.address as string) ?? null,
     custom_fields: (record.custom_fields as Record<string, unknown>) ?? {},
   };
@@ -183,6 +183,12 @@ function buildDealRow(
   dealStages: readonly string[],
 ) {
   const rawStage = (record.stage as string) ?? defaultDealStage;
+
+  if (typeof record.amount === "number") {
+    if (!Number.isFinite(record.amount) || record.amount < 0) {
+      throw new Error("amount must be a finite non-negative number");
+    }
+  }
 
   return {
     client_id: clientId,
@@ -357,16 +363,24 @@ export const createRecordTool: ManagedAgentTool<CreateRecordInput, CreateRecordR
       }
     }
 
-    const rows = records.map((record) => {
-      switch (entity) {
-        case "contacts":
-          return buildContactRow(context.clientId, record, defaultContactType, config.contact_types);
-        case "companies":
-          return buildCompanyRow(context.clientId, record, config.company_industries);
-        case "deals":
-          return buildDealRow(context.clientId, record, defaultDealStage, config.deal_stages);
-      }
-    });
+    let rows;
+    try {
+      rows = records.map((record) => {
+        switch (entity) {
+          case "contacts":
+            return buildContactRow(context.clientId, record, defaultContactType, config.contact_types);
+          case "companies":
+            return buildCompanyRow(context.clientId, record, config.company_industries);
+          case "deals":
+            return buildDealRow(context.clientId, record, defaultDealStage, config.deal_stages);
+        }
+      });
+    } catch (err) {
+      return {
+        success: false as const,
+        error: err instanceof Error ? err.message : "Validation failed",
+      };
+    }
 
     const table = tableMap[entity];
 

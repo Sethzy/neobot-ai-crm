@@ -34,6 +34,16 @@ export const attachFileToRecordTool: ManagedAgentTool<AttachFileInput> = {
     "Use this after generating a file the user should see in the record Files tab.",
   inputSchema,
   execute: async ({ source_path, record_type, record_id, filename }, context) => {
+    if (source_path.startsWith("/mnt/session/") || source_path.startsWith("/workspace/")) {
+      return {
+        success: false as const,
+        error:
+          "Cannot attach session files directly to CRM records. " +
+          "First read the file with built-in read/bash, then use storage_write to save it to /agent/home/*, " +
+          "then attach the durable copy.",
+      };
+    }
+
     let workspacePath: string;
 
     try {
@@ -47,6 +57,16 @@ export const attachFileToRecordTool: ManagedAgentTool<AttachFileInput> = {
 
     const sourceStoragePath = `${context.clientId}/${workspacePath}`;
     const displayFilename = filename ?? workspacePath.split("/").pop() ?? "file";
+
+    console.info("[attach_file_to_record] reading source file", {
+      clientId: context.clientId,
+      sourcePath: source_path,
+      workspacePath,
+      sourceStoragePath,
+      recordType: record_type,
+      recordId: record_id,
+      filename: displayFilename,
+    });
 
     const { data: sourceFile, error: downloadError } = await context.supabase.storage
       .from(AGENT_FILES_BUCKET)
@@ -62,6 +82,15 @@ export const attachFileToRecordTool: ManagedAgentTool<AttachFileInput> = {
     const attachmentStoragePath = `attachments/${record_type}/${record_id}/${crypto.randomUUID()}`;
     const attachmentObjectPath = `${context.clientId}/${attachmentStoragePath}`;
     const contentType = sourceFile.type || "application/octet-stream";
+
+    console.info("[attach_file_to_record] copying file into CRM attachments", {
+      clientId: context.clientId,
+      sourceStoragePath,
+      attachmentStoragePath,
+      attachmentObjectPath,
+      contentType,
+      sizeBytes: sourceFile.size,
+    });
 
     const { error: uploadError } = await context.supabase.storage
       .from(AGENT_FILES_BUCKET)
@@ -100,6 +129,15 @@ export const attachFileToRecordTool: ManagedAgentTool<AttachFileInput> = {
         error: error.message,
       };
     }
+
+    console.info("[attach_file_to_record] attachment row created", {
+      clientId: context.clientId,
+      attachmentId: data.attachment_id,
+      attachmentStoragePath,
+      recordType: record_type,
+      recordId: record_id,
+      filename: displayFilename,
+    });
 
     return {
       success: true as const,
