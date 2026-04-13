@@ -73,8 +73,10 @@ export const runTriggerAgent = task({
           runId: payload.runId,
           threadId: payload.threadId,
           clientId: payload.clientId,
+          sessionId: payload.sessionId,
           events,
           cost,
+          anthropic,
         });
       },
     });

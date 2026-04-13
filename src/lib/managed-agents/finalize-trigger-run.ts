@@ -9,6 +9,7 @@
  *
  * @module lib/managed-agents/finalize-trigger-run
  */
+import type Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { deliverToExternalChannels } from "@/lib/channels/deliver";
@@ -22,7 +23,33 @@ import { computeTurnCost } from "./adapter-cost";
 import { buildAssistantPartsFromEvents } from "./events-to-assistant-parts";
 import type { AnthropicEvent } from "./event-types";
 
-const MANAGED_AGENT_MODEL = "claude-sonnet-4-6";
+/** Trigger runs use Sonnet by default. Per-trigger model selection is future work. */
+const TRIGGER_DEFAULT_MODEL = "claude-sonnet-4-6";
+
+/**
+ * Poll until the session's server-side status settles to a non-running state.
+ *
+ * The SSE `session.status_idle` event can arrive slightly before
+ * `sessions.retrieve` reports the same, so an immediate `archive()` after
+ * the stream exits can 400 with "cannot archive while running". This helper
+ * absorbs that race with a short poll (per cookbook `wait_for_idle_status`).
+ */
+async function waitForSettledStatus(
+  anthropic: Anthropic,
+  sessionId: string,
+  maxWaitMs = 5000,
+): Promise<void> {
+  const deadline = Date.now() + maxWaitMs;
+  while (Date.now() < deadline) {
+    try {
+      const session = await anthropic.beta.sessions.retrieve(sessionId);
+      if (session.status !== "running") return;
+    } catch {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+}
 
 export interface FinalizedRunCost {
   inputTokens: number;
@@ -36,8 +63,11 @@ export interface FinalizeTriggerRunInput {
   runId: string;
   threadId: string;
   clientId: string;
+  sessionId: string;
   events: unknown[];
   cost: FinalizedRunCost;
+  /** Anthropic client for session archival. */
+  anthropic: Anthropic;
 }
 
 function getConversationInput(events: ReadonlyArray<AnthropicEvent>): string {
@@ -166,7 +196,7 @@ export async function finalizeTriggerRun(
   await completeRun(supabase, {
     runId: input.runId,
     status,
-    model: MANAGED_AGENT_MODEL,
+    model: TRIGGER_DEFAULT_MODEL,
     tokensIn: input.cost.inputTokens,
     tokensOut: input.cost.outputTokens,
     cacheReadTokens: input.cost.cacheReadInputTokens ?? 0,
@@ -182,4 +212,16 @@ export async function finalizeTriggerRun(
   await runEvaluatorsForEvents(typedEvents, input.runId, supabase, {
     conversationInput: getConversationInput(typedEvents),
   });
+
+  // Archive the disposable trigger session to free resources. Trigger
+  // sessions are not reused across runs, so archival is always safe here.
+  try {
+    await waitForSettledStatus(input.anthropic, input.sessionId);
+    await input.anthropic.beta.sessions.archive(input.sessionId);
+  } catch (archiveError) {
+    console.error(
+      `[finalizeTriggerRun] session archive failed for ${input.sessionId}:`,
+      archiveError,
+    );
+  }
 }

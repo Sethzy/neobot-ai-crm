@@ -63,6 +63,7 @@ describe("runTriggerAgent", () => {
         runtimeSeconds: 12,
       },
       approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
     });
 
     await runTriggerAgent.run(
@@ -121,6 +122,7 @@ describe("runTriggerAgent", () => {
             runtimeSeconds: 0,
           },
           approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
         };
       },
     );
@@ -179,6 +181,7 @@ describe("runTriggerAgent", () => {
             runtimeSeconds: 12,
           },
           approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
         };
       },
     );
@@ -245,6 +248,7 @@ describe("runTriggerAgent", () => {
           accumulatedEvents: terminalEvents,
           cost: terminalCost,
           approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
         };
       },
     );
@@ -319,6 +323,7 @@ describe("runTriggerAgent", () => {
             runtimeSeconds: 3,
           },
           approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
         };
       },
     );
