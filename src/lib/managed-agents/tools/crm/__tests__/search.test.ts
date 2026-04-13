@@ -56,6 +56,32 @@ describe("searchCrmTool", () => {
 
     expect(result).toEqual({ success: false, error: "boom" });
   });
+
+  it("skips text search when record_notes has an exact note_id filter", async () => {
+    const { client, builders } = createMockSupabase({
+      record_notes: {
+        data: [{ note_id: "n1", body: "important note" }],
+        error: null,
+      },
+    });
+
+    const result = await searchCrmTool.execute(
+      {
+        entity: "record_notes",
+        query: "this text should be ignored",
+        filters: { note_id: "n1" },
+      },
+      makeContext(client),
+    );
+
+    expect(result).toEqual({
+      success: true,
+      records: [{ note_id: "n1", body: "important note" }],
+      count: 1,
+    });
+    expect(builders.record_notes.or).not.toHaveBeenCalled();
+    expect(builders.record_notes.ilike).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -209,6 +235,23 @@ describe("searchCrmTool — include parameter", () => {
     const deal = result.records[0] as Record<string, unknown>;
     expect(deal._interactions).toEqual([]);
     expect(deal._tasks).toEqual([]);
+  });
+
+  it("surfaces include query failures instead of pretending the include is empty", async () => {
+    const { client } = createMockSupabase({
+      deals: { data: [{ deal_id: "d1", address: "8 Nassim Hill" }], error: null },
+      interactions: { data: null, error: { message: "include boom" } },
+    });
+
+    const result = await searchCrmTool.execute(
+      { entity: "deals", filters: { deal_id: "d1" }, include: ["interactions"] },
+      makeContext(client),
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Failed to load include "interactions": include boom',
+    });
   });
 
   it("groups included records correctly across multiple primary records", async () => {

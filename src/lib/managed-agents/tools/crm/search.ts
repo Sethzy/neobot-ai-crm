@@ -371,8 +371,7 @@ async function fetchIncludes(
 
     const { data, error } = await qb;
     if (error) {
-      console.warn(`search_crm include "${includeName}" failed: ${error.message}`);
-      return { includeName, grouped: new Map<string, unknown[]>() };
+      throw new Error(`Failed to load include "${includeName}": ${error.message}`);
     }
 
     // Group results by join column
@@ -451,7 +450,20 @@ export const searchCrmTool: ManagedAgentTool<SearchInput> = {
       .select("*")
       .eq("client_id", context.clientId);
 
-    if (query) {
+    // Skip text search when the filter already contains an exact primary key —
+    // the OR clause on name columns would AND with the eq filter and return 0.
+    const PK_COLUMNS: Partial<Record<SearchEntity, string>> = {
+      contacts: "contact_id",
+      companies: "company_id",
+      deals: "deal_id",
+      interactions: "interaction_id",
+      tasks: "task_id",
+      record_notes: "note_id",
+    };
+    const pkColumn = PK_COLUMNS[entity];
+    const hasPkFilter = pkColumn && filterEntries.some(([key]) => key === pkColumn);
+
+    if (query && !hasPkFilter) {
       if (config.searchColumns.length === 1) {
         queryBuilder = queryBuilder.ilike(config.searchColumns[0], buildIlikePattern(query));
       } else {
@@ -494,7 +506,14 @@ export const searchCrmTool: ManagedAgentTool<SearchInput> = {
 
     // Fetch included entities if requested
     if (include && include.length > 0) {
-      records = await fetchIncludes(context, entity, records, include);
+      try {
+        records = await fetchIncludes(context, entity, records, include);
+      } catch (error) {
+        return {
+          success: false as const,
+          error: error instanceof Error ? error.message : "Failed to load requested includes.",
+        };
+      }
     }
 
     return { success: true as const, records, count: records.length };
