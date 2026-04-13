@@ -19,16 +19,23 @@ export async function dispatchEventToCallbacks(
   callbacks: SessionRunnerCallbacks,
 ): Promise<void> {
   const eventType = (event as { type: string }).type;
+  const tStart = performance.now();
+  let handler = "none";
 
   if (eventType === "span.model_request_start") {
+    handler = "onSpanModelRequestStart";
     await callbacks.onSpanModelRequestStart?.(event);
   } else if (eventType === "span.model_request_end") {
+    handler = "onSpanModelRequestEnd";
     await callbacks.onSpanModelRequestEnd?.(event);
   } else if (eventType === "agent.message") {
+    handler = "onAgentMessage";
     await callbacks.onAgentMessage?.(event);
   } else if (eventType === "session.error") {
+    handler = "onSessionError";
     await callbacks.onSessionError?.(event);
   } else if (eventType === "agent.custom_tool_use") {
+    handler = "onAgentToolUse";
     await callbacks.onAgentToolUse?.(event);
   } else if (eventType === "agent.tool_use" || eventType === "agent.mcp_tool_use") {
     // Built-in or MCP tool uses must still be projected to the UI so the
@@ -36,11 +43,13 @@ export async function dispatchEventToCallbacks(
     // gated calls additionally emit onApprovalRequired.
     const typed = event as { id: string; evaluated_permission?: string };
     if (typed.evaluated_permission === "ask") {
+      handler = "onApprovalRequired";
       console.info(
         `[dispatch-event-to-callbacks] forwarding approval-gated ${eventType} ${typed.id} to onApprovalRequired`,
       );
       await callbacks.onApprovalRequired?.(event, typed.id);
     } else {
+      handler = "onAgentToolUse";
       console.info(
         `[dispatch-event-to-callbacks] forwarding ${eventType} ${typed.id} to onAgentToolUse because evaluated_permission=${typed.evaluated_permission ?? "missing"}`,
       );
@@ -53,6 +62,7 @@ export async function dispatchEventToCallbacks(
   ) {
     // Custom tool results and built-in tool results both stream through
     // as tool-output-available chunks.
+    handler = "onAgentToolResult";
     const toolResultId =
       (event as { custom_tool_use_id?: string; tool_use_id?: string }).custom_tool_use_id
       ?? (event as { custom_tool_use_id?: string; tool_use_id?: string }).tool_use_id
@@ -61,5 +71,10 @@ export async function dispatchEventToCallbacks(
       `[dispatch-event-to-callbacks] forwarding ${eventType} result for tool id ${toolResultId} to onAgentToolResult`,
     );
     await callbacks.onAgentToolResult?.(event);
+  }
+
+  const elapsed = Math.round(performance.now() - tStart);
+  if (elapsed > 2) {
+    console.info(`[dispatch-event-to-callbacks] ${eventType} → ${handler} took ${elapsed}ms`);
   }
 }

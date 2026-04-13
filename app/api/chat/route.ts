@@ -249,6 +249,7 @@ export async function POST(request: Request): Promise<Response> {
     total: Math.round(tParallelLookup - t0),
   });
 
+  const tPreAdapter = performance.now();
   const stream = await runManagedAgent({
     anthropic: getAnthropicClient(),
     supabase: auth.supabase,
@@ -262,6 +263,13 @@ export async function POST(request: Request): Promise<Response> {
     threadTitle,
     generatedTitlePromise: titlePromise,
     selectedChatModel,
+  });
+  const tPostAdapter = performance.now();
+
+  console.info("[api/chat] full route timing (ms)", {
+    routeSetup: Math.round(tParallelLookup - t0),
+    adapterInit: Math.round(tPostAdapter - tPreAdapter),
+    totalToStream: Math.round(tPostAdapter - t0),
   });
 
   return createUIMessageStreamResponse({ stream: stream as never });

@@ -177,14 +177,22 @@ export async function consumeAnthropicSession(
   let tFirstEvent: number | null = null;
   let tLastEvent = performance.now();
 
+  let tFirstTextDelta: number | null = null;
+  let eventIndex = 0;
+
   for await (const event of iterator) {
     const tEventReceived = performance.now();
     if (!tFirstEvent) {
       tFirstEvent = tEventReceived;
       console.log(`${logPrefix} time-to-first-event: ${Math.round(tFirstEvent - tRunnerStart)}ms`);
     }
+    const tSinceLastEvent = Math.round(tEventReceived - tLastEvent);
+    tLastEvent = tEventReceived;
     collectedEvents.push(event);
+
+    const tTranslateStart = performance.now();
     const result = translateEvent(translatorState, event as AnthropicEvent);
+    const tTranslateEnd = performance.now();
 
     const eventType = (event as { type: AnthropicEvent["type"] }).type;
     const inputSuffix =
@@ -199,7 +207,19 @@ export async function consumeAnthropicSession(
         : eventType === "agent.tool_result" || eventType === "agent.mcp_tool_result"
           ? ` tool_use_id=${(event as { tool_use_id?: string }).tool_use_id ?? "missing"} is_error=${(event as { is_error?: boolean }).is_error ?? false}`
           : "";
-    console.log(`${logPrefix} event: ${eventType} id=${(event as { id: string }).id.slice(-8)}${result.terminal ? ` terminal=${result.terminal}` : ""}${result.customToolCall ? ` tool=${result.customToolCall.name}` : ""}${result.approvalRequest ? ` approval=${result.approvalRequest.toolName}` : ""}${inputSuffix}${toolResultSuffix}`);
+    const translateMs = Math.round(tTranslateEnd - tTranslateStart);
+    console.log(`${logPrefix} event[${eventIndex}]: ${eventType} id=${(event as { id: string }).id.slice(-8)} gap=${tSinceLastEvent}ms translate=${translateMs}ms${result.terminal ? ` terminal=${result.terminal}` : ""}${result.customToolCall ? ` tool=${result.customToolCall.name}` : ""}${result.approvalRequest ? ` approval=${result.approvalRequest.toolName}` : ""}${inputSuffix}${toolResultSuffix}`);
+
+    // Track first text-delta — the moment the user sees a reply.
+    if (!tFirstTextDelta && eventType === "agent.message") {
+      const hasText = (event as { content?: Array<{ type: string; text?: string }> }).content?.some(
+        (block) => block.type === "text" && typeof block.text === "string" && block.text.length > 0,
+      );
+      if (hasText) {
+        tFirstTextDelta = tEventReceived;
+        console.log(`${logPrefix} ⏱ time-to-first-text: ${Math.round(tFirstTextDelta - tRunnerStart)}ms (from runner start)`);
+      }
+    }
 
     // Raw-event callbacks for projection / UI streaming. Fire BEFORE we act
     // on the translator output so callers see the event in arrival order.
@@ -208,11 +228,19 @@ export async function consumeAnthropicSession(
     // continue regardless of whether the browser is still listening.
     if (options.callbacks) {
       try {
+        const tCallbackStart = performance.now();
         await dispatchEventToCallbacks(event, options.callbacks);
+        const tCallbackEnd = performance.now();
+        const callbackMs = Math.round(tCallbackEnd - tCallbackStart);
+        if (callbackMs > 5) {
+          console.log(`${logPrefix} callback dispatch slow: ${callbackMs}ms for ${eventType}`);
+        }
       } catch (callbackError) {
         console.warn(`${logPrefix} callback failed (client likely disconnected), continuing session`, callbackError);
       }
     }
+
+    eventIndex++;
 
     // Custom tool dispatch — runs synchronously so the result is available
     // for the next agent step. Wrapped in try-catch so a tool crash or
@@ -389,7 +417,7 @@ export async function consumeAnthropicSession(
   }
 
   const tLoopEnd = performance.now();
-  console.log(`${logPrefix} loop exited — terminalReason=${terminalReason} events=${collectedEvents.length} dispatchedTools=${dispatchedCustomToolIds.size} loopTime=${Math.round(tLoopEnd - tRunnerStart)}ms`);
+  console.log(`${logPrefix} loop exited — terminalReason=${terminalReason} events=${collectedEvents.length} dispatchedTools=${dispatchedCustomToolIds.size} loopTime=${Math.round(tLoopEnd - tRunnerStart)}ms firstText=${tFirstTextDelta ? Math.round(tFirstTextDelta - tRunnerStart) + "ms" : "none"}`);
 
   // `requires_action` is paused-but-healthy: the run is awaiting UI input.
   // We treat it as `complete` so the chat adapter knows to persist the

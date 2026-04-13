@@ -148,12 +148,15 @@ export async function openSessionStream(
   anthropic: Anthropic,
   sessionId: string,
 ): Promise<LiveStreamHandle> {
+  const tStart = performance.now();
+  const logPrefix = `[session-reconnect:${sessionId.slice(-8)}]`;
   // Called synchronously in the async function body — both underlying
   // fetches are in-flight the moment we enter this function, matching
   // the spike pattern at
   // `scripts/spike/managed-agents-custom-tool-spike.ts`.
   const livePromise = anthropic.beta.sessions.events.stream(sessionId);
   const snapshotPromise = (async () => {
+    const tSnapshotStart = performance.now();
     const ids = new Set<string>();
     for await (const event of anthropic.beta.sessions.events.list(
       sessionId,
@@ -163,6 +166,7 @@ export async function openSessionStream(
         ids.add(id);
       }
     }
+    console.log(`${logPrefix} snapshot drain: ${ids.size} pre-kickoff events in ${Math.round(performance.now() - tSnapshotStart)}ms`);
     return ids;
   })();
 
@@ -170,6 +174,8 @@ export async function openSessionStream(
     livePromise,
     snapshotPromise,
   ]);
+
+  console.log(`${logPrefix} openSessionStream total: ${Math.round(performance.now() - tStart)}ms (stream + ${preKickoffEventIds.size} snapshot events)`);
 
   return {
     live: live as unknown as AsyncIterable<unknown>,
@@ -225,6 +231,8 @@ export async function* iterateSessionEvents(
   sessionId: string,
   handle: LiveStreamHandle,
 ): AsyncGenerator<AnyEvent> {
+  const logPrefix = `[session-reconnect:${sessionId.slice(-8)}]`;
+  const tIterateStart = performance.now();
   // Pre-seed `seen` with every event id that existed before we sent the
   // kickoff. Those are prior-turn events on a reused session and must
   // never reach the consumer — yielding them would misattribute old
@@ -235,25 +243,38 @@ export async function* iterateSessionEvents(
   // is exactly what we want here.
   const seen = new Set<string>(handle.preKickoffEventIds);
   let terminal = false;
+  let historyYielded = 0;
+  let historySkipped = 0;
 
   for await (const event of anthropic.beta.sessions.events.list(
     sessionId,
   ) as unknown as AsyncIterable<unknown>) {
     const typed = event as AnyEvent;
-    if (seen.has(typed.id)) continue;
+    if (seen.has(typed.id)) {
+      historySkipped++;
+      continue;
+    }
     seen.add(typed.id);
+    historyYielded++;
     yield typed;
     if (isTerminal(typed)) {
       terminal = true;
       break;
     }
   }
+  const tHistoryDone = performance.now();
+  console.log(`${logPrefix} history drain: yielded=${historyYielded} skipped=${historySkipped} in ${Math.round(tHistoryDone - tIterateStart)}ms terminal=${terminal}`);
   if (terminal) return;
 
+  let liveYielded = 0;
   for await (const event of handle.live) {
     const typed = event as AnyEvent;
     if (seen.has(typed.id)) continue;
     seen.add(typed.id);
+    liveYielded++;
+    if (liveYielded === 1) {
+      console.log(`${logPrefix} first live event: ${Math.round(performance.now() - tHistoryDone)}ms after history drain`);
+    }
     yield typed;
     if (isTerminal(typed)) return;
   }

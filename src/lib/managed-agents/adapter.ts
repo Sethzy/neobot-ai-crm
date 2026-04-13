@@ -533,6 +533,10 @@ export async function runManagedAgent(
 
       try {
         const tConsumeStart = performance.now();
+        console.info("[runManagedAgent] entering consumeAnthropicSession", {
+          sessionId: sessionId.slice(-8),
+          timeSinceAdapterStart: Math.round(tConsumeStart - tAdapterStart),
+        });
         const result = await consumeAnthropicSession({
           anthropic: input.anthropic,
           sessionId,

@@ -14,6 +14,9 @@ import type { SessionRunnerCallbacks } from "./types";
 export function buildUiStreamCallbacks(
   writer: UIMessageStreamWriter,
 ): SessionRunnerCallbacks {
+  let firstTextWritten = false;
+  const tForwarderCreated = performance.now();
+
   return {
     onSpanModelRequestStart: () => {
       writer.write({ type: "start-step" } as never);
@@ -34,6 +37,10 @@ export function buildUiStreamCallbacks(
           if (!textStarted) {
             writer.write({ type: "text-start", id: typedEvent.id } as never);
             textStarted = true;
+          }
+          if (!firstTextWritten) {
+            firstTextWritten = true;
+            console.log(`[session-stream-forwarder] first text-delta written to stream — ${Math.round(performance.now() - tForwarderCreated)}ms since forwarder created`);
           }
           writer.write({
             type: "text-delta",
