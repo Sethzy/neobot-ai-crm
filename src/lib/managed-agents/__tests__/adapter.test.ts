@@ -90,6 +90,9 @@ vi.mock("../upload-files-for-session", async (importOriginal) => {
     mountUploadedFilesToSession: vi.fn().mockResolvedValue(undefined),
   };
 });
+vi.mock("../download-session-files", () => ({
+  downloadSessionFiles: vi.fn().mockResolvedValue([]),
+}));
 
 const { consumeAnthropicSession } = await import("../session-runner");
 const {
@@ -116,6 +119,7 @@ const {
   mountUploadedFilesToSession,
   uploadFilePartsToAnthropic,
 } = await import("../upload-files-for-session");
+const { downloadSessionFiles } = await import("../download-session-files");
 
 async function collectStream<T>(stream: ReadableStream<T>): Promise<T[]> {
   const reader = stream.getReader();
@@ -135,6 +139,7 @@ beforeEach(() => {
   (buildSessionAttachmentMounts as unknown as ReturnType<typeof vi.fn> | undefined)?.mockClear?.();
   (uploadFilePartsToAnthropic as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   (mountUploadedFilesToSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+  (downloadSessionFiles as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   (claimApprovalResolution as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
     success: true,
     status: "claimed",
@@ -221,6 +226,74 @@ describe("runManagedAgent — happy path", () => {
     );
     expect(upsertMessage).toHaveBeenCalled();
     expect(runEvaluatorsForEvents).toHaveBeenCalled();
+  });
+
+  it("persists mirrored session files as assistant file parts on terminal completion", async () => {
+    (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: "complete",
+      reason: "end_turn",
+      accumulatedEvents: [
+        {
+          id: "evt_file_1",
+          type: "agent.message",
+          content: [{ type: "text", text: "File ready." }],
+        },
+      ],
+      cost: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 0,
+        runtimeSeconds: 0,
+      },
+      approvalEventIds: [],
+      costRetrievePromise: Promise.resolve(),
+    });
+    (downloadSessionFiles as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        anthropicFileId: "file_1",
+        filename: "saaa_sorted.csv",
+        mediaType: "text/csv",
+        storagePath: "sessions/sess_1/saaa_sorted.csv",
+        signedUrl: "https://storage.example.com/signed",
+      },
+    ]);
+
+    const { runManagedAgent } = await import("../adapter");
+    const stream = await runManagedAgent({
+      anthropic: {} as never,
+      supabase: {} as never,
+      clientId: "c1",
+      threadId: "t1",
+      input: "sort this csv",
+      clientProfile: null,
+      userPreferences: null,
+      threadTitle: null,
+    });
+
+    await collectStream(stream);
+
+    expect(downloadSessionFiles).toHaveBeenCalledWith({
+      supabase: expect.anything(),
+      clientId: "c1",
+      sessionId: "sess_1",
+    });
+    expect(upsertMessage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        role: "assistant",
+        parts: expect.arrayContaining([
+          expect.objectContaining({ type: "text", text: "File ready." }),
+          expect.objectContaining({
+            type: "file",
+            filename: "saaa_sorted.csv",
+            mediaType: "text/csv",
+            storagePath: "sessions/sess_1/saaa_sorted.csv",
+            url: "https://storage.example.com/signed",
+          }),
+        ]),
+      }),
+    );
   });
 
   it("consumes quota and persists the fresh user turn before starting the managed session", async () => {
@@ -805,6 +878,7 @@ describe("runManagedAgent — terminal variants", () => {
     });
     await collectStream(stream);
     expect(completeRun).not.toHaveBeenCalled();
+    expect(downloadSessionFiles).not.toHaveBeenCalled();
     expect(upsertMessage).toHaveBeenCalled();
   });
 });

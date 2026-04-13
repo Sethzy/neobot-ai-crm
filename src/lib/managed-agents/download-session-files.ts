@@ -22,6 +22,7 @@ export interface DownloadSessionFilesInput {
 export interface DownloadedSessionFile {
   anthropicFileId: string;
   filename: string;
+  mediaType: string;
   storagePath: string;
   signedUrl: string;
 }
@@ -42,6 +43,7 @@ async function listSessionFiles(sessionId: string): Promise<ListedSessionFile[]>
   const anthropic = getAnthropicClient();
   const page = await anthropic.beta.files.list({
     scope_id: sessionId,
+    betas: ["managed-agents-2026-04-01"],
   });
 
   if (Array.isArray((page as { data?: unknown[] }).data)) {
@@ -90,14 +92,15 @@ export async function downloadSessionFiles(
     const blob = await response.blob();
     const relativeStoragePath = `sessions/${input.sessionId}/${file.filename}`;
     const storagePath = `${input.clientId}/${relativeStoragePath}`;
+    const mediaType =
+      file.mime_type ??
+      blob.type ??
+      "application/octet-stream";
 
     const { error: uploadError } = await input.supabase.storage
       .from(BUCKET_ID)
       .upload(storagePath, await blob.arrayBuffer(), {
-        contentType:
-          file.mime_type ??
-          blob.type ??
-          "application/octet-stream",
+        contentType: mediaType,
         upsert: true,
       });
 
@@ -118,6 +121,7 @@ export async function downloadSessionFiles(
     downloadedFiles.push({
       anthropicFileId: file.id,
       filename: file.filename,
+      mediaType,
       storagePath: relativeStoragePath,
       signedUrl: signedUrlData.signedUrl,
     });

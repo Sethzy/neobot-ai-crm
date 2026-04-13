@@ -57,11 +57,18 @@ describe("downloadSessionFiles", () => {
       sessionId: "session_abc",
     });
 
-    expect(filesList).toHaveBeenCalledWith({ scope_id: "session_abc" });
+    expect(filesList).toHaveBeenCalledWith({ scope_id: "session_abc", betas: ["managed-agents-2026-04-01"] });
     expect(filesDownload).toHaveBeenCalledWith("file_1");
     expect(storageUpload).toHaveBeenCalledTimes(1);
-    expect(result).toHaveLength(1);
-    expect(result[0]?.signedUrl).toBe("https://signed.example");
+    expect(result).toEqual([
+      {
+        anthropicFileId: "file_1",
+        filename: "report.pdf",
+        mediaType: "application/pdf",
+        storagePath: "sessions/session_abc/report.pdf",
+        signedUrl: "https://signed.example",
+      },
+    ]);
   });
 
   it("retries listing with exponential backoff when empty", async () => {

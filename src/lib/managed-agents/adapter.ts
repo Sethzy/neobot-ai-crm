@@ -67,6 +67,7 @@ import {
   mountUploadedFilesToSession,
   uploadFilePartsToAnthropic,
 } from "./upload-files-for-session";
+import { downloadSessionFiles, type DownloadedSessionFile } from "./download-session-files";
 import type {
   ManagedFilePart,
   ManagedSupabaseClient,
@@ -85,6 +86,7 @@ export interface FinalizeRunOptions {
   clientId: string;
   threadId: string;
   runId: string;
+  sessionId: string;
   result: SessionRunnerResult;
   /** Conversation input passed to evaluators. */
   conversationInput: string;
@@ -172,10 +174,20 @@ async function persistAssistantOutput(options: {
   threadId: string;
   runId: string;
   accumulatedEvents: ReadonlyArray<AnthropicEvent>;
+  generatedFiles?: ReadonlyArray<DownloadedSessionFile>;
   logLabel: string;
 }): Promise<void> {
-  const { supabase, clientId, threadId, runId, accumulatedEvents, logLabel } = options;
-  const parts = buildAssistantPartsFromEvents(accumulatedEvents);
+  const { supabase, clientId, threadId, runId, accumulatedEvents, generatedFiles = [], logLabel } = options;
+  const parts = [
+    ...buildAssistantPartsFromEvents(accumulatedEvents),
+    ...generatedFiles.map((file) => ({
+      type: "file" as const,
+      url: file.signedUrl,
+      mediaType: file.mediaType,
+      filename: file.filename,
+      storagePath: file.storagePath,
+    })),
+  ];
   if (!parts.some((part) => part.type !== "step-start")) {
     return;
   }
@@ -243,7 +255,7 @@ export async function attachFilesToManagedSession(options: {
  * behave identically.
  */
 export async function finalizeRun(options: FinalizeRunOptions): Promise<void> {
-  const { supabase, clientId, threadId, runId, result, conversationInput, logLabel, anthropicModelId } = options;
+  const { supabase, clientId, threadId, runId, sessionId, result, conversationInput, logLabel, anthropicModelId } = options;
   const accumulatedEvents = result.accumulatedEvents as ReadonlyArray<AnthropicEvent>;
   if (result.reason === "requires_action") {
     // Paused on approval — persist whatever we streamed (including
@@ -261,6 +273,12 @@ export async function finalizeRun(options: FinalizeRunOptions): Promise<void> {
     return;
   }
 
+  const generatedFiles = await downloadSessionFiles({
+    supabase,
+    clientId,
+    sessionId,
+  });
+
   // Persist message (+ external delivery), run evaluators, and settle
   // the cost retrieve in parallel. completeRun depends on cost, so it
   // chains off the retrieve inside the Promise.all.
@@ -271,6 +289,7 @@ export async function finalizeRun(options: FinalizeRunOptions): Promise<void> {
       threadId,
       runId,
       accumulatedEvents,
+      generatedFiles,
       logLabel,
     }),
     result.costRetrievePromise.then(() => {
@@ -363,21 +382,56 @@ export async function runManagedAgent(
       });
     }
 
-    const [, existingSessionId, reminder, customizedSkillSlugs] = await Promise.all([
-      persistUserInput({
-        supabase: input.supabase,
-        threadId: input.threadId,
-        runId,
-        userMessage: input.input,
-        fileParts: managedFileParts,
-        sourceEventId: input.userMessageSourceId,
-      }),
-      getExistingSessionId({
-        supabase: input.supabase,
-        threadId: input.threadId,
-      }),
-      buildSystemReminder(input.supabase, input.clientId),
-      listCustomizedSkillSlugs(input.supabase, input.clientId),
+    const [
+      { durationMs: persistUserInputMs },
+      { result: existingSessionId, durationMs: existingSessionLookupMs },
+      { result: reminder, durationMs: systemReminderMs },
+      { result: customizedSkillSlugs, durationMs: customizedSkillsMs },
+    ] = await Promise.all([
+      (async () => {
+        const tStart = performance.now();
+        await persistUserInput({
+          supabase: input.supabase,
+          threadId: input.threadId,
+          runId,
+          userMessage: input.input,
+          fileParts: managedFileParts,
+          sourceEventId: input.userMessageSourceId,
+        });
+        return {
+          durationMs: Math.round(performance.now() - tStart),
+        };
+      })(),
+      (async () => {
+        const tStart = performance.now();
+        const result = await getExistingSessionId({
+          supabase: input.supabase,
+          threadId: input.threadId,
+        });
+        return {
+          result,
+          durationMs: Math.round(performance.now() - tStart),
+        };
+      })(),
+      (async () => {
+        const tStart = performance.now();
+        const result = await buildSystemReminder(input.supabase, input.clientId);
+        return {
+          result,
+          durationMs: Math.round(performance.now() - tStart),
+        };
+      })(),
+      (async () => {
+        const tStart = performance.now();
+        const result = await listCustomizedSkillSlugs(
+          input.supabase,
+          input.clientId,
+        );
+        return {
+          result,
+          durationMs: Math.round(performance.now() - tStart),
+        };
+      })(),
     ]);
     const tParallelSetup = performance.now();
 
@@ -461,6 +515,10 @@ export async function runManagedAgent(
     console.info("[runManagedAgent] adapter setup timing (ms)", {
       runRecordAndQuota: Math.round(tRunRecordAndQuota - tAdapterStart),
       parallelSetup: Math.round(tParallelSetup - tRunRecordAndQuota),
+      persistUserInput: persistUserInputMs,
+      existingSessionLookup: existingSessionLookupMs,
+      systemReminder: systemReminderMs,
+      customizedSkills: customizedSkillsMs,
       fileUpload: Math.round(tFileUpload - tParallelSetup),
       sessionCreate: Math.round(tSessionReady - tFileUpload),
       attachFiles: Math.round(tAttachFiles - tSessionReady),
@@ -559,6 +617,7 @@ export async function runManagedAgent(
           clientId: input.clientId,
           threadId: input.threadId,
           runId,
+          sessionId,
           result,
           conversationInput: input.input,
           logLabel: "runManagedAgent",
@@ -757,6 +816,7 @@ export async function resumeManagedAgentFromApproval(
           clientId,
           threadId,
           runId,
+          sessionId,
           result,
           conversationInput: `[approval-resume ${approvalId}: ${approved ? "allow" : "deny"}]`,
           logLabel: "resumeManagedAgentFromApproval",
