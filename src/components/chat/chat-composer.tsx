@@ -21,6 +21,7 @@ import { ModelSelector } from "@/components/ai-elements/model-selector";
 import { Paperclip } from "@/components/icons/lucide-compat";
 import { cn } from "@/lib/utils";
 import { CHAT_ATTACHMENT_ACCEPT } from "@/lib/chat/attachment-config";
+import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 import type { ChatStatus } from "@/types/chat";
 
 import type { ChatFilePart } from "./file-parts";
@@ -105,6 +106,7 @@ export function ChatComposer({
   hideModelSelector = false,
 }: ChatComposerProps) {
   const router = useRouter();
+  const supabase = createSupabaseClient();
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -120,25 +122,61 @@ export function ChatComposer({
     (!isGenerating && disabled);
 
   const uploadFile = useCallback(async (file: File): Promise<Attachment | null> => {
-    const formData = new FormData();
-    formData.append("file", file, file.name);
-    formData.append("filename", file.name);
-
     try {
-      const response = await fetch("/api/files/upload", {
+      const presignResponse = await fetch("/api/files/presign", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type,
+          size: file.size,
+        }),
       });
 
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null) as { error?: string } | null;
-        toast.error(payload?.error ?? "Failed to upload file.");
+      if (!presignResponse.ok) {
+        const payload = await presignResponse.json().catch(() => null) as { error?: string } | null;
+        toast.error(payload?.error ?? "Failed to prepare upload.");
         return null;
       }
 
-      const payload = await response.json() as {
+      const { path, token, storagePath } = await presignResponse.json() as {
+        path: string;
+        token: string;
+        storagePath: string;
+      };
+
+      const { error: uploadError } = await supabase.storage
+        .from("agent-files")
+        .uploadToSignedUrl(path, token, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        toast.error("Failed to upload file.");
+        return null;
+      }
+
+      const confirmResponse = await fetch("/api/files/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storagePath,
+          filename: file.name,
+          contentType: file.type,
+          size: file.size,
+        }),
+      });
+
+      if (!confirmResponse.ok) {
+        const payload = await confirmResponse.json().catch(() => null) as { error?: string } | null;
+        toast.error(payload?.error ?? "Failed to confirm upload.");
+        return null;
+      }
+
+      const payload = await confirmResponse.json() as {
         url: string;
-        storagePath?: string;
+        storagePath: string;
         pathname: string;
         contentType: string;
       };
@@ -153,7 +191,7 @@ export function ChatComposer({
       toast.error("Failed to upload file.");
       return null;
     }
-  }, []);
+  }, [supabase]);
 
   const uploadFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) {
@@ -261,8 +299,8 @@ export function ChatComposer({
       onDrop={handleDrop}
     >
       <div className={cn(
-        "mx-auto max-w-2xl rounded-xl transition-colors",
-        isDragOver && "ring-2 ring-primary/40 ring-offset-2",
+        "mx-auto max-w-[44rem] rounded-2xl transition-all",
+        isDragOver && "ring-2 ring-ring/20 border-dashed bg-accent/50",
         innerClassName,
       )}>
         <input

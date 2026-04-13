@@ -9,6 +9,7 @@ import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/r
 import { useClientId } from "@/hooks/use-client-id";
 import { useRealtimeTable } from "@/hooks/use-realtime";
 import { type RecordAttachment } from "@/lib/crm/schemas";
+import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 import { supabase } from "@/lib/supabase";
 import { AGENT_FILES_BUCKET } from "@/lib/storage/agent-files";
 
@@ -84,6 +85,7 @@ export function useRecordAttachments(recordType: RecordAttachmentType, recordId:
  */
 export function useUploadAttachment() {
   const queryClient = useQueryClient();
+  const browserSupabase = createSupabaseClient();
 
   return useMutation({
     mutationFn: async ({
@@ -91,23 +93,59 @@ export function useUploadAttachment() {
       recordType,
       recordId,
     }: UploadAttachmentVariables): Promise<RecordAttachment> => {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("filename", file.name);
-      formData.append("record_type", recordType);
-      formData.append("record_id", recordId);
-
-      const response = await fetch("/api/crm/attachments/upload", {
+      const presignResponse = await fetch("/api/crm/attachments/presign", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type,
+          size: file.size,
+          record_type: recordType,
+          record_id: recordId,
+        }),
       });
 
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}));
+      if (!presignResponse.ok) {
+        const errorBody = await presignResponse.json().catch(() => ({}));
         throw new Error((errorBody as { error?: string }).error ?? "Upload failed");
       }
 
-      const result = await response.json() as { attachment: RecordAttachment };
+      const { path, storagePath, token } = await presignResponse.json() as {
+        path: string;
+        storagePath: string;
+        token: string;
+      };
+
+      const uploadResult = await browserSupabase.storage
+        .from(AGENT_FILES_BUCKET)
+        .uploadToSignedUrl(path, token, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadResult.error) {
+        throw new Error("Upload failed");
+      }
+
+      const confirmResponse = await fetch("/api/crm/attachments/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storagePath,
+          filename: file.name,
+          contentType: file.type,
+          size: file.size,
+          record_type: recordType,
+          record_id: recordId,
+        }),
+      });
+
+      if (!confirmResponse.ok) {
+        const errorBody = await confirmResponse.json().catch(() => ({}));
+        throw new Error((errorBody as { error?: string }).error ?? "Upload failed");
+      }
+
+      const result = await confirmResponse.json() as { attachment: RecordAttachment };
       return result.attachment;
     },
     onSuccess: (attachment) => {

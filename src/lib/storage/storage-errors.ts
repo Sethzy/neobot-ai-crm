@@ -4,7 +4,7 @@
  * These are deliberately framework-agnostic — no dependency on any specific
  * bucket or entity. The `src/lib/memory` module previously owned them; they
  * were re-homed here in H1 so that deleting the memory system (D2) does not
- * break sandbox, skill, or runner storage callers.
+ * break skill or runner storage callers.
  *
  * @module lib/storage/storage-errors
  */

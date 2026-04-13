@@ -130,7 +130,7 @@ export function PreviewAttachment({
         {/* Outer div is the positioning context + hover group for the X button */}
         <div className="group relative" data-testid="input-attachment-preview">
           {/* Tile: dims subtly on hover via transition-opacity */}
-          <div className="size-16 overflow-hidden rounded-lg border bg-muted transition-opacity hover:opacity-75">
+          <div className="size-14 overflow-hidden rounded-lg border bg-muted transition-opacity hover:opacity-75">
             {tileBody}
 
             {isUploading ? (

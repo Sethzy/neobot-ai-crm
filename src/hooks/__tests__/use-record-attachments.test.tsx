@@ -19,6 +19,8 @@ const mockFrom = vi.fn();
 const mockUseRealtimeTable = vi.fn();
 const mockStorageRemove = vi.fn();
 const mockFetch = vi.fn();
+const mockUploadToSignedUrl = vi.fn();
+const mockSignedStorageFrom = vi.fn();
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
@@ -29,6 +31,16 @@ vi.mock("@/lib/supabase", () => ({
       })),
     },
   },
+}));
+
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: vi.fn(() => ({
+    storage: {
+      from: mockSignedStorageFrom.mockImplementation(() => ({
+        uploadToSignedUrl: mockUploadToSignedUrl,
+      })),
+    },
+  })),
 }));
 
 vi.mock("@/hooks/use-client-id", () => ({
@@ -146,27 +158,41 @@ describe("record attachment mutations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", mockFetch);
+    mockUploadToSignedUrl.mockResolvedValue({
+      data: { path: "attachments/contact/contact-1/uuid-1" },
+      error: null,
+    });
   });
 
   it("uploads an attachment through the API route", async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        attachment: {
-          attachment_id: "att-1",
-          client_id: "client-1",
-          record_type: "contact",
-          record_id: "contact-1",
-          filename: "brief.pdf",
-          storage_path: "attachments/contact/contact-1/uuid-1",
-          content_type: "application/pdf",
-          file_size: 10,
-          file_category: "pdf",
-          created_at: "2026-04-05T00:00:00Z",
-          updated_at: "2026-04-05T00:00:00Z",
-        },
-      }),
-    });
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          signedUrl: "https://storage.example.com/upload/sign/path",
+          token: "upload-token",
+          path: "client-1/attachments/contact/contact-1/uuid-1",
+          storagePath: "attachments/contact/contact-1/uuid-1",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          attachment: {
+            attachment_id: "att-1",
+            client_id: "client-1",
+            record_type: "contact",
+            record_id: "contact-1",
+            filename: "brief.pdf",
+            storage_path: "attachments/contact/contact-1/uuid-1",
+            content_type: "application/pdf",
+            file_size: 10,
+            file_category: "pdf",
+            created_at: "2026-04-05T00:00:00Z",
+            updated_at: "2026-04-05T00:00:00Z",
+          },
+        }),
+      });
 
     const { queryClient, wrapper } = createWrapper();
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
@@ -178,9 +204,38 @@ describe("record attachment mutations", () => {
       recordId: "contact-1",
     });
 
-    expect(mockFetch).toHaveBeenCalledWith("/api/crm/attachments/upload", {
+    expect(mockFetch).toHaveBeenNthCalledWith(1, "/api/crm/attachments/presign", {
       method: "POST",
-      body: expect.any(FormData),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: "brief.pdf",
+        contentType: "application/pdf",
+        size: 8,
+        record_type: "contact",
+        record_id: "contact-1",
+      }),
+    });
+    expect(mockSignedStorageFrom).toHaveBeenCalledWith("agent-files");
+    expect(mockUploadToSignedUrl).toHaveBeenCalledWith(
+      "client-1/attachments/contact/contact-1/uuid-1",
+      "upload-token",
+      expect.any(File),
+      {
+        cacheControl: "3600",
+        upsert: false,
+      },
+    );
+    expect(mockFetch).toHaveBeenNthCalledWith(2, "/api/crm/attachments/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        storagePath: "attachments/contact/contact-1/uuid-1",
+        filename: "brief.pdf",
+        contentType: "application/pdf",
+        size: 8,
+        record_type: "contact",
+        record_id: "contact-1",
+      }),
     });
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: recordAttachmentKeys.list("contact", "contact-1"),

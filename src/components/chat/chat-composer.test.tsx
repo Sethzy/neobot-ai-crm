@@ -4,13 +4,16 @@
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ImgHTMLAttributes } from "react";
+import type { ImgHTMLAttributes, ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { CHAT_ATTACHMENT_ACCEPT } from "@/lib/chat/attachment-config";
 
-const { mockToastError } = vi.hoisted(() => ({
+const { mockToastError, mockUploadToSignedUrl, mockStorageFrom } = vi.hoisted(() => ({
   mockToastError: vi.fn(),
+  mockUploadToSignedUrl: vi.fn(),
+  mockStorageFrom: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({
@@ -27,7 +30,44 @@ vi.mock("next/image", () => ({
   },
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+  }),
+}));
+
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: vi.fn(() => ({
+    storage: {
+      from: mockStorageFrom.mockImplementation(() => ({
+        uploadToSignedUrl: mockUploadToSignedUrl,
+      })),
+    },
+  })),
+}));
+
+vi.mock("./preview-attachment", () => ({
+  PreviewAttachment: ({
+    attachment,
+    isUploading,
+    onRemove,
+  }: {
+    attachment: { filename: string };
+    isUploading?: boolean;
+    onRemove?: () => void;
+  }) => (
+    <div data-testid={isUploading ? "uploading-attachment" : "attachment-preview"}>
+      <span>{attachment.filename}</span>
+      {onRemove ? <button onClick={onRemove} type="button">Remove</button> : null}
+    </div>
+  ),
+}));
+
 import { ChatComposer } from "./chat-composer";
+
+function renderComposer(ui: ReactElement) {
+  return render(<TooltipProvider>{ui}</TooltipProvider>);
+}
 
 describe("ChatComposer", () => {
   const mockFetch = vi.fn();
@@ -45,10 +85,14 @@ describe("ChatComposer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", mockFetch);
+    mockUploadToSignedUrl.mockResolvedValue({
+      data: { path: "uploads/photo.png" },
+      error: null,
+    });
   });
 
   it("renders textarea, model selector, attachment control, and submit button", () => {
-    render(<ChatComposer {...baseProps} />);
+    renderComposer(<ChatComposer {...baseProps} />);
 
     expect(screen.getByPlaceholderText(/send a message/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /claude sonnet 4\.6/i })).toBeInTheDocument();
@@ -64,7 +108,7 @@ describe("ChatComposer", () => {
     const onSelectedChatModelChange = vi.fn();
     const user = userEvent.setup();
 
-    render(
+    renderComposer(
       <ChatComposer
         {...baseProps}
         onSelectedChatModelChange={onSelectedChatModelChange}
@@ -72,13 +116,13 @@ describe("ChatComposer", () => {
     );
 
     await user.click(screen.getByRole("button", { name: /claude sonnet 4\.6/i }));
-    await user.click(screen.getByRole("button", { name: /claude haiku 4\.5/i }));
+    await user.click(screen.getByRole("button", { name: /basic.*haiku 4\.5/i }));
 
     expect(onSelectedChatModelChange).toHaveBeenCalledWith("anthropic/claude-haiku-4-5");
   });
 
   it("does not render quota UI inside the composer", () => {
-    render(<ChatComposer {...baseProps} />);
+    renderComposer(<ChatComposer {...baseProps} />);
 
     expect(screen.queryByText(/messages used/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /upgrade plan/i })).not.toBeInTheDocument();
@@ -88,7 +132,7 @@ describe("ChatComposer", () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
 
-    render(<ChatComposer {...baseProps} value="  Hello  " onSubmit={onSubmit} />);
+    renderComposer(<ChatComposer {...baseProps} value="  Hello  " onSubmit={onSubmit} />);
     await user.click(screen.getByRole("button", { name: /submit/i }));
 
     expect(onSubmit).toHaveBeenCalledWith({
@@ -101,7 +145,7 @@ describe("ChatComposer", () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
 
-    render(<ChatComposer {...baseProps} value="Hello" onSubmit={onSubmit} />);
+    renderComposer(<ChatComposer {...baseProps} value="Hello" onSubmit={onSubmit} />);
     await user.type(screen.getByPlaceholderText(/send a message/i), "{Enter}");
 
     expect(onSubmit).toHaveBeenCalledWith({
@@ -114,7 +158,7 @@ describe("ChatComposer", () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
 
-    render(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
+    renderComposer(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
     await user.type(
       screen.getByPlaceholderText(/send a message/i),
       "Hello{Shift>}{Enter}{/Shift}",
@@ -126,22 +170,37 @@ describe("ChatComposer", () => {
   it("uploads a selected image and allows attachment-only sends", async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
-    mockFetch.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          url: "https://storage.example.com/agent-files/client-1/uploads/photo.png?token=signed",
-          storagePath: "uploads/photo.png",
-          pathname: "photo.png",
-          contentType: "image/png",
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        },
-      ),
-    );
+    mockFetch
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            signedUrl: "https://storage.example.com/upload/sign/path",
+            token: "upload-token",
+            path: "client-1/uploads/photo.png",
+            storagePath: "uploads/photo.png",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            url: "https://storage.example.com/agent-files/client-1/uploads/photo.png?token=signed",
+            storagePath: "uploads/photo.png",
+            pathname: "photo.png",
+            contentType: "image/png",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      );
 
-    render(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
+    renderComposer(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
 
     await user.upload(
       screen.getByLabelText(/upload attachments/i),
@@ -150,6 +209,36 @@ describe("ChatComposer", () => {
 
     await waitFor(() => {
       expect(screen.getByText("photo.png")).toBeInTheDocument();
+    });
+
+    expect(mockFetch).toHaveBeenNthCalledWith(1, "/api/files/presign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: "photo.png",
+        contentType: "image/png",
+        size: 5,
+      }),
+    });
+    expect(mockStorageFrom).toHaveBeenCalledWith("agent-files");
+    expect(mockUploadToSignedUrl).toHaveBeenCalledWith(
+      "client-1/uploads/photo.png",
+      "upload-token",
+      expect.any(File),
+      {
+        cacheControl: "3600",
+        upsert: false,
+      },
+    );
+    expect(mockFetch).toHaveBeenNthCalledWith(2, "/api/files/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        storagePath: "uploads/photo.png",
+        filename: "photo.png",
+        contentType: "image/png",
+        size: 5,
+      }),
     });
 
     await user.click(screen.getByRole("button", { name: /submit/i }));
@@ -171,22 +260,41 @@ describe("ChatComposer", () => {
   it("uploads a selected spreadsheet attachment and preserves its media type", async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
-    mockFetch.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          url: "https://storage.example.com/agent-files/client-1/uploads/deals.csv?token=signed",
-          storagePath: "uploads/deals.csv",
-          pathname: "deals.csv",
-          contentType: "text/csv",
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        },
-      ),
-    );
+    mockUploadToSignedUrl.mockResolvedValueOnce({
+      data: { path: "uploads/deals.csv" },
+      error: null,
+    });
+    mockFetch
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            signedUrl: "https://storage.example.com/upload/sign/deals",
+            token: "upload-token-csv",
+            path: "client-1/uploads/deals.csv",
+            storagePath: "uploads/deals.csv",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            url: "https://storage.example.com/agent-files/client-1/uploads/deals.csv?token=signed",
+            storagePath: "uploads/deals.csv",
+            pathname: "deals.csv",
+            contentType: "text/csv",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      );
 
-    render(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
+    renderComposer(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
 
     await user.upload(
       screen.getByLabelText(/upload attachments/i),
@@ -216,22 +324,41 @@ describe("ChatComposer", () => {
   it("uploads pasted images through the React onPaste path", async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
-    mockFetch.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          url: "https://storage.example.com/agent-files/client-1/uploads/pasted.png?token=signed",
-          storagePath: "uploads/pasted.png",
-          pathname: "pasted.png",
-          contentType: "image/png",
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        },
-      ),
-    );
+    mockUploadToSignedUrl.mockResolvedValueOnce({
+      data: { path: "uploads/pasted.png" },
+      error: null,
+    });
+    mockFetch
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            signedUrl: "https://storage.example.com/upload/sign/pasted",
+            token: "upload-token-pasted",
+            path: "client-1/uploads/pasted.png",
+            storagePath: "uploads/pasted.png",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            url: "https://storage.example.com/agent-files/client-1/uploads/pasted.png?token=signed",
+            storagePath: "uploads/pasted.png",
+            pathname: "pasted.png",
+            contentType: "image/png",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      );
 
-    render(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
+    renderComposer(<ChatComposer {...baseProps} onSubmit={onSubmit} />);
 
     const pastedFile = new File(["clipboard"], "pasted.png", { type: "image/png" });
     fireEvent.paste(screen.getByPlaceholderText(/send a message/i), {
@@ -247,7 +374,7 @@ describe("ChatComposer", () => {
     });
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
       expect(screen.getByText("pasted.png")).toBeInTheDocument();
     });
 
@@ -271,7 +398,7 @@ describe("ChatComposer", () => {
     const onStop = vi.fn();
     const user = userEvent.setup();
 
-    render(<ChatComposer {...baseProps} status="streaming" onStop={onStop} />);
+    renderComposer(<ChatComposer {...baseProps} status="streaming" onStop={onStop} />);
 
     expect(screen.getByPlaceholderText(/send a message/i)).toBeDisabled();
     expect(screen.getByRole("button", { name: /stop/i })).toBeEnabled();
@@ -284,7 +411,7 @@ describe("ChatComposer", () => {
   it("does not expose stop while submitted", () => {
     const onStop = vi.fn();
 
-    render(<ChatComposer {...baseProps} status="submitted" onStop={onStop} value="Hello" />);
+    renderComposer(<ChatComposer {...baseProps} status="submitted" onStop={onStop} value="Hello" />);
 
     expect(screen.getByPlaceholderText(/send a message/i)).toBeDisabled();
     expect(screen.queryByRole("button", { name: /stop/i })).not.toBeInTheDocument();
@@ -293,7 +420,7 @@ describe("ChatComposer", () => {
   });
 
   it("locks the composer and attachment control when disabled", () => {
-    render(
+    renderComposer(
       <ChatComposer
         {...baseProps}
         disabled
@@ -306,13 +433,13 @@ describe("ChatComposer", () => {
   });
 
   it("disables submit for empty input when there are no attachments", () => {
-    render(<ChatComposer {...baseProps} />);
+    renderComposer(<ChatComposer {...baseProps} />);
 
     expect(screen.getByRole("button", { name: /submit/i })).toBeDisabled();
   });
 
   it("displays the controlled value in the textarea", () => {
-    render(<ChatComposer {...baseProps} value="Set up a morning briefing" />);
+    renderComposer(<ChatComposer {...baseProps} value="Set up a morning briefing" />);
 
     expect(screen.getByPlaceholderText(/send a message/i)).toHaveValue(
       "Set up a morning briefing",
@@ -323,7 +450,7 @@ describe("ChatComposer", () => {
     const onValueChange = vi.fn();
     const user = userEvent.setup();
 
-    render(<ChatComposer {...baseProps} onValueChange={onValueChange} />);
+    renderComposer(<ChatComposer {...baseProps} onValueChange={onValueChange} />);
     await user.type(screen.getByPlaceholderText(/send a message/i), "H");
 
     expect(onValueChange).toHaveBeenCalledWith("H");
@@ -334,7 +461,7 @@ describe("ChatComposer", () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();
 
-    render(
+    renderComposer(
       <ChatComposer {...baseProps} value="Set up a morning briefing" onValueChange={onValueChange} onSubmit={onSubmit} />,
     );
 
