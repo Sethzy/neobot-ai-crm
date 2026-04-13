@@ -1,0 +1,125 @@
+{
+  "meta": {
+    "title": "Sunder Next — Post-Migration Product Roadmap",
+    "created": "2026-04-13",
+    "updated": "2026-04-13: Created. Succeeds implementation-phasing-plan-v2.json. Tracks all work after the Managed Agents migration.",
+    "previousPlan": "docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json",
+    "context": "Sunder moved from a custom orchestration loop (streamText + tool dispatch + compaction) to Anthropic Managed Agents. This roadmap tracks everything built on that new foundation. The v2 plan is frozen history — any remaining v2 items that still matter are carried forward here.",
+    "conventions": {
+      "ids": "Workstreams use ws-{number}. Tasks use ws-{number}-{task}. No more PR numbers.",
+      "tasklists": "Each workstream links to a standalone tasklist in docs/tasks/. The tasklist is the source of truth for implementation detail. This file tracks scope, status, and dependencies.",
+      "statuses": ["active", "pending", "done", "blocked", "cut"]
+    }
+  },
+  "workstreams": [
+    {
+      "id": "ws-1",
+      "title": "Managed Agents — Official Pattern Refactor",
+      "status": "active",
+      "goal": "Refactor chat pipeline to long-lived session subscription + fire-and-forget messages. Drop the one-POST-per-turn adapter.",
+      "tasklist": "docs/tasks/2026-04-12-managed-agents-official-pattern-tasklist.md",
+      "dependencies": [],
+      "notes": "Continuation of the managed agents migration (docs/product/plans/2026-04-09-001-feat-managed-agents-migration-plan.md). Foundation for everything else."
+    },
+    {
+      "id": "ws-2",
+      "title": "Native MCP Connections — Replace Composio",
+      "status": "pending",
+      "goal": "Replace Composio middleware with native MCP server integrations via Anthropic Managed Agents. User completes OAuth, token stored in Anthropic vault, agent authenticates automatically via MCP.",
+      "tasklist": "docs/tasks/2026-04-13-native-mcp-connections-tasklist.md",
+      "dependencies": ["ws-1"],
+      "notes": "Hybrid migration: start with Google suite (Gmail, Calendar, Drive), keep Composio as fallback for long-tail integrations. Eliminates ~7 custom connection tools, Composio SDK dependency, and the execute_composio_tool middleware hop."
+    },
+    {
+      "id": "ws-3",
+      "title": "Browser Chat Rework",
+      "status": "active",
+      "goal": "Rework chat UI for the new session model — SSE stream, optimistic messages, interrupt support.",
+      "tasklist": "docs/tasks/2026-04-12-managed-agents-browser-chat-rework-tasklist.md",
+      "dependencies": ["ws-1"]
+    },
+    {
+      "id": "ws-4",
+      "title": "Chat Latency Optimization",
+      "status": "active",
+      "goal": "Reduce time-to-first-token and overall response latency in the managed agents pipeline.",
+      "tasklist": "docs/tasks/2026-04-12-chat-latency-tasklist.md",
+      "dependencies": ["ws-1"]
+    },
+    {
+      "id": "ws-5",
+      "title": "Skills Migration to Managed Agents",
+      "status": "active",
+      "goal": "Migrate instruction skills from Supabase Storage filesystem to Anthropic Managed Agents skills API.",
+      "tasklist": "docs/tasks/2026-04-12-migrate-skills-to-anthropic-managed-agents-tasklist.md",
+      "dependencies": ["ws-1"]
+    },
+    {
+      "id": "ws-6",
+      "title": "Presigned Uploads",
+      "status": "active",
+      "goal": "Replace direct uploads with presigned S3 flow for reliability and larger file support.",
+      "tasklist": "docs/tasks/2026-04-13-presigned-uploads-tasklist.md",
+      "dependencies": []
+    },
+    {
+      "id": "ws-7",
+      "title": "Chat Artifact Downloads",
+      "status": "active",
+      "goal": "Allow users to download files the agent generates during a session.",
+      "tasklist": "docs/tasks/2026-04-13-chat-artifact-downloads-tasklist.md",
+      "dependencies": ["ws-1"]
+    },
+    {
+      "id": "ws-8",
+      "title": "Unified File Reference Model",
+      "status": "active",
+      "goal": "Single FileRef type across uploads, agent outputs, and CRM attachments.",
+      "tasklist": "docs/tasks/2026-04-13-unified-file-reference-model-tasklist.md",
+      "dependencies": ["ws-6", "ws-7"]
+    },
+    {
+      "id": "ws-9",
+      "title": "Automations UX Overhaul",
+      "status": "active",
+      "goal": "Redesign triggers/automations page for clarity and usability.",
+      "tasklist": "docs/tasks/2026-04-12-automations-ux-overhaul-tasklist.md",
+      "dependencies": []
+    },
+    {
+      "id": "ws-10",
+      "title": "Billing Page",
+      "status": "active",
+      "goal": "Stripe-backed billing and subscription management in settings.",
+      "tasklist": "docs/tasks/2026-04-11-billing-page-tasklist.md",
+      "dependencies": []
+    },
+    {
+      "id": "ws-11",
+      "title": "Chat Context Engineering Cleanup",
+      "status": "active",
+      "goal": "Clean up system prompt assembly, context injection, and reminder patterns for the managed agents model.",
+      "tasklist": "docs/tasks/2026-04-12-chat-context-engineering-cleanup-tasklist.md",
+      "dependencies": ["ws-1"]
+    },
+    {
+      "id": "ws-12",
+      "title": "CRM Tool Efficiency",
+      "status": "active",
+      "goal": "Reduce token cost and improve accuracy of CRM tool calls.",
+      "tasklist": "docs/product/reviews/2026-04-13-crm-tool-efficiency-review.md",
+      "dependencies": []
+    }
+  ],
+  "carried_from_v2": {
+    "note": "Items from the v2 plan that are still relevant but not yet started. Will be promoted to workstreams when active.",
+    "items": [
+      { "v2_pr": "32a", "title": "Email messaging tools (Resend)", "status": "pending" },
+      { "v2_pr": "42a-pdf", "title": "PDF document generation tool", "status": "pending" },
+      { "v2_pr": 66, "title": "Observability / eval harness", "status": "pending", "note": "D4 in managed agents plan dropped Langfuse. Needs new approach — Anthropic Console + in-process evaluators." },
+      { "v2_pr": 70, "title": "Meetings surface", "status": "in_progress" },
+      { "v2_pr": "41-42", "title": "Telegram integration", "status": "pending" },
+      { "v2_pr": "43-45", "title": "WhatsApp integration", "status": "pending" }
+    ]
+  }
+}
