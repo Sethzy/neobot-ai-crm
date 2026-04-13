@@ -16,6 +16,29 @@ import { flexibleTimestampSchema, normalizeDateString } from "@/lib/crm/filter-u
 
 import type { ManagedAgentTool } from "../types";
 
+function validateTaskCustomFields(
+  customFields: Record<string, unknown> | null | undefined,
+  mode: "create" | "update",
+  context: { crmConfig?: typeof CRM_DEFAULTS },
+) {
+  if (customFields === undefined) {
+    return { success: true as const };
+  }
+
+  const schema = buildCustomFieldsSchema(
+    context.crmConfig?.task_custom_fields ?? CRM_DEFAULTS.task_custom_fields,
+    mode,
+  );
+  const parsed = schema.safeParse(customFields ?? {});
+
+  if (!parsed.success) {
+    const message = parsed.error.issues[0]?.message ?? "Invalid custom fields.";
+    return { success: false as const, error: `Invalid task custom_fields: ${message}` };
+  }
+
+  return { success: true as const, value: parsed.data };
+}
+
 const createTaskInputSchema = z.object({
   title: z.string().min(1).describe("Task title."),
   description: z.string().optional().describe("Task description."),
@@ -23,7 +46,7 @@ const createTaskInputSchema = z.object({
   due_date: flexibleTimestampSchema.optional().describe("ISO-8601 due timestamp or YYYY-MM-DD date."),
   contact_id: z.string().uuid().optional().describe("UUID of the contact. Use search_crm to find this."),
   deal_id: z.string().uuid().optional().describe("UUID of the deal. Use search_crm to find this."),
-  custom_fields: buildCustomFieldsSchema(CRM_DEFAULTS.task_custom_fields).optional().describe("Configured task custom fields."),
+  custom_fields: z.record(z.string(), z.unknown()).optional().describe("Configured task custom fields."),
 });
 
 const updateTaskInputSchema = z.object({
@@ -34,7 +57,7 @@ const updateTaskInputSchema = z.object({
   due_date: flexibleTimestampSchema.nullable().optional().describe("Updated due timestamp/date or null."),
   contact_id: z.string().uuid().nullable().optional().describe("Updated contact UUID or null. Use search_crm to find this."),
   deal_id: z.string().uuid().nullable().optional().describe("Updated deal UUID or null. Use search_crm to find this."),
-  custom_fields: buildCustomFieldsSchema(CRM_DEFAULTS.task_custom_fields, "update").optional().describe("Partial patch for configured task custom fields."),
+  custom_fields: z.record(z.string(), z.unknown()).nullable().optional().describe("Partial patch for configured task custom fields."),
 });
 
 type CreateTaskInput = z.infer<typeof createTaskInputSchema>;
@@ -47,6 +70,11 @@ export const createTaskTool: ManagedAgentTool<CreateTaskInput> = {
     "Data Modification Warning: Only create tasks when the user has explicitly asked to do so.",
   inputSchema: createTaskInputSchema,
   execute: async ({ title, description, status, due_date, contact_id, deal_id, custom_fields }, context) => {
+    const parsedCustomFields = validateTaskCustomFields(custom_fields, "create", context);
+    if (!parsedCustomFields.success) {
+      return { success: false as const, error: parsedCustomFields.error };
+    }
+
     const normalizedDueDate = normalizeDateString(due_date) ?? null;
 
     const { data, error } = await context.supabase
@@ -59,7 +87,7 @@ export const createTaskTool: ManagedAgentTool<CreateTaskInput> = {
         due_date: normalizedDueDate,
         contact_id: contact_id ?? null,
         deal_id: deal_id ?? null,
-        custom_fields: custom_fields ?? {},
+        custom_fields: parsedCustomFields.value ?? {},
       })
       .select()
       .single();
@@ -102,10 +130,21 @@ export const updateTaskTool: ManagedAgentTool<UpdateTaskInput> = {
     "Data Modification Warning: Only update tasks when the user has explicitly asked to do so.",
   inputSchema: updateTaskInputSchema,
   execute: async ({ task_id, ...fields }, context) => {
+    const parsedCustomFields = validateTaskCustomFields(
+      (fields.custom_fields as Record<string, unknown> | null | undefined) ?? undefined,
+      "update",
+      context,
+    );
+
+    if (!parsedCustomFields.success) {
+      return { success: false as const, error: parsedCustomFields.error };
+    }
+
     const updates = Object.fromEntries(
       Object.entries({
         ...fields,
         due_date: normalizeDateString(fields.due_date),
+        custom_fields: parsedCustomFields.success ? parsedCustomFields.value : undefined,
       }).filter(([, value]) => value !== undefined),
     ) as Record<string, unknown>;
 
