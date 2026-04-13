@@ -31,7 +31,6 @@ function mockSupabase() {
 
 describe("downloadSessionFiles", () => {
   beforeEach(() => {
-    vi.useRealTimers();
     filesList.mockReset();
     filesDownload.mockReset();
     storageUpload.mockReset().mockResolvedValue({ error: null });
@@ -71,45 +70,17 @@ describe("downloadSessionFiles", () => {
     ]);
   });
 
-  it("retries listing with exponential backoff when empty", async () => {
-    filesList
-      .mockResolvedValueOnce({ data: [] })
-      .mockResolvedValueOnce({ data: [] })
-      .mockResolvedValueOnce({
-        data: [{ id: "file_1", filename: "late.pdf", mime_type: "application/pdf" }],
-      });
-    filesDownload.mockResolvedValue(new Response(new Blob(["bytes"])));
-
-    vi.useFakeTimers();
-
-    const promise = downloadSessionFiles({
-      supabase: mockSupabase(),
-      clientId: "client_1",
-      sessionId: "session_abc",
-    });
-
-    await vi.runAllTimersAsync();
-    const result = await promise;
-
-    expect(filesList).toHaveBeenCalledTimes(3);
-    expect(result).toHaveLength(1);
-  });
-
-  it("returns an empty list after retries are exhausted", async () => {
+  it("returns an empty list when no files are found", async () => {
     filesList.mockResolvedValue({ data: [] });
 
-    vi.useFakeTimers();
-
-    const promise = downloadSessionFiles({
+    const result = await downloadSessionFiles({
       supabase: mockSupabase(),
       clientId: "client_1",
       sessionId: "session_abc",
     });
 
-    await vi.runAllTimersAsync();
-    const result = await promise;
-
     expect(result).toEqual([]);
+    expect(filesList).toHaveBeenCalledTimes(1);
     expect(filesDownload).not.toHaveBeenCalled();
   });
 });

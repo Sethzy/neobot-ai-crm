@@ -9,8 +9,6 @@ import type { Database } from "@/types/database";
 
 const BUCKET_ID = "agent-files";
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
-const RETRY_DELAYS_MS = [1000, 2000, 4000] as const;
-
 type DownloadSupabase = SupabaseClient<Database>;
 
 export interface DownloadSessionFilesInput {
@@ -33,11 +31,6 @@ interface ListedSessionFile {
   mime_type?: string;
   type?: string;
 }
-
-const delay = (ms: number) =>
-  new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
 
 async function listSessionFiles(sessionId: string): Promise<ListedSessionFile[]> {
   const anthropic = getAnthropicClient();
@@ -64,21 +57,10 @@ async function listSessionFiles(sessionId: string): Promise<ListedSessionFile[]>
 export async function downloadSessionFiles(
   input: DownloadSessionFilesInput,
 ): Promise<DownloadedSessionFile[]> {
-  let files: ListedSessionFile[] = [];
-
-  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
-    files = await listSessionFiles(input.sessionId);
-    if (files.length > 0) {
-      break;
-    }
-
-    const retryDelayMs = RETRY_DELAYS_MS[attempt];
-    if (retryDelayMs === undefined) {
-      break;
-    }
-
-    await delay(retryDelayMs);
-  }
+  // Single attempt — session files are available immediately after end_turn.
+  // A retry loop here would block the HTTP stream close and delay the UI
+  // becoming interactive.
+  const files = await listSessionFiles(input.sessionId);
 
   if (files.length === 0) {
     return [];
