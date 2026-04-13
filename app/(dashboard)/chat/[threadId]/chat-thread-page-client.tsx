@@ -27,6 +27,7 @@ export function ChatThreadPageClient({
   return (
     <ChatErrorBoundary>
       <ChatPanel
+        key={threadId}
         chatId={threadId}
         initialMessages={initialMessages}
         initialQuota={initialQuota}

@@ -92,9 +92,9 @@ export function useAutoResume({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-    // Intentional one-time check on mount.
+    // Re-run when the thread changes (chatId) or on first mount (autoResume).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoResume]);
+  }, [autoResume, chatId]);
 
   return { isWaitingForResponse };
 }
