@@ -44,7 +44,6 @@ What the agent can do today (shipped):
 - **Connections:** Composio OAuth — Google Drive, Docs, Sheets, and any supported integration. Agent discovers and uses connection tools dynamically.
 - **Triggers:** User-created automations via `agent_triggers` table. Cron, webhook, and RSS trigger types.
 - **Subagents:** Spawn child agent runs for parallel/delegated work.
-- **Sandbox:** Vercel Sandbox ephemeral VMs with bash tool. Excel analysis (Python + LibreOffice), artifact publishing (React + Vite), workflow skills.
 - **Ask user question:** Agent can pause and ask the user for clarification.
 - **Agent-generated views:** Inline json-render specs — stat metrics, deal/contact cards, task lists, bar/donut/funnel charts. LLM emits JSONL in ```spec fences, frontend renders deterministically.
 

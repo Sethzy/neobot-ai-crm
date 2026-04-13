@@ -61,11 +61,6 @@
       "sourceType": "github",
       "computedHash": "9df1908623814c4c93cc1fde25caa211b2d28c8ffcdc2b5a12c6b7ae456f0f89"
     },
-    "sandbox": {
-      "source": "vercel/sandbox",
-      "sourceType": "github",
-      "computedHash": "2ad9d47902e26dc238e78ce7e731a69581312ed99837635fa06b04e6fe1f68dd"
-    },
     "shadcn": {
       "source": "shadcn/ui",
       "sourceType": "github",

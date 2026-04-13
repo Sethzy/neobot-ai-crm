@@ -25,13 +25,6 @@ const serverEnvSchema = z.object({
   TRIGGER_SECRET_KEY: z.string().min(1).optional(),
   SUNDER_INTERNAL_SECRET: z.string().min(1).optional(),
 
-  // Vercel Sandbox (bash tool)
-  SANDBOX_GOLDEN_SNAPSHOT_ID: z.string().trim().optional(),
-  VERCEL_OIDC_TOKEN: z.string().trim().optional(),
-  VERCEL_TOKEN: z.string().trim().optional(),
-  VERCEL_TEAM_ID: z.string().trim().optional(),
-  VERCEL_PROJECT_ID: z.string().trim().optional(),
-
   // Anthropic Managed Agents — one agent per model, shared environment.
   // Sonnet uses the legacy ANTHROPIC_AGENT_ID / _VERSION as fallback
   // when the _SONNET-suffixed vars are absent.
@@ -89,12 +82,6 @@ export function getServerEnv(): ServerEnv {
     TRIGGER_SECRET_KEY: process.env.TRIGGER_SECRET_KEY?.trim() || undefined,
     SUNDER_INTERNAL_SECRET:
       process.env.SUNDER_INTERNAL_SECRET?.trim() || undefined,
-    SANDBOX_GOLDEN_SNAPSHOT_ID:
-      process.env.SANDBOX_GOLDEN_SNAPSHOT_ID?.trim() || undefined,
-    VERCEL_OIDC_TOKEN: process.env.VERCEL_OIDC_TOKEN?.trim() || undefined,
-    VERCEL_TOKEN: process.env.VERCEL_TOKEN?.trim() || undefined,
-    VERCEL_TEAM_ID: process.env.VERCEL_TEAM_ID?.trim() || undefined,
-    VERCEL_PROJECT_ID: process.env.VERCEL_PROJECT_ID?.trim() || undefined,
     ANTHROPIC_AGENT_ID: process.env.ANTHROPIC_AGENT_ID?.trim() || undefined,
     ANTHROPIC_AGENT_VERSION:
       process.env.ANTHROPIC_AGENT_VERSION?.trim() || undefined,
