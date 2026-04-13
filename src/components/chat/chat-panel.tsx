@@ -160,8 +160,8 @@ export function ChatPanel({
     setMessages,
   });
 
-  // Subscribe to background job message delivery via Supabase Realtime.
-  // When a sandbox job completes, the server inserts a conversation_messages
+  // Subscribe to background message delivery via Supabase Realtime.
+  // When a background job completes, the server inserts a conversation_messages
   // row. This subscription picks it up and appends it to the local chat state.
   useEffect(() => {
     const supabase = createClient();

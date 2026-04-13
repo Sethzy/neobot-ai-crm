@@ -73,10 +73,8 @@ export function ChatWelcome({
   return (
     <div className="flex flex-1 flex-col items-center overflow-y-auto px-4 pt-24 pb-8">
       <div className="w-full max-w-[780px]">
-        {/* Hero heading — Playfair Display for editorial weight */}
         <h1
-          className="text-center leading-tight font-semibold text-foreground"
-          style={{ fontSize: "2.75rem", fontFamily: "var(--font-playfair), serif", letterSpacing: "-0.01em" }}
+          className="text-center font-semibold text-2xl text-foreground"
         >
           What can I do for you?
         </h1>

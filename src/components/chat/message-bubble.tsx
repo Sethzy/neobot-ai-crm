@@ -29,7 +29,8 @@ import {
   ReasoningContent,
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning";
-import { CopyIcon } from "lucide-react";
+import { CheckIcon, CopyIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { ViewRenderer } from "@/lib/views/renderer";
 import { AskUserQuestionInline, type AskUserQuestion } from "./ask-user-question-inline";
@@ -74,6 +75,26 @@ function extractSkillSlug(parts: ChatUIMessage["parts"]): string | null {
     }
   }
   return null;
+}
+
+/** Copy-to-clipboard button with brief check feedback. */
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <MessageAction
+      label="Copy"
+      tooltip="Copy to clipboard"
+      onClick={() => {
+        if (!text || !navigator.clipboard?.writeText) return;
+        navigator.clipboard.writeText(text).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }).catch(() => {});
+      }}
+    >
+      {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
+    </MessageAction>
+  );
 }
 
 export const MessageBubble = memo(function MessageBubble({ message, isStreaming = false, isLast = false, onToolApproval, onQuestionSubmit }: MessageBubbleProps) {
@@ -121,7 +142,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
       <>
         <div
           data-testid="message-bubble"
-          className="flex w-full justify-end"
+          className="flex w-full animate-in fade-in slide-in-from-bottom-1 justify-end py-3 duration-150"
         >
           <div className="flex max-w-[80%] flex-col items-end gap-2">
             {fileParts.length > 0 ? (
@@ -137,7 +158,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
             ) : null}
 
             {hasTextParts ? (
-              <div className="max-w-full rounded-2xl rounded-br-md bg-foreground px-3.5 py-2 text-sm leading-normal text-background">
+              <div className="max-w-full rounded-2xl bg-muted px-4 py-2.5 text-sm leading-normal text-foreground">
                 <p className="whitespace-pre-wrap">{getMessageText(message)}</p>
               </div>
             ) : null}
@@ -150,7 +171,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
 
   return (
     <>
-    <Message from="assistant" data-testid="message-bubble">
+    <Message from="assistant" data-testid="message-bubble" className="animate-in fade-in slide-in-from-bottom-1 py-3 duration-150">
       <MessageContent>
         {skillSlug ? (
           <Badge variant="outline" data-testid="skill-badge" className="mb-2 text-xs">
@@ -268,19 +289,11 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
       </MessageContent>
 
         {!isStreaming && hasTextParts && (
-          <MessageActions>
-            <MessageAction
-              label="Copy"
-              tooltip="Copy to clipboard"
-              onClick={() => {
-                const text = getMessageText(message);
-                if (text && navigator.clipboard?.writeText) {
-                  navigator.clipboard.writeText(text).catch(() => {});
-                }
-              }}
-            >
-              <CopyIcon className="size-4" />
-            </MessageAction>
+          <MessageActions className={cn(
+            "text-muted-foreground transition-opacity",
+            !isLast && "opacity-0 group-hover:opacity-100",
+          )}>
+            <CopyButton text={getMessageText(message)} />
           </MessageActions>
         )}
     </Message>

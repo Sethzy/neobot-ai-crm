@@ -13,7 +13,6 @@ export {
   ArrowUpDownIcon as ArrowUpDown,
   ChartBarIcon as BarChart3,
   BlocksIcon as Blocks,
-  BrainIcon as Brain,
   Building2Icon as Building2,
   CalendarIcon as Calendar,
   CalendarIcon,

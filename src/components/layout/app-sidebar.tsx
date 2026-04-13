@@ -51,7 +51,6 @@ const agentNavItems: NavigationItem[] = [
   { label: "Skills", href: "/skills", icon: "document" },
   { label: "Tasks", href: "/tasks", icon: "tasks" },
   { label: "Automations", href: "/automations", icon: "automations" },
-  { label: "Memory", href: "/memory", icon: "memory" },
 ];
 
 /** DATABASE section — data-centric surfaces */

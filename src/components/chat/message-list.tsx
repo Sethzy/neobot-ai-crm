@@ -46,7 +46,7 @@ export const MessageList = memo(function MessageList({ messages, status, onToolA
 
   return (
     <Conversation className="relative flex-1 min-h-0">
-      <ConversationContent className="mx-auto max-w-2xl !gap-3 px-4 py-6">
+      <ConversationContent className="mx-auto max-w-[44rem] gap-0 px-4 py-6">
         {uniqueMessages.map((message, index) => {
           const isLastMessage = index === uniqueMessages.length - 1;
           const isLastAssistantMessage = isLastMessage && message.role === "assistant";

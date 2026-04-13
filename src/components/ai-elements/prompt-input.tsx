@@ -42,7 +42,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { ChatStatus, FileUIPart, SourceDocumentUIPart } from "ai";
 import {
-  CornerDownLeftIcon,
+  ArrowUpIcon,
   ImageIcon,
   Monitor,
   PlusIcon,
@@ -922,7 +922,7 @@ export const PromptInput = ({
         ref={formRef}
         {...props}
       >
-        <InputGroup className="overflow-hidden border-border shadow-sm has-disabled:bg-transparent has-disabled:opacity-100 dark:has-disabled:bg-transparent">{children}</InputGroup>
+        <InputGroup className="overflow-hidden rounded-2xl border-border shadow-sm transition-shadow focus-within:border-ring/75 focus-within:ring-2 focus-within:ring-ring/20 has-disabled:bg-transparent has-disabled:opacity-100 dark:has-disabled:bg-transparent">{children}</InputGroup>
       </form>
     </>
   );
@@ -1227,7 +1227,7 @@ export const PromptInputSubmit = ({
   const isGenerating = status === "submitted" || status === "streaming";
   const isStoppable = status === "streaming" && typeof onStop === "function";
 
-  let Icon = <CornerDownLeftIcon className="size-4" />;
+  let Icon = <ArrowUpIcon className="size-4" />;
 
   if (status === "submitted") {
     Icon = <Spinner />;
@@ -1252,7 +1252,7 @@ export const PromptInputSubmit = ({
   return (
     <InputGroupButton
       aria-label={isStoppable ? "Stop" : "Submit"}
-      className={cn(className)}
+      className={cn("rounded-full", className)}
       onClick={handleClick}
       size={size}
       type={isStoppable ? "button" : "submit"}
