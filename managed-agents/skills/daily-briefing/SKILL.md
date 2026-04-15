@@ -9,22 +9,16 @@ Get a clear view of what matters most today. This skill works with whatever you 
 
 ## How It Works
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      DAILY BRIEFING                              │
-├─────────────────────────────────────────────────────────────────┤
-│  ALWAYS (works standalone)                                       │
-│  ✓ CRM: pipeline alerts, tasks, deal health                    │
-│  ✓ You tell me: today's meetings, key priorities                │
-│  ✓ I organize: prioritized action plan for your day             │
-│  ✓ Output: scannable 2-minute briefing                          │
-├─────────────────────────────────────────────────────────────────┤
-│  SUPERCHARGED (when you connect your tools)                      │
-│  + Calendar: auto-pull today's meetings with attendees          │
-│  + Email: unread from key clients, waiting on replies           │
-│  + Chat: overnight messages, colleague updates                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+**Always available (works standalone)**
+- CRM: pipeline alerts, tasks, deal health
+- You tell me: today's meetings, key priorities
+- I organize: prioritized action plan for your day
+- Output: scannable 2-minute briefing
+
+**Supercharged (when you connect your tools)**
+- Calendar: auto-pull today's meetings with attendees
+- Email: unread from key clients, waiting on replies
+- Chat: overnight messages, colleague updates
 
 ---
 

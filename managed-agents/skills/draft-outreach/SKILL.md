@@ -9,25 +9,19 @@ Research first, then draft. This skill never sends generic outreach — it alway
 
 ## How It Works
 
-```
-+------------------------------------------------------------------+
-|                      DRAFT OUTREACH                               |
-|                                                                   |
-|  Step 1: RESEARCH (always happens first)                         |
-|  - CRM: relationship history, deal context (always available)    |
-|  - Web search: recent news, public info                          |
-|                                                                   |
-|  Step 2: DRAFT (based on research)                               |
-|  - Personalized opening (from research)                          |
-|  - Relevant hook (their priorities)                              |
-|  - Clear CTA                                                      |
-|                                                                   |
-|  Step 3: DELIVER (based on connectors)                           |
-|  - Email draft (if email connected)                              |
-|  - Copy for WhatsApp/SMS (always)                                |
-|  - Output to user (always)                                        |
-+------------------------------------------------------------------+
-```
+**Step 1: Research** (always happens first)
+- CRM: relationship history, deal context
+- Web search: recent news, public info about the prospect
+
+**Step 2: Draft** (based on research)
+- Personalized opening from what was found
+- Relevant hook tied to their priorities
+- Clear call to action
+
+**Step 3: Deliver** (based on connectors)
+- Email draft (if email connected)
+- Copy for WhatsApp/SMS (always)
+- Output to user (always)
 
 ---
 

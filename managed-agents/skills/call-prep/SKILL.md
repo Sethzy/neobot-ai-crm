@@ -9,22 +9,16 @@ Get fully prepared for any client call in minutes. This skill works with whateve
 
 ## How It Works
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        CALL PREP                                 │
-├─────────────────────────────────────────────────────────────────┤
-│  ALWAYS (works standalone)                                       │
-│  ✓ CRM: contact history, deals, interactions, preferences       │
-│  ✓ Web search: recent news, market context                      │
-│  ✓ You tell me: meeting type, attendees, any context            │
-│  ✓ Output: prep brief with agenda and questions                 │
-├─────────────────────────────────────────────────────────────────┤
-│  SUPERCHARGED (when you connect your tools)                      │
-│  + Calendar: auto-find meeting, pull attendees                  │
-│  + Email: recent threads, open questions, commitments           │
-│  + Chat: internal discussions, colleague insights               │
-└─────────────────────────────────────────────────────────────────┘
-```
+**Always available (works standalone)**
+- CRM: contact history, deals, interactions, preferences
+- Web search: recent news, market context
+- You tell me: meeting type, attendees, any context
+- Output: prep brief with agenda and questions
+
+**Supercharged (when you connect your tools)**
+- Calendar: auto-find meeting, pull attendees
+- Email: recent threads, open questions, commitments
+- Chat: internal discussions, colleague insights
 
 ---
 

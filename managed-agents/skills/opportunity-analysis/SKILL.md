@@ -9,18 +9,12 @@ Research a specific opportunity — a listing, product, policy, investment, or o
 
 ## How It Works
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                   OPPORTUNITY ANALYSIS                           │
-├─────────────────────────────────────────────────────────────────┤
-│  ALWAYS (works standalone)                                       │
-│  ✓ Web search: opportunity details, comparables, market context │
-│  ✓ CRM: match against existing clients and their preferences    │
-│  ✓ Analysis: attractiveness, risks, pricing context             │
-│  ✓ Client matching: who in CRM might care and why               │
-│  ✓ Output: structured analysis with recommendation              │
-└─────────────────────────────────────────────────────────────────┘
-```
+**Always available (works standalone)**
+- Web search: opportunity details, comparables, market context
+- CRM: match against existing clients and their preferences
+- Analysis: attractiveness, risks, pricing context
+- Client matching: who in CRM might care and why
+- Output: structured analysis with recommendation
 
 ---
 

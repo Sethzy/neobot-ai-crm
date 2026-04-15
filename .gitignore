@@ -48,3 +48,6 @@ scripts/qa/output/
 docs/qa/reports/
 
 .trigger
+
+# Scratch screenshots at repo root
+/*.png

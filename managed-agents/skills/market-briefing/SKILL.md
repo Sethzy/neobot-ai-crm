@@ -9,17 +9,11 @@ Research market conditions and generate a focused briefing that connects externa
 
 ## How It Works
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     MARKET BRIEFING                              │
-├─────────────────────────────────────────────────────────────────┤
-│  ALWAYS (works standalone)                                       │
-│  ✓ Web search: pricing shifts, new offerings, policy changes   │
-│  ✓ CRM: connect signals back to active deals and clients       │
-│  ✓ Three-layer analysis: what changed → why it matters → who   │
-│  ✓ Output: scannable briefing with pipeline impact              │
-└─────────────────────────────────────────────────────────────────┘
-```
+**Always available (works standalone)**
+- Web search: pricing shifts, new offerings, policy changes
+- CRM: connect signals back to active deals and clients
+- Three-layer analysis: what changed → why it matters → who is affected
+- Output: scannable briefing with pipeline impact
 
 ---
 

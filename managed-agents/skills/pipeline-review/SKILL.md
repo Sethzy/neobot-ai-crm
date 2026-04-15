@@ -9,22 +9,16 @@ Analyze your pipeline health, prioritize deals, and get actionable recommendatio
 
 ## How It Works
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     PIPELINE REVIEW                              │
-├─────────────────────────────────────────────────────────────────┤
-│  ALWAYS (works standalone)                                       │
-│  ✓ CRM: pull all active deals automatically                    │
-│  ✓ Health check: flag stale, stuck, and at-risk deals          │
-│  ✓ Prioritization: rank deals by impact and closability        │
-│  ✓ Hygiene audit: missing data, overdue tasks, no next step    │
-│  ✓ Weekly action plan: what to focus on                        │
-├─────────────────────────────────────────────────────────────────┤
-│  SUPERCHARGED (when you connect your tools)                      │
-│  + Calendar: See upcoming meetings per deal                     │
-│  + Email: Recent threads per deal, waiting on replies           │
-└─────────────────────────────────────────────────────────────────┘
-```
+**Always available (works standalone)**
+- CRM: pull all active deals automatically
+- Health check: flag stale, stuck, and at-risk deals
+- Prioritization: rank deals by impact and closability
+- Hygiene audit: missing data, overdue tasks, no next step
+- Weekly action plan: what to focus on
+
+**Supercharged (when you connect your tools)**
+- Calendar: see upcoming meetings per deal
+- Email: recent threads per deal, waiting on replies
 
 ---
 

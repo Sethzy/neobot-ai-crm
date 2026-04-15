@@ -9,23 +9,17 @@ Process call notes or a meeting recap to extract action items, draft follow-up c
 
 ## How It Works
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      CALL SUMMARY                                │
-├─────────────────────────────────────────────────────────────────┤
-│  ALWAYS (works standalone)                                       │
-│  ✓ Paste call notes, transcript, or describe what happened      │
-│  ✓ Extract key discussion points and decisions                  │
-│  ✓ Identify action items with owners and due dates              │
-│  ✓ Surface objections, concerns, and open questions             │
-│  ✓ Draft client-facing follow-up message                        │
-│  ✓ Generate internal summary                                    │
-├─────────────────────────────────────────────────────────────────┤
-│  SUPERCHARGED (when you connect your tools)                      │
-│  + Email: Send follow-up directly from draft                    │
-│  + Calendar: Link to meeting, pull attendee context             │
-└─────────────────────────────────────────────────────────────────┘
-```
+**Always available (works standalone)**
+- Paste call notes, transcript, or describe what happened
+- Extract key discussion points and decisions
+- Identify action items with owners and due dates
+- Surface objections, concerns, and open questions
+- Draft client-facing follow-up message
+- Generate internal summary
+
+**Supercharged (when you connect your tools)**
+- Email: send follow-up directly from draft
+- Calendar: link to meeting, pull attendee context
 
 ---
 
