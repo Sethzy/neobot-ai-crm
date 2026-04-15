@@ -55,18 +55,10 @@ vi.mock("./tool-call-inline", () => ({
   ),
 }));
 
-vi.mock("./ask-user-question-inline", () => ({
-  AskUserQuestionInline: ({ questions, disabled }: {
-    questions: Array<{ question: string }>;
-    onSubmit: (text: string) => void;
-    disabled?: boolean;
-  }) => (
-    <div
-      data-testid="ask-user-question-inline"
-      data-question-count={questions.length}
-      data-disabled={!!disabled}
-    />
-  ),
+vi.mock("use-stick-to-bottom", () => ({
+  useStickToBottomContext: () => ({
+    scrollToBottom: vi.fn(),
+  }),
 }));
 
 vi.mock("@/components/ai-elements/conversation", () => ({
@@ -193,71 +185,5 @@ describe("MessageList", () => {
     render(<MessageList messages={[]} status="ready" />);
 
     expect(screen.queryByText("Morning briefing")).not.toBeInTheDocument();
-  });
-
-  it("forwards onQuestionSubmit to the last assistant message only", () => {
-    const askMessage = {
-      id: "3",
-      role: "assistant" as const,
-      parts: [
-        {
-          type: "tool-ask_user_question" as const,
-          toolCallId: "tc-ask-1",
-          state: "output-available" as const,
-          input: { questions: [{ question: "Pick one?", header: "Pick", options: [], multiSelect: false }] },
-          output: { questions: [{ question: "Pick one?", header: "Pick", options: [], multiSelect: false }], status: "awaiting_response" },
-        },
-        { type: "text" as const, text: "Choose:" },
-      ],
-    };
-
-    render(
-      <MessageList
-        messages={[userMessage, assistantMessage, askMessage]}
-        status="ready"
-        onQuestionSubmit={vi.fn()}
-      />,
-    );
-
-    // The ask_user_question inline should render and be interactive (not disabled)
-    // because it's in the last assistant message
-    const inline = screen.getByTestId("ask-user-question-inline");
-    expect(inline).toBeInTheDocument();
-    expect(inline).toHaveAttribute("data-disabled", "false");
-  });
-
-  it("renders ask_user_question as disabled for non-last assistant messages", () => {
-    const askMessage = {
-      id: "2",
-      role: "assistant" as const,
-      parts: [
-        {
-          type: "tool-ask_user_question" as const,
-          toolCallId: "tc-ask-1",
-          state: "output-available" as const,
-          input: { questions: [{ question: "Pick one?", header: "Pick", options: [], multiSelect: false }] },
-          output: { questions: [{ question: "Pick one?", header: "Pick", options: [], multiSelect: false }], status: "awaiting_response" },
-        },
-        { type: "text" as const, text: "Choose:" },
-      ],
-    };
-
-    const followUpUser = {
-      id: "3",
-      role: "user" as const,
-      parts: [{ type: "text" as const, text: "Option A" }],
-    };
-
-    render(
-      <MessageList
-        messages={[userMessage, askMessage, followUpUser]}
-        status="ready"
-        onQuestionSubmit={vi.fn()}
-      />,
-    );
-
-    // The ask_user_question inline should be disabled because it's not the last message
-    const inline = screen.getByTestId("ask-user-question-inline");
-    expect(inline).toHaveAttribute("data-disabled", "true");
   });
 });

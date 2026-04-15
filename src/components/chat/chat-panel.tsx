@@ -12,6 +12,7 @@ import {
 import { useChat } from "@ai-sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { z } from "zod";
 import { AlertCircle, Loader2 } from "@/components/icons/lucide-compat";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -31,6 +32,7 @@ import {
   messageQuotaErrorCodes,
 } from "@/lib/usage/message-quota";
 import type { Json } from "@/types/database";
+import { cn } from "@/lib/utils";
 import { AskUserQuestionOverlay, type AskUserQuestion } from "./ask-user-question-overlay";
 import { ChatComposer } from "./chat-composer";
 import { ChatWelcome } from "./chat-welcome";
@@ -40,6 +42,27 @@ import { MessageList, type MessageListHandle } from "./message-list";
 
 /** Batches token updates to reduce render churn during fast streams. */
 const STREAM_UI_THROTTLE_MS = 50;
+const askUserQuestionSchema = z.object({
+  question: z.string(),
+  options: z.array(z.string()).min(2).max(4),
+  type: z.enum(["single_select", "multi_select", "rank_priorities"]),
+});
+const askUserQuestionOutputSchema = z.object({
+  questions: z.array(askUserQuestionSchema).min(1),
+});
+
+/** Wire shape for the `data-assistantFile` stream part emitted by finalizeRun. */
+const assistantFileDataSchema = z.object({
+  url: z.string(),
+  mediaType: z.string(),
+  filename: z.string().optional(),
+  storagePath: z.string().optional(),
+});
+
+interface PendingQuestionBatch {
+  messageId: string;
+  questions: AskUserQuestion[];
+}
 
 function shouldStoreDataPartForClient(part: unknown): boolean {
   return (
@@ -103,6 +126,43 @@ function removeOptimisticDraftThread(
   return oldThreads.filter((thread) => thread.thread_id !== chatId);
 }
 
+function extractPendingQuestionBatch(messages: UIMessage[], status: string): PendingQuestionBatch | null {
+  if (status === "streaming") {
+    return null;
+  }
+
+  const lastMessage = messages.at(-1);
+  if (!lastMessage || lastMessage.role !== "assistant") {
+    return null;
+  }
+
+  for (const part of lastMessage.parts ?? []) {
+    if (typeof part !== "object" || part === null) {
+      continue;
+    }
+
+    const toolPart = part as {
+      output?: unknown;
+      state?: string;
+      type?: string;
+    };
+
+    if (toolPart.type !== "tool-ask_user_question" || toolPart.state !== "output-available") {
+      continue;
+    }
+
+    const parsedOutput = askUserQuestionOutputSchema.safeParse(toolPart.output);
+    if (parsedOutput.success) {
+      return {
+        messageId: lastMessage.id,
+        questions: parsedOutput.data.questions,
+      };
+    }
+  }
+
+  return null;
+}
+
 export function ChatPanel({
   chatId,
   initialMessages = [],
@@ -112,6 +172,7 @@ export function ChatPanel({
   initialChatModel = DEFAULT_CHAT_MODEL,
 }: ChatPanelProps) {
   const [composerValue, setComposerValue] = useState(initialPrompt ?? "");
+  const [dismissedQuestionMessageId, setDismissedQuestionMessageId] = useState<string | null>(null);
   const [selectedChatModel, setSelectedChatModel] = useState(
     resolveModelId(initialChatModel),
   );
@@ -137,13 +198,55 @@ export function ChatPanel({
   const wasStreamingRef = useRef(false);
   const [streamErrorRecovery, setStreamErrorRecovery] = useState(false);
 
-  const { messages, sendMessage, status, error, setMessages, addToolApprovalResponse } = useChat({
+  const { messages, sendMessage, stop, status, error, setMessages, addToolApprovalResponse } = useChat({
     id: chatId,
     messages: initialMessages,
     generateId: () => crypto.randomUUID(),
     experimental_throttle: STREAM_UI_THROTTLE_MS,
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
     onData: (dataPart) => {
+      // `data-assistantFile` is emitted by the server after file mirroring
+      // completes (end of finalizeRun). It appends a file part to the last
+      // assistant message so the artifact card appears live — without this,
+      // cards only show up after a thread switch (because the DB has the file
+      // parts but the live stream never wrote them).
+      if (
+        typeof dataPart === "object" &&
+        dataPart !== null &&
+        "type" in dataPart &&
+        dataPart.type === "data-assistantFile"
+      ) {
+        const parsed = assistantFileDataSchema.safeParse(
+          (dataPart as { data: unknown }).data,
+        );
+        if (!parsed.success) {
+          return;
+        }
+        const fileData = parsed.data;
+        setMessages((prev) => {
+          const lastIndex = prev.length - 1;
+          const last = prev[lastIndex];
+          if (!last || last.role !== "assistant") {
+            return prev;
+          }
+          const nextParts = [
+            ...last.parts,
+            {
+              type: "file" as const,
+              url: fileData.url,
+              mediaType: fileData.mediaType,
+              ...(fileData.filename ? { filename: fileData.filename } : {}),
+              ...(fileData.storagePath ? { storagePath: fileData.storagePath } : {}),
+            },
+          ];
+          return [
+            ...prev.slice(0, lastIndex),
+            { ...last, parts: nextParts },
+          ];
+        });
+        return;
+      }
+
       if (!shouldStoreDataPartForClient(dataPart)) {
         return;
       }
@@ -334,38 +437,60 @@ export function ChatPanel({
     [handleSubmit, isLoading],
   );
 
-  const handleStop = useCallback(async () => {
-    try {
-      const response = await fetch("/api/chat/interrupt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ threadId: chatId }),
-      });
+  const pendingQuestionBatch = useMemo(
+    () => extractPendingQuestionBatch(messages, effectiveStatus),
+    [messages, effectiveStatus],
+  );
 
-      if (!response.ok) {
-        throw new Error(`Interrupt request failed with status ${response.status}`);
-      }
-    } catch {
-      toast.error("Failed to stop the current run.");
+  useEffect(() => {
+    if (!pendingQuestionBatch) {
+      setDismissedQuestionMessageId(null);
+      return;
     }
-  }, [chatId]);
+
+    if (
+      dismissedQuestionMessageId &&
+      pendingQuestionBatch.messageId !== dismissedQuestionMessageId
+    ) {
+      setDismissedQuestionMessageId(null);
+    }
+  }, [dismissedQuestionMessageId, pendingQuestionBatch]);
+
+  const visiblePendingQuestionBatch = pendingQuestionBatch?.messageId === dismissedQuestionMessageId
+    ? null
+    : pendingQuestionBatch;
+
+  const handleQuestionDismiss = useCallback(
+    (text: string) => {
+      if (isLoading) {
+        return;
+      }
+
+      if (pendingQuestionBatch) {
+        setDismissedQuestionMessageId(pendingQuestionBatch.messageId);
+      }
+
+      void handleSubmit({ text, files: [] });
+    },
+    [handleSubmit, isLoading, pendingQuestionBatch],
+  );
+
+  const handleStop = useCallback(() => {
+    // Abort the client-side fetch immediately for instant UI feedback.
+    stop();
+
+    // Tell Anthropic to stop the agent server-side. Fire-and-forget —
+    // if the session doesn't exist yet (early submitted phase) the 404 is harmless.
+    fetch("/api/chat/interrupt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ threadId: chatId }),
+    }).catch(() => {
+      // Swallow — the client-side abort already handled the UI.
+    });
+  }, [chatId, stop]);
 
   const hasMessages = messages.length > 0;
-
-  /** Detect a pending ask_user_question from the last assistant message. */
-  const pendingQuestions = useMemo<AskUserQuestion[] | null>(() => {
-    if (effectiveStatus === "streaming") return null;
-    const lastMsg = messages.at(-1);
-    if (!lastMsg || lastMsg.role !== "assistant") return null;
-
-    for (const part of (lastMsg as { parts?: unknown[] }).parts ?? []) {
-      const p = part as { type?: string; state?: string; output?: { questions?: AskUserQuestion[] } };
-      if (p.type === "tool-ask_user_question" && p.state === "output-available") {
-        return p.output?.questions ?? null;
-      }
-    }
-    return null;
-  }, [messages, effectiveStatus]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-card">
@@ -384,26 +509,43 @@ export function ChatPanel({
       {hasMessages ? (
         <>
           <MessageList ref={messageListRef} messages={messages} status={effectiveStatus} onToolApproval={handleToolApproval} />
-          {pendingQuestions && (
-            <AskUserQuestionOverlay
-              questions={pendingQuestions}
-              onSubmit={handleQuestionSubmit}
+          <div className="relative">
+            {messageQuota ? (
+              <MessageQuotaPill
+                quota={messageQuota}
+                className={cn(
+                  "pb-1 pt-2 transition-opacity",
+                  visiblePendingQuestionBatch && "pointer-events-none opacity-0",
+                )}
+              />
+            ) : null}
+            <ChatComposer
+              status={effectiveStatus}
+              selectedChatModel={selectedChatModel}
+              value={composerValue}
+              onValueChange={setComposerValue}
+              onSelectedChatModelChange={handleModelChange}
+              onSubmit={handleSubmit}
+              onStop={isLoading ? handleStop : undefined}
+              disabled={!!visiblePendingQuestionBatch || (messageQuota?.messagesRemaining ?? 1) <= 0}
+              hideModelSelector
+              className={cn(
+                "transition-all",
+                visiblePendingQuestionBatch && "pointer-events-none select-none opacity-15 blur-[1px]",
+              )}
             />
-          )}
-          {messageQuota ? (
-            <MessageQuotaPill quota={messageQuota} className="pb-1 pt-2" />
-          ) : null}
-          <ChatComposer
-            status={effectiveStatus}
-            selectedChatModel={selectedChatModel}
-            value={composerValue}
-            onValueChange={setComposerValue}
-            onSelectedChatModelChange={handleModelChange}
-            onSubmit={handleSubmit}
-            onStop={effectiveStatus === "streaming" ? handleStop : undefined}
-            disabled={!!pendingQuestions || (messageQuota?.messagesRemaining ?? 1) <= 0}
-            hideModelSelector
-          />
+            {visiblePendingQuestionBatch && (
+              <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 px-4">
+                <AskUserQuestionOverlay
+                  key={visiblePendingQuestionBatch.messageId}
+                  questions={visiblePendingQuestionBatch.questions}
+                  onSubmit={handleQuestionSubmit}
+                  onDismiss={handleQuestionDismiss}
+                  className="pointer-events-auto"
+                />
+              </div>
+            )}
+          </div>
         </>
       ) : (
         <>

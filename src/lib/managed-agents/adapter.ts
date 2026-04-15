@@ -255,7 +255,7 @@ export async function attachFilesToManagedSession(options: {
  * `requires_action`. Shared by the run + resume paths so both entry points
  * behave identically.
  */
-export async function finalizeRun(options: FinalizeRunOptions): Promise<void> {
+export async function finalizeRun(options: FinalizeRunOptions): Promise<DownloadedSessionFile[]> {
   const { supabase, clientId, threadId, runId, sessionId, result, conversationInput, logLabel, anthropicModelId } = options;
   const accumulatedEvents = result.accumulatedEvents as ReadonlyArray<AnthropicEvent>;
   if (result.reason === "requires_action") {
@@ -271,14 +271,20 @@ export async function finalizeRun(options: FinalizeRunOptions): Promise<void> {
       accumulatedEvents,
       logLabel,
     });
-    return;
+    return [];
   }
 
-  const generatedFiles = await downloadSessionFiles({
-    supabase,
-    clientId,
-    sessionId,
-  });
+  let generatedFiles: DownloadedSessionFile[] = [];
+  try {
+    generatedFiles = await downloadSessionFiles({
+      supabase,
+      clientId,
+      sessionId,
+    });
+  } catch (downloadError) {
+    // File mirroring is best-effort — never block message persistence or run completion.
+    console.error(`[${logLabel}] downloadSessionFiles failed (non-fatal):`, downloadError);
+  }
 
   // Persist message (+ external delivery), run evaluators, and settle
   // the cost retrieve in parallel. completeRun depends on cost, so it
@@ -316,6 +322,8 @@ export async function finalizeRun(options: FinalizeRunOptions): Promise<void> {
       conversationInput,
     }),
   ]);
+
+  return generatedFiles;
 }
 
 // ── runManagedAgent (fresh turn) ────────────────────────────────────────────
@@ -590,11 +598,11 @@ export async function runManagedAgent(
   const rawStream = createUIMessageStream({
     execute: async ({ writer }) => {
       const generatedTitleTask = input.generatedTitlePromise
-        ? (async () => {
+          ? (async () => {
             try {
-              const generatedTitle = (await input.generatedTitlePromise).trim();
+              const generatedTitle = (await input.generatedTitlePromise)?.trim();
 
-              if (generatedTitle.length === 0) {
+              if (!generatedTitle || generatedTitle.length === 0) {
                 return;
               }
 
@@ -640,7 +648,7 @@ export async function runManagedAgent(
         const tConsumeEnd = performance.now();
 
         const tFinalizeStart = performance.now();
-        await finalizeRun({
+        const generatedFiles = await finalizeRun({
           supabase: input.supabase,
           clientId: input.clientId,
           threadId: input.threadId,
@@ -651,6 +659,21 @@ export async function runManagedAgent(
           logLabel: "runManagedAgent",
           anthropicModelId: agentRef.anthropicModelId,
         });
+        // Stream each mirrored file to the client so the artifact card appears
+        // live — without this, cards only appear after a thread switch because
+        // file parts are persisted to the DB but never written to the UI stream.
+        for (const file of generatedFiles) {
+          writer.write({
+            type: "data-assistantFile",
+            data: {
+              url: file.signedUrl,
+              mediaType: file.mediaType,
+              filename: file.filename,
+              storagePath: file.storagePath,
+            },
+            transient: true,
+          } as never);
+        }
         const tFinalizeEnd = performance.now();
 
         if (generatedTitleTask) {
@@ -839,7 +862,7 @@ export async function resumeManagedAgentFromApproval(
           callbacks: buildUiStreamCallbacks(writer),
         });
 
-        await finalizeRun({
+        const generatedFiles = await finalizeRun({
           supabase: input.supabase,
           clientId,
           threadId,
@@ -850,6 +873,18 @@ export async function resumeManagedAgentFromApproval(
           logLabel: "resumeManagedAgentFromApproval",
           anthropicModelId: resumeModelId,
         });
+        for (const file of generatedFiles) {
+          writer.write({
+            type: "data-assistantFile",
+            data: {
+              url: file.signedUrl,
+              mediaType: file.mediaType,
+              filename: file.filename,
+              storagePath: file.storagePath,
+            },
+            transient: true,
+          } as never);
+        }
       } catch (resumeError) {
         if (!didSendKickoffApproval) {
           await releaseApprovalResolutionClaim(input.supabase, {

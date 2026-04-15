@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -68,23 +68,23 @@ describe("AskUserQuestionOverlay — single_select", () => {
     const onSubmit = vi.fn();
 
     render(<AskUserQuestionOverlay questions={[singleQ]} onSubmit={onSubmit} />);
-    await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
+    await user.keyboard("{ArrowDown}{Enter}");
 
     expect(onSubmit).toHaveBeenCalledWith(
       "Q: What's your primary role or job?\nA: Engineering or Development",
     );
   });
 
-  it("Escape triggers dismiss", async () => {
+  it("Escape skips the current question", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
-    const onDismiss = vi.fn();
 
-    render(<AskUserQuestionOverlay questions={[singleQ]} onSubmit={onSubmit} onDismiss={onDismiss} />);
+    render(<AskUserQuestionOverlay questions={[singleQ]} onSubmit={onSubmit} />);
     await user.keyboard("{Escape}");
 
-    expect(onSubmit).not.toHaveBeenCalled();
-    expect(onDismiss).toHaveBeenCalled();
+    expect(onSubmit).toHaveBeenCalledWith(
+      "Q: What's your primary role or job?\nA: Skipped",
+    );
   });
 
   it("no pagination header for single question", () => {
@@ -123,6 +123,11 @@ describe("AskUserQuestionOverlay — multi_select", () => {
   it("has no Skip button", () => {
     render(<AskUserQuestionOverlay questions={[multiQ]} onSubmit={vi.fn()} />);
     expect(screen.queryByTestId("ask-question-skip")).not.toBeInTheDocument();
+  });
+
+  it('does not show a "Something else" input', () => {
+    render(<AskUserQuestionOverlay questions={[multiQ]} onSubmit={vi.fn()} />);
+    expect(screen.queryByPlaceholderText("Something else")).not.toBeInTheDocument();
   });
 
   it("Continue submits selected options", async () => {
@@ -181,6 +186,33 @@ describe("AskUserQuestionOverlay — rank_priorities", () => {
       "Q: Rank these by importance to you\nA: 1. Response speed, 2. Accuracy, 3. Cost efficiency",
     );
   });
+
+  it("supports reordering across multiple drag-over events", async () => {
+    const onSubmit = vi.fn();
+
+    render(<AskUserQuestionOverlay questions={[rankQ]} onSubmit={onSubmit} />);
+    let options = screen.getAllByTestId("ask-question-option");
+
+    fireEvent.dragStart(options[0]);
+    fireEvent.dragOver(options[1]);
+    await waitFor(() => {
+      const reorderedOptions = screen.getAllByTestId("ask-question-option");
+      expect(reorderedOptions[0]).toHaveTextContent("Accuracy");
+      expect(reorderedOptions[1]).toHaveTextContent("Response speed");
+    });
+    fireEvent.dragOver(screen.getAllByTestId("ask-question-option")[2]);
+    fireEvent.dragEnd(screen.getAllByTestId("ask-question-option")[2]);
+
+    options = screen.getAllByTestId("ask-question-option");
+    expect(options[0]).toHaveTextContent("Accuracy");
+    expect(options[1]).toHaveTextContent("Cost efficiency");
+    expect(options[2]).toHaveTextContent("Response speed");
+    fireEvent.click(screen.getByTestId("ask-question-continue"));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      "Q: Rank these by importance to you\nA: 1. Accuracy, 2. Cost efficiency, 3. Response speed",
+    );
+  });
 });
 
 /* ------------------------------------------------------------------ */
@@ -225,7 +257,7 @@ describe("AskUserQuestionOverlay — pagination", () => {
     );
   });
 
-  it("skipped questions are omitted from final message", async () => {
+  it("skipped questions are included in the final message", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
 
@@ -239,18 +271,40 @@ describe("AskUserQuestionOverlay — pagination", () => {
     await user.click(screen.getByTestId("ask-question-continue"));
 
     expect(onSubmit).toHaveBeenCalledWith(
-      "Q: Which sections should the article include?\nA: Code examples",
+      "Q: What's your primary role or job?\nA: Skipped\n\nQ: Which sections should the article include?\nA: Code examples",
     );
   });
 
-  it("dismiss closes widget without submitting", async () => {
+  it("dismiss sends a dismissed response for the whole batch", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
+    const onDismiss = vi.fn();
 
-    render(<AskUserQuestionOverlay questions={[singleQ, multiQ]} onSubmit={onSubmit} />);
+    render(
+      <AskUserQuestionOverlay
+        questions={[singleQ, multiQ]}
+        onSubmit={onSubmit}
+        onDismiss={onDismiss}
+      />,
+    );
     await user.click(screen.getByTestId("ask-question-dismiss"));
 
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(screen.queryByTestId("ask-question-overlay")).not.toBeInTheDocument();
+    expect(onDismiss).toHaveBeenCalledWith(
+      "Q: What's your primary role or job?\nA: Dismissed\n\nQ: Which sections should the article include?\nA: Dismissed",
+    );
+  });
+
+  it("restores prior selections when paging back and forward", async () => {
+    const user = userEvent.setup();
+
+    render(<AskUserQuestionOverlay questions={[singleQ, multiQ]} onSubmit={vi.fn()} />);
+
+    await user.click(screen.getByText("Sales or Business Development"));
+    await user.click(screen.getByText("Code examples"));
+    await user.click(screen.getByLabelText("Previous question"));
+    await user.click(screen.getByLabelText("Next question"));
+
+    expect(screen.getByTestId("ask-question-counter")).toHaveTextContent("1 selected");
   });
 });

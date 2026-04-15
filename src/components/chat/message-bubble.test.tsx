@@ -32,6 +32,14 @@ vi.mock("@/components/ai-elements/message", () => ({
   MessageToolbar: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="message-toolbar">{children}</div>
   ),
+  rewriteSunderHref: (href?: string) => {
+    if (!href?.startsWith("sunder:///agent/")) {
+      return href;
+    }
+
+    const workspacePath = href.replace("sunder:///agent/", "");
+    return `/api/files/download?path=${encodeURIComponent(workspacePath)}`;
+  },
 }));
 
 vi.mock("@/components/ai-elements/reasoning", () => ({
@@ -61,6 +69,12 @@ vi.mock("./preview-attachment", () => ({
     attachment.url
       ? <a data-testid="preview-attachment" href={attachment.url}>{attachment.filename}</a>
       : <div data-testid="preview-attachment">{attachment.filename}</div>
+  ),
+}));
+
+vi.mock("./assistant-artifact-card", () => ({
+  AssistantArtifactCard: ({ attachment }: { attachment: { filename: string; url: string } }) => (
+    <a data-testid="assistant-artifact-card" href={attachment.url}>{attachment.filename}</a>
   ),
 }));
 
@@ -402,7 +416,7 @@ describe("MessageBubble — assistant messages", () => {
       />,
     );
 
-    expect(screen.getByTestId("preview-attachment")).toHaveTextContent("report.png");
+    expect(screen.getByTestId("assistant-artifact-card")).toHaveTextContent("report.png");
     expect(screen.getByTestId("reasoning-block")).toBeInTheDocument();
     expect(screen.getByText("This shows the current pipeline.")).toBeInTheDocument();
   });
@@ -424,7 +438,7 @@ describe("MessageBubble — assistant messages", () => {
       />,
     );
 
-    expect(screen.getByTestId("preview-attachment")).toHaveAttribute(
+    expect(screen.getByTestId("assistant-artifact-card")).toHaveAttribute(
       "href",
       "/api/files/download?path=home%2Foutput.csv&filename=output.csv",
     );
@@ -447,7 +461,7 @@ describe("MessageBubble — assistant messages", () => {
       />,
     );
 
-    expect(screen.getByTestId("preview-attachment")).toHaveAttribute(
+    expect(screen.getByTestId("assistant-artifact-card")).toHaveAttribute(
       "href",
       "/api/files/download?path=sessions%2Fsession_123%2Fsaaa_sorted.csv&filename=saaa_sorted.csv",
     );
@@ -469,10 +483,155 @@ describe("MessageBubble — assistant messages", () => {
       />,
     );
 
-    expect(screen.getByTestId("preview-attachment")).toHaveAttribute(
+    expect(screen.getByTestId("assistant-artifact-card")).toHaveAttribute(
       "href",
       "https://legacy.example.com/legacy.pdf",
     );
+  });
+
+  it("renders assistant file parts as artifact cards", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "assistant-file-1",
+          role: "assistant",
+          parts: [{
+            type: "file",
+            filename: "report.csv",
+            mediaType: "text/csv",
+            url: "https://storage.example.com/report.csv",
+          }],
+        } as ChatUIMessage}
+      />,
+    );
+
+    expect(screen.getByTestId("assistant-artifact-card")).toHaveTextContent("report.csv");
+    expect(screen.queryByTestId("preview-attachment")).not.toBeInTheDocument();
+  });
+
+  it("renders assistant artifact cards alongside text parts", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "assistant-mixed-1",
+          role: "assistant",
+          parts: [
+            { type: "text", text: "I generated the file below." },
+            {
+              type: "file",
+              filename: "analysis.csv",
+              mediaType: "text/csv",
+              url: "https://storage.example.com/analysis.csv",
+            },
+          ],
+        } as ChatUIMessage}
+      />,
+    );
+
+    expect(screen.getByTestId("message-response")).toHaveTextContent("I generated the file below.");
+    expect(screen.getByTestId("assistant-artifact-card")).toHaveTextContent("analysis.csv");
+  });
+
+  it("renders standalone markdown download lines as artifact cards", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "assistant-download-line-1",
+          role: "assistant",
+          parts: [{
+            type: "text",
+            text: [
+              "Here's the cleaned export.",
+              "",
+              "Download link: [Download CSV](/api/files/download?path=attachments%2Fdeal%2Fdeal-1%2Fuuid-1&filename=Crisk3-Default-view-export.csv)",
+            ].join("\n"),
+          }],
+        } as ChatUIMessage}
+      />,
+    );
+
+    expect(screen.getByTestId("message-response")).toHaveTextContent("Here's the cleaned export.");
+    expect(screen.queryByText("Download link:")).not.toBeInTheDocument();
+    expect(screen.getByTestId("assistant-artifact-card")).toHaveTextContent("Crisk3-Default-view-export.csv");
+    expect(screen.getByTestId("assistant-artifact-card")).toHaveAttribute(
+      "href",
+      "/api/files/download?path=attachments%2Fdeal%2Fdeal-1%2Fuuid-1&filename=Crisk3-Default-view-export.csv",
+    );
+  });
+
+  it("drops a standalone download-link label line before the artifact card", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "assistant-download-line-2",
+          role: "assistant",
+          parts: [{
+            type: "text",
+            text: [
+              "Here's the cleaned export.",
+              "",
+              "Download link:",
+              "",
+              "[Download CSV](/api/files/download?path=attachments%2Fdeal%2Fdeal-1%2Fuuid-1&filename=Crisk3-Default-view-export.csv)",
+            ].join("\n"),
+          }],
+        } as ChatUIMessage}
+      />,
+    );
+
+    expect(screen.getByTestId("message-response")).toHaveTextContent("Here's the cleaned export.");
+    expect(screen.queryByText("Download link:")).not.toBeInTheDocument();
+    expect(screen.getByTestId("assistant-artifact-card")).toHaveTextContent("Crisk3-Default-view-export.csv");
+  });
+
+  it("suppresses a label-only text part before a later artifact card", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "assistant-download-line-3",
+          role: "assistant",
+          parts: [
+            { type: "text", text: "**Download link:**" },
+            {
+              type: "text",
+              text: "[Download CSV](/api/files/download?path=attachments%2Fdeal%2Fdeal-1%2Fuuid-1&filename=Crisk3-Default-view-export.csv)",
+            },
+          ],
+        } as ChatUIMessage}
+      />,
+    );
+
+    expect(screen.queryByText("Download link:")).not.toBeInTheDocument();
+    expect(screen.getByTestId("assistant-artifact-card")).toHaveTextContent("Crisk3-Default-view-export.csv");
+  });
+
+  it("removes a trailing download-link label from a text block when the next part is an artifact", () => {
+    render(
+      <MessageBubble
+        message={{
+          id: "assistant-download-line-4",
+          role: "assistant",
+          parts: [
+            {
+              type: "text",
+              text: [
+                "Here's the cleaned export.",
+                "",
+                "**Download link:**",
+              ].join("\n"),
+            },
+            {
+              type: "text",
+              text: "[Download CSV](/api/files/download?path=attachments%2Fdeal%2Fdeal-1%2Fuuid-1&filename=Crisk3-Default-view-export.csv)",
+            },
+          ],
+        } as ChatUIMessage}
+      />,
+    );
+
+    expect(screen.getByTestId("message-response")).toHaveTextContent("Here's the cleaned export.");
+    expect(screen.queryByText("Download link:")).not.toBeInTheDocument();
+    expect(screen.getByTestId("assistant-artifact-card")).toHaveTextContent("Crisk3-Default-view-export.csv");
   });
 });
 

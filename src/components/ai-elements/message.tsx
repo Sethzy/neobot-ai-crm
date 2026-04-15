@@ -331,6 +331,12 @@ export function rewriteSunderHref(href?: string): string | undefined {
   return `/api/files/download?path=${encodeURIComponent(workspacePath)}`;
 }
 
+/** Escape ordered-list markers that have no content (e.g. "13." alone on a line).
+ *  CommonMark interprets these as empty `<ol>` items; the agent intended plain text. */
+function escapeEmptyListMarkers(markdown: string): string {
+  return markdown.replace(/^(\d+)\.\s*$/gm, "$1\\.");
+}
+
 function rewriteSunderMarkdownLinks(markdown: string): string {
   // Skip rewriting inside code blocks (fenced ``` or indented) to avoid mangling literal examples
   const codeBlockPattern = /(```[\s\S]*?```|`[^`]+`)/g;
@@ -376,7 +382,7 @@ export const MessageResponse = memo(
     return (
       <Streamdown
         className={cn(
-          "size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+          "w-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
           className
         )}
         components={messageComponents}
@@ -391,7 +397,7 @@ export const MessageResponse = memo(
         {...props}
       >
         {content
-          ? rewriteSunderMarkdownLinks(content)
+          ? escapeEmptyListMarkers(rewriteSunderMarkdownLinks(content))
           : props.children}
       </Streamdown>
     );

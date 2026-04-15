@@ -30,6 +30,8 @@ interface ListedSessionFile {
   filename: string;
   mime_type?: string;
   type?: string;
+  /** Whether this file can be fetched via files.download(). Input files (user uploads) have downloadable=false. */
+  downloadable?: boolean;
 }
 
 async function listSessionFiles(sessionId: string): Promise<ListedSessionFile[]> {
@@ -62,14 +64,18 @@ export async function downloadSessionFiles(
   // becoming interactive.
   const files = await listSessionFiles(input.sessionId);
 
-  if (files.length === 0) {
+  // Input files uploaded by the user have downloadable=false — they cannot be
+  // re-fetched via files.download(). Only mirror files the agent produced.
+  const downloadableFiles = files.filter((f) => f.downloadable !== false);
+
+  if (downloadableFiles.length === 0) {
     return [];
   }
 
   const anthropic = getAnthropicClient();
   const downloadedFiles: DownloadedSessionFile[] = [];
 
-  for (const file of files) {
+  for (const file of downloadableFiles) {
     const response = await anthropic.beta.files.download(file.id);
     const blob = await response.blob();
     const relativeStoragePath = `sessions/${input.sessionId}/${file.filename}`;

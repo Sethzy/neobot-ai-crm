@@ -23,6 +23,7 @@ import {
   MessageActions,
   MessageContent,
   MessageResponse,
+  rewriteSunderHref,
 } from "@/components/ai-elements/message";
 import {
   Reasoning,
@@ -34,6 +35,7 @@ import { cn } from "@/lib/utils";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { ViewRenderer } from "@/lib/views/renderer";
 import { ImageLightbox } from "./image-lightbox";
+import { AssistantArtifactCard } from "./assistant-artifact-card";
 import { resolveFilePartUrl, type ChatFilePart } from "./file-parts";
 import { getMessageText, type ChatUIMessage } from "./message-content";
 import { PreviewAttachment, type Attachment } from "./preview-attachment";
@@ -54,6 +56,152 @@ function filePartToAttachment(part: ChatFilePart): Attachment {
     url: resolveFilePartUrl(part),
     contentType: part.mediaType,
   };
+}
+
+type AssistantTextSegment =
+  | { type: "markdown"; text: string }
+  | { type: "artifact"; attachment: Attachment; displayName?: string };
+
+function inferArtifactContentType(filename: string): string {
+  const loweredFilename = filename.toLowerCase();
+
+  if (loweredFilename.endsWith(".pdf")) return "application/pdf";
+  if (loweredFilename.endsWith(".csv")) return "text/csv";
+  if (loweredFilename.endsWith(".json")) return "application/json";
+  if (loweredFilename.endsWith(".md")) return "text/markdown";
+  if (loweredFilename.endsWith(".txt")) return "text/plain";
+  if (loweredFilename.endsWith(".png")) return "image/png";
+  if (loweredFilename.endsWith(".jpg") || loweredFilename.endsWith(".jpeg")) return "image/jpeg";
+  if (loweredFilename.endsWith(".gif")) return "image/gif";
+  if (loweredFilename.endsWith(".webp")) return "image/webp";
+
+  return "application/octet-stream";
+}
+
+function extractStandaloneArtifactLink(line: string): { href: string; label: string } | null {
+  const trimmedLine = line.trim();
+  const patterns = [
+    /^\[([^\]]+)\]\(([^)]+)\)$/i,
+    /^Download\s+\[([^\]]+)\]\(([^)]+)\)$/i,
+    /^Download link:\s*\[([^\]]+)\]\(([^)]+)\)$/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = trimmedLine.match(pattern);
+    if (match) {
+      return { label: match[1], href: match[2] };
+    }
+  }
+
+  return null;
+}
+
+function buildArtifactAttachmentFromHref(href: string, label: string): Attachment | null {
+  const resolvedHref = rewriteSunderHref(href);
+
+  if (!resolvedHref) {
+    return null;
+  }
+
+  const isArtifactHref = href.startsWith("sunder:///agent/") || resolvedHref.startsWith("/api/files/download?");
+  if (!isArtifactHref) {
+    return null;
+  }
+
+  const parsedUrl = new URL(resolvedHref, "https://sunder.local");
+  const explicitFilename = parsedUrl.searchParams.get("filename");
+  const pathParam = parsedUrl.searchParams.get("path");
+  const fallbackPathname = parsedUrl.pathname.split("/").filter(Boolean).at(-1);
+  const derivedFilename = explicitFilename
+    ?? pathParam?.split("/").filter(Boolean).at(-1)
+    ?? fallbackPathname
+    ?? label;
+
+  return {
+    filename: decodeURIComponent(derivedFilename),
+    url: resolvedHref,
+    contentType: inferArtifactContentType(derivedFilename),
+  };
+}
+
+function splitAssistantTextSegments(text: string): AssistantTextSegment[] {
+  const lines = text.split("\n");
+  const segments: AssistantTextSegment[] = [];
+  let bufferedLines: string[] = [];
+
+  const flushBufferedText = () => {
+    if (bufferedLines.length === 0) {
+      return;
+    }
+
+    const bufferedText = bufferedLines.join("\n").trim();
+    if (bufferedText) {
+      segments.push({ type: "markdown", text: bufferedText });
+    }
+    bufferedLines = [];
+  };
+
+  for (const line of lines) {
+    const artifactLink = extractStandaloneArtifactLink(line);
+    if (!artifactLink) {
+      bufferedLines.push(line);
+      continue;
+    }
+
+    const attachment = buildArtifactAttachmentFromHref(artifactLink.href, artifactLink.label);
+    if (!attachment) {
+      bufferedLines.push(line);
+      continue;
+    }
+
+    // The agent often emits:
+    // "Download link:"
+    //
+    // "[Download CSV](...)"
+    // Drop the label line so the card stands on its own.
+    while (bufferedLines.length > 0 && bufferedLines.at(-1)?.trim() === "") {
+      bufferedLines.pop();
+    }
+    const normalizedLastLine = bufferedLines.at(-1)?.trim().replaceAll("*", "").trim().toLowerCase();
+    if (normalizedLastLine === "download link:") {
+      bufferedLines.pop();
+      while (bufferedLines.length > 0 && bufferedLines.at(-1)?.trim() === "") {
+        bufferedLines.pop();
+      }
+    }
+
+    flushBufferedText();
+    segments.push({ type: "artifact", attachment, displayName: artifactLink.label });
+  }
+
+  flushBufferedText();
+
+  return segments.length > 0 ? segments : [{ type: "markdown", text }];
+}
+
+function isArtifactLabelOnlyText(text: string): boolean {
+  const normalized = text
+    .trim()
+    .replace(/<\/?[^>]+>/g, "")
+    .replaceAll("*", "")
+    .trim()
+    .toLowerCase();
+  return normalized === "download link:";
+}
+
+function stripTrailingArtifactLabel(text: string): string {
+  const lines = text.split("\n");
+  let labelIndex = lines.length - 1;
+
+  while (labelIndex >= 0 && lines[labelIndex]?.trim() === "") {
+    labelIndex -= 1;
+  }
+
+  if (labelIndex < 0 || !isArtifactLabelOnlyText(lines[labelIndex] ?? "")) {
+    return text;
+  }
+
+  return lines.slice(0, labelIndex).join("\n").trimEnd();
 }
 
 /** Matches /agent/skills/{slug}/SKILL.md — excludes system/ and connections/. */
@@ -187,7 +335,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
 
           if (part.type === "file") {
             return (
-              <PreviewAttachment
+              <AssistantArtifactCard
                 key={key}
                 attachment={filePartToAttachment(part as ChatFilePart)}
                 onImageClick={setLightboxSrc}
@@ -196,14 +344,36 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
           }
 
           if (part.type === "text") {
-            return (
-              <MessageResponse
-                key={key}
-                isAnimating={isStreaming}
-              >
-                {(part as { text: string }).text}
-              </MessageResponse>
-            );
+            const rawText = (part as { text: string }).text;
+            const textForRendering = stripTrailingArtifactLabel(rawText);
+
+            if (!textForRendering.trim()) {
+              return null;
+            }
+
+            return splitAssistantTextSegments(textForRendering).map((segment, segmentIndex) => {
+              const segmentKey = `${key}-segment-${segmentIndex}`;
+
+              if (segment.type === "artifact") {
+                return (
+                  <AssistantArtifactCard
+                    key={segmentKey}
+                    attachment={segment.attachment}
+                    displayName={segment.displayName}
+                    onImageClick={setLightboxSrc}
+                  />
+                );
+              }
+
+              return (
+                <MessageResponse
+                  key={segmentKey}
+                  isAnimating={isStreaming}
+                >
+                  {segment.text}
+                </MessageResponse>
+              );
+            });
           }
 
           if (part.type === "reasoning") {
@@ -269,10 +439,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
       </MessageContent>
 
         {!isStreaming && hasTextParts && (
-          <MessageActions className={cn(
-            "text-muted-foreground transition-opacity",
-            !isLast && "opacity-0 group-hover:opacity-100",
-          )}>
+          <MessageActions className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
             <CopyButton text={getMessageText(message)} />
           </MessageActions>
         )}

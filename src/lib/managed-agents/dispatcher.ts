@@ -17,6 +17,30 @@ import type {
   ToolResult,
 } from "./types";
 
+/**
+ * Trim arrays that the LLM occasionally over-generates for ask_user_question
+ * so the Zod `.max()` constraints (which the LLM sees in the JSON schema)
+ * don't hard-reject on first attempt. Keeps the schema limits authoritative
+ * for the LLM while being forgiving at runtime.
+ */
+function coerceAskUserQuestionInput(input: unknown): unknown {
+  if (!input || typeof input !== "object") return input;
+
+  const record = input as Record<string, unknown>;
+  const questions = record.questions;
+  if (!Array.isArray(questions)) return input;
+
+  return {
+    ...record,
+    questions: questions.slice(0, 3).map((q) => {
+      if (q && typeof q === "object" && "options" in q && Array.isArray((q as Record<string, unknown>).options)) {
+        return { ...q, options: ((q as Record<string, unknown>).options as unknown[]).slice(0, 4) };
+      }
+      return q;
+    }),
+  };
+}
+
 function asContent(
   result: ToolResult,
   toolUseId: string,
@@ -71,7 +95,10 @@ export async function dispatchCustomTool(
     );
   }
 
-  const parsed = tool.inputSchema.safeParse(event.input);
+  const input = internalToolName === "ask_user_question"
+    ? coerceAskUserQuestionInput(event.input)
+    : event.input;
+  const parsed = tool.inputSchema.safeParse(input);
   if (!parsed.success) {
     return asContent(
       {

@@ -106,21 +106,6 @@ vi.mock("./tool-call-inline", () => ({
   ),
 }));
 
-vi.mock("./ask-user-question-inline", () => ({
-  AskUserQuestionInline: ({ questions, onSubmit, disabled }: {
-    questions: Array<{ question: string }>;
-    onSubmit: (text: string) => void;
-    disabled?: boolean;
-  }) => (
-    <div
-      data-testid="ask-user-question-inline"
-      data-question-count={questions.length}
-      data-disabled={!!disabled}
-      onClick={() => onSubmit("Option A")}
-    />
-  ),
-}));
-
 vi.mock("./data-stream-provider", () => ({
   useDataStream: () => ({
     dataStream: [],
@@ -745,7 +730,7 @@ describe("ChatPanel", () => {
     );
   });
 
-  it("wires onQuestionSubmit to send user answer via sendMessage", async () => {
+  it("sends overlay answers via sendMessage", async () => {
     const user = userEvent.setup();
 
     mockUseChat.mockReturnValue({
@@ -781,15 +766,74 @@ describe("ChatPanel", () => {
 
     renderPanel(<ChatPanel chatId="thread-1" />);
 
-    // The mock AskUserQuestionInline calls onSubmit("Option A") on click
-    await user.click(screen.getByTestId("ask-user-question-inline"));
+    await user.click(screen.getByText("Option A"));
 
     await waitFor(() => {
       expect(sendMessage).toHaveBeenCalledWith(
-        { text: "Option A" },
+        { text: "Q: Pick?\nA: Option A" },
         { body: { selectedChatModel: DEFAULT_CHAT_MODEL } },
       );
     });
+  });
+
+  it("dismisses the overlay batch and sends dismissed answers", async () => {
+    const user = userEvent.setup();
+
+    mockUseChat.mockReturnValue({
+      id: "thread-1",
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-ask_user_question",
+              toolCallId: "tc-ask-1",
+              state: "output-available",
+              input: {
+                questions: [
+                  { question: "Pick?", options: ["Option A", "Option B"], type: "single_select" },
+                  { question: "Next?", options: ["Choice 1", "Choice 2"], type: "single_select" },
+                ],
+              },
+              output: {
+                questions: [
+                  { question: "Pick?", options: ["Option A", "Option B"], type: "single_select" },
+                  { question: "Next?", options: ["Choice 1", "Choice 2"], type: "single_select" },
+                ],
+                status: "awaiting_response",
+              },
+            },
+          ],
+        },
+      ],
+      status: "ready",
+      error: undefined,
+      sendMessage,
+      setMessages,
+      regenerate: vi.fn(),
+      clearError: vi.fn(),
+      stop: vi.fn(),
+      resumeStream: vi.fn(),
+      addToolResult: vi.fn(),
+      addToolOutput: vi.fn(),
+      addToolApprovalResponse: vi.fn(),
+    });
+
+    renderPanel(<ChatPanel chatId="thread-1" />);
+
+    await user.click(screen.getByTestId("ask-question-dismiss"));
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith(
+        {
+          text: "Q: Pick?\nA: Dismissed\n\nQ: Next?\nA: Dismissed",
+        },
+        { body: { selectedChatModel: DEFAULT_CHAT_MODEL } },
+      );
+    });
+
+    expect(screen.queryByTestId("ask-question-overlay")).not.toBeInTheDocument();
   });
 
   describe("background job delivery via Realtime", () => {

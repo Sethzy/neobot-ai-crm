@@ -6,7 +6,16 @@
  */
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type DragEvent as ReactDragEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
+
+import { Pencil } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -19,23 +28,60 @@ export interface AskUserQuestion {
 interface AskUserQuestionOverlayProps {
   questions: AskUserQuestion[];
   onSubmit: (text: string) => void;
-  /** Called when user dismisses all questions (X button or Esc). */
-  onDismiss?: () => void;
+  /** Called when user dismisses the full batch from the header close action. */
+  onDismiss?: (text: string) => void;
+  className?: string;
+}
+
+interface QuestionDraft {
+  otherText: string;
+  rankedItems: string[];
+  selectedChecks: string[];
+  selectedOption: string | null;
+}
+
+function createQuestionDraft(question?: AskUserQuestion): QuestionDraft {
+  return {
+    otherText: "",
+    rankedItems: question?.options ?? [],
+    selectedChecks: [],
+    selectedOption: null,
+  };
+}
+
+function formatQuestionResponses(
+  questions: AskUserQuestion[],
+  answers: Map<number, string>,
+): string {
+  const lines: string[] = [];
+
+  questions.forEach((question, index) => {
+    const answer = answers.get(index);
+    if (typeof answer !== "string" || answer.trim().length === 0) {
+      return;
+    }
+
+    lines.push(`Q: ${question.question}\nA: ${answer}`);
+  });
+
+  return lines.join("\n\n");
 }
 
 export function AskUserQuestionOverlay({
   questions,
   onSubmit,
   onDismiss,
+  className,
 }: AskUserQuestionOverlayProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Map<number, string | null>>(new Map());
-  const [focusedOption, setFocusedOption] = useState(-1);
-  const [otherText, setOtherText] = useState("");
-  const [selectedChecks, setSelectedChecks] = useState<string[]>([]);
-  const [rankedItems, setRankedItems] = useState<string[]>(questions[0]?.options ?? []);
-  const [dismissed, setDismissed] = useState(false);
+  const [answers, setAnswers] = useState<Map<number, string>>(new Map());
+  const [drafts, setDrafts] = useState<Map<number, QuestionDraft>>(new Map());
+  const [focusedOption, setFocusedOption] = useState(
+    questions[0]?.type === "single_select" && questions[0].options.length > 0 ? 0 : -1,
+  );
   const submittedRef = useRef(false);
+  const dragIndexRef = useRef<number | null>(null);
+  const overlayRef = useRef<HTMLDivElement | null>(null);
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const otherInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -44,34 +90,85 @@ export function AskUserQuestionOverlay({
   const isSingle = currentQuestion?.type === "single_select";
   const isMulti = currentQuestion?.type === "multi_select";
   const isRank = currentQuestion?.type === "rank_priorities";
+  const currentDraft = drafts.get(currentIndex) ?? createQuestionDraft(currentQuestion);
 
-  // Reset per-question state when advancing to a new question
-  const resetQuestionState = useCallback((newIndex: number) => {
-    const nextQ = questions[newIndex];
-    setFocusedOption(-1);
-    setOtherText("");
-    setSelectedChecks([]);
-    setRankedItems(nextQ?.options ?? []);
-  }, [questions]);
+  const updateDraft = useCallback(
+    (index: number, updater: (draft: QuestionDraft) => QuestionDraft) => {
+      setDrafts((previousDrafts) => {
+        const nextDrafts = new Map(previousDrafts);
+        const draft = previousDrafts.get(index) ?? createQuestionDraft(questions[index]);
+        nextDrafts.set(index, updater(draft));
+        return nextDrafts;
+      });
+    },
+    [questions],
+  );
+
+  const resolveFocusedOption = useCallback(
+    (index: number) => {
+      const question = questions[index];
+      if (question?.type !== "single_select" || question.options.length === 0) {
+        return -1;
+      }
+
+      const selectedOption =
+        drafts.get(index)?.selectedOption ??
+        (typeof answers.get(index) === "string" ? answers.get(index) : null);
+
+      if (typeof selectedOption === "string") {
+        const selectedIndex = question.options.indexOf(selectedOption);
+        if (selectedIndex >= 0) {
+          return selectedIndex;
+        }
+      }
+
+      return 0;
+    },
+    [answers, drafts, questions],
+  );
+
+  const goToQuestion = useCallback(
+    (nextIndex: number) => {
+      optionRefs.current = [];
+      setCurrentIndex(nextIndex);
+      setFocusedOption(resolveFocusedOption(nextIndex));
+    },
+    [resolveFocusedOption],
+  );
+
+  const emitSubmit = useCallback(
+    (text: string) => {
+      if (submittedRef.current || text.trim().length === 0) {
+        return;
+      }
+
+      submittedRef.current = true;
+      onSubmit(text);
+    },
+    [onSubmit],
+  );
+
+  const emitDismiss = useCallback(
+    (text: string) => {
+      if (submittedRef.current || text.trim().length === 0) {
+        return;
+      }
+
+      submittedRef.current = true;
+      onDismiss?.(text);
+      if (!onDismiss) {
+        onSubmit(text);
+      }
+    },
+    [onDismiss, onSubmit],
+  );
 
   /** Format collected Q&A pairs into the user message text. */
   const formatAndSubmit = useCallback(
-    (finalAnswers: Map<number, string | null>) => {
-      if (submittedRef.current) return;
-      submittedRef.current = true;
-
-      const lines: string[] = [];
-      questions.forEach((q, i) => {
-        const answer = finalAnswers.get(i);
-        if (answer !== null && answer !== undefined) {
-          lines.push(`Q: ${q.question}\nA: ${answer}`);
-        }
-      });
-
-      if (lines.length === 0) return;
-      onSubmit(lines.join("\n\n"));
+    (finalAnswers: Map<number, string>) => {
+      emitSubmit(formatQuestionResponses(questions, finalAnswers));
     },
-    [questions, onSubmit],
+    [emitSubmit, questions],
   );
 
   /** Record answer and advance or submit. */
@@ -82,161 +179,229 @@ export function AskUserQuestionOverlay({
       setAnswers(next);
 
       if (currentIndex < questions.length - 1) {
-        const nextIndex = currentIndex + 1;
-        setCurrentIndex(nextIndex);
-        resetQuestionState(nextIndex);
+        goToQuestion(currentIndex + 1);
       } else {
         formatAndSubmit(next);
       }
     },
-    [answers, currentIndex, questions.length, formatAndSubmit, resetQuestionState],
+    [answers, currentIndex, formatAndSubmit, goToQuestion, questions.length],
   );
 
   /** Skip current question. */
   const handleSkip = useCallback(() => {
     const next = new Map(answers);
-    next.set(currentIndex, null);
+    next.set(currentIndex, "Skipped");
     setAnswers(next);
 
     if (currentIndex < questions.length - 1) {
-      const nextIndex = currentIndex + 1;
-      setCurrentIndex(nextIndex);
-      resetQuestionState(nextIndex);
+      goToQuestion(currentIndex + 1);
     } else {
       formatAndSubmit(next);
     }
-  }, [answers, currentIndex, questions.length, formatAndSubmit, resetQuestionState]);
+  }, [answers, currentIndex, formatAndSubmit, goToQuestion, questions.length]);
 
   /** Handle multi_select continue. */
   const handleMultiContinue = useCallback(() => {
-    if (selectedChecks.length === 0) return;
-    handleAnswer(selectedChecks.join(", "));
-  }, [selectedChecks, handleAnswer]);
+    if (currentDraft.selectedChecks.length === 0) {
+      return;
+    }
+
+    handleAnswer(currentDraft.selectedChecks.join(", "));
+  }, [currentDraft.selectedChecks, handleAnswer]);
 
   /** Handle rank_priorities continue. */
   const handleRankContinue = useCallback(() => {
-    const ranked = rankedItems.map((o, i) => `${i + 1}. ${o}`).join(", ");
+    const ranked = currentDraft.rankedItems.map((option, index) => `${index + 1}. ${option}`).join(", ");
     handleAnswer(ranked);
-  }, [rankedItems, handleAnswer]);
+  }, [currentDraft.rankedItems, handleAnswer]);
 
   /** Dismiss entire widget. */
   const handleDismiss = useCallback(() => {
-    setDismissed(true);
-    onDismiss?.();
-  }, [onDismiss]);
+    const dismissedAnswers = new Map(answers);
 
-  // Focus the active option when focusedOption changes (single_select only, skip -1)
+    questions.forEach((_question, index) => {
+      if (!dismissedAnswers.has(index)) {
+        dismissedAnswers.set(index, "Dismissed");
+      }
+    });
+
+    emitDismiss(formatQuestionResponses(questions, dismissedAnswers));
+  }, [answers, emitDismiss, questions]);
+
   useEffect(() => {
     if (isSingle && focusedOption >= 0) {
       optionRefs.current[focusedOption]?.focus();
     }
-  }, [focusedOption, isSingle]);
+  }, [currentIndex, focusedOption, isSingle]);
 
-  // Global keydown handler for navigation
   useEffect(() => {
-    if (dismissed) return;
+    if (isSingle) {
+      return;
+    }
 
-    const handler = (e: KeyboardEvent) => {
-      // Don't intercept when typing in the "Something else" input
-      if (document.activeElement === otherInputRef.current) {
-        if (e.key === "Escape") {
+    overlayRef.current?.focus();
+  }, [currentIndex, isSingle]);
+
+  const handleOverlayKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.target === otherInputRef.current) {
+        if (event.key === "Escape") {
+          event.preventDefault();
           otherInputRef.current?.blur();
-          optionRefs.current[focusedOption]?.focus();
+          if (isSingle && currentQuestion) {
+            const nextFocusedOption = resolveFocusedOption(currentIndex);
+            setFocusedOption(nextFocusedOption);
+            optionRefs.current[nextFocusedOption]?.focus();
+          }
         }
         return;
       }
 
       const optionCount = currentQuestion?.options.length ?? 0;
 
-      switch (e.key) {
+      switch (event.key) {
         case "ArrowDown": {
-          if (!isSingle) break;
-          e.preventDefault();
-          setFocusedOption((prev) => prev < 0 ? 0 : (prev + 1) % optionCount);
+          if (!isSingle || optionCount === 0) {
+            break;
+          }
+
+          event.preventDefault();
+          setFocusedOption((previousFocusedOption) =>
+            previousFocusedOption < 0
+              ? 0
+              : (previousFocusedOption + 1) % optionCount,
+          );
           break;
         }
         case "ArrowUp": {
-          if (!isSingle) break;
-          e.preventDefault();
-          setFocusedOption((prev) => prev < 0 ? optionCount - 1 : (prev - 1 + optionCount) % optionCount);
+          if (!isSingle || optionCount === 0) {
+            break;
+          }
+
+          event.preventDefault();
+          setFocusedOption((previousFocusedOption) =>
+            previousFocusedOption < 0
+              ? optionCount - 1
+              : (previousFocusedOption - 1 + optionCount) % optionCount,
+          );
           break;
         }
         case "Enter": {
           if (isSingle && currentQuestion && focusedOption >= 0) {
-            e.preventDefault();
+            event.preventDefault();
             handleAnswer(currentQuestion.options[focusedOption]);
           }
           break;
         }
         case "Escape": {
-          e.preventDefault();
-          handleDismiss();
+          if (isSingle || isRank) {
+            event.preventDefault();
+            handleSkip();
+          }
           break;
         }
         default: {
-          // Number keys 1-9 for quick select (single_select only)
-          const num = parseInt(e.key, 10);
+          const num = Number.parseInt(event.key, 10);
           if (num >= 1 && num <= optionCount && isSingle && currentQuestion) {
-            e.preventDefault();
+            event.preventDefault();
             handleAnswer(currentQuestion.options[num - 1]);
           }
         }
       }
-    };
+    },
+    [
+      currentIndex,
+      currentQuestion,
+      focusedOption,
+      handleAnswer,
+      handleSkip,
+      isRank,
+      isSingle,
+      resolveFocusedOption,
+    ],
+  );
 
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [dismissed, focusedOption, currentQuestion, isSingle, handleAnswer, handleDismiss]);
+  const handleDragStart = useCallback((index: number) => {
+    dragIndexRef.current = index;
+  }, []);
 
-  if (dismissed || !currentQuestion) return null;
+  const handleDragOver = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>, index: number) => {
+      event.preventDefault();
 
-  // ─── Drag handlers for rank_priorities ───────────────────────────
-  let dragIndex: number | null = null;
-  const handleDragStart = (index: number) => { dragIndex = index; };
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (dragIndex === null || dragIndex === index) return;
-    const reordered = [...rankedItems];
-    const [moved] = reordered.splice(dragIndex, 1);
-    reordered.splice(index, 0, moved);
-    setRankedItems(reordered);
-    dragIndex = index;
-  };
+      if (dragIndexRef.current === null || dragIndexRef.current === index) {
+        return;
+      }
+
+      const sourceIndex = dragIndexRef.current;
+      updateDraft(currentIndex, (draft) => {
+        const reordered = [...draft.rankedItems];
+        const [movedItem] = reordered.splice(sourceIndex, 1);
+        reordered.splice(index, 0, movedItem);
+        return {
+          ...draft,
+          rankedItems: reordered,
+        };
+      });
+      dragIndexRef.current = index;
+    },
+    [currentIndex, updateDraft],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    dragIndexRef.current = null;
+  }, []);
+
+  if (!currentQuestion) {
+    return null;
+  }
+
+  const keyboardHint = isSingle
+    ? "↑↓ to navigate · Enter to select · Esc to skip"
+    : isRank
+      ? "Drag to reorder · Esc to skip"
+      : "Select all that apply · Continue to submit";
 
   return (
     <div
       data-testid="ask-question-overlay"
-      className="mx-auto w-full max-w-[44rem] border-t border-border/50 bg-card px-4 pb-2 pt-3"
+      ref={overlayRef}
+      role="group"
+      tabIndex={-1}
+      onKeyDown={handleOverlayKeyDown}
+      className={cn(
+        "mx-auto w-full max-w-[44rem] rounded-2xl border border-border/50 bg-card px-5 pb-4 pt-5 shadow-[0_8px_32px_rgba(15,23,42,0.10)]",
+        className,
+      )}
     >
       {/* Header: question text + pagination + dismiss */}
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <p className="text-sm font-medium text-foreground">{currentQuestion.question}</p>
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <p className="text-[15px] font-semibold leading-6 text-foreground">
+          {currentQuestion.question}
+        </p>
         <div className="flex shrink-0 items-center gap-1">
           {isMultiQuestion && (
-            <div data-testid="ask-question-pagination" className="flex items-center gap-1 text-xs text-muted-foreground">
+            <div
+              data-testid="ask-question-pagination"
+              className="flex items-center gap-0.5 text-xs text-muted-foreground"
+            >
               <button
                 type="button"
                 disabled={currentIndex === 0}
-                className="px-0.5 disabled:opacity-30"
-                onClick={() => {
-                  const prevIndex = currentIndex - 1;
-                  setCurrentIndex(prevIndex);
-                  resetQuestionState(prevIndex);
-                }}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-base transition-colors hover:bg-muted disabled:opacity-30"
+                onClick={() => goToQuestion(currentIndex - 1)}
                 aria-label="Previous question"
               >
                 &lsaquo;
               </button>
-              <span>{currentIndex + 1} of {questions.length}</span>
+              <span className="min-w-12 text-center text-xs text-muted-foreground">
+                {currentIndex + 1} of {questions.length}
+              </span>
               <button
                 type="button"
                 disabled={currentIndex === questions.length - 1}
-                className="px-0.5 disabled:opacity-30"
-                onClick={() => {
-                  const nextIndex = currentIndex + 1;
-                  setCurrentIndex(nextIndex);
-                  resetQuestionState(nextIndex);
-                }}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-base transition-colors hover:bg-muted disabled:opacity-30"
+                onClick={() => goToQuestion(currentIndex + 1)}
                 aria-label="Next question"
               >
                 &rsaquo;
@@ -246,7 +411,7 @@ export function AskUserQuestionOverlay({
           <button
             type="button"
             onClick={handleDismiss}
-            className="ml-1 text-muted-foreground hover:text-foreground"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground"
             data-testid="ask-question-dismiss"
             aria-label="Dismiss"
           >
@@ -255,126 +420,153 @@ export function AskUserQuestionOverlay({
         </div>
       </div>
 
-      {/* Options list */}
-      <div role="listbox" aria-label={currentQuestion.question} className="flex flex-col gap-1">
+      {/* Options list — clean divider-separated rows, no per-item border boxes */}
+      <div role="listbox" aria-label={currentQuestion.question} className="flex flex-col">
         {/* ─── single_select ─────────────────────────────────────── */}
         {isSingle && currentQuestion.options.map((option, index) => (
-          <button
-            key={option}
-            ref={(el) => { optionRefs.current[index] = el; }}
-            type="button"
-            role="option"
-            aria-selected={focusedOption === index}
-            tabIndex={focusedOption === index ? 0 : -1}
-            data-testid="ask-question-option"
-            className={cn(
-              "flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
-              focusedOption === index
-                ? "border-primary/40 bg-primary/5"
-                : "border-border/50 bg-background hover:border-border hover:bg-secondary/30",
-            )}
-            onClick={() => handleAnswer(option)}
-            onMouseEnter={() => setFocusedOption(index)}
-          >
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-medium text-muted-foreground">
-              {index + 1}
-            </span>
-            <span className="flex-1">{option}</span>
-            {focusedOption === index && (
-              <span className="text-muted-foreground">&rsaquo;</span>
-            )}
-          </button>
+          <div key={option}>
+            {index > 0 && <div className="h-px bg-border/30" />}
+            <button
+              ref={(el) => { optionRefs.current[index] = el; }}
+              type="button"
+              role="option"
+              aria-selected={focusedOption === index}
+              tabIndex={focusedOption === index ? 0 : -1}
+              data-testid="ask-question-option"
+              className={cn(
+                "flex w-full items-center gap-3 rounded-lg px-2 py-3.5 text-left text-sm transition-colors focus:outline-none",
+                focusedOption === index
+                  ? "bg-muted/35"
+                  : "hover:bg-muted/20",
+              )}
+              onClick={() => {
+                updateDraft(currentIndex, (draft) => ({
+                  ...draft,
+                  selectedOption: option,
+                }));
+                handleAnswer(option);
+              }}
+              onMouseEnter={() => setFocusedOption(index)}
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-medium text-muted-foreground">
+                {index + 1}
+              </span>
+              <span className="flex-1 text-[13.5px] text-foreground">{option}</span>
+              {focusedOption === index && (
+                <span className="text-sm text-muted-foreground">→</span>
+              )}
+            </button>
+          </div>
         ))}
 
         {/* ─── multi_select ──────────────────────────────────────── */}
-        {isMulti && currentQuestion.options.map((option) => {
-          const isChecked = selectedChecks.includes(option);
+        {isMulti && currentQuestion.options.map((option, index) => {
+          const isChecked = currentDraft.selectedChecks.includes(option);
           return (
-            <button
-              key={option}
-              type="button"
-              role="option"
-              aria-selected={isChecked}
-              data-testid="ask-question-option"
-              className={cn(
-                "flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
-                isChecked
-                  ? "border-primary/40 bg-primary/5"
-                  : "border-border/50 bg-background hover:border-border hover:bg-secondary/30",
-              )}
-              onClick={() => {
-                setSelectedChecks((prev) =>
-                  prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option],
-                );
-              }}
-            >
-              <span className={cn(
-                "flex h-4 w-4 shrink-0 items-center justify-center rounded border-2",
-                isChecked ? "border-primary bg-primary/10" : "border-muted-foreground/40",
-              )}>
-                {isChecked && <span className="h-2 w-2 rounded-sm bg-primary" />}
-              </span>
-              <span className="flex-1">{option}</span>
-            </button>
+            <div key={option}>
+              {index > 0 && <div className="h-px bg-border/30" />}
+              <button
+                type="button"
+                role="option"
+                aria-selected={isChecked}
+                data-testid="ask-question-option"
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-lg px-2 py-3.5 text-left text-sm transition-colors focus:outline-none",
+                  isChecked ? "bg-muted/35" : "hover:bg-muted/20",
+                )}
+                onClick={() => {
+                  updateDraft(currentIndex, (draft) => ({
+                    ...draft,
+                    selectedChecks: draft.selectedChecks.includes(option)
+                      ? draft.selectedChecks.filter((existingOption) => existingOption !== option)
+                      : [...draft.selectedChecks, option],
+                  }));
+                }}
+              >
+                <span className={cn(
+                  "flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 transition-colors",
+                  isChecked ? "border-primary bg-primary/10" : "border-muted-foreground/35",
+                )}>
+                  {isChecked && <span className="h-2 w-2 rounded-sm bg-primary" />}
+                </span>
+                <span className="flex-1 text-[13.5px] text-foreground">{option}</span>
+              </button>
+            </div>
           );
         })}
 
         {/* ─── rank_priorities ───────────────────────────────────── */}
-        {isRank && rankedItems.map((option, index) => (
-          <div
-            key={option}
-            data-testid="ask-question-option"
-            draggable
-            onDragStart={() => handleDragStart(index)}
-            onDragOver={(e) => handleDragOver(e, index)}
-            onDragEnd={() => { dragIndex = null; }}
-            className="flex cursor-grab items-center gap-3 rounded-lg border border-border/50 bg-background px-3 py-2.5 text-sm active:cursor-grabbing hover:border-border hover:bg-secondary/30"
-          >
-            <span className="text-muted-foreground/50 select-none" aria-hidden>⠿</span>
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-medium text-muted-foreground">
-              {index + 1}
-            </span>
-            <span className="flex-1">{option}</span>
+        {isRank && currentDraft.rankedItems.map((option, index) => (
+          <div key={option}>
+            {index > 0 && <div className="h-px bg-border/30" />}
+            <div
+              data-testid="ask-question-option"
+              draggable
+              onDragStart={() => handleDragStart(index)}
+              onDragOver={(event) => handleDragOver(event, index)}
+              onDragEnd={handleDragEnd}
+              className="flex cursor-grab items-center gap-3 rounded-lg px-2 py-3.5 text-sm transition-colors active:cursor-grabbing hover:bg-muted/20"
+            >
+              <span className="select-none text-muted-foreground/40" aria-hidden>⠿</span>
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-medium text-muted-foreground">
+                {index + 1}
+              </span>
+              <span className="flex-1 text-[13.5px] text-foreground">{option}</span>
+            </div>
           </div>
         ))}
       </div>
 
       {/* Counter for multi_select */}
-      {isMulti && selectedChecks.length > 0 && (
-        <p className="mt-1 text-xs text-muted-foreground" data-testid="ask-question-counter">
-          {selectedChecks.length} selected
+      {isMulti && currentDraft.selectedChecks.length > 0 && (
+        <p className="mt-1 px-2 text-xs text-muted-foreground" data-testid="ask-question-counter">
+          {currentDraft.selectedChecks.length} selected
         </p>
       )}
 
-      {/* Something else + Skip row (single_select and rank has skip, rank has no "something else") */}
-      <div className="mt-2 flex items-center gap-2">
+      {/* Bottom row — Something else input + action buttons */}
+      <div className="mt-1 flex items-center gap-3 border-t border-border/30 pl-2 pt-2.5">
+        {/* single_select: pencil-icon + freetext input */}
         {isSingle && (
-          <div className="relative flex-1">
+          <>
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground/60">
+              <Pencil size={12} />
+            </span>
             <input
               ref={otherInputRef}
               type="text"
-              value={otherText}
-              onChange={(e) => setOtherText(e.target.value)}
+              value={currentDraft.otherText}
+              onChange={(event) =>
+                updateDraft(currentIndex, (draft) => ({
+                  ...draft,
+                  otherText: event.target.value,
+                }))}
+              onFocus={() => setFocusedOption(-1)}
               placeholder="Something else"
               data-testid="ask-question-other-input"
-              className="h-9 w-full rounded-md border border-border/50 bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/40 focus:outline-none"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && otherText.trim().length > 0) {
-                  e.preventDefault();
-                  handleAnswer(otherText.trim());
+              className="flex-1 bg-transparent text-[13.5px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+              onKeyDown={(event) => {
+                const submittedText = event.currentTarget.value.trim();
+                if (event.key === "Enter" && submittedText.length > 0) {
+                  event.preventDefault();
+                  updateDraft(currentIndex, (draft) => ({
+                    ...draft,
+                    selectedOption: null,
+                  }));
+                  handleAnswer(submittedText);
                 }
               }}
             />
-          </div>
+          </>
         )}
 
-        {/* multi_select: Continue button (no Skip) */}
+        {/* multi_select: Continue button + no Skip */}
         {isMulti && (
           <button
             type="button"
             data-testid="ask-question-continue"
-            disabled={selectedChecks.length === 0}
-            className="ml-auto rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-40"
+            disabled={currentDraft.selectedChecks.length === 0}
+            className="ml-auto rounded-lg bg-foreground px-4 py-2 text-[13px] font-medium text-background transition-opacity disabled:opacity-35"
             onClick={handleMultiContinue}
           >
             Continue
@@ -387,7 +579,7 @@ export function AskUserQuestionOverlay({
             <button
               type="button"
               onClick={handleSkip}
-              className="text-sm text-muted-foreground hover:text-foreground"
+              className="rounded-lg border border-border/60 px-3.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               data-testid="ask-question-skip"
             >
               Skip
@@ -395,7 +587,7 @@ export function AskUserQuestionOverlay({
             <button
               type="button"
               data-testid="ask-question-continue"
-              className="ml-auto rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+              className="ml-auto rounded-lg bg-foreground px-4 py-2 text-[13px] font-medium text-background"
               onClick={handleRankContinue}
             >
               Continue
@@ -403,12 +595,12 @@ export function AskUserQuestionOverlay({
           </>
         )}
 
-        {/* single_select: Skip button */}
+        {/* single_select: Skip button — bordered pill, clearly clickable */}
         {isSingle && (
           <button
             type="button"
             onClick={handleSkip}
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="ml-auto rounded-lg border border-border/60 px-3.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             data-testid="ask-question-skip"
           >
             Skip
@@ -419,13 +611,9 @@ export function AskUserQuestionOverlay({
       {/* Keyboard hints */}
       <div
         data-testid="ask-question-hints"
-        className="mt-2 flex items-center justify-center gap-3 text-[11px] text-muted-foreground/60"
+        className="mt-2.5 flex items-center justify-center gap-3 text-[11px] text-muted-foreground/50"
       >
-        <span>&#8593;&#8595; to navigate</span>
-        <span>&middot;</span>
-        <span>Enter to select</span>
-        <span>&middot;</span>
-        <span>Esc to skip</span>
+        <span>{keyboardHint}</span>
       </div>
     </div>
   );
