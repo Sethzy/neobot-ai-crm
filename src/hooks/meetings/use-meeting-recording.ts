@@ -24,6 +24,8 @@ interface UseMeetingRecordingReturn {
   notes: string;
   setNotes: (notes: string) => void;
   errorMessage: string | null;
+  /** True when the last error was a microphone permission denial. */
+  isPermissionError: boolean;
   start: () => Promise<void>;
   pause: () => void;
   resume: () => void;
@@ -52,6 +54,7 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [notes, setNotes] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isPermissionError, setIsPermissionError] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -126,6 +129,7 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
 
     try {
       setErrorMessage(null);
+      setIsPermissionError(false);
       setElapsedSeconds(0);
       pausedElapsedSecondsRef.current = 0;
       chunksRef.current = [];
@@ -155,7 +159,13 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
       cleanupStream();
       stopTimer();
       setStatus("error");
-      setErrorMessage(error instanceof Error ? error.message : "Failed to start recording");
+      const isDenied = error instanceof DOMException && error.name === "NotAllowedError";
+      setIsPermissionError(isDenied);
+      setErrorMessage(
+        isDenied
+          ? "Microphone access is blocked"
+          : error instanceof Error ? error.message : "Failed to start recording",
+      );
     }
   }, [cleanupStream, startTimer, stopTimer]);
 
@@ -294,6 +304,7 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
     notes,
     setNotes,
     errorMessage,
+    isPermissionError,
     start,
     pause,
     resume,
