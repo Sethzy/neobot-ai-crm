@@ -7,76 +7,94 @@ topic: unified-skill-infrastructure
 
 ## Problem Frame
 
-Sunder's managed agent has three disconnected skill tiers, each with a different access pattern:
+Sunder's managed agent has three disconnected skill tiers (Anthropic built-in, predefined custom, user overrides in Supabase), each with a different access pattern. The agent conflates them — e.g. calling `storage_read('/agent/skills/xlsx/SKILL.md')` for a built-in Anthropic skill — deadlocking sessions. Users also have no way to discover or explicitly invoke skills.
 
-1. **Built-in Anthropic skills** (xlsx, docx, pptx, pdf) — registered as `type: "anthropic"`, accessed natively via the session container filesystem
-2. **Predefined Sunder skills** (call-prep, daily-briefing, etc.) — uploaded to Anthropic as `type: "custom"`, accessed via Anthropic's progressive disclosure
-3. **User-customized skill overrides** — stored in Supabase storage, NOT registered on the Anthropic agent, injected via kickoff text block, accessed via `storage_read()` custom tool
+## Core Model
 
-This bifurcation causes real failures: the agent conflates access patterns (e.g. calling `storage_read('/agent/skills/xlsx/SKILL.md')` for a built-in Anthropic skill that doesn't exist in Supabase), deadlocking sessions. Users also have no explicit way to invoke skills — discovery depends entirely on the agent's description-matching heuristic.
+One tier. All skills are `type: "custom"` on Anthropic's Skills API. A `skills` DB table is the metadata layer. Per-user install/uninstall is a DB flag. The kickoff tells the agent which skills are active.
+
+```
+All skills uploaded to Anthropic as type: "custom" (up to 20)
+         |
+One agent definition with all skills attached
+         |
+skills DB table tracks what each user has installed
+         |
+Kickoff tells agent: "active skills for this session: [list]"
+```
 
 ## Requirements
 
 ### Unified Skill Repository
 
-- R1. All skills (including document processing — xlsx, docx, pptx, pdf) are registered on the Anthropic agent as `type: "custom"`. The `BUILTIN_SKILLS` array (`type: "anthropic"`) is removed.
-- R2. Document processing skills are forked from Anthropic's source-available reference implementations (github.com/anthropics/skills) into `managed-agents/skills/` alongside existing Sunder workflow skills.
-- R3. All predefined skills flow through the same pipeline: `managed-agents/skills/{slug}/SKILL.md` → `upload-custom-skills.ts` → `skill-registry.json` → `create-agent.ts`.
-- R4. The agent system prompt includes a skills section listing all available skills with name + one-line description, so the agent can both auto-trigger skills by relevance AND respond to explicit `/skill-name` invocation.
-- R5. User-customized skill overrides remain in Supabase storage at `/{clientId}/skills/{slug}/SKILL.md`. The kickoff text block override mechanism (`storage_read` before using predefined version) continues to work, now applying uniformly to all skills.
+- R1. All skills — including document processing (xlsx, docx, pptx, pdf) — are registered on the Anthropic agent as `type: "custom"`. The `BUILTIN_SKILLS` array is removed.
+- R2. Document processing skills are forked from Anthropic's source-available implementations (github.com/anthropics/skills) into `managed-agents/skills/` alongside existing Sunder workflow skills.
+- R3. All skills flow through one pipeline: `managed-agents/skills/{slug}/SKILL.md` -> `upload-custom-skills.ts` -> `skill-registry.json` -> `create-agent.ts`.
+
+### Skills Table
+
+- R4. A `skills` table stores skill metadata: id, client_id (nullable for predefined), slug, name, description, is_predefined, forked_from, is_installed, created_at, updated_at.
+- R5. Predefined skills are seeded at deploy time from SKILL.md frontmatter. Each user gets default `is_installed = true` rows for core skills on first use.
+- R6. User-created and user-forked skills insert rows. User overrides remain in Supabase storage at `/{clientId}/skills/{slug}/SKILL.md`.
 
 ### Slash Command Invocation
 
-- R6. Users can type `/` in the chat composer to see an autocomplete dropdown of available skills. Each entry shows skill name + short description.
-- R7. Selecting a skill from the autocomplete inserts `/skill-name` into the composer. The user can append their message after the command (e.g. `/call-prep David Lee`).
-- R8. The agent recognizes `/skill-name` at the start of a user message as an explicit skill invocation and uses that skill for the request.
-- R9. Skill auto-detection (agent chooses a skill based on relevance without a slash command) continues to work alongside explicit invocation. Slash commands are the explicit path; description-matching is the implicit fallback.
+- R7. Users type `/` in the chat composer to see an autocomplete dropdown of their installed skills (name + description). Populated from the `skills` table.
+- R8. Selecting a skill inserts `/skill-name` into the composer. User appends their message after.
+- R9. The agent recognizes `/skill-name` as explicit invocation. Auto-detection by description matching continues as the implicit fallback.
 
-### Skill Discovery (DB Table)
+### Session Kickoff
 
-- R10. A `skills` table stores skill metadata: id, client_id, slug, name, description, is_predefined, forked_from, created_at, updated_at. This is the "menu board" — the single source of truth for what skills exist, not where skill content lives.
-- R11. Predefined skills are seeded into the table at deploy time (from SKILL.md frontmatter in the repo). User-created and user-customized skills insert rows when created/forked.
-- R12. The frontend queries the `skills` table to populate the slash command autocomplete. One fast query, no frontmatter parsing or storage directory listing at request time.
-- R13. Skill content delivery is unchanged: predefined skill content lives on Anthropic (progressive disclosure), user overrides load via `storage_read` from Supabase storage. The table stores metadata only.
+- R10. The agent system prompt includes a skills section listing all registered skills with name + one-line description (for progressive disclosure Level 1 and auto-trigger).
+- R11. At kickoff, the adapter queries the user's installed skills and includes: "Active skills for this session: [slugs]."
+- R12. For skills with user overrides in Supabase storage, the kickoff adds: "These skills have user customizations: [slugs]. Call `storage_read('/agent/skills/{slug}/SKILL.md')` first."
+- R13. The agent uses progressive disclosure (Skills API native) for active skills without overrides. For overridden skills, it calls `storage_read` to get the user's version.
+
+### Install / Uninstall UX
+
+- R14. The `/skills` page shows two sections: **Installed** (user's active skills) and **Recommended** (available skills not yet installed).
+- R15. "Install" sets `is_installed = true` in the `skills` table. Next session includes the skill in the kickoff.
+- R16. "Uninstall" sets `is_installed = false`. Next session excludes it from the kickoff. The skill remains registered on Anthropic — just not active for this user.
 
 ## Success Criteria
 
-- The agent never calls `storage_read` for a skill that only exists on Anthropic's infrastructure (the bifurcation bug is structurally eliminated, not just guarded against)
-- Users can discover and invoke any skill via `/` autocomplete in the chat composer
-- Adding a new predefined skill requires only: create `managed-agents/skills/{slug}/SKILL.md`, run the upload pipeline, deploy (seeds the skills table) — no frontend code change needed
-- The 20-skill-per-session cap is respected (currently 15 skills; leaves room for 5 more)
+- One tier: every skill is `type: "custom"` on Anthropic. No `BUILTIN_SKILLS`, no type distinction.
+- Users can browse, install, and uninstall skills from the `/skills` page
+- Users can discover and invoke skills via `/` autocomplete in the chat composer
+- The agent only uses skills the user has installed (kickoff-controlled)
+- Adding a new skill: write SKILL.md, run upload pipeline, deploy (seeds DB). No frontend change.
+- The 20-skill-per-session cap is respected (catalog up to 20, users pick their subset)
 
 ## Scope Boundaries
 
-- **Not in scope:** Skill editor/customization UI (already exists via the /skills page and PR 51a)
-- **Not in scope:** Skill marketplace or sharing between users
-- **Not in scope:** Sandbox/code execution integration (separate concern, PR 52)
-- **Not in scope:** Multi-select or chaining slash commands
-- **Not in scope:** Changes to the skill override/customization workflow itself — the Supabase storage pattern and fork metadata stay as-is
+- **Not in scope:** Files API overflow for >20 skills (v2 if needed)
+- **Not in scope:** Skill marketplace / community sharing
+- **Not in scope:** Sandbox/code execution integration (PR 52)
+- **Not in scope:** Skill editor UI changes (existing /skills editor stays as-is)
 
 ## Key Decisions
 
-- **Fork built-in document skills as custom:** One access pattern for everything. We take on maintenance of document processing skill content, but eliminate the type:anthropic/type:custom confusion that caused the xlsx crash. Anthropic's source-available implementations are the starting point.
-- **Full autocomplete, not text convention only:** Discoverability matters. Users shouldn't need to memorize skill names. The autocomplete dropdown is the discovery surface.
-- **DB table for skill metadata ("menu board"):** A `skills` table is the single source of truth for what skills exist and their metadata. Content stays where it runs (Anthropic for predefined, Supabase storage for user overrides). Avoids parsing frontmatter or listing directories at request time. Validated by Multica's approach (PostgreSQL `skill` + `skill_file` tables).
-- **Keep storage_read override mechanism:** Already works for 11+ skills. Now applies uniformly to all skills. The kickoff instruction no longer confuses the agent because there's no separate built-in tier to conflate with.
+- **Fork built-in document skills as custom:** Eliminates the bifurcation that caused the xlsx crash. One access pattern for everything.
+- **Skills API for v1, not Files API:** Progressive disclosure and auto-trigger are worth more than unlimited dynamic skills right now. Files API is the v2 escape hatch if we outgrow 20.
+- **DB table for metadata ("menu board"):** Single queryable source of truth for what skills exist and who has what installed. Content stays on Anthropic (progressive disclosure) and Supabase storage (user overrides). Validated by Multica (PostgreSQL `skill` table) and Fintool (SQL discovery over filesystem).
+- **Install/uninstall is a soft toggle:** All skills are registered on one agent. Per-user activation is a DB flag that affects the kickoff, not the agent definition. No per-user agent versions.
 
 ## Dependencies / Assumptions
 
-- Anthropic's source-available document skills (github.com/anthropics/skills) can be adapted into the `managed-agents/skills/` format without major rework
-- The 20-skill-per-session cap is sufficient for the foreseeable skill set (15 currently, room for 5 more)
-- The existing `upload-custom-skills.ts` pipeline handles the additional skills without changes to its core logic
+- Anthropic's source-available document skills can be adapted into `managed-agents/skills/{slug}/SKILL.md` format
+- The 20-skill cap is sufficient for the curated catalog
+- The existing `upload-custom-skills.ts` pipeline handles additional skills without core changes
 
 ## Outstanding Questions
 
 ### Deferred to Planning
 
-- [Affects R2][Needs research] What adaptation is needed to port Anthropic's source-available document skills into Sunder's `managed-agents/skills/{slug}/SKILL.md` format? Do they include Python scripts or dependencies that need the session container?
-- [Affects R4][Technical] What should the system prompt skills section look like? How much metadata per skill (name only, name + description, name + description + trigger hints)?
-- [Affects R6][Technical] What autocomplete component pattern to use? ShadCN Command/Combobox, or a custom popover? How to handle positioning relative to the composer textarea?
-- [Affects R10][Technical] Migration design for the `skills` table — columns, RLS policy (client_id scoping), seed strategy for predefined skills at deploy time
-- [Affects R12][Technical] Should the frontend query be a Server Action, an API route, or a React Server Component data fetch? What caching strategy?
+- [Affects R2][Needs research] What adaptation is needed to port Anthropic's document skills? Do they bundle Python scripts or dependencies?
+- [Affects R4][Technical] Migration design for the `skills` table — RLS policy, seed strategy, default install set per user
+- [Affects R7][Technical] Autocomplete component in chat composer — ShadCN Command/Combobox or custom popover?
+- [Affects R10][Technical] System prompt skills section format — how much metadata per skill?
+- [Affects R14][Technical] `/skills` page install/uninstall UX — how to surface the Installed vs Recommended split?
 
 ## Next Steps
 
-→ `/plan` for structured implementation planning
+-> `/plan` for structured implementation planning
