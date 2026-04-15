@@ -2,7 +2,7 @@
   "meta": {
     "title": "Sunder Next — Post-Migration Product Roadmap",
     "created": "2026-04-13",
-    "updated": "2026-04-13: Created. Succeeds implementation-phasing-plan-v2.json. Tracks all work after the Managed Agents migration.",
+    "updated": "2026-04-14: Added ws-13 (Enforced skill bundles + editable skills), ws-14 (Third-party skill marketplace — markdown + env pattern, inspired by Gooseworks/athina-ai model), ws-15 (Memory consolidation background agents), ws-16 (Multi-agent router / specialist pattern).",
     "previousPlan": "docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json",
     "context": "Sunder moved from a custom orchestration loop (streamText + tool dispatch + compaction) to Anthropic Managed Agents. This roadmap tracks everything built on that new foundation. The v2 plan is frozen history — any remaining v2 items that still matter are carried forward here.",
     "conventions": {
@@ -53,6 +53,24 @@
       "goal": "Migrate instruction skills from Supabase Storage filesystem to Anthropic Managed Agents skills API.",
       "tasklist": "docs/tasks/2026-04-12-migrate-skills-to-anthropic-managed-agents-tasklist.md",
       "dependencies": ["ws-1"]
+    },
+    {
+      "id": "ws-13",
+      "title": "Enforced Skill Bundles + Editable Skills",
+      "status": "pending",
+      "goal": "Move from soft-gated managed-agent skills to Sunder-owned enforced skill loading, bundle shadowing, forks, and user-created skills.",
+      "tasklist": "docs/tasks/2026-04-14-enforced-skill-bundles-and-editable-skills-tasklist.md",
+      "dependencies": ["ws-5", "ws-11"],
+      "notes": "Current production path remains the shipped soft-gated version: all catalog skills are attached to the managed agent, install state is communicated via context engineering, and the system prompt + skill descriptions act as the short-term gate. This workstream is the clean follow-on for true enforcement. Skills remain folder bundles (`SKILL.md`, `scripts/`, `references/`, `assets/`). Runtime should discover via SQL metadata, lazily hydrate only the selected bundle into the session filesystem, and resolve shadowing with private > shared > public precedence. Future client-created/forked skills should be authored through `skill-creator`, not raw markdown editing."
+    },
+    {
+      "id": "ws-14",
+      "title": "Third-Party Skill Marketplace — Markdown + Env Pattern",
+      "status": "pending",
+      "goal": "Enable third-party skill integration where a skill is a markdown document (instructions, endpoints, auth pattern) plus environment credentials. Agent executes via existing HTTP/browser tools — no custom tool code required per integration.",
+      "tasklist": null,
+      "dependencies": ["ws-13"],
+      "notes": "Insight from Gooseworks/athina-ai LinkedIn Scraper: their 'tool' is just a README telling the LLM how to call an API with a Bearer token. Generalize this — a skill catalog entry is markdown instructions + env var references. Agent reads the skill doc at session start, credentials are injected as env vars. Adding a new third-party capability becomes: write markdown, set env var, redeploy agent definition. No tool handler code. Depends on ws-13 (enforced skill bundles) for the skill loading infrastructure."
     },
     {
       "id": "ws-6",
@@ -109,6 +127,24 @@
       "goal": "Reduce token cost and improve accuracy of CRM tool calls.",
       "tasklist": "docs/product/reviews/2026-04-13-crm-tool-efficiency-review.md",
       "dependencies": []
+    },
+    {
+      "id": "ws-15",
+      "title": "Memory Consolidation Background Agents",
+      "status": "pending",
+      "goal": "Nightly background agent pass per active client that curates SOUL.md, USER.md, MEMORY.md, and memory/*.md files — merging duplicates, promoting/demoting tiers, flagging stale entries, preserving corrections.",
+      "tasklist": null,
+      "dependencies": ["ws-1"],
+      "notes": "Two approaches to decide in planning: (A) single-agent consolidation pass (cheaper, faster to ship), (B) three-agent panel — Consolidator + Adversarial + Judge (richer curation, higher token cost). Corrections are never deleted unless superseded. No user-facing UI in v1. Triggered by existing Trigger.dev cron. Requirements: docs/product/ideations/2026-04-14-multi-agent-architecture-requirements.md (Part B)."
+    },
+    {
+      "id": "ws-16",
+      "title": "Multi-Agent Router / Specialist Pattern",
+      "status": "blocked",
+      "goal": "Redesign the main Sunder agent as a coordinator that delegates to pre-declared specialist agents — CRM, Research, Drafting, Meeting, Automation — each with a minimal tool set and focused system prompt.",
+      "tasklist": null,
+      "dependencies": ["ws-1"],
+      "notes": "Blocked on Anthropic Managed Agents Research Preview access (apply at claude.com/form/claude-managed-agents). Architecture is fully designed: specialists are pre-declared via callable_agents on the orchestrator agent definition. One level of delegation only (platform constraint). Specialists share the session container/filesystem but run in context-isolated threads. Requirements: docs/product/ideations/2026-04-14-multi-agent-architecture-requirements.md (Part A)."
     }
   ],
   "carried_from_v2": {
