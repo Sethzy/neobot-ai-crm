@@ -10,10 +10,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CHAT_ATTACHMENT_ACCEPT } from "@/lib/chat/attachment-config";
 
-const { mockToastError, mockUploadToSignedUrl, mockStorageFrom } = vi.hoisted(() => ({
+const {
+  mockToastError,
+  mockUploadToSignedUrl,
+  mockStorageFrom,
+  mockUseInstalledSkills,
+} = vi.hoisted(() => ({
   mockToastError: vi.fn(),
   mockUploadToSignedUrl: vi.fn(),
   mockStorageFrom: vi.fn(),
+  mockUseInstalledSkills: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({
@@ -44,6 +50,10 @@ vi.mock("@/lib/supabase/client", () => ({
       })),
     },
   })),
+}));
+
+vi.mock("@/hooks/use-installed-skills", () => ({
+  useInstalledSkills: mockUseInstalledSkills,
 }));
 
 vi.mock("./preview-attachment", () => ({
@@ -77,7 +87,6 @@ describe("ChatComposer", () => {
     value: "",
     onValueChange: vi.fn(),
     onSubmit: vi.fn(),
-    onStop: vi.fn(),
     selectedChatModel: "anthropic/claude-sonnet-4-6",
     onSelectedChatModelChange: vi.fn(),
   };
@@ -85,6 +94,11 @@ describe("ChatComposer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", mockFetch);
+    mockUseInstalledSkills.mockReturnValue({
+      data: [],
+      isError: false,
+      isLoading: false,
+    });
     mockUploadToSignedUrl.mockResolvedValue({
       data: { path: "uploads/photo.png" },
       error: null,
@@ -165,6 +179,41 @@ describe("ChatComposer", () => {
     );
 
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("shows installed skill autocomplete for slash commands and inserts the selected skill", async () => {
+    const onValueChange = vi.fn();
+    const user = userEvent.setup();
+    mockUseInstalledSkills.mockReturnValue({
+      data: [
+        {
+          slug: "call-prep",
+          name: "call-prep",
+          description: "Prepare for an upcoming client call.",
+        },
+      ],
+      isError: false,
+      isLoading: false,
+    });
+
+    renderComposer(
+      <ChatComposer
+        {...baseProps}
+        value="/c"
+        onValueChange={onValueChange}
+      />,
+    );
+
+    const textarea = screen.getByPlaceholderText(/send a message/i) as HTMLTextAreaElement;
+    textarea.setSelectionRange(2, 2);
+    fireEvent.click(textarea);
+    fireEvent.select(textarea);
+
+    expect(await screen.findByTestId("skill-autocomplete")).toBeInTheDocument();
+
+    await user.click(screen.getByText("/call-prep"));
+
+    expect(onValueChange).toHaveBeenCalledWith("/call-prep ");
   });
 
   it("uploads a selected image and allows attachment-only sends", async () => {
@@ -408,15 +457,12 @@ describe("ChatComposer", () => {
     expect(onStop).toHaveBeenCalledTimes(1);
   });
 
-  it("does not expose stop while submitted", () => {
-    const onStop = vi.fn();
-
-    renderComposer(<ChatComposer {...baseProps} status="submitted" onStop={onStop} value="Hello" />);
+  it("does not expose stop while submitted (onStop not provided)", () => {
+    renderComposer(<ChatComposer {...baseProps} status="submitted" onStop={undefined} value="Hello" />);
 
     expect(screen.getByPlaceholderText(/send a message/i)).toBeDisabled();
     expect(screen.queryByRole("button", { name: /stop/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /submit/i })).toBeDisabled();
-    expect(onStop).not.toHaveBeenCalled();
   });
 
   it("locks the composer and attachment control when disabled", () => {

@@ -1434,6 +1434,53 @@ export type Database = {
           },
         ]
       }
+      skills: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          description: string
+          forked_from: string | null
+          id: string
+          is_installed: boolean
+          is_predefined: boolean
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          description?: string
+          forked_from?: string | null
+          id?: string
+          is_installed?: boolean
+          is_predefined?: boolean
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          description?: string
+          forked_from?: string | null
+          id?: string
+          is_installed?: boolean
+          is_predefined?: boolean
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skills_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+        ]
+      }
       run_scores: {
         Row: {
           comment: string | null
@@ -2077,4 +2124,3 @@ export const Constants = {
     },
   },
 } as const
-

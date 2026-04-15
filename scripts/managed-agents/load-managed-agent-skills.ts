@@ -1,7 +1,7 @@
 /**
  * Reads `skill-registry.json` and assembles the Managed Agents `skills` array.
- * Merges the 4 built-in Anthropic document skills with every custom Sunder
- * skill from the registry and enforces Anthropic's per-session 20-skill cap.
+ * All managed-agent skills are uploaded as Anthropic custom skills and loaded
+ * from the registry here. Anthropic's per-session 20-skill cap is enforced.
  *
  * @module scripts/managed-agents/load-managed-agent-skills
  */
@@ -10,13 +10,6 @@ import fs from "node:fs";
 import type { BetaManagedAgentsSkillParams } from "@anthropic-ai/sdk/resources/beta/agents/agents";
 
 import type { SkillRegistry } from "./upload-custom-skills";
-
-const BUILTIN_SKILLS: BetaManagedAgentsSkillParams[] = [
-  { type: "anthropic", skill_id: "xlsx" },
-  { type: "anthropic", skill_id: "docx" },
-  { type: "anthropic", skill_id: "pptx" },
-  { type: "anthropic", skill_id: "pdf" },
-];
 
 const MAX_SKILLS_PER_SESSION = 20;
 
@@ -34,13 +27,11 @@ export function loadManagedAgentSkills(registryPath: string): BetaManagedAgentsS
     version: entry.latestVersion,
   }));
 
-  const combinedSkills = [...BUILTIN_SKILLS, ...customSkills];
-
-  if (combinedSkills.length > MAX_SKILLS_PER_SESSION) {
+  if (customSkills.length > MAX_SKILLS_PER_SESSION) {
     throw new Error(
-      `Combined skill count ${combinedSkills.length} exceeds the ${MAX_SKILLS_PER_SESSION}-skill per-session cap.`,
+      `Skill count ${customSkills.length} exceeds the ${MAX_SKILLS_PER_SESSION}-skill per-session cap.`,
     );
   }
 
-  return combinedSkills;
+  return customSkills;
 }

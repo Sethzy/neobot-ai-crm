@@ -4,87 +4,62 @@
  *
  * @module app/(dashboard)/skills/actions
  */
-import fs from "node:fs";
 import path from "node:path";
 
 import { revalidatePath } from "next/cache";
 
-import { resolveClientId } from "@/lib/chat/client-id";
 import {
-  duplicateSkill,
-  overwriteSkillFromPredefined,
-} from "@/lib/runner/skills/duplicate-skill";
-import { writeForkMetadata } from "@/lib/runner/skills/fork-metadata";
-import { resetSkillToDefault } from "@/lib/runner/skills/skill-actions";
-import { createClient } from "@/lib/supabase/server";
-
-import type { SkillRegistry } from "../../../scripts/managed-agents/upload-custom-skills";
-
-const BUNDLE_ROOT = path.join(process.cwd(), "managed-agents", "skills");
-const REGISTRY_PATH = path.join(process.cwd(), "scripts", "managed-agents", "skill-registry.json");
-
-function getRegistry(): SkillRegistry {
-  return JSON.parse(fs.readFileSync(REGISTRY_PATH, "utf8")) as SkillRegistry;
-}
+  installSkill,
+  uninstallSkill,
+} from "@/lib/runner/skills/skill-actions";
+import { readSkillBundle } from "../../../scripts/managed-agents/read-skill-bundle";
 
 function revalidateSkillRoutes(slug: string): void {
   revalidatePath("/skills");
   revalidatePath(`/skills/${slug}`);
 }
 
-export async function duplicateSkillAction(slug: string): Promise<void> {
-  const supabase = await createClient();
-  const clientId = await resolveClientId(supabase);
-
-  await duplicateSkill({
-    supabase,
-    clientId,
-    slug,
-    bundleRoot: BUNDLE_ROOT,
-    registryPath: REGISTRY_PATH,
-  });
-
-  revalidateSkillRoutes(slug);
-}
-
-export async function resetSkillAction(slug: string): Promise<void> {
-  const result = await resetSkillToDefault(slug);
+export async function installSkillAction(slug: string): Promise<void> {
+  const result = await installSkill(slug);
 
   if (!result.success) {
-    throw new Error(result.error ?? `Failed to reset skill "${slug}".`);
+    throw new Error(result.error ?? `Failed to install skill "${slug}".`);
   }
 
   revalidateSkillRoutes(slug);
 }
 
-export async function acknowledgeForkAction(slug: string): Promise<void> {
-  const supabase = await createClient();
-  const clientId = await resolveClientId(supabase);
-  const entry = getRegistry()[slug];
+export async function uninstallSkillAction(slug: string): Promise<void> {
+  const result = await uninstallSkill(slug);
 
-  if (!entry) {
-    throw new Error(`Unknown skill "${slug}".`);
+  if (!result.success) {
+    throw new Error(result.error ?? `Failed to uninstall skill "${slug}".`);
   }
-
-  await writeForkMetadata(supabase, clientId, slug, {
-    forkedFromVersion: entry.latestVersion,
-    forkedAt: new Date().toISOString(),
-  });
 
   revalidateSkillRoutes(slug);
 }
 
-export async function overwriteForkAction(slug: string): Promise<void> {
-  const supabase = await createClient();
-  const clientId = await resolveClientId(supabase);
+/** Fetches the SKILL.md body (frontmatter stripped) for a given slug. */
+export async function fetchSkillMarkdown(
+  slug: string,
+): Promise<string | null> {
+  const bundleRoot = path.join(process.cwd(), "managed-agents", "skills");
 
-  await overwriteSkillFromPredefined({
-    supabase,
-    clientId,
-    slug,
-    bundleRoot: BUNDLE_ROOT,
-    registryPath: REGISTRY_PATH,
-  });
+  try {
+    const bundle = await readSkillBundle(path.join(bundleRoot, slug));
+    const skillFile = bundle.files.find((f) =>
+      f.relativePath.endsWith("SKILL.md"),
+    );
 
-  revalidateSkillRoutes(slug);
+    if (!skillFile) return null;
+
+    // Strip YAML frontmatter
+    const stripped = skillFile.content.replace(
+      /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n)?/u,
+      "",
+    );
+    return stripped.trim();
+  } catch {
+    return null;
+  }
 }

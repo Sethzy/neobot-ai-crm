@@ -17,6 +17,8 @@
  * @module scripts/managed-agents/create-agent
  */
 import path from "node:path";
+import fs from "node:fs";
+import { pathToFileURL } from "node:url";
 
 import Anthropic from "@anthropic-ai/sdk";
 import type {
@@ -36,6 +38,8 @@ import {
 import { toPublishedManagedAgentToolName } from "@/lib/managed-agents/tool-name-aliases";
 
 import { loadManagedAgentSkills } from "./load-managed-agent-skills";
+import { readSkillBundle } from "./read-skill-bundle";
+import type { SkillRegistry } from "./upload-custom-skills";
 
 const ALLOWED_MODELS = ["claude-sonnet-4-6", "claude-haiku-4-5", "claude-opus-4-6"] as const;
 type AllowedModel = (typeof ALLOWED_MODELS)[number];
@@ -83,11 +87,13 @@ const SKILL_REGISTRY_PATH = path.join(
 );
 const MANAGED_AGENT_SKILLS: BetaManagedAgentsSkillParams[] =
   loadManagedAgentSkills(SKILL_REGISTRY_PATH);
+const SKILLS_BUNDLE_ROOT = path.join(process.cwd(), "managed-agents", "skills");
 const PUBLISHED_MANAGED_AGENT_TOOL_NAMES = MANAGED_AGENT_TOOL_NAMES.map(
   toPublishedManagedAgentToolName,
 );
 
-const MANAGED_AGENT_SYSTEM = `\
+export function buildManagedAgentSystem(skillsList: string): string {
+  return `\
 You are Sunder, an autopilot for solo practitioners in advisory sales.
 
 ## Role
@@ -105,16 +111,38 @@ For web search and scraping, prefer Sunder's \`sunder_web_search\` and \`web_scr
 
 Available Sunder custom tools: ${PUBLISHED_MANAGED_AGENT_TOOL_NAMES.join(", ")}.
 
+## Skills
+
+You have specialized skills that provide domain-specific workflows.
+
+- **Explicit invocation:** The user starts a line with \`/skill-name\` (for example \`/call-prep David Lee\`).
+- **Auto-detection:** You match the request to a skill by its description.
+
+The list below is the global skill catalog, not the per-client active set.
+
+Available catalog skills:
+${skillsList}
+
+The kickoff message is the authority for install state.
+
+- You may use installed skills.
+- You must not use a skill that the kickoff marks as not installed, even if the user's request matches that skill's description exactly.
+- Install state overrides frontmatter trigger relevance.
+- If the user explicitly invokes an uninstalled skill (for example \`/pdf\` when pdf is not installed), refuse briefly and explain that the skill is not active for this client.
+
 ## Filesystem
 
 You operate across two filesystems with different lifetimes:
 
 - **Session filesystem** (\`/mnt/session/uploads/*\`, \`/mnt/session/outputs/*\`): Ephemeral — tied to this session. Use built-in tools (read, write, edit, bash, glob, grep) to work with these paths. This is your scratchpad for analysis, transformation, and artifact generation.
+- **Session-mounted skills** (\`/workspace/skills/<slug>/*\`): Attached managed-agent skills are mounted here. Use built-in tools if you need to inspect a skill file such as \`/workspace/skills/xlsx/SKILL.md\`.
 - **Durable workspace** (\`/agent/*\`): Persistent across sessions. Use \`storage_read\` and \`storage_write\` for these paths. This is where saved files, memory, and operating context live.
 
 Rules:
 - Use built-in tools on \`/mnt/session/*\` paths. Do not call \`storage_read\` or \`storage_write\` on session paths.
+- Use built-in tools on \`/workspace/skills/*\` paths. These skill mounts are not durable files, so never call \`storage_read\` or \`storage_write\` on them.
 - Use \`storage_read\`/\`storage_write\` on \`/agent/*\` paths. Do not use built-in tools on \`/agent/*\` paths.
+- Do not look for attached skills under \`/agent/skills/*\`. Attached managed-agent skills live under \`/workspace/skills/*\` in this environment.
 - Session outputs are not saved by default. If the user wants to keep a generated file, read it with built-in \`read\` or \`bash\`, then write it to \`/agent/home/*\` with \`storage_write\`.
 - Attach only durable files (\`/agent/*\`) to CRM records. If a session output needs to be attached, persist it first.
 
@@ -132,6 +160,20 @@ In trigger runs (automated/scheduled executions), do not use \`run_sql\`, \`get_
 
 Keep user-facing responses concise, factual, and operationally useful.
 `;
+}
+
+async function buildSkillsList(): Promise<string> {
+  const registry = JSON.parse(fs.readFileSync(SKILL_REGISTRY_PATH, "utf8")) as SkillRegistry;
+  const slugs = Object.keys(registry).sort((left, right) => left.localeCompare(right));
+  const lines: string[] = [];
+
+  for (const slug of slugs) {
+    const bundle = await readSkillBundle(path.join(SKILLS_BUNDLE_ROOT, slug));
+    lines.push(`- ${bundle.frontmatter.name}: ${bundle.frontmatter.description}`);
+  }
+
+  return lines.join("\n");
+}
 
 const ANTHROPIC_ALLOWED_SCHEMA_KEYS = new Set([
   "type",
@@ -212,14 +254,15 @@ const BUILT_IN_TOOLSET: BetaManagedAgentsAgentToolset20260401Params = {
   configs: [],
 };
 
-function buildAgentPayload(): AgentCreateParams {
+async function buildAgentPayload(): Promise<AgentCreateParams> {
   const customTools = MANAGED_AGENT_TOOL_DECLARATIONS.map(toCustomToolParams);
+  const skillsList = await buildSkillsList();
 
   return {
     name: MANAGED_AGENT_NAME,
     description: MANAGED_AGENT_DESCRIPTION,
     model: MANAGED_AGENT_MODEL,
-    system: MANAGED_AGENT_SYSTEM,
+    system: buildManagedAgentSystem(skillsList),
     tools: [BUILT_IN_TOOLSET, ...customTools],
     skills: MANAGED_AGENT_SKILLS,
   };
@@ -228,7 +271,7 @@ function buildAgentPayload(): AgentCreateParams {
 async function createOrUpdateAgent(
   client: Anthropic,
 ): Promise<{ mode: "created" | "updated"; agent: BetaManagedAgentsAgent }> {
-  const payload = buildAgentPayload();
+  const payload = await buildAgentPayload();
   const suffix = MODEL_ENV_SUFFIX[SELECTED_MODEL];
 
   // Check model-specific env var first, fall back to legacy ANTHROPIC_AGENT_ID for Sonnet.
@@ -282,7 +325,12 @@ async function main() {
   console.log("Sessions must pin to this exact version; do not use latest in production.");
 }
 
-main().catch((error: unknown) => {
-  console.error(error);
-  process.exit(1);
-});
+const isDirectExecution =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isDirectExecution) {
+  main().catch((error: unknown) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

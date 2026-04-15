@@ -1,57 +1,77 @@
 {
   "call-prep": {
-    "skillId": "skill_01NU52vDMmzHV4WQWR7zM3W1",
+    "skillId": "skill_01NqrxaLVtAJ9NwY2DnZE9ub",
     "displayTitle": "sunder-skill:call-prep",
-    "latestVersion": "1775953750642927"
+    "latestVersion": "1776089261181587"
   },
   "call-summary": {
-    "skillId": "skill_01RbkLHeBeDd4cbimBTwYgEL",
+    "skillId": "skill_01PBfCi3KHZQw7EXgCzjz6LA",
     "displayTitle": "sunder-skill:call-summary",
-    "latestVersion": "1775953754097332"
+    "latestVersion": "1776089265147487"
   },
   "daily-briefing": {
-    "skillId": "skill_01CRP2YmzMnfhyYRubvXrvUh",
+    "skillId": "skill_01UGURMwxxyUJrcFsRhe9WYm",
     "displayTitle": "sunder-skill:daily-briefing",
-    "latestVersion": "1775953757612329"
+    "latestVersion": "1776089268718357"
   },
   "deal-comparison": {
-    "skillId": "skill_01FNNKp7A2afJbenWjxY1Ww2",
+    "skillId": "skill_01FKMbtt4eeePfqKhaNTipcM",
     "displayTitle": "sunder-skill:deal-comparison",
-    "latestVersion": "1775953761145918"
+    "latestVersion": "1776089272465846"
+  },
+  "docx": {
+    "skillId": "skill_01WGs75J8ZmdfL9F88Ufn4AC",
+    "displayTitle": "sunder-skill:docx",
+    "latestVersion": "1776089273862378"
   },
   "draft-outreach": {
-    "skillId": "skill_01TnTqMavtdFPhvcxrDvLfqo",
+    "skillId": "skill_01SVMfRT4g5wAHaAJgUXcDRg",
     "displayTitle": "sunder-skill:draft-outreach",
-    "latestVersion": "1775953765838167"
+    "latestVersion": "1776089278414411"
   },
   "market-briefing": {
-    "skillId": "skill_015w7mNmqUY5jgSsmsPBEXBp",
+    "skillId": "skill_01JehvMBhvWR9U5tuJXkGoWQ",
     "displayTitle": "sunder-skill:market-briefing",
-    "latestVersion": "1775953769412678"
+    "latestVersion": "1776089282105165"
   },
   "market-report": {
-    "skillId": "skill_01524Sq7uS4r6NpfYq6eYgNG",
+    "skillId": "skill_014u5HYr7vBFNK5peSzZVWa7",
     "displayTitle": "sunder-skill:market-report",
-    "latestVersion": "1775953773103297"
+    "latestVersion": "1776089287998897"
   },
   "onboarding": {
-    "skillId": "skill_01LGP9rdyao3GBCXJXUyDuau",
+    "skillId": "skill_011K83frSJQxSGpmMTNM9Z4G",
     "displayTitle": "sunder-skill:onboarding",
-    "latestVersion": "1775953776777340"
+    "latestVersion": "1776089291545011"
   },
   "opportunity-analysis": {
-    "skillId": "skill_01ARoH1aXzfmjVHcFeQMVCNB",
+    "skillId": "skill_01CNG78rh1HhDtmA8d5j7Gpg",
     "displayTitle": "sunder-skill:opportunity-analysis",
-    "latestVersion": "1775953780356655"
+    "latestVersion": "1776089303125523"
+  },
+  "pdf": {
+    "skillId": "skill_01CjnjgYKfeRTMsw3GqhPoxk",
+    "displayTitle": "sunder-skill:pdf",
+    "latestVersion": "1776089304402642"
   },
   "pipeline-review": {
-    "skillId": "skill_01CJYjBXpAqAYKWmL2gXWznR",
+    "skillId": "skill_0132FTtuNFMs4n4vpMheCsfw",
     "displayTitle": "sunder-skill:pipeline-review",
-    "latestVersion": "1775953783845465"
+    "latestVersion": "1776089308052890"
+  },
+  "pptx": {
+    "skillId": "skill_01BxsmKv5QaBSqnYWBmnRaXW",
+    "displayTitle": "sunder-skill:pptx",
+    "latestVersion": "1776089310870870"
   },
   "property-showcase": {
-    "skillId": "skill_01LeFtmoHjYwvRe9QPnjvawv",
+    "skillId": "skill_01An58nPsNBAaXBpeVCyE1RU",
     "displayTitle": "sunder-skill:property-showcase",
-    "latestVersion": "1775953787342793"
+    "latestVersion": "1776089315504578"
+  },
+  "xlsx": {
+    "skillId": "skill_01QXoi9EcSHtUD6nz8jtaXfR",
+    "displayTitle": "sunder-skill:xlsx",
+    "latestVersion": "1776089317163587"
   }
 }

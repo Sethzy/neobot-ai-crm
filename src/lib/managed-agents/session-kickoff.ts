@@ -27,7 +27,8 @@ export interface KickoffInput {
   userPreferences: string | null;
   systemReminder: string;
   userMessage: string;
-  customizedSkillSlugs: string[];
+  installedSkillSlugs: string[];
+  notInstalledSkillSlugs: string[];
   attachmentHints?: SessionAttachmentMount[];
 }
 
@@ -43,12 +44,16 @@ export function buildKickoffContent(input: KickoffInput): KickoffTextBlock[] {
   if (input.systemReminder.trim().length) {
     blocks.push({ type: "text", text: input.systemReminder.trim() });
   }
-  if (input.customizedSkillSlugs.length > 0) {
-    blocks.push({
-      type: "text",
-      text: `The user has customized these skills: ${input.customizedSkillSlugs.join(", ")}. When you are about to run one of these, first call storage_read('/agent/skills/<slug>/SKILL.md') and use that content as your workflow instead of the predefined one.`,
-    });
-  }
+  blocks.push({
+    type: "text",
+    text: `Installed skills for this session: ${input.installedSkillSlugs.length > 0 ? input.installedSkillSlugs.join(", ") : "none"}. You may use only installed skills.`,
+  });
+  blocks.push({
+    type: "text",
+    text: input.notInstalledSkillSlugs.length > 0
+      ? `Not installed skills for this session: ${input.notInstalledSkillSlugs.join(", ")}. Do not use any skill from this not-installed list, even if the request matches its description.`
+      : "Not installed skills for this session: none.",
+  });
   if ((input.attachmentHints?.length ?? 0) > 0) {
     const attachmentLines = input.attachmentHints!.map((attachmentHint) =>
       `- ${attachmentHint.filename}: session path ${attachmentHint.mountPath}${attachmentHint.storagePath ? `; durable path /agent/${attachmentHint.storagePath}` : ""}`,

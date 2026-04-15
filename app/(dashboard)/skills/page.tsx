@@ -1,18 +1,21 @@
 /**
- * Skills dashboard list view for predefined and customized playbooks.
+ * Skills dashboard — compact catalog view with search, installed and
+ * recommended sections. Server component fetches data, delegates rendering
+ * to the client-side SkillsCatalog.
  *
  * @module app/(dashboard)/skills/page
  */
 import path from "node:path";
 
 import { resolveClientId } from "@/lib/chat/client-id";
-import { discoverUserSkills } from "@/lib/runner/skills/discover-skills";
-import { readForkMetadata } from "@/lib/runner/skills/fork-metadata";
+import {
+  getInstalledSkills,
+  listRecommendedSkills,
+} from "@/lib/runner/skills/get-installed-skills";
 import { listPredefinedSkills } from "@/lib/runner/skills/list-predefined-skills";
 import { createClient } from "@/lib/supabase/server";
 
-import { CustomizedCard } from "./customized-card";
-import { PredefinedCard } from "./predefined-card";
+import { SkillsCatalog } from "./skills-catalog";
 
 export default async function SkillsPage() {
   const supabase = await createClient();
@@ -25,57 +28,44 @@ export default async function SkillsPage() {
     "skill-registry.json",
   );
 
-  const [predefinedSkills, customizedSkills] = await Promise.all([
-    listPredefinedSkills({ bundleRoot, registryPath }),
-    discoverUserSkills(supabase, clientId),
-  ]);
-  const customizedBySlug = new Map(customizedSkills.map((skill) => [skill.slug, skill]));
-  const cards = await Promise.all(
-    predefinedSkills.map(async (skill) => {
-      const isCustomized = customizedBySlug.has(skill.slug);
-
-      if (!isCustomized) {
-        return {
-          kind: "predefined" as const,
-          skill,
-        };
-      }
-
-      const fork = await readForkMetadata(supabase, clientId, skill.slug);
-      return {
-        kind: "customized" as const,
-        skill,
-        fork,
-        isOutdated: fork !== null && fork.forkedFromVersion !== skill.latestVersion,
-      };
-    }),
+  const [predefinedSkills, installedSkills, recommendedSkills] =
+    await Promise.all([
+      listPredefinedSkills({ bundleRoot, registryPath }),
+      getInstalledSkills(supabase, clientId),
+      listRecommendedSkills(supabase, clientId),
+    ]);
+  const predefinedBySlug = new Map(
+    predefinedSkills.map((skill) => [skill.slug, skill]),
   );
+  const installedCards = installedSkills.map((skill) => ({
+    isInstalled: true as const,
+    skill: {
+      ...skill,
+      latestVersion: predefinedBySlug.get(skill.slug)?.latestVersion ?? null,
+    },
+  }));
+  const recommendedCards = recommendedSkills.map((skill) => ({
+    isInstalled: false as const,
+    skill: {
+      ...skill,
+      latestVersion: predefinedBySlug.get(skill.slug)?.latestVersion ?? null,
+    },
+  }));
 
   return (
     <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
-      <div className="mx-auto max-w-5xl space-y-6">
+      <div className="mx-auto max-w-5xl space-y-5">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Playbooks</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Skills</h1>
           <p className="text-muted-foreground text-sm">
-            Sunder ships with predefined workflows. Duplicate any playbook to
-            customize it for your own workflow.
+            Give your agent specialized capabilities with reusable skill blocks.
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {cards.map((card) =>
-            card.kind === "predefined" ? (
-              <PredefinedCard key={card.skill.slug} skill={card.skill} />
-            ) : (
-              <CustomizedCard
-                key={card.skill.slug}
-                skill={card.skill}
-                fork={card.fork}
-                isOutdated={card.isOutdated}
-              />
-            ),
-          )}
-        </div>
+        <SkillsCatalog
+          installedCards={installedCards}
+          recommendedCards={recommendedCards}
+        />
       </div>
     </div>
   );

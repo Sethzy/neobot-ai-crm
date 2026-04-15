@@ -32,8 +32,16 @@ vi.mock("../session-kickoff", () => ({
 vi.mock("@/lib/runner/system-reminder", () => ({
   buildSystemReminder: vi.fn().mockResolvedValue("<reminder>ok</reminder>"),
 }));
-vi.mock("@/lib/runner/skills/list-customized-skill-slugs", () => ({
-  listCustomizedSkillSlugs: vi.fn().mockResolvedValue([]),
+vi.mock("@/lib/runner/skills/list-installed-skill-slugs", () => ({
+  listInstalledSkillSlugs: vi.fn().mockResolvedValue(["call-prep", "daily-briefing"]),
+}));
+vi.mock("@/lib/runner/skills/list-catalog-skill-slugs", () => ({
+  listCatalogSkillSlugs: vi.fn().mockReturnValue([
+    "call-prep",
+    "daily-briefing",
+    "pdf",
+    "xlsx",
+  ]),
 }));
 vi.mock("@/lib/runner/run-lifecycle", () => ({
   createRunRecord: vi.fn().mockResolvedValue("run_1"),
@@ -498,6 +506,8 @@ describe("runManagedAgent — happy path", () => {
       expect.objectContaining({
         clientProfile: "## Client Profile\nJane — broker in SG",
         userPreferences: "## Preferences\nConcise. No fluff.",
+        installedSkillSlugs: ["call-prep", "daily-briefing"],
+        notInstalledSkillSlugs: ["pdf", "xlsx"],
         userMessage: "Draft a follow-up to Kate",
         attachmentHints: [],
       }),
@@ -539,6 +549,8 @@ describe("runManagedAgent — happy path", () => {
       expect.objectContaining({
         clientProfile: null,
         userPreferences: null,
+        installedSkillSlugs: ["call-prep", "daily-briefing"],
+        notInstalledSkillSlugs: ["pdf", "xlsx"],
         userMessage: "Follow-up question",
         attachmentHints: [],
       }),
@@ -597,6 +609,8 @@ describe("runManagedAgent — happy path", () => {
     );
     expect(buildKickoffContent).toHaveBeenCalledWith(
       expect.objectContaining({
+        installedSkillSlugs: ["call-prep", "daily-briefing"],
+        notInstalledSkillSlugs: ["pdf", "xlsx"],
         attachmentHints: [
           expect.objectContaining({
             filename: "brief.pdf",

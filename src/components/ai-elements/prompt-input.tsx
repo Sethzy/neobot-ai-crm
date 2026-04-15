@@ -46,7 +46,6 @@ import {
   ImageIcon,
   Monitor,
   PlusIcon,
-  SquareIcon,
   XIcon,
 } from "lucide-react";
 import { nanoid } from "nanoid";
@@ -1211,7 +1210,6 @@ export const PromptInputActionMenuItem = ({
 
 export type PromptInputSubmitProps = ComponentProps<typeof InputGroupButton> & {
   status?: ChatStatus;
-  onStop?: () => void;
 };
 
 export const PromptInputSubmit = ({
@@ -1219,43 +1217,23 @@ export const PromptInputSubmit = ({
   variant = "default",
   size = "icon-sm",
   status,
-  onStop,
-  onClick,
   children,
   ...props
 }: PromptInputSubmitProps) => {
-  const isGenerating = status === "submitted" || status === "streaming";
-  const isStoppable = status === "streaming" && typeof onStop === "function";
-
   let Icon = <ArrowUpIcon className="size-4" />;
 
   if (status === "submitted") {
     Icon = <Spinner />;
-  } else if (status === "streaming") {
-    Icon = <SquareIcon className="size-4" />;
   } else if (status === "error") {
     Icon = <XIcon className="size-4" />;
   }
 
-  const handleClick = useCallback(
-    (e: React.MouseEvent<HTMLButtonElement>) => {
-      if (isStoppable && onStop) {
-        e.preventDefault();
-        onStop();
-        return;
-      }
-      onClick?.(e);
-    },
-    [isStoppable, onStop, onClick]
-  );
-
   return (
     <InputGroupButton
-      aria-label={isStoppable ? "Stop" : "Submit"}
+      aria-label="Submit"
       className={cn("rounded-full", className)}
-      onClick={handleClick}
       size={size}
-      type={isStoppable ? "button" : "submit"}
+      type="submit"
       variant={variant}
       {...props}
     >

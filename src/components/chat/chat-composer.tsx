@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -19,6 +19,8 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { ModelSelector } from "@/components/ai-elements/model-selector";
 import { Paperclip } from "@/components/icons/lucide-compat";
+import { SquareIcon } from "lucide-react";
+import { useInstalledSkills } from "@/hooks/use-installed-skills";
 import { cn } from "@/lib/utils";
 import { CHAT_ATTACHMENT_ACCEPT } from "@/lib/chat/attachment-config";
 import { createClient as createSupabaseClient } from "@/lib/supabase/client";
@@ -26,6 +28,7 @@ import type { ChatStatus } from "@/types/chat";
 
 import type { ChatFilePart } from "./file-parts";
 import { PreviewAttachment, type Attachment } from "./preview-attachment";
+import { SkillAutocomplete } from "./skill-autocomplete";
 
 interface ChatSubmitInput {
   text: string;
@@ -91,6 +94,30 @@ function removeQueuedFilenames(currentQueue: string[], filenamesToRemove: string
   });
 }
 
+function getSlashCommandTrigger(
+  value: string,
+  cursorPosition: number | null,
+): { query: string; rangeEnd: number; rangeStart: number } | null {
+  if (cursorPosition === null) {
+    return null;
+  }
+
+  const textBeforeCursor = value.slice(0, cursorPosition);
+  const lineStart = textBeforeCursor.lastIndexOf("\n") + 1;
+  const activeLine = textBeforeCursor.slice(lineStart);
+  const match = activeLine.match(/^\/([a-z0-9-]*)$/i);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    query: match[1]?.toLowerCase() ?? "",
+    rangeStart: lineStart,
+    rangeEnd: cursorPosition,
+  };
+}
+
 export function ChatComposer({
   status,
   selectedChatModel,
@@ -110,7 +137,16 @@ export function ChatComposer({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [selectedSkillIndex, setSelectedSkillIndex] = useState(0);
+  const [isAutocompleteDismissed, setIsAutocompleteDismissed] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState<number | null>(value.length);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const {
+    data: installedSkills = [],
+    isError: isInstalledSkillsError,
+    isLoading: isInstalledSkillsLoading,
+  } = useInstalledSkills();
 
   const isStreaming = status === "streaming";
   const isGenerating = status === "submitted" || isStreaming;
@@ -120,6 +156,48 @@ export function ChatComposer({
     status === "submitted" ||
     (!isGenerating && !hasContent) ||
     (!isGenerating && disabled);
+  const slashCommandTrigger = useMemo(
+    () => getSlashCommandTrigger(value, cursorPosition),
+    [cursorPosition, value],
+  );
+  const filteredInstalledSkills = useMemo(() => {
+    const normalizedQuery = slashCommandTrigger?.query ?? "";
+
+    if (normalizedQuery.length === 0) {
+      return installedSkills;
+    }
+
+    return installedSkills.filter((skill) =>
+      skill.slug.toLowerCase().includes(normalizedQuery)
+      || skill.name.toLowerCase().includes(normalizedQuery)
+      || skill.description.toLowerCase().includes(normalizedQuery),
+    );
+  }, [installedSkills, slashCommandTrigger?.query]);
+  const isSkillAutocompleteOpen = Boolean(
+    slashCommandTrigger
+    && !isAutocompleteDismissed
+    && !disabled
+    && !isGenerating
+    && (
+      isInstalledSkillsLoading
+      || isInstalledSkillsError
+      || filteredInstalledSkills.length > 0
+      || (slashCommandTrigger.query.length > 0 && installedSkills.length > 0)
+    ),
+  );
+
+  useEffect(() => {
+    setSelectedSkillIndex(0);
+    setIsAutocompleteDismissed(false);
+  }, [slashCommandTrigger?.query, slashCommandTrigger?.rangeStart]);
+
+  useEffect(() => {
+    if (selectedSkillIndex < filteredInstalledSkills.length) {
+      return;
+    }
+
+    setSelectedSkillIndex(0);
+  }, [filteredInstalledSkills.length, selectedSkillIndex]);
 
   const uploadFile = useCallback(async (file: File): Promise<Attachment | null> => {
     try {
@@ -223,8 +301,86 @@ export function ChatComposer({
   }, [uploadFiles]);
 
   const handleChange = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    textareaRef.current = event.currentTarget;
+    setCursorPosition(event.currentTarget.selectionStart);
+    setIsAutocompleteDismissed(false);
     onValueChange(event.currentTarget.value);
   }, [onValueChange]);
+
+  const handleTextareaSelectionChange = useCallback(
+    (event: SyntheticEvent<HTMLTextAreaElement>) => {
+      textareaRef.current = event.currentTarget;
+      setCursorPosition(event.currentTarget.selectionStart);
+    },
+    [],
+  );
+
+  const applySelectedSkill = useCallback((slug: string) => {
+    if (!slashCommandTrigger) {
+      return;
+    }
+
+    const nextValue = [
+      value.slice(0, slashCommandTrigger.rangeStart),
+      `/${slug} `,
+      value.slice(slashCommandTrigger.rangeEnd),
+    ].join("");
+    const nextCursorPosition = slashCommandTrigger.rangeStart + slug.length + 2;
+
+    onValueChange(nextValue);
+    setCursorPosition(nextCursorPosition);
+    setIsAutocompleteDismissed(true);
+
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(nextCursorPosition, nextCursorPosition);
+    });
+  }, [onValueChange, slashCommandTrigger, value]);
+
+  const handleComposerKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    textareaRef.current = event.currentTarget;
+    setCursorPosition(event.currentTarget.selectionStart);
+
+    if (!isSkillAutocompleteOpen) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setIsAutocompleteDismissed(true);
+      return;
+    }
+
+    if (filteredInstalledSkills.length === 0) {
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setSelectedSkillIndex((currentIndex) =>
+        (currentIndex + 1) % filteredInstalledSkills.length,
+      );
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setSelectedSkillIndex((currentIndex) =>
+        (currentIndex - 1 + filteredInstalledSkills.length) % filteredInstalledSkills.length,
+      );
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === "Tab") {
+      event.preventDefault();
+      applySelectedSkill(filteredInstalledSkills[selectedSkillIndex]!.slug);
+    }
+  }, [
+    applySelectedSkill,
+    filteredInstalledSkills,
+    isSkillAutocompleteOpen,
+    selectedSkillIndex,
+  ]);
 
   const handlePaste = useCallback((event: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const imageFiles = Array.from(event.clipboardData?.items ?? [])
@@ -342,13 +498,31 @@ export function ChatComposer({
             </div>
           )}
 
-          <PromptInputTextarea
-            placeholder={placeholder ?? "Send a message..."}
-            value={value}
-            onChange={handleChange}
-            onPaste={handlePaste}
-            disabled={isGenerating || disabled}
-          />
+          <div className="relative w-full">
+            <PromptInputTextarea
+              placeholder={placeholder ?? "Send a message..."}
+              value={value}
+              onBlur={() => {
+                setIsAutocompleteDismissed(true);
+              }}
+              onChange={handleChange}
+              onClick={handleTextareaSelectionChange}
+              onKeyDown={handleComposerKeyDown}
+              onKeyUp={handleTextareaSelectionChange}
+              onPaste={handlePaste}
+              onSelect={handleTextareaSelectionChange}
+              disabled={isGenerating || disabled}
+            />
+            <SkillAutocomplete
+              isError={isInstalledSkillsError}
+              isLoading={isInstalledSkillsLoading}
+              items={installedSkills}
+              onSelect={applySelectedSkill}
+              open={isSkillAutocompleteOpen}
+              query={slashCommandTrigger?.query ?? ""}
+              selectedIndex={selectedSkillIndex}
+            />
+          </div>
 
           <PromptInputFooter className="items-center">
             <PromptInputTools className="text-foreground">
@@ -380,8 +554,19 @@ export function ChatComposer({
               <PromptInputSubmit
                 status={status}
                 disabled={isSubmitDisabled}
-                onStop={onStop}
               />
+
+              {onStop ? (
+                <PromptInputButton
+                  aria-label="Stop"
+                  className="rounded-full"
+                  onClick={onStop}
+                  size="icon-sm"
+                  variant="destructive"
+                >
+                  <SquareIcon className="size-4" />
+                </PromptInputButton>
+              ) : null}
             </PromptInputTools>
           </PromptInputFooter>
         </PromptInput>

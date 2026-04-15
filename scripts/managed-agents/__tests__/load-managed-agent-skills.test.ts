@@ -24,7 +24,7 @@ describe("loadManagedAgentSkills", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("merges the 4 anthropic built-ins with custom skills from the registry", () => {
+  it("loads custom skills from the registry with their pinned versions", () => {
     fs.writeFileSync(
       registryPath,
       JSON.stringify({
@@ -43,13 +43,9 @@ describe("loadManagedAgentSkills", () => {
 
     const skills = loadManagedAgentSkills(registryPath);
 
-    expect(skills).toContainEqual({ type: "anthropic", skill_id: "xlsx" });
-    expect(skills).toContainEqual({ type: "anthropic", skill_id: "docx" });
-    expect(skills).toContainEqual({ type: "anthropic", skill_id: "pptx" });
-    expect(skills).toContainEqual({ type: "anthropic", skill_id: "pdf" });
-    expect(skills).toContainEqual({ type: "custom", skill_id: "skill_cp", version: "latest" });
-    expect(skills).toContainEqual({ type: "custom", skill_id: "skill_ob", version: "latest" });
-    expect(skills).toHaveLength(6);
+    expect(skills).toContainEqual({ type: "custom", skill_id: "skill_cp", version: "v-1" });
+    expect(skills).toContainEqual({ type: "custom", skill_id: "skill_ob", version: "v-1" });
+    expect(skills).toHaveLength(2);
   });
 
   it("throws if the combined list would exceed 20 skills", () => {

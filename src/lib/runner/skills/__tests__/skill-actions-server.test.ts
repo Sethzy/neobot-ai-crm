@@ -13,6 +13,8 @@ const mockCreateAgentFileClient = vi.fn();
 const mockReadForkMetadata = vi.fn();
 const mockWriteForkMetadata = vi.fn();
 const mockReadFileSync = vi.fn();
+const mockEnsureUserSkillMetadata = vi.fn();
+const mockGetCatalogSkill = vi.fn();
 
 vi.mock("next/cache", () => ({
   revalidatePath: mockRevalidatePath,
@@ -36,6 +38,13 @@ vi.mock("../fork-metadata", () => ({
   writeForkMetadata: mockWriteForkMetadata,
 }));
 
+vi.mock("../skills-table", () => ({
+  ensureUserSkillMetadata: mockEnsureUserSkillMetadata,
+  getCatalogSkill: mockGetCatalogSkill,
+  setSkillInstalledState: vi.fn(),
+  syncSkillMetadataToCatalog: vi.fn(),
+}));
+
 vi.mock("node:fs", () => ({
   default: {
     readFileSync: mockReadFileSync,
@@ -51,6 +60,13 @@ describe("saveSkillContent", () => {
       uploadFile: mockUploadFile,
     });
     mockUploadFile.mockResolvedValue(undefined);
+    mockEnsureUserSkillMetadata.mockResolvedValue(undefined);
+    mockGetCatalogSkill.mockResolvedValue({
+      slug: "call-prep",
+      name: "call-prep",
+      description: "Prepare for a call.",
+      is_predefined: true,
+    });
     mockReadFileSync.mockReturnValue(
       JSON.stringify({
         "call-prep": {
@@ -88,6 +104,17 @@ describe("saveSkillContent", () => {
       "call-prep",
       expect.objectContaining({
         forkedFromVersion: "v-current",
+      }),
+    );
+    expect(mockEnsureUserSkillMetadata).toHaveBeenCalledWith(
+      expect.anything(),
+      "client-1",
+      expect.objectContaining({
+        slug: "call-prep",
+        name: "call-prep",
+        description: "Prepare for a call.",
+        isPredefined: true,
+        forkedFrom: "call-prep",
       }),
     );
     expect(mockRevalidatePath).toHaveBeenCalledWith("/skills");

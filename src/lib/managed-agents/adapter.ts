@@ -48,7 +48,8 @@ import {
   completeRun,
   createRunRecord,
 } from "@/lib/runner/run-lifecycle";
-import { listCustomizedSkillSlugs } from "@/lib/runner/skills/list-customized-skill-slugs";
+import { listCatalogSkillSlugs } from "@/lib/runner/skills/list-catalog-skill-slugs";
+import { listInstalledSkillSlugs } from "@/lib/runner/skills/list-installed-skill-slugs";
 import { buildSystemReminder } from "@/lib/runner/system-reminder";
 import type { Json } from "@/types/database";
 
@@ -381,12 +382,13 @@ export async function runManagedAgent(
         fileParts: summarizeManagedFileParts(managedFileParts),
       });
     }
+    const catalogSkillSlugs = listCatalogSkillSlugs();
 
     const [
       { durationMs: persistUserInputMs },
       { result: existingSessionId, durationMs: existingSessionLookupMs },
       { result: reminder, durationMs: systemReminderMs },
-      { result: customizedSkillSlugs, durationMs: customizedSkillsMs },
+      { result: installedSkillSlugs, durationMs: installedSkillsMs },
     ] = await Promise.all([
       (async () => {
         const tStart = performance.now();
@@ -423,17 +425,29 @@ export async function runManagedAgent(
       })(),
       (async () => {
         const tStart = performance.now();
-        const result = await listCustomizedSkillSlugs(
-          input.supabase,
-          input.clientId,
-        );
-        return {
-          result,
-          durationMs: Math.round(performance.now() - tStart),
-        };
+        try {
+          const result = await listInstalledSkillSlugs(
+            input.supabase,
+            input.clientId,
+          );
+          return {
+            result,
+            durationMs: Math.round(performance.now() - tStart),
+          };
+        } catch (error) {
+          console.error("[runManagedAgent] failed to load installed skills", error);
+          return {
+            result: [],
+            durationMs: Math.round(performance.now() - tStart),
+          };
+        }
       })(),
     ]);
     const tParallelSetup = performance.now();
+    const installedSkillSlugSet = new Set(installedSkillSlugs);
+    const notInstalledSkillSlugs = catalogSkillSlugs.filter(
+      (slug) => !installedSkillSlugSet.has(slug),
+    );
 
     console.info("[runManagedAgent] session lookup", {
       threadId: input.threadId,
@@ -486,10 +500,15 @@ export async function runManagedAgent(
 
     // Backfill session_id on the run record so the webhook safety net can
     // look up orphaned runs by Anthropic session_id.
-    await input.supabase
-      .from("runs")
-      .update({ session_id: sessionId })
-      .eq("run_id", runId);
+    if (typeof input.supabase.from === "function") {
+      const runsTable = input.supabase.from("runs");
+
+      if ("update" in runsTable && typeof runsTable.update === "function") {
+        await runsTable
+          .update({ session_id: sessionId })
+          .eq("run_id", runId);
+      }
+    }
 
     const tSessionReady = performance.now();
 
@@ -515,7 +534,8 @@ export async function runManagedAgent(
       userPreferences: session.created ? input.userPreferences : null,
       systemReminder: reminder,
       userMessage: input.input,
-      customizedSkillSlugs,
+      installedSkillSlugs,
+      notInstalledSkillSlugs,
       attachmentHints: attachmentMounts,
     });
     const tKickoffBuild = performance.now();
@@ -526,7 +546,7 @@ export async function runManagedAgent(
       persistUserInput: persistUserInputMs,
       existingSessionLookup: existingSessionLookupMs,
       systemReminder: systemReminderMs,
-      customizedSkills: customizedSkillsMs,
+      installedSkills: installedSkillsMs,
       fileUpload: Math.round(tFileUpload - tParallelSetup),
       sessionCreate: Math.round(tSessionReady - tFileUpload),
       attachFiles: Math.round(tAttachFiles - tSessionReady),

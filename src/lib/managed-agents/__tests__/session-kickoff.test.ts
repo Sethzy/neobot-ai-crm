@@ -17,7 +17,8 @@ describe("buildKickoffContent", () => {
       userPreferences: "prefs-text",
       systemReminder: "reminder-text",
       userMessage: "hello",
-      customizedSkillSlugs: [],
+      installedSkillSlugs: [],
+      notInstalledSkillSlugs: [],
       attachmentHints: [],
     });
 
@@ -25,6 +26,8 @@ describe("buildKickoffContent", () => {
       { type: "text", text: "profile-text" },
       { type: "text", text: "prefs-text" },
       { type: "text", text: "reminder-text" },
+      { type: "text", text: "Installed skills for this session: none. You may use only installed skills." },
+      { type: "text", text: "Not installed skills for this session: none." },
       { type: "text", text: "hello" },
     ]);
   });
@@ -35,30 +38,40 @@ describe("buildKickoffContent", () => {
       userPreferences: null,
       systemReminder: "reminder",
       userMessage: "hi",
-      customizedSkillSlugs: [],
+      installedSkillSlugs: [],
+      notInstalledSkillSlugs: [],
       attachmentHints: [],
     });
 
     expect(content).toEqual([
       { type: "text", text: "reminder" },
+      { type: "text", text: "Installed skills for this session: none. You may use only installed skills." },
+      { type: "text", text: "Not installed skills for this session: none." },
       { type: "text", text: "hi" },
     ]);
   });
 
-  it("appends an override note when the user has customized skills", () => {
+  it("emits installed and not-installed notes for the current session", () => {
     const content = buildKickoffContent({
       clientProfile: null,
       userPreferences: null,
       systemReminder: "r",
       userMessage: "m",
-      customizedSkillSlugs: ["pdf", "qa"],
+      installedSkillSlugs: ["pdf", "qa"],
+      notInstalledSkillSlugs: ["call-prep", "xlsx"],
       attachmentHints: [],
     });
 
     expect(content).toContainEqual(
       expect.objectContaining({
         type: "text",
-        text: expect.stringContaining("customized these skills: pdf, qa"),
+        text: expect.stringContaining("Installed skills for this session: pdf, qa"),
+      }),
+    );
+    expect(content).toContainEqual(
+      expect.objectContaining({
+        type: "text",
+        text: expect.stringContaining("Not installed skills for this session: call-prep, xlsx"),
       }),
     );
   });
@@ -69,7 +82,8 @@ describe("buildKickoffContent", () => {
       userPreferences: "preferences",
       systemReminder: "reminder",
       userMessage: "  call Kate today  ",
-      customizedSkillSlugs: ["pdf"],
+      installedSkillSlugs: ["pdf"],
+      notInstalledSkillSlugs: ["call-prep"],
       attachmentHints: [],
     });
 
@@ -85,7 +99,8 @@ describe("buildKickoffContent", () => {
       userPreferences: null,
       systemReminder: "reminder",
       userMessage: "analyze the file",
-      customizedSkillSlugs: [],
+      installedSkillSlugs: [],
+      notInstalledSkillSlugs: [],
       attachmentHints: [{
         filename: "saaa.csv",
         mountPath: "/mnt/session/uploads/saaa.csv",

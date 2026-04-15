@@ -895,28 +895,28 @@ export const scenarios: QaScenario[] = [
     surface: "25-instruction-skills",
     scenario: "daily-briefing-trigger",
     prompt: "What's on my plate today?",
-    expectedTools: ["read_file", "search_crm"],
+    expectedTools: ["search_crm"],
     sequential: false,
     notes:
-      "Agent should load daily-briefing skill via read_file(/agent/skills/daily-briefing/SKILL.md), then follow workflow with search_crm for tasks/deals.",
+      "Agent should activate the daily-briefing skill from the managed-agent skill set, then follow the workflow with search_crm for tasks/deals. It should not storage_read /agent/skills/daily-briefing/SKILL.md unless the user has a customization.",
   },
   {
     surface: "25-instruction-skills",
     scenario: "call-prep-trigger",
     prompt: "Prep me for my call with David Tan",
-    expectedTools: ["read_file", "search_crm"],
+    expectedTools: ["search_crm"],
     sequential: false,
     notes:
-      "Agent should load call-prep skill via read_file(/agent/skills/call-prep/SKILL.md), then search_crm for David Tan's history. web_search also acceptable.",
+      "Agent should activate the call-prep skill from the managed-agent skill set, then search_crm for David Tan's history. web_search also acceptable. It should only storage_read the skill file when a user override exists.",
   },
   {
     surface: "25-instruction-skills",
     scenario: "draft-outreach-trigger",
     prompt: "Draft an outreach message to Sarah Lim about the insurance renewal",
-    expectedTools: ["read_file", "search_crm"],
+    expectedTools: ["search_crm"],
     sequential: false,
     notes:
-      "Agent should load draft-outreach skill via read_file(/agent/skills/draft-outreach/SKILL.md), then search_crm for Sarah Lim. web_search also acceptable.",
+      "Agent should activate the draft-outreach skill from the managed-agent skill set, then search_crm for Sarah Lim. web_search also acceptable. It should only storage_read the skill file when a user override exists.",
   },
   {
     surface: "25-instruction-skills",
