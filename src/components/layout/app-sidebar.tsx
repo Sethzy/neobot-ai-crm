@@ -122,7 +122,9 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
 
   const renderNavItems = (items: NavigationItem[]) =>
     items.map((item) => {
-      const isActive = pathname.startsWith(item.href);
+      const isActive = item.href === "/chat"
+        ? pathname === "/chat"
+        : pathname.startsWith(item.href);
 
       return (
         <SidebarMenuItem key={item.label}>
