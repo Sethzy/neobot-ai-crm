@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { DateRangeFilterValue, FilterDef, FilterValues } from "@/components/ui/filter-overlay";
 import { useClientId } from "@/hooks/use-client-id";
 import { useCrmConfig } from "@/hooks/use-crm-config";
@@ -603,8 +604,17 @@ export default function DealsPage() {
         {isBoardView ? (
           isBoardLoading ? (
             <div className="grid gap-4 lg:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="h-64 animate-pulse rounded-lg border border-border bg-card" />
+              {Array.from({ length: 4 }).map((_, colIndex) => (
+                <div key={colIndex} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3">
+                  <Skeleton className="mb-1 h-4 w-24" style={{ animationDelay: `${colIndex * 30}ms` }} />
+                  {Array.from({ length: 3 }).map((_, cardIndex) => (
+                    <div key={cardIndex} className="space-y-2 rounded-md border border-border bg-background p-3">
+                      <Skeleton className="h-3.5 w-3/4" style={{ animationDelay: `${colIndex * 30 + cardIndex * 50}ms` }} />
+                      <Skeleton className="h-3 w-1/2" style={{ animationDelay: `${colIndex * 30 + cardIndex * 50 + 20}ms` }} />
+                      <Skeleton className="h-3 w-1/3" style={{ animationDelay: `${colIndex * 30 + cardIndex * 50 + 40}ms` }} />
+                    </div>
+                  ))}
+                </div>
               ))}
             </div>
           ) : isBoardError ? (

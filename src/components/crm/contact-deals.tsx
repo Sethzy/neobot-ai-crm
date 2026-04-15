@@ -6,6 +6,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useContactDeals } from "@/hooks/use-contact-relations";
 import { dealStageBadgeVariantMap, formatCrmDate, formatCrmPrice } from "@/lib/crm/display";
 
@@ -18,10 +19,39 @@ export function ContactDeals({ contactId }: ContactDealsProps) {
 
   if (isLoading) {
     return (
-      <div className="animate-pulse space-y-3">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="h-12 rounded-lg bg-muted/30" />
-        ))}
+      <div className="overflow-x-auto rounded-xl border border-border/40 bg-card shadow-sm">
+        <table className="w-full">
+          <thead className="border-b border-border/40 bg-muted/20">
+            <tr>
+              {["Address", "Stage", "Price", "Updated"].map((label) => (
+                <th
+                  key={label}
+                  className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground/70"
+                >
+                  {label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 3 }).map((_, rowIndex) => (
+              <tr key={rowIndex} className="border-t border-border/30">
+                <td className="px-4 py-3">
+                  <Skeleton className={`h-3.5 ${["w-36", "w-44", "w-28"][rowIndex % 3]}`} style={{ animationDelay: `${rowIndex * 40}ms` }} />
+                </td>
+                <td className="px-4 py-3">
+                  <Skeleton className="h-5 w-20 rounded-full" style={{ animationDelay: `${rowIndex * 40 + 20}ms` }} />
+                </td>
+                <td className="px-4 py-3">
+                  <Skeleton className={`h-3.5 ${["w-16", "w-20", "w-14"][rowIndex % 3]}`} style={{ animationDelay: `${rowIndex * 40 + 40}ms` }} />
+                </td>
+                <td className="px-4 py-3">
+                  <Skeleton className="h-3.5 w-20" style={{ animationDelay: `${rowIndex * 40 + 60}ms` }} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   }

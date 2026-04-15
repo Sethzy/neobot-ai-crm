@@ -21,7 +21,7 @@ import { MoreHorizontal } from "lucide-react"
 import { FilterBar, type FilterDef, type FilterValues } from "@/components/ui/filter-bar"
 import { Button } from "@/components/ui/button"
 import { RowActions, type RowActionItem } from "@/components/ui/row-actions"
-import { Spinner } from "@/components/ui/spinner"
+import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
 /**
@@ -150,6 +150,24 @@ function renderTableState(state: React.ReactNode, colSpan: number, className?: s
       </td>
     </tr>
   )
+}
+
+/**
+ * Returns a Tailwind width class for a skeleton cell based on the column type and row position.
+ * Row index is used to introduce natural variation across rows.
+ */
+function getSkeletonCellWidth(columnId: string, rowIndex: number): string {
+  const id = columnId.toLowerCase();
+  if (id === "__row_actions") return "ml-auto w-5";
+  if (id.includes("amount") || id.includes("price")) {
+    return (["w-16", "w-20", "w-14", "w-18", "w-16", "w-20"] as const)[rowIndex % 6];
+  }
+  if (id.includes("stage") || id.includes("type") || id.includes("status")) {
+    return (["w-20", "w-24", "w-16", "w-20", "w-24", "w-18"] as const)[rowIndex % 6];
+  }
+  if (isDateColumn(id)) return "w-20";
+  // Default: text columns (name, email, company, address, etc.)
+  return (["w-32", "w-40", "w-28", "w-44", "w-24", "w-36"] as const)[rowIndex % 6];
 }
 
 /**
@@ -310,13 +328,28 @@ export function DataTable<TData>({
           </thead>
           <tbody>
             {isLoading
-              ? renderTableState(
-                  <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                    <Spinner />
-                    <span>Loading data...</span>
-                  </div>,
-                  colSpan
-                )
+              ? Array.from({ length: 6 }).map((_, rowIndex) => (
+                  <tr key={rowIndex} className="border-b border-border">
+                    {resolvedColumns.map((col, colIndex) => {
+                      const colId = (col.id as string | undefined) ?? `col${colIndex}`;
+                      const isActionsCol = colId === "__row_actions";
+                      return (
+                        <td
+                          key={colIndex}
+                          className={cn(
+                            "px-3 py-2",
+                            isActionsCol ? "w-[1%] text-right" : "",
+                          )}
+                        >
+                          <Skeleton
+                            className={cn("h-3.5", getSkeletonCellWidth(colId, rowIndex))}
+                            style={{ animationDelay: `${rowIndex * 40}ms` }}
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))
               : error
                 ? renderTableState(error, colSpan, "text-destructive")
                 : table.getRowModel().rows.length > 0

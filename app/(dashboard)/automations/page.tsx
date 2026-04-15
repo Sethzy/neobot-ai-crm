@@ -36,10 +36,8 @@ export default function AutomationsPage() {
 
       <div className="mt-6">
         {isLoading ? (
-          <div className="animate-pulse space-y-3">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="h-14 rounded-lg bg-muted/30" />
-            ))}
+          <div className="flex items-center justify-center py-16 text-muted-foreground">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
           </div>
         ) : isError ? (
           <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-6">
