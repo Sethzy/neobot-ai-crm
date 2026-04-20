@@ -1,87 +1,51 @@
 /**
- * Instructions tab with Novel WYSIWYG editor for editing SOP files.
- * Reads/writes markdown content from Supabase Storage.
+ * Instructions tab for editing automation SOP markdown files.
+ * Reads and writes plain markdown content from Supabase Storage.
  * @module components/automations/automation-instructions
  */
 "use client";
 
-import { useState } from "react";
-import { EditorContent, EditorRoot, type EditorInstance } from "novel";
+import { useEffect, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
+import { MarkdownTextarea } from "@/components/ui/markdown-textarea";
 import { useTriggerInstructions } from "@/hooks/use-trigger-instructions";
 
 interface AutomationInstructionsProps {
   instructionPath: string | null;
 }
 
-/**
- * Converts plain markdown text to a simple Tiptap JSON document.
- * Each line becomes a paragraph node.
- */
-function markdownToTiptapJson(markdown: string) {
-  const lines = markdown.split("\n");
-  const content = lines.map((line) => {
-    if (!line.trim()) {
-      return { type: "paragraph" };
-    }
-    const headingMatch = line.match(/^(#{1,3})\s+(.*)/);
-    if (headingMatch) {
-      return {
-        type: "heading",
-        attrs: { level: headingMatch[1].length },
-        content: [{ type: "text", text: headingMatch[2] }],
-      };
-    }
-    return {
-      type: "paragraph",
-      content: [{ type: "text", text: line }],
-    };
-  });
-
-  return { type: "doc", content };
-}
-
-/** Serializes Tiptap JSON back to markdown text to preserve formatting on save. */
-function tiptapJsonToMarkdown(doc: { type: string; content?: Array<Record<string, unknown>> }): string {
-  if (!doc.content) return "";
-  return doc.content
-    .map((node) => {
-      if (node.type === "heading") {
-        const level = (node.attrs as { level: number })?.level ?? 1;
-        const text = nodeText(node);
-        return `${"#".repeat(level)} ${text}`;
-      }
-      if (node.type === "paragraph") {
-        return nodeText(node);
-      }
-      return nodeText(node);
-    })
-    .join("\n");
-}
-
-function nodeText(node: Record<string, unknown>): string {
-  if (!node.content || !Array.isArray(node.content)) return "";
-  return (node.content as Array<{ type: string; text?: string }>)
-    .map((child) => child.text ?? "")
-    .join("");
-}
-
 export function AutomationInstructions({ instructionPath }: AutomationInstructionsProps) {
-  const { data: content, isLoading, save } = useTriggerInstructions(instructionPath);
+  const {
+    data: content,
+    error,
+    isError,
+    isLoading,
+    save,
+  } = useTriggerInstructions(instructionPath);
+  const [draft, setDraft] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
-  const debouncedSave = useDebouncedCallback(async (editor: EditorInstance) => {
+  useEffect(() => {
+    setDraft(content ?? "");
+    setSaveStatus("idle");
+  }, [content, instructionPath]);
+
+  const debouncedSave = useDebouncedCallback(async (nextDraft: string) => {
     setSaveStatus("saving");
-    const json = editor.getJSON();
-    const markdown = tiptapJsonToMarkdown(json as { type: string; content?: Array<Record<string, unknown>> });
     try {
-      await save.mutateAsync(markdown);
+      await save.mutateAsync(nextDraft);
       setSaveStatus("saved");
     } catch {
       setSaveStatus("idle");
     }
   }, 1000);
+
+  useEffect(() => {
+    return () => {
+      debouncedSave.cancel();
+    };
+  }, [debouncedSave]);
 
   if (!instructionPath) {
     return (
@@ -89,6 +53,17 @@ export function AutomationInstructions({ instructionPath }: AutomationInstructio
         <p className="text-sm text-muted-foreground">
           No instruction file configured for this automation.
         </p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-6 shadow-sm">
+        <p className="text-sm text-destructive">Unable to load instructions.</p>
+        {error instanceof Error ? (
+          <p className="mt-2 text-xs text-muted-foreground">{error.message}</p>
+        ) : null}
       </div>
     );
   }
@@ -103,8 +78,6 @@ export function AutomationInstructions({ instructionPath }: AutomationInstructio
     );
   }
 
-  const initialContent = content ? markdownToTiptapJson(content) : undefined;
-
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -116,16 +89,18 @@ export function AutomationInstructions({ instructionPath }: AutomationInstructio
         ) : null}
       </div>
       <div className="rounded-xl border border-border/40 bg-card shadow-sm">
-        <EditorRoot>
-          <EditorContent
-            initialContent={initialContent}
-            onUpdate={({ editor }) => {
-              setSaveStatus("idle");
-              void debouncedSave(editor);
-            }}
-            className="prose prose-sm dark:prose-invert max-w-none p-6 focus:outline-none"
-          />
-        </EditorRoot>
+        <MarkdownTextarea
+          value={draft}
+          onChange={(event) => {
+            const nextDraft = event.target.value;
+            setDraft(nextDraft);
+            setSaveStatus("idle");
+            void debouncedSave(nextDraft);
+          }}
+          className="min-h-[420px] w-full rounded-xl border-0 bg-card p-6 shadow-none focus-visible:border-0 focus-visible:ring-0"
+          placeholder="Write markdown instructions for this automation."
+          aria-label="Automation instructions"
+        />
       </div>
     </div>
   );
