@@ -13,6 +13,7 @@ const mockSetDataStream = vi.fn();
 const mockInvalidateQueries = vi.fn();
 const mockSetQueriesData = vi.fn();
 const mockUseMessageQuota = vi.fn();
+const mockPush = vi.fn();
 
 vi.mock("ai", () => ({
   lastAssistantMessageIsCompleteWithApprovalResponses:
@@ -21,6 +22,12 @@ vi.mock("ai", () => ({
 
 vi.mock("@ai-sdk/react", () => ({
   useChat: (...args: unknown[]) => mockUseChat(...args),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
 }));
 
 vi.mock("@tanstack/react-query", () => ({
@@ -36,6 +43,14 @@ vi.mock("@/hooks/use-message-quota", () => ({
     current: ["message-quota", "current"],
   },
   useMessageQuota: (...args: unknown[]) => mockUseMessageQuota(...args),
+}));
+
+vi.mock("@/hooks/use-installed-skills", () => ({
+  useInstalledSkills: () => ({
+    data: [],
+    isError: false,
+    isLoading: false,
+  }),
 }));
 
 vi.mock("@/hooks/use-auto-resume", () => ({

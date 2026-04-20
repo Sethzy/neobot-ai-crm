@@ -1,19 +1,38 @@
 /** Tests for Redis fixed-window rate limiter. */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const mockMulti = vi.fn();
-const mockIncr = vi.fn();
-const mockExpire = vi.fn();
-const mockExec = vi.fn();
-const mockTtl = vi.fn();
+const {
+  mockMulti,
+  mockIncr,
+  mockExpire,
+  mockExec,
+  mockTtl,
+  mockGetRedisClient,
+} = vi.hoisted(() => {
+  const hoistedMockMulti = vi.fn();
+  const hoistedMockIncr = vi.fn();
+  const hoistedMockExpire = vi.fn();
+  const hoistedMockExec = vi.fn();
+  const hoistedMockTtl = vi.fn();
+  const hoistedMockGetRedisClient = vi.fn(() =>
+    Promise.resolve({
+      multi: hoistedMockMulti,
+      ttl: hoistedMockTtl,
+    }),
+  );
+
+  return {
+    mockMulti: hoistedMockMulti,
+    mockIncr: hoistedMockIncr,
+    mockExpire: hoistedMockExpire,
+    mockExec: hoistedMockExec,
+    mockTtl: hoistedMockTtl,
+    mockGetRedisClient: hoistedMockGetRedisClient,
+  };
+});
 
 vi.mock("@/lib/redis", () => ({
-  getRedisClient: vi.fn(() =>
-    Promise.resolve({
-      multi: mockMulti,
-      ttl: mockTtl,
-    }),
-  ),
+  getRedisClient: mockGetRedisClient,
 }));
 
 import { checkRateLimit } from "../rate-limit";
@@ -21,6 +40,12 @@ import { checkRateLimit } from "../rate-limit";
 describe("checkRateLimit", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetRedisClient.mockImplementation(() =>
+      Promise.resolve({
+        multi: mockMulti,
+        ttl: mockTtl,
+      }),
+    );
     // Default: MULTI returns a chainable object, EXEC returns [incrResult, expireResult]
     mockMulti.mockReturnValue({
       incr: mockIncr,
@@ -62,12 +87,26 @@ describe("checkRateLimit", () => {
   });
 
   it("allows request when Redis is unavailable (fail-open)", async () => {
-    const { getRedisClient } = await import("@/lib/redis");
-    vi.mocked(getRedisClient).mockResolvedValueOnce(null);
+    mockGetRedisClient.mockResolvedValueOnce(null);
 
     const result = await checkRateLimit("user:123", 30, 60);
     expect(result.allowed).toBe(true);
     expect(result.remaining).toBe(30);
+  });
+
+  it("fails open within 1 second when Redis is unreachable", async () => {
+    mockGetRedisClient.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve(null), 800);
+        }),
+    );
+
+    const startedAt = Date.now();
+    const result = await checkRateLimit("user:123", 30, 60);
+
+    expect(result).toEqual({ allowed: true, remaining: 30 });
+    expect(Date.now() - startedAt).toBeLessThan(1_000);
   });
 
   it("fails open when Redis throws", async () => {

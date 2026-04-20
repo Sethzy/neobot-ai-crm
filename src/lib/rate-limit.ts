@@ -8,6 +8,7 @@ export interface RateLimitResult {
 }
 
 const KEY_PREFIX = "ratelimit:";
+const isLatencyDebugEnabled = process.env.DEBUG_LATENCY === "1";
 
 function parseRedisIntegerReply(reply: unknown): number | null {
   if (typeof reply === "number" && Number.isFinite(reply)) {
@@ -40,7 +41,16 @@ export async function checkRateLimit(
   limit: number,
   windowSeconds: number,
 ): Promise<RateLimitResult> {
+  const tStart = performance.now();
   const client = await getRedisClient();
+  if (isLatencyDebugEnabled) {
+    const getClientMs = Math.round(performance.now() - tStart);
+    console.info("[rate-limit] getRedisClient", {
+      key,
+      getClientMs,
+      client: client === null ? "null" : "ok",
+    });
+  }
   if (!client) {
     return { allowed: true, remaining: limit };
   }

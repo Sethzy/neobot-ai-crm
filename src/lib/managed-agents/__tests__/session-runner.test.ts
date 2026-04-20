@@ -142,6 +142,59 @@ describe("consumeAnthropicSession — happy path", () => {
           },
         ],
       }),
+      expect.objectContaining({
+        timeout: 2_500,
+        maxRetries: 0,
+      }),
+    );
+  });
+
+  it("skips history replay when the pre-kickoff tail has no prior events", async () => {
+    stubIteration([
+      agentMessageTextEvent("evt_1", "hello"),
+      statusIdleEvent("evt_idle", "end_turn"),
+    ]);
+
+    await consumeAnthropicSession({
+      anthropic: fakeAnthropic(),
+      sessionId: "sess_1",
+      runId: "run_1",
+      context: baseContext(),
+      kickoffContent: [{ type: "text", text: "hi there" }],
+    });
+
+    expect(iterateSessionEventsAfter).toHaveBeenCalledWith(
+      expect.anything(),
+      "sess_1",
+      expect.objectContaining({ afterId: null }),
+      { preferLiveOnly: true },
+    );
+  });
+
+  it("uses the live stream directly for warm turns opened before kickoff", async () => {
+    (openSessionTail as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      live: { [Symbol.asyncIterator]: async function* () {} },
+      afterId: "evt_prev",
+    });
+
+    stubIteration([
+      agentMessageTextEvent("evt_1", "hello"),
+      statusIdleEvent("evt_idle", "end_turn"),
+    ]);
+
+    await consumeAnthropicSession({
+      anthropic: fakeAnthropic(),
+      sessionId: "sess_1",
+      runId: "run_1",
+      context: baseContext(),
+      kickoffContent: [{ type: "text", text: "hi there" }],
+    });
+
+    expect(iterateSessionEventsAfter).toHaveBeenCalledWith(
+      expect.anything(),
+      "sess_1",
+      expect.objectContaining({ afterId: "evt_prev" }),
+      { preferLiveOnly: true },
     );
   });
 
@@ -162,6 +215,14 @@ describe("consumeAnthropicSession — happy path", () => {
     expect(result.reason).toBe("end_turn");
     expect(result.cost.inputTokens).toBe(100);
     expect(result.cost.outputTokens).toBe(25);
+    expect(retrieveSession).toHaveBeenCalledWith(
+      "sess_1",
+      {},
+      expect.objectContaining({
+        timeout: 2_500,
+        maxRetries: 0,
+      }),
+    );
   });
 
   it("fires onAgentMessage + onSpanModelRequestStart callbacks in order", async () => {
@@ -381,6 +442,10 @@ describe("consumeAnthropicSession — approvals", () => {
             result: "allow",
           },
         ],
+      }),
+      expect.objectContaining({
+        timeout: 2_500,
+        maxRetries: 0,
       }),
     );
   });

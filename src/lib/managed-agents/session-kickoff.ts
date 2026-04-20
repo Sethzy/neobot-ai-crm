@@ -18,18 +18,37 @@
  */
 import type Anthropic from "@anthropic-ai/sdk";
 
+import {
+  CHAT_ANTHROPIC_REQUEST_OPTIONS,
+  CHAT_ANTHROPIC_SESSION_CREATE_REQUEST_OPTIONS,
+} from "./chat-request-options";
 import { resolveAgentRef } from "./agent-config";
 import type { KickoffTextBlock, ManagedSupabaseClient } from "./types";
 import type { SessionAttachmentMount } from "./upload-files-for-session";
+
+export interface KickoffSkillSummary {
+  slug: string;
+  description: string;
+}
 
 export interface KickoffInput {
   clientProfile: string | null;
   userPreferences: string | null;
   systemReminder: string;
   userMessage: string;
-  installedSkillSlugs: string[];
-  notInstalledSkillSlugs: string[];
+  installedSkills: KickoffSkillSummary[];
+  notInstalledSkills: KickoffSkillSummary[];
   attachmentHints?: SessionAttachmentMount[];
+}
+
+function formatKickoffSkillList(skills: KickoffSkillSummary[]): string {
+  if (skills.length === 0) {
+    return "none";
+  }
+
+  return skills
+    .map((skill) => `${skill.slug} — ${skill.description}`)
+    .join("; ");
 }
 
 export function buildKickoffContent(input: KickoffInput): KickoffTextBlock[] {
@@ -46,12 +65,16 @@ export function buildKickoffContent(input: KickoffInput): KickoffTextBlock[] {
   }
   blocks.push({
     type: "text",
-    text: `Installed skills for this session: ${input.installedSkillSlugs.length > 0 ? input.installedSkillSlugs.join(", ") : "none"}. You may use only installed skills.`,
+    text: "For lightweight turns such as greetings, simple arithmetic, or direct time/date questions: answer immediately in one short sentence, do not personalize with client context, and do not inspect skills or use tools unless the prompt explicitly requires them.",
   });
   blocks.push({
     type: "text",
-    text: input.notInstalledSkillSlugs.length > 0
-      ? `Not installed skills for this session: ${input.notInstalledSkillSlugs.join(", ")}. Do not use any skill from this not-installed list, even if the request matches its description.`
+    text: `Installed skills for this session: ${formatKickoffSkillList(input.installedSkills)}. You may use only installed skills.`,
+  });
+  blocks.push({
+    type: "text",
+    text: input.notInstalledSkills.length > 0
+      ? `Not installed skills for this session: ${formatKickoffSkillList(input.notInstalledSkills)}. Do not use any skill from this not-installed list, even if the request matches its description.`
       : "Not installed skills for this session: none.",
   });
   if ((input.attachmentHints?.length ?? 0) > 0) {
@@ -139,7 +162,7 @@ export async function createSessionForThread(
     ...(input.initialResources && input.initialResources.length > 0
       ? { resources: input.initialResources }
       : {}),
-  } as never);
+  } as never, CHAT_ANTHROPIC_SESSION_CREATE_REQUEST_OPTIONS);
   console.log(`[session-kickoff] sessions.create API: ${Math.round(performance.now() - tCreate)}ms sessionId=${session.id}`);
 
   const { error: updateError } = await input.supabase
@@ -168,7 +191,11 @@ async function isSessionAlive(
 ): Promise<boolean> {
   try {
     const t0 = performance.now();
-    const session = await anthropic.beta.sessions.retrieve(sessionId);
+    const session = await anthropic.beta.sessions.retrieve(
+      sessionId,
+      {},
+      CHAT_ANTHROPIC_REQUEST_OPTIONS,
+    );
     console.log(`[session-kickoff] isSessionAlive check: ${Math.round(performance.now() - t0)}ms status=${session.status}`);
     return session.status === "idle" || session.status === "running" || session.status === "rescheduling";
   } catch {

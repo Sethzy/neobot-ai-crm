@@ -77,12 +77,25 @@ vi.mock("@ai-sdk/react", () => ({
   useChat: (...args: unknown[]) => mockUseChat(...args),
 }));
 
-vi.mock("@tanstack/react-query", () => ({
-  useQueryClient: () => ({
-    invalidateQueries: mockInvalidateQueries,
-    setQueriesData: mockSetQueriesData,
-  }),
-}));
+vi.mock("@tanstack/react-query", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@tanstack/react-query")>();
+
+  return {
+    ...actual,
+    useQuery: vi.fn(() => ({
+      data: [],
+      error: null,
+      isError: false,
+      isLoading: false,
+      isPending: false,
+      refetch: vi.fn(),
+    })),
+    useQueryClient: () => ({
+      invalidateQueries: mockInvalidateQueries,
+      setQueriesData: mockSetQueriesData,
+    }),
+  };
+});
 
 vi.mock("@/hooks/use-message-quota", () => ({
   messageQuotaKeys: {
@@ -118,12 +131,22 @@ const mockOn = vi.fn().mockReturnValue({ subscribe: mockSubscribe });
 const mockChannel = vi.fn().mockReturnValue({ on: mockOn });
 const mockRemoveChannel = vi.fn();
 const mockUploadToSignedUrl = vi.fn();
+const mockOnAuthStateChange = vi.fn(() => ({
+  data: { subscription: { unsubscribe: vi.fn() } },
+}));
 const mockStorageFrom = vi.fn().mockReturnValue({
   uploadToSignedUrl: mockUploadToSignedUrl,
 });
 
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
+    auth: {
+      getSession: vi.fn().mockResolvedValue({
+        data: { session: null },
+        error: null,
+      }),
+      onAuthStateChange: mockOnAuthStateChange,
+    },
     channel: mockChannel,
     removeChannel: mockRemoveChannel,
     storage: {
@@ -153,6 +176,7 @@ describe("ChatPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", mockFetch);
+    mockFetch.mockResolvedValue(new Response(null, { status: 204 }));
     document.cookie = "chat-model=; path=/; max-age=0";
     mockUploadToSignedUrl.mockResolvedValue({
       data: { path: "uploads/photo.png" },
@@ -187,6 +211,12 @@ describe("ChatPanel", () => {
       resume: vi.fn(),
       stop: vi.fn(),
     });
+  });
+
+  it("renders without crashing when query-backed hooks mount", () => {
+    renderPanel(<ChatPanel chatId="thread-1" />);
+
+    expect(mockUseChat).toHaveBeenCalled();
   });
 
   it("uses the default useChat request path with server-loaded initialMessages", () => {
@@ -399,7 +429,7 @@ describe("ChatPanel", () => {
     });
   });
 
-  it("does not expose the stop button while the request is only submitted", () => {
+  it("keeps the stop button available while the request is only submitted", () => {
     mockUseChat.mockReturnValue({
       id: "thread-1",
       messages: [
@@ -421,18 +451,14 @@ describe("ChatPanel", () => {
     renderPanel(<ChatPanel chatId="thread-1" />);
 
     expect(screen.getByPlaceholderText(/send a message/i)).toBeDisabled();
-    expect(screen.queryByRole("button", { name: /stop/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /stop/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /submit/i })).toBeDisabled();
   });
 
-  it("shows a toast when interrupting the stream fails", async () => {
+  it("swallows interrupt request failures after stopping the client stream", async () => {
     const user = userEvent.setup();
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify({ error: "no active run" }), {
-        status: 409,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
+    const stopStreaming = vi.fn();
+    mockFetch.mockRejectedValueOnce(new Error("network down"));
     mockUseChat.mockReturnValue({
       id: "thread-1",
       messages: [
@@ -444,7 +470,7 @@ describe("ChatPanel", () => {
       setMessages,
       regenerate: vi.fn(),
       clearError: vi.fn(),
-      stop: vi.fn(),
+      stop: stopStreaming,
       resumeStream: vi.fn(),
       addToolResult: vi.fn(),
       addToolOutput: vi.fn(),
@@ -456,8 +482,14 @@ describe("ChatPanel", () => {
     await user.click(screen.getByRole("button", { name: /stop/i }));
 
     await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith("Failed to stop the current run.");
+      expect(stopStreaming).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith("/api/chat/interrupt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ threadId: "thread-1" }),
+      });
     });
+    expect(mockToastError).not.toHaveBeenCalled();
   });
 
   it("renders API errors", () => {

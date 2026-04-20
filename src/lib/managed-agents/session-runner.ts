@@ -22,6 +22,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 
 import { createApprovalEvent } from "@/lib/approvals/queries";
 
+import { CHAT_ANTHROPIC_REQUEST_OPTIONS } from "./chat-request-options";
 import { dispatchEventToCallbacks } from "./dispatch-event-to-callbacks";
 import { dispatchCustomTool } from "./dispatcher";
 import { createTranslatorState, translateEvent } from "./event-translator";
@@ -109,7 +110,7 @@ export async function consumeAnthropicSession(
                   "User denied this action.",
           },
         ],
-      } as never);
+      } as never, CHAT_ANTHROPIC_REQUEST_OPTIONS);
       await options.onKickoffApprovalSent?.();
     }
 
@@ -137,7 +138,7 @@ export async function consumeAnthropicSession(
             content: options.kickoffContent,
           },
         ],
-      } as never);
+      } as never, CHAT_ANTHROPIC_REQUEST_OPTIONS);
       console.log(`${logPrefix} kickoff sent in ${Math.round(performance.now() - tSseReady)}ms`);
     }
 
@@ -159,14 +160,18 @@ export async function consumeAnthropicSession(
                   "User denied this action.",
             },
         ],
-      } as never);
+      } as never, CHAT_ANTHROPIC_REQUEST_OPTIONS);
       await options.onKickoffApprovalSent?.();
     }
+
+    const preferLiveOnly = true;
+    console.log(`${logPrefix} consuming live stream without history replay`);
 
     iterator = iterateSessionEventsAfter(
       anthropic,
       options.sessionId,
       liveHandle,
+      { preferLiveOnly },
     );
   }
 
@@ -208,8 +213,25 @@ export async function consumeAnthropicSession(
         : eventType === "agent.tool_result" || eventType === "agent.mcp_tool_result"
           ? ` tool_use_id=${(event as { tool_use_id?: string }).tool_use_id ?? "missing"} is_error=${(event as { is_error?: boolean }).is_error ?? false}`
           : "";
+    // Surface the only user-facing signal Managed Agents publishes for automatic
+    // prompt caching: `span.model_request_end` carries `model_usage.cache_read_input_tokens`
+    // and `cache_creation_input_tokens`. cache_read>0 on warm turns confirms the
+    // built-in session cache is firing; cache_read=0 means it isn't.
+    const cacheSuffix =
+      eventType === "span.model_request_end"
+        ? (() => {
+            const usage = (event as { model_usage?: {
+              input_tokens?: number;
+              output_tokens?: number;
+              cache_read_input_tokens?: number;
+              cache_creation_input_tokens?: number;
+            } }).model_usage;
+            if (!usage) return " model_usage=missing";
+            return ` model_usage=in:${usage.input_tokens ?? 0} out:${usage.output_tokens ?? 0} cache_read:${usage.cache_read_input_tokens ?? 0} cache_write:${usage.cache_creation_input_tokens ?? 0}`;
+          })()
+        : "";
     const translateMs = Math.round(tTranslateEnd - tTranslateStart);
-    console.log(`${logPrefix} event[${eventIndex}]: ${eventType} id=${(event as { id: string }).id.slice(-8)} gap=${tSinceLastEvent}ms translate=${translateMs}ms${result.terminal ? ` terminal=${result.terminal}` : ""}${result.customToolCall ? ` tool=${result.customToolCall.name}` : ""}${result.approvalRequest ? ` approval=${result.approvalRequest.toolName}` : ""}${inputSuffix}${toolResultSuffix}`);
+    console.log(`${logPrefix} event[${eventIndex}]: ${eventType} id=${(event as { id: string }).id.slice(-8)} gap=${tSinceLastEvent}ms translate=${translateMs}ms${result.terminal ? ` terminal=${result.terminal}` : ""}${result.customToolCall ? ` tool=${result.customToolCall.name}` : ""}${result.approvalRequest ? ` approval=${result.approvalRequest.toolName}` : ""}${inputSuffix}${toolResultSuffix}${cacheSuffix}`);
 
     // Track first text-delta — the moment the user sees a reply.
     if (!tFirstTextDelta && eventType === "agent.message") {
@@ -269,7 +291,7 @@ export async function consumeAnthropicSession(
               ...(dispatchResult.is_error ? { is_error: true } : {}),
             },
           ],
-        } as never);
+        } as never, CHAT_ANTHROPIC_REQUEST_OPTIONS);
         const tToolSent = performance.now();
         dispatchedCustomToolIds.add(result.customToolCall.id);
         console.log(`${logPrefix} dispatched custom tool ${result.customToolCall.name} (${result.customToolCall.id.slice(-8)}) is_error=${dispatchResult.is_error ?? false} exec=${Math.round(tToolDispatched - tToolStart)}ms send=${Math.round(tToolSent - tToolDispatched)}ms`);
@@ -306,7 +328,7 @@ export async function consumeAnthropicSession(
                 is_error: true,
               },
             ],
-          } as never);
+          } as never, CHAT_ANTHROPIC_REQUEST_OPTIONS);
           dispatchedCustomToolIds.add(result.customToolCall.id);
         } catch (sendError) {
           // Double failure — can't recover. Let the session runner crash.
@@ -330,7 +352,7 @@ export async function consumeAnthropicSession(
                 "Approval-gated tools are not available in trigger runs.",
             },
           ],
-        } as never);
+        } as never, CHAT_ANTHROPIC_REQUEST_OPTIONS);
       } else {
         const approvalId = result.approvalRequest.toolUseId;
         // D6: persist session_id + tool_use_id so H4's
@@ -418,7 +440,10 @@ export async function consumeAnthropicSession(
   }
 
   const tLoopEnd = performance.now();
-  console.log(`${logPrefix} loop exited — terminalReason=${terminalReason} events=${collectedEvents.length} dispatchedTools=${dispatchedCustomToolIds.size} loopTime=${Math.round(tLoopEnd - tRunnerStart)}ms firstText=${tFirstTextDelta ? Math.round(tFirstTextDelta - tRunnerStart) + "ms" : "none"}`);
+  // cumulative cache_read / cache_creation totals at the turn boundary.
+  // cache_read > 0 across consecutive warm turns within a 5-min window
+  // confirms the docs-promised automatic prompt caching is firing.
+  console.log(`${logPrefix} loop exited — terminalReason=${terminalReason} events=${collectedEvents.length} dispatchedTools=${dispatchedCustomToolIds.size} loopTime=${Math.round(tLoopEnd - tRunnerStart)}ms firstText=${tFirstTextDelta ? Math.round(tFirstTextDelta - tRunnerStart) + "ms" : "none"} usage=in:${translatorState.usage.inputTokens} out:${translatorState.usage.outputTokens} cache_read:${translatorState.usage.cacheReadInputTokens} cache_write:${translatorState.usage.cacheCreationInputTokens}`);
 
   // `requires_action` is paused-but-healthy: the run is awaiting UI input.
   // We treat it as `complete` so the chat adapter knows to persist the
@@ -445,7 +470,11 @@ export async function consumeAnthropicSession(
   const retrievePromise = (async () => {
     try {
       const tRetrieveStart = performance.now();
-      const snapshot = await anthropic.beta.sessions.retrieve(options.sessionId);
+      const snapshot = await anthropic.beta.sessions.retrieve(
+        options.sessionId,
+        {},
+        CHAT_ANTHROPIC_REQUEST_OPTIONS,
+      );
       cost.runtimeSeconds =
         (snapshot as { stats?: { active_seconds?: number } }).stats
           ?.active_seconds ?? 0;

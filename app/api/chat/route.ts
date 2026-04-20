@@ -23,6 +23,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const NEW_THREAD_TITLE = "New Chat";
+const CHAT_SUPABASE_HOT_PATH_TIMEOUT_MS = 800;
 
 const requestSchema = z.object({
   id: z.string().min(1),
@@ -198,26 +199,38 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError("Message must contain text or files.", 400);
   }
 
-  const [threadResult, clientContextResult] = await Promise.all([
-    auth.supabase
-      .from("conversation_threads")
-      .select("thread_id, title")
-      .eq("thread_id", parsedBody.data.id)
-      .eq("client_id", clientId)
-      .eq("is_archived", false)
-      .maybeSingle(),
-    auth.supabase
-      .from("clients")
-      .select("client_profile, user_preferences")
-      .eq("client_id", clientId)
-      .single(),
-  ]);
+  const threadResult = await auth.supabase
+    .from("conversation_threads")
+    .select("thread_id, title, session_id")
+    .eq("thread_id", parsedBody.data.id)
+    .eq("client_id", clientId)
+    .eq("is_archived", false)
+    .abortSignal(AbortSignal.timeout(CHAT_SUPABASE_HOT_PATH_TIMEOUT_MS))
+    .maybeSingle();
 
   if (threadResult.error) {
     return jsonError("Failed to process request.", 500);
   }
   const existingThread = threadResult.data;
-  const clientContext = clientContextResult.data;
+  const existingSessionId = existingThread?.session_id ?? null;
+  let clientProfile: string | null = null;
+  let userPreferences: string | null = null;
+
+  if (!existingSessionId) {
+    const clientContextResult = await auth.supabase
+      .from("clients")
+      .select("client_profile, user_preferences")
+      .eq("client_id", clientId)
+      .abortSignal(AbortSignal.timeout(CHAT_SUPABASE_HOT_PATH_TIMEOUT_MS))
+      .single();
+
+    if (clientContextResult.error) {
+      return jsonError("Failed to process request.", 500);
+    }
+
+    clientProfile = clientContextResult.data?.client_profile ?? null;
+    userPreferences = clientContextResult.data?.user_preferences ?? null;
+  }
   const tParallelLookup = performance.now();
 
   let threadTitle: string | null = null;
@@ -258,9 +271,10 @@ export async function POST(request: Request): Promise<Response> {
     input: text ?? "",
     fileParts,
     userMessageSourceId: lastMessage.id,
-    clientProfile: clientContext?.client_profile ?? null,
-    userPreferences: clientContext?.user_preferences ?? null,
+    clientProfile,
+    userPreferences,
     threadTitle,
+    existingSessionId,
     generatedTitlePromise: titlePromise,
     selectedChatModel,
   });

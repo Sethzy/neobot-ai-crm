@@ -41,6 +41,8 @@
  */
 import type Anthropic from "@anthropic-ai/sdk";
 
+import { buildChatAnthropicRequestOptions } from "./chat-request-options";
+
 interface AnyEvent {
   id: string;
   type: string;
@@ -95,8 +97,8 @@ function isTerminal(event: AnyEvent): boolean {
 
 function buildRequestOptions(
   signal?: AbortSignal,
-): { signal: AbortSignal } | undefined {
-  return signal ? { signal } : undefined;
+): ReturnType<typeof buildChatAnthropicRequestOptions> {
+  return buildChatAnthropicRequestOptions(signal);
 }
 
 async function getLatestSessionEventId(
@@ -154,12 +156,18 @@ export async function openSessionStream(
   // fetches are in-flight the moment we enter this function, matching
   // the spike pattern at
   // `scripts/spike/managed-agents-custom-tool-spike.ts`.
-  const livePromise = anthropic.beta.sessions.events.stream(sessionId);
+  const livePromise = anthropic.beta.sessions.events.stream(
+    sessionId,
+    undefined,
+    buildRequestOptions(),
+  );
   const snapshotPromise = (async () => {
     const tSnapshotStart = performance.now();
     const ids = new Set<string>();
     for await (const event of anthropic.beta.sessions.events.list(
       sessionId,
+      undefined,
+      buildRequestOptions(),
     ) as unknown as AsyncIterable<unknown>) {
       const id = (event as { id?: unknown }).id;
       if (typeof id === "string" && id.length > 0) {
@@ -311,12 +319,30 @@ export async function* iterateSessionEventsAfter(
   sessionId: string,
   handle: SessionTailHandle,
   options: {
+    preferLiveOnly?: boolean;
     signal?: AbortSignal;
     stopOnTerminal?: boolean;
   } = {},
 ): AsyncGenerator<AnyEvent> {
   const seen = new Set<string>();
   const stopOnTerminal = options.stopOnTerminal ?? true;
+  if (options.preferLiveOnly) {
+    for await (const event of handle.live) {
+      if (options.signal?.aborted) return;
+
+      const typed = event as AnyEvent;
+      if (seen.has(typed.id)) continue;
+
+      seen.add(typed.id);
+      yield typed;
+
+      if (options.signal?.aborted) return;
+      if (stopOnTerminal && isTerminal(typed)) return;
+    }
+
+    return;
+  }
+
   // The Anthropic events.list API no longer accepts `after_id`. Valid
   // parameters are `limit`, `order`, `page`. We list all events and
   // skip client-side until we've passed the cursor.

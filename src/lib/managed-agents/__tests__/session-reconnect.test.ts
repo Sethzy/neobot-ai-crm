@@ -98,14 +98,29 @@ function fakeClient(
 
 describe("openSessionStream", () => {
   it("invokes events.stream synchronously in the async body, before any await resolves", async () => {
-    const { client, stream } = fakeClient([], [], []);
+    const { client, stream, list } = fakeClient([], [], []);
     // Call without awaiting first — the async function body runs up to
     // its first await, which means `events.stream(sessionId)` fires
     // synchronously. Skill §7 relies on this: the fetch must be
     // in-flight before the runner posts the kickoff.
     const handlePromise = openSessionStream(client, "sess_1");
     expect(stream).toHaveBeenCalledTimes(1);
-    expect(stream).toHaveBeenCalledWith("sess_1");
+    expect(stream).toHaveBeenCalledWith(
+      "sess_1",
+      undefined,
+      expect.objectContaining({
+        timeout: 2_500,
+        maxRetries: 0,
+      }),
+    );
+    expect(list).toHaveBeenCalledWith(
+      "sess_1",
+      undefined,
+      expect.objectContaining({
+        timeout: 2_500,
+        maxRetries: 0,
+      }),
+    );
     const handle = await handlePromise;
     expect(handle.live).toBeDefined();
     // Regression guard for "handle.live is not async iterable": the
@@ -151,7 +166,10 @@ describe("openSessionTail", () => {
     expect(list).toHaveBeenCalledWith(
       "sess_reused",
       { order: "desc", limit: 1 },
-      undefined,
+      expect.objectContaining({
+        timeout: 2_500,
+        maxRetries: 0,
+      }),
     );
     expect(handle.afterId).toBe("evt_latest");
   });
@@ -238,6 +256,76 @@ describe("iterateSessionEvents", () => {
 });
 
 describe("iterateSessionEventsAfter", () => {
+  it("can consume the already-open live stream directly on fresh sessions", async () => {
+    const list = vi.fn(() => ({
+      [Symbol.asyncIterator]: async function* () {
+        yield agentMessageTextEvent("evt_history", "should be skipped");
+      },
+    }));
+
+    const client = {
+      beta: { sessions: { events: { list } } },
+    } as never;
+
+    const handle = {
+      live: {
+        [Symbol.asyncIterator]: async function* () {
+          yield agentMessageTextEvent("evt_live", "hello");
+          yield statusIdleEvent("evt_idle", "end_turn");
+        },
+      },
+      afterId: null,
+    };
+
+    const seen: string[] = [];
+    for await (const event of iterateSessionEventsAfter(
+      client,
+      "sess_fresh",
+      handle,
+      { preferLiveOnly: true },
+    )) {
+      seen.push((event as { id: string }).id);
+    }
+
+    expect(list).not.toHaveBeenCalled();
+    expect(seen).toEqual(["evt_live", "evt_idle"]);
+  });
+
+  it("does not drain history when preferLiveOnly is true on a reused session", async () => {
+    const list = vi.fn(() => ({
+      [Symbol.asyncIterator]: async function* () {
+        yield agentMessageTextEvent("evt_history", "should not be read");
+      },
+    }));
+
+    const client = {
+      beta: { sessions: { events: { list } } },
+    } as never;
+
+    const handle = {
+      live: {
+        [Symbol.asyncIterator]: async function* () {
+          yield agentMessageTextEvent("evt_live", "hello");
+          yield statusIdleEvent("evt_idle", "end_turn");
+        },
+      },
+      afterId: "evt_prev",
+    };
+
+    const seen: string[] = [];
+    for await (const event of iterateSessionEventsAfter(
+      client,
+      "sess_reused",
+      handle,
+      { preferLiveOnly: true },
+    )) {
+      seen.push((event as { id: string }).id);
+    }
+
+    expect(list).not.toHaveBeenCalled();
+    expect(seen).toEqual(["evt_live", "evt_idle"]);
+  });
+
   it("skips events up to and including the cursor, yields the rest", async () => {
     const list = vi.fn(() => ({
       [Symbol.asyncIterator]: async function* () {
@@ -272,7 +360,10 @@ describe("iterateSessionEventsAfter", () => {
     expect(list).toHaveBeenCalledWith(
       "sess_reused",
       undefined,
-      undefined,
+      expect.objectContaining({
+        timeout: 2_500,
+        maxRetries: 0,
+      }),
     );
     expect(seen).toEqual(["evt_2", "evt_idle"]);
   });

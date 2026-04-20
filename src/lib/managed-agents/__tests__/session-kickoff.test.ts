@@ -17,8 +17,8 @@ describe("buildKickoffContent", () => {
       userPreferences: "prefs-text",
       systemReminder: "reminder-text",
       userMessage: "hello",
-      installedSkillSlugs: [],
-      notInstalledSkillSlugs: [],
+      installedSkills: [],
+      notInstalledSkills: [],
       attachmentHints: [],
     });
 
@@ -26,6 +26,10 @@ describe("buildKickoffContent", () => {
       { type: "text", text: "profile-text" },
       { type: "text", text: "prefs-text" },
       { type: "text", text: "reminder-text" },
+      {
+        type: "text",
+        text: "For lightweight turns such as greetings, simple arithmetic, or direct time/date questions: answer immediately in one short sentence, do not personalize with client context, and do not inspect skills or use tools unless the prompt explicitly requires them.",
+      },
       { type: "text", text: "Installed skills for this session: none. You may use only installed skills." },
       { type: "text", text: "Not installed skills for this session: none." },
       { type: "text", text: "hello" },
@@ -38,13 +42,17 @@ describe("buildKickoffContent", () => {
       userPreferences: null,
       systemReminder: "reminder",
       userMessage: "hi",
-      installedSkillSlugs: [],
-      notInstalledSkillSlugs: [],
+      installedSkills: [],
+      notInstalledSkills: [],
       attachmentHints: [],
     });
 
     expect(content).toEqual([
       { type: "text", text: "reminder" },
+      {
+        type: "text",
+        text: "For lightweight turns such as greetings, simple arithmetic, or direct time/date questions: answer immediately in one short sentence, do not personalize with client context, and do not inspect skills or use tools unless the prompt explicitly requires them.",
+      },
       { type: "text", text: "Installed skills for this session: none. You may use only installed skills." },
       { type: "text", text: "Not installed skills for this session: none." },
       { type: "text", text: "hi" },
@@ -57,21 +65,27 @@ describe("buildKickoffContent", () => {
       userPreferences: null,
       systemReminder: "r",
       userMessage: "m",
-      installedSkillSlugs: ["pdf", "qa"],
-      notInstalledSkillSlugs: ["call-prep", "xlsx"],
+      installedSkills: [
+        { slug: "pdf", description: "read and extract text from PDF files" },
+        { slug: "qa", description: "quality-assure an existing deliverable" },
+      ],
+      notInstalledSkills: [
+        { slug: "call-prep", description: "research a contact before a meeting" },
+        { slug: "xlsx", description: "read and write Excel workbooks" },
+      ],
       attachmentHints: [],
     });
 
     expect(content).toContainEqual(
       expect.objectContaining({
         type: "text",
-        text: expect.stringContaining("Installed skills for this session: pdf, qa"),
+        text: expect.stringContaining("pdf — read and extract text from PDF files"),
       }),
     );
     expect(content).toContainEqual(
       expect.objectContaining({
         type: "text",
-        text: expect.stringContaining("Not installed skills for this session: call-prep, xlsx"),
+        text: expect.stringContaining("call-prep — research a contact before a meeting"),
       }),
     );
   });
@@ -82,8 +96,8 @@ describe("buildKickoffContent", () => {
       userPreferences: "preferences",
       systemReminder: "reminder",
       userMessage: "  call Kate today  ",
-      installedSkillSlugs: ["pdf"],
-      notInstalledSkillSlugs: ["call-prep"],
+      installedSkills: [{ slug: "pdf", description: "read and extract text from PDF files" }],
+      notInstalledSkills: [{ slug: "call-prep", description: "research a contact before a meeting" }],
       attachmentHints: [],
     });
 
@@ -99,8 +113,8 @@ describe("buildKickoffContent", () => {
       userPreferences: null,
       systemReminder: "reminder",
       userMessage: "analyze the file",
-      installedSkillSlugs: [],
-      notInstalledSkillSlugs: [],
+      installedSkills: [],
+      notInstalledSkills: [],
       attachmentHints: [{
         filename: "saaa.csv",
         mountPath: "/mnt/session/uploads/saaa.csv",
@@ -171,6 +185,10 @@ describe("getOrCreateSession", () => {
         environment_id: "env_abc",
         title: "Draft follow-up",
       }),
+      expect.objectContaining({
+        timeout: 5_000,
+        maxRetries: 0,
+      }),
     );
   });
 
@@ -200,6 +218,10 @@ describe("getOrCreateSession", () => {
           }),
         ],
       }),
+      expect.objectContaining({
+        timeout: 5_000,
+        maxRetries: 0,
+      }),
     );
   });
 
@@ -228,7 +250,14 @@ describe("getOrCreateSession", () => {
 
     expect(session.id).toBe("sess_fresh");
     expect(session.created).toBe(true);
-    expect(retrieveSession).toHaveBeenCalledWith("sess_dead");
+    expect(retrieveSession).toHaveBeenCalledWith(
+      "sess_dead",
+      {},
+      expect.objectContaining({
+        timeout: 2_500,
+        maxRetries: 0,
+      }),
+    );
     expect(createSession).toHaveBeenCalled();
   });
 

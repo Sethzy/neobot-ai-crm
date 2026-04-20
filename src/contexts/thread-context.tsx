@@ -28,6 +28,8 @@ import type { Thread } from "@/types/chat";
 
 interface ThreadContextValue {
   threads: Thread[];
+  /** True while the initial thread list is being fetched. */
+  isLoading: boolean;
   /** Creates a new thread and returns its ID. */
   createThread: () => Promise<string>;
   updateThreadTitle: (id: string, title: string) => void;
@@ -39,7 +41,7 @@ const ThreadContext = createContext<ThreadContextValue | null>(null);
 
 export function ThreadProvider({ children }: { children: React.ReactNode }) {
   const { data: clientId } = useClientId();
-  const { data: threadRows = [] } = useThreadRows(clientId);
+  const { data: threadRows = [], isLoading: isThreadsLoading } = useThreadRows(clientId);
   const {
     mutateAsync: createThreadMutateAsync,
   } = useCreateThread(clientId);
@@ -159,11 +161,12 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<ThreadContextValue>(
     () => ({
       threads,
+      isLoading: isThreadsLoading,
       createThread,
       updateThreadTitle,
       archiveThread,
     }),
-    [threads, createThread, updateThreadTitle, archiveThread],
+    [threads, isThreadsLoading, createThread, updateThreadTitle, archiveThread],
   );
 
   return <ThreadContext.Provider value={value}>{children}</ThreadContext.Provider>;

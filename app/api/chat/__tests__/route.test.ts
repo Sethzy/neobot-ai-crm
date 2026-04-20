@@ -25,6 +25,8 @@ const {
 const maybeSingle = vi.fn();
 const single = vi.fn();
 const insertFn = vi.fn();
+const threadAbortSignal = vi.fn();
+const clientAbortSignal = vi.fn();
 
 vi.mock("@/lib/api/route-helpers", () => ({
   authenticateRequest,
@@ -45,6 +47,22 @@ import { POST } from "../route";
 describe("POST /api/chat", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    const threadQuery = {
+      eq: vi.fn(),
+      abortSignal: threadAbortSignal,
+      maybeSingle,
+    };
+    threadQuery.eq.mockImplementation(() => threadQuery);
+    threadQuery.abortSignal.mockImplementation(() => threadQuery);
+
+    const clientQuery = {
+      eq: vi.fn(),
+      abortSignal: clientAbortSignal,
+      single,
+    };
+    clientQuery.eq.mockImplementation(() => clientQuery);
+    clientQuery.abortSignal.mockImplementation(() => clientQuery);
+
     authenticateRequest.mockResolvedValue({
       kind: "ok",
       userId: "u1",
@@ -52,27 +70,14 @@ describe("POST /api/chat", () => {
         from: (table: string) => {
           if (table === "conversation_threads") {
             return {
-              select: () => ({
-                eq: () => ({
-                  eq: () => ({
-                    eq: () => ({
-                      maybeSingle,
-                    }),
-                    maybeSingle,
-                  }),
-                }),
-              }),
+              select: () => threadQuery,
               insert: insertFn,
             };
           }
 
           if (table === "clients") {
             return {
-              select: () => ({
-                eq: () => ({
-                  single,
-                }),
-              }),
+              select: () => clientQuery,
             };
           }
 
@@ -81,7 +86,7 @@ describe("POST /api/chat", () => {
       },
     });
     maybeSingle.mockResolvedValue({
-      data: { thread_id: "t1", title: "Thread 1" },
+      data: { thread_id: "t1", title: "Thread 1", session_id: null },
       error: null,
     });
     single.mockResolvedValue({
@@ -214,8 +219,72 @@ describe("POST /api/chat", () => {
     expect(runManagedAgent).toHaveBeenCalledWith(
       expect.objectContaining({
         threadTitle: "Thread 1",
+        existingSessionId: null,
         clientProfile: "profile",
         userPreferences: "prefs",
+      }),
+    );
+  });
+
+  it("passes through an existing session id for warm turns", async () => {
+    maybeSingle.mockResolvedValueOnce({
+      data: { thread_id: "t1", title: "Thread 1", session_id: "sess_1" },
+      error: null,
+    });
+
+    await POST(
+      new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: "t1",
+          messages: [
+            {
+              id: "m1",
+              role: "user",
+              parts: [{ type: "text", text: "hello" }],
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(runManagedAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        existingSessionId: "sess_1",
+      }),
+    );
+  });
+
+  it("skips client context lookup when the thread already has a session", async () => {
+    maybeSingle.mockResolvedValueOnce({
+      data: { thread_id: "t1", title: "Thread 1", session_id: "sess_1" },
+      error: null,
+    });
+
+    await POST(
+      new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: "t1",
+          messages: [
+            {
+              id: "m1",
+              role: "user",
+              parts: [{ type: "text", text: "hello" }],
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(single).not.toHaveBeenCalled();
+    expect(runManagedAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        existingSessionId: "sess_1",
+        clientProfile: null,
+        userPreferences: null,
       }),
     );
   });

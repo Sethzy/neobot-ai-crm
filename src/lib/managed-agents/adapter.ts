@@ -48,9 +48,15 @@ import {
   completeRun,
   createRunRecord,
 } from "@/lib/runner/run-lifecycle";
-import { listCatalogSkillSlugs } from "@/lib/runner/skills/list-catalog-skill-slugs";
+import {
+  listCatalogSkills,
+  type CatalogSkillSummary,
+} from "@/lib/runner/skills/list-catalog-skill-slugs";
 import { listInstalledSkillSlugs } from "@/lib/runner/skills/list-installed-skill-slugs";
-import { buildSystemReminder } from "@/lib/runner/system-reminder";
+import {
+  buildFallbackSystemReminder,
+  buildSystemReminder,
+} from "@/lib/runner/system-reminder";
 import type { Json } from "@/types/database";
 
 import { computeTurnCost } from "./adapter-cost";
@@ -81,6 +87,7 @@ import { getAssistantTextFromParts } from "@/lib/runner/message-utils";
 
 import { resolveAgentRef } from "./agent-config";
 import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
+import type { KickoffSkillSummary } from "./session-kickoff";
 
 export interface FinalizeRunOptions {
   supabase: ManagedSupabaseClient;
@@ -112,6 +119,110 @@ function summarizeManagedFileParts(fileParts: readonly ManagedFilePart[]) {
     storagePath: filePart.storagePath ?? null,
     urlPath: getUrlPath(filePart.url),
   }));
+}
+
+const isLatencyDebugEnabled = process.env.DEBUG_LATENCY === "1";
+const SYSTEM_REMINDER_TIMEOUT_MS = 150;
+
+const EXPLICIT_ONLY_SKILL_MATCHERS: Record<string, {
+  mediaTypes: string[];
+  keywords: string[];
+}> = {
+  docx: {
+    mediaTypes: [
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ],
+    keywords: ["docx", "word document", "word file"],
+  },
+  pdf: {
+    mediaTypes: ["application/pdf"],
+    keywords: ["pdf"],
+  },
+  pptx: {
+    mediaTypes: [
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ],
+    keywords: ["pptx", "powerpoint", "slide deck", "slides"],
+  },
+  xlsx: {
+    mediaTypes: [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-excel",
+    ],
+    keywords: ["xlsx", "excel", "spreadsheet"],
+  },
+};
+
+function shouldRevealSkillInKickoff(input: {
+  skill: CatalogSkillSummary;
+  userMessage: string;
+  fileParts: readonly ManagedFilePart[];
+}): boolean {
+  if (!input.skill.isExplicitOnly) {
+    return true;
+  }
+
+  const matcher = EXPLICIT_ONLY_SKILL_MATCHERS[input.skill.slug];
+  if (!matcher) {
+    return true;
+  }
+
+  const normalizedMessage = input.userMessage.toLowerCase();
+  if (matcher.keywords.some((keyword) => normalizedMessage.includes(keyword))) {
+    return true;
+  }
+
+  return input.fileParts.some((filePart) => {
+    const normalizedFilename = filePart.filename?.toLowerCase() ?? "";
+    return (
+      matcher.mediaTypes.includes(filePart.mediaType)
+      || matcher.keywords.some((keyword) => normalizedFilename.includes(keyword))
+    );
+  });
+}
+
+function buildKickoffSkillSummaries(input: {
+  installedSkillSlugs: string[];
+  userMessage: string;
+  fileParts: readonly ManagedFilePart[];
+}): {
+  installedSkills: KickoffSkillSummary[];
+  notInstalledSkills: KickoffSkillSummary[];
+} {
+  const installedSkillSlugSet = new Set(input.installedSkillSlugs);
+  const visibleCatalogSkills = listCatalogSkills().filter((skill) =>
+    shouldRevealSkillInKickoff({
+      skill,
+      userMessage: input.userMessage,
+      fileParts: input.fileParts,
+    }),
+  );
+
+  const toKickoffSkillSummary = (skill: CatalogSkillSummary): KickoffSkillSummary => ({
+    slug: skill.slug,
+    description: skill.description,
+  });
+
+  return {
+    installedSkills: visibleCatalogSkills
+      .filter((skill) => installedSkillSlugSet.has(skill.slug))
+      .map(toKickoffSkillSummary),
+    notInstalledSkills: visibleCatalogSkills
+      .filter((skill) => !installedSkillSlugSet.has(skill.slug))
+      .map(toKickoffSkillSummary),
+  };
+}
+
+async function getSystemReminderForChatTurn(
+  supabase: ManagedSupabaseClient,
+  clientId: string,
+): Promise<string> {
+  return Promise.race([
+    buildSystemReminder(supabase, clientId).catch(() => buildFallbackSystemReminder()),
+    new Promise<string>((resolve) => {
+      setTimeout(() => resolve(buildFallbackSystemReminder()), SYSTEM_REMINDER_TIMEOUT_MS);
+    }),
+  ]);
 }
 
 function buildUserMessageParts(input: {
@@ -339,6 +450,7 @@ export interface RunManagedAgentInput {
   clientProfile: string | null;
   userPreferences: string | null;
   threadTitle: string | null;
+  existingSessionId?: string | null;
   generatedTitlePromise?: Promise<string> | null;
   /** User-selected model ID from the chat picker. Determines which
    *  Anthropic agent is used for new sessions. Falls back to
@@ -390,8 +502,6 @@ export async function runManagedAgent(
         fileParts: summarizeManagedFileParts(managedFileParts),
       });
     }
-    const catalogSkillSlugs = listCatalogSkillSlugs();
-
     const [
       { durationMs: persistUserInputMs },
       { result: existingSessionId, durationMs: existingSessionLookupMs },
@@ -414,7 +524,7 @@ export async function runManagedAgent(
       })(),
       (async () => {
         const tStart = performance.now();
-        const result = await getExistingSessionId({
+        const result = input.existingSessionId ?? await getExistingSessionId({
           supabase: input.supabase,
           threadId: input.threadId,
         });
@@ -425,7 +535,10 @@ export async function runManagedAgent(
       })(),
       (async () => {
         const tStart = performance.now();
-        const result = await buildSystemReminder(input.supabase, input.clientId);
+        const result = await getSystemReminderForChatTurn(
+          input.supabase,
+          input.clientId,
+        );
         return {
           result,
           durationMs: Math.round(performance.now() - tStart),
@@ -452,10 +565,14 @@ export async function runManagedAgent(
       })(),
     ]);
     const tParallelSetup = performance.now();
-    const installedSkillSlugSet = new Set(installedSkillSlugs);
-    const notInstalledSkillSlugs = catalogSkillSlugs.filter(
-      (slug) => !installedSkillSlugSet.has(slug),
-    );
+    const {
+      installedSkills,
+      notInstalledSkills,
+    } = buildKickoffSkillSummaries({
+      installedSkillSlugs,
+      userMessage: input.input,
+      fileParts: managedFileParts,
+    });
 
     console.info("[runManagedAgent] session lookup", {
       threadId: input.threadId,
@@ -542,11 +659,35 @@ export async function runManagedAgent(
       userPreferences: session.created ? input.userPreferences : null,
       systemReminder: reminder,
       userMessage: input.input,
-      installedSkillSlugs,
-      notInstalledSkillSlugs,
+      installedSkills,
+      notInstalledSkills,
       attachmentHints: attachmentMounts,
     });
     const tKickoffBuild = performance.now();
+
+    if (isLatencyDebugEnabled) {
+      const blocks = kickoffContent as ReadonlyArray<{ type: string; text?: string }>;
+      const totalBytes = blocks.reduce(
+        (acc, b) => acc + (typeof b.text === "string" ? Buffer.byteLength(b.text, "utf8") : 0),
+        0,
+      );
+      const reminderBytes = typeof reminder === "string"
+        ? Buffer.byteLength(reminder, "utf8")
+        : 0;
+      const mentionsCallPrep = blocks.some((b) =>
+        typeof b.text === "string" && b.text.includes("call-prep"),
+      );
+      console.info("[runManagedAgent] kickoff size", {
+        threadId: input.threadId,
+        sessionCreated: session.created,
+        blockCount: blocks.length,
+        totalBytes,
+        reminderBytes,
+        installedSkills: installedSkills.map((skill) => skill.slug),
+        notInstalledSkills: notInstalledSkills.map((skill) => skill.slug),
+        mentionsCallPrep,
+      });
+    }
 
     console.info("[runManagedAgent] adapter setup timing (ms)", {
       runRecordAndQuota: Math.round(tRunRecordAndQuota - tAdapterStart),

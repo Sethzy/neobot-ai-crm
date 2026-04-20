@@ -30,12 +30,39 @@ vi.mock("../session-kickoff", () => ({
   createSessionForThread: vi.fn().mockResolvedValue("sess_1"),
 }));
 vi.mock("@/lib/runner/system-reminder", () => ({
+  buildFallbackSystemReminder: vi.fn().mockReturnValue("<reminder>fallback</reminder>"),
   buildSystemReminder: vi.fn().mockResolvedValue("<reminder>ok</reminder>"),
 }));
 vi.mock("@/lib/runner/skills/list-installed-skill-slugs", () => ({
   listInstalledSkillSlugs: vi.fn().mockResolvedValue(["call-prep", "daily-briefing"]),
 }));
 vi.mock("@/lib/runner/skills/list-catalog-skill-slugs", () => ({
+  listCatalogSkills: vi.fn().mockReturnValue([
+    {
+      slug: "call-prep",
+      name: "call-prep",
+      description: "research a contact before a meeting",
+      isExplicitOnly: false,
+    },
+    {
+      slug: "daily-briefing",
+      name: "daily-briefing",
+      description: "summarize today's pipeline and tasks",
+      isExplicitOnly: false,
+    },
+    {
+      slug: "pdf",
+      name: "pdf",
+      description: "read and extract text from PDF files",
+      isExplicitOnly: true,
+    },
+    {
+      slug: "xlsx",
+      name: "xlsx",
+      description: "read and write Excel workbooks",
+      isExplicitOnly: true,
+    },
+  ]),
   listCatalogSkillSlugs: vi.fn().mockReturnValue([
     "call-prep",
     "daily-briefing",
@@ -506,8 +533,11 @@ describe("runManagedAgent — happy path", () => {
       expect.objectContaining({
         clientProfile: "## Client Profile\nJane — broker in SG",
         userPreferences: "## Preferences\nConcise. No fluff.",
-        installedSkillSlugs: ["call-prep", "daily-briefing"],
-        notInstalledSkillSlugs: ["pdf", "xlsx"],
+        installedSkills: [
+          { slug: "call-prep", description: "research a contact before a meeting" },
+          { slug: "daily-briefing", description: "summarize today's pipeline and tasks" },
+        ],
+        notInstalledSkills: [],
         userMessage: "Draft a follow-up to Kate",
         attachmentHints: [],
       }),
@@ -549,12 +579,52 @@ describe("runManagedAgent — happy path", () => {
       expect.objectContaining({
         clientProfile: null,
         userPreferences: null,
-        installedSkillSlugs: ["call-prep", "daily-briefing"],
-        notInstalledSkillSlugs: ["pdf", "xlsx"],
+        installedSkills: [
+          { slug: "call-prep", description: "research a contact before a meeting" },
+          { slug: "daily-briefing", description: "summarize today's pipeline and tasks" },
+        ],
+        notInstalledSkills: [],
         userMessage: "Follow-up question",
         attachmentHints: [],
       }),
     );
+  });
+
+  it("uses input.existingSessionId and skips the duplicate session lookup", async () => {
+    (getExistingSessionId as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      throw new Error("should not be called");
+    });
+    (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: "complete",
+      reason: "end_turn",
+      accumulatedEvents: [],
+      cost: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 0,
+        runtimeSeconds: 0,
+      },
+      approvalEventIds: [],
+      costRetrievePromise: Promise.resolve(),
+    });
+
+    const { runManagedAgent } = await import("../adapter");
+    const stream = await runManagedAgent({
+      anthropic: {} as never,
+      supabase: {} as never,
+      clientId: "c1",
+      threadId: "t1",
+      input: "hello",
+      existingSessionId: "sess_existing",
+      clientProfile: null,
+      userPreferences: null,
+      threadTitle: "Thread 1",
+    });
+
+    await collectStream(stream);
+
+    expect(consumeAnthropicSession).toHaveBeenCalled();
   });
 
   it("passes uploaded Anthropic file ids as initialResources when creating a new session", async () => {
@@ -609,8 +679,13 @@ describe("runManagedAgent — happy path", () => {
     );
     expect(buildKickoffContent).toHaveBeenCalledWith(
       expect.objectContaining({
-        installedSkillSlugs: ["call-prep", "daily-briefing"],
-        notInstalledSkillSlugs: ["pdf", "xlsx"],
+        installedSkills: [
+          { slug: "call-prep", description: "research a contact before a meeting" },
+          { slug: "daily-briefing", description: "summarize today's pipeline and tasks" },
+        ],
+        notInstalledSkills: [
+          { slug: "pdf", description: "read and extract text from PDF files" },
+        ],
         attachmentHints: [
           expect.objectContaining({
             filename: "brief.pdf",
