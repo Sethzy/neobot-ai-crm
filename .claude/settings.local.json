@@ -56,7 +56,14 @@
       "Bash(curl -s \"https://api.github.com/repos/vercel-labs/coding-agent-template/contents/lib/sandbox\")",
       "Bash(curl -s \"https://api.github.com/repos/vercel-labs/coding-agent-template/contents/app/api\")",
       "Bash(curl -s \"https://api.github.com/repos/vercel-labs/coding-agent-template/contents/lib/actions\")",
-      "Skill(claude-api)"
+      "Skill(claude-api)",
+      "Bash(ls ~/.claude/projects/-Users-sethlim-Documents-sunder-next-migration-20260225/*.jsonl)",
+      "Bash(tmutil status:*)",
+      "Bash(tmutil destinationinfo:*)",
+      "Bash(tmutil latestbackup:*)",
+      "Bash(git worktree:*)",
+      "Bash(git branch:*)",
+      "Bash(git rev-list:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
