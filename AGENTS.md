@@ -1,5 +1,11 @@
 You are an expert in Next.js, Anthropic Managed Agents, Vercel AI SDK, and Supabase. Our database is hosted on Supabase. Our serverless functions and frontend deployment are on Vercel.
 
+> ## ⚠️ CRITICAL: ALWAYS USE HAIKU FOR TESTING IN MANAGED AGENTS
+>
+> **When testing anything in Managed Agents, ALWAYS use `claude-haiku-4-5` (or the latest Haiku).**
+> **NEVER use Sonnet or Opus for testing.** Sonnet/Opus are reserved for production runs only.
+> This applies to all local test scripts, eval runs, and any ad-hoc agent invocations during development.
+
 ## Market
 
 **Sunder** is an autopilot for solo practitioners in advisory sales — real estate agents, insurance advisors, financial planners, and similar client-facing roles.
@@ -25,8 +31,9 @@ Sunder is a general agent harness: a looping runner with tools that operates on 
 - **Memory system:** Per-client files in Supabase Storage (`SOUL.md`, `USER.md`, `MEMORY.md`, `memory/*.md`). Agent reads/writes via `storage_read`/`storage_write` tools. This is the compounding data layer.
 - **Context assembly:** System prompt baked into the agent definition at registration time (`create-agent.ts`). Per-run dynamic context (client profile, CRM state, memory) is injected via the kickoff `user.message`, not reassembled in the runner on every request.
 - **Safety model:** Two tiers. Internal work auto-runs. External-facing actions require approval via `agent.requires_action` → `user.tool_confirmation` round-trip. No per-action granularity — binary internal/external.
-- **Thread serialization:** One run per thread at a time. `thread_queue_records` table + `drain_thread_queue` RPC for messages arriving during active runs.
-- **Autopilot:** Cron scanner + `agent_triggers` table + pulse system for scheduled and event-driven runs.
+- **Thread serialization:** Chat still runs one active run per thread. Automation executions run in dedicated run threads linked back to the parent automation.
+- **Automations:** Scheduled automations claim due trigger rows, start a fresh Anthropic Managed Agent run, and skip if that automation is already running.
+- **Autopilot:** Built-in pulse scheduling remains a separate background setting from the user-visible automations list.
 - **Improvement loop:** Langfuse traces instrument every run. Evals score tool-call correctness and safety. The feedback cycle is: run → trace → evaluate → improve context engineering → run again.
 - **Tenant isolation:** `clientId` injected into tool closures + RLS double-lock on every table.
 - **Model routing:** Main agent model is `claude-sonnet-4-6`, pinned by `ANTHROPIC_AGENT_VERSION`. Gemini models (via Vercel AI Gateway) are used only for cheap helpers: title generation (`google/gemini-3-flash`) and thread compaction (`google/gemini-2.5-flash-lite`).

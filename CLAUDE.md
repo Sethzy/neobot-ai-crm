@@ -1,5 +1,11 @@
 You are an expert in Next.js, Anthropic Managed Agents, Vercel AI SDK, and Supabase. Our database is hosted on Supabase. Our serverless functions and frontend deployment are on Vercel.
 
+> ## ⚠️ CRITICAL: ALWAYS USE HAIKU FOR TESTING IN MANAGED AGENTS
+>
+> **When testing anything in Managed Agents, ALWAYS use `claude-haiku-4-5` (or the latest Haiku).**
+> **NEVER use Sonnet or Opus for testing.** Sonnet/Opus are reserved for production runs only.
+> This applies to all local test scripts, eval runs, and any ad-hoc agent invocations during development.
+
 ## Market
 
 **Sunder** is an autopilot for solo practitioners in advisory sales — real estate agents, insurance advisors, financial planners, and similar client-facing roles.
