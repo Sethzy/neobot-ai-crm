@@ -45,16 +45,55 @@ describe("listConnectionsTool", () => {
       connections: [
         {
           connectionId: "11111111-1111-4111-8111-111111111111",
+          toolkitSlug: "gmail",
           serviceName: "gmail",
+          displayName: "Gmail",
           description: "Gmail",
           accountName: "user@gmail.com",
-          connectionType: "integrations",
           status: "active",
-          activatedToolCount: 1,
-          totalToolCount: 45,
         },
       ],
     });
     expect(builders.connections.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
+  });
+
+  it("does not include activated-tool counts in the response", async () => {
+    const { client } = createMockSupabase({
+      connections: {
+        data: [
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            client_id: CLIENT_ID,
+            composio_connected_account_id: "composio-1",
+            toolkit_slug: "gmail",
+            display_name: "Gmail",
+            account_identifier: "user@gmail.com",
+            status: "active",
+            activated_tools: ["GMAIL_SEND_EMAIL"],
+            tool_count: 45,
+          },
+        ],
+        error: null,
+      },
+    });
+
+    const result = await listConnectionsTool.execute({}, makeContext(client));
+
+    expect(result).toMatchObject({
+      success: true,
+      connections: [
+        expect.objectContaining({
+          toolkitSlug: "gmail",
+          serviceName: "gmail",
+          displayName: "Gmail",
+          status: "active",
+        }),
+      ],
+    });
+    if (!result.success) {
+      throw new Error("Expected list_connections to succeed.");
+    }
+    expect(result.connections[0]).not.toHaveProperty("activatedToolCount");
+    expect(result.connections[0]).not.toHaveProperty("totalToolCount");
   });
 });

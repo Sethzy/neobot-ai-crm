@@ -4,7 +4,7 @@
  */
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { mockUseBrowserAuth } = vi.hoisted(() => ({
   mockUseBrowserAuth: vi.fn(),
@@ -46,6 +46,12 @@ vi.mock("@/hooks/use-browser-auth", () => ({
   useBrowserAuth: (...args: unknown[]) => mockUseBrowserAuth(...args),
 }));
 
+vi.mock("use-stick-to-bottom", () => ({
+  useStickToBottomContext: () => ({
+    scrollRef: { current: null },
+  }),
+}));
+
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => {
     const client = mockCreateSupabaseClient();
@@ -55,6 +61,10 @@ vi.mock("@/lib/supabase/client", () => ({
 }));
 
 import { ToolCallInline } from "./tool-call-inline";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("ToolCallInline", () => {
   const defaultProps = {
@@ -95,7 +105,7 @@ describe("ToolCallInline", () => {
   it("shows chevron inline next to name", () => {
     render(<ToolCallInline {...defaultProps} />);
 
-    expect(screen.getByTestId("tool-chevron")).toHaveTextContent("›");
+    expect(screen.getByTestId("tool-chevron").getAttribute("class")).toMatch(/-rotate-90/);
   });
 
   it("does not show input/output when collapsed", () => {
@@ -296,7 +306,7 @@ describe("approval-requested state", () => {
     expect(screen.queryByRole("button", { name: /approve/i })).not.toBeInTheDocument();
   });
 
-  it("shows amber pulsing dot when awaiting approval", () => {
+  it("shows a warning-colored status icon when awaiting approval", () => {
     vi.useFakeTimers();
 
     render(<ToolCallInline {...approvalProps} />);
@@ -306,10 +316,8 @@ describe("approval-requested state", () => {
     });
 
     const dot = screen.getByTestId("tool-dot");
-    expect(dot.getAttribute("class")).toMatch(/animate-pulse/);
-    expect(dot.getAttribute("class")).toMatch(/bg-approval/);
-
-    vi.useRealTimers();
+    expect(dot.getAttribute("class")).toMatch(/text-warning/);
+    expect(dot.getAttribute("class")).not.toMatch(/animate-spin/);
   });
 
   it("shows static dot when tool completes", () => {
@@ -331,7 +339,7 @@ describe("approval-requested state", () => {
     );
 
     const dot = screen.getByTestId("tool-dot");
-    expect(dot.tagName).toBe("SPAN");
+    expect(dot.tagName.toLowerCase()).toBe("svg");
     expect(dot.getAttribute("class")).not.toMatch(/animate-spin/);
   });
 });
@@ -387,6 +395,47 @@ describe("connection cards", () => {
     );
   });
 
+  it("does not show awaiting-login state before the user starts OAuth", async () => {
+    mockSupabaseMaybeSingle.mockResolvedValueOnce({
+      data: {
+        status: "pending",
+        account_identifier: null,
+      },
+      error: null,
+    });
+
+    render(
+      <ToolCallInline
+        name="create_connection"
+        state="output-available"
+        input={{ integrations: [{ integrationId: "notion" }] }}
+        output={{
+          success: true,
+          results: [
+            {
+              integrationId: "notion",
+              displayName: "Notion",
+              description: "Read and write your Notion workspace.",
+              connectionStatus: "pending_auth",
+              redirectUrl: "https://auth.composio.dev/notion",
+              composioConnectedAccountId: "acc-notion-pending",
+            },
+          ],
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockSupabaseEq).toHaveBeenCalledWith(
+        "composio_connected_account_id",
+        "acc-notion-pending",
+      );
+    });
+
+    expect(screen.queryByText("Awaiting login")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /connect notion/i })).toBeInTheDocument();
+  });
+
   it("renders ConnectionCard for create_connection output", () => {
     render(
       <ToolCallInline
@@ -414,9 +463,123 @@ describe("connection cards", () => {
       />,
     );
 
-    expect(screen.getByText("Create new connection?")).toBeInTheDocument();
+    expect(screen.getByText("Connect a provider")).toBeInTheDocument();
     expect(screen.getByText("Google Drive")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /connect google drive/i })).toBeInTheDocument();
+  });
+
+  it("renders the same connection card pattern for reauthorize_connection output", () => {
+    render(
+      <ToolCallInline
+        name="reauthorize_connection"
+        state="output-available"
+        input={{ connectionId: "conn-123" }}
+        output={{
+          success: true,
+          connectionId: "conn-123",
+          status: "pending_reauth",
+          integrationId: "gmail",
+          displayName: "Gmail",
+          description: "Send and read Gmail messages.",
+          connectionStatus: "pending_reauth",
+          redirectUrl: "https://auth.composio.dev/gmail",
+          composioConnectedAccountId: "acc-reauth-123",
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Reconnect a provider")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /reconnect gmail/i })).toBeInTheDocument();
+  });
+
+  it("renders provider-specific connection errors without showing an OAuth CTA", () => {
+    render(
+      <ToolCallInline
+        name="create_connection"
+        state="output-available"
+        input={{ integrations: [{ integrationId: "Google Drive" }] }}
+        output={{
+          success: true,
+          results: [
+            {
+              integrationId: "googledrive",
+              displayName: "Google Drive",
+              error: "Already connected. Disconnect it first to switch accounts.",
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Connection request could not start")).toBeInTheDocument();
+    expect(
+      screen.getByText("Already connected. Disconnect it first to switch accounts."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Google Drive")).toBeInTheDocument();
+    expect(screen.queryByText("googledrive")).not.toBeInTheDocument();
+    expect(screen.queryByText("Not connected")).not.toBeInTheDocument();
+    expect(screen.getByText("Already connected")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /connect google drive/i })).not.toBeInTheDocument();
+  });
+
+  it("uses KISS copy for the connection modal and never mentions tool approval", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ToolCallInline
+        name="create_connection"
+        state="output-available"
+        input={{ integrations: [{ integrationId: "notion" }] }}
+        output={{
+          success: true,
+          results: [
+            {
+              integrationId: "notion",
+              displayName: "Notion",
+              description: "Read and write your Notion workspace.",
+              connectionStatus: "pending_auth",
+              redirectUrl: "https://auth.composio.dev/notion",
+              composioConnectedAccountId: "acc-notion-123",
+            },
+          ],
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /connect notion/i }));
+
+    expect(screen.queryByText(/approve the tools/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/grant permissions/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/sign in to notion to authorize sunder/i)).toBeInTheDocument();
+    expect(screen.getByText(/send your next message/i)).toBeInTheDocument();
+  });
+
+  it("uses reauthorization-specific copy in the modal", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ToolCallInline
+        name="reauthorize_connection"
+        state="output-available"
+        input={{ connectionId: "conn-123" }}
+        output={{
+          success: true,
+          connectionId: "conn-123",
+          status: "pending_reauth",
+          integrationId: "gmail",
+          displayName: "Gmail",
+          description: "Send and read Gmail messages.",
+          connectionStatus: "pending_reauth",
+          redirectUrl: "https://auth.composio.dev/gmail",
+          composioConnectedAccountId: "acc-reauth-123",
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /reconnect gmail/i }));
+
+    expect(screen.getByText(/sign in to gmail again to refresh the saved connection/i)).toBeInTheDocument();
+    expect(screen.getByText(/send your next message/i)).toBeInTheDocument();
   });
 
   it("renders PermissionCard from input during approval-requested state", () => {
@@ -525,7 +688,7 @@ describe("connection cards", () => {
 });
 
 describe("output-denied state", () => {
-  it("shows an orange denial indicator dot (not pulsing)", () => {
+  it("shows a muted denial icon (not spinning)", () => {
     vi.useFakeTimers();
 
     render(
@@ -541,10 +704,8 @@ describe("output-denied state", () => {
     });
 
     const dot = screen.getByTestId("tool-dot");
-    expect(dot.getAttribute("class")).toMatch(/bg-denied/);
-    expect(dot.getAttribute("class")).not.toMatch(/animate-pulse/);
-
-    vi.useRealTimers();
+    expect(dot.getAttribute("class")).toMatch(/text-muted-foreground/);
+    expect(dot.getAttribute("class")).not.toMatch(/animate-spin/);
   });
 
   it("shows 'Denied' label after tool name", () => {

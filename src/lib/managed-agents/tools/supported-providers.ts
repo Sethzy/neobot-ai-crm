@@ -1,0 +1,68 @@
+/**
+ * Launch-set provider slugs accepted by the connection-management tools.
+ *
+ * The canonical values must match Composio's toolkit slugs. A tiny alias map
+ * keeps the agent resilient to common user-facing naming variants while we
+ * transition the prompt and tests.
+ *
+ * @module lib/managed-agents/tools/supported-providers
+ */
+export const SUPPORTED_PROVIDERS = [
+  "gmail",
+  "googlecalendar",
+  "googledrive",
+  "notion",
+] as const;
+
+export type SupportedProviderSlug = (typeof SUPPORTED_PROVIDERS)[number];
+
+export const SUPPORTED_PROVIDER_DISPLAY_NAMES: Record<
+  SupportedProviderSlug,
+  string
+> = {
+  gmail: "Gmail",
+  googlecalendar: "Google Calendar",
+  googledrive: "Google Drive",
+  notion: "Notion",
+};
+
+export const SUPPORTED_PROVIDER_NAMES_FOR_PROMPT = Object.values(
+  SUPPORTED_PROVIDER_DISPLAY_NAMES,
+).join(", ");
+
+/** Returns whether the provided slug is already one of the canonical launch slugs. */
+export function isSupportedProvider(slug: string): slug is SupportedProviderSlug {
+  return (SUPPORTED_PROVIDERS as readonly string[]).includes(slug);
+}
+
+/** Returns a human-readable provider name when the slug is supported. */
+export function getSupportedProviderDisplayName(slug: string): string {
+  const normalizedSlug = normalizeSupportedProviderSlug(slug);
+
+  if (!normalizedSlug) {
+    return slug;
+  }
+
+  return SUPPORTED_PROVIDER_DISPLAY_NAMES[normalizedSlug];
+}
+
+/**
+ * Normalizes a user/model supplied slug into a canonical supported provider.
+ * Returns `null` when the provider is outside the launch set.
+ */
+export function normalizeSupportedProviderSlug(
+  slug: string,
+): SupportedProviderSlug | null {
+  const normalizedSlug = slug.trim().toLowerCase();
+  const collapsedSlug = normalizedSlug.replace(/[\s_-]+/g, "");
+
+  if (isSupportedProvider(normalizedSlug)) {
+    return normalizedSlug;
+  }
+
+  if (isSupportedProvider(collapsedSlug)) {
+    return collapsedSlug;
+  }
+
+  return null;
+}

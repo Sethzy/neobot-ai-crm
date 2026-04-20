@@ -5,6 +5,7 @@
  */
 import { z } from "zod";
 
+import { getToolkitDisplayInfo } from "@/lib/composio/catalog";
 import { getComposio } from "@/lib/composio/client";
 import { getCallbackUrl } from "@/lib/composio/connection-flow";
 
@@ -18,8 +19,16 @@ type ReauthorizeConnectionInput = z.infer<typeof inputSchema>;
 
 export const reauthorizeConnectionTool: ManagedAgentTool<ReauthorizeConnectionInput> = {
   name: "reauthorize_connection",
-  description:
-    "Re-authorizes an existing connection that has expired or needs new permissions. Displays a UI card where the user can complete the auth flow to re-authorize the connection.\n\nUse this tool if and only if there were authorization errors with a connection or the user explicitly asks you to.\nThe connection must already exist in the user's account.\nRe-authorizing cannot change which account the connection is logged into in the external service.",
+  description: [
+    "Refresh the stored credentials for an existing connection whose OAuth has expired or is returning auth errors.",
+    "",
+    "Use this when:",
+    "- The user says a provider has stopped working and the error looks authentication-related.",
+    "- A provider action failed because the saved connection needs to be refreshed.",
+    "",
+    "An inline auth card appears in chat when browser reauthorization is required. END YOUR TURN after calling this tool. Reauthorization finishes on the user's next message.",
+    "Reauthorization cannot change which account is connected. If the user wants a different account, call delete_connection first, then create_connection.",
+  ].join("\n"),
   inputSchema,
   execute: async ({ connectionId }, context) => {
     const { data: connection, error } = await context.supabase
@@ -85,22 +94,24 @@ export const reauthorizeConnectionTool: ManagedAgentTool<ReauthorizeConnectionIn
       return { success: false as const, error: "Composio did not return a re-authorization URL." };
     }
 
-    const { error: updateError } = await context.supabase
-      .from("connections")
-      .update({ status: "pending" })
-      .eq("client_id", context.clientId)
-      .eq("id", connection.id);
-
-    if (updateError) {
-      return { success: false as const, error: updateError.message };
-    }
+    const toolkitDisplayInfo = await getToolkitDisplayInfo(connection.toolkit_slug).catch(() => ({
+      integrationId: connection.toolkit_slug,
+      displayName: connection.toolkit_slug,
+      description: "",
+    }));
 
     return {
       success: true as const,
       connectionId: connection.id,
       status: "pending_reauth" as const,
       redirectUrl: refreshResult.redirect_url,
-      message: "Send this re-authorization link to the user. The connection account cannot change.",
+      integrationId: connection.toolkit_slug,
+      displayName: toolkitDisplayInfo.displayName,
+      description: toolkitDisplayInfo.description,
+      connectionStatus: "pending_reauth" as const,
+      composioConnectedAccountId: connection.composio_connected_account_id,
+      message:
+        "A reauthorization card is now visible in chat. End this turn. The provider becomes usable again on the user's next message after OAuth completes.",
     };
   },
 };

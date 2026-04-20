@@ -6,10 +6,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../client", () => ({
   getComposio: vi.fn(),
+  getVersionedRawComposioTools: vi.fn(),
   COMPOSIO_TOOL_FETCH_LIMIT: 200,
 }));
 
 import { getComposio } from "../client";
+import { getVersionedRawComposioTools } from "../client";
 
 import {
   getToolkitCapabilities,
@@ -123,11 +125,9 @@ describe("getToolkitCapabilities", () => {
   });
 
   it("returns the tool list for each toolkit slug", async () => {
-    createMockComposio([
-      [
-        createMockTool("GMAIL_SEND_EMAIL", "gmail", "Gmail"),
-        createMockTool("GMAIL_READ_EMAIL", "gmail", "Gmail"),
-      ],
+    vi.mocked(getVersionedRawComposioTools).mockResolvedValueOnce([
+      createMockTool("GMAIL_SEND_EMAIL", "gmail", "Gmail"),
+      createMockTool("GMAIL_READ_EMAIL", "gmail", "Gmail"),
     ]);
 
     const result = await getToolkitCapabilities(["gmail"]);
@@ -158,19 +158,19 @@ describe("getToolkitCapabilities", () => {
   });
 
   it("passes toolkit-only params to the SDK", async () => {
-    const mock = createMockComposio([[]]);
+    vi.mocked(getVersionedRawComposioTools).mockResolvedValueOnce([]);
 
     await getToolkitCapabilities(["gmail"]);
 
-    expect(mock.tools.getRawComposioTools).toHaveBeenCalledWith({
+    expect(getVersionedRawComposioTools).toHaveBeenCalledWith({
       toolkits: ["gmail"],
       limit: 200,
     });
   });
 
   it("returns UNKNOWN quality and empty notes in v1", async () => {
-    createMockComposio([
-      [createMockTool("GMAIL_SEND_EMAIL", "gmail", "Gmail")],
+    vi.mocked(getVersionedRawComposioTools).mockResolvedValueOnce([
+      createMockTool("GMAIL_SEND_EMAIL", "gmail", "Gmail"),
     ]);
 
     const result = await getToolkitCapabilities(["gmail"]);
@@ -180,10 +180,9 @@ describe("getToolkitCapabilities", () => {
   });
 
   it("handles multiple toolkit slugs", async () => {
-    createMockComposio([
-      [createMockTool("GMAIL_SEND_EMAIL", "gmail", "Gmail")],
-      [createMockTool("SLACK_SEND_MESSAGE", "slack", "Slack")],
-    ]);
+    vi.mocked(getVersionedRawComposioTools)
+      .mockResolvedValueOnce([createMockTool("GMAIL_SEND_EMAIL", "gmail", "Gmail")])
+      .mockResolvedValueOnce([createMockTool("SLACK_SEND_MESSAGE", "slack", "Slack")]);
 
     const result = await getToolkitCapabilities(["gmail", "slack"]);
 
@@ -205,20 +204,18 @@ describe("getToolkitDisplayInfo", () => {
   });
 
   it("loads lightweight display metadata from the tools API", async () => {
-    const mock = createMockComposio([
-      [
-        {
-          slug: "GOOGLEDRIVE_FIND_FILE",
-          name: "Google Drive Find File",
-          description: "Search Google Drive files",
-          tags: ["drive"],
-          toolkit: {
-            slug: "googledrive",
-            name: "Google Drive",
-            description: "Browse and manage Google Drive files",
-          },
-        } as never,
-      ],
+    vi.mocked(getVersionedRawComposioTools).mockResolvedValueOnce([
+      {
+        slug: "GOOGLEDRIVE_FIND_FILE",
+        name: "Google Drive Find File",
+        description: "Search Google Drive files",
+        tags: ["drive"],
+        toolkit: {
+          slug: "googledrive",
+          name: "Google Drive",
+          description: "Browse and manage Google Drive files",
+        },
+      } as never,
     ]);
 
     await expect(getToolkitDisplayInfo("googledrive")).resolves.toEqual({
@@ -226,14 +223,14 @@ describe("getToolkitDisplayInfo", () => {
       displayName: "Google Drive",
       description: "Browse and manage Google Drive files",
     });
-    expect(mock.tools.getRawComposioTools).toHaveBeenCalledWith({
+    expect(getVersionedRawComposioTools).toHaveBeenCalledWith({
       toolkits: ["googledrive"],
       limit: 1,
     });
   });
 
   it("falls back to the toolkit slug when the tools API returns no metadata", async () => {
-    createMockComposio([[]]);
+    vi.mocked(getVersionedRawComposioTools).mockResolvedValueOnce([]);
 
     await expect(getToolkitDisplayInfo("gmail")).resolves.toEqual({
       integrationId: "gmail",
@@ -243,8 +240,7 @@ describe("getToolkitDisplayInfo", () => {
   });
 
   it("falls back to the toolkit slug when the lookup errors", async () => {
-    const mock = createMockComposio([]);
-    mock.tools.getRawComposioTools.mockRejectedValueOnce(new Error("catalog unavailable"));
+    vi.mocked(getVersionedRawComposioTools).mockRejectedValueOnce(new Error("catalog unavailable"));
 
     await expect(getToolkitDisplayInfo("googledrive")).resolves.toEqual({
       integrationId: "googledrive",

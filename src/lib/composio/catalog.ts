@@ -2,7 +2,11 @@
  * Composio catalog search and toolkit capability helpers.
  * @module lib/composio/catalog
  */
-import { COMPOSIO_TOOL_FETCH_LIMIT, getComposio } from "./client";
+import {
+  COMPOSIO_TOOL_FETCH_LIMIT,
+  getComposio,
+  getVersionedRawComposioTools,
+} from "./client";
 
 export interface CatalogIntegration {
   integrationId: string;
@@ -88,10 +92,8 @@ export async function getToolkitCapabilities(
     return [];
   }
 
-  const composio = getComposio();
-
   return Promise.all(toolkitSlugs.map(async (toolkitSlug) => {
-    const tools = await composio.tools.getRawComposioTools({
+    const tools = await getVersionedRawComposioTools({
       toolkits: [toolkitSlug],
       limit: COMPOSIO_TOOL_FETCH_LIMIT,
     });
@@ -118,10 +120,8 @@ export async function getToolkitCapabilities(
 export async function getToolkitDisplayInfo(
   toolkitSlug: string,
 ): Promise<ToolkitDisplayInfo> {
-  const composio = getComposio();
-
   try {
-    const [toolkitTool] = await composio.tools.getRawComposioTools({
+    const [toolkitTool] = await getVersionedRawComposioTools({
       toolkits: [toolkitSlug],
       limit: 1,
     }) as RawComposioTool[];

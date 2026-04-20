@@ -64,7 +64,13 @@ describe("deleteConnectionTool", () => {
     expect(result).toEqual({
       success: true,
       connectionId: "conn-1",
-      message: "Connection to gmail permanently deleted.",
+      displayName: "Gmail",
+      message: "Gmail connection permanently deleted.",
     });
+  });
+
+  it("description frames the tool as disconnecting a provider", () => {
+    expect(deleteConnectionTool.description).toMatch(/disconnect|remove a provider/i);
+    expect(deleteConnectionTool.description).not.toMatch(/manage_activated_tools/);
   });
 });

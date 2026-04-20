@@ -22,6 +22,7 @@ import {
 import { JsonView } from "@/components/ui/json-view";
 import { useBrowserAuth } from "@/hooks/use-browser-auth";
 import { getBrowserPlatformConfig } from "@/lib/browser-use/platforms";
+import { getSupportedProviderDisplayName } from "@/lib/managed-agents/tools/supported-providers";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { CheckIcon, ChevronDownIcon, LoaderIcon, XCircleIcon } from "lucide-react";
@@ -59,10 +60,18 @@ interface ConnectionResult {
   integrationId: string;
   displayName: string;
   description: string;
-  connectionStatus: "pending_auth";
+  connectionStatus: "pending_auth" | "pending_reauth";
   redirectUrl: string;
   composioConnectedAccountId: string;
 }
+
+interface ConnectionErrorResult {
+  integrationId: string;
+  displayName?: string;
+  error: string;
+}
+
+type ConnectionCardResult = ConnectionResult | ConnectionErrorResult;
 
 type ConnectionCardStatus = ConnectionResult["connectionStatus"] | "active" | "error";
 
@@ -111,7 +120,7 @@ function isBrowserNeedsAuth(
 function isConnectionCreation(
   toolName: string,
   output: unknown,
-): output is { success: true; results: ConnectionResult[] } {
+): output is { success: true; results: ConnectionCardResult[] } {
   return (
     (toolName === "create_connection" || toolName === "create_new_connections")
     && output !== null
@@ -119,6 +128,28 @@ function isConnectionCreation(
     && (output as Record<string, unknown>).success === true
     && Array.isArray((output as Record<string, unknown>).results)
   );
+}
+
+function isConnectionReauthorization(
+  toolName: string,
+  output: unknown,
+): output is ConnectionResult {
+  return (
+    toolName === "reauthorize_connection"
+    && output !== null
+    && typeof output === "object"
+    && (output as Record<string, unknown>).success === true
+    && (output as Record<string, unknown>).connectionStatus === "pending_reauth"
+    && typeof (output as Record<string, unknown>).displayName === "string"
+    && typeof (output as Record<string, unknown>).redirectUrl === "string"
+    && typeof (output as Record<string, unknown>).composioConnectedAccountId === "string"
+  );
+}
+
+function isConnectionErrorResult(
+  result: ConnectionCardResult,
+): result is ConnectionErrorResult {
+  return "error" in result;
 }
 
 function isToolPermissionRequest(
@@ -159,12 +190,14 @@ function ConnectionModal({
   integrationName,
   redirectUrl,
   isOpen,
+  mode,
   onOpenChange,
   onContinue,
 }: {
   integrationName: string;
   redirectUrl: string;
   isOpen: boolean;
+  mode: "connect" | "reauthorize";
   onOpenChange: (isOpen: boolean) => void;
   onContinue: () => void;
 }) {
@@ -172,9 +205,13 @@ function ConnectionModal({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Connect {integrationName}</DialogTitle>
+          <DialogTitle>
+            {mode === "reauthorize" ? `Reconnect ${integrationName}` : `Connect ${integrationName}`}
+          </DialogTitle>
           <DialogDescription>
-            This connection is saved to your account. The agent only gets access after you approve the tools it should use.
+            {mode === "reauthorize"
+              ? `Sign in to ${integrationName} again to refresh the saved connection. After you finish, come back to chat and send your next message.`
+              : `Sign in to ${integrationName} to authorize Sunder. After you finish, come back to chat and send your next message.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -187,7 +224,9 @@ function ConnectionModal({
               onOpenChange(false);
             }}
           >
-            Continue to {integrationName}
+            {mode === "reauthorize"
+              ? `Reconnect ${integrationName}`
+              : `Continue to ${integrationName}`}
           </Button>
         </div>
       </DialogContent>
@@ -202,6 +241,7 @@ function ConnectionRow({ result }: { result: ConnectionResult }) {
     result.connectionStatus,
   );
   const [accountIdentifier, setAccountIdentifier] = useState<string | null>(null);
+  const isReauthorization = result.connectionStatus === "pending_reauth";
 
   useEffect(() => {
     const supabase = createClient();
@@ -213,10 +253,10 @@ function ConnectionRow({ result }: { result: ConnectionResult }) {
     }) => {
       if (snapshot.status === "active") {
         setConnectionStatus("active");
+        setHasStartedOAuth(false);
       } else if (snapshot.status === "error") {
         setConnectionStatus("error");
-      } else if (typeof snapshot.status === "string") {
-        setHasStartedOAuth(true);
+        setHasStartedOAuth(false);
       }
 
       if (typeof snapshot.account_identifier === "string") {
@@ -265,6 +305,14 @@ function ConnectionRow({ result }: { result: ConnectionResult }) {
 
   const isConnected = connectionStatus === "active";
   const hasFailed = connectionStatus === "error";
+  const isAwaitingLogin = hasStartedOAuth && !isConnected;
+  const summaryText = isAwaitingLogin
+    ? "Finish the sign-in flow in the tab you opened, then return to chat."
+    : result.description || (
+      isReauthorization
+        ? "Refresh the saved connection for this provider."
+        : "Authorize this provider so the agent can use it on your next message."
+    );
 
   return (
     <div className="rounded-lg border border-border/60 bg-background px-4 py-3">
@@ -273,12 +321,19 @@ function ConnectionRow({ result }: { result: ConnectionResult }) {
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-medium text-foreground">{result.displayName}</p>
             {isConnected ? <Badge variant="outline">Connected</Badge> : null}
-            {hasFailed ? <Badge variant="outline">Needs retry</Badge> : null}
-            {!isConnected && !hasFailed && hasStartedOAuth ? (
+            {!isConnected && isAwaitingLogin ? (
               <Badge variant="outline">Awaiting login</Badge>
             ) : null}
+            {hasFailed ? (
+              <Badge variant="outline">
+                {isReauthorization ? "Needs reauthorization" : "Failed"}
+              </Badge>
+            ) : null}
+            {!isConnected && !isAwaitingLogin && !hasFailed && isReauthorization ? (
+              <Badge variant="outline">Needs reauthorization</Badge>
+            ) : null}
           </div>
-          <p className="text-sm text-muted-foreground">{result.description}</p>
+          <p className="text-sm text-muted-foreground">{summaryText}</p>
           {accountIdentifier ? (
             <p className="text-xs text-muted-foreground">{accountIdentifier}</p>
           ) : null}
@@ -288,10 +343,12 @@ function ConnectionRow({ result }: { result: ConnectionResult }) {
           <Button
             size="sm"
             type="button"
-            variant={hasStartedOAuth ? "outline" : "default"}
+            variant={isAwaitingLogin ? "outline" : "default"}
             onClick={() => setIsModalOpen(true)}
           >
-            Connect {result.displayName}
+            {isReauthorization
+              ? `Reconnect ${result.displayName}`
+              : `Connect ${result.displayName}`}
           </Button>
         )}
       </div>
@@ -300,6 +357,7 @@ function ConnectionRow({ result }: { result: ConnectionResult }) {
         integrationName={result.displayName}
         redirectUrl={result.redirectUrl}
         isOpen={isModalOpen}
+        mode={isReauthorization ? "reauthorize" : "connect"}
         onOpenChange={setIsModalOpen}
         onContinue={() => setHasStartedOAuth(true)}
       />
@@ -307,20 +365,61 @@ function ConnectionRow({ result }: { result: ConnectionResult }) {
   );
 }
 
-function ConnectionCard({ results }: { results: ConnectionResult[] }) {
+function ConnectionErrorRow({ result }: { result: ConnectionErrorResult }) {
+  const displayName = result.displayName ?? getSupportedProviderDisplayName(result.integrationId);
+  const badgeLabel = /already connected/i.test(result.error)
+    ? "Already connected"
+    : /not supported/i.test(result.error)
+      ? "Unsupported"
+      : "Request failed";
+
+  return (
+    <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-sm font-medium text-foreground">{displayName}</p>
+        <Badge variant="outline">{badgeLabel}</Badge>
+      </div>
+      <p className="mt-1 text-sm text-muted-foreground">{result.error}</p>
+    </div>
+  );
+}
+
+function ConnectionCard({ results }: { results: ConnectionCardResult[] }) {
+  const connectionResults = results.filter(
+    (result): result is ConnectionResult => !isConnectionErrorResult(result),
+  );
+  const errorResults = results.filter(isConnectionErrorResult);
+  const isReauthorization = connectionResults.length > 0 && connectionResults.every(
+    (result) => result.connectionStatus === "pending_reauth",
+  );
+  const hasOnlyErrors = connectionResults.length === 0 && errorResults.length > 0;
+
   return (
     <div
       className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4"
       data-testid="connection-card"
     >
       <div className="space-y-1">
-        <p className="text-sm font-medium text-foreground">Create new connection?</p>
-        <p className="text-sm text-muted-foreground">It will be saved to your account for future use.</p>
+        <p className="text-sm font-medium text-foreground">
+          {hasOnlyErrors
+            ? "Connection request could not start"
+            : isReauthorization ? "Reconnect a provider" : "Connect a provider"}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {hasOnlyErrors
+            ? "Review the provider-specific errors below before retrying."
+            : isReauthorization
+            ? "You'll refresh the saved connection in a new tab, then come back to chat."
+            : "You'll sign in in a new tab. The connection is saved to your account."}
+        </p>
       </div>
 
       <div className="space-y-2">
-        {results.map((result, i) => (
+        {connectionResults.map((result, i) => (
           <ConnectionRow key={result.composioConnectedAccountId ?? i} result={result} />
+        ))}
+        {errorResults.map((result, i) => (
+          <ConnectionErrorRow key={`${result.integrationId}:${i}`} result={result} />
         ))}
       </div>
     </div>
@@ -422,6 +521,9 @@ export function ToolCallInline({
   }, [scrollRef]);
 
   const connectionCreation = isConnectionCreation(name, output) ? output : null;
+  const connectionReauthorization = isConnectionReauthorization(name, output)
+    ? output
+    : null;
   const permissionRequest = isToolPermissionRequest(name, input) ? input : null;
   const authNeeded = isBrowserNeedsAuth(name, output) ? output : null;
   const authPlatformConfig = authNeeded
@@ -439,6 +541,10 @@ export function ToolCallInline({
 
   if (connectionCreation) {
     return <ConnectionCard results={connectionCreation.results} />;
+  }
+
+  if (connectionReauthorization) {
+    return <ConnectionCard results={[connectionReauthorization]} />;
   }
 
   if (permissionRequest && state !== "output-error") {

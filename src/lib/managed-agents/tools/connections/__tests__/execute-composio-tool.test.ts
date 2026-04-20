@@ -2,22 +2,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   executeMock,
-  toolkitsGetMock,
+  getRawComposioToolBySlugMock,
+  resetComposioToolkitVersionCacheMock,
+  resolveToolkitVersionMock,
 } = vi.hoisted(() => ({
   executeMock: vi.fn(),
-  toolkitsGetMock: vi.fn(),
+  getRawComposioToolBySlugMock: vi.fn(),
+  resetComposioToolkitVersionCacheMock: vi.fn(),
+  resolveToolkitVersionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/composio/client", () => ({
   getComposio: vi.fn(() => ({
     tools: {
       execute: executeMock,
-    },
-    toolkits: {
-      get: toolkitsGetMock,
+      getRawComposioToolBySlug: getRawComposioToolBySlugMock,
     },
     connectedAccounts: {},
   })),
+  _resetComposioToolkitVersionCache: resetComposioToolkitVersionCacheMock,
+  resolveToolkitVersion: resolveToolkitVersionMock,
 }));
 
 import { createMockSupabase } from "@/lib/crm/__tests__/mock-supabase";
@@ -42,8 +46,9 @@ describe("executeComposioToolTool", () => {
   });
 
   it("executes a composio action for an active connection with resolved version", async () => {
-    toolkitsGetMock.mockResolvedValueOnce({
-      meta: { availableVersions: ["13042026_00", "01042026_00"] },
+    resolveToolkitVersionMock.mockResolvedValueOnce("13042026_00");
+    getRawComposioToolBySlugMock.mockResolvedValueOnce({
+      toolkit: { slug: "gmail" },
     });
     executeMock.mockResolvedValueOnce({
       ok: true,
@@ -67,7 +72,10 @@ describe("executeComposioToolTool", () => {
     );
 
     expect(builders.connections.eq).toHaveBeenCalledWith("client_id", "client-1");
-    expect(toolkitsGetMock).toHaveBeenCalledWith("gmail");
+    expect(resolveToolkitVersionMock).toHaveBeenCalledWith("gmail");
+    expect(getRawComposioToolBySlugMock).toHaveBeenCalledWith("GMAIL_SEND_EMAIL", {
+      version: "13042026_00",
+    });
     expect(executeMock).toHaveBeenCalledWith("GMAIL_SEND_EMAIL", {
       userId: "client-1",
       arguments: { to: "user@example.com" },
@@ -109,8 +117,9 @@ describe("executeComposioToolTool", () => {
   });
 
   it("propagates Composio execution errors", async () => {
-    toolkitsGetMock.mockResolvedValueOnce({
-      meta: { availableVersions: ["13042026_00"] },
+    resolveToolkitVersionMock.mockResolvedValueOnce("13042026_00");
+    getRawComposioToolBySlugMock.mockResolvedValueOnce({
+      toolkit: { slug: "gmail" },
     });
     executeMock.mockRejectedValueOnce(new Error("execution failed"));
 
@@ -137,9 +146,9 @@ describe("executeComposioToolTool", () => {
   });
 
   it("returns error when toolkit has no available versions", async () => {
-    toolkitsGetMock.mockResolvedValueOnce({
-      meta: { availableVersions: [] },
-    });
+    resolveToolkitVersionMock.mockRejectedValueOnce(
+      new Error('No available versions found for toolkit "gmail".'),
+    );
 
     const { client } = createMockSupabase({
       connections: {
@@ -161,6 +170,35 @@ describe("executeComposioToolTool", () => {
     expect(result).toEqual({
       success: false,
       error: 'No available versions found for toolkit "gmail".',
+    });
+  });
+
+  it("rejects an action that belongs to a different toolkit", async () => {
+    resolveToolkitVersionMock.mockResolvedValueOnce("13042026_00");
+    getRawComposioToolBySlugMock.mockResolvedValueOnce({
+      toolkit: { slug: "notion" },
+    });
+
+    const { client } = createMockSupabase({
+      connections: {
+        data: [{ id: "conn-1", toolkit_slug: "gmail", status: "active" }],
+        error: null,
+      },
+    });
+
+    const result = await executeComposioToolTool.execute(
+      {
+        app: "gmail",
+        action: "NOTION_CREATE_PAGE",
+        input: { title: "Mismatch" },
+      },
+      makeContext(client),
+    );
+
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      success: false,
+      error: "Action NOTION_CREATE_PAGE does not belong to toolkit gmail.",
     });
   });
 });

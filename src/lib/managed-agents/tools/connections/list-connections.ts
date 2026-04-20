@@ -5,12 +5,13 @@
  */
 import { z } from "zod";
 
+import { getSupportedProviderDisplayName } from "../supported-providers";
 import type { ManagedAgentTool } from "../types";
 
 export const listConnectionsTool: ManagedAgentTool = {
   name: "list_connections",
   description:
-    "Lists all connections to external services that the user has already created in their account. Returns active, inactive, error, and pending connections with connectionId, serviceName, description, accountName, connectionType, and connection-specific details.",
+    "Lists the user's external-service connections. Returns the machine-stable toolkitSlug plus a human displayName, account identifier, and current status per connection so you can confirm what is connected before using a provider. When another connection tool asks for an app slug, use toolkitSlug.",
   inputSchema: z.object({}),
   execute: async (_input, context) => {
     const { data, error } = await context.supabase
@@ -24,19 +25,20 @@ export const listConnectionsTool: ManagedAgentTool = {
     }
 
     const connections = (data ?? []).map((connection) => {
-      const description = connection.display_name ?? connection.toolkit_slug;
+      const displayName =
+        connection.display_name ?? getSupportedProviderDisplayName(connection.toolkit_slug);
+      const description = displayName;
       const accountName =
-        connection.account_identifier ?? connection.display_name ?? connection.toolkit_slug;
+        connection.account_identifier ?? displayName;
 
       return {
         connectionId: connection.id,
+        toolkitSlug: connection.toolkit_slug,
         serviceName: connection.toolkit_slug,
+        displayName,
         description,
         accountName,
-        connectionType: "integrations" as const,
         status: connection.status,
-        activatedToolCount: connection.activated_tools.length,
-        totalToolCount: connection.tool_count,
       };
     });
 

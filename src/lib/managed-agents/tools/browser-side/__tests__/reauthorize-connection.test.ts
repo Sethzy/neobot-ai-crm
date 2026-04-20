@@ -4,7 +4,12 @@ vi.mock("@/lib/composio/client", () => ({
   getComposio: vi.fn(),
 }));
 
+vi.mock("@/lib/composio/catalog", () => ({
+  getToolkitDisplayInfo: vi.fn(),
+}));
+
 import { getComposio } from "@/lib/composio/client";
+import { getToolkitDisplayInfo } from "@/lib/composio/catalog";
 import { createMockSupabase } from "@/lib/crm/__tests__/mock-supabase";
 import type { ToolContext } from "@/lib/managed-agents/tools/types";
 
@@ -26,6 +31,11 @@ describe("reauthorizeConnectionTool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.sunder.local");
+    vi.mocked(getToolkitDisplayInfo).mockResolvedValue({
+      integrationId: "gmail",
+      displayName: "Gmail",
+      description: "Send and read Gmail messages.",
+    });
   });
 
   afterEach(() => {
@@ -106,12 +116,23 @@ describe("reauthorizeConnectionTool", () => {
     );
 
     expect(builderHistory.connections[0]?.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
-    expect(builderHistory.connections[1]?.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
+    expect(builderHistory.connections).toHaveLength(1);
     expect(result).toMatchObject({
       success: true,
       connectionId: "conn-1",
       status: "pending_reauth",
       redirectUrl: "https://composio.dev/oauth/reauth",
+      integrationId: "gmail",
+      displayName: "Gmail",
+      description: "Send and read Gmail messages.",
+      connectionStatus: "pending_reauth",
+      composioConnectedAccountId: "composio-1",
     });
+  });
+
+  it("description is framed as credential refresh, not permission activation", () => {
+    expect(reauthorizeConnectionTool.description).toMatch(/refresh/i);
+    expect(reauthorizeConnectionTool.description).not.toMatch(/grant permissions/i);
+    expect(reauthorizeConnectionTool.description).not.toMatch(/activat/i);
   });
 });

@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { getComposio } from "@/lib/composio/client";
 
+import { getSupportedProviderDisplayName } from "../supported-providers";
 import type { ManagedAgentTool } from "../types";
 
 const inputSchema = z.object({
@@ -17,8 +18,13 @@ type DeleteConnectionInput = z.infer<typeof inputSchema>;
 
 export const deleteConnectionTool: ManagedAgentTool<DeleteConnectionInput> = {
   name: "delete_connection",
-  description:
-    "PERMANENTLY DELETES a connection from the user's account. This destroys the stored credentials and cannot be undone. Requires user approval before execution.\n\nWARNING: This is a destructive action. Only use when the user explicitly wants to DELETE the connection itself (e.g., \"delete this connection\", \"remove from my account\").\nDO NOT use this tool if the user wants to remove or deactivate tools from a connection (e.g., \"remove {connection name}\") → use manage_activated_tools_for_connections instead",
+  description: [
+    "Disconnect a provider. PERMANENTLY deletes the stored OAuth credentials and the connections row for the specified connectionId. This cannot be undone.",
+    "",
+    "Use this when the user explicitly wants to remove a provider from their account (\"disconnect Notion\", \"remove Gmail\").",
+    "If the user is reporting that a connection has stopped working, use reauthorize_connection instead.",
+    "If the user wants to switch to a different account for the same provider, call this first, then create_connection.",
+  ].join("\n"),
   inputSchema,
   execute: async ({ connectionId }, context) => {
     const { data: connection, error } = await context.supabase
@@ -54,10 +60,14 @@ export const deleteConnectionTool: ManagedAgentTool<DeleteConnectionInput> = {
       return { success: false as const, error: deleteError.message };
     }
 
+    const displayName =
+      connection.display_name ?? getSupportedProviderDisplayName(connection.toolkit_slug);
+
     return {
       success: true as const,
       connectionId: connection.id,
-      message: `Connection to ${connection.toolkit_slug} permanently deleted.`,
+      displayName,
+      message: `${displayName} connection permanently deleted.`,
     };
   },
 };
