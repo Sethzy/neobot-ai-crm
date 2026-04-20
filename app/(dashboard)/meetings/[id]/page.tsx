@@ -6,6 +6,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -16,8 +17,10 @@ import {
 } from "@/components/meetings/transcript-section";
 import { parseTranscriptLine } from "@/lib/meetings/format-helpers";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { useClientId } from "@/hooks/use-client-id";
 import { useMeeting } from "@/hooks/use-meetings";
+import { threadKeys } from "@/hooks/use-threads";
 import { AGENT_FILES_BUCKET } from "@/lib/storage/agent-files";
 import { supabase } from "@/lib/supabase";
 
@@ -55,6 +58,7 @@ export default function MeetingDetailPage() {
   const params = useParams<{ id: string }>();
   const meetingId = params?.id ?? "";
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: clientId } = useClientId();
   const { data: meeting, isLoading } = useMeeting(meetingId);
   const [transcriptData, setTranscriptData] = useState<{
@@ -63,6 +67,7 @@ export default function MeetingDetailPage() {
     segments?: TranscriptSegment[];
   }>();
   const [sendError, setSendError] = useState<string | null>(null);
+  const [isSendingToAgent, setIsSendingToAgent] = useState(false);
   const transcriptPath = meeting?.transcript_path ?? null;
   const transcriptKey = clientId && transcriptPath ? `${clientId}/${transcriptPath}` : null;
   const transcriptText = transcriptData?.key === transcriptKey
@@ -151,6 +156,38 @@ export default function MeetingDetailPage() {
   const currentMeetingId = meeting.meeting_record_id;
   const noteCount = countNotes(meeting.notes);
   const sendToAgentLabel = existingThreadId ? "Open agent thread" : "Send to agent";
+  const pendingSendToAgentLabel = existingThreadId ? "Opening thread..." : "Opening agent...";
+
+  function addThreadToSidebar(threadId: string) {
+    const now = new Date().toISOString();
+    queryClient.setQueriesData<Array<Record<string, unknown>>>(
+      { queryKey: threadKeys.all },
+      (old) => {
+        if (!old) {
+          return old;
+        }
+
+        if (old.some((thread) => thread.thread_id === threadId)) {
+          return old;
+        }
+
+        return [
+          {
+            thread_id: threadId,
+            client_id: clientId ?? "",
+            title: meeting.title || "New Chat",
+            is_pinned: false,
+            is_primary: false,
+            is_archived: false,
+            source_type: "chat",
+            created_at: now,
+            updated_at: now,
+          },
+          ...old,
+        ];
+      },
+    );
+  }
 
   async function handleSendToAgent() {
     if (existingThreadId) {
@@ -159,17 +196,25 @@ export default function MeetingDetailPage() {
     }
 
     setSendError(null);
-    const response = await fetch(`/api/meetings/${currentMeetingId}/send-to-agent`, {
-      method: "POST",
-    });
+    setIsSendingToAgent(true);
 
-    if (!response.ok) {
-      setSendError("Failed to send meeting to agent. Try again.");
-      return;
+    try {
+      const response = await fetch(`/api/meetings/${currentMeetingId}/send-to-agent`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        setSendError("Failed to send meeting to agent. Try again.");
+        return;
+      }
+
+      const payload = await response.json() as { threadId: string };
+      addThreadToSidebar(payload.threadId);
+      void queryClient.invalidateQueries({ queryKey: threadKeys.all });
+      router.push(`/chat/${payload.threadId}`);
+    } finally {
+      setIsSendingToAgent(false);
     }
-
-    const payload = await response.json() as { threadId: string };
-    router.push(`/chat/${payload.threadId}`);
   }
 
   return (
@@ -214,13 +259,14 @@ export default function MeetingDetailPage() {
         ) : null}
         <Button
           type="button"
-          disabled={!meeting.thread_id && meeting.status !== "completed"}
+          disabled={isSendingToAgent || (!meeting.thread_id && meeting.status !== "completed")}
           className="w-full sm:w-auto"
           onClick={() => {
             void handleSendToAgent();
           }}
         >
-          {sendToAgentLabel}
+          {isSendingToAgent ? <Spinner className="mr-2 h-4 w-4" /> : null}
+          {isSendingToAgent ? pendingSendToAgentLabel : sendToAgentLabel}
         </Button>
       </div>
     </div>

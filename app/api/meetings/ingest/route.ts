@@ -15,7 +15,8 @@ import {
 import { resolveClientId } from "@/lib/chat/client-id";
 import { formatRecordingTime } from "@/lib/meetings/format-helpers";
 import { buildSummaryPrompt } from "@/lib/meetings/summary-prompt";
-import { transcribeAudio } from "@/lib/transcription/rev-ai";
+import { DEFAULT_STT_LANGUAGE, SUPPORTED_STT_LANGUAGE_CODES } from "@/lib/transcription/languages";
+import { transcribeAudio } from "@/lib/transcription/xai-stt";
 import type { Database } from "@/types/database";
 
 export const maxDuration = 300;
@@ -39,6 +40,12 @@ const ingestSchema = z.object({
   durationSeconds: z.number().int().positive(),
   notes: z.string().optional().default(""),
   idempotencyKey: z.string().uuid(),
+  language: z.string()
+    .optional()
+    .default(DEFAULT_STT_LANGUAGE)
+    .refine((code) => SUPPORTED_STT_LANGUAGE_CODES.has(code), {
+      message: "Unsupported transcription language",
+    }),
 });
 
 async function updateMeetingRecordStatus(
@@ -80,7 +87,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { storagePath, durationSeconds, notes, idempotencyKey } = parsedBody.data;
+    const { storagePath, durationSeconds, notes, idempotencyKey, language } = parsedBody.data;
     const clientId = await resolveClientId(supabase, userId);
     const expectedPrefix = `${clientId}/meetings/raw/`;
 
@@ -146,11 +153,12 @@ export async function POST(request: Request) {
       throw new Error("Failed to access audio file");
     }
 
-    console.log(`[meeting-ingest] ▶ rev-ai submit | ${Date.now() - t0}ms`);
+    console.log(`[meeting-ingest] ▶ stt submit | language=${language} | ${Date.now() - t0}ms`);
     const transcription = await transcribeAudio({
       audioUrl: signedAudioUrl.signedUrl,
+      language,
     });
-    console.log(`[meeting-ingest] ✓ rev-ai done | segments=${transcription.segments.length} textLen=${transcription.text.length} | ${Date.now() - t0}ms`);
+    console.log(`[meeting-ingest] ✓ stt done | segments=${transcription.segments.length} textLen=${transcription.text.length} | ${Date.now() - t0}ms`);
 
     const dateString = new Date().toISOString().split("T")[0];
     const transcriptPath = `home/meetings/${dateString}-meeting-${meetingRecordId.slice(0, 8)}.md`;

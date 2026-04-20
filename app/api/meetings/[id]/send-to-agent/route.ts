@@ -7,12 +7,21 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
-import { createMessage } from "@/lib/chat/messages";
-import { spawnTriggerRun } from "@/lib/managed-agents/spawn-trigger-run";
+import { upsertMessage } from "@/lib/chat/messages";
+import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
+import { runManagedAgent } from "@/lib/managed-agents/adapter";
+import { createAdminClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 
 type MeetingRecord = Database["public"]["Tables"]["meeting_records"]["Row"];
 type RouteSupabaseClient = SupabaseClient<Database>;
+
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
+function buildHandoffSourceEventId(meetingId: string): string {
+  return `meeting-handoff:${meetingId}`;
+}
 
 function buildHandoffMessage(meeting: Pick<
   MeetingRecord,
@@ -28,7 +37,7 @@ function buildHandoffMessage(meeting: Pick<
     ? Math.max(1, Math.round(meeting.duration_seconds / 60))
     : 0;
   const transcriptLine = meeting.transcript_path
-    ? `If you need more detail than the summary provides, the full transcript is at \`/agent/${meeting.transcript_path}\` - use read_file to access it.`
+    ? `If you need more detail than the summary provides, the full transcript is at \`/agent/${meeting.transcript_path}\`. Use \`storage_read\` on that exact path. Do not use the built-in \`read\` tool for durable \`/agent/*\` files.`
     : "The full transcript is not available, so rely on the summary and notes.";
 
   return `A meeting was just recorded and auto-summarized. Review the summary and notes below, then help the user process it.
@@ -56,38 +65,120 @@ ${meeting.summary || "(No summary available)"}
 ${meeting.notes?.trim() || "(No notes taken)"}`;
 }
 
-async function queueAgentRun(
-  clientId: string,
-  threadId: string,
-  invocationMessage: string,
+async function loadClientContext(
   supabase: RouteSupabaseClient,
+  clientId: string,
+) {
+  const { data, error } = await supabase
+    .from("clients")
+    .select("client_profile, user_preferences")
+    .eq("client_id", clientId)
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to load client context: ${error.message}`);
+  }
+
+  return {
+    clientProfile: data?.client_profile ?? null,
+    userPreferences: data?.user_preferences ?? null,
+  };
+}
+
+async function drainStream(stream: ReadableStream<unknown>): Promise<void> {
+  const reader = stream.getReader();
+  try {
+    while (true) {
+      const { done } = await reader.read();
+      if (done) {
+        return;
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+async function startHandoffRun(
+  input: {
+    clientId: string;
+    threadId: string;
+    handoffContent: string;
+    threadTitle: string | null;
+    sourceEventId: string;
+  },
 ) {
   after(async () => {
     try {
-      await spawnTriggerRun(supabase, {
-        clientId,
-        threadId,
-        triggerType: "webhook",
-        invocationMessage,
-        triggerId: crypto.randomUUID(),
-        triggerName: "Meeting Handoff",
+      const adminSupabase = await createAdminClient();
+      const { clientProfile, userPreferences } = await loadClientContext(
+        adminSupabase,
+        input.clientId,
+      );
+      const stream = await runManagedAgent({
+        anthropic: getAnthropicClient(),
+        supabase: adminSupabase,
+        clientId: input.clientId,
+        threadId: input.threadId,
+        input: input.handoffContent,
+        threadTitle: input.threadTitle,
+        clientProfile,
+        userPreferences,
+        userMessageSourceId: input.sourceEventId,
       });
+
+      await drainStream(stream);
     } catch (error) {
-      console.error("[send-to-agent] fire path failed:", error);
+      console.error("[send-to-agent] same-thread handoff failed:", {
+        threadId: input.threadId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   });
 }
 
 async function createHandoffMessage(
   supabase: RouteSupabaseClient,
-  threadId: string,
-  handoffContent: string,
+  input: {
+    threadId: string;
+    handoffContent: string;
+    sourceEventId: string;
+  },
 ) {
-  await createMessage(supabase, {
-    thread_id: threadId,
+  await upsertMessage(supabase, {
+    thread_id: input.threadId,
     role: "user",
-    content: handoffContent,
-    parts: [{ type: "text", text: handoffContent }],
+    content: input.handoffContent,
+    parts: [{ type: "text", text: input.handoffContent }],
+    source_event_id: input.sourceEventId,
+  });
+}
+
+async function launchHandoffRun(
+  meeting: Pick<
+    MeetingRecord,
+    "meeting_record_id" |
+    "title" | "summary" | "notes" | "duration_seconds" | "transcript_path" | "created_at"
+  >,
+  threadId: string,
+  supabase: RouteSupabaseClient,
+  clientId: string,
+) {
+  const handoffContent = buildHandoffMessage(meeting);
+  const sourceEventId = buildHandoffSourceEventId(meeting.meeting_record_id);
+
+  await createHandoffMessage(supabase, {
+    threadId,
+    handoffContent,
+    sourceEventId,
+  });
+
+  await startHandoffRun({
+    clientId,
+    threadId,
+    handoffContent,
+    threadTitle: meeting.title,
+    sourceEventId,
   });
 }
 
@@ -129,9 +220,7 @@ export async function POST(
       }
 
       if ((existingMessages?.length ?? 0) === 0) {
-        const handoffContent = buildHandoffMessage(meeting);
-        await createHandoffMessage(supabase, meeting.thread_id, handoffContent);
-        await queueAgentRun(clientId, meeting.thread_id, handoffContent, supabase);
+        await launchHandoffRun(meeting, meeting.thread_id, supabase, clientId);
       }
 
       return Response.json({ success: true, threadId: meeting.thread_id });
@@ -163,9 +252,7 @@ export async function POST(
     }
 
     try {
-      const handoffContent = buildHandoffMessage(meeting);
-      await createHandoffMessage(supabase, threadId, handoffContent);
-      await queueAgentRun(clientId, threadId, handoffContent, supabase);
+      await launchHandoffRun(meeting, threadId, supabase, clientId);
     } catch (error) {
       try {
         await supabase

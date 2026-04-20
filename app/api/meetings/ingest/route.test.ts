@@ -48,7 +48,7 @@ vi.mock("@/lib/chat/client-id", () => ({
   resolveClientId: (...args: unknown[]) => mockResolveClientId(...args),
 }));
 
-vi.mock("@/lib/transcription/rev-ai", () => ({
+vi.mock("@/lib/transcription/xai-stt", () => ({
   transcribeAudio: (...args: unknown[]) => mockTranscribeAudio(...args),
 }));
 
@@ -225,6 +225,7 @@ describe("POST /api/meetings/ingest", () => {
     expect(parsedSummary.next_steps).toEqual(["Follow up Thursday"]);
     expect(mockTranscribeAudio).toHaveBeenCalledWith({
       audioUrl: "https://storage.example.com/audio?token=signed",
+      language: "en",
     });
     expect(mockBuildSummaryPrompt).toHaveBeenCalledWith(
       "[00:00] Speaker 1: Met with Sarah.\n[00:02] Speaker 2: About the Orchard deal.",

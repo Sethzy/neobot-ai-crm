@@ -26,13 +26,31 @@ const cspDirectives = [
   "frame-ancestors 'none'",
 ].join("; ");
 
-export const securityHeaders: { key: string; value: string }[] = [
-  { key: "X-Frame-Options", value: "DENY" },
-  { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  {
-    key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=()",
-  },
-  { key: "Content-Security-Policy-Report-Only", value: cspDirectives },
-];
+/**
+ * Document-level permissions policy for the app shell.
+ *
+ * App Router client-side navigation keeps the original document alive across
+ * route changes (for example `/chat` -> `/meetings`). Because of that, meeting
+ * recording cannot rely on a route-specific header override. We allow the
+ * microphone on the document and still rely on the browser permission prompt
+ * plus `getUserMedia()` error handling as the real access gate.
+ */
+export const defaultPermissionsPolicy = "camera=(), microphone=(self), geolocation=()";
+
+function withPermissionsPolicy(value: string): { key: string; value: string }[] {
+  return [
+    { key: "X-Frame-Options", value: "DENY" },
+    { key: "X-Content-Type-Options", value: "nosniff" },
+    { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+    {
+      key: "Permissions-Policy",
+      value,
+    },
+    { key: "Content-Security-Policy-Report-Only", value: cspDirectives },
+  ];
+}
+
+/** Restrictive default headers applied to every route unless explicitly overridden. */
+export const securityHeaders: { key: string; value: string }[] = withPermissionsPolicy(
+  defaultPermissionsPolicy,
+);

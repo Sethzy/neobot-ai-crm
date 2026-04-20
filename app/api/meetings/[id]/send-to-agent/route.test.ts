@@ -9,26 +9,32 @@ const {
   mockAuthenticateRequest,
   mockJsonError,
   mockResolveClientId,
-  mockSpawnTriggerRun,
-  mockCreateMessage,
+  mockGetAnthropicClient,
+  mockRunManagedAgent,
+  mockUpsertMessage,
+  mockCreateAdminClient,
   mockMeetingSingle,
   mockConversationMessagesLimit,
   mockMeetingUpdateEq,
   mockThreadInsert,
   mockThreadDeleteEq,
+  mockClientSingle,
 } = vi.hoisted(() => ({
   mockAfter: vi.fn(),
   mockAuthenticateRequest: vi.fn(),
   mockJsonError: vi.fn((message: string, status: number) =>
     Response.json({ error: message }, { status })),
   mockResolveClientId: vi.fn(),
-  mockSpawnTriggerRun: vi.fn(),
-  mockCreateMessage: vi.fn(),
+  mockGetAnthropicClient: vi.fn(),
+  mockRunManagedAgent: vi.fn(),
+  mockUpsertMessage: vi.fn(),
+  mockCreateAdminClient: vi.fn(),
   mockMeetingSingle: vi.fn(),
   mockConversationMessagesLimit: vi.fn(),
   mockMeetingUpdateEq: vi.fn(),
   mockThreadInsert: vi.fn(),
   mockThreadDeleteEq: vi.fn(),
+  mockClientSingle: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
@@ -49,22 +55,49 @@ vi.mock("@/lib/chat/client-id", () => ({
   resolveClientId: (...args: unknown[]) => mockResolveClientId(...args),
 }));
 
-vi.mock("@/lib/managed-agents/spawn-trigger-run", () => ({
-  spawnTriggerRun: (...args: unknown[]) => mockSpawnTriggerRun(...args),
+vi.mock("@/lib/managed-agents/anthropic-client", () => ({
+  getAnthropicClient: (...args: unknown[]) => mockGetAnthropicClient(...args),
+}));
+
+vi.mock("@/lib/managed-agents/adapter", () => ({
+  runManagedAgent: (...args: unknown[]) => mockRunManagedAgent(...args),
 }));
 
 vi.mock("@/lib/chat/messages", () => ({
-  createMessage: (...args: unknown[]) => mockCreateMessage(...args),
+  upsertMessage: (...args: unknown[]) => mockUpsertMessage(...args),
+}));
+
+vi.mock("@/lib/supabase/server", () => ({
+  createAdminClient: (...args: unknown[]) => mockCreateAdminClient(...args),
 }));
 
 import { POST } from "./route";
 
 describe("POST /api/meetings/[id]/send-to-agent", () => {
+  let scheduledAfterCallback: (() => Promise<void> | void) | null;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    scheduledAfterCallback = null;
+
+    const adminSupabase = {
+      from: vi.fn((table: string) => {
+        if (table === "clients") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: mockClientSingle,
+              }),
+            }),
+          };
+        }
+
+        throw new Error(`Unexpected admin table: ${table}`);
+      }),
+    };
 
     mockAfter.mockImplementation(async (callback: () => Promise<void> | void) => {
-      await callback();
+      scheduledAfterCallback = callback;
     });
 
     mockAuthenticateRequest.mockResolvedValue({
@@ -105,6 +138,16 @@ describe("POST /api/meetings/[id]/send-to-agent", () => {
             };
           }
 
+          if (table === "clients") {
+            return {
+              select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  single: mockClientSingle,
+                }),
+              }),
+            };
+          }
+
           throw new Error(`Unexpected table: ${table}`);
         }),
       },
@@ -131,15 +174,24 @@ describe("POST /api/meetings/[id]/send-to-agent", () => {
     mockThreadInsert.mockResolvedValue({ error: null });
     mockThreadDeleteEq.mockResolvedValue({ error: null });
     mockMeetingUpdateEq.mockResolvedValue({ error: null });
-    mockCreateMessage.mockResolvedValue({ message_id: "msg-1" });
-    mockSpawnTriggerRun.mockResolvedValue({
-      runId: "run-1",
-      sessionId: "session-1",
-      taskHandle: { id: "task-1" },
+    mockUpsertMessage.mockResolvedValue({ message_id: "msg-1" });
+    mockClientSingle.mockResolvedValue({
+      data: {
+        client_profile: "Client profile",
+        user_preferences: "User preferences",
+      },
+      error: null,
     });
+    mockGetAnthropicClient.mockReturnValue({ id: "anthropic-client" });
+    mockCreateAdminClient.mockResolvedValue(adminSupabase);
+    mockRunManagedAgent.mockResolvedValue(new ReadableStream({
+      start(controller) {
+        controller.close();
+      },
+    }));
   });
 
-  it("creates a thread, user message, and returns the threadId", async () => {
+  it("creates a thread, persists the handoff message, and defers the same-thread run", async () => {
     const response = await POST(
       new Request("http://localhost/api/meetings/meeting-1/send-to-agent", {
         method: "POST",
@@ -157,13 +209,43 @@ describe("POST /api/meetings/[id]/send-to-agent", () => {
         title: "Portfolio Review",
       }),
     );
-    expect(mockCreateMessage).toHaveBeenCalled();
-    expect(mockAfter).toHaveBeenCalledTimes(1);
-    expect(mockSpawnTriggerRun).toHaveBeenCalledWith(
+    expect(mockUpsertMessage).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
+        thread_id: body.threadId,
+        role: "user",
+        source_event_id: "meeting-handoff:meeting-1",
+      }),
+    );
+    expect(mockAfter).toHaveBeenCalledTimes(1);
+    expect(mockRunManagedAgent).not.toHaveBeenCalled();
+    expect(mockClientSingle).not.toHaveBeenCalled();
+    expect(mockCreateAdminClient).not.toHaveBeenCalled();
+    expect(scheduledAfterCallback).toBeTypeOf("function");
+
+    await scheduledAfterCallback?.();
+
+    expect(mockCreateAdminClient).toHaveBeenCalledOnce();
+    expect(mockRunManagedAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        anthropic: { id: "anthropic-client" },
         clientId: "client-1",
-        triggerType: "webhook",
+        threadId: body.threadId,
+        input: expect.stringContaining("A meeting was just recorded and auto-summarized."),
+        threadTitle: "Portfolio Review",
+        clientProfile: "Client profile",
+        userPreferences: "User preferences",
+        userMessageSourceId: "meeting-handoff:meeting-1",
+      }),
+    );
+    expect(mockRunManagedAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.stringContaining("Use `storage_read` on that exact path."),
+      }),
+    );
+    expect(mockRunManagedAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.stringContaining("Do not use the built-in `read` tool"),
       }),
     );
   });
@@ -199,12 +281,29 @@ describe("POST /api/meetings/[id]/send-to-agent", () => {
       success: true,
       threadId: "thread-1",
     });
-    expect(mockCreateMessage).toHaveBeenCalledOnce();
-    expect(mockSpawnTriggerRun).toHaveBeenCalledOnce();
+    expect(mockUpsertMessage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        thread_id: "thread-1",
+        source_event_id: "meeting-handoff:meeting-1",
+      }),
+    );
+    expect(mockRunManagedAgent).not.toHaveBeenCalled();
+    expect(mockCreateAdminClient).not.toHaveBeenCalled();
+
+    await scheduledAfterCallback?.();
+
+    expect(mockCreateAdminClient).toHaveBeenCalledOnce();
+    expect(mockRunManagedAgent).toHaveBeenCalledOnce();
+    expect(mockRunManagedAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        threadId: "thread-1",
+      }),
+    );
   });
 
-  it("rolls back the thread link when handoff message creation fails", async () => {
-    mockCreateMessage.mockRejectedValueOnce(new Error("insert failed"));
+  it("rolls back the thread link when handoff message persistence fails", async () => {
+    mockUpsertMessage.mockRejectedValueOnce(new Error("insert failed"));
 
     const response = await POST(
       new Request("http://localhost/api/meetings/meeting-1/send-to-agent", {
@@ -222,6 +321,8 @@ describe("POST /api/meetings/[id]/send-to-agent", () => {
       "thread_id",
       expect.anything(),
     );
-    expect(mockSpawnTriggerRun).not.toHaveBeenCalled();
+    expect(mockAfter).not.toHaveBeenCalled();
+    expect(mockRunManagedAgent).not.toHaveBeenCalled();
+    expect(mockCreateAdminClient).not.toHaveBeenCalled();
   });
 });

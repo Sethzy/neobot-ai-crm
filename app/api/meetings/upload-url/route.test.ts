@@ -53,6 +53,7 @@ describe("POST /api/meetings/upload-url", () => {
       data: {
         signedUrl: "https://storage.example.com/upload",
         token: "signed-upload-token",
+        path: "client-1/meetings/raw/12345678-1234-5678-9abc-123456789abc.webm",
       },
       error: null,
     });
@@ -109,7 +110,8 @@ describe("POST /api/meetings/upload-url", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      uploadUrl: "https://storage.example.com/upload",
+      signedUrl: "https://storage.example.com/upload",
+      path: "client-1/meetings/raw/12345678-1234-5678-9abc-123456789abc.webm",
       storagePath: "client-1/meetings/raw/12345678-1234-5678-9abc-123456789abc.webm",
       token: "signed-upload-token",
     });
@@ -129,7 +131,8 @@ describe("POST /api/meetings/upload-url", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      uploadUrl: "https://storage.example.com/upload",
+      signedUrl: "https://storage.example.com/upload",
+      path: "client-1/meetings/raw/12345678-1234-5678-9abc-123456789abc.webm",
       storagePath: "client-1/meetings/raw/12345678-1234-5678-9abc-123456789abc.webm",
       token: "signed-upload-token",
     });

@@ -7,6 +7,26 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient as createSupabaseClient } from "@/lib/supabase/client";
+import { encodeWavFromAudioBlob } from "@/lib/audio/encode-wav";
+import { AGENT_FILES_BUCKET } from "@/lib/storage/agent-files";
+import {
+  DEFAULT_STT_LANGUAGE,
+  SUPPORTED_STT_LANGUAGE_CODES,
+} from "@/lib/transcription/languages";
+
+const LANGUAGE_STORAGE_KEY = "sunder.meetings.language";
+
+function readStoredLanguage(): string {
+  if (typeof window === "undefined") return DEFAULT_STT_LANGUAGE;
+  try {
+    const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    if (stored && SUPPORTED_STT_LANGUAGE_CODES.has(stored)) return stored;
+  } catch {
+    // localStorage may be unavailable in private browsing / SSR edge cases
+  }
+  return DEFAULT_STT_LANGUAGE;
+}
 
 export type RecordingStatus =
   | "idle"
@@ -26,6 +46,9 @@ interface UseMeetingRecordingReturn {
   errorMessage: string | null;
   /** True when the last error was a microphone permission denial. */
   isPermissionError: boolean;
+  /** Current STT language (BCP-47 code). Persisted to localStorage on change. */
+  language: string;
+  setLanguage: (code: string) => void;
   start: () => Promise<void>;
   pause: () => void;
   resume: () => void;
@@ -49,12 +72,115 @@ function getPreferredMimeType(): string {
   return "";
 }
 
+/**
+ * Reads the browser's current microphone permission state for diagnostics only.
+ * We do not use this for product behavior because Chrome can report stale state.
+ */
+async function getMicrophonePermissionState(): Promise<PermissionState | "unsupported"> {
+  if (!("permissions" in navigator) || typeof navigator.permissions.query !== "function") {
+    return "unsupported";
+  }
+
+  try {
+    const permissionStatus = await navigator.permissions.query({
+      name: "microphone" as PermissionName,
+    });
+
+    return permissionStatus.state;
+  } catch {
+    return "unsupported";
+  }
+}
+
+/**
+ * Enumerates the currently visible media devices to help distinguish browser-
+ * level denials from missing-device or OS-level permission problems.
+ */
+async function getMediaDeviceDiagnostics(): Promise<
+  Array<Pick<MediaDeviceInfo, "kind" | "deviceId" | "groupId" | "label">> | null
+> {
+  if (!("mediaDevices" in navigator) || typeof navigator.mediaDevices.enumerateDevices !== "function") {
+    return null;
+  }
+
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+
+    return devices.map(({ kind, deviceId, groupId, label }) => ({
+      kind,
+      deviceId,
+      groupId,
+      label,
+    }));
+  } catch {
+    return null;
+  }
+}
+
+async function logGetUserMediaFailure(error: unknown): Promise<void> {
+  const [permissionState, devices] = await Promise.all([
+    getMicrophonePermissionState(),
+    getMediaDeviceDiagnostics(),
+  ]);
+  const constraint = typeof error === "object"
+    && error !== null
+    && "constraint" in error
+    && typeof error.constraint === "string"
+    ? error.constraint
+    : undefined;
+
+  console.error("[meeting-recording] getUserMedia failed", {
+    name: error instanceof DOMException || error instanceof Error ? error.name : undefined,
+    message: error instanceof Error ? error.message : String(error),
+    constraint,
+    permissionsState: permissionState,
+    enumerateDevices: devices,
+    isSecureContext: window.isSecureContext,
+    userAgent: navigator.userAgent,
+  });
+}
+
+function logRecordingUploadFailure(details: {
+  error: unknown;
+  signedPath?: string;
+  storagePath?: string;
+  tokenPresent?: boolean;
+  blobSize?: number;
+  blobType?: string;
+  uploadFileName?: string;
+  uploadFileType?: string;
+}) {
+  console.error("[meeting-recording] upload failed", {
+    name: details.error instanceof Error ? details.error.name : undefined,
+    message: details.error instanceof Error ? details.error.message : String(details.error),
+    signedPath: details.signedPath,
+    storagePath: details.storagePath,
+    tokenPresent: details.tokenPresent,
+    blobSize: details.blobSize,
+    blobType: details.blobType,
+    uploadFileName: details.uploadFileName,
+    uploadFileType: details.uploadFileType,
+    rawError: details.error,
+  });
+}
+
 export function useMeetingRecording(): UseMeetingRecordingReturn {
   const [status, setStatus] = useState<RecordingStatus>("idle");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [notes, setNotes] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPermissionError, setIsPermissionError] = useState(false);
+  const [language, setLanguageState] = useState<string>(readStoredLanguage);
+
+  const setLanguage = useCallback((code: string) => {
+    if (!SUPPORTED_STT_LANGUAGE_CODES.has(code)) return;
+    setLanguageState(code);
+    try {
+      window.localStorage.setItem(LANGUAGE_STORAGE_KEY, code);
+    } catch {
+      // ignore storage failures; in-memory state still wins
+    }
+  }, []);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -64,6 +190,7 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
   const pausedElapsedSecondsRef = useRef(0);
 
   const router = useRouter();
+  const browserSupabase = createSupabaseClient();
 
   /** Guard against concurrent start() calls (React StrictMode double-invocation). */
   const isStartingRef = useRef(false);
@@ -134,7 +261,12 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
       pausedElapsedSecondsRef.current = 0;
       chunksRef.current = [];
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true }).catch(
+        async (error: unknown) => {
+          await logGetUserMediaFailure(error);
+          throw error;
+        },
+      );
       const mimeType = getPreferredMimeType();
 
       if (!mimeType) {
@@ -221,7 +353,10 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
 
     const idempotencyKey = crypto.randomUUID();
     const effectiveElapsedSeconds = Math.max(1, elapsedSeconds);
-    const contentType = audioBlob.type || "audio/webm";
+    const wavBlob = await encodeWavFromAudioBlob(audioBlob);
+    const uploadFile = new File([wavBlob], "recording.wav", {
+      type: "audio/wav",
+    });
 
     try {
       setStatus("uploading");
@@ -232,8 +367,8 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          filename: "recording.webm",
-          contentType,
+          filename: "recording.wav",
+          contentType: "audio/wav",
           durationSeconds: effectiveElapsedSeconds,
         }),
       });
@@ -243,26 +378,30 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
       }
 
       const uploadPayload = await uploadResponse.json() as {
-        uploadUrl: string;
+        signedUrl: string;
+        path: string;
         storagePath: string;
-        token?: string;
+        token: string;
       };
 
-      const uploadHeaders: HeadersInit = {
-        "Content-Type": contentType,
-      };
+      const uploadResult = await browserSupabase.storage
+        .from(AGENT_FILES_BUCKET)
+        .uploadToSignedUrl(uploadPayload.path, uploadPayload.token, uploadFile, {
+          cacheControl: "3600",
+          upsert: false,
+        });
 
-      if (uploadPayload.token) {
-        uploadHeaders.Authorization = `Bearer ${uploadPayload.token}`;
-      }
-
-      const directUploadResponse = await fetch(uploadPayload.uploadUrl, {
-        method: "PUT",
-        headers: uploadHeaders,
-        body: audioBlob,
-      });
-
-      if (!directUploadResponse.ok) {
+      if (uploadResult.error) {
+        logRecordingUploadFailure({
+          error: uploadResult.error,
+          signedPath: uploadPayload.path,
+          storagePath: uploadPayload.storagePath,
+          tokenPresent: Boolean(uploadPayload.token),
+          blobSize: audioBlob.size,
+          blobType: audioBlob.type,
+          uploadFileName: uploadFile.name,
+          uploadFileType: uploadFile.type,
+        });
         throw new Error("Failed to upload recording");
       }
 
@@ -278,6 +417,7 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
           durationSeconds: effectiveElapsedSeconds,
           notes,
           idempotencyKey,
+          language,
         }),
       });
 
@@ -293,10 +433,17 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
       setNotes("");
       router.push(`/meetings/${ingestPayload.meetingRecordId}`);
     } catch (error) {
+      logRecordingUploadFailure({
+        error,
+        blobSize: audioBlob.size,
+        blobType: audioBlob.type,
+        uploadFileName: uploadFile.name,
+        uploadFileType: uploadFile.type,
+      });
       setStatus("error");
       setErrorMessage(error instanceof Error ? error.message : "Recording failed");
     }
-  }, [cleanupStream, elapsedSeconds, notes, router, status, stopTimer]);
+  }, [browserSupabase, cleanupStream, elapsedSeconds, notes, router, status, stopTimer]);
 
   return {
     status,
@@ -305,6 +452,8 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
     setNotes,
     errorMessage,
     isPermissionError,
+    language,
+    setLanguage,
     start,
     pause,
     resume,

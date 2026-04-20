@@ -34,6 +34,41 @@ interface SummaryViewProps {
   status: string;
 }
 
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function parseSummary(summary: string): {
+  kind: "structured";
+  data: StructuredSummary;
+} | {
+  kind: "plain";
+  text: string;
+} {
+  try {
+    const parsed = JSON.parse(summary) as Partial<Record<keyof StructuredSummary, unknown>>;
+    const data: StructuredSummary = {
+      key_discussion_points: isStringArray(parsed.key_discussion_points)
+        ? parsed.key_discussion_points
+        : [],
+      action_items: isStringArray(parsed.action_items) ? parsed.action_items : [],
+      client_concerns: isStringArray(parsed.client_concerns) ? parsed.client_concerns : [],
+      personal_details: isStringArray(parsed.personal_details) ? parsed.personal_details : [],
+      next_steps: isStringArray(parsed.next_steps) ? parsed.next_steps : [],
+    };
+
+    return {
+      kind: "structured",
+      data,
+    };
+  } catch {
+    return {
+      kind: "plain",
+      text: summary.trim(),
+    };
+  }
+}
+
 export function SummaryView({ summary, status }: SummaryViewProps) {
   if (status === "summarizing") {
     return (
@@ -48,7 +83,20 @@ export function SummaryView({ summary, status }: SummaryViewProps) {
     return <p className="py-4 text-sm text-muted-foreground">No summary available.</p>;
   }
 
-  const data = JSON.parse(summary) as StructuredSummary;
+  const parsedSummary = parseSummary(summary);
+  if (parsedSummary.kind === "plain") {
+    if (!parsedSummary.text) {
+      return <p className="py-4 text-sm text-muted-foreground">No summary available.</p>;
+    }
+
+    return (
+      <p className="py-4 text-sm leading-relaxed whitespace-pre-wrap text-foreground">
+        {parsedSummary.text}
+      </p>
+    );
+  }
+
+  const data = parsedSummary.data;
   const nonEmptySections = SECTION_ORDER.filter(
     (key) => data[key] && data[key].length > 0,
   );

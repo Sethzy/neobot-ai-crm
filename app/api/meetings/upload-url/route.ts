@@ -76,12 +76,13 @@ export async function POST(request: Request) {
       .from(AGENT_FILES_BUCKET)
       .createSignedUploadUrl(storagePath);
 
-    if (error || !data?.signedUrl || !data.token) {
+    if (error || !data?.signedUrl || !data.token || !data.path) {
       return jsonError("Failed to generate upload URL", 500);
     }
 
     return Response.json({
-      uploadUrl: data.signedUrl,
+      signedUrl: data.signedUrl,
+      path: data.path,
       storagePath,
       token: data.token,
     });

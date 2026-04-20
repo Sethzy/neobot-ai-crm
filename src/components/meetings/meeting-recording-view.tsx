@@ -1,33 +1,43 @@
 /**
  * Recording view for the meetings surface.
  *
- * Before recording, checks microphone permission state:
- * - "granted" → auto-starts recording immediately.
- * - "prompt"  → shows a gate screen; clicking "Start Recording" triggers the
- *               browser's native permission dialog on a real user gesture so
- *               the user is prepared for it and less likely to accidentally block.
- * - "denied"  → shows step-by-step reset instructions and auto-retries via a
- *               `navigator.permissions` change listener.
+ * Pattern (per `docs/product/plans/2026-04-06-001-feat-meeting-recorder-plan.md`):
+ * "User clicks Record → getUserMedia permission prompt (first time only)"
+ * "Mic permission denied → show error in UI, don't start recording"
+ *
+ * We call `start()` on mount — the parent "New Meeting" button click is the
+ * user gesture that satisfies browser autoplay/permission requirements. If
+ * the browser denies, `start()` sets status=error + isPermissionError=true
+ * and we render recovery guidance with a Try-again button.
+ *
+ * We deliberately do NOT use `navigator.permissions.query({name:"microphone"})`
+ * for pre-flight gating: its state is cached and stale on Chrome for
+ * localhost/HTTP origins, and toggling the site-settings popup does not
+ * reliably fire `onchange`. `getUserMedia()` is the source of truth.
  *
  * @module components/meetings/meeting-recording-view
  */
 "use client";
 
 import { Mic } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import { MeetingNotepad } from "@/components/chat/meeting-notepad";
 import { RecordingBar } from "@/components/chat/recording-bar";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useMeetingRecording, type RecordingStatus } from "@/hooks/meetings/use-meeting-recording";
+import { STT_LANGUAGES } from "@/lib/transcription/languages";
 
 interface MeetingRecordingViewProps {
   onDone: () => void;
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function StatusMessage({ status }: { status: RecordingStatus }) {
   switch (status) {
@@ -44,47 +54,6 @@ function StatusMessage({ status }: { status: RecordingStatus }) {
   }
 }
 
-type MicPermission = "checking" | PermissionState;
-
-/**
- * Queries the current microphone permission state and subscribes to changes.
- * Falls back to `"prompt"` on browsers that don't support the Permissions API
- * for microphone (e.g. Safari), which is the safe default — calling
- * `getUserMedia` will show the dialog.
- */
-function useMicPermission(): MicPermission {
-  const [state, setState] = useState<MicPermission>("checking");
-
-  useEffect(() => {
-    let permStatus: PermissionStatus | null = null;
-
-    async function query() {
-      try {
-        permStatus = await navigator.permissions.query({
-          name: "microphone" as PermissionName,
-        });
-        setState(permStatus.state);
-        permStatus.onchange = () => setState(permStatus!.state);
-      } catch {
-        // Safari — assume prompt so we try getUserMedia normally.
-        setState("prompt");
-      }
-    }
-
-    void query();
-
-    return () => {
-      if (permStatus) permStatus.onchange = null;
-    };
-  }, []);
-
-  return state;
-}
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export function MeetingRecordingView({ onDone }: MeetingRecordingViewProps) {
   const {
     status,
@@ -93,89 +62,64 @@ export function MeetingRecordingView({ onDone }: MeetingRecordingViewProps) {
     setNotes,
     errorMessage,
     isPermissionError,
+    language,
+    setLanguage,
     start,
     pause,
     resume,
     stop,
   } = useMeetingRecording();
 
-  const micPermission = useMicPermission();
-
-  // Auto-start only when permission is already granted.
-  const [autoStarted, setAutoStarted] = useState(false);
+  // Kick off recording on mount. The parent "New Meeting" click is the user
+  // gesture; the browser will show the permission dialog on first use and
+  // reuse the decision afterwards. The hook's isStartingRef guard handles
+  // StrictMode double-invocation.
   useEffect(() => {
-    if (micPermission === "granted" && !autoStarted && status === "idle") {
-      setAutoStarted(true);
-      void start();
-    }
-  }, [micPermission, autoStarted, status, start]);
-
-  // Auto-retry when the user resets mic permission while viewing the blocked
-  // state — the permissions listener fires and we call start() which will
-  // either succeed directly (granted) or show the browser dialog (prompt).
-  const handlePermissionRestored = useCallback(() => {
-    if (isPermissionError) {
-      void start();
-    }
-  }, [isPermissionError, start]);
-
-  useEffect(() => {
-    if (!isPermissionError) return;
-
-    // Re-subscribe after an error so we catch the next permission change.
-    let permStatus: PermissionStatus | null = null;
-
-    async function watch() {
-      try {
-        permStatus = await navigator.permissions.query({
-          name: "microphone" as PermissionName,
-        });
-        permStatus.onchange = () => {
-          if (permStatus!.state === "granted" || permStatus!.state === "prompt") {
-            handlePermissionRestored();
-          }
-        };
-      } catch {
-        // noop
-      }
-    }
-
-    void watch();
-    return () => {
-      if (permStatus) permStatus.onchange = null;
-    };
-  }, [isPermissionError, handlePermissionRestored]);
+    void start();
+  }, [start]);
 
   const isProcessing = status === "stopping"
     || status === "uploading"
     || status === "transcribing";
   const recorderState = status === "paused" ? "paused" : "recording";
 
-  // ----- Permission gate: waiting for user to click Start -----
-  if (micPermission === "prompt" && status === "idle") {
+  // ----- Permission blocked gate -----
+  // When getUserMedia rejects with NotAllowedError we land here. Show
+  // recovery guidance instead of the recording bar so there's no fake
+  // "Recording" label on screen.
+  if (status === "error" && isPermissionError) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 px-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-          <Mic className="h-7 w-7 text-primary" />
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10">
+          <Mic className="h-7 w-7 text-destructive" />
         </div>
-        <div className="text-center">
-          <p className="font-medium">Ready to record</p>
+        <div className="max-w-sm text-center">
+          <p className="font-medium text-destructive">Microphone access is blocked</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Your browser will ask for microphone access.
+            Your browser blocked microphone access. To fix this:
           </p>
+          <ol className="mt-3 list-inside list-decimal space-y-1 text-left text-sm text-muted-foreground">
+            <li>Click the <strong>icon to the left of the URL</strong> in your address bar</li>
+            <li>Find <strong>Microphone</strong> and change it to <strong>Allow</strong></li>
+            <li>Reload the page or click Try again</li>
+          </ol>
         </div>
-        <Button onClick={() => void start()}>
-          Start Recording
-        </Button>
-        <Button variant="ghost" size="sm" onClick={onDone}>
-          Cancel
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => void start()}>
+            Try again
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onDone}>
+            Back to meetings
+          </Button>
+        </div>
       </div>
     );
   }
 
-  // ----- Permission gate: loading permission state -----
-  if (micPermission === "checking") {
+  // ----- Idle (pre-getUserMedia resolution) -----
+  // Very brief window between mount and start() resolving. Show a spinner-
+  // less preparing label so the fake "Recording" bar can't flash.
+  if (status === "idle") {
     return (
       <div className="flex h-full items-center justify-center">
         <p className="text-sm text-muted-foreground">Preparing...</p>
@@ -205,27 +149,7 @@ export function MeetingRecordingView({ onDone }: MeetingRecordingViewProps) {
         </div>
       ) : null}
 
-      {status === "error" && isPermissionError ? (
-        <div className="bg-destructive/10 px-4 py-3 text-sm">
-          <p className="font-medium text-destructive">Microphone access is blocked</p>
-          <p className="mt-1 text-muted-foreground">
-            Your browser blocked microphone access. To fix this:
-          </p>
-          <ol className="mt-2 list-inside list-decimal space-y-1 text-muted-foreground">
-            <li>Click the <strong>icon to the left of the URL</strong> in your address bar</li>
-            <li>Find <strong>Microphone</strong> and change it to <strong>Allow</strong></li>
-            <li>Recording will start automatically</li>
-          </ol>
-          <div className="mt-3 flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => void start()}>
-              Try again
-            </Button>
-            <Button size="sm" variant="ghost" onClick={onDone}>
-              Back to meetings
-            </Button>
-          </div>
-        </div>
-      ) : status === "error" && errorMessage ? (
+      {status === "error" && errorMessage ? (
         <div className="bg-destructive/10 px-4 py-2 text-sm text-destructive">
           {errorMessage}
           <Button variant="link" size="sm" className="ml-2 px-0" onClick={onDone}>
@@ -233,6 +157,22 @@ export function MeetingRecordingView({ onDone }: MeetingRecordingViewProps) {
           </Button>
         </div>
       ) : null}
+
+      <div className="flex items-center gap-2 border-b border-border/60 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+        <span>Language</span>
+        <Select value={language} onValueChange={setLanguage} disabled={isProcessing}>
+          <SelectTrigger className="h-7 w-40 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STT_LANGUAGES.map((lang) => (
+              <SelectItem key={lang.code} value={lang.code} className="text-xs">
+                {lang.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       <MeetingNotepad
         value={notes}
