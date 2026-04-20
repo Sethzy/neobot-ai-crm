@@ -46,6 +46,7 @@ claude-codex-sdk-integrations*.json
 # QA run artifacts (generated)
 scripts/qa/output/
 docs/qa/reports/
+artifacts/
 
 .trigger
 
