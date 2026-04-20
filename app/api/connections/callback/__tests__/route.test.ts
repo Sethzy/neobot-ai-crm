@@ -156,6 +156,19 @@ describe("GET /api/connections/callback", () => {
     );
   });
 
+  it("does not poison a healthy row when a malformed callback omits connected_account_id", async () => {
+    const response = await GET(
+      new Request("http://localhost/api/connections/callback?status=failed&toolkit=gmail"),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "http://localhost/settings?connection=error&reason=invalid_callback",
+    );
+    expect(mockUpdateConnection).not.toHaveBeenCalled();
+    expect(mockDeleteConnection).not.toHaveBeenCalled();
+  });
+
   it("redirects to settings error when Composio reports a failed callback status", async () => {
     mockGetPendingConnectionByToolkit.mockResolvedValue({
       id: "pending-row-1",
@@ -187,15 +200,15 @@ describe("GET /api/connections/callback", () => {
     );
   });
 
-  it("marks reauthorization rows as error instead of deleting them on failed callbacks", async () => {
-    mockGetPendingConnectionByToolkit.mockResolvedValue({
+  it("marks an existing active row as error on failed callbacks without relying on reason=reauth", async () => {
+    mockGetConnectionByConnectedAccountId.mockResolvedValue({
       id: "conn-1",
       client_id: "client-1",
       composio_connected_account_id: "conn_123",
       toolkit_slug: "gmail",
       display_name: "Gmail",
       account_identifier: "owner@gmail.com",
-      status: "pending",
+      status: "active",
       activated_tools: ["GMAIL_SEND_EMAIL"],
       tool_count: 3,
       created_at: "2026-03-07T00:00:00.000Z",
@@ -204,7 +217,7 @@ describe("GET /api/connections/callback", () => {
 
     const response = await GET(
       new Request(
-        "http://localhost/api/connections/callback?status=failed&connected_account_id=conn_123&toolkit=gmail&reason=reauth",
+        "http://localhost/api/connections/callback?status=failed&connected_account_id=conn_123&toolkit=gmail",
       ),
     );
 
@@ -556,15 +569,15 @@ describe("GET /api/connections/callback", () => {
     );
   });
 
-  it("marks reauthorization rows as error when callback verification throws", async () => {
-    mockGetPendingConnectionByToolkit.mockResolvedValue({
+  it("marks an existing active row as error when callback verification throws", async () => {
+    mockGetConnectionByConnectedAccountId.mockResolvedValue({
       id: "conn-1",
       client_id: "client-1",
       composio_connected_account_id: "conn_123",
       toolkit_slug: "gmail",
       display_name: "Gmail",
       account_identifier: "owner@gmail.com",
-      status: "pending",
+      status: "active",
       activated_tools: ["GMAIL_SEND_EMAIL"],
       tool_count: 3,
       created_at: "2026-03-07T00:00:00.000Z",
@@ -578,7 +591,7 @@ describe("GET /api/connections/callback", () => {
 
     const response = await GET(
       new Request(
-        "http://localhost/api/connections/callback?status=success&connected_account_id=conn_123&toolkit=gmail&reason=reauth",
+        "http://localhost/api/connections/callback?status=success&connected_account_id=conn_123&toolkit=gmail",
       ),
     );
 

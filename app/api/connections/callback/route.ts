@@ -89,7 +89,6 @@ export async function GET(request: Request): Promise<Response> {
     "status",
     "connectionStatus",
   ]);
-  const callbackReason = getFirstSearchParam(requestUrl.searchParams, ["reason"]);
   const connectedAccountId = getFirstSearchParam(requestUrl.searchParams, [
     "connected_account_id",
     "connectedAccountId",
@@ -105,23 +104,37 @@ export async function GET(request: Request): Promise<Response> {
     return cachedClientId;
   }
 
-  async function handlePendingFailure(toolkitSlug: string | null): Promise<void> {
+  async function handleCallbackFailure(toolkitSlug: string | null): Promise<void> {
+    const clientId = await getClientId();
+
+    if (connectedAccountId) {
+      const connectedAccountConnection = await getConnectionByConnectedAccountId(
+        supabase,
+        clientId,
+        connectedAccountId,
+      );
+
+      if (connectedAccountConnection) {
+        if (connectedAccountConnection.status === "pending") {
+          await deleteConnection(supabase, clientId, connectedAccountConnection.id);
+          return;
+        }
+
+        await updateConnection(supabase, clientId, {
+          id: connectedAccountConnection.id,
+          status: "error",
+        });
+        return;
+      }
+    }
+
     if (!toolkitSlug) {
       return;
     }
 
-    const clientId = await getClientId();
     const pendingConnection = await getPendingConnectionByToolkit(supabase, clientId, toolkitSlug);
 
     if (!pendingConnection) {
-      return;
-    }
-
-    if (callbackReason?.toLowerCase() === "reauth") {
-      await updateConnection(supabase, clientId, {
-        id: pendingConnection.id,
-        status: "error",
-      });
       return;
     }
 
@@ -130,7 +143,7 @@ export async function GET(request: Request): Promise<Response> {
 
   if (!callbackStatus || !connectedAccountId) {
     try {
-      await handlePendingFailure(callbackToolkit);
+      await handleCallbackFailure(callbackToolkit);
     } catch (error) {
       console.error("Failed to clear pending connection after invalid callback.", error);
     }
@@ -143,7 +156,7 @@ export async function GET(request: Request): Promise<Response> {
 
   if (!isSuccessfulCallbackStatus(callbackStatus)) {
     try {
-      await handlePendingFailure(callbackToolkit);
+      await handleCallbackFailure(callbackToolkit);
     } catch (error) {
       console.error("Failed to clear pending connection after failed callback.", error);
     }
@@ -162,7 +175,7 @@ export async function GET(request: Request): Promise<Response> {
     verifiedToolkitSlug = connectedAccount.toolkit.slug;
 
     if (connectedAccount.status !== "ACTIVE") {
-      await handlePendingFailure(verifiedToolkitSlug);
+      await handleCallbackFailure(verifiedToolkitSlug);
 
       return buildRedirect(request, {
         connection: "error",
@@ -181,7 +194,7 @@ export async function GET(request: Request): Promise<Response> {
     );
 
     if (!isOwnedByClient) {
-      await handlePendingFailure(verifiedToolkitSlug);
+      await handleCallbackFailure(verifiedToolkitSlug);
 
       return buildRedirect(request, {
         connection: "error",
@@ -249,7 +262,7 @@ export async function GET(request: Request): Promise<Response> {
     });
   } catch (error) {
     try {
-      await handlePendingFailure(verifiedToolkitSlug);
+      await handleCallbackFailure(verifiedToolkitSlug);
     } catch (cleanupError) {
       console.error("Failed to clear pending connection after callback error.", cleanupError);
     }
