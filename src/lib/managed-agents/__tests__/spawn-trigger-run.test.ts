@@ -50,14 +50,26 @@ vi.mock("@/lib/chat/threads", () => ({
   createThread,
 }));
 
-import { spawnTriggerRun } from "../spawn-trigger-run";
+import {
+  AutomationAlreadyRunningError,
+  spawnTriggerRun,
+} from "../spawn-trigger-run";
 
 const RUN_THREAD_ID = "run-thread-1";
 
+function createThenableResult<T>(result: T) {
+  return {
+    then: (
+      onFulfilled?: ((value: T) => unknown) | null,
+      onRejected?: ((reason: unknown) => unknown) | null,
+    ) => Promise.resolve(result).then(onFulfilled, onRejected),
+  };
+}
+
 function mockSupabase() {
-  const updateEq = vi.fn().mockResolvedValue({ error: null });
+  const updateEq = vi.fn().mockImplementation(() => createThenableResult({ error: null }));
   const updateFn = vi.fn().mockReturnValue({ eq: updateEq });
-  const deleteEq = vi.fn().mockResolvedValue({ error: null });
+  const deleteEq = vi.fn().mockImplementation(() => createThenableResult({ error: null }));
   const deleteFn = vi.fn().mockReturnValue({ eq: deleteEq });
   const insertChain = {
     select: vi.fn().mockReturnValue({
@@ -176,7 +188,7 @@ describe("spawnTriggerRun", () => {
   });
 
   it("throws if the runs insert fails", async () => {
-    const deleteEq = vi.fn().mockResolvedValue({ error: null });
+    const deleteEq = vi.fn().mockImplementation(() => createThenableResult({ error: null }));
     const deleteFn = vi.fn().mockReturnValue({ eq: deleteEq });
     const insertChain = {
       select: vi.fn().mockReturnValue({
@@ -191,7 +203,9 @@ describe("spawnTriggerRun", () => {
       from: vi.fn().mockImplementation((table: string) => {
         if (table === "conversation_threads") {
           return {
-            update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
+            update: vi.fn().mockReturnValue({
+              eq: vi.fn().mockImplementation(() => createThenableResult({ error: null })),
+            }),
             delete: deleteFn,
           };
         }
@@ -210,6 +224,92 @@ describe("spawnTriggerRun", () => {
 
     expect(sessionsArchive).toHaveBeenCalledWith("session_abc");
     expect(deleteFn).toHaveBeenCalled();
+  });
+
+  it("throws AutomationAlreadyRunningError when the running-run index rejects a second run", async () => {
+    const deleteEq = vi.fn().mockImplementation(() => createThenableResult({ error: null }));
+    const deleteFn = vi.fn().mockReturnValue({ eq: deleteEq });
+    const duplicateInsertChain = {
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: null,
+          error: {
+            code: "23505",
+            message:
+              'duplicate key value violates unique constraint "idx_runs_one_running_automation_per_trigger"',
+          },
+        }),
+      }),
+    };
+
+    const brokenSupabase = {
+      from: vi.fn().mockImplementation((table: string) => {
+        if (table === "conversation_threads") {
+          return {
+            update: vi.fn().mockReturnValue({
+              eq: vi.fn().mockImplementation(() => createThenableResult({ error: null })),
+            }),
+            delete: deleteFn,
+          };
+        }
+
+        if (table === "runs") {
+          return { insert: vi.fn().mockReturnValue(duplicateInsertChain), delete: deleteFn };
+        }
+
+        throw new Error(`Unexpected table access: ${table}`);
+      }),
+    } as never;
+
+    await expect(
+      spawnTriggerRun(brokenSupabase, BASE_INPUT),
+    ).rejects.toBeInstanceOf(AutomationAlreadyRunningError);
+
+    expect(sessionsArchive).toHaveBeenCalledWith("session_abc");
+    expect(deleteFn).toHaveBeenCalled();
+  });
+
+  it("preserves AutomationAlreadyRunningError when cleanup deletes reject", async () => {
+    const deleteEq = vi.fn().mockRejectedValue(new Error("cleanup delete rejected"));
+    const deleteFn = vi.fn().mockReturnValue({ eq: deleteEq });
+    const duplicateInsertChain = {
+      select: vi.fn().mockReturnValue({
+        single: vi.fn().mockResolvedValue({
+          data: null,
+          error: {
+            code: "23505",
+            message:
+              'duplicate key value violates unique constraint "idx_runs_one_running_automation_per_trigger"',
+          },
+        }),
+      }),
+    };
+
+    const brokenSupabase = {
+      from: vi.fn().mockImplementation((table: string) => {
+        if (table === "conversation_threads") {
+          return {
+            update: vi.fn().mockReturnValue({
+              eq: vi.fn().mockImplementation(() => createThenableResult({ error: null })),
+            }),
+            delete: deleteFn,
+          };
+        }
+
+        if (table === "runs") {
+          return { insert: vi.fn().mockReturnValue(duplicateInsertChain), delete: deleteFn };
+        }
+
+        throw new Error(`Unexpected table access: ${table}`);
+      }),
+    } as never;
+
+    await expect(
+      spawnTriggerRun(brokenSupabase, BASE_INPUT),
+    ).rejects.toBeInstanceOf(AutomationAlreadyRunningError);
+
+    expect(sessionsArchive).toHaveBeenCalledWith("session_abc");
+    expect(deleteEq).toHaveBeenCalledTimes(2);
   });
 
   it("archives the session and deletes partial DB artifacts when kickoff send fails", async () => {

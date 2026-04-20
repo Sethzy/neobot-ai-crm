@@ -23,7 +23,7 @@ export default function AutomationsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Automations</h1>
           <p className="mt-2 text-sm text-muted-foreground/80">
-            Review scheduled jobs, inbound webhooks, and RSS monitors created from chat.
+            Review recurring automations created from chat.
           </p>
         </div>
         <Button asChild size="sm">

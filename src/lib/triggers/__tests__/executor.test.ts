@@ -4,16 +4,24 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { AutomationAlreadyRunningError } from "@/lib/managed-agents/spawn-trigger-run";
 import type { TriggerDispatchPayload } from "../schemas";
 
 const {
   mockSpawnTriggerRun,
+  mockAutomationAlreadyRunningError,
   mockCreateMessage,
   mockCollectNewRssItems,
   mockCreateAgentFileClient,
   mockCaptureServerEvent,
 } = vi.hoisted(() => ({
   mockSpawnTriggerRun: vi.fn(),
+  mockAutomationAlreadyRunningError: class AutomationAlreadyRunningError extends Error {
+    constructor(triggerId: string) {
+      super(`Automation ${triggerId} already has a running run.`);
+      this.name = "AutomationAlreadyRunningError";
+    }
+  },
   mockCreateMessage: vi.fn(),
   mockCollectNewRssItems: vi.fn(),
   mockCreateAgentFileClient: vi.fn(),
@@ -22,6 +30,7 @@ const {
 
 vi.mock("@/lib/managed-agents/spawn-trigger-run", () => ({
   spawnTriggerRun: mockSpawnTriggerRun,
+  AutomationAlreadyRunningError: mockAutomationAlreadyRunningError,
 }));
 
 vi.mock("@/lib/chat/messages", () => ({
@@ -205,6 +214,36 @@ describe("executeTrigger", () => {
       }),
     });
     expect(result).toEqual({ status: "failed" });
+  });
+
+  it("releases the claim as skipped_thread_busy when the automation is already running", async () => {
+    const supabase = createMockSupabase();
+    supabase.selectChain.single.mockResolvedValue({
+      data: {
+        id: validPayload.triggerId,
+        current_run_id: validPayload.currentRunId,
+        retry_count: 0,
+      },
+      error: null,
+    });
+    supabase.rpc.mockResolvedValue({ data: true, error: null });
+    mockSpawnTriggerRun.mockRejectedValueOnce(
+      new AutomationAlreadyRunningError(validPayload.triggerId),
+    );
+
+    const result = await executeTrigger({
+      supabase: supabase as never,
+      payload: validPayload,
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
+      p_next_fire_at: validPayload.nextFireAt,
+      p_advance_next_fire_at: true,
+      p_trigger_id: validPayload.triggerId,
+      p_run_id: validPayload.currentRunId,
+      p_status: "skipped_thread_busy",
+    });
+    expect(result).toEqual({ status: "skipped_busy" });
   });
 
   it("marks exhausted runner failures as failed_permanent", async () => {

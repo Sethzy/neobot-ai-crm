@@ -4,7 +4,10 @@
  */
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { AUTOPILOT_INSTRUCTION_PROMPT } from "@/lib/autopilot/constants";
-import { spawnTriggerRun } from "@/lib/managed-agents/spawn-trigger-run";
+import {
+  AutomationAlreadyRunningError,
+  spawnTriggerRun,
+} from "@/lib/managed-agents/spawn-trigger-run";
 import { createAgentFileClient } from "@/lib/storage/agent-files";
 import { toModelPath } from "@/lib/storage/agent-paths";
 
@@ -145,6 +148,14 @@ export async function executeTrigger({
       });
       return finish("queued", { advanceNextFireAt: true });
     } catch (error) {
+      if (error instanceof AutomationAlreadyRunningError) {
+        console.info("[executor] Pulse trigger skipped because automation is busy", {
+          triggerId: payload.triggerId,
+          currentRunId: payload.currentRunId,
+        });
+        return finish("skipped_thread_busy", { advanceNextFireAt: true });
+      }
+
       console.error("[executor] pulse trigger failed:", error);
       return finish("failed", { advanceNextFireAt: true });
     }
@@ -207,6 +218,15 @@ export async function executeTrigger({
 
     return finish("queued", { advanceNextFireAt: true });
   } catch (error) {
+    if (error instanceof AutomationAlreadyRunningError) {
+      console.info("[executor] Trigger skipped because automation is busy", {
+        triggerId: payload.triggerId,
+        currentRunId: payload.currentRunId,
+        triggerType: payload.triggerType,
+      });
+      return finish("skipped_thread_busy", { advanceNextFireAt: true });
+    }
+
     console.error("[executor] schedule trigger failed:", error);
     return finish(
       hasExhaustedRetries ? "failed_permanent" : "failed",

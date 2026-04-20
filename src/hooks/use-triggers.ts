@@ -25,7 +25,9 @@ export type AutomationTrigger = Pick<
   | "last_status"
   | "invocation_message"
   | "instruction_path"
->;
+> & {
+  isRunning?: boolean;
+};
 
 export const TRIGGER_LIST_SELECT = [
   "id",
@@ -59,7 +61,32 @@ async function fetchTriggers(): Promise<AutomationTrigger[]> {
     throw error;
   }
 
-  return (data ?? []) as unknown as AutomationTrigger[];
+  const triggers = (data ?? []) as unknown as Omit<AutomationTrigger, "isRunning">[];
+
+  if (triggers.length === 0) {
+    return [];
+  }
+
+  const { data: runningRuns, error: runningRunsError } = await supabase
+    .from("runs")
+    .select("trigger_id")
+    .eq("status", "running")
+    .not("trigger_id", "is", null);
+
+  if (runningRunsError) {
+    throw runningRunsError;
+  }
+
+  const runningTriggerIds = new Set(
+    (runningRuns ?? [])
+      .map((run) => run.trigger_id)
+      .filter((triggerId): triggerId is string => typeof triggerId === "string"),
+  );
+
+  return triggers.map((trigger) => ({
+    ...trigger,
+    isRunning: runningTriggerIds.has(trigger.id),
+  }));
 }
 
 /**
@@ -75,10 +102,56 @@ export function useTriggers() {
     queryKeys: [triggerKeys.all],
     enabled: Boolean(clientId),
   });
+  useRealtimeTable({
+    table: "runs",
+    filter: realtimeFilter,
+    queryKeys: [triggerKeys.all],
+    enabled: Boolean(clientId),
+  });
 
   return useQuery({
     queryKey: triggerKeys.list(),
     queryFn: fetchTriggers,
+  });
+}
+
+/**
+ * Fetches the trigger (if any) that spawned a given thread.
+ * Resolves via `conversation_threads.source_trigger_id` — the back-reference
+ * stamped on threads created by a cron/webhook firing.
+ * Returns `null` when the thread is not automation-spawned.
+ */
+export function useTriggerByThreadId(threadId: string | null | undefined) {
+  const { data: clientId } = useClientId();
+
+  useRealtimeTable({
+    table: "agent_triggers",
+    filter: clientId ? `client_id=eq.${clientId}` : undefined,
+    queryKeys: [triggerKeys.all],
+    enabled: Boolean(clientId && threadId),
+  });
+
+  return useQuery({
+    queryKey: [...triggerKeys.all, "by-thread", threadId] as const,
+    queryFn: async () => {
+      const { data: thread, error: threadError } = await supabase
+        .from("conversation_threads")
+        .select("source_trigger_id")
+        .eq("thread_id", threadId!)
+        .maybeSingle();
+      if (threadError) throw threadError;
+      if (!thread?.source_trigger_id) return null;
+
+      const { data, error } = await supabase
+        .from("agent_triggers")
+        .select(TRIGGER_LIST_SELECT)
+        .eq("id", thread.source_trigger_id)
+        .neq("trigger_type", "pulse")
+        .maybeSingle();
+      if (error) throw error;
+      return (data as unknown as Omit<AutomationTrigger, "isRunning"> | null) ?? null;
+    },
+    enabled: Boolean(clientId && threadId),
   });
 }
 

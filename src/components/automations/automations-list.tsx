@@ -7,6 +7,7 @@
 
 import Link from "next/link";
 
+import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import type { AutomationTrigger } from "@/hooks/use-triggers";
 import { cronToHuman, formatCountdown } from "@/lib/triggers/cron-display";
@@ -17,13 +18,59 @@ interface AutomationsListProps {
   onToggleEnabled: (triggerId: string, enabled: boolean) => void;
 }
 
+function getStatusLabel(
+  trigger: Pick<AutomationTrigger, "enabled" | "last_status" | "isRunning">,
+): string {
+  if (trigger.isRunning) {
+    return "Busy";
+  }
+
+  if (!trigger.enabled) {
+    return "Disabled";
+  }
+
+  switch (trigger.last_status) {
+    case "failed":
+    case "failed_permanent":
+    case "dispatch_failed":
+      return "Failed";
+    case "skipped_quiet_hours":
+      return "Waiting";
+    default:
+      return "Ready";
+  }
+}
+
+function getStatusVariant(
+  trigger: Pick<AutomationTrigger, "enabled" | "last_status" | "isRunning">,
+): "default" | "secondary" | "destructive" | "warning" | "outline" {
+  if (trigger.isRunning) {
+    return "secondary";
+  }
+
+  if (!trigger.enabled) {
+    return "outline";
+  }
+
+  switch (trigger.last_status) {
+    case "failed":
+    case "failed_permanent":
+    case "dispatch_failed":
+      return "destructive";
+    case "skipped_quiet_hours":
+      return "warning";
+    default:
+      return "default";
+  }
+}
+
 export function AutomationsList({
   triggers,
   pendingTriggerId,
   onToggleEnabled,
 }: AutomationsListProps) {
-  const active = triggers.filter((t) => t.enabled);
-  const inactive = triggers.filter((t) => !t.enabled);
+  const active = triggers.filter((trigger) => trigger.enabled || trigger.isRunning);
+  const inactive = triggers.filter((trigger) => !trigger.enabled && !trigger.isRunning);
 
   return (
     <div className="space-y-6">
@@ -83,6 +130,12 @@ function AutomationRow({
       >
         <div className="min-w-0">
           <span className="font-medium text-foreground/90">{trigger.name}</span>
+          <Badge
+            variant={getStatusVariant(trigger)}
+            className="ml-3 align-middle"
+          >
+            {getStatusLabel(trigger)}
+          </Badge>
           <span className="ml-3 text-sm text-muted-foreground">
             {cronToHuman(trigger.cron_expression)}
           </span>

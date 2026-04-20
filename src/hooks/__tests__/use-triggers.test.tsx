@@ -53,6 +53,8 @@ function createThenableBuilder(data: unknown[], error: { message: string } | nul
   const builder = {
     select: vi.fn().mockReturnThis(),
     neq: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    not: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     then: undefined as unknown,
   };
@@ -69,7 +71,7 @@ describe("useTriggers", () => {
   });
 
   it("fetches non-pulse trigger rows and wires realtime invalidation", async () => {
-    const builder = createThenableBuilder([
+    const triggersBuilder = createThenableBuilder([
       {
         id: "trigger-1",
         thread_id: "thread-1",
@@ -82,9 +84,23 @@ describe("useTriggers", () => {
         last_fired_at: null,
         last_status: null,
         invocation_message: "Run the morning briefing",
+        instruction_path: "state/triggers/daily-briefing.md",
       },
     ]);
-    mockFrom.mockReturnValue(builder);
+    const runningRunsBuilder = createThenableBuilder([
+      { trigger_id: "trigger-1" },
+    ]);
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "agent_triggers") {
+        return triggersBuilder;
+      }
+
+      if (table === "runs") {
+        return runningRunsBuilder;
+      }
+
+      throw new Error(`Unexpected table: ${table}`);
+    });
 
     const { result } = renderHook(() => useTriggers(), {
       wrapper: createWrapper().wrapper,
@@ -93,11 +109,27 @@ describe("useTriggers", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(mockFrom).toHaveBeenCalledWith("agent_triggers");
-    expect(builder.select).toHaveBeenCalledWith(TRIGGER_LIST_SELECT);
-    expect(builder.neq).toHaveBeenCalledWith("trigger_type", "pulse");
-    expect(builder.order).toHaveBeenCalledWith("created_at", { ascending: false });
-    expect(mockUseRealtimeTable).toHaveBeenCalledWith({
+    expect(mockFrom).toHaveBeenCalledWith("runs");
+    expect(triggersBuilder.select).toHaveBeenCalledWith(TRIGGER_LIST_SELECT);
+    expect(triggersBuilder.neq).toHaveBeenCalledWith("trigger_type", "pulse");
+    expect(triggersBuilder.order).toHaveBeenCalledWith("created_at", { ascending: false });
+    expect(runningRunsBuilder.select).toHaveBeenCalledWith("trigger_id");
+    expect(runningRunsBuilder.eq).toHaveBeenCalledWith("status", "running");
+    expect(runningRunsBuilder.not).toHaveBeenCalledWith("trigger_id", "is", null);
+    expect(result.current.data).toEqual([
+      expect.objectContaining({
+        id: "trigger-1",
+        isRunning: true,
+      }),
+    ]);
+    expect(mockUseRealtimeTable).toHaveBeenNthCalledWith(1, {
       table: "agent_triggers",
+      filter: `client_id=eq.${CLIENT_ID}`,
+      queryKeys: [triggerKeys.all],
+      enabled: true,
+    });
+    expect(mockUseRealtimeTable).toHaveBeenNthCalledWith(2, {
+      table: "runs",
       filter: `client_id=eq.${CLIENT_ID}`,
       queryKeys: [triggerKeys.all],
       enabled: true,

@@ -6,7 +6,10 @@
 import { NextResponse } from "next/server";
 
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
-import { spawnTriggerRun } from "@/lib/managed-agents/spawn-trigger-run";
+import {
+  AutomationAlreadyRunningError,
+  spawnTriggerRun,
+} from "@/lib/managed-agents/spawn-trigger-run";
 import { toModelPath } from "@/lib/storage/agent-paths";
 import { CRON_RUN_NUDGE } from "@/lib/triggers/schemas";
 import { buildTriggerEventMessage } from "@/lib/triggers/trigger-event";
@@ -35,19 +38,7 @@ export async function POST(
     return jsonError("Trigger not found", 404);
   }
 
-  // 2. Guard: reject if a run is already in progress
-  const { data: activeRuns } = await supabase
-    .from("runs")
-    .select("run_id")
-    .eq("trigger_id", triggerId)
-    .eq("status", "running")
-    .limit(1);
-
-  if (activeRuns && activeRuns.length > 0) {
-    return jsonError("A run is already in progress for this automation", 409);
-  }
-
-  // 3. Build trigger event message
+  // 2. Build trigger event message
   const triggerEventMessage = buildTriggerEventMessage({
     triggerId: trigger.id,
     triggerType: trigger.trigger_type as "schedule" | "webhook" | "rss",
@@ -59,8 +50,14 @@ export async function POST(
     invocationMessage: trigger.invocation_message,
   });
 
-  // 4. Spawn the run (creates thread, session, runs row, queues task)
+  // 3. Spawn the run (creates thread, session, runs row, queues task)
   try {
+    console.info("[manual-run] Starting manual automation run", {
+      triggerId: trigger.id,
+      clientId: trigger.client_id,
+      threadId: trigger.thread_id,
+    });
+
     const result = await spawnTriggerRun(supabase, {
       clientId: trigger.client_id,
       threadId: trigger.thread_id,
@@ -70,11 +67,24 @@ export async function POST(
       triggerName: trigger.name ?? "Automation",
     });
 
+    console.info("[manual-run] Manual automation run started", {
+      triggerId: trigger.id,
+      runId: result.runId,
+      sessionId: result.sessionId,
+    });
+
     return NextResponse.json({
       runId: result.runId,
       sessionId: result.sessionId,
     });
   } catch (error) {
+    if (error instanceof AutomationAlreadyRunningError) {
+      console.info("[manual-run] Manual automation run rejected because it is busy", {
+        triggerId: trigger.id,
+      });
+      return jsonError("A run is already in progress for this automation", 409);
+    }
+
     console.error("[manual-run] Failed to spawn run:", error);
     return jsonError("Failed to start run", 500);
   }

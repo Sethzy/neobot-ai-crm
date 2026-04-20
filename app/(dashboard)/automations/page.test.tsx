@@ -61,6 +61,25 @@ describe("AutomationsPage", () => {
     expect(screen.getByRole("switch")).toBeInTheDocument();
   });
 
+  it("describes automations as recurring work created from chat", () => {
+    mockUseTriggers.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    mockUseSetTriggerEnabled.mockReturnValue({
+      mutate: vi.fn(),
+      variables: null,
+    });
+
+    render(<AutomationsPage />);
+
+    expect(
+      screen.getByText("Review recurring automations created from chat."),
+    ).toBeInTheDocument();
+  });
+
   it("renders an empty state when no automations exist", () => {
     mockUseTriggers.mockReturnValue({
       data: [],

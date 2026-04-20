@@ -19,6 +19,13 @@ import type { Database } from "@/types/database";
 
 type TriggerRunSupabase = SupabaseClient<Database>;
 
+export class AutomationAlreadyRunningError extends Error {
+  constructor(triggerId: string) {
+    super(`Automation ${triggerId} already has a running run.`);
+    this.name = "AutomationAlreadyRunningError";
+  }
+}
+
 export interface SpawnTriggerRunInput {
   runId?: string;
   clientId: string;
@@ -45,6 +52,17 @@ interface CleanupArgs {
   cleanupReason: string;
 }
 
+function logCleanupFailure(
+  message: string,
+  details: Record<string, string | undefined>,
+  error: unknown,
+): void {
+  console.error(message, {
+    ...details,
+    error: error instanceof Error ? error.message : String(error),
+  });
+}
+
 /**
  * Best-effort cleanup for partially created trigger-run artifacts. Setup
  * failures should not leave orphaned run rows, run threads, or idle sessions.
@@ -61,42 +79,56 @@ async function cleanupFailedSpawn({
   if (sessionId) {
     cleanupTasks.push(
       getAnthropicClient().beta.sessions.archive(sessionId).catch((error) => {
-        console.error("[spawnTriggerRun] Failed to archive session during cleanup:", {
+        logCleanupFailure("[spawnTriggerRun] Failed to archive session during cleanup:", {
           sessionId,
           cleanupReason,
-          error: error instanceof Error ? error.message : String(error),
-        });
+        }, error);
       }),
     );
   }
 
   cleanupTasks.push(
-    supabase
-      .from("runs")
-      .delete()
-      .eq("run_id", runId)
-      .catch((error) => {
-        console.error("[spawnTriggerRun] Failed to delete run during cleanup:", {
+    (async () => {
+      try {
+        const { error } = await supabase.from("runs").delete().eq("run_id", runId);
+
+        if (error) {
+          logCleanupFailure("[spawnTriggerRun] Failed to delete run during cleanup:", {
+            runId,
+            cleanupReason,
+          }, error);
+        }
+      } catch (error) {
+        logCleanupFailure("[spawnTriggerRun] Failed to delete run during cleanup:", {
           runId,
           cleanupReason,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }),
+        }, error);
+      }
+    })(),
   );
 
   if (runThreadId) {
     cleanupTasks.push(
-      supabase
-        .from("conversation_threads")
-        .delete()
-        .eq("thread_id", runThreadId)
-        .catch((error) => {
-          console.error("[spawnTriggerRun] Failed to delete run thread during cleanup:", {
+      (async () => {
+        try {
+          const { error } = await supabase
+            .from("conversation_threads")
+            .delete()
+            .eq("thread_id", runThreadId);
+
+          if (error) {
+            logCleanupFailure("[spawnTriggerRun] Failed to delete run thread during cleanup:", {
+              runThreadId,
+              cleanupReason,
+            }, error);
+          }
+        } catch (error) {
+          logCleanupFailure("[spawnTriggerRun] Failed to delete run thread during cleanup:", {
             runThreadId,
             cleanupReason,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }),
+          }, error);
+        }
+      })(),
     );
   }
 
@@ -124,6 +156,14 @@ export async function spawnTriggerRun(
   let runThreadId: string | undefined;
 
   try {
+    console.info("[spawnTriggerRun] Starting trigger run spawn", {
+      triggerId: input.triggerId,
+      triggerType: input.triggerType,
+      clientId: input.clientId,
+      parentThreadId: input.threadId,
+      runId,
+    });
+
     // Create a dedicated thread for this run
     const runThreadTitle = `${input.triggerName} — ${format(new Date(), "MMM d, h:mm a")}`;
     const runThread = await createThread(supabase, input.clientId, runThreadTitle);
@@ -167,6 +207,18 @@ export async function spawnTriggerRun(
       .select("run_id, session_id")
       .single();
 
+    if (
+      error?.code === "23505"
+      && error.message.includes("idx_runs_one_running_automation_per_trigger")
+    ) {
+      console.info("[spawnTriggerRun] Busy automation rejected by unique index", {
+        triggerId: input.triggerId,
+        runId,
+        sessionId: session.id,
+      });
+      throw new AutomationAlreadyRunningError(input.triggerId);
+    }
+
     if (error || !run) {
       throw new Error(`Failed to insert runs row: ${error?.message ?? "unknown"}`);
     }
@@ -185,6 +237,14 @@ export async function spawnTriggerRun(
       sessionId: session.id,
       clientId: input.clientId,
       threadId: runThread.thread_id,
+    });
+
+    console.info("[spawnTriggerRun] Trigger run queued", {
+      triggerId: input.triggerId,
+      runId,
+      runThreadId: runThread.thread_id,
+      sessionId: session.id,
+      taskHandleId: taskHandle.id,
     });
 
     return {

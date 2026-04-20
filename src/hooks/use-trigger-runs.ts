@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useClientId } from "@/hooks/use-client-id";
 import { useRealtimeTable } from "@/hooks/use-realtime";
+import { triggerKeys } from "@/hooks/use-triggers";
 import { supabase } from "@/lib/supabase";
 
 export const triggerRunKeys = {
@@ -90,11 +91,14 @@ export function useManualRun(triggerId: string) {
         const body = await res.json();
         throw new Error(body.error ?? "Failed to start run");
       }
-      return res.json() as Promise<{ runId: string; threadId: string }>;
+      return res.json() as Promise<{ runId: string; sessionId: string }>;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: triggerRunKeys.list(triggerId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: triggerKeys.all,
       });
     },
   });
