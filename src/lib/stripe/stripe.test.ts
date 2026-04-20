@@ -615,7 +615,7 @@ describe("lib/stripe/stripe", () => {
     );
     expect(mockBillingPortalCreate).toHaveBeenCalledWith({
       customer: "cus_123",
-      return_url: "https://app.trysunder.com/settings/billing",
+      return_url: "https://app.trysunder.com/settings/workspace/billing",
     });
   });
 

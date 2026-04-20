@@ -20,7 +20,7 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     await syncBillingStateFromCheckoutSession(sessionId);
-    return NextResponse.redirect(new URL("/settings/billing?billing=success", requestUrl));
+    return NextResponse.redirect(new URL("/settings/workspace/billing?billing=success", requestUrl));
   } catch (error) {
     console.error("[stripe] Checkout fallback sync failed.", error);
     return NextResponse.redirect(new URL("/pricing?billing=error", requestUrl));

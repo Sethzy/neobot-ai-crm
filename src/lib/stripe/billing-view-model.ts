@@ -1,6 +1,6 @@
 /**
  * Pure helper that maps a `clients` table billing row into the props the
- * /settings/billing page renders. All branching logic for plan/state/copy
+ * /settings/workspace/billing page renders. All branching logic for plan/state/copy
  * lives here so the page itself stays a dumb Server Component.
  *
  * @module lib/stripe/billing-view-model
@@ -64,7 +64,7 @@ function formatPeriodEnd(iso: string | null): string {
 }
 
 /**
- * Maps a `clients` row into a render-ready view model for /settings/billing.
+ * Maps a `clients` row into a render-ready view model for /settings/workspace/billing.
  *
  * Branching priority (first match wins):
  *   1. terminal states (`canceled`, `incomplete_expired`) → "canceled"

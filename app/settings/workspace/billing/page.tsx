@@ -1,9 +1,10 @@
 /**
- * Standard SaaS billing page: one card showing the current plan + a single
- * button that opens the Stripe Customer Portal. All payment methods, plan
- * changes, invoices, and cancellation flows live in Stripe.
+ * Settings → Workspace → Billing. Shows current plan and opens the Stripe Customer Portal.
  *
- * @module app/(dashboard)/settings/billing/page
+ * Note: Stripe return URLs hit `/settings/billing` (preserved as a redirect shim); this is the
+ * canonical destination where the billing content actually lives.
+ *
+ * @module app/(dashboard)/settings/workspace/billing/page
  */
 import Link from "next/link";
 
@@ -27,7 +28,7 @@ import {
 } from "@/lib/stripe/billing-view-model";
 import { loadCurrentBillingState } from "@/lib/stripe/stripe";
 
-import { SubmitButton } from "../../pricing/submit-button";
+import { SubmitButton } from "../../../(dashboard)/pricing/submit-button";
 
 const stateBadge: Record<
   BillingViewState,

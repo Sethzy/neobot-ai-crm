@@ -80,7 +80,6 @@ describe("AppSidebar", () => {
     expect(screen.getByText("Skills")).toBeInTheDocument();
     expect(screen.getByText("Tasks")).toBeInTheDocument();
     expect(screen.getByText("Automations")).toBeInTheDocument();
-    expect(screen.getByText("Memory")).toBeInTheDocument();
   });
 
   it("renders customer and database section nav items without Knowledge or Workspace", () => {
@@ -90,7 +89,7 @@ describe("AppSidebar", () => {
     expect(screen.getByText("Deals")).toBeInTheDocument();
     expect(screen.queryByText("Knowledge")).not.toBeInTheDocument();
     expect(screen.queryByText("Workspace")).not.toBeInTheDocument();
-    expect(screen.getByText("Channels")).toBeInTheDocument();
+    expect(screen.getByText("Meetings")).toBeInTheDocument();
   });
 
   it("renders section headers", () => {

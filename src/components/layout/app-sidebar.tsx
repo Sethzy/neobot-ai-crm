@@ -13,6 +13,7 @@ import posthog from "posthog-js";
 import { toast } from "sonner";
 import { Logo } from "@/components/landing/Logo";
 import { AppIcon, type AppIconName } from "@/components/icons/app-icons";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/hooks/use-session";
 import { supabase } from "@/lib/supabase";
 import {
@@ -62,7 +63,6 @@ const customersNavItems: NavigationItem[] = [
 
 /** DATABASE section — data-centric surfaces */
 const databaseNavItems: NavigationItem[] = [
-  { label: "Channels", href: "/channels", icon: "channels" },
   { label: "Meetings", href: "/meetings", icon: "meeting" },
 ];
 
@@ -76,7 +76,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
   const router = useRouter();
   const { user } = useSession();
   const { isMobile, setOpenMobile } = useSidebar();
-  const { threads, archiveThread } = useThreads();
+  const { threads, isLoading: isThreadsLoading, archiveThread } = useThreads();
 
   const closeMobileSidebar = useCallback(() => {
     if (isMobile) {
@@ -198,7 +198,15 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
             Sessions
           </SidebarGroupLabel>
           <SidebarMenu>
-            {threads.map((thread) => (
+            {isThreadsLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <SidebarMenuItem key={i}>
+                  <div className="flex items-center gap-2 px-2 py-1.5">
+                    <Skeleton className="h-4 flex-1" style={{ animationDelay: `${i * 50}ms` }} />
+                  </div>
+                </SidebarMenuItem>
+              ))
+            ) : threads.map((thread) => (
               <SidebarMenuItem key={thread.id} className="group/thread">
                 <SidebarMenuButton
                   asChild

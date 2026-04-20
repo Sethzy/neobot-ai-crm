@@ -1,16 +1,14 @@
 /**
- * Client editor for the agent-context settings page.
+ * Client editor for the agent-context (memory) settings page.
  * Owns local form state, dirty tracking, and save feedback.
  *
- * @module app/(dashboard)/settings/agent-context/agent-context-form
+ * @module components/settings/agent-context-form
  */
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,7 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
+import { MarkdownTextarea } from "@/components/ui/markdown-textarea";
 
 const MAX_CONTEXT_LENGTH = 100_000;
 
@@ -105,22 +103,6 @@ export function AgentContextForm({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-3">
-        <Badge variant="outline" className="w-fit">
-          Agent Context
-        </Badge>
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">Agent context</h1>
-          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            These two fields are injected into each managed-agent kickoff. Keep them stable,
-            durable, and high-signal.
-          </p>
-          <Link href="/settings" className="text-sm text-muted-foreground hover:underline">
-            ← Back to settings
-          </Link>
-        </div>
-      </div>
-
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="border-border/70 bg-card shadow-sm">
           <CardHeader className="gap-2">
@@ -139,9 +121,9 @@ export function AgentContextForm({
               Use this for voice, operating style, business context, and persistent instructions
               that should shape how Sunder acts for this workspace.
             </p>
-            <Textarea
+            <MarkdownTextarea
               aria-label="Client profile"
-              className="min-h-[360px] font-mono text-sm"
+              className="min-h-[360px]"
               disabled={isPending}
               maxLength={MAX_CONTEXT_LENGTH}
               placeholder="Example: Be concise, action-oriented, and avoid sales fluff. We work mostly with first-time buyers in Singapore."
@@ -171,9 +153,9 @@ export function AgentContextForm({
               Use this for how the user prefers to communicate and work: tone, decision style,
               formatting preferences, and durable personal context.
             </p>
-            <Textarea
+            <MarkdownTextarea
               aria-label="User preferences"
-              className="min-h-[360px] font-mono text-sm"
+              className="min-h-[360px]"
               disabled={isPending}
               maxLength={MAX_CONTEXT_LENGTH}
               placeholder="Example: Prefer short bullet lists, flag risks early, and draft client-facing messages in a warm but direct tone."

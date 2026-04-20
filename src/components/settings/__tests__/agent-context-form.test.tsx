@@ -1,11 +1,11 @@
 /**
  * Tests for the agent-context form client component.
- * @module app/(dashboard)/settings/agent-context/agent-context-form.test
+ * @module components/settings/agent-context-form.test
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AgentContextForm } from "./agent-context-form";
+import { AgentContextForm } from "../agent-context-form";
 
 const refresh = vi.fn();
 
@@ -31,6 +31,28 @@ describe("AgentContextForm", () => {
 
     expect(screen.getByLabelText("Client profile")).toHaveValue("Calm, practical.");
     expect(screen.getByLabelText("User preferences")).toHaveValue("Prefers bullets.");
+  });
+
+  it("uses the shared plain-text markdown editor contract for both fields", () => {
+    render(
+      <AgentContextForm
+        initialClientProfile="Calm, practical."
+        initialUserPreferences="Prefers bullets."
+      />,
+    );
+
+    const clientProfileInput = screen.getByLabelText("Client profile");
+    const userPreferencesInput = screen.getByLabelText("User preferences");
+
+    expect(clientProfileInput).toHaveAttribute("spellcheck", "false");
+    expect(clientProfileInput).toHaveAttribute("autocapitalize", "off");
+    expect(clientProfileInput).toHaveAttribute("autocorrect", "off");
+    expect(clientProfileInput).toHaveClass("font-mono");
+
+    expect(userPreferencesInput).toHaveAttribute("spellcheck", "false");
+    expect(userPreferencesInput).toHaveAttribute("autocapitalize", "off");
+    expect(userPreferencesInput).toHaveAttribute("autocorrect", "off");
+    expect(userPreferencesInput).toHaveClass("font-mono");
   });
 
   it("disables save when nothing changed", () => {

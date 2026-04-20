@@ -1,6 +1,6 @@
 /**
  * Autopilot settings card — pulse interval, quiet hours, timezone, enabled toggle.
- * @module app/(dashboard)/settings/autopilot-card
+ * @module components/settings/autopilot-card
  */
 "use client";
 

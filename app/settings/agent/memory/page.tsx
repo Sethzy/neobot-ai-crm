@@ -1,14 +1,12 @@
 /**
- * Settings page for editing the two managed-agent kickoff context fields.
- * @module app/(dashboard)/settings/agent-context/page
+ * Settings → Agent → Memory. Edits the durable client profile + user preferences
+ * that are injected into every managed-agent kickoff.
+ * @module app/(dashboard)/settings/agent/memory/page
  */
-import Link from "next/link";
-
+import { AgentContextForm } from "@/components/settings/agent-context-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { createClient } from "@/lib/supabase/server";
-
-import { AgentContextForm } from "./agent-context-form";
 
 interface AgentContextData {
   client_profile: string | null;
@@ -33,34 +31,34 @@ async function loadAgentContext(): Promise<LoadedAgentContext> {
       return { kind: "error" };
     }
 
-    return {
-      kind: "loaded",
-      data,
-    };
+    return { kind: "loaded", data };
   } catch {
     return { kind: "error" };
   }
 }
 
-export default async function AgentContextPage() {
+export default async function AgentMemoryPage() {
   const agentContext = await loadAgentContext();
 
   return (
     <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-semibold tracking-tight">Memory</h1>
+          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+            These two fields are injected into every managed-agent kickoff. Keep them stable,
+            durable, and high-signal.
+          </p>
+        </div>
+
         {agentContext.kind === "error" ? (
-          <div className="space-y-4">
-            <Alert variant="destructive">
-              <AlertTitle>Failed to load agent context.</AlertTitle>
-              <AlertDescription>
-                Refresh the page and retry before saving. The form stays locked until the
-                current values are loaded.
-              </AlertDescription>
-            </Alert>
-            <Link href="/settings" className="text-sm text-muted-foreground hover:underline">
-              ← Back to settings
-            </Link>
-          </div>
+          <Alert variant="destructive">
+            <AlertTitle>Failed to load agent context.</AlertTitle>
+            <AlertDescription>
+              Refresh the page and retry before saving. The form stays locked until the
+              current values are loaded.
+            </AlertDescription>
+          </Alert>
         ) : (
           <AgentContextForm
             initialClientProfile={agentContext.data.client_profile ?? ""}
