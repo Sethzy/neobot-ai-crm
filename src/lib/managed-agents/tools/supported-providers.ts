@@ -26,6 +26,16 @@ export const SUPPORTED_PROVIDER_DISPLAY_NAMES: Record<
   notion: "Notion",
 };
 
+export const SUPPORTED_PROVIDER_DESCRIPTIONS: Record<
+  SupportedProviderSlug,
+  string
+> = {
+  gmail: "Read, search, and send messages in your Gmail.",
+  googlecalendar: "See your schedule and create events in your calendar.",
+  googledrive: "Find, read, and manage files in your Drive.",
+  notion: "Read and update pages and databases in your Notion workspace.",
+};
+
 export const SUPPORTED_PROVIDER_NAMES_FOR_PROMPT = Object.values(
   SUPPORTED_PROVIDER_DISPLAY_NAMES,
 ).join(", ");
@@ -44,6 +54,17 @@ export function getSupportedProviderDisplayName(slug: string): string {
   }
 
   return SUPPORTED_PROVIDER_DISPLAY_NAMES[normalizedSlug];
+}
+
+/** Returns a short, user-facing description of what the provider unlocks. */
+export function getSupportedProviderDescription(slug: string): string {
+  const normalizedSlug = normalizeSupportedProviderSlug(slug);
+
+  if (!normalizedSlug) {
+    return "";
+  }
+
+  return SUPPORTED_PROVIDER_DESCRIPTIONS[normalizedSlug];
 }
 
 /**

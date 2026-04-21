@@ -23,6 +23,7 @@ describe("creating-connections/SKILL.md", () => {
     expect(content).toContain("Google Calendar");
     expect(content).toContain("Google Drive");
     expect(content?.toLowerCase()).toContain("notion");
+    expect(content).toContain("{\"integrations\":[\"notion\"]}");
     expect(content?.toLowerCase()).toMatch(/end (your|the) turn/);
   });
 });

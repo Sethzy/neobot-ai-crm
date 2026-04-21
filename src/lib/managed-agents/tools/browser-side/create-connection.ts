@@ -5,10 +5,12 @@
  */
 import { z } from "zod";
 
-import { getToolkitDisplayInfo } from "@/lib/composio/catalog";
+import { getCachedToolkitDisplayInfo } from "@/lib/composio/catalog";
 import { getCallbackUrl, initiateOAuthFlow } from "@/lib/composio/connection-flow";
+import { hasLiveAuthRedirect } from "@/lib/connections/auth-link";
 
 import {
+  getSupportedProviderDescription,
   getSupportedProviderDisplayName,
   normalizeSupportedProviderSlug,
   SUPPORTED_PROVIDER_NAMES_FOR_PROMPT,
@@ -16,12 +18,7 @@ import {
 import type { ManagedAgentTool } from "../types";
 
 const inputSchema = z.object({
-  integrations: z.array(
-    z.object({
-      integrationId: z.string().trim().min(1),
-      toolsToActivate: z.array(z.string().trim().min(1)).optional(),
-    }),
-  ),
+  integrations: z.array(z.string().trim().min(1)),
 });
 
 type CreateConnectionInput = z.infer<typeof inputSchema>;
@@ -30,15 +27,18 @@ function buildCreateConnectionError(
   integrationId: string,
   displayName: string,
   error: string,
+  logoUrl: string | null = null,
 ): {
   integrationId: string;
   displayName: string;
   error: string;
+  logoUrl: string | null;
 } {
   return {
     integrationId,
     displayName,
     error,
+    logoUrl,
   };
 }
 
@@ -57,16 +57,14 @@ function getErrorMessage(error: unknown): string {
 export const createConnectionTool: ManagedAgentTool<CreateConnectionInput> = {
   name: "create_connection",
   description: [
-    "Start the OAuth flow for a supported provider. The user completes authorization in an inline auth card in chat.",
-    "",
+    "Start a sign-in flow for a supported provider and show an inline connect card in chat.",
+    "Call format: {\"integrations\":[\"notion\"]}. Use provider strings inside the integrations array.",
     `Supported providers (v1): ${SUPPORTED_PROVIDER_NAMES_FOR_PROMPT}. Common naming variants are accepted.`,
-    "",
-    "Behavior:",
-    "- If the provider is already connected, this returns an 'already connected' error per integration. Direct the user to reauthorize if credentials are stale, or disconnect first if they want a different account.",
-    "- If the provider is not in the supported list, this returns a 'not supported' error. Do not attempt discovery or capability inspection.",
-    "- After calling this tool, END YOUR TURN. The provider is not usable in the current run. It becomes usable on the user's next message after OAuth completes.",
-    "",
-    "For each integration you include, the response reports either a pending_auth card with a redirectUrl, or an error.",
+    "Legacy object variants may still work, but the preferred shape is a string array.",
+    "If the provider is already connected, return the per-integration error and suggest reauthorize or disconnect.",
+    "If the provider is unsupported, return the per-integration error. Do not search the catalog or inspect capabilities first.",
+    "After calling this tool, end your turn. The provider is usable only on the user's next message after sign-in completes.",
+    "In your reply, say 'connect' or 'sign in'. Never say 'auth card', 'OAuth', or 'authorize'. Keep the reply to one short sentence.",
   ].join("\n"),
   inputSchema,
   execute: async ({ integrations }, context) => {
@@ -75,25 +73,28 @@ export const createConnectionTool: ManagedAgentTool<CreateConnectionInput> = {
           integrationId: string;
           displayName: string;
           description: string;
+          logoUrl: string | null;
           connectionStatus: "pending_auth";
           redirectUrl: string;
+          authRedirectExpiresAt: string | null;
           composioConnectedAccountId: string;
         }
       | {
           integrationId: string;
           displayName: string;
           error: string;
+          logoUrl: string | null;
         }
     > = [];
 
-    for (const integration of integrations) {
-      const providerSlug = normalizeSupportedProviderSlug(integration.integrationId);
+    for (const integrationId of integrations) {
+      const providerSlug = normalizeSupportedProviderSlug(integrationId);
 
       if (!providerSlug) {
         results.push(buildCreateConnectionError(
-          integration.integrationId,
-          integration.integrationId,
-          `Provider '${integration.integrationId}' is not supported in v1. ` +
+          integrationId,
+          integrationId,
+          `Provider '${integrationId}' is not supported in v1. ` +
             `Supported providers: ${SUPPORTED_PROVIDER_NAMES_FOR_PROMPT}.`,
         ));
         continue;
@@ -103,12 +104,19 @@ export const createConnectionTool: ManagedAgentTool<CreateConnectionInput> = {
         providerSlug,
         context.threadId ? { threadId: context.threadId } : undefined,
       );
-      const toolkitDisplayInfo = await getToolkitDisplayInfo(providerSlug).catch(() => ({
-        integrationId: providerSlug,
-        displayName: getSupportedProviderDisplayName(providerSlug),
-        description: "",
-      }));
-      const displayName = toolkitDisplayInfo.displayName;
+      const fallbackDisplayName = getSupportedProviderDisplayName(providerSlug);
+      const fallbackDescription = getSupportedProviderDescription(providerSlug);
+      const toolkitDisplayInfo = await getCachedToolkitDisplayInfo(providerSlug).catch(
+        () => ({
+          integrationId: providerSlug,
+          displayName: fallbackDisplayName,
+          description: fallbackDescription,
+          logoUrl: null,
+        }),
+      );
+      const displayName = toolkitDisplayInfo.displayName || fallbackDisplayName;
+      const description = toolkitDisplayInfo.description || fallbackDescription;
+      const logoUrl = toolkitDisplayInfo.logoUrl ?? null;
 
       const { data: existingConnection, error } = await context.supabase
         .from("connections")
@@ -124,21 +132,59 @@ export const createConnectionTool: ManagedAgentTool<CreateConnectionInput> = {
           providerSlug,
           displayName,
           `Could not start ${displayName}: ${error.message}`,
+          logoUrl,
         ));
         continue;
       }
 
       if (existingConnection) {
-        results.push(buildCreateConnectionError(
-          providerSlug,
-          displayName,
-          "Already connected. Ask the user to reauthorize this provider if credentials are stale, or disconnect it first to connect a different account.",
-        ));
-        continue;
+        if (existingConnection.status === "pending") {
+          if (hasLiveAuthRedirect(
+            existingConnection.auth_redirect_url,
+            existingConnection.auth_redirect_expires_at,
+          )) {
+            results.push({
+              integrationId: providerSlug,
+              displayName,
+              description,
+              logoUrl,
+              connectionStatus: "pending_auth",
+              redirectUrl: existingConnection.auth_redirect_url!,
+              authRedirectExpiresAt: existingConnection.auth_redirect_expires_at,
+              composioConnectedAccountId: existingConnection.composio_connected_account_id,
+            });
+            continue;
+          }
+
+          const { error: deletePendingError } = await context.supabase
+            .from("connections")
+            .delete()
+            .eq("client_id", context.clientId)
+            .eq("id", existingConnection.id);
+
+          if (deletePendingError) {
+            results.push(buildCreateConnectionError(
+              providerSlug,
+              displayName,
+              `Could not restart ${displayName}: ${deletePendingError.message}`,
+              logoUrl,
+            ));
+            continue;
+          }
+        } else {
+          results.push(buildCreateConnectionError(
+            providerSlug,
+            displayName,
+            "Already connected. Ask the user to reauthorize this provider if credentials are stale, or disconnect it first to connect a different account.",
+            logoUrl,
+          ));
+          continue;
+        }
       }
 
       let redirectUrl: string;
       let connectedAccountId: string;
+      let authRedirectExpiresAt: string | null;
 
       try {
         const oauthFlow = await initiateOAuthFlow({
@@ -148,11 +194,13 @@ export const createConnectionTool: ManagedAgentTool<CreateConnectionInput> = {
         });
         redirectUrl = oauthFlow.redirectUrl;
         connectedAccountId = oauthFlow.connectedAccountId;
+        authRedirectExpiresAt = oauthFlow.authRedirectExpiresAt;
       } catch (error) {
         results.push(buildCreateConnectionError(
           providerSlug,
           displayName,
           `Could not start ${displayName}: ${getErrorMessage(error)}`,
+          logoUrl,
         ));
         continue;
       }
@@ -165,6 +213,8 @@ export const createConnectionTool: ManagedAgentTool<CreateConnectionInput> = {
           toolkit_slug: providerSlug,
           display_name: null,
           account_identifier: null,
+          auth_redirect_url: redirectUrl,
+          auth_redirect_expires_at: authRedirectExpiresAt,
           status: "pending",
           activated_tools: [],
           tool_count: 0,
@@ -175,6 +225,7 @@ export const createConnectionTool: ManagedAgentTool<CreateConnectionInput> = {
           providerSlug,
           displayName,
           `Could not start ${displayName}: ${insertError.message}`,
+          logoUrl,
         ));
         continue;
       }
@@ -182,20 +233,22 @@ export const createConnectionTool: ManagedAgentTool<CreateConnectionInput> = {
       results.push({
         integrationId: providerSlug,
         displayName,
-        description: toolkitDisplayInfo.description,
+        description,
+        logoUrl,
         connectionStatus: "pending_auth",
         redirectUrl,
+        authRedirectExpiresAt,
         composioConnectedAccountId: connectedAccountId,
       });
     }
 
-    const hasPendingAuthCard = results.some((result) => "connectionStatus" in result);
+    const hasPendingCard = results.some((result) => "connectionStatus" in result);
 
     return {
       success: true as const,
-      message: hasPendingAuthCard
-        ? "Auth card(s) are now visible in chat. End this turn. The provider becomes usable on the user's next message after they complete OAuth."
-        : "No new connection cards were created. Review per-integration errors below and stop; do not retry.",
+      message: hasPendingCard
+        ? "A connect card was shown to the user above. In your reply: tell them briefly to click Connect and sign in, and say you'll pick it up on their next message. Do not use the words 'auth card', 'OAuth', or 'authorize' in your reply — say 'connect' or 'sign in' instead. End your turn after that reply."
+        : "No connection was started. Tell the user what went wrong using the per-integration errors, and ask what they'd like to do next.",
       results,
     };
   },

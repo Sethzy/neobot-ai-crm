@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 
-import { getToolkitDisplayInfo } from "@/lib/composio/catalog";
+import { getCachedToolkitDisplayInfo } from "@/lib/composio/catalog";
 import { getComposio } from "@/lib/composio/client";
 import { getCallbackUrl } from "@/lib/composio/connection-flow";
 
@@ -61,7 +61,11 @@ export const reauthorizeConnectionTool: ManagedAgentTool<ReauthorizeConnectionIn
       if (refreshedConnection.status === "ACTIVE") {
         const { error: updateError } = await context.supabase
           .from("connections")
-          .update({ status: "active" })
+          .update({
+            status: "active",
+            auth_redirect_url: null,
+            auth_redirect_expires_at: null,
+          })
           .eq("client_id", context.clientId)
           .eq("id", connection.id);
 
@@ -90,25 +94,50 @@ export const reauthorizeConnectionTool: ManagedAgentTool<ReauthorizeConnectionIn
       },
     );
 
-    if (!refreshResult.redirect_url) {
+    const redirectUrl = refreshResult.redirect_url
+      ?? (refreshResult as { redirectUrl?: string }).redirectUrl;
+
+    if (!redirectUrl) {
       return { success: false as const, error: "Composio did not return a re-authorization URL." };
     }
 
-    const toolkitDisplayInfo = await getToolkitDisplayInfo(connection.toolkit_slug).catch(() => ({
+    const rawAuthRedirectExpiresAt = refreshResult.expires_at
+      ?? (refreshResult as { expiresAt?: string }).expiresAt;
+    const authRedirectExpiresAt = typeof rawAuthRedirectExpiresAt === "string"
+      && Number.isFinite(Date.parse(rawAuthRedirectExpiresAt))
+      ? new Date(Date.parse(rawAuthRedirectExpiresAt)).toISOString()
+      : null;
+    const { error: updateError } = await context.supabase
+      .from("connections")
+      .update({
+        auth_redirect_url: redirectUrl,
+        auth_redirect_expires_at: authRedirectExpiresAt,
+      })
+      .eq("client_id", context.clientId)
+      .eq("id", connection.id);
+
+    if (updateError) {
+      return { success: false as const, error: updateError.message };
+    }
+
+    const toolkitDisplayInfo = await getCachedToolkitDisplayInfo(connection.toolkit_slug).catch(() => ({
       integrationId: connection.toolkit_slug,
       displayName: connection.toolkit_slug,
       description: "",
+      logoUrl: null,
     }));
 
     return {
       success: true as const,
       connectionId: connection.id,
       status: "pending_reauth" as const,
-      redirectUrl: refreshResult.redirect_url,
+      redirectUrl,
       integrationId: connection.toolkit_slug,
       displayName: toolkitDisplayInfo.displayName,
       description: toolkitDisplayInfo.description,
+      logoUrl: toolkitDisplayInfo.logoUrl ?? null,
       connectionStatus: "pending_reauth" as const,
+      authRedirectExpiresAt,
       composioConnectedAccountId: connection.composio_connected_account_id,
       message:
         "A reauthorization card is now visible in chat. End this turn. The provider becomes usable again on the user's next message after OAuth completes.",

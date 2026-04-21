@@ -5,11 +5,11 @@ vi.mock("@/lib/composio/client", () => ({
 }));
 
 vi.mock("@/lib/composio/catalog", () => ({
-  getToolkitDisplayInfo: vi.fn(),
+  getCachedToolkitDisplayInfo: vi.fn(),
 }));
 
 import { getComposio } from "@/lib/composio/client";
-import { getToolkitDisplayInfo } from "@/lib/composio/catalog";
+import { getCachedToolkitDisplayInfo } from "@/lib/composio/catalog";
 import { createMockSupabase } from "@/lib/crm/__tests__/mock-supabase";
 import type { ToolContext } from "@/lib/managed-agents/tools/types";
 
@@ -31,10 +31,11 @@ describe("reauthorizeConnectionTool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.sunder.local");
-    vi.mocked(getToolkitDisplayInfo).mockResolvedValue({
+    vi.mocked(getCachedToolkitDisplayInfo).mockResolvedValue({
       integrationId: "gmail",
       displayName: "Gmail",
       description: "Send and read Gmail messages.",
+      logoUrl: "https://cdn.composio.dev/gmail.png",
     });
   });
 
@@ -85,7 +86,10 @@ describe("reauthorizeConnectionTool", () => {
     const refresh = vi
       .fn()
       .mockRejectedValueOnce(new Error("Token expired"))
-      .mockResolvedValueOnce({ redirect_url: "https://composio.dev/oauth/reauth" });
+      .mockResolvedValueOnce({
+        redirect_url: "https://composio.dev/oauth/reauth",
+        expires_at: "2026-04-21T09:45:00.000Z",
+      });
 
     vi.mocked(getComposio).mockReturnValue({
       connectedAccounts: {
@@ -116,15 +120,18 @@ describe("reauthorizeConnectionTool", () => {
     );
 
     expect(builderHistory.connections[0]?.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
-    expect(builderHistory.connections).toHaveLength(1);
+    expect(builderHistory.connections[1]?.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
+    expect(builderHistory.connections).toHaveLength(2);
     expect(result).toMatchObject({
       success: true,
       connectionId: "conn-1",
       status: "pending_reauth",
       redirectUrl: "https://composio.dev/oauth/reauth",
+      authRedirectExpiresAt: "2026-04-21T09:45:00.000Z",
       integrationId: "gmail",
       displayName: "Gmail",
       description: "Send and read Gmail messages.",
+      logoUrl: "https://cdn.composio.dev/gmail.png",
       connectionStatus: "pending_reauth",
       composioConnectedAccountId: "composio-1",
     });
