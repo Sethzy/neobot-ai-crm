@@ -12,7 +12,7 @@ import {
   buildUnsupportedQuestionFallback,
   createTelegramBot,
   getTelegramBotToken,
-  isPairingTokenFormat,
+  isPairingDisplayCodeFormat,
   parseApprovalCallback,
   parseQuestionCallback,
   sendTelegramQuestion,
@@ -24,10 +24,21 @@ import {
   restorePendingQuestionBatch,
 } from "@/lib/channels/telegram/pending-questions";
 import {
+  deleteTelegramChannelMapping,
+  findTelegramPairingSession,
+  getTelegramConnectionByChatId,
+  getTelegramConnectionForUser,
+  markTelegramPairingSessionConsumed,
+  upsertTelegramChannelMapping,
+  upsertTelegramConnection,
+  updateTelegramConnectionTargetThread,
+} from "@/lib/channels/telegram/user-connections";
+import {
   editTelegramCallbackMessage,
   extractChatId,
   extractInboundFiles,
   getCallbackMessage,
+  getTelegramMappingByChatId,
   hasValidTelegramSecret,
   parseCommand,
   recordTelegramDeliveryReceipt,
@@ -54,72 +65,77 @@ const telegramUpdateSchema = z.object({
 // /start — pairing
 // ---------------------------------------------------------------------------
 
-async function handleStartCommand(
+async function pairTelegramChat(
   ctx: TelegramWebhookContext,
   message: Record<string, unknown>,
-  token: string,
+  candidate: string,
+  failureMessage: string,
 ): Promise<void> {
   const { chatId, numericChatId } = extractChatId(message);
+  const trimmedCandidate = candidate.trim();
 
-  if (!isPairingTokenFormat(token)) {
-    await sendPlainTelegramMessage(ctx.bot, numericChatId, "This pairing link is invalid.");
+  if (!trimmedCandidate) {
+    await sendPlainTelegramMessage(ctx.bot, numericChatId, failureMessage);
     return;
   }
 
-  const { data: existingMapping } = await ctx.supabase
-    .from("conversation_channel_mappings")
-    .select("client_id")
-    .eq("channel", TELEGRAM_CHANNEL)
-    .eq("external_conversation_id", chatId)
-    .maybeSingle();
+  const pairingSession = await findTelegramPairingSession(ctx.supabase, trimmedCandidate);
+  if (
+    !pairingSession
+    || pairingSession.consumedAt
+    || new Date(pairingSession.expiresAt) <= new Date()
+  ) {
+    await sendPlainTelegramMessage(ctx.bot, numericChatId, failureMessage);
+    return;
+  }
 
-  if (existingMapping) {
+  const existingChatConnection = await getTelegramConnectionByChatId(ctx.supabase, chatId);
+  if (existingChatConnection && existingChatConnection.userId !== pairingSession.userId) {
     await sendPlainTelegramMessage(ctx.bot, numericChatId, "This Telegram chat is already connected.");
     return;
   }
 
-  const { data: pairingToken, error: pairingError } = await ctx.supabase
-    .from("telegram_pairing_tokens")
-    .select("token, client_id, expires_at")
-    .eq("token", token)
-    .maybeSingle();
-
-  if (pairingError || !pairingToken || new Date(pairingToken.expires_at) <= new Date()) {
-    await sendPlainTelegramMessage(ctx.bot, numericChatId, "This pairing link has expired.");
-    return;
-  }
-
-  const { data: primaryThread, error: primaryError } = await ctx.supabase
-    .from("conversation_threads")
-    .select("thread_id")
-    .eq("client_id", pairingToken.client_id)
-    .eq("is_primary", true)
-    .single();
-
-  if (primaryError || !primaryThread) {
-    await sendPlainTelegramMessage(ctx.bot, numericChatId, "Setup incomplete. Please try again.");
-    return;
-  }
-
-  const { error: mappingError } = await ctx.supabase
-    .from("conversation_channel_mappings")
-    .insert({
-      client_id: pairingToken.client_id,
-      thread_id: primaryThread.thread_id,
-      channel: TELEGRAM_CHANNEL,
-      external_conversation_id: chatId,
+  const existingUserConnection = await getTelegramConnectionForUser(
+    ctx.supabase,
+    pairingSession.userId,
+  );
+  if (
+    existingUserConnection
+    && existingUserConnection.externalConversationId !== chatId
+  ) {
+    await deleteTelegramChannelMapping(ctx.supabase, {
+      chatId: existingUserConnection.externalConversationId,
+      clientId: existingUserConnection.clientId,
     });
-
-  if (mappingError) {
-    throw mappingError;
   }
 
-  await ctx.supabase
-    .from("telegram_pairing_tokens")
-    .delete()
-    .eq("token", token);
+  await upsertTelegramConnection(ctx.supabase, {
+    clientId: pairingSession.clientId,
+    externalConversationId: chatId,
+    targetThreadId: pairingSession.targetThreadId,
+    userId: pairingSession.userId,
+  });
+  await upsertTelegramChannelMapping(ctx.supabase, {
+    chatId,
+    clientId: pairingSession.clientId,
+    threadId: pairingSession.targetThreadId,
+  });
+  await markTelegramPairingSessionConsumed(ctx.supabase, pairingSession.id);
 
   await sendPlainTelegramMessage(ctx.bot, numericChatId, "Connected. You can message your agent here.");
+}
+
+async function handleStartCommand(
+  ctx: TelegramWebhookContext,
+  message: Record<string, unknown>,
+  candidate: string,
+): Promise<void> {
+  await pairTelegramChat(
+    ctx,
+    message,
+    candidate,
+    "This pairing link is invalid or expired.",
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -157,6 +173,14 @@ async function handleNewCommand(
 
   if (updateError) {
     throw updateError;
+  }
+
+  const connection = await getTelegramConnectionByChatId(ctx.supabase, chatId);
+  if (connection) {
+    await updateTelegramConnectionTargetThread(ctx.supabase, {
+      targetThreadId: threadId,
+      userId: connection.userId,
+    });
   }
 
   await sendPlainTelegramMessage(ctx.bot, numericChatId, "Started a new Telegram chat.");
@@ -204,6 +228,14 @@ async function handleMainCommand(
 
   if (updateError) {
     throw updateError;
+  }
+
+  const connection = await getTelegramConnectionByChatId(ctx.supabase, chatId);
+  if (connection) {
+    await updateTelegramConnectionTargetThread(ctx.supabase, {
+      targetThreadId: primaryThread.thread_id,
+      userId: connection.userId,
+    });
   }
 
   await sendPlainTelegramMessage(ctx.bot, numericChatId, "Switched back to main session.");
@@ -313,9 +345,34 @@ async function handleRegularMessage(
   updateId: number,
   message: Record<string, unknown>,
 ): Promise<void> {
-  const resolved = await resolveCommandMapping(ctx, message);
-  if (!resolved) return;
-  const { numericChatId, mapping } = resolved;
+  const messageText = typeof message.text === "string"
+    ? message.text.trim()
+    : typeof message.caption === "string"
+      ? message.caption.trim()
+      : "";
+  const { chatId, numericChatId } = extractChatId(message);
+  const mapping = await getTelegramMappingByChatId(ctx.supabase, chatId);
+
+  if (!mapping) {
+    if (messageText && isPairingDisplayCodeFormat(messageText)) {
+      await pairTelegramChat(
+        ctx,
+        message,
+        messageText,
+        "This pairing code is invalid or expired.",
+      );
+      return;
+    }
+
+    await sendPlainTelegramMessage(
+      ctx.bot,
+      numericChatId,
+      "This chat is not connected. Generate a new pairing link from Settings.",
+    );
+    return;
+  }
+
+  const resolved = { chatId, numericChatId, mapping };
 
   const shouldContinue = await recordTelegramDeliveryReceipt(ctx.supabase, {
     clientId: mapping.client_id,
@@ -325,12 +382,6 @@ async function handleRegularMessage(
   if (!shouldContinue) {
     return;
   }
-
-  const messageText = typeof message.text === "string"
-    ? message.text.trim()
-    : typeof message.caption === "string"
-      ? message.caption.trim()
-      : "";
 
   if (messageText) {
     const pendingTextReply = await advancePendingQuestionBatchByTextReply(ctx.supabase, {

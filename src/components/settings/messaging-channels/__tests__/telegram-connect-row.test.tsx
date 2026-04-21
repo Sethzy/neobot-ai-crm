@@ -37,23 +37,55 @@ describe("TelegramConnectRow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", vi.fn());
+    vi.stubGlobal("navigator", {
+      clipboard: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+      },
+    });
   });
 
-  it("renders idle state when no chatId is passed", () => {
+  it("renders idle state when Telegram is available and not yet connected", () => {
     render(
       withQueryClient(
-        <TelegramConnectRow clientId="client-1" initialChatId={null} />,
+        <TelegramConnectRow
+          initialConnection={null}
+          isAvailable
+          realtimeUserId="user-1"
+        />,
       ),
     );
 
-    expect(screen.getByText("Telegram")).toBeInTheDocument();
+    expect(screen.getByText("Connect Telegram")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Connect" })).toBeInTheDocument();
   });
 
-  it("renders connected state when initialChatId is passed", () => {
+  it("renders unavailable state when Telegram is not configured", () => {
     render(
       withQueryClient(
-        <TelegramConnectRow clientId="client-1" initialChatId="987654321" />,
+        <TelegramConnectRow
+          availabilityMessage="Telegram is not configured yet."
+          initialConnection={null}
+          isAvailable={false}
+          realtimeUserId="user-1"
+        />,
+      ),
+    );
+
+    expect(screen.getByRole("button", { name: "Unavailable" })).toBeDisabled();
+    expect(screen.getByText("Telegram is not configured yet.")).toBeInTheDocument();
+  });
+
+  it("renders connected state when initial connection is passed", () => {
+    render(
+      withQueryClient(
+        <TelegramConnectRow
+          initialConnection={{
+            chatId: "987654321",
+            targetThreadId: "thread-1",
+          }}
+          isAvailable
+          realtimeUserId="user-1"
+        />,
       ),
     );
 
@@ -61,13 +93,15 @@ describe("TelegramConnectRow", () => {
     expect(screen.getByRole("button", { name: "Disconnect" })).toBeInTheDocument();
   });
 
-  it("POSTs to generate-pairing-link and shows the deep link on success", async () => {
+  it("POSTs to generate-pairing-link and shows the manual code + deep link on success", async () => {
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValueOnce(
       new Response(
         JSON.stringify({
-          url: "https://t.me/sunder_bot?start=abc123",
+          botUsername: "GooseworksBot",
+          displayCode: "GW-22E14A",
           expiresInSeconds: 600,
+          openUrl: "https://t.me/gooseworks_bot?start=abc123",
         }),
         { status: 200 },
       ),
@@ -75,7 +109,11 @@ describe("TelegramConnectRow", () => {
 
     render(
       withQueryClient(
-        <TelegramConnectRow clientId="client-1" initialChatId={null} />,
+        <TelegramConnectRow
+          initialConnection={null}
+          isAvailable
+          realtimeUserId="user-1"
+        />,
       ),
     );
 
@@ -90,9 +128,11 @@ describe("TelegramConnectRow", () => {
     await waitFor(() => {
       expect(screen.getByRole("link", { name: "Open Telegram" })).toHaveAttribute(
         "href",
-        "https://t.me/sunder_bot?start=abc123",
+        "https://t.me/gooseworks_bot?start=abc123",
       );
     });
+    expect(screen.getByText("GW-22E14A")).toBeInTheDocument();
+    expect(screen.getByText(/@GooseworksBot/)).toBeInTheDocument();
     expect(screen.getByText(/Waiting for connection/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
@@ -108,7 +148,11 @@ describe("TelegramConnectRow", () => {
 
     render(
       withQueryClient(
-        <TelegramConnectRow clientId="client-1" initialChatId={null} />,
+        <TelegramConnectRow
+          initialConnection={null}
+          isAvailable
+          realtimeUserId="user-1"
+        />,
       ),
     );
 
@@ -128,7 +172,14 @@ describe("TelegramConnectRow", () => {
 
     render(
       withQueryClient(
-        <TelegramConnectRow clientId="client-1" initialChatId="987654321" />,
+        <TelegramConnectRow
+          initialConnection={{
+            chatId: "987654321",
+            targetThreadId: "thread-1",
+          }}
+          isAvailable
+          realtimeUserId="user-1"
+        />,
       ),
     );
 
@@ -138,6 +189,43 @@ describe("TelegramConnectRow", () => {
       expect(fetchMock).toHaveBeenCalledWith("/api/telegram/disconnect", {
         method: "DELETE",
       });
+    });
+  });
+
+  it("copies the manual pairing code", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          botUsername: "GooseworksBot",
+          displayCode: "GW-22E14A",
+          expiresInSeconds: 600,
+          openUrl: "https://t.me/gooseworks_bot?start=abc123",
+        }),
+        { status: 200 },
+      ),
+    );
+
+    render(
+      withQueryClient(
+        <TelegramConnectRow
+          initialConnection={null}
+          isAvailable
+          realtimeUserId="user-1"
+        />,
+      ),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Copy code" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy code" }));
+
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith("GW-22E14A");
     });
   });
 });

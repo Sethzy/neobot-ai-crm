@@ -1,11 +1,15 @@
 /**
  * DELETE /api/telegram/disconnect
- * Removes the authenticated client's Telegram channel mapping.
+ * Removes the authenticated user's Telegram connection.
  * @module app/api/telegram/disconnect/route
  */
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { clearPendingQuestionsForChat } from "@/lib/channels/telegram/pending-questions";
-import { resolveClientId } from "@/lib/chat/client-id";
+import {
+  deleteTelegramChannelMapping,
+  deleteTelegramConnectionForUser,
+  getTelegramConnectionForUser,
+} from "@/lib/channels/telegram/user-connections";
 import { createAdminClient } from "@/lib/supabase/server";
 
 export async function DELETE(): Promise<Response> {
@@ -15,29 +19,18 @@ export async function DELETE(): Promise<Response> {
   }
 
   try {
-    const clientId = await resolveClientId(authResult.supabase, authResult.userId);
-    const { data: mapping } = await authResult.supabase
-      .from("conversation_channel_mappings")
-      .select("external_conversation_id")
-      .eq("channel", "telegram")
-      .eq("client_id", clientId)
-      .maybeSingle();
+    const connection = await getTelegramConnectionForUser(authResult.supabase, authResult.userId);
 
-    if (mapping?.external_conversation_id) {
+    if (connection) {
       const adminSupabase = await createAdminClient();
-      await clearPendingQuestionsForChat(adminSupabase, mapping.external_conversation_id);
+      await clearPendingQuestionsForChat(adminSupabase, connection.externalConversationId);
+      await deleteTelegramChannelMapping(adminSupabase, {
+        chatId: connection.externalConversationId,
+        clientId: connection.clientId,
+      });
     }
 
-    const { error } = await authResult.supabase
-      .from("conversation_channel_mappings")
-      .delete()
-      .eq("channel", "telegram")
-      .eq("client_id", clientId);
-
-    if (error) {
-      console.error("[telegram/disconnect] Failed to delete mapping:", error);
-      return jsonError("Failed to disconnect Telegram.", 500);
-    }
+    await deleteTelegramConnectionForUser(authResult.supabase, authResult.userId);
 
     return Response.json({ success: true });
   } catch (error) {

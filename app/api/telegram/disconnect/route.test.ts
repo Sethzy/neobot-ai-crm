@@ -6,23 +6,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   mockAuthenticateRequest,
-  mockResolveClientId,
   mockCreateAdminClient,
   mockClearPendingQuestionsForChat,
+  mockGetTelegramConnectionForUser,
+  mockDeleteTelegramConnectionForUser,
+  mockDeleteTelegramChannelMapping,
 } = vi.hoisted(() => ({
   mockAuthenticateRequest: vi.fn(),
-  mockResolveClientId: vi.fn(),
   mockCreateAdminClient: vi.fn(),
   mockClearPendingQuestionsForChat: vi.fn(),
+  mockGetTelegramConnectionForUser: vi.fn(),
+  mockDeleteTelegramConnectionForUser: vi.fn(),
+  mockDeleteTelegramChannelMapping: vi.fn(),
 }));
 
 vi.mock("@/lib/api/route-helpers", () => ({
   authenticateRequest: (...args: unknown[]) => mockAuthenticateRequest(...args),
   jsonError: (message: string, status: number) => Response.json({ error: message }, { status }),
-}));
-
-vi.mock("@/lib/chat/client-id", () => ({
-  resolveClientId: (...args: unknown[]) => mockResolveClientId(...args),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -33,46 +33,27 @@ vi.mock("@/lib/channels/telegram/pending-questions", () => ({
   clearPendingQuestionsForChat: (...args: unknown[]) => mockClearPendingQuestionsForChat(...args),
 }));
 
+vi.mock("@/lib/channels/telegram/user-connections", () => ({
+  deleteTelegramChannelMapping: (...args: unknown[]) => mockDeleteTelegramChannelMapping(...args),
+  deleteTelegramConnectionForUser: (...args: unknown[]) => mockDeleteTelegramConnectionForUser(...args),
+  getTelegramConnectionForUser: (...args: unknown[]) => mockGetTelegramConnectionForUser(...args),
+}));
+
 import { DELETE } from "./route";
-
-function createSupabase(deleteResult = { error: null }) {
-  const deleteEqClient = vi.fn().mockResolvedValue(deleteResult);
-  const deleteEqChannel = vi.fn().mockReturnValue({ eq: deleteEqClient });
-  const deleteRow = vi.fn(() => ({ eq: deleteEqChannel }));
-  const selectMaybeSingle = vi.fn().mockResolvedValue({
-    data: { external_conversation_id: "12345" },
-    error: null,
-  });
-  const selectEqClient = vi.fn().mockReturnValue({ maybeSingle: selectMaybeSingle });
-  const selectEqChannel = vi.fn().mockReturnValue({ eq: selectEqClient });
-  const selectRow = vi.fn(() => ({ eq: selectEqChannel }));
-  const from = vi.fn((table: string) => {
-    if (table !== "conversation_channel_mappings") {
-      throw new Error(`Unexpected table: ${table}`);
-    }
-
-    return {
-      delete: deleteRow,
-      select: selectRow,
-    };
-  });
-
-  return {
-    from,
-    deleteEqChannel,
-    deleteEqClient,
-    deleteRow,
-    selectEqChannel,
-    selectEqClient,
-    selectMaybeSingle,
-  };
-}
 
 describe("DELETE /api/telegram/disconnect", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCreateAdminClient.mockResolvedValue({});
+    mockCreateAdminClient.mockResolvedValue({ admin: true });
     mockClearPendingQuestionsForChat.mockResolvedValue(undefined);
+    mockGetTelegramConnectionForUser.mockResolvedValue({
+      clientId: "client-1",
+      externalConversationId: "12345",
+      targetThreadId: "thread-1",
+      userId: "user-1",
+    });
+    mockDeleteTelegramConnectionForUser.mockResolvedValue(undefined);
+    mockDeleteTelegramChannelMapping.mockResolvedValue(undefined);
   });
 
   it("returns the auth error response when unauthenticated", async () => {
@@ -90,14 +71,13 @@ describe("DELETE /api/telegram/disconnect", () => {
     expect(response.status).toBe(401);
   });
 
-  it("deletes the client's telegram mapping", async () => {
-    const supabase = createSupabase();
+  it("deletes the current user's Telegram connection and routing row", async () => {
+    const supabase = { from: vi.fn() };
     mockAuthenticateRequest.mockResolvedValue({
       kind: "ok",
       supabase,
       userId: "user-1",
     });
-    mockResolveClientId.mockResolvedValue("client-1");
 
     const response = await DELETE(
       new Request("http://localhost/api/telegram/disconnect", {
@@ -107,19 +87,23 @@ describe("DELETE /api/telegram/disconnect", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ success: true });
-    expect(supabase.deleteEqChannel).toHaveBeenCalledWith("channel", "telegram");
-    expect(supabase.deleteEqClient).toHaveBeenCalledWith("client_id", "client-1");
-    expect(mockClearPendingQuestionsForChat).toHaveBeenCalledWith({}, "12345");
+    expect(mockGetTelegramConnectionForUser).toHaveBeenCalledWith(supabase, "user-1");
+    expect(mockClearPendingQuestionsForChat).toHaveBeenCalledWith({ admin: true }, "12345");
+    expect(mockDeleteTelegramChannelMapping).toHaveBeenCalledWith({ admin: true }, {
+      chatId: "12345",
+      clientId: "client-1",
+    });
+    expect(mockDeleteTelegramConnectionForUser).toHaveBeenCalledWith(supabase, "user-1");
   });
 
-  it("returns 500 when the delete fails", async () => {
-    const supabase = createSupabase({ error: { message: "db down" } });
+  it("returns 500 when deleting the user-owned connection fails", async () => {
+    const supabase = { from: vi.fn() };
     mockAuthenticateRequest.mockResolvedValue({
       kind: "ok",
       supabase,
       userId: "user-1",
     });
-    mockResolveClientId.mockResolvedValue("client-1");
+    mockDeleteTelegramConnectionForUser.mockRejectedValueOnce(new Error("db down"));
 
     const response = await DELETE(
       new Request("http://localhost/api/telegram/disconnect", {
@@ -130,14 +114,13 @@ describe("DELETE /api/telegram/disconnect", () => {
     expect(response.status).toBe(500);
   });
 
-  it("returns 500 and leaves the mapping intact when clearing pending questions fails", async () => {
-    const supabase = createSupabase();
+  it("returns 500 and leaves the connection intact when clearing pending questions fails", async () => {
+    const supabase = { from: vi.fn() };
     mockAuthenticateRequest.mockResolvedValue({
       kind: "ok",
       supabase,
       userId: "user-1",
     });
-    mockResolveClientId.mockResolvedValue("client-1");
     mockClearPendingQuestionsForChat.mockRejectedValueOnce(new Error("clear failed"));
 
     const response = await DELETE(
@@ -147,6 +130,28 @@ describe("DELETE /api/telegram/disconnect", () => {
     );
 
     expect(response.status).toBe(500);
-    expect(supabase.deleteRow).not.toHaveBeenCalled();
+    expect(mockDeleteTelegramChannelMapping).not.toHaveBeenCalled();
+    expect(mockDeleteTelegramConnectionForUser).not.toHaveBeenCalled();
+  });
+
+  it("returns success when the user has no Telegram connection", async () => {
+    const supabase = { from: vi.fn() };
+    mockAuthenticateRequest.mockResolvedValue({
+      kind: "ok",
+      supabase,
+      userId: "user-1",
+    });
+    mockGetTelegramConnectionForUser.mockResolvedValue(null);
+
+    const response = await DELETE(
+      new Request("http://localhost/api/telegram/disconnect", {
+        method: "DELETE",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockClearPendingQuestionsForChat).not.toHaveBeenCalled();
+    expect(mockDeleteTelegramChannelMapping).not.toHaveBeenCalled();
+    expect(mockDeleteTelegramConnectionForUser).toHaveBeenCalledWith(supabase, "user-1");
   });
 });

@@ -1,15 +1,63 @@
 /**
  * POST /api/telegram/generate-pairing-link
- * Generates a Telegram deep-link pairing URL for the authenticated client.
+ * Generates a Telegram pairing session for the authenticated user.
  * @module app/api/telegram/generate-pairing-link/route
  */
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { getBotUsername } from "@/lib/channels/telegram";
 import {
+  generatePairingDisplayCode,
   generatePairingToken,
   PAIRING_TOKEN_TTL_MS,
 } from "@/lib/channels/telegram/pairing";
+import {
+  clearTelegramPairingSessionsForUser,
+  createTelegramPairingSession,
+  getTelegramReadiness,
+} from "@/lib/channels/telegram/user-connections";
 import { resolveClientId } from "@/lib/chat/client-id";
+import { getDefaultMessagingThreadForUser } from "@/lib/settings/profile/messaging-preferences";
+import type { AuthResult } from "@/lib/api/route-helpers";
+
+type AuthenticatedSupabase = Extract<AuthResult, { kind: "ok" }>["supabase"];
+
+function getPairingLinkErrorResponse(error: unknown): Response {
+  if (error instanceof Error && error.message.includes("Telegram pairing is unavailable")) {
+    return jsonError(
+      error.message,
+      503,
+    );
+  }
+
+  return jsonError("Failed to generate Telegram pairing link.", 500);
+}
+
+async function createPairingSessionWithRetry(input: {
+  clientId: string;
+  expiresAt: string;
+  supabase: AuthenticatedSupabase;
+  targetThreadId: string;
+  userId: string;
+}) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await createTelegramPairingSession(input.supabase, {
+        clientId: input.clientId,
+        deepLinkToken: generatePairingToken(),
+        displayCode: generatePairingDisplayCode(),
+        expiresAt: input.expiresAt,
+        targetThreadId: input.targetThreadId,
+        userId: input.userId,
+      });
+    } catch (error) {
+      if (!(error instanceof Error) || !error.message.toLowerCase().includes("duplicate")) {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error("Failed to generate Telegram pairing link.");
+}
 
 export async function POST(): Promise<Response> {
   const authResult = await authenticateRequest();
@@ -18,38 +66,38 @@ export async function POST(): Promise<Response> {
   }
 
   try {
+    const readiness = getTelegramReadiness();
+    if (!readiness.isConfigured) {
+      throw new Error(
+        "Telegram pairing is unavailable because the bot is not configured.",
+      );
+    }
+
     const clientId = await resolveClientId(authResult.supabase, authResult.userId);
-    const token = generatePairingToken();
+    const targetThreadId = await getDefaultMessagingThreadForUser(authResult.supabase, {
+      clientId,
+      userId: authResult.userId,
+    });
+    const username = await getBotUsername();
     const expiresAt = new Date(Date.now() + PAIRING_TOKEN_TTL_MS).toISOString();
 
-    const { error: deleteError } = await authResult.supabase
-      .from("telegram_pairing_tokens")
-      .delete()
-      .eq("client_id", clientId);
+    await clearTelegramPairingSessionsForUser(authResult.supabase, authResult.userId);
+    const session = await createPairingSessionWithRetry({
+      clientId,
+      expiresAt,
+      supabase: authResult.supabase,
+      targetThreadId,
+      userId: authResult.userId,
+    });
 
-    if (deleteError) {
-      return jsonError("Failed to generate Telegram pairing link.", 500);
-    }
-
-    const { error: insertError } = await authResult.supabase
-      .from("telegram_pairing_tokens")
-      .insert({
-        token,
-        client_id: clientId,
-        expires_at: expiresAt,
-      });
-
-    if (insertError) {
-      return jsonError("Failed to generate Telegram pairing link.", 500);
-    }
-
-    const username = await getBotUsername();
     return Response.json({
-      url: `https://t.me/${username}?start=${token}`,
+      botUsername: username,
+      displayCode: session.displayCode,
       expiresInSeconds: PAIRING_TOKEN_TTL_MS / 1000,
+      openUrl: `https://t.me/${username}?start=${session.deepLinkToken}`,
     });
   } catch (error) {
     console.error("[telegram/pairing-link] Failed to generate link:", error);
-    return jsonError("Failed to generate Telegram pairing link.", 500);
+    return getPairingLinkErrorResponse(error);
   }
 }

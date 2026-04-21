@@ -13,6 +13,7 @@ export type RealtimeTableName =
   | "conversation_threads"
   | "conversation_messages"
   | "conversation_channel_mappings"
+  | "messaging_channel_connections"
   | "companies"
   | "contacts"
   | "deals"

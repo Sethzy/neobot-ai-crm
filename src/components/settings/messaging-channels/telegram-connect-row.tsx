@@ -1,8 +1,8 @@
 /**
- * Telegram (DM) connect row for the Messaging Channels page.
- * Five states: idle → generating → link-ready → connected → error.
- * Uses Supabase Realtime to auto-flip to `connected` the moment the webhook
- * writes the mapping row on the user's `/start` tap in Telegram.
+ * Telegram (DM) connect row for personal settings.
+ * States: unavailable → idle → generating → waiting → connected → error.
+ * Uses Supabase Realtime to flip to `connected` the moment the webhook writes
+ * the user-owned connection row.
  * @module components/settings/messaging-channels/telegram-connect-row
  */
 "use client";
@@ -17,30 +17,47 @@ import { supabase } from "@/lib/supabase";
 import { ChannelRow } from "./channel-row";
 
 interface TelegramConnectRowProps {
-  clientId: string | null;
-  initialChatId: string | null;
+  availabilityMessage?: string;
+  initialConnection: TelegramConnectionState | null;
+  isAvailable: boolean;
+  realtimeUserId: string | null;
+}
+
+interface TelegramConnectionState {
+  chatId: string;
+  targetThreadId: string;
 }
 
 interface PairingLinkResponse {
-  url: string;
+  botUsername: string;
+  displayCode: string;
   expiresInSeconds: number;
+  openUrl: string;
 }
 
 type ApiErrorResponse = { error: string };
 
-const telegramMappingKey = (clientId: string | null): readonly unknown[] => [
+const telegramConnectionKey = (userId: string | null): readonly unknown[] => [
   "telegram",
-  "mapping",
-  clientId,
+  "connection",
+  userId,
 ];
 
-async function fetchTelegramChatId(): Promise<string | null> {
+async function fetchTelegramConnection(): Promise<TelegramConnectionState | null> {
   const { data } = await supabase
-    .from("conversation_channel_mappings")
-    .select("external_conversation_id")
+    .from("messaging_channel_connections")
+    .select("external_conversation_id, target_thread_id")
     .eq("channel", "telegram")
     .maybeSingle();
-  return data?.external_conversation_id ?? null;
+
+  if (!data) {
+    return null;
+  }
+
+  return {
+    chatId: data.external_conversation_id,
+    targetThreadId: data.target_thread_id,
+  };
 }
 
 function formatRemaining(secondsRemaining: number): string {
@@ -50,55 +67,64 @@ function formatRemaining(secondsRemaining: number): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-export function TelegramConnectRow({ clientId, initialChatId }: TelegramConnectRowProps) {
+export function TelegramConnectRow({
+  availabilityMessage,
+  initialConnection,
+  isAvailable,
+  realtimeUserId,
+}: TelegramConnectRowProps) {
   const queryClient = useQueryClient();
-  const queryKey = useMemo(() => telegramMappingKey(clientId), [clientId]);
+  const queryKey = useMemo(() => telegramConnectionKey(realtimeUserId), [realtimeUserId]);
 
-  const mappingQuery = useQuery({
+  const connectionQuery = useQuery({
     queryKey,
-    queryFn: fetchTelegramChatId,
-    initialData: initialChatId,
-    enabled: clientId !== null,
+    queryFn: fetchTelegramConnection,
+    initialData: initialConnection,
+    enabled: realtimeUserId !== null,
     staleTime: 30_000,
   });
 
   useRealtimeTable({
-    table: "conversation_channel_mappings",
-    filter: clientId ? `client_id=eq.${clientId}` : undefined,
+    table: "messaging_channel_connections",
+    filter: realtimeUserId ? `user_id=eq.${realtimeUserId}` : undefined,
     queryKeys: [queryKey],
-    enabled: clientId !== null,
+    enabled: realtimeUserId !== null,
   });
 
-  const chatId = mappingQuery.data ?? null;
+  const connection = connectionQuery.data ?? null;
+  const chatId = connection?.chatId ?? null;
 
-  const [pairingUrl, setPairingUrl] = useState<string | null>(null);
+  const [botUsername, setBotUsername] = useState<string | null>(null);
+  const [displayCode, setDisplayCode] = useState<string | null>(null);
   const [linkExpiresAt, setLinkExpiresAt] = useState<number | null>(null);
+  const [openUrl, setOpenUrl] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [didCopyCode, setDidCopyCode] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [now, setNow] = useState<number>(() => Date.now());
 
-  // Reset local pairing state whenever the externally-tracked chatId transitions.
-  // Adjusting state during render (rather than in a useEffect) avoids an extra
-  // commit and the `react-hooks/set-state-in-effect` anti-pattern.
-  // See: https://react.dev/reference/react/useState#storing-information-from-previous-renders
-  const [prevChatId, setPrevChatId] = useState(chatId);
-  if (chatId !== prevChatId) {
-    setPrevChatId(chatId);
-    if (pairingUrl || linkExpiresAt || errorText) {
-      setPairingUrl(null);
+  const connectionKey = chatId ?? "__none__";
+  const [previousConnectionKey, setPreviousConnectionKey] = useState(connectionKey);
+  if (connectionKey !== previousConnectionKey) {
+    setPreviousConnectionKey(connectionKey);
+    if (botUsername || displayCode || linkExpiresAt || openUrl || errorText) {
+      setBotUsername(null);
+      setDisplayCode(null);
       setLinkExpiresAt(null);
+      setOpenUrl(null);
       setErrorText(null);
+      setDidCopyCode(false);
     }
   }
 
   useEffect(() => {
-    if (!pairingUrl || linkExpiresAt === null) {
+    if (!openUrl || linkExpiresAt === null) {
       return;
     }
     const tick = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(tick);
-  }, [pairingUrl, linkExpiresAt]);
+  }, [openUrl, linkExpiresAt]);
 
   async function handleConnect() {
     setIsGenerating(true);
@@ -112,8 +138,10 @@ export function TelegramConnectRow({ clientId, initialChatId }: TelegramConnectR
         );
         return;
       }
-      setPairingUrl(body.url);
+      setBotUsername(body.botUsername);
+      setDisplayCode(body.displayCode);
       setLinkExpiresAt(Date.now() + body.expiresInSeconds * 1000);
+      setOpenUrl(body.openUrl);
     } catch {
       setErrorText("Network error. Try again.");
     } finally {
@@ -141,30 +169,57 @@ export function TelegramConnectRow({ clientId, initialChatId }: TelegramConnectR
   }
 
   function handleCancel() {
-    setPairingUrl(null);
+    setBotUsername(null);
+    setDisplayCode(null);
     setLinkExpiresAt(null);
+    setOpenUrl(null);
     setErrorText(null);
+    setDidCopyCode(false);
+  }
+
+  async function handleCopyCode() {
+    if (!displayCode) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(displayCode);
+      setDidCopyCode(true);
+    } catch {
+      setErrorText("Failed to copy pairing code.");
+    }
   }
 
   const secondsRemaining =
-    pairingUrl && linkExpiresAt !== null ? Math.max(0, (linkExpiresAt - now) / 1000) : 0;
-  const isExpired = pairingUrl !== null && secondsRemaining === 0;
+    openUrl && linkExpiresAt !== null ? Math.max(0, (linkExpiresAt - now) / 1000) : 0;
+  const isExpired = openUrl !== null && secondsRemaining === 0;
 
-  // Auto-clear an expired link after a brief "expired" notice is shown.
   useEffect(() => {
     if (!isExpired) return;
     const t = setTimeout(() => {
-      setPairingUrl(null);
+      setBotUsername(null);
+      setDisplayCode(null);
       setLinkExpiresAt(null);
+      setOpenUrl(null);
     }, 4000);
     return () => clearTimeout(t);
   }, [isExpired]);
 
-  // Derive the right-side action button + body content.
   let action: React.ReactNode;
   let body: React.ReactNode = null;
 
-  if (chatId) {
+  if (!isAvailable) {
+    action = (
+      <Button variant="outline" size="sm" disabled>
+        Unavailable
+      </Button>
+    );
+    body = (
+      <p className="text-sm text-muted-foreground">
+        {availabilityMessage ?? "Telegram is not configured yet."}
+      </p>
+    );
+  } else if (chatId) {
     action = (
       <Button
         variant="outline"
@@ -176,11 +231,14 @@ export function TelegramConnectRow({ clientId, initialChatId }: TelegramConnectR
       </Button>
     );
     body = (
-      <p className="text-sm text-muted-foreground">
-        Connected. Chat: <span className="font-mono text-foreground">{chatId}</span>
-      </p>
+      <div className="space-y-1 text-sm text-muted-foreground">
+        <p>Connected. Telegram is linked to this account.</p>
+        <p>
+          Chat ID: <span className="font-mono text-foreground">{chatId}</span>
+        </p>
+      </div>
     );
-  } else if (pairingUrl && !isExpired) {
+  } else if (openUrl && displayCode && !isExpired) {
     action = (
       <Button variant="outline" size="sm" onClick={handleCancel}>
         Cancel
@@ -189,16 +247,24 @@ export function TelegramConnectRow({ clientId, initialChatId }: TelegramConnectR
     body = (
       <div className="flex flex-col gap-3 text-sm">
         <p className="text-muted-foreground">
-          Open the link in Telegram and tap <span className="font-medium text-foreground">Start</span> to pair this workspace.
+          Send this code to <span className="font-medium text-foreground">@{botUsername}</span> on Telegram, or open Telegram directly.
         </p>
         <div className="flex flex-wrap items-center gap-3">
+          <div className="rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-base text-foreground">
+            {displayCode}
+          </div>
+          <Button variant="outline" size="sm" onClick={handleCopyCode}>
+            {didCopyCode ? "Copied" : "Copy code"}
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
           <Button asChild size="sm">
-            <a href={pairingUrl} target="_blank" rel="noreferrer">
+            <a href={openUrl} target="_blank" rel="noreferrer">
               Open Telegram
             </a>
           </Button>
           <span className="text-xs text-muted-foreground">
-            Waiting for connection… link expires in{" "}
+            Waiting for connection… code expires in{" "}
             <span className="font-mono text-foreground">{formatRemaining(secondsRemaining)}</span>
           </span>
           <button
@@ -235,8 +301,8 @@ export function TelegramConnectRow({ clientId, initialChatId }: TelegramConnectR
     <ChannelRow
       icon="send"
       iconTint="blue"
-      title="Telegram"
-      description="Message your agent from your personal Telegram chat."
+      title="Connect Telegram"
+      description="Link your personal Telegram chat to your Sunder account."
       action={action}
     >
       {body}

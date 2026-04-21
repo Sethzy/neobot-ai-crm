@@ -20,6 +20,9 @@ import { ChatThreadPageClient } from "../chat/[threadId]/chat-thread-page-client
 export default async function AgentPage() {
   const supabase = await createClient();
   const clientId = await resolveClientId(supabase);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const primaryThread = await getPrimaryThread(supabase, clientId);
 
@@ -33,9 +36,9 @@ export default async function AgentPage() {
   const [persistedMessages, telegramMapping, initialQuota] = await Promise.all([
     listMessages(supabase, threadId),
     supabase
-      .from("conversation_channel_mappings")
-      .select("channel")
-      .eq("client_id", clientId)
+      .from("messaging_channel_connections")
+      .select("id")
+      .eq("user_id", user?.id ?? "__missing__")
       .eq("channel", "telegram")
       .maybeSingle(),
     loadCurrentMessageQuota(),

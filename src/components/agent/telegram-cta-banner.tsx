@@ -13,10 +13,10 @@ export function TelegramCtaBanner() {
       <div className="flex items-center justify-between gap-4 max-w-3xl mx-auto">
         <p>
           Connect Telegram to message your agent from your phone.
-          Pulses, web chat, and Telegram all flow into this thread.
+          Pair it once from your profile settings and choose which conversation should receive those messages.
         </p>
         <Button asChild variant="outline" size="sm" className="shrink-0">
-          <Link href="/settings">Connect Telegram</Link>
+          <Link href="/settings/profile">Connect Telegram</Link>
         </Button>
       </div>
     </div>

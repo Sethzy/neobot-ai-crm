@@ -148,6 +148,34 @@ describe("useRealtimeTable", () => {
     );
   });
 
+  test("supports messaging_channel_connections subscriptions", () => {
+    const { wrapper } = createWrapper();
+
+    renderHook(
+      () =>
+        useRealtimeTable({
+          table: "messaging_channel_connections",
+          filter: "user_id=eq.user-1",
+          queryKeys: [["telegram", "connection", "user-1"]],
+        }),
+      { wrapper },
+    );
+
+    expect(mockChannelName).toHaveBeenCalledWith(
+      "realtime:messaging_channel_connections:user_id=eq.user-1",
+    );
+    expect(mockOn).toHaveBeenCalledWith(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "messaging_channel_connections",
+        filter: "user_id=eq.user-1",
+      },
+      expect.any(Function),
+    );
+  });
+
   test("removes the active channel on unmount", () => {
     const { wrapper } = createWrapper();
 

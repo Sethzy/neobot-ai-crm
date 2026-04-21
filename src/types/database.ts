@@ -455,6 +455,8 @@ export type Database = {
         Row: {
           account_identifier: string | null
           activated_tools: string[]
+          auth_redirect_expires_at: string | null
+          auth_redirect_url: string | null
           client_id: string
           composio_connected_account_id: string
           created_at: string
@@ -468,6 +470,8 @@ export type Database = {
         Insert: {
           account_identifier?: string | null
           activated_tools?: string[]
+          auth_redirect_expires_at?: string | null
+          auth_redirect_url?: string | null
           client_id: string
           composio_connected_account_id: string
           created_at?: string
@@ -481,6 +485,8 @@ export type Database = {
         Update: {
           account_identifier?: string | null
           activated_tools?: string[]
+          auth_redirect_expires_at?: string | null
+          auth_redirect_url?: string | null
           client_id?: string
           composio_connected_account_id?: string
           created_at?: string
@@ -657,6 +663,54 @@ export type Database = {
           {
             foreignKeyName: "conversation_channel_mappings_thread_id_fkey"
             columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
+      messaging_channel_connections: {
+        Row: {
+          channel: string
+          client_id: string
+          created_at: string
+          external_conversation_id: string
+          id: string
+          target_thread_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channel: string
+          client_id: string
+          created_at?: string
+          external_conversation_id: string
+          id?: string
+          target_thread_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          client_id?: string
+          created_at?: string
+          external_conversation_id?: string
+          id?: string
+          target_thread_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messaging_channel_connections_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "messaging_channel_connections_target_thread_id_fkey"
+            columns: ["target_thread_id"]
             isOneToOne: false
             referencedRelation: "conversation_threads"
             referencedColumns: ["thread_id"]
@@ -1650,6 +1704,57 @@ export type Database = {
           },
         ]
       }
+      telegram_pairing_sessions: {
+        Row: {
+          client_id: string
+          consumed_at: string | null
+          created_at: string
+          deep_link_token: string
+          display_code: string
+          expires_at: string
+          id: string
+          target_thread_id: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          consumed_at?: string | null
+          created_at?: string
+          deep_link_token: string
+          display_code: string
+          expires_at: string
+          id?: string
+          target_thread_id: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          consumed_at?: string | null
+          created_at?: string
+          deep_link_token?: string
+          display_code?: string
+          expires_at?: string
+          id?: string
+          target_thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_pairing_sessions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "telegram_pairing_sessions_target_thread_id_fkey"
+            columns: ["target_thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
+      }
       telegram_pending_questions: {
         Row: {
           answers: Json
@@ -1821,22 +1926,33 @@ export type Database = {
         Row: {
           client_config_id: string | null
           created_at: string | null
+          default_messaging_thread_id: string | null
           id: string
           updated_at: string | null
         }
         Insert: {
           client_config_id?: string | null
           created_at?: string | null
+          default_messaging_thread_id?: string | null
           id: string
           updated_at?: string | null
         }
         Update: {
           client_config_id?: string | null
           created_at?: string | null
+          default_messaging_thread_id?: string | null
           id?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_profiles_default_messaging_thread_id_fkey"
+            columns: ["default_messaging_thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["thread_id"]
+          },
+        ]
       }
     }
     Views: {

@@ -19,6 +19,14 @@ const {
   mockAttachFileToSession,
   mockGetAnthropicClient,
   mockGetOrCreateSession,
+  mockDeleteTelegramChannelMapping,
+  mockFindTelegramPairingSession,
+  mockGetTelegramConnectionByChatId,
+  mockGetTelegramConnectionForUser,
+  mockMarkTelegramPairingSessionConsumed,
+  mockUpsertTelegramChannelMapping,
+  mockUpsertTelegramConnection,
+  mockUpdateTelegramConnectionTargetThread,
 } = vi.hoisted(() => ({
   mockAfter: vi.fn(),
   mockCreateAdminClient: vi.fn(),
@@ -34,6 +42,14 @@ const {
   mockAttachFileToSession: vi.fn(),
   mockGetAnthropicClient: vi.fn(),
   mockGetOrCreateSession: vi.fn(),
+  mockDeleteTelegramChannelMapping: vi.fn(),
+  mockFindTelegramPairingSession: vi.fn(),
+  mockGetTelegramConnectionByChatId: vi.fn(),
+  mockGetTelegramConnectionForUser: vi.fn(),
+  mockMarkTelegramPairingSessionConsumed: vi.fn(),
+  mockUpsertTelegramChannelMapping: vi.fn(),
+  mockUpsertTelegramConnection: vi.fn(),
+  mockUpdateTelegramConnectionTargetThread: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
@@ -91,6 +107,19 @@ vi.mock("@/lib/channels/telegram/pending-questions", async (importOriginal) => {
     restorePendingQuestionBatch: (...args: unknown[]) => mockRestorePendingQuestionBatch(...args),
   };
 });
+
+vi.mock("@/lib/channels/telegram/user-connections", () => ({
+  deleteTelegramChannelMapping: (...args: unknown[]) => mockDeleteTelegramChannelMapping(...args),
+  findTelegramPairingSession: (...args: unknown[]) => mockFindTelegramPairingSession(...args),
+  getTelegramConnectionByChatId: (...args: unknown[]) => mockGetTelegramConnectionByChatId(...args),
+  getTelegramConnectionForUser: (...args: unknown[]) => mockGetTelegramConnectionForUser(...args),
+  markTelegramPairingSessionConsumed: (...args: unknown[]) =>
+    mockMarkTelegramPairingSessionConsumed(...args),
+  upsertTelegramChannelMapping: (...args: unknown[]) => mockUpsertTelegramChannelMapping(...args),
+  upsertTelegramConnection: (...args: unknown[]) => mockUpsertTelegramConnection(...args),
+  updateTelegramConnectionTargetThread: (...args: unknown[]) =>
+    mockUpdateTelegramConnectionTargetThread(...args),
+}));
 
 import { POST } from "../route";
 
@@ -311,6 +340,14 @@ describe("POST /api/webhook/telegram", () => {
     });
     mockGetAnthropicClient.mockReturnValue({ beta: {} });
     mockGetOrCreateSession.mockResolvedValue({ id: "session-1" });
+    mockDeleteTelegramChannelMapping.mockResolvedValue(undefined);
+    mockFindTelegramPairingSession.mockResolvedValue(null);
+    mockGetTelegramConnectionByChatId.mockResolvedValue(null);
+    mockGetTelegramConnectionForUser.mockResolvedValue(null);
+    mockMarkTelegramPairingSessionConsumed.mockResolvedValue(undefined);
+    mockUpsertTelegramChannelMapping.mockResolvedValue(undefined);
+    mockUpsertTelegramConnection.mockResolvedValue(undefined);
+    mockUpdateTelegramConnectionTargetThread.mockResolvedValue(undefined);
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(new Blob(["hello"], { type: "image/jpeg" }), { status: 200 }),
     );
@@ -387,27 +424,22 @@ describe("POST /api/webhook/telegram", () => {
     });
   });
 
-  it("pairs a chat from /start <token> by mapping to the primary thread", async () => {
-    const supabase = createWebhookSupabase({
-      mappingResults: [{ data: null, error: null }],
-      pairingTokenResults: [{
-        data: {
-          token: "pair-token-123",
-          client_id: "client-1",
-          expires_at: "2099-03-20T20:10:00.000Z",
-        },
-        error: null,
-      }],
-      threadSelectResults: [{
-        data: { thread_id: "primary-thread-1" },
-        error: null,
-      }],
-      mappingInsertResults: [{ data: null, error: null }],
-      tokenDeleteResults: [{ data: null, error: null }],
-    });
+  it("pairs a chat from /start <token> by claiming the chat for the pairing session user", async () => {
+    const supabase = createWebhookSupabase();
     const api = createTelegramBotApi();
     mockCreateAdminClient.mockResolvedValue(supabase);
     mockCreateTelegramBot.mockReturnValue({ api });
+    mockFindTelegramPairingSession.mockResolvedValue({
+      clientId: "client-1",
+      consumedAt: null,
+      createdAt: "2026-04-21T00:00:00.000Z",
+      deepLinkToken: "pair-token-123",
+      displayCode: "GW-22E14A",
+      expiresAt: "2099-03-20T20:10:00.000Z",
+      id: "session-1",
+      targetThreadId: "primary-thread-1",
+      userId: "user-1",
+    });
 
     const response = await POST(
       createRequest({
@@ -423,18 +455,63 @@ describe("POST /api/webhook/telegram", () => {
     await flushBackgroundWork();
 
     expect(response.status).toBe(200);
-    // Should NOT create a new thread — uses existing primary
-    expect(
-      supabase.records.inserts.some(
-        (insert) => insert.table === "conversation_threads",
-      ),
-    ).toBe(false);
-    // Should create a channel mapping
-    expect(
-      supabase.records.inserts.some(
-        (insert) => insert.table === "conversation_channel_mappings",
-      ),
-    ).toBe(true);
+    expect(mockUpsertTelegramConnection).toHaveBeenCalledWith(supabase, {
+      clientId: "client-1",
+      externalConversationId: "12345",
+      targetThreadId: "primary-thread-1",
+      userId: "user-1",
+    });
+    expect(mockUpsertTelegramChannelMapping).toHaveBeenCalledWith(supabase, {
+      chatId: "12345",
+      clientId: "client-1",
+      threadId: "primary-thread-1",
+    });
+    expect(mockMarkTelegramPairingSessionConsumed).toHaveBeenCalledWith(supabase, "session-1");
+    expect(api.sendMessage).toHaveBeenCalledWith(
+      12345,
+      expect.stringMatching(/connected/i),
+      expect.anything(),
+    );
+  });
+
+  it("pairs an unconnected chat when the user pastes a valid manual display code", async () => {
+    const supabase = createWebhookSupabase();
+    const api = createTelegramBotApi();
+    mockCreateAdminClient.mockResolvedValue(supabase);
+    mockCreateTelegramBot.mockReturnValue({ api });
+    mockFindTelegramPairingSession.mockResolvedValue({
+      clientId: "client-1",
+      consumedAt: null,
+      createdAt: "2026-04-21T00:00:00.000Z",
+      deepLinkToken: "pair-token-123",
+      displayCode: "GW-22E14A",
+      expiresAt: "2099-03-20T20:10:00.000Z",
+      id: "session-1",
+      targetThreadId: "thread-7",
+      userId: "user-1",
+    });
+
+    const response = await POST(
+      createRequest({
+        update_id: 991,
+        message: {
+          message_id: 12,
+          text: "GW-22E14A",
+          chat: { id: 12345, type: "private" },
+          from: { id: 7, is_bot: false, first_name: "Seth" },
+        },
+      }),
+    );
+    await flushBackgroundWork();
+
+    expect(response.status).toBe(200);
+    expect(mockFindTelegramPairingSession).toHaveBeenCalledWith(supabase, "GW-22E14A");
+    expect(mockUpsertTelegramConnection).toHaveBeenCalledWith(supabase, {
+      clientId: "client-1",
+      externalConversationId: "12345",
+      targetThreadId: "thread-7",
+      userId: "user-1",
+    });
     expect(api.sendMessage).toHaveBeenCalledWith(
       12345,
       expect.stringMatching(/connected/i),
@@ -723,6 +800,12 @@ describe("POST /api/webhook/telegram", () => {
     const api = createTelegramBotApi();
     mockCreateAdminClient.mockResolvedValue(supabase);
     mockCreateTelegramBot.mockReturnValue({ api });
+    mockGetTelegramConnectionByChatId.mockResolvedValue({
+      clientId: "client-1",
+      externalConversationId: "12345",
+      targetThreadId: "thread-1",
+      userId: "user-1",
+    });
 
     const response = await POST(
       createRequest({
@@ -747,6 +830,10 @@ describe("POST /api/webhook/telegram", () => {
       expect.stringMatching(/started a new telegram chat/i),
       expect.anything(),
     );
+    expect(mockUpdateTelegramConnectionTargetThread).toHaveBeenCalledWith(supabase, {
+      targetThreadId: expect.any(String),
+      userId: "user-1",
+    });
   });
 
   it("does not move the mapping when clearing pending questions fails during /new", async () => {
@@ -918,6 +1005,12 @@ describe("POST /api/webhook/telegram", () => {
     const api = createTelegramBotApi();
     mockCreateAdminClient.mockResolvedValue(supabase);
     mockCreateTelegramBot.mockReturnValue({ api });
+    mockGetTelegramConnectionByChatId.mockResolvedValue({
+      clientId: "client-1",
+      externalConversationId: "12345",
+      targetThreadId: "task-thread-1",
+      userId: "user-1",
+    });
 
     const response = await POST(
       createRequest({
@@ -939,6 +1032,10 @@ describe("POST /api/webhook/telegram", () => {
       expect.stringMatching(/main session/i),
       expect.anything(),
     );
+    expect(mockUpdateTelegramConnectionTargetThread).toHaveBeenCalledWith(supabase, {
+      targetThreadId: "primary-thread-1",
+      userId: "user-1",
+    });
   });
 
   it("reports already in main session when /main issued on primary thread", async () => {

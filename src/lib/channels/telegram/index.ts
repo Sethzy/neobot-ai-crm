@@ -18,7 +18,14 @@ export {
   sendTelegramMessage,
   splitTelegramMessage,
 } from "./send";
-export { generatePairingToken, isPairingTokenFormat, PAIRING_TOKEN_TTL_MS } from "./pairing";
+export {
+  generatePairingDisplayCode,
+  generatePairingToken,
+  isPairingDisplayCodeFormat,
+  isPairingTokenFormat,
+  normalizePairingDisplayCode,
+  PAIRING_TOKEN_TTL_MS,
+} from "./pairing";
 export {
   buildApprovalCallbackData,
   buildApprovalKeyboard,
