@@ -19,12 +19,12 @@ describe("SettingsNav", () => {
     expect(screen.getByText("Workspace")).toBeInTheDocument();
   });
 
-  it("renders all 8 items across sections", () => {
+  it("renders all 7 items across sections", () => {
     render(<SettingsNav />);
     const expectedLabels = SETTINGS_NAV_SECTIONS.flatMap((s) =>
       s.items.map((i) => i.label),
     );
-    expect(expectedLabels).toHaveLength(8);
+    expect(expectedLabels).toHaveLength(7);
     for (const label of expectedLabels) {
       expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
     }

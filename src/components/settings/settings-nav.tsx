@@ -41,7 +41,6 @@ export const SETTINGS_NAV_SECTIONS: readonly NavSection[] = [
   {
     label: "Workspace",
     items: [
-      { label: "Messaging Channels", href: "/settings/workspace/messaging-channels" },
       { label: "Billing", href: "/settings/workspace/billing" },
       { label: "Usage", href: "/settings/workspace/usage" },
     ],

@@ -5,6 +5,30 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/components/ui/markdown-editor", () => ({
+  MarkdownEditor: ({
+    ariaLabel,
+    disabled,
+    maxLength,
+    onChange,
+    value,
+  }: {
+    ariaLabel: string;
+    disabled?: boolean;
+    maxLength?: number;
+    onChange: (value: string) => void;
+    value: string;
+  }) => (
+    <textarea
+      aria-label={ariaLabel}
+      data-max-length={maxLength}
+      disabled={disabled}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  ),
+}));
+
 import { AgentContextForm } from "../agent-context-form";
 
 const refresh = vi.fn();
@@ -33,7 +57,7 @@ describe("AgentContextForm", () => {
     expect(screen.getByLabelText("User preferences")).toHaveValue("Prefers bullets.");
   });
 
-  it("uses the shared plain-text markdown editor contract for both fields", () => {
+  it("passes both fields through the shared markdown editor", () => {
     render(
       <AgentContextForm
         initialClientProfile="Calm, practical."
@@ -44,15 +68,8 @@ describe("AgentContextForm", () => {
     const clientProfileInput = screen.getByLabelText("Client profile");
     const userPreferencesInput = screen.getByLabelText("User preferences");
 
-    expect(clientProfileInput).toHaveAttribute("spellcheck", "false");
-    expect(clientProfileInput).toHaveAttribute("autocapitalize", "off");
-    expect(clientProfileInput).toHaveAttribute("autocorrect", "off");
-    expect(clientProfileInput).toHaveClass("font-mono");
-
-    expect(userPreferencesInput).toHaveAttribute("spellcheck", "false");
-    expect(userPreferencesInput).toHaveAttribute("autocapitalize", "off");
-    expect(userPreferencesInput).toHaveAttribute("autocorrect", "off");
-    expect(userPreferencesInput).toHaveClass("font-mono");
+    expect(clientProfileInput).toHaveAttribute("data-max-length", "100000");
+    expect(userPreferencesInput).toHaveAttribute("data-max-length", "100000");
   });
 
   it("disables save when nothing changed", () => {

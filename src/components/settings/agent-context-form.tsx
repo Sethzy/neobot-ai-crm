@@ -17,7 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { MarkdownTextarea } from "@/components/ui/markdown-textarea";
+import { MarkdownEditor } from "@/components/ui/markdown-editor";
 
 const MAX_CONTEXT_LENGTH = 100_000;
 
@@ -104,64 +104,60 @@ export function AgentContextForm({
   return (
     <div className="space-y-6">
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="border-border/70 bg-card shadow-sm">
-          <CardHeader className="gap-2">
-            <div className="flex items-center justify-between gap-3">
-              <div className="space-y-1">
-                <CardDescription>Agent personality</CardDescription>
-                <CardTitle className="text-2xl">Client profile</CardTitle>
-              </div>
-              <span className="text-xs text-muted-foreground">
-                {countLabel(clientProfile)}
-              </span>
+        <Card className="rounded-[1.8rem] border-border/60 bg-card/95 shadow-[0_1px_2px_rgba(15,23,42,0.03),0_24px_48px_-38px_rgba(15,23,42,0.22)]">
+          <CardHeader className="flex flex-row items-start justify-between gap-4 pb-1">
+            <div className="space-y-1">
+              <CardDescription>Agent personality</CardDescription>
+              <CardTitle className="text-2xl tracking-[-0.02em]">Client profile</CardTitle>
             </div>
+            <span className="shrink-0 rounded-full border border-border/70 bg-background/85 px-3 py-1.5 text-[11px] font-medium leading-none tracking-[0.02em] text-muted-foreground shadow-sm">
+              {countLabel(clientProfile)}
+            </span>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
+          <CardContent className="space-y-4">
+            <p className="max-w-[34rem] text-sm leading-6 text-muted-foreground">
               Use this for voice, operating style, business context, and persistent instructions
               that should shape how Sunder acts for this workspace.
             </p>
-            <MarkdownTextarea
-              aria-label="Client profile"
-              className="min-h-[360px]"
+            <MarkdownEditor
+              ariaLabel="Client profile"
               disabled={isPending}
+              editorClassName="min-h-[360px]"
               maxLength={MAX_CONTEXT_LENGTH}
               placeholder="Example: Be concise, action-oriented, and avoid sales fluff. We work mostly with first-time buyers in Singapore."
               value={clientProfile}
-              onChange={(event) => {
-                setClientProfile(event.target.value);
+              onChange={(nextValue) => {
+                setClientProfile(nextValue);
                 setMessage(null);
               }}
             />
           </CardContent>
         </Card>
 
-        <Card className="border-border/70 bg-card shadow-sm">
-          <CardHeader className="gap-2">
-            <div className="flex items-center justify-between gap-3">
-              <div className="space-y-1">
-                <CardDescription>User profile</CardDescription>
-                <CardTitle className="text-2xl">User preferences</CardTitle>
-              </div>
-              <span className="text-xs text-muted-foreground">
-                {countLabel(userPreferences)}
-              </span>
+        <Card className="rounded-[1.8rem] border-border/60 bg-card/95 shadow-[0_1px_2px_rgba(15,23,42,0.03),0_24px_48px_-38px_rgba(15,23,42,0.22)]">
+          <CardHeader className="flex flex-row items-start justify-between gap-4 pb-1">
+            <div className="space-y-1">
+              <CardDescription>User profile</CardDescription>
+              <CardTitle className="text-2xl tracking-[-0.02em]">User preferences</CardTitle>
             </div>
+            <span className="shrink-0 rounded-full border border-border/70 bg-background/85 px-3 py-1.5 text-[11px] font-medium leading-none tracking-[0.02em] text-muted-foreground shadow-sm">
+              {countLabel(userPreferences)}
+            </span>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
+          <CardContent className="space-y-4">
+            <p className="max-w-[34rem] text-sm leading-6 text-muted-foreground">
               Use this for how the user prefers to communicate and work: tone, decision style,
               formatting preferences, and durable personal context.
             </p>
-            <MarkdownTextarea
-              aria-label="User preferences"
-              className="min-h-[360px]"
+            <MarkdownEditor
+              ariaLabel="User preferences"
               disabled={isPending}
+              editorClassName="min-h-[360px]"
               maxLength={MAX_CONTEXT_LENGTH}
               placeholder="Example: Prefer short bullet lists, flag risks early, and draft client-facing messages in a warm but direct tone."
               value={userPreferences}
-              onChange={(event) => {
-                setUserPreferences(event.target.value);
+              onChange={(nextValue) => {
+                setUserPreferences(nextValue);
                 setMessage(null);
               }}
             />
