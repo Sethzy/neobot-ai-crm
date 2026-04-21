@@ -8,13 +8,12 @@ import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { initiateOAuthFlow } from "@/lib/composio/connection-flow";
+import { hasLiveAuthRedirect } from "@/lib/connections/auth-link";
 import { insertConnection } from "@/lib/connections/queries";
 
 const initiateConnectionBodySchema = z.object({
   toolkit: z.string().trim().min(1).transform((toolkit) => toolkit.toLowerCase()),
 });
-
-const PENDING_CONNECTION_TTL_MS = 15 * 60 * 1000;
 
 /**
  * Returns a hosted Composio OAuth redirect URL for the requested toolkit.
@@ -47,7 +46,7 @@ export async function POST(request: Request): Promise<Response> {
     const { toolkit } = bodyResult.data;
     const { data: pendingConnection, error: pendingConnectionError } = await supabase
       .from("connections")
-      .select("id, created_at")
+      .select("id, auth_redirect_url, auth_redirect_expires_at")
       .eq("client_id", clientId)
       .eq("toolkit_slug", toolkit)
       .eq("status", "pending")
@@ -60,14 +59,14 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     if (pendingConnection) {
-      const pendingStartedAt = typeof pendingConnection.created_at === "string"
-        ? Date.parse(pendingConnection.created_at)
-        : Number.NaN;
-      const isPendingConnectionExpired = Number.isFinite(pendingStartedAt)
-        && Date.now() - pendingStartedAt > PENDING_CONNECTION_TTL_MS;
-
-      if (!isPendingConnectionExpired) {
-        return jsonError("An OAuth flow for this service is already in progress.", 409);
+      if (hasLiveAuthRedirect(
+        pendingConnection.auth_redirect_url,
+        pendingConnection.auth_redirect_expires_at,
+      )) {
+        return Response.json({
+          redirectUrl: pendingConnection.auth_redirect_url,
+          expiresAt: pendingConnection.auth_redirect_expires_at,
+        });
       }
 
       const { error: stalePendingDeleteError } = await supabase
@@ -85,7 +84,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const callbackUrl = new URL("/api/connections/callback", request.url);
     callbackUrl.searchParams.set("toolkit", toolkit);
-    const { redirectUrl } = await initiateOAuthFlow({
+    const { redirectUrl, authRedirectExpiresAt } = await initiateOAuthFlow({
       composioUserId: clientId,
       toolkitSlug: toolkit,
       callbackUrl: callbackUrl.toString(),
@@ -97,6 +96,8 @@ export async function POST(request: Request): Promise<Response> {
       toolkit_slug: toolkit,
       display_name: null,
       account_identifier: null,
+      auth_redirect_url: redirectUrl,
+      auth_redirect_expires_at: authRedirectExpiresAt,
       status: "pending",
       activated_tools: [],
       tool_count: 0,
@@ -110,7 +111,7 @@ export async function POST(request: Request): Promise<Response> {
       },
     });
 
-    return Response.json({ redirectUrl });
+    return Response.json({ redirectUrl, expiresAt: authRedirectExpiresAt });
   } catch (error) {
     console.error("Failed to initiate Composio connection.", error);
     return jsonError("Failed to initiate connection.", 500);

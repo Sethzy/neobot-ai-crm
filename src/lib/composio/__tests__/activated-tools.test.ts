@@ -24,6 +24,8 @@ function createMockConnection(
     toolkit_slug: overrides.toolkit_slug,
     display_name: null,
     account_identifier: null,
+    auth_redirect_url: null,
+    auth_redirect_expires_at: null,
     status: "active",
     activated_tools: [],
     tool_count: 0,

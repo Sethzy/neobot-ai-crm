@@ -53,6 +53,7 @@ describe("POST /api/connections/initiate", () => {
     mockInitiateOAuthFlow.mockResolvedValue({
       redirectUrl: "https://composio.example.com/oauth",
       connectedAccountId: "connected-account-123",
+      authRedirectExpiresAt: "2026-04-21T09:45:00.000Z",
     });
     mockInsertConnection.mockResolvedValue({
       id: "pending-row-1",
@@ -118,12 +119,14 @@ describe("POST /api/connections/initiate", () => {
     await expect(response.json()).resolves.toEqual({ error: "Invalid request body." });
   });
 
-  it("returns 409 when a pending OAuth flow already exists", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-03-09T04:00:00.000Z"));
+  it("reuses a pending OAuth flow when the stored auth link is still live", async () => {
     mockSupabase = createMockSupabaseClient({
       selectResult: {
-        data: [{ id: "pending-row-1", created_at: "2026-03-09T03:55:00.000Z" }],
+        data: [{
+          id: "pending-row-1",
+          auth_redirect_url: "https://composio.example.com/existing",
+          auth_redirect_expires_at: "2099-03-09T04:15:00.000Z",
+        }],
         error: null,
       },
     });
@@ -141,9 +144,10 @@ describe("POST /api/connections/initiate", () => {
       }),
     );
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      error: "An OAuth flow for this service is already in progress.",
+      redirectUrl: "https://composio.example.com/existing",
+      expiresAt: "2099-03-09T04:15:00.000Z",
     });
     expect(mockInitiateOAuthFlow).not.toHaveBeenCalled();
   });
@@ -165,12 +169,14 @@ describe("POST /api/connections/initiate", () => {
     expect(mockSupabase.calls.methods).toContainEqual({ method: "maybeSingle", args: [] });
   });
 
-  it("clears a stale pending row and allows the user to retry the OAuth flow", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-03-09T04:30:00.000Z"));
+  it("clears an expired pending row and allows the user to retry the OAuth flow", async () => {
     mockSupabase = createMockSupabaseClient({
       selectResult: {
-        data: [{ id: "pending-row-1", created_at: "2026-03-09T04:00:00.000Z" }],
+        data: [{
+          id: "pending-row-1",
+          auth_redirect_url: "https://composio.example.com/expired",
+          auth_redirect_expires_at: "2026-03-09T04:00:00.000Z",
+        }],
         error: null,
       },
       deleteResult: { data: null, error: null },
@@ -212,6 +218,7 @@ describe("POST /api/connections/initiate", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       redirectUrl: "https://composio.example.com/oauth",
+      expiresAt: "2026-04-21T09:45:00.000Z",
     });
     expect(mockResolveClientId).toHaveBeenCalledWith(mockSupabase, "user-1");
     expect(mockInitiateOAuthFlow).toHaveBeenCalledWith({
@@ -238,6 +245,8 @@ describe("POST /api/connections/initiate", () => {
       toolkit_slug: "gmail",
       display_name: null,
       account_identifier: null,
+      auth_redirect_url: "https://composio.example.com/oauth",
+      auth_redirect_expires_at: "2026-04-21T09:45:00.000Z",
       status: "pending",
       activated_tools: [],
       tool_count: 0,

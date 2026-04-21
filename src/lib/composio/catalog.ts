@@ -2,6 +2,9 @@
  * Composio catalog search and toolkit capability helpers.
  * @module lib/composio/catalog
  */
+import { unstable_cache } from "next/cache";
+import { getSupportedProviderDisplayName } from "@/lib/managed-agents/tools/supported-providers";
+
 import {
   COMPOSIO_TOOL_FETCH_LIMIT,
   getComposio,
@@ -37,15 +40,41 @@ export interface ToolkitDisplayInfo {
   integrationId: string;
   displayName: string;
   description: string;
+  logoUrl: string | null;
 }
+
+const toolkitDisplayInfoCacheTtlSeconds = 60 * 60;
 
 interface RawComposioTool {
   description?: string | null;
   toolkit?: {
     description?: string | null;
+    logo?: string | null;
     name?: string | null;
     slug?: string | null;
   } | null;
+}
+
+function normalizeDisplayIdentifier(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s_-]+/g, "");
+}
+
+function getPreferredToolkitDisplayName(
+  toolkitSlug: string,
+  rawDisplayName?: string | null,
+): string {
+  const fallbackDisplayName = getSupportedProviderDisplayName(toolkitSlug);
+  const trimmedDisplayName = rawDisplayName?.trim() ?? "";
+
+  if (trimmedDisplayName.length === 0) {
+    return fallbackDisplayName;
+  }
+
+  if (normalizeDisplayIdentifier(trimmedDisplayName) === normalizeDisplayIdentifier(toolkitSlug)) {
+    return fallbackDisplayName;
+  }
+
+  return trimmedDisplayName;
 }
 
 /**
@@ -128,16 +157,37 @@ export async function getToolkitDisplayInfo(
 
     return {
       integrationId: toolkitSlug,
-      displayName: toolkitTool?.toolkit?.name ?? toolkitSlug,
+      displayName: getPreferredToolkitDisplayName(
+        toolkitSlug,
+        toolkitTool?.toolkit?.name,
+      ),
       description: toolkitTool?.toolkit?.description
         ?? toolkitTool?.description
         ?? "",
+      logoUrl: toolkitTool?.toolkit?.logo ?? null,
     };
   } catch {
     return {
       integrationId: toolkitSlug,
-      displayName: toolkitSlug,
+      displayName: getPreferredToolkitDisplayName(toolkitSlug),
       description: "",
+      logoUrl: null,
     };
   }
+}
+
+/**
+ * Loads lightweight display metadata for one toolkit slug with a short-lived
+ * server cache so repeated auth-card hydration does not fan out to Composio.
+ */
+export async function getCachedToolkitDisplayInfo(
+  toolkitSlug: string,
+): Promise<ToolkitDisplayInfo> {
+  const normalizedToolkitSlug = toolkitSlug.trim().toLowerCase();
+
+  return unstable_cache(
+    async () => getToolkitDisplayInfo(normalizedToolkitSlug),
+    ["composio-toolkit-display-info", normalizedToolkitSlug],
+    { revalidate: toolkitDisplayInfoCacheTtlSeconds },
+  )();
 }

@@ -19,7 +19,7 @@ const MOCK_CALLBACK_URL = "https://example.com/api/connections/callback?toolkit=
 function createMockComposio(overrides?: {
   authConfigItems?: Array<{ id: string; status: string }>;
   createAuthConfigId?: string;
-  linkResult?: { redirectUrl?: string | null; id?: string };
+  linkResult?: { redirectUrl?: string | null; id?: string; expires_at?: string | null };
 }) {
   const mockComposio = {
     authConfigs: {
@@ -37,6 +37,7 @@ function createMockComposio(overrides?: {
         overrides?.linkResult ?? {
           redirectUrl: "https://composio.dev/oauth/redirect",
           id: "connected-account-456",
+          expires_at: "2026-04-21T09:45:00.000Z",
         },
       ),
     },
@@ -63,6 +64,7 @@ describe("initiateOAuthFlow", () => {
     expect(result).toEqual({
       redirectUrl: "https://composio.dev/oauth/redirect",
       connectedAccountId: "connected-account-456",
+      authRedirectExpiresAt: "2026-04-21T09:45:00.000Z",
     });
   });
 
@@ -144,5 +146,23 @@ describe("initiateOAuthFlow", () => {
         callbackUrl: MOCK_CALLBACK_URL,
       }),
     ).rejects.toThrow("Composio did not return a connected account ID.");
+  });
+
+  it("returns a null expiry when Composio omits or mangles expires_at", async () => {
+    createMockComposio({
+      linkResult: {
+        redirectUrl: "https://composio.dev/oauth/redirect",
+        id: "connected-account-789",
+        expires_at: "not-a-date",
+      },
+    });
+
+    const result = await initiateOAuthFlow({
+      composioUserId: MOCK_COMPOSIO_USER_ID,
+      toolkitSlug: MOCK_TOOLKIT_SLUG,
+      callbackUrl: MOCK_CALLBACK_URL,
+    });
+
+    expect(result.authRedirectExpiresAt).toBeNull();
   });
 });

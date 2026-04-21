@@ -40,6 +40,21 @@ export interface InitiateOAuthFlowParams {
 export interface InitiateOAuthFlowResult {
   redirectUrl: string;
   connectedAccountId: string;
+  authRedirectExpiresAt: string | null;
+}
+
+function normalizeAuthRedirectExpiresAt(value: unknown): string | null {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return null;
+  }
+
+  const parsedTimestamp = Date.parse(value);
+
+  if (!Number.isFinite(parsedTimestamp)) {
+    return null;
+  }
+
+  return new Date(parsedTimestamp).toISOString();
 }
 
 /**
@@ -81,5 +96,9 @@ export async function initiateOAuthFlow(
   return {
     redirectUrl: connectionRequest.redirectUrl,
     connectedAccountId: connectionRequest.id,
+    authRedirectExpiresAt: normalizeAuthRedirectExpiresAt(
+      (connectionRequest as { expiresAt?: unknown; expires_at?: unknown }).expiresAt
+        ?? (connectionRequest as { expiresAt?: unknown; expires_at?: unknown }).expires_at,
+    ),
   };
 }

@@ -14,6 +14,8 @@ export const connectionRowSchema = z.object({
   toolkit_slug: z.string().min(1),
   display_name: z.string().nullable(),
   account_identifier: z.string().nullable().default(null),
+  auth_redirect_url: z.string().nullable().default(null),
+  auth_redirect_expires_at: z.string().datetime({ offset: true }).nullable().default(null),
   status: z.enum(connectionStatusValues),
   activated_tools: z.array(z.string()).default([]),
   tool_count: z.number().int().nonnegative().default(0),
@@ -31,6 +33,8 @@ export const connectionInsertSchema = connectionRowSchema
   .extend({
     display_name: z.string().nullable().optional(),
     account_identifier: z.string().nullable().optional(),
+    auth_redirect_url: z.string().nullable().optional(),
+    auth_redirect_expires_at: z.string().datetime({ offset: true }).nullable().optional(),
     activated_tools: z.array(z.string()).optional().default([]),
     tool_count: z.number().int().nonnegative().optional().default(0),
   });
@@ -42,6 +46,8 @@ export const connectionUpdateSchema = z.object({
   toolkit_slug: z.string().min(1).optional(),
   display_name: z.string().nullable().optional(),
   account_identifier: z.string().nullable().optional(),
+  auth_redirect_url: z.string().nullable().optional(),
+  auth_redirect_expires_at: z.string().datetime({ offset: true }).nullable().optional(),
   status: z.enum(connectionStatusValues).optional(),
   activated_tools: z.array(z.string()).optional(),
   tool_count: z.number().int().nonnegative().optional(),

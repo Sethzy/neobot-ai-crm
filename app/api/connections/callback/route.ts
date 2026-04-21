@@ -123,6 +123,8 @@ export async function GET(request: Request): Promise<Response> {
         await updateConnection(supabase, clientId, {
           id: connectedAccountConnection.id,
           status: "error",
+          auth_redirect_url: null,
+          auth_redirect_expires_at: null,
         });
         return;
       }
@@ -210,6 +212,8 @@ export async function GET(request: Request): Promise<Response> {
       toolkit_slug: connectedAccount.toolkit.slug,
       display_name: null,
       account_identifier: getAccountIdentifier(connectedAccount),
+      auth_redirect_url: null,
+      auth_redirect_expires_at: null,
       status: "active" as const,
       tool_count: rawTools.length,
     };

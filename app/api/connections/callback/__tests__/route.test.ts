@@ -228,6 +228,8 @@ describe("GET /api/connections/callback", () => {
     expect(mockUpdateConnection).toHaveBeenCalledWith({ marker: "server-client" }, "client-1", {
       id: "conn-1",
       status: "error",
+      auth_redirect_url: null,
+      auth_redirect_expires_at: null,
     });
     expect(mockDeleteConnection).not.toHaveBeenCalled();
   });
@@ -304,6 +306,8 @@ describe("GET /api/connections/callback", () => {
       toolkit_slug: "gmail",
       display_name: null,
       account_identifier: "owner@gmail.com",
+      auth_redirect_url: null,
+      auth_redirect_expires_at: null,
       status: "active",
       tool_count: 3,
     });
@@ -412,6 +416,8 @@ describe("GET /api/connections/callback", () => {
       toolkit_slug: "gmail",
       display_name: null,
       account_identifier: "owner@gmail.com",
+      auth_redirect_url: null,
+      auth_redirect_expires_at: null,
       status: "active",
       tool_count: 3,
     });
@@ -437,6 +443,8 @@ describe("GET /api/connections/callback", () => {
       toolkit_slug: "gmail",
       display_name: null,
       account_identifier: "owner@gmail.com",
+      auth_redirect_url: null,
+      auth_redirect_expires_at: null,
       status: "active",
       activated_tools: [],
       tool_count: 3,
@@ -479,6 +487,8 @@ describe("GET /api/connections/callback", () => {
       toolkit_slug: "gmail",
       display_name: null,
       account_identifier: "params@gmail.com",
+      auth_redirect_url: null,
+      auth_redirect_expires_at: null,
       status: "active",
       activated_tools: [],
       tool_count: 3,
@@ -602,6 +612,8 @@ describe("GET /api/connections/callback", () => {
     expect(mockUpdateConnection).toHaveBeenCalledWith({ marker: "server-client" }, "client-1", {
       id: "conn-1",
       status: "error",
+      auth_redirect_url: null,
+      auth_redirect_expires_at: null,
     });
     expect(mockDeleteConnection).not.toHaveBeenCalled();
   });

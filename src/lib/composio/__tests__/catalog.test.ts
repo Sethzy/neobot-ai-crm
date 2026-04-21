@@ -222,6 +222,7 @@ describe("getToolkitDisplayInfo", () => {
       integrationId: "googledrive",
       displayName: "Google Drive",
       description: "Browse and manage Google Drive files",
+      logoUrl: null,
     });
     expect(getVersionedRawComposioTools).toHaveBeenCalledWith({
       toolkits: ["googledrive"],
@@ -229,23 +230,49 @@ describe("getToolkitDisplayInfo", () => {
     });
   });
 
-  it("falls back to the toolkit slug when the tools API returns no metadata", async () => {
+  it("normalizes slug-like toolkit names into human display names", async () => {
+    vi.mocked(getVersionedRawComposioTools).mockResolvedValueOnce([
+      {
+        slug: "GMAIL_SEND_EMAIL",
+        name: "Gmail Send Email",
+        description: "Read Gmail",
+        tags: ["mail"],
+        toolkit: {
+          slug: "gmail",
+          name: "gmail",
+          description: "Read Gmail",
+          logo: "https://cdn.composio.dev/gmail.png",
+        },
+      } as never,
+    ]);
+
+    await expect(getToolkitDisplayInfo("gmail")).resolves.toEqual({
+      integrationId: "gmail",
+      displayName: "Gmail",
+      description: "Read Gmail",
+      logoUrl: "https://cdn.composio.dev/gmail.png",
+    });
+  });
+
+  it("falls back to the supported provider display name when the tools API returns no metadata", async () => {
     vi.mocked(getVersionedRawComposioTools).mockResolvedValueOnce([]);
 
     await expect(getToolkitDisplayInfo("gmail")).resolves.toEqual({
       integrationId: "gmail",
-      displayName: "gmail",
+      displayName: "Gmail",
       description: "",
+      logoUrl: null,
     });
   });
 
-  it("falls back to the toolkit slug when the lookup errors", async () => {
+  it("falls back to the supported provider display name when the lookup errors", async () => {
     vi.mocked(getVersionedRawComposioTools).mockRejectedValueOnce(new Error("catalog unavailable"));
 
     await expect(getToolkitDisplayInfo("googledrive")).resolves.toEqual({
       integrationId: "googledrive",
-      displayName: "googledrive",
+      displayName: "Google Drive",
       description: "",
+      logoUrl: null,
     });
   });
 });

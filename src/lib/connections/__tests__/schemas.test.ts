@@ -31,6 +31,8 @@ describe("connectionRowSchema", () => {
   const validRowWithNewColumns = {
     ...validRow,
     account_identifier: "user@gmail.com",
+    auth_redirect_url: "https://auth.composio.dev/gmail",
+    auth_redirect_expires_at: "2026-03-07T00:15:00.000Z",
     activated_tools: ["GMAIL_SEND_EMAIL", "GMAIL_READ_EMAIL"],
     tool_count: 45,
   };
@@ -97,6 +99,17 @@ describe("connectionRowSchema", () => {
     ).toBe(true);
   });
 
+  it("defaults auth redirect fields to null when omitted", () => {
+    const result = connectionRowSchema.safeParse(validRow);
+
+    expect(result.success).toBe(true);
+
+    if (result.success) {
+      expect(result.data.auth_redirect_url).toBeNull();
+      expect(result.data.auth_redirect_expires_at).toBeNull();
+    }
+  });
+
   it("does not include tool_schemas in the schema shape", () => {
     expect("tool_schemas" in connectionRowSchema.shape).toBe(false);
   });
@@ -134,6 +147,8 @@ describe("connectionInsertSchema", () => {
         toolkit_slug: "gmail",
         status: "pending",
         account_identifier: null,
+        auth_redirect_url: "https://auth.composio.dev/gmail",
+        auth_redirect_expires_at: "2026-03-07T00:15:00.000Z",
         activated_tools: ["GMAIL_SEND_EMAIL"],
         tool_count: 0,
       }).success,
@@ -153,6 +168,8 @@ describe("connectionInsertSchema", () => {
     if (result.success) {
       expect(result.data.activated_tools).toEqual([]);
       expect(result.data.tool_count).toBe(0);
+      expect(result.data.auth_redirect_url).toBeUndefined();
+      expect(result.data.auth_redirect_expires_at).toBeUndefined();
     }
   });
 
@@ -195,6 +212,8 @@ describe("connectionUpdateSchema", () => {
         composio_connected_account_id: "conn_456def",
         toolkit_slug: "gmail",
         account_identifier: "agent@example.com",
+        auth_redirect_url: "https://auth.composio.dev/gmail",
+        auth_redirect_expires_at: "2026-03-07T00:15:00.000Z",
         status: "active",
       }).success,
     ).toBe(true);
