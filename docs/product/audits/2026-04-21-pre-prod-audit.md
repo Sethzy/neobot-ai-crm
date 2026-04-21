@@ -24,7 +24,7 @@ post-prod — both are architectural changes, not simplifications.
 | `TODO` / `FIXME` / `HACK` / `XXX` comments | **None** |
 | Raw Tailwind palette classes (`bg-amber-500`, `text-green-600`, …) in dashboard scope | **Zero occurrences** |
 | Color maps centralization | `src/lib/ui/color-maps.ts` — 11 exported maps, all Layer 2/3 semantic tokens |
-| API route validation | zod used in ~every route except `/api/pdf` and `/api/health` |
+| API route validation | zod used in every route except `/api/pdf` (`/api/health` is a GET and has no body) |
 | Data-fetching pattern | TanStack Query via custom hooks in 30+ files under `src/hooks/` |
 | Critical-path tests | managed-agents adapter, stripe, triggers, webhooks, auth, chat API all have `__tests__` coverage |
 
@@ -90,19 +90,22 @@ the decision rule so future contributors don't re-add redundant prefixes.
 **Risk**: 🟡 — visual regression possible if a legitimate dark-mode opacity
 is mistakenly removed. Toggle dark-mode in the browser while editing.
 
-### Finding 4 — Two API routes without zod validation 🟢
+### Finding 4 — `/api/pdf` uses a raw type assertion instead of zod 🟢
 
 - `app/api/pdf/route.ts` — uses `await req.json() as { spec, download?, filename? }`
-- `app/api/health/route.ts` — no validation
 
-Every other route in `app/api/**` uses zod. These are inconsistencies, not
-known security issues — but they should be fixed before prod so input
-validation is uniform.
+(Original audit flagged `/api/health` too — on re-read, it's a GET with no
+request body, so zod adds nothing. Dropped from scope.)
 
-**Fix**: Add zod schemas matching the pattern used in any
-`app/api/chat/**/route.ts`.
+The `spec` field is a vendor type from `@json-render/core` — zod can't
+cheaply reconstruct it, so we validate only the wrapper fields. The real
+safety win is capping `filename` length, which currently has no upper bound.
 
-**Risk**: 🟢 — additive, purely validation.
+**Fix**: Minimal wrapper zod (`spec: z.unknown()`, `download` boolean,
+`filename` string ≤200 chars) + the existing `sanitizeFilename` guard.
+
+**Risk**: 🟢 — additive. The route currently has zero in-repo callers, so
+this is defense-in-depth rather than fixing a known exploit.
 
 ### Finding 5 — Thin UI wrapper components 🟡 (informational — no action recommended)
 
@@ -150,7 +153,7 @@ and by the critical-path integration tests already in place.
 | # | Commit | Risk |
 |---|---|---|
 | 2.1 | `chore(crm): remove unused free-email-providers vendored list` | 🟢 |
-| 2.2 | `feat(api): add zod validation to /api/pdf and /api/health` | 🟢 |
+| 2.2 | `feat(api/pdf): add wrapper zod validation with filename length cap` | 🟢 |
 | 2.3 | `refactor(components): migrate 8 raw-fetch call sites to TanStack Query` | 🟢 |
 | 2.4 | `chore(ui): remove redundant dark: prefixes on semantic tokens` | 🟡 |
 

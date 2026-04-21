@@ -6,10 +6,23 @@
  */
 import { renderToBuffer } from "@json-render/react-pdf/render";
 import type { Spec } from "@json-render/core";
+import { z } from "zod";
 
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 
 export const maxDuration = 30;
+
+/**
+ * Request body schema. The `spec` field carries a vendor type from
+ * @json-render/core — we pass it through as unknown and let renderToBuffer
+ * fail on malformed input, but we still gate the top-level shape and the
+ * filename length so the wrapper is safe.
+ */
+const requestSchema = z.object({
+  spec: z.unknown(),
+  download: z.boolean().optional(),
+  filename: z.string().max(200).optional(),
+});
 
 /**
  * Sanitizes a string into a safe filename for Content-Disposition headers.
@@ -27,19 +40,21 @@ export async function POST(req: Request) {
   const auth = await authenticateRequest();
   if (auth.kind === "error") return auth.response;
 
-  const { spec, download, filename } = (await req.json()) as {
-    spec: Spec;
-    download?: boolean;
-    filename?: string;
-  };
+  const parsed = requestSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return jsonError("Invalid request body", 400);
+  }
 
-  if (!spec || !spec.root || !spec.elements) {
+  const { spec, download, filename } = parsed.data;
+  const typedSpec = spec as Spec;
+
+  if (!typedSpec || !typedSpec.root || !typedSpec.elements) {
     return jsonError("Invalid spec: must include root and elements", 400);
   }
 
   const safeName = filename ? sanitizeFilename(filename) : "document";
 
-  return pdfResponse(spec, safeName, download ?? false);
+  return pdfResponse(typedSpec, safeName, download ?? false);
 }
 
 async function pdfResponse(spec: Spec, name: string, download: boolean) {
