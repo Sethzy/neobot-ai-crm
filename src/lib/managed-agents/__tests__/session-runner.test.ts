@@ -97,7 +97,11 @@ beforeEach(() => {
     live: { [Symbol.asyncIterator]: async function* () {} },
     afterId: null,
   });
-  (dispatchCustomTool as unknown as ReturnType<typeof vi.fn>).mockClear();
+  (dispatchCustomTool as unknown as ReturnType<typeof vi.fn>).mockReset();
+  (dispatchCustomTool as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+    custom_tool_use_id: "ctu_1",
+    content: [{ type: "text", text: '{"success":true,"records":[]}' }],
+  });
   (createApprovalEvent as unknown as ReturnType<typeof vi.fn>).mockClear();
 });
 
@@ -318,6 +322,51 @@ describe("consumeAnthropicSession — custom tool dispatch", () => {
 
     expect(onAgentToolUse).toHaveBeenCalled();
     expect(onAgentToolResult).toHaveBeenCalled();
+  });
+
+  it("preserves custom tool error state on the immediate callback and session event", async () => {
+    stubIteration([
+      customToolUseEvent("ctu_1", "create_connection", {
+        integrations: ["notion"],
+      }),
+      statusIdleEvent("evt_idle", "end_turn"),
+    ]);
+    (dispatchCustomTool as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      custom_tool_use_id: "ctu_1",
+      content: [{ type: "text", text: '{"success":false,"error":"bad input"}' }],
+      is_error: true,
+    });
+    const onAgentToolResult = vi.fn();
+
+    await consumeAnthropicSession({
+      anthropic: fakeAnthropic(),
+      sessionId: "sess_1",
+      runId: "run_1",
+      context: baseContext(),
+      callbacks: { onAgentToolResult },
+    });
+
+    expect(sendEvent).toHaveBeenCalledWith(
+      "sess_1",
+      expect.objectContaining({
+        events: [
+          expect.objectContaining({
+            type: "user.custom_tool_result",
+            custom_tool_use_id: "ctu_1",
+            is_error: true,
+          }),
+        ],
+      }),
+      expect.anything(),
+    );
+
+    expect(onAgentToolResult).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "user.custom_tool_result",
+        custom_tool_use_id: "ctu_1",
+        is_error: true,
+      }),
+    );
   });
 });
 

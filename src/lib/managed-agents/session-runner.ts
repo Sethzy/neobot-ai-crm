@@ -303,6 +303,7 @@ export async function consumeAnthropicSession(
             type: "user.custom_tool_result",
             custom_tool_use_id: dispatchResult.custom_tool_use_id,
             content: dispatchResult.content,
+            ...(dispatchResult.is_error ? { is_error: true } : {}),
           });
         } catch (callbackError) {
           console.warn(`${logPrefix} post-dispatch callback failed, continuing`, callbackError);

@@ -70,6 +70,25 @@ describe("buildUiStreamCallbacks", () => {
     ]);
   });
 
+  it("emits tool-output-error for custom tool errors", async () => {
+    const { writes, writer } = mockWriter();
+    const callbacks = buildUiStreamCallbacks(writer);
+
+    await callbacks.onAgentToolResult?.({
+      custom_tool_use_id: "tool_1",
+      is_error: true,
+      content: [{ text: "{\"success\":false,\"error\":\"bad input\"}" }],
+    } as never);
+
+    expect(writes).toEqual([
+      {
+        type: "tool-output-error",
+        toolCallId: "tool_1",
+        errorText: "{\"success\":false,\"error\":\"bad input\"}",
+      },
+    ]);
+  });
+
   it("emits tool-output-available for built-in agent.tool_result using tool_use_id", async () => {
     const { writes, writer } = mockWriter();
     const callbacks = buildUiStreamCallbacks(writer);

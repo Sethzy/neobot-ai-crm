@@ -40,6 +40,7 @@ export interface CustomToolResultRawEvent {
   readonly type: "user.custom_tool_result";
   readonly custom_tool_use_id: string;
   readonly content: ReadonlyArray<{ type: "text"; text: string }>;
+  readonly is_error?: boolean;
 }
 
 export interface BashToolUseEvent {

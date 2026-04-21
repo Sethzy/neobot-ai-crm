@@ -104,6 +104,38 @@ describe("dispatchCustomTool", () => {
     expect(result.content[0].text).toMatch(/Invalid input for create_record/);
   });
 
+  it("normalizes legacy create_connection object inputs into provider strings", async () => {
+    const execute = vi.fn().mockResolvedValue({ success: true, results: [] });
+    (MANAGED_AGENT_TOOLS as Record<string, ManagedAgentTool>)["create_connection"] = {
+      name: "create_connection",
+      description: "create a connection",
+      inputSchema: z.object({ integrations: z.array(z.string()) }),
+      execute,
+    } as ManagedAgentTool;
+
+    const result = await dispatchCustomTool(
+      {
+        type: "agent.custom_tool_use",
+        id: "ctu_3b",
+        name: "create_connection",
+        input: {
+          integrations: [{ provider: "notion" }, { name: "gmail" }, { integrationId: "googledrive" }],
+        },
+      },
+      stubContext(),
+    );
+
+    expect(execute).toHaveBeenCalledWith(
+      { integrations: ["notion", "gmail", "googledrive"] },
+      expect.objectContaining({ clientId: "client-1", isChatContext: true }),
+    );
+    expect(result.is_error).toBeUndefined();
+    expect(JSON.parse(result.content[0].text)).toEqual({
+      success: true,
+      results: [],
+    });
+  });
+
   it("rejects chatOnly tools when isChatContext is false", async () => {
     const execute = vi.fn();
     (MANAGED_AGENT_TOOLS as Record<string, ManagedAgentTool>)["run_sql"] = {

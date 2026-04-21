@@ -26,6 +26,18 @@ import { splitTextAndSpecParts } from "@/lib/runner/message-utils";
 import type { AnthropicEvent } from "./event-types";
 import { toInternalManagedAgentToolName } from "./tool-name-aliases";
 
+function formatToolErrorText(payload: unknown): string {
+  if (typeof payload === "string") {
+    return payload;
+  }
+
+  try {
+    return JSON.stringify(payload);
+  } catch {
+    return "Tool execution failed.";
+  }
+}
+
 export function buildAssistantPartsFromEvents(
   events: ReadonlyArray<AnthropicEvent>,
 ): PersistedPart[] {
@@ -73,14 +85,22 @@ export function buildAssistantPartsFromEvents(
       const existing = findToolPartByCallId(event.custom_tool_use_id);
       if (existing) {
         const rawText = event.content[0]?.text ?? "{}";
+        const isError = event.is_error ?? false;
         let parsed: unknown;
         try {
           parsed = JSON.parse(rawText);
         } catch {
           parsed = rawText;
         }
-        existing.state = "output-available";
-        existing.output = parsed;
+        existing.state = isError ? "output-error" : "output-available";
+
+        if (isError) {
+          delete existing.output;
+          existing.errorText = formatToolErrorText(parsed);
+        } else {
+          delete existing.errorText;
+          existing.output = parsed;
+        }
       }
       continue;
     }

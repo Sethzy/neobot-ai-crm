@@ -41,6 +41,35 @@ function coerceAskUserQuestionInput(input: unknown): unknown {
   };
 }
 
+function coerceCreateConnectionInput(input: unknown): unknown {
+  if (!input || typeof input !== "object") return input;
+
+  const record = input as Record<string, unknown>;
+  const integrations = record.integrations;
+  if (!Array.isArray(integrations)) return input;
+
+  return {
+    ...record,
+    integrations: integrations.map((integration) => {
+      if (typeof integration === "string") {
+        return integration;
+      }
+
+      if (!integration || typeof integration !== "object") {
+        return integration;
+      }
+
+      const integrationRecord = integration as Record<string, unknown>;
+      const provider =
+        integrationRecord.integrationId ??
+        integrationRecord.provider ??
+        integrationRecord.name;
+
+      return typeof provider === "string" ? provider : integration;
+    }),
+  };
+}
+
 function asContent(
   result: ToolResult,
   toolUseId: string,
@@ -97,6 +126,8 @@ export async function dispatchCustomTool(
 
   const input = internalToolName === "ask_user_question"
     ? coerceAskUserQuestionInput(event.input)
+    : internalToolName === "create_connection"
+      ? coerceCreateConnectionInput(event.input)
     : event.input;
   const parsed = tool.inputSchema.safeParse(input);
   if (!parsed.success) {

@@ -50,6 +50,37 @@ describe("buildAssistantPartsFromEvents", () => {
     });
   });
 
+  it("preserves custom tool failures as output-error parts", () => {
+    const parts = buildAssistantPartsFromEvents([
+      modelRequestStartEvent("span_1"),
+      customToolUseEvent("ctu_err", "create_connection", {
+        integrations: ["notion"],
+      }),
+      customToolResultEvent(
+        "ctr_err",
+        "ctu_err",
+        {
+          success: false,
+          error: "Invalid input for create_connection",
+        },
+        { isError: true },
+      ),
+      statusIdleEvent("evt_end", "end_turn"),
+    ]);
+
+    const toolPart = parts.find((p) => p.type === "tool-create_connection");
+    expect(toolPart).toMatchObject({
+      toolCallId: "ctu_err",
+      state: "output-error",
+      input: { integrations: ["notion"] },
+      errorText: JSON.stringify({
+        success: false,
+        error: "Invalid input for create_connection",
+      }),
+    });
+    expect(toolPart?.output).toBeUndefined();
+  });
+
   it("emits an approval-requested tool part for bash with evaluated_permission='ask'", () => {
     const parts = buildAssistantPartsFromEvents([
       modelRequestStartEvent("span_1"),

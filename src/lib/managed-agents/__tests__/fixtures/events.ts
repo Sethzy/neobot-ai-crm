@@ -36,12 +36,14 @@ export function customToolResultEvent(
   id: string,
   customToolUseId: string,
   payload: unknown,
+  options: { isError?: boolean } = {},
 ) {
   return {
     id,
     type: "user.custom_tool_result",
     custom_tool_use_id: customToolUseId,
     content: [{ type: "text", text: JSON.stringify(payload) }],
+    ...(options.isError ? { is_error: true } : {}),
   } as const;
 }
 
@@ -116,4 +118,3 @@ export function sessionErrorEvent(id: string, message: string) {
     error: { message },
   } as const;
 }
-
