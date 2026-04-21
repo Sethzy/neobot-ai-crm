@@ -112,7 +112,7 @@ describe("scanTriggers", () => {
   });
 
   it("execution callback calls executeTrigger directly with the shared admin client", async () => {
-    mockRunScan.mockImplementationOnce(async ({ supabase, dispatch }) => {
+    mockRunScan.mockImplementationOnce(async ({ dispatch }) => {
       const result = await dispatch(validPayload);
       expect(result).toEqual({ ok: true, status: 200 });
 

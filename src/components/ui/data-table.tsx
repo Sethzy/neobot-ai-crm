@@ -298,7 +298,7 @@ export function DataTable<TData>({
                     <th
                       key={header.id}
                       className={cn(
-                        "px-3 py-1.5 text-left text-xs font-medium text-muted-foreground",
+                        "px-3 py-1.5 text-left text-caption font-medium text-muted-foreground",
                         isActionsColumn ? "w-[1%] text-right" : ""
                       )}
                     >
@@ -312,7 +312,7 @@ export function DataTable<TData>({
                         >
                           {flexRender(header.column.columnDef.header, header.getContext())}
                           {header.column.getIsSorted() ? (
-                            <span className="text-[10px]">
+                            <span className="text-caption">
                               {header.column.getIsSorted() === "asc" ? "▲" : "▼"}
                             </span>
                           ) : null}

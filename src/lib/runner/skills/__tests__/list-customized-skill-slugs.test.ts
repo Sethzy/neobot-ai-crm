@@ -9,7 +9,7 @@ import { listCustomizedSkillSlugs } from "../list-customized-skill-slugs";
 
 function makeStorageMock(files: string[]) {
   return {
-    from: vi.fn((_bucket: string) => ({
+    from: vi.fn(() => ({
       list: vi.fn(async (prefix: string) => {
         const items = files
           .filter((file) => file.startsWith(`${prefix}/`))

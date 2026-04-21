@@ -176,7 +176,7 @@ function MarkdownEditorFallback({
         {hasContent ? (
           <MarkdownRenderer compact={compact} content={value} />
         ) : (
-          <p className="my-0 text-[15px] italic text-muted-foreground">
+          <p className="my-0 text-body italic text-muted-foreground">
             {placeholder ?? "Write markdown..."}
           </p>
         )}

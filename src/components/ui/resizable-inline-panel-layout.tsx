@@ -130,33 +130,13 @@ export function ResizableInlinePanelLayout({
     );
   }
 
-  const lastRenderRef = useRef(renderPanelContent);
-  if (renderPanelContent) {
-    lastRenderRef.current = renderPanelContent;
-  }
-  const [isPanelMounted, setIsPanelMounted] = useState(
-    Boolean(renderPanelContent) && isPanelOpen,
-  );
-  useEffect(() => {
-    if (isPanelOpen && lastRenderRef.current) {
-      setIsPanelMounted(true);
-    }
-  }, [isPanelOpen]);
-
-  const effectiveRender = renderPanelContent ?? lastRenderRef.current;
-  const canRenderPanel = isPanelMounted && Boolean(effectiveRender);
+  const effectiveRender = renderPanelContent;
+  const canRenderPanel = isPanelOpen && Boolean(effectiveRender);
   const resizerWidth = 6;
   const outerWidth = isPanelOpen ? panelWidth + resizerWidth : 0;
   const sharedTransition = isDragging
     ? "none"
     : `width ${isPanelOpen ? 280 : 220}ms cubic-bezier(0.22, 1, 0.36, 1)`;
-
-  const handleOuterTransitionEnd = (event: React.TransitionEvent) => {
-    if (event.propertyName === "width" && !isPanelOpen) {
-      setIsPanelMounted(false);
-      lastRenderRef.current = undefined;
-    }
-  };
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-sidebar">
@@ -169,7 +149,6 @@ export function ResizableInlinePanelLayout({
           <div
             className="flex shrink-0 overflow-hidden bg-sidebar motion-reduce:!transition-none"
             style={{ width: outerWidth, transition: sharedTransition }}
-            onTransitionEnd={handleOuterTransitionEnd}
             aria-hidden={!isPanelOpen}
           >
             <div

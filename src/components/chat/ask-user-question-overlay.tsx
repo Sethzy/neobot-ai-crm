@@ -376,7 +376,7 @@ export function AskUserQuestionOverlay({
     >
       {/* Header: question text + pagination + dismiss */}
       <div className="mb-4 flex items-start justify-between gap-4">
-        <p className="text-[15px] font-semibold leading-6 text-foreground">
+        <p className="text-body font-semibold text-foreground">
           {currentQuestion.question}
         </p>
         <div className="flex shrink-0 items-center gap-1">
@@ -394,7 +394,7 @@ export function AskUserQuestionOverlay({
               >
                 &lsaquo;
               </button>
-              <span className="min-w-12 text-center text-xs text-muted-foreground">
+              <span className="min-w-12 text-center text-caption text-muted-foreground">
                 {currentIndex + 1} of {questions.length}
               </span>
               <button
@@ -447,13 +447,13 @@ export function AskUserQuestionOverlay({
                 handleAnswer(option);
               }}
               onMouseEnter={() => setFocusedOption(index)}
-            >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-medium text-muted-foreground">
+              >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-caption font-medium text-muted-foreground">
                 {index + 1}
               </span>
-              <span className="flex-1 text-[13.5px] text-foreground">{option}</span>
+              <span className="flex-1 text-meta text-foreground">{option}</span>
               {focusedOption === index && (
-                <span className="text-sm text-muted-foreground">→</span>
+                <span className="text-meta text-muted-foreground">→</span>
               )}
             </button>
           </div>
@@ -489,7 +489,7 @@ export function AskUserQuestionOverlay({
                 )}>
                   {isChecked && <span className="h-2 w-2 rounded-sm bg-primary" />}
                 </span>
-                <span className="flex-1 text-[13.5px] text-foreground">{option}</span>
+                <span className="flex-1 text-meta text-foreground">{option}</span>
               </button>
             </div>
           );
@@ -508,10 +508,10 @@ export function AskUserQuestionOverlay({
               className="flex cursor-grab items-center gap-3 rounded-lg px-2 py-3.5 text-sm transition-colors active:cursor-grabbing hover:bg-muted/20"
             >
               <span className="select-none text-muted-foreground/40" aria-hidden>⠿</span>
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-medium text-muted-foreground">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-caption font-medium text-muted-foreground">
                 {index + 1}
               </span>
-              <span className="flex-1 text-[13.5px] text-foreground">{option}</span>
+              <span className="flex-1 text-meta text-foreground">{option}</span>
             </div>
           </div>
         ))}
@@ -519,7 +519,7 @@ export function AskUserQuestionOverlay({
 
       {/* Counter for multi_select */}
       {isMulti && currentDraft.selectedChecks.length > 0 && (
-        <p className="mt-1 px-2 text-xs text-muted-foreground" data-testid="ask-question-counter">
+        <p className="mt-1 px-2 text-caption text-muted-foreground" data-testid="ask-question-counter">
           {currentDraft.selectedChecks.length} selected
         </p>
       )}
@@ -542,9 +542,9 @@ export function AskUserQuestionOverlay({
                   otherText: event.target.value,
                 }))}
               onFocus={() => setFocusedOption(-1)}
-              placeholder="Something else"
-              data-testid="ask-question-other-input"
-              className="flex-1 bg-transparent text-[13.5px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+            placeholder="Something else"
+            data-testid="ask-question-other-input"
+              className="flex-1 bg-transparent text-meta text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
               onKeyDown={(event) => {
                 const submittedText = event.currentTarget.value.trim();
                 if (event.key === "Enter" && submittedText.length > 0) {
@@ -566,7 +566,7 @@ export function AskUserQuestionOverlay({
             type="button"
             data-testid="ask-question-continue"
             disabled={currentDraft.selectedChecks.length === 0}
-            className="ml-auto rounded-lg bg-foreground px-4 py-2 text-[13px] font-medium text-background transition-opacity disabled:opacity-35"
+            className="ml-auto rounded-lg bg-foreground px-4 py-2 text-meta font-medium text-background transition-opacity disabled:opacity-35"
             onClick={handleMultiContinue}
           >
             Continue
@@ -579,7 +579,7 @@ export function AskUserQuestionOverlay({
             <button
               type="button"
               onClick={handleSkip}
-              className="rounded-lg border border-border/60 px-3.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="rounded-lg border border-border/60 px-3.5 py-1.5 text-meta text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               data-testid="ask-question-skip"
             >
               Skip
@@ -587,7 +587,7 @@ export function AskUserQuestionOverlay({
             <button
               type="button"
               data-testid="ask-question-continue"
-              className="ml-auto rounded-lg bg-foreground px-4 py-2 text-[13px] font-medium text-background"
+              className="ml-auto rounded-lg bg-foreground px-4 py-2 text-meta font-medium text-background"
               onClick={handleRankContinue}
             >
               Continue
@@ -600,7 +600,7 @@ export function AskUserQuestionOverlay({
           <button
             type="button"
             onClick={handleSkip}
-            className="ml-auto rounded-lg border border-border/60 px-3.5 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="ml-auto rounded-lg border border-border/60 px-3.5 py-1.5 text-meta text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             data-testid="ask-question-skip"
           >
             Skip
@@ -611,7 +611,7 @@ export function AskUserQuestionOverlay({
       {/* Keyboard hints */}
       <div
         data-testid="ask-question-hints"
-        className="mt-2.5 flex items-center justify-center gap-3 text-[11px] text-muted-foreground/50"
+        className="mt-2.5 flex items-center justify-center gap-3 text-caption text-muted-foreground/50"
       >
         <span>{keyboardHint}</span>
       </div>

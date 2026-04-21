@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Button } from "@/components/landing/Button";
-import { Logo } from "@/components/landing/Logo";
-import { SlimLayout } from "@/components/landing/SlimLayout";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
@@ -39,50 +38,49 @@ export default function ForgotPasswordPage() {
 
   if (success) {
     return (
-      <SlimLayout>
-        <div className="flex">
-          <Link href="/" aria-label="Home">
-            <Logo className="h-10 w-auto" />
-          </Link>
-        </div>
-        <h2 className="mt-20 text-lg font-semibold text-foreground">
-          Check your email
-        </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          If an account exists with that email, we've sent you a password reset
-          link. Please check your inbox.
-        </p>
-        <div className="mt-8">
-          <Link href="/login" className="font-medium text-primary hover:underline">
-            Back to login
-          </Link>
-        </div>
-      </SlimLayout>
+      <AuthShell
+        description="If an account exists with that email, we sent a reset link to your inbox."
+        footer={(
+          <p>
+            Remembered it already?{" "}
+            <Link href="/login" className="font-medium text-primary hover:text-foreground">
+              Back to login
+            </Link>
+            .
+          </p>
+        )}
+        modeLabel="Password reset"
+        title="Check your email"
+      >
+        <Button asChild variant="outline" className="h-11 rounded-xl">
+          <Link href="/login">Back to login</Link>
+        </Button>
+      </AuthShell>
     );
   }
 
   return (
-    <SlimLayout>
-      <div className="flex">
-        <Link href="/" aria-label="Home">
-          <Logo className="h-10 w-auto" />
-        </Link>
-      </div>
-      <h2 className="mt-20 text-lg font-semibold text-foreground">
-        Reset your password
-      </h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Enter your email address and we'll send you a link to reset your
-        password.
-      </p>
-
-      {error && (
-        <div className="mt-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+    <AuthShell
+      description="Enter your email address and we will send you a secure link to reset your password."
+      footer={(
+        <p>
+          Prefer to sign in instead?{" "}
+          <Link href="/login" className="font-medium text-primary hover:text-foreground">
+            Back to login
+          </Link>
+          .
+        </p>
+      )}
+      modeLabel="Password reset"
+      title="Reset your password"
+    >
+      {error ? (
+        <div className="mb-6 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-meta text-destructive">
           {error}
         </div>
-      )}
+      ) : null}
 
-      <form className="mt-10 grid grid-cols-1 gap-y-8" onSubmit={handleForgotPassword}>
+      <form className="grid grid-cols-1 gap-6" onSubmit={handleForgotPassword}>
         <div className="space-y-2">
           <Label htmlFor="email">Email address</Label>
           <Input
@@ -96,27 +94,10 @@ export default function ForgotPasswordPage() {
           />
         </div>
 
-        <div>
-          <Button
-            type="submit"
-            variant="solid"
-            color="green"
-            className="w-full"
-            disabled={isLoading}
-          >
-            <span>{isLoading ? "Sending..." : "Send reset link"}</span>
-          </Button>
-        </div>
-
-        <div className="text-center">
-          <Link
-            href="/login"
-            className="text-sm text-muted-foreground hover:text-primary"
-          >
-            Back to login
-          </Link>
-        </div>
+        <Button type="submit" className="h-12 w-full rounded-xl" disabled={isLoading}>
+          {isLoading ? "Sending..." : "Send reset link"}
+        </Button>
       </form>
-    </SlimLayout>
+    </AuthShell>
   );
 }

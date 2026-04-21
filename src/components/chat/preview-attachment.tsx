@@ -89,7 +89,7 @@ export function PreviewAttachment({
   );
 
   const filenameLabel = (
-    <div className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/80 to-transparent px-1 py-0.5 text-[10px] text-white">
+    <div className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/80 to-transparent px-1 py-0.5 text-caption text-white">
       {filename}
     </div>
   );

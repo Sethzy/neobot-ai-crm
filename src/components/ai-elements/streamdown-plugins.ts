@@ -27,6 +27,6 @@ export const mermaidThemeConfig = {
     lineColor: "#B7B5AC",
     secondaryColor: "#FFFCF0",
     tertiaryColor: "#F2F0E5",
-    fontFamily: "Inter, system-ui, sans-serif",
+    fontFamily: "Figtree, system-ui, sans-serif",
   },
 };

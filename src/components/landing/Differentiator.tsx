@@ -19,7 +19,7 @@ function CompetitorLogo({ name, domain }: { name: string; domain: string }) {
   if (failed) {
     return (
       <div
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#EDE6DB] text-[10px] font-bold text-[#8B7E76]"
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#EDE6DB] text-caption font-bold text-[#8B7E76]"
         title={name}
       >
         {name[0]}
@@ -112,17 +112,17 @@ export function Differentiator() {
                 className="grid grid-cols-[1fr_70px_48px] gap-x-2 items-center px-4 py-5 sm:grid-cols-[1fr_1fr_80px_64px] sm:gap-x-4 sm:px-8 sm:py-5"
                 style={{ backgroundColor: '#024F46' }}
               >
-                <th scope="col" className="text-left text-[11px] font-semibold uppercase tracking-widest text-white/60 sm:text-xs">
+                <th scope="col" className="text-left text-caption font-semibold uppercase tracking-[0.12em] text-white/60 sm:text-xs">
                   Feature
                 </th>
-                <th scope="col" className="hidden text-left text-[11px] font-semibold uppercase tracking-widest text-white/60 sm:block sm:text-xs">
+                <th scope="col" className="hidden text-left text-caption font-semibold uppercase tracking-[0.12em] text-white/60 sm:block sm:text-xs">
                   Replaces
                 </th>
-                <th scope="col" className="text-right text-[11px] font-semibold uppercase tracking-widest text-white/60 sm:text-xs">
+                <th scope="col" className="text-right text-caption font-semibold uppercase tracking-[0.12em] text-white/60 sm:text-xs">
                   Cost
                 </th>
                 <th scope="col" className="text-center">
-                  <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-sunder-green-dark sm:text-xs">
+                  <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-caption font-bold uppercase tracking-[0.12em] text-sunder-green-dark sm:text-xs">
                     Neo
                   </span>
                 </th>
@@ -157,7 +157,7 @@ export function Differentiator() {
                       <div className="min-w-0">
                         <div
                           className={cn(
-                            'text-sm font-medium sm:text-[15px]',
+                            'text-meta font-medium sm:text-body',
                             isComingSoon ? 'text-[#A89E96]' : 'text-foreground',
                           )}
                         >
@@ -204,7 +204,7 @@ export function Differentiator() {
                           <AppIcon name="check" className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
                         </div>
                       ) : (
-                        <span className="rounded-full border border-amber-200/80 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-500">
+                        <span className="rounded-full border border-amber-200/80 bg-amber-50 px-2 py-0.5 text-caption font-semibold uppercase tracking-wide text-amber-500">
                           Soon
                         </span>
                       )}
@@ -245,7 +245,7 @@ export function Differentiator() {
             <div className="relative flex flex-col items-center gap-6 sm:flex-row sm:items-end sm:justify-center sm:gap-10">
               {/* Separately */}
               <div className="text-center">
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-white/60 sm:text-xs">
+                <p className="text-caption font-semibold uppercase tracking-[0.12em] text-white/60 sm:text-xs">
                   If you bought them all
                 </p>
                 <p className="mt-2 inline-flex items-baseline justify-center whitespace-nowrap font-serif text-2xl font-bold text-white/40 line-through decoration-white/20 sm:text-3xl">
@@ -260,7 +260,7 @@ export function Differentiator() {
 
               {/* With Neo */}
               <div className="text-center">
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-white/70 sm:text-xs">
+                <p className="text-caption font-semibold uppercase tracking-[0.12em] text-white/70 sm:text-xs">
                   With Neo
                 </p>
                 <p className="mt-2 inline-flex items-baseline justify-center whitespace-nowrap font-serif text-3xl font-bold text-white sm:text-4xl">

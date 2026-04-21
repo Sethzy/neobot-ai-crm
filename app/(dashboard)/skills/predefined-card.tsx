@@ -76,13 +76,13 @@ export function PredefinedCard({ isInstalled, skill, onSelect, onHover }: Predef
             {skill.name}
           </span>
           {skill.latestVersion ? (
-            <span className="shrink-0 text-[10px] text-muted-foreground font-normal">
+            <span className="shrink-0 text-caption text-muted-foreground font-normal">
               v{skill.latestVersion.slice(0, 7)}
             </span>
           ) : null}
           {category ? (
             <Badge
-              className="shrink-0 px-1.5 py-0 text-[10px] leading-4 font-normal"
+              className="shrink-0 px-1.5 py-0 text-caption leading-4 font-normal"
               variant="outline"
             >
               {category}

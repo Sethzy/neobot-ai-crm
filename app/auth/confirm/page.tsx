@@ -8,8 +8,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { SlimLayout } from "@/components/landing/SlimLayout";
-import { Logo } from "@/components/landing/Logo";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { Button } from "@/components/ui/button";
 
 export default function ConfirmPage() {
   const router = useRouter();
@@ -55,50 +55,37 @@ export default function ConfirmPage() {
   }, [router]);
 
   return (
-    <SlimLayout>
-      <div className="flex">
-        <Link href="/" aria-label="Home">
-          <Logo className="h-10 w-auto" />
-        </Link>
-      </div>
-
-      {status === "loading" && (
-        <>
-          <h2 className="mt-20 text-lg font-semibold text-foreground">
-            Confirming your email...
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Please wait while we verify your email address.
-          </p>
-        </>
+    <AuthShell
+      description={
+        status === "loading"
+          ? "Please wait while we verify your email address."
+          : status === "success"
+            ? "Your email has been verified. Redirecting you now..."
+            : (errorMessage || "Something went wrong. Please try again.")
+      }
+      footer={(
+        <p>
+          Need to return manually?{" "}
+          <Link href="/login" className="font-medium text-primary hover:text-foreground">
+            Back to login
+          </Link>
+          .
+        </p>
       )}
-
-      {status === "success" && (
-        <>
-          <h2 className="mt-20 text-lg font-semibold text-foreground">
-            Email confirmed!
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Your email has been verified. Redirecting you now...
-          </p>
-        </>
-      )}
-
-      {status === "error" && (
-        <>
-          <h2 className="mt-20 text-lg font-semibold text-destructive">
-            Confirmation failed
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {errorMessage || "Something went wrong. Please try again."}
-          </p>
-          <div className="mt-8">
-            <Link href="/login" className="font-medium text-primary hover:underline">
-              Back to login
-            </Link>
-          </div>
-        </>
-      )}
-    </SlimLayout>
+      modeLabel="Email confirmation"
+      title={
+        status === "loading"
+          ? "Confirming your email..."
+          : status === "success"
+            ? "Email confirmed!"
+            : "Confirmation failed"
+      }
+    >
+      {status === "error" ? (
+        <Button asChild variant="outline" className="h-11 rounded-xl">
+          <Link href="/login">Back to login</Link>
+        </Button>
+      ) : null}
+    </AuthShell>
   );
 }

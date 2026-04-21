@@ -60,12 +60,12 @@ export function SkillDetailDialog({
           <DialogTitle className="sr-only">{skill.name}</DialogTitle>
           {/* Title row */}
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold leading-tight text-foreground">
+            <h2 className="text-subhead font-semibold leading-tight text-foreground">
               {skill.name}
             </h2>
             {category ? (
               <Badge
-                className="shrink-0 px-1.5 py-0 text-[11px] leading-4 font-normal"
+                className="shrink-0 px-1.5 py-0 text-caption leading-4 font-normal"
                 variant="outline"
               >
                 {category}
@@ -74,12 +74,12 @@ export function SkillDetailDialog({
           </div>
 
           {/* Description */}
-          <p className="mt-1.5 text-[15px] leading-snug text-muted-foreground">
+          <p className="mt-2 measure-copy text-body text-muted-foreground">
             {skill.description}
           </p>
 
           {/* Command slug */}
-          <p className="mt-2 font-mono text-[13px] text-muted-foreground/70">
+          <p className="mt-3 font-mono text-meta text-muted-foreground/70">
             /{skill.slug}
             {skill.latestVersion ? (
               <span className="ml-2">{skill.latestVersion.slice(0, 7)}</span>

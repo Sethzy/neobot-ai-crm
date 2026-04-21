@@ -190,7 +190,7 @@ function CompanyPickerRow({
                 >
                   <span
                     className={cn(
-                      "flex h-4 w-4 shrink-0 items-center justify-center rounded text-[9px] font-semibold",
+                      "flex h-4 w-4 shrink-0 items-center justify-center rounded text-caption font-semibold",
                       avatarColorFor(company.name),
                     )}
                   >
@@ -265,7 +265,7 @@ function ContactPickerRow({
             <span className="inline-flex items-center gap-1 truncate">
               <span
                 className={cn(
-                  "flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-medium",
+                  "flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-caption font-medium",
                   avatarColorFor(contactName),
                 )}
               >
@@ -301,7 +301,7 @@ function ContactPickerRow({
                   >
                     <span
                       className={cn(
-                        "flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-medium",
+                        "flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-caption font-medium",
                         avatarColorFor(name),
                       )}
                     >
@@ -339,7 +339,7 @@ export function DealKanbanCard({ deal }: DealKanbanCardProps) {
       <div className="flex items-center gap-2">
         <span
           className={cn(
-            "flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold",
+            "flex h-5 w-5 shrink-0 items-center justify-center rounded text-caption font-semibold",
             avatarColorFor(deal.address),
           )}
         >

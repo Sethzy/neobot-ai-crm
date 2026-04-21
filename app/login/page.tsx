@@ -1,17 +1,16 @@
 'use client';
 
 /**
- * Login page with Google OAuth and email/password — green SlimLayout.
+ * Login page with Google OAuth and email/password.
  * @module app/login/page
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useState } from "react";
 
+import { AuthShell } from "@/components/auth/auth-shell";
 import { GoogleAuthButton } from "@/components/auth/google-auth-button";
-import { Button } from "@/components/landing/Button";
-import { Logo } from "@/components/landing/Logo";
-import { SlimLayout } from "@/components/landing/SlimLayout";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -82,86 +81,80 @@ export default function LoginPage({
   };
 
   return (
-    <SlimLayout>
-      <div className="flex">
-        <Link href="/" aria-label="Home">
-          <Logo className="h-10 w-auto" />
-        </Link>
-      </div>
-      <h2 className="mt-6 text-lg font-semibold text-foreground">
-        Sign in to your account
-      </h2>
-
-      {error && (
-        <div className="mt-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+    <AuthShell
+      description="Connect Google or sign in with email to pick up where Sunder left off."
+      footer={(
+        <p>
+          New to Sunder?{" "}
+          <Link href="/register" className="font-medium text-primary hover:text-foreground">
+            Create an account
+          </Link>
+          .
+        </p>
+      )}
+      modeLabel="Sign in"
+      title="Sign in to your account"
+    >
+      {error ? (
+        <div className="mb-6 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-meta text-destructive">
           {error}
         </div>
-      )}
+      ) : null}
 
-      <div className="mt-8">
+      <div className="space-y-6">
         <GoogleAuthButton
           label="Sign in with Google"
           isLoading={isGoogleLoading}
           onClick={handleGoogleSignIn}
         />
-      </div>
 
-      <div className="mt-6 flex items-center gap-4 text-xs font-medium uppercase tracking-widest text-muted-foreground">
-        <span className="h-px flex-1 bg-border" />
-        <span>Or</span>
-        <span className="h-px flex-1 bg-border" />
-      </div>
-
-      <form className="mt-6 grid grid-cols-1 gap-y-8" onSubmit={handleLogin}>
-        <div className="space-y-2">
-          <Label htmlFor="email">Email address</Label>
-          <Input
-            id="email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={isLoading || isGoogleLoading}
-            required
-          />
+        <div className="flex items-center gap-4">
+          <span className="h-px flex-1 bg-border" />
+          <span className="text-caption font-medium uppercase text-muted-foreground">Or</span>
+          <span className="h-px flex-1 bg-border" />
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password">Password</Label>
-            <Link
-              href="/forgot-password"
-              className="text-sm text-muted-foreground hover:text-primary"
-            >
-              Forgot password?
-            </Link>
+        <form className="grid grid-cols-1 gap-6" onSubmit={handleLogin}>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email address</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={isLoading || isGoogleLoading}
+              required
+            />
           </div>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={isLoading || isGoogleLoading}
-            required
-          />
-        </div>
 
-        <div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="password">Password</Label>
+              <Link href="/forgot-password" className="text-meta text-muted-foreground hover:text-foreground">
+                Forgot password?
+              </Link>
+            </div>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={isLoading || isGoogleLoading}
+              required
+            />
+          </div>
+
           <Button
             type="submit"
-            variant="solid"
-            color="green"
-            className="w-full"
+            className="h-12 w-full rounded-xl"
             disabled={isLoading || isGoogleLoading}
           >
-            <span>
-              {isLoading ? "Signing in..." : "Sign in"}{" "}
-              <span aria-hidden="true">&rarr;</span>
-            </span>
+            {isLoading ? "Signing in..." : "Sign in"}
           </Button>
-        </div>
-      </form>
-    </SlimLayout>
+        </form>
+      </div>
+    </AuthShell>
   );
 }

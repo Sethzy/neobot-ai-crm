@@ -162,7 +162,7 @@ export function CrmTasksTable({ tasks, onRowClick }: CrmTasksTableProps) {
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
-                  className="cursor-pointer px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground/70 md:px-5 md:py-4"
+                  className="cursor-pointer px-3 py-3 text-left text-caption font-medium uppercase tracking-wide text-muted-foreground/70 md:px-5 md:py-4"
                   onClick={header.column.getToggleSortingHandler()}
                 >
                   <div className="flex items-center gap-1 whitespace-nowrap">
@@ -182,7 +182,7 @@ export function CrmTasksTable({ tasks, onRowClick }: CrmTasksTableProps) {
               onClick={(event) => handleRowClick(event, row.original.task_id)}
             >
               {row.getVisibleCells().map((cell) => (
-                <td key={cell.id} className="px-3 py-3 text-[13px] text-foreground/80 md:px-5 md:py-4">
+                <td key={cell.id} className="px-3 py-3 text-meta text-foreground/80 md:px-5 md:py-4">
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>
               ))}

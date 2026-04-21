@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
@@ -69,20 +69,21 @@ function inferDays(cron: string | null): number[] {
 }
 
 export function AutomationScheduleSidebar({ trigger }: AutomationScheduleSidebarProps) {
+  return (
+    <AutomationScheduleSidebarContent
+      key={`${trigger.id}:${trigger.cron_expression ?? ""}`}
+      trigger={trigger}
+    />
+  );
+}
+
+function AutomationScheduleSidebarContent({ trigger }: AutomationScheduleSidebarProps) {
   const updateSchedule = useUpdateTriggerSchedule();
 
   const [recurrence, setRecurrence] = useState<Recurrence>(() => inferRecurrence(trigger.cron_expression));
   const [time, setTime] = useState(() => inferTime(trigger.cron_expression));
   const [days, setDays] = useState<number[]>(() => inferDays(trigger.cron_expression));
   const [customCron, setCustomCron] = useState(trigger.cron_expression ?? "");
-
-  // Sync state when trigger data changes externally
-  useEffect(() => {
-    setRecurrence(inferRecurrence(trigger.cron_expression));
-    setTime(inferTime(trigger.cron_expression));
-    setDays(inferDays(trigger.cron_expression));
-    setCustomCron(trigger.cron_expression ?? "");
-  }, [trigger.cron_expression]);
 
   const saveSchedule = useCallback((
     newRecurrence: Recurrence,

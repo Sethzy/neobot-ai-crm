@@ -1,28 +1,18 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Agentation } from "agentation";
 import { Toaster } from "sonner";
 import { Providers } from "./providers";
 import "./globals.css";
-import { Geist, Playfair_Display } from "next/font/google";
 import { cn } from "@/lib/utils";
-
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
-
-const playfairDisplay = Playfair_Display({
-  subsets: ["latin"],
-  variable: "--font-playfair",
-  display: "swap",
-});
 
 const figtree = localFont({
   src: [
     { path: "../public/fonts/figtree-latin-wght-normal.woff2", style: "normal" },
     { path: "../public/fonts/figtree-latin-wght-italic.woff2", style: "italic" },
   ],
-  variable: "--font-figtree",
+  variable: "--font-ui",
   display: "swap",
 });
 
@@ -31,7 +21,7 @@ const fraunces = localFont({
     { path: "../public/fonts/fraunces-latin-full-normal.woff2", style: "normal" },
     { path: "../public/fonts/fraunces-latin-full-italic.woff2", style: "italic" },
   ],
-  variable: "--font-fraunces",
+  variable: "--font-display",
   display: "swap",
 });
 
@@ -66,7 +56,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en" className={cn(GeistSans.variable, GeistMono.variable, figtree.variable, fraunces.variable, playfairDisplay.variable, "font-sans", geist.variable)}>
+    <html lang="en" className={cn(GeistMono.variable, figtree.variable, fraunces.variable)}>
       <body>
         <script
           type="application/ld+json"

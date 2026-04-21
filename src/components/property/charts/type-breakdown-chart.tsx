@@ -38,8 +38,8 @@ export function TypeBreakdownChart({ title, data }: TypeBreakdownChartProps) {
         <div className="pointer-events-none absolute inset-0 bottom-[40px] flex items-center justify-center">
           <div className="text-center">
             <p className="text-2xl font-bold text-foreground">{topEntry.count}</p>
-            <p className="text-[11px] text-muted-foreground">{topEntry.label}</p>
-            <p className="text-[10px] text-muted-foreground">{pct}%</p>
+            <p className="text-caption text-muted-foreground">{topEntry.label}</p>
+            <p className="text-caption text-muted-foreground">{pct}%</p>
           </div>
         </div>
         <ResponsiveContainer width="100%" height={280}>
@@ -63,7 +63,7 @@ export function TypeBreakdownChart({ title, data }: TypeBreakdownChartProps) {
             </Pie>
             <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
             <Legend
-              wrapperStyle={{ fontSize: 12 }}
+              wrapperStyle={{ fontSize: 12, fontFamily: "Figtree, system-ui, sans-serif" }}
               formatter={(value: string) => (
                 <span className="text-muted-foreground">{value}</span>
               )}

@@ -165,8 +165,36 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-ui), sans-serif;
+  --font-serif: var(--font-display), serif;
+  --font-serif--font-variation-settings: "SOFT" 100, "WONK" 1;
+  --font-editorial: var(--font-display), serif;
+  --font-editorial--font-variation-settings: "SOFT" 100, "WONK" 1;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Semantic typography scale */
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+  --text-caption--letter-spacing: 0.08em;
+  --text-caption--font-weight: 500;
+  --text-meta: 0.875rem;
+  --text-meta--line-height: 1.25rem;
+  --text-meta--font-weight: 400;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5rem;
+  --text-body--font-weight: 400;
+  --text-subhead: 1.25rem;
+  --text-subhead--line-height: 1.75rem;
+  --text-subhead--letter-spacing: -0.01em;
+  --text-subhead--font-weight: 600;
+  --text-title: 2rem;
+  --text-title--line-height: 2.25rem;
+  --text-title--letter-spacing: -0.04em;
+  --text-title--font-weight: 600;
+  --text-display: clamp(2.5rem, 5vw, 4rem);
+  --text-display--line-height: 1.02;
+  --text-display--letter-spacing: -0.05em;
+  --text-display--font-weight: 500;
 
   /* Core shadcn color tokens */
   --color-background: var(--background);
@@ -271,20 +299,22 @@
   }
 
   body {
-    @apply font-sans bg-background text-foreground;
+    @apply bg-background font-sans text-body text-foreground antialiased;
+    font-kerning: normal;
+    text-rendering: optimizeLegibility;
   }
 
   html {
     @apply font-sans;
   }
 
-  .font-serif {
-    font-family: var(--font-fraunces), serif;
-    font-variation-settings: 'SOFT' 100, 'WONK' 1;
-  }
-
   code, kbd, pre, samp {
     font-family: var(--font-mono);
+    font-variant-ligatures: none;
+  }
+
+  abbr {
+    font-variant-caps: all-small-caps;
   }
 }
 
@@ -313,7 +343,7 @@
   /* --color-sunder-green: #024F46; */
   /* --color-sunder-green-light: #40916C; */
   /* --color-sunder-green-dark: #1B4332; */
-  font-family: var(--font-figtree), sans-serif;
+  font-family: var(--font-ui), sans-serif;
 }
 
 /* Desktop: skip layout/paint for below-the-fold sections until near viewport. */
@@ -333,6 +363,25 @@
 }
 .animate-marquee-slower {
   animation: marquee 120s linear infinite;
+}
+
+@layer utilities {
+  .type-kicker {
+    @apply text-caption font-medium uppercase text-muted-foreground;
+    letter-spacing: 0.12em;
+  }
+
+  .type-heading {
+    @apply font-serif text-title text-foreground;
+  }
+
+  .type-display {
+    @apply font-serif text-display text-foreground;
+  }
+
+  .measure-copy {
+    max-width: 65ch;
+  }
 }
 
 /* Scroll reveal utility classes - MOBILE ONLY */

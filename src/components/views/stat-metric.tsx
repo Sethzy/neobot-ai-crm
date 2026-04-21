@@ -31,7 +31,7 @@ const trendVariantMap = {
 export function StatMetric({ label, value, trend, change }: StatMetricProps) {
   return (
     <div className="flex h-full flex-col justify-between gap-3 p-4">
-      <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+      <p className="type-kicker">
         {label}
       </p>
       <div className="flex items-end justify-between gap-3">

@@ -108,14 +108,14 @@ export function AgentContextForm({
           <CardHeader className="flex flex-row items-start justify-between gap-4 pb-1">
             <div className="space-y-1">
               <CardDescription>Agent personality</CardDescription>
-              <CardTitle className="text-2xl tracking-[-0.02em]">Client profile</CardTitle>
+              <CardTitle className="font-serif text-subhead">Client profile</CardTitle>
             </div>
-            <span className="shrink-0 rounded-full border border-border/70 bg-background/85 px-3 py-1.5 text-[11px] font-medium leading-none tracking-[0.02em] text-muted-foreground shadow-sm">
+            <span className="shrink-0 rounded-full border border-border/70 bg-background/85 px-3 py-1.5 text-caption font-medium leading-none tracking-[0.02em] text-muted-foreground shadow-sm">
               {countLabel(clientProfile)}
             </span>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="max-w-[34rem] text-sm leading-6 text-muted-foreground">
+            <p className="measure-copy max-w-[34rem] text-body text-muted-foreground">
               Use this for voice, operating style, business context, and persistent instructions
               that should shape how Sunder acts for this workspace.
             </p>
@@ -138,14 +138,14 @@ export function AgentContextForm({
           <CardHeader className="flex flex-row items-start justify-between gap-4 pb-1">
             <div className="space-y-1">
               <CardDescription>User profile</CardDescription>
-              <CardTitle className="text-2xl tracking-[-0.02em]">User preferences</CardTitle>
+              <CardTitle className="font-serif text-subhead">User preferences</CardTitle>
             </div>
-            <span className="shrink-0 rounded-full border border-border/70 bg-background/85 px-3 py-1.5 text-[11px] font-medium leading-none tracking-[0.02em] text-muted-foreground shadow-sm">
+            <span className="shrink-0 rounded-full border border-border/70 bg-background/85 px-3 py-1.5 text-caption font-medium leading-none tracking-[0.02em] text-muted-foreground shadow-sm">
               {countLabel(userPreferences)}
             </span>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="max-w-[34rem] text-sm leading-6 text-muted-foreground">
+            <p className="measure-copy max-w-[34rem] text-body text-muted-foreground">
               Use this for how the user prefers to communicate and work: tone, decision style,
               formatting preferences, and durable personal context.
             </p>

@@ -1,16 +1,15 @@
 'use client';
 
 /**
- * Signup page with Google OAuth and email/password — green SlimLayout.
+ * Signup page with Google OAuth and email/password.
  * @module app/register/page
  */
 import Link from "next/link";
 import { useState } from "react";
 
+import { AuthShell } from "@/components/auth/auth-shell";
 import { GoogleAuthButton } from "@/components/auth/google-auth-button";
-import { Button } from "@/components/landing/Button";
-import { Logo } from "@/components/landing/Logo";
-import { SlimLayout } from "@/components/landing/SlimLayout";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -113,125 +112,110 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <SlimLayout>
-        <div className="flex">
-          <Link href="/" aria-label="Home">
-            <Logo className="h-10 w-auto" />
-          </Link>
-        </div>
-        <h2 className="mt-20 text-lg font-semibold text-foreground">
-          Check your email
-        </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          We&apos;ve sent a confirmation link to{" "}
-          <span className="font-semibold text-foreground">{email}</span>.
-          Once confirmed, you&apos;ll be ready to use Sunder.
-        </p>
-        <div className="mt-8">
-          <Link href="/login" className="font-medium text-primary hover:underline">
-            Back to login
-          </Link>
-        </div>
-      </SlimLayout>
+      <AuthShell
+        description={`We sent a confirmation link to ${email}. Once confirmed, you will be ready to use Sunder.`}
+        footer={(
+          <p>
+            Need to use a different address?{" "}
+            <Link href="/register" className="font-medium text-primary hover:text-foreground">
+              Start over
+            </Link>
+            .
+          </p>
+        )}
+        modeLabel="Verify email"
+        title="Check your email"
+      >
+        <Button asChild variant="outline" className="h-11 rounded-xl">
+          <Link href="/login">Back to login</Link>
+        </Button>
+      </AuthShell>
     );
   }
 
   return (
-    <SlimLayout>
-      <div className="flex">
-        <Link href="/" aria-label="Home">
-          <Logo className="h-10 w-auto" />
-        </Link>
-      </div>
-      <h2 className="mt-20 text-lg font-semibold text-foreground">
-        Get started for free
-      </h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Already registered?{" "}
-        <Link href="/login" className="font-medium text-primary hover:underline">
-          Sign in
-        </Link>{" "}
-        to your account.
-      </p>
-
-      {error && (
-        <div className="mt-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+    <AuthShell
+      description="Use Google or email to set up your workspace. Sunder keeps judgment with you and handles the follow-through."
+      footer={(
+        <p>
+          Already registered?{" "}
+          <Link href="/login" className="font-medium text-primary hover:text-foreground">
+            Sign in
+          </Link>
+          .
+        </p>
+      )}
+      modeLabel="Sign up"
+      title="Get started for free"
+    >
+      {error ? (
+        <div className="mb-6 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-meta text-destructive">
           {error}
         </div>
-      )}
+      ) : null}
 
-      <div className="mt-8">
+      <div className="space-y-6">
         <GoogleAuthButton
           label="Sign up with Google"
           isLoading={isGoogleLoading}
           onClick={handleGoogleSignUp}
         />
-      </div>
 
-      <div className="mt-6 flex items-center gap-4 text-xs font-medium uppercase tracking-widest text-muted-foreground">
-        <span className="h-px flex-1 bg-border" />
-        <span>Or</span>
-        <span className="h-px flex-1 bg-border" />
-      </div>
-
-      <form
-        className="mt-6 grid grid-cols-1 gap-y-8"
-        onSubmit={handleSignUp}
-      >
-        <div className="space-y-2">
-          <Label htmlFor="fullName">Full name</Label>
-          <Input
-            id="fullName"
-            type="text"
-            autoComplete="name"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            disabled={isLoading || isGoogleLoading}
-            required
-          />
+        <div className="flex items-center gap-4">
+          <span className="h-px flex-1 bg-border" />
+          <span className="text-caption font-medium uppercase text-muted-foreground">Or</span>
+          <span className="h-px flex-1 bg-border" />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="email">Email address</Label>
-          <Input
-            id="email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={isLoading || isGoogleLoading}
-            required
-          />
-        </div>
+        <form className="grid grid-cols-1 gap-6" onSubmit={handleSignUp}>
+          <div className="space-y-2">
+            <Label htmlFor="fullName">Full name</Label>
+            <Input
+              id="fullName"
+              type="text"
+              autoComplete="name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              disabled={isLoading || isGoogleLoading}
+              required
+            />
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={isLoading || isGoogleLoading}
-            required
-          />
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email address</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={isLoading || isGoogleLoading}
+              required
+            />
+          </div>
 
-        <div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={isLoading || isGoogleLoading}
+              required
+            />
+          </div>
+
           <Button
             type="submit"
-            variant="solid"
-            color="green"
-            className="w-full"
+            className="h-12 w-full rounded-xl"
             disabled={isLoading || isGoogleLoading}
           >
-            <span>
-              {isLoading ? "Creating account..." : "Sign up"}{" "}
-              <span aria-hidden="true">&rarr;</span>
-            </span>
+            {isLoading ? "Creating account..." : "Sign up"}
           </Button>
-        </div>
-      </form>
-    </SlimLayout>
+        </form>
+      </div>
+    </AuthShell>
   );
 }

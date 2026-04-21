@@ -137,7 +137,7 @@ export function FilterBar({
             {activeFilterCount > 0 ? (
               <Badge
                 variant="outline"
-                className="h-5 min-w-5 rounded-full border-border/60 px-1.5 text-[11px]"
+                className="h-5 min-w-5 rounded-full border-border/60 px-1.5 text-caption"
                 aria-hidden="true"
               >
                 {activeFilterCount}
@@ -158,7 +158,7 @@ export function FilterBar({
               value={searchDraft}
               onChange={(event) => setSearchDraft(event.target.value)}
               placeholder={searchPlaceholder}
-              className="h-9 pl-8 pr-2 text-sm"
+              className="h-9 pl-8 pr-2 text-meta"
             />
           </div>
         ) : null}

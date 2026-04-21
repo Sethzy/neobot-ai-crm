@@ -120,9 +120,9 @@ function LoadedAutomationInstructionsEditor({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-muted-foreground">
           <span className="font-medium text-foreground">Instructions</span>
-          <code className="rounded-full bg-background px-2.5 py-1 font-mono text-[11px] text-muted-foreground shadow-sm">
+          <code className="rounded-full bg-background px-2.5 py-1 font-mono text-caption text-muted-foreground shadow-sm">
             {instructionPath}
           </code>
           <span>Markdown source</span>

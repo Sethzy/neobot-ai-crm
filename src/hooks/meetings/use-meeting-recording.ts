@@ -471,7 +471,7 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
       setStatus("error");
       setErrorMessage(error instanceof Error ? error.message : "Recording failed");
     }
-  }, [browserSupabase, cleanupStream, elapsedSeconds, notes, router, status, stopTimer]);
+  }, [browserSupabase, cleanupStream, elapsedSeconds, language, notes, router, status, stopTimer]);
 
   return {
     status,

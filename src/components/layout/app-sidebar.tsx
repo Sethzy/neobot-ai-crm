@@ -177,7 +177,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
 
         {/* AGENT section */}
         <SidebarGroup className="py-1">
-          <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold h-6">
+          <SidebarGroupLabel className="h-6 tracking-[0.12em] text-muted-foreground/50">
             Agent
           </SidebarGroupLabel>
           <SidebarMenu>{renderNavItems(agentNavItems)}</SidebarMenu>
@@ -185,7 +185,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
 
         {/* CUSTOMERS section */}
         <SidebarGroup className="py-1">
-          <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold h-6">
+          <SidebarGroupLabel className="h-6 tracking-[0.12em] text-muted-foreground/50">
             Customers
           </SidebarGroupLabel>
           <SidebarMenu>{renderNavItems(customersNavItems)}</SidebarMenu>
@@ -193,7 +193,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
 
         {/* DATABASE section */}
         <SidebarGroup className="py-1">
-          <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold h-6">
+          <SidebarGroupLabel className="h-6 tracking-[0.12em] text-muted-foreground/50">
             Database
           </SidebarGroupLabel>
           <SidebarMenu>{renderNavItems(databaseNavItems)}</SidebarMenu>
@@ -201,7 +201,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
 
         {/* SESSIONS section — thread history, always visible */}
         <SidebarGroup className="py-1">
-          <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold h-6">
+          <SidebarGroupLabel className="h-6 tracking-[0.12em] text-muted-foreground/50">
             Sessions
           </SidebarGroupLabel>
           <SidebarMenu>
@@ -293,7 +293,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                   tooltip={user?.email || "User"}
                   className="hover:bg-muted/50 transition-colors"
                 >
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-foreground text-[10px] font-semibold text-background">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-foreground text-caption font-semibold text-background">
                     {user?.email?.charAt(0).toUpperCase()}
                   </div>
                   <span className="truncate text-sm text-foreground/80">
@@ -305,12 +305,12 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                   />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
-              <DropdownMenuContent
-                side="top"
-                align="start"
-                className="w-[--radix-dropdown-menu-trigger-width] min-w-48"
-              >
-                <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                <DropdownMenuContent
+                  side="top"
+                  align="start"
+                  className="w-[--radix-dropdown-menu-trigger-width] min-w-48"
+                >
+                <DropdownMenuItem disabled className="text-caption text-muted-foreground">
                   {user?.email}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

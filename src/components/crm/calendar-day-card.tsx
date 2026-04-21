@@ -44,13 +44,13 @@ function CalendarDayCardBody({ task }: { task: CrmTaskWithRelations }) {
       <div className="flex items-center justify-between gap-2">
         <span
           className={cn(
-            "inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium",
+            "inline-flex rounded px-1.5 py-0.5 text-caption font-medium",
             taskStatusToneClassMap[task.status],
           )}
         >
           {crmTaskStatusLabelMap[task.status]}
         </span>
-        {dueTimeLabel ? <span className="shrink-0 text-[10px] text-muted-foreground">{dueTimeLabel}</span> : null}
+        {dueTimeLabel ? <span className="shrink-0 text-caption text-muted-foreground">{dueTimeLabel}</span> : null}
       </div>
     </div>
   );

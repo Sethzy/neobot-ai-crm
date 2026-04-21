@@ -393,7 +393,7 @@ export function UseCases() {
             >
               {/* Logos + title */}
               <div className="flex items-center justify-between gap-4">
-                <h3 className="text-[15px] font-semibold leading-snug text-zinc-900">
+                <h3 className="text-body font-semibold leading-snug text-zinc-900">
                   {card.title}
                 </h3>
                 <div className="flex items-center gap-3 shrink-0">

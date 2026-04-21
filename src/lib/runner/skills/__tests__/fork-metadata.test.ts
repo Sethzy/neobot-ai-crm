@@ -17,7 +17,7 @@ function makeStorageMock(initial: Record<string, string> = {}) {
 
   return {
     store,
-    from: vi.fn((_bucket: string) => ({
+    from: vi.fn(() => ({
       download: vi.fn(async (storagePath: string) => {
         const value = store.get(storagePath);
 

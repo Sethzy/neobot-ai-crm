@@ -161,7 +161,7 @@ function TemplateCard({
       <span className="text-sm font-semibold text-foreground">
         {template.title}
       </span>
-      <span className="mt-1.5 flex-1 text-[0.8125rem] leading-relaxed text-muted-foreground">
+      <span className="mt-1.5 flex-1 text-meta leading-relaxed text-muted-foreground">
         {template.description}
       </span>
     </button>

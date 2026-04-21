@@ -65,7 +65,7 @@ function makeStorageMock(initial: Record<string, string>) {
 
   return {
     store,
-    from: vi.fn((_bucket: string) => ({
+    from: vi.fn(() => ({
       list: vi.fn(async (prefix: string) => {
         const directChildren = new Map<string, { name: string; id: string | null }>();
 

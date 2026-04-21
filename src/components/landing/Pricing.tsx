@@ -124,7 +124,7 @@ export function Pricing() {
                   <>
                     {/* Thin top stroke for tactile edge */}
                     <div className="absolute inset-x-0 top-0 h-px bg-white/60" />
-                    <span className="badge-shimmer mb-3 inline-block rounded-full bg-lp-gold px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-white">
+                    <span className="badge-shimmer mb-3 inline-block rounded-full bg-lp-gold px-3 py-1 text-caption font-bold uppercase tracking-[0.12em] text-white">
                       Most Popular
                     </span>
                   </>

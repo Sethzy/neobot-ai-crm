@@ -48,19 +48,19 @@ export function AuthPreview() {
       <div className="relative z-10 mt-auto w-full rounded-[28px] border border-border/30 bg-card/95 text-card-foreground shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-6 py-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+            <p className="text-caption font-semibold uppercase text-primary">
               Sunder autopilot
             </p>
-            <h2 className="mt-1 text-2xl font-semibold tracking-[-0.03em]">
+            <h2 className="mt-1 font-serif text-subhead text-foreground">
               Conversion queue
             </h2>
           </div>
-          <div className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+          <div className="rounded-full bg-primary/10 px-3 py-1 text-caption font-medium text-primary">
             4 live tasks
           </div>
         </div>
 
-        <div className="grid grid-cols-[1.4fr_1fr_0.8fr] gap-4 border-b border-border px-6 py-4 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        <div className="grid grid-cols-[1.4fr_1fr_0.8fr] gap-4 border-b border-border px-6 py-4 text-caption font-semibold uppercase text-muted-foreground">
           <span>Workflow</span>
           <span>Source</span>
           <span>Status</span>
@@ -70,11 +70,11 @@ export function AuthPreview() {
           {queueRows.map(([workflow, source, status]) => (
             <div
               key={workflow}
-              className="grid grid-cols-[1.4fr_1fr_0.8fr] items-center gap-4 rounded-2xl px-2 py-3 text-sm text-foreground even:bg-muted/30"
+              className="grid grid-cols-[1.4fr_1fr_0.8fr] items-center gap-4 rounded-2xl px-2 py-3 text-meta text-foreground even:bg-muted/30"
             >
               <span className="font-medium">{workflow}</span>
               <span className="text-muted-foreground">{source}</span>
-              <span className="justify-self-start rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              <span className="justify-self-start rounded-full bg-primary/10 px-3 py-1 text-caption font-semibold text-primary">
                 {status}
               </span>
             </div>

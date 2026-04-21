@@ -59,7 +59,7 @@ export function CalendarMonthDay({
       <div className="flex items-start justify-between gap-2">
         <span
           className={cn(
-            "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-medium",
+            "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-caption font-medium",
             isCurrentDay ? "bg-primary text-primary-foreground" : "",
             !isCurrentDay && isCurrentMonth ? "text-foreground" : "",
             !isCurrentDay && !isCurrentMonth ? "text-muted-foreground" : "",
@@ -87,7 +87,7 @@ export function CalendarMonthDay({
         ))}
 
         {overflowTaskCount > 0 ? (
-          <span className="px-1 text-[11px] font-medium text-muted-foreground">
+          <span className="px-1 text-caption font-medium text-muted-foreground">
             +{overflowTaskCount} more
           </span>
         ) : null}

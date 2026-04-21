@@ -31,7 +31,6 @@ import {
   ReasoningTrigger,
 } from "@/components/ai-elements/reasoning";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { ViewRenderer } from "@/lib/views/renderer";
 import { ImageLightbox } from "./image-lightbox";

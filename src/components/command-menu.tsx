@@ -88,10 +88,10 @@ function FooterKey({
 }) {
   return (
     <div className="flex items-center gap-2 rounded-full border border-border/60 bg-background px-2.5 py-1 shadow-xs">
-      <kbd className="rounded bg-muted/55 px-1.5 py-0.5 text-[10px] font-medium text-foreground ring-1 ring-border/40">
+      <kbd className="rounded bg-muted/55 px-1.5 py-0.5 text-caption font-medium text-foreground ring-1 ring-border/40">
         {keys}
       </kbd>
-      <span className="text-[11px] text-muted-foreground/90">{label}</span>
+      <span className="text-caption text-muted-foreground/90">{label}</span>
     </div>
   );
 }
@@ -99,24 +99,20 @@ function FooterKey({
 function ResultAvatar({ record }: { record: GlobalSearchRecord }) {
   const shapeClassName =
     record.entityType === "company" ? "rounded-[8px]" : "rounded-full";
-  const [imageStatus, setImageStatus] = useState<"idle" | "loading" | "loaded" | "error">(
-    record.imageUrl ? "loading" : "idle",
-  );
+  const imageUrl = record.imageUrl ?? "";
+  const [loadedImageUrl, setLoadedImageUrl] = useState<string | null>(null);
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    setImageStatus(record.imageUrl ? "loading" : "idle");
-  }, [record.imageUrl]);
-
-  const shouldRenderImage = Boolean(record.imageUrl) && imageStatus !== "error";
-  const hasLoadedImage = imageStatus === "loaded";
+  const shouldRenderImage = imageUrl.length > 0 && failedImageUrl !== imageUrl;
+  const hasLoadedImage = loadedImageUrl === imageUrl;
 
   return (
-    <div
-      className={cn(
-        "relative flex size-7 shrink-0 items-center justify-center overflow-hidden border border-border/45 text-[10px] font-semibold shadow-xs",
-        shapeClassName,
-        avatarColorFor(record.title),
-      )}
+      <div
+        className={cn(
+          "relative flex size-7 shrink-0 items-center justify-center overflow-hidden border border-border/45 text-caption font-semibold shadow-xs",
+          shapeClassName,
+          avatarColorFor(record.title),
+        )}
     >
       <span
         className={cn(
@@ -129,7 +125,7 @@ function ResultAvatar({ record }: { record: GlobalSearchRecord }) {
 
       {shouldRenderImage ? (
         <img
-          src={record.imageUrl ?? undefined}
+          src={imageUrl}
           alt=""
           className={cn(
             "absolute inset-0 m-auto size-4 transition-opacity duration-150",
@@ -137,8 +133,14 @@ function ResultAvatar({ record }: { record: GlobalSearchRecord }) {
             hasLoadedImage ? "opacity-100" : "opacity-0",
           )}
           decoding="async"
-          onLoad={() => setImageStatus("loaded")}
-          onError={() => setImageStatus("error")}
+          onLoad={() => {
+            setLoadedImageUrl(imageUrl);
+            setFailedImageUrl(null);
+          }}
+          onError={() => {
+            setLoadedImageUrl(null);
+            setFailedImageUrl(imageUrl);
+          }}
         />
       ) : null}
     </div>
@@ -165,10 +167,10 @@ function SearchResultItem({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 items-baseline gap-1.5 text-[14px] font-medium text-foreground">
+            <div className="flex min-w-0 items-baseline gap-1.5 text-meta font-medium text-foreground">
               <span className="min-w-0 truncate">{record.title}</span>
               {record.subtitle ? (
-                <span className="shrink truncate text-[12px] font-normal text-muted-foreground">
+                <span className="shrink truncate text-caption font-normal text-muted-foreground">
                   {record.subtitle}
                 </span>
               ) : null}
@@ -177,7 +179,7 @@ function SearchResultItem({
           <Badge
             variant="outline"
             className={cn(
-              "h-5 shrink-0 rounded-full border px-2 text-[10px] font-medium shadow-none",
+              "h-5 shrink-0 rounded-full border px-2 text-caption font-medium shadow-none",
               resultBadgeClassMap[record.entityType],
             )}
           >
@@ -185,7 +187,7 @@ function SearchResultItem({
           </Badge>
         </div>
         {record.meta ? (
-          <div className="mt-0.5 truncate text-[11px] text-muted-foreground/90">
+          <div className="mt-0.5 truncate text-caption text-muted-foreground/90">
             {record.meta}
           </div>
         ) : null}
@@ -222,12 +224,12 @@ function PreviewMetaRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-2 py-1 text-[13px]">
+    <div className="flex items-start gap-2 py-1 text-meta">
       <AppIcon
         name={iconName}
         className="mt-0.5 size-3.5 text-muted-foreground"
       />
-      <div className="min-w-0 flex-1 text-[13px] leading-5 text-foreground">
+      <div className="min-w-0 flex-1 text-meta text-foreground">
         {children}
       </div>
     </div>
@@ -244,7 +246,7 @@ function PreviewChip({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
+        "inline-flex items-center rounded-full border px-2 py-0.5 text-caption font-medium",
         tone === "info"
           ? "border-info/15 bg-info/10 text-info"
           : "border-border/60 bg-background text-muted-foreground",
@@ -275,7 +277,7 @@ function PreviewShell({
           <ResultAvatar record={record} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <div className="text-[14px] font-semibold text-foreground">
+              <div className="text-meta font-semibold text-foreground">
                 {title}
               </div>
             </div>
@@ -286,13 +288,13 @@ function PreviewShell({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+        <div className="mb-2 text-caption font-medium uppercase tracking-[0.12em] text-muted-foreground">
           Details
         </div>
         <div className="space-y-1.5">{children}</div>
       </div>
 
-      <div className="border-t border-border/60 px-4 py-3 text-[11px] text-muted-foreground">
+      <div className="border-t border-border/60 px-4 py-3 text-caption text-muted-foreground">
         Updated {formatCrmDate(record.updatedAt)}
       </div>
     </div>
@@ -589,35 +591,29 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
     isLoading,
     isError,
   } = useGlobalSearchRecords({ open, query: debouncedQuery });
+  const activeSelectedKey = useMemo(() => {
+    if (records.length === 0) {
+      return "";
+    }
+
+    return records.some((record) => record.key === selectedKey)
+      ? selectedKey
+      : (records[0]?.key ?? "");
+  }, [records, selectedKey]);
 
   const selectedRecord = useMemo(() => {
     if (records.length === 0) {
       return null;
     }
 
-    return records.find((record) => record.key === selectedKey) ?? records[0] ?? null;
-  }, [records, selectedKey]);
+    return records.find((record) => record.key === activeSelectedKey) ?? records[0] ?? null;
+  }, [activeSelectedKey, records]);
 
   useEffect(() => {
-    if (!open) {
-      setQuery("");
-      setSelectedKey("");
-      return;
+    if (open) {
+      posthog.capture("command_menu_opened");
     }
-
-    posthog.capture("command_menu_opened");
   }, [open]);
-
-  useEffect(() => {
-    if (records.length === 0) {
-      setSelectedKey("");
-      return;
-    }
-
-    if (!records.some((record) => record.key === selectedKey)) {
-      setSelectedKey(records[0]?.key ?? "");
-    }
-  }, [records, selectedKey]);
 
   useEffect(() => {
     if (!clientId || typeof window === "undefined") {
@@ -683,7 +679,7 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
         )}
       >
         <CommandPrimitive
-          value={selectedKey}
+          value={activeSelectedKey}
           onValueChange={setSelectedKey}
           shouldFilter={false}
           loop
@@ -695,16 +691,16 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
               value={query}
               onValueChange={setQuery}
               placeholder="Search records..."
-              className="min-w-0 flex-1 border-0 bg-transparent text-[14px] text-foreground outline-none placeholder:text-muted-foreground"
+              className="min-w-0 flex-1 border-0 bg-transparent text-meta text-foreground outline-none placeholder:text-muted-foreground"
             />
 
             <button
               type="button"
-              className="hidden shrink-0 items-center gap-2 rounded-full border border-border/60 bg-background px-2.5 py-1 text-[11px] text-muted-foreground shadow-xs sm:flex"
+              className="hidden shrink-0 items-center gap-2 rounded-full border border-border/60 bg-background px-2.5 py-1 text-caption text-muted-foreground shadow-xs sm:flex"
               disabled
             >
               <span>Ask Sunder</span>
-              <kbd className="rounded bg-background px-1.5 py-0.5 text-[11px] text-foreground ring-1 ring-border/60">
+              <kbd className="rounded bg-background px-1.5 py-0.5 text-caption text-foreground ring-1 ring-border/60">
                 Tab
               </kbd>
             </button>
@@ -712,19 +708,19 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
 
           <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.03fr)_minmax(0,0.97fr)]">
             <div className="flex min-h-0 flex-col border-r border-border/60 bg-background">
-              <div className="px-4 pb-2 pt-3 text-[11px] font-medium tracking-[0.08em] text-muted-foreground">
+              <div className="px-4 pb-2 pt-3 text-caption font-medium uppercase tracking-[0.08em] text-muted-foreground">
                 Records
               </div>
 
               <CommandPrimitive.List className="min-h-0 flex-1 overflow-y-auto pb-3">
                 {isError ? (
-                  <div className="px-4 py-6 text-sm text-muted-foreground">
+                  <div className="px-4 py-6 text-meta text-muted-foreground">
                     Unable to load search results right now.
                   </div>
                 ) : null}
 
                 {!isError && !isLoading && records.length === 0 ? (
-                  <div className="px-4 py-6 text-sm text-muted-foreground">
+                  <div className="px-4 py-6 text-meta text-muted-foreground">
                     {debouncedQuery.trim().length > 0
                       ? `No results for “${debouncedQuery.trim()}”.`
                       : "No recent records yet."}
@@ -740,7 +736,7 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
                 ))}
 
                 {isLoading ? (
-                  <div className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 px-4 py-3 text-caption text-muted-foreground">
                     <Loader2 className="size-3.5 animate-spin" />
                     Loading records
                   </div>
@@ -763,11 +759,11 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
             <FooterKey keys="Esc" label="Close" />
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background px-3 py-1 text-[11px] text-muted-foreground shadow-xs"
+              className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background px-3 py-1 text-caption text-muted-foreground shadow-xs"
               disabled
             >
               <span>Actions</span>
-              <kbd className="rounded bg-muted/55 px-1.5 py-0.5 text-[10px] text-foreground ring-1 ring-border/40">
+              <kbd className="rounded bg-muted/55 px-1.5 py-0.5 text-caption text-foreground ring-1 ring-border/40">
                 ⌘K
               </kbd>
             </button>
@@ -776,7 +772,7 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
           <button
             type="button"
             className={cn(
-              "inline-flex items-center gap-2 rounded-full bg-info px-3.5 py-1.5 text-xs font-medium text-info-foreground shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50",
+              "inline-flex items-center gap-2 rounded-full bg-info px-3.5 py-1.5 text-caption font-medium text-info-foreground shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50",
             )}
             onClick={() => {
               if (selectedRecord) {
@@ -786,7 +782,7 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
             disabled={!selectedRecord}
           >
             <span>Open record</span>
-            <kbd className="rounded bg-info-foreground/15 px-1.5 py-0.5 text-[11px]">
+            <kbd className="rounded bg-info-foreground/15 px-1.5 py-0.5 text-caption">
               ↵
             </kbd>
           </button>

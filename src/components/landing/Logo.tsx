@@ -41,10 +41,7 @@ export function Logo({
 
       </svg>
       {/* Wordmark */}
-      <span
-        className="text-[19px] tracking-[-0.02em]"
-        style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 800 }}
-      >
+      <span className="font-sans text-lg font-semibold tracking-tight text-foreground">
         neobot
       </span>
     </div>

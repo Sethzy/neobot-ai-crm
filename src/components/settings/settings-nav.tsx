@@ -62,7 +62,7 @@ export function SettingsNav() {
 
       {SETTINGS_NAV_SECTIONS.map((section) => (
         <div key={section.label} className="flex flex-col gap-1.5">
-          <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+          <div className="text-caption font-semibold uppercase tracking-[0.12em] text-muted-foreground/60">
             {section.label}
           </div>
           <ul className="flex flex-col gap-0.5">

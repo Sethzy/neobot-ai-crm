@@ -75,7 +75,7 @@ export function SgPlanningAreaMap({ highlights, maxCount: maxCountProp }: SgPlan
 
       {/* Legend overlay — bottom-left inside the map */}
       {legendMax > 0 ? (
-        <div className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-md bg-card/90 px-2 py-1.5 text-[10px] text-muted-foreground backdrop-blur-sm">
+        <div className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-md bg-card/90 px-2 py-1.5 text-caption text-muted-foreground backdrop-blur-sm">
           <span>0</span>
           {Array.from({ length: buckets }, (_, i) => (
             <div
