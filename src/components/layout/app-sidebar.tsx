@@ -29,8 +29,8 @@ import {
   SidebarGroupLabel,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
 import { useThreads } from "@/contexts/thread-context";
+import { AllChatsPopover } from "./all-chats-popover";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,6 +77,8 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
   const { user } = useSession();
   const { isMobile, setOpenMobile } = useSidebar();
   const { threads, isLoading: isThreadsLoading, archiveThread } = useThreads();
+  const visibleThreads = threads.slice(0, 5);
+  const hasOverflow = threads.length > 5;
 
   const closeMobileSidebar = useCallback(() => {
     if (isMobile) {
@@ -147,27 +149,32 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
     <Sidebar collapsible="icon" className="bg-background">
       {/* Logo — tighter vertical padding */}
       <SidebarHeader className="px-3 pt-3 pb-2">
-        <div className="flex items-center justify-between gap-2">
-          <Logo />
-          {onOpenCommandMenu ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              aria-label="Search"
-              onClick={() => {
-                onOpenCommandMenu();
-                closeMobileSidebar();
-              }}
-            >
-              <AppIcon name="search" className="h-4 w-4" />
-            </Button>
-          ) : null}
-        </div>
+        <Logo />
       </SidebarHeader>
 
       {/* Navigation — reduced group spacing */}
       <SidebarContent className="px-2">
+        {/* Search — opens the global command palette */}
+        {onOpenCommandMenu ? (
+          <SidebarGroup className="py-1">
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Search"
+                  onClick={() => {
+                    onOpenCommandMenu();
+                    closeMobileSidebar();
+                  }}
+                  className="hover:bg-muted/50 transition-colors"
+                >
+                  <AppIcon name="search" className="h-4 w-4" />
+                  <span>Search</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        ) : null}
+
         {/* AGENT section */}
         <SidebarGroup className="py-1">
           <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold h-6">
@@ -206,7 +213,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                   </div>
                 </SidebarMenuItem>
               ))
-            ) : threads.map((thread) => (
+            ) : visibleThreads.map((thread) => (
               <SidebarMenuItem key={thread.id} className="group/thread">
                 <SidebarMenuButton
                   asChild
@@ -244,6 +251,19 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                 )}
               </SidebarMenuItem>
             ))}
+            {!isThreadsLoading && hasOverflow ? (
+              <SidebarMenuItem>
+                <AllChatsPopover pathname={pathname} onNavigate={closeMobileSidebar}>
+                  <SidebarMenuButton
+                    tooltip="All chats"
+                    className="hover:bg-muted/50 text-muted-foreground transition-colors"
+                  >
+                    <AppIcon name="more" className="h-4 w-4" />
+                    <span>All chats</span>
+                  </SidebarMenuButton>
+                </AllChatsPopover>
+              </SidebarMenuItem>
+            ) : null}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
