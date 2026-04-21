@@ -24,6 +24,7 @@ export function ChatDraftPage({
 }: ChatDraftPageProps) {
   const searchParams = useSearchParams();
   const initialPrompt = searchParams?.get("prompt") ?? undefined;
+  const autoSubmitInitialPrompt = searchParams?.get("autosubmit") === "1";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -35,6 +36,7 @@ export function ChatDraftPage({
           initialQuota={initialQuota}
           autoResume={false}
           initialPrompt={initialPrompt}
+          autoSubmitInitialPrompt={autoSubmitInitialPrompt}
           initialChatModel={initialChatModel}
         />
       </ChatErrorBoundary>

@@ -64,6 +64,7 @@ import { ToolCallInline } from "./tool-call-inline";
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 describe("ToolCallInline", () => {
@@ -350,6 +351,8 @@ describe("connection cards", () => {
       data: {
         status: "active",
         account_identifier: "owner@example.com",
+        auth_redirect_url: null,
+        auth_redirect_expires_at: null,
       },
       error: null,
     });
@@ -371,6 +374,7 @@ describe("connection cards", () => {
               integrationId: "googledrive",
               displayName: "Google Drive",
               description: "Access files in Google Drive",
+              logoUrl: "https://cdn.composio.dev/googledrive.png",
               connectionStatus: "pending_auth",
               redirectUrl: "https://auth.composio.dev/google-drive",
               composioConnectedAccountId: "acc-123",
@@ -388,7 +392,9 @@ describe("connection cards", () => {
     expect(
       screen.queryByRole("button", { name: /connect google drive/i }),
     ).not.toBeInTheDocument();
-    expect(mockSupabaseSelect).toHaveBeenCalledWith("status, account_identifier");
+    expect(mockSupabaseSelect).toHaveBeenCalledWith(
+      "status, account_identifier, auth_redirect_url, auth_redirect_expires_at",
+    );
     expect(mockSupabaseEq).toHaveBeenCalledWith(
       "composio_connected_account_id",
       "acc-123",
@@ -400,6 +406,8 @@ describe("connection cards", () => {
       data: {
         status: "pending",
         account_identifier: null,
+        auth_redirect_url: "https://auth.composio.dev/notion",
+        auth_redirect_expires_at: "2099-04-21T09:45:00.000Z",
       },
       error: null,
     });
@@ -416,6 +424,7 @@ describe("connection cards", () => {
               integrationId: "notion",
               displayName: "Notion",
               description: "Read and write your Notion workspace.",
+              logoUrl: "https://cdn.composio.dev/notion.png",
               connectionStatus: "pending_auth",
               redirectUrl: "https://auth.composio.dev/notion",
               composioConnectedAccountId: "acc-notion-pending",
@@ -432,8 +441,8 @@ describe("connection cards", () => {
       );
     });
 
-    expect(screen.queryByText("Awaiting login")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /connect notion/i })).toBeInTheDocument();
+    expect(screen.queryByText(/signing in/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^connect$/i })).toBeInTheDocument();
   });
 
   it("renders ConnectionCard for create_connection output", () => {
@@ -454,6 +463,7 @@ describe("connection cards", () => {
               integrationId: "googledrive",
               displayName: "Google Drive",
               description: "Access files in Google Drive",
+              logoUrl: "https://cdn.composio.dev/googledrive.png",
               connectionStatus: "pending_auth",
               redirectUrl: "https://auth.composio.dev/google-drive",
               composioConnectedAccountId: "acc-123",
@@ -463,9 +473,58 @@ describe("connection cards", () => {
       />,
     );
 
-    expect(screen.getByText("Connect a provider")).toBeInTheDocument();
+    expect(screen.getByText("Connect Google Drive")).toBeInTheDocument();
     expect(screen.getByText("Google Drive")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /connect google drive/i })).toBeInTheDocument();
+    expect(screen.getByAltText("Google Drive logo")).toHaveAttribute(
+      "src",
+      "https://cdn.composio.dev/googledrive.png",
+    );
+    expect(screen.getByRole("button", { name: /^connect$/i })).toBeInTheDocument();
+  });
+
+  it("disables the connect CTA once the stored auth link expires", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-21T09:00:00.000Z"));
+
+    mockSupabaseMaybeSingle.mockResolvedValueOnce({
+      data: {
+        status: "pending",
+        account_identifier: null,
+        auth_redirect_url: "https://auth.composio.dev/notion",
+        auth_redirect_expires_at: "2026-04-21T09:00:01.000Z",
+      },
+      error: null,
+    });
+
+    render(
+      <ToolCallInline
+        name="create_connection"
+        state="output-available"
+        input={{ integrations: ["notion"] }}
+        output={{
+          success: true,
+          results: [
+            {
+              integrationId: "notion",
+              displayName: "Notion",
+              description: "Read and write your Notion workspace.",
+              logoUrl: "https://cdn.composio.dev/notion.png",
+              connectionStatus: "pending_auth",
+              redirectUrl: "https://auth.composio.dev/notion",
+              authRedirectExpiresAt: "2026-04-21T09:00:01.000Z",
+              composioConnectedAccountId: "acc-notion-expiring",
+            },
+          ],
+        }}
+      />,
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(1_250);
+    });
+
+    expect(screen.getAllByText("Expired")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: /^expired$/i })).toBeDisabled();
   });
 
   it("renders the same connection card pattern for reauthorize_connection output", () => {
@@ -481,15 +540,17 @@ describe("connection cards", () => {
           integrationId: "gmail",
           displayName: "Gmail",
           description: "Send and read Gmail messages.",
+          logoUrl: "https://cdn.composio.dev/gmail.png",
           connectionStatus: "pending_reauth",
           redirectUrl: "https://auth.composio.dev/gmail",
+          authRedirectExpiresAt: "2026-04-21T09:45:00.000Z",
           composioConnectedAccountId: "acc-reauth-123",
         }}
       />,
     );
 
-    expect(screen.getByText("Reconnect a provider")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /reconnect gmail/i })).toBeInTheDocument();
+    expect(screen.getByText("Reconnect Gmail")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^reconnect$/i })).toBeInTheDocument();
   });
 
   it("renders provider-specific connection errors without showing an OAuth CTA", () => {
@@ -504,6 +565,7 @@ describe("connection cards", () => {
             {
               integrationId: "googledrive",
               displayName: "Google Drive",
+              logoUrl: "https://cdn.composio.dev/googledrive.png",
               error: "Already connected. Disconnect it first to switch accounts.",
             },
           ],
@@ -511,15 +573,91 @@ describe("connection cards", () => {
       />,
     );
 
-    expect(screen.getByText("Connection request could not start")).toBeInTheDocument();
+    expect(screen.getByText(/couldn't start the connection/i)).toBeInTheDocument();
     expect(
       screen.getByText("Already connected. Disconnect it first to switch accounts."),
     ).toBeInTheDocument();
     expect(screen.getByText("Google Drive")).toBeInTheDocument();
+    expect(screen.getByAltText("Google Drive logo")).toHaveAttribute(
+      "src",
+      "https://cdn.composio.dev/googledrive.png",
+    );
     expect(screen.queryByText("googledrive")).not.toBeInTheDocument();
     expect(screen.queryByText("Not connected")).not.toBeInTheDocument();
     expect(screen.getByText("Already connected")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /connect google drive/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^connect$/i })).not.toBeInTheDocument();
+  });
+
+  it("backfills logos for legacy connection cards with a single batched metadata request", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          providers: [
+            {
+              integrationId: "notion",
+              displayName: "Notion",
+              description: "Read and update pages and databases in your Notion workspace.",
+              logoUrl: "https://cdn.composio.dev/notion.png",
+            },
+            {
+              integrationId: "gmail",
+              displayName: "Gmail",
+              description: "Read and send Gmail messages.",
+              logoUrl: "https://cdn.composio.dev/gmail.png",
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <ToolCallInline
+        name="create_connection"
+        state="output-available"
+        input={{ integrations: [{ integrationId: "notion" }] }}
+        output={{
+          success: true,
+          results: [
+            {
+              integrationId: "notion",
+              displayName: "notion",
+              error: "Already connected. Disconnect it first to switch accounts.",
+            },
+            {
+              integrationId: "gmail",
+              displayName: "gmail",
+              error: "Request failed.",
+            },
+          ],
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByAltText("Notion logo")).toHaveAttribute(
+        "src",
+        "https://cdn.composio.dev/notion.png",
+      );
+      expect(screen.getByAltText("Gmail logo")).toHaveAttribute(
+        "src",
+        "https://cdn.composio.dev/gmail.png",
+      );
+    });
+
+    expect(screen.getByText("Notion")).toBeInTheDocument();
+    expect(screen.getByText("Gmail")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/connections/providers?slugs=notion%2Cgmail",
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("uses KISS copy for the connection modal and never mentions tool approval", async () => {
@@ -537,8 +675,10 @@ describe("connection cards", () => {
               integrationId: "notion",
               displayName: "Notion",
               description: "Read and write your Notion workspace.",
+              logoUrl: "https://cdn.composio.dev/notion.png",
               connectionStatus: "pending_auth",
               redirectUrl: "https://auth.composio.dev/notion",
+              authRedirectExpiresAt: "2026-04-21T09:45:00.000Z",
               composioConnectedAccountId: "acc-notion-123",
             },
           ],
@@ -546,11 +686,13 @@ describe("connection cards", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /connect notion/i }));
+    await user.click(screen.getByRole("button", { name: /^connect$/i }));
 
     expect(screen.queryByText(/approve the tools/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/grant permissions/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/sign in to notion to authorize sunder/i)).toBeInTheDocument();
+    expect(screen.queryByText(/authorize/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/oauth/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/sign in to notion to link your account/i)).toBeInTheDocument();
     expect(screen.getByText(/send your next message/i)).toBeInTheDocument();
   });
 
@@ -569,16 +711,18 @@ describe("connection cards", () => {
           integrationId: "gmail",
           displayName: "Gmail",
           description: "Send and read Gmail messages.",
+          logoUrl: "https://cdn.composio.dev/gmail.png",
           connectionStatus: "pending_reauth",
           redirectUrl: "https://auth.composio.dev/gmail",
+          authRedirectExpiresAt: "2026-04-21T09:45:00.000Z",
           composioConnectedAccountId: "acc-reauth-123",
         }}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /reconnect gmail/i }));
+    await user.click(screen.getByRole("button", { name: /^reconnect$/i }));
 
-    expect(screen.getByText(/sign in to gmail again to refresh the saved connection/i)).toBeInTheDocument();
+    expect(screen.getByText(/sign in to gmail again to refresh your connection/i)).toBeInTheDocument();
     expect(screen.getByText(/send your next message/i)).toBeInTheDocument();
   });
 

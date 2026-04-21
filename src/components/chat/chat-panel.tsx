@@ -11,7 +11,6 @@ import {
 } from "ai";
 import { useChat } from "@ai-sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { z } from "zod";
 import { AlertCircle, Loader2 } from "@/components/icons/lucide-compat";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -83,6 +82,8 @@ interface ChatPanelProps {
   autoResume?: boolean;
   /** Pre-filled prompt text for the composer (e.g. from ?prompt= query param). */
   initialPrompt?: string;
+  /** When true, sends the initial prompt exactly once after the draft route mounts. */
+  autoSubmitInitialPrompt?: boolean;
   /** Initial model restored from the persisted chat-model cookie. */
   initialChatModel?: string;
 }
@@ -169,6 +170,7 @@ export function ChatPanel({
   initialQuota = null,
   autoResume = false,
   initialPrompt,
+  autoSubmitInitialPrompt = false,
   initialChatModel = DEFAULT_CHAT_MODEL,
 }: ChatPanelProps) {
   const [composerValue, setComposerValue] = useState(initialPrompt ?? "");
@@ -436,6 +438,27 @@ export function ChatPanel({
     },
     [handleSubmit, isLoading],
   );
+
+  const hasAutoSubmittedInitialPromptRef = useRef(false);
+
+  useEffect(() => {
+    if (hasAutoSubmittedInitialPromptRef.current || !autoSubmitInitialPrompt) {
+      return;
+    }
+
+    const trimmedInitialPrompt = initialPrompt?.trim() ?? "";
+    if (trimmedInitialPrompt.length === 0) {
+      hasAutoSubmittedInitialPromptRef.current = true;
+      return;
+    }
+
+    if (messages.length > 0 || isLoadingRef.current) {
+      return;
+    }
+
+    hasAutoSubmittedInitialPromptRef.current = true;
+    void handleSubmit({ text: trimmedInitialPrompt, files: [] });
+  }, [autoSubmitInitialPrompt, handleSubmit, initialPrompt, messages.length]);
 
   const pendingQuestionBatch = useMemo(
     () => extractPendingQuestionBatch(messages, effectiveStatus),

@@ -676,6 +676,34 @@ describe("ChatPanel", () => {
     );
   });
 
+  it("auto-submits the initial prompt once when the draft route is opened via launcher handoff", async () => {
+    const pushStateSpy = vi.spyOn(window.history, "pushState");
+    window.history.replaceState({}, "", "/chat");
+
+    renderPanel(
+      <ChatPanel
+        chatId="thread-1"
+        initialPrompt="Create an automation: daily morning briefing"
+        autoSubmitInitialPrompt
+      />,
+    );
+
+    await waitFor(() => {
+      expect(pushStateSpy).toHaveBeenCalledWith({}, "", "/chat/thread-1");
+      expect(sendMessage).toHaveBeenCalledWith(
+        { text: "Create an automation: daily morning briefing" },
+        { body: { selectedChatModel: DEFAULT_CHAT_MODEL } },
+      );
+    });
+
+    expect(mockSetQueriesData).toHaveBeenCalledWith(
+      { queryKey: threadKeys.all },
+      expect.any(Function),
+    );
+
+    pushStateSpy.mockRestore();
+  });
+
   it("sends file-only messages via the AI SDK files shortcut", async () => {
     const user = userEvent.setup();
     mockFetch

@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useStickToBottomContext } from "use-stick-to-bottom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,10 +22,26 @@ import {
 import { JsonView } from "@/components/ui/json-view";
 import { useBrowserAuth } from "@/hooks/use-browser-auth";
 import { getBrowserPlatformConfig } from "@/lib/browser-use/platforms";
+import {
+  hasLiveAuthRedirect,
+  isAuthRedirectExpired,
+  parseAuthRedirectExpiry,
+} from "@/lib/connections/auth-link";
 import { getSupportedProviderDisplayName } from "@/lib/managed-agents/tools/supported-providers";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import { CheckIcon, ChevronDownIcon, LoaderIcon, XCircleIcon } from "lucide-react";
+import {
+  CalendarIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  HardDriveIcon,
+  LinkIcon,
+  LoaderIcon,
+  MailIcon,
+  StickyNoteIcon,
+  XCircleIcon,
+  type LucideIcon,
+} from "lucide-react";
 
 export type ToolPartState =
   | "input-streaming"
@@ -60,8 +76,10 @@ interface ConnectionResult {
   integrationId: string;
   displayName: string;
   description: string;
+  logoUrl?: string | null;
   connectionStatus: "pending_auth" | "pending_reauth";
   redirectUrl: string;
+  authRedirectExpiresAt?: string | null;
   composioConnectedAccountId: string;
 }
 
@@ -69,6 +87,7 @@ interface ConnectionErrorResult {
   integrationId: string;
   displayName?: string;
   error: string;
+  logoUrl?: string | null;
 }
 
 type ConnectionCardResult = ConnectionResult | ConnectionErrorResult;
@@ -186,9 +205,265 @@ function getRequestedToolChanges(input: PermissionRequestInput): RequestedToolCh
   return [...toolChanges.values()];
 }
 
+const PROVIDER_ICONS: Record<string, LucideIcon> = {
+  gmail: MailIcon,
+  googlecalendar: CalendarIcon,
+  googledrive: HardDriveIcon,
+  notion: StickyNoteIcon,
+};
+
+interface ProviderDisplayMetadata {
+  integrationId: string;
+  displayName: string;
+  description: string;
+  logoUrl: string | null;
+}
+
+const providerDisplayMetadataCache = new Map<string, ProviderDisplayMetadata>();
+
+function normalizeProviderIdentifier(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s_-]+/g, "");
+}
+
+function normalizeProviderSlug(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function getReadableProviderName(slug: string, displayName?: string | null): string {
+  const fallbackDisplayName = getSupportedProviderDisplayName(slug);
+  const trimmedDisplayName = displayName?.trim() ?? "";
+
+  if (trimmedDisplayName.length === 0) {
+    return fallbackDisplayName;
+  }
+
+  if (normalizeProviderIdentifier(trimmedDisplayName) === normalizeProviderIdentifier(slug)) {
+    return fallbackDisplayName;
+  }
+
+  return trimmedDisplayName;
+}
+
+/**
+ * Returns cached provider display metadata for the provided slugs.
+ */
+function getCachedProviderDisplayMetadata(slugs: string[]) {
+  const cachedEntries = slugs.flatMap((slug) => {
+    const cachedMetadata = providerDisplayMetadataCache.get(slug);
+
+    if (!cachedMetadata) {
+      return [];
+    }
+
+    return [[slug, cachedMetadata] as const];
+  });
+
+  return Object.fromEntries(cachedEntries);
+}
+
+/**
+ * Hydrates missing provider metadata for older persisted connection cards in a
+ * single batched request per card instead of one request per row.
+ */
+function useProviderDisplayMetadata(results: ConnectionCardResult[]) {
+  const normalizedSlugs = [...new Set(
+    results
+      .map((result) => normalizeProviderSlug(result.integrationId))
+      .filter(Boolean),
+  )];
+  const [fetchedMetadataBySlug, setFetchedMetadataBySlug] = useState<
+    Record<string, ProviderDisplayMetadata>
+  >({});
+
+  const cachedMetadataBySlug = getCachedProviderDisplayMetadata(normalizedSlugs);
+  const metadataBySlug = {
+    ...cachedMetadataBySlug,
+    ...fetchedMetadataBySlug,
+  };
+  const missingSlugs = normalizedSlugs.filter((slug) => {
+    if (providerDisplayMetadataCache.has(slug) || fetchedMetadataBySlug[slug]) {
+      return false;
+    }
+
+    return results.some((result) =>
+      normalizeProviderSlug(result.integrationId) === slug && !result.logoUrl,
+    );
+  });
+
+  useEffect(() => {
+    if (missingSlugs.length === 0) {
+      return;
+    }
+
+    const abortController = new AbortController();
+    const searchParams = new URLSearchParams({
+      slugs: missingSlugs.join(","),
+    });
+
+    void fetch(`/api/connections/providers?${searchParams.toString()}`, {
+      signal: abortController.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Provider metadata request failed with ${response.status}.`);
+        }
+
+        return response.json() as Promise<{ providers?: ProviderDisplayMetadata[] }>;
+      })
+      .then((payload) => {
+        if (abortController.signal.aborted) {
+          return;
+        }
+
+        const nextMetadataEntries = (payload.providers ?? [])
+          .filter((metadata) => normalizeProviderSlug(metadata.integrationId).length > 0)
+          .map((metadata) => [normalizeProviderSlug(metadata.integrationId), metadata] as const);
+
+        if (nextMetadataEntries.length === 0) {
+          return;
+        }
+
+        for (const [slug, metadata] of nextMetadataEntries) {
+          providerDisplayMetadataCache.set(slug, metadata);
+        }
+
+        setFetchedMetadataBySlug((currentMetadata) => ({
+          ...currentMetadata,
+          ...Object.fromEntries(nextMetadataEntries),
+        }));
+      })
+      .catch(() => {
+        // Ignore metadata backfill failures and keep the local fallback icon.
+      });
+
+    return () => {
+      abortController.abort();
+    };
+  }, [missingSlugs]);
+
+  return metadataBySlug;
+}
+
+function resolveProviderBranding({
+  slug,
+  displayName,
+  description,
+  logoUrl,
+  hydratedMetadata,
+}: {
+  slug: string;
+  displayName?: string | null;
+  description?: string | null;
+  logoUrl?: string | null;
+  hydratedMetadata?: ProviderDisplayMetadata | null;
+}) {
+  return {
+    displayName: getReadableProviderName(
+      slug,
+      hydratedMetadata?.displayName ?? displayName,
+    ),
+    description: hydratedMetadata?.description ?? description ?? "",
+    logoUrl: logoUrl ?? hydratedMetadata?.logoUrl ?? null,
+  };
+}
+
+function ProviderIconFrame({ children }: { children: ReactNode }) {
+  return (
+    <div
+      aria-hidden
+      className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-background text-foreground shadow-sm"
+    >
+      {children}
+    </div>
+  );
+}
+
+function ProviderFallbackGlyph({ slug }: { slug: string }) {
+  const Icon = PROVIDER_ICONS[slug] ?? LinkIcon;
+
+  return <Icon className="size-4" />;
+}
+
+function useBrandImageState(logoUrl?: string | null) {
+  const [imageStatusesByUrl, setImageStatusesByUrl] = useState<
+    Record<string, "loaded" | "error">
+  >({});
+  const imageStatus = !logoUrl
+    ? "idle"
+    : imageStatusesByUrl[logoUrl] ?? "loading";
+
+  return {
+    hasLoaded: imageStatus === "loaded",
+    shouldRenderImage: Boolean(logoUrl) && imageStatus !== "error",
+    handleLoad: () => {
+      if (!logoUrl) {
+        return;
+      }
+
+      setImageStatusesByUrl((currentStatuses) => ({
+        ...currentStatuses,
+        [logoUrl]: "loaded",
+      }));
+    },
+    handleError: () => {
+      if (!logoUrl) {
+        return;
+      }
+
+      setImageStatusesByUrl((currentStatuses) => ({
+        ...currentStatuses,
+        [logoUrl]: "error",
+      }));
+    },
+  };
+}
+
+function ProviderBrand({
+  slug,
+  logoUrl,
+  displayName,
+}: {
+  slug: string;
+  logoUrl?: string | null;
+  displayName: string;
+}) {
+  const { hasLoaded, shouldRenderImage, handleLoad, handleError } = useBrandImageState(logoUrl);
+
+  return (
+    <ProviderIconFrame>
+      <div className="relative size-full">
+        <div
+          className={cn(
+            "absolute inset-0 flex items-center justify-center transition-opacity duration-150",
+            hasLoaded ? "opacity-0" : "opacity-100",
+          )}
+        >
+          <ProviderFallbackGlyph slug={slug} />
+        </div>
+
+        {shouldRenderImage ? (
+          <img
+            src={logoUrl ?? undefined}
+            alt={`${displayName} logo`}
+            className={cn(
+              "absolute inset-0 size-full object-contain p-1.5 transition-opacity duration-150",
+              hasLoaded ? "opacity-100" : "opacity-0",
+            )}
+            decoding="async"
+            referrerPolicy="no-referrer"
+            onLoad={handleLoad}
+            onError={handleError}
+          />
+        ) : null}
+      </div>
+    </ProviderIconFrame>
+  );
+}
+
 function ConnectionModal({
   integrationName,
   redirectUrl,
+  isExpired,
   isOpen,
   mode,
   onOpenChange,
@@ -196,6 +471,7 @@ function ConnectionModal({
 }: {
   integrationName: string;
   redirectUrl: string;
+  isExpired: boolean;
   isOpen: boolean;
   mode: "connect" | "reauthorize";
   onOpenChange: (isOpen: boolean) => void;
@@ -209,16 +485,23 @@ function ConnectionModal({
             {mode === "reauthorize" ? `Reconnect ${integrationName}` : `Connect ${integrationName}`}
           </DialogTitle>
           <DialogDescription>
-            {mode === "reauthorize"
-              ? `Sign in to ${integrationName} again to refresh the saved connection. After you finish, come back to chat and send your next message.`
-              : `Sign in to ${integrationName} to authorize Sunder. After you finish, come back to chat and send your next message.`}
+            {isExpired
+              ? `This sign-in link expired. Close this card and ask me to start a fresh ${mode === "reauthorize" ? "reconnect" : "connect"} flow.`
+              : mode === "reauthorize"
+              ? `Sign in to ${integrationName} again to refresh your connection. Come back to chat and send your next message when you're done.`
+              : `Sign in to ${integrationName} to link your account. Come back to chat and send your next message when you're done.`}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center justify-end">
           <Button
             type="button"
+            disabled={isExpired}
             onClick={() => {
+              if (isExpired) {
+                return;
+              }
+
               onContinue();
               window.open(redirectUrl, "_blank", "noopener,noreferrer");
               onOpenChange(false);
@@ -234,14 +517,59 @@ function ConnectionModal({
   );
 }
 
-function ConnectionRow({ result }: { result: ConnectionResult }) {
+function useAuthRedirectExpired(expiresAt: string | null) {
+  const [, setRefreshCounter] = useState(0);
+
+  useEffect(() => {
+    const expiryTimestamp = parseAuthRedirectExpiry(expiresAt);
+
+    if (expiryTimestamp === null || expiryTimestamp <= Date.now()) {
+      return;
+    }
+
+    const refreshDelay = Math.max(0, expiryTimestamp - Date.now()) + 50;
+
+    if (refreshDelay > 2_147_483_647) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setRefreshCounter((currentValue) => currentValue + 1);
+    }, refreshDelay);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [expiresAt]);
+
+  return isAuthRedirectExpired(expiresAt);
+}
+
+function ConnectionRow({
+  result,
+  hydratedMetadata,
+}: {
+  result: ConnectionResult;
+  hydratedMetadata?: ProviderDisplayMetadata | null;
+}) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hasStartedOAuth, setHasStartedOAuth] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionCardStatus>(
     result.connectionStatus,
   );
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(result.redirectUrl);
+  const [authRedirectExpiresAt, setAuthRedirectExpiresAt] = useState<string | null>(
+    result.authRedirectExpiresAt ?? null,
+  );
   const [accountIdentifier, setAccountIdentifier] = useState<string | null>(null);
   const isReauthorization = result.connectionStatus === "pending_reauth";
+  const providerBranding = resolveProviderBranding({
+    slug: result.integrationId,
+    displayName: result.displayName,
+    description: result.description,
+    logoUrl: result.logoUrl,
+    hydratedMetadata,
+  });
 
   useEffect(() => {
     const supabase = createClient();
@@ -250,6 +578,8 @@ function ConnectionRow({ result }: { result: ConnectionResult }) {
     const applyConnectionSnapshot = (snapshot: {
       status?: string | null;
       account_identifier?: string | null;
+      auth_redirect_url?: string | null;
+      auth_redirect_expires_at?: string | null;
     }) => {
       if (snapshot.status === "active") {
         setConnectionStatus("active");
@@ -262,11 +592,22 @@ function ConnectionRow({ result }: { result: ConnectionResult }) {
       if (typeof snapshot.account_identifier === "string") {
         setAccountIdentifier(snapshot.account_identifier);
       }
+
+      if (typeof snapshot.auth_redirect_url === "string" || snapshot.auth_redirect_url === null) {
+        setRedirectUrl(snapshot.auth_redirect_url);
+      }
+
+      if (
+        typeof snapshot.auth_redirect_expires_at === "string"
+        || snapshot.auth_redirect_expires_at === null
+      ) {
+        setAuthRedirectExpiresAt(snapshot.auth_redirect_expires_at);
+      }
     };
 
     void supabase
       .from("connections")
-      .select("status, account_identifier")
+      .select("status, account_identifier, auth_redirect_url, auth_redirect_expires_at")
       .eq("composio_connected_account_id", result.composioConnectedAccountId)
       .maybeSingle()
       .then(({ data }) => {
@@ -287,7 +628,12 @@ function ConnectionRow({ result }: { result: ConnectionResult }) {
         },
         (payload) => {
           const nextRow = (payload as {
-            new?: { status?: string; account_identifier?: string | null };
+            new?: {
+              status?: string;
+              account_identifier?: string | null;
+              auth_redirect_url?: string | null;
+              auth_redirect_expires_at?: string | null;
+            };
           }).new;
 
           if (nextRow) {
@@ -303,70 +649,99 @@ function ConnectionRow({ result }: { result: ConnectionResult }) {
     };
   }, [result.composioConnectedAccountId]);
 
-  const isConnected = connectionStatus === "active";
+  const hasExpiredLink = useAuthRedirectExpired(authRedirectExpiresAt);
+  const hasLiveRedirect = hasLiveAuthRedirect(redirectUrl, authRedirectExpiresAt);
+  const isConnected = connectionStatus === "active" && !(isReauthorization && hasLiveRedirect);
   const hasFailed = connectionStatus === "error";
-  const isAwaitingLogin = hasStartedOAuth && !isConnected;
-  const summaryText = isAwaitingLogin
-    ? "Finish the sign-in flow in the tab you opened, then return to chat."
-    : result.description || (
+  const isAwaitingLogin = hasStartedOAuth && !isConnected && !hasExpiredLink;
+  const isAuthCtaEnabled = Boolean(redirectUrl) && !hasExpiredLink;
+  const descriptionText = hasExpiredLink
+    ? isReauthorization
+      ? "This reconnect link expired. Ask me to start a fresh reconnect."
+      : "This connect link expired. Ask me to start it again."
+    : isAwaitingLogin
+    ? "Finish signing in in the tab you opened, then return to chat."
+    : providerBranding.description || (
       isReauthorization
-        ? "Refresh the saved connection for this provider."
-        : "Authorize this provider so the agent can use it on your next message."
+        ? "Sign in again to refresh this connection."
+        : "Sign in to link this account to Sunder."
     );
 
   return (
-    <div className="rounded-lg border border-border/60 bg-background px-4 py-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-medium text-foreground">{result.displayName}</p>
-            {isConnected ? <Badge variant="outline">Connected</Badge> : null}
-            {!isConnected && isAwaitingLogin ? (
-              <Badge variant="outline">Awaiting login</Badge>
-            ) : null}
-            {hasFailed ? (
-              <Badge variant="outline">
-                {isReauthorization ? "Needs reauthorization" : "Failed"}
-              </Badge>
-            ) : null}
-            {!isConnected && !isAwaitingLogin && !hasFailed && isReauthorization ? (
-              <Badge variant="outline">Needs reauthorization</Badge>
-            ) : null}
-          </div>
-          <p className="text-sm text-muted-foreground">{summaryText}</p>
-          {accountIdentifier ? (
-            <p className="text-xs text-muted-foreground">{accountIdentifier}</p>
+    <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-background px-3 py-2.5 shadow-sm">
+      <ProviderBrand
+        slug={result.integrationId}
+        logoUrl={providerBranding.logoUrl}
+        displayName={providerBranding.displayName}
+      />
+
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium text-foreground">{providerBranding.displayName}</p>
+          {isConnected ? <Badge variant="outline">Connected</Badge> : null}
+          {!isConnected && hasExpiredLink ? (
+            <Badge variant="outline">Expired</Badge>
+          ) : null}
+          {!isConnected && isAwaitingLogin ? (
+            <Badge variant="outline">Signing in…</Badge>
+          ) : null}
+          {hasFailed ? (
+            <Badge variant="outline">
+              {isReauthorization ? "Needs reconnect" : "Sign-in failed"}
+            </Badge>
+          ) : null}
+          {!isConnected && !isAwaitingLogin && !hasFailed && isReauthorization ? (
+            <Badge variant="outline">Needs reconnect</Badge>
           ) : null}
         </div>
-
-        {isConnected ? null : (
-          <Button
-            size="sm"
-            type="button"
-            variant={isAwaitingLogin ? "outline" : "default"}
-            onClick={() => setIsModalOpen(true)}
-          >
-            {isReauthorization
-              ? `Reconnect ${result.displayName}`
-              : `Connect ${result.displayName}`}
-          </Button>
-        )}
+        <p className="line-clamp-2 text-sm text-muted-foreground">{descriptionText}</p>
+        {accountIdentifier ? (
+          <p className="text-xs text-muted-foreground">{accountIdentifier}</p>
+        ) : null}
       </div>
 
-      <ConnectionModal
-        integrationName={result.displayName}
-        redirectUrl={result.redirectUrl}
-        isOpen={isModalOpen}
-        mode={isReauthorization ? "reauthorize" : "connect"}
-        onOpenChange={setIsModalOpen}
-        onContinue={() => setHasStartedOAuth(true)}
-      />
+      {isConnected ? null : (
+        <Button
+          size="sm"
+          type="button"
+          disabled={!isAuthCtaEnabled}
+          variant={isAwaitingLogin ? "outline" : "default"}
+          onClick={() => setIsModalOpen(true)}
+          className="shrink-0"
+        >
+          <LinkIcon className="mr-1.5 size-3.5" aria-hidden />
+          {hasExpiredLink ? "Expired" : isReauthorization ? "Reconnect" : "Connect"}
+        </Button>
+      )}
+
+      {redirectUrl ? (
+        <ConnectionModal
+          integrationName={providerBranding.displayName}
+          redirectUrl={redirectUrl}
+          isExpired={hasExpiredLink}
+          isOpen={isModalOpen}
+          mode={isReauthorization ? "reauthorize" : "connect"}
+          onOpenChange={setIsModalOpen}
+          onContinue={() => setHasStartedOAuth(true)}
+        />
+      ) : null}
     </div>
   );
 }
 
-function ConnectionErrorRow({ result }: { result: ConnectionErrorResult }) {
-  const displayName = result.displayName ?? getSupportedProviderDisplayName(result.integrationId);
+function ConnectionErrorRow({
+  result,
+  hydratedMetadata,
+}: {
+  result: ConnectionErrorResult;
+  hydratedMetadata?: ProviderDisplayMetadata | null;
+}) {
+  const providerBranding = resolveProviderBranding({
+    slug: result.integrationId,
+    displayName: result.displayName,
+    logoUrl: result.logoUrl,
+    hydratedMetadata,
+  });
   const badgeLabel = /already connected/i.test(result.error)
     ? "Already connected"
     : /not supported/i.test(result.error)
@@ -374,12 +749,19 @@ function ConnectionErrorRow({ result }: { result: ConnectionErrorResult }) {
       : "Request failed";
 
   return (
-    <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-sm font-medium text-foreground">{displayName}</p>
-        <Badge variant="outline">{badgeLabel}</Badge>
+    <div className="flex items-start gap-3 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3">
+      <ProviderBrand
+        slug={result.integrationId}
+        logoUrl={providerBranding.logoUrl}
+        displayName={providerBranding.displayName}
+      />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium text-foreground">{providerBranding.displayName}</p>
+          <Badge variant="outline">{badgeLabel}</Badge>
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">{result.error}</p>
       </div>
-      <p className="mt-1 text-sm text-muted-foreground">{result.error}</p>
     </div>
   );
 }
@@ -389,37 +771,58 @@ function ConnectionCard({ results }: { results: ConnectionCardResult[] }) {
     (result): result is ConnectionResult => !isConnectionErrorResult(result),
   );
   const errorResults = results.filter(isConnectionErrorResult);
+  const providerMetadataBySlug = useProviderDisplayMetadata(results);
   const isReauthorization = connectionResults.length > 0 && connectionResults.every(
     (result) => result.connectionStatus === "pending_reauth",
   );
   const hasOnlyErrors = connectionResults.length === 0 && errorResults.length > 0;
+
+  const getHydratedMetadata = (integrationId: string) =>
+    providerMetadataBySlug[normalizeProviderSlug(integrationId)] ?? null;
+  const singleDisplayName = connectionResults.length === 1
+    ? resolveProviderBranding({
+      slug: connectionResults[0].integrationId,
+      displayName: connectionResults[0].displayName,
+      description: connectionResults[0].description,
+      logoUrl: connectionResults[0].logoUrl,
+      hydratedMetadata: getHydratedMetadata(connectionResults[0].integrationId),
+    }).displayName
+    : null;
+  const title = hasOnlyErrors
+    ? "Couldn't start the connection"
+    : isReauthorization
+      ? singleDisplayName ? `Reconnect ${singleDisplayName}` : "Reconnect a service"
+      : singleDisplayName ? `Connect ${singleDisplayName}` : "Connect a service";
+  const subtitle = hasOnlyErrors
+    ? "See what went wrong below."
+    : isReauthorization
+      ? "Sign in again in a new tab. Your connection will refresh automatically."
+      : "Sign in in a new tab. Your connection is saved to your account.";
 
   return (
     <div
       className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4"
       data-testid="connection-card"
     >
-      <div className="space-y-1">
-        <p className="text-sm font-medium text-foreground">
-          {hasOnlyErrors
-            ? "Connection request could not start"
-            : isReauthorization ? "Reconnect a provider" : "Connect a provider"}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          {hasOnlyErrors
-            ? "Review the provider-specific errors below before retrying."
-            : isReauthorization
-            ? "You'll refresh the saved connection in a new tab, then come back to chat."
-            : "You'll sign in in a new tab. The connection is saved to your account."}
-        </p>
+      <div className="space-y-0.5">
+        <p className="text-sm font-medium text-foreground">{title}</p>
+        <p className="text-sm text-muted-foreground">{subtitle}</p>
       </div>
 
       <div className="space-y-2">
         {connectionResults.map((result, i) => (
-          <ConnectionRow key={result.composioConnectedAccountId ?? i} result={result} />
+          <ConnectionRow
+            key={result.composioConnectedAccountId ?? i}
+            result={result}
+            hydratedMetadata={getHydratedMetadata(result.integrationId)}
+          />
         ))}
         {errorResults.map((result, i) => (
-          <ConnectionErrorRow key={`${result.integrationId}:${i}`} result={result} />
+          <ConnectionErrorRow
+            key={`${result.integrationId}:${i}`}
+            result={result}
+            hydratedMetadata={getHydratedMetadata(result.integrationId)}
+          />
         ))}
       </div>
     </div>

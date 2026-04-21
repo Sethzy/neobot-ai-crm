@@ -58,6 +58,8 @@ interface ChatComposerProps {
   /** When true, disables the model selector (session pinned — switching not possible).
    *  The selector remains visible to preserve layout. */
   hideModelSelector?: boolean;
+  /** When false, hides attachment UI and disables file drop/paste behavior. */
+  allowAttachments?: boolean;
 }
 
 const PASTEABLE_FILE_TYPES = new Set([
@@ -131,6 +133,7 @@ export function ChatComposer({
   placeholder,
   disabled = false,
   hideModelSelector = false,
+  allowAttachments = true,
 }: ChatComposerProps) {
   const router = useRouter();
   const supabase = createSupabaseClient();
@@ -450,27 +453,29 @@ export function ChatComposer({
   return (
     <div
       className={cn("px-4 pb-4", className)}
-      onDragLeave={handleDragLeave}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
+      onDragLeave={allowAttachments ? handleDragLeave : undefined}
+      onDragOver={allowAttachments ? handleDragOver : undefined}
+      onDrop={allowAttachments ? handleDrop : undefined}
     >
       <div className={cn(
         "mx-auto max-w-[44rem] rounded-2xl transition-all",
         isDragOver && "ring-2 ring-ring/20 border-dashed bg-accent/50",
         innerClassName,
       )}>
-        <input
-          accept={CHAT_ATTACHMENT_ACCEPT}
-          aria-label="Upload attachments"
-          className="hidden"
-          multiple
-          onChange={handleFileChange}
-          ref={fileInputRef}
-          type="file"
-        />
+        {allowAttachments ? (
+          <input
+            accept={CHAT_ATTACHMENT_ACCEPT}
+            aria-label="Upload attachments"
+            className="hidden"
+            multiple
+            onChange={handleFileChange}
+            ref={fileInputRef}
+            type="file"
+          />
+        ) : null}
 
         <PromptInput onSubmit={handleSubmit}>
-          {(attachments.length > 0 || uploadQueue.length > 0) && (
+          {allowAttachments && (attachments.length > 0 || uploadQueue.length > 0) && (
             <div className="flex w-full flex-wrap gap-2 p-2" data-testid="composer-attachments">
               {attachments.map((attachment) => (
                 <PreviewAttachment
@@ -509,7 +514,7 @@ export function ChatComposer({
               onClick={handleTextareaSelectionChange}
               onKeyDown={handleComposerKeyDown}
               onKeyUp={handleTextareaSelectionChange}
-              onPaste={handlePaste}
+              onPaste={allowAttachments ? handlePaste : undefined}
               onSelect={handleTextareaSelectionChange}
               disabled={isGenerating || disabled}
             />
@@ -542,14 +547,16 @@ export function ChatComposer({
             </PromptInputTools>
 
             <PromptInputTools className="gap-0.5">
-              <PromptInputButton
-                aria-label="Attach files"
-                disabled={isGenerating || disabled}
-                onClick={() => fileInputRef.current?.click()}
-                variant="ghost"
-              >
-                <Paperclip className="size-4" />
-              </PromptInputButton>
+              {allowAttachments ? (
+                <PromptInputButton
+                  aria-label="Attach files"
+                  disabled={isGenerating || disabled}
+                  onClick={() => fileInputRef.current?.click()}
+                  variant="ghost"
+                >
+                  <Paperclip className="size-4" />
+                </PromptInputButton>
+              ) : null}
 
               <PromptInputSubmit
                 status={status}
