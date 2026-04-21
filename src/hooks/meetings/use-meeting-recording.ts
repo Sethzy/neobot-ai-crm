@@ -8,20 +8,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient as createSupabaseClient } from "@/lib/supabase/client";
-import { encodeWavFromAudioBlob } from "@/lib/audio/encode-wav";
+import {
+  encodeWavFromAudioBlob,
+  estimatePcmWavSizeBytes,
+} from "@/lib/audio/encode-wav";
 import { AGENT_FILES_BUCKET } from "@/lib/storage/agent-files";
 import {
   DEFAULT_STT_LANGUAGE,
-  SUPPORTED_STT_LANGUAGE_CODES,
+  isSupportedSttLanguage,
 } from "@/lib/transcription/languages";
 
 const LANGUAGE_STORAGE_KEY = "sunder.meetings.language";
+const MAX_BROWSER_WAV_TRANSCODE_SECONDS = 25 * 60;
 
 function readStoredLanguage(): string {
   if (typeof window === "undefined") return DEFAULT_STT_LANGUAGE;
   try {
     const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    if (stored && SUPPORTED_STT_LANGUAGE_CODES.has(stored)) return stored;
+    if (stored && isSupportedSttLanguage(stored)) return stored;
   } catch {
     // localStorage may be unavailable in private browsing / SSR edge cases
   }
@@ -147,6 +151,7 @@ function logRecordingUploadFailure(details: {
   tokenPresent?: boolean;
   blobSize?: number;
   blobType?: string;
+  estimatedWavByteLength?: number;
   uploadFileName?: string;
   uploadFileType?: string;
 }) {
@@ -158,10 +163,27 @@ function logRecordingUploadFailure(details: {
     tokenPresent: details.tokenPresent,
     blobSize: details.blobSize,
     blobType: details.blobType,
+    estimatedWavByteLength: details.estimatedWavByteLength,
     uploadFileName: details.uploadFileName,
     uploadFileType: details.uploadFileType,
     rawError: details.error,
   });
+}
+
+/**
+ * Full-file browser transcoding is memory hungry because decode, mixdown,
+ * resample, and WAV packing each allocate their own buffers. Cap the duration
+ * so long recordings fail fast with a clear message instead of crashing tabs.
+ */
+function assertBrowserTranscodeLimit(durationSeconds: number): void {
+  if (durationSeconds <= MAX_BROWSER_WAV_TRANSCODE_SECONDS) {
+    return;
+  }
+
+  const maxMinutes = Math.floor(MAX_BROWSER_WAV_TRANSCODE_SECONDS / 60);
+  throw new Error(
+    `Recordings longer than ${maxMinutes} minutes are not supported in this browser yet.`,
+  );
 }
 
 export function useMeetingRecording(): UseMeetingRecordingReturn {
@@ -173,7 +195,7 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
   const [language, setLanguageState] = useState<string>(readStoredLanguage);
 
   const setLanguage = useCallback((code: string) => {
-    if (!SUPPORTED_STT_LANGUAGE_CODES.has(code)) return;
+    if (!isSupportedSttLanguage(code)) return;
     setLanguageState(code);
     try {
       window.localStorage.setItem(LANGUAGE_STORAGE_KEY, code);
@@ -353,12 +375,18 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
 
     const idempotencyKey = crypto.randomUUID();
     const effectiveElapsedSeconds = Math.max(1, elapsedSeconds);
-    const wavBlob = await encodeWavFromAudioBlob(audioBlob);
-    const uploadFile = new File([wavBlob], "recording.wav", {
-      type: "audio/wav",
-    });
 
     try {
+      assertBrowserTranscodeLimit(effectiveElapsedSeconds);
+
+      const estimatedWavByteLength = estimatePcmWavSizeBytes(effectiveElapsedSeconds);
+      const wavBlob = audioBlob.type === "audio/wav"
+        ? audioBlob
+        : await encodeWavFromAudioBlob(audioBlob);
+      const uploadFile = new File([wavBlob], "recording.wav", {
+        type: "audio/wav",
+      });
+
       setStatus("uploading");
 
       const uploadResponse = await fetch("/api/meetings/upload-url", {
@@ -399,6 +427,7 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
           tokenPresent: Boolean(uploadPayload.token),
           blobSize: audioBlob.size,
           blobType: audioBlob.type,
+          estimatedWavByteLength,
           uploadFileName: uploadFile.name,
           uploadFileType: uploadFile.type,
         });
@@ -437,8 +466,7 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
         error,
         blobSize: audioBlob.size,
         blobType: audioBlob.type,
-        uploadFileName: uploadFile.name,
-        uploadFileType: uploadFile.type,
+        estimatedWavByteLength: estimatePcmWavSizeBytes(effectiveElapsedSeconds),
       });
       setStatus("error");
       setErrorMessage(error instanceof Error ? error.message : "Recording failed");

@@ -12,6 +12,7 @@ const mockRecorderStop = vi.fn();
 const mockFetch = vi.fn();
 const mockUploadToSignedUrl = vi.fn();
 const mockStorageFrom = vi.fn();
+const mockEncodeWavFromAudioBlob = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -28,7 +29,8 @@ vi.mock("@/lib/supabase/client", () => ({
 }));
 
 vi.mock("@/lib/audio/encode-wav", () => ({
-  encodeWavFromAudioBlob: async () => new Blob([new Uint8Array([0x52, 0x49, 0x46, 0x46])], { type: "audio/wav" }),
+  encodeWavFromAudioBlob: (...args: unknown[]) => mockEncodeWavFromAudioBlob(...args),
+  estimatePcmWavSizeBytes: (durationSeconds: number) => durationSeconds * 32_000 + 44,
 }));
 
 class MockMediaRecorder {
@@ -87,6 +89,9 @@ describe("useMeetingRecording", () => {
     mockGetUserMedia.mockResolvedValue({
       getTracks: () => [{ stop: mockStopTrack }],
     } satisfies Partial<MediaStream>);
+    mockEncodeWavFromAudioBlob.mockResolvedValue(
+      new Blob([new Uint8Array([0x52, 0x49, 0x46, 0x46])], { type: "audio/wav" }),
+    );
     mockStorageFrom.mockReturnValue({
       uploadToSignedUrl: mockUploadToSignedUrl,
     });
@@ -180,5 +185,46 @@ describe("useMeetingRecording", () => {
     expect(mockFetch).toHaveBeenNthCalledWith(1, "/api/meetings/upload-url", expect.any(Object));
     expect(mockFetch).toHaveBeenNthCalledWith(2, "/api/meetings/ingest", expect.any(Object));
     expect(mockPush).toHaveBeenCalledWith("/meetings/meeting-1");
+  });
+
+  it("surfaces transcoder failures as recording errors", async () => {
+    mockEncodeWavFromAudioBlob.mockRejectedValueOnce(new Error("Transcode failed"));
+
+    const { result } = renderHook(() => useMeetingRecording());
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    await act(async () => {
+      await result.current.stop();
+    });
+
+    expect(result.current.status).toBe("error");
+    expect(result.current.errorMessage).toBe("Transcode failed");
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("fails fast before browser transcoding for recordings over the safety limit", async () => {
+    const { result } = renderHook(() => useMeetingRecording());
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(26 * 60 * 1000);
+    });
+
+    await act(async () => {
+      await result.current.stop();
+    });
+
+    expect(result.current.status).toBe("error");
+    expect(result.current.errorMessage).toBe(
+      "Recordings longer than 25 minutes are not supported in this browser yet.",
+    );
+    expect(mockEncodeWavFromAudioBlob).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });

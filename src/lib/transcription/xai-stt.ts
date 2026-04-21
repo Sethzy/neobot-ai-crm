@@ -8,6 +8,8 @@
  * @module lib/transcription/xai-stt
  */
 
+import { assertSupportedSttLanguage } from "@/lib/transcription/languages";
+
 const XAI_STT_URL = "https://api.x.ai/v1/stt";
 
 export interface TranscribeAudioInput {
@@ -80,6 +82,7 @@ export async function transcribeAudio({
   language,
 }: TranscribeAudioInput): Promise<TranscribeAudioResult> {
   const apiKey = process.env.XAI_API_KEY?.trim();
+  const validatedLanguage = assertSupportedSttLanguage(language);
 
   if (!apiKey) {
     throw new Error("XAI_API_KEY is not configured");
@@ -88,12 +91,12 @@ export async function transcribeAudio({
   const form = new FormData();
   form.append("url", audioUrl);
   form.append("diarize", "true");
-  form.append("language", language);
+  form.append("language", validatedLanguage);
   // Inverse Text Normalization: spoken numbers/dates/currency → written form
   // (e.g. "three point two million dollars" → "$3.2 million"). Requires language.
   form.append("format", "true");
 
-  console.log(`[xai-stt] submit | language=${language}`);
+  console.log(`[xai-stt] submit | language=${validatedLanguage}`);
   const response = await fetch(XAI_STT_URL, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}` },

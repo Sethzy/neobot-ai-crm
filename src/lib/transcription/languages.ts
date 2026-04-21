@@ -50,3 +50,20 @@ export const DEFAULT_STT_LANGUAGE = "en";
 export const SUPPORTED_STT_LANGUAGE_CODES: ReadonlySet<string> = new Set(
   STT_LANGUAGES.map((lang) => lang.code),
 );
+
+/** Returns true when the language code is accepted by the xAI STT endpoint. */
+export function isSupportedSttLanguage(code: string): boolean {
+  return SUPPORTED_STT_LANGUAGE_CODES.has(code);
+}
+
+/**
+ * Validates a language code before it is sent to the provider.
+ * Throws a descriptive error so callers fail before making a paid network call.
+ */
+export function assertSupportedSttLanguage(code: string): string {
+  if (!isSupportedSttLanguage(code)) {
+    throw new Error(`Unsupported transcription language: ${code}`);
+  }
+
+  return code;
+}

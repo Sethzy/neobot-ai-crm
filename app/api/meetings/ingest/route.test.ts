@@ -273,6 +273,27 @@ describe("POST /api/meetings/ingest", () => {
     });
   });
 
+  it("rejects unsupported transcription languages before calling xAI", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/meetings/ingest", {
+        method: "POST",
+        body: JSON.stringify({
+          storagePath: "client-1/meetings/raw/uploaded.webm",
+          durationSeconds: 180,
+          notes: "",
+          idempotencyKey: "880e8400-e29b-41d4-a716-446655440000",
+          language: "zh",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Unsupported transcription language",
+    });
+    expect(mockTranscribeAudio).not.toHaveBeenCalled();
+  });
+
   it("fails when persisting a meeting status update fails", async () => {
     mockMeetingRecordUpdateEq
       .mockResolvedValueOnce({ error: null })

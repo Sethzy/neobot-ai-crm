@@ -15,7 +15,10 @@ import {
 import { resolveClientId } from "@/lib/chat/client-id";
 import { formatRecordingTime } from "@/lib/meetings/format-helpers";
 import { buildSummaryPrompt } from "@/lib/meetings/summary-prompt";
-import { DEFAULT_STT_LANGUAGE, SUPPORTED_STT_LANGUAGE_CODES } from "@/lib/transcription/languages";
+import {
+  DEFAULT_STT_LANGUAGE,
+  isSupportedSttLanguage,
+} from "@/lib/transcription/languages";
 import { transcribeAudio } from "@/lib/transcription/xai-stt";
 import type { Database } from "@/types/database";
 
@@ -43,7 +46,7 @@ const ingestSchema = z.object({
   language: z.string()
     .optional()
     .default(DEFAULT_STT_LANGUAGE)
-    .refine((code) => SUPPORTED_STT_LANGUAGE_CODES.has(code), {
+    .refine((code) => isSupportedSttLanguage(code), {
       message: "Unsupported transcription language",
     }),
 });

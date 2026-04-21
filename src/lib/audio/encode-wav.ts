@@ -1,15 +1,17 @@
 /**
  * Client-side audio transcoder: decodes any browser-recorded audio blob
  * (webm/opus, mp4, ogg, etc.) and re-encodes it as a 16-bit PCM WAV at
- * 16 kHz mono. WAV is on every cloud STT provider's supported-format
- * list, so this step removes a whole class of provider-specific format
- * gaps (e.g. Grok STT rejects webm).
+ * 16 kHz mono. WAV remains the most interoperable speech-to-text
+ * interchange format, so this step removes provider-specific codec
+ * handling from the rest of the pipeline.
  *
  * @module lib/audio/encode-wav
  */
 
 const TARGET_SAMPLE_RATE = 16_000;
 const WAV_HEADER_SIZE_BYTES = 44;
+const PCM_BYTES_PER_SAMPLE = 2;
+const MONO_CHANNEL_COUNT = 1;
 
 /** Averages all channels of an AudioBuffer into a single Float32 mono track. */
 function mixdownToMono(audioBuffer: AudioBuffer): Float32Array {
@@ -75,7 +77,7 @@ function writeAscii(view: DataView, offset: number, text: string): void {
  * sample rate, byte rate, data chunk.
  */
 function buildWavBlob(samples: Float32Array, sampleRate: number): Blob {
-  const dataByteLength = samples.length * 2;
+  const dataByteLength = samples.length * PCM_BYTES_PER_SAMPLE;
   const buffer = new ArrayBuffer(WAV_HEADER_SIZE_BYTES + dataByteLength);
   const view = new DataView(buffer);
 
@@ -85,10 +87,10 @@ function buildWavBlob(samples: Float32Array, sampleRate: number): Blob {
   writeAscii(view, 12, "fmt ");
   view.setUint32(16, 16, true);
   view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
+  view.setUint16(22, MONO_CHANNEL_COUNT, true);
   view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
+  view.setUint32(28, sampleRate * MONO_CHANNEL_COUNT * PCM_BYTES_PER_SAMPLE, true);
+  view.setUint16(32, MONO_CHANNEL_COUNT * PCM_BYTES_PER_SAMPLE, true);
   view.setUint16(34, 16, true);
   writeAscii(view, 36, "data");
   view.setUint32(40, dataByteLength, true);
@@ -101,6 +103,15 @@ function buildWavBlob(samples: Float32Array, sampleRate: number): Blob {
   }
 
   return new Blob([buffer], { type: "audio/wav" });
+}
+
+/** Estimates the final 16 kHz mono PCM WAV size for a given recording length. */
+export function estimatePcmWavSizeBytes(durationSeconds: number): number {
+  const safeDurationSeconds = Math.max(0, durationSeconds);
+  return WAV_HEADER_SIZE_BYTES
+    + Math.ceil(
+      safeDurationSeconds * TARGET_SAMPLE_RATE * MONO_CHANNEL_COUNT * PCM_BYTES_PER_SAMPLE,
+    );
 }
 
 /**

@@ -84,6 +84,14 @@ describe("transcribeAudio (xAI Grok STT)", () => {
     expect(form.get("language")).toBe("ms");
   });
 
+  it("rejects unsupported language codes before calling xAI", async () => {
+    await expect(
+      transcribeAudio({ audioUrl: "https://storage.example.com/audio.webm", language: "zh" }),
+    ).rejects.toThrow("Unsupported transcription language: zh");
+
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it("collapses a single-speaker word stream into one segment", async () => {
     mockXaiSuccess({
       text: "Hello world",
