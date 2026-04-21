@@ -6,6 +6,7 @@
 "use client";
 
 import Link from "next/link";
+import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -14,7 +15,6 @@ import { cronToHuman, formatCountdown } from "@/lib/triggers/cron-display";
 
 interface AutomationsListProps {
   triggers: AutomationTrigger[];
-  pendingTriggerId?: string | null;
   onToggleEnabled: (triggerId: string, enabled: boolean) => void;
 }
 
@@ -66,60 +66,75 @@ function getStatusVariant(
 
 export function AutomationsList({
   triggers,
-  pendingTriggerId,
   onToggleEnabled,
 }: AutomationsListProps) {
   const active = triggers.filter((trigger) => trigger.enabled || trigger.isRunning);
   const inactive = triggers.filter((trigger) => !trigger.enabled && !trigger.isRunning);
 
-  return (
-    <div className="space-y-6">
-      {active.length > 0 && (
-        <section>
-          <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
-            Active
-          </h3>
-          <div className="divide-y divide-border/30 rounded-xl border border-border/40 bg-card shadow-sm">
-            {active.map((trigger) => (
-              <AutomationRow
-                key={trigger.id}
-                trigger={trigger}
-                isPending={pendingTriggerId === trigger.id}
-                onToggleEnabled={onToggleEnabled}
-              />
-            ))}
-          </div>
-        </section>
-      )}
+  const rowTransition = { type: "spring" as const, stiffness: 500, damping: 42, mass: 0.6 };
 
-      {inactive.length > 0 && (
-        <section>
-          <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
-            Inactive
-          </h3>
-          <div className="divide-y divide-border/30 rounded-xl border border-border/40 bg-card shadow-sm">
-            {inactive.map((trigger) => (
-              <AutomationRow
-                key={trigger.id}
-                trigger={trigger}
-                isPending={pendingTriggerId === trigger.id}
-                onToggleEnabled={onToggleEnabled}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
+  return (
+    <LayoutGroup id="automations-list">
+      <div className="space-y-6">
+        {active.length > 0 && (
+          <section>
+            <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
+              Active
+            </h3>
+            <div className="divide-y divide-border/30 rounded-xl border border-border/40 bg-card shadow-sm">
+              <AnimatePresence initial={false}>
+                {active.map((trigger) => (
+                  <motion.div
+                    key={trigger.id}
+                    layout
+                    layoutId={`automation-row-${trigger.id}`}
+                    transition={rowTransition}
+                  >
+                    <AutomationRow
+                      trigger={trigger}
+                      onToggleEnabled={onToggleEnabled}
+                    />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          </section>
+        )}
+
+        {inactive.length > 0 && (
+          <section>
+            <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
+              Inactive
+            </h3>
+            <div className="divide-y divide-border/30 rounded-xl border border-border/40 bg-card shadow-sm">
+              <AnimatePresence initial={false}>
+                {inactive.map((trigger) => (
+                  <motion.div
+                    key={trigger.id}
+                    layout
+                    layoutId={`automation-row-${trigger.id}`}
+                    transition={rowTransition}
+                  >
+                    <AutomationRow
+                      trigger={trigger}
+                      onToggleEnabled={onToggleEnabled}
+                    />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          </section>
+        )}
+      </div>
+    </LayoutGroup>
   );
 }
 
 function AutomationRow({
   trigger,
-  isPending,
   onToggleEnabled,
 }: {
   trigger: AutomationTrigger;
-  isPending: boolean;
   onToggleEnabled: (triggerId: string, enabled: boolean) => void;
 }) {
   return (
@@ -150,7 +165,6 @@ function AutomationRow({
         )}
         <Switch
           checked={trigger.enabled}
-          disabled={isPending}
           onCheckedChange={(checked) => {
             onToggleEnabled(trigger.id, checked);
           }}

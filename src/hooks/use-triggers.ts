@@ -216,9 +216,15 @@ export function useUpdateTriggerSchedule() {
 
 /**
  * Returns a mutation for enabling or disabling one trigger row.
+ *
+ * Writes the new `enabled` value into the cache synchronously via `onMutate`
+ * so the Switch flips and the row reflows between Active/Inactive sections
+ * without waiting for the network round-trip. Rolls back on error; re-syncs
+ * from the server on settle.
  */
 export function useSetTriggerEnabled() {
   const queryClient = useQueryClient();
+  const listKey = triggerKeys.list();
 
   return useMutation({
     mutationFn: async (input: { triggerId: string; enabled: boolean }) => {
@@ -231,7 +237,27 @@ export function useSetTriggerEnabled() {
         throw error;
       }
     },
-    onSuccess: () => {
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: listKey });
+      const previous = queryClient.getQueryData<AutomationTrigger[]>(listKey);
+      if (previous) {
+        queryClient.setQueryData<AutomationTrigger[]>(
+          listKey,
+          previous.map((trigger) =>
+            trigger.id === input.triggerId
+              ? { ...trigger, enabled: input.enabled }
+              : trigger,
+          ),
+        );
+      }
+      return { previous };
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(listKey, context.previous);
+      }
+    },
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: triggerKeys.all });
     },
   });

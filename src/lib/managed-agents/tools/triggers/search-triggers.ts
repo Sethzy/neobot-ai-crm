@@ -66,6 +66,36 @@ export const TRIGGER_CATALOG: readonly TriggerCatalogEntry[] = [
   },
 ] as const;
 
+/**
+ * Tokenize LLM-supplied keyword phrases so trigger discovery still works when
+ * the model collapses an intended string array into a single space-delimited
+ * string such as "automation schedule reminder".
+ */
+function normalizeTriggerKeywords(keywords: string[]): string[] {
+  return Array.from(
+    new Set(
+      keywords.flatMap((keyword) =>
+        keyword
+          .split(/[\s,\n]+/)
+          .map((token) => token.trim())
+          .filter((token) => token.length > 0),
+      ),
+    ),
+  );
+}
+
+function coerceTriggerKeywordsInput(value: unknown): unknown {
+  if (typeof value === "string") {
+    return normalizeTriggerKeywords([value]);
+  }
+
+  if (Array.isArray(value) && value.every((item) => typeof item === "string")) {
+    return normalizeTriggerKeywords(value);
+  }
+
+  return value;
+}
+
 function matchesTrigger(entry: TriggerCatalogEntry, keywords: string[]): boolean {
   const haystack = [
     entry.trigger_id,
@@ -78,7 +108,10 @@ function matchesTrigger(entry: TriggerCatalogEntry, keywords: string[]): boolean
 }
 
 const inputSchema = z.object({
-  keywords: z.array(z.string().min(1)).min(1).describe("One or more keywords to search for available triggers (e.g., [\"email\", \"schedule\"])"),
+  keywords: z.preprocess(
+    coerceTriggerKeywordsInput,
+    z.array(z.string().trim().min(1)).min(1),
+  ).describe("One or more keywords to search for available triggers (e.g., [\"email\", \"schedule\"])"),
 });
 
 type SearchTriggersInput = z.infer<typeof inputSchema>;
@@ -89,7 +122,8 @@ export const searchTriggersTool: ManagedAgentTool<SearchTriggersInput> = {
     "Search for available triggers by keywords.\nReturns a list of trigger types that match the search criteria, along with their setup schemas and any prerequisites.\n\nUse this tool to discover what triggers are available before setting one up.\n\nThe setupSchema field of each returned trigger describes the schema of the params object that should be passed into the setup_trigger tool.\n\nTriggers that support editing will include an editSchema field describing the parameters for the edit action in manage_active_triggers.",
   inputSchema,
   execute: async ({ keywords }) => {
-    const triggers = TRIGGER_CATALOG.filter((entry) => matchesTrigger(entry, keywords)).map(
+    const normalizedKeywords = normalizeTriggerKeywords(keywords);
+    const triggers = TRIGGER_CATALOG.filter((entry) => matchesTrigger(entry, normalizedKeywords)).map(
       (entry) => {
         const { keywords: triggerKeywords, ...trigger } = entry;
         void triggerKeywords;

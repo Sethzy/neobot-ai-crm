@@ -15,6 +15,12 @@ vi.mock("@/hooks/use-triggers", () => ({
   useSetTriggerEnabled: () => mockUseSetTriggerEnabled(),
 }));
 
+vi.mock("@/components/automations/automation-launcher-composer", () => ({
+  AutomationLauncherComposer: () => (
+    <div data-testid="automation-launcher-composer">Describe an automation to create...</div>
+  ),
+}));
+
 describe("AutomationsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -61,7 +67,7 @@ describe("AutomationsPage", () => {
     expect(screen.getByRole("switch")).toBeInTheDocument();
   });
 
-  it("describes automations as recurring work created from chat", () => {
+  it("describes automations as a creation and management surface", () => {
     mockUseTriggers.mockReturnValue({
       data: [],
       isLoading: false,
@@ -76,7 +82,7 @@ describe("AutomationsPage", () => {
     render(<AutomationsPage />);
 
     expect(
-      screen.getByText("Review recurring automations created from chat."),
+      screen.getByText("Create and manage automated tasks that run on a schedule."),
     ).toBeInTheDocument();
   });
 
@@ -97,7 +103,7 @@ describe("AutomationsPage", () => {
     expect(screen.getByText("No automations yet")).toBeInTheDocument();
   });
 
-  it("renders a 'New automation' link that points to /chat", () => {
+  it("renders the sticky launcher composer instead of a separate new-automation link", () => {
     mockUseTriggers.mockReturnValue({
       data: [],
       isLoading: false,
@@ -111,7 +117,7 @@ describe("AutomationsPage", () => {
 
     render(<AutomationsPage />);
 
-    const link = screen.getByRole("link", { name: /new automation/i });
-    expect(link).toHaveAttribute("href", "/chat");
+    expect(screen.getByTestId("automation-launcher-composer")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /new automation/i })).not.toBeInTheDocument();
   });
 });

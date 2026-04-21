@@ -2,8 +2,32 @@
  * Tests for the automation detail page shell.
  * @module components/automations/__tests__/automation-detail
  */
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/components/ui/markdown-editor", () => ({
+  MarkdownEditor: ({
+    ariaLabel,
+    disabled,
+    onChange,
+    value,
+  }: {
+    ariaLabel: string;
+    disabled?: boolean;
+    onChange: (value: string) => void;
+    value: string;
+  }) => (
+    <textarea
+      aria-label={ariaLabel}
+      disabled={disabled}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  ),
+  preloadMarkdownEditor: vi.fn(),
+}));
 
 const {
   mockUseTrigger,
@@ -27,6 +51,7 @@ vi.mock("@/hooks/use-trigger-runs", () => ({
 
 vi.mock("@/hooks/use-trigger-instructions", () => ({
   useTriggerInstructions: () => mockUseTriggerInstructions(),
+  prefetchTriggerInstructions: vi.fn(),
 }));
 
 vi.mock("../automation-header", () => ({
@@ -42,6 +67,21 @@ vi.mock("../automation-schedule-sidebar", () => ({
 }));
 
 import { AutomationDetail } from "../automation-detail";
+
+function renderWithQueryClient(ui: ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      {ui}
+    </QueryClientProvider>,
+  );
+}
 
 const trigger = {
   id: "trigger-1",
@@ -77,7 +117,10 @@ describe("AutomationDetail", () => {
       isLoading: false,
     });
     mockUseTriggerInstructions.mockReturnValue({
-      data: "# Weekly Stagnant Deals Check\n\nReview stagnant deals.",
+      data: {
+        content: "# Weekly Stagnant Deals Check\n\nReview stagnant deals.",
+        displayPath: "/agent/state/triggers/weekly-stagnant-deals.md",
+      },
       isLoading: false,
       isError: false,
       error: null,
@@ -88,9 +131,7 @@ describe("AutomationDetail", () => {
   });
 
   it("switches to the instructions tab without crashing", () => {
-    render(<AutomationDetail triggerId="trigger-1" />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Instructions" }));
+    renderWithQueryClient(<AutomationDetail triggerId="trigger-1" />);
 
     expect(screen.getByRole("textbox", { name: "Automation instructions" })).toBeInTheDocument();
     expect(
@@ -98,18 +139,23 @@ describe("AutomationDetail", () => {
     ).toHaveValue("# Weekly Stagnant Deals Check\n\nReview stagnant deals.");
   });
 
-  it("renders automation instructions with the shared plain-text markdown editor contract", () => {
-    render(<AutomationDetail triggerId="trigger-1" />);
+  it("switches to the runs tab when clicked", () => {
+    renderWithQueryClient(<AutomationDetail triggerId="trigger-1" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Instructions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Runs" }));
 
-    const instructionsInput = screen.getByRole("textbox", {
-      name: "Automation instructions",
+    expect(screen.getByText("Runs panel")).toBeInTheDocument();
+  });
+
+  it("keeps showing the loading shell while the trigger query is still unresolved", () => {
+    mockUseTrigger.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
     });
 
-    expect(instructionsInput).toHaveAttribute("spellcheck", "false");
-    expect(instructionsInput).toHaveAttribute("autocapitalize", "off");
-    expect(instructionsInput).toHaveAttribute("autocorrect", "off");
-    expect(instructionsInput).toHaveClass("font-mono");
+    renderWithQueryClient(<AutomationDetail triggerId="trigger-1" />);
+
+    expect(screen.queryByText("Automation not found.")).not.toBeInTheDocument();
   });
 });

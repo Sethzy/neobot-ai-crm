@@ -3,6 +3,7 @@
  * @module lib/triggers/executor
  */
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
+import { toAutomationInstructionRuntimePath } from "@/lib/automations/instruction-paths";
 import { AUTOPILOT_INSTRUCTION_PROMPT } from "@/lib/autopilot/constants";
 import {
   AutomationAlreadyRunningError,
@@ -200,7 +201,7 @@ export async function executeTrigger({
     triggerId: payload.triggerId,
     triggerType: payload.triggerType,
     triggerName: payload.triggerName,
-    instructionPath: toModelPath(payload.instructionPath),
+    instructionPath: toAutomationInstructionRuntimePath(payload.instructionPath),
     triggerPayload: triggerEventPayload,
     invocationMessage: payload.invocationMessage,
   });

@@ -4,10 +4,8 @@
  */
 "use client";
 
-import Link from "next/link";
-
 import { AppIcon } from "@/components/icons/app-icons";
-import { Plus } from "@/components/icons/lucide-compat";
+import { AutomationLauncherComposer } from "@/components/automations/automation-launcher-composer";
 import { AutomationsList } from "@/components/automations/automations-list";
 import { Button } from "@/components/ui/button";
 import { useSetTriggerEnabled, useTriggers } from "@/hooks/use-triggers";
@@ -15,26 +13,19 @@ import { useSetTriggerEnabled, useTriggers } from "@/hooks/use-triggers";
 export default function AutomationsPage() {
   const { data: triggers = [], isLoading, isError, refetch } = useTriggers();
   const setTriggerEnabled = useSetTriggerEnabled();
-  const pendingTriggerId = setTriggerEnabled.variables?.triggerId ?? null;
 
   return (
-    <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
-      <div className="flex items-start justify-between gap-4">
+    <div className="flex min-h-full flex-col overflow-auto px-4 py-6 md:px-12 md:py-10">
+      <div>
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Automations</h1>
           <p className="mt-2 text-sm text-muted-foreground/80">
-            Review recurring automations created from chat.
+            Create and manage automated tasks that run on a schedule.
           </p>
         </div>
-        <Button asChild size="sm">
-          <Link href="/chat">
-            <Plus className="mr-1.5 h-4 w-4" />
-            New automation
-          </Link>
-        </Button>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 flex-1 pb-12 md:pb-16">
         {isLoading ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
@@ -62,14 +53,13 @@ export default function AutomationsPage() {
         ) : (
           <AutomationsList
             triggers={triggers}
-            pendingTriggerId={pendingTriggerId}
             onToggleEnabled={(triggerId, enabled) => {
               setTriggerEnabled.mutate({ triggerId, enabled });
             }}
           />
         )}
       </div>
-
+      <AutomationLauncherComposer />
     </div>
   );
 }

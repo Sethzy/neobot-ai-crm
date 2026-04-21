@@ -1,52 +1,110 @@
 /**
- * Hook for reading and writing automation SOP content from Supabase Storage.
+ * Hook for reading and writing automation instruction content through the
+ * dashboard API route.
+ *
  * @module hooks/use-trigger-instructions
  */
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
+import { z } from "zod";
 
-import { useClientId } from "@/hooks/use-client-id";
-import { supabase } from "@/lib/supabase";
+const triggerInstructionsResponseSchema = z.object({
+  content: z.string(),
+  displayPath: z.string(),
+});
 
-const AGENT_FILES_BUCKET = "agent-files";
+type TriggerInstructionsResponse = z.infer<typeof triggerInstructionsResponseSchema>;
+
+async function parseJsonResponse(response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+async function readTriggerInstructions(
+  triggerId: string,
+): Promise<TriggerInstructionsResponse> {
+  const response = await fetch(`/api/automations/${triggerId}/instructions`, {
+    method: "GET",
+  });
+  const body = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    const message =
+      body && typeof body === "object" && "error" in body && typeof body.error === "string"
+        ? body.error
+        : "Unable to load instructions.";
+    throw new Error(message);
+  }
+
+  return triggerInstructionsResponseSchema.parse(body);
+}
+
+export function prefetchTriggerInstructions(
+  queryClient: QueryClient,
+  triggerId: string,
+  instructionPath: string,
+): Promise<void> {
+  const queryKey = ["trigger-instructions", triggerId, instructionPath] as const;
+
+  return queryClient.prefetchQuery({
+    queryKey,
+    queryFn: () => readTriggerInstructions(triggerId),
+  });
+}
+
+async function writeTriggerInstructions(
+  triggerId: string,
+  content: string,
+): Promise<TriggerInstructionsResponse> {
+  const response = await fetch(`/api/automations/${triggerId}/instructions`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ content }),
+  });
+  const body = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    const message =
+      body && typeof body === "object" && "error" in body && typeof body.error === "string"
+        ? body.error
+        : "Unable to save instructions.";
+    throw new Error(message);
+  }
+
+  return triggerInstructionsResponseSchema.parse(body);
+}
 
 /**
- * Fetches SOP content and provides a mutation to update it.
+ * Fetches automation instruction content and exposes a save mutation.
  */
-export function useTriggerInstructions(instructionPath: string | null) {
-  const { data: clientId } = useClientId();
+export function useTriggerInstructions(
+  triggerId: string | null,
+  instructionPath: string | null,
+) {
   const queryClient = useQueryClient();
-  const storagePath = clientId && instructionPath
-    ? `${clientId}/${instructionPath}`
-    : null;
+  const queryKey = ["trigger-instructions", triggerId, instructionPath] as const;
 
   const query = useQuery({
-    queryKey: ["trigger-instructions", storagePath],
-    queryFn: async () => {
-      if (!storagePath) return null;
-      const { data, error } = await supabase.storage
-        .from(AGENT_FILES_BUCKET)
-        .download(storagePath);
-      if (error) throw error;
-      return data.text();
-    },
-    enabled: Boolean(storagePath),
+    queryKey,
+    queryFn: () => readTriggerInstructions(triggerId!),
+    enabled: Boolean(triggerId && instructionPath),
   });
 
   const mutation = useMutation({
-    mutationFn: async (content: string) => {
-      if (!storagePath) throw new Error("No storage path");
-      const blob = new Blob([content], { type: "text/plain; charset=utf-8" });
-      const { error } = await supabase.storage
-        .from(AGENT_FILES_BUCKET)
-        .upload(storagePath, blob, { upsert: true });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: ["trigger-instructions", storagePath],
-      });
+    mutationFn: (content: string) => writeTriggerInstructions(triggerId!, content),
+    onSuccess: (data) => {
+      queryClient.setQueryData(queryKey, data);
     },
   });
 

@@ -8,44 +8,25 @@
 import { useEffect, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
-import { MarkdownTextarea } from "@/components/ui/markdown-textarea";
+import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { useTriggerInstructions } from "@/hooks/use-trigger-instructions";
 
 interface AutomationInstructionsProps {
+  triggerId: string;
   instructionPath: string | null;
 }
 
-export function AutomationInstructions({ instructionPath }: AutomationInstructionsProps) {
+export function AutomationInstructions({
+  triggerId,
+  instructionPath,
+}: AutomationInstructionsProps) {
   const {
-    data: content,
+    data,
     error,
     isError,
     isLoading,
     save,
-  } = useTriggerInstructions(instructionPath);
-  const [draft, setDraft] = useState("");
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
-
-  useEffect(() => {
-    setDraft(content ?? "");
-    setSaveStatus("idle");
-  }, [content, instructionPath]);
-
-  const debouncedSave = useDebouncedCallback(async (nextDraft: string) => {
-    setSaveStatus("saving");
-    try {
-      await save.mutateAsync(nextDraft);
-      setSaveStatus("saved");
-    } catch {
-      setSaveStatus("idle");
-    }
-  }, 1000);
-
-  useEffect(() => {
-    return () => {
-      debouncedSave.cancel();
-    };
-  }, [debouncedSave]);
+  } = useTriggerInstructions(triggerId, instructionPath);
 
   if (!instructionPath) {
     return (
@@ -80,28 +61,90 @@ export function AutomationInstructions({ instructionPath }: AutomationInstructio
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">{instructionPath}</p>
+      <LoadedAutomationInstructionsEditor
+        initialContent={data?.content ?? ""}
+        instructionPath={data?.displayPath ?? instructionPath}
+        key={`${data?.displayPath ?? instructionPath}:${data?.content ?? ""}`}
+        saveInstructions={save.mutateAsync}
+      />
+    </div>
+  );
+}
+
+const FRONTMATTER_PATTERN = /^(---\r?\n[\s\S]*?\r?\n---\r?\n?)/u;
+
+/**
+ * Splits a markdown file into its YAML frontmatter block (if any) and the
+ * body. The frontmatter is preserved verbatim so round-tripping through the
+ * editor doesn't drop or reformat it.
+ */
+function splitFrontmatter(content: string): { frontmatter: string; body: string } {
+  const match = content.match(FRONTMATTER_PATTERN);
+  if (!match) {
+    return { frontmatter: "", body: content };
+  }
+  return { frontmatter: match[1], body: content.slice(match[1].length) };
+}
+
+interface LoadedAutomationInstructionsEditorProps {
+  initialContent: string;
+  instructionPath: string;
+  saveInstructions: (value: string) => Promise<unknown>;
+}
+
+function LoadedAutomationInstructionsEditor({
+  initialContent,
+  instructionPath,
+  saveInstructions,
+}: LoadedAutomationInstructionsEditorProps) {
+  const { frontmatter, body } = splitFrontmatter(initialContent);
+  const [draft, setDraft] = useState(body);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  const debouncedSave = useDebouncedCallback(async (nextDraft: string) => {
+    setSaveStatus("saving");
+    try {
+      await saveInstructions(`${frontmatter}${nextDraft}`);
+      setSaveStatus("saved");
+    } catch {
+      setSaveStatus("idle");
+    }
+  }, 1000);
+
+  useEffect(() => {
+    return () => {
+      debouncedSave.cancel();
+    };
+  }, [debouncedSave]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Instructions</span>
+          <code className="rounded-full bg-background px-2.5 py-1 font-mono text-[11px] text-muted-foreground shadow-sm">
+            {instructionPath}
+          </code>
+          <span>Markdown source</span>
+        </div>
         {saveStatus === "saving" ? (
           <span className="text-xs text-muted-foreground">Saving...</span>
         ) : saveStatus === "saved" ? (
           <span className="text-xs text-success">Saved</span>
         ) : null}
       </div>
-      <div className="rounded-xl border border-border/40 bg-card shadow-sm">
-        <MarkdownTextarea
-          value={draft}
-          onChange={(event) => {
-            const nextDraft = event.target.value;
-            setDraft(nextDraft);
-            setSaveStatus("idle");
-            void debouncedSave(nextDraft);
-          }}
-          className="min-h-[420px] w-full rounded-xl border-0 bg-card p-6 shadow-none focus-visible:border-0 focus-visible:ring-0"
-          placeholder="Write markdown instructions for this automation."
-          aria-label="Automation instructions"
-        />
-      </div>
+
+      <MarkdownEditor
+        ariaLabel="Automation instructions"
+        compact
+        onChange={(nextDraft) => {
+          setDraft(nextDraft);
+          setSaveStatus("idle");
+          void debouncedSave(nextDraft);
+        }}
+        placeholder="Write markdown instructions for this automation. Type / for blocks."
+        value={draft}
+      />
     </div>
   );
 }

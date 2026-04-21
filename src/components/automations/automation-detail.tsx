@@ -7,7 +7,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { AutomationHeader } from "@/components/automations/automation-header";
@@ -17,8 +18,10 @@ import { AutomationScheduleSidebar } from "@/components/automations/automation-s
 import { AppIcon } from "@/components/icons/app-icons";
 import { PanelRightOpen, Play } from "@/components/icons/lucide-compat";
 import { Button } from "@/components/ui/button";
+import { preloadMarkdownEditor } from "@/components/ui/markdown-editor";
 import { ResizableInlinePanelLayout } from "@/components/ui/resizable-inline-panel-layout";
 import { Switch } from "@/components/ui/switch";
+import { prefetchTriggerInstructions } from "@/hooks/use-trigger-instructions";
 import { useTrigger, useSetTriggerEnabled } from "@/hooks/use-triggers";
 import { useManualRun, useTriggerRuns } from "@/hooks/use-trigger-runs";
 
@@ -31,10 +34,24 @@ export function AutomationDetail({ triggerId }: AutomationDetailProps) {
   const { data: runs = [], isLoading: runsLoading } = useTriggerRuns(triggerId);
   const setTriggerEnabled = useSetTriggerEnabled();
   const manualRun = useManualRun(triggerId);
-  const [activeTab, setActiveTab] = useState<"instructions" | "runs">("runs");
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<"instructions" | "runs">("instructions");
   const [isPanelOpen, setIsPanelOpen] = useState(true);
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!trigger?.instruction_path) {
+      return;
+    }
+
+    preloadMarkdownEditor();
+    void prefetchTriggerInstructions(
+      queryClient,
+      trigger.id,
+      trigger.instruction_path,
+    );
+  }, [queryClient, trigger?.id, trigger?.instruction_path]);
+
+  if (isLoading || (!trigger && !isError)) {
     return (
       <LoadingShell />
     );
@@ -59,17 +76,19 @@ export function AutomationDetail({ triggerId }: AutomationDetailProps) {
         <span className="truncate text-foreground">{trigger.name}</span>
       </nav>
 
-      {!isPanelOpen ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="shrink-0 gap-1.5"
-          onClick={() => setIsPanelOpen(true)}
-        >
-          <PanelRightOpen className="h-4 w-4" />
-          <span className="hidden md:inline">Schedule</span>
-        </Button>
-      ) : null}
+      <Button
+        variant="ghost"
+        size="sm"
+        className={`shrink-0 gap-1.5 transition-opacity duration-200 ease-out motion-reduce:transition-none ${
+          isPanelOpen ? "pointer-events-none opacity-0" : "opacity-100"
+        }`}
+        aria-hidden={isPanelOpen}
+        tabIndex={isPanelOpen ? -1 : 0}
+        onClick={() => setIsPanelOpen(true)}
+      >
+        <PanelRightOpen className="h-4 w-4" />
+        <span className="hidden md:inline">Schedule</span>
+      </Button>
     </div>
   );
 
@@ -92,7 +111,7 @@ export function AutomationDetail({ triggerId }: AutomationDetailProps) {
         </div>
       )}
     >
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto w-full max-w-3xl">
         <AutomationHeader trigger={trigger} />
 
         <div className="mt-8 flex items-center justify-between border-b border-border/40">
@@ -148,7 +167,10 @@ export function AutomationDetail({ triggerId }: AutomationDetailProps) {
 
         <div className="mt-6">
           {activeTab === "instructions" ? (
-            <AutomationInstructions instructionPath={trigger.instruction_path} />
+            <AutomationInstructions
+              triggerId={trigger.id}
+              instructionPath={trigger.instruction_path}
+            />
           ) : (
             <AutomationRuns runs={runs} isLoading={runsLoading} />
           )}

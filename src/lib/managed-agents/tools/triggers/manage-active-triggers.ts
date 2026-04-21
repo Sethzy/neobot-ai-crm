@@ -6,8 +6,8 @@
 import { z } from "zod";
 
 import { createMessage } from "@/lib/chat/messages";
+import { toAutomationInstructionRuntimePath } from "@/lib/automations/instruction-paths";
 import { spawnTriggerRun } from "@/lib/managed-agents/spawn-trigger-run";
-import { toModelPath } from "@/lib/storage/agent-paths";
 import { computeNextFireAt, normalizeTriggerTimezone } from "@/lib/triggers/cron-utils";
 import { DEFAULT_RSS_POLLING_INTERVAL_MINUTES, deriveRssCronExpression } from "@/lib/triggers/rss-schedule";
 import { CRON_RUN_NUDGE, type triggerTypeValues } from "@/lib/triggers/schemas";
@@ -39,7 +39,7 @@ function formatTriggerForResponse(trigger: TriggerRow) {
 
   return {
     ...rest,
-    instruction_path: toModelPath(trigger.instruction_path),
+    instruction_path: toAutomationInstructionRuntimePath(trigger.instruction_path),
     title: trigger.trigger_type,
     invocationMessage: trigger.invocation_message,
     arguments: formatTriggerArguments(trigger),
@@ -176,7 +176,7 @@ export const manageActiveTriggersTool: ManagedAgentTool<ManageActiveTriggersInpu
           id: trigger.id,
           name: trigger.name,
           title: trigger.trigger_type,
-          instruction_path: toModelPath(trigger.instruction_path),
+          instruction_path: toAutomationInstructionRuntimePath(trigger.instruction_path),
           invocationMessage: trigger.invocation_message,
           arguments: formatTriggerArguments(trigger),
         }));
@@ -279,7 +279,7 @@ export const manageActiveTriggersTool: ManagedAgentTool<ManageActiveTriggersInpu
             triggerId: trigger.id,
             triggerType: trigger.trigger_type as (typeof triggerTypeValues)[number],
             triggerName: trigger.name,
-            instructionPath: toModelPath(trigger.instruction_path),
+            instructionPath: toAutomationInstructionRuntimePath(trigger.instruction_path),
             invocationMessage: trigger.invocation_message,
             triggerPayload: input.payload,
           }),
@@ -289,7 +289,7 @@ export const manageActiveTriggersTool: ManagedAgentTool<ManageActiveTriggersInpu
           triggerId: trigger.id,
           triggerType: trigger.trigger_type as (typeof triggerTypeValues)[number],
           triggerName: trigger.name,
-          instructionPath: toModelPath(trigger.instruction_path),
+          instructionPath: toAutomationInstructionRuntimePath(trigger.instruction_path),
           invocationMessage: trigger.invocation_message,
           triggerPayload: input.payload,
         });

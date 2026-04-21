@@ -6,7 +6,10 @@
 import { z } from "zod";
 
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
-import { toModelPath, toStoragePath } from "@/lib/storage/agent-paths";
+import {
+  toAutomationInstructionRuntimePath,
+  toAutomationInstructionStoragePath,
+} from "@/lib/automations/instruction-paths";
 import { computeNextFireAt, normalizeTriggerTimezone } from "@/lib/triggers/cron-utils";
 import { DEFAULT_RSS_POLLING_INTERVAL_MINUTES, deriveRssCronExpression } from "@/lib/triggers/rss-schedule";
 import type { Database } from "@/types/database";
@@ -165,7 +168,7 @@ export const setupTriggerTool: ManagedAgentTool<SetupTriggerInput> = {
     }
 
     try {
-      const internalInstructionPath = toStoragePath(instruction_path);
+      const internalInstructionPath = toAutomationInstructionStoragePath(instruction_path);
       let insertRow: AgentTriggerInsert;
 
       switch (trigger_id) {
@@ -225,7 +228,7 @@ export const setupTriggerTool: ManagedAgentTool<SetupTriggerInput> = {
         success: true as const,
         trigger: {
           ...data,
-          instruction_path: toModelPath(data.instruction_path),
+          instruction_path: toAutomationInstructionRuntimePath(data.instruction_path),
           webhook_url: webhookBaseUrl ? `${webhookBaseUrl}/api/trigger/webhook/${data.id}` : null,
         },
       };

@@ -6,11 +6,11 @@
 import { NextResponse } from "next/server";
 
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
+import { toAutomationInstructionRuntimePath } from "@/lib/automations/instruction-paths";
 import {
   AutomationAlreadyRunningError,
   spawnTriggerRun,
 } from "@/lib/managed-agents/spawn-trigger-run";
-import { toModelPath } from "@/lib/storage/agent-paths";
 import { CRON_RUN_NUDGE } from "@/lib/triggers/schemas";
 import { buildTriggerEventMessage } from "@/lib/triggers/trigger-event";
 
@@ -44,7 +44,7 @@ export async function POST(
     triggerType: trigger.trigger_type as "schedule" | "webhook" | "rss",
     triggerName: trigger.name ?? "Manual Run",
     instructionPath: trigger.instruction_path
-      ? toModelPath(trigger.instruction_path)
+      ? toAutomationInstructionRuntimePath(trigger.instruction_path)
       : "/agent/triggers/unknown.md",
     triggerPayload: (trigger.payload as Record<string, unknown>) ?? {},
     invocationMessage: trigger.invocation_message,
