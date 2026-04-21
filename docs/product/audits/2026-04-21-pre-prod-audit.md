@@ -7,11 +7,15 @@ Scope: `app/`, `src/` — the product codebase
 
 After several refactors the codebase is **in significantly better shape than
 feared**. No legacy `-v2/-old/-deprecated` file naming, no `@deprecated` tags,
-no lingering `TODO/FIXME/HACK` comments. Design tokens are ~99% compliant;
+no lingering `TODO/FIXME/HACK` comments. Design tokens are fully compliant;
 TanStack Query is the established data-fetching pattern (30+ hooks under
-`src/hooks/`); API routes uniformly use zod except for two stragglers.
+`src/hooks/`); API routes uniformly use zod except one straggler.
 
-The real risks before shipping are **local and specific**, not systemic.
+The real pre-prod wins ended up being **only two**: deleting 16,356 lines of
+unused vendored email-provider data, and hardening `/api/pdf`'s request
+validation. The other three findings from initial recon dissolved on close
+reading — they were pattern counts, not real risks.
+
 Deferring monolith decomposition and parallel-component de-duplication to
 post-prod — both are architectural changes, not simplifications.
 
@@ -48,47 +52,61 @@ Risk tiers: 🟢 safe / 🟡 needs review / 🔴 defer post-prod.
 - **Fix**: Delete both files.
 - **Risk**: 🟢 — zero production call sites confirmed by grep.
 
-### Finding 2 — Raw `await fetch` in 8 component files 🟢
+### Finding 2 — Raw `await fetch` in 8 component files — 🟢 re-evaluated as not pre-prod work
 
-Data-fetching pattern is otherwise standardized on TanStack Query hooks. Eight
-stragglers still use raw `fetch` in component bodies:
+Original finding flagged eight files using raw `fetch` while TanStack Query
+is the established pattern (30+ hooks under `src/hooks/`). On closer read:
 
-- `src/components/settings/agent-context-form.tsx`
-- `src/components/chat/chat-composer.tsx`
-- `src/components/settings/profile/default-messaging-agent-form.tsx`
-- `src/components/settings/messaging-channels/telegram-connect-row.tsx`
-- `src/components/settings/autopilot-card.tsx`
-- `src/components/ai-elements/prompt-input.tsx`
-- `src/components/crm/record-drawer/drawer-files-tab.tsx`
-- `src/components/property/market-search-box.tsx`
+| File | Actual pattern | Fit for migration? |
+|---|---|---|
+| `ai-elements/prompt-input.tsx` | `fetch(blobUrl)` to read a pasted blob | ❌ Not a REST call |
+| `crm/record-drawer/drawer-files-tab.tsx` | `fetch(signedDownloadUrl)` to save file | ❌ Not a REST call |
+| `chat/chat-composer.tsx` | Two-step presign→confirm upload flow | ⚠️ Regression risk |
+| `property/market-search-box.tsx` | Debounced typeahead `/api/market/suggest` | ⚠️ Working UX, refactor = churn |
+| `settings/agent-context-form.tsx` | POST to `/api/settings/agent-context` | ✅ But works fine |
+| `settings/profile/default-messaging-agent-form.tsx` | POST to `/api/settings/profile/default-messaging-thread` | ✅ But works fine |
+| `settings/messaging-channels/telegram-connect-row.tsx` | POST + DELETE to `/api/telegram/*` | ✅ But works fine |
+| `settings/autopilot-card.tsx` | PATCH to `/api/settings/autopilot` | ✅ But works fine |
 
-**Fix**: Per file, either (a) call an existing `use-*` hook that already
-targets the endpoint, or (b) for one-shot POSTs, wrap the `fetch` in
-`useMutation` for consistent loading/error state.
+The four settings forms already have local `isSaving` state, catch errors,
+and update UI optimistically. A `useMutation` rewrite is roughly LOC-neutral
+and changes error-handling semantics (current code swallows, useMutation
+throws by default) — stylistic, not a risk reduction.
 
-**Risk**: 🟢 per file. May split across multiple commits by feature.
+**Decision**: Skipped. Revisit post-prod if/when one of these forms actually
+grows a feature that benefits from query invalidation or dev-tools
+visibility.
 
-### Finding 3 — `dark:` prefix audit on semantic tokens 🟡
+**Risk**: 🟢 by skipping — existing code works, no pre-prod regression
+surface introduced.
+
+### Finding 3 — `dark:` prefix audit — dissolved on close reading
 
 CLAUDE.md rule: "No `dark:` prefixes on accent colors — CSS cascade handles it."
 
-**Occurrences**: 47 across 23 files under `src/components/ui/`. Heaviest in
-`badge.tsx` (6), `button.tsx` (4), `input-group.tsx` (3), `tabs.tsx` (3),
-`switch.tsx` (2), `input-otp.tsx` (2). `iphone.tsx` has 11 but is a hardware
-mock — exclude from scope.
+**Initial count**: 47 occurrences across 23 files under `src/components/ui/`.
 
-**Nuance**: Many usages are legitimate *opacity* variants for dark-mode
-contrast (e.g. `bg-destructive/10` light → `dark:bg-destructive/20` dark),
-not accent-color swaps. Those are deliberate, not violations. Each case
-needs a 10-second eyeball.
+**What the rule actually targets**: `dark:text-primary` when the `--color-primary`
+variable already swaps in dark mode. The CSS cascade handles *color value*
+swaps automatically.
 
-**Fix**: Case-by-case. Remove where the CSS cascade already handles the
-swap; keep where the intent is distinct light/dark opacity. Add a short
-comment block to `src/lib/ui/color-maps.ts` or `app/globals.css` documenting
-the decision rule so future contributors don't re-add redundant prefixes.
+**What it does NOT target**:
+- Opacity variants on the same semantic token (`bg-destructive/10` →
+  `dark:bg-destructive/20`) — CSS cascade swaps base colors, not opacity
+- Different tokens per mode for intentional contrast
+  (`text-foreground/60` light → `dark:text-muted-foreground`)
+- Overriding a base component's dark-mode style (e.g. `InputGroupInput`
+  using `dark:bg-transparent` to neutralize `Input`'s `dark:bg-input/30`)
+- Decorative blend modes (`mix-blend-darken` → `dark:mix-blend-lighten`)
 
-**Risk**: 🟡 — visual regression possible if a legitimate dark-mode opacity
-is mistakenly removed. Toggle dark-mode in the browser while editing.
+After reading each occurrence, **zero are the pattern the rule prohibits**.
+All 47 are legitimate. `iphone.tsx` (11 occurrences) is a hardware SVG mock
+using raw hex values — excluded per scope.
+
+**Decision**: No change. The guardrail is already respected.
+
+**Risk**: 🟢 by skipping — touching any of these risks regressing
+intentional contrast tuning.
 
 ### Finding 4 — `/api/pdf` uses a raw type assertion instead of zod 🟢
 
@@ -152,10 +170,10 @@ and by the critical-path integration tests already in place.
 
 | # | Commit | Risk |
 |---|---|---|
-| 2.1 | `chore(crm): remove unused free-email-providers vendored list` | 🟢 |
-| 2.2 | `feat(api/pdf): add wrapper zod validation with filename length cap` | 🟢 |
-| 2.3 | `refactor(components): migrate 8 raw-fetch call sites to TanStack Query` | 🟢 |
-| 2.4 | `chore(ui): remove redundant dark: prefixes on semantic tokens` | 🟡 |
+| 2.1 | `chore(crm): remove unused free-email-providers vendored list` | 🟢 landed |
+| 2.2 | `feat(api/pdf): validate request wrapper with zod and cap filename length` | 🟢 landed |
+| 2.3 | ~~migrate raw-fetch sites to TanStack Query~~ — skipped (see Finding 2) | — |
+| 2.4 | ~~remove redundant dark: prefixes~~ — skipped (see Finding 3) | — |
 
 Each commit gated on: `pnpm typecheck && pnpm lint && pnpm test`. 2.4
 additionally requires a manual dark-mode toggle in the browser.
