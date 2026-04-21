@@ -22,6 +22,10 @@ import {
 } from "react";
 import { Streamdown } from "streamdown";
 
+import {
+  MARKDOWN_BODY_CLASSNAME,
+  MARKDOWN_BODY_COMPACT_CLASSNAME,
+} from "@/components/ui/markdown-renderer";
 import { Shimmer } from "./shimmer";
 
 interface ReasoningContextValue {
@@ -219,15 +223,20 @@ export const ReasoningContent = memo(
     const plugins = useMermaidPlugin(children);
 
     return (
-      <CollapsibleContent
+        <CollapsibleContent
         className={cn(
-          "mt-2 max-h-32 overflow-y-auto text-xs [&>.space-y-4]:space-y-1.5",
+          "mt-2 max-h-32 overflow-y-auto [&>.space-y-4]:space-y-1.5",
           "text-muted-foreground outline-none data-[state=open]:animate-in data-[state=open]:slide-in-from-top-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-1 data-[state=closed]:duration-200",
           className
         )}
         {...props}
       >
-        <Streamdown plugins={plugins}>{children}</Streamdown>
+        <Streamdown
+          className={cn(MARKDOWN_BODY_CLASSNAME, MARKDOWN_BODY_COMPACT_CLASSNAME)}
+          plugins={plugins}
+        >
+          {children}
+        </Streamdown>
       </CollapsibleContent>
     );
   }

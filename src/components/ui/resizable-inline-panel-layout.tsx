@@ -54,6 +54,7 @@ export function ResizableInlinePanelLayout({
 }: ResizableInlinePanelLayoutProps) {
   const isMobile = useIsMobile();
   const [panelWidth, setPanelWidth] = useState(defaultPanelWidth);
+  const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
@@ -76,6 +77,7 @@ export function ResizableInlinePanelLayout({
     (event: React.MouseEvent) => {
       event.preventDefault();
       isDraggingRef.current = true;
+      setIsDragging(true);
       startXRef.current = event.clientX;
       startWidthRef.current = panelWidth;
       document.body.style.cursor = "col-resize";
@@ -98,6 +100,7 @@ export function ResizableInlinePanelLayout({
     const handleMouseUp = () => {
       if (!isDraggingRef.current) return;
       isDraggingRef.current = false;
+      setIsDragging(false);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
@@ -127,7 +130,33 @@ export function ResizableInlinePanelLayout({
     );
   }
 
-  const showPanel = isPanelOpen && Boolean(renderPanelContent);
+  const lastRenderRef = useRef(renderPanelContent);
+  if (renderPanelContent) {
+    lastRenderRef.current = renderPanelContent;
+  }
+  const [isPanelMounted, setIsPanelMounted] = useState(
+    Boolean(renderPanelContent) && isPanelOpen,
+  );
+  useEffect(() => {
+    if (isPanelOpen && lastRenderRef.current) {
+      setIsPanelMounted(true);
+    }
+  }, [isPanelOpen]);
+
+  const effectiveRender = renderPanelContent ?? lastRenderRef.current;
+  const canRenderPanel = isPanelMounted && Boolean(effectiveRender);
+  const resizerWidth = 6;
+  const outerWidth = isPanelOpen ? panelWidth + resizerWidth : 0;
+  const sharedTransition = isDragging
+    ? "none"
+    : `width ${isPanelOpen ? 280 : 220}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+
+  const handleOuterTransitionEnd = (event: React.TransitionEvent) => {
+    if (event.propertyName === "width" && !isPanelOpen) {
+      setIsPanelMounted(false);
+      lastRenderRef.current = undefined;
+    }
+  };
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-sidebar">
@@ -136,8 +165,13 @@ export function ResizableInlinePanelLayout({
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
         <div className={bodyClasses}>{children}</div>
 
-        {showPanel ? (
-          <>
+        {canRenderPanel ? (
+          <div
+            className="flex shrink-0 overflow-hidden bg-sidebar motion-reduce:!transition-none"
+            style={{ width: outerWidth, transition: sharedTransition }}
+            onTransitionEnd={handleOuterTransitionEnd}
+            aria-hidden={!isPanelOpen}
+          >
             <div
               className="w-1.5 shrink-0 cursor-col-resize bg-sidebar transition-colors hover:bg-border/50 active:bg-border"
               onMouseDown={handleDragStart}
@@ -145,11 +179,11 @@ export function ResizableInlinePanelLayout({
             />
 
             <div
-              className="flex shrink-0 flex-col overflow-hidden bg-sidebar"
-              style={{ width: panelWidth }}
+              className="flex shrink-0 flex-col overflow-hidden bg-sidebar transition-opacity duration-200 ease-out motion-reduce:!transition-none"
+              style={{ width: panelWidth, opacity: isPanelOpen ? 1 : 0 }}
             >
               <div className="min-w-0 flex-1 overflow-hidden rounded-tl-xl border-l border-t border-border/60 bg-card">
-                {renderPanelContent!({
+                {effectiveRender!({
                   closeButton: (
                     <Button
                       variant="ghost"
@@ -163,7 +197,7 @@ export function ResizableInlinePanelLayout({
                 })}
               </div>
             </div>
-          </>
+          </div>
         ) : null}
       </div>
     </div>

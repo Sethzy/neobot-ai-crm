@@ -12,6 +12,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import {
+  MARKDOWN_BODY_CLASSNAME,
+} from "@/components/ui/markdown-renderer";
 import { useMermaidPlugin } from "./use-mermaid-plugin";
 import type { UIMessage } from "ai";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
@@ -382,7 +385,8 @@ export const MessageResponse = memo(
     return (
       <Streamdown
         className={cn(
-          "w-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+          "w-full",
+          MARKDOWN_BODY_CLASSNAME,
           className
         )}
         components={messageComponents}

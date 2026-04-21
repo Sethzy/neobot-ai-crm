@@ -15,6 +15,7 @@ import { listPredefinedSkills } from "@/lib/runner/skills/list-predefined-skills
 import { createClient } from "@/lib/supabase/server";
 
 import { readSkillBundle } from "../../../../scripts/managed-agents/read-skill-bundle";
+import { SkillMarkdownViewer } from "../skill-markdown-viewer";
 import { SkillInstallButton } from "../skill-install-button";
 
 interface Props {
@@ -40,7 +41,11 @@ export default async function SkillEditorPage({ params }: Props) {
   const predefinedBundle = predefinedSkill
     ? await readSkillBundle(path.join(bundleRoot, slug))
     : null;
-  const skillMarkdown = predefinedBundle?.files.find((file) => file.relativePath.endsWith("SKILL.md"))?.content ?? "";
+  const rawSkillMarkdown = predefinedBundle?.files.find((file) => file.relativePath.endsWith("SKILL.md"))?.content ?? "";
+  const skillMarkdown = rawSkillMarkdown.replace(
+    /^---\r?\n[\s\S]*?\r?\n---(?:\r?\n)?/u,
+    "",
+  ).trim();
   const isInstalled = installedSkillSlugs.includes(slug);
 
   if (!predefinedSkill || !predefinedBundle) {
@@ -84,9 +89,7 @@ export default async function SkillEditorPage({ params }: Props) {
             <CardTitle className="text-base">Definition</CardTitle>
           </CardHeader>
           <CardContent>
-            <pre className="overflow-x-auto whitespace-pre-wrap rounded-lg bg-muted p-4 font-mono text-sm">
-              {skillMarkdown}
-            </pre>
+            <SkillMarkdownViewer content={skillMarkdown} />
           </CardContent>
         </Card>
       </div>
