@@ -63,7 +63,9 @@
       "Bash(tmutil latestbackup:*)",
       "Bash(git worktree:*)",
       "Bash(git branch:*)",
-      "Bash(git rev-list:*)"
+      "Bash(git rev-list:*)",
+      "Bash(mkdir -p /Users/sethlim/Documents/sunder-next-migration-20260225/.agents/skills/clone-ui)",
+      "Bash(cp /Users/sethlim/.claude/skills/clone-ui/SKILL.md /Users/sethlim/Documents/sunder-next-migration-20260225/.agents/skills/clone-ui/SKILL.md)"
     ]
   },
   "enableAllProjectMcpServers": true,

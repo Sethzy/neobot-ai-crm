@@ -6,6 +6,15 @@ You are an expert in Next.js, Anthropic Managed Agents, Vercel AI SDK, and Supab
 > **NEVER use Sonnet or Opus for testing.** Sonnet/Opus are reserved for production runs only.
 > This applies to all local test scripts, eval runs, and any ad-hoc agent invocations during development.
 
+## Managed Agents: Plain-Language Rules
+
+- **Dev testing is Haiku only.** If you are testing managed-agent behavior in local/dev, use `claude-haiku-4-5`.
+- **Prod supports multiple models.** In production, the model selector can run `haiku`, `sonnet`, or `opus`.
+- **There is not one universal managed-agent version.** Anthropic Managed Agents are pinned per model, so we keep one pinned remote agent version for each model.
+- **Changing local code is not enough.** If tools, system prompt, or managed-agent behavior changes, the Anthropic agent must be republished for the affected model.
+- **Existing threads can stay on old remote sessions.** A chat thread reuses its cached Anthropic `session_id` when that session is still alive. If behavior looks stale after a republish, start a new thread or clear the cached `session_id`.
+- **Follow Anthropic's model.** Do not invent our own managed-agent versioning system on top. Keep the setup simple: one pinned Anthropic agent version per model, and Haiku for all dev testing.
+
 ## Market
 
 **Sunder** is an autopilot for solo practitioners in advisory sales — real estate agents, insurance advisors, financial planners, and similar client-facing roles.
@@ -35,7 +44,7 @@ Sunder is a general agent harness: a looping runner with tools that operates on 
 - **Autopilot:** Cron scanner + `agent_triggers` table + pulse system for scheduled and event-driven runs.
 - **Improvement loop:** Langfuse traces instrument every run. Evals score tool-call correctness and safety. The feedback cycle is: run → trace → evaluate → improve context engineering → run again.
 - **Tenant isolation:** `clientId` injected into tool closures + RLS double-lock on every table.
-- **Model routing:** Main agent model is `claude-sonnet-4-6`, pinned by `ANTHROPIC_AGENT_VERSION`. Gemini models (via Vercel AI Gateway) are used only for cheap helpers: title generation (`google/gemini-3-flash`) and thread compaction (`google/gemini-2.5-flash-lite`).
+- **Model routing:** Managed Agents are pinned per model via Anthropic agent ID/version env vars. In dev, managed-agent testing uses `claude-haiku-4-5` only. In production, the chat model selector can run `claude-haiku-4-5`, `claude-sonnet-4-6`, or `claude-opus-4-6`. Gemini models (via Vercel AI Gateway) are used only for cheap helpers: title generation (`google/gemini-3-flash`) and thread compaction (`google/gemini-2.5-flash-lite`).
 
 ## Capabilities
 
