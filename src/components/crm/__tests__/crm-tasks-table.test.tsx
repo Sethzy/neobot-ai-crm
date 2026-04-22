@@ -6,7 +6,9 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CrmTasksTable } from "@/components/crm/crm-tasks-table";
+import { ListTable } from "@/components/ui/list-table";
+import { taskColumns } from "@/lib/crm/task-columns";
+import type { CrmTaskWithRelations } from "@/hooks/use-crm-tasks";
 
 const mockMutateAsync = vi.fn().mockResolvedValue(undefined);
 
@@ -68,7 +70,13 @@ describe("CrmTasksTable", () => {
     const user = userEvent.setup();
     const onRowClick = vi.fn();
 
-    render(<CrmTasksTable tasks={tasks} onRowClick={onRowClick} />);
+    render(
+      <ListTable<CrmTaskWithRelations>
+        columns={taskColumns}
+        data={tasks}
+        onRowClick={(task) => onRowClick(task.task_id)}
+      />,
+    );
 
     await user.click(screen.getByRole("button", { name: /edit status/i }));
     await user.click(screen.getByRole("option", { name: /done/i }));
@@ -82,7 +90,7 @@ describe("CrmTasksTable", () => {
   it("updates due dates from the table", async () => {
     const user = userEvent.setup();
 
-    render(<CrmTasksTable tasks={tasks} />);
+    render(<ListTable<CrmTaskWithRelations> columns={taskColumns} data={tasks} />);
 
     await user.click(screen.getByRole("button", { name: /edit due date/i }));
 

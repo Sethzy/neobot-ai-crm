@@ -96,7 +96,7 @@ export const CONTACT_DEFAULT_FIELDS: FieldDefinition[] = [
 
 /** Companies: default fields shipped with every new client. */
 export const COMPANY_DEFAULT_FIELDS: FieldDefinition[] = [
-  { key: "name", label: "Name", type: "text", source: "column", tier: "indestructible", visible: true, order: 0, editable: true, required: true },
+  { key: "name", label: "Name", type: "full_name", source: "column", tier: "indestructible", visible: true, order: 0, editable: true, required: true },
   { key: "website", label: "Website", type: "url", source: "column", tier: "default", visible: true, order: 1, editable: true, required: false },
   { key: "address", label: "Address", type: "text", source: "column", tier: "default", visible: true, order: 2, editable: true, required: false },
   { key: "phone", label: "Phone", type: "phone", source: "column", tier: "default", visible: true, order: 3, editable: true, required: false },
@@ -109,7 +109,7 @@ export const COMPANY_DEFAULT_FIELDS: FieldDefinition[] = [
 
 /** Deals: default fields shipped with every new client. */
 export const DEAL_DEFAULT_FIELDS: FieldDefinition[] = [
-  { key: "name", label: "Name", type: "text", source: "column", tier: "indestructible", visible: true, order: 0, editable: true, required: true },
+  { key: "name", label: "Name", type: "full_name", source: "column", tier: "indestructible", visible: true, order: 0, editable: true, required: true },
   { key: "amount", label: "Amount", type: "currency", source: "column", tier: "default", visible: true, order: 1, editable: true, required: false },
   { key: "close_date", label: "Close date", type: "date", source: "column", tier: "default", visible: false, order: 2, editable: true, required: false },
   { key: "stage", label: "Stage", type: "select", source: "column", tier: "default", visible: true, order: 3, editable: true, required: false, options: ["leads", "negotiation", "offer", "closing", "lost"] },
