@@ -165,11 +165,15 @@ export function AgentContextForm({
         </Card>
       </div>
 
-      <div className="flex items-center justify-between gap-4 border-t border-app-border-subtle pt-4">
+      <div className="flex flex-col gap-3 border-t border-app-border-subtle pt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <p className="type-toolbar-description">
           Markdown-friendly text is fine. Each field is capped at {MAX_CONTEXT_LENGTH.toLocaleString()} characters.
         </p>
-        <Button disabled={isPending || !hasChanges} onClick={handleSave}>
+        <Button
+          disabled={isPending || !hasChanges}
+          onClick={handleSave}
+          className="w-full sm:w-auto"
+        >
           {isPending ? "Saving..." : "Save"}
         </Button>
       </div>

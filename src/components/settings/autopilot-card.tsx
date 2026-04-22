@@ -129,8 +129,8 @@ export function AutopilotCard({ initialConfig }: AutopilotCardProps) {
 
       <CardContent className="space-y-5">
         {/* Pulse interval */}
-        <div className="flex items-center gap-4">
-          <Label htmlFor="pulse-interval" className="min-w-fit type-control-muted">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+          <Label htmlFor="pulse-interval" className="min-w-fit type-control-muted sm:w-28">
             Pulse every
           </Label>
           <Select
@@ -138,7 +138,7 @@ export function AutopilotCard({ initialConfig }: AutopilotCardProps) {
             disabled={isSaving}
             onValueChange={(value) => void save({ pulse_interval: value })}
           >
-            <SelectTrigger id="pulse-interval" className="w-44">
+            <SelectTrigger id="pulse-interval" className="w-full sm:w-44">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -152,8 +152,8 @@ export function AutopilotCard({ initialConfig }: AutopilotCardProps) {
         </div>
 
         {/* Timezone */}
-        <div className="flex items-center gap-4">
-          <Label htmlFor="timezone" className="min-w-fit type-control-muted">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+          <Label htmlFor="timezone" className="min-w-fit type-control-muted sm:w-28">
             Timezone
           </Label>
           <Select
@@ -161,7 +161,7 @@ export function AutopilotCard({ initialConfig }: AutopilotCardProps) {
             disabled={isSaving}
             onValueChange={(value) => void save({ timezone: value })}
           >
-            <SelectTrigger id="timezone" className="w-56">
+            <SelectTrigger id="timezone" className="w-full sm:w-56">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -180,12 +180,12 @@ export function AutopilotCard({ initialConfig }: AutopilotCardProps) {
           <p className="type-row-meta">
             Pause autopilot pulses during these hours.
           </p>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <input
               type="time"
               value={config.quiet_hours_start ?? ""}
               disabled={isSaving}
-              className="rounded-md border border-input bg-background px-3 py-2 text-control"
+              className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-base sm:min-h-0 sm:text-control"
               onChange={(e) => {
                 const start = e.target.value || null;
                 void save({
@@ -199,7 +199,7 @@ export function AutopilotCard({ initialConfig }: AutopilotCardProps) {
               type="time"
               value={config.quiet_hours_end ?? ""}
               disabled={isSaving}
-              className="rounded-md border border-input bg-background px-3 py-2 text-control"
+              className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-base sm:min-h-0 sm:text-control"
               onChange={(e) => {
                 const end = e.target.value || null;
                 void save({
@@ -212,7 +212,7 @@ export function AutopilotCard({ initialConfig }: AutopilotCardProps) {
               <button
                 type="button"
                 disabled={isSaving}
-                className="type-row-meta underline hover:text-foreground"
+                className="min-h-11 px-2 type-row-meta underline hover:text-foreground sm:min-h-0 sm:px-0"
                 onClick={() => void save({ quiet_hours_start: null, quiet_hours_end: null })}
               >
                 Clear

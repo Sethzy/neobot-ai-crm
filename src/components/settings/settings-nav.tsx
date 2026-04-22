@@ -71,7 +71,7 @@ export function SettingsNav() {
                   <Link
                     href={item.href}
                     className={cn(
-                      "flex items-center rounded-md px-2.5 py-1.5 type-control-muted transition-colors",
+                      "flex min-h-11 items-center rounded-md px-2.5 py-2 type-control-muted transition-colors md:min-h-0 md:py-1.5",
                       "hover:bg-muted/50 hover:text-foreground",
                       isActive && "bg-muted/60 text-foreground hover:bg-muted/70",
                     )}

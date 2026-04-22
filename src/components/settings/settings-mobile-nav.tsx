@@ -40,10 +40,15 @@ export function SettingsMobileNav() {
   }
 
   return (
-    <div className="flex items-center gap-3 border-b border-border/60 bg-background/80 px-4 py-3 md:hidden">
+    <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-border/60 bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Open settings navigation">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Open settings navigation"
+            className="size-11 -ml-2"
+          >
             <MenuIcon className="h-5 w-5" />
           </Button>
         </SheetTrigger>
