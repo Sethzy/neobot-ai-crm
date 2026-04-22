@@ -334,7 +334,7 @@ export function InlineEditField({
               disabled={isSaving}
               placeholder={label}
               className={cn(
-                "w-full bg-transparent text-sm leading-[20px] text-foreground/80 placeholder:text-muted-foreground/40 focus:outline-none",
+                "w-full bg-transparent text-base leading-[20px] text-foreground/80 placeholder:text-muted-foreground/40 focus:outline-none sm:text-sm",
                 editorClassName,
               )}
               onChange={(event) => setDraft(event.target.value)}
@@ -352,7 +352,7 @@ export function InlineEditField({
               ref={inputRef as RefObject<HTMLTextAreaElement>}
               rows={3}
               className={cn(
-                "w-full resize-none bg-transparent text-sm leading-[20px] text-foreground/80 placeholder:text-muted-foreground/40 focus:outline-none",
+                "w-full resize-none bg-transparent text-base leading-[20px] text-foreground/80 placeholder:text-muted-foreground/40 focus:outline-none sm:text-sm",
                 editorClassName,
               )}
               value={draft}

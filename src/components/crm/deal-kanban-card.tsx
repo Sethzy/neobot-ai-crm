@@ -117,7 +117,7 @@ function AmountRow({ amount, dealId }: { amount: number | null; dealId: string }
             type="text"
             inputMode="numeric"
             placeholder="Enter amount"
-            className="h-8 w-full rounded-md border border-border bg-background px-2 text-control outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="h-8 w-full rounded-md border border-border bg-background px-2 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring/40 sm:text-control"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {

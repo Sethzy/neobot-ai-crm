@@ -105,7 +105,7 @@ interface KanbanDragOverlayProps<T> {
 }
 
 const boardColumnClassName =
-  "flex min-h-[60vh] w-full flex-1 flex-col overflow-hidden md:w-64 md:flex-none";
+  "flex min-h-[60dvh] w-full flex-1 flex-col overflow-hidden md:w-64 md:flex-none";
 
 const boardCardClassName =
   "group rounded-xl border border-app-border-subtle bg-app-surface px-3 py-3 transition hover:bg-app-hover/35 hover:shadow-sm";
@@ -330,7 +330,7 @@ function KanbanBoardFrame({
       ) : null}
 
       <div className="w-full min-w-0 overflow-x-auto pb-2">
-        <div className="flex min-h-[60vh] w-max min-w-full gap-2">{children}</div>
+        <div className="flex min-h-[60dvh] w-max min-w-full gap-2">{children}</div>
       </div>
     </div>
   );
