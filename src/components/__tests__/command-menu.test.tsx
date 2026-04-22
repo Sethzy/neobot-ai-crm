@@ -253,6 +253,51 @@ describe("CommandMenu", () => {
     expect(screen.getAllByRole("option")).toHaveLength(2);
   });
 
+  it("starts a new task draft from the Ask Sunder action using the current query", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+
+    render(<CommandMenu open onOpenChange={onOpenChange} />, {
+      wrapper: createWrapper(),
+    });
+
+    await user.type(screen.getByRole("combobox"), "Draft a follow-up for Sarah");
+    await user.click(screen.getByRole("button", { name: /ask sunder/i }));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(mockPush).toHaveBeenCalledWith("/chat?prompt=Draft+a+follow-up+for+Sarah");
+  });
+
+  it("uses Tab to hand off the current search text into a new task draft", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+
+    render(<CommandMenu open onOpenChange={onOpenChange} />, {
+      wrapper: createWrapper(),
+    });
+
+    await user.type(screen.getByRole("combobox"), "Research Acme Realty");
+    await user.keyboard("{Tab}");
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(mockPush).toHaveBeenCalledWith("/chat?prompt=Research+Acme+Realty");
+  });
+
+  it("uses Cmd+K inside the search panel to open a new blank task", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+
+    render(<CommandMenu open onOpenChange={onOpenChange} />, {
+      wrapper: createWrapper(),
+    });
+
+    await user.click(screen.getByRole("combobox"));
+    await user.keyboard("{Meta>}k{/Meta}");
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(mockPush).toHaveBeenCalledWith("/chat");
+  });
+
   it("shows a unified result list instead of grouped section headings", async () => {
     const user = userEvent.setup();
 

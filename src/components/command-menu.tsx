@@ -11,7 +11,7 @@ import { Command as CommandPrimitive } from "cmdk";
 import { Loader2, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useThreads as useThreadContext } from "@/contexts/thread-context";
@@ -662,6 +662,53 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
     [clientId, onOpenChange, queryClient, router],
   );
 
+  const handleAskSunder = useCallback(() => {
+    const trimmedQuery = query.trim();
+
+    onOpenChange(false);
+    setQuery("");
+    setSelectedKey("");
+
+    if (trimmedQuery.length === 0) {
+      router.push("/chat");
+      return;
+    }
+
+    const params = new URLSearchParams({
+      prompt: trimmedQuery,
+    });
+    router.push(`/chat?${params.toString()}`);
+  }, [onOpenChange, query, router]);
+
+  const handleCommandMenuKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.defaultPrevented || event.isComposing) {
+      return;
+    }
+
+    const isCommandShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
+    if (isCommandShortcut) {
+      event.preventDefault();
+      event.stopPropagation();
+      handleAskSunder();
+      return;
+    }
+
+    const isAskShortcut =
+      event.key === "Tab"
+      && !event.shiftKey
+      && !event.altKey
+      && !event.metaKey
+      && !event.ctrlKey;
+
+    if (!isAskShortcut) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    handleAskSunder();
+  }, [handleAskSunder]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogHeader className="sr-only">
@@ -681,6 +728,7 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
         <CommandPrimitive
           value={activeSelectedKey}
           onValueChange={setSelectedKey}
+          onKeyDown={handleCommandMenuKeyDown}
           shouldFilter={false}
           loop
           className="flex h-full min-h-0 flex-col"
@@ -696,8 +744,8 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
 
             <button
               type="button"
-              className="hidden shrink-0 items-center gap-2 rounded-full border border-border/60 bg-background px-3 py-1.5 text-control text-muted-foreground shadow-xs sm:flex"
-              disabled
+              className="hidden shrink-0 items-center gap-2 rounded-full border border-border/60 bg-background px-3 py-1.5 text-control text-muted-foreground shadow-xs transition-colors hover:bg-muted/50 hover:text-foreground sm:flex"
+              onClick={handleAskSunder}
             >
               <span>Ask Sunder</span>
               <kbd className="rounded bg-background px-1.5 py-0.5 text-caption text-foreground ring-1 ring-border/60">
@@ -759,10 +807,10 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
             <FooterKey keys="Esc" label="Close" />
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background px-3 py-1.5 text-control text-muted-foreground shadow-xs"
-              disabled
+              className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background px-3 py-1.5 text-control text-muted-foreground shadow-xs transition-colors hover:bg-muted/50 hover:text-foreground"
+              onClick={handleAskSunder}
             >
-              <span>Actions</span>
+              <span>New task</span>
               <kbd className="rounded bg-muted/55 px-1.5 py-0.5 text-caption text-foreground ring-1 ring-border/40">
                 ⌘K
               </kbd>
