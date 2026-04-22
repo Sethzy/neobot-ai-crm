@@ -12,6 +12,7 @@ import {
   getPrimaryThread,
   getThread,
   listThreads,
+  markThreadRead,
   updateThreadTitle,
 } from "../threads";
 
@@ -246,5 +247,33 @@ describe("archiveThread", () => {
     await expect(archiveThread(client as never, "thread-1")).rejects.toThrow(
       "Pinned threads cannot be archived",
     );
+  });
+});
+
+describe("markThreadRead", () => {
+  test("updates last_read_at and returns the updated row", async () => {
+    const row = {
+      thread_id: "thread-1",
+      client_id: "client-1",
+      title: "Chat",
+      is_primary: false,
+      is_pinned: false,
+      is_archived: false,
+      source_type: "chat",
+      last_read_at: "2026-04-22T10:05:00Z",
+      created_at: "2026-03-01T00:00:00Z",
+      updated_at: "2026-04-22T10:00:00Z",
+    };
+    const client = createMockSupabaseClient({
+      updateResult: { data: [row], error: null },
+    });
+
+    await expect(
+      markThreadRead(client as never, "thread-1", "2026-04-22T10:05:00Z"),
+    ).resolves.toEqual(row);
+
+    expect(findMethodCall(client, "update")?.args).toEqual([
+      { last_read_at: "2026-04-22T10:05:00Z" },
+    ]);
   });
 });

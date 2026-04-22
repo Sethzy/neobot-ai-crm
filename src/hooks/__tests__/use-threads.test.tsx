@@ -9,18 +9,21 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import {
   useCreateThread,
+  useMarkThreadRead,
   useThreads,
   useUpdateThreadTitle,
 } from "../use-threads";
 
 const mockListThreads = vi.fn();
 const mockCreateThread = vi.fn();
+const mockMarkThreadRead = vi.fn();
 const mockUpdateThreadTitle = vi.fn();
 const mockUseRealtimeTable = vi.fn();
 
 vi.mock("@/lib/chat/threads", () => ({
   listThreads: (...args: unknown[]) => mockListThreads(...args),
   createThread: (...args: unknown[]) => mockCreateThread(...args),
+  markThreadRead: (...args: unknown[]) => mockMarkThreadRead(...args),
   updateThreadTitle: (...args: unknown[]) => mockUpdateThreadTitle(...args),
 }));
 
@@ -161,6 +164,42 @@ describe("useUpdateThreadTitle", () => {
       expect.any(Object),
       "thread-1",
       "Renamed thread",
+    );
+  });
+});
+
+describe("useMarkThreadRead", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test("marks a thread as read through the DAL", async () => {
+    const row = {
+      thread_id: "thread-1",
+      client_id: "client-1",
+      title: "Thread 1",
+      is_pinned: false,
+      last_read_at: "2026-04-22T10:05:00Z",
+      created_at: "2026-03-01T00:00:00Z",
+      updated_at: "2026-04-22T10:00:00Z",
+    };
+    mockMarkThreadRead.mockResolvedValue(row);
+
+    const { result } = renderHook(() => useMarkThreadRead("client-1"), {
+      wrapper: createWrapper(),
+    });
+
+    await expect(
+      result.current.mutateAsync({
+        threadId: "thread-1",
+        lastReadAt: "2026-04-22T10:05:00Z",
+      }),
+    ).resolves.toEqual(row);
+
+    expect(mockMarkThreadRead).toHaveBeenCalledWith(
+      expect.any(Object),
+      "thread-1",
+      "2026-04-22T10:05:00Z",
     );
   });
 });

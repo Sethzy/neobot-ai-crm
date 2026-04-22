@@ -46,6 +46,9 @@ vi.mock("@/contexts/thread-context", () => ({
         isPinned: true,
         isPrimary: true,
         createdAt: new Date("2026-03-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-04-22T09:00:00.000Z"),
+        lastReadAt: new Date("2026-04-22T09:00:00.000Z"),
+        isUnread: false,
         sourceType: "chat",
       },
       {
@@ -54,12 +57,17 @@ vi.mock("@/contexts/thread-context", () => ({
         isPinned: false,
         isPrimary: false,
         createdAt: new Date("2026-03-01T01:00:00.000Z"),
+        updatedAt: new Date("2026-04-22T10:00:00.000Z"),
+        lastReadAt: null,
+        isUnread: true,
         sourceType: "chat",
       },
     ],
+    unreadCount: 1,
     isLoading: false,
     updateThreadTitle: vi.fn(),
     archiveThread: mockArchiveThread,
+    markRead: vi.fn(),
   }),
 }));
 
@@ -130,7 +138,7 @@ describe("AppSidebar mobile thread actions", () => {
     mockArchiveThread.mockResolvedValue(true);
   });
 
-  it("does not render a New Chat button in Sessions", () => {
+  it("does not render a New Chat button in Chats", () => {
     render(<AppSidebar />);
 
     expect(screen.queryByRole("button", { name: /new chat/i })).not.toBeInTheDocument();

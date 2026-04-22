@@ -9,6 +9,7 @@ import type { UIMessage } from "ai";
 
 import { ChatErrorBoundary } from "@/components/chat/chat-error-boundary";
 import { ChatPanel } from "@/components/chat/chat-panel";
+import { ChatThreadActions } from "@/components/chat/chat-thread-actions";
 import { ChatThreadHeader } from "@/components/chat/chat-thread-header";
 import type { MessageQuotaStatus } from "@/lib/usage/message-quota";
 
@@ -27,8 +28,9 @@ export function ChatThreadPageClient({
 }: ChatThreadPageClientProps) {
   return (
     <ChatErrorBoundary>
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="relative flex min-h-0 flex-1 flex-col">
         <ChatThreadHeader threadId={threadId} />
+        <ChatThreadActions threadId={threadId} />
         <ChatPanel
           key={threadId}
           chatId={threadId}

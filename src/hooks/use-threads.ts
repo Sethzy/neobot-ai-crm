@@ -7,7 +7,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useRealtimeTable } from "@/hooks/use-realtime";
-import { archiveThread, createThread, listThreads, updateThreadTitle } from "@/lib/chat/threads";
+import {
+  archiveThread,
+  createThread,
+  listThreads,
+  markThreadRead,
+  updateThreadTitle,
+} from "@/lib/chat/threads";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
@@ -92,6 +98,34 @@ export function useUpdateThreadTitle(clientId: string | null | undefined) {
     onSuccess: () => {
       if (clientId) {
         queryClient.invalidateQueries({ queryKey: threadKeys.list(clientId) });
+      }
+    },
+  });
+}
+
+/**
+ * Marks a thread as read and invalidates the thread list cache.
+ */
+export function useMarkThreadRead(clientId: string | null | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      threadId,
+      lastReadAt,
+    }: {
+      threadId: string;
+      lastReadAt: string;
+    }): Promise<ThreadRow> => markThreadRead(supabase, threadId, lastReadAt),
+    onSuccess: (updatedThread) => {
+      if (clientId) {
+        queryClient.setQueryData<ThreadRow[]>(
+          threadKeys.list(clientId),
+          (currentThreads) =>
+            currentThreads?.map((thread) =>
+              thread.thread_id === updatedThread.thread_id ? updatedThread : thread
+            ) ?? currentThreads,
+        );
       }
     },
   });

@@ -9,6 +9,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { useMemo, useState } from "react";
 
+import { ThreadUnreadIndicator } from "@/components/chat/thread-unread-indicator";
 import { AppIcon } from "@/components/icons/app-icons";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -93,6 +94,7 @@ export function AllChatsPopover({ pathname, onNavigate, children }: AllChatsPopo
           ) : (
             filtered.map((thread) => {
               const isActive = pathname.startsWith(`/chat/${thread.id}`);
+              const showUnreadState = thread.isUnread && !isActive;
               return (
                 <Link
                   key={thread.id}
@@ -103,6 +105,9 @@ export function AllChatsPopover({ pathname, onNavigate, children }: AllChatsPopo
                     isActive && "bg-muted/60",
                   )}
                 >
+                  <span className="flex w-2 shrink-0 justify-center">
+                    {showUnreadState ? <ThreadUnreadIndicator className="mt-[1px]" /> : null}
+                  </span>
                   <AppIcon
                     name={
                       thread.isPrimary
@@ -113,7 +118,9 @@ export function AllChatsPopover({ pathname, onNavigate, children }: AllChatsPopo
                     }
                     className="h-4 w-4 shrink-0 text-muted-foreground"
                   />
-                  <span className="flex-1 truncate type-control">{thread.title}</span>
+                  <span className={cn("flex-1 truncate type-control", showUnreadState && "font-semibold")}>
+                    {thread.title}
+                  </span>
                   <span className="shrink-0 type-row-meta text-muted-foreground">
                     {format(thread.createdAt, "MMM d")}
                   </span>

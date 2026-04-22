@@ -768,6 +768,7 @@ export type Database = {
           is_archived: boolean
           is_pinned: boolean
           is_primary: boolean
+          last_read_at: string | null
           session_id: string | null
           source_run_id: string | null
           source_trigger_id: string | null
@@ -788,6 +789,7 @@ export type Database = {
           is_archived?: boolean
           is_pinned?: boolean
           is_primary?: boolean
+          last_read_at?: string | null
           session_id?: string | null
           source_run_id?: string | null
           source_trigger_id?: string | null
@@ -808,6 +810,7 @@ export type Database = {
           is_archived?: boolean
           is_pinned?: boolean
           is_primary?: boolean
+          last_read_at?: string | null
           session_id?: string | null
           source_run_id?: string | null
           source_trigger_id?: string | null

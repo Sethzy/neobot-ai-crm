@@ -10,9 +10,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback } from "react";
 import posthog from "posthog-js";
-import { toast } from "sonner";
 import { Logo } from "@/components/landing/Logo";
 import { AppIcon, type AppIconName } from "@/components/icons/app-icons";
+import { ThreadUnreadIndicator } from "@/components/chat/thread-unread-indicator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/hooks/use-session";
 import { supabase } from "@/lib/supabase";
@@ -22,7 +22,6 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarGroup,
@@ -38,6 +37,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 interface NavigationItem {
   label: string;
@@ -49,19 +49,15 @@ interface NavigationItem {
 const agentNavItems: NavigationItem[] = [
   { label: "New Task", href: "/chat", icon: "compose" },
   { label: "Skills", href: "/skills", icon: "document" },
-  { label: "Tasks", href: "/tasks", icon: "tasks" },
   { label: "Automations", href: "/automations", icon: "automations" },
 ];
 
-/** CUSTOMERS section — people, companies, deals */
-const customersNavItems: NavigationItem[] = [
+/** CRM section — records plus todos and meetings attached to them */
+const crmNavItems: NavigationItem[] = [
   { label: "People", href: "/customers/people", icon: "contacts" },
   { label: "Companies", href: "/customers/companies", icon: "building" },
   { label: "Deals", href: "/customers/deals", icon: "deals" },
-];
-
-/** DATABASE section — data-centric surfaces */
-const databaseNavItems: NavigationItem[] = [
+  { label: "Todos", href: "/tasks", icon: "tasks" },
   { label: "Meetings", href: "/meetings", icon: "meeting" },
 ];
 
@@ -90,9 +86,14 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
   const router = useRouter();
   const { user } = useSession();
   const { isMobile, setOpenMobile } = useSidebar();
-  const { threads, isLoading: isThreadsLoading, archiveThread } = useThreads();
+  const {
+    threads,
+    unreadCount,
+    isLoading: isThreadsLoading,
+  } = useThreads();
   const visibleThreads = threads.slice(0, 5);
   const hasOverflow = threads.length > 5;
+  const unreadCountLabel = unreadCount > 9 ? "9+" : String(unreadCount);
 
   const closeMobileSidebar = useCallback(() => {
     if (isMobile) {
@@ -105,36 +106,6 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
     posthog.reset();
     router.push("/");
   };
-
-  const handleArchiveThread = useCallback(
-    async (threadId: string) => {
-      let hasArchived = false;
-      try {
-        hasArchived = await archiveThread(threadId);
-      } catch {
-        toast.error("Failed to archive chat.");
-        return;
-      }
-
-      if (!hasArchived) {
-        toast.error("Failed to archive chat.");
-        return;
-      }
-
-      const isViewingArchivedThread = pathname.startsWith(`/chat/${threadId}`);
-      if (!isViewingArchivedThread) {
-        return;
-      }
-
-      const nextThread = threads.find((thread) => thread.id !== threadId);
-      if (nextThread) {
-        router.push(`/chat/${nextThread.id}`);
-      } else {
-        router.push("/chat");
-      }
-    },
-    [archiveThread, pathname, router, threads],
-  );
 
   const renderNavItems = (items: NavigationItem[]) =>
     items.map((item) => {
@@ -167,10 +138,21 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
       </SidebarHeader>
 
       <SidebarContent className="px-2">
-        {/* Search */}
-        {onOpenCommandMenu ? (
-          <SidebarGroup className="py-1">
-            <SidebarMenu>
+        {/* AGENT section */}
+        <SidebarGroup className="py-1">
+          <SidebarGroupLabel className="h-6 type-caption text-muted-foreground/50 tracking-[0.12em] normal-case">
+            Agent
+          </SidebarGroupLabel>
+          <SidebarMenu>{renderNavItems(agentNavItems)}</SidebarMenu>
+        </SidebarGroup>
+
+        {/* CRM section — search + records + todos + meetings */}
+        <SidebarGroup className="py-1">
+          <SidebarGroupLabel className="h-6 type-caption text-muted-foreground/50 tracking-[0.12em] normal-case">
+            CRM
+          </SidebarGroupLabel>
+          <SidebarMenu>
+            {onOpenCommandMenu ? (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   tooltip="Search"
@@ -184,38 +166,18 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                   <span>Search</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroup>
-        ) : null}
-
-        {/* AGENT section */}
-        <SidebarGroup className="py-1">
-          <SidebarGroupLabel className="h-6 type-caption text-muted-foreground/50 tracking-[0.12em] normal-case">
-            Agent
-          </SidebarGroupLabel>
-          <SidebarMenu>{renderNavItems(agentNavItems)}</SidebarMenu>
+            ) : null}
+            {renderNavItems(crmNavItems)}
+          </SidebarMenu>
         </SidebarGroup>
 
-        {/* CUSTOMERS section */}
+        {/* CHATS section — thread history */}
         <SidebarGroup className="py-1">
-          <SidebarGroupLabel className="h-6 type-caption text-muted-foreground/50 tracking-[0.12em] normal-case">
-            Customers
-          </SidebarGroupLabel>
-          <SidebarMenu>{renderNavItems(customersNavItems)}</SidebarMenu>
-        </SidebarGroup>
-
-        {/* DATABASE section */}
-        <SidebarGroup className="py-1">
-          <SidebarGroupLabel className="h-6 type-caption text-muted-foreground/50 tracking-[0.12em] normal-case">
-            Database
-          </SidebarGroupLabel>
-          <SidebarMenu>{renderNavItems(databaseNavItems)}</SidebarMenu>
-        </SidebarGroup>
-
-        {/* SESSIONS section — thread history */}
-        <SidebarGroup className="py-1">
-          <SidebarGroupLabel className="h-6 type-caption text-muted-foreground/50 tracking-[0.12em] normal-case">
-            Sessions
+          <SidebarGroupLabel className="flex h-6 items-center justify-between type-caption text-muted-foreground/50 tracking-[0.12em] normal-case">
+            <span>Chats</span>
+            {unreadCount > 0 ? (
+              <span className="text-muted-foreground/70">{`· ${unreadCountLabel}`}</span>
+            ) : null}
           </SidebarGroupLabel>
           <SidebarMenu>
             {isThreadsLoading ? (
@@ -227,43 +189,42 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                 </SidebarMenuItem>
               ))
             ) : visibleThreads.map((thread) => (
-              <SidebarMenuItem key={thread.id} className="group/thread">
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname.startsWith(`/chat/${thread.id}`)}
-                  tooltip={thread.title}
-                  className="transition-colors hover:bg-sidebar-accent/70 data-[active=true]:bg-app-surface data-[active=true]:font-medium data-[active=true]:text-foreground data-[active=true]:ring-1 data-[active=true]:ring-app-border-subtle data-[active=true]:shadow-xs"
-                >
-                  <Link
-                    href={`/chat/${thread.id}`}
-                    onClick={() => closeMobileSidebar()}
-                  >
-                    <AppIcon
-                      name={getThreadIconName(thread)}
-                      className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-                    />
-                    <span className="truncate type-control">{thread.title}</span>
-                  </Link>
-                </SidebarMenuButton>
-                {thread.isPinned ? null : (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <SidebarMenuAction
-                        aria-label={`More actions for ${thread.title}`}
-                        className="opacity-0 transition-opacity group-hover/thread:opacity-100"
+              (() => {
+                const isActive = pathname.startsWith(`/chat/${thread.id}`);
+                const showUnreadState = thread.isUnread && !isActive;
+
+                return (
+                  <SidebarMenuItem key={thread.id}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      tooltip={thread.title}
+                      className="transition-colors hover:bg-sidebar-accent/70 data-[active=true]:bg-app-surface data-[active=true]:font-medium data-[active=true]:text-foreground data-[active=true]:ring-1 data-[active=true]:ring-app-border-subtle data-[active=true]:shadow-xs"
+                    >
+                      <Link
+                        href={`/chat/${thread.id}`}
+                        onClick={() => closeMobileSidebar()}
                       >
-                        <AppIcon name="more" className="h-4 w-4" />
-                      </SidebarMenuAction>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent side="right" align="start">
-                      <DropdownMenuItem onClick={() => handleArchiveThread(thread.id)}>
-                        <AppIcon name="archive" className="mr-2 h-4 w-4" />
-                        Archive
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </SidebarMenuItem>
+                        <AppIcon
+                          name={getThreadIconName(thread)}
+                          className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                        />
+                        <span className="flex min-w-0 flex-1 items-center gap-2.5">
+                          <span
+                            className={cn(
+                              "min-w-0 flex-1 truncate type-control",
+                              showUnreadState && "font-semibold",
+                            )}
+                          >
+                            {thread.title}
+                          </span>
+                          {showUnreadState ? <ThreadUnreadIndicator /> : null}
+                        </span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })()
             ))}
             {!isThreadsLoading && hasOverflow ? (
               <SidebarMenuItem>

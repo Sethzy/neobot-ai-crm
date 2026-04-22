@@ -3,15 +3,18 @@
  * @module contexts/thread-context.test
  */
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ThreadProvider, useThreads } from "./thread-context";
 
+let mockPathname = "/chat";
 const mockUseClientId = vi.fn();
 const mockUseThreadsQuery = vi.fn();
 const mockUseCreateThread = vi.fn();
 const mockUseUpdateThreadTitle = vi.fn();
 const mockUseArchiveThread = vi.fn();
+const mockUseMarkThreadRead = vi.fn();
 const mockPostHogIdentify = vi.fn();
 const mockPostHogRegister = vi.fn();
 const mockPostHogCapture = vi.fn();
@@ -19,15 +22,24 @@ const mockSupabaseGetUser = vi.fn();
 const mockClientsMaybeSingle = vi.fn();
 const mockConsumePendingPostHogAuthEvent = vi.fn();
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => mockPathname,
+}));
+
 vi.mock("@/hooks/use-client-id", () => ({
   useClientId: () => mockUseClientId(),
 }));
 
 vi.mock("@/hooks/use-threads", () => ({
+  threadKeys: {
+    all: ["threads"],
+    list: (clientId: string) => ["threads", "list", clientId],
+  },
   useThreads: (...args: unknown[]) => mockUseThreadsQuery(...args),
   useCreateThread: (...args: unknown[]) => mockUseCreateThread(...args),
   useUpdateThreadTitle: (...args: unknown[]) => mockUseUpdateThreadTitle(...args),
   useArchiveThread: (...args: unknown[]) => mockUseArchiveThread(...args),
+  useMarkThreadRead: (...args: unknown[]) => mockUseMarkThreadRead(...args),
 }));
 
 vi.mock("posthog-js", () => ({
@@ -61,18 +73,32 @@ const baseThread = {
   thread_id: "thread-1",
   client_id: "client-1",
   title: "First chat",
+  is_primary: false,
   is_pinned: false,
+  is_archived: false,
+  source_type: "chat",
+  last_read_at: null,
   created_at: "2026-03-01T00:00:00Z",
-  updated_at: "2026-03-01T00:00:00Z",
+  updated_at: "2026-04-22T10:00:00Z",
 };
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+    mutations: { retry: false },
+  },
+});
+
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <ThreadProvider>{children}</ThreadProvider>
+  <QueryClientProvider client={queryClient}>
+    <ThreadProvider>{children}</ThreadProvider>
+  </QueryClientProvider>
 );
 
 describe("thread context", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPathname = "/chat";
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
     process.env.NEXT_PUBLIC_POSTHOG_ENVIRONMENT = "production";
@@ -99,6 +125,9 @@ describe("thread context", () => {
     });
 
     mockUseArchiveThread.mockReturnValue({
+      mutateAsync: vi.fn(async () => baseThread),
+    });
+    mockUseMarkThreadRead.mockReturnValue({
       mutateAsync: vi.fn(async () => baseThread),
     });
     mockSupabaseGetUser.mockResolvedValue({
@@ -137,7 +166,25 @@ describe("thread context", () => {
       id: "thread-1",
       title: "First chat",
       isPinned: false,
+      isUnread: true,
     });
+  });
+
+  it("derives unread state for never-read, stale, and fresh threads", async () => {
+    mockUseThreadsQuery.mockReturnValue({
+      data: [
+        { ...baseThread, thread_id: "never-read", last_read_at: null },
+        { ...baseThread, thread_id: "stale", last_read_at: "2026-04-22T09:00:00Z" },
+        { ...baseThread, thread_id: "fresh", last_read_at: "2026-04-22T11:00:00Z" },
+      ],
+      isLoading: false,
+    });
+
+    const { result } = renderHook(() => useThreads(), { wrapper });
+
+    await waitFor(() => expect(result.current.threads).toHaveLength(3));
+    expect(result.current.threads.map((thread) => thread.isUnread)).toEqual([true, true, false]);
+    expect(result.current.unreadCount).toBe(2);
   });
 
   it("creates a new thread and returns its id", async () => {
@@ -230,6 +277,27 @@ describe("thread context", () => {
     });
 
     expect(success).toBe(false);
+  });
+
+  it("optimistically marks the active unread thread as read", async () => {
+    mockPathname = "/chat/thread-1";
+
+    const mutateAsync = vi.fn(async () => baseThread);
+    mockUseMarkThreadRead.mockReturnValue({
+      mutateAsync,
+    });
+
+    const { result } = renderHook(() => useThreads(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.unreadCount).toBe(0);
+    });
+    expect(result.current.threads[0]?.isUnread).toBe(false);
+    expect(mutateAsync).toHaveBeenCalled();
+    expect(mutateAsync).toHaveBeenCalledWith({
+      threadId: "thread-1",
+      lastReadAt: expect.any(String),
+    });
   });
 
   it("syncs PostHog identity with environment and internal-user markers", async () => {

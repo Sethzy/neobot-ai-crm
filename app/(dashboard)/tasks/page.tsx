@@ -151,7 +151,7 @@ export default function TasksPage() {
   return (
     <PageCanvas>
       <PageHeader
-        title="Tasks"
+        title="Todos"
         description="Review follow-ups in a table, board, or calendar without leaving the workspace."
       />
 

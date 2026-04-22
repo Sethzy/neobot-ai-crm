@@ -163,3 +163,25 @@ export async function updateThreadTitle(
 
   return data;
 }
+
+/**
+ * Marks a thread as read at the provided timestamp.
+ */
+export async function markThreadRead(
+  supabase: ChatSupabaseClient,
+  threadId: string,
+  lastReadAt: string,
+): Promise<ThreadRow> {
+  const { data, error } = await supabase
+    .from("conversation_threads")
+    .update({ last_read_at: lastReadAt })
+    .eq("thread_id", threadId)
+    .select("*")
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message ?? "Failed to mark thread read");
+  }
+
+  return data;
+}

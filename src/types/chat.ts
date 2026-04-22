@@ -11,6 +11,9 @@ export interface Thread {
   isPinned: boolean;
   isPrimary: boolean;
   createdAt: Date;
+  updatedAt: Date;
+  lastReadAt: Date | null;
+  isUnread: boolean;
   sourceType: string;
 }
 
