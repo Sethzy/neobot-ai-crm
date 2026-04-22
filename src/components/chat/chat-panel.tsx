@@ -526,14 +526,14 @@ export function ChatPanel({
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-card">
       {streamErrorRecovery ? (
-        <div className="mx-auto mt-3 flex w-full max-w-2xl items-center gap-2 rounded-md border border-muted px-3 py-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <p>Claude is still working on this — results will appear shortly</p>
+        <div className="mx-3 mt-3 flex items-center gap-2 rounded-md border border-muted px-3 py-2 text-sm text-muted-foreground sm:mx-auto sm:w-full sm:max-w-2xl">
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+          <p className="min-w-0 break-words">Claude is still working on this — results will appear shortly</p>
         </div>
       ) : error ? (
-        <div className="mx-auto mt-3 flex w-full max-w-2xl items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          <AlertCircle className="h-4 w-4" />
-          <p>{errorMessage}</p>
+        <div className="mx-3 mt-3 flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive sm:mx-auto sm:w-full sm:max-w-2xl">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <p className="min-w-0 break-words">{errorMessage}</p>
         </div>
       ) : null}
 

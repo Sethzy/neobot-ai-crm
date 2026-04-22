@@ -296,7 +296,7 @@ export const MessageBubble = memo(function MessageBubble({
           data-testid="message-bubble"
           className="flex w-full animate-in fade-in slide-in-from-bottom-1 justify-end py-3 duration-150"
         >
-          <div className="flex max-w-[80%] flex-col items-end gap-2">
+          <div className="flex min-w-0 max-w-[85%] flex-col items-end gap-2">
             {fileParts.length > 0 ? (
               <div className="flex flex-wrap justify-end gap-2">
                 {fileParts.map((part, index) => (
@@ -310,8 +310,8 @@ export const MessageBubble = memo(function MessageBubble({
             ) : null}
 
             {hasTextParts ? (
-              <div className="max-w-full rounded-2xl bg-app-sidebar px-4 py-2.5 text-sm leading-normal text-foreground">
-                <p className="whitespace-pre-wrap">{getMessageText(message)}</p>
+              <div className="max-w-full min-w-0 rounded-2xl bg-app-sidebar px-4 py-2.5 text-sm leading-normal text-foreground">
+                <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{getMessageText(message)}</p>
               </div>
             ) : null}
           </div>

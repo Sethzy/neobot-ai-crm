@@ -1200,10 +1200,10 @@ export function ToolCallInline({
       </CollapsibleTrigger>
 
       {isAwaitingApproval && onToolApproval && approvalId ? (
-        <div data-testid="tool-approval-actions" className="ml-2 mt-1.5 flex items-center gap-2 border-l-2 border-approval/30 pl-3">
+        <div data-testid="tool-approval-actions" className="ml-2 mt-1.5 flex flex-wrap items-center gap-2 border-l-2 border-approval/30 pl-3">
           <button
             type="button"
-            className="rounded-md border border-success/30 bg-success/10 px-2.5 py-1 text-xs font-medium text-success hover:bg-success/20"
+            className="min-h-11 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs font-medium text-success hover:bg-success/20 sm:min-h-0 sm:px-2.5 sm:py-1"
             aria-label="Approve"
             onClick={() => onToolApproval(approvalId, true)}
           >
@@ -1211,7 +1211,7 @@ export function ToolCallInline({
           </button>
           <button
             type="button"
-            className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive hover:bg-destructive/20"
+            className="min-h-11 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/20 sm:min-h-0 sm:px-2.5 sm:py-1"
             aria-label="Deny"
             onClick={() => onToolApproval(approvalId, false)}
           >
@@ -1315,7 +1315,7 @@ export function ToolCallInline({
       ) : null}
 
       {isOpen ? (
-        <div data-testid="tool-details" className="relative z-10 mt-1.5 flex max-h-[600px] w-full flex-col rounded-lg border bg-popover shadow-lg text-sm">
+        <div data-testid="tool-details" className="relative z-10 mt-1.5 flex max-h-[min(600px,60svh)] w-full min-w-0 flex-col rounded-lg border bg-popover shadow-lg text-sm">
           {/* Arguments — capped height, scrollable */}
           <div className="shrink-0 border-b px-4 py-3">
             <p className="mb-1 text-xs font-semibold text-muted-foreground">Arguments</p>
