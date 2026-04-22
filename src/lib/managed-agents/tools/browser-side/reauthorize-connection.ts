@@ -101,8 +101,11 @@ export const reauthorizeConnectionTool: ManagedAgentTool<ReauthorizeConnectionIn
       return { success: false as const, error: "Composio did not return a re-authorization URL." };
     }
 
-    const rawAuthRedirectExpiresAt = refreshResult.expires_at
-      ?? (refreshResult as { expiresAt?: string }).expiresAt;
+    const rawAuthRedirectExpiresAt = (refreshResult as {
+      expiresAt?: string | null;
+      expires_at?: string | null;
+    }).expires_at
+      ?? (refreshResult as { expiresAt?: string | null; expires_at?: string | null }).expiresAt;
     const authRedirectExpiresAt = typeof rawAuthRedirectExpiresAt === "string"
       && Number.isFinite(Date.parse(rawAuthRedirectExpiresAt))
       ? new Date(Date.parse(rawAuthRedirectExpiresAt)).toISOString()
