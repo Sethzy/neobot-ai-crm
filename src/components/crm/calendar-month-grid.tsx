@@ -193,7 +193,7 @@ export function CalendarMonthGrid({
         onDragStart={handleDragStart}
         sensors={sensors}
       >
-        <div className="flex flex-col overflow-hidden rounded-[4px] border border-border/40 bg-card">
+        <div className="surface-app flex flex-col overflow-hidden rounded-xl p-0">
           <CalendarMonthHeader weekDayLabels={weekDayLabels} />
           <div className="flex flex-col">
             {weeks.map((days, index) => (

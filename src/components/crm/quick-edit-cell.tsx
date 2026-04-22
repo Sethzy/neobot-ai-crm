@@ -413,7 +413,7 @@ export function QuickEditCell({
               ref={inputRef}
               aria-label={ariaLabel}
               type="date"
-              className="h-7 text-sm"
+              className="h-7 type-control"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={handleInputKeyDown}
@@ -477,7 +477,7 @@ export function QuickEditCell({
           ref={inputRef}
           aria-label={ariaLabel}
           type={inputType ?? (type === "number" ? "number" : "text")}
-          className="h-7 text-sm"
+          className="h-7 type-control"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={handleInputKeyDown}
@@ -517,7 +517,7 @@ export function QuickEditCell({
         <div className="min-w-0 flex-1 space-y-1">
           {renderEditor(false)}
           {errorMessage ? (
-            <p className="text-xs text-destructive">{errorMessage}</p>
+            <p className="text-caption text-destructive">{errorMessage}</p>
           ) : null}
         </div>
       ) : (
@@ -527,7 +527,7 @@ export function QuickEditCell({
           ) : !hideDisplayValue ? (
             <span
               className={cn(
-                "min-w-0 flex-1 truncate text-sm",
+                "min-w-0 flex-1 truncate text-meta",
                 !resolvedDisplayValue ? "text-muted-foreground" : "text-foreground",
               )}
               title={resolvedDisplayValue || undefined}
@@ -579,7 +579,7 @@ export function QuickEditCell({
           <div className="space-y-3">
             {renderEditor(true)}
             {errorMessage ? (
-              <p className="text-sm text-destructive">{errorMessage}</p>
+              <p className="type-control text-destructive">{errorMessage}</p>
             ) : null}
           </div>
           <DialogFooter>

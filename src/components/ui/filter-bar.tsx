@@ -6,7 +6,7 @@
 "use client"
 
 import * as React from "react"
-import { Filter, Search, SlidersHorizontal, X } from "lucide-react"
+import { Filter, Search, X } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -30,6 +30,16 @@ interface FilterBarProps {
   onApply?: (values: FilterValues) => void
   onClear?: () => void
   className?: string
+  /**
+   * Optional content rendered to the left of the Filters button — used by
+   * CRM list pages to sit the saved-view picker inline with the toolbar.
+   */
+  leadingSlot?: React.ReactNode
+  /**
+   * Optional content rendered on the right of the toolbar — used by CRM
+   * pages to colocate page-level actions (sort, "+ New") with the filter row.
+   */
+  trailingSlot?: React.ReactNode
 }
 
 /**
@@ -44,6 +54,8 @@ export function FilterBar({
   onApply,
   onClear,
   className,
+  leadingSlot,
+  trailingSlot,
 }: FilterBarProps) {
   const [isOverlayOpen, setIsOverlayOpen] = React.useState(false)
   const [searchDraft, setSearchDraft] = React.useState(searchValue ?? "")
@@ -116,7 +128,11 @@ export function FilterBar({
     [onApply, onClear, values]
   )
 
-  const hasToolbarControls = Boolean(onSearchChange) || filters.length > 0
+  const hasToolbarControls =
+    Boolean(onSearchChange) ||
+    filters.length > 0 ||
+    Boolean(leadingSlot) ||
+    Boolean(trailingSlot)
 
   if (!hasToolbarControls) {
     return null
@@ -124,16 +140,18 @@ export function FilterBar({
 
   return (
     <div className={cn("flex flex-col gap-3", className)}>
-      <div className="flex flex-wrap items-center gap-2 w-full">
+      <div className="flex flex-wrap items-center gap-1 w-full">
+        {leadingSlot}
         {filters.length > 0 ? (
           <Button
             type="button"
-            variant="outline"
-            className="h-9 shrink-0 bg-card"
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 px-2 font-medium text-muted-foreground hover:text-foreground"
             onClick={() => setIsOverlayOpen(true)}
           >
-            <Filter className="h-4 w-4 opacity-80" />
-            <span>Filters</span>
+            <Filter className="h-3.5 w-3.5" />
+            <span>Filter</span>
             {activeFilterCount > 0 ? (
               <Badge
                 variant="outline"
@@ -145,21 +163,20 @@ export function FilterBar({
             ) : null}
           </Button>
         ) : null}
-        {filters.length > 0 ? (
-          <Button type="button" variant="outline" className="h-9 shrink-0 bg-card">
-            <SlidersHorizontal className="h-4 w-4 opacity-80" />
-            <span>Perspectives</span>
-          </Button>
-        ) : null}
         {onSearchChange ? (
-          <div className="relative w-full sm:w-auto sm:min-w-[180px] sm:max-w-[240px] sm:ml-auto">
+          <div className="relative w-full sm:ml-auto sm:w-auto sm:min-w-[240px] sm:max-w-[320px]">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={searchDraft}
               onChange={(event) => setSearchDraft(event.target.value)}
               placeholder={searchPlaceholder}
-              className="h-9 pl-8 pr-2 text-meta"
+              className="h-10 border-app-border-subtle bg-app-surface pl-8 pr-2 shadow-none"
             />
+          </div>
+        ) : null}
+        {trailingSlot ? (
+          <div className="ml-auto flex flex-wrap items-center gap-1">
+            {trailingSlot}
           </div>
         ) : null}
       </div>
@@ -188,7 +205,7 @@ export function FilterBar({
                       type="button"
                       variant="outline"
                       size="xs"
-                      className="max-w-full"
+                      className="max-w-full border-app-border-subtle bg-app-surface"
                       onClick={() => handleRemoveFilterValue(filter.id, entry)}
                     >
                       <span className="truncate">
@@ -212,7 +229,7 @@ export function FilterBar({
                 type="button"
                 variant="outline"
                 size="xs"
-                className="max-w-full"
+                className="max-w-full border-app-border-subtle bg-app-surface"
                 onClick={() => handleRemoveFilterValue(filter.id)}
               >
                 <span className="truncate">

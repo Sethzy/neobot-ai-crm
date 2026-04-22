@@ -109,8 +109,8 @@ export function SkillsCatalog({
 
       <section className="space-y-3">
         <div>
-          <h2 className="text-base font-semibold tracking-tight">Installed</h2>
-          <p className="text-muted-foreground text-sm">
+          <h2 className="type-section-title">Installed</h2>
+          <p className="type-control-muted text-muted-foreground">
             Skills currently available in this agent
           </p>
         </div>
@@ -127,7 +127,7 @@ export function SkillsCatalog({
             ))}
           </div>
         ) : (
-          <p className="text-muted-foreground text-sm">
+          <p className="type-control-muted text-muted-foreground">
             {lowerQuery
               ? "No installed skills match your search."
               : "No installed skills yet. Install one from the recommended list to activate it."}
@@ -137,10 +137,10 @@ export function SkillsCatalog({
 
       <section className="space-y-3">
         <div>
-          <h2 className="text-base font-semibold tracking-tight">
+          <h2 className="type-section-title">
             Recommended
           </h2>
-          <p className="text-muted-foreground text-sm">
+          <p className="type-control-muted text-muted-foreground">
             Discover additional skills you can import instantly
           </p>
         </div>
@@ -157,7 +157,7 @@ export function SkillsCatalog({
             ))}
           </div>
         ) : (
-          <p className="text-muted-foreground text-sm">
+          <p className="type-control-muted text-muted-foreground">
             {lowerQuery
               ? "No recommended skills match your search."
               : "No additional skills available right now."}

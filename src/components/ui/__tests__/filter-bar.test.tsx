@@ -71,8 +71,7 @@ describe("FilterBar", () => {
     )
 
     expect(screen.getByText("2")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Filters/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Perspectives" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Filter/i })).toBeInTheDocument()
 
     await user.click(screen.getByRole("button", { name: /Status: Active/i }))
 

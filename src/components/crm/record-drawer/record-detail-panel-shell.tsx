@@ -31,9 +31,7 @@ interface RecordDetailPanelShellProps<TId extends string = string> {
   title: string;
   /** Secondary metadata line, typically a relative timestamp. */
   meta?: ReactNode;
-  /** Optional close button rendered inline in the header (desktop panel mode). */
-  closeButton?: ReactNode;
-  /** Optional avatar element rendered between close button and title. */
+  /** Optional avatar element rendered before the title. */
   avatar?: ReactNode;
   /** Optional badge or status chip shown below the header row. */
   badge?: ReactNode;
@@ -58,7 +56,6 @@ interface RecordDetailPanelShellProps<TId extends string = string> {
 export function RecordDetailPanelShell<TId extends string = string>({
   title,
   meta,
-  closeButton,
   avatar,
   badge,
   tabs,
@@ -77,12 +74,10 @@ export function RecordDetailPanelShell<TId extends string = string>({
       {/* Scrollable area: header + tabs + content */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="space-y-4 p-5">
-          {/* Compact header row */}
-          <header className="space-y-2">
+          {/* Compact header row — right padding reserves space for the Sheet's
+              absolute-positioned close button so the meta text doesn't collide. */}
+          <header className="space-y-2 pr-10">
             <div className="flex items-center gap-2.5">
-              {closeButton ? (
-                <div className="shrink-0">{closeButton}</div>
-              ) : null}
               {avatar ? (
                 <div className="shrink-0">{avatar}</div>
               ) : null}

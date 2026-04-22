@@ -57,8 +57,8 @@ export function MeetingsList({ meetings }: MeetingsListProps) {
   if (meetings.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
-        <p className="text-sm">No meetings yet</p>
-        <p className="mt-1 text-xs">Click &quot;New Meeting&quot; to record your first one.</p>
+        <p className="type-empty-title">No meetings yet</p>
+        <p className="mt-1 type-empty-copy">Click &quot;New Meeting&quot; to record your first one.</p>
       </div>
     );
   }
@@ -69,10 +69,8 @@ export function MeetingsList({ meetings }: MeetingsListProps) {
     <div className="space-y-4">
       {Array.from(groupedMeetings.entries()).map(([label, groupedRows]) => (
         <section key={label}>
-          <h2 className="mb-1 px-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground/50">
-            {label}
-          </h2>
-          <div className="space-y-0.5">
+          <h2 className="mb-2 px-1 type-table-heading text-muted-foreground/50">{label}</h2>
+          <div className="surface-app overflow-hidden p-2">
             {groupedRows.map((meeting) => (
               <MeetingRow key={meeting.meeting_record_id} meeting={meeting} />
             ))}

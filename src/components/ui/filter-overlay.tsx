@@ -59,7 +59,7 @@ interface FilterOverlayProps {
 }
 
 const controlClassName =
-  "h-9 w-full rounded-md border border-input bg-background px-2.5 py-1 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+  "h-9 w-full rounded-md border border-input bg-background px-2.5 py-1 text-control shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return value != null && typeof value === "object" && !Array.isArray(value)
@@ -269,7 +269,7 @@ export function FilterOverlay({
           className="fixed inset-y-0 left-0 z-50 flex w-full flex-col border-r border-border/40 bg-background shadow-xl outline-none data-open:animate-in data-open:slide-in-from-left-10 data-closed:animate-out data-closed:slide-out-to-left-10 sm:max-w-[380px]"
         >
           <div className="flex items-center justify-between border-b border-border/40 px-4 py-4">
-            <DialogPrimitive.Title className="text-base font-semibold">
+            <DialogPrimitive.Title className="type-toolbar-title">
               {title}
             </DialogPrimitive.Title>
             <DialogPrimitive.Close asChild>
@@ -299,7 +299,7 @@ export function FilterOverlay({
 
               return (
                 <div key={filter.id} className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">
+                  <label className="type-control">
                     {filter.label}
                   </label>
                   {filter.type === "text" ? (
@@ -314,7 +314,7 @@ export function FilterOverlay({
                   {filter.type === "dateRange" ? (
                     <div className="grid gap-3">
                       <div className="grid gap-1.5">
-                        <span className="text-xs text-muted-foreground">From</span>
+                        <span className="type-row-meta">From</span>
                         <Input
                           aria-label={`${filter.label} From`}
                           type="date"
@@ -332,7 +332,7 @@ export function FilterOverlay({
                         />
                       </div>
                       <div className="grid gap-1.5">
-                        <span className="text-xs text-muted-foreground">To</span>
+                        <span className="type-row-meta">To</span>
                         <Input
                           aria-label={`${filter.label} To`}
                           type="date"
@@ -360,7 +360,7 @@ export function FilterOverlay({
                         const isChecked = selectedValues.includes(option.value)
 
                         return (
-                          <label key={option.value} className="flex items-center gap-2 text-sm">
+                          <label key={option.value} className="flex items-center gap-2 text-control">
                             <Checkbox
                               checked={isChecked}
                               onCheckedChange={(checked) => {

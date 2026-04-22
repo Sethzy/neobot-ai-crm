@@ -77,26 +77,25 @@ export function DefaultMessagingAgentForm({
   return (
     <Card className="border-border/70 bg-card shadow-sm">
       <CardHeader className="gap-2">
-        <CardDescription>Where Telegram messages should land</CardDescription>
-        <CardTitle className="text-2xl">Default messaging agent</CardTitle>
+        <CardDescription className="type-row-meta">
+          Where Telegram messages should land
+        </CardDescription>
+        <CardTitle className="type-toolbar-title">Default messaging agent</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
+        <p className="type-toolbar-description">
           Choose which Sunder conversation should receive your Telegram messages by default.
           This setting is personal to your account.
         </p>
 
         <div className="space-y-2">
-          <label
-            htmlFor="default-messaging-thread"
-            className="text-sm font-medium text-foreground"
-          >
+          <label htmlFor="default-messaging-thread" className="type-control">
             Default destination
           </label>
           <select
             id="default-messaging-thread"
             aria-label="Default messaging thread"
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-control text-foreground shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20"
             disabled={isPending}
             value={selectedThreadId}
             onChange={(event) => {
@@ -113,7 +112,7 @@ export function DefaultMessagingAgentForm({
         </div>
 
         <div className="flex items-center justify-between gap-4 border-t pt-4">
-          <p className="text-sm text-muted-foreground">
+          <p className="type-toolbar-description">
             Telegram still supports temporary thread switches via commands, but this is the default target.
           </p>
           <Button disabled={isPending || !hasChanges} onClick={handleSave}>
@@ -122,7 +121,13 @@ export function DefaultMessagingAgentForm({
         </div>
 
         {message ? (
-          <p className={message.isError ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>
+          <p
+            className={
+              message.isError
+                ? "type-row-meta text-destructive"
+                : "type-row-meta"
+            }
+          >
             {message.text}
           </p>
         ) : null}

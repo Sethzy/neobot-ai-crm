@@ -40,7 +40,7 @@ function CalendarDayCardBody({ task }: { task: CrmTaskWithRelations }) {
 
   return (
     <div className="space-y-1">
-      <p className="truncate text-xs font-medium text-foreground">{task.title}</p>
+      <p className="truncate text-caption font-medium text-foreground">{task.title}</p>
       <div className="flex items-center justify-between gap-2">
         <span
           className={cn(

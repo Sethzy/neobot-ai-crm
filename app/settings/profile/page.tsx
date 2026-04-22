@@ -5,6 +5,8 @@
  */
 import { DefaultMessagingAgentForm } from "@/components/settings/profile/default-messaging-agent-form";
 import { TelegramConnectRow } from "@/components/settings/messaging-channels/telegram-connect-row";
+import { PageHeader } from "@/components/layout/page-header";
+import { PageCanvas } from "@/components/layout/page-canvas";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getTelegramConnectionForUser, getTelegramReadiness } from "@/lib/channels/telegram/user-connections";
 import { resolveClientId } from "@/lib/chat/client-id";
@@ -75,15 +77,12 @@ export default async function ProfilePage() {
   const profilePage = await loadProfilePage();
 
   return (
-    <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">Profile</h1>
-          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            Manage personal messaging settings for your account. Connect Telegram once,
-            then choose which Sunder conversation should receive those messages by default.
-          </p>
-        </div>
+    <PageCanvas variant="form" contentClassName="max-w-4xl">
+        <PageHeader
+          title="Profile"
+          description="Manage personal messaging settings for your account. Connect Telegram once, then choose which Sunder conversation should receive those messages by default."
+          descriptionClassName="max-w-3xl"
+        />
 
         {profilePage.kind === "error" ? (
           <Alert variant="destructive">
@@ -107,7 +106,6 @@ export default async function ProfilePage() {
             />
           </>
         )}
-      </div>
-    </div>
+    </PageCanvas>
   );
 }

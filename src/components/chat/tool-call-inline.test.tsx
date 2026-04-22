@@ -374,7 +374,7 @@ describe("connection cards", () => {
               integrationId: "googledrive",
               displayName: "Google Drive",
               description: "Access files in Google Drive",
-              logoUrl: "https://cdn.composio.dev/googledrive.png",
+              logoUrl: "/logos/drive.svg",
               connectionStatus: "pending_auth",
               redirectUrl: "https://auth.composio.dev/google-drive",
               composioConnectedAccountId: "acc-123",
@@ -424,7 +424,7 @@ describe("connection cards", () => {
               integrationId: "notion",
               displayName: "Notion",
               description: "Read and write your Notion workspace.",
-              logoUrl: "https://cdn.composio.dev/notion.png",
+              logoUrl: "/logos/notion.svg",
               connectionStatus: "pending_auth",
               redirectUrl: "https://auth.composio.dev/notion",
               composioConnectedAccountId: "acc-notion-pending",
@@ -463,7 +463,7 @@ describe("connection cards", () => {
               integrationId: "googledrive",
               displayName: "Google Drive",
               description: "Access files in Google Drive",
-              logoUrl: "https://cdn.composio.dev/googledrive.png",
+              logoUrl: "/logos/drive.svg",
               connectionStatus: "pending_auth",
               redirectUrl: "https://auth.composio.dev/google-drive",
               composioConnectedAccountId: "acc-123",
@@ -477,7 +477,7 @@ describe("connection cards", () => {
     expect(screen.getByText("Google Drive")).toBeInTheDocument();
     expect(screen.getByAltText("Google Drive logo")).toHaveAttribute(
       "src",
-      "https://cdn.composio.dev/googledrive.png",
+      "/logos/drive.svg",
     );
     expect(screen.getByRole("button", { name: /^connect$/i })).toBeInTheDocument();
   });
@@ -508,7 +508,7 @@ describe("connection cards", () => {
               integrationId: "notion",
               displayName: "Notion",
               description: "Read and write your Notion workspace.",
-              logoUrl: "https://cdn.composio.dev/notion.png",
+              logoUrl: "/logos/notion.svg",
               connectionStatus: "pending_auth",
               redirectUrl: "https://auth.composio.dev/notion",
               authRedirectExpiresAt: "2026-04-21T09:00:01.000Z",
@@ -540,10 +540,10 @@ describe("connection cards", () => {
           integrationId: "gmail",
           displayName: "Gmail",
           description: "Send and read Gmail messages.",
-          logoUrl: "https://cdn.composio.dev/gmail.png",
+          logoUrl: "/logos/gmail.svg",
           connectionStatus: "pending_reauth",
           redirectUrl: "https://auth.composio.dev/gmail",
-          authRedirectExpiresAt: "2026-04-21T09:45:00.000Z",
+          authRedirectExpiresAt: "2099-04-21T09:45:00.000Z",
           composioConnectedAccountId: "acc-reauth-123",
         }}
       />,
@@ -565,7 +565,7 @@ describe("connection cards", () => {
             {
               integrationId: "googledrive",
               displayName: "Google Drive",
-              logoUrl: "https://cdn.composio.dev/googledrive.png",
+              logoUrl: "/logos/drive.svg",
               error: "Already connected. Disconnect it first to switch accounts.",
             },
           ],
@@ -580,7 +580,7 @@ describe("connection cards", () => {
     expect(screen.getByText("Google Drive")).toBeInTheDocument();
     expect(screen.getByAltText("Google Drive logo")).toHaveAttribute(
       "src",
-      "https://cdn.composio.dev/googledrive.png",
+      "/logos/drive.svg",
     );
     expect(screen.queryByText("googledrive")).not.toBeInTheDocument();
     expect(screen.queryByText("Not connected")).not.toBeInTheDocument();
@@ -588,31 +588,8 @@ describe("connection cards", () => {
     expect(screen.queryByRole("button", { name: /^connect$/i })).not.toBeInTheDocument();
   });
 
-  it("backfills logos for legacy connection cards with a single batched metadata request", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          providers: [
-            {
-              integrationId: "notion",
-              displayName: "Notion",
-              description: "Read and update pages and databases in your Notion workspace.",
-              logoUrl: "https://cdn.composio.dev/notion.png",
-            },
-            {
-              integrationId: "gmail",
-              displayName: "Gmail",
-              description: "Read and send Gmail messages.",
-              logoUrl: "https://cdn.composio.dev/gmail.png",
-            },
-          ],
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        },
-      ),
-    );
+  it("uses bundled branding for launch-set providers without a metadata backfill request", async () => {
+    const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
     render(
@@ -641,23 +618,17 @@ describe("connection cards", () => {
     await waitFor(() => {
       expect(screen.getByAltText("Notion logo")).toHaveAttribute(
         "src",
-        "https://cdn.composio.dev/notion.png",
+        "/logos/notion.svg",
       );
       expect(screen.getByAltText("Gmail logo")).toHaveAttribute(
         "src",
-        "https://cdn.composio.dev/gmail.png",
+        "/logos/gmail.svg",
       );
     });
 
     expect(screen.getByText("Notion")).toBeInTheDocument();
     expect(screen.getByText("Gmail")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/connections/providers?slugs=notion%2Cgmail",
-      expect.objectContaining({
-        signal: expect.any(AbortSignal),
-      }),
-    );
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("uses KISS copy for the connection modal and never mentions tool approval", async () => {
@@ -675,10 +646,10 @@ describe("connection cards", () => {
               integrationId: "notion",
               displayName: "Notion",
               description: "Read and write your Notion workspace.",
-              logoUrl: "https://cdn.composio.dev/notion.png",
+              logoUrl: "/logos/notion.svg",
               connectionStatus: "pending_auth",
               redirectUrl: "https://auth.composio.dev/notion",
-              authRedirectExpiresAt: "2026-04-21T09:45:00.000Z",
+              authRedirectExpiresAt: "2099-04-21T09:45:00.000Z",
               composioConnectedAccountId: "acc-notion-123",
             },
           ],
@@ -711,10 +682,10 @@ describe("connection cards", () => {
           integrationId: "gmail",
           displayName: "Gmail",
           description: "Send and read Gmail messages.",
-          logoUrl: "https://cdn.composio.dev/gmail.png",
+          logoUrl: "/logos/gmail.svg",
           connectionStatus: "pending_reauth",
           redirectUrl: "https://auth.composio.dev/gmail",
-          authRedirectExpiresAt: "2026-04-21T09:45:00.000Z",
+          authRedirectExpiresAt: "2099-04-21T09:45:00.000Z",
           composioConnectedAccountId: "acc-reauth-123",
         }}
       />,

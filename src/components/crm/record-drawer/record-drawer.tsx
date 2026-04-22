@@ -42,7 +42,7 @@ export function RecordDrawer({ isOpen, recordId, objectType, onClose }: RecordDr
         }
       }}
     >
-      <SheetContent side={isMobile ? "bottom" : "right"} className="w-[420px] p-0 sm:max-w-[420px]">
+      <SheetContent side={isMobile ? "bottom" : "right"} className="w-[540px] p-0 sm:max-w-[540px]">
         <VisuallyHidden>
           <SheetTitle>Record detail</SheetTitle>
         </VisuallyHidden>

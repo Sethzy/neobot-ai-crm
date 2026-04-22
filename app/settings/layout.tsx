@@ -11,7 +11,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   return (
     <div className="flex h-svh w-full flex-col bg-background md:flex-row">
       <SettingsMobileNav />
-      <aside className="hidden w-64 shrink-0 flex-col gap-5 border-r border-border/60 bg-background/60 px-4 py-6 md:flex">
+      <aside className="hidden w-64 shrink-0 flex-col gap-5 border-r border-app-border-subtle bg-app-sidebar px-4 py-6 md:flex">
         <SettingsNav />
       </aside>
       <main className="flex-1 overflow-auto">{children}</main>

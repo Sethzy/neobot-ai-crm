@@ -73,9 +73,7 @@ export function ChatWelcome({
   return (
     <div className="flex flex-1 flex-col items-center overflow-y-auto px-4 pt-24 pb-8">
       <div className="w-full max-w-[780px]">
-        <h1
-          className="text-center font-semibold text-2xl text-foreground"
-        >
+        <h1 className="type-hero-title text-center text-foreground">
           What can I do for you?
         </h1>
 
@@ -115,7 +113,7 @@ export function ChatWelcome({
                   type="button"
                   onClick={() => setActiveCategory(category)}
                   className={cn(
-                    "-mb-px border-b-2 py-2.5 text-sm font-medium transition-all",
+                    "-mb-px border-b-2 py-2.5 type-control transition-all",
                     isActive
                       ? "text-foreground"
                       : "border-transparent text-muted-foreground hover:text-foreground",
@@ -158,7 +156,7 @@ function TemplateCard({
       onClick={() => onClick(template)}
       className="flex flex-col items-start rounded-lg p-4 text-left transition-colors hover:bg-accent/40"
     >
-      <span className="text-sm font-semibold text-foreground">
+      <span className="type-row-title text-foreground">
         {template.title}
       </span>
       <span className="mt-1.5 flex-1 text-meta leading-relaxed text-muted-foreground">

@@ -6,6 +6,7 @@
 "use client";
 
 import { Clock, RefreshCw } from "@/components/icons/lucide-compat";
+import { PageHeader } from "@/components/layout/page-header";
 import { cronToHuman, formatCountdown } from "@/lib/triggers/cron-display";
 import type { Database } from "@/types/database";
 
@@ -21,35 +22,33 @@ export function AutomationHeader({ trigger }: AutomationHeaderProps) {
     trigger.enabled && trigger.next_fire_at ? formatCountdown(trigger.next_fire_at) : null;
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-        {trigger.name}
-      </h1>
-
-      {/* Metadata pills */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5">
-          <RefreshCw className="h-3.5 w-3.5 text-muted-foreground/70" />
-          {scheduleLabel}
-        </span>
-        {nextRunLabel ? (
+    <PageHeader
+      title={trigger.name}
+      meta={
+        <>
           <span className="inline-flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5 text-muted-foreground/70" />
-            Next run {nextRunLabel}
+            <RefreshCw className="h-3.5 w-3.5 text-muted-foreground/70" />
+            {scheduleLabel}
           </span>
-        ) : null}
-        <span className="inline-flex items-center gap-1.5">
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${
-              trigger.enabled ? "bg-success" : "bg-muted-foreground/40"
-            }`}
-            aria-hidden
-          />
-          <span className={trigger.enabled ? "text-foreground" : undefined}>
-            {trigger.enabled ? "Active" : "Disabled"}
+          {nextRunLabel ? (
+            <span className="inline-flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-muted-foreground/70" />
+              Next run {nextRunLabel}
+            </span>
+          ) : null}
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                trigger.enabled ? "bg-success" : "bg-muted-foreground/40"
+              }`}
+              aria-hidden
+            />
+            <span className={trigger.enabled ? "text-foreground" : undefined}>
+              {trigger.enabled ? "Active" : "Disabled"}
+            </span>
           </span>
-        </span>
-      </div>
-    </div>
+        </>
+      }
+    />
   );
 }

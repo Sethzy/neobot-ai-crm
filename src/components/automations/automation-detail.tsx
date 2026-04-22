@@ -60,14 +60,14 @@ export function AutomationDetail({ triggerId }: AutomationDetailProps) {
   if (isError || !trigger) {
     return (
       <div className="px-4 py-6 md:px-12 md:py-10">
-        <p className="text-sm text-destructive">Automation not found.</p>
+        <p className="type-control text-destructive">Automation not found.</p>
       </div>
     );
   }
 
   const header = (
-    <div className="flex shrink-0 items-center justify-between gap-2 bg-sidebar px-4 py-3 md:px-8">
-      <nav className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+    <div className="flex shrink-0 items-center justify-between gap-2 bg-app-canvas px-3 py-4 md:px-6 lg:px-8">
+      <nav className="flex min-w-0 items-center gap-1.5 type-control-muted text-muted-foreground">
         <AppIcon name="automations" className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
         <Link href="/automations" className="transition-colors hover:text-foreground">
           Automations
@@ -82,7 +82,6 @@ export function AutomationDetail({ triggerId }: AutomationDetailProps) {
         className={`shrink-0 gap-1.5 transition-opacity duration-200 ease-out motion-reduce:transition-none ${
           isPanelOpen ? "pointer-events-none opacity-0" : "opacity-100"
         }`}
-        aria-hidden={isPanelOpen}
         tabIndex={isPanelOpen ? -1 : 0}
         onClick={() => setIsPanelOpen(true)}
       >
@@ -95,14 +94,13 @@ export function AutomationDetail({ triggerId }: AutomationDetailProps) {
   return (
     <ResizableInlinePanelLayout
       header={header}
-      bodyClassName="px-4 pt-6 pb-10 md:px-10 md:pt-8"
       isPanelOpen={isPanelOpen}
       onClosePanel={() => setIsPanelOpen(false)}
       renderPanelContent={({ closeButton }) => (
         <div className="flex h-full flex-col">
-          <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-4 py-2.5">
+          <div className="flex shrink-0 items-center justify-between border-b border-app-border-subtle px-4 py-3">
             {closeButton}
-            <h2 className="text-sm font-semibold text-foreground">Schedule</h2>
+            <h2 className="type-toolbar-title text-foreground">Schedule</h2>
             <div className="h-7 w-7" aria-hidden />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-5">
@@ -111,15 +109,15 @@ export function AutomationDetail({ triggerId }: AutomationDetailProps) {
         </div>
       )}
     >
-      <div className="mx-auto w-full max-w-3xl">
+      <div className="mx-auto w-full max-w-3xl px-2 pb-10 md:px-4">
         <AutomationHeader trigger={trigger} />
 
-        <div className="mt-8 flex items-center justify-between border-b border-border/40">
+        <div className="mt-6 flex items-center justify-between border-b border-app-border-subtle">
           <nav className="-mb-px flex gap-6">
             <button
               type="button"
               onClick={() => setActiveTab("instructions")}
-              className={`pb-3 text-sm font-medium transition-colors ${
+              className={`pb-3 type-control transition-colors ${
                 activeTab === "instructions"
                   ? "border-b-2 border-foreground text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -130,7 +128,7 @@ export function AutomationDetail({ triggerId }: AutomationDetailProps) {
             <button
               type="button"
               onClick={() => setActiveTab("runs")}
-              className={`pb-3 text-sm font-medium transition-colors ${
+              className={`pb-3 type-control transition-colors ${
                 activeTab === "runs"
                   ? "border-b-2 border-foreground text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -165,7 +163,7 @@ export function AutomationDetail({ triggerId }: AutomationDetailProps) {
           </div>
         </div>
 
-        <div className="mt-6">
+        <div className="pt-6">
           {activeTab === "instructions" ? (
             <AutomationInstructions
               triggerId={trigger.id}
@@ -182,12 +180,14 @@ export function AutomationDetail({ triggerId }: AutomationDetailProps) {
 
 function LoadingShell() {
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-sidebar">
-      <div className="h-12 shrink-0 bg-sidebar" />
-      <div className="ml-3 flex-1 animate-pulse space-y-4 rounded-t-xl border-l border-t border-border/60 bg-card p-10 md:ml-4">
-        <div className="h-4 w-40 rounded bg-muted/30" />
-        <div className="h-8 w-64 rounded bg-muted/30" />
-        <div className="h-4 w-80 rounded bg-muted/30" />
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-app-canvas">
+      <div className="h-16 shrink-0 border-b border-app-border-subtle bg-app-canvas" />
+      <div className="px-3 pb-4 md:px-6 md:pb-6">
+        <div className="surface-app animate-pulse space-y-4 p-10">
+          <div className="h-4 w-40 rounded bg-muted/30" />
+          <div className="h-8 w-64 rounded bg-muted/30" />
+          <div className="h-4 w-80 rounded bg-muted/30" />
+        </div>
       </div>
     </div>
   );

@@ -22,11 +22,11 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-12 text-center md:px-10 md:py-16">
-      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/30 text-muted-foreground">
+      <div className="flex h-14 w-14 items-center justify-center rounded-full border border-app-border-subtle bg-app-surface-muted text-muted-foreground">
         <AppIcon name={iconName} className="h-7 w-7" />
       </div>
-      <h3 className="mt-5 text-base font-semibold text-foreground">{title}</h3>
-      <p className="mt-2 max-w-sm text-sm text-muted-foreground">{description}</p>
+      <h3 className="type-empty-title mt-5">{title}</h3>
+      <p className="type-empty-copy mt-2 max-w-sm">{description}</p>
     </div>
   );
 }

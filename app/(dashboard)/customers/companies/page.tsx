@@ -7,19 +7,19 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Building2, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
-
-import { CrmListPanelLayout } from "@/components/crm/crm-list-panel-layout";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
-import { CompanyDrawerContent } from "@/components/crm/record-drawer/company-drawer-content";
+import { RecordDrawer } from "@/components/crm/record-drawer";
 import { ViewPicker } from "@/components/crm/view-picker";
+import { PageCanvas } from "@/components/layout/page-canvas";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilterBar } from "@/components/ui/filter-bar";
+import { ListTable } from "@/components/ui/list-table";
 import type { DateRangeFilterValue, FilterDef, FilterValues } from "@/components/ui/filter-overlay";
 import { useClientId } from "@/hooks/use-client-id";
 import { useCrmConfig } from "@/hooks/use-crm-config";
@@ -30,7 +30,7 @@ import { useUpdateCompany } from "@/hooks/use-update-company";
 import { buildColumnsFromConfig } from "@/lib/crm/build-columns";
 import { CRM_DEFAULTS } from "@/lib/crm/config";
 import { COMPANY_DEFAULT_FIELDS } from "@/lib/crm/field-definitions";
-import { formatCrmDate, formatCrmEnumLabel, getCompanyIndustryBadgeVariant } from "@/lib/crm/display";
+import { formatCrmDate, formatCrmEnumLabel } from "@/lib/crm/display";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 import { timelineActivityKeys } from "@/hooks/use-unified-timeline";
 import { type Company } from "@/lib/crm/schemas";
@@ -208,6 +208,7 @@ function CompanyIndustryCell({ companyId, industry, industryOptions }: CompanyIn
     <QuickEditCell
       ariaLabel="Industry"
       value={industry}
+      displayValue={industry ? formatCrmEnumLabel(industry) : null}
       type="select"
       options={industryOptions.map((option) => ({
         value: option,
@@ -218,26 +219,19 @@ function CompanyIndustryCell({ companyId, industry, industryOptions }: CompanyIn
           industry: toNullableTextValue(nextValue) as Company["industry"],
         });
       }}
-    >
-      {industry ? (
-        <Badge variant={getCompanyIndustryBadgeVariant(industry)}>
-          {formatCrmEnumLabel(industry)}
-        </Badge>
-      ) : null}
-    </QuickEditCell>
+    />
   );
 }
 
 export default function CompaniesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { recordId, open } = useRecordDrawer();
+  const { recordId, open, close, isOpen: isDrawerOpen } = useRecordDrawer();
   const queryClient = useQueryClient();
   const { data: clientId } = useClientId();
   const { data: crmConfigResult } = useCrmConfig();
   const { data: views } = useCrmViews("companies");
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<FilterValues>({});
   const savedViewId = searchParams?.get("savedView") ?? null;
   const activeSavedView = views?.find((view) => view.view_id === savedViewId) ?? null;
@@ -272,7 +266,6 @@ export default function CompaniesPage() {
             viewSort: activeSavedView.sort as { column: string; ascending: boolean } | undefined,
           }
         : {
-            search: search.trim() || undefined,
             industry: typeof filterValues.industry === "string" ? filterValues.industry : undefined,
             hasEmail: typeof filterValues.hasEmail === "boolean" ? filterValues.hasEmail : undefined,
             hasPhone: typeof filterValues.hasPhone === "boolean" ? filterValues.hasPhone : undefined,
@@ -281,11 +274,11 @@ export default function CompaniesPage() {
       page,
       pageSize,
     }),
-    [activeSavedView, filterValues.createdAt, filterValues.hasEmail, filterValues.hasPhone, filterValues.industry, page, search],
+    [activeSavedView, filterValues.createdAt, filterValues.hasEmail, filterValues.hasPhone, filterValues.industry, page],
   );
 
   const { data, isLoading, isError } = usePaginatedCompanies(queryFilters);
-  const hasLocalFilters = search.trim().length > 0 || Object.keys(filterValues).length > 0;
+  const hasLocalFilters = Object.keys(filterValues).length > 0;
   const hasActiveFiltering = Boolean(activeSavedView) || hasLocalFilters;
 
   const createCompany = useMutation({
@@ -299,7 +292,12 @@ export default function CompaniesPage() {
       if (error) throw error;
       return data;
     },
-    onSuccess: async (createdCompany) => {
+    onSuccess: (createdCompany) => {
+      // Seed the detail cache with the freshly-inserted row so the drawer
+      // mounts with data and skips its skeleton flicker.
+      queryClient.setQueryData(companyKeys.detail(createdCompany.company_id), createdCompany);
+      open(createdCompany.company_id);
+      void queryClient.invalidateQueries({ queryKey: companyKeys.all });
       void captureTimelineActivity({
         supabase,
         clientId: createdCompany.client_id,
@@ -315,9 +313,6 @@ export default function CompaniesPage() {
           });
         }
       });
-
-      await queryClient.invalidateQueries({ queryKey: companyKeys.all });
-      open(createdCompany.company_id);
     },
     onError: () => {
       toast.error("Unable to create company.");
@@ -482,44 +477,64 @@ export default function CompaniesPage() {
     return [...configured, ...countColumns];
   }, [crmConfig, industryOptions, open]);
 
+  const newCompanyButton = (
+    <Button
+      size="sm"
+      onClick={() => createCompany.mutate()}
+      disabled={!clientId || createCompany.isPending}
+    >
+      <Plus className="h-4 w-4" />
+      New
+    </Button>
+  );
+
   return (
-    <CrmListPanelLayout
-      objectType="company"
-      icon={<Building2 className="h-4 w-4 text-muted-foreground" />}
-      title="Companies"
-      headerActions={
-        <div className="flex items-center gap-2">
+    <PageCanvas>
+      <PageHeader title="Companies" />
+      <FilterBar
+        leadingSlot={
           <ViewPicker
             entityType="companies"
             activeViewId={activeSavedView?.view_id ?? null}
             onViewChange={handleSavedViewChange}
+            count={data?.total}
           />
-          <Button size="sm" onClick={() => createCompany.mutate()} disabled={!clientId || createCompany.isPending}>
-            <Plus className="h-4 w-4" />
-            New
-          </Button>
-        </div>
-      }
-      renderPanelContent={(id, { closeButton }) => (
-        <CompanyDrawerContent key={id} companyId={id} closeButton={closeButton} />
-      )}
-    >
+        }
+        trailingSlot={newCompanyButton}
+        {...(activeSavedView
+          ? {}
+          : {
+              filters,
+              values: filterValues,
+              onApply: (nextValues: FilterValues) => {
+                setPage(1);
+                setFilterValues(nextValues);
+              },
+              onClear: () => {
+                setPage(1);
+                setFilterValues({});
+              },
+            })}
+      />
 
-        <DataTable
-          columns={columns}
-          data={rows}
-          isLoading={isLoading}
-          error={isError ? <span>Unable to load companies.</span> : null}
-          emptyState={(
-            <EmptyState
-              iconName="building"
-              title={hasActiveFiltering ? "No results match your filters" : "No companies yet"}
-              description={hasActiveFiltering
+      <ListTable
+        columns={columns}
+        data={rows}
+        isLoading={isLoading}
+        error={isError ? <span>Unable to load companies.</span> : null}
+        emptyState={
+          <EmptyState
+            iconName="building"
+            title={hasActiveFiltering ? "No results match your filters" : "No companies yet"}
+            description={
+              hasActiveFiltering
                 ? "Try adjusting or clearing your filters."
-                : "Your AI agent will create companies as it processes conversations."}
-            />
-          )}
-          pagination={data
+                : "Your AI agent will create companies as it processes conversations."
+            }
+          />
+        }
+        pagination={
+          data
             ? {
                 page: data.page,
                 pageSize: data.pageSize,
@@ -527,42 +542,30 @@ export default function CompaniesPage() {
                 totalPages: data.totalPages,
                 onPageChange: setPage,
               }
-            : undefined}
-          rowActions={(row) => [
-            { id: "view", label: "View", onSelect: () => open(row.company_id) },
-            {
-              id: "delete",
-              label: "Delete",
-              destructive: true,
-              onSelect: () => {
-                if (!window.confirm(`Delete ${row.name}? This cannot be undone.`)) {
-                  return;
-                }
-
-                deleteCompany.mutate({ companyId: row.company_id });
-              },
+            : undefined
+        }
+        rowActions={(row) => [
+          { id: "view", label: "View", onSelect: () => open(row.company_id) },
+          {
+            id: "delete",
+            label: "Delete",
+            destructive: true,
+            onSelect: () => {
+              if (!window.confirm(`Delete ${row.name}? This cannot be undone.`)) return;
+              deleteCompany.mutate({ companyId: row.company_id });
             },
-          ]}
-          onRowClick={(row) => open(row.company_id)}
-          selectedRowId={recordId ?? undefined}
-          getRowId={(row) => row.company_id}
-          searchValue={activeSavedView ? undefined : search}
-          onSearchChange={activeSavedView ? undefined : (value) => {
-            setPage(1);
-            setSearch(value);
-          }}
-          searchPlaceholder="Search companies..."
-          filters={activeSavedView ? [] : filters}
-          filterValues={activeSavedView ? {} : filterValues}
-          onFiltersApply={activeSavedView ? undefined : (nextValues) => {
-            setPage(1);
-            setFilterValues(nextValues);
-          }}
-          onFiltersClear={activeSavedView ? undefined : () => {
-            setPage(1);
-            setFilterValues({});
-          }}
-        />
-    </CrmListPanelLayout>
+          },
+        ]}
+        onRowClick={(row) => open(row.company_id)}
+        selectedRowId={recordId ?? undefined}
+        getRowId={(row) => row.company_id}
+      />
+      <RecordDrawer
+        isOpen={isDrawerOpen}
+        recordId={recordId}
+        objectType="company"
+        onClose={close}
+      />
+    </PageCanvas>
   );
 }

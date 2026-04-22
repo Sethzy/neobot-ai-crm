@@ -69,7 +69,7 @@ export function AutomationLauncherComposer() {
         placeholder="Describe an automation to create..."
         allowAttachments={false}
         className="pb-0"
-        innerClassName="border border-border/60 bg-background shadow-[0_24px_60px_-32px_rgba(0,0,0,0.45)]"
+        innerClassName="border border-app-border-subtle bg-app-surface-elevated shadow-md"
       />
     </div>
   );

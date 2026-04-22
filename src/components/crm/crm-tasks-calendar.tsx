@@ -84,20 +84,20 @@ export function CrmTasksCalendar({
 
       <section className="rounded-xl border border-border/40 bg-card shadow-sm">
         <div className="border-b border-border/40 px-5 py-4">
-          <h2 className="text-base font-semibold text-foreground">Scheduled tasks</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h2 className="type-section-title text-foreground">Scheduled tasks</h2>
+          <p className="mt-1 type-control-muted text-muted-foreground">
             {selectedMonthTaskCount > 0
               ? `${selectedMonthTaskCount} task${selectedMonthTaskCount === 1 ? "" : "s"} scheduled this month.`
               : "No tasks scheduled this month."}
           </p>
           {visibleRangeTaskCount > 0 && selectedMonthTaskCount !== visibleRangeTaskCount ? (
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 type-row-meta text-muted-foreground">
               Adjacent weeks show {visibleRangeTaskCount - selectedMonthTaskCount} task
               {visibleRangeTaskCount - selectedMonthTaskCount === 1 ? "" : "s"} from neighboring months.
             </p>
           ) : null}
           {undatedTaskCount > 0 ? (
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className="mt-2 type-row-meta text-muted-foreground">
               {undatedTaskCount} task{undatedTaskCount === 1 ? "" : "s"} without due dates stay in the table and board views.
             </p>
           ) : null}

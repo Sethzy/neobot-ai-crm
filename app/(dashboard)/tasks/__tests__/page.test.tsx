@@ -53,8 +53,8 @@ vi.mock("@/lib/supabase", () => ({
   },
 }));
 
-vi.mock("@/components/crm/crm-tasks-table", () => ({
-  CrmTasksTable: () => <div>CRM Tasks Table</div>,
+vi.mock("@/components/ui/list-table", () => ({
+  ListTable: () => <div>CRM Tasks Table</div>,
 }));
 
 vi.mock("@/hooks/use-record-drawer", () => ({

@@ -38,7 +38,7 @@ export function SkillInstallButton({
 
   return (
     <Button
-      className={variant === "ghost" ? "h-7 gap-1 px-2.5 text-xs text-muted-foreground hover:text-foreground" : "gap-1"}
+      className={variant === "ghost" ? "h-7 gap-1 px-2.5 text-caption text-muted-foreground hover:text-foreground" : "gap-1"}
       disabled={isPending}
       onClick={() => {
         startTransition(async () => {

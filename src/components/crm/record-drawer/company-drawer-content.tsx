@@ -41,8 +41,6 @@ import { RecordDetailPanelShell } from "./record-detail-panel-shell";
 interface CompanyDrawerContentProps {
   /** Company id selected in the drawer. */
   companyId: string;
-  /** Optional close control for inline desktop panels. */
-  closeButton?: ReactNode;
 }
 
 type CompanyDrawerTab = "home" | "contacts" | "deals" | "timeline" | "notes" | "files";
@@ -50,7 +48,7 @@ type CompanyDrawerTab = "home" | "contacts" | "deals" | "timeline" | "notes" | "
 /**
  * Renders company details together with linked records and the unified activity timeline.
  */
-export function CompanyDrawerContent({ companyId, closeButton }: CompanyDrawerContentProps) {
+export function CompanyDrawerContent({ companyId }: CompanyDrawerContentProps) {
   const { data: company, isLoading, isError } = useCompany(companyId);
   const { data: linkedContacts = [] } = useCompanyContacts(companyId);
   const { data: linkedDeals = [] } = useCompanyDeals(companyId);
@@ -65,7 +63,6 @@ export function CompanyDrawerContent({ companyId, closeButton }: CompanyDrawerCo
           <div className="space-y-4 p-5">
             <header className="space-y-2">
               <div className="flex items-center gap-2.5">
-                {closeButton ? <div className="shrink-0">{closeButton}</div> : null}
                 <Skeleton className="size-7 shrink-0 rounded-full" />
                 <Skeleton className="h-4 w-36" />
                 <Skeleton className="ml-auto h-3 w-24 shrink-0" />
@@ -119,7 +116,6 @@ export function CompanyDrawerContent({ companyId, closeButton }: CompanyDrawerCo
     <RecordDetailPanelShell
       title={company.name}
       meta={`Updated ${formatDistanceToNow(new Date(company.updated_at), { addSuffix: true })}`}
-      closeButton={closeButton}
       avatar={
         <Avatar size="sm">
           <AvatarFallback className="bg-emerald-500/10 text-xs font-medium text-emerald-700 dark:text-emerald-400">

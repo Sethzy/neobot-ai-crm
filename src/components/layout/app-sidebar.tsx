@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import posthog from "posthog-js";
 import { toast } from "sonner";
 import { Logo } from "@/components/landing/Logo";
@@ -16,6 +16,7 @@ import { AppIcon, type AppIconName } from "@/components/icons/app-icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/hooks/use-session";
 import { supabase } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
 import {
   Sidebar,
   SidebarContent,
@@ -45,24 +46,16 @@ interface NavigationItem {
   icon: AppIconName;
 }
 
-/** AGENT section — primary operating surfaces */
-const agentNavItems: NavigationItem[] = [
+/** Primary navigation — flat list, no section headers */
+const primaryNavItems: NavigationItem[] = [
   { label: "Agent", href: "/agent", icon: "agent" },
   { label: "New Task", href: "/chat", icon: "compose" },
-  { label: "Skills", href: "/skills", icon: "document" },
   { label: "Tasks", href: "/tasks", icon: "tasks" },
   { label: "Automations", href: "/automations", icon: "automations" },
-];
-
-/** DATABASE section — data-centric surfaces */
-const customersNavItems: NavigationItem[] = [
+  { label: "Skills", href: "/skills", icon: "document" },
   { label: "People", href: "/customers/people", icon: "contacts" },
   { label: "Companies", href: "/customers/companies", icon: "building" },
   { label: "Deals", href: "/customers/deals", icon: "deals" },
-];
-
-/** DATABASE section — data-centric surfaces */
-const databaseNavItems: NavigationItem[] = [
   { label: "Meetings", href: "/meetings", icon: "meeting" },
 ];
 
@@ -79,6 +72,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
   const { threads, isLoading: isThreadsLoading, archiveThread } = useThreads();
   const visibleThreads = threads.slice(0, 5);
   const hasOverflow = threads.length > 5;
+  const [isChatsOpen, setIsChatsOpen] = useState(true);
 
   const closeMobileSidebar = useCallback(() => {
     if (isMobile) {
@@ -134,7 +128,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
             asChild
             isActive={isActive}
             tooltip={item.label}
-            className="hover:bg-muted/50 data-[active=true]:bg-muted/60 data-[active=true]:text-foreground data-[active=true]:font-medium data-[active=true]:hover:bg-muted/70 transition-colors"
+            className="transition-colors hover:bg-sidebar-accent/70 data-[active=true]:bg-app-surface data-[active=true]:font-medium data-[active=true]:text-foreground data-[active=true]:ring-1 data-[active=true]:ring-app-border-subtle data-[active=true]:shadow-xs data-[active=true]:hover:bg-app-surface"
           >
             <Link href={item.href} onClick={closeMobileSidebar}>
               <AppIcon name={item.icon} className="h-4 w-4" />
@@ -146,7 +140,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
     });
 
   return (
-    <Sidebar collapsible="icon" className="bg-background">
+    <Sidebar collapsible="icon" className="bg-app-sidebar">
       {/* Logo — tighter vertical padding */}
       <SidebarHeader className="px-3 pt-3 pb-2">
         <Logo />
@@ -154,10 +148,10 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
 
       {/* Navigation — reduced group spacing */}
       <SidebarContent className="px-2">
-        {/* Search — opens the global command palette */}
-        {onOpenCommandMenu ? (
-          <SidebarGroup className="py-1">
-            <SidebarMenu>
+        {/* Primary nav — flat list, Search inline so it groups with the rest */}
+        <SidebarGroup className="py-1">
+          <SidebarMenu>
+            {onOpenCommandMenu ? (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   tooltip="Search"
@@ -165,46 +159,51 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                     onOpenCommandMenu();
                     closeMobileSidebar();
                   }}
-                  className="hover:bg-muted/50 transition-colors"
+                  className="transition-colors hover:bg-sidebar-accent/70"
                 >
                   <AppIcon name="search" className="h-4 w-4" />
                   <span>Search</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroup>
-        ) : null}
-
-        {/* AGENT section */}
-        <SidebarGroup className="py-1">
-          <SidebarGroupLabel className="h-6 tracking-[0.12em] text-muted-foreground/50">
-            Agent
-          </SidebarGroupLabel>
-          <SidebarMenu>{renderNavItems(agentNavItems)}</SidebarMenu>
+            ) : null}
+            {renderNavItems(primaryNavItems)}
+          </SidebarMenu>
         </SidebarGroup>
 
-        {/* CUSTOMERS section */}
+        {/* Chats section — thread history, always visible */}
         <SidebarGroup className="py-1">
-          <SidebarGroupLabel className="h-6 tracking-[0.12em] text-muted-foreground/50">
-            Customers
+          <SidebarGroupLabel className="h-7 gap-0 px-0 type-control-muted font-normal normal-case tracking-normal text-muted-foreground">
+            <button
+              type="button"
+              onClick={() => setIsChatsOpen((open) => !open)}
+              aria-expanded={isChatsOpen}
+              aria-controls="sidebar-chats-list"
+              className="flex h-full flex-1 items-center gap-1 rounded-md px-2 text-left transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+            >
+              <span>Chats</span>
+              <AppIcon
+                name="chevronDown"
+                className={cn(
+                  "h-3.5 w-3.5 text-muted-foreground/60 transition-transform duration-150",
+                  !isChatsOpen && "-rotate-90",
+                )}
+              />
+            </button>
+            <Link
+              href="/chat"
+              onClick={closeMobileSidebar}
+              aria-label="New chat"
+              title="New chat"
+              className="mr-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+            >
+              <AppIcon name="add" className="h-3.5 w-3.5" />
+              <span className="sr-only">New chat</span>
+            </Link>
           </SidebarGroupLabel>
-          <SidebarMenu>{renderNavItems(customersNavItems)}</SidebarMenu>
-        </SidebarGroup>
-
-        {/* DATABASE section */}
-        <SidebarGroup className="py-1">
-          <SidebarGroupLabel className="h-6 tracking-[0.12em] text-muted-foreground/50">
-            Database
-          </SidebarGroupLabel>
-          <SidebarMenu>{renderNavItems(databaseNavItems)}</SidebarMenu>
-        </SidebarGroup>
-
-        {/* SESSIONS section — thread history, always visible */}
-        <SidebarGroup className="py-1">
-          <SidebarGroupLabel className="h-6 tracking-[0.12em] text-muted-foreground/50">
-            Sessions
-          </SidebarGroupLabel>
-          <SidebarMenu>
+          <SidebarMenu
+            id="sidebar-chats-list"
+            className={cn(!isChatsOpen && "hidden")}
+          >
             {isThreadsLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <SidebarMenuItem key={i}>
@@ -219,16 +218,18 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                   asChild
                   isActive={pathname.startsWith(`/chat/${thread.id}`)}
                   tooltip={thread.title}
-                  className="hover:bg-muted/50 data-[active=true]:bg-muted/60 data-[active=true]:text-foreground data-[active=true]:font-medium transition-colors"
+                  className="transition-colors hover:bg-sidebar-accent/70 data-[active=true]:bg-app-surface data-[active=true]:font-medium data-[active=true]:text-foreground data-[active=true]:ring-1 data-[active=true]:ring-app-border-subtle data-[active=true]:shadow-xs"
                 >
                   <Link
                     href={`/chat/${thread.id}`}
                     onClick={() => closeMobileSidebar()}
                   >
                     {thread.sourceType === "automation_run" ? (
-                      <AppIcon name="automations" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    ) : null}
-                    <span className="truncate text-sm">{thread.title}</span>
+                      <AppIcon name="automations" className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    ) : (
+                      <AppIcon name="chat" className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    )}
+                    <span className="truncate">{thread.title}</span>
                   </Link>
                 </SidebarMenuButton>
                 {thread.isPinned ? null : (
@@ -256,7 +257,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                 <AllChatsPopover pathname={pathname} onNavigate={closeMobileSidebar}>
                   <SidebarMenuButton
                     tooltip="All chats"
-                    className="hover:bg-muted/50 text-muted-foreground transition-colors"
+                    className="text-muted-foreground transition-colors hover:bg-sidebar-accent/70"
                   >
                     <AppIcon name="more" className="h-4 w-4" />
                     <span>All chats</span>
@@ -276,7 +277,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
               asChild
               isActive={pathname.startsWith("/settings")}
               tooltip="Settings"
-              className="hover:bg-muted/50 data-[active=true]:bg-muted/60 data-[active=true]:text-foreground data-[active=true]:font-medium transition-colors"
+              className="transition-colors hover:bg-sidebar-accent/70 data-[active=true]:bg-app-surface data-[active=true]:font-medium data-[active=true]:text-foreground data-[active=true]:ring-1 data-[active=true]:ring-app-border-subtle data-[active=true]:shadow-xs"
             >
               <Link href="/settings" onClick={closeMobileSidebar}>
                 <AppIcon name="settings" className="h-4 w-4" />
@@ -291,12 +292,12 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
                   tooltip={user?.email || "User"}
-                  className="hover:bg-muted/50 transition-colors"
+                  className="transition-colors hover:bg-sidebar-accent/70"
                 >
                   <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-foreground text-caption font-semibold text-background">
                     {user?.email?.charAt(0).toUpperCase()}
                   </div>
-                  <span className="truncate text-sm text-foreground/80">
+                  <span className="truncate type-control text-foreground/80">
                     {user?.email}
                   </span>
                   <AppIcon

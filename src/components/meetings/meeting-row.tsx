@@ -40,13 +40,13 @@ export function MeetingRow({ meeting }: MeetingRowProps) {
   return (
     <Link
       href={`/meetings/${meeting.meeting_record_id}`}
-      className="group flex items-center justify-between rounded-md px-3 py-2.5 transition-colors hover:bg-muted/50"
+      className="group flex items-center justify-between rounded-xl px-3 py-3 transition-colors hover:bg-app-hover/80"
     >
       <div className="flex min-w-0 items-center gap-2.5">
         <AppIcon name="meeting" className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <span className="truncate text-sm font-medium text-foreground">{title}</span>
+        <span className="type-row-title truncate text-foreground">{title}</span>
       </div>
-      <div className="ml-3 flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
+      <div className="ml-3 flex shrink-0 items-center gap-3 type-row-meta text-muted-foreground">
         {duration ? <span>{duration}</span> : null}
         <span>{time}</span>
       </div>

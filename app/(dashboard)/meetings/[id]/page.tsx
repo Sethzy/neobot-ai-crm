@@ -10,6 +10,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { PageCanvas, PageSurface } from "@/components/layout/page-canvas";
+import { PageHeader } from "@/components/layout/page-header";
 import { SummaryView } from "@/components/meetings/summary-view";
 import {
   type TranscriptSegment,
@@ -135,25 +137,26 @@ export default function MeetingDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading meeting...</p>
-      </div>
+      <PageCanvas className="items-center justify-center">
+        <p className="type-control-muted">Loading meeting...</p>
+      </PageCanvas>
     );
   }
 
   if (!meeting) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2">
-        <p className="text-sm text-muted-foreground">Meeting not found.</p>
-        <Link href="/meetings" className="text-sm text-primary underline">
+      <PageCanvas className="items-center justify-center">
+        <p className="type-control-muted">Meeting not found.</p>
+        <Link href="/meetings" className="type-control text-primary underline">
           Back to meetings
         </Link>
-      </div>
+      </PageCanvas>
     );
   }
 
   const existingThreadId = meeting.thread_id;
   const currentMeetingId = meeting.meeting_record_id;
+  const meetingTitle = meeting.title || "New Chat";
   const noteCount = countNotes(meeting.notes);
   const sendToAgentLabel = existingThreadId ? "Open agent thread" : "Send to agent";
   const pendingSendToAgentLabel = existingThreadId ? "Opening thread..." : "Opening agent...";
@@ -175,7 +178,7 @@ export default function MeetingDetailPage() {
           {
             thread_id: threadId,
             client_id: clientId ?? "",
-            title: meeting.title || "New Chat",
+            title: meetingTitle,
             is_pinned: false,
             is_primary: false,
             is_archived: false,
@@ -218,44 +221,53 @@ export default function MeetingDetailPage() {
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="px-4 pt-3 pb-1">
+    <PageCanvas>
+      <div>
         <Link
           href="/meetings"
-          className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="flex items-center gap-1 type-control-muted text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Meetings
         </Link>
       </div>
 
-      <div className="flex-1 space-y-6 overflow-y-auto px-4 py-2">
-        <div className="border-b pb-4">
-          <h1 className="text-xl font-bold leading-snug">{meeting.title || "Untitled meeting"}</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            {formatDetailDate(meeting.created_at)}
-            {meeting.duration_seconds ? ` · ${formatDetailDuration(meeting.duration_seconds)}` : ""}
-            {noteCount > 0 ? ` · ${noteCount} note${noteCount !== 1 ? "s" : ""}` : ""}
-          </p>
+      <PageSurface className="space-y-6">
+        <div className="border-b border-app-border-subtle pb-4">
+          <PageHeader
+            title={meeting.title || "Untitled meeting"}
+            titleClassName="leading-snug"
+            meta={[
+              formatDetailDate(meeting.created_at),
+              meeting.duration_seconds
+                ? formatDetailDuration(meeting.duration_seconds)
+                : null,
+              noteCount > 0 ? `${noteCount} note${noteCount !== 1 ? "s" : ""}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          />
         </div>
 
         <section>
           <SummaryView summary={meeting.summary} status={meeting.status} />
         </section>
 
-        <TranscriptSection transcriptText={transcriptText} segments={transcriptSegments} />
+        <PageSurface variant="muted">
+          <TranscriptSection transcriptText={transcriptText} segments={transcriptSegments} />
+        </PageSurface>
 
         {meeting.notes && meeting.notes.trim().length > 0 ? (
-          <section className="border-t pt-3">
-            <h2 className="mb-2 text-sm font-semibold">Notes</h2>
-            <p className="whitespace-pre-wrap text-sm text-foreground">{meeting.notes}</p>
+          <section className="border-t border-app-border-subtle pt-3">
+            <h2 className="mb-2 type-toolbar-title">Notes</h2>
+            <p className="whitespace-pre-wrap text-body leading-relaxed text-foreground">{meeting.notes}</p>
           </section>
         ) : null}
-      </div>
+      </PageSurface>
 
-      <div className="border-t px-4 py-3">
+      <div className="border-t border-app-border-subtle pt-3">
         {sendError ? (
-          <p className="mb-2 text-sm text-destructive">{sendError}</p>
+          <p className="mb-2 type-control text-destructive">{sendError}</p>
         ) : null}
         <Button
           type="button"
@@ -269,6 +281,6 @@ export default function MeetingDetailPage() {
           {isSendingToAgent ? pendingSendToAgentLabel : sendToAgentLabel}
         </Button>
       </div>
-    </div>
+    </PageCanvas>
   );
 }

@@ -111,9 +111,9 @@ export function AutopilotCard({ initialConfig }: AutopilotCardProps) {
     <Card className="border-border/70 bg-card shadow-sm">
       <CardHeader className="gap-2">
         <div className="flex items-center justify-between">
-          <div className="space-y-1.5">
-            <CardDescription>Agent</CardDescription>
-            <CardTitle className="text-2xl">Autopilot</CardTitle>
+          <div className="space-y-1">
+            <CardDescription className="type-row-meta">Agent</CardDescription>
+            <CardTitle className="type-toolbar-title">Autopilot</CardTitle>
           </div>
           <Switch
             checked={config.enabled}
@@ -121,7 +121,7 @@ export function AutopilotCard({ initialConfig }: AutopilotCardProps) {
             onCheckedChange={(enabled) => void save({ enabled })}
           />
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p className="type-toolbar-description">
           Your agent thinks on its own periodically — checking CRM, following up on tasks, and
           keeping memory up to date.
         </p>
@@ -130,7 +130,7 @@ export function AutopilotCard({ initialConfig }: AutopilotCardProps) {
       <CardContent className="space-y-5">
         {/* Pulse interval */}
         <div className="flex items-center gap-4">
-          <Label htmlFor="pulse-interval" className="min-w-fit text-sm text-muted-foreground">
+          <Label htmlFor="pulse-interval" className="min-w-fit type-control-muted">
             Pulse every
           </Label>
           <Select
@@ -153,7 +153,7 @@ export function AutopilotCard({ initialConfig }: AutopilotCardProps) {
 
         {/* Timezone */}
         <div className="flex items-center gap-4">
-          <Label htmlFor="timezone" className="min-w-fit text-sm text-muted-foreground">
+          <Label htmlFor="timezone" className="min-w-fit type-control-muted">
             Timezone
           </Label>
           <Select
@@ -176,8 +176,8 @@ export function AutopilotCard({ initialConfig }: AutopilotCardProps) {
 
         {/* Quiet hours */}
         <div className="space-y-2">
-          <Label className="text-sm text-muted-foreground">Quiet hours</Label>
-          <p className="text-xs text-muted-foreground/70">
+          <Label className="type-control-muted">Quiet hours</Label>
+          <p className="type-row-meta">
             Pause autopilot pulses during these hours.
           </p>
           <div className="flex items-center gap-3">
@@ -185,7 +185,7 @@ export function AutopilotCard({ initialConfig }: AutopilotCardProps) {
               type="time"
               value={config.quiet_hours_start ?? ""}
               disabled={isSaving}
-              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="rounded-md border border-input bg-background px-3 py-2 text-control"
               onChange={(e) => {
                 const start = e.target.value || null;
                 void save({
@@ -194,12 +194,12 @@ export function AutopilotCard({ initialConfig }: AutopilotCardProps) {
                 });
               }}
             />
-            <span className="text-sm text-muted-foreground">to</span>
+            <span className="type-control-muted">to</span>
             <input
               type="time"
               value={config.quiet_hours_end ?? ""}
               disabled={isSaving}
-              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="rounded-md border border-input bg-background px-3 py-2 text-control"
               onChange={(e) => {
                 const end = e.target.value || null;
                 void save({
@@ -212,7 +212,7 @@ export function AutopilotCard({ initialConfig }: AutopilotCardProps) {
               <button
                 type="button"
                 disabled={isSaving}
-                className="text-xs text-muted-foreground underline hover:text-foreground"
+                className="type-row-meta underline hover:text-foreground"
                 onClick={() => void save({ quiet_hours_start: null, quiet_hours_end: null })}
               >
                 Clear

@@ -78,10 +78,8 @@ export function AutomationsList({
       <div className="space-y-6">
         {active.length > 0 && (
           <section>
-            <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
-              Active
-            </h3>
-            <div className="divide-y divide-border/30 rounded-xl border border-border/40 bg-card shadow-sm">
+            <h3 className="mb-3 type-section-title">Active</h3>
+            <div className="surface-app divide-y divide-app-border-subtle/80 overflow-hidden p-0">
               <AnimatePresence initial={false}>
                 {active.map((trigger) => (
                   <motion.div
@@ -103,10 +101,8 @@ export function AutomationsList({
 
         {inactive.length > 0 && (
           <section>
-            <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
-              Inactive
-            </h3>
-            <div className="divide-y divide-border/30 rounded-xl border border-border/40 bg-card shadow-sm">
+            <h3 className="mb-3 type-section-title">Inactive</h3>
+            <div className="surface-app divide-y divide-app-border-subtle/80 overflow-hidden p-0">
               <AnimatePresence initial={false}>
                 {inactive.map((trigger) => (
                   <motion.div
@@ -138,20 +134,20 @@ function AutomationRow({
   onToggleEnabled: (triggerId: string, enabled: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-muted/30">
+    <div className="flex items-center justify-between px-4 py-2.5 transition-colors hover:bg-app-hover/60">
       <Link
         href={`/automations/${trigger.id}`}
         className="flex min-w-0 flex-1 items-center gap-3"
       >
         <div className="min-w-0">
-          <span className="font-medium text-foreground/90">{trigger.name}</span>
+          <span className="type-row-title text-foreground/90">{trigger.name}</span>
           <Badge
             variant={getStatusVariant(trigger)}
             className="ml-3 align-middle"
           >
             {getStatusLabel(trigger)}
           </Badge>
-          <span className="ml-3 text-sm text-muted-foreground">
+          <span className="ml-3 type-row-meta text-muted-foreground">
             {cronToHuman(trigger.cron_expression)}
           </span>
         </div>
@@ -159,7 +155,7 @@ function AutomationRow({
 
       <div className="flex shrink-0 items-center gap-4">
         {trigger.enabled && trigger.next_fire_at && (
-          <span className="text-sm text-muted-foreground">
+          <span className="type-row-meta text-muted-foreground">
             {formatCountdown(trigger.next_fire_at)}
           </span>
         )}

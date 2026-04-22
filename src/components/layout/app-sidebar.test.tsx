@@ -74,15 +74,16 @@ describe("AppSidebar", () => {
     expect(screen.getByText("neobot")).toBeInTheDocument();
   });
 
-  it("renders AGENT section nav items", () => {
+  it("renders agent-related nav items", () => {
     render(<AppSidebar />, { wrapper });
+    expect(screen.getByText("Agent")).toBeInTheDocument();
     expect(screen.getByText("New Task")).toBeInTheDocument();
     expect(screen.getByText("Skills")).toBeInTheDocument();
     expect(screen.getByText("Tasks")).toBeInTheDocument();
     expect(screen.getByText("Automations")).toBeInTheDocument();
   });
 
-  it("renders customer and database section nav items without Knowledge or Workspace", () => {
+  it("renders CRM nav items without Knowledge or Workspace", () => {
     render(<AppSidebar />, { wrapper });
     expect(screen.getByText("People")).toBeInTheDocument();
     expect(screen.getByText("Companies")).toBeInTheDocument();
@@ -92,11 +93,11 @@ describe("AppSidebar", () => {
     expect(screen.getByText("Meetings")).toBeInTheDocument();
   });
 
-  it("renders section headers", () => {
+  it("does not render Agent / Customers / Database section headers", () => {
     render(<AppSidebar />, { wrapper });
-    // "Agent" appears as both a section header and a nav item
-    expect(screen.getAllByText("Agent").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Database")).toBeInTheDocument();
+    // Nav item "Agent" still exists, but there should be no standalone "Customers" or "Database" labels
+    expect(screen.queryByText("Customers")).not.toBeInTheDocument();
+    expect(screen.queryByText("Database")).not.toBeInTheDocument();
   });
 
   it("renders Settings in footer", () => {
@@ -122,10 +123,10 @@ describe("AppSidebar", () => {
     expect(screen.queryByText("Instructions")).not.toBeInTheDocument();
   });
 
-  it("renders sessions section with thread history", () => {
+  it("renders chats section with thread history", () => {
     render(<AppSidebar />, { wrapper });
 
-    expect(screen.getByText("Sessions")).toBeInTheDocument();
+    expect(screen.getByText("Chats")).toBeInTheDocument();
     expect(screen.getByText("Test Chat")).toBeInTheDocument();
   });
 

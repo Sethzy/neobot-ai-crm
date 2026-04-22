@@ -93,7 +93,7 @@ export function SkillDetailDialog({
             {markdown ? (
               <SkillMarkdownViewer content={markdown} />
             ) : (
-              <p className="text-sm text-muted-foreground">
+              <p className="type-control-muted text-muted-foreground">
                 No documentation available for this skill.
               </p>
             )}

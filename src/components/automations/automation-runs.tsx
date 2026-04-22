@@ -64,8 +64,8 @@ export function AutomationRuns({ runs, isLoading }: AutomationRunsProps) {
   if (runs.length === 0) {
     return (
       <div className="rounded-xl border border-border/40 bg-card p-10 text-center shadow-sm">
-        <p className="text-sm text-muted-foreground">No runs yet</p>
-        <p className="mt-1 text-xs text-muted-foreground/60">
+        <p className="type-empty-title text-muted-foreground">No runs yet</p>
+        <p className="mt-1 type-empty-copy text-muted-foreground/60">
           Runs will appear here after the automation executes.
         </p>
       </div>
@@ -78,9 +78,7 @@ export function AutomationRuns({ runs, isLoading }: AutomationRunsProps) {
     <div className="space-y-4">
       {groups.map((group) => (
         <section key={group.label}>
-          <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
-            {group.label}
-          </h4>
+          <h4 className="mb-2 type-section-title">{group.label}</h4>
           <div className="divide-y divide-border/30 rounded-xl border border-border/40 bg-card shadow-sm">
             {group.runs.map((run) => (
               <RunRow key={run.run_id} run={run} />
@@ -103,10 +101,10 @@ function RunRow({ run }: { run: TriggerRun }) {
       <span
         className={`h-2 w-2 shrink-0 rounded-full ${STATUS_COLORS[run.status] ?? "bg-muted-foreground"}`}
       />
-      <span className="min-w-0 flex-1 truncate text-sm text-foreground/90">
+      <span className="min-w-0 flex-1 truncate type-row-title text-foreground/90">
         {run.thread_title || "Untitled run"}
       </span>
-      <span className="shrink-0 text-xs text-muted-foreground">{time}</span>
+      <span className="shrink-0 type-row-meta text-muted-foreground">{time}</span>
     </div>
   );
 

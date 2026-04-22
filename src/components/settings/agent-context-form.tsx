@@ -104,18 +104,18 @@ export function AgentContextForm({
   return (
     <div className="space-y-6">
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="rounded-[1.8rem] border-border/60 bg-card/95 shadow-[0_1px_2px_rgba(15,23,42,0.03),0_24px_48px_-38px_rgba(15,23,42,0.22)]">
+        <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-4 pb-1">
             <div className="space-y-1">
-              <CardDescription>Agent personality</CardDescription>
-              <CardTitle className="font-serif text-subhead">Client profile</CardTitle>
+              <CardDescription className="type-row-meta">Agent personality</CardDescription>
+              <CardTitle className="type-toolbar-title">Client profile</CardTitle>
             </div>
-            <span className="shrink-0 rounded-full border border-border/70 bg-background/85 px-3 py-1.5 text-caption font-medium leading-none tracking-[0.02em] text-muted-foreground shadow-sm">
+            <span className="shrink-0 rounded-full border border-app-border-subtle bg-app-surface-muted px-3 py-1.5 text-caption font-medium leading-none tracking-[0.02em] text-muted-foreground shadow-sm">
               {countLabel(clientProfile)}
             </span>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="measure-copy max-w-[34rem] text-body text-muted-foreground">
+            <p className="measure-copy max-w-[34rem] type-toolbar-description">
               Use this for voice, operating style, business context, and persistent instructions
               that should shape how Sunder acts for this workspace.
             </p>
@@ -134,18 +134,18 @@ export function AgentContextForm({
           </CardContent>
         </Card>
 
-        <Card className="rounded-[1.8rem] border-border/60 bg-card/95 shadow-[0_1px_2px_rgba(15,23,42,0.03),0_24px_48px_-38px_rgba(15,23,42,0.22)]">
+        <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-4 pb-1">
             <div className="space-y-1">
-              <CardDescription>User profile</CardDescription>
-              <CardTitle className="font-serif text-subhead">User preferences</CardTitle>
+              <CardDescription className="type-row-meta">User profile</CardDescription>
+              <CardTitle className="type-toolbar-title">User preferences</CardTitle>
             </div>
-            <span className="shrink-0 rounded-full border border-border/70 bg-background/85 px-3 py-1.5 text-caption font-medium leading-none tracking-[0.02em] text-muted-foreground shadow-sm">
+            <span className="shrink-0 rounded-full border border-app-border-subtle bg-app-surface-muted px-3 py-1.5 text-caption font-medium leading-none tracking-[0.02em] text-muted-foreground shadow-sm">
               {countLabel(userPreferences)}
             </span>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="measure-copy max-w-[34rem] text-body text-muted-foreground">
+            <p className="measure-copy max-w-[34rem] type-toolbar-description">
               Use this for how the user prefers to communicate and work: tone, decision style,
               formatting preferences, and durable personal context.
             </p>
@@ -165,8 +165,8 @@ export function AgentContextForm({
         </Card>
       </div>
 
-      <div className="flex items-center justify-between gap-4 border-t pt-4">
-        <p className="text-sm text-muted-foreground">
+      <div className="flex items-center justify-between gap-4 border-t border-app-border-subtle pt-4">
+        <p className="type-toolbar-description">
           Markdown-friendly text is fine. Each field is capped at {MAX_CONTEXT_LENGTH.toLocaleString()} characters.
         </p>
         <Button disabled={isPending || !hasChanges} onClick={handleSave}>
@@ -175,7 +175,7 @@ export function AgentContextForm({
       </div>
 
       {message ? (
-        <p className={message.isError ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>
+        <p className={message.isError ? "type-row-meta text-destructive" : "type-row-meta"}>
           {message.text}
         </p>
       ) : null}

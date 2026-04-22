@@ -27,7 +27,10 @@ import {
   isAuthRedirectExpired,
   parseAuthRedirectExpiry,
 } from "@/lib/connections/auth-link";
-import { getSupportedProviderDisplayName } from "@/lib/managed-agents/tools/supported-providers";
+import {
+  getSupportedProviderBranding,
+  getSupportedProviderDisplayName,
+} from "@/lib/managed-agents/tools/supported-providers";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import {
@@ -281,6 +284,10 @@ function useProviderDisplayMetadata(results: ConnectionCardResult[]) {
     ...fetchedMetadataBySlug,
   };
   const missingSlugs = normalizedSlugs.filter((slug) => {
+    if (getSupportedProviderBranding(slug)?.logoUrl) {
+      return false;
+    }
+
     if (providerDisplayMetadataCache.has(slug) || fetchedMetadataBySlug[slug]) {
       return false;
     }
@@ -357,13 +364,15 @@ function resolveProviderBranding({
   logoUrl?: string | null;
   hydratedMetadata?: ProviderDisplayMetadata | null;
 }) {
+  const localBranding = getSupportedProviderBranding(slug);
+
   return {
     displayName: getReadableProviderName(
       slug,
-      hydratedMetadata?.displayName ?? displayName,
+      localBranding?.displayName ?? hydratedMetadata?.displayName ?? displayName,
     ),
-    description: hydratedMetadata?.description ?? description ?? "",
-    logoUrl: logoUrl ?? hydratedMetadata?.logoUrl ?? null,
+    description: localBranding?.description ?? hydratedMetadata?.description ?? description ?? "",
+    logoUrl: localBranding?.logoUrl ?? logoUrl ?? hydratedMetadata?.logoUrl ?? null,
   };
 }
 
@@ -450,6 +459,8 @@ function ProviderBrand({
               hasLoaded ? "opacity-100" : "opacity-0",
             )}
             decoding="async"
+            loading="eager"
+            fetchPriority="high"
             referrerPolicy="no-referrer"
             onLoad={handleLoad}
             onError={handleError}

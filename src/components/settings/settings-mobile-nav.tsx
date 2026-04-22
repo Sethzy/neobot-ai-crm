@@ -56,7 +56,7 @@ export function SettingsMobileNav() {
           </div>
         </SheetContent>
       </Sheet>
-      <span className="text-sm font-medium text-foreground">{resolveCurrentTitle(pathname)}</span>
+      <span className="type-control">{resolveCurrentTitle(pathname)}</span>
     </div>
   );
 }

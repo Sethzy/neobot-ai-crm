@@ -74,23 +74,23 @@ export function SummaryView({ summary, status }: SummaryViewProps) {
     return (
       <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
         <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-        <span className="text-sm">Generating summary...</span>
+        <span className="type-control">Generating summary...</span>
       </div>
     );
   }
 
   if (!summary) {
-    return <p className="py-4 text-sm text-muted-foreground">No summary available.</p>;
+    return <p className="py-4 type-control-muted text-muted-foreground">No summary available.</p>;
   }
 
   const parsedSummary = parseSummary(summary);
   if (parsedSummary.kind === "plain") {
     if (!parsedSummary.text) {
-      return <p className="py-4 text-sm text-muted-foreground">No summary available.</p>;
+      return <p className="py-4 type-control-muted text-muted-foreground">No summary available.</p>;
     }
 
     return (
-      <p className="py-4 text-sm leading-relaxed whitespace-pre-wrap text-foreground">
+      <p className="py-4 text-meta leading-relaxed whitespace-pre-wrap text-foreground">
         {parsedSummary.text}
       </p>
     );
@@ -102,19 +102,19 @@ export function SummaryView({ summary, status }: SummaryViewProps) {
   );
 
   if (nonEmptySections.length === 0) {
-    return <p className="py-4 text-sm text-muted-foreground">No summary content extracted.</p>;
+    return <p className="py-4 type-control-muted text-muted-foreground">No summary content extracted.</p>;
   }
 
   return (
     <div className="space-y-5">
       {nonEmptySections.map((key) => (
         <div key={key}>
-          <h3 className="mb-2 text-sm font-semibold text-foreground">
+          <h3 className="mb-2 type-control text-foreground">
             {SECTION_LABELS[key]}
           </h3>
           <ul className="space-y-1.5">
             {data[key].map((item, index) => (
-              <li key={index} className="flex gap-2 text-sm text-foreground">
+              <li key={index} className="flex gap-2 text-meta text-foreground">
                 <span className="mt-[0.3rem] shrink-0 text-muted-foreground/60">•</span>
                 <span className="leading-relaxed">{item}</span>
               </li>

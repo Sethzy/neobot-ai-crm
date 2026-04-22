@@ -9,6 +9,8 @@ import { formatMessageQuotaResetDate } from "@/lib/usage/message-quota";
 import { loadCurrentMessageQuota } from "@/lib/usage/message-quota-server";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { PageCanvas } from "@/components/layout/page-canvas";
+import { PageHeader } from "@/components/layout/page-header";
 import {
   Card,
   CardContent,
@@ -104,28 +106,21 @@ export default async function PricingPage({
   const paidPlanMap = new Map(paidPlans.map((plan) => [plan.name, plan]));
 
   return (
-    <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
-      <div className="max-w-5xl">
-        <div className="flex flex-col gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Plans &amp; Billing
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground/80">
-              Start on Free, then move paid plan changes and cancellations through Stripe&apos;s
-              hosted billing flows.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={billingSummary.hasPaidSubscription ? "success" : "secondary"}>
-              Current plan: {billingSummary.currentPlanName}
-            </Badge>
-            <Badge variant="outline">
-              Status: {formatStatusLabel(billingSummary.currentPlanStatus)}
-            </Badge>
-          </div>
-        </div>
+    <PageCanvas>
+        <PageHeader
+          title="Plans & Billing"
+          description="Start on Free, then move paid plan changes and cancellations through Stripe's hosted billing flows."
+          meta={
+            <>
+              <Badge variant={billingSummary.hasPaidSubscription ? "success" : "secondary"}>
+                Current plan: {billingSummary.currentPlanName}
+              </Badge>
+              <Badge variant="outline">
+                Status: {formatStatusLabel(billingSummary.currentPlanStatus)}
+              </Badge>
+            </>
+          }
+        />
 
         {billingNotice ? (
           <Alert className="mt-6" variant={billingNotice.variant}>
@@ -189,26 +184,26 @@ export default async function PricingPage({
 
                 <CardContent className="space-y-5">
                   <div>
-                    <div className="text-3xl font-semibold tracking-tight text-foreground">
+                    <div className="text-title text-foreground">
                       {isFreePlan
                         ? "Free"
                         : stripePlan
                           ? `${formatCurrency(stripePlan.amount, stripePlan.currency)}/mo`
                           : "Unavailable"}
                     </div>
-                    <p className="mt-2 text-sm text-muted-foreground">{trialLabel}</p>
-                    <p className="mt-2 text-sm text-muted-foreground">
+                    <p className="mt-2 type-control-muted text-muted-foreground">{trialLabel}</p>
+                    <p className="mt-2 type-control-muted text-muted-foreground">
                       {planDefinition.monthlyMessageLimit} messages / month
                     </p>
                     {isCurrentPlan && messageQuota ? (
-                      <p className="mt-1 text-sm text-muted-foreground">
+                      <p className="mt-1 type-row-meta text-muted-foreground">
                         {messageQuota.messagesUsed} used · {messageQuota.messagesRemaining}{" "}
                         remaining · resets {formatMessageQuotaResetDate(messageQuota.nextResetDate)}
                       </p>
                     ) : null}
                   </div>
 
-                  <ul className="space-y-3 text-sm text-muted-foreground">
+                  <ul className="space-y-3 text-meta text-muted-foreground">
                     {planDefinition.highlights.map((feature) => (
                       <li key={feature} className="flex items-start gap-2">
                         <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary/70" />
@@ -252,7 +247,7 @@ export default async function PricingPage({
                   )}
 
                   {planName === "Free" && billingSummary.hasPaidSubscription ? (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-caption text-muted-foreground">
                       Downgrades back to Free happen inside the Stripe portal.
                     </p>
                   ) : null}
@@ -261,7 +256,6 @@ export default async function PricingPage({
             );
           })}
         </div>
-      </div>
-    </div>
+    </PageCanvas>
   );
 }

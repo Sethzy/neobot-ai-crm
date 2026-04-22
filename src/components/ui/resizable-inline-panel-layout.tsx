@@ -16,8 +16,13 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
+import {
+  PAGE_CONTENT_MAX_WIDTH,
+  PAGE_GUTTER_CLASSES,
+} from "@/components/layout/page-canvas";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 const DEFAULT_PANEL_WIDTH = 420;
 const MIN_PANEL_WIDTH = 320;
@@ -113,18 +118,25 @@ export function ResizableInlinePanelLayout({
     };
   }, []);
 
-  const bodyClasses = [
-    "ml-3 min-h-0 min-w-0 flex-1 overflow-auto rounded-t-xl border-l border-t border-border/60 bg-card md:ml-4",
+  const bodyClasses = cn(
+    "min-h-0 min-w-0 flex-1 overflow-auto",
+    // Max-width is unconditional so the body stays centered at the shared page
+    // width regardless of panel state. Toggling it on panel open made the body
+    // re-center horizontally during the same 200–280ms as the panel's width
+    // animation, which compounded the perceived jank when the header's action
+    // button was fading. Fixed-column layout = stable horizontal rhythm.
+    "mx-auto w-full",
+    PAGE_CONTENT_MAX_WIDTH,
     bodyClassName,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  );
 
   if (isMobile) {
     return (
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-app-canvas">
         {header}
-        <div className={bodyClasses}>{children}</div>
+        <div className={cn("min-h-0 min-w-0 flex-1 pb-6", PAGE_GUTTER_CLASSES)}>
+          <div className={bodyClasses}>{children}</div>
+        </div>
         {mobileSlot}
       </div>
     );
@@ -139,29 +151,34 @@ export function ResizableInlinePanelLayout({
     : `width ${isPanelOpen ? 280 : 220}ms cubic-bezier(0.22, 1, 0.36, 1)`;
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-sidebar">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-app-canvas">
       {header}
 
-      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+      <div
+        className={cn(
+          "flex min-h-0 min-w-0 flex-1 gap-4 overflow-hidden pb-6",
+          PAGE_GUTTER_CLASSES,
+        )}
+      >
         <div className={bodyClasses}>{children}</div>
 
         {canRenderPanel ? (
           <div
-            className="flex shrink-0 overflow-hidden bg-sidebar motion-reduce:!transition-none"
+            className="flex shrink-0 overflow-hidden motion-reduce:!transition-none"
             style={{ width: outerWidth, transition: sharedTransition }}
             aria-hidden={!isPanelOpen}
           >
             <div
-              className="w-1.5 shrink-0 cursor-col-resize bg-sidebar transition-colors hover:bg-border/50 active:bg-border"
+              className="mx-1 w-1.5 shrink-0 cursor-col-resize rounded-full bg-transparent transition-colors hover:bg-app-border-strong/70 active:bg-app-border-strong"
               onMouseDown={handleDragStart}
               aria-hidden
             />
 
             <div
-              className="flex shrink-0 flex-col overflow-hidden bg-sidebar transition-opacity duration-200 ease-out motion-reduce:!transition-none"
+              className="flex shrink-0 flex-col overflow-hidden transition-opacity duration-200 ease-out motion-reduce:!transition-none"
               style={{ width: panelWidth, opacity: isPanelOpen ? 1 : 0 }}
             >
-              <div className="min-w-0 flex-1 overflow-hidden rounded-tl-xl border-l border-t border-border/60 bg-card">
+              <div className="surface-app min-w-0 flex-1 overflow-hidden">
                 {effectiveRender!({
                   closeButton: (
                     <Button

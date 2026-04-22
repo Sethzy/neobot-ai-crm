@@ -39,7 +39,7 @@ export function ChatThreadHeader({ threadId }: ChatThreadHeaderProps) {
 
   return (
     <header className="flex items-start justify-between gap-4 border-b border-border/40 bg-card px-6 py-3">
-      <nav className="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-muted-foreground">
+      <nav className="flex min-w-0 flex-1 items-center gap-1.5 type-control-muted text-muted-foreground">
         <AppIcon name="automations" className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
         <Link
           href="/automations"
@@ -70,10 +70,10 @@ export function ChatThreadHeader({ threadId }: ChatThreadHeaderProps) {
           <AppIcon name="automations" className="h-3.5 w-3.5" />
         </span>
         <span className="flex min-w-0 flex-col leading-tight">
-          <span className="truncate text-sm font-medium text-foreground">
+          <span className="type-row-title truncate text-foreground">
             {trigger.name}
           </span>
-          <span className="truncate text-xs text-muted-foreground">
+          <span className="truncate type-row-meta text-muted-foreground">
             {scheduleLabel}
             {countdown ? ` · ${countdown}` : null}
           </span>

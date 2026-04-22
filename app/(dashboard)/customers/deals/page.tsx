@@ -7,22 +7,23 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Handshake, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import posthog from "posthog-js";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-import { CrmListPanelLayout } from "@/components/crm/crm-list-panel-layout";
 import { DealKanbanCard } from "@/components/crm/deal-kanban-card";
 import { KanbanBoard } from "@/components/crm/kanban-board";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
-import { DealDrawerContent } from "@/components/crm/record-drawer/deal-drawer-content";
+import { RecordDrawer } from "@/components/crm/record-drawer";
 import { ViewPicker } from "@/components/crm/view-picker";
 import { ViewToggle } from "@/components/crm/view-toggle";
+import { PageCanvas } from "@/components/layout/page-canvas";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 
-import { DataTable } from "@/components/ui/data-table";
+import { ListTable } from "@/components/ui/list-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -179,13 +180,12 @@ function DealAmountCell({ dealId, amount }: DealAmountCellProps) {
 export default function DealsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { recordId, open } = useRecordDrawer();
+  const { recordId, open, close, isOpen: isDrawerOpen } = useRecordDrawer();
   const queryClient = useQueryClient();
   const { data: clientId } = useClientId();
   const { data: crmConfigResult } = useCrmConfig();
   const { view, setView } = useViewPreference("deals");
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<PipelineSortOption>("amount_desc");
   const [filterValues, setFilterValues] = useState<FilterValues>(() => {
     const stageQuery = searchParams?.get("stage")?.trim();
@@ -243,12 +243,11 @@ export default function DealsPage() {
             viewSort: activeSavedView.sort as { column: string; ascending: boolean } | undefined,
           }
         : {
-            search: search.trim() || undefined,
             stage: typeof filterValues.stage === "string" ? (filterValues.stage as Deal["stage"]) : undefined,
             createdAt: getDateRangeValue(filterValues.createdAt),
           }),
     }),
-    [activeSavedView, filterValues.createdAt, filterValues.stage, search],
+    [activeSavedView, filterValues.createdAt, filterValues.stage],
   );
 
   const tableFilters = useMemo(
@@ -282,7 +281,17 @@ export default function DealsPage() {
       if (error) throw error;
       return data;
     },
-    onSuccess: async (createdDeal) => {
+    onSuccess: (createdDeal) => {
+      // Seed the detail cache with the freshly-inserted row so the drawer
+      // mounts with data and skips its skeleton flicker. A new deal has no
+      // joined contacts or company yet.
+      queryClient.setQueryData(dealKeys.detail(createdDeal.deal_id), {
+        ...createdDeal,
+        deal_contacts: [],
+        companies: null,
+      });
+      open(createdDeal.deal_id);
+      void queryClient.invalidateQueries({ queryKey: dealKeys.all });
       void captureTimelineActivity({
         supabase,
         clientId: createdDeal.client_id,
@@ -298,9 +307,6 @@ export default function DealsPage() {
           });
         }
       });
-
-      await queryClient.invalidateQueries({ queryKey: dealKeys.all });
-      open(createdDeal.deal_id);
     },
     onError: () => {
       toast.error("Unable to create deal.");
@@ -516,7 +522,7 @@ export default function DealsPage() {
     [],
   );
 
-  const hasLocalFilters = search.trim().length > 0 || Object.keys(filterValues).length > 0;
+  const hasLocalFilters = Object.keys(filterValues).length > 0;
   const hasActiveFiltering = Boolean(activeSavedView) || hasLocalFilters;
   const isBoardView = activeLayout === "kanban";
 
@@ -536,70 +542,81 @@ export default function DealsPage() {
     );
   }
 
-  return (
-    <CrmListPanelLayout
-      objectType="deal"
-      icon={<Handshake className="h-4 w-4 text-muted-foreground" />}
-      title="Deals"
-      bodyClassName="space-y-6"
-      headerActions={
-        <div className="flex flex-wrap items-center gap-2">
-          <ViewPicker
-            entityType="deals"
-            activeViewId={activeSavedView?.view_id ?? null}
-            onViewChange={handleSavedViewChange}
-          />
-          {isBoardView && !activeSavedView ? (
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>Sort by</span>
-              <select
-                aria-label="Sort deals"
-                className="h-9 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-                value={sortBy}
-                onChange={(event) => setSortBy(event.target.value as PipelineSortOption)}
-              >
-                {Object.entries(pipelineSortOptions).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          <ViewToggle current={activeLayout} views={["table", "kanban"]} onChange={(nextView) => {
-            setView(nextView);
-            router.replace(buildDealsHref(searchParams, nextView));
-          }} />
-          <Button size="sm" onClick={() => createDeal.mutate()} disabled={!clientId || createDeal.isPending}>
-            <Plus className="h-4 w-4" />
-            New
-          </Button>
-        </div>
-      }
-      renderPanelContent={(id, { closeButton }) => (
-        <DealDrawerContent key={id} dealId={id} closeButton={closeButton} />
-      )}
+  const dealCount = activeLayout === "table" ? tableData?.total : sortedBoardDeals.length;
+
+  const newDealButton = (
+    <Button
+      size="sm"
+      onClick={() => createDeal.mutate()}
+      disabled={!clientId || createDeal.isPending}
     >
-      {!activeSavedView && (
-        <FilterBar
-          searchValue={search}
-          onSearchChange={(value) => {
-            setPage(1);
-            setSearch(value);
-          }}
-          searchPlaceholder="Search deals..."
-          filters={filters}
-          values={filterValues}
-          onApply={(nextValues) => {
-            setPage(1);
-            setFilterValues(nextValues);
-          }}
-          onClear={() => {
-            setPage(1);
-            setFilterValues({});
-          }}
-        />
-      )}
+      <Plus className="h-4 w-4" />
+      New
+    </Button>
+  );
+
+  const boardSortControl =
+    isBoardView && !activeSavedView ? (
+      <label className="flex items-center gap-1.5 type-control-muted text-muted-foreground">
+        <span>Sort</span>
+        <select
+          aria-label="Sort deals"
+          className="h-8 rounded-md border-none bg-transparent px-1 text-control font-medium text-foreground hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          value={sortBy}
+          onChange={(event) => setSortBy(event.target.value as PipelineSortOption)}
+        >
+          {Object.entries(pipelineSortOptions).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </label>
+    ) : null;
+
+  return (
+    <PageCanvas>
+      <PageHeader title="Deals" />
+      <FilterBar
+        leadingSlot={
+          <>
+            <ViewPicker
+              entityType="deals"
+              activeViewId={activeSavedView?.view_id ?? null}
+              onViewChange={handleSavedViewChange}
+              count={dealCount}
+            />
+            <ViewToggle
+              current={activeLayout}
+              views={["table", "kanban"]}
+              onChange={(nextView) => {
+                setView(nextView);
+                router.replace(buildDealsHref(searchParams, nextView));
+              }}
+            />
+          </>
+        }
+        trailingSlot={
+          <>
+            {boardSortControl}
+            {newDealButton}
+          </>
+        }
+        {...(activeSavedView
+          ? {}
+          : {
+              filters,
+              values: filterValues,
+              onApply: (nextValues: FilterValues) => {
+                setPage(1);
+                setFilterValues(nextValues);
+              },
+              onClear: () => {
+                setPage(1);
+                setFilterValues({});
+              },
+            })}
+      />
 
         {isBoardView ? (
           isBoardLoading ? (
@@ -619,7 +636,7 @@ export default function DealsPage() {
             </div>
           ) : isBoardError ? (
             <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-6">
-              <p className="text-sm text-destructive">Unable to load pipeline data.</p>
+              <p className="type-control text-destructive">Unable to load pipeline data.</p>
             </div>
           ) : sortedBoardDeals.length === 0 ? (
             <EmptyState
@@ -644,7 +661,7 @@ export default function DealsPage() {
             />
           )
         ) : (
-          <DataTable
+          <ListTable
             columns={columns}
             data={tableRows}
             isLoading={isTableLoading}
@@ -687,6 +704,12 @@ export default function DealsPage() {
             getRowId={(row) => row.deal_id}
             />
           )}
-    </CrmListPanelLayout>
+      <RecordDrawer
+        isOpen={isDrawerOpen}
+        recordId={recordId}
+        objectType="deal"
+        onClose={close}
+      />
+    </PageCanvas>
   );
 }

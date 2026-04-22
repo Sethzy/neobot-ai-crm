@@ -5,6 +5,8 @@
  */
 import { AgentContextForm } from "@/components/settings/agent-context-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PageCanvas } from "@/components/layout/page-canvas";
+import { PageHeader } from "@/components/layout/page-header";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { createClient } from "@/lib/supabase/server";
 
@@ -41,15 +43,12 @@ export default async function AgentMemoryPage() {
   const agentContext = await loadAgentContext();
 
   return (
-    <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">Memory</h1>
-          <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-            These two fields are injected into every managed-agent kickoff. Keep them stable,
-            durable, and high-signal.
-          </p>
-        </div>
+    <PageCanvas variant="content" contentClassName="max-w-6xl">
+        <PageHeader
+          title="Memory"
+          description="These two fields are injected into every managed-agent kickoff. Keep them stable, durable, and high-signal."
+          descriptionClassName="max-w-3xl"
+        />
 
         {agentContext.kind === "error" ? (
           <Alert variant="destructive">
@@ -65,7 +64,6 @@ export default async function AgentMemoryPage() {
             initialUserPreferences={agentContext.data.user_preferences ?? ""}
           />
         )}
-      </div>
-    </div>
+    </PageCanvas>
   );
 }

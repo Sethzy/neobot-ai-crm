@@ -28,8 +28,8 @@ export function CalendarTopBar({
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <p className="text-sm font-medium text-foreground">Calendar</p>
-        <h2 className="text-xl font-semibold text-foreground">{format(selectedMonth, "MMMM yyyy")}</h2>
+        <p className="type-control text-foreground">Calendar</p>
+        <h2 className="type-section-title text-foreground">{format(selectedMonth, "MMMM yyyy")}</h2>
       </div>
 
       <div className="flex items-center gap-2">

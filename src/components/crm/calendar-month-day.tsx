@@ -72,7 +72,7 @@ export function CalendarMonthDay({
       <div
         ref={setNodeRef}
         className={cn(
-          "mt-1 flex min-h-[60px] flex-1 flex-col gap-0.5 rounded-[4px] transition-colors",
+          "mt-1 flex min-h-[60px] flex-1 flex-col gap-0.5 rounded-lg transition-colors",
           isOver ? "bg-primary/5 outline outline-1 outline-dashed outline-primary/50" : "",
         )}
       >

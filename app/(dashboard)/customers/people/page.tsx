@@ -8,17 +8,18 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Users } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-import { CrmListPanelLayout } from "@/components/crm/crm-list-panel-layout";
-import { DictionaryValue, contactTypeDictionaryMap } from "@/components/crm/dictionary-value";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
-import { ContactDrawerContent } from "@/components/crm/record-drawer/contact-drawer-content";
+import { RecordDrawer } from "@/components/crm/record-drawer";
 import { ViewPicker } from "@/components/crm/view-picker";
+import { PageCanvas } from "@/components/layout/page-canvas";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
+import { FilterBar } from "@/components/ui/filter-bar";
+import { ListTable } from "@/components/ui/list-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { DateRangeFilterValue, FilterDef, FilterValues } from "@/components/ui/filter-overlay";
 
@@ -187,6 +188,7 @@ function ContactTypeCell({ contactId, type, contactTypes }: ContactTypeCellProps
     <QuickEditCell
       ariaLabel="Type"
       value={type}
+      displayValue={formatCrmEnumLabel(type)}
       type="select"
       options={options}
       onSave={async (nextValue) => {
@@ -198,14 +200,7 @@ function ContactTypeCell({ contactId, type, contactTypes }: ContactTypeCellProps
 
         await updateContact.mutateAsync({ type: nextType });
       }}
-    >
-      <DictionaryValue
-        value={type}
-        map={contactTypeDictionaryMap}
-        fallback={<span>{formatCrmEnumLabel(type)}</span>}
-        className="text-sm"
-      />
-    </QuickEditCell>
+    />
   );
 }
 
@@ -246,14 +241,13 @@ function ContactCompanyCell({ contactId, company, companies }: ContactCompanyCel
 export default function PeoplePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { recordId, open } = useRecordDrawer();
+  const { recordId, open, close, isOpen: isDrawerOpen } = useRecordDrawer();
   const queryClient = useQueryClient();
   const { data: clientId } = useClientId();
   const { data: crmConfigResult } = useCrmConfig();
   const { data: companies = [] } = useCompanies({});
   const { data: views } = useCrmViews("contacts");
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<FilterValues>({});
   const savedViewId = searchParams?.get("savedView") ?? null;
   const activeSavedView = views?.find((view) => view.view_id === savedViewId) ?? null;
@@ -296,7 +290,6 @@ export default function PeoplePage() {
             viewSort: activeSavedView.sort as { column: string; ascending: boolean } | undefined,
           }
         : {
-            search: search.trim() || undefined,
             type: typeof filterValues.type === "string" ? (filterValues.type as ContactType) : undefined,
             hasEmail: typeof filterValues.hasEmail === "boolean" ? filterValues.hasEmail : undefined,
             hasPhone: typeof filterValues.hasPhone === "boolean" ? filterValues.hasPhone : undefined,
@@ -305,12 +298,12 @@ export default function PeoplePage() {
       page,
       pageSize,
     }),
-    [activeSavedView, filterValues.createdAt, filterValues.hasEmail, filterValues.hasPhone, filterValues.type, page, search],
+    [activeSavedView, filterValues.createdAt, filterValues.hasEmail, filterValues.hasPhone, filterValues.type, page],
   );
 
   const contactTypes = crmConfigResult?.config.contact_types ?? contactTypeValues;
   const { data, isLoading, isError } = usePaginatedContacts(queryFilters);
-  const hasLocalFilters = search.trim().length > 0 || Object.keys(filterValues).length > 0;
+  const hasLocalFilters = Object.keys(filterValues).length > 0;
   const hasActiveFiltering = Boolean(activeSavedView) || hasLocalFilters;
 
   const createContact = useMutation({
@@ -324,7 +317,15 @@ export default function PeoplePage() {
       if (error) throw error;
       return data;
     },
-    onSuccess: async (createdContact) => {
+    onSuccess: (createdContact) => {
+      // Seed the detail cache with the freshly-inserted row so the drawer
+      // mounts with data and skips its skeleton flicker.
+      queryClient.setQueryData(contactKeys.detail(createdContact.contact_id), {
+        ...createdContact,
+        companies: null,
+      });
+      open(createdContact.contact_id);
+      void queryClient.invalidateQueries({ queryKey: contactKeys.all });
       void captureTimelineActivity({
         supabase,
         clientId: createdContact.client_id,
@@ -340,9 +341,6 @@ export default function PeoplePage() {
           });
         }
       });
-
-      await queryClient.invalidateQueries({ queryKey: contactKeys.all });
-      open(createdContact.contact_id);
     },
     onError: () => {
       toast.error("Unable to create contact.");
@@ -499,43 +497,64 @@ export default function PeoplePage() {
     });
   }, [crmConfig, companies, contactTypes, open]);
 
+  const newContactButton = (
+    <Button
+      size="sm"
+      onClick={() => createContact.mutate()}
+      disabled={!clientId || createContact.isPending}
+    >
+      <Plus className="h-4 w-4" />
+      New
+    </Button>
+  );
+
   return (
-    <CrmListPanelLayout
-      objectType="contact"
-      icon={<Users className="h-4 w-4 text-muted-foreground" />}
-      title="People"
-      headerActions={
-        <div className="flex items-center gap-2">
+    <PageCanvas>
+      <PageHeader title="People" />
+      <FilterBar
+        leadingSlot={
           <ViewPicker
             entityType="contacts"
             activeViewId={activeSavedView?.view_id ?? null}
             onViewChange={handleSavedViewChange}
+            count={data?.total}
           />
-          <Button size="sm" onClick={() => createContact.mutate()} disabled={!clientId || createContact.isPending}>
-            <Plus className="h-4 w-4" />
-            New
-          </Button>
-        </div>
-      }
-      renderPanelContent={(id, { closeButton }) => (
-        <ContactDrawerContent key={id} contactId={id} closeButton={closeButton} />
-      )}
-    >
-        <DataTable
-          columns={columns}
-          data={rows}
-          isLoading={isLoading}
-          error={isError ? <span>Unable to load people.</span> : null}
-          emptyState={(
-            <EmptyState
-              iconName="contacts"
-              title={hasActiveFiltering ? "No results match your filters" : "No people yet"}
-              description={hasActiveFiltering
+        }
+        trailingSlot={newContactButton}
+        {...(activeSavedView
+          ? {}
+          : {
+              filters,
+              values: filterValues,
+              onApply: (nextValues: FilterValues) => {
+                setPage(1);
+                setFilterValues(nextValues);
+              },
+              onClear: () => {
+                setPage(1);
+                setFilterValues({});
+              },
+            })}
+      />
+
+      <ListTable
+        columns={columns}
+        data={rows}
+        isLoading={isLoading}
+        error={isError ? <span>Unable to load people.</span> : null}
+        emptyState={
+          <EmptyState
+            iconName="contacts"
+            title={hasActiveFiltering ? "No results match your filters" : "No people yet"}
+            description={
+              hasActiveFiltering
                 ? "Try adjusting or clearing your filters."
-                : "Your AI agent will create contacts as it processes conversations."}
-            />
-          )}
-          pagination={data
+                : "Your AI agent will create contacts as it processes conversations."
+            }
+          />
+        }
+        pagination={
+          data
             ? {
                 page: data.page,
                 pageSize: data.pageSize,
@@ -543,46 +562,30 @@ export default function PeoplePage() {
                 totalPages: data.totalPages,
                 onPageChange: setPage,
               }
-            : undefined}
-          rowActions={(row) => [
-            {
-              id: "view",
-              label: "View",
-              onSelect: () => open(row.contact_id),
+            : undefined
+        }
+        rowActions={(row) => [
+          { id: "view", label: "View", onSelect: () => open(row.contact_id) },
+          {
+            id: "delete",
+            label: "Delete",
+            destructive: true,
+            onSelect: () => {
+              if (!window.confirm(`Delete ${formatContactFullName(row)}? This cannot be undone.`)) return;
+              deletePerson.mutate({ contactId: row.contact_id });
             },
-            {
-              id: "delete",
-              label: "Delete",
-              destructive: true,
-              onSelect: () => {
-                if (!window.confirm(`Delete ${formatContactFullName(row)}? This cannot be undone.`)) {
-                  return;
-                }
-
-                deletePerson.mutate({ contactId: row.contact_id });
-              },
-            },
-          ]}
-          onRowClick={(row) => open(row.contact_id)}
-          selectedRowId={recordId ?? undefined}
-          getRowId={(row) => row.contact_id}
-          searchValue={activeSavedView ? undefined : search}
-          onSearchChange={activeSavedView ? undefined : (value) => {
-            setPage(1);
-            setSearch(value);
-          }}
-          searchPlaceholder="Search people..."
-          filters={activeSavedView ? [] : filters}
-          filterValues={activeSavedView ? {} : filterValues}
-          onFiltersApply={activeSavedView ? undefined : (nextValues) => {
-            setPage(1);
-            setFilterValues(nextValues);
-          }}
-          onFiltersClear={activeSavedView ? undefined : () => {
-            setPage(1);
-            setFilterValues({});
-          }}
-        />
-    </CrmListPanelLayout>
+          },
+        ]}
+        onRowClick={(row) => open(row.contact_id)}
+        selectedRowId={recordId ?? undefined}
+        getRowId={(row) => row.contact_id}
+      />
+      <RecordDrawer
+        isOpen={isDrawerOpen}
+        recordId={recordId}
+        objectType="contact"
+        onClose={close}
+      />
+    </PageCanvas>
   );
 }

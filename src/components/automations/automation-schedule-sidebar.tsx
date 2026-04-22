@@ -120,11 +120,11 @@ function AutomationScheduleSidebarContent({ trigger }: AutomationScheduleSidebar
     return (
       <div className="space-y-6">
         <SidebarSection label="Type">
-          <p className="text-sm text-foreground">Webhook</p>
+          <p className="type-control text-foreground">Webhook</p>
         </SidebarSection>
         {trigger.invocation_message ? (
           <SidebarSection label="Invocation message">
-            <p className="text-sm text-muted-foreground">{trigger.invocation_message}</p>
+            <p className="type-control-muted text-muted-foreground">{trigger.invocation_message}</p>
           </SidebarSection>
         ) : null}
       </div>
@@ -141,7 +141,7 @@ function AutomationScheduleSidebarContent({ trigger }: AutomationScheduleSidebar
             saveSchedule(val, days, time);
           }}
         >
-          <SelectTrigger className="h-9 text-sm">
+          <SelectTrigger className="h-9 type-control">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -165,7 +165,7 @@ function AutomationScheduleSidebarContent({ trigger }: AutomationScheduleSidebar
                   type="button"
                   onClick={() => toggleDay(value)}
                   aria-pressed={isSelected}
-                  className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium transition-colors ${
+                  className={`flex h-7 w-7 items-center justify-center rounded-full text-caption transition-colors ${
                     isSelected
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted/60 text-muted-foreground hover:bg-muted"
@@ -188,7 +188,7 @@ function AutomationScheduleSidebarContent({ trigger }: AutomationScheduleSidebar
               setTime(e.target.value);
               saveSchedule(recurrence, days, e.target.value);
             }}
-            className="h-9 text-sm"
+            className="h-9 type-control"
           />
         </SidebarSection>
       )}
@@ -200,14 +200,14 @@ function AutomationScheduleSidebarContent({ trigger }: AutomationScheduleSidebar
             onChange={(e) => setCustomCron(e.target.value)}
             onBlur={() => saveSchedule("custom", [], time, customCron)}
             placeholder="0 8 * * 1-5"
-            className="h-9 font-mono text-sm"
+            className="h-9 font-mono text-control"
           />
         </SidebarSection>
       )}
 
       {trigger.invocation_message ? (
         <SidebarSection label="Invocation message">
-          <p className="text-sm text-muted-foreground line-clamp-3">
+          <p className="type-control-muted line-clamp-3 text-muted-foreground">
             {trigger.invocation_message}
           </p>
         </SidebarSection>
@@ -219,7 +219,7 @@ function AutomationScheduleSidebarContent({ trigger }: AutomationScheduleSidebar
 function SidebarSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
-      <Label className="text-sm font-medium text-foreground/80">{label}</Label>
+      <Label className="type-control text-foreground/80">{label}</Label>
       {children}
     </div>
   );

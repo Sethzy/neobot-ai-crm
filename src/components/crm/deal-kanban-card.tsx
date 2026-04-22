@@ -117,7 +117,7 @@ function AmountRow({ amount, dealId }: { amount: number | null; dealId: string }
             type="text"
             inputMode="numeric"
             placeholder="Enter amount"
-            className="h-8 w-full rounded-md border border-border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="h-8 w-full rounded-md border border-border bg-background px-2 text-control outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -345,13 +345,13 @@ export function DealKanbanCard({ deal }: DealKanbanCardProps) {
         >
           {initial}
         </span>
-        <span className="truncate text-sm font-medium text-foreground">
+        <span className="type-row-title truncate text-foreground">
           {deal.address}
         </span>
       </div>
 
       {/* Data rows — all rendered for uniform card height, each inline-editable */}
-      <div className="flex flex-col gap-1 pl-7 text-xs text-muted-foreground">
+      <div className="flex flex-col gap-1 pl-7 type-row-meta text-muted-foreground">
         <AmountRow amount={deal.amount} dealId={deal.deal_id} />
         <div className="flex items-center gap-2">
           <Calendar className="h-3 w-3 shrink-0" />

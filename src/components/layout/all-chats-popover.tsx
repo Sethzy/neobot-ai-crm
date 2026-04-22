@@ -63,7 +63,7 @@ export function AllChatsPopover({ pathname, onNavigate, children }: AllChatsPopo
         className="flex h-screen w-[14rem] flex-col rounded-none border-x border-border p-2 shadow-none ring-0"
       >
         <div className="flex items-center justify-between px-2 pb-2">
-          <div className="text-sm font-medium text-foreground">Chats</div>
+          <div className="type-toolbar-title text-foreground">Chats</div>
           <Link
             href="/chat"
             onClick={handleSelect}
@@ -88,7 +88,7 @@ export function AllChatsPopover({ pathname, onNavigate, children }: AllChatsPopo
         </div>
         <div className="flex-1 overflow-y-auto">
           {filtered.length === 0 ? (
-            <div className="px-2 py-6 text-center text-xs text-muted-foreground">
+            <div className="px-2 py-6 text-center type-empty-copy text-muted-foreground">
               No chats found
             </div>
           ) : (
@@ -114,8 +114,8 @@ export function AllChatsPopover({ pathname, onNavigate, children }: AllChatsPopo
                       className="h-4 w-4 shrink-0 text-muted-foreground"
                     />
                   )}
-                  <span className="flex-1 truncate text-sm">{thread.title}</span>
-                  <span className="shrink-0 text-xs text-muted-foreground">
+                  <span className="flex-1 truncate type-control">{thread.title}</span>
+                  <span className="shrink-0 type-row-meta text-muted-foreground">
                     {format(thread.createdAt, "MMM d")}
                   </span>
                 </Link>

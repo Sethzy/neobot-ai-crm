@@ -12,15 +12,18 @@ import { toast } from "sonner";
 
 import { AppIcon } from "@/components/icons/app-icons";
 import { CrmTasksCalendar } from "@/components/crm/crm-tasks-calendar";
-import { CrmTasksTable } from "@/components/crm/crm-tasks-table";
 import { KanbanBoard } from "@/components/crm/kanban-board";
 import { RecordDrawer } from "@/components/crm/record-drawer";
 import { TaskKanbanCard } from "@/components/crm/task-kanban-card";
 import { ViewPicker } from "@/components/crm/view-picker";
 import { crmTaskStatusLabelMap } from "@/components/crm/task-status-badge";
 import { ViewToggle } from "@/components/crm/view-toggle";
+import { PageCanvas, PageSurface } from "@/components/layout/page-canvas";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ListTable } from "@/components/ui/list-table";
+import { taskColumns } from "@/lib/crm/task-columns";
 import { crmTaskKeys } from "@/hooks/use-crm-tasks";
 import { useCrmTasks } from "@/hooks/use-crm-tasks";
 import { useClientId } from "@/hooks/use-client-id";
@@ -146,54 +149,50 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
+    <PageCanvas>
+      <PageHeader
+        title="Tasks"
+        description="Review follow-ups in a table, board, or calendar without leaving the workspace."
+      />
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <ViewPicker
+          entityType="tasks"
+          activeViewId={activeSavedView?.view_id ?? null}
+          onViewChange={handleViewChange}
+        />
+
+        {!activeSavedView && (
+          <div className="relative flex-1">
+            <AppIcon
+              name="search"
+              className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60"
+            />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search tasks by title or description..."
+              className="h-10 w-full border-app-border-subtle bg-app-surface pl-9 shadow-none focus-visible:ring-1"
+            />
+          </div>
+        )}
+
+        <ViewToggle current={view} views={["table", "kanban", "calendar"]} onChange={setView} />
+
+        <Button size="sm" onClick={() => createTask.mutate()} disabled={!clientId || createTask.isPending}>
+          <Plus className="h-4 w-4" />
+          New
+        </Button>
+      </div>
+
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Tasks</h1>
-        <p className="mt-2 text-sm text-muted-foreground/80">
-          Review follow-ups in a table, board, or calendar without leaving the workspace.
-        </p>
-      </div>
-
-      <div className="mt-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <ViewPicker
-            entityType="tasks"
-            activeViewId={activeSavedView?.view_id ?? null}
-            onViewChange={handleViewChange}
-          />
-
-          {!activeSavedView && (
-            <div className="relative flex-1">
-              <AppIcon
-                name="search"
-                className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60"
-              />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search tasks by title or description..."
-                className="h-12 w-full border-border/50 pl-11 shadow-sm focus-visible:ring-1"
-              />
-            </div>
-          )}
-
-          <ViewToggle current={view} views={["table", "kanban", "calendar"]} onChange={setView} />
-
-          <Button size="sm" onClick={() => createTask.mutate()} disabled={!clientId || createTask.isPending}>
-            <Plus className="h-4 w-4" />
-            New
-          </Button>
-        </div>
-      </div>
-
-      <div className="mt-6">
         {isLoading ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
           </div>
         ) : isError ? (
-          <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-6">
-            <p className="text-sm text-destructive">Unable to load tasks</p>
+          <PageSurface className="border-destructive/20 bg-destructive/5 p-6">
+            <p className="type-control text-destructive">Unable to load tasks</p>
             <Button
               type="button"
               variant="outline"
@@ -205,16 +204,21 @@ export default function TasksPage() {
             >
               Retry
             </Button>
-          </div>
+          </PageSurface>
         ) : tasks.length === 0 ? (
-          <div className="rounded-xl border border-border/40 bg-card p-10 text-center shadow-sm md:p-20">
+          <PageSurface className="p-10 text-center md:p-20">
             <AppIcon name="tasks" className="mx-auto h-12 w-12 text-muted-foreground/40" />
-            <p className="mt-6 text-muted-foreground">
+            <p className="mt-6 type-empty-title text-muted-foreground">
               {hasActiveFiltering ? "No tasks match your filters" : "No tasks yet"}
             </p>
-          </div>
+          </PageSurface>
         ) : view === "table" ? (
-          <CrmTasksTable tasks={tasks} onRowClick={open} />
+          <ListTable
+            columns={taskColumns}
+            data={tasks}
+            initialSorting={[{ id: "due_date", desc: false }]}
+            onRowClick={(task) => open(task.task_id)}
+          />
         ) : view === "calendar" ? (
           <CrmTasksCalendar
             onTaskClick={open}
@@ -236,6 +240,6 @@ export default function TasksPage() {
       </div>
 
       <RecordDrawer isOpen={isOpen} recordId={recordId} objectType="task" onClose={close} />
-    </div>
+    </PageCanvas>
   );
 }

@@ -58,7 +58,7 @@ export function PredefinedCard({ isInstalled, skill, onSelect, onHover }: Predef
     : "bg-primary";
 
   return (
-    <div className="group flex items-start gap-3 rounded-lg border border-border bg-card px-3.5 py-2.5 transition-colors hover:bg-accent/40" onMouseEnter={onHover}>
+    <div className="group flex items-start gap-3 rounded-lg border border-border bg-card px-4 py-2.5 transition-colors hover:bg-accent/40" onMouseEnter={onHover}>
       {/* Colored dot icon — color varies by category */}
       <span
         aria-hidden="true"
@@ -72,7 +72,7 @@ export function PredefinedCard({ isInstalled, skill, onSelect, onHover }: Predef
         type="button"
       >
         <div className="flex items-center gap-1.5">
-          <span className="truncate text-sm font-semibold text-foreground group-hover:underline">
+          <span className="type-row-title truncate text-foreground group-hover:underline">
             {skill.name}
           </span>
           {skill.latestVersion ? (
@@ -89,7 +89,7 @@ export function PredefinedCard({ isInstalled, skill, onSelect, onHover }: Predef
             </Badge>
           ) : null}
         </div>
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+        <p className="mt-0.5 truncate type-row-meta text-muted-foreground">
           {skill.description}
         </p>
       </button>

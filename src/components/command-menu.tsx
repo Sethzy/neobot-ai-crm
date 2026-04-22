@@ -179,7 +179,7 @@ function SearchResultItem({
           <Badge
             variant="outline"
             className={cn(
-              "h-5 shrink-0 rounded-full border px-2 text-caption font-medium shadow-none",
+              "h-6 shrink-0 rounded-full border px-2.5 text-control font-medium shadow-none",
               resultBadgeClassMap[record.entityType],
             )}
           >
@@ -246,7 +246,7 @@ function PreviewChip({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2 py-0.5 text-caption font-medium",
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-control font-medium",
         tone === "info"
           ? "border-info/15 bg-info/10 text-info"
           : "border-border/60 bg-background text-muted-foreground",
@@ -272,12 +272,12 @@ function PreviewShell({
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="border-b border-border/60 px-4 py-4">
+      <div className="border-b border-border/60 px-5 py-4">
         <div className="flex items-start gap-3">
           <ResultAvatar record={record} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <div className="text-meta font-semibold text-foreground">
+              <div className="type-toolbar-title">
                 {title}
               </div>
             </div>
@@ -287,14 +287,14 @@ function PreviewShell({
         {chips ? <div className="mt-3 flex flex-wrap gap-1.5">{chips}</div> : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        <div className="mb-2 text-caption font-medium uppercase tracking-[0.12em] text-muted-foreground">
+      <div className="min-h-0 flex-1 overflow-y-auto p-5">
+        <div className="mb-2 type-table-heading text-muted-foreground">
           Details
         </div>
         <div className="space-y-1.5">{children}</div>
       </div>
 
-      <div className="border-t border-border/60 px-4 py-3 text-caption text-muted-foreground">
+      <div className="border-t border-border/60 px-5 py-3 type-row-meta text-muted-foreground">
         Updated {formatCrmDate(record.updatedAt)}
       </div>
     </div>
@@ -544,10 +544,10 @@ function SearchPreview({
           <div className="mx-auto flex size-10 items-center justify-center rounded-2xl border border-border/60 bg-background shadow-xs">
             <Sparkles className="size-5 text-muted-foreground" />
           </div>
-          <h3 className="mt-4 text-sm font-semibold text-foreground">
+          <h3 className="mt-4 type-section-title">
             Start exploring records
           </h3>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-2 type-empty-copy text-muted-foreground">
             Search contacts, companies, deals, tasks, and threads from one place.
           </p>
         </div>
@@ -674,8 +674,8 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
       <DialogContent
         showCloseButton={false}
         className={cn(
-          "top-[13vh] w-[calc(100vw-2rem)] max-w-[750px] translate-y-0 overflow-hidden rounded-[20px] border border-border/65 bg-background p-0 shadow-2xl ring-0 sm:max-w-[750px]",
-          "h-[min(550px,calc(100vh-5rem))]",
+          "top-[10vh] w-[calc(100vw-2rem)] max-w-[832px] translate-y-0 overflow-hidden rounded-[24px] border border-border/65 bg-background p-0 shadow-2xl ring-0 sm:max-w-[832px]",
+          "h-[min(544px,calc(100vh-4rem))]",
         )}
       >
         <CommandPrimitive
@@ -691,12 +691,12 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
               value={query}
               onValueChange={setQuery}
               placeholder="Search records..."
-              className="min-w-0 flex-1 border-0 bg-transparent text-meta text-foreground outline-none placeholder:text-muted-foreground"
+              className="min-w-0 flex-1 border-0 bg-transparent text-toolbar text-foreground outline-none placeholder:text-muted-foreground"
             />
 
             <button
               type="button"
-              className="hidden shrink-0 items-center gap-2 rounded-full border border-border/60 bg-background px-2.5 py-1 text-caption text-muted-foreground shadow-xs sm:flex"
+              className="hidden shrink-0 items-center gap-2 rounded-full border border-border/60 bg-background px-3 py-1.5 text-control text-muted-foreground shadow-xs sm:flex"
               disabled
             >
               <span>Ask Sunder</span>
@@ -759,7 +759,7 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
             <FooterKey keys="Esc" label="Close" />
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background px-3 py-1 text-caption text-muted-foreground shadow-xs"
+              className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background px-3 py-1.5 text-control text-muted-foreground shadow-xs"
               disabled
             >
               <span>Actions</span>
@@ -772,7 +772,7 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
           <button
             type="button"
             className={cn(
-              "inline-flex items-center gap-2 rounded-full bg-info px-3.5 py-1.5 text-caption font-medium text-info-foreground shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50",
+              "inline-flex items-center gap-2 rounded-full bg-info px-3.5 py-2 text-control font-medium text-info-foreground shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50",
             )}
             onClick={() => {
               if (selectedRecord) {

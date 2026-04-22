@@ -95,10 +95,10 @@ export function MeetingRecordingView({ onDone }: MeetingRecordingViewProps) {
         </div>
         <div className="max-w-sm text-center">
           <p className="font-medium text-destructive">Microphone access is blocked</p>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 type-control-muted text-muted-foreground">
             Your browser blocked microphone access. To fix this:
           </p>
-          <ol className="mt-3 list-inside list-decimal space-y-1 text-left text-sm text-muted-foreground">
+          <ol className="mt-3 list-inside list-decimal space-y-1 text-left type-control-muted text-muted-foreground">
             <li>Click the <strong>icon to the left of the URL</strong> in your address bar</li>
             <li>Find <strong>Microphone</strong> and change it to <strong>Allow</strong></li>
             <li>Reload the page or click Try again</li>
@@ -122,7 +122,7 @@ export function MeetingRecordingView({ onDone }: MeetingRecordingViewProps) {
   if (status === "idle") {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-muted-foreground">Preparing...</p>
+        <p className="type-control-muted">Preparing...</p>
       </div>
     );
   }
@@ -143,14 +143,14 @@ export function MeetingRecordingView({ onDone }: MeetingRecordingViewProps) {
       />
 
       {isProcessing ? (
-        <div className="flex items-center gap-2 bg-muted/50 px-4 py-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 bg-muted/50 px-4 py-2 type-control-muted text-muted-foreground">
           <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
           <StatusMessage status={status} />
         </div>
       ) : null}
 
       {status === "error" && errorMessage ? (
-        <div className="bg-destructive/10 px-4 py-2 text-sm text-destructive">
+        <div className="bg-destructive/10 px-4 py-2 type-control text-destructive">
           {errorMessage}
           <Button variant="link" size="sm" className="ml-2 px-0" onClick={onDone}>
             Back to meetings
@@ -158,15 +158,15 @@ export function MeetingRecordingView({ onDone }: MeetingRecordingViewProps) {
         </div>
       ) : null}
 
-      <div className="flex items-center gap-2 border-b border-border/60 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+      <div className="flex items-center gap-2 border-b border-border/60 bg-muted/30 px-4 py-2 type-row-meta text-muted-foreground">
         <span>Language</span>
         <Select value={language} onValueChange={setLanguage} disabled={isProcessing}>
-          <SelectTrigger className="h-7 w-40 text-xs">
+          <SelectTrigger className="h-7 w-40 text-caption">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {STT_LANGUAGES.map((lang) => (
-              <SelectItem key={lang.code} value={lang.code} className="text-xs">
+              <SelectItem key={lang.code} value={lang.code} className="text-caption">
                 {lang.label}
               </SelectItem>
             ))}

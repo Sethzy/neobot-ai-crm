@@ -215,7 +215,7 @@ export function TelegramConnectRow({
       </Button>
     );
     body = (
-      <p className="text-sm text-muted-foreground">
+      <p className="type-toolbar-description">
         {availabilityMessage ?? "Telegram is not configured yet."}
       </p>
     );
@@ -231,7 +231,7 @@ export function TelegramConnectRow({
       </Button>
     );
     body = (
-      <div className="space-y-1 text-sm text-muted-foreground">
+      <div className="space-y-1 type-toolbar-description">
         <p>Connected. Telegram is linked to this account.</p>
         <p>
           Chat ID: <span className="font-mono text-foreground">{chatId}</span>
@@ -245,12 +245,12 @@ export function TelegramConnectRow({
       </Button>
     );
     body = (
-      <div className="flex flex-col gap-3 text-sm">
-        <p className="text-muted-foreground">
+      <div className="flex flex-col gap-3">
+        <p className="type-toolbar-description">
           Send this code to <span className="font-medium text-foreground">@{botUsername}</span> on Telegram, or open Telegram directly.
         </p>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-base text-foreground">
+          <div className="rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-body text-foreground">
             {displayCode}
           </div>
           <Button variant="outline" size="sm" onClick={handleCopyCode}>
@@ -263,13 +263,13 @@ export function TelegramConnectRow({
               Open Telegram
             </a>
           </Button>
-          <span className="text-xs text-muted-foreground">
+          <span className="type-row-meta">
             Waiting for connection… code expires in{" "}
             <span className="font-mono text-foreground">{formatRemaining(secondsRemaining)}</span>
           </span>
           <button
             type="button"
-            className="text-xs text-muted-foreground underline hover:text-foreground"
+            className="type-row-meta underline hover:text-foreground"
             onClick={handleConnect}
             disabled={isGenerating}
           >
@@ -285,7 +285,7 @@ export function TelegramConnectRow({
       </Button>
     );
     body = (
-      <p className="text-sm text-muted-foreground">
+      <p className="type-toolbar-description">
         The previous pairing link expired. Generate a new one to try again.
       </p>
     );
@@ -307,7 +307,7 @@ export function TelegramConnectRow({
     >
       {body}
       {errorText ? (
-        <p className="mt-2 text-sm text-destructive">{errorText}</p>
+        <p className="mt-2 type-toolbar-description text-destructive">{errorText}</p>
       ) : null}
     </ChannelRow>
   );

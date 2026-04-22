@@ -98,7 +98,7 @@ describe("TasksPage integration", () => {
     vi.useRealTimers();
   });
 
-  it("renders task rows via CrmTasksTable when data exists", async () => {
+  it("renders task rows via ListTable when data exists", async () => {
     const { useCrmTasks } = await import("@/hooks/use-crm-tasks");
 
     vi.mocked(useCrmTasks).mockReturnValue({

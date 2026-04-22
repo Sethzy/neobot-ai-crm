@@ -108,7 +108,7 @@ const boardColumnClassName =
   "flex min-h-[60vh] w-full flex-1 flex-col overflow-hidden md:w-64 md:flex-none";
 
 const boardCardClassName =
-  "group rounded-lg border border-border bg-[#FAFAF8] px-3 py-3 transition hover:shadow-sm dark:bg-card";
+  "group rounded-xl border border-app-border-subtle bg-app-surface px-3 py-3 transition hover:bg-app-hover/35 hover:shadow-sm";
 
 /**
  * Build grouped column buckets, optionally honoring optimistic drag overrides first.
@@ -180,16 +180,16 @@ function KanbanColumnSection({
         {column.toneClassName ? (
           <span
             className={cn(
-              "inline-flex rounded px-2 py-0.5 text-xs font-medium",
+              "inline-flex rounded px-2 py-0.5 text-caption font-medium",
               column.toneClassName,
             )}
           >
             {column.label}
           </span>
         ) : (
-          <span className="text-xs font-semibold text-foreground">{column.label}</span>
+          <span className="text-caption font-semibold text-foreground">{column.label}</span>
         )}
-        <span className="text-xs text-muted-foreground">
+        <span className="text-caption text-muted-foreground">
           {summary ?? itemCount}
         </span>
       </div>
@@ -323,8 +323,8 @@ function KanbanBoardFrame({
   return (
     <div className="min-w-0">
       {boardLabel ? (
-        <div className="flex items-center gap-1.5 pb-3 text-sm">
-          <span className="font-medium text-foreground">{boardLabel}</span>
+        <div className="flex items-center gap-1.5 pb-3 type-control">
+          <span className="text-foreground">{boardLabel}</span>
           <span className="text-muted-foreground">{totalItems}</span>
         </div>
       ) : null}
@@ -374,7 +374,7 @@ function StaticKanbanBoardContent<T>({
           >
             <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2">
               {columnItems.length === 0 ? (
-                <p className="rounded-md border border-dashed border-border bg-muted/10 p-4 text-center text-sm text-muted-foreground">
+                <p className="rounded-md border border-dashed border-border bg-muted/10 p-4 text-center type-empty-copy text-muted-foreground">
                   {emptyStateMessage}
                 </p>
               ) : (
@@ -615,8 +615,8 @@ function DraggableKanbanBoardContent<T>({
               summary={summary}
             >
               <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2">
-                {columnItems.length === 0 ? (
-                  <p className="rounded-md border border-dashed border-border bg-muted/10 p-4 text-center text-sm text-muted-foreground">
+              {columnItems.length === 0 ? (
+                  <p className="rounded-md border border-dashed border-border bg-muted/10 p-4 text-center type-empty-copy text-muted-foreground">
                     {emptyStateMessage}
                   </p>
                 ) : (

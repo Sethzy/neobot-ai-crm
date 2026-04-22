@@ -47,16 +47,18 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <SidebarProvider open={true} className="h-svh">
+      <SidebarProvider open={true} className="h-svh bg-app-sidebar">
         <AppSidebar onOpenCommandMenu={() => setIsCommandMenuOpen(true)} />
-        <SidebarInset className="min-h-0">
+        <SidebarInset className="min-h-0 bg-app-canvas">
           {/* Mobile header — visible only below md breakpoint */}
-          <header className="flex md:hidden items-center gap-2 border-b border-border/40 px-3 py-2">
+          <header className="flex items-center gap-2 border-b border-app-border-subtle bg-app-canvas px-3 py-2 md:hidden">
             <SidebarTrigger />
             <Separator orientation="vertical" className="h-4" />
             <Logo />
           </header>
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-app-canvas">
+            {children}
+          </div>
         </SidebarInset>
         <CommandMenu open={isCommandMenuOpen} onOpenChange={setIsCommandMenuOpen} />
       </SidebarProvider>

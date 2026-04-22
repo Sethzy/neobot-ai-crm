@@ -59,7 +59,7 @@ export function TranscriptSection({ transcriptText, segments }: TranscriptSectio
       <button
         type="button"
         onClick={() => setIsOpen((currentState) => !currentState)}
-        className="flex w-full items-center gap-1.5 text-left text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        className="flex w-full items-center gap-1.5 text-left type-control text-muted-foreground transition-colors hover:text-foreground"
       >
         {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         Transcript
@@ -69,8 +69,8 @@ export function TranscriptSection({ transcriptText, segments }: TranscriptSectio
         <div className="mt-3 space-y-2">
           {segments && segments.length > 0
             ? segments.map((segment, index) => (
-              <div key={index} className="flex gap-2 text-sm">
-                <span className="mt-0.5 shrink-0 font-mono text-xs text-muted-foreground">
+              <div key={index} className="flex gap-2 text-meta">
+                <span className="mt-0.5 shrink-0 font-mono text-caption text-muted-foreground">
                   {formatRecordingTime(segment.start)}
                 </span>
                 <span className="text-foreground">
@@ -84,7 +84,7 @@ export function TranscriptSection({ transcriptText, segments }: TranscriptSectio
               </div>
             ))
             : transcriptText
-              ? <p className="whitespace-pre-wrap text-sm text-foreground">{transcriptText}</p>
+              ? <p className="whitespace-pre-wrap text-meta text-foreground">{transcriptText}</p>
               : null}
         </div>
       ) : null}

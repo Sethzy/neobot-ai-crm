@@ -7,6 +7,8 @@ import path from "node:path";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { PageCanvas } from "@/components/layout/page-canvas";
+import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { resolveClientId } from "@/lib/chat/client-id";
@@ -53,46 +55,48 @@ export default async function SkillEditorPage({ params }: Props) {
   }
 
   return (
-    <div className="px-4 py-6 md:px-12 md:py-10">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold tracking-tight">{predefinedSkill.name}</h1>
+    <PageCanvas>
+        <PageHeader
+          title={predefinedSkill.name}
+          description={predefinedSkill.description}
+          meta={
+            <>
               <Badge variant="secondary">
                 {isInstalled ? "Installed" : "Recommended"}
               </Badge>
-            </div>
-            <p className="text-muted-foreground text-sm">{predefinedSkill.description}</p>
-            <p className="text-muted-foreground text-xs">
-              Skill slug: <code>{predefinedSkill.slug}</code>
-              {predefinedSkill.latestVersion ? ` · v${predefinedSkill.latestVersion.slice(0, 8)}` : ""}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <SkillInstallButton
-              isInstalled={isInstalled}
-              slug={predefinedSkill.slug}
-              variant={isInstalled ? "outline" : "default"}
-            />
-            <Link
-              className="inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-              href="/skills"
-            >
-              Back
-            </Link>
-          </div>
-        </div>
+              <span className="type-row-meta">
+                Skill slug: <code>{predefinedSkill.slug}</code>
+                {predefinedSkill.latestVersion
+                  ? ` · v${predefinedSkill.latestVersion.slice(0, 8)}`
+                  : ""}
+              </span>
+            </>
+          }
+          actions={
+            <>
+              <SkillInstallButton
+                isInstalled={isInstalled}
+                slug={predefinedSkill.slug}
+                variant={isInstalled ? "outline" : "default"}
+              />
+              <Link
+                className="inline-flex h-10 items-center justify-center rounded-md px-4 type-control text-muted-foreground transition-colors hover:text-foreground"
+                href="/skills"
+              >
+                Back
+              </Link>
+            </>
+          }
+        />
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Definition</CardTitle>
+            <CardTitle className="type-section-title">Definition</CardTitle>
           </CardHeader>
           <CardContent>
             <SkillMarkdownViewer content={skillMarkdown} />
           </CardContent>
         </Card>
-      </div>
-    </div>
+    </PageCanvas>
   );
 }

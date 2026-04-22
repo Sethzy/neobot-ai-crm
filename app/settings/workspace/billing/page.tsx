@@ -9,6 +9,8 @@
 import Link from "next/link";
 
 import { AlertCircle, CheckCircle } from "@/components/icons/lucide-compat";
+import { PageCanvas } from "@/components/layout/page-canvas";
+import { PageHeader } from "@/components/layout/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -93,27 +95,24 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const badge = stateBadge[view.state];
 
   return (
-    <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">Billing</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage your plan, payment, and invoices in Stripe.
-          </p>
-        </div>
+    <PageCanvas variant="form" contentClassName="max-w-2xl">
+        <PageHeader
+          title="Billing"
+          description="Manage your plan, payment, and invoices in Stripe."
+        />
 
         {billingAlert}
 
         <Card className="border-border/70 bg-card shadow-sm">
           <CardHeader className="gap-2">
-            <CardDescription>Current plan</CardDescription>
-            <CardTitle className="flex flex-wrap items-center gap-3 text-2xl">
+            <CardDescription className="type-row-meta">Current plan</CardDescription>
+            <CardTitle className="type-toolbar-title flex flex-wrap items-center gap-3">
               {view.planName === "Free" ? "Free" : `Sunder ${view.planName}`}
               {badge ? <Badge variant={badge.variant}>{badge.label}</Badge> : null}
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
+          <CardContent className="space-y-2 text-meta text-muted-foreground">
             {view.planName !== "Free" ? (
               <p className="font-medium text-foreground">
                 S${view.monthlyPriceSgd} per month
@@ -137,7 +136,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             )}
           </CardFooter>
         </Card>
-      </div>
-    </div>
+    </PageCanvas>
   );
 }

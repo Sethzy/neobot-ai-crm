@@ -31,7 +31,7 @@ export function AutomationInstructions({
   if (!instructionPath) {
     return (
       <div className="rounded-xl border border-border/40 bg-card p-6 shadow-sm">
-        <p className="text-sm text-muted-foreground">
+        <p className="type-control-muted text-muted-foreground">
           No instruction file configured for this automation.
         </p>
       </div>
@@ -41,9 +41,9 @@ export function AutomationInstructions({
   if (isError) {
     return (
       <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-6 shadow-sm">
-        <p className="text-sm text-destructive">Unable to load instructions.</p>
+        <p className="type-control text-destructive">Unable to load instructions.</p>
         {error instanceof Error ? (
-          <p className="mt-2 text-xs text-muted-foreground">{error.message}</p>
+          <p className="mt-2 text-caption text-muted-foreground">{error.message}</p>
         ) : null}
       </div>
     );
@@ -128,9 +128,9 @@ function LoadedAutomationInstructionsEditor({
           <span>Markdown source</span>
         </div>
         {saveStatus === "saving" ? (
-          <span className="text-xs text-muted-foreground">Saving...</span>
+          <span className="text-caption text-muted-foreground">Saving...</span>
         ) : saveStatus === "saved" ? (
-          <span className="text-xs text-success">Saved</span>
+          <span className="text-caption text-success">Saved</span>
         ) : null}
       </div>
 

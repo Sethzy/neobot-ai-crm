@@ -22,13 +22,13 @@ export default function DashboardError({
     <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
       <div className="flex items-center gap-2 text-destructive">
         <AlertCircle className="h-5 w-5" />
-        <h2 className="text-lg font-semibold">Something went wrong</h2>
+        <h2 className="type-toolbar-title">Something went wrong</h2>
       </div>
-      <p className="max-w-md text-sm text-muted-foreground">
+      <p className="max-w-md type-control-muted text-muted-foreground">
         This page encountered an error. Your data is safe.
       </p>
       {error.digest && (
-        <p className="font-mono text-xs text-muted-foreground">
+        <p className="font-mono text-caption text-muted-foreground">
           Error ID: {error.digest}
         </p>
       )}

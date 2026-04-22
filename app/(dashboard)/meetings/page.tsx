@@ -7,6 +7,8 @@
 import { useState } from "react";
 
 import { AppIcon } from "@/components/icons/app-icons";
+import { PageCanvas } from "@/components/layout/page-canvas";
+import { PageHeader } from "@/components/layout/page-header";
 import { MeetingRecordingView } from "@/components/meetings/meeting-recording-view";
 import { MeetingsList } from "@/components/meetings/meetings-list";
 import { Button } from "@/components/ui/button";
@@ -18,9 +20,9 @@ export default function MeetingsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading meetings...</p>
-      </div>
+      <PageCanvas className="items-center justify-center">
+        <p className="type-control-muted">Loading meetings...</p>
+      </PageCanvas>
     );
   }
 
@@ -29,17 +31,17 @@ export default function MeetingsPage() {
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <h1 className="text-lg font-semibold">Meetings</h1>
-        <Button size="sm" onClick={() => setIsRecording(true)}>
-          <AppIcon name="meeting" className="mr-1.5 h-4 w-4" />
-          New Meeting
-        </Button>
-      </div>
-      <div className="flex-1 overflow-y-auto px-2 py-3">
-        <MeetingsList meetings={meetings ?? []} />
-      </div>
-    </div>
+    <PageCanvas>
+      <PageHeader
+        title="Meetings"
+        actions={
+          <Button size="sm" onClick={() => setIsRecording(true)}>
+            <AppIcon name="meeting" className="mr-1.5 h-4 w-4" />
+            New Meeting
+          </Button>
+        }
+      />
+      <MeetingsList meetings={meetings ?? []} />
+    </PageCanvas>
   );
 }

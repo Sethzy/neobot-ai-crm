@@ -41,8 +41,6 @@ import { RecordDetailPanelShell } from "./record-detail-panel-shell";
 interface DealDrawerContentProps {
   /** Deal id selected in the drawer. */
   dealId: string;
-  /** Optional close control for inline desktop panels. */
-  closeButton?: ReactNode;
 }
 
 type DealDrawerTab = "home" | "contacts" | "timeline" | "tasks" | "notes" | "files";
@@ -50,7 +48,7 @@ type DealDrawerTab = "home" | "contacts" | "timeline" | "tasks" | "notes" | "fil
 /**
  * Renders deal details, linked contacts, and the unified activity timeline.
  */
-export function DealDrawerContent({ dealId, closeButton }: DealDrawerContentProps) {
+export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
   const { data: deal, isLoading, isError } = useDeal(dealId);
   const { data: linkedTasks = [] } = useDealTasks(dealId);
   const { data: companies = [] } = useCompanies({});
@@ -65,7 +63,6 @@ export function DealDrawerContent({ dealId, closeButton }: DealDrawerContentProp
           <div className="space-y-4 p-5">
             <header className="space-y-2">
               <div className="flex items-center gap-2.5">
-                {closeButton ? <div className="shrink-0">{closeButton}</div> : null}
                 <Skeleton className="size-7 shrink-0 rounded-full" />
                 <Skeleton className="h-4 w-36" />
                 <Skeleton className="ml-auto h-3 w-24 shrink-0" />
@@ -126,7 +123,6 @@ export function DealDrawerContent({ dealId, closeButton }: DealDrawerContentProp
     <RecordDetailPanelShell
       title={deal.address}
       meta={`Updated ${formatDistanceToNow(new Date(deal.updated_at), { addSuffix: true })}`}
-      closeButton={closeButton}
       avatar={
         <Avatar size="sm">
           <AvatarFallback className="bg-amber-500/10 text-xs font-medium text-amber-700 dark:text-amber-400">

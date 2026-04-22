@@ -7,6 +7,8 @@
  */
 import path from "node:path";
 
+import { PageCanvas } from "@/components/layout/page-canvas";
+import { PageHeader } from "@/components/layout/page-header";
 import { resolveClientId } from "@/lib/chat/client-id";
 import {
   getInstalledSkills,
@@ -53,20 +55,16 @@ export default async function SkillsPage() {
   }));
 
   return (
-    <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
-      <div className="mx-auto max-w-5xl space-y-5">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Skills</h1>
-          <p className="text-muted-foreground text-sm">
-            Give your agent specialized capabilities with reusable skill blocks.
-          </p>
-        </div>
+    <PageCanvas contentClassName="gap-5">
+        <PageHeader
+          title="Skills"
+          description="Give your agent specialized capabilities with reusable skill blocks."
+        />
 
         <SkillsCatalog
           installedCards={installedCards}
           recommendedCards={recommendedCards}
         />
-      </div>
-    </div>
+    </PageCanvas>
   );
 }

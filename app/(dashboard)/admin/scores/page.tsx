@@ -7,6 +7,8 @@
  */
 import { notFound } from "next/navigation";
 
+import { PageCanvas, PageSurface } from "@/components/layout/page-canvas";
+import { PageHeader } from "@/components/layout/page-header";
 import {
   Table,
   TableBody,
@@ -37,22 +39,23 @@ export default async function ScoresPage() {
   const rows = await fetchRecentScores({ days: SCORES_LOOKBACK_DAYS });
 
   return (
-    <div className="overflow-auto px-4 py-6 md:px-12 md:py-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">Evaluator scores</h1>
-          <p className="text-sm text-muted-foreground">
-            Rolling {SCORES_LOOKBACK_DAYS}-day view of managed-agent evaluator output stored in
-            <code className="mx-1 rounded bg-muted px-1.5 py-0.5 text-xs">run_scores</code>.
-          </p>
-        </div>
+    <PageCanvas variant="content" contentClassName="max-w-6xl">
+        <PageHeader
+          title="Evaluator scores"
+          description={
+            <>
+              Rolling {SCORES_LOOKBACK_DAYS}-day view of managed-agent evaluator output stored in
+              <code className="mx-1 rounded bg-muted px-1.5 py-0.5 text-caption">run_scores</code>.
+            </>
+          }
+        />
 
         {rows.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border/70 bg-card p-8 text-sm text-muted-foreground">
+          <PageSurface className="border-dashed p-8 type-empty-copy text-muted-foreground">
             No scores recorded yet.
-          </div>
+          </PageSurface>
         ) : (
-          <div className="rounded-lg border border-border/70 bg-card shadow-sm">
+          <PageSurface padding="none" className="overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -77,9 +80,8 @@ export default async function ScoresPage() {
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </PageSurface>
         )}
-      </div>
-    </div>
+    </PageCanvas>
   );
 }

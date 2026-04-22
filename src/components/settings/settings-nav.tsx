@@ -54,7 +54,7 @@ export function SettingsNav() {
     <nav aria-label="Settings" className="flex w-full flex-col gap-5">
       <Link
         href="/chat"
-        className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        className="flex items-center gap-1.5 type-control-muted transition-colors hover:text-foreground"
       >
         <ChevronLeftIcon className="h-4 w-4" />
         Settings
@@ -62,9 +62,7 @@ export function SettingsNav() {
 
       {SETTINGS_NAV_SECTIONS.map((section) => (
         <div key={section.label} className="flex flex-col gap-1.5">
-          <div className="text-caption font-semibold uppercase tracking-[0.12em] text-muted-foreground/60">
-            {section.label}
-          </div>
+          <div className="type-table-heading text-muted-foreground/60">{section.label}</div>
           <ul className="flex flex-col gap-0.5">
             {section.items.map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -73,10 +71,9 @@ export function SettingsNav() {
                   <Link
                     href={item.href}
                     className={cn(
-                      "flex items-center rounded-md px-2.5 py-1.5 text-sm transition-colors",
-                      "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                      isActive &&
-                        "bg-muted/60 font-medium text-foreground hover:bg-muted/70",
+                      "flex items-center rounded-md px-2.5 py-1.5 type-control-muted transition-colors",
+                      "hover:bg-muted/50 hover:text-foreground",
+                      isActive && "bg-muted/60 text-foreground hover:bg-muted/70",
                     )}
                     aria-current={isActive ? "page" : undefined}
                   >

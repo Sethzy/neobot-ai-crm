@@ -23,7 +23,7 @@ export function MessageQuotaPill({ quota, className }: MessageQuotaPillProps) {
   return (
     <div
       className={cn(
-        "flex items-center justify-center gap-2 text-sm",
+        "flex items-center justify-center gap-2 type-control",
         className,
       )}
     >
@@ -35,7 +35,7 @@ export function MessageQuotaPill({ quota, className }: MessageQuotaPillProps) {
       <span className="text-muted-foreground/40">·</span>
       <Link
         className={cn(
-          "text-sm font-medium",
+          "type-control",
           isExhausted ? "text-destructive" : "text-primary",
         )}
         href="/pricing"

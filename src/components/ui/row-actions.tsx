@@ -9,7 +9,6 @@
 import * as React from "react"
 import { createPortal } from "react-dom"
 
-import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 /**
@@ -168,8 +167,8 @@ export function RowActions({ items = [] }: RowActionsProps) {
         aria-expanded={isOpen}
         aria-label="Open row actions"
         className={cn(
-          buttonVariants({ variant: "ghost", size: "icon-sm" }),
-          "text-muted-foreground hover:text-foreground"
+          "inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground/60 transition-colors",
+          "hover:bg-muted hover:text-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         )}
         onClick={(event) => {
           event.stopPropagation()

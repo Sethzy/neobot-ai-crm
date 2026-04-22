@@ -44,11 +44,11 @@ export function RecordingBar({
         className={`h-2.5 w-2.5 rounded-full ${isPaused ? "bg-muted-foreground/50" : "bg-destructive animate-pulse"}`}
       />
 
-      <span className="font-mono text-sm tabular-nums text-foreground">
+      <span className="font-mono text-meta tabular-nums text-foreground">
         {formatTime(elapsedSeconds)}
       </span>
 
-      <span className="text-xs text-muted-foreground">
+      <span className="type-row-meta text-muted-foreground">
         {statusLabel ?? (isPaused ? "Paused" : "Recording")}
       </span>
 

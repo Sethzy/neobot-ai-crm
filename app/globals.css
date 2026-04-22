@@ -25,24 +25,24 @@
   --flexoki-purple:  #5E409D;
   --flexoki-magenta: #A02F6F;
 
-  --background: oklch(0.9761 0.0041 91.4461);
+  --background: var(--app-canvas);
   --foreground: oklch(0.2417 0.0298 269.8827);
-  --card: oklch(1.0000 0 0);
+  --card: var(--app-surface);
   --card-foreground: oklch(0.2417 0.0298 269.8827);
-  --popover: oklch(1.0000 0 0);
+  --popover: var(--app-surface-elevated);
   --popover-foreground: oklch(0.2417 0.0298 269.8827);
   --primary: oklch(0.3840 0.0681 181.8438);
   --primary-foreground: oklch(1.0000 0 0);
   --secondary: oklch(0.8596 0.0291 119.9919);
   --secondary-foreground: oklch(0.2417 0.0298 269.8827);
-  --muted: oklch(0.9251 0.0071 88.6450);
+  --muted: var(--app-surface-muted);
   --muted-foreground: oklch(0.5510 0.0234 264.3637);
   --accent: oklch(0.8242 0.0221 136.6092);
   --accent-foreground: oklch(0.2417 0.0298 269.8827);
   --destructive: oklch(0.5624 0.1743 26.1433);
   --destructive-foreground: oklch(1.0000 0 0);
-  --border: oklch(0.9251 0.0071 88.6450);
-  --input: oklch(1.0000 0 0);
+  --border: var(--app-border-subtle);
+  --input: var(--app-border-subtle);
   --ring: oklch(0.6333 0.0309 154.9039);
   --chart-1: oklch(0.6333 0.0309 154.9039);
   --chart-2: oklch(0.7209 0.0489 120.9474);
@@ -50,13 +50,13 @@
   --chart-4: oklch(0.5510 0.0234 264.3637);
   --chart-5: oklch(0.9251 0.0071 88.6450);
   --radius: 0.35rem;
-  --sidebar: oklch(0.9845 0.0026 106.4477);
+  --sidebar: var(--app-sidebar);
   --sidebar-foreground: oklch(0.2417 0.0298 269.8827);
   --sidebar-primary: oklch(0.6333 0.0309 154.9039);
   --sidebar-primary-foreground: oklch(1.0000 0 0);
-  --sidebar-accent: oklch(0.9251 0.0071 88.6450);
+  --sidebar-accent: var(--app-hover);
   --sidebar-accent-foreground: oklch(0.2417 0.0298 269.8827);
-  --sidebar-border: oklch(0.9251 0.0071 88.6450);
+  --sidebar-border: var(--app-border-subtle);
   --sidebar-ring: oklch(0.6333 0.0309 154.9039);
 
   --success: var(--flexoki-green);
@@ -101,6 +101,19 @@
   --shadow-lg: 0px 1px 2px 0px hsl(225 27.7778% 14.1176% / 0.04), 0px 4px 6px -1px hsl(225 27.7778% 14.1176% / 0.04);
   --shadow-xl: 0px 1px 2px 0px hsl(225 27.7778% 14.1176% / 0.04), 0px 8px 10px -1px hsl(225 27.7778% 14.1176% / 0.04);
   --shadow-2xl: 0px 1px 2px 0px hsl(225 27.7778% 14.1176% / 0.10);
+
+  /* White-based product surfaces. Canvas, surface, and elevated all render as
+     white; separation is carried by border-subtle and shadow. Sidebar is the
+     only tinted tone — it anchors the navigation rail against the white app
+     body. Muted is a near-invisible neutral gray for hover/zebra/footer tints. */
+  --app-sidebar: oklch(0.9700 0.0030 90.0000);
+  --app-canvas: oklch(1.0000 0 0);
+  --app-surface: oklch(1.0000 0 0);
+  --app-surface-muted: oklch(0.9750 0 0);
+  --app-surface-elevated: oklch(1.0000 0 0);
+  --app-border-subtle: oklch(0.9050 0 0);
+  --app-border-strong: oklch(0.8650 0 0);
+  --app-hover: oklch(0.9600 0 0);
 }
 
 .dark {
@@ -122,37 +135,37 @@
   --flexoki-purple:  #8B7EC8;
   --flexoki-magenta: #CE5D97;
 
-  --background: oklch(0.1448 0 0);
+  --background: var(--app-canvas);
   --foreground: oklch(0.9702 0 0);
-  --card: oklch(0.1822 0 0);
+  --card: var(--app-surface);
   --card-foreground: oklch(0.9702 0 0);
-  --popover: oklch(0.1822 0 0);
+  --popover: var(--app-surface-elevated);
   --popover-foreground: oklch(0.9702 0 0);
   --primary: oklch(0.6333 0.0309 154.9039);
   --primary-foreground: oklch(0 0 0);
   --secondary: oklch(0.2178 0 0);
   --secondary-foreground: oklch(0.9702 0 0);
-  --muted: oklch(0.2178 0 0);
+  --muted: var(--app-surface-muted);
   --muted-foreground: oklch(0.7058 0 0);
   --accent: oklch(0.3709 0.0248 153.9823);
   --accent-foreground: oklch(0.9702 0 0);
   --destructive: oklch(0.6368 0.2078 25.3313);
   --destructive-foreground: oklch(1.0000 0 0);
-  --border: oklch(0.2850 0 0);
-  --input: oklch(0.1822 0 0);
+  --border: var(--app-border-subtle);
+  --input: var(--app-border-subtle);
   --ring: oklch(0.6333 0.0309 154.9039);
   --chart-1: oklch(0.6333 0.0309 154.9039);
   --chart-2: oklch(0.7209 0.0489 120.9474);
   --chart-3: oklch(0.6744 0.0427 136.0110);
   --chart-4: oklch(0.5510 0.0234 264.3637);
   --chart-5: oklch(0.5096 0.0289 152.3460);
-  --sidebar: oklch(0.1684 0 0);
+  --sidebar: var(--app-sidebar);
   --sidebar-foreground: oklch(0.9702 0 0);
   --sidebar-primary: oklch(0.6333 0.0309 154.9039);
   --sidebar-primary-foreground: oklch(1.0000 0 0);
-  --sidebar-accent: oklch(0.2178 0 0);
+  --sidebar-accent: var(--app-hover);
   --sidebar-accent-foreground: oklch(0.9702 0 0);
-  --sidebar-border: oklch(0.2850 0 0);
+  --sidebar-border: var(--app-border-subtle);
   --sidebar-ring: oklch(0.6333 0.0309 154.9039);
   --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.02);
   --shadow-xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.02);
@@ -162,6 +175,21 @@
   --shadow-lg: 0px 1px 2px 0px hsl(0 0% 0% / 0.04), 0px 4px 6px -1px hsl(0 0% 0% / 0.04);
   --shadow-xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.04), 0px 8px 10px -1px hsl(0 0% 0% / 0.04);
   --shadow-2xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.10);
+
+  /* Dark mode is intentionally asymmetric to the light-mode white monotone.
+     Cards read against canvas via a small lightness lift (canvas < surface),
+     popovers lift further. Sidebar is a separate warm-neutral dark tone so the
+     navigation rail stays identifiable. Monotone dark would be hostile to read
+     dense tables and kanban cards against, which is why Linear/Notion also
+     carry a two-tone dark while keeping light monotone. */
+  --app-sidebar: oklch(0.1680 0.0030 91.0000);
+  --app-canvas: oklch(0.1450 0 0);
+  --app-surface: oklch(0.1850 0 0);
+  --app-surface-muted: oklch(0.1650 0 0);
+  --app-surface-elevated: oklch(0.2150 0 0);
+  --app-border-subtle: oklch(0.2800 0 0);
+  --app-border-strong: oklch(0.3350 0 0);
+  --app-hover: oklch(0.2200 0 0);
 }
 
 @theme inline {
@@ -183,6 +211,18 @@
   --text-body: 1rem;
   --text-body--line-height: 1.5rem;
   --text-body--font-weight: 400;
+  --text-control: 0.875rem;
+  --text-control--line-height: 1.25rem;
+  --text-control--letter-spacing: -0.01em;
+  --text-control--font-weight: 500;
+  --text-toolbar: 1.125rem;
+  --text-toolbar--line-height: 1.5rem;
+  --text-toolbar--letter-spacing: -0.015em;
+  --text-toolbar--font-weight: 600;
+  --text-page: 1.5rem;
+  --text-page--line-height: 1.875rem;
+  --text-page--letter-spacing: -0.03em;
+  --text-page--font-weight: 600;
   --text-subhead: 1.25rem;
   --text-subhead--line-height: 1.75rem;
   --text-subhead--letter-spacing: -0.01em;
@@ -229,6 +269,14 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-app-sidebar: var(--app-sidebar);
+  --color-app-canvas: var(--app-canvas);
+  --color-app-surface: var(--app-surface);
+  --color-app-surface-muted: var(--app-surface-muted);
+  --color-app-surface-elevated: var(--app-surface-elevated);
+  --color-app-border-subtle: var(--app-border-subtle);
+  --color-app-border-strong: var(--app-border-strong);
+  --color-app-hover: var(--app-hover);
 
   /* Sunder custom tokens */
   --color-sunder-green: #024F46;
@@ -308,6 +356,17 @@
     @apply font-sans;
   }
 
+  /*
+   * Form controls have a UA-stylesheet `text-rendering: auto` reset that
+   * inherits down to descendants, causing text inside a <button> to render
+   * noticeably different (no ligatures, looser kerning) from the same text
+   * inside a <td> or <div>. Force form controls to inherit the page-level
+   * optimizeLegibility so all text renders uniformly.
+   */
+  button, input, select, textarea {
+    text-rendering: inherit;
+  }
+
   code, kbd, pre, samp {
     font-family: var(--font-mono);
     font-variant-ligatures: none;
@@ -371,6 +430,60 @@
     letter-spacing: 0.12em;
   }
 
+  .type-page-title {
+    @apply text-page font-semibold text-foreground;
+  }
+
+  .type-page-description {
+    @apply text-meta text-muted-foreground;
+  }
+
+  .type-toolbar-title {
+    @apply text-toolbar font-semibold text-foreground;
+  }
+
+  .type-toolbar-description {
+    @apply text-meta text-muted-foreground;
+  }
+
+  .type-section-title {
+    @apply text-body font-semibold text-foreground;
+    letter-spacing: -0.01em;
+  }
+
+  .type-control {
+    @apply text-control font-medium text-foreground;
+  }
+
+  .type-control-muted {
+    @apply text-control text-muted-foreground;
+  }
+
+  .type-row-title {
+    @apply text-meta font-medium text-foreground;
+  }
+
+  .type-row-meta {
+    @apply text-caption text-muted-foreground;
+  }
+
+  .type-table-heading {
+    @apply text-caption font-medium uppercase text-muted-foreground;
+    letter-spacing: 0.12em;
+  }
+
+  .type-empty-title {
+    @apply text-body font-semibold text-foreground;
+  }
+
+  .type-empty-copy {
+    @apply text-meta text-muted-foreground;
+  }
+
+  .type-hero-title {
+    @apply text-title font-semibold text-foreground;
+  }
+
   .type-heading {
     @apply font-serif text-title text-foreground;
   }
@@ -381,6 +494,22 @@
 
   .measure-copy {
     max-width: 65ch;
+  }
+
+  .page-canvas {
+    @apply flex min-h-0 min-w-0 flex-1 overflow-auto bg-app-canvas;
+  }
+
+  .surface-app {
+    @apply rounded-2xl border border-app-border-subtle bg-app-surface text-foreground shadow-sm;
+  }
+
+  .surface-app-muted {
+    @apply rounded-2xl border border-app-border-subtle bg-app-surface-muted text-foreground shadow-sm;
+  }
+
+  .surface-app-elevated {
+    @apply rounded-2xl border border-app-border-strong/70 bg-app-surface-elevated text-foreground shadow-md;
   }
 }
 
