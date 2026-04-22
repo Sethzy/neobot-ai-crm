@@ -178,6 +178,7 @@ export default function RegisterPage() {
               onChange={(e) => setFullName(e.target.value)}
               disabled={isLoading || isGoogleLoading}
               required
+              className="h-11 text-base"
             />
           </div>
 
@@ -191,6 +192,7 @@ export default function RegisterPage() {
               onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading || isGoogleLoading}
               required
+              className="h-11 text-base"
             />
           </div>
 
@@ -204,6 +206,7 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading || isGoogleLoading}
               required
+              className="h-11 text-base"
             />
           </div>
 

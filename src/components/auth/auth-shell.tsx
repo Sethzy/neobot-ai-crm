@@ -22,8 +22,8 @@ export function AuthShell({
   title,
 }: AuthShellProps) {
   return (
-    <div className="min-h-screen bg-background lg:grid lg:grid-cols-[minmax(420px,520px)_1fr]">
-      <section className="flex min-h-screen flex-col justify-between px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
+    <div className="min-h-dvh bg-background lg:grid lg:grid-cols-[minmax(420px,520px)_1fr]">
+      <section className="flex min-h-dvh flex-col justify-between px-6 py-8 sm:px-10 lg:px-14 lg:py-10">
         <div className="flex items-center justify-between">
           <Link href="/" className="inline-flex items-center gap-3 text-foreground">
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-meta font-semibold uppercase text-primary-foreground">

@@ -82,6 +82,7 @@ export default function UpdatePasswordPage() {
             onChange={(e) => setPassword(e.target.value)}
             disabled={isLoading}
             required
+            className="h-11 text-base"
           />
         </div>
 
@@ -95,6 +96,7 @@ export default function UpdatePasswordPage() {
             onChange={(e) => setConfirmPassword(e.target.value)}
             disabled={isLoading}
             required
+            className="h-11 text-base"
           />
         </div>
 

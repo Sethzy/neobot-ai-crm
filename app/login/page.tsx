@@ -125,6 +125,7 @@ export default function LoginPage({
               onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading || isGoogleLoading}
               required
+              className="h-11 text-base"
             />
           </div>
 
@@ -143,6 +144,7 @@ export default function LoginPage({
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading || isGoogleLoading}
               required
+              className="h-11 text-base"
             />
           </div>
 
