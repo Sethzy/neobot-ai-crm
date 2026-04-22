@@ -2,7 +2,7 @@
  * Tests for Composio catalog search and capabilities helpers.
  * @module lib/composio/__tests__/catalog
  */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../client", () => ({
   getComposio: vi.fn(),
@@ -199,78 +199,69 @@ describe("getToolkitCapabilities", () => {
 });
 
 describe("getToolkitDisplayInfo", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("loads lightweight display metadata from the tools API", async () => {
+  it("returns local-first branding for supported launch-set providers", async () => {
+    await expect(getToolkitDisplayInfo("googledrive")).resolves.toEqual({
+      integrationId: "googledrive",
+      displayName: "Google Drive",
+      description: "Find, read, and manage files in your Drive.",
+      logoUrl: "/logos/drive.svg",
+    });
+    expect(getVersionedRawComposioTools).not.toHaveBeenCalled();
+  });
+
+  it("loads lightweight display metadata from the tools API for non-launch providers", async () => {
     vi.mocked(getVersionedRawComposioTools).mockResolvedValueOnce([
       {
-        slug: "GOOGLEDRIVE_FIND_FILE",
-        name: "Google Drive Find File",
-        description: "Search Google Drive files",
-        tags: ["drive"],
+        slug: "SLACK_SEND_MESSAGE",
+        name: "Slack Send Message",
+        description: "Post Slack messages",
+        tags: ["mail"],
         toolkit: {
-          slug: "googledrive",
-          name: "Google Drive",
-          description: "Browse and manage Google Drive files",
+          slug: "slack",
+          name: "slack",
+          description: "Post to Slack",
+          logo: "https://cdn.composio.dev/slack.png",
         },
       } as never,
     ]);
 
-    await expect(getToolkitDisplayInfo("googledrive")).resolves.toEqual({
-      integrationId: "googledrive",
-      displayName: "Google Drive",
-      description: "Browse and manage Google Drive files",
-      logoUrl: null,
+    await expect(getToolkitDisplayInfo("slack")).resolves.toEqual({
+      integrationId: "slack",
+      displayName: "slack",
+      description: "Post to Slack",
+      logoUrl: "https://cdn.composio.dev/slack.png",
     });
     expect(getVersionedRawComposioTools).toHaveBeenCalledWith({
-      toolkits: ["googledrive"],
+      toolkits: ["slack"],
       limit: 1,
     });
   });
 
-  it("normalizes slug-like toolkit names into human display names", async () => {
-    vi.mocked(getVersionedRawComposioTools).mockResolvedValueOnce([
-      {
-        slug: "GMAIL_SEND_EMAIL",
-        name: "Gmail Send Email",
-        description: "Read Gmail",
-        tags: ["mail"],
-        toolkit: {
-          slug: "gmail",
-          name: "gmail",
-          description: "Read Gmail",
-          logo: "https://cdn.composio.dev/gmail.png",
-        },
-      } as never,
-    ]);
-
-    await expect(getToolkitDisplayInfo("gmail")).resolves.toEqual({
-      integrationId: "gmail",
-      displayName: "Gmail",
-      description: "Read Gmail",
-      logoUrl: "https://cdn.composio.dev/gmail.png",
-    });
-  });
-
-  it("falls back to the supported provider display name when the tools API returns no metadata", async () => {
+  it("falls back to the slug when the tools API returns no metadata for non-launch providers", async () => {
     vi.mocked(getVersionedRawComposioTools).mockResolvedValueOnce([]);
 
-    await expect(getToolkitDisplayInfo("gmail")).resolves.toEqual({
-      integrationId: "gmail",
-      displayName: "Gmail",
+    await expect(getToolkitDisplayInfo("slack")).resolves.toEqual({
+      integrationId: "slack",
+      displayName: "slack",
       description: "",
       logoUrl: null,
     });
   });
 
-  it("falls back to the supported provider display name when the lookup errors", async () => {
+  it("falls back to the slug when the lookup errors for non-launch providers", async () => {
     vi.mocked(getVersionedRawComposioTools).mockRejectedValueOnce(new Error("catalog unavailable"));
 
-    await expect(getToolkitDisplayInfo("googledrive")).resolves.toEqual({
-      integrationId: "googledrive",
-      displayName: "Google Drive",
+    await expect(getToolkitDisplayInfo("slack")).resolves.toEqual({
+      integrationId: "slack",
+      displayName: "slack",
       description: "",
       logoUrl: null,
     });

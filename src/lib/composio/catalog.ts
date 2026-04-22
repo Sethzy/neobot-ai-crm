@@ -3,7 +3,10 @@
  * @module lib/composio/catalog
  */
 import { unstable_cache } from "next/cache";
-import { getSupportedProviderDisplayName } from "@/lib/managed-agents/tools/supported-providers";
+import {
+  getSupportedProviderBranding,
+  getSupportedProviderDisplayName,
+} from "@/lib/managed-agents/tools/supported-providers";
 
 import {
   COMPOSIO_TOOL_FETCH_LIMIT,
@@ -149,6 +152,17 @@ export async function getToolkitCapabilities(
 export async function getToolkitDisplayInfo(
   toolkitSlug: string,
 ): Promise<ToolkitDisplayInfo> {
+  const localBranding = getSupportedProviderBranding(toolkitSlug);
+
+  if (localBranding) {
+    return {
+      integrationId: localBranding.integrationId,
+      displayName: localBranding.displayName,
+      description: localBranding.description,
+      logoUrl: localBranding.logoUrl,
+    };
+  }
+
   try {
     const [toolkitTool] = await getVersionedRawComposioTools({
       toolkits: [toolkitSlug],

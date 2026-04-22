@@ -36,9 +36,26 @@ export const SUPPORTED_PROVIDER_DESCRIPTIONS: Record<
   notion: "Read and update pages and databases in your Notion workspace.",
 };
 
+export const SUPPORTED_PROVIDER_LOGO_URLS: Record<
+  SupportedProviderSlug,
+  string
+> = {
+  gmail: "/logos/gmail.svg",
+  googlecalendar: "/logos/google-calendar.svg",
+  googledrive: "/logos/drive.svg",
+  notion: "/logos/notion.svg",
+};
+
 export const SUPPORTED_PROVIDER_NAMES_FOR_PROMPT = Object.values(
   SUPPORTED_PROVIDER_DISPLAY_NAMES,
 ).join(", ");
+
+export interface SupportedProviderBranding {
+  integrationId: SupportedProviderSlug;
+  displayName: string;
+  description: string;
+  logoUrl: string;
+}
 
 /** Returns whether the provided slug is already one of the canonical launch slugs. */
 export function isSupportedProvider(slug: string): slug is SupportedProviderSlug {
@@ -65,6 +82,22 @@ export function getSupportedProviderDescription(slug: string): string {
   }
 
   return SUPPORTED_PROVIDER_DESCRIPTIONS[normalizedSlug];
+}
+
+/** Returns launch-set branding that can be rendered without any remote lookup. */
+export function getSupportedProviderBranding(slug: string): SupportedProviderBranding | null {
+  const normalizedSlug = normalizeSupportedProviderSlug(slug);
+
+  if (!normalizedSlug) {
+    return null;
+  }
+
+  return {
+    integrationId: normalizedSlug,
+    displayName: SUPPORTED_PROVIDER_DISPLAY_NAMES[normalizedSlug],
+    description: SUPPORTED_PROVIDER_DESCRIPTIONS[normalizedSlug],
+    logoUrl: SUPPORTED_PROVIDER_LOGO_URLS[normalizedSlug],
+  };
 }
 
 /**

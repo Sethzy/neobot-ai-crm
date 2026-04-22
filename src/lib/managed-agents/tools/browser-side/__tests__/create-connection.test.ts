@@ -43,7 +43,12 @@ describe("createConnectionTool", () => {
             : toolkitSlug === "notion"
               ? "Read and update pages and databases in your Notion workspace."
               : `${toolkitSlug} connection`,
-      logoUrl: `https://cdn.composio.dev/${toolkitSlug}.png`,
+      logoUrl:
+        toolkitSlug === "googledrive"
+          ? "/logos/drive.svg"
+          : toolkitSlug === "googlecalendar"
+            ? "/logos/google-calendar.svg"
+            : `/logos/${toolkitSlug}.svg`,
     }));
   });
 
@@ -86,7 +91,7 @@ describe("createConnectionTool", () => {
           integrationId: "gmail",
           displayName: "Gmail",
           description: expect.stringMatching(/gmail/i),
-          logoUrl: "https://cdn.composio.dev/gmail.png",
+          logoUrl: "/logos/gmail.svg",
           connectionStatus: "pending_auth",
           redirectUrl: "https://composio.dev/oauth/redirect",
           authRedirectExpiresAt: "2026-04-21T09:45:00.000Z",
@@ -152,7 +157,7 @@ describe("createConnectionTool", () => {
         {
           integrationId: "googledrive",
           displayName: "Google Drive",
-          logoUrl: "https://cdn.composio.dev/googledrive.png",
+          logoUrl: "/logos/drive.svg",
         },
       ],
     });
@@ -190,7 +195,7 @@ describe("createConnectionTool", () => {
         {
           integrationId: "googledrive",
           displayName: "Google Drive",
-          logoUrl: "https://cdn.composio.dev/googledrive.png",
+          logoUrl: "/logos/drive.svg",
           error: expect.stringMatching(/already connected.*disconnect/i),
         },
       ],
@@ -260,7 +265,7 @@ describe("createConnectionTool", () => {
         {
           integrationId: "gmail",
           displayName: "Gmail",
-          logoUrl: "https://cdn.composio.dev/gmail.png",
+          logoUrl: "/logos/gmail.svg",
           connectionStatus: "pending_auth",
           redirectUrl: "https://composio.dev/oauth/gmail",
           authRedirectExpiresAt: "2026-04-21T09:45:00.000Z",
@@ -268,7 +273,7 @@ describe("createConnectionTool", () => {
         {
           integrationId: "notion",
           displayName: "Notion",
-          logoUrl: "https://cdn.composio.dev/notion.png",
+          logoUrl: "/logos/notion.svg",
           error: expect.stringMatching(/could not start notion: write failed/i),
         },
       ],

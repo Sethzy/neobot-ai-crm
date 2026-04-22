@@ -35,7 +35,7 @@ describe("reauthorizeConnectionTool", () => {
       integrationId: "gmail",
       displayName: "Gmail",
       description: "Send and read Gmail messages.",
-      logoUrl: "https://cdn.composio.dev/gmail.png",
+      logoUrl: "/logos/gmail.svg",
     });
   });
 
@@ -131,7 +131,7 @@ describe("reauthorizeConnectionTool", () => {
       integrationId: "gmail",
       displayName: "Gmail",
       description: "Send and read Gmail messages.",
-      logoUrl: "https://cdn.composio.dev/gmail.png",
+      logoUrl: "/logos/gmail.svg",
       connectionStatus: "pending_reauth",
       composioConnectedAccountId: "composio-1",
     });
