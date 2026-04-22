@@ -102,15 +102,17 @@
   --shadow-xl: 0px 1px 2px 0px hsl(225 27.7778% 14.1176% / 0.04), 0px 8px 10px -1px hsl(225 27.7778% 14.1176% / 0.04);
   --shadow-2xl: 0px 1px 2px 0px hsl(225 27.7778% 14.1176% / 0.10);
 
-  /* White-based product surfaces. Canvas, surface, and elevated all render as
-     white; separation is carried by border-subtle and shadow. Sidebar is the
-     only tinted tone — it anchors the navigation rail against the white app
-     body. Muted is a near-invisible neutral gray for hover/zebra/footer tints. */
+  /* White-based product surfaces. Canvas and surface render as white; elevated
+     surfaces (popovers, dropdowns, floating detail cards) get a faint lift so
+     their outline reads against the white canvas instead of relying on a
+     4%-alpha shadow. Sidebar is the only tinted tone — it anchors the
+     navigation rail against the white app body. Muted is a near-invisible
+     neutral gray for hover/zebra/footer tints. */
   --app-sidebar: oklch(0.9700 0.0030 90.0000);
   --app-canvas: oklch(1.0000 0 0);
   --app-surface: oklch(1.0000 0 0);
   --app-surface-muted: oklch(0.9750 0 0);
-  --app-surface-elevated: oklch(1.0000 0 0);
+  --app-surface-elevated: oklch(0.9850 0 0);
   --app-border-subtle: oklch(0.9050 0 0);
   --app-border-strong: oklch(0.8650 0 0);
   --app-hover: oklch(0.9600 0 0);

@@ -1147,7 +1147,7 @@ export function ToolCallInline({
       ) : null}
 
       {isOpen ? (
-        <div data-testid="tool-details" className="relative z-10 mt-1.5 flex max-h-[600px] w-[750px] flex-col rounded-lg border bg-background shadow-lg text-sm">
+        <div data-testid="tool-details" className="relative z-10 mt-1.5 flex max-h-[600px] w-full flex-col rounded-lg border bg-popover shadow-lg text-sm">
           {/* Arguments — capped height, scrollable */}
           <div className="shrink-0 border-b px-4 py-3">
             <p className="mb-1 text-xs font-semibold text-muted-foreground">Arguments</p>

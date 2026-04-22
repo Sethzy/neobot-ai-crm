@@ -370,7 +370,7 @@ export function AskUserQuestionOverlay({
       tabIndex={-1}
       onKeyDown={handleOverlayKeyDown}
       className={cn(
-        "mx-auto w-full max-w-[44rem] rounded-2xl border border-border/50 bg-card px-5 pb-4 pt-5 shadow-[0_8px_32px_rgba(15,23,42,0.10)]",
+        "mx-auto w-full max-w-3xl rounded-2xl border border-border/50 bg-card px-5 pb-4 pt-5 shadow-[0_8px_32px_rgba(15,23,42,0.10)]",
         className,
       )}
     >

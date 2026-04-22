@@ -458,7 +458,7 @@ export function ChatComposer({
       onDrop={allowAttachments ? handleDrop : undefined}
     >
       <div className={cn(
-        "mx-auto max-w-[44rem] rounded-2xl transition-all",
+        "mx-auto max-w-3xl rounded-2xl transition-all",
         isDragOver && "ring-2 ring-ring/20 border-dashed bg-accent/50",
         innerClassName,
       )}>

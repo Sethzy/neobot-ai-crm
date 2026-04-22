@@ -15,7 +15,7 @@ export default function Loading() {
       aria-live="polite"
     >
       <div className="relative flex-1 min-h-0 overflow-hidden px-4 py-6">
-        <div className="mx-auto max-w-2xl space-y-3">
+        <div className="mx-auto max-w-3xl space-y-3">
           {/* User message skeleton — right-aligned bubble */}
           <div className="flex justify-end">
             <Skeleton className="h-10 w-[45%] max-w-[18rem] rounded-2xl rounded-br-md bg-muted/40" />
@@ -35,7 +35,7 @@ export default function Loading() {
       </div>
 
       <div className="border-t border-border/40 bg-background/95 px-3 py-3 sm:px-4">
-        <div className="mx-auto flex w-full max-w-2xl items-center gap-3">
+        <div className="mx-auto flex w-full max-w-3xl items-center gap-3">
           <Skeleton
             data-testid="chat-thread-loading-composer-skeleton"
             className="h-10 flex-1 rounded-xl border border-border/40 bg-muted/50"
