@@ -41,18 +41,23 @@ vi.mock("@/contexts/thread-context", () => ({
   useThreads: () => ({
     threads: [
       {
+        id: "thread-primary",
+        title: "Main",
+        isPinned: true,
+        isPrimary: true,
+        createdAt: new Date("2026-03-01T00:00:00.000Z"),
+        sourceType: "chat",
+      },
+      {
         id: "thread-1",
         title: "Thread Alpha",
         isPinned: false,
-        createdAt: new Date("2026-03-01T00:00:00.000Z"),
-      },
-      {
-        id: "thread-2",
-        title: "Thread Beta",
-        isPinned: true,
+        isPrimary: false,
         createdAt: new Date("2026-03-01T01:00:00.000Z"),
+        sourceType: "chat",
       },
     ],
+    isLoading: false,
     updateThreadTitle: vi.fn(),
     archiveThread: mockArchiveThread,
   }),
@@ -135,16 +140,16 @@ describe("AppSidebar mobile thread actions", () => {
     const user = userEvent.setup();
     render(<AppSidebar />);
 
-    await user.click(screen.getByRole("link", { name: "Thread Beta" }));
+    await user.click(screen.getByRole("link", { name: "Main" }));
 
     expect(mockSetOpenMobile).toHaveBeenCalledWith(false);
   });
 
   it("highlights active thread based on URL pathname", () => {
-    mockPathname = "/chat/thread-2";
+    mockPathname = "/chat/thread-primary";
     render(<AppSidebar />);
 
-    const activeLink = screen.getByRole("link", { name: "Thread Beta" });
+    const activeLink = screen.getByRole("link", { name: "Main" });
     const inactiveLink = screen.getByRole("link", { name: "Thread Alpha" });
 
     expect(activeLink.closest("[data-active]")).toHaveAttribute("data-active", "true");
@@ -160,14 +165,14 @@ describe("AppSidebar mobile thread actions", () => {
     await user.click(screen.getByRole("menuitem", { name: /archive/i }));
 
     expect(mockArchiveThread).toHaveBeenCalledWith("thread-1");
-    expect(mockPush).toHaveBeenCalledWith("/chat/thread-2");
+    expect(mockPush).toHaveBeenCalledWith("/chat/thread-primary");
   });
 
   it("does not render archive actions for pinned threads", async () => {
     render(<AppSidebar />);
 
     expect(
-      screen.queryByRole("button", { name: /more actions for thread beta/i }),
+      screen.queryByRole("button", { name: /more actions for main/i }),
     ).not.toBeInTheDocument();
   });
 

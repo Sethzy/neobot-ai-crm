@@ -47,7 +47,6 @@ interface NavigationItem {
 
 /** AGENT section — primary operating surfaces */
 const agentNavItems: NavigationItem[] = [
-  { label: "Agent", href: "/agent", icon: "agent" },
   { label: "New Task", href: "/chat", icon: "compose" },
   { label: "Skills", href: "/skills", icon: "document" },
   { label: "Tasks", href: "/tasks", icon: "tasks" },
@@ -69,6 +68,21 @@ const databaseNavItems: NavigationItem[] = [
 interface AppSidebarProps {
   /** Opens the global command menu from the sidebar search button. */
   onOpenCommandMenu?: () => void;
+}
+
+function getThreadIconName(thread: {
+  isPrimary: boolean;
+  sourceType?: string | null;
+}): AppIconName {
+  if (thread.isPrimary) {
+    return "home";
+  }
+
+  if (thread.sourceType === "automation_run") {
+    return "automations";
+  }
+
+  return "chat";
 }
 
 export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
@@ -225,9 +239,10 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                     href={`/chat/${thread.id}`}
                     onClick={() => closeMobileSidebar()}
                   >
-                    {thread.sourceType === "automation_run" ? (
-                      <AppIcon name="automations" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    ) : null}
+                    <AppIcon
+                      name={getThreadIconName(thread)}
+                      className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                    />
                     <span className="truncate text-sm">{thread.title}</span>
                   </Link>
                 </SidebarMenuButton>

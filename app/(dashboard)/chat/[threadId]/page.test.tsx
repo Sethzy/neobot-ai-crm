@@ -69,23 +69,63 @@ vi.mock("@/components/chat/data-stream-handler", () => ({
   DataStreamHandler: () => <div data-testid="data-stream-handler" />,
 }));
 
+vi.mock("@/components/agent/telegram-cta-banner", () => ({
+  TelegramCtaBanner: () => <div data-testid="telegram-cta-banner" />,
+}));
+
 function createThreadLookupSupabase(options: {
   threadExists: boolean;
+  isPrimary?: boolean;
+  hasTelegramConnection?: boolean;
   error?: { message: string } | null;
 }) {
-  const { threadExists, error = null } = options;
-  const maybeSingle = vi.fn().mockResolvedValue(
+  const {
+    threadExists,
+    isPrimary = false,
+    hasTelegramConnection = true,
+    error = null,
+  } = options;
+  const threadMaybeSingle = vi.fn().mockResolvedValue(
     threadExists
-      ? { data: { thread_id: VALID_THREAD_ID }, error }
+      ? { data: { thread_id: VALID_THREAD_ID, is_primary: isPrimary }, error }
       : { data: null, error },
   );
-  const thirdEq = vi.fn(() => ({ maybeSingle }));
-  const secondEq = vi.fn(() => ({ eq: thirdEq }));
-  const firstEq = vi.fn(() => ({ eq: secondEq }));
-  const select = vi.fn(() => ({ eq: firstEq }));
-  const from = vi.fn(() => ({ select }));
+  const threadThirdEq = vi.fn(() => ({ maybeSingle: threadMaybeSingle }));
+  const threadSecondEq = vi.fn(() => ({ eq: threadThirdEq }));
+  const threadFirstEq = vi.fn(() => ({ eq: threadSecondEq }));
+  const threadSelect = vi.fn(() => ({ eq: threadFirstEq }));
 
-  return { from };
+  const connectionMaybeSingle = vi.fn().mockResolvedValue(
+    hasTelegramConnection
+      ? { data: { id: "telegram-connection-1" }, error: null }
+      : { data: null, error: null },
+  );
+  const connectionSecondEq = vi.fn(() => ({ maybeSingle: connectionMaybeSingle }));
+  const connectionFirstEq = vi.fn(() => ({ eq: connectionSecondEq }));
+  const connectionSelect = vi.fn(() => ({ eq: connectionFirstEq }));
+
+  const from = vi.fn((table: string) => {
+    if (table === "conversation_threads") {
+      return { select: threadSelect };
+    }
+
+    if (table === "messaging_channel_connections") {
+      return { select: connectionSelect };
+    }
+
+    throw new Error(`Unexpected table lookup: ${table}`);
+  });
+
+  return {
+    auth: {
+      getUser: vi.fn().mockResolvedValue({
+        data: {
+          user: { id: "user-1" },
+        },
+      }),
+    },
+    from,
+  };
 }
 
 describe("/chat/[threadId] page", () => {
@@ -106,7 +146,7 @@ describe("/chat/[threadId] page", () => {
   });
 
   it("loads thread messages server-side and passes mapped initialMessages to client page", async () => {
-    const supabase = createThreadLookupSupabase({ threadExists: true });
+    const supabase = createThreadLookupSupabase({ threadExists: true, hasTelegramConnection: true });
     mockCreateClient.mockResolvedValue(supabase);
     mockResolveClientId.mockResolvedValue("client-123");
     mockListMessages.mockResolvedValue([
@@ -129,6 +169,7 @@ describe("/chat/[threadId] page", () => {
     expect(screen.getByTestId("quota-remaining")).toHaveTextContent("80");
     expect(screen.getByTestId("initial-chat-model")).toHaveTextContent("anthropic/claude-sonnet-4-6");
     expect(screen.getByTestId("data-stream-handler")).toBeInTheDocument();
+    expect(screen.queryByTestId("telegram-cta-banner")).not.toBeInTheDocument();
     expect(mockListMessages).toHaveBeenCalledWith(supabase, VALID_THREAD_ID);
   });
 
@@ -171,5 +212,23 @@ describe("/chat/[threadId] page", () => {
     expect(redirect).toHaveBeenCalledWith("/chat");
     expect(mockCreateClient).not.toHaveBeenCalled();
     expect(mockListMessages).not.toHaveBeenCalled();
+  });
+
+  it("shows the Telegram CTA on the primary thread when the user is not paired", async () => {
+    const supabase = createThreadLookupSupabase({
+      threadExists: true,
+      isPrimary: true,
+      hasTelegramConnection: false,
+    });
+    mockCreateClient.mockResolvedValue(supabase);
+    mockResolveClientId.mockResolvedValue("client-123");
+    mockListMessages.mockResolvedValue([]);
+
+    const element = await ChatThreadPage({
+      params: Promise.resolve({ threadId: VALID_THREAD_ID }),
+    });
+    render(element);
+
+    expect(screen.getByTestId("telegram-cta-banner")).toBeInTheDocument();
   });
 });

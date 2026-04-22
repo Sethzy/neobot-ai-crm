@@ -1,5 +1,5 @@
 /**
- * Inline banner encouraging Telegram pairing on the Agent page.
+ * Inline banner encouraging Telegram pairing on the primary chat surface.
  * Shown when Telegram is not yet connected. Non-blocking — chat works without it.
  * @module components/agent/telegram-cta-banner
  */
@@ -13,7 +13,7 @@ export function TelegramCtaBanner() {
       <div className="flex items-center justify-between gap-4 max-w-3xl mx-auto">
         <p>
           Connect Telegram to message your agent from your phone.
-          Pair it once from your profile settings and choose which conversation should receive those messages.
+          Pair it once from profile settings and Telegram will always write into your Main chat.
         </p>
         <Button asChild variant="outline" size="sm" className="shrink-0">
           <Link href="/settings/profile">Connect Telegram</Link>

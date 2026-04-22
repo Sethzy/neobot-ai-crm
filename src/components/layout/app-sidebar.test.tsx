@@ -49,7 +49,25 @@ vi.mock("@/hooks/use-mobile", () => ({
 
 vi.mock("@/contexts/thread-context", () => ({
   useThreads: () => ({
-    threads: [{ id: "thread-1", title: "Test Chat", isPinned: false, createdAt: new Date() }],
+    threads: [
+      {
+        id: "thread-primary",
+        title: "Main",
+        isPinned: true,
+        isPrimary: true,
+        createdAt: new Date(),
+        sourceType: "chat",
+      },
+      {
+        id: "thread-1",
+        title: "Test Chat",
+        isPinned: false,
+        isPrimary: false,
+        createdAt: new Date(),
+        sourceType: "chat",
+      },
+    ],
+    isLoading: false,
     updateThreadTitle: mockUpdateThreadTitle,
     archiveThread: mockArchiveThread,
   }),
@@ -80,6 +98,7 @@ describe("AppSidebar", () => {
     expect(screen.getByText("Skills")).toBeInTheDocument();
     expect(screen.getByText("Tasks")).toBeInTheDocument();
     expect(screen.getByText("Automations")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /agent/i })).not.toBeInTheDocument();
   });
 
   it("renders customer and database section nav items without Knowledge or Workspace", () => {
@@ -126,7 +145,19 @@ describe("AppSidebar", () => {
     render(<AppSidebar />, { wrapper });
 
     expect(screen.getByText("Sessions")).toBeInTheDocument();
+    expect(screen.getByText("Main")).toBeInTheDocument();
     expect(screen.getByText("Test Chat")).toBeInTheDocument();
+  });
+
+  it("shows the primary thread before regular chats in the sidebar list", () => {
+    render(<AppSidebar />, { wrapper });
+
+    const chatLinks = screen.getAllByRole("link").filter((link) =>
+      link.getAttribute("href")?.startsWith("/chat/")
+    );
+
+    expect(chatLinks[0]).toHaveTextContent("Main");
+    expect(chatLinks[1]).toHaveTextContent("Test Chat");
   });
 
   it("hides the search button when command menu callback is not provided", () => {

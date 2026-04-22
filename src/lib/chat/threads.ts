@@ -39,7 +39,7 @@ async function ensureThreadIsMutable(
 }
 
 /**
- * Lists threads for a client sorted by most recently updated first.
+ * Lists visible threads for a client, keeping the primary thread first.
  */
 export async function listThreads(supabase: ChatSupabaseClient, clientId: string): Promise<ThreadRow[]> {
   const { data, error } = await supabase
@@ -47,7 +47,8 @@ export async function listThreads(supabase: ChatSupabaseClient, clientId: string
     .select("*")
     .eq("client_id", clientId)
     .eq("is_archived", false)
-    .eq("is_primary", false)
+    .order("is_primary", { ascending: false })
+    .order("is_pinned", { ascending: false })
     .order("updated_at", { ascending: false });
 
   if (error) {
