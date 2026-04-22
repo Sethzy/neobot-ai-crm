@@ -7,8 +7,9 @@ import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
 
 interface SkillMarkdownViewerProps {
   content: string;
+  compact?: boolean;
 }
 
-export function SkillMarkdownViewer({ content }: SkillMarkdownViewerProps) {
-  return <MarkdownRenderer content={content} />;
+export function SkillMarkdownViewer({ content, compact }: SkillMarkdownViewerProps) {
+  return <MarkdownRenderer compact={compact} content={content} />;
 }

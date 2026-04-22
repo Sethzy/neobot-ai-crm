@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/server";
 import { readSkillBundle } from "../../../../scripts/managed-agents/read-skill-bundle";
 import { SkillMarkdownViewer } from "../skill-markdown-viewer";
 import { SkillInstallButton } from "../skill-install-button";
+import { SkillIcon, getSkillCategory } from "../skill-presentation";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -49,6 +50,7 @@ export default async function SkillEditorPage({ params }: Props) {
     "",
   ).trim();
   const isInstalled = installedSkillSlugs.includes(slug);
+  const category = getSkillCategory(slug);
 
   if (!predefinedSkill || !predefinedBundle) {
     notFound();
@@ -60,17 +62,12 @@ export default async function SkillEditorPage({ params }: Props) {
           title={predefinedSkill.name}
           description={predefinedSkill.description}
           meta={
-            <>
+            <div className="flex items-center gap-2">
               <Badge variant="secondary">
                 {isInstalled ? "Installed" : "Recommended"}
               </Badge>
-              <span className="type-row-meta">
-                Skill slug: <code>{predefinedSkill.slug}</code>
-                {predefinedSkill.latestVersion
-                  ? ` · v${predefinedSkill.latestVersion.slice(0, 8)}`
-                  : ""}
-              </span>
-            </>
+              {category ? <Badge variant="outline">{category}</Badge> : null}
+            </div>
           }
           actions={
             <>
@@ -91,7 +88,10 @@ export default async function SkillEditorPage({ params }: Props) {
 
         <Card>
           <CardHeader>
-            <CardTitle className="type-section-title">Definition</CardTitle>
+            <CardTitle className="flex items-center gap-3 type-section-title">
+              <SkillIcon slug={predefinedSkill.slug} />
+              <span>Definition</span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <SkillMarkdownViewer content={skillMarkdown} />

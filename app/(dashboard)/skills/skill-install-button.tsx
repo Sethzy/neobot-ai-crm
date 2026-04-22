@@ -3,7 +3,7 @@
  * skill queries in the current app session.
  *
  * Renders as a compact inline text button matching the competitor's UI:
- * "+ Install" for recommended skills, "Unmount" for installed skills.
+ * "+ Install" for recommended skills, "Uninstall" for installed skills.
  *
  * @module app/(dashboard)/skills/skill-install-button
  */
@@ -61,7 +61,7 @@ export function SkillInstallButton({
       {isPending ? (
         "Saving..."
       ) : isInstalled ? (
-        "Unmount"
+        "Uninstall"
       ) : (
         <>
           <Plus className="size-3.5" />

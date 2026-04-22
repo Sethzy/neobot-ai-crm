@@ -13,8 +13,9 @@ import { useCallback, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 
 import { fetchSkillMarkdown } from "./actions";
-import { PredefinedCard, SKILL_CATEGORIES, type SkillCardData } from "./predefined-card";
+import { PredefinedCard, type SkillCardData } from "./predefined-card";
 import { SkillDetailDialog } from "./skill-detail-dialog";
+import { getSkillCategory } from "./skill-presentation";
 
 interface SkillsCatalogProps {
   installedCards: SkillCardData[];
@@ -169,7 +170,7 @@ export function SkillsCatalog({
       {selectedCard ? (
         <SkillDetailDialog
           key={selectedCard.skill.slug}
-          category={SKILL_CATEGORIES[selectedCard.skill.slug]}
+          category={getSkillCategory(selectedCard.skill.slug)}
           isInstalled={selectedCard.isInstalled}
           markdown={selectedMarkdown}
           onOpenChange={handleDialogOpenChange}

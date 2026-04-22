@@ -1,6 +1,6 @@
 /**
  * Compact row card for a skill in the catalog UI. Matches the competitor's
- * dense, scannable layout: icon dot + name + category badges + truncated
+ * dense, scannable layout: icon + name + category badges + truncated
  * description + inline action.
  *
  * @module app/(dashboard)/skills/predefined-card
@@ -9,34 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import type { InstalledSkillSummary } from "@/lib/runner/skills/get-installed-skills";
 
 import { SkillInstallButton } from "./skill-install-button";
-
-/** Static slug → display category. Keeps badge labelling out of the DB. */
-export const SKILL_CATEGORIES: Record<string, string> = {
-  "call-prep": "Productivity",
-  "call-summary": "Productivity",
-  "daily-briefing": "Productivity",
-  "deal-comparison": "Research",
-  "docx": "Documents",
-  "draft-outreach": "Outreach",
-  "market-briefing": "Research",
-  "market-report": "Research",
-  "onboarding": "Setup",
-  "opportunity-analysis": "Research",
-  "pdf": "Documents",
-  "pipeline-review": "Productivity",
-  "pptx": "Documents",
-  "property-showcase": "Outreach",
-  "xlsx": "Documents",
-};
-
-/** Category → dot color using semantic tokens. */
-const CATEGORY_DOT_CLASSES: Record<string, string> = {
-  Productivity: "bg-warning",
-  Research: "bg-info",
-  Documents: "bg-success",
-  Outreach: "bg-tag",
-  Setup: "bg-stage-negotiation",
-};
+import { SkillIcon, getSkillCategory } from "./skill-presentation";
 
 export interface SkillCardData {
   isInstalled: boolean;
@@ -52,18 +25,11 @@ interface PredefinedCardProps {
 }
 
 export function PredefinedCard({ isInstalled, skill, onSelect, onHover }: PredefinedCardProps) {
-  const category = SKILL_CATEGORIES[skill.slug];
-  const dotColor = category
-    ? (CATEGORY_DOT_CLASSES[category] ?? "bg-primary")
-    : "bg-primary";
+  const category = getSkillCategory(skill.slug);
 
   return (
     <div className="group flex items-start gap-3 rounded-lg border border-border bg-card px-4 py-2.5 transition-colors hover:bg-accent/40" onMouseEnter={onHover}>
-      {/* Colored dot icon — color varies by category */}
-      <span
-        aria-hidden="true"
-        className={`mt-1.5 size-2 shrink-0 rounded-full ${dotColor}`}
-      />
+      <SkillIcon className="mt-0.5" slug={skill.slug} />
 
       {/* Name + badges + description — clicking opens the detail dialog */}
       <button
@@ -71,15 +37,10 @@ export function PredefinedCard({ isInstalled, skill, onSelect, onHover }: Predef
         onClick={onSelect}
         type="button"
       >
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <span className="type-row-title truncate text-foreground group-hover:underline">
             {skill.name}
           </span>
-          {skill.latestVersion ? (
-            <span className="shrink-0 text-caption text-muted-foreground font-normal">
-              v{skill.latestVersion.slice(0, 7)}
-            </span>
-          ) : null}
           {category ? (
             <Badge
               className="shrink-0 px-1.5 py-0 text-caption leading-4 font-normal"
@@ -95,7 +56,7 @@ export function PredefinedCard({ isInstalled, skill, onSelect, onHover }: Predef
       </button>
 
       {/* Inline action — installed: hidden until hover; recommended: always visible */}
-      <div className={`shrink-0 self-center ${isInstalled ? "opacity-0 group-hover:opacity-100 transition-opacity" : ""}`}>
+      <div className={`shrink-0 self-center ${isInstalled ? "transition-opacity opacity-0 group-hover:opacity-100" : ""}`}>
         <SkillInstallButton
           isInstalled={isInstalled}
           size="sm"
